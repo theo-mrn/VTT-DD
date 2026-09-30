@@ -149,6 +149,7 @@ describe('dnd-classic : situation des attaques', () => {
     expect(apercu('desavantage')).toMatch(/^2d20kl1\b/);
     expect(apercu('normal')).toMatch(/^1d20\b/);
     expect(apercu('normal')).not.toContain('si(');
+    expect(apercu('normal')).not.toMatch(/[+−] 0\b|[+−]\s*$/);
   });
 
   it('avantage de situation : 2d20, le meilleur ; désavantage : le pire', () => {

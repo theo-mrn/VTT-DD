@@ -282,6 +282,14 @@ describe('formule de jet d’une arme', () => {
     });
     if (!f2.ok) throw new Error('formule');
     expect(apercuFormule(f, f2.formule)).toBe('2d6 + 4 − 5');
+    // Termes nuls (bonus de situation à 0…) : pas écrits
+    const f3 = compiler('1d20 + @CON + 0 + 0 - 0', {
+      attribut: () => ({ type: 'nombre', modificateur: false }),
+      variable: () => undefined,
+      des: true,
+    });
+    if (!f3.ok) throw new Error('formule');
+    expect(apercuFormule(f, f3.formule)).toBe('1d20 + 2');
   });
 });
 

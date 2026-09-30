@@ -81,6 +81,13 @@ export function apercuFormule(
       case 'binaire': {
         const g = ecrire(n.g);
         const d = calcule(n.d);
+        // Un terme nul ne s'écrit pas : « 1d20 + 4 », pas « 1d20 + 4 + 0 + 0 »
+        if (n.op === '+' || n.op === '-') {
+          const nul = (v: Valeur | undefined) => v === 0 || v === '' || v === false;
+          if (nul(d)) return g;
+          if (n.op === '+' && nul(calcule(n.g)))
+            return d !== undefined ? nombreLisible(d) : ecrire(n.d);
+        }
         // « + −2 » s'écrit « − 2 », « − −2 » s'écrit « + 2 »
         if (typeof d === 'number' && d < 0 && (n.op === '+' || n.op === '-'))
           return `${g} ${n.op === '+' ? '−' : '+'} ${nombreLisible(-d)}`;
