@@ -11,7 +11,7 @@
  * Noms et portraits viennent de la liste des personnages de la campagne.
  */
 import type { CombatState } from '@vtt/contracts';
-import { ChevronLeft, ChevronRight, Dices } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dices, Loader2 } from 'lucide-react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
@@ -159,10 +159,10 @@ export function InitiativeStrip({
                 commands.rollInitiative(),
               )
             }
-            loading={busy === 'init'}
             disabled={busy !== null}
+            aria-busy={busy === 'init' || undefined}
           >
-            <Dices />
+            {busy === 'init' ? <Loader2 className="animate-spin" /> : <Dices />}
             Lancer l’initiative
           </Button>
         ) : (
@@ -178,10 +178,10 @@ export function InitiativeStrip({
                     commands.previous({ version: combat.version }),
                   )
                 }
-                loading={busy === 'previous'}
                 disabled={busy !== null || combat.canGoBack === false}
+                aria-busy={busy === 'previous' || undefined}
               >
-                <ChevronLeft />
+                {busy === 'previous' ? <Loader2 className="animate-spin" /> : <ChevronLeft />}
               </Button>
             </Info>
             <Button
@@ -192,11 +192,15 @@ export function InitiativeStrip({
                   commands.next({ version: combat.version }),
                 )
               }
-              loading={busy === 'next'}
               disabled={busy !== null || !combat.order.length}
+              aria-busy={busy === 'next' || undefined}
             >
               Suivant
-              <ChevronRight className="transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+              {busy === 'next' ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <ChevronRight className="transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+              )}
             </Button>
           </span>
         )}
