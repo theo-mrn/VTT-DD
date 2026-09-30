@@ -1,0 +1,457 @@
+/**
+ * Rapports d'attaque côté MJ (docs/combat.md § 7, § 12.4) : filtres, brouillons de décision
+ * (appliquer, ne pas appliquer, modifier les valeurs avant d'appliquer), raccourcis (moitié,
+ * double, résistance, aucun dégât, ±1), revue groupée (« Tout appliquer ») et corps des routes
+ * `…/apply`, `…/attacks/apply`. Calculs purs, sans React ni réseau.
+ *
+ * Rien n'est recalculé ici : les valeurs proposées viennent du rapport (règles, résistances
+ * déjà comptées par le serveur) ; le MJ ne fait que les corriger. Une cible laissée telle
+ * quelle part sans `modifications` : le serveur applique celles de son rapport.
+ */
+import {
+  ATTACK_APPLY_BATCH_MAX,
+  type ApplyAttack,
+  type ApplyAttacks,
+  type Attack,
+  type AttackModification,
+  type AttackModificationInput,
+  type AttackOutcome,
+  type AttackTableChoice,
+  type AttackTarget,
+  type DieSource,
+} from '@vtt/contracts';
+
+// ─── Statuts et filtres ──────────────────────────────────────────────────────
+
+/** En cours : réactions ou dés attendus. */
+export const isOpen = (a: Pick<Attack, 'status'>) =>
+  a.status === 'awaiting_reactions' || a.status === 'awaiting_dice';
+
+/** Résolue, en attente du MJ. */
+export const isPending = (a: Pick<Attack, 'status'>) => a.status === 'pending';
+
+/** Décidée : appliquée ou écartée. */
+export const isDecided = (a: Pick<Attack, 'status'>) =>
+  a.status === 'applied' || a.status === 'dismissed';
+
+export type ReportFilter = 'pending' | 'decided' | 'all';
+export type ReportScope = 'combat' | 'outside' | 'all';
+
+/** Rapports montrés par la liste, les plus récents d'abord (ordre du serveur gardé). */
+export function filterReports(
+  attacks: readonly Attack[],
+  filter: ReportFilter,
+  scope: ReportScope,
+  combatId: string | null,
+): Attack[] {
+  return attacks.filter((a) => {
+    if (filter === 'pending' && !(isPending(a) || isOpen(a))) return false;
+    if (filter === 'decided' && !isDecided(a)) return false;
+    if (scope === 'combat' && (combatId === null || a.combatId !== combatId)) return false;
+    if (scope === 'outside' && a.combatId !== null) return false;
+    return true;
+  });
+}
+
+/** Nombre de rapports qui attendent une décision (pastille de l'onglet). */
+export function pendingCount(attacks: readonly Attack[]): number {
+  return attacks.filter(isPending).length;
+}
+
+/** Une cible résolue et pas encore décidée (ou dont l'application a été annulée). */
+export const isDecidable = (t: Pick<AttackTarget, 'status' | 'decision'>) =>
+  t.status === 'resolved' && (t.decision === 'pending' || t.decision === 'reverted');
+
+/** Cibles décidables d'un rapport. */
+export function decidableTargets(a: Attack): AttackTarget[] {
+  return isPending(a) ? a.targets.filter(isDecidable) : [];
+}
+
+/** Coûts de l'attaquant à décider (stress, munitions…). */
+export function actorDecidable(a: Attack): boolean {
+  const actor = a.actor;
+  return (
+    !!actor &&
+    actor.modifications.length > 0 &&
+    (actor.decision === 'pending' || actor.decision === 'reverted')
+  );
+}
+
+/** Quelque chose a été appliqué et peut être annulé. */
+export function canRevert(a: Attack): boolean {
+  return a.targets.some((t) => t.decision === 'applied') || a.actor?.decision === 'applied';
+}
+
+// ─── Lecture d'un rapport ────────────────────────────────────────────────────
+
+export type OutcomeTone = 'critical' | 'success' | 'failure' | 'fumble';
+
+export function outcomeTone(o: AttackOutcome): OutcomeTone {
+  if (o.success) return o.critical ? 'critical' : 'success';
+  return o.fumble ? 'fumble' : 'failure';
+}
+
+export const OUTCOME_LABELS: Record<OutcomeTone, string> = {
+  critical: 'Critique',
+  success: 'Touché',
+  failure: 'Raté',
+  fumble: 'Échec critique',
+};
+
+export type DiceOrigin = 'physical' | 'server' | 'mixed';
+
+/** Source des dés d'un rapport : tous en 3D, tous tirés par le serveur, ou un mélange. */
+export function diceOrigin(a: Attack): DiceOrigin {
+  const sources = new Set<DieSource>();
+  for (const t of a.targets) {
+    const roll = t.result?.roll ?? t.view?.roll;
+    if (!roll) continue;
+    if (roll.kind === 'numeric')
+      for (const g of roll.dice) for (const d of g.values) sources.add(d.source);
+    else for (const d of roll.dice) sources.add(d.source);
+    for (const draw of t.result?.tables ?? [])
+      for (const g of draw.dice) for (const d of g.values) sources.add(d.source);
+  }
+  if (sources.size === 0) return a.dice;
+  if (sources.size > 1) return 'mixed';
+  return sources.has('physical') ? 'physical' : 'server';
+}
+
+export const DICE_ORIGIN_LABELS: Record<DiceOrigin, string> = {
+  physical: 'Dés 3D',
+  server: 'Dés du serveur',
+  mixed: 'Dés mixtes',
+};
+
+/** Personnages hors de combat après une application de ce rapport. */
+export function defeatedBy(a: Attack): string[] {
+  return a.targets.flatMap((t) =>
+    t.applied?.defeated ? [t.applied.redirectedTo ?? t.characterId] : [],
+  );
+}
+
+// ─── Brouillon de décision ───────────────────────────────────────────────────
+
+export type AttributeInput = Extract<AttackModificationInput, { kind: 'attribute' }>;
+export type EntryInput = Extract<AttackModificationInput, { kind: 'entry' }>;
+
+/** Modification du rapport réduite à ce que la décision renvoie (sans `entity`, `raw`…). */
+export function toInput(m: AttackModification): AttackModificationInput {
+  if (m.kind === 'attribute') {
+    const out: AttributeInput = {
+      kind: 'attribute',
+      attribute: m.attribute,
+      operation: m.operation,
+      value: m.value,
+    };
+    if (m.damageType !== undefined) out.damageType = m.damageType;
+    return out;
+  }
+  const out: EntryInput = {
+    kind: 'entry',
+    entry: m.entry,
+    operation: m.operation,
+    ranks: m.ranks,
+  };
+  if (m.duration !== undefined) out.duration = m.duration;
+  if (m.instance !== undefined) out.instance = m.instance;
+  return out;
+}
+
+/** Ce que le MJ s'apprête à décider pour une cible. */
+export interface TargetDraft {
+  characterId: string;
+  apply: boolean;
+  modifications: AttackModificationInput[];
+  tables: AttackTableChoice[];
+  /** Appliquer à un autre personnage engagé, valeurs inchangées. */
+  redirectTo: string | null;
+}
+
+/** Modifications proposées pour la cible elle-même (les coûts de l'attaquant sont à part). */
+export function proposedFor(t: AttackTarget): AttackModificationInput[] {
+  return (t.result?.modifications ?? []).filter((m) => m.entity === 'target').map(toInput);
+}
+
+/** Tables proposées, appliquées telles quelles. */
+function proposedTables(t: AttackTarget): AttackTableChoice[] {
+  return (t.result?.tables ?? []).map((d) => ({ table: d.table, apply: true }));
+}
+
+/** Brouillon de départ : appliquer tel quel. */
+export function draftOf(t: AttackTarget): TargetDraft {
+  return {
+    characterId: t.characterId,
+    apply: true,
+    modifications: proposedFor(t),
+    tables: proposedTables(t),
+    redirectTo: null,
+  };
+}
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Le MJ a changé les valeurs ou les états proposés. */
+export function modificationsChanged(draft: TargetDraft, t: AttackTarget): boolean {
+  return !same(draft.modifications, proposedFor(t));
+}
+
+/** Le MJ a écarté une table ou choisi une autre entrée. */
+export function tablesChanged(draft: TargetDraft, t: AttackTarget): boolean {
+  return !same(draft.tables, proposedTables(t));
+}
+
+/** Rien de changé : la décision est « appliquer tel quel ». */
+export function isAsProposed(draft: TargetDraft, t: AttackTarget): boolean {
+  return (
+    draft.apply &&
+    draft.redirectTo === null &&
+    !modificationsChanged(draft, t) &&
+    !tablesChanged(draft, t)
+  );
+}
+
+type TargetDecision = ApplyAttack['targets'][number];
+
+/**
+ * Décision d'une cible pour `…/apply` : seules les parties changées partent (le serveur applique
+ * celles de son rapport pour le reste).
+ */
+export function targetDecision(draft: TargetDraft, t: AttackTarget): TargetDecision {
+  if (!draft.apply) return { characterId: draft.characterId, apply: false };
+  const out: TargetDecision = { characterId: draft.characterId, apply: true };
+  if (modificationsChanged(draft, t)) out.modifications = draft.modifications;
+  if (tablesChanged(draft, t)) out.tables = draft.tables;
+  if (draft.redirectTo) out.redirectTo = draft.redirectTo;
+  return out;
+}
+
+export interface ActorDraft {
+  apply: boolean;
+  modifications: AttackModificationInput[];
+}
+
+export function actorDraftOf(a: Attack): ActorDraft | null {
+  if (!actorDecidable(a)) return null;
+  return { apply: true, modifications: a.actor!.modifications.map(toInput) };
+}
+
+/** Corps de `…/attacks/:attackId/apply`. */
+export function buildApply(
+  a: Attack,
+  drafts: readonly TargetDraft[],
+  actor: ActorDraft | null,
+  note?: string,
+): ApplyAttack {
+  const byId = new Map(a.targets.map((t) => [t.characterId, t]));
+  const targets = drafts.flatMap((d) => {
+    const t = byId.get(d.characterId);
+    return t && isDecidable(t) ? [targetDecision(d, t)] : [];
+  });
+  const body: ApplyAttack = { version: a.version, targets };
+  if (actor && actorDecidable(a)) {
+    const proposed = a.actor!.modifications.map(toInput);
+    body.actor = actor.apply
+      ? same(actor.modifications, proposed)
+        ? { apply: true }
+        : { apply: true, modifications: actor.modifications }
+      : { apply: false };
+  }
+  const trimmed = note?.trim();
+  if (trimmed) body.note = trimmed;
+  return body;
+}
+
+// ─── Raccourcis sur les valeurs ──────────────────────────────────────────────
+
+/** Valeur à corriger : un attribut ajouté ou retiré (dégâts, soins, stress…). */
+export const isAmount = (m: AttackModificationInput): m is AttributeInput =>
+  m.kind === 'attribute' && m.operation !== 'set';
+
+const clamp0 = (n: number) => Math.max(0, Math.round(n));
+
+/** Applique `f` aux valeurs (toutes, ou celle d'index `only`). */
+export function mapAmounts(
+  mods: readonly AttackModificationInput[],
+  f: (value: number) => number,
+  only?: number,
+): AttackModificationInput[] {
+  return mods.map((m, i) =>
+    isAmount(m) && (only === undefined || only === i) ? { ...m, value: clamp0(f(m.value)) } : m,
+  );
+}
+
+/** « Moitié » (arrondi inférieur). */
+export const halve = (mods: readonly AttackModificationInput[], only?: number) =>
+  mapAmounts(mods, (v) => Math.floor(v / 2), only);
+
+/** « Double ». */
+export const double = (mods: readonly AttackModificationInput[], only?: number) =>
+  mapAmounts(mods, (v) => v * 2, only);
+
+/** « Résistance − n ». */
+export const reduceBy = (mods: readonly AttackModificationInput[], n: number, only?: number) =>
+  mapAmounts(mods, (v) => v - n, only);
+
+/** « Aucun dégât ». */
+export const zero = (mods: readonly AttackModificationInput[], only?: number) =>
+  mapAmounts(mods, () => 0, only);
+
+/** ±1 (ou ±n). */
+export const adjust = (mods: readonly AttackModificationInput[], delta: number, only?: number) =>
+  mapAmounts(mods, (v) => v + delta, only);
+
+/** Valeur saisie. */
+export const setAmount = (mods: readonly AttackModificationInput[], index: number, value: number) =>
+  mapAmounts(mods, () => (Number.isFinite(value) ? value : 0), index);
+
+/** Type de dégâts changé (ou retiré : dégâts non typés). */
+export function setDamageType(
+  mods: readonly AttackModificationInput[],
+  index: number,
+  damageType: string | null,
+): AttackModificationInput[] {
+  return mods.map((m, i) => {
+    if (i !== index || m.kind !== 'attribute') return m;
+    const { damageType: _old, ...rest } = m;
+    return damageType ? { ...rest, damageType } : rest;
+  });
+}
+
+/** Durée d'un état donné (null : jusqu'au retrait). */
+export function setDuration(
+  mods: readonly AttackModificationInput[],
+  index: number,
+  duration: number | null,
+): AttackModificationInput[] {
+  return mods.map((m, i) => {
+    if (i !== index || m.kind !== 'entry') return m;
+    const { duration: _old, ...rest } = m;
+    return duration && duration > 0 ? { ...rest, duration: Math.round(duration) } : rest;
+  });
+}
+
+/** État ajouté par le MJ (donné, un rang, durée facultative). */
+export function addEntry(
+  mods: readonly AttackModificationInput[],
+  entry: string,
+  duration: number | null,
+): AttackModificationInput[] {
+  const m: EntryInput = { kind: 'entry', entry, operation: 'give', ranks: 1 };
+  if (duration && duration > 0) m.duration = Math.round(duration);
+  return [...mods, m];
+}
+
+export function removeAt(
+  mods: readonly AttackModificationInput[],
+  index: number,
+): AttackModificationInput[] {
+  return mods.filter((_, i) => i !== index);
+}
+
+/** Valeur d'une ressource après la modification (aperçu avant/après). */
+export function applyToValue(current: number, m: AttributeInput): number {
+  if (m.operation === 'set') return m.value;
+  return m.operation === 'add' ? current + m.value : current - m.value;
+}
+
+// ─── Revue groupée (« Tout appliquer ») ──────────────────────────────────────
+
+export interface BulkRow {
+  /** Clé stable de la ligne : `attaque:cible`. */
+  key: string;
+  attackId: string;
+  attackerId: string;
+  characterId: string;
+  actionName: string;
+  modifications: AttackModificationInput[];
+  selected: boolean;
+}
+
+export const bulkKey = (attackId: string, characterId: string) => `${attackId}:${characterId}`;
+
+/** Une ligne par cible à décider de chaque rapport en attente, cochée, valeurs du rapport. */
+export function bulkRows(attacks: readonly Attack[]): BulkRow[] {
+  return attacks.flatMap((a) =>
+    decidableTargets(a).map((t) => ({
+      key: bulkKey(a.id, t.characterId),
+      attackId: a.id,
+      attackerId: a.attackerId,
+      characterId: t.characterId,
+      actionName: a.action.name,
+      modifications: proposedFor(t),
+      selected: true,
+    })),
+  );
+}
+
+/** Ajustement global ±n des lignes cochées (comme l'ancienne revue). */
+export function adjustSelected(rows: readonly BulkRow[], delta: number): BulkRow[] {
+  return rows.map((r) =>
+    r.selected ? { ...r, modifications: adjust(r.modifications, delta) } : r,
+  );
+}
+
+/**
+ * Corps de `…/attacks/apply`, découpés par lots (au plus `ATTACK_APPLY_BATCH_MAX` rapports par
+ * appel). Une ligne décochée reste en attente ; un rapport sans ligne cochée n'est pas envoyé.
+ * Les coûts de l'attaquant d'un rapport envoyé sont appliqués tels quels.
+ */
+export function buildApplyAll(
+  attacks: readonly Attack[],
+  rows: readonly BulkRow[],
+): ApplyAttacks[] {
+  const byAttack = new Map<string, BulkRow[]>();
+  for (const r of rows) {
+    if (!r.selected) continue;
+    const list = byAttack.get(r.attackId) ?? [];
+    list.push(r);
+    byAttack.set(r.attackId, list);
+  }
+  const items: ApplyAttacks['items'] = [];
+  for (const a of attacks) {
+    const chosen = byAttack.get(a.id);
+    if (!chosen?.length || !isPending(a)) continue;
+    const targets = new Map(a.targets.map((t) => [t.characterId, t]));
+    const decisions = chosen.flatMap((r) => {
+      const t = targets.get(r.characterId);
+      if (!t || !isDecidable(t)) return [];
+      const draft: TargetDraft = { ...draftOf(t), modifications: r.modifications };
+      return [targetDecision(draft, t)];
+    });
+    if (!decisions.length) continue;
+    items.push({
+      attackId: a.id,
+      version: a.version,
+      targets: decisions,
+      ...(actorDecidable(a) ? { actor: { apply: true } } : {}),
+    });
+  }
+  const batches: ApplyAttacks[] = [];
+  for (let i = 0; i < items.length; i += ATTACK_APPLY_BATCH_MAX)
+    batches.push({ items: items.slice(i, i + ATTACK_APPLY_BATCH_MAX) });
+  return batches;
+}
+
+// ─── Annulation ──────────────────────────────────────────────────────────────
+
+/**
+ * Conflit d'une annulation (409 `revert_conflict`) : la fiche a changé depuis ; chemins en
+ * cause, s'ils sont donnés. Null pour toute autre erreur.
+ */
+export function revertConflictOf(err: unknown): { paths: string[] } | null {
+  if (!err || typeof err !== 'object' || !('problem' in err)) return null;
+  const problem = (err as { problem: Record<string, unknown> }).problem;
+  if (problem.status !== 409 || problem.code !== 'revert_conflict') return null;
+  const raw = problem.paths ?? problem.conflicts;
+  const paths = Array.isArray(raw)
+    ? raw.flatMap((p) =>
+        typeof p === 'string'
+          ? [p]
+          : p && typeof p === 'object' && typeof (p as { path?: unknown }).path === 'string'
+            ? [(p as { path: string }).path]
+            : [],
+      )
+    : [];
+  return { paths };
+}
