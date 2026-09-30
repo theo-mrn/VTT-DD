@@ -245,11 +245,12 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       method: 'POST',
       url: '/v1/users/me/uploads',
       headers: moi.auth,
-      payload: { kind: 'banner', contentType: 'image/webp', size: 2048 },
+      payload: { usage: 'banner', contentType: 'image/webp', size: 2048 },
     });
     expect(r.statusCode).toBe(200);
-    const { uploadUrl, publicUrl, expiresIn } = r.json();
-    expect(expiresIn).toBe(300);
+    const { url: uploadUrl, publicUrl, method, headers } = r.json();
+    expect(method).toBe('PUT');
+    expect(headers).toEqual({ 'Content-Type': 'image/webp' });
     expect(publicUrl).toMatch(new RegExp(`^${CDN}/banners/${moi.id}/[0-9a-f-]{36}\\.webp$`));
     const cle = publicUrl.slice(CDN.length + 1);
     const signee = new URL(uploadUrl);
@@ -270,9 +271,9 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       method: 'POST',
       url: '/v1/users/me/uploads',
       headers: moi.auth,
-      payload: { kind: 'avatar', contentType: 'image/png', size: 5 * 1024 * 1024 + 1 },
+      payload: { usage: 'avatar', contentType: 'image/png', size: 5 * 1024 * 1024 + 1 },
     });
-    expect(trop.statusCode).toBe(400);
+    expect(trop.statusCode).toBe(413);
   });
 
   it('POST /v1/users/me/uploads répond 503 sans stockage configuré', async () => {
@@ -283,7 +284,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
         method: 'POST',
         url: '/v1/users/me/uploads',
         headers: moi.auth,
-        payload: { kind: 'avatar', contentType: 'image/png', size: 100 },
+        payload: { usage: 'avatar', contentType: 'image/png', size: 100 },
       });
       expect(r.statusCode).toBe(503);
       expect(r.json().code).toBe('storage_unavailable');
@@ -333,17 +334,19 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
         headers: {
           authorization: `Bearer ${await signer.sign({ userId, roles: ['user'], rooms: {} })}`,
         },
-        payload: { kind: 'avatar', contentType: 'image/gif', size: 777 },
+        payload: { usage: 'avatar', contentType: 'image/gif', size: 777 },
       });
       expect(r.statusCode).toBe(200);
       expect(demandes).toHaveLength(1);
       const [d] = demandes;
       expect(d).toMatchObject({ contentType: 'image/gif', taille: 777, expiresIn: 300 });
       expect(d!.cle).toMatch(new RegExp(`^avatars/${userId}/[0-9a-f-]{36}\\.gif$`));
-      expect(r.json()).toEqual({
-        uploadUrl: `https://signe.test/${d!.cle}?sig=1`,
+      expect(r.json()).toMatchObject({
+        method: 'PUT',
+        url: `https://signe.test/${d!.cle}?sig=1`,
+        headers: { 'Content-Type': 'image/gif' },
         publicUrl: `${CDN}/${d!.cle}`,
-        expiresIn: 300,
+        key: d!.cle,
       });
     } finally {
       await app.close();

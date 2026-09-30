@@ -2,7 +2,8 @@
  * Module « profil » : profil du compte connecté (lecture, modification,
  * envoi d'images), profils publics, recherche de joueurs et temps de jeu.
  */
-import { HttpError } from '@vtt/platform';
+import { FileUploadRequest, FileUploadTicket } from '@vtt/contracts';
+import { HttpError, Uploads } from '@vtt/platform';
 import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -16,13 +17,13 @@ import {
   rechercherProfils,
   UrlImageRefusee,
 } from './depot.js';
-import { cleFichier, creerSignataireS3, EXPIRATION_ENVOI, type Signataire } from './stockage.js';
+import { creerSignataireS3, EXPIRATION_ENVOI, type Signataire } from './stockage.js';
 import {
   AjoutTemps,
   basePublique,
-  DemandeEnvoi,
   PatchProfil,
   RechercheUtilisateurs,
+  type TypeImage,
 } from './validation.js';
 
 const MonProfilReponse = z.object({
@@ -128,37 +129,30 @@ export async function registerProfil(
     },
   );
 
+  // Route commune d'envoi (docs/uploads.md) : avatar et bannière, dans le dossier de
+  // l'utilisateur ; l'adresse obtenue s'enregistre ensuite par PATCH /v1/users/me
+  const uploads = new Uploads(
+    signataire
+      ? (s) =>
+          signataire({
+            cle: s.key,
+            contentType: s.contentType as TypeImage,
+            taille: s.size,
+            expiresIn: s.expiresIn,
+          })
+      : undefined,
+    deps.config.S3_PUBLIC_URL,
+    EXPIRATION_ENVOI,
+  );
   r.post(
     '/v1/users/me/uploads',
     {
       config: LIMITE_PAR_MINUTE,
       // Fonction fléchée : passer app.authenticate tel quel fige le type de `config` sans rateLimit
       preHandler: (req, reply) => app.authenticate(req, reply),
-      schema: {
-        body: DemandeEnvoi,
-        response: {
-          200: z.object({ uploadUrl: z.string(), publicUrl: z.string(), expiresIn: z.number() }),
-        },
-      },
+      schema: { body: FileUploadRequest, response: { 200: FileUploadTicket } },
     },
-    async (req) => {
-      if (!signataire || !base) throw stockageIndisponible();
-      const { kind, contentType, size } = req.body;
-      const cle = cleFichier(req.user!.userId, kind, contentType);
-      let uploadUrl: string;
-      try {
-        uploadUrl = await signataire({
-          cle,
-          contentType,
-          taille: size,
-          expiresIn: EXPIRATION_ENVOI,
-        });
-      } catch (err) {
-        req.log.error({ err }, 'signature de l’URL d’envoi impossible');
-        throw stockageIndisponible();
-      }
-      return { uploadUrl, publicUrl: `${base}/${cle}`, expiresIn: EXPIRATION_ENVOI };
-    },
+    async (req) => uploads.ticket(req.body, req.user!.userId, ['avatar', 'banner'], req.log),
   );
 
   r.post(
