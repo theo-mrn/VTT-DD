@@ -17,7 +17,7 @@ import { useProfilRequis } from '@/lib/session';
 import { useSystemTypography } from '@/lib/system-fonts';
 import { useSysteme } from '@/lib/systemes';
 import { FournisseurTable, type Table } from './contexte';
-import { HudCampaign, HudHero } from './hud';
+import { HudCampaign, HudCombat, HudHero } from './hud';
 import { usePanelLocationSync } from './panels/navigation';
 import { PanelHost } from './panels/panel-host';
 import { panelsFor, type TableRole } from './panels/registry';
@@ -134,6 +134,7 @@ function Plateau({ table, children }: { table: Table; children: ReactNode }) {
 
       <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-3 lg:left-20">
         <HudCampaign table={table} />
+        <HudCombat table={table} />
         <HudHero table={table} />
       </div>
 

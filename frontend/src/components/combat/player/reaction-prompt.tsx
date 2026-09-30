@@ -25,17 +25,7 @@ import { defaultParamValue, reactionParams } from '@/lib/combat/params';
 import { useAttackCommands, useAttacks } from '@/lib/combat/use-attacks';
 import { useCampaignEvents } from '@/lib/realtime';
 import { cn } from '@/lib/utils';
-
-/** Cibles de l'attaque qui attendent la réaction de l'un de `mine` (toutes pour le MJ). */
-export function awaitingMyReaction(
-  attack: Attack,
-  mine: ReadonlySet<string> | 'all',
-): AttackTarget[] {
-  if (attack.status !== 'awaiting_reactions') return [];
-  return attack.targets.filter(
-    (t) => t.status === 'awaiting_reaction' && (mine === 'all' || mine.has(t.characterId)),
-  );
-}
+import { awaitingMyReaction, reactionTitle } from './model';
 
 /** Formulaire de réaction d'une cible : paramètres proposés, « Réagir » ou « Ne pas réagir ». */
 export function ReactionForm({
@@ -183,8 +173,6 @@ export function ReactionPrompts({
 
   const first = pending[0];
   if (!first) return null;
-  const attacker = names.get(first.attack.attackerId);
-  const targetName = names.get(first.target.characterId) ?? 'Votre personnage';
 
   return (
     <section
@@ -196,7 +184,7 @@ export function ReactionPrompts({
         <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
         <div className="min-w-0 flex-1">
           <p id="reaction-title" className="text-sm font-semibold">
-            {attacker ? `${attacker} attaque ${targetName}` : `Un adversaire attaque ${targetName}`}
+            {reactionTitle(first.attack, first.target, names)}
           </p>
           <p className="text-[11px] text-muted-foreground">
             {first.attack.action.name} · choisissez votre défense
