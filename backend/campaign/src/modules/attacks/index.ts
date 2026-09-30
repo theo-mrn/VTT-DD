@@ -660,6 +660,14 @@ async function rollStep(
         'Les dés précédents sont en cours de résolution',
         'resolution_in_progress',
       );
+    // Paramètres de l'étape (l'arme, une fois une cible touchée) : tous ceux qu'elle demande
+    const asked = step.params ?? [];
+    const given = Object.keys(body.params ?? {});
+    if (given.some((k) => !asked.includes(k)) || asked.some((k) => !given.includes(k)))
+      throw HttpError.badRequest(
+        `Paramètres attendus pour cette étape : ${asked.join(', ') || 'aucun'}`,
+        'invalid_step_params',
+      );
     const dice = new Map(step.dice.map((d) => [d.id, d]));
     for (const r of body.results) {
       const d = dice.get(r.id);
@@ -676,6 +684,7 @@ async function rollStep(
   return resolveNext(deps, req, a, actor, marked, {
     step,
     results: body.results,
+    ...(body.params && step.params?.length ? { stepParams: body.params } : {}),
     serverFallback: body.serverFallback === true || marked.attack.autoRoll,
     change: 'dice_rolled',
     // Panne de character : l'étape reste à lancer, rien n'a bougé
@@ -699,6 +708,8 @@ async function resolveNext(
   o: {
     step?: RollStep;
     results?: { id: string; value: number }[];
+    /** Paramètres choisis avec l'étape, gardés avec l'attaque une fois la suite résolue. */
+    stepParams?: ActionParams;
     serverFallback: boolean;
     change: AttackChange;
     onFailure: (tx: Tx, current: LoadedAttack) => Promise<void>;
@@ -729,6 +740,7 @@ async function resolveNext(
         ...(f.source === 'physical' || f.source === 'server' ? { source: f.source } : {}),
       })),
       ...(o.step ? { step: o.step, results: o.results ?? [] } : {}),
+      ...(o.stepParams ? { stepParams: o.stepParams } : {}),
       ...(o.serverFallback ? { serverFallback: true } : {}),
       diceHistory: {
         campaignId: a.campaign.id,
@@ -757,7 +769,9 @@ async function resolveNext(
     const current = await loadAttack(tx, a.campaign.id, at.id, true);
     if (!current) throw attackNotFound();
     if (!same(current)) return current;
-    return recordResolution(tx, eventContext(req), current, resolved, actor, o.change);
+    // L'arme choisie à l'étape des dégâts rejoint les paramètres de l'attaque (rapport du MJ)
+    const params = o.stepParams ? { ...current.attack.params, ...o.stepParams } : null;
+    return recordResolution(tx, eventContext(req), current, resolved, actor, o.change, params);
   });
 }
 
@@ -772,8 +786,10 @@ async function recordResolution(
   r: ResolvedAction,
   actor: EventActor,
   change: AttackChange,
+  params: ActionParams | null = null,
 ): Promise<LoadedAttack> {
   const resolution = r.resolution;
+  const withParams = params ? { params } : {};
   const targets = resolution
     ? current.targets.map((t) => (t.status === 'failed' ? t : resolvedTarget(t, resolution)))
     : current.targets;
@@ -781,7 +797,13 @@ async function recordResolution(
     const saved = await saveAttack(
       tx,
       current,
-      { status: 'awaiting_dice', pendingSteps: [r.step], faces: r.faces, resolvingSince: null },
+      {
+        status: 'awaiting_dice',
+        pendingSteps: [r.step],
+        faces: r.faces,
+        resolvingSince: null,
+        ...withParams,
+      },
       targets,
     );
     await attackUpdated(tx, ctx, saved, actor, change);
@@ -793,6 +815,7 @@ async function recordResolution(
     current,
     {
       status,
+      ...withParams,
       snapshot: null,
       pendingSteps: [],
       faces: r.faces,

@@ -263,7 +263,7 @@ describe.skipIf(!TEST_DATABASE_URL)('droits des salles sur les personnages', () 
 
     t.des.imposer(20, 6, 6, 6, 6);
     const res = await o.requete(mj, 'POST', `/v1/characters/${pnj.id}/actions/attaque`, {
-      parametres: { arme: 'epee-longue' },
+      parametres: { score: 'Contact', arme: 'epee-longue' },
       cibleId: p.id,
       appliquer: true,
     });
@@ -275,7 +275,7 @@ describe.skipIf(!TEST_DATABASE_URL)('droits des salles sur les personnages', () 
 
     // Le joueur possède son attaquant mais n'a que la lecture sur le PNJ ciblé
     const riposte = await o.requete(joueur, 'POST', `/v1/characters/${p.id}/actions/attaque`, {
-      parametres: { arme: 'epee-longue' },
+      parametres: { score: 'Contact', arme: 'epee-longue' },
       cibleId: pnj.id,
       appliquer: true,
     });

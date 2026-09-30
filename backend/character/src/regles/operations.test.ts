@@ -453,7 +453,7 @@ describe('actions', () => {
       action: 'attaque',
       acteur,
       cible,
-      parametres: { arme: 'epee-longue' },
+      parametres: { score: 'Contact', arme: 'epee-longue' },
     };
     const seul = resoudreAction(dnd, {
       ...demande,
@@ -488,7 +488,7 @@ describe('actions', () => {
         action: 'attaque',
         acteur: calculer(dnd, etat),
         cible: nain(),
-        parametres: { arme: 'epee-longue' },
+        parametres: { score: 'Contact', arme: 'epee-longue' },
         appliquer: false,
         aleatoire: aleatoireImpose([14, 4]),
       }).resultat.variables.degats;
@@ -557,7 +557,7 @@ describe('actions', () => {
       action: 'attaque',
       acteur: nain(),
       cible: nain(),
-      parametres: { arme: 'epee-longue' },
+      parametres: { score: 'Contact', arme: 'epee-longue' },
       appliquer: false,
       aleatoire: aleatoireImpose([10, 1]),
     });

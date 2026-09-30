@@ -470,7 +470,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
     // Sans appliquer : résultat seul, aucun personnage modifié
     t.des.imposer(20, 6, 6, 6, 6);
     const seul = await requete(alice, 'POST', `/v1/characters/${thorin.id}/actions/attaque`, {
-      parametres: { arme: 'epee-longue' },
+      parametres: { score: 'Contact', arme: 'epee-longue' },
       cibleId: gimli.id,
     });
     expect(seul.statusCode).toBe(200);
@@ -484,7 +484,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
     // Avec appliquer : critique (20 naturel), PV de la cible retirés
     t.des.imposer(20, 6, 6, 6, 6);
     const res = await requete(alice, 'POST', `/v1/characters/${thorin.id}/actions/attaque`, {
-      parametres: { arme: 'epee-longue' },
+      parametres: { score: 'Contact', arme: 'epee-longue' },
       cibleId: gimli.id,
       appliquer: true,
     });
@@ -523,7 +523,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
     const thorin = await nainGuerrier(alice, 'Thorin');
     const autre = await nainGuerrier(bob, 'Autre');
     const res = await requete(alice, 'POST', `/v1/characters/${thorin.id}/actions/attaque`, {
-      parametres: { arme: 'epee-longue' },
+      parametres: { score: 'Contact', arme: 'epee-longue' },
       cibleId: autre.id,
       appliquer: true,
     });

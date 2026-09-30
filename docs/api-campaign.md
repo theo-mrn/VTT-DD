@@ -223,6 +223,8 @@ Attaques et rapports, en combat ou hors combat (`combatId` null). Conception : [
 | POST    | `/v1/campaigns/:id/attacks/:attackId/dismiss`   | `DismissAttack`    | `Attack` (MJ) : ce qui reste à décider n'est pas appliqué                                                                                                                           |
 | POST    | `/v1/campaigns/:id/attacks/:attackId/revert`    | `RevertAttack`     | `Attack` (MJ) : valeurs d'avant rendues ; 409 `revert_conflict` (`conflicts: [{ characterId, paths }]`) sauf `force` ; 409 `not_applied`, `nothing_to_revert`                       |
 
+**Étapes de dés** (`POST …/attacks/:attackId/dice`, `SubmitRollDice { stepId, results, serverFallback?, params? }`) : l'attaque avance par `pendingSteps` (le jet, puis les dégâts des cibles touchées, puis la table). Une étape peut demander des paramètres de l'action choisis après le jet (`RollStep.params`, `etape: apres` des règles : l'arme D&D, une fois une cible touchée ; `dice` vide) : `params` les porte tous, et seulement eux (sinon 400 `invalid_step_params`) ; la réponse est l'étape des dés qu'ils impliquent (ou le rapport). Une fois la suite résolue, ils rejoignent `Attack.params` (rapport du MJ). Aucune étape de paramètres sur un raté. Étape passée : 409 `step_outdated` ; face invalide : 400 `invalid_physical_result`.
+
 **Déclarer** (`DeclareAttack`) :
 
 - attaquant : pour un joueur, un personnage qu'il **incarne** (403) ; pour le MJ, tout personnage engagé (422 `character_not_engaged`) ; spectateur : 403 ;

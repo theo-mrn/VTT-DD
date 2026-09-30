@@ -1027,6 +1027,45 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
         expect(t.rolls.filter((r) => r.campaignId === c.id)).toHaveLength(1);
       });
 
+      it('D&D : le type d’attaque au jet, l’arme choisie à l’étape des dégâts', async () => {
+        const s = await sheet(erin, hero);
+        await okSheet(erin, 'POST', `/v1/characters/${hero}/possessions`, {
+          version: s.version,
+          entree: 'epee-longue',
+        });
+        t.impose(CRIT, 4, 3);
+        const declared = await ok<Attack>(erin, 'POST', attacks(), {
+          attackerId: hero,
+          action: 'attaque',
+          params: { score: 'Contact' },
+          targets: [hobA],
+        });
+        expect(declared.pendingSteps[0]).toMatchObject({ phase: 'roll' });
+
+        // Touché : l'étape suivante demande l'arme, sans dé
+        const hit = await ok<Attack>(erin, 'POST', `${attacks()}/${declared.id}/dice`, {
+          stepId: declared.pendingSteps[0]!.id,
+          results: [],
+        });
+        expect(hit.targets[0]!.view?.outcome.success).toBe(true);
+        expect(hit.pendingSteps[0]).toMatchObject({ phase: 'after', params: ['arme'], dice: [] });
+        const missing = await dice(erin, hit, { stepId: hit.pendingSteps[0]!.id, results: [] });
+        expect(missing.statusCode).toBe(400);
+        expect(missing.json()).toMatchObject({ code: 'invalid_step_params' });
+
+        // L'arme choisie : ses dés (doublés au critique), gardée avec l'attaque
+        const armed = await ok<Attack>(erin, 'POST', `${attacks()}/${declared.id}/dice`, {
+          stepId: hit.pendingSteps[0]!.id,
+          results: [],
+          params: { arme: 'epee-longue' },
+        });
+        expect(armed.params).toMatchObject({ score: 'Contact', arme: 'epee-longue' });
+        expect(armed.pendingSteps[0]!.dice.map((d) => d.faces)).toEqual([8, 8]);
+        const done = await rollSteps(erin, c.id, armed);
+        expect(done).toMatchObject({ status: 'pending', pendingSteps: [] });
+        expect(Number(done.targets[0]!.view?.values[0]?.value)).toBeGreaterThanOrEqual(7);
+      });
+
       it('D&D : raté, pas d’étape de dégâts', async () => {
         t.impose(1);
         const declared = await declare([hobA]);

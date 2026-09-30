@@ -190,6 +190,8 @@ export interface ResolveInput {
   step?: RollStep;
   /** Faces lues sur les dés 3D pour cette étape. */
   results?: { id: string; value: number }[];
+  /** Paramètres que l'étape demande (`step.params` : l'arme, une fois une cible touchée). */
+  stepParams?: ActionParams;
   /** Tout le reste est tiré par character, jusqu'aux résultats. */
   serverFallback?: boolean;
   diceHistory?: DiceHistory;

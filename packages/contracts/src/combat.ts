@@ -551,7 +551,14 @@ export const RollStep = z.object({
   roller: RollStepRoller.optional(),
   /** Pour `roller: target` : la cible dont le joueur lance. */
   targetId: Id.nullable().optional(),
-  dice: z.array(RollDieRequest).min(1).max(ROLL_STEP_DICE_MAX),
+  /** Vide pour une étape qui ne demande que des paramètres (`params`). */
+  dice: z.array(RollDieRequest).max(ROLL_STEP_DICE_MAX),
+  /**
+   * Paramètres de l'action à choisir avec cette étape (`etape: apres` : l'arme, une fois une
+   * cible touchée), envoyés dans `SubmitRollDice.params` ; les dés qu'ils impliquent viennent
+   * à l'étape suivante. Absent : aucun.
+   */
+  params: z.array(z.string().min(1).max(100)).max(50).optional(),
 });
 export type RollStep = z.infer<typeof RollStep>;
 
@@ -614,6 +621,8 @@ export const SubmitRollDice = z.strictObject({
     .max(ROLL_STEP_DICE_MAX)
     .refine((rs) => uniqueIds(rs.map((r) => r.id)), { message: 'Dé en double' }),
   serverFallback: z.boolean().optional(),
+  /** Valeurs des paramètres que l'étape demande (`RollStep.params`), tous et seulement eux. */
+  params: ActionParams.optional(),
 });
 export type SubmitRollDice = z.input<typeof SubmitRollDice>;
 

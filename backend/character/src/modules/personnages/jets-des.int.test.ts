@@ -34,7 +34,7 @@ describe.skipIf(!TEST_DATABASE_URL)('jets transmis à dice', () => {
     const campagne = crypto.randomUUID();
     t.des.imposer(20, 6, 6, 6, 6);
     const res = await o.requete(alice, 'POST', `/v1/characters/${thorin.id}/actions/attaque`, {
-      parametres: { arme: 'epee-longue' },
+      parametres: { score: 'Contact', arme: 'epee-longue' },
       cibleId: gimli.id,
       campaignId: campagne,
       visibility: 'gm',

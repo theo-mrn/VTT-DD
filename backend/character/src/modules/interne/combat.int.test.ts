@@ -163,7 +163,7 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     const gobelin = await o.nainGuerrier(mj, 'Gobelin');
     t.des.imposer(18, 6);
     const diceHistory = { campaignId: campagne, authorId: alice.id, visibility: 'public' };
-    const params = { arme: 'epee-longue' };
+    const params = { score: 'Contact', arme: 'epee-longue' };
     const p = await preparer({
       actorId: thorin.id,
       action: 'attaque',
@@ -230,7 +230,7 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
   it('raté : une seule étape ; faces lues sur les dés 3D, faces invalides refusées', async () => {
     const thorin = await o.nainGuerrier(alice, 'Thorin');
     const gobelin = await o.nainGuerrier(mj, 'Gobelin');
-    const params = { arme: 'epee-longue' };
+    const params = { score: 'Contact', arme: 'epee-longue' };
     const p = await preparer({
       actorId: thorin.id,
       action: 'attaque',
@@ -319,14 +319,14 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     const p = await preparer({
       actorId: thorin.id,
       action: 'attaque',
-      params: { arme: 'epee-longue' },
+      params: { score: 'Contact', arme: 'epee-longue' },
       targetIds: [gobelin.id],
     });
     const toutTirer = async () => {
       t.des.imposer(12, 3);
       return resoudre({
         snapshot: p.snapshot,
-        params: { arme: 'epee-longue' },
+        params: { score: 'Contact', arme: 'epee-longue' },
         rollMode: 'per_target',
         serverFallback: true,
       });
@@ -340,7 +340,7 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     t.des.imposer();
     const rejoue = await resoudre({
       snapshot: p.snapshot,
-      params: { arme: 'epee-longue' },
+      params: { score: 'Contact', arme: 'epee-longue' },
       rollMode: 'per_target',
       faces: a.faces,
     });
@@ -392,7 +392,7 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     const sansArme = await post('/internal/actions/prepare', {
       ...base,
       action: 'attaque',
-      params: { arme: 'arc-long' },
+      params: { score: 'Distance', arme: 'arc-long' },
       targetIds: [gobelin.id],
     });
     expect(sansArme.statusCode).toBe(422);

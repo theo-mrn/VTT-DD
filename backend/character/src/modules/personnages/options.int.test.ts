@@ -99,7 +99,7 @@ describe.skipIf(!TEST_DATABASE_URL)('règles optionnelles de la campagne', () =>
     const attaque = async () => {
       t.des.imposer(10, 1);
       const res = await o.requete(alice, 'POST', `/v1/characters/${thorin.id}/actions/attaque`, {
-        parametres: { arme: 'epee-longue' },
+        parametres: { score: 'Contact', arme: 'epee-longue' },
         cibleId: gimli.id,
       });
       expect(res.statusCode).toBe(200);

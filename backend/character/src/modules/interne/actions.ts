@@ -118,7 +118,15 @@ const CorpsResoudre = z.object({
     .array(z.object({ id: z.string().min(1).max(100), value: z.number().int().min(1).max(1000) }))
     .max(ROLL_STEP_DICE_MAX)
     .optional(),
-  /** Tout le reste est tiré ici : la réponse porte les résultats, jamais une étape. */
+  /**
+   * Paramètres choisis avec l'étape soumise (`step.params` : l'arme, une fois une cible
+   * touchée), ajoutés à ceux de la déclaration ; tous ceux que l'étape demande, et seulement eux.
+   */
+  stepParams: Parametres.optional(),
+  /**
+   * Tout le reste est tiré ici : la réponse porte les résultats, ou l'étape qui ne demande que
+   * des paramètres (l'arme, choisie après le jet).
+   */
   serverFallback: z.boolean().optional(),
   forcer: z
     .array(
@@ -255,6 +263,7 @@ interface Resolue {
 interface DesAppel {
   faces?: Face[] | undefined;
   step?: RollStep | undefined;
+  stepParams?: Record<string, string | number | boolean> | undefined;
   results?: { id: string; value: number }[] | undefined;
   serverFallback?: boolean | undefined;
 }
@@ -296,6 +305,18 @@ function resoudre(
   des: DesAppel = {},
 ): Resolue {
   const { systeme, acteur, cibles } = fichesDe(deps, inst);
+  // Paramètres de l'étape (l'arme) : exactement ceux qu'elle demande, jamais ceux du jet
+  let params = o.params;
+  if (des.stepParams) {
+    const attendus = des.step?.params ?? [];
+    const recus = Object.keys(des.stepParams);
+    if (recus.some((k) => !attendus.includes(k)) || attendus.some((k) => !recus.includes(k)))
+      throw HttpError.badRequest(
+        `Paramètres attendus pour cette étape : ${attendus.join(', ') || 'aucun'}`,
+        'invalid_step_params',
+      );
+    params = { ...(o.params ?? {}), ...des.stepParams };
+  }
   const reaction = new Map(
     (o.reactions ?? []).map((r) => [r.characterId, r.skipped ? {} : (r.params ?? {})]),
   );
@@ -356,7 +377,7 @@ function resoudre(
             : {}),
         };
       }),
-      ...(o.params ? { parametres: o.params } : {}),
+      ...(params ? { parametres: params } : {}),
       jet: MODE_JET[o.rollMode],
       ...(aj ? { ajustements: aj } : {}),
       aleatoire: plan,
@@ -373,7 +394,12 @@ function resoudre(
   for (const [id, value] of Object.entries(plan.tires))
     faces.set(id, { id, value, source: 'server' });
 
-  const step = r.requis.length ? etape(systeme, inst.action, r.requis, faces.size) : null;
+  // Des paramètres à choisir (l'arme, une cible touchée) passent avant les dés qu'ils impliquent
+  const step = r.parametres.length
+    ? etapeParametres(systeme, inst.action, r.parametres, faces.size)
+    : r.requis.length
+      ? etape(systeme, inst.action, r.requis, faces.size)
+      : null;
   const parCible = new Map(r.cibles.map((c) => [c.id, c]));
   const enAttente = new Map(r.enAttente.map((c) => [c.id, c]));
   const refusees = new Map(inst.refused.map((x) => [x.id, x.error]));
@@ -438,6 +464,27 @@ function etape(
       faces: d.faces,
       ...(d.de ? { die: d.de } : {}),
     })),
+  };
+}
+
+/**
+ * Étape qui ne demande que des paramètres (`etape: apres` : l'arme, une fois une cible touchée) ;
+ * les dés qu'ils impliquent viennent à l'étape suivante. Identifiant distinct de l'étape de dés
+ * qui la suit (même nombre de faces connues).
+ */
+function etapeParametres(
+  systeme: SystemeCharge,
+  actionId: string,
+  params: string[],
+  connues: number,
+): RollStep {
+  const label = libelleEtape(systeme, actionId, 'apres');
+  return {
+    id: `after-params-${connues}`,
+    phase: 'after',
+    ...(label ? { label } : {}),
+    dice: [],
+    params,
   };
 }
 

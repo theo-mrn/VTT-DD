@@ -233,14 +233,14 @@ Appelées par campaign seulement (secret `INTERNAL_API_SECRET`), qui a déjà v�
 tour et les cibles vues ([combat.md](combat.md) § 5 à 7, forme exacte au § 11.2). character résout
 avec `@vtt/rules` ; campaign garde les attaques, les rapports et les décisions du MJ.
 
-| Méthode | Route                                       | Corps                                                                                                                       | Réponse                                                                                                     |
-| ------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| POST    | `/internal/actions/prepare`                 | `{ actorId, action, params?, targetIds, rollMode?, adjustments?, dice?, userId, campaignId, diceHistory?, combat? }`        | `{ snapshot, action, rollMode, dice, targets: [{ characterId, error, reactionParams }], step, resolution }` |
-| POST    | `/internal/actions/resolve`                 | `{ snapshot, params?, rollMode, adjustments?, dice?, reactions?, stepId?, faces?, serverFallback?, forcer?, diceHistory? }` | `{ step, resolution }`                                                                                      |
-| POST    | `/internal/modifications/apply`             | `{ applications: [{ applicationId, userId?, campaignId, items: [{ characterId, modifications, tables? }] }] }`              | `{ applications: [{ applicationId, replayed, items: [{ characterId, version, changes, defeated }] }] }`     |
-| POST    | `/internal/modifications/revert`            | `{ applicationId, characterIds?, force?, userId? }`                                                                         | `{ applicationId, items: [{ characterId, status, version, changes, defeated? }] }`                          |
-| POST    | `/internal/characters/:id/durees/decompter` | `{ userId?, roomId?, tickId?, clear? }`                                                                                     | `{ modifie, retirees, version, replayed?, personnage? }`                                                    |
-| POST    | `/internal/characters/:id/actions/:action`  | `{ parametres?, cibleId?, appliquer?, userId?, roomId?, visibility? }`                                                      | `{ resultat, cles?, personnage?, cible? }`                                                                  |
+| Méthode | Route                                       | Corps                                                                                                                                            | Réponse                                                                                                     |
+| ------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| POST    | `/internal/actions/prepare`                 | `{ actorId, action, params?, targetIds, rollMode?, adjustments?, dice?, userId, campaignId, diceHistory?, combat? }`                             | `{ snapshot, action, rollMode, dice, targets: [{ characterId, error, reactionParams }], step, resolution }` |
+| POST    | `/internal/actions/resolve`                 | `{ snapshot, params?, rollMode, adjustments?, dice?, reactions?, faces?, step?, results?, stepParams?, serverFallback?, forcer?, diceHistory? }` | `{ step, resolution }`                                                                                      |
+| POST    | `/internal/modifications/apply`             | `{ applications: [{ applicationId, userId?, campaignId, items: [{ characterId, modifications, tables? }] }] }`                                   | `{ applications: [{ applicationId, replayed, items: [{ characterId, version, changes, defeated }] }] }`     |
+| POST    | `/internal/modifications/revert`            | `{ applicationId, characterIds?, force?, userId? }`                                                                                              | `{ applicationId, items: [{ characterId, status, version, changes, defeated? }] }`                          |
+| POST    | `/internal/characters/:id/durees/decompter` | `{ userId?, roomId?, tickId?, clear? }`                                                                                                          | `{ modifie, retirees, version, replayed?, personnage? }`                                                    |
+| POST    | `/internal/characters/:id/actions/:action`  | `{ parametres?, cibleId?, appliquer?, userId?, roomId?, visibility? }`                                                                           | `{ resultat, cles?, personnage?, cible? }`                                                                  |
 
 - **Préparer** : les fiches de l'attaquant et des cibles sont figées dans `snapshot` (état et
   règles optionnelles de chaque campagne), objet opaque que campaign garde et rend tel quel à
@@ -257,6 +257,12 @@ surprised }`. Il est gardé dans `snapshot` et donné au moteur pour chaque cibl
   (`@combat.round`, `@combat.acteur.attaques`, `@combat.cible.aAgi`… : docs/regles.md, « Contexte
   du combat ») : à la préparation (vérifications, « au premier tour seulement ») comme à la
   résolution. Absent (hors combat), ou participant absent : valeurs neutres. Mal formé : **400**.
+- **Paramètres d'après le jet** (`etape: apres` : l'arme D&D) : après un jet réussi, s'ils
+  manquent, `resolve` rend une étape `{ phase: 'after', params: [...], dice: [] }` (identifiant
+  `after-params-n`), même avec `serverFallback`. L'appel suivant les porte dans `stepParams`,
+  validés contre `step.params` (tous et seulement eux, sinon **400** `invalid_step_params`) et
+  ajoutés aux paramètres de la déclaration ; le moteur vérifie la valeur (arme possédée…,
+  **422** `action_refusee`). Les dés qu'ils impliquent font l'étape suivante.
 - **Résoudre** : une exécution de l'action par cible (`executerMulticible`), avec les paramètres
   de l'attaquant et la réaction de la cible (`skipped` : valeurs par défaut) ; `rollMode:
 shared` partage les dés par phase et par position. Par cible : `result` (contrat
