@@ -3,20 +3,22 @@
 /**
  * Barre de combat du MJ en haut de la table (docs/combat.md § 12.6), **pour le MJ seulement**
  * (décidé par Théo le 2026-09-30 : les joueurs ne l'ont plus) : round, suite J/E en créneaux,
- * portraits dans l'ordre, tour courant marqué, et de quoi mener les tours sans ouvrir le
- * panneau Combat : « Lancer l'initiative » tant qu'elle n'est pas tirée, Précédent, Suivant ;
- * la pastille des rapports en direct (`reports`) et le panneau Combat d'un clic.
+ * portraits dans l'ordre, tour courant marqué, « Lancer l'initiative » tant qu'elle n'est pas
+ * tirée, Précédent, Suivant ; la pastille des rapports en direct (`reports`) et le menu ⋯
+ * (`menu`). Un portrait ouvre sa fiche de combat (`onFace`) ; « +n » et le nom de qui agit
+ * déplient l'ordre complet sous la barre (`order`).
  *
  * Le langage est celui du lanceur de dés et du bandeau de la fiche (`live-reports/look.ts`).
  * Noms et portraits viennent de la liste des personnages de la campagne.
  */
-import type { CombatState } from '@vtt/contracts';
-import { ChevronLeft, ChevronRight, Dices, Loader2 } from 'lucide-react';
+import type { CombatState, CombatTurnResponse } from '@vtt/contracts';
+import { ChevronLeft, ChevronRight, Dices, ListOrdered, Loader2 } from 'lucide-react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Info } from '@/components/ui/tooltip';
 import { combatFailure, useCombatCommands } from '@/lib/combat/use-combat';
 import { cn } from '@/lib/utils';
@@ -43,36 +45,70 @@ export function upcomingRows<T extends { current: boolean; defeated: boolean }>(
   return { current, next: rest.slice(0, max), more: Math.max(0, rest.length - max) };
 }
 
+/** Durées décomptées ou rendues par un passage de tour, annoncées au MJ. */
+function announceDurations(r: CombatTurnResponse, nameOf: (id: string) => string) {
+  const expired = (r.durationUpdates ?? []).filter((u) => u.expired.length);
+  if (expired.length)
+    toast.info(
+      `Durées : ${expired.map((u) => `${nameOf(u.characterId)} (${u.expired.length})`).join(', ')}`,
+    );
+  if (r.durationFailures?.length)
+    toast.warning('Certaines fiches n’ont pas répondu pendant le décompte des durées', {
+      description: r.durationFailures.map(nameOf).join(', '),
+    });
+}
+
+/** Ordre complet déplié sous la barre (« +n », nom de qui agit). */
+export interface StripOrder {
+  open: boolean;
+  onOpenChange(open: boolean): void;
+  content: ReactNode;
+}
+
 export function InitiativeStrip({
   campaignId,
   combat,
   reports,
+  menu,
+  onFace,
+  order,
 }: {
   campaignId: string;
   combat: CombatState;
   /** Pastille des rapports en direct (repli de la pile). */
   reports?: ReactNode;
+  /** Menu ⋯ au bout de la barre. */
+  menu?: ReactNode;
+  /** Clic sur un portrait : la fiche de combat de ce participant. */
+  onFace?(characterId: string): void;
+  order?: StripOrder;
 }) {
   const commands = useCombatCommands(campaignId);
   const cast = useCast(campaignId);
   const nameOf = (id: string) => cast.byId.get(id)?.name ?? 'Adversaire';
   const [busy, setBusy] = useState<string | null>(null);
+  const barRef = useRef<HTMLElement | null>(null);
 
   const rows = turnRows(combat);
   const actor = currentActorOf(combat);
   const slots = slotBar(combat);
   const currentSlot = combat.mode === 'slots' ? combat.slots?.[combat.currentIndex] : undefined;
 
-  const run = async (key: string, label: string, work: () => Promise<unknown>) => {
+  const run = async <T,>(key: string, label: string, work: () => Promise<T>) => {
     setBusy(key);
     try {
-      await work();
+      return await work();
     } catch (err) {
       const message = combatFailure(err);
       if (message) toast.error(label, { description: message });
+      return null;
     } finally {
       setBusy(null);
     }
+  };
+  const turn = async (key: 'next' | 'previous', label: string) => {
+    const r = await run(key, label, () => commands[key]({ version: combat.version }));
+    if (r) announceDurations(r, nameOf);
   };
 
   // Qui agit : le personnage du tour, le créneau d'un camp, rien avant l'initiative
@@ -82,132 +118,184 @@ export function InitiativeStrip({
       ? `Créneau des ${SIDE_LABELS[currentSlot.side].name.toLowerCase()}`
       : null;
 
-  return (
-    <MotionConfig reducedMotion="user">
-      <section
-        aria-label={`Combat, round ${combat.round}`}
-        // Arrondis concentriques : barre 20 px, marge 6 px, commandes 40 px arrondies à 14 px ;
-        // la même marge tout autour, jusqu'au dernier bouton
-        className={cn(
-          GLASS,
-          'pointer-events-auto flex max-w-full items-center gap-1 rounded-[20px] p-1.5',
-        )}
-      >
-        <Round round={combat.round} />
-        <Rule />
+  const toggleOrder = order ? () => order.onOpenChange(!order.open) : undefined;
 
-        {slots.length > 0 && (
-          <>
-            <ol className="hidden shrink-0 items-center gap-0.5 px-1 sm:flex" aria-label="Créneaux">
-              {slots.map((s) => (
-                <li
-                  key={s.index}
-                  aria-current={s.current ? 'step' : undefined}
-                  title={SIDE_LABELS[s.side].name}
-                  className={cn(
-                    'grid size-6 place-items-center rounded-md font-mono text-[11px] font-bold transition-colors duration-200',
-                    s.current
-                      ? 'bg-primary text-primary-foreground shadow-glow'
-                      : s.past
-                        ? 'text-subtle'
-                        : 'bg-surface-3 text-muted-foreground',
-                  )}
-                >
-                  {SIDE_LABELS[s.side].short}
-                </li>
-              ))}
-            </ol>
-            <Rule />
-          </>
-        )}
+  const bar = (
+    <section
+      ref={barRef}
+      aria-label={`Combat, round ${combat.round}`}
+      // Arrondis concentriques : barre 20 px, marge 6 px, commandes 40 px arrondies à 14 px ;
+      // la même marge tout autour, jusqu'au dernier bouton
+      className={cn(
+        GLASS,
+        'pointer-events-auto flex max-w-full items-center gap-1 rounded-[20px] p-1.5',
+      )}
+    >
+      <Round round={combat.round} />
+      <Rule />
 
-        <Portraits
-          rows={rows}
-          nameOf={nameOf}
-          portraitOf={(id) => cast.byId.get(id)?.portraitUrl}
-        />
-
-        {/* Largeur fixe : un nom plus long ou plus court ne fait jamais bouger la barre */}
-        <span
-          className="relative hidden h-5 w-36 shrink-0 overflow-hidden px-1.5 md:block"
-          aria-live="polite"
-        >
-          <AnimatePresence initial={false}>
-            {headline && (
-              <motion.span
-                key={headline}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10, transition: EXIT }}
-                transition={SPRING}
-                className="absolute inset-x-1.5 top-0 block truncate font-display text-sm font-semibold"
+      {slots.length > 0 && (
+        <>
+          <ol className="hidden shrink-0 items-center gap-0.5 px-1 sm:flex" aria-label="Créneaux">
+            {slots.map((s) => (
+              <li
+                key={s.index}
+                aria-current={s.current ? 'step' : undefined}
+                title={SIDE_LABELS[s.side].name}
+                className={cn(
+                  'grid size-6 place-items-center rounded-md font-mono text-[11px] font-bold transition-colors duration-200',
+                  s.current
+                    ? 'bg-primary text-primary-foreground shadow-glow'
+                    : s.past
+                      ? 'text-subtle'
+                      : 'bg-surface-3 text-muted-foreground',
+                )}
               >
-                {headline}
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </span>
+                {SIDE_LABELS[s.side].short}
+              </li>
+            ))}
+          </ol>
+          <Rule />
+        </>
+      )}
 
-        <Rule />
+      <Portraits
+        rows={rows}
+        nameOf={nameOf}
+        portraitOf={(id) => cast.byId.get(id)?.portraitUrl}
+        onFace={onFace}
+        onMore={toggleOrder}
+        moreOpen={order?.open ?? false}
+      />
 
-        {!combat.initiativeRolled ? (
+      {/* Largeur fixe : un nom plus long ou plus court ne fait jamais bouger la barre */}
+      <Headline onClick={toggleOrder} open={order?.open ?? false}>
+        <AnimatePresence initial={false}>
+          {headline && (
+            <motion.span
+              key={headline}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10, transition: EXIT }}
+              transition={SPRING}
+              className="absolute inset-x-1.5 top-0 block truncate font-display text-sm font-semibold"
+            >
+              {headline}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </Headline>
+
+      <Rule />
+
+      {!combat.initiativeRolled ? (
+        <Button
+          size="sm"
+          className={cn(CTA, 'h-10 rounded-[14px] px-4')}
+          onClick={() =>
+            void run('init', 'L’initiative n’a pas pu être lancée', () => commands.rollInitiative())
+          }
+          disabled={busy !== null}
+          aria-busy={busy === 'init' || undefined}
+        >
+          {busy === 'init' ? <Loader2 className="animate-spin" /> : <Dices />}
+          Lancer l’initiative
+        </Button>
+      ) : (
+        <span className="flex shrink-0 items-center gap-1">
+          <Info texte="Tour précédent" cote="bottom">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={cn('size-10 rounded-[14px]', TOUCH)}
+              aria-label="Tour précédent"
+              onClick={() => void turn('previous', 'Le retour arrière n’a pas pu se faire')}
+              disabled={busy !== null || combat.canGoBack === false}
+              aria-busy={busy === 'previous' || undefined}
+            >
+              {busy === 'previous' ? <Loader2 className="animate-spin" /> : <ChevronLeft />}
+            </Button>
+          </Info>
           <Button
             size="sm"
-            className={cn(CTA, 'h-10 rounded-[14px] px-4')}
-            onClick={() =>
-              void run('init', 'L’initiative n’a pas pu être lancée', () =>
-                commands.rollInitiative(),
-              )
-            }
-            disabled={busy !== null}
-            aria-busy={busy === 'init' || undefined}
+            className={cn(CTA, 'group h-10 rounded-[14px] pl-4 pr-3')}
+            onClick={() => void turn('next', 'Le tour n’a pas pu passer')}
+            disabled={busy !== null || !combat.order.length}
+            aria-busy={busy === 'next' || undefined}
           >
-            {busy === 'init' ? <Loader2 className="animate-spin" /> : <Dices />}
-            Lancer l’initiative
+            Suivant
+            {busy === 'next' ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <ChevronRight className="transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+            )}
           </Button>
-        ) : (
-          <span className="flex shrink-0 items-center gap-1">
-            <Info texte="Tour précédent" cote="bottom">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className={cn('size-10 rounded-[14px]', TOUCH)}
-                aria-label="Tour précédent"
-                onClick={() =>
-                  void run('previous', 'Le retour arrière n’a pas pu se faire', () =>
-                    commands.previous({ version: combat.version }),
-                  )
-                }
-                disabled={busy !== null || combat.canGoBack === false}
-                aria-busy={busy === 'previous' || undefined}
-              >
-                {busy === 'previous' ? <Loader2 className="animate-spin" /> : <ChevronLeft />}
-              </Button>
-            </Info>
-            <Button
-              size="sm"
-              className={cn(CTA, 'group h-10 rounded-[14px] pl-4 pr-3')}
-              onClick={() =>
-                void run('next', 'Le tour n’a pas pu passer', () =>
-                  commands.next({ version: combat.version }),
-                )
-              }
-              disabled={busy !== null || !combat.order.length}
-              aria-busy={busy === 'next' || undefined}
-            >
-              Suivant
-              {busy === 'next' ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <ChevronRight className="transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
-              )}
-            </Button>
-          </span>
-        )}
+        </span>
+      )}
 
-        {reports}
-      </section>
+      {reports}
+      {menu}
+    </section>
+  );
+
+  return (
+    <MotionConfig reducedMotion="user">
+      {order ? (
+        <Popover open={order.open} onOpenChange={order.onOpenChange}>
+          <PopoverAnchor asChild>{bar}</PopoverAnchor>
+          <PopoverContent
+            align="center"
+            sideOffset={8}
+            // Un clic dans la barre (Suivant, « +n ») ne referme pas l'ordre : il suit le tour
+            onInteractOutside={(e) => {
+              if (e.target instanceof Node && barRef.current?.contains(e.target))
+                e.preventDefault();
+            }}
+            className={cn(GLASS, 'w-[min(28rem,calc(100vw-2rem))] rounded-[20px] p-1.5')}
+          >
+            {order.content}
+          </PopoverContent>
+        </Popover>
+      ) : (
+        bar
+      )}
     </MotionConfig>
+  );
+}
+
+/** Nom de qui agit ; un clic déplie l'ordre complet. */
+function Headline({
+  onClick,
+  open,
+  children,
+}: {
+  onClick?: () => void;
+  open: boolean;
+  children: ReactNode;
+}) {
+  const box = 'relative hidden h-10 w-36 shrink-0 overflow-hidden px-1.5 md:block';
+  if (!onClick)
+    return (
+      <span className={box} aria-live="polite">
+        <span className="absolute inset-x-0 top-2.5 h-5 overflow-hidden">{children}</span>
+      </span>
+    );
+  return (
+    <Info texte="Ordre du tour" cote="bottom">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-expanded={open}
+        aria-live="polite"
+        className={cn(
+          box,
+          'rounded-[14px] text-left transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+          open && 'bg-surface-3',
+        )}
+      >
+        <span className="absolute inset-x-0 top-2.5 h-5 overflow-hidden">{children}</span>
+      </button>
+    </Info>
   );
 }
 
@@ -242,16 +330,23 @@ function Round({ round }: { round: number }) {
 /**
  * Portraits dans l'ordre du tour. Le tour courant est agrandi et souligné ; le trait glisse
  * d'un portrait à l'autre au passage du tour. A agi : estompé ; hors de combat : gris et crâne ;
- * initiative attendue : point d'alerte.
+ * initiative attendue : point d'alerte. Au bout de la pile, « +n » (ou l'icône de la liste)
+ * déplie l'ordre complet.
  */
 function Portraits({
   rows,
   nameOf,
   portraitOf,
+  onFace,
+  onMore,
+  moreOpen,
 }: {
   rows: readonly TurnRow[];
   nameOf(id: string): string;
   portraitOf(id: string): string | null | undefined;
+  onFace?(characterId: string): void;
+  onMore?(): void;
+  moreOpen: boolean;
 }) {
   const { current, next, more } = upcomingRows(rows);
   return (
@@ -263,10 +358,11 @@ function Portraits({
             row={current}
             name={nameOf(current.characterId)}
             portrait={portraitOf(current.characterId)}
+            onOpen={onFace}
             big
           />
         )}
-        {next.length > 0 && (
+        {(next.length > 0 || onMore) && (
           <li className="flex items-center">
             <ol className="flex items-center -space-x-2.5" aria-label="Ensuite">
               <AnimatePresence initial={false} mode="popLayout">
@@ -276,12 +372,33 @@ function Portraits({
                     row={r}
                     name={nameOf(r.characterId)}
                     portrait={portraitOf(r.characterId)}
-                    z={next.length - i}
+                    onOpen={onFace}
+                    z={next.length - i + 1}
                   />
                 ))}
               </AnimatePresence>
+              {onMore && (
+                <li className="relative shrink-0" style={{ zIndex: 0 }}>
+                  <Info texte="Ordre du tour" cote="bottom">
+                    <button
+                      type="button"
+                      onClick={onMore}
+                      aria-expanded={moreOpen}
+                      aria-label={more > 0 ? `Ordre du tour, ${more} de plus` : 'Ordre du tour'}
+                      className={cn(
+                        'grid size-7 place-items-center rounded-full font-mono text-[11px] font-semibold tabular ring-2 ring-popover transition-colors focus-visible:outline-none focus-visible:ring-ring/60',
+                        moreOpen
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-surface-3 text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {more > 0 ? `+${more}` : <ListOrdered className="size-3.5" aria-hidden />}
+                    </button>
+                  </Info>
+                </li>
+              )}
             </ol>
-            {more > 0 && (
+            {!onMore && more > 0 && (
               <span className="ml-1.5 font-mono text-[11px] text-subtle tabular">+{more}</span>
             )}
           </li>
@@ -296,12 +413,14 @@ function Face({
   row: r,
   name,
   portrait,
+  onOpen,
   big = false,
   z,
 }: {
   row: TurnRow;
   name: string;
   portrait: string | null | undefined;
+  onOpen?(characterId: string): void;
   big?: boolean;
   z?: number;
 }) {
@@ -312,6 +431,31 @@ function Face({
       : r.acted
         ? 'a agi'
         : null;
+  const face = (
+    <>
+      <Illustration
+        src={portrait ?? null}
+        graine={name}
+        position="top"
+        className={cn(
+          'rounded-full',
+          big
+            ? 'size-9 ring-2 ring-primary ring-offset-2 ring-offset-popover'
+            : 'size-7 ring-2 ring-popover',
+        )}
+      />
+      {r.pendingInitiative && (
+        <span
+          aria-hidden
+          className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warning ring-2 ring-popover"
+        />
+      )}
+      <span className="sr-only">
+        {name}
+        {state ? `, ${state}` : ''}
+      </span>
+    </>
+  );
   return (
     <motion.li
       layout
@@ -334,29 +478,17 @@ function Face({
           </span>
         }
       >
-        <span className="relative block">
-          <Illustration
-            src={portrait ?? null}
-            graine={name}
-            position="top"
-            className={cn(
-              'rounded-full',
-              big
-                ? 'size-9 ring-2 ring-primary ring-offset-2 ring-offset-popover'
-                : 'size-7 ring-2 ring-popover',
-            )}
-          />
-          {r.pendingInitiative && (
-            <span
-              aria-hidden
-              className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warning ring-2 ring-popover"
-            />
-          )}
-          <span className="sr-only">
-            {name}
-            {state ? `, ${state}` : ''}
-          </span>
-        </span>
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={() => onOpen(r.characterId)}
+            className="relative block rounded-full transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 motion-reduce:hover:translate-y-0"
+          >
+            {face}
+          </button>
+        ) : (
+          <span className="relative block">{face}</span>
+        )}
       </Info>
       {big && (
         <motion.span
