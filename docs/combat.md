@@ -197,7 +197,8 @@ source, date, jet de l'historique), `initiativePending`, `joinedRound`, `defeate
 - **Journal des passages** (`campaign_combat_turns`) : chaque passage (`next`, `new_round`,
   `slot_actor`, `turn_set`) enregistre l'état d'avant (round, participant ou créneau courant **par
   identité**, `hasActed` de chacun, acteur du créneau) et l'identifiant du décompte des durées
-  (`tick:<combatId>:<round>`) s'il y en a eu un.
+  (`tick:<combatId>:<round>:<passage>`, le passage étant l'identifiant de l'entrée du journal :
+  un passage annulé puis rejoué décompte de nouveau) s'il y en a eu un.
 - **Précédent** (`…/previous`, MJ) : annule le dernier passage du journal. L'état d'avant revient ;
   le tour revient au même participant (pas au même index : l'ordre a pu changer). Si ce passage
   avait ouvert un round, character rend les durées décomptées (§ 11.2) : un état expiré revient avec
@@ -821,7 +822,8 @@ ActionResolution = {
 - Un décompte de durées se rend de la même façon : `applicationId = tickId`.
 
 **`POST /internal/characters/:id/durees/decompter`** : corps existant + `tickId?` (texte,
-`tick:<combatId>:<round>`) et `clear?` (fin de combat : tout ce qui a une durée est retiré) ;
+`tick:<combatId>:<round>:<passage>` en fin de round, `tick:<combatId>:end` pour la fin de combat,
+lot 1) et `clear?` (fin de combat : tout ce qui a une durée est retiré) ;
 réponse existante (`modifie`, `retirees`, `version`) + `replayed`. Même `tickId` et même
 personnage : rien n'est décompté une seconde fois, la réponse d'origine revient.
 
@@ -1113,6 +1115,43 @@ dans son rapport.
 - `backend/campaign/src/modules/campaigns/repository.ts` (combat expurgé dans le détail),
   `modules/schemas.ts` (reprendre le contrat).
 - `docs/api-campaign.md` (§ Combat, Attaques, Événements).
+
+Réalisé par le lot 1 (étapes A et B), précisions et écarts :
+
+- **Début du combat** : `startedAt` est `created_at` (déjà là) ; pas de colonne `started_at`.
+- **Précédent** : une fiche modifiée depuis le décompte sur les mêmes chemins n'est pas forcée
+  (elle part dans `durationFailures`, les autres sont rendues). L'initiative relancée pour tous vide
+  le journal : on ne remonte pas au-delà d'un nouvel ordre.
+- **Acteur désigné** (mode slots) : lui seul termine le créneau (`next` avec un autre : 409
+  `not_their_turn`) ; le MJ le change par `slot-actor` (`force` pour qui a déjà agi). `SetTurn`
+  avec `characterId` en mode slots : prochain créneau de son camp, dont il devient l'acteur.
+- **Ordre changé en mode slots** (`PUT …/order`, initiative saisie ou relancée) : créneaux
+  recalculés depuis l'ordre ; le créneau courant garde son camp et son rang dans ce camp.
+- **Vue des joueurs** : la réponse de `next` à un joueur ne porte que les durées du camp des
+  joueurs (les états d'un PNJ ne fuient pas).
+- **Statuts** : en dés serveur, `awaiting_dice` marque aussi « résolution en cours » (posé par la
+  dernière réaction, une seule résolution même si deux cibles répondent ensemble) ; une cible
+  sans réaction, ou qui a répondu, est `awaiting_dice` (en attente du jet). Étape B : `dice`
+  vaut toujours `server`.
+- **Vue de la cible qui réagit** : `attackerId` vaut `''` quand le joueur ne connaît pas
+  l'attaquant (le contrat le veut non nul). « Passer pour tous » (MJ) : une réponse `skip` par
+  cible, pas de route dédiée.
+- **Annonces** : « connu de tous les joueurs » = camp `players`, ou participant non caché du
+  combat en cours. Hors combat, un PNJ n'est donc jamais nommé dans une annonce publique.
+  `amounts` de `combat.attack_concluded` : variations `add` / `subtract` (signées), pas les `set`.
+- **Idempotence d'une déclaration** : la plateforme rejoue la réponse (`Idempotency-Key`), et la
+  clé est aussi gardée avec l'attaque (unique par auteur et campagne ; lot : `clé#rang`), sous un
+  verrou consultatif pendant la déclaration.
+- **Application** : réservée (`applying`) avant l'appel à character ; refus ou panne : effacée.
+  Restée ouverte plus de 30 s (panne entre character et campaign) : renvoyée avec le même
+  `applicationId` à la décision suivante, puis enregistrée (character la rejoue sans double effet).
+- **Hors de combat** : marqué à l'application ; une annulation ne le retire pas (le MJ décoche,
+  `PATCH { defeated: false }`).
+- **Codes d'erreur** ajoutés : `order_mismatch`, `participant_required`, `slot_not_found`,
+  `no_slot`, `not_slots`, `participant_not_found`, `too_many_participants`,
+  `reaction_not_expected`, `unknown_reaction_param`, `unknown_target`, `unknown_table`,
+  `target_not_resolved`, `not_resolved`, `not_pending`, `already_decided`, `apply_in_progress`,
+  `not_applied`, `nothing_to_revert`, `invalid_modification`, `character_not_found`.
 
 ### Lot 2 : backend character et règles
 
