@@ -17,28 +17,27 @@ import {
   ExternalLink,
   EyeOff,
   Hand,
+  Loader2,
   PencilLine,
   Skull,
   Swords,
   UserMinus,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { TuileAttribut } from '@/components/creation/apercu-fiche';
 import { Illustration } from '@/components/commun/illustration';
 import { useFicheCalculee } from '@/components/fiche/fiche-personnage';
-import { BannerIdentity, BannerStats } from '@/components/fiche/banner';
-import { BlocRessources, clesAttributs, widgetsDe } from '@/components/fiche/widgets';
+import { BlocRessources, widgetsDe } from '@/components/fiche/widgets';
 import { PanelLink } from '@/components/table/panels/navigation';
 import { TABLE_PARAMS } from '@/components/table/panels/registry';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
+import { Info } from '@/components/ui/tooltip';
 import { combatErrorMessage } from '@/lib/combat/api';
 import { combatFailure, currentActorId, useCombatCommands } from '@/lib/combat/use-combat';
 import { cn } from '@/lib/utils';
@@ -48,13 +47,6 @@ import { SituationChips } from './parts';
 import { situationChips } from './situation';
 import { StatesManager } from './states-manager';
 import { combatPresentation, statesOf, type CastMember } from './use-cast';
-
-const SOURCES: Record<string, string> = {
-  server: 'tirée par le serveur',
-  physical: 'dés 3D',
-  mixed: 'dés 3D et serveur',
-  manual: 'saisie par le MJ',
-};
 
 /** D'où la fiche a été ouverte : le libellé et la teinte de son bandeau. */
 export interface DialogOrigin {
@@ -113,7 +105,7 @@ export function CharacterDialog({
   return (
     <Dialog open={characterId !== null} onOpenChange={(open) => !open && onClose()}>
       {characterId && (
-        <DialogContent className="gap-0 p-0 sm:max-w-3xl">
+        <DialogContent className="gap-0 p-0 sm:max-w-md">
           <DialogBody
             key={characterId}
             campaignId={campaignId}
@@ -202,26 +194,54 @@ function DialogBody({
   const parametres = initiativeParams(action);
   const widgets = ctx ? widgetsDe(ctx) : [];
   const ressources = widgets.find((w) => w.type === 'ressources');
-  const details = widgets.find((w) => w.type === 'details');
-  const attributs = ctx
-    ? widgets.flatMap((w) =>
-        w.type === 'attributs' ? [{ titre: w.titre, cles: clesAttributs(ctx, w) }] : [],
-      )
-    : [];
   const { stateSorts, stateIcons } = combatPresentation(sys.data?.presentation);
   const states = perso.data && systeme ? statesOf(perso.data, systeme, stateSorts, stateIcons) : [];
   const chips = p ? situationChips(p, { current, detailed: true }) : [];
   const Icon = origin.icon;
 
+  const toggles: {
+    key: string;
+    label: string;
+    icon: LucideIcon;
+    on: boolean;
+    danger?: boolean;
+    set: (on: boolean) => Promise<unknown>;
+  }[] = p
+    ? [
+        {
+          key: 'visible',
+          label: 'Caché',
+          icon: EyeOff,
+          on: p.visibleToPlayers === false,
+          set: (on) => commands.updateParticipant(p.characterId, { visibleToPlayers: !on }),
+        },
+        {
+          key: 'surprised',
+          label: 'Surpris',
+          icon: Zap,
+          on: p.surprised === true,
+          set: (on) => commands.updateParticipant(p.characterId, { surprised: on }),
+        },
+        {
+          key: 'defeated',
+          label: 'Hors de combat',
+          icon: Skull,
+          on: p.defeated === true,
+          danger: true,
+          set: (on) => commands.updateParticipant(p.characterId, { defeated: on }),
+        },
+      ]
+    : [];
+
   return (
     <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
-      <header className="flex items-center gap-4 border-b border-border px-5 py-4 pr-12">
+      <header className="flex items-center gap-3.5 px-5 pb-3 pt-5 pr-12">
         <Illustration
           src={member?.portraitUrl ?? perso.data?.portraitUrl ?? null}
           graine={name}
           position="top"
           className={cn(
-            'size-16 shrink-0 rounded-2xl ring-2',
+            'size-14 shrink-0 rounded-2xl ring-2 ring-offset-2 ring-offset-background',
             TONE_RING[origin.tone],
             p?.defeated && 'grayscale',
           )}
@@ -229,193 +249,152 @@ function DialogBody({
         <div className="min-w-0 flex-1">
           <p
             className={cn(
-              'flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider',
+              'flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em]',
               TONE_TEXT[origin.tone],
             )}
           >
-            <Icon className="size-3.5" aria-hidden />
+            <Icon className="size-3" aria-hidden />
             {origin.label}
           </p>
-          <DialogTitle className="truncate text-xl">{name}</DialogTitle>
-          <DialogDescription className="truncate text-xs">
-            {[side ? SIDE_LABELS[side].name : null, playerName ? `joué par ${playerName}` : null]
-              .filter(Boolean)
-              .join(' · ') || 'Personnage de la campagne'}
+          <DialogTitle className="truncate font-display text-xl leading-tight">{name}</DialogTitle>
+          <DialogDescription className="truncate text-xs text-muted-foreground">
+            {[side ? SIDE_LABELS[side].name : null, playerName].filter(Boolean).join(' · ') || ' '}
           </DialogDescription>
-          {(p || chips.length > 0) && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {p?.visibleToPlayers === false && (
-                <Badge ton="info">
-                  <EyeOff />
-                  Caché aux joueurs
-                </Badge>
-              )}
-              {p?.defeated && (
-                <Badge ton="danger">
-                  <Skull />
-                  Hors de combat
-                </Badge>
-              )}
-              <SituationChips chips={chips} />
-            </div>
-          )}
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
-        {ctx && details?.type === 'details' && (
-          <div className="space-y-2">
-            <BannerIdentity ctx={ctx} widget={details} />
-            <BannerStats ctx={ctx} widget={details} />
-          </div>
+      {(chips.length > 0 || toggles.length > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5 px-5 pb-4">
+          {toggles.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              aria-pressed={t.on}
+              disabled={busy !== null}
+              onClick={() =>
+                void run(t.key, 'Le changement n’a pas pu être enregistré', () => t.set(!t.on))
+              }
+              className={cn(
+                'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60',
+                t.on
+                  ? t.danger
+                    ? 'border-destructive/40 bg-destructive/15 text-destructive'
+                    : 'border-primary/40 bg-primary/15 text-primary-strong'
+                  : 'border-border bg-surface/60 text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {busy === t.key ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <t.icon className="size-3.5" aria-hidden />
+              )}
+              {t.label}
+            </button>
+          ))}
+          <SituationChips chips={chips} />
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto border-t border-border px-5 py-4">
+        {perso.isError ? (
+          <p className="text-sm text-destructive">{combatErrorMessage(perso.error)}</p>
+        ) : !ctx ? (
+          <Skeleton className="h-16 w-full rounded-xl" />
+        ) : (
+          ressources?.type === 'ressources' &&
+          ressources.attributs.length > 0 && (
+            <div className="-mx-3 [&>section]:rounded-none [&>section]:border-0 [&>section]:bg-transparent [&>section]:p-0 [&>section]:shadow-none">
+              <BlocRessources ctx={ctx} widget={ressources} />
+            </div>
+          )
         )}
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <div className="space-y-5">
-            <Section title="Ressources">
-              {perso.isError ? (
-                <p className="text-sm text-destructive">{combatErrorMessage(perso.error)}</p>
-              ) : !ctx ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-              ) : ressources?.type === 'ressources' && ressources.attributs.length ? (
-                <div className="-mx-3 [&>section]:rounded-none [&>section]:border-0 [&>section]:bg-transparent [&>section]:shadow-none">
-                  <BlocRessources ctx={ctx} widget={ressources} />
-                </div>
-              ) : (
-                <p className="text-[13px] text-subtle">Aucune ressource suivie par ce système.</p>
-              )}
-            </Section>
+        <Section title="États">
+          {perso.data && systeme ? (
+            <StatesManager
+              systeme={systeme}
+              stateSorts={stateSorts}
+              states={states}
+              sheet={perso.data}
+              ecritures={ecritures}
+              disabled={perso.data.permissions?.write === false}
+            />
+          ) : (
+            <Skeleton className="h-9 w-full" />
+          )}
+        </Section>
 
-            <Section title="États">
-              {perso.data && systeme ? (
-                <StatesManager
-                  systeme={systeme}
-                  stateSorts={stateSorts}
-                  states={states}
-                  sheet={perso.data}
-                  ecritures={ecritures}
-                  disabled={perso.data.permissions?.write === false}
-                />
-              ) : (
-                <Skeleton className="h-9 w-full" />
-              )}
-            </Section>
-          </div>
-
-          <div className="space-y-5">
-            {p && (
-              <Section title="Au combat">
-                <div className="space-y-2.5 rounded-xl border border-border bg-surface/60 p-3">
-                  <SwitchRow
-                    id="participant-visible"
-                    label="Visible des joueurs"
-                    checked={p.visibleToPlayers !== false}
-                    disabled={busy !== null}
-                    onChange={(on) =>
-                      void run('visible', 'La visibilité n’a pas pu changer', () =>
-                        commands.updateParticipant(p.characterId, { visibleToPlayers: on }),
-                      )
-                    }
-                  />
-                  <SwitchRow
-                    id="participant-surprised"
-                    label="Surpris"
-                    hint="Lu par les règles du système (surprise, attaque sournoise…)"
-                    checked={p.surprised === true}
-                    disabled={busy !== null}
-                    onChange={(on) =>
-                      void run('surprised', 'La surprise n’a pas pu changer', () =>
-                        commands.updateParticipant(p.characterId, { surprised: on }),
-                      )
-                    }
-                  />
-                  <SwitchRow
-                    id="participant-defeated"
-                    label="Hors de combat"
-                    checked={p.defeated === true}
-                    disabled={busy !== null}
-                    onChange={(on) =>
-                      void run('defeated', 'L’état n’a pas pu changer', () =>
-                        commands.updateParticipant(p.characterId, { defeated: on }),
-                      )
-                    }
-                  />
-                </div>
-              </Section>
-            )}
-
-            {p && (
-              <Section title="Initiative">
-                <InitiativeBlock
-                  participant={p}
-                  systeme={systeme}
-                  parametres={parametres}
-                  tri={systeme?.source.initiative?.tri ?? []}
-                  busy={busy}
-                  onReroll={(params) =>
-                    run('reroll', 'L’initiative n’a pas pu être relancée', () =>
-                      commands.rollParticipantInitiative(p.characterId, {
-                        ...(Object.keys(params).length ? { params } : {}),
-                        dice: 'server',
-                      }),
-                    )
-                  }
-                  onManual={(sortKeys) =>
-                    run('manual', 'L’initiative n’a pas pu être enregistrée', () =>
-                      commands.updateParticipant(p.characterId, { sortKeys }),
-                    )
-                  }
-                />
-              </Section>
-            )}
-
-            {ctx && attributs.some((g) => g.cles.length) && (
-              <Section title="Caractéristiques">
-                <div className="space-y-3">
-                  {attributs
-                    .filter((g) => g.cles.length)
-                    .map((g) => (
-                      <div key={g.titre} className="space-y-1.5">
-                        {attributs.length > 1 && (
-                          <p className="text-xs font-medium text-muted-foreground">{g.titre}</p>
-                        )}
-                        <div className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5">
-                          {g.cles.map((c) => (
-                            <TuileAttribut key={c} fiche={ctx.fiche} cle={c} compacte />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </Section>
-            )}
-          </div>
-        </div>
+        {p && (
+          <InitiativeBlock
+            participant={p}
+            systeme={systeme}
+            parametres={parametres}
+            tri={systeme?.source.initiative?.tri ?? []}
+            busy={busy}
+            onReroll={(params) =>
+              run('reroll', 'L’initiative n’a pas pu être relancée', () =>
+                commands.rollParticipantInitiative(p.characterId, {
+                  ...(Object.keys(params).length ? { params } : {}),
+                  dice: 'server',
+                }),
+              )
+            }
+            onManual={(sortKeys) =>
+              run('manual', 'L’initiative n’a pas pu être enregistrée', () =>
+                commands.updateParticipant(p.characterId, { sortKeys }),
+              )
+            }
+          />
+        )}
       </div>
 
-      <footer className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3">
+      <footer className="flex items-center gap-1.5 border-t border-border px-4 py-3">
         {onBack && (
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            <ChevronLeft />
-            Retour aux cibles
-          </Button>
+          <Info texte="Retour aux cibles">
+            <Button variant="ghost" size="icon-sm" onClick={onBack} aria-label="Retour aux cibles">
+              <ChevronLeft />
+            </Button>
+          </Info>
         )}
-        <Button variant="secondary" size="sm" asChild>
-          <PanelLink
-            panel="joueurs"
-            params={{ [TABLE_PARAMS.character]: characterId }}
-            onClick={onClose}
-          >
-            <ExternalLink />
-            Ouvrir la fiche
-          </PanelLink>
-        </Button>
+        <Info texte="Ouvrir la fiche">
+          <Button variant="ghost" size="icon-sm" asChild>
+            <PanelLink
+              panel="joueurs"
+              params={{ [TABLE_PARAMS.character]: characterId }}
+              onClick={onClose}
+              aria-label="Ouvrir la fiche"
+            >
+              <ExternalLink />
+            </PanelLink>
+          </Button>
+        </Info>
+        {p && (
+          <Info texte={confirmRemove ? 'Cliquer encore pour confirmer' : 'Retirer du combat'}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={cn(
+                'hover:text-destructive',
+                confirmRemove && 'bg-destructive/15 text-destructive',
+              )}
+              aria-label={confirmRemove ? 'Confirmer le retrait' : 'Retirer du combat'}
+              disabled={busy !== null && busy !== 'remove'}
+              onClick={() => {
+                if (!confirmRemove) return setConfirmRemove(true);
+                void run('remove', 'Le participant n’a pas pu être retiré', () =>
+                  commands.removeParticipant(p.characterId),
+                ).then((ok) => ok && onClose());
+              }}
+              onBlur={() => setConfirmRemove(false)}
+            >
+              {busy === 'remove' ? <Loader2 className="animate-spin" /> : <UserMinus />}
+            </Button>
+          </Info>
+        )}
+        <span className="flex-1" />
         {p && !current && !p.defeated && (
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
             onClick={() => {
               actions.giveTurn(characterId);
@@ -424,25 +403,6 @@ function DialogBody({
           >
             <Hand />
             Donner le tour
-          </Button>
-        )}
-        <span className="flex-1" />
-        {p && (
-          <Button
-            variant="destructive"
-            size="sm"
-            loading={busy === 'remove'}
-            disabled={busy !== null && busy !== 'remove'}
-            onClick={() => {
-              if (!confirmRemove) return setConfirmRemove(true);
-              void run('remove', 'Le participant n’a pas pu être retiré', () =>
-                commands.removeParticipant(p.characterId),
-              ).then((ok) => ok && onClose());
-            }}
-            onBlur={() => setConfirmRemove(false)}
-          >
-            <UserMinus />
-            {confirmRemove ? 'Confirmer le retrait' : 'Retirer du combat'}
           </Button>
         )}
         {canAttack && actions.aimAt && actions.aimAt.actorId !== characterId && (
@@ -467,38 +427,10 @@ function DialogBody({
             }}
           >
             <Swords />
-            Attaquer avec
+            Attaquer
           </Button>
         )}
       </footer>
-    </div>
-  );
-}
-
-function SwitchRow({
-  id,
-  label,
-  hint,
-  checked,
-  disabled,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  hint?: string;
-  checked: boolean;
-  disabled: boolean;
-  onChange(on: boolean): void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="min-w-0">
-        <Label htmlFor={id} className="text-[13px]">
-          {label}
-        </Label>
-        {hint && <span className="block text-[11px] text-subtle">{hint}</span>}
-      </span>
-      <Switch id={id} disabled={disabled} checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }
@@ -526,23 +458,48 @@ function InitiativeBlock({
   const manualValid =
     manual !== null && manual.every((v) => v.trim() !== '' && Number.isFinite(Number(v)));
 
+  const score = p.sortKeys.length ? p.sortKeys[0] : null;
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-border bg-surface px-3 py-2">
-        {p.initiative ? (
-          <>
-            <p className="font-mono text-sm tabular-nums">{p.initiative.summary}</p>
-            <p className="text-[11px] text-subtle">
-              {SOURCES[p.initiative.source] ?? p.initiative.source}
-            </p>
-          </>
-        ) : p.sortKeys.length ? (
-          <p className="font-mono text-sm tabular-nums">{p.sortKeys.join(' · ')}</p>
-        ) : (
-          <p className="text-[13px] text-muted-foreground">
-            {p.initiativePending ? 'Demandée au joueur, pas encore lancée.' : 'Pas encore tirée.'}
-          </p>
-        )}
+      <div className="flex items-center gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
+          Initiative
+        </span>
+        <span className="font-mono text-xl font-bold tabular-nums">
+          {score ?? (p.initiativePending ? '…' : '—')}
+        </span>
+        <span className="flex-1" />
+        <Info texte={p.sortKeys.length ? 'Relancer' : 'Lancer'}>
+          <Button
+            size="icon-sm"
+            variant="secondary"
+            aria-label={p.sortKeys.length ? 'Relancer l’initiative' : 'Lancer l’initiative'}
+            disabled={busy !== null}
+            onClick={() => void onReroll(params)}
+          >
+            {busy === 'reroll' ? <Loader2 className="animate-spin" /> : <Dices />}
+          </Button>
+        </Info>
+        <Info texte="Saisir le résultat">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Saisir l’initiative"
+            aria-pressed={manual !== null}
+            disabled={busy !== null}
+            onClick={() =>
+              setManual(
+                manual === null
+                  ? Array.from({ length: keys }, (_, i) =>
+                      p.sortKeys[i] !== undefined ? String(p.sortKeys[i]) : '',
+                    )
+                  : null,
+              )
+            }
+          >
+            <PencilLine />
+          </Button>
+        </Info>
       </div>
 
       {systeme && parametres.length > 0 && (
@@ -558,36 +515,6 @@ function InitiativeBlock({
         />
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="secondary"
-          loading={busy === 'reroll'}
-          disabled={busy !== null && busy !== 'reroll'}
-          onClick={() => void onReroll(params)}
-        >
-          <Dices />
-          {p.sortKeys.length ? 'Relancer' : 'Lancer'}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={busy !== null}
-          onClick={() =>
-            setManual(
-              manual === null
-                ? Array.from({ length: keys }, (_, i) =>
-                    p.sortKeys[i] !== undefined ? String(p.sortKeys[i]) : '',
-                  )
-                : null,
-            )
-          }
-        >
-          <PencilLine />
-          Saisir
-        </Button>
-      </div>
-
       {manual !== null && (
         <form
           className="space-y-2 rounded-xl border border-border p-3"
@@ -597,7 +524,6 @@ function InitiativeBlock({
             void onManual(manual.map(Number)).then((ok) => ok && setManual(null));
           }}
         >
-          <p className="text-[11px] text-subtle">Dés lancés à la table : saisissez le résultat.</p>
           {manual.map((v, i) => (
             <div key={i} className="flex items-center justify-between gap-3">
               <Label htmlFor={`manual-${i}`} className="font-mono text-xs">

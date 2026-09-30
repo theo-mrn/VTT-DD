@@ -197,9 +197,7 @@ export function StatesManager({
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="text-[13px] text-muted-foreground">Aucun état.</p>
-      )}
+      ) : null}
 
       <form
         className="grid gap-2 sm:grid-cols-[1fr_6.5rem_auto] sm:items-end"
