@@ -7,7 +7,7 @@
  * membres le lisent ; hors campagne et pendant la création, son propriétaire
  * a la main ; lui seul le supprime (voir `acces` et `autoriser`).
  */
-import { FileUploadRequest, FileUploadTicket } from '@vtt/contracts';
+import { FileUploadRequest, FileUploadTicket, PortraitStudio } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { campaignIndisponible } from '../../droits/campaign.js';
 import { achatsPossibles, creationDe, etapesCreation } from '@vtt/rules';
@@ -73,6 +73,8 @@ const Personnage = z.object({
   ownerId: z.string(),
   nom: z.string(),
   avatarUrl: z.string().nullable(),
+  tokenUrl: z.string().nullable(),
+  portraitStudio: PortraitStudio.nullable(),
   etat: z.unknown(),
   fiche: z.unknown(),
   details: Details,
@@ -272,23 +274,28 @@ export const register: Module = async (app, deps) => {
           version: Version,
           nom: Nom.optional(),
           avatarUrl: AvatarUrl.nullable().optional(),
+          tokenUrl: AvatarUrl.nullable().optional(),
+          portraitStudio: PortraitStudio.nullable().optional(),
           details: DetailsModifies.optional(),
         }),
         response: { 200: Personnage },
       },
     },
     async (req) => {
-      const { version, nom, avatarUrl, details } = req.body;
+      const { version, nom, avatarUrl, tokenUrl, portraitStudio, details } = req.body;
       const ligne = await modifierPour(req, req.params.id, version, (l) => ({
         changement: {
           ...(nom !== undefined ? { nom } : {}),
           ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+          ...(tokenUrl !== undefined ? { tokenUrl } : {}),
+          ...(portraitStudio !== undefined ? { portraitStudio } : {}),
           ...(details !== undefined ? { details: { ...detailsApi(l.details), ...details } } : {}),
         },
         operation: 'profil',
         details: {
           ...(nom !== undefined ? { nom } : {}),
           ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+          ...(tokenUrl !== undefined ? { tokenUrl } : {}),
         },
       }));
       return api(ligne);
@@ -311,7 +318,7 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const { id } = req.params;
       await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
-      return deps.uploads.ticket(req.body, id, ['portrait'], req.log);
+      return deps.uploads.ticket(req.body, id, ['portrait', 'token'], req.log);
     },
   );
 

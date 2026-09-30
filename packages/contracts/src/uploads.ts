@@ -103,6 +103,13 @@ export const UPLOAD_USAGES = {
     folder: 'characters',
     aspect: 3 / 4,
   },
+  token: {
+    label: 'Token',
+    types: UPLOAD_IMAGE_TYPES,
+    maxBytes: 5 * MB,
+    folder: 'characters',
+    aspect: 1,
+  },
 } as const satisfies Record<string, UploadUsage>;
 
 export type UploadUsageId = keyof typeof UPLOAD_USAGES;

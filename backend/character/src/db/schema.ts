@@ -1,3 +1,4 @@
+import type { PortraitStudio } from '@vtt/contracts';
 /**
  * Schéma Drizzle du service character : sert uniquement à typer les requêtes.
  * La source de vérité est le changelog Liquibase (backend/character/db) ; ce
@@ -40,6 +41,10 @@ export const characters = schemaCharacters.table('characters', {
   ownerId: uuid('owner_id').notNull(),
   nom: text('nom').notNull(),
   avatarUrl: text('avatar_url'),
+  /** Token (image carrée fabriquée par le Studio du portrait). */
+  tokenUrl: text('token_url'),
+  /** Réglages du Studio du portrait (docs/portraits.md), pour le rouvrir. */
+  portraitStudio: jsonb('portrait_studio').$type<PortraitStudio>(),
   systemId: text('system_id').notNull(),
   systemVersion: text('system_version').notNull(),
   type: text('type').notNull(),

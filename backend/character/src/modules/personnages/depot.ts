@@ -11,6 +11,7 @@
  * Pour tout autre utilisateur, un personnage, ou un personnage supprimé, est
  * introuvable (404) : on ne révèle pas son existence.
  */
+import type { PortraitStudio } from '@vtt/contracts';
 import { changesPayload, uuidv7, type ActorRole, type DiffOptions } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import {
@@ -47,6 +48,10 @@ export interface Personnage {
   ownerId: string;
   nom: string;
   avatarUrl: string | null;
+  /** Token fabriqué par le Studio du portrait ; null : le portrait sert de token. */
+  tokenUrl: string | null;
+  /** Réglages du Studio du portrait (docs/portraits.md). */
+  portraitStudio: PortraitStudio | null;
   etat: EtatEntite;
   fiche: FicheJson;
   details: Details;
@@ -281,6 +286,8 @@ export function versApi(
     ownerId: ligne.ownerId,
     nom: ligne.nom,
     avatarUrl: ligne.avatarUrl,
+    tokenUrl: ligne.tokenUrl ?? null,
+    portraitStudio: ligne.portraitStudio ?? null,
     etat,
     fiche: ficheJson(fiche),
     details: detailsApi(ligne.details),
@@ -405,6 +412,8 @@ export interface Changement {
   etat?: EtatEntite;
   nom?: string;
   avatarUrl?: string | null;
+  tokenUrl?: string | null;
+  portraitStudio?: PortraitStudio | null;
   details?: CharacterDetails;
   /** Tirage en attente de répartition ; null l'efface. */
   pendingRoll?: PendingRoll | null;
@@ -422,6 +431,7 @@ const suivi = (ligne: Ligne, etat: unknown) => ({
   etat,
   nom: ligne.nom,
   avatarUrl: ligne.avatarUrl,
+  tokenUrl: ligne.tokenUrl ?? null,
   details: detailsApi(ligne.details),
 });
 
@@ -468,6 +478,10 @@ export async function enregistrer(
       ...(etat ? { etat, systemVersion: etat.systeme.version, type: etat.type } : {}),
       ...(changement.nom !== undefined ? { nom: changement.nom } : {}),
       ...(changement.avatarUrl !== undefined ? { avatarUrl: changement.avatarUrl } : {}),
+      ...(changement.tokenUrl !== undefined ? { tokenUrl: changement.tokenUrl } : {}),
+      ...(changement.portraitStudio !== undefined
+        ? { portraitStudio: changement.portraitStudio }
+        : {}),
       ...(changement.details !== undefined ? { details: changement.details } : {}),
       ...(changement.pendingRoll !== undefined ? { pendingRoll: changement.pendingRoll } : {}),
       version: ligne.version + 1,

@@ -133,6 +133,8 @@ export const register: Module = async (app, deps) => {
             ownerId: z.string(),
             nom: z.string(),
             avatarUrl: z.string().nullable(),
+            /** Token du Studio du portrait ; null : le portrait sert de token. */
+            tokenUrl: z.string().nullable(),
             systeme: z.object({ id: z.string(), version: z.string() }),
             type: z.string(),
             /** Personnage joueur ou PNJ (campaign filtre ainsi ses listes). */
@@ -152,6 +154,7 @@ export const register: Module = async (app, deps) => {
         ownerId: l.ownerId,
         nom: l.nom,
         avatarUrl: l.avatarUrl,
+        tokenUrl: l.tokenUrl ?? null,
         systeme: { id: l.systemId, version: l.systemVersion },
         type: l.type,
         kind: l.kind,

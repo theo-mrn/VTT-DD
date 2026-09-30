@@ -61,4 +61,38 @@ describe.skipIf(!TEST_DATABASE_URL)('envoi d’un portrait', () => {
       (await o.requete(proprietaire, 'POST', url, { ...demande, size: 50_000_000 })).statusCode,
     ).toBe(413);
   });
+
+  it('Studio : token et réglages enregistrés, relus ; réglages invalides refusés', async () => {
+    const p = await o.nainGuerrier(proprietaire, 'Thorin');
+    const ticket = (
+      await o.requete(proprietaire, 'POST', `/v1/characters/${p.id}/uploads`, {
+        usage: 'token',
+        contentType: 'image/webp',
+        size: 50_000,
+      })
+    ).json();
+    expect(ticket.key).toMatch(new RegExp(`^characters/${p.id}/`));
+    const studio = {
+      source: 'https://cdn.test/vtt/characters/source.webp',
+      portrait: { x: 0.1, y: 0, width: 0.6, height: 0.8 },
+      token: { x: 0.2, y: 0.05, width: 0.4, height: 0.4 },
+      frame: 'https://assets.yner.fr/Token/Token1.png',
+      radius: 50,
+      inset: 8,
+    };
+    const res = await o.requete(proprietaire, 'PATCH', `/v1/characters/${p.id}`, {
+      version: p.version,
+      tokenUrl: ticket.publicUrl,
+      portraitStudio: studio,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ tokenUrl: ticket.publicUrl, portraitStudio: studio });
+    const relu = (await o.requete(proprietaire, 'GET', `/v1/characters/${p.id}`)).json();
+    expect(relu).toMatchObject({ tokenUrl: ticket.publicUrl, portraitStudio: studio });
+    const mauvais = await o.requete(proprietaire, 'PATCH', `/v1/characters/${p.id}`, {
+      version: relu.version,
+      portraitStudio: { ...studio, radius: 80 },
+    });
+    expect(mauvais.statusCode).toBe(400);
+  });
 });
