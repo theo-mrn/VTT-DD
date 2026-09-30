@@ -8,7 +8,10 @@
  * ou un seul pour toutes (`shared`), pris dans `rolls` puis 10 ; touché si le jet + `bonus`
  * atteint `valeurs.Defense` de la cible (10 par défaut) ; dégâts `degats` (5), moins la
  * réaction `esquive` ; coût `cout` en `Stress` pour l'attaquant ; un 20 tire la table
- * `critiques`. Applications et décomptes gardent leur diff : annulables, idempotents.
+ * `critiques`. Une action à étapes (`steps`) suit le protocole des dés (docs/combat.md § 6) :
+ * le d20 de chaque cible, puis un d6 de dégâts par cible touchée, puis le rapport ;
+ * `serverFallback` tire tout d'un coup. Applications et décomptes gardent leur diff :
+ * annulables, idempotents.
  */
 import { createServer, type IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -55,6 +58,21 @@ export interface FakeAction {
   reactionParams?: (targetId: string) => string[];
   /** `multicible.jet` de l'action. */
   rollMode?: 'per_target' | 'shared';
+  /** Étapes de dés : le jet, puis les dégâts des cibles touchées (docs/combat.md § 6). */
+  steps?: boolean;
+}
+
+interface FakeStep {
+  id: string;
+  phase: 'roll' | 'after' | 'table';
+  label?: string;
+  dice: { id: string; targetId: string | null; faces: number }[];
+}
+
+interface FakeFace {
+  id: string;
+  value: number;
+  source?: string;
 }
 
 interface Change {
@@ -224,6 +242,93 @@ export async function fakeCharacter(secret: string) {
     };
   }
 
+  /** Première étape : le d20 de chaque cible acceptée (un seul en jet commun). */
+  function rollStep(
+    snap: { targets: { id: string; error: string | null }[] },
+    rollMode: unknown,
+  ): FakeStep {
+    const ok = snap.targets.filter((t) => !t.error);
+    return {
+      id: 'roll-0',
+      phase: 'roll',
+      label: 'Attaque',
+      dice:
+        rollMode === 'shared'
+          ? [{ id: 'jet:d20:0', targetId: null, faces: 20 }]
+          : ok.map((t, i) => ({ id: `${i}:jet:d20:0`, targetId: t.id, faces: 20 })),
+    };
+  }
+
+  /**
+   * Résolution étape par étape : sans étape, la première (après les réactions) ; le jet donne
+   * l'issue et l'étape des dégâts des cibles touchées ; les dégâts donnent le rapport. Les d20
+   * sont rejoués depuis les faces reçues (le vrai moteur est déterministe).
+   */
+  function byStep(body: Record<string, unknown>) {
+    const snap = body.snapshot as { targets: { id: string; error: string | null }[] };
+    const step = body.step as FakeStep | undefined;
+    const known = (body.faces ?? []) as FakeFace[];
+    if (!step) {
+      const plan = rollStep(snap, body.rollMode);
+      return {
+        step: plan,
+        resolution: {
+          targets: snap.targets.map((t) =>
+            t.error
+              ? { characterId: t.id, status: 'failed', error: t.error, result: null, view: null }
+              : {
+                  characterId: t.id,
+                  status: 'awaiting_dice',
+                  error: null,
+                  result: null,
+                  view: null,
+                },
+          ),
+          actor: { modifications: [] },
+        },
+        faces: known,
+      };
+    }
+    const results = new Map(
+      ((body.results ?? []) as { id: string; value: number }[]).map((r) => [r.id, r.value]),
+    );
+    const drawn: FakeFace[] = step.dice.map((d) => {
+      const read = results.get(d.id);
+      return read !== undefined
+        ? { id: d.id, value: read, source: 'physical' }
+        : { id: d.id, value: d.faces === 20 ? d20() : 3, source: 'server' };
+    });
+    const faces = [...known, ...drawn];
+    rolls.unshift(...faces.filter((f) => f.id.includes('jet:d20')).map((f) => f.value));
+    const full = resolveAttack(body);
+    if (step.phase !== 'roll') return { step: null, resolution: full, faces };
+    const hit = full.targets.filter((t) => t.status === 'resolved' && t.result!.outcome.success);
+    if (!hit.length) return { step: null, resolution: full, faces };
+    const hitIds = new Set(hit.map((t) => t.characterId));
+    return {
+      step: {
+        id: `after-${faces.length}`,
+        phase: 'after',
+        label: 'Dégâts',
+        dice: hit.map((t, i) => ({ id: `${i}:apres:d6:0`, targetId: t.characterId, faces: 6 })),
+      },
+      resolution: {
+        targets: full.targets.map((t) =>
+          hitIds.has(t.characterId)
+            ? {
+                ...t,
+                status: 'awaiting_dice',
+                result: { ...t.result!, modifications: [] },
+                view: { ...t.view!, values: [] },
+              }
+            : t,
+        ),
+        actor: { modifications: [] },
+      },
+      faces,
+    };
+  }
+
   const server = createServer(async (req, res) => {
     const body = await readBody(req);
     const path = new URL(req.url ?? '/', 'http://fake').pathname;
@@ -276,17 +381,20 @@ export async function fakeCharacter(secret: string) {
         })),
       };
       const waiting = targets.some((t) => !t.error && t.reactionParams.length);
+      const planned = action.steps && !waiting;
       return reply(200, {
         snapshot,
         action: { id: body.action, name: action.name },
         rollMode,
         dice: 'server',
         targets,
-        step: null,
-        resolution: waiting ? null : resolveAttack({ ...body, snapshot, rollMode }),
+        step: planned ? rollStep(snapshot, rollMode) : null,
+        resolution: waiting || planned ? null : resolveAttack({ ...body, snapshot, rollMode }),
       });
     }
     if (req.method === 'POST' && path === '/internal/actions/resolve') {
+      const snap = body.snapshot as { action: string };
+      if (actions.get(snap.action)?.steps && !body.serverFallback) return reply(200, byStep(body));
       return reply(200, { step: null, resolution: resolveAttack(body) });
     }
     if (req.method === 'POST' && path === '/internal/modifications/apply') {

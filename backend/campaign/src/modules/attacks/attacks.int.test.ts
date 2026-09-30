@@ -355,10 +355,11 @@ describe.skipIf(!TEST_DATABASE_URL)('attaques : déclaration et résolution', ()
     expect(leaks(last)).toEqual([]);
 
     const resolve = s.callsTo('/internal/actions/resolve').at(-1)!;
+    // Attaque unique : après les réactions, la première étape (jamais tout d'un coup)
+    expect(resolve.body.serverFallback).toBeUndefined();
     expect(resolve.body).toMatchObject({
       rollMode: 'per_target',
       dice: 'server',
-      serverFallback: true,
       reactions: [
         { characterId: aria, params: { esquive: 2 }, skipped: false },
         { characterId: brom, params: {}, skipped: true },

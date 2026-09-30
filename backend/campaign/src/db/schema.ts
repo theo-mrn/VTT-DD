@@ -338,6 +338,10 @@ export const campaignAttacks = campaignSchema.table('campaign_attacks', {
     .notNull()
     .default([]),
   pendingSteps: jsonb('pending_steps').$type<RollStep[]>().notNull().default([]),
+  /** Résolution en cours chez character depuis ce moment (null : aucune). */
+  resolvingSince: timestampTz('resolving_since'),
+  /** Les étapes de dés s'enchaînent seules, tirées par le serveur (lot du MJ). */
+  autoRoll: boolean('auto_roll').notNull().default(false),
   note: text('note'),
   idempotencyKey: text('idempotency_key'),
   createdBy: uuid('created_by').notNull(),

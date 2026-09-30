@@ -10,6 +10,9 @@
  * Situation (§ 5.7) : l'abri de la cible et l'avantage de situation changent l'issue (D&D) ;
  * participant surpris, décompte des attaques, Frappe rapide d'office contre la cible qui n'a
  * pas encore agi, par le contexte `@combat.*` que campaign fige et envoie (Star Wars).
+ * Attaque en étapes (§ 6) : le d20 (TOUCHÉ vu du joueur), puis les dégâts des seules cibles
+ * touchées, raté sans étape de dégâts, étape périmée (409), reprise par le MJ ; Star Wars en
+ * une étape.
  *
  * Non-fuite, de bout en bout : un joueur ne reçoit aucune valeur d'un PNJ (REST, événements de
  * campaign et de character, jets transmis à l'historique des dés), ni la fiche d'un PNJ ennemi
@@ -86,9 +89,16 @@ interface Target {
   } | null;
   applied?: { applicationId: string; defeated: boolean } | null;
 }
+interface Step {
+  id: string;
+  phase: string;
+  label?: string;
+  dice: { id: string; targetId: string | null; faces: number; die?: string }[];
+}
 interface Attack {
   id: string;
   attackerId: string;
+  pendingSteps: Step[];
   action: { id: string; name: string };
   rollMode: string;
   visibility: string;
@@ -135,6 +145,20 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
       return res.json() as Sheet;
     };
     const sheet = (u: RealUser, id: string) => okSheet(u, 'GET', `/v1/characters/${id}`);
+
+    /**
+     * Lance les étapes de dés d'une attaque une à une, dés tirés par character (`results: []`),
+     * jusqu'au rapport : le jet, puis les dégâts des cibles touchées, puis la table.
+     */
+    async function rollSteps<T extends Attack>(u: RealUser, campaignId: string, a: T): Promise<T> {
+      let current = a;
+      for (let i = 0; i < 10 && current.pendingSteps.length; i++)
+        current = await ok<T>(u, 'POST', `/v1/campaigns/${campaignId}/attacks/${current.id}/dice`, {
+          stepId: current.pendingSteps[0]!.id,
+          results: [],
+        });
+      return current;
+    }
     const value = async (u: RealUser, id: string, key: string) =>
       Number((await sheet(u, id)).fiche.valeurs[key]?.valeur);
 
@@ -406,7 +430,7 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
           { 'idempotency-key': 'e2e-alice-attaque-1' },
         );
         expect(res.statusCode, res.body).toBe(201);
-        playerAttack = res.json() as Attack;
+        playerAttack = await rollSteps(alice, c.id, res.json() as Attack);
         expect(playerAttack).toMatchObject({
           status: 'pending',
           visibility: 'public',
@@ -497,12 +521,16 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
       it('attaque de zone du MJ en jet commun : cachée par défaut, mêmes dés pour tous', async () => {
         // Dégâts faibles : les héros tirés à la création gardent des PV
         t.impose(1, 1);
-        zone = await ok<Attack>(gm, 'POST', attacks(), {
-          attackerId: hob2,
-          action: 'degats-libres',
-          params: { nbDes: 2, faces: 2, bonus: 0 },
-          targets: [thorin, balin],
-        });
+        zone = await rollSteps(
+          gm,
+          c.id,
+          await ok<Attack>(gm, 'POST', attacks(), {
+            attackerId: hob2,
+            action: 'degats-libres',
+            params: { nbDes: 2, faces: 2, bonus: 0 },
+            targets: [thorin, balin],
+          }),
+        );
         expect(zone).toMatchObject({ rollMode: 'shared', visibility: 'gm', status: 'pending' });
         const dice = zone.targets.map((x) => JSON.stringify(x.result?.roll.dice));
         expect(dice[0]).toBe(dice[1]);
@@ -618,6 +646,7 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
           params: { score: 'Distance', nbDes: 1, faces: 6, bonus: 0 },
           targets: [hob1],
         });
+        await rollSteps(alice, c.id, a);
         a = await ok<Attack>(gm, 'GET', `${attacks()}/${a.id}`);
         a = await ok<Attack>(gm, 'POST', `${attacks()}/${a.id}/apply`, {
           version: a.version,
@@ -733,6 +762,7 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
           targets: [balin],
           visibility: 'public',
         });
+        a = await rollSteps(gm, c.id, a);
         const before = await value(bob, balin, 'PV');
         a = await ok<Attack>(gm, 'POST', `${attacks()}/${a.id}/dismiss`, {
           version: a.version,
@@ -751,12 +781,16 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
           duree: 3,
         });
         t.impose(CRIT, 1, 1);
-        const pending = await ok<Attack>(alice, 'POST', attacks(), {
-          attackerId: thorin,
-          action: 'attaque-libre',
-          params: { score: 'Contact', nbDes: 1, faces: 6, bonus: 0 },
-          targets: [hob2],
-        });
+        const pending = await rollSteps(
+          alice,
+          c.id,
+          await ok<Attack>(alice, 'POST', attacks(), {
+            attackerId: thorin,
+            action: 'attaque-libre',
+            params: { score: 'Contact', nbDes: 1, faces: 6, bonus: 0 },
+            targets: [hob2],
+          }),
+        );
         expect(pending.status).toBe('pending');
         const res = await t.toCampaign(gm, 'POST', `${combat()}/end`, {
           pendingAttacks: 'dismiss',
@@ -854,6 +888,10 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
         );
         expect(reacted.targets[0]!.characterId).toBe(chewie);
 
+        // Réaction reçue : la réserve est la première étape, que le MJ (l'auteur) lance
+        a = await ok<Attack>(gm, 'GET', `/v1/campaigns/${c.id}/attacks/${a.id}`);
+        expect(a).toMatchObject({ status: 'awaiting_dice', pendingSteps: [{ phase: 'roll' }] });
+        await rollSteps(gm, c.id, a);
         a = await ok<Attack>(gm, 'GET', `/v1/campaigns/${c.id}/attacks/${a.id}`);
         expect(a.status).toBe('pending');
         expect(a.targets[0]!.result?.roll.kind).toBe('symbols');
@@ -906,6 +944,173 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
       });
     });
 
+    // ─── Attaque en étapes (§ 6) ─────────────────────────────────────────────
+
+    describe('Attaque en étapes : le toucher, puis les dégâts', () => {
+      let gm: RealUser;
+      let erin: RealUser;
+      let c: { id: string; mapId: string };
+      let hero: string;
+      let hobA: string;
+      let hobB: string;
+      const attacks = () => `/v1/campaigns/${c.id}/attacks`;
+      const dice = (u: RealUser, a: Attack, body: object) =>
+        t.toCampaign(u, 'POST', `${attacks()}/${a.id}/dice`, body);
+      const declare = (targets: string[]) =>
+        ok<Attack>(erin, 'POST', attacks(), {
+          attackerId: hero,
+          action: 'attaque-libre',
+          params: { score: 'Distance', nbDes: 1, faces: 6, bonus: 0 },
+          targets,
+        });
+
+      beforeAll(async () => {
+        gm = await t.user('MJ');
+        erin = await t.user('Erin');
+        c = await table(gm, 'dnd-classic', [erin]);
+        hero = (await dwarf(erin, 'Dwalin')).id;
+        await join(c, gm, erin, hero, 100);
+        [hobA, hobB] = (
+          await npcs(c, gm, { bestiary: { systemeId: 'dnd-classic', key: 'hobgoblin' } }, 400, {
+            count: 2,
+          })
+        ).map((n) => n.id) as [string, string];
+      });
+
+      it('D&D : le d20 (TOUCHÉ vu du joueur), puis « Dégâts », puis le rapport', async () => {
+        t.impose(CRIT, 4, 2);
+        const declared = await declare([hobA]);
+        expect(declared).toMatchObject({ status: 'awaiting_dice', redacted: true });
+        expect(declared.pendingSteps).toEqual([
+          expect.objectContaining({
+            phase: 'roll',
+            dice: [expect.objectContaining({ targetId: hobA, faces: 20 })],
+          }),
+        ]);
+
+        // Étape 1 : touché (critique), aucun dégât encore ; l'étape des dégâts, doublés
+        const res = await dice(erin, declared, {
+          stepId: declared.pendingSteps[0]!.id,
+          results: [],
+        });
+        expect(res.statusCode, res.body).toBe(200);
+        const hit = res.json() as Attack;
+        expect(hit.status).toBe('awaiting_dice');
+        expect(hit.targets[0]).toMatchObject({
+          status: 'awaiting_dice',
+          view: { outcome: { success: true, critical: true }, values: [] },
+        });
+        expect(hit.pendingSteps[0]).toMatchObject({ phase: 'after', label: 'Dégâts' });
+        expect(hit.pendingSteps[0]!.dice).toHaveLength(2);
+        expect(JSON.stringify(hit)).not.toContain('Hobgobelin');
+        // Rien à l'historique des dés avant la fin
+        expect(t.rolls.filter((r) => r.campaignId === c.id)).toEqual([]);
+
+        // Étape périmée : 409, rien ne bouge
+        const outdated = await dice(erin, hit, {
+          stepId: declared.pendingSteps[0]!.id,
+          results: [],
+        });
+        expect(outdated.statusCode).toBe(409);
+        expect(outdated.json()).toMatchObject({ code: 'step_outdated' });
+
+        // Étape 2 : les dégâts, le rapport au MJ, le jet à l'historique
+        const done = await rollSteps(erin, c.id, hit);
+        expect(done).toMatchObject({ status: 'pending', pendingSteps: [] });
+        expect(done.targets[0]!.view?.values).toEqual([
+          expect.objectContaining({ key: 'degats', value: 6 }),
+        ]);
+        const full = await ok<Attack>(gm, 'GET', `${attacks()}/${declared.id}`);
+        expect(full.targets[0]!.result?.modifications).toEqual([
+          expect.objectContaining({ attribute: 'PV', operation: 'subtract', value: 6 }),
+        ]);
+        expect(t.rolls.filter((r) => r.campaignId === c.id)).toHaveLength(1);
+      });
+
+      it('D&D : raté, pas d’étape de dégâts', async () => {
+        t.impose(1);
+        const declared = await declare([hobA]);
+        const done = await ok<Attack>(erin, 'POST', `${attacks()}/${declared.id}/dice`, {
+          stepId: declared.pendingSteps[0]!.id,
+          results: [],
+        });
+        expect(done).toMatchObject({ status: 'pending', pendingSteps: [] });
+        expect(done.targets[0]!.view?.outcome.success).toBe(false);
+      });
+
+      it('D&D : deux cibles, une ratée ; les dégâts de la seule touchée', async () => {
+        t.impose(CRIT, 1, 5, 5);
+        const declared = await declare([hobA, hobB]);
+        expect(declared.pendingSteps[0]!.dice.map((d) => d.targetId)).toEqual([hobA, hobB]);
+        const step1 = await ok<Attack>(erin, 'POST', `${attacks()}/${declared.id}/dice`, {
+          stepId: declared.pendingSteps[0]!.id,
+          results: [],
+        });
+        expect(step1.targets.map((x) => [x.status, x.view?.outcome.success])).toEqual([
+          ['awaiting_dice', true],
+          ['resolved', false],
+        ]);
+        expect(step1.pendingSteps[0]!.dice.every((d) => d.targetId === hobA)).toBe(true);
+        const done = await rollSteps(erin, c.id, step1);
+        expect(done.status).toBe('pending');
+      });
+
+      it('reprise par le MJ : l’auteur est parti, le serveur tire la suite', async () => {
+        t.impose(CRIT, 3, 3);
+        const declared = await declare([hobA]);
+        const step1 = await ok<Attack>(erin, 'POST', `${attacks()}/${declared.id}/dice`, {
+          stepId: declared.pendingSteps[0]!.id,
+          results: [],
+        });
+        // Le MJ voit l'attaque en cours, puis tire tout le reste d'un coup
+        const seen = await ok<Attack>(gm, 'GET', `${attacks()}/${declared.id}`);
+        expect(seen).toMatchObject({ status: 'awaiting_dice', redacted: false });
+        const done = await ok<Attack>(gm, 'POST', `${attacks()}/${declared.id}/dice`, {
+          stepId: step1.pendingSteps[0]!.id,
+          results: [],
+          serverFallback: true,
+        });
+        expect(done).toMatchObject({ status: 'pending', pendingSteps: [] });
+        // L'auteur retrouve son résultat : touché, dégâts
+        const mine = await ok<Attack>(erin, 'GET', `${attacks()}/${declared.id}`);
+        expect(mine.targets[0]!.view?.values).toEqual([
+          expect.objectContaining({ key: 'degats', value: 6 }),
+        ]);
+      });
+
+      it('Star Wars : la réserve dit tout, une seule étape sans critique', async () => {
+        const gmSw = await t.user('MJ');
+        const sw = await table(gmSw, 'star-wars-eote', []);
+        const [tireur, cible] = (
+          await npcs(sw, gmSw, { quick: { name: 'Tireur', type: 'personnage' } }, 100, {
+            count: 2,
+          })
+        ).map((x) => x.id) as [string, string];
+        let s = await sheet(gmSw, tireur);
+        for (const x of [{ entree: 'fusil-blaster' }, { entree: 'distance-lourde', rang: 1 }])
+          s = await okSheet(gmSw, 'POST', `/v1/characters/${tireur}/possessions`, {
+            version: s.version,
+            ...x,
+          });
+        // Toutes les faces vierges : raté, pas de critique
+        t.impose(...Array<number>(20).fill(1));
+        const a = await ok<Attack>(gmSw, 'POST', `/v1/campaigns/${sw.id}/attacks`, {
+          attackerId: tireur,
+          action: 'attaque',
+          params: { arme: 'fusil-blaster', portee: 'moyenne' },
+          targets: [cible],
+        });
+        expect(a.pendingSteps).toHaveLength(1);
+        expect(a.pendingSteps[0]!.phase).toBe('roll');
+        expect(a.pendingSteps[0]!.dice.every((d) => d.die)).toBe(true);
+        const done = await ok<Attack>(gmSw, 'POST', `/v1/campaigns/${sw.id}/attacks/${a.id}/dice`, {
+          stepId: a.pendingSteps[0]!.id,
+          results: [],
+        });
+        expect(done).toMatchObject({ status: 'pending', pendingSteps: [] });
+      });
+    });
+
     // ─── Situation du combat (§ 5.7) ─────────────────────────────────────────
 
     describe('Situation du combat : paramètres, décompte, contexte des règles', () => {
@@ -945,7 +1150,7 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
             params: { score: 'Distance', nbDes: 1, faces: 6, bonus: 0, ...params },
             targets: [hob],
           });
-          return a;
+          return rollSteps(dana, c.id, a);
         };
         expect((await tirer({}, [n, 3])).targets[0]!.view?.outcome.success).toBe(true);
         // Abri partiel : +2 DEF, le même d20 rate ; le MJ lit la ligne dans le rapport
@@ -1006,12 +1211,16 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
         combat = await ok(gm, 'POST', `${url}/next`, { version: combat.version });
         expect(combat.round).toBe(1);
 
-        const a = await ok<Full>(gm, 'POST', `/v1/campaigns/${c.id}/attacks`, {
-          attackerId: tireur,
-          action: 'attaque',
-          params: { arme: 'fusil-blaster', portee: 'moyenne' },
-          targets: [lent, vif],
-        });
+        const a = await rollSteps(
+          gm,
+          c.id,
+          await ok<Full>(gm, 'POST', `/v1/campaigns/${c.id}/attacks`, {
+            attackerId: tireur,
+            action: 'attaque',
+            params: { arme: 'fusil-blaster', portee: 'moyenne' },
+            targets: [lent, vif],
+          }),
+        );
         const fortune = (id: string) =>
           a.targets
             .find((x) => x.characterId === id)!

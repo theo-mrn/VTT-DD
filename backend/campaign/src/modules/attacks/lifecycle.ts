@@ -6,9 +6,10 @@
  *   déclarer ─► awaiting_reactions ─► awaiting_dice ─► pending ─► applied | dismissed
  *   (auteur ou MJ, avant la résolution) ─► cancelled ;   refus de toutes les cibles ─► failed
  *
- * `awaiting_dice` sert aussi, en dés serveur, de marqueur « résolution en cours » : la dernière
- * réaction le pose, la résolution l'enlève (une seule résolution même si deux cibles répondent
- * ensemble).
+ * `awaiting_dice` : des étapes de dés sont à lancer (`pendingSteps` : le jet, puis les dégâts
+ * des cibles touchées, puis la table), une à la fois, par l'attaquant (§ 6). « Résolution en
+ * cours » est à part (`resolvingSince`) : posée par la dernière réaction ou par l'envoi d'une
+ * étape, enlevée par la réponse de character ; une seule à la fois.
  */
 import type { AttackStatus, AttackVisibility, CombatSettings, RollDiceMode } from '@vtt/contracts';
 import type { ActionResolution, PreparedAction } from '../../clients/character.js';
@@ -18,6 +19,19 @@ import type { AttackRow, TargetRow } from './repository.js';
 
 export const isOpen = (status: AttackStatus) =>
   status === 'awaiting_reactions' || status === 'awaiting_dice';
+
+/**
+ * Une résolution restée ouverte plus longtemps (panne entre campaign et character) ne bloque
+ * plus l'attaque : l'étape peut être renvoyée.
+ */
+export const RESOLVING_STALE_MS = 30_000;
+
+/** Résolution en cours chez character (ni dés à lancer, ni rapport pour l'instant). */
+export const isResolving = (
+  attack: Pick<AttackRow, 'resolvingSince'>,
+  now: Date = new Date(),
+): boolean =>
+  !!attack.resolvingSince && now.getTime() - attack.resolvingSince.getTime() < RESOLVING_STALE_MS;
 
 /** Une cible attend une décision du MJ : résolue, pas encore décidée (ou annulée depuis). */
 export const undecided = (t: Pick<TargetRow, 'status' | 'decision'>) =>

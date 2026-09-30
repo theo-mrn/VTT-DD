@@ -8,6 +8,7 @@ import {
   defaultVisibility,
   effectiveDice,
   implicitSlotActor,
+  isResolving,
   outOfTurnOf,
   preparedTargets,
   statusAfterDecision,
@@ -95,5 +96,14 @@ describe('déclaration', () => {
     } as never;
     const now = preparedTargets(['x', 'z'], prepared, resolution);
     expect(now.map((t) => t.status)).toEqual(['failed', 'resolved']);
+  });
+});
+
+describe('résolution en cours', () => {
+  const now = new Date('2026-09-30T12:00:00Z');
+  it('récente : en cours ; plus de 30 s : relançable ; absente : non', () => {
+    expect(isResolving({ resolvingSince: new Date(now.getTime() - 5_000) }, now)).toBe(true);
+    expect(isResolving({ resolvingSince: new Date(now.getTime() - 31_000) }, now)).toBe(false);
+    expect(isResolving({ resolvingSince: null }, now)).toBe(false);
   });
 });

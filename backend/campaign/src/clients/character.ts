@@ -109,9 +109,13 @@ export interface DiceHistory {
   visibility: AttackVisibility;
 }
 
+/**
+ * Résultat d'une cible ; `awaiting_dice` : des dés lui restent à lancer, `result` et `view`
+ * portent ce qui est déjà exact (le jet et son issue), ou null avant le jet.
+ */
 const ResolutionTarget = z.object({
   characterId: z.string(),
-  status: z.enum(['resolved', 'failed']),
+  status: z.enum(['resolved', 'failed', 'awaiting_dice']),
   error: z.string().nullable().default(null),
   result: AttackTargetResult.nullable().default(null),
   view: AttackTargetView.nullable().default(null),
@@ -156,9 +160,20 @@ export interface PrepareInput {
   combat?: AttackCombatContext;
 }
 
+/** Face connue d'un dé d'une attaque : lue sur un dé 3D ou tirée par le serveur. */
+const KnownFace = z.object({
+  id: z.string(),
+  value: z.number().int(),
+  source: z.enum(['physical', 'server']).optional(),
+});
+export type KnownFace = z.infer<typeof KnownFace>;
+
 const ResolveResponse = z.object({
+  /** Étape de dés suivante ; null : `resolution` est complète. */
   step: RollStep.nullable().default(null),
   resolution: ActionResolution.nullable().default(null),
+  /** Faces connues après cet appel, à garder pour l'appel suivant. */
+  faces: z.array(KnownFace).default([]),
 });
 export type ResolvedAction = z.infer<typeof ResolveResponse>;
 
@@ -169,8 +184,13 @@ export interface ResolveInput {
   adjustments?: RollAdjustments;
   dice?: RollDiceMode;
   reactions?: { characterId: string; params?: ActionParams; skipped?: boolean }[];
-  stepId?: string;
-  faces?: { id: string; value: number }[];
+  /** Faces des étapes passées. */
+  faces?: KnownFace[];
+  /** Étape soumise : ses dés absents de `results` sont tirés par character. */
+  step?: RollStep;
+  /** Faces lues sur les dés 3D pour cette étape. */
+  results?: { id: string; value: number }[];
+  /** Tout le reste est tiré par character, jusqu'aux résultats. */
   serverFallback?: boolean;
   diceHistory?: DiceHistory;
 }

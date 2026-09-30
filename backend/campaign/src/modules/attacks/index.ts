@@ -1,13 +1,16 @@
 /**
  * Module « attacks » : attaques et rapports (docs/combat.md § 5 à § 9), en combat ou hors
- * combat. Dés tirés par le serveur (étape B) ; les étapes de dés physiques (étape C) ont leur
- * place dans le contrat et en base (`pendingSteps`, `faces`), sans route pour l'instant.
+ * combat. Une attaque avance par étapes de dés (§ 6) : le jet (TOUCHÉ ou RATÉ par cible), puis
+ * les dégâts des seules cibles touchées, puis la table ; l'attaquant lance chaque étape
+ * (`…/dice` : faces lues sur les dés 3D, ou tirées par le serveur). Le lot du MJ enchaîne ses
+ * étapes seul (`autoRoll`).
  *
  *   POST /v1/campaigns/:id/attacks                        DeclareAttack    déclarer (201)
  *   POST /v1/campaigns/:id/attacks/batch                  DeclareAttacks   à la suite (MJ, 201)
  *   GET  /v1/campaigns/:id/attacks                        ListAttacksQuery liste filtrée
  *   GET  /v1/campaigns/:id/attacks/:attackId                               une attaque, filtrée
  *   POST /v1/campaigns/:id/attacks/:attackId/reactions    AttackReaction   défense active
+ *   POST /v1/campaigns/:id/attacks/:attackId/dice         SubmitRollDice   étape de dés lancée
  *   POST /v1/campaigns/:id/attacks/:attackId/cancel       CancelAttack     abandon
  *   POST /v1/campaigns/:id/attacks/:attackId/apply        ApplyAttack      décision (MJ)
  *   POST /v1/campaigns/:id/attacks/apply                  ApplyAttacks     revue groupée (MJ)
@@ -15,8 +18,10 @@
  *   POST /v1/campaigns/:id/attacks/:attackId/revert       RevertAttack     annuler (MJ)
  *
  * Résolution par character (routes internes, § 11.2) : `prepare` vérifie les règles, fige
- * l'instantané et propose les réactions ; `resolve` rend, cible par cible, le rapport complet
- * (MJ) et la vue de l'attaquant. Rien n'est appliqué sans décision du MJ.
+ * l'instantané, propose les réactions et rend la première étape ; `resolve` rejoue les faces
+ * gardées ici (`faces`), ajoute celles de l'étape et rend la suivante (avec l'issue déjà
+ * exacte de chaque cible), ou, cible par cible, le rapport complet (MJ) et la vue de
+ * l'attaquant. Rien n'est appliqué sans décision du MJ.
  */
 import {
   ApplyAttack,
@@ -31,16 +36,24 @@ import {
   DismissAttack,
   ListAttacksQuery,
   RevertAttack,
+  SubmitRollDice,
   uuidv7,
   type ActionParams,
+  type AttackChange,
+  type RollStep,
 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { sql } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import type { ActionResolution } from '../../clients/character.js';
-import type { Tx } from '../../db/outbox.js';
+import type {
+  ActionResolution,
+  KnownFace,
+  ResolvedAction,
+  ResolveInput,
+} from '../../clients/character.js';
+import type { EventContext, Tx } from '../../db/outbox.js';
 import type { Deps, Module } from '../../deps.js';
 import { access, lockCampaign, type Access } from '../campaigns/repository.js';
 import { settingsOf, stateOf } from '../combat/api.js';
@@ -63,6 +76,7 @@ import {
   effectiveDice,
   implicitSlotActor,
   isOpen,
+  isResolving,
   outOfTurnOf,
   preparedTargets,
   resolvedTarget,
@@ -112,6 +126,9 @@ interface Prepared {
   visibility: 'public' | 'private' | 'gm';
   targets: ReturnType<typeof preparedTargets>;
   resolution: ActionResolution | null;
+  /** Première étape de dés à lancer ; null : résolue, ou en attente des réactions. */
+  step: RollStep | null;
+  faces: KnownFace[];
 }
 
 export const register: Module = async (app, deps) => {
@@ -137,7 +154,9 @@ export const register: Module = async (app, deps) => {
     async (req, reply) =>
       withProblems(req, reply, async () => {
         const { a, userId, v } = await viewerFor(req, req.params.id);
-        const [l] = await declare(deps, req, a, userId, v, [req.body], idempotencyKey(req));
+        const [l] = await declare(deps, req, a, userId, v, [req.body], idempotencyKey(req), {
+          autoRoll: false,
+        });
         reply.code(201);
         return respond(l!, v);
       }),
@@ -157,6 +176,7 @@ export const register: Module = async (app, deps) => {
       withProblems(req, reply, async () => {
         const { a, userId, v } = await viewerFor(req, req.params.id);
         requireGm(v);
+        // Lot du MJ : les étapes de dés s'enchaînent seules (pas de clic par PNJ)
         const loaded = await declare(
           deps,
           req,
@@ -165,6 +185,7 @@ export const register: Module = async (app, deps) => {
           v,
           req.body.attacks,
           idempotencyKey(req),
+          { autoRoll: true },
         );
         reply.code(201);
         return { attacks: loaded.map((l) => fullAttack(l)) };
@@ -224,6 +245,17 @@ export const register: Module = async (app, deps) => {
   );
 
   r.post(
+    '/v1/campaigns/:id/attacks/:attackId/dice',
+    { ...auth, schema: { params: AttackParams, body: SubmitRollDice, response: { 200: Attack } } },
+    async (req, reply) =>
+      withProblems(req, reply, async () => {
+        const { a, userId, v } = await viewerFor(req, req.params.id);
+        requireActor(v);
+        return respond(await rollStep(deps, req, a, userId, v, req.params.attackId, req.body), v);
+      }),
+  );
+
+  r.post(
     '/v1/campaigns/:id/attacks/:attackId/cancel',
     {
       ...auth,
@@ -245,6 +277,7 @@ export const register: Module = async (app, deps) => {
           status: 'cancelled',
           snapshot: null,
           pendingSteps: [],
+          resolvingSince: null,
         });
         await attackUpdated(tx, eventContext(req), saved, { userId, role: a.role }, 'cancelled');
         return saved;
@@ -319,9 +352,10 @@ export const register: Module = async (app, deps) => {
 
 /**
  * Déclare des attaques (une, ou un lot du MJ) : droits et cibles, tour, préparation par
- * character, résolution immédiate s'il n'y a aucune réaction à attendre, puis écriture de
- * toutes les attaques dans une transaction. Une clé d'idempotence rend les attaques déjà
- * déclarées avec elle, sans rien relancer (verrou consultatif pendant la déclaration).
+ * character (première étape de dés, ou résolution d'une action sans dé), puis écriture de
+ * toutes les attaques dans une transaction. `autoRoll` (lot du MJ) : les étapes s'enchaînent
+ * seules, le serveur tire tout. Une clé d'idempotence rend les attaques déjà déclarées avec
+ * elle, sans rien relancer (verrou consultatif pendant la déclaration).
  */
 async function declare(
   deps: Deps,
@@ -331,6 +365,7 @@ async function declare(
   v: AttackViewer,
   bodies: Declaration[],
   key: string | null,
+  mode: { autoRoll: boolean },
 ): Promise<LoadedAttack[]> {
   requireActor(v);
   const keys = key ? bodies.map((_, i) => (bodies.length > 1 ? `${key}#${i}` : key)) : null;
@@ -393,9 +428,11 @@ async function declare(
           ),
         );
       let resolution = p.resolution;
-      const waiting =
-        !resolution && (p.step || p.targets.some((t) => !t.error && t.reactionParams.length));
-      if (!resolution && !waiting) {
+      let step = resolution ? null : p.step;
+      let faces: KnownFace[] = [];
+      const reacting = p.targets.some((t) => !t.error && t.reactionParams.length);
+      // Lot du MJ : tout est tiré d'un coup ; sinon l'attaquant lance la première étape
+      if (!resolution && !reacting && (mode.autoRoll || !step)) {
         try {
           const resolved = await deps.character.resolveAction(
             {
@@ -407,7 +444,9 @@ async function declare(
             },
             origin,
           );
-          resolution = resolved.resolution;
+          resolution = resolved.step ? null : resolved.resolution;
+          step = resolved.step;
+          faces = resolved.faces;
         } catch (e) {
           throw characterFailure(e, req.log, 'résolution d’une attaque');
         }
@@ -422,6 +461,8 @@ async function declare(
         visibility,
         targets: preparedTargets(body.targets, p, resolution),
         resolution,
+        step,
+        faces,
       });
     }
 
@@ -477,6 +518,9 @@ async function declare(
                 }
               : null,
             snapshot: p.snapshot ?? null,
+            faces: p.faces,
+            pendingSteps: p.step ? [p.step] : [],
+            autoRoll: mode.autoRoll,
             idempotencyKey: keys?.[i] ?? null,
             createdBy: userId,
             resolvedAt: resolved ? new Date() : null,
@@ -511,9 +555,10 @@ async function declare(
 }
 
 /**
- * Réaction d'une cible (défense active) ; la dernière attendue lance la résolution. Le statut
- * `awaiting_dice` marque la résolution en cours : une seule, même si deux cibles répondent en
- * même temps. En cas de panne de character, l'attaque revient en attente des réactions (une
+ * Réaction d'une cible (défense active) ; la dernière attendue lance la résolution (la
+ * première étape de dés, ou tout d'un coup pour le lot du MJ). Pendant ce temps l'attaque est
+ * « en résolution » (`resolvingSince`) : une seule, même si deux cibles répondent en même
+ * temps. En cas de panne de character, l'attaque revient en attente des réactions (une
  * nouvelle réponse relance la résolution).
  */
 async function react(
@@ -555,79 +600,213 @@ async function react(
         : t,
     );
     const allIn = targets.filter(canReact).every((t) => t.reaction);
-    const saved = await saveAttack(tx, l, allIn ? { status: 'awaiting_dice' } : {}, targets);
+    const saved = await saveAttack(
+      tx,
+      l,
+      allIn ? { status: 'awaiting_dice', resolvingSince: new Date() } : {},
+      targets,
+    );
     await attackUpdated(tx, eventContext(req), saved, actor, 'reaction_received');
     return { saved, allIn };
   });
   if (!first.allIn) return first.saved;
 
-  const l = first.saved;
-  let resolution: ActionResolution | null;
-  try {
-    const visibility = l.attack.visibility;
-    const r = await deps.character.resolveAction(
-      {
-        snapshot: l.attack.snapshot,
-        params: l.attack.params,
-        rollMode: l.attack.rollMode,
-        ...(l.attack.adjustments ? { adjustments: l.attack.adjustments } : {}),
-        dice: 'server',
-        reactions: l.targets
-          .filter((t) => t.reaction)
-          .map((t) => ({
-            characterId: t.characterId,
-            params: t.reaction!.params,
-            skipped: t.reaction!.skipped,
-          })),
-        serverFallback: true,
-        diceHistory: { campaignId: a.campaign.id, authorId: l.attack.createdBy, visibility },
-      },
-      { userId, campaignId: a.campaign.id, correlationId: req.ctx.correlationId },
-    );
-    resolution = r.resolution;
-    if (!resolution) throw new Error('character n’a rendu ni résolution ni étape de dés');
-  } catch (e) {
+  return resolveNext(deps, req, a, actor, first.saved, {
+    serverFallback: first.saved.attack.autoRoll,
+    change: 'dice_requested',
     // Résolution impossible : l'attaque revient en attente des réactions
+    onFailure: async (tx, current) => {
+      const saved = await saveAttack(tx, current, {
+        status: 'awaiting_reactions',
+        resolvingSince: null,
+      });
+      await attackUpdated(tx, eventContext(req), saved, actor, 'reaction_requested');
+    },
+  });
+}
+
+/**
+ * Étape de dés lancée (`…/dice`) : par l'auteur (ou le joueur qui incarne l'attaquant), le MJ
+ * à sa place, ou pour une étape `roller: target` le joueur de la cible. Faces lues sur les dés
+ * 3D (`results`) ; un dé absent est tiré par le serveur ; `serverFallback` : tout le reste
+ * aussi. Étape déjà passée : 409 `step_outdated` ; résolution déjà en cours : 409
+ * `resolution_in_progress` ; face invalide : 400 `invalid_physical_result`, rien ne bouge.
+ */
+async function rollStep(
+  deps: Deps,
+  req: FastifyRequest,
+  a: Access,
+  userId: string,
+  v: AttackViewer,
+  attackId: string,
+  body: z.output<typeof SubmitRollDice>,
+): Promise<LoadedAttack> {
+  const actor: EventActor = { userId, role: a.role };
+  const { marked, step } = await deps.db.transaction(async (tx) => {
+    await lockCampaign(tx, a.campaign.id);
+    const l = await loadAttack(tx, a.campaign.id, attackId, true);
+    if (!l || !attackFor(l, v)) throw attackNotFound();
+    const step = l.attack.pendingSteps.find((s) => s.id === body.stepId);
+    const allowed =
+      v.isGm ||
+      ((step?.roller ?? 'author') === 'author'
+        ? l.attack.createdBy === userId || v.played.has(l.attack.attackerId)
+        : !!step?.targetId && v.played.has(step.targetId));
+    if (!allowed) throw HttpError.forbidden('Seuls le lanceur de l’étape et le MJ lancent ces dés');
+    if (l.attack.status !== 'awaiting_dice' || !step)
+      throw HttpError.conflict('Cette étape de dés est déjà passée', 'step_outdated');
+    if (isResolving(l.attack))
+      throw HttpError.conflict(
+        'Les dés précédents sont en cours de résolution',
+        'resolution_in_progress',
+      );
+    const dice = new Map(step.dice.map((d) => [d.id, d]));
+    for (const r of body.results) {
+      const d = dice.get(r.id);
+      if (!d)
+        throw HttpError.badRequest(`Dé inconnu de l’étape : ${r.id}`, 'invalid_physical_result');
+      if (r.value > d.faces)
+        throw HttpError.badRequest(
+          `Face ${r.value} hors de 1..${d.faces} (dé ${r.id})`,
+          'invalid_physical_result',
+        );
+    }
+    return { marked: await saveAttack(tx, l, { resolvingSince: new Date() }), step };
+  });
+  return resolveNext(deps, req, a, actor, marked, {
+    step,
+    results: body.results,
+    serverFallback: body.serverFallback === true || marked.attack.autoRoll,
+    change: 'dice_rolled',
+    // Panne de character : l'étape reste à lancer, rien n'a bougé
+    onFailure: async (tx, current) => {
+      await saveAttack(tx, current, { resolvingSince: null });
+    },
+  });
+}
+
+/**
+ * Résolution par character d'une attaque marquée « en résolution » (`marked`), hors de toute
+ * transaction : l'étape suivante (l'issue de l'étape passée devient visible), ou le rapport.
+ * Abandonnée ou changée entre-temps : le résultat est écarté.
+ */
+async function resolveNext(
+  deps: Deps,
+  req: FastifyRequest,
+  a: Access,
+  actor: EventActor,
+  marked: LoadedAttack,
+  o: {
+    step?: RollStep;
+    results?: { id: string; value: number }[];
+    serverFallback: boolean;
+    change: AttackChange;
+    onFailure: (tx: Tx, current: LoadedAttack) => Promise<void>;
+  },
+): Promise<LoadedAttack> {
+  const { db } = deps;
+  const at = marked.attack;
+  const same = (current: LoadedAttack | null): current is LoadedAttack =>
+    current?.attack.status === 'awaiting_dice' && current.attack.version === at.version;
+  let resolved: ResolvedAction;
+  try {
+    const input: ResolveInput = {
+      snapshot: at.snapshot,
+      params: at.params,
+      rollMode: at.rollMode,
+      ...(at.adjustments ? { adjustments: at.adjustments } : {}),
+      dice: at.dice,
+      reactions: marked.targets
+        .filter((t) => t.reaction)
+        .map((t) => ({
+          characterId: t.characterId,
+          params: t.reaction!.params,
+          skipped: t.reaction!.skipped,
+        })),
+      faces: at.faces.map((f) => ({
+        id: f.id,
+        value: f.value,
+        ...(f.source === 'physical' || f.source === 'server' ? { source: f.source } : {}),
+      })),
+      ...(o.step ? { step: o.step, results: o.results ?? [] } : {}),
+      ...(o.serverFallback ? { serverFallback: true } : {}),
+      diceHistory: {
+        campaignId: a.campaign.id,
+        authorId: at.createdBy,
+        visibility: at.visibility,
+      },
+    };
+    resolved = await deps.character.resolveAction(input, {
+      userId: actor.userId,
+      campaignId: a.campaign.id,
+      correlationId: req.ctx.correlationId,
+    });
+    if (!resolved.step && !resolved.resolution)
+      throw new Error('character n’a rendu ni résolution ni étape de dés');
+  } catch (e) {
     await db.transaction(async (tx) => {
       await lockCampaign(tx, a.campaign.id);
-      const current = await loadAttack(tx, a.campaign.id, attackId, true);
-      if (current?.attack.status !== 'awaiting_dice' || current.attack.version !== l.attack.version)
-        return;
-      const saved = await saveAttack(tx, current, { status: 'awaiting_reactions' });
-      await attackUpdated(tx, eventContext(req), saved, actor, 'reaction_requested');
+      const current = await loadAttack(tx, a.campaign.id, at.id, true);
+      if (same(current)) await o.onFailure(tx, current);
     });
     throw characterFailure(e, req.log, 'résolution d’une attaque');
   }
 
   return db.transaction(async (tx) => {
-    const ctx = eventContext(req);
     await lockCampaign(tx, a.campaign.id);
-    const current = await loadAttack(tx, a.campaign.id, attackId, true);
+    const current = await loadAttack(tx, a.campaign.id, at.id, true);
     if (!current) throw attackNotFound();
-    // Abandonnée pendant la résolution : le résultat est écarté
-    if (current.attack.status !== 'awaiting_dice' || current.attack.version !== l.attack.version)
-      return current;
-    const targets = current.targets.map((t) =>
-      t.status === 'failed' ? t : resolvedTarget(t, resolution!),
-    );
-    const status = statusAfterResolution(targets);
+    if (!same(current)) return current;
+    return recordResolution(tx, eventContext(req), current, resolved, actor, o.change);
+  });
+}
+
+/**
+ * Réponse de character enregistrée : l'étape suivante (les cibles portent l'issue déjà
+ * exacte : TOUCHÉ ou RATÉ avant les dégâts), ou le rapport complet.
+ */
+async function recordResolution(
+  tx: Tx,
+  ctx: EventContext,
+  current: LoadedAttack,
+  r: ResolvedAction,
+  actor: EventActor,
+  change: AttackChange,
+): Promise<LoadedAttack> {
+  const resolution = r.resolution;
+  const targets = resolution
+    ? current.targets.map((t) => (t.status === 'failed' ? t : resolvedTarget(t, resolution)))
+    : current.targets;
+  if (r.step) {
     const saved = await saveAttack(
       tx,
       current,
-      {
-        status,
-        snapshot: null,
-        actor: {
-          modifications: resolution!.actor.modifications,
-          decision: 'pending',
-          applied: null,
-        },
-        resolvedAt: new Date(),
-      },
+      { status: 'awaiting_dice', pendingSteps: [r.step], faces: r.faces, resolvingSince: null },
       targets,
     );
-    await attackUpdated(tx, ctx, saved, actor, status === 'failed' ? 'failed' : 'resolved');
-    await attackResolved(tx, ctx, saved, actor);
+    await attackUpdated(tx, ctx, saved, actor, change);
     return saved;
-  });
+  }
+  const status = statusAfterResolution(targets);
+  const saved = await saveAttack(
+    tx,
+    current,
+    {
+      status,
+      snapshot: null,
+      pendingSteps: [],
+      faces: r.faces,
+      resolvingSince: null,
+      actor: {
+        modifications: resolution!.actor.modifications,
+        decision: 'pending',
+        applied: null,
+      },
+      resolvedAt: new Date(),
+    },
+    targets,
+  );
+  await attackUpdated(tx, ctx, saved, actor, status === 'failed' ? 'failed' : 'resolved');
+  await attackResolved(tx, ctx, saved, actor);
+  return saved;
 }

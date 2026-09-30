@@ -12,7 +12,7 @@
  * - les autres : rien (404).
  */
 import type { Attack, AttackTarget, RollStep } from '@vtt/contracts';
-import { isOpen } from './lifecycle.js';
+import { isOpen, isResolving } from './lifecycle.js';
 import type { LoadedAttack, TargetRow } from './repository.js';
 import { isAuthor, reactingTargets, type AttackViewer } from './rights.js';
 
@@ -38,6 +38,7 @@ function base(l: LoadedAttack): Omit<Attack, 'targets' | 'redacted'> {
     adjustments: a.adjustments ?? null,
     actor: a.actor ?? null,
     pendingSteps: a.pendingSteps,
+    ...(isResolving(a) ? { resolving: true } : {}),
     note: a.note ?? null,
     createdBy: a.createdBy,
     createdAt: a.createdAt.toISOString(),
@@ -82,7 +83,15 @@ export function authorView(l: LoadedAttack, v: AttackViewer): Attack {
         // Montants appliqués : seulement à un personnage du camp des joueurs
         ...(v.sideOf.get(t.characterId) === 'players' ? { applied: t.applied ?? null } : {}),
       })),
-    pendingSteps: stepsFor(l.attack.pendingSteps, (s) => (s.roller ?? 'author') === 'author'),
+    // Un dé propre à une cible que l'auteur ne voit plus ne la nomme pas
+    pendingSteps: stepsFor(l.attack.pendingSteps, (s) => (s.roller ?? 'author') === 'author').map(
+      (s) => ({
+        ...s,
+        dice: s.dice.map((d) =>
+          d.targetId && !v.known.has(d.targetId) ? { ...d, targetId: null } : d,
+        ),
+      }),
+    ),
     redacted: true,
   };
 }
