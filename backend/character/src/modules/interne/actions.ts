@@ -26,6 +26,7 @@ import {
   AttackRollMode,
   AttackTargetResult,
   AttackTargetView,
+  AttackVisibility as AttackVisibilitySchema,
   DieSource,
   RollAdjustments,
   RollDiceMode,
@@ -57,7 +58,7 @@ import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Deps, ServiceApp } from '../../deps.js';
-import { jetPourDes } from '../../des/dice.js';
+import { jetDeVue, jetPourDes } from '../../des/dice.js';
 import { refus, verifierEtat } from '../../regles/operations.js';
 import { resultatCible, versModification, vueCible } from '../../regles/combat.js';
 import { lire, systemeDe } from '../personnages/depot.js';
@@ -686,6 +687,52 @@ export function registerActionRoutes(
         step,
         resolution,
       };
+    },
+  );
+
+  r.post(
+    '/internal/actions/rolls',
+    {
+      ...guard,
+      bodyLimit: 2 * 1024 * 1024,
+      schema: {
+        hide: true,
+        body: z.object({
+          campaignId: Id,
+          authorId: Id,
+          characterId: Id,
+          visibility: AttackVisibilitySchema,
+          action: z.string().trim().min(1).max(200),
+          rollMode: AttackRollMode,
+          /** Vues de l'attaquant, une par cible résolue (jamais le rapport complet). */
+          views: z.array(AttackTargetView).min(1).max(50),
+        }),
+        response: { 202: z.object({ forwarded: z.number().int() }) },
+      },
+    },
+    async (req, reply) => {
+      const b = req.body;
+      const ligne = await lireOu404(deps, b.characterId);
+      const systeme = systemeDe(deps.catalogue, ligne, await deps.droits.options(ligne.id));
+      const acteur = { id: ligne.id, nom: ligne.nom, avatarUrl: ligne.avatarUrl };
+      const contexte = {
+        authorId: b.authorId,
+        campaignId: b.campaignId,
+        visibility: b.visibility,
+      };
+      // Jet commun : les dés sont les mêmes, un seul jet ; sinon un par cible
+      const vues = b.rollMode === 'shared' ? b.views.slice(0, 1) : b.views;
+      const memes = b.views.every((v) => v.outcome.success === b.views[0]!.outcome.success);
+      for (const v of vues)
+        void deps.des.transmettre(
+          jetDeVue(systeme, acteur, b.action, v, {
+            ...contexte,
+            ...(b.rollMode === 'shared' && !memes ? { success: null } : {}),
+          }),
+          correlation(req),
+        );
+      reply.code(202);
+      return { forwarded: vues.length };
     },
   );
 

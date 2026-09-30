@@ -5,8 +5,8 @@
  * Accès (`acces`, `autoriser`) : un seul personnage actif, pas de possession.
  * Engagé dans une campagne, un personnage s'écrit par le membre qui l'incarne
  * et par le MJ ; les autres membres le lisent, son propriétaire compris s'il ne
- * l'incarne pas, sauf la fiche d'un PNJ ennemi, réservée au MJ (docs/combat.md, Q4 :
- * les PNJ du camp des joueurs et les alliés restent lisibles). Son propriétaire garde
+ * l'incarne pas. La fiche d'un PNJ ennemi se lit par le MJ et les joueurs de la campagne
+ * (l'attaque se calcule chez l'attaquant, docs/combat.md § 9.1), pas par les spectateurs. Son propriétaire garde
  * la main hors campagne (jamais engagé) et pendant la création, et seul il le supprime.
  * Pour tout autre utilisateur, un personnage, ou un personnage supprimé, est
  * introuvable (404) : on ne révèle pas son existence.
@@ -128,7 +128,8 @@ export interface Acces {
  *  - engagé : le membre qui l'incarne et le MJ écrivent, les membres lisent, le
  *    propriétaire lit toujours (même s'il ne siège plus à la table) ;
  *  - un PNJ ne se lit, pour qui ne l'écrit pas, que s'il est du camp des joueurs ou allié
- *    dans une des campagnes du lecteur : la fiche d'un ennemi est réservée au MJ.
+ *    dans une des campagnes du lecteur, ou si le lecteur y est joueur (il peut l'attaquer) :
+ *    la fiche d'un ennemi reste fermée aux spectateurs.
  * campaign en panne : le propriétaire garde la lecture, personne n'écrit
  * (`droits.indisponible`, 503 à l'écriture). `frais` : droits relus sans cache.
  */
@@ -145,10 +146,16 @@ export async function acces(
     return { lecture: true, ecriture: true, role: 'user', droits: dr };
   let lecture = proprietaire || dr.lecture;
   if (lecture && !proprietaire && !dr.ecriture && ligne.kind === 'npc') {
-    const camps = await Promise.all(
-      (dr.campagnes ?? []).map((c) => droits.camp(c, ligne.id, userId)),
+    const lisible = await Promise.all(
+      (dr.campagnes ?? []).map(async (c) => {
+        const camp = await droits.camp(c, ligne.id, userId);
+        if (camp === 'players' || camp === 'allies') return true;
+        // Q4 levée par Théo (2026-09-30) : l'attaque se calcule dans le navigateur de
+        // l'attaquant, un joueur de la campagne lit donc la fiche du PNJ qu'il vise
+        return camp !== null && (await droits.role(c, userId)) === 'player';
+      }),
     );
-    lecture = camps.some((c) => c === 'players' || c === 'allies');
+    lecture = lisible.some(Boolean);
   }
   return {
     lecture,

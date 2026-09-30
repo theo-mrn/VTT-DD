@@ -10,6 +10,7 @@
  * l'issue, les valeurs que le système lui montre) : le déroulé complet nomme les défenses et
  * les valeurs de la cible, qu'un joueur ne doit jamais lire (docs/combat.md § 7.7).
  */
+import type { AttackTargetView } from '@vtt/contracts';
 import type { ResultatAction, SystemeCharge } from '@vtt/rules';
 import { EN_TETE_SECRET_INTERNE } from '../interne/secret.js';
 
@@ -128,6 +129,61 @@ export function jetPourDes(
       dice: jet.des.map((d) => ({ die: d.de, face: d.face, symbols: d.symboles })),
       totals: jet.symboles,
       results: jet.resultats,
+    },
+    outcome: { success, critical: false, fumble: false },
+  };
+}
+
+/**
+ * Jet d'une attaque calculée dans le navigateur de l'attaquant, au format de dice, depuis la vue
+ * de l'attaquant (`AttackTargetView`, déjà réduite : jamais une valeur de la cible). `success`
+ * remplace la réussite (null : elle n'est pas la même pour toutes les cibles d'un jet commun).
+ */
+export function jetDeVue(
+  systeme: SystemeCharge,
+  acteur: { id: string; nom: string; avatarUrl: string | null },
+  actionId: string,
+  vue: AttackTargetView,
+  contexte: {
+    authorId: string;
+    campaignId?: string;
+    visibility?: VisibiliteJet;
+    success?: boolean | null;
+  },
+): JetAction {
+  const success = contexte.success === undefined ? vue.outcome.success : contexte.success;
+  const action = systeme.source.actions.find((a) => a.id === actionId);
+  const commun = {
+    ...(contexte.campaignId ? { campaignId: contexte.campaignId } : {}),
+    authorId: contexte.authorId,
+    characterId: acteur.id,
+    characterName: acteur.nom,
+    characterAvatarUrl: acteur.avatarUrl,
+    actionId,
+    ...(action?.nom ? { label: action.nom.slice(0, 200) } : {}),
+    systemId: systeme.source.id,
+    visibility: contexte.visibility ?? 'public',
+    explanations: vue.explanations,
+  };
+  const jet = vue.roll;
+  if (jet.kind === 'numeric')
+    return {
+      ...commun,
+      notation: jet.formula.slice(0, 500),
+      dice: jet.dice.map((g) => ({
+        faces: g.faces,
+        values: g.values.map((d) => ({ value: d.value, kept: d.kept, exploded: d.exploded })),
+      })),
+      total: jet.total,
+      outcome: { success, critical: vue.outcome.critical, fumble: vue.outcome.fumble },
+    };
+  return {
+    ...commun,
+    dice: [],
+    symbols: {
+      dice: jet.dice.map((d) => ({ die: d.die, face: d.face, symbols: d.symbols })),
+      totals: jet.symbols,
+      results: jet.results,
     },
     outcome: { success, critical: false, fumble: false },
   };

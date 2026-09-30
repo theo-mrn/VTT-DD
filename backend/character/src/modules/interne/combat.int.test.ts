@@ -3,7 +3,7 @@
  * une attaque (réactions, jet commun, déterminisme, vue de l'attaquant, historique des dés),
  * appliquer les décisions du MJ sans relancer un dé (idempotence, tout ou rien, tables, hors de
  * combat), les annuler (conflits, `force`), décompter les durées une seule fois par `tickId`.
- * Et la lecture des fiches de PNJ : un ennemi n'est lisible que par le MJ (Q4).
+ * Et la lecture des fiches de PNJ : un ennemi se lit par le MJ et les joueurs (Q4 levée).
  */
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -703,9 +703,71 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     expect(tick.json()).toMatchObject({ modifie: true, retirees: ['bonus:marque'] });
   });
 
+  // ─── Attaque calculée dans le navigateur : jet transmis depuis la vue ────────
+
+  it('jet d’une attaque calculée par le navigateur : transmis depuis la vue de l’attaquant', async () => {
+    const thorin = await o.nainGuerrier(alice, 'Thorin');
+    const vue = (success: boolean) => ({
+      outcome: { success, critical: false, fumble: false },
+      roll: {
+        kind: 'numeric',
+        formula: '1d20 + 3',
+        dice: [
+          { faces: 20, values: [{ value: 14, kept: true, exploded: false, source: 'server' }] },
+        ],
+        value: 17,
+        bonuses: [],
+        total: 17,
+        natural: 14,
+      },
+      values: [{ key: 'degats', name: 'Dégâts', value: 5 }],
+      explanations: ['Jet : 1d20 + 3 = 17'],
+    });
+    const corps = {
+      campaignId: campagne,
+      authorId: alice.id,
+      characterId: thorin.id,
+      visibility: 'public',
+      action: 'attaque-libre',
+      views: [vue(true), vue(false)],
+    };
+    const parCible = await post('/internal/actions/rolls', { ...corps, rollMode: 'per_target' });
+    expect(parCible.statusCode, parCible.body).toBe(202);
+    expect(parCible.json()).toEqual({ forwarded: 2 });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(t.jets).toHaveLength(2);
+    expect(t.jets[0]).toMatchObject({
+      campaignId: campagne,
+      authorId: alice.id,
+      characterId: thorin.id,
+      characterName: 'Thorin',
+      actionId: 'attaque-libre',
+      systemId: 'dnd-classic',
+      notation: '1d20 + 3',
+      total: 17,
+      outcome: { success: true, critical: false, fumble: false },
+      dice: [{ faces: 20, values: [{ value: 14, kept: true, exploded: false }] }],
+    });
+
+    // Jet commun : un seul jet, réussite inconnue si elle diffère d'une cible à l'autre
+    const commun = await post('/internal/actions/rolls', { ...corps, rollMode: 'shared' });
+    expect(commun.json()).toEqual({ forwarded: 1 });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(t.jets).toHaveLength(3);
+    expect(t.jets[2]!.outcome.success).toBeNull();
+
+    // Sans le secret : rien
+    const sans = await t.app.inject({
+      method: 'POST',
+      url: '/internal/actions/rolls',
+      payload: { ...corps, rollMode: 'per_target' },
+    });
+    expect(sans.statusCode).toBe(401);
+  });
+
   // ─── Lecture des PNJ (Q4) ────────────────────────────────────────────────────
 
-  it('fiche d’un PNJ ennemi réservée au MJ ; un allié reste lisible', async () => {
+  it('fiche d’un PNJ ennemi : lue par le MJ et les joueurs, pas par un spectateur', async () => {
     const pnj = await o.nainGuerrier(mj, 'Orc');
     await t.db!.update(characters).set({ kind: 'npc' }).where(eq(characters.id, pnj.id));
     const lecteur = { lecture: true, ecriture: false, engage: true, campagnes: [campagne] };
@@ -715,11 +777,19 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
       t.app.inject({ method: 'GET', url: `/v1/characters/${pnj.id}`, headers: u.auth });
 
     d.camper(campagne, pnj.id, 'enemies');
+    // Spectateur : fermée
+    d.nommer(campagne, bob.id, 'spectator');
     expect((await lireFiche(bob)).statusCode).toBe(404);
     // Le MJ (qui l'écrit) et le propriétaire lisent toujours
     expect((await lireFiche(alice)).statusCode).toBe(200);
     expect((await lireFiche(mj)).statusCode).toBe(200);
+    // Joueur de la campagne : il l'attaque, son navigateur calcule avec sa fiche (Q4 levée)
+    d.nommer(campagne, bob.id, 'player');
+    const lue = await lireFiche(bob);
+    expect(lue.statusCode).toBe(200);
+    expect(lue.json<PersonnageApi>().id).toBe(pnj.id);
 
+    d.nommer(campagne, bob.id, 'spectator');
     d.camper(campagne, pnj.id, 'allies');
     expect((await lireFiche(bob)).statusCode).toBe(200);
 
