@@ -35,6 +35,8 @@ export const paramChooser = (p: ActionParam): 'acteur' | 'cible' =>
 export interface ChoiceOption {
   valeur: string;
   nom: string;
+  /** Précision de l'option (info-bulle). */
+  description?: string;
 }
 
 /** Le paramètre est un choix parmi des options nommées (couvert : aucun, partiel…). */
@@ -48,10 +50,24 @@ export function choiceOptions(p: ActionParam): ChoiceOption[] {
   return raw.flatMap((o: unknown) => {
     if (typeof o === 'string') return [{ valeur: o, nom: o }];
     if (!o || typeof o !== 'object') return [];
-    const x = o as { valeur?: unknown; id?: unknown; cle?: unknown; nom?: unknown };
+    const x = o as {
+      valeur?: unknown;
+      id?: unknown;
+      cle?: unknown;
+      nom?: unknown;
+      description?: unknown;
+    };
     const valeur = [x.valeur, x.id, x.cle].find((v) => typeof v === 'string') as string | undefined;
     if (!valeur) return [];
-    return [{ valeur, nom: typeof x.nom === 'string' ? x.nom : valeur }];
+    return [
+      {
+        valeur,
+        nom: typeof x.nom === 'string' ? x.nom : valeur,
+        ...(typeof x.description === 'string' && x.description
+          ? { description: x.description }
+          : {}),
+      },
+    ];
   });
 }
 

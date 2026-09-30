@@ -4,6 +4,7 @@ import {
   flatActions,
   groupActions,
   multitargetOf,
+  paramFieldRefs,
   poolCounts,
   previewRoll,
   presentationGroups,
@@ -204,6 +205,11 @@ describe('armes proposées et pool', () => {
     expect(targetAttributeKeys(s, frappe)).toEqual(['Defense']);
     expect(targetAttributeKeys(s, s.actions.get('soin')!).sort()).toEqual(['PV', 'PV_Max']);
     expect(targetAttributeKeys(s, s.actions.get('charge')!)).toEqual([]);
+  });
+
+  it('carte d’arme : les champs que l’action lit par son paramètre', () => {
+    expect(paramFieldRefs(s, frappe, 'arme').sort()).toEqual(['bonus', 'degats']);
+    expect(paramFieldRefs(s, frappe, 'bonus')).toEqual([]);
   });
 
   it('raccourcis 1 à 9 : les actions dans l’ordre de leurs groupes', () => {

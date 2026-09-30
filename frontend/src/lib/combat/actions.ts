@@ -253,3 +253,19 @@ export function targetAttributeKeys(systeme: SystemeCharge, action: Action): str
 
 /** Actions dans l'ordre de leurs groupes (raccourcis 1 à 9). */
 export const flatActions = (groups: readonly ActionGroup[]) => groups.flatMap((g) => g.actions);
+
+/**
+ * Champs d'une entrée que l'action lit par son paramètre (`arme.degats`, `arme.critique`…) :
+ * ceux que la carte d'arme montre, sans nommer un champ du jeu.
+ */
+export function paramFieldRefs(systeme: SystemeCharge, action: Action, paramId: string): string[] {
+  const prefix = chemins.action(action.id, '');
+  const escaped = paramId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?<![\\w.@])${escaped}\\.([A-Za-z_][\\w]*)`, 'g');
+  const refs = new Set<string>();
+  for (const [path, f] of systeme.formules) {
+    if (!path.startsWith(prefix)) continue;
+    for (const m of f.texte.matchAll(re)) refs.add(m[1]!);
+  }
+  return [...refs];
+}
