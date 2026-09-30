@@ -22,7 +22,7 @@ import {
   type SystemeCharge,
   type Valeur,
 } from '@vtt/rules';
-import { chargerSource, presentationSource } from './test-utils.js';
+import { avecType, chargerSource, presentationSource } from './test-utils.js';
 
 const SYSTEMES = ['dnd-classic', 'nooblies', 'star-wars-eote'] as const;
 
@@ -123,7 +123,7 @@ describe('dnd-classic : situation des attaques', () => {
       action,
       acteur,
       cible,
-      parametres: { arme: 'epee-longue', ...parametres },
+      parametres: avecType(systeme, action, { arme: 'epee-longue', ...parametres }),
       aleatoire: aleatoireImpose(des),
       ...(combat ? { combat } : {}),
     });
@@ -140,7 +140,7 @@ describe('dnd-classic : situation des attaques', () => {
       const v = apercuVariables(systeme, {
         action: 'attaque',
         acteur: heros,
-        parametres: { arme: 'epee-longue', avantage },
+        parametres: { score: 'Contact', avantage },
       });
       expect(v).not.toBeNull();
       return apercuFormule(heros, jet, (nom) => v!.get(nom));

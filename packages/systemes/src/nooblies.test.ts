@@ -141,7 +141,17 @@ describe('Nooblies Chroniques', () => {
 
   it('attaque : 1d20 + score choisi contre la Défense', () => {
     const cible = nain(); // Défense 17
-    const contact = agir('attaque', minotaure(), [12], { cible, parametres: { score: 'Contact' } });
+    // Touché : les dégâts saisis se choisissent après le jet
+    const touche = agir('attaque', minotaure(), [12], { cible, parametres: { score: 'Contact' } });
+    expect(!touche.ok && touche.erreurs.map((e) => e.parametre)).toEqual([
+      'nbDes',
+      'faces',
+      'bonus',
+    ]);
+    const contact = agir('attaque', minotaure(), [12], {
+      cible,
+      parametres: { score: 'Contact', nbDes: 0 },
+    });
     expect(contact.ok && [contact.resultat.variables.total, contact.resultat.reussi]).toEqual([
       12 + 5,
       true,
@@ -198,7 +208,7 @@ describe('Nooblies Chroniques', () => {
     // Sans dégâts saisis : jet d'attaque seul, aucune modification
     const sec = agir('attaque', minotaure(), [19], {
       cible: nain(),
-      parametres: { score: 'Contact' },
+      parametres: { score: 'Contact', nbDes: 0 },
     });
     expect(sec.ok && sec.resultat.modifications).toEqual([]);
   });

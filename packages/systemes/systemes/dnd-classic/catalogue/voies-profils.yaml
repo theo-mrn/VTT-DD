@@ -542,7 +542,7 @@
   effets:
     - {
         sur: jet,
-        si: 'arme.attaque == "Contact" et a_etiquette(arme, "legere")',
+        si: '(arme.attaque == "Contact" ou score == "Contact") et a_etiquette(arme, "legere")',
         ajout: { bonus: 'max(0, @Distance - @Contact)' },
       }
 - id: barde-escrime-intelligence-du-combat
@@ -5686,7 +5686,7 @@
   effets:
     - {
         sur: jet,
-        si: 'arme.attaque == "Contact" et a_etiquette(arme, "sabre")',
+        si: '(arme.attaque == "Contact" ou score == "Contact") et a_etiquette(arme, "sabre")',
         ajout: { bonus: 'floor(@niveau / 3)' },
       }
 - id: samourai-dirigeant-moment-zen
@@ -5845,12 +5845,12 @@
   effets:
     - {
         sur: jet,
-        si: 'arme.attaque == "Distance"',
+        si: '(arme.attaque == "Distance" ou score == "Distance")',
         ajout: { variable: seuilCritique, ajouter: 'min(0, 20 - mod(@SAG) - @Critique)' },
       }
     - {
         sur: jet,
-        si: 'arme.attaque == "Distance"',
+        si: '(arme.attaque == "Distance" ou score == "Distance")',
         ajout:
           { variable: desCritique, ajouter: 'si(rang("samourai-arc-et-du-cheval") >= 5, 2, 1)' },
       }
@@ -6256,7 +6256,7 @@
   effets:
     - {
         sur: jet,
-        si: 'arme.attaque == "Contact" et a_etiquette(arme, "legere")',
+        si: '(arme.attaque == "Contact" ou score == "Contact") et a_etiquette(arme, "legere")',
         ajout: { bonus: 'max(0, @Distance - @Contact)' },
       }
 - id: voleur-spadassin-esquive-fatale
@@ -6279,7 +6279,7 @@
   effets:
     - {
         sur: jet,
-        si: 'arme.attaque == "Contact"',
+        si: '(arme.attaque == "Contact" ou score == "Contact")',
         ajout: { variable: seuilCritique, ajouter: '-max(0, mod(@INT))' },
       }
 

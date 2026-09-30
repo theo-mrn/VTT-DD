@@ -87,7 +87,7 @@ describe('dnd-classic : le toucher, puis les dégâts', () => {
   const epee = (cibles: CibleAction[], jet?: 'commun' | 'par-cible') => ({
     action: 'attaque',
     acteur: heros,
-    parametres: { arme: 'epee-longue' },
+    parametres: { score: 'Contact', arme: 'epee-longue' },
     cibles,
     ...(jet ? { jet } : {}),
   });
@@ -177,6 +177,55 @@ describe('dnd-classic : le toucher, puis les dégâts', () => {
       aleatoire: aleatoireImpose(ordre.map((k) => faces[k]!)),
     });
     expect(final).toEqual(serveur);
+  });
+});
+
+describe('dnd-classic : le type d’attaque au jet, l’arme après, si l’attaque touche', () => {
+  const systeme = chargerSource('dnd-classic');
+  const fiche = fabrique(systeme);
+  const heros = fiche({
+    valeurs: { niveau: 1, jetsDeVie: 9 },
+    possessions: [
+      { entree: 'epee-longue' },
+      // Lame à part, critique dès 19
+      { entree: 'epee-longue', exemplaire: 'fine', champs: { critique: 19 } },
+    ],
+  });
+  const cible = fiche({ valeurs: { niveau: 1, jetsDeVie: 9 } });
+  const defense = Number(cible.valeur('Defense'));
+  const jouer = (faces: Record<string, number>, arme?: string) =>
+    executerMulticible(systeme, {
+      action: 'attaque',
+      acteur: heros,
+      cibles: [{ id: 'a', fiche: cible }],
+      parametres: { score: 'Contact', ...(arme ? { arme } : {}) },
+      aleatoire: aleatoirePlanifie({ faces, commun: false }),
+    }) as Fini;
+
+  it('touché : l’arme est demandée à l’étape des dégâts, puis ses dés', () => {
+    const d20 = { '0:jet:d20:0': Math.min(19, defense) };
+    const etape2 = jouer(d20);
+    expect([etape2.requis, etape2.parametres]).toEqual([[], ['arme']]);
+    expect(issue(etape2, 'a')).toMatchObject({ reussi: true });
+    const des = jouer(d20, 'epee-longue');
+    expect(des.parametres).toEqual([]);
+    expect(des.requis.map((d) => [d.phase, d.faces])).toEqual([['apres', 8]]);
+    const fin = jouer({ ...d20, '0:apres:d8:0': 6 }, 'epee-longue');
+    expect(issue(fin, 'a')).toMatchObject({ parametres: { arme: 'epee-longue' } });
+    expect(issue(fin, 'a')!.variables.degats).toBeGreaterThanOrEqual(6);
+  });
+
+  it('raté : ni arme ni dégâts', () => {
+    const r = jouer({ '0:jet:d20:0': 2 });
+    expect([r.parametres, r.requis, r.enAttente]).toEqual([[], [], []]);
+  });
+
+  it('critique : le seuil de l’arme choisie (19) le confirme après le jet', () => {
+    const d19 = { '0:jet:d20:0': 19 };
+    expect(issue(jouer(d19), 'a')!.jet).toMatchObject({ critique: false });
+    const fine = jouer(d19, 'epee-longue#fine');
+    expect(fine.requis).toHaveLength(2); // dés de l'arme doublés
+    expect(jouer(d19, 'epee-longue').requis).toHaveLength(1);
   });
 });
 

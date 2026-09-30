@@ -364,17 +364,17 @@ situation:
 
 actions:
   # Attaque : 1d20 + score d'attaque choisi contre la Défense de la cible ;
-  # dégâts saisis (aucun par défaut), retirés des PV de la cible si elle touche.
+  # dégâts saisis après le jet, si elle touche (aucun par défaut), retirés de ses PV.
   # Instinct de survie (cible) : DM qui l'amèneraient à 0 PV divisés par 2.
   - id: attaque
     nom: Attaque
     pour: [personnage]
     cible: personnage
     parametres:
-      - { id: score, nom: Attaque, type: attribut, attributs: [Contact, Distance, Magie] }
-      - { id: nbDes, nom: Dés de dégâts, type: nombre, defaut: 0 }
-      - { id: faces, nom: Faces des dés, type: nombre, defaut: 6 }
-      - { id: bonus, nom: Bonus aux dégâts, type: nombre, defaut: 0 }
+      - { id: score, nom: Type d'attaque, type: attribut, attributs: [Contact, Distance, Magie] }
+      - { id: nbDes, nom: Dés de dégâts, type: nombre, defaut: 0, etape: apres }
+      - { id: faces, nom: Faces des dés, type: nombre, defaut: 6, etape: apres }
+      - { id: bonus, nom: Bonus aux dégâts, type: nombre, defaut: 0, etape: apres }
     variables: &vars-attaque
       - { cle: instinct, formule: 0 }
       # Avantage (> 0 : 2d20 le meilleur, < 0 : le pire) et bonus aux DM : la situation s'y ajoute

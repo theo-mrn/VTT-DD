@@ -1241,7 +1241,7 @@
   effets:
     - {
         sur: jet,
-        si: 'arme.attaque == "Contact" et a_etiquette(arme, "epee")',
+        si: '(arme.attaque == "Contact" ou score == "Contact") et a_etiquette(arme, "epee")',
         ajout: { bonus: 'max(0, mod(@DEX) - mod(@FOR))' },
       }
 
@@ -2705,7 +2705,7 @@
     - sur: jet
       description: À l’abordage !
       si: &abordage >-
-        non premiereAttaque et arme.attaque == "Contact" et @combat.enCours
+        non premiereAttaque et (arme.attaque == "Contact" ou score == "Contact") et @combat.enCours
         et @combat.acteur.attaques == 0
       ajout: { bonus: 5 }
     - {

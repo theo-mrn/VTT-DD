@@ -22,3 +22,21 @@ export function presentationSource(id: string): Presentation {
   }
   return r.presentation;
 }
+
+/**
+ * Attaque d'arme D&D : le type d'attaque (`score`) se déclare, l'arme vient après le jet. Les
+ * tests écrits avec l'arme seule prennent le type de l'arme (son champ `attaque`).
+ */
+export function avecType(
+  systeme: SystemeCharge,
+  action: string,
+  parametres: Record<string, string | number | boolean>,
+): Record<string, string | number | boolean> {
+  const a = systeme.actions.get(action);
+  const arme = parametres.arme;
+  if (!a?.parametres.some((p) => p.id === 'score') || parametres.score !== undefined)
+    return parametres;
+  if (typeof arme !== 'string' || !arme) return parametres;
+  const type = systeme.entrees.get(arme.split('#')[0]!)?.champs.attaque;
+  return { score: typeof type === 'string' ? type : 'Contact', ...parametres };
+}

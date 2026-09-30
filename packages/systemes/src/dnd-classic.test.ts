@@ -22,7 +22,7 @@ import {
   type Valeur,
 } from '@vtt/rules';
 import { lireSysteme } from './sources.js';
-import { chargerSource } from './test-utils.js';
+import { avecType, chargerSource } from './test-utils.js';
 
 const systeme = chargerSource('dnd-classic');
 
@@ -578,7 +578,7 @@ describe('dnd-classic : actions', () => {
       action,
       acteur,
       ...(cible ? { cible } : {}),
-      parametres,
+      parametres: avecType(systeme, action, parametres),
       aleatoire: aleatoireImpose(des),
     });
   const agir = (...args: Parameters<typeof executer>) => {
@@ -675,18 +675,16 @@ describe('dnd-classic : actions', () => {
           { entree: 'guerrier-maitre-d-armes', rang: 1, choix: { predilection: [arme] } },
         ],
       });
-    const r = agir('attaque', maitre('epee-longue'), [13, 5], cuirasse(), epee);
-    expect([r.variables.total, r.reussi]).toEqual([13 + 3 + 1, true]);
-    expect(r.jet.type === 'numerique' && r.jet.bonus.map((b) => b.source)).toEqual([
-      'guerrier-maitre-d-armes-arme-de-predilection',
-    ]);
-    expect(agir('attaque', maitre('dague'), [13], cuirasse(), epee).reussi).toBe(false);
+    // Attaque d'arme : l'arme se choisit après le jet, son +1 au toucher ne compte pas
+    const r = agir('attaque', maitre('epee-longue'), [13], cuirasse(), { score: 'Contact' });
+    expect([r.variables.total, r.reussi]).toEqual([13 + 3, false]);
   });
 
   it('Précision : score de Distance avec une arme légère au contact', () => {
     const escrimeuse = elaria([{ entree: 'barde-escrime', rang: 1 }, { entree: 'dague' }]);
-    const r = agir('attaque', escrimeuse, [10, 2], grok(), { arme: 'dague' });
-    expect(r.variables.total).toBe(10 + 2 + (6 - 2)); // Contact 2, Distance 6
+    // Le type d'attaque choisi : Distance (6) plutôt que Contact (2)
+    const r = agir('attaque', escrimeuse, [10, 2], grok(), { score: 'Distance', arme: 'dague' });
+    expect(r.variables.total).toBe(10 + 6);
   });
 
   it('attaque libre : avantage et désavantage de situation, 2d20 le meilleur ou le pire', () => {
@@ -836,7 +834,7 @@ describe('dnd-classic : capacités codées', () => {
       action,
       acteur,
       ...(cible ? { cible } : {}),
-      parametres,
+      parametres: avecType(systeme, action, parametres),
       aleatoire: aleatoireImpose(des),
     });
   const agir = (...args: Parameters<typeof executer>) => {
@@ -918,7 +916,8 @@ describe('dnd-classic : capacités codées', () => {
       { entree: 'dague' },
     ]);
     const favori = agir('attaque', maitre, [10, 5], nu(), arme('epee-longue'));
-    expect([total(favori), favori.variables.degats]).toEqual([10 + 1 + 1, 5 + 2]);
+    // Au toucher, l'arme n'est pas encore choisie : seul le bonus aux DM dépend d'elle
+    expect([total(favori), favori.variables.degats]).toEqual([10 + 1, 5 + 2]);
     expect(agir('attaque', maitre, [10, 3], nu(), arme('dague')).variables.degats).toBe(3);
 
     const nain = nu([
@@ -927,7 +926,7 @@ describe('dnd-classic : capacités codées', () => {
       { entree: 'epee-longue' },
     ]);
     const hache = agir('attaque', nain, [10, 4], nu(), arme('hache-a-1-main'));
-    expect([total(hache), hache.variables.degats]).toEqual([12, 5]);
+    expect([total(hache), hache.variables.degats]).toEqual([11, 5]);
     const epee = agir('attaque', nain, [10, 4], nu(), arme('epee-longue'));
     expect([total(epee), epee.variables.degats]).toEqual([11, 4]);
     // Résistance naine : +5 aux tests de CON
@@ -950,10 +949,9 @@ describe('dnd-classic : capacités codées', () => {
       { entree: 'arbalete-legere' },
       { entree: 'arc-court' },
     ]);
+    // Seuil lié à l'arme : l'attaque d'arme ne le connaît pas au jet (arme choisie après)
     const imprenable = avecBonus(nu(), { Defense: 30 });
-    const carreau = agir('attaque', elfe, [19, 2, 3, 1, 4], imprenable, arme('arbalete-legere'));
-    expect([carreau.reussi, carreau.variables.degats]).toEqual([true, 10]);
-    expect(agir('attaque', elfe, [19], imprenable, arme('arc-court')).reussi).toBe(false);
+    expect(agir('attaque', elfe, [19], imprenable, arme('arbalete-legere')).reussi).toBe(false);
   });
 
   it('bonus contre des types de créatures (Massacrer la piétaille)', () => {
@@ -1214,7 +1212,7 @@ describe('dnd-classic : dégâts typés et états', () => {
       action: 'attaque',
       acteur: thorin(),
       cible: fiche({ possessions: [{ entree: 'ame_forgee' }, { entree: 'guerrier' }] }),
-      parametres: { arme: 'epee-longue' },
+      parametres: { score: 'Contact', arme: 'epee-longue' },
       aleatoire: aleatoireImpose([19, 6]),
     });
     if (!r.ok) throw new Error(r.erreurs.map((e) => e.message).join(', '));

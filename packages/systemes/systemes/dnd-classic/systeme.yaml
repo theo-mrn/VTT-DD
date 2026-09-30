@@ -615,14 +615,17 @@ actions:
     nom: Attaque avec une arme
     typeDegats: physique
     description: >-
-      1d20 + score d'attaque de l'arme (Contact ou Distance) contre la Défense de
-      la cible. Critique à partir de « Critique » (20 naturel par défaut) : touche
-      toujours et double les dés de l'arme ; un 1 naturel rate toujours. Options
-      réservées aux capacités qui les ouvrent.
+      1d20 + score d'attaque choisi (Contact, Distance ou Magie) contre la Défense de
+      la cible ; l'arme se choisit ensuite, si l'attaque touche, pour les dégâts.
+      Critique à partir de « Critique » (20 naturel par défaut ; seuil de l'arme confirmé
+      une fois l'arme choisie) : touche toujours et double les dés de l'arme ; un 1
+      naturel rate toujours. Options réservées aux capacités qui les ouvrent.
     pour: [personnage]
     cible: personnage
+    # Type d'attaque d'abord (le jet), l'arme après, seulement si l'attaque touche (les dégâts)
     parametres:
-      - &arme { id: arme, nom: Arme, type: entree, sorte: arme }
+      - { id: score, nom: Type d'attaque, type: attribut, attributs: [Contact, Distance, Magie] }
+      - { id: arme, nom: Arme, type: entree, sorte: arme, etape: apres }
       - id: auD12
         nom: 'Attaque au d12 (Déluge de coups, Danse des lames, Combat à deux armes)'
         type: booleen
@@ -674,10 +677,12 @@ actions:
       - id: assautFinal
         nom: 'Assaut final : DM doublés, la rage prend fin'
         type: booleen
+        etape: apres
         exige: 'possede("prestige-barbare-glaces-assaut-final")'
       - id: degatsMax
         nom: 'DM maximum de l’arme (Kiai, Rune de puissance)'
         type: booleen
+        etape: apres
         exige: 'possede("samourai-ki-kiai") ou possede("forgesort-runes-rune-de-puissance")'
       - id: perfection
         nom: 'Moment de perfection : réussite automatique'
@@ -688,14 +693,16 @@ actions:
         nom: 'Ouverture mortelle : critique automatique'
         type: booleen
         exige: 'possede("voleur-assassin-ouverture-mortelle")'
-    variables: &vars-arme # Avantage de situation, états et capacités s'y ajoutent (effets de jet)
+    # Avantage de situation, états et capacités s'y ajoutent (effets de jet). Le jet ne lit que
+    # le type d'attaque ; bonusDM, desDM… (que le jet ne lit pas) sont calculés avec l'arme.
+    variables:
       - &v-avantages { cle: avantages, formule: 0 }
       - cle: bonusAttaque
-        formule: &f-att-arme >-
+        formule: >-
           si(possede("prestige-rodeur-chasseur-de-corruption-combattre-la-corruption")
           et (cible_possede("mort-vivant") ou cible_possede("demon") ou cible_possede("corrompu")),
           si(rang("prestige-rodeur-chasseur-de-corruption") >= 4, 2, 1), 0)
-          + si(arme.attaque == "Distance" et cible_possede("grande-taille")
+          + si(score == "Distance" et cible_possede("grande-taille")
           et ((possede("prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux") et cible_possede("animal"))
           ou (possede("prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux-fantastiques") et cible_possede("monstre"))), 2, 0)
       - cle: bonusDM
@@ -716,7 +723,8 @@ actions:
           + si(possede("prestige-barbare-glaces-tueur-de-geants"), si(cible_possede("taille-colossale"), 2, si(cible_possede("taille-enorme"), 1, 0)), 0)
       - &v-des-critique { cle: desCritique, formule: 0 }
       - &v-mult-critique { cle: multCritique, formule: 2 }
-      - &v-seuil-arme { cle: seuilCritique, formule: 'min(@Critique, arme.critique)' }
+      # Seuil du personnage au jet (20 en Magie) ; celui de l'arme est confirmé après le jet
+      - { cle: seuilCritique, formule: 'si(score == "Magie", 20, @Critique)' }
       - &v-reduction { cle: reduction, formule: 0 }
       - &v-demi { cle: demiDM, formule: 0 }
       - &v-instinct { cle: instinct, formule: 0 }
@@ -724,14 +732,18 @@ actions:
       type: numerique
       formule: >-
         si(auD12, 1d12, si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)))
-        + valeur(arme.attaque) + bonusAttaque + si(double, -2, 0)
+        + valeur(score) + bonusAttaque + si(double, -2, 0)
         + si(premiereAttaque, si(possede("prestige-arquebusier-flibustier-a-l-abordage"), 5, 2), 0)
         + si(nouvelleCible, 2, 0) + si(simultanee, 2, 0) + si(gage, 2, 0) + si(pasDeQuartier, 5, 0)
         + min(max(0, allies), si(possede("guerrier-soldat-combat-en-phalange"), 99, 5))
       reussite: >-
         ouvertureMortelle ou perfection ou naturel >= seuilCritique ou (naturel != 1
-        et total >= @cible.Defense + si(arme.attaque == "Contact", @cible.DefContact, 0))
+        et total >= @cible.Defense + si(score == "Contact", @cible.DefContact,
+        si(score == "Magie", @cible.DefMagie, 0)))
       critique: 'ouvertureMortelle ou naturel >= seuilCritique'
+      # Arme choisie après le jet : son seuil de critique (19 et plus…) élargit celui du
+      # personnage, sur une attaque qui touche (hors Magie)
+      confirmerCritique: 'score != "Magie" et naturel >= arme.critique'
       fumble: &fumble naturel == 1
     apres:
       - cle: degats
@@ -993,8 +1005,25 @@ actions:
     pour: [personnage]
     exige: 'possede("barbare-pourfendeur-charge") ou possede("barde-saltimbanque-grace-feline") ou possede("race-minotaure-charge")'
     cible: personnage
-    parametres: [*arme]
-    variables: *vars-arme
+    parametres: [&arme { id: arme, nom: Arme, type: entree, sorte: arme }]
+    variables: &vars-arme
+      - *v-avantages
+      - cle: bonusAttaque
+        formule: &f-att-arme >-
+          si(possede("prestige-rodeur-chasseur-de-corruption-combattre-la-corruption")
+          et (cible_possede("mort-vivant") ou cible_possede("demon") ou cible_possede("corrompu")),
+          si(rang("prestige-rodeur-chasseur-de-corruption") >= 4, 2, 1), 0)
+          + si(arme.attaque == "Distance" et cible_possede("grande-taille")
+          et ((possede("prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux") et cible_possede("animal"))
+          ou (possede("prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux-fantastiques") et cible_possede("monstre"))), 2, 0)
+      - { cle: bonusDM, formule: *f-dm-arme }
+      - { cle: desDM, formule: *f-des }
+      - *v-des-critique
+      - *v-mult-critique
+      - &v-seuil-arme { cle: seuilCritique, formule: 'min(@Critique, arme.critique)' }
+      - *v-reduction
+      - *v-demi
+      - *v-instinct
     jet:
       type: numerique
       formule: >-
