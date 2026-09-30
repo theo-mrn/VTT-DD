@@ -308,7 +308,7 @@ function Body({
                   <CropArea
                     url={loaded.image.url}
                     aspect={ASPECT[tab]}
-                    round={tab === 'token' && radius >= 40}
+                    token={tab === 'token' ? { radius, inset, frame } : null}
                     initial={crops[tab]}
                     onChange={(c) => setCrops((x) => ({ ...x, [tab]: c }))}
                   />
@@ -322,13 +322,6 @@ function Body({
         <aside className="min-h-0 space-y-5 overflow-y-auto border-t border-border p-4 [scrollbar-width:thin] sm:p-5 lg:border-l lg:border-t-0">
           {tab === 'token' ? (
             <>
-              <TokenPreviews
-                url={image?.url ?? null}
-                crop={effective?.token ?? null}
-                radius={radius}
-                inset={inset}
-                frame={frame}
-              />
               <SliderRow
                 label="Arrondi"
                 icon={radius >= 40 ? <Circle /> : <Square />}
@@ -504,17 +497,28 @@ function SourceButtons({
   );
 }
 
-/** Cadrage : glisser pour placer, molette ou curseur pour zoomer. */
+/** Réglages du token montrés dans le cadrage (absent : cadrage du portrait). */
+interface TokenLook {
+  radius: number;
+  inset: number;
+  frame: string | null;
+}
+
+/**
+ * Cadrage : glisser pour placer, molette ou curseur pour zoomer. Pour le token, le cadrage est
+ * l'aperçu : la zone gardée prend l'arrondi choisi, le cadre est posé autour à la taille de la
+ * marge (comme l'image fabriquée, docs/portraits.md).
+ */
 function CropArea({
   url,
   aspect,
-  round,
+  token,
   initial,
   onChange,
 }: {
   url: string;
   aspect: number;
-  round: boolean;
+  token: TokenLook | null;
   initial: StudioCrop | null;
   onChange(c: StudioCrop): void;
 }) {
@@ -531,18 +535,49 @@ function CropArea({
         }
       : undefined,
   );
+  const box = useRef<HTMLDivElement>(null);
+  const [area, setArea] = useState<{ w: number; h: number } | null>(null);
+  const [media, setMedia] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => {
+      if (e) setArea({ w: e.contentRect.width, h: e.contentRect.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Token : zone gardée assez petite pour que le cadre (plus grand de la marge) tienne à l'écran
+  let side: number | null = null;
+  if (token && area && media) {
+    const scale = Math.min(area.w / media.w, area.h / media.h);
+    const fit = Math.min(media.w * scale, media.h * scale);
+    const room = Math.min(area.w, area.h) * 0.92 * (1 - (2 * token.inset) / 100);
+    side = Math.max(40, Math.min(fit, room));
+  }
+  const frameSide = side && token ? side / (1 - (2 * token.inset) / 100) : null;
+
   return (
     <div className="absolute inset-0 flex flex-col">
-      <div className="relative min-h-0 flex-1">
+      <div ref={box} className="relative min-h-0 flex-1 overflow-hidden">
         <Cropper
           image={url}
           crop={crop}
           zoom={zoom}
           aspect={aspect}
-          cropShape={round ? 'round' : 'rect'}
           objectFit="contain"
           showGrid={false}
           maxZoom={5}
+          {...(side ? { cropSize: { width: side, height: side } } : {})}
+          style={{
+            cropAreaStyle: {
+              border: 'none',
+              borderRadius: token ? `${token.radius}%` : undefined,
+              color: 'rgb(0 0 0 / 0.62)',
+            },
+          }}
+          onMediaLoaded={(m) => setMedia({ w: m.naturalWidth, h: m.naturalHeight })}
           onCropChange={setCrop}
           onZoomChange={setZoom}
           initialCroppedAreaPercentages={start}
@@ -555,6 +590,16 @@ function CropArea({
             })
           }
         />
+        {token?.frame && frameSide && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={vignette(token.frame, 1024)}
+            alt=""
+            draggable={false}
+            className="pointer-events-none absolute left-1/2 top-1/2 max-w-none -translate-x-1/2 -translate-y-1/2"
+            style={{ width: frameSide, height: frameSide }}
+          />
+        )}
       </div>
       <div className="flex items-center gap-3 border-t border-border bg-card/80 px-4 py-2.5 backdrop-blur">
         <span className="text-xs text-muted-foreground">Zoom</span>
@@ -573,46 +618,6 @@ function CropArea({
 }
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
-
-/** Le token sur une trame de carte, à trois tailles. */
-function TokenPreviews({
-  url,
-  crop,
-  radius,
-  inset,
-  frame,
-}: {
-  url: string | null;
-  crop: StudioCrop | null;
-  radius: number;
-  inset: number;
-  frame: string | null;
-}) {
-  return (
-    <div className="relative isolate flex h-36 shrink-0 items-center justify-center gap-5 overflow-hidden rounded-2xl border border-border bg-surface-2">
-      <span aria-hidden className="absolute inset-0 -z-10 bg-dots opacity-70" />
-      {[36, 60, 100].map((size) => (
-        <div key={size} className="relative shrink-0" style={{ width: size, height: size }}>
-          {url && crop && (
-            <div
-              className="absolute"
-              style={{ inset: `${inset}%`, borderRadius: `${radius}%`, ...cropStyle(url, crop) }}
-            />
-          )}
-          {frame && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={vignette(frame, 224)}
-              alt=""
-              draggable={false}
-              className="pointer-events-none absolute inset-0 size-full"
-            />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /** Le portrait tel que la fiche et les listes l'affichent. */
 function PortraitPreview({
