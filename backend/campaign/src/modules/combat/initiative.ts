@@ -6,7 +6,7 @@
  * Paramètres d'un participant : ceux de son camp (`paramsBySide`), remplacés par les siens
  * (`params`, prioritaires) ; une relance individuelle reprend ceux enregistrés.
  */
-import type { ActionParams, CombatInitiative, SideParams } from '@vtt/contracts';
+import type { ActionParams, AttackVisibility, CombatInitiative, SideParams } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import type { FastifyRequest } from 'fastify';
 import { CharacterError, type CallOrigin, type CharacterClient } from '../../clients/character.js';
@@ -58,6 +58,14 @@ export function initiativeSummary(result: unknown, sortKeys: number[]): string {
   return sortKeys.join(' / ');
 }
 
+/**
+ * Visibilité du jet d'initiative dans l'historique des dés (docs/combat.md § 4.4) : public pour
+ * un héros vu des joueurs ; caché (MJ) pour un PNJ ou un participant caché, dont le jet trahirait
+ * la présence et la statistique d'initiative.
+ */
+export const initiativeVisibility = (side: Side, visibleToPlayers = true): AttackVisibility =>
+  side === 'players' && visibleToPlayers ? 'public' : 'gm';
+
 export interface Rolled {
   characterId: string;
   sortKeys: number[];
@@ -72,7 +80,7 @@ export async function rollInitiatives(
   character: CharacterClient,
   req: FastifyRequest,
   action: string,
-  who: { characterId: string; params: ActionParams }[],
+  who: { characterId: string; params: ActionParams; visibility: AttackVisibility }[],
   origin: CallOrigin,
 ): Promise<Rolled[]> {
   const rolls = await Promise.allSettled(
@@ -80,7 +88,11 @@ export async function rollInitiatives(
       character.action(
         p.characterId,
         action,
-        { apply: true, ...(Object.keys(p.params).length ? { params: p.params } : {}) },
+        {
+          apply: true,
+          visibility: p.visibility,
+          ...(Object.keys(p.params).length ? { params: p.params } : {}),
+        },
         origin,
       ),
     ),

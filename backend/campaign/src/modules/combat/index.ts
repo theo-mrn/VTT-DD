@@ -61,7 +61,13 @@ import {
   settingsOf,
   stateOf,
 } from './api.js';
-import { initiativeAction, paramsFor, rollInitiatives, type Rolled } from './initiative.js';
+import {
+  initiativeAction,
+  initiativeVisibility,
+  paramsFor,
+  rollInitiatives,
+  type Rolled,
+} from './initiative.js';
 import { register as registerParticipants } from './participants.js';
 import {
   clearTurns,
@@ -141,6 +147,7 @@ export const register: Module = async (app, deps) => {
         const who = ids.map((id) => ({
           characterId: id,
           params: paramsFor(id, engaged.get(id)!.side, { paramsBySide: req.body.paramsBySide }),
+          visibility: initiativeVisibility(engaged.get(id)!.side, !hidden.has(id)),
         }));
         const rolls = await rollInitiatives(
           deps.character,
@@ -251,6 +258,7 @@ export const register: Module = async (app, deps) => {
               params,
               paramsBySide: req.body.paramsBySide,
             }),
+            visibility: initiativeVisibility(p.side, p.visibleToPlayers),
           })),
         originOf(req, a.campaign.id),
       );

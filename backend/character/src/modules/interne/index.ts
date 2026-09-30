@@ -11,7 +11,8 @@
  *        les variables des jets de dice (`1d20+FOR`) ; 404/403 si `userId` ne peut
  *        pas agir avec ce personnage (mêmes droits qu'une action)
  *   POST /internal/characters/:id/actions/:action    action jouée par le serveur
- *        (initiative d'un combat : la réponse porte les clés de tri `cles`)
+ *        (initiative d'un combat : la réponse porte les clés de tri `cles` ; `visibility` du jet
+ *        transmis à dice, `gm` pour un PNJ)
  *   POST /internal/characters/:id/durees/decompter   fin de round : durées -1,
  *        possessions arrivées à 0 retirées ; `tickId` : une seule fois par passage de round
  *        (reprise : réponse d'origine), annulable par /internal/modifications/revert
@@ -207,6 +208,8 @@ export const register: Module = async (app, deps) => {
           parametres: Valeurs.optional(),
           cibleId: IdPersonnage.optional(),
           appliquer: z.boolean().optional(),
+          /** Visibilité du jet transmis à dice (initiative d'un PNJ : `gm`) ; défaut : public. */
+          visibility: z.enum(['public', 'private', 'gm']).optional(),
         }).default({}),
         response: {
           200: z.object({
@@ -219,12 +222,13 @@ export const register: Module = async (app, deps) => {
       },
     },
     async (req) => {
-      const { parametres, cibleId, appliquer = false, ...origine } = req.body;
+      const { parametres, cibleId, appliquer = false, visibility, ...origine } = req.body;
       return jouerAction(deps, contexte(req), appelant(origine), {
         id: req.params.id,
         action: req.params.action,
         ...(parametres ? { parametres } : {}),
         ...(cibleId ? { cibleId } : {}),
+        ...(visibility ? { visibility } : {}),
         appliquer,
         // Jet d'initiative lancé par le MJ : dans l'historique de sa campagne
         ...(origine.roomId ? { campaignId: origine.roomId } : {}),

@@ -146,6 +146,15 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
       avantage: true,
     });
     expect(rolls.find((r) => r.path.includes(brom))!.body.parametres).toBeUndefined();
+    // Jet dans l'historique des dés : public pour un héros, caché (MJ) pour un PNJ ou un allié
+    expect(
+      Object.fromEntries(
+        [goblin, aria, dragon, brom, wolf].map((c) => [
+          c,
+          rolls.find((r) => r.path.includes(c))!.body.visibility,
+        ]),
+      ),
+    ).toEqual({ [goblin]: 'gm', [aria]: 'public', [dragon]: 'gm', [brom]: 'public', [wolf]: 'gm' });
   });
 
   it('initiative refusée par les règles : 422, l’ordre ne change pas', async () => {

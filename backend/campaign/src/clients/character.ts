@@ -2,7 +2,7 @@
  * Appels de campaign au service character, par ses routes /internal (secret
  * partagé INTERNAL_API_SECRET, jamais relayées par la gateway) :
  *  - résumé d'un personnage (propriétaire, système) avant de l'engager ;
- *  - action d'initiative d'un participant (clés de tri renvoyées) ;
+ *  - action d'initiative d'un participant (clés de tri renvoyées ; jet caché pour un PNJ) ;
  *  - décompte des durées en fin de round (idempotent par `tickId`, annulable) ;
  *  - attaques (docs/combat.md § 11.2) : préparer, résoudre, appliquer les décisions du MJ,
  *    annuler une application ;
@@ -296,7 +296,12 @@ export interface CharacterClient {
   action(
     id: string,
     action: string,
-    body: { params?: Record<string, unknown>; apply?: boolean },
+    body: {
+      params?: Record<string, unknown>;
+      apply?: boolean;
+      /** Visibilité du jet dans l'historique des dés (PNJ : `gm`). */
+      visibility?: AttackVisibility;
+    },
     origin?: CallOrigin,
   ): Promise<PlayedAction>;
   /**
@@ -470,6 +475,7 @@ export function characterClient(o: {
         {
           ...(body.apply !== undefined ? { appliquer: body.apply } : {}),
           ...(body.params ? { parametres: body.params } : {}),
+          ...(body.visibility ? { visibility: body.visibility } : {}),
           ...originBody(origin),
         },
       );

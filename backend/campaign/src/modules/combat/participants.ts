@@ -26,7 +26,13 @@ import type { Module } from '../../deps.js';
 import { access, gmAccess, lockCampaign } from '../campaigns/repository.js';
 import { CampaignId, CharacterId, currentUser, eventContext } from '../schemas.js';
 import { checkVersion, combatChanged, fullApi, noCombat, originOf, stateOf } from './api.js';
-import { initiativeAction, manualInitiative, rollInitiatives, type Rolled } from './initiative.js';
+import {
+  initiativeAction,
+  initiativeVisibility,
+  manualInitiative,
+  rollInitiatives,
+  type Rolled,
+} from './initiative.js';
 import { engagedOrThrow, loadCombat, requirePlays, saveState, turnChanged } from './repository.js';
 import {
   addParticipants,
@@ -84,7 +90,14 @@ export const register: Module = async (app, deps) => {
           deps.character,
           req,
           action,
-          toRoll.map((p) => ({ characterId: p.characterId, params: p.params ?? {} })),
+          toRoll.map((p) => ({
+            characterId: p.characterId,
+            params: p.params ?? {},
+            visibility: initiativeVisibility(
+              engaged.get(p.characterId)!.side,
+              p.visibleToPlayers ?? true,
+            ),
+          })),
           originOf(req, a.campaign.id),
         );
         rolled = new Map(rolls.map((x) => [x.characterId, x]));
@@ -240,7 +253,7 @@ export const register: Module = async (app, deps) => {
         deps.character,
         req,
         action,
-        [{ characterId, params }],
+        [{ characterId, params, visibility: initiativeVisibility(p.side, p.visibleToPlayers) }],
         originOf(req, a.campaign.id),
       );
 
