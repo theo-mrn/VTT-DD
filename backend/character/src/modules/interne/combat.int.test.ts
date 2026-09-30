@@ -476,6 +476,16 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     expect(await duree('etourdi')).toBe(1);
     expect(await duree('effraye')).toBe(3);
 
+    // Fin de combat : tous les états à durée retirés d'un coup, annulable aussi
+    const fin = `end:${crypto.randomUUID()}`;
+    const r3 = await post(`/internal/characters/${p.id}/durees/decompter`, {
+      tickId: fin,
+      clear: true,
+    });
+    expect(r3.json()).toMatchObject({ modifie: true, retirees: ['etourdi', 'effraye'] });
+    await post('/internal/modifications/revert', { applicationId: fin });
+    expect(await duree('effraye')).toBe(3);
+
     // Une durée retirée : la possession reste jusqu'au retrait
     p = await o.ok(alice, 'GET', `/v1/characters/${p.id}`);
     p = await o.ok(alice, 'POST', `/v1/characters/${p.id}/possessions`, {
@@ -484,6 +494,24 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
       duree: null,
     });
     expect(await duree('effraye')).toBeUndefined();
+  });
+
+  it('état libre : un bonus sans effet, avec sa durée, décompté en fin de round', async () => {
+    const p = await o.nainGuerrier(alice, 'Thorin');
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/v1/characters/${p.id}/bonus`,
+      headers: alice.auth,
+      payload: { version: p.version, id: 'marque', nom: 'Marqué', effets: [], duree: 1 },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    expect((res.json() as { etat: { bonus: unknown[] } }).etat.bonus).toEqual([
+      { id: 'marque', nom: 'Marqué', effets: [], actif: true, duree: 1 },
+    ]);
+    const tick = await post(`/internal/characters/${p.id}/durees/decompter`, {
+      tickId: `tick:${crypto.randomUUID()}:1`,
+    });
+    expect(tick.json()).toMatchObject({ modifie: true, retirees: ['bonus:marque'] });
   });
 
   // ─── Lecture des PNJ (Q4) ────────────────────────────────────────────────────

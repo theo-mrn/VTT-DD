@@ -242,6 +242,8 @@ export const register: Module = async (app, deps) => {
         body: Origine.extend({
           /** Passage de round (`tick:<combatId>:<round>`) : décompté une seule fois. */
           tickId: z.string().trim().min(1).max(200).optional(),
+          /** Fin de combat : tous les états et bonus à durée sont retirés d'un coup. */
+          clear: z.boolean().optional(),
         }).default({}),
         response: {
           200: z.object({
@@ -257,7 +259,7 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const ctx = contexte(req);
-      const { tickId, ...origine } = req.body;
+      const { tickId, clear = false, ...origine } = req.body;
       const options = await deps.droits.options(req.params.id);
       return db.transaction(async (tx) => {
         const [ligne] = await verrouiller(tx, [req.params.id]);
@@ -265,7 +267,7 @@ export const register: Module = async (app, deps) => {
           const fait = await decompteDejaFait(tx, tickId, ligne!.id);
           if (fait) return { ...fait, replayed: true };
         }
-        const { etat, retirees } = decompterDurees(ligne!.etat);
+        const { etat, retirees } = decompterDurees(ligne!.etat, clear);
         const suivante = etat
           ? await enregistrer(
               tx,
@@ -276,7 +278,7 @@ export const register: Module = async (app, deps) => {
               { etat },
               {
                 operation: 'durees.decompte',
-                details: { retirees, ...(tickId ? { tickId } : {}) },
+                details: { retirees, ...(tickId ? { tickId } : {}), ...(clear ? { clear } : {}) },
               },
               options,
             )
