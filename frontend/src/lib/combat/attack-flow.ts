@@ -10,8 +10,9 @@
  *     └──── close ────┴──────── again (Nouvelle attaque, Mêmes cibles), nextAttacker ◄┘
  * ```
  *
- * - `compose` : attaquant, action, paramètres, cibles, options du jet ; `aiming` : l'outil de
- *   visée de la carte est actif (un clic sur un token l'ajoute ou le retire).
+ * - `compose` : attaquant, action, paramètres, cibles, options du jet ; `step` : l'étape du
+ *   menu (choisir l'action, puis la préparer) ; `aiming` : l'outil de visée de la carte est
+ *   actif, la fenêtre est réduite à une pastille (un clic sur un token l'ajoute ou le retire).
  * - `submitting` : la déclaration part, avec sa clé d'idempotence ; un échec passager la garde
  *   (`retryKey`) : « Attaquer » reprend la même déclaration, sans doublon.
  * - `declared` : l'attaque vit sa vie au serveur (réactions, dés, rapport, décision du MJ) ;
@@ -73,12 +74,16 @@ export interface AttackDraft {
   adjustments: FreeAdjustments;
 }
 
+/** Étape de la composition (§ 12.1) : choisir l'action, puis la préparer. */
+export type ComposeStep = 'action' | 'prepare';
+
 interface Opened {
   campaignId: string;
   origin: AttackOrigin;
   draft: AttackDraft;
   /** Attaquants suivants (PNJ à la suite). */
   queue: readonly string[];
+  step: ComposeStep;
 }
 
 export type AttackFlowState =
@@ -105,6 +110,10 @@ export type AttackFlowEvent =
   | { type: 'close' }
   | { type: 'setAttacker'; attackerId: string | null }
   | { type: 'setAction'; actionId: string | null; params?: ActionParams; presetId?: string | null }
+  /** Carte d'action choisie : l'action, puis l'étape « Préparer ». */
+  | { type: 'chooseAction'; actionId: string; params?: ActionParams; presetId?: string | null }
+  /** « Retour » (ou un clic sur l'indicateur d'étapes). */
+  | { type: 'setStep'; step: ComposeStep }
   | { type: 'setParams'; params: ActionParams }
   | { type: 'setParam'; id: string; value: ActionParamValue }
   | { type: 'toggleTarget'; characterId: string }
@@ -162,6 +171,7 @@ const opened = (s: Exclude<AttackFlowState, { phase: 'closed' }>): Opened => ({
   origin: s.origin,
   draft: s.draft,
   queue: s.queue,
+  step: s.step,
 });
 
 /** Le brouillon change : une déclaration en échec ne se reprend plus telle quelle. */
@@ -188,6 +198,8 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
           origin: r.origin,
           draft: emptyDraft(r, first),
           queue: rest,
+          // Action demandée (fiche, attaque enregistrée) : on la prépare directement
+          step: r.actionId ? 'prepare' : 'action',
         },
         { autoAttacker: r.attackerId === undefined && !queue.length },
       );
@@ -222,6 +234,7 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
         ...opened(state),
         phase: 'declared',
         attack: a,
+        step: 'prepare',
         draft: {
           ...state.draft,
           attackerId: a.attackerId,
@@ -234,8 +247,10 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
     }
     case 'again':
       if (state.phase === 'submitting') return state;
+      // « Mêmes cibles » : même action, on la prépare ; « Nouvelle attaque » : on la rechoisit
       return compose({
         ...opened(state),
+        step: event.keepTargets ? 'prepare' : 'action',
         draft: {
           ...state.draft,
           targetIds: event.keepTargets ? state.draft.targetIds : [],
@@ -249,6 +264,7 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
         ...opened(state),
         draft: { ...state.draft, attackerId: next!, adjustments: NO_ADJUSTMENTS },
         queue: rest,
+        step: 'prepare',
       });
     }
   }
@@ -266,6 +282,17 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
         params: event.params ?? {},
         presetId: event.presetId ?? null,
       });
+    case 'chooseAction':
+      return {
+        ...editDraft(s, {
+          actionId: event.actionId,
+          params: event.params ?? {},
+          presetId: event.presetId ?? null,
+        }),
+        step: 'prepare',
+      };
+    case 'setStep':
+      return event.step === s.step ? s : { ...s, step: event.step };
     case 'setParams':
       return editDraft(s, { params: event.params });
     case 'setParam':
@@ -409,6 +436,60 @@ export function declareBody(
     origin: s.origin,
   };
 }
+
+// ─── Étapes du menu ──────────────────────────────────────────────────────────
+
+/** Étapes montrées par le menu (§ 12.1) : Action, Préparer, Jet, Fin. */
+export type MenuStage = 'action' | 'prepare' | 'roll' | 'end';
+
+export const MENU_STAGES: readonly MenuStage[] = ['action', 'prepare', 'roll', 'end'];
+
+export const MENU_STAGE_LABELS: Record<MenuStage, string> = {
+  action: 'Action',
+  prepare: 'Préparer',
+  roll: 'Jet',
+  end: 'Fin',
+};
+
+/**
+ * Étape à montrer : une seule action proposée saute l'étape « Action » ; la déclaration part
+ * en « Jet » (attente de la défense, des dés, puis le résultat qui se dévoile), « Fin » une
+ * fois le résultat montré (`revealed`), ou tout de suite pour une attaque abandonnée ou refusée.
+ */
+export function menuStage(
+  s: AttackFlowState,
+  o: { actionCount: number; revealed: boolean },
+): MenuStage | null {
+  switch (s.phase) {
+    case 'closed':
+      return null;
+    case 'compose':
+      return o.actionCount === 1 || (s.step === 'prepare' && s.draft.actionId)
+        ? 'prepare'
+        : 'action';
+    case 'submitting':
+      return 'roll';
+    case 'declared': {
+      const stage = declaredStage(s.attack);
+      if (stage === 'cancelled' || stage === 'failed') return 'end';
+      return stage === 'result' && o.revealed ? 'end' : 'roll';
+    }
+  }
+}
+
+/** Étapes de l'indicateur : « Action » disparaît quand il n'y a qu'une action. */
+export const visibleStages = (actionCount: number): MenuStage[] =>
+  actionCount === 1 ? MENU_STAGES.filter((st) => st !== 'action') : [...MENU_STAGES];
+
+/** « Retour » : de la préparation au choix de l'action (s'il y a un choix à faire). */
+export const canGoBack = (stage: MenuStage | null, actionCount: number) =>
+  stage === 'prepare' && actionCount > 1;
+
+/**
+ * Fenêtre réduite à une pastille pendant la visée sur la carte (§ 12.1) : Échap ou
+ * « Valider » la rouvrent à la même étape, le brouillon intact.
+ */
+export const isMinimized = (s: AttackFlowState) => s.phase === 'compose' && s.aiming;
 
 // ─── Attaque déclarée ────────────────────────────────────────────────────────
 

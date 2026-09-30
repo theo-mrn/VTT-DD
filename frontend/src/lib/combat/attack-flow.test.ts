@@ -2,15 +2,19 @@ import { DEFAULT_COMBAT_SETTINGS } from '@vtt/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   blockedByTurn,
+  canGoBack,
   canSubmit,
   CLOSED,
   declareBody,
   declaredStage,
   defaultAttacker,
   effectiveRollMode,
+  isMinimized,
+  menuStage,
   reduceAttackFlow,
   submitKey,
   turnStanding,
+  visibleStages,
   type AttackFlowEvent,
   type AttackFlowState,
   type ComposeState,
@@ -342,5 +346,137 @@ describe('attaquant par défaut et tour', () => {
     });
     expect(turnStanding(combat, 'hero', null)).toBe('on_turn');
     expect(turnStanding(combat, 'gobelin', null)).toBe('out_of_turn');
+  });
+});
+
+describe('menu d’attaque : étapes (Action, Préparer, Jet, Fin)', () => {
+  const stage = (s: AttackFlowState, actionCount = 3, revealed = false) =>
+    menuStage(s, { actionCount, revealed });
+
+  it('ouverture : on choisit l’action ; action demandée (fiche) : on la prépare', () => {
+    expect(stage(open({ attackerId: 'hero' }))).toBe('action');
+    expect(stage(open({ attackerId: 'hero', actionId: 'frappe' }))).toBe('prepare');
+    expect(stage(CLOSED)).toBeNull();
+  });
+
+  it('une seule action : l’étape « Action » est sautée et absente de l’indicateur', () => {
+    expect(stage(open({ attackerId: 'hero' }), 1)).toBe('prepare');
+    expect(visibleStages(1)).toEqual(['prepare', 'roll', 'end']);
+    expect(visibleStages(4)).toEqual(['action', 'prepare', 'roll', 'end']);
+    expect(canGoBack('prepare', 1)).toBe(false);
+    expect(canGoBack('prepare', 2)).toBe(true);
+    expect(canGoBack('roll', 2)).toBe(false);
+  });
+
+  it('choisir une carte prépare l’action ; « Retour » revient au choix, brouillon gardé', () => {
+    let s = run([
+      openEvent({ attackerId: 'hero', targetIds: ['gobelin'] }),
+      { type: 'chooseAction', actionId: 'frappe', params: { arme: 'epee' } },
+    ]);
+    expect(stage(s)).toBe('prepare');
+    expect(s.phase === 'compose' && s.draft.params).toEqual({ arme: 'epee' });
+    s = reduceAttackFlow(s, { type: 'setStep', step: 'action' });
+    expect(stage(s)).toBe('action');
+    expect(s.phase === 'compose' && s.draft.actionId).toBe('frappe');
+    // Présélection (dernière action) sans changer d'étape
+    s = reduceAttackFlow(s, { type: 'setAction', actionId: 'soin' });
+    expect(stage(s)).toBe('action');
+  });
+
+  it('« Préparer » sans action (attaquant changé) : retour au choix', () => {
+    const s = run([
+      openEvent({ attackerId: 'hero', actionId: 'frappe' }),
+      { type: 'setAction', actionId: null },
+    ]);
+    expect(stage(s)).toBe('action');
+  });
+
+  it('lancer : « Jet » pendant l’envoi, l’attente et le dévoilement, puis « Fin »', () => {
+    const sent = reduceAttackFlow(ready(), { type: 'submit', key: 'k' });
+    expect(stage(sent)).toBe('roll');
+    const waiting = reduceAttackFlow(sent, {
+      type: 'declared',
+      attack: attack({ status: 'awaiting_dice' }),
+    });
+    expect(stage(waiting, 3, true)).toBe('roll');
+    const done = reduceAttackFlow(waiting, {
+      type: 'attackUpdated',
+      attack: attack({ status: 'pending', version: 3 }),
+    });
+    expect(stage(done, 3, false)).toBe('roll');
+    expect(stage(done, 3, true)).toBe('end');
+    // Abandonnée ou refusée : directement la fin
+    const cancelled = reduceAttackFlow(done, {
+      type: 'attackUpdated',
+      attack: attack({ status: 'cancelled', version: 4 }),
+    });
+    expect(stage(cancelled)).toBe('end');
+  });
+
+  it('refus du serveur : retour à « Préparer », rien de perdu', () => {
+    const s = run(
+      [
+        { type: 'setStep', step: 'prepare' },
+        { type: 'submit', key: 'k' },
+        { type: 'rejected', message: 'Arme non possédée', retryable: false },
+      ],
+      ready(),
+    );
+    expect(stage(s)).toBe('prepare');
+    expect(s.phase === 'compose' && s.error).toBe('Arme non possédée');
+  });
+
+  it('« Mêmes cibles » prépare la même action ; « Nouvelle attaque » la fait rechoisir', () => {
+    const declared = run(
+      [
+        { type: 'chooseAction', actionId: 'frappe' },
+        { type: 'submit', key: 'k' },
+        { type: 'declared', attack: attack() },
+      ],
+      ready(),
+    );
+    expect(stage(reduceAttackFlow(declared, { type: 'again', keepTargets: true }))).toBe('prepare');
+    expect(stage(reduceAttackFlow(declared, { type: 'again', keepTargets: false }))).toBe('action');
+    const shown = reduceAttackFlow(open(), { type: 'show', attack: attack() });
+    expect(stage(reduceAttackFlow(shown, { type: 'again', keepTargets: true }))).toBe('prepare');
+  });
+
+  it('PNJ suivant : directement « Préparer », même action', () => {
+    const s = run([
+      openEvent({ attackers: ['g1', 'g2'], targetIds: ['hero'] }),
+      { type: 'chooseAction', actionId: 'frappe' },
+      { type: 'submit', key: 'k' },
+      { type: 'declared', attack: attack({ attackerId: 'g1' }) },
+      { type: 'nextAttacker' },
+    ]);
+    expect(stage(s)).toBe('prepare');
+  });
+});
+
+describe('menu d’attaque : visée réduite à une pastille', () => {
+  it('« Viser sur la carte » réduit la fenêtre ; Échap ou « Valider » la rouvre à la même étape', () => {
+    let s = run([{ type: 'chooseAction', actionId: 'frappe' }], ready());
+    expect(isMinimized(s)).toBe(false);
+    s = reduceAttackFlow(s, { type: 'aim', on: true });
+    expect(isMinimized(s)).toBe(true);
+    // Les clics sur la carte ajoutent des cibles sans rouvrir la fenêtre
+    s = reduceAttackFlow(s, { type: 'toggleTarget', characterId: 'loup' });
+    expect(isMinimized(s)).toBe(true);
+    expect(s.phase === 'compose' && s.draft.targetIds).toEqual(['gobelin', 'loup']);
+    s = reduceAttackFlow(s, { type: 'aim', on: false });
+    expect(isMinimized(s)).toBe(false);
+    expect(menuStage(s, { actionCount: 3, revealed: false })).toBe('prepare');
+  });
+
+  it('lancer depuis la visée rouvre la fenêtre (plus de pastille)', () => {
+    const s = run(
+      [
+        { type: 'aim', on: true },
+        { type: 'submit', key: 'k' },
+      ],
+      ready(),
+    );
+    expect(s.phase).toBe('submitting');
+    expect(isMinimized(s)).toBe(false);
   });
 });
