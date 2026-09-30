@@ -3,9 +3,13 @@
 /**
  * Pastille de visée (docs/combat.md § 12.1, « Viser sur la carte ») : le menu d'attaque se
  * réduit à elle le temps de cliquer les tokens (⇧ : plusieurs). Attaquant → cibles, leur
- * nombre, « Valider » ; Échap ou « Valider » rouvrent le menu à la même étape.
+ * nombre, « Valider » ; depuis le menu, Échap ou « Valider » le rouvrent à la même étape.
+ *
+ * Visée rapide (clic d'un joueur sur un PNJ) : le menu s'ouvre ainsi, ce PNJ en cible ; un
+ * clic choisit une autre cible, ⇧ en ajoute ou en retire ; « Valider » ouvre le menu à l'étape
+ * « Action », Échap, « Annuler » ou un clic dans le vide annulent sans rien déclarer.
  */
-import { ArrowRight, Check, Crosshair } from 'lucide-react';
+import { ArrowRight, Check, Crosshair, X } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -21,27 +25,34 @@ export function AimPill({
   attackerName,
   attackerPortrait,
   targetIds,
+  quick,
   onDone,
+  onCancel,
 }: {
   ctx: AttackContext;
   attackerId: string | null;
   attackerName: string | null;
   attackerPortrait: string | null;
   targetIds: readonly string[];
+  /** Visée rapide : Échap annule l'attaque (sinon : retour au menu). */
+  quick: boolean;
+  /** « Valider » : le menu se rouvre. */
   onDone: () => void;
+  /** Échap : retour au menu, ou attaque annulée (visée rapide). */
+  onCancel: () => void;
 }) {
   const reduced = useReducedMotion();
 
-  // Échap (hors d'un geste de la carte, qui le garde pour lui) : retour au menu
+  // Échap (hors d'un geste de la carte, qui le garde pour lui) : retour au menu, ou annulation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       e.preventDefault();
-      onDone();
+      onCancel();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onDone]);
+  }, [onCancel]);
 
   if (typeof document === 'undefined') return null;
   const n = targetIds.length;
@@ -90,9 +101,21 @@ export function AimPill({
                 : `${n} cibles`}
           </span>
           <span className="hidden text-[11.5px] text-muted-foreground sm:block">
-            Cliquez les tokens · <Kbd>⇧</Kbd> plusieurs · <Kbd>Échap</Kbd> retour
+            Cliquez les tokens · <Kbd>⇧</Kbd> plusieurs · <Kbd>Échap</Kbd>{' '}
+            {quick ? 'annuler' : 'retour'}
           </span>
         </span>
+        {quick && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            className="shrink-0 rounded-full"
+            aria-label="Annuler l’attaque"
+            onClick={onCancel}
+          >
+            <X />
+          </Button>
+        )}
         <Button size="sm" className="shrink-0 rounded-full" onClick={onDone}>
           <Check /> Valider
         </Button>

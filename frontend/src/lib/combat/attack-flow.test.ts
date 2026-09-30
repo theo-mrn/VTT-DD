@@ -9,7 +9,9 @@ import {
   declaredStage,
   defaultAttacker,
   effectiveRollMode,
+  aimContinues,
   isMinimized,
+  isQuickAim,
   menuStage,
   reduceAttackFlow,
   submitKey,
@@ -478,5 +480,51 @@ describe('menu d’attaque : visée réduite à une pastille', () => {
     );
     expect(s.phase).toBe('submitting');
     expect(isMinimized(s)).toBe(false);
+  });
+});
+
+describe('menu d’attaque : visée rapide (clic d’un joueur sur un PNJ)', () => {
+  const quick = () => run([openEvent({ targetIds: ['gobelin'], aim: true })]) as ComposeState;
+
+  it('ouvre réduit à la pastille, la cible prise, l’attaquant à poser', () => {
+    const s = quick();
+    expect(isQuickAim(s)).toBe(true);
+    expect(isMinimized(s)).toBe(true);
+    expect(s.draft.targetIds).toEqual(['gobelin']);
+    expect(s.autoAttacker).toBe(true);
+    expect(menuStage(s, { actionCount: 3, revealed: false })).toBe('action');
+  });
+
+  it('un clic change de cible, ⇧ ajoute ou retire ; la visée continue', () => {
+    let s: AttackFlowState = quick();
+    s = reduceAttackFlow(s, { type: 'aimPick', characterId: 'loup', shift: false });
+    expect(s.phase === 'compose' && s.draft.targetIds).toEqual(['loup']);
+    // La seule cible recliquée : gardée
+    expect(reduceAttackFlow(s, { type: 'aimPick', characterId: 'loup', shift: false })).toBe(s);
+    s = reduceAttackFlow(s, { type: 'aimPick', characterId: 'gobelin', shift: true });
+    expect(s.phase === 'compose' && s.draft.targetIds).toEqual(['loup', 'gobelin']);
+    expect(aimContinues(s, false)).toBe(true);
+  });
+
+  it('Échap annule l’attaque ; « Valider » ouvre le menu', () => {
+    expect(reduceAttackFlow(quick(), { type: 'aimCancel' })).toBe(CLOSED);
+    const done = reduceAttackFlow(quick(), { type: 'aim', on: false });
+    expect(done.phase).toBe('compose');
+    expect(isMinimized(done)).toBe(false);
+  });
+
+  it('visée depuis le menu : un clic ajoute ou retire et rend la main sans ⇧ ; Échap revient', () => {
+    let s = run([{ type: 'aim', on: true }], ready());
+    expect(isQuickAim(s)).toBe(false);
+    s = reduceAttackFlow(s, { type: 'aimPick', characterId: 'loup', shift: false });
+    expect(s.phase === 'compose' && s.draft.targetIds).toEqual(['gobelin', 'loup']);
+    expect(aimContinues(s, false)).toBe(false);
+    expect(aimContinues(s, true)).toBe(true);
+    const back = reduceAttackFlow(s, { type: 'aimCancel' });
+    expect(back.phase).toBe('compose');
+    expect(isMinimized(back)).toBe(false);
+    // Hors visée : sans effet
+    expect(reduceAttackFlow(back, { type: 'aimCancel' })).toBe(back);
+    expect(reduceAttackFlow(back, { type: 'aimPick', characterId: 'x', shift: false })).toBe(back);
   });
 });

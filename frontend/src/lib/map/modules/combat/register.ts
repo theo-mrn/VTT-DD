@@ -15,9 +15,14 @@ import {
   openAttackMenu,
   type AttackMenuStore,
 } from '@/lib/combat/attack-menu-store';
-import type { AttackFlowEvent, AttackFlowState, AttackMenuRequest } from '@/lib/combat/attack-flow';
+import {
+  aimContinues,
+  type AttackFlowEvent,
+  type AttackFlowState,
+  type AttackMenuRequest,
+} from '@/lib/combat/attack-flow';
 import { AIM_TOOL_ID, AimTool } from './aim-tool';
-import { attackSelection, combatMenu, type AttackOpener } from './menu';
+import { attackSelection, combatMenu, quickAimTarget, type AttackOpener } from './menu';
 import { aimLines, EMPTY_COMBAT_MAP, ringTargets, type CombatMapState } from './model';
 import { mountStateBadges } from './badges';
 import { mountCombatRings, type RingSnapshot } from './rings';
@@ -110,12 +115,30 @@ export function registerCombat(
       available: (viewer) => viewer.role !== 'spectator',
       create: () =>
         new AimTool({
-          pick: (characterId) => menu.dispatch({ type: 'toggleTarget', characterId }),
+          pick: (characterId, shift) => {
+            menu.dispatch({ type: 'aimPick', characterId, shift });
+            return aimContinues(menu.getState().flow, shift);
+          },
+          // Visée rapide : un clic dans le vide annule ; depuis le menu, il ne fait rien
+          voidClick: () => {
+            const f = menu.getState().flow;
+            if (f.phase === 'compose' && f.aiming && f.aimMode === 'quick')
+              menu.dispatch({ type: 'aimCancel' });
+          },
+          // Échap, autre outil : retour au menu (ou attaque annulée en visée rapide)
           exit: () => {
             if (aiming() && engine.tools.getActiveId() !== AIM_TOOL_ID)
-              menu.dispatch({ type: 'aim', on: false });
+              menu.dispatch({ type: 'aimCancel' });
           },
         }),
+    }),
+    // Joueur : un clic sur un PNJ qu'il voit ouvre la visée rapide, ce PNJ en cible (§ 12.1)
+    engine.onMapClick((click) => {
+      if (menu.getState().flow.phase !== 'closed') return;
+      const target = quickAimTarget(engine, click);
+      if (!target) return;
+      engine.selection.clear();
+      open({ origin: 'map', targetIds: [target], aim: true });
     }),
     engine.registerMenuProvider((ctx) => combatMenu(ctx, open)),
     engine.registerShortcut({

@@ -48,6 +48,7 @@ import {
   canGoBack,
   declaredStage,
   isMinimized,
+  isQuickAim,
   MENU_STAGE_LABELS,
   menuStage,
   visibleStages,
@@ -301,7 +302,9 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
           attackerName={model.sheet.name}
           attackerPortrait={model.sheet.portraitUrl}
           targetIds={draft.targetIds}
+          quick={isQuickAim(flow)}
           onDone={() => attackMenu.dispatch({ type: 'aim', on: false })}
+          onCancel={() => attackMenu.dispatch({ type: 'aimCancel' })}
         />
       )}
     </>

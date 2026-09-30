@@ -1,10 +1,11 @@
 /**
  * Entrées « Attaquer » de la carte (docs/combat.md § 12.1, § 12.5) : menu contextuel et barre
- * de la sélection (mêmes entrées, `engine.menuItems`).
+ * de la sélection (mêmes entrées, `engine.menuItems`), et la visée rapide d'un joueur.
  *
  * - Token : « Attaquer » (ces personnages deviennent les cibles ; attaquant : mon personnage,
- *   ou pour le MJ le PNJ qui agit, sinon le choix). Un joueur l'a dans sa barre au clic sur un
- *   token qui n'est pas à lui (`forPlayers`).
+ *   ou pour le MJ le PNJ qui agit, sinon le choix). Un joueur ne l'a qu'au clic droit : son
+ *   clic simple sur un PNJ ouvre directement la visée (`quickAimTarget`), et il clique sans
+ *   cesse son propre token pour le déplacer, sans qu'aucune barre ne s'ouvre.
  * - MJ : « Attaquer avec » (le personnage du token attaque) et « Attaquer avec la sélection »
  *   (plusieurs PNJ à la suite, § 8.2).
  * - Gabarit : « Attaquer la zone (n) » (tokens vus dans la forme), à côté de « Sélectionner les
@@ -13,13 +14,14 @@
  */
 import type { AttackOrigin } from '@vtt/contracts';
 import { Swords, Target } from 'lucide-react';
-import type { MenuItem, MapViewer } from '../../engine/entities/entity-kind';
+import type { MenuItem } from '../../engine/entities/entity-kind';
 import type { MapEntity } from '../../engine/entities/entity';
-import type { MapEngine, MenuContext } from '../../engine/map-engine';
+import type { MapClick, MapEngine, MenuContext } from '../../engine/map-engine';
 import { specOfEntity } from '../measurements/kind';
 import { MEASUREMENT_KIND, type MeasurementData } from '../measurements/model';
 import { tokensInZone } from '../measurements/operations';
-import { ownsToken, type TokenData } from '../tokens/model';
+import { isNpc, ownsToken, type TokenData } from '../tokens/model';
+import { tokensStateOf } from '../tokens/state';
 import { charactersOf, isToken } from './model';
 
 /** Ce que la carte demande au menu d'attaque. */
@@ -29,6 +31,8 @@ export interface AttackOpener {
     targetIds?: readonly string[];
     attackerId?: string;
     attackers?: readonly string[];
+    /** Visée rapide : le menu s'ouvre réduit à la pastille de visée. */
+    aim?: boolean;
   }): void;
 }
 
@@ -48,14 +52,12 @@ export function combatMenu(ctx: MenuContext, open: AttackOpener): MenuItem[] {
   const origin: AttackOrigin = entities.length > 1 ? 'selection' : 'map';
   const items: MenuItem[] = [];
 
-  const mine = entities.every((e) => ownsToken(e.data as TokenData, viewer as MapViewer));
   items.push({
     id: 'combat:attack',
     label: plural('Attaquer', characters.length),
     icon: Target,
-    // Un joueur l'a dans sa barre au clic sur un token qui n'est pas à lui
-    primary: gm || !mine,
-    forPlayers: !mine,
+    // MJ : bouton de la barre ; joueur : clic droit seulement (son clic ouvre la visée rapide)
+    primary: gm,
     run: () => open({ origin, targetIds: characters }),
   });
 
@@ -96,4 +98,25 @@ function zoneEntry(engine: MapEngine, template: MapEntity, open: AttackOpener): 
 export function attackSelection(engine: MapEngine, open: AttackOpener) {
   const targets = charactersOf(engine.selectedEntities());
   open({ origin: targets.length ? 'selection' : 'map', targetIds: targets });
+}
+
+/**
+ * Visée rapide (§ 12.1) : le personnage visé par le clic simple d'un joueur sur un token qu'il
+ * voit et qui n'est pas à lui, un PNJ (ou d'un camp autre que celui des joueurs) ; null sinon :
+ * MJ et spectateur, joueur sans personnage, clic sur son propre token ou sur un allié joueur,
+ * clic de mesure, ⇧ ou Alt.
+ */
+export function quickAimTarget(engine: MapEngine, click: MapClick): string | null {
+  const viewer = engine.viewer;
+  if (viewer.role !== 'player' || !viewer.characterIds.length) return null;
+  if (click.measure || click.shift || click.alt || !click.target) return null;
+  const target = click.target;
+  if (!isToken(target) || target.masks.size > 0) return null;
+  if (ownsToken(target.data as TokenData, viewer)) return null;
+  const [characterId] = charactersOf([target]);
+  if (!characterId) return null;
+  const info = tokensStateOf(engine)?.directory.get(characterId);
+  // Personnage connu d'un joueur (allié du groupe) : pas d'attaque au simple clic
+  if (info && !isNpc(info)) return null;
+  return characterId;
 }

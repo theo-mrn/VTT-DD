@@ -3,6 +3,7 @@ import { createStore } from 'zustand/vanilla';
 import {
   CLOSED,
   isMinimized,
+  isQuickAim,
   menuStage,
   reduceAttackFlow,
   type AttackFlowEvent,
@@ -11,6 +12,7 @@ import {
 } from '@/lib/combat/attack-flow';
 import type { MenuItem, MapViewer } from '../../engine/entities/entity-kind';
 import { SELECT_TOOL_ID } from '../../engine/tools/tool-manager';
+import { barLayout } from '@/components/map/selection-bar';
 import { ALICE, character, setupTokens, SPECTATOR, token } from '../tokens/test-kit';
 import { AIM_TOOL_ID } from './aim-tool';
 import { aimLines, defeatedOf, EMPTY_COMBAT_MAP, ringTargets } from './model';
@@ -37,6 +39,7 @@ const people = () => [
   character('hero', { name: 'Aria', side: 'players', kind: 'pc', ownerId: 'alice' }),
   character('gobelin', { name: 'Gobelin' }),
   character('loup', { name: 'Loup' }),
+  character('ami', { name: 'Brom', side: 'players', kind: 'pc', ownerId: 'bob' }),
 ];
 
 function setup(viewer?: MapViewer) {
@@ -45,6 +48,7 @@ function setup(viewer?: MapViewer) {
       token('h1', 'hero', { pos: { x: 200, y: 200 } }),
       token('g1', 'gobelin', { pos: { x: 500, y: 500 } }),
       token('l1', 'loup', { pos: { x: 700, y: 700 } }),
+      token('a1', 'ami', { pos: { x: 200, y: 700 } }),
     ],
     characters: people(),
     ...(viewer ? { viewer } : {}),
@@ -89,14 +93,15 @@ describe('entrées « Attaquer » de la carte', () => {
     expect(flow.phase === 'compose' && flow.queue).toEqual(['loup']);
   });
 
-  it('joueur : « Attaquer » dans sa barre sur un token qui n’est pas à lui', () => {
+  it('joueur : « Attaquer » au clic droit seulement, jamais dans sa barre', () => {
     const t = setup(ALICE);
     const enemy = find(t.items('g1'), 'combat:attack')!;
-    expect(enemy).toMatchObject({ forPlayers: true, primary: true });
+    expect(enemy).toMatchObject({ primary: false });
+    expect(enemy.forPlayers).toBeFalsy();
+    expect(barLayout(t.items('g1'), false).primary).toEqual([]);
     expect(find(t.items('g1'), 'combat:attack-with')).toBeUndefined();
-    // Son propre token : au clic droit seulement (se viser reste possible)
-    const own = find(t.items('h1'), 'combat:attack')!;
-    expect(own).toMatchObject({ forPlayers: false, primary: false });
+    // Son propre token : au clic droit aussi (se viser reste possible)
+    expect(find(t.items('h1'), 'combat:attack')).toMatchObject({ primary: false });
   });
 
   it('spectateur : rien', () => {
@@ -190,6 +195,107 @@ describe('outil de visée', () => {
     expect(flow.phase).toBe('compose');
     expect(flow.phase === 'compose' && flow.aiming).toBe(false);
     expect(combatModuleOf(t.engine)).toBeNull();
+  });
+});
+
+describe('visée rapide d’un joueur (clic sur un PNJ)', () => {
+  const VOID = { x: 900, y: 100 };
+
+  it('un clic sur un PNJ qu’il voit ouvre la pastille de visée, ce PNJ en cible', () => {
+    const t = setup(ALICE);
+    t.click({ x: 500, y: 500 });
+    expect(t.menu.opened.at(-1)).toEqual({
+      campaignId: 'campagne',
+      origin: 'map',
+      targetIds: ['gobelin'],
+      aim: true,
+    });
+    const flow = t.menu.flow();
+    expect(isQuickAim(flow)).toBe(true);
+    expect(isMinimized(flow)).toBe(true);
+    // Attaquant : celui par défaut (son personnage), posé par le menu
+    expect(flow.phase === 'compose' && flow.autoAttacker).toBe(true);
+    expect(t.engine.tools.getActiveId()).toBe(AIM_TOOL_ID);
+    // Ni sélection ni barre au-dessus du token
+    expect(t.engine.selection.ids).toEqual([]);
+  });
+
+  it('son propre token (clic ou glisser) et un allié joueur : jamais de visée', () => {
+    const t = setup(ALICE);
+    t.click({ x: 200, y: 200 });
+    t.drag({ x: 200, y: 200 }, { x: 300, y: 260 });
+    t.click({ x: 200, y: 700 });
+    expect(t.menu.flow()).toBe(CLOSED);
+    expect(t.menu.opened).toEqual([]);
+  });
+
+  it('MJ, spectateur, joueur sans personnage, ⇧ : rien de spécial', () => {
+    for (const viewer of [
+      undefined,
+      SPECTATOR,
+      { userId: 'carl', role: 'player' as const, characterIds: [] },
+    ]) {
+      const t = setup(viewer);
+      t.click({ x: 500, y: 500 });
+      expect(t.menu.flow()).toBe(CLOSED);
+    }
+    const t = setup(ALICE);
+    t.click({ x: 500, y: 500 }, { shift: true });
+    expect(t.menu.flow()).toBe(CLOSED);
+  });
+
+  it('un clic change de cible, ⇧ en ajoute ou en retire ; la visée continue', () => {
+    const t = setup(ALICE);
+    t.click({ x: 500, y: 500 });
+    t.click({ x: 700, y: 700 });
+    let flow = t.menu.flow();
+    expect(flow.phase === 'compose' && flow.draft.targetIds).toEqual(['loup']);
+    t.click({ x: 500, y: 500 }, { shift: true });
+    flow = t.menu.flow();
+    expect(flow.phase === 'compose' && flow.draft.targetIds).toEqual(['loup', 'gobelin']);
+    t.click({ x: 700, y: 700 }, { shift: true });
+    flow = t.menu.flow();
+    expect(flow.phase === 'compose' && flow.draft.targetIds).toEqual(['gobelin']);
+    expect(isQuickAim(flow)).toBe(true);
+    expect(t.engine.tools.getActiveId()).toBe(AIM_TOOL_ID);
+  });
+
+  it('« Valider » ouvre le menu à l’étape « Action »', () => {
+    const t = setup(ALICE);
+    t.click({ x: 500, y: 500 });
+    t.menu.port.dispatch({ type: 'aim', on: false });
+    const flow = t.menu.flow();
+    expect(isMinimized(flow)).toBe(false);
+    expect(menuStage(flow, { actionCount: 3, revealed: false })).toBe('action');
+    expect(t.engine.tools.getActiveId()).toBe(SELECT_TOOL_ID);
+  });
+
+  it('un clic dans le vide annule sans rien déclarer ; un glisser déplace la vue', async () => {
+    const t = setup(ALICE);
+    t.click({ x: 500, y: 500 });
+    t.drag(VOID, { x: 980, y: 180 });
+    expect(isQuickAim(t.menu.flow())).toBe(true);
+    t.click(VOID);
+    expect(t.menu.flow()).toBe(CLOSED);
+    await tick();
+    expect(t.engine.tools.getActiveId()).toBe(SELECT_TOOL_ID);
+  });
+
+  it('Échap annule l’attaque', async () => {
+    const t = setup(ALICE);
+    t.click({ x: 500, y: 500 });
+    t.engine.controller.keyDown(t.key('Escape', { key: 'Escape' }));
+    await tick();
+    expect(t.menu.flow()).toBe(CLOSED);
+  });
+
+  it('visée depuis le menu : un clic dans le vide ne fait rien', () => {
+    const t = setup();
+    t.menu.port.open({ campaignId: 'campagne', origin: 'map', attackerId: 'hero' });
+    t.menu.port.dispatch({ type: 'aim', on: true });
+    t.click(VOID);
+    const flow = t.menu.flow();
+    expect(flow.phase === 'compose' && flow.aiming).toBe(true);
   });
 });
 

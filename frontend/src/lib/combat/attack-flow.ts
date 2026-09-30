@@ -48,7 +48,19 @@ export interface AttackMenuRequest {
   attackers?: readonly string[];
   targetIds?: readonly string[];
   actionId?: string | null;
+  /**
+   * Visée rapide (joueur, clic sur un PNJ) : le menu s'ouvre réduit à la pastille de visée,
+   * ces cibles déjà prises ; « Valider » l'ouvre à l'étape « Action », Échap l'annule.
+   */
+  aim?: boolean;
 }
+
+/**
+ * D'où vient la visée : `menu` (« Viser sur la carte » : Échap revient au menu, un clic sans ⇧
+ * aussi) ou `quick` (clic d'un joueur sur un PNJ : un clic choisit la cible, ⇧ en ajoute ou en
+ * retire, Échap ou un clic dans le vide annulent l'attaque).
+ */
+export type AimMode = 'menu' | 'quick';
 
 /** Ajustements libres (hors règles) : dés à symboles par sorte, bonus au total. */
 export interface FreeAdjustments {
@@ -91,6 +103,7 @@ export type AttackFlowState =
   | (Opened & {
       phase: 'compose';
       aiming: boolean;
+      aimMode: AimMode;
       /** L'attaquant n'a pas été choisi : l'interface pose celui par défaut. */
       autoAttacker: boolean;
       error: string | null;
@@ -120,7 +133,15 @@ export type AttackFlowEvent =
   | { type: 'addTargets'; characterIds: readonly string[] }
   | { type: 'setTargets'; characterIds: readonly string[] }
   | { type: 'removeTarget'; characterId: string }
+  /** « Viser sur la carte » (marche), ou « Valider » la visée (arrêt : le menu se rouvre). */
   | { type: 'aim'; on: boolean }
+  /**
+   * Clic sur un token pendant la visée : visée depuis le menu, il est ajouté ou retiré ;
+   * visée rapide, il devient la cible (⇧ : ajouté ou retiré).
+   */
+  | { type: 'aimPick'; characterId: string; shift: boolean }
+  /** Échap (ou clic dans le vide en visée rapide) : retour au menu, ou attaque annulée. */
+  | { type: 'aimCancel' }
   | { type: 'setRollMode'; rollMode: AttackRollMode | null }
   | { type: 'setDice'; dice: RollDiceMode | null }
   | { type: 'setVisibility'; visibility: AttackVisibility | null }
@@ -159,6 +180,7 @@ function compose(opened: Opened, patch: Partial<ComposeState> = {}): ComposeStat
     ...opened,
     phase: 'compose',
     aiming: false,
+    aimMode: 'menu',
     autoAttacker: false,
     error: null,
     retryKey: null,
@@ -201,7 +223,10 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
           // Action demandée (fiche, attaque enregistrée) : on la prépare directement
           step: r.actionId ? 'prepare' : 'action',
         },
-        { autoAttacker: r.attackerId === undefined && !queue.length },
+        {
+          autoAttacker: r.attackerId === undefined && !queue.length,
+          ...(r.aim ? { aiming: true, aimMode: 'quick' as const } : {}),
+        },
       );
     }
     case 'close':
@@ -314,7 +339,23 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
         s.draft.targetIds.filter((id) => id !== event.characterId),
       );
     case 'aim':
-      return event.on === s.aiming ? s : { ...s, aiming: event.on };
+      if (event.on === s.aiming) return s;
+      return event.on ? { ...s, aiming: true, aimMode: 'menu' } : { ...s, aiming: false };
+    case 'aimPick': {
+      if (!s.aiming) return s;
+      const has = s.draft.targetIds.includes(event.characterId);
+      if (s.aimMode === 'quick' && !event.shift)
+        return has && s.draft.targetIds.length === 1 ? s : setTargets(s, [event.characterId]);
+      return setTargets(
+        s,
+        has
+          ? s.draft.targetIds.filter((id) => id !== event.characterId)
+          : [...s.draft.targetIds, event.characterId],
+      );
+    }
+    case 'aimCancel':
+      if (!s.aiming) return s;
+      return s.aimMode === 'quick' ? CLOSED : { ...s, aiming: false };
     case 'setRollMode':
       return editDraft(s, { rollMode: event.rollMode });
     case 'setDice':
@@ -490,6 +531,14 @@ export const canGoBack = (stage: MenuStage | null, actionCount: number) =>
  * « Valider » la rouvrent à la même étape, le brouillon intact.
  */
 export const isMinimized = (s: AttackFlowState) => s.phase === 'compose' && s.aiming;
+
+/** Après un clic sur un token, la visée continue (⇧, ou visée rapide) ou rend la main. */
+export const aimContinues = (s: AttackFlowState, shift: boolean) =>
+  s.phase === 'compose' && s.aiming && (s.aimMode === 'quick' || shift);
+
+/** Visée rapide en cours (Échap l'annule, la pastille le dit). */
+export const isQuickAim = (s: AttackFlowState) =>
+  s.phase === 'compose' && s.aiming && s.aimMode === 'quick';
 
 // ─── Attaque déclarée ────────────────────────────────────────────────────────
 

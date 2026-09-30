@@ -5,9 +5,9 @@
  * scène soit ouverte ou non) : le menu s'ouvre en plein écran par-dessus tout, depuis le
  * token, la barre de la sélection, un gabarit, la fiche, le panneau Combat ou la touche Y.
  *
- * « Viser sur la carte » n'existe que si une carte est affichée ; au début de la visée, le
- * panneau de la table qui la couvre (fiche, panneau Combat) se ferme pour laisser cliquer les
- * tokens. Les panneaux flottants (dés) restent.
+ * « Viser sur la carte » n'existe que si une carte est affichée ; au début de la visée depuis
+ * le menu, le panneau de la table qui la couvre (fiche, panneau Combat) se ferme pour laisser
+ * cliquer les tokens. Les panneaux flottants (dés) restent.
  */
 import { useEffect } from 'react';
 import { usePanelStoreApi } from '@/components/table/panels/store';
@@ -36,6 +36,8 @@ function useCloseCoveringPanelOnAim(campaignId: string) {
       attackMenuStore.subscribe((s, prev) => {
         if (s.flow.phase === 'closed' || s.flow.campaignId !== campaignId) return;
         if (!isMinimized(s.flow) || isMinimized(prev.flow)) return;
+        // Visée rapide : on vient de cliquer la carte, rien ne la couvre à fermer
+        if (s.flow.phase === 'compose' && s.flow.aimMode === 'quick') return;
         const active = panels.getState().active;
         const mode = panelRegistry.find((p) => p.id === active)?.mode;
         if (active && mode !== 'floating') panels.getState().close();
