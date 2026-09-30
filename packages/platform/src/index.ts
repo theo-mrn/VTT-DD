@@ -13,4 +13,5 @@ export * from './middleware/request-context.js';
 export * from './middleware/security.js';
 export * from './bus.js';
 export * from './outbox-relay.js';
+export * from './remote-image.js';
 export * from './uploads.js';

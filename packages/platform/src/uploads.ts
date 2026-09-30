@@ -11,10 +11,13 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
   checkUpload,
+  uploadMaxBytes,
   UPLOAD_ERRORS,
   UPLOAD_EXTENSIONS,
   UPLOAD_USAGES,
   uuidv7,
+  type FileImport,
+  type FileImportRequest,
   type FileUploadRequest,
   type FileUploadTicket,
   type UploadContentType,
@@ -22,6 +25,12 @@ import {
 } from '@vtt/contracts';
 import type { FastifyBaseLogger } from 'fastify';
 import { HttpError } from './middleware/error-handler.js';
+import {
+  fetchRemoteImage,
+  RemoteImageError,
+  type FetchOptions,
+  type RemoteImage,
+} from './remote-image.js';
 
 /** Variables du stockage, communes aux services. */
 export interface StorageSettings {
@@ -44,8 +53,17 @@ export interface PutSignature {
 /** Produit une URL PUT présignée. Injectable pour les tests. */
 export type PutSigner = (s: PutSignature) => Promise<string>;
 
-/** Signataire S3 (R2, SeaweedFS), ou undefined si le stockage n'est pas configuré. */
-export function createPutSigner(s: StorageSettings): PutSigner | undefined {
+/** Écrit un objet sur le stockage (import d'une image d'un autre site). Injectable pour les tests. */
+export type ObjectWriter = (o: {
+  key: string;
+  body: Buffer;
+  contentType: UploadContentType;
+}) => Promise<void>;
+
+/** Télécharge une image d'un autre site. Injectable pour les tests. */
+export type RemoteFetcher = (url: string, o: FetchOptions) => Promise<RemoteImage>;
+
+function s3Client(s: StorageSettings) {
   const { S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = s;
   if (!S3_ENDPOINT || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) return undefined;
   const client = new S3Client({
@@ -57,17 +75,41 @@ export function createPutSigner(s: StorageSettings): PutSigner | undefined {
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
   });
+  return { client, bucket: S3_BUCKET };
+}
+
+/** Signataire S3 (R2, SeaweedFS), ou undefined si le stockage n'est pas configuré. */
+export function createPutSigner(s: StorageSettings): PutSigner | undefined {
+  const s3 = s3Client(s);
+  if (!s3) return undefined;
   return (x) =>
     getSignedUrl(
-      client,
+      s3.client,
       new PutObjectCommand({
-        Bucket: S3_BUCKET,
+        Bucket: s3.bucket,
         Key: x.key,
         ContentType: x.contentType,
         ContentLength: x.size,
       }),
       { expiresIn: x.expiresIn, signableHeaders: new Set(['content-type', 'content-length']) },
     );
+}
+
+/** Écrivain S3, ou undefined si le stockage n'est pas configuré. */
+export function createObjectWriter(s: StorageSettings): ObjectWriter | undefined {
+  const s3 = s3Client(s);
+  if (!s3) return undefined;
+  return async (o) => {
+    await s3.client.send(
+      new PutObjectCommand({
+        Bucket: s3.bucket,
+        Key: o.key,
+        Body: o.body,
+        ContentType: o.contentType,
+        ContentLength: o.body.length,
+      }),
+    );
+  };
 }
 
 /** Durée de validité d'une URL d'envoi, en secondes. */
@@ -97,12 +139,19 @@ export class Uploads {
     private readonly signer: PutSigner | undefined,
     publicUrl: string | undefined,
     private readonly expiresIn = UPLOAD_EXPIRY_SECONDS,
+    private readonly writer?: ObjectWriter,
+    private readonly fetchRemote: RemoteFetcher = fetchRemoteImage,
   ) {
     this.publicBase = publicUrl ? publicUrl.replace(/\/+$/, '') : null;
   }
 
   static fromSettings(s: StorageSettings): Uploads {
-    return new Uploads(createPutSigner(s), s.S3_PUBLIC_URL);
+    return new Uploads(
+      createPutSigner(s),
+      s.S3_PUBLIC_URL,
+      UPLOAD_EXPIRY_SECONDS,
+      createObjectWriter(s),
+    );
   }
 
   /** Le stockage est configuré (sinon la route répond 503). */
@@ -147,6 +196,64 @@ export class Uploads {
       publicUrl: `${this.publicBase}/${key}`,
       key,
       expiresAt: new Date(Date.now() + this.expiresIn * 1000).toISOString(),
+    };
+  }
+
+  /**
+   * Import d'une image d'un autre site pour `owner` (droits vérifiés par la route) : téléchargée
+   * par le service (adresses publiques seulement, voir remote-image.ts), format lu dans son
+   * contenu, rangée comme un envoi (`<dossier>/<propriétaire>/<uuidv7>.<ext>`).
+   */
+  async importFromUrl(
+    req: FileImportRequest,
+    owner: string,
+    allowed: readonly UploadUsageId[],
+    log: FastifyBaseLogger,
+  ): Promise<FileImport> {
+    if (!allowed.includes(req.usage)) throw uploadErrors.usageNotAllowed(req.usage);
+    if (!this.writer || !this.publicBase) throw uploadErrors.storageUnavailable();
+    const maxBytes = Math.max(
+      ...UPLOAD_USAGES[req.usage].types.map((t) => uploadMaxBytes(req.usage, t)),
+    );
+    let image: RemoteImage;
+    try {
+      image = await this.fetchRemote(req.url, { maxBytes });
+    } catch (err) {
+      if (!(err instanceof RemoteImageError)) throw err;
+      log.info({ usage: req.usage, reason: err.reason }, 'import refusé');
+      if (err.reason === 'address')
+        throw new HttpError(422, 'Adresse refusée', UPLOAD_ERRORS.addressNotAllowed, err.message);
+      if (err.reason === 'too_large')
+        throw new HttpError(413, 'Fichier trop lourd', UPLOAD_ERRORS.tooLarge, err.message);
+      if (err.reason === 'not_image')
+        throw new HttpError(415, 'Format refusé', UPLOAD_ERRORS.unsupportedType, err.message);
+      throw new HttpError(422, 'Import impossible', UPLOAD_ERRORS.importFailed, err.message);
+    }
+    const refus = checkUpload({
+      usage: req.usage,
+      contentType: image.contentType,
+      size: image.body.length,
+    });
+    if (refus)
+      throw new HttpError(
+        refus.code === UPLOAD_ERRORS.tooLarge ? 413 : 415,
+        refus.code === UPLOAD_ERRORS.tooLarge ? 'Fichier trop lourd' : 'Format refusé',
+        refus.code,
+        refus.message,
+      );
+    const key = uploadKey(req.usage, owner, image.contentType);
+    try {
+      await this.writer({ key, body: image.body, contentType: image.contentType });
+    } catch (err) {
+      log.error({ err, usage: req.usage }, 'écriture de l’image importée impossible');
+      throw uploadErrors.storageUnavailable();
+    }
+    log.info({ usage: req.usage, key, size: image.body.length }, 'image importée');
+    return {
+      publicUrl: `${this.publicBase}/${key}`,
+      key,
+      contentType: image.contentType,
+      size: image.body.length,
     };
   }
 

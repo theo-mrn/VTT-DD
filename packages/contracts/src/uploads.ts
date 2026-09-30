@@ -153,12 +153,36 @@ export const FileUploadTicket = z.object({
 });
 export type FileUploadTicket = z.infer<typeof FileUploadTicket>;
 
+/**
+ * `POST …/uploads/import` : une image d'un autre site (Pinterest…), que le navigateur ne peut
+ * pas lire (CORS). Le service la télécharge (adresses publiques seulement), vérifie son format
+ * d'après son contenu et la range sur notre stockage, comme un envoi.
+ */
+export const FileImportRequest = z.strictObject({
+  usage: UploadUsageId,
+  url: z.url({ protocol: /^https?$/ }).max(2048),
+});
+export type FileImportRequest = z.input<typeof FileImportRequest>;
+
+/** Réponse : la copie rangée sur notre stockage. */
+export const FileImport = z.object({
+  publicUrl: z.string(),
+  key: z.string(),
+  contentType: z.string(),
+  size: z.number().int(),
+});
+export type FileImport = z.infer<typeof FileImport>;
+
 /** Refus de validation : le code dit quoi corriger. */
 export const UPLOAD_ERRORS = {
   unsupportedType: 'unsupported_media_type',
   tooLarge: 'file_too_large',
   usageNotAllowed: 'usage_not_allowed',
   storageUnavailable: 'storage_unavailable',
+  /** Import : adresse privée, locale ou port inhabituel. */
+  addressNotAllowed: 'address_not_allowed',
+  /** Import : image introuvable, illisible ou trop lente. */
+  importFailed: 'import_failed',
 } as const;
 
 /**

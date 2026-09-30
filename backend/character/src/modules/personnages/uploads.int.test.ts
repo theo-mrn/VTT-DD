@@ -62,6 +62,23 @@ describe.skipIf(!TEST_DATABASE_URL)('envoi d’un portrait', () => {
     ).toBe(413);
   });
 
+  it('import d’une image d’un autre site : droits, adresses locales et protocoles refusés', async () => {
+    const p = await o.nainGuerrier(proprietaire, 'Thorin');
+    const url = `/v1/characters/${p.id}/uploads/import`;
+    const demande = { usage: 'portrait', url: 'http://127.0.0.1/portrait.png' };
+    expect([403, 404]).toContain((await o.requete(etranger, 'POST', url, demande)).statusCode);
+    const local = await o.requete(proprietaire, 'POST', url, demande);
+    expect(local.statusCode).toBe(422);
+    expect(local.json().code).toBe('address_not_allowed');
+    expect(
+      (await o.requete(proprietaire, 'POST', url, { ...demande, url: 'file:///etc/passwd' }))
+        .statusCode,
+    ).toBe(400);
+    expect(
+      (await o.requete(proprietaire, 'POST', url, { ...demande, usage: 'avatar' })).statusCode,
+    ).toBe(422);
+  });
+
   it('Studio : token et réglages enregistrés, relus ; réglages invalides refusés', async () => {
     const p = await o.nainGuerrier(proprietaire, 'Thorin');
     const ticket = (

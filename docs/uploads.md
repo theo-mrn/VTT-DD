@@ -23,6 +23,27 @@ Refus : 415 `unsupported_media_type`, 413 `file_too_large`, 422 `usage_not_allow
 autre route), 503 `storage_unavailable` (stockage non configuré, signature impossible), 403/404 selon
 les droits. Débit limité par minute.
 
+## Import d'une image d'un autre site
+
+Une adresse collée (Pinterest…) s'affiche, mais le navigateur ne peut pas la lire pour la
+recadrer ou la redessiner : ces sites n'envoient pas l'en-tête CORS. `POST …/uploads/import`
+(`FileImportRequest` → `FileImport` : `{ usage, url }` → `{ publicUrl, key, contentType, size }`)
+fait télécharger l'image par le service, qui la range comme un envoi. Aujourd'hui sur
+`POST /v1/characters/:id/uploads/import` (Studio du portrait) ; la brique sert à toute route.
+
+L'adresse vient d'un utilisateur, le service ne doit jamais atteindre le réseau interne
+(`@vtt/platform`, `remote-image.ts`) :
+
+- http(s) seulement, ports 80 et 443, sans identifiants dans l'adresse ;
+- chaque adresse IP vérifiée **à la connexion** (résolution faite par nous) : boucle locale,
+  réseaux privés, lien local (métadonnées du nuage), plages réservées refusés ;
+- redirections suivies à la main, 3 au plus, chacune revérifiée ;
+- taille bornée pendant la lecture (maximum de l'usage), 10 s au plus ;
+- format lu dans les premiers octets (PNG, JPEG, GIF, WebP, AVIF), pas dans l'en-tête du site.
+
+Refus : 422 `address_not_allowed`, 422 `import_failed` (introuvable, trop lent), 415, 413. Débit :
+10 par minute.
+
 ## Les usages
 
 Déclarés une fois dans `UPLOAD_USAGES` : formats, taille maximale, dossier, format du recadrage.

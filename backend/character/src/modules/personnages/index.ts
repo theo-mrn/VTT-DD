@@ -7,7 +7,13 @@
  * membres le lisent ; hors campagne et pendant la création, son propriétaire
  * a la main ; lui seul le supprime (voir `acces` et `autoriser`).
  */
-import { FileUploadRequest, FileUploadTicket, PortraitStudio } from '@vtt/contracts';
+import {
+  FileImport,
+  FileImportRequest,
+  FileUploadRequest,
+  FileUploadTicket,
+  PortraitStudio,
+} from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { campaignIndisponible } from '../../droits/campaign.js';
 import { achatsPossibles, creationDe, etapesCreation } from '@vtt/rules';
@@ -319,6 +325,26 @@ export const register: Module = async (app, deps) => {
       const { id } = req.params;
       await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
       return deps.uploads.ticket(req.body, id, ['portrait', 'token'], req.log);
+    },
+  );
+
+  // Import d'une image d'un autre site (docs/uploads.md) : le navigateur ne peut pas la lire
+  // (CORS) ; le service la télécharge et la range dans le dossier du personnage
+  r.post(
+    '/v1/characters/:id/uploads/import',
+    {
+      ...auth,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } } as FastifyContextConfig,
+      schema: {
+        params: Params,
+        body: FileImportRequest,
+        response: { 200: FileImport },
+      },
+    },
+    async (req) => {
+      const { id } = req.params;
+      await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
+      return deps.uploads.importFromUrl(req.body, id, ['portrait', 'token'], req.log);
     },
   );
 
