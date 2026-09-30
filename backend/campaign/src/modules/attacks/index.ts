@@ -45,6 +45,7 @@ import type { Deps, Module } from '../../deps.js';
 import { access, lockCampaign, type Access } from '../campaigns/repository.js';
 import { settingsOf, stateOf } from '../combat/api.js';
 import { loadCombat, logTurn, saveState, turnChanged } from '../combat/repository.js';
+import { combatContextOf, rowsOfDeclaration, type TallyRow } from '../combat/tally.js';
 import { snapshotOf } from '../combat/turn-log.js';
 import { CampaignId, currentUser, eventContext, Uuid } from '../schemas.js';
 import {
@@ -341,6 +342,8 @@ async function declare(
     for (const b of bodies) checkDeclaration(v, b.attackerId, b.targets);
     const combat = await loadCombat(deps.db, a.campaign.id);
     const state = combat ? stateOf(combat.combat, combat.participants) : null;
+    // Situation du combat (§ 5.7) : décompte des attaques déjà déclarées, celles du lot comprises
+    const tallies: TallyRow[] = [...(combat?.tallies ?? [])];
     const settings = combat ? settingsOf(combat.combat) : DEFAULT_COMBAT_SETTINGS;
     if (!v.isGm && !settings.playersActOutsideTurn)
       for (const b of bodies)
@@ -362,6 +365,7 @@ async function declare(
         dice,
         diceHistory,
       };
+      const combatContext = combatContextOf(state, tallies, body.attackerId, body.targets);
       let p;
       try {
         p = await deps.character.prepareAction(
@@ -373,12 +377,21 @@ async function declare(
             userId,
             campaignId: a.campaign.id,
             ...common,
+            ...(combatContext ? { combat: combatContext } : {}),
           },
           origin,
         );
       } catch (e) {
         throw characterFailure(e, req.log, 'préparation d’une attaque');
       }
+      if (state)
+        tallies.push(
+          ...rowsOfDeclaration(
+            state.round,
+            body.attackerId,
+            p.targets.filter((t) => !t.error).map((t) => t.characterId),
+          ),
+        );
       let resolution = p.resolution;
       const waiting =
         !resolution && (p.step || p.targets.some((t) => !t.error && t.reactionParams.length));

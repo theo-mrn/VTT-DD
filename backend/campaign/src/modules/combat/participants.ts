@@ -25,7 +25,15 @@ import { z } from 'zod';
 import type { Module } from '../../deps.js';
 import { access, gmAccess, lockCampaign } from '../campaigns/repository.js';
 import { CampaignId, CharacterId, currentUser, eventContext } from '../schemas.js';
-import { checkVersion, combatChanged, fullApi, noCombat, originOf, stateOf } from './api.js';
+import {
+  checkVersion,
+  combatChanged,
+  fullApi,
+  noCombat,
+  originOf,
+  stateOf,
+  viewFor,
+} from './api.js';
 import {
   initiativeAction,
   initiativeVisibility,
@@ -43,7 +51,6 @@ import {
   updateParticipant,
   type Participant,
 } from './turns.js';
-import { combatFor } from './view.js';
 
 const Params = z.object({ id: CampaignId });
 const ParticipantParams = z.object({ id: CampaignId, characterId: CharacterId });
@@ -154,7 +161,7 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const userId = currentUser(req);
       const { characterId } = req.params;
-      const { sortKeys, visibleToPlayers, defeated, version } = req.body;
+      const { sortKeys, visibleToPlayers, defeated, surprised, version } = req.body;
       const saved = await db.transaction(async (tx) => {
         await lockCampaign(tx, req.params.id);
         const a = await gmAccess(tx, req.params.id, userId);
@@ -167,6 +174,7 @@ export const register: Module = async (app, deps) => {
             : {}),
           ...(visibleToPlayers !== undefined ? { visibleToPlayers } : {}),
           ...(defeated !== undefined ? { defeated } : {}),
+          ...(surprised !== undefined ? { surprised } : {}),
         });
         if (sortKeys) state = placeParticipant(state, characterId);
         const saved = await saveState(
@@ -280,7 +288,7 @@ export const register: Module = async (app, deps) => {
         );
         return saved;
       });
-      return { combat: combatFor(fullApi(saved), a.role === 'gm'), pendingStep: null };
+      return { combat: viewFor(saved, a.role === 'gm'), pendingStep: null };
     },
   );
 };

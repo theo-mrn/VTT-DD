@@ -23,6 +23,8 @@ export interface Participant {
   initiativePending: boolean;
   joinedRound: number;
   defeated: boolean;
+  /** Surpris (MJ), lu par les règles (`@combat.*.surpris`). */
+  surprised: boolean;
 }
 
 export interface CombatState {
@@ -54,6 +56,7 @@ export function participant(
     initiativePending: false,
     joinedRound: 1,
     defeated: false,
+    surprised: false,
     ...extra,
   };
 }

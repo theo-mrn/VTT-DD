@@ -9,7 +9,9 @@ import type { FastifyRequest } from 'fastify';
 import type { CharacterError } from '../../clients/character.js';
 import type { campaignCombatParticipants, campaignCombats } from '../../db/schema.js';
 import { currentUser } from '../schemas.js';
+import { talliesOf, type TallyAudience, type TallyRow } from './tally.js';
 import { currentActorOf, type CombatState } from './turns.js';
+import { redactCombat } from './view.js';
 
 type CombatRow = typeof campaignCombats.$inferSelect;
 type ParticipantRow = typeof campaignCombatParticipants.$inferSelect;
@@ -41,17 +43,23 @@ export function stateOf(combat: CombatRow, participants: ParticipantRow[]): Comb
         initiativePending: p.initiativePending,
         joinedRound: p.joinedRound,
         defeated: p.defeated,
+        surprised: p.surprised,
       })),
   };
 }
 
-/** État complet du combat (vue du MJ). */
+/**
+ * État du combat avec le décompte de chaque participant (`tally`) : toutes les attaques pour le
+ * MJ, seulement les publiques d'un attaquant vu pour un joueur (`audience`, voir `redactCombat`
+ * pour le reste de la vue d'un joueur).
+ */
 export function combatApi(
   combat: CombatRow,
   participants: ParticipantRow[],
-  extra: { canGoBack?: boolean } = {},
+  extra: { canGoBack?: boolean; tallies?: readonly TallyRow[]; audience?: TallyAudience } = {},
 ): CombatStateApi {
   const state = stateOf(combat, participants);
+  const tallies = talliesOf(extra.tallies ?? [], state, extra.audience ?? 'gm');
   return {
     id: combat.id,
     round: state.round,
@@ -66,6 +74,8 @@ export function combatApi(
       initiativePending: p.initiativePending,
       joinedRound: p.joinedRound,
       defeated: p.defeated,
+      surprised: p.surprised,
+      ...(tallies.has(p.characterId) ? { tally: tallies.get(p.characterId)! } : {}),
     })),
     currentIndex: state.currentIndex,
     ...(state.slots ? { slots: state.slots.map((side) => ({ side })) } : {}),
@@ -80,12 +90,32 @@ export function combatApi(
   };
 }
 
-/** État complet d'un combat chargé (vue du MJ, `canGoBack` compris). */
-export const fullApi = (loaded: {
+interface LoadedRows {
   combat: CombatRow;
   participants: ParticipantRow[];
-  canGoBack: boolean;
-}) => combatApi(loaded.combat, loaded.participants, { canGoBack: loaded.canGoBack });
+  /** Absent : non dit (détail de la campagne). */
+  canGoBack?: boolean;
+  /** Décompte des attaques du combat (absent : aucune). */
+  tallies?: readonly TallyRow[];
+}
+
+/** État complet d'un combat chargé (vue du MJ, `canGoBack` compris). */
+export const fullApi = (loaded: LoadedRows) =>
+  combatApi(loaded.combat, loaded.participants, {
+    ...(loaded.canGoBack !== undefined ? { canGoBack: loaded.canGoBack } : {}),
+    ...(loaded.tallies ? { tallies: loaded.tallies } : {}),
+  });
+
+/** L'état vu par ce rôle : complet pour le MJ, expurgé pour un joueur ou un spectateur. */
+export const viewFor = (loaded: LoadedRows, isGm: boolean): CombatStateApi =>
+  isGm
+    ? fullApi(loaded)
+    : redactCombat(
+        combatApi(loaded.combat, loaded.participants, {
+          tallies: loaded.tallies ?? [],
+          audience: 'players',
+        }),
+      );
 
 export const noCombat = () =>
   new HttpError(

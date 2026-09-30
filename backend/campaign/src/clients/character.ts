@@ -12,6 +12,7 @@
  * client le traduit en types anglais pour le reste du service.
  */
 import {
+  type AttackCombatContext,
   AttackModification,
   AttackTargetResult,
   AttackTargetView,
@@ -151,6 +152,8 @@ export interface PrepareInput {
   userId: string;
   campaignId: string;
   diceHistory?: DiceHistory;
+  /** Contexte du combat figé à la déclaration (`@combat.*`), sans l'attaque en cours. */
+  combat?: AttackCombatContext;
 }
 
 const ResolveResponse = z.object({

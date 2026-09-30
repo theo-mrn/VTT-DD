@@ -25,8 +25,8 @@ import {
 } from '../../db/schema.js';
 import type { Deps } from '../../deps.js';
 import { visibleEngagements } from '../characters/visibility.js';
-import { combatApi } from '../combat/api.js';
-import { combatFor } from '../combat/view.js';
+import { viewFor } from '../combat/api.js';
+import { loadTallyRows } from '../combat/tally.js';
 import { currentUser } from '../schemas.js';
 
 export type Campaign = typeof campaigns.$inferSelect;
@@ -394,7 +394,14 @@ export async function campaignDetail(
       addedBy: p.addedBy,
       playedBy: p.playedBy,
     })),
-    ...(combat ? { combat: combatFor(combatApi(combat, participants), a.role === 'gm') } : {}),
+    ...(combat
+      ? {
+          combat: viewFor(
+            { combat, participants, tallies: await loadTallyRows(db, combat.id) },
+            a.role === 'gm',
+          ),
+        }
+      : {}),
     invitees: invitees.map((i) => ({
       userId: i.userId,
       name: profiles.get(i.userId)?.name ?? null,

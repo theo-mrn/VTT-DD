@@ -255,6 +255,7 @@ export const campaignCombatParticipants = campaignSchema.table(
     initiativePending: boolean('initiative_pending').notNull().default(false),
     joinedRound: integer('joined_round').notNull().default(1),
     defeated: boolean('defeated').notNull().default(false),
+    surprised: boolean('surprised').notNull().default(false),
   },
   (t) => [primaryKey({ columns: [t.campaignId, t.characterId] })],
 );

@@ -44,5 +44,7 @@ databaseChangeLog:
   - include: { file: changes/0023-combat-turns.sql, relativeToChangelogFile: true }
   # Combat, attaques : déclarations, cibles, rapports et applications (docs/combat.md § 5 à § 7)
   - include: { file: changes/0024-combat-attacks.sql, relativeToChangelogFile: true }
+  # Combat, situation : participant surpris, décompte des attaques du combat (docs/combat.md § 5.7)
+  - include: { file: changes/0025-combat-surprise.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

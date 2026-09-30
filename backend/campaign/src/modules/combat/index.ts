@@ -55,6 +55,7 @@ import {
   combatInProgress,
   conflictIds,
   fullApi,
+  viewFor,
   lowerKeys,
   noCombat,
   originOf,
@@ -98,7 +99,6 @@ import {
   withOrder,
   type CombatState as TurnState,
 } from './turns.js';
-import { combatFor } from './view.js';
 
 const Params = z.object({ id: CampaignId });
 
@@ -114,7 +114,7 @@ export const register: Module = async (app, deps) => {
       const a = await access(db, req.params.id, currentUser(req));
       const loaded = await loadCombat(db, a.campaign.id);
       if (!loaded) throw noCombat();
-      return combatFor(fullApi(loaded), a.role === 'gm');
+      return viewFor(loaded, a.role === 'gm');
     },
   );
 
@@ -127,10 +127,11 @@ export const register: Module = async (app, deps) => {
       if (new Set(ids).size !== ids.length)
         throw HttpError.badRequest('Participant en double', 'duplicate_participant');
       const hidden = new Set(req.body.hidden ?? []);
-      const strangers = [...hidden].filter((id) => !ids.includes(id));
+      const surprised = new Set(req.body.surprised ?? []);
+      const strangers = [...hidden, ...surprised].filter((id) => !ids.includes(id));
       if (strangers.length)
         throw HttpError.badRequest(
-          `Personnages cachés hors du combat : ${strangers.join(', ')}`,
+          `Personnages cachés ou surpris hors du combat : ${[...new Set(strangers)].join(', ')}`,
           'unknown_participant',
         );
       const first = await gmAccess(db, req.params.id, userId);
@@ -168,6 +169,7 @@ export const register: Module = async (app, deps) => {
           const roll = rolled?.get(id);
           return participant(id, sides.get(id)!.side, {
             visibleToPlayers: !hidden.has(id),
+            surprised: surprised.has(id),
             ...(roll ? { sortKeys: roll.sortKeys, initiative: roll.initiative } : {}),
           });
         });
@@ -371,7 +373,7 @@ export const register: Module = async (app, deps) => {
         );
         return { saved, endOfRound: advance.endOfRound, a, tickId };
       });
-      const api = combatFor(fullApi(saved), a.role === 'gm');
+      const api = viewFor(saved, a.role === 'gm');
       if (!endOfRound || !tickId) return api;
 
       // Fin de round, après validation du nouveau round : chaque état à durée perd un round,
@@ -523,7 +525,7 @@ export const register: Module = async (app, deps) => {
         );
         return { saved, isGm: a.role === 'gm' };
       });
-      return combatFor(fullApi(saved), isGm);
+      return viewFor(saved, isGm);
     },
   );
 

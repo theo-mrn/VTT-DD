@@ -18,6 +18,7 @@ import {
 } from '../../db/schema.js';
 import { actorRole, type Access } from '../campaigns/repository.js';
 import { fullApi, stateOf } from './api.js';
+import { loadTallyRows, type TallyRow } from './tally.js';
 import { remove, type CombatState } from './turns.js';
 import { turnChangedPayloads, type TurnChange } from './view.js';
 
@@ -30,6 +31,8 @@ export interface LoadedCombat {
   participants: ParticipantRow[];
   /** Un passage de tour peut être annulé (journal non vide). */
   canGoBack: boolean;
+  /** Décompte des attaques du combat (situation, § 5.7). */
+  tallies: TallyRow[];
 }
 
 /** Combat actif de la campagne (verrouillé pour la transaction si `lock`), ou null. */
@@ -41,7 +44,7 @@ export async function loadCombat(
   const query = db.select().from(campaignCombats).where(eq(campaignCombats.campaignId, campaignId));
   const [combat] = lock ? await query.for('update') : await query;
   if (!combat) return null;
-  const [participants, [log]] = await Promise.all([
+  const [participants, [log], tallies] = await Promise.all([
     db
       .select()
       .from(campaignCombatParticipants)
@@ -57,8 +60,9 @@ export async function loadCombat(
         ),
       )
       .limit(1),
+    loadTallyRows(db, combat.id),
   ]);
-  return { combat, participants, canGoBack: !!log };
+  return { combat, participants, canGoBack: !!log, tallies };
 }
 
 /**
@@ -67,7 +71,7 @@ export async function loadCombat(
  */
 export async function saveState(
   tx: Tx,
-  loaded: Pick<LoadedCombat, 'combat'> & Partial<Pick<LoadedCombat, 'canGoBack'>>,
+  loaded: Pick<LoadedCombat, 'combat'> & Partial<Pick<LoadedCombat, 'canGoBack' | 'tallies'>>,
   state: CombatState,
   options: { initiativeRolled?: boolean; settings?: CombatRow['settings'] } = {},
 ): Promise<LoadedCombat> {
@@ -108,6 +112,7 @@ export async function saveState(
             initiativePending: p.initiativePending,
             joinedRound: p.joinedRound,
             defeated: p.defeated,
+            surprised: p.surprised,
           })),
         )
         .returning()
@@ -116,6 +121,7 @@ export async function saveState(
     combat: updated!,
     participants: participants.sort((a, b) => a.turnOrder - b.turnOrder),
     canGoBack: loaded.canGoBack ?? (await hasTurnLog(tx, updated!)),
+    tallies: loaded.tallies ?? (await loadTallyRows(tx, updated!.id)),
   };
 }
 
