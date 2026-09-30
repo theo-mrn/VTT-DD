@@ -902,7 +902,7 @@ mobile tout l'écran. Même menu pour un joueur et pour le MJ (qui attaque avec 
 **Entrées :**
 
 - menu contextuel d'un token : « Attaquer » (cible : ce token ; attaquant : mon personnage, ou pour
-  le MJ le participant qui agit, sinon le choix) ;
+  le MJ le participant qui agit, héros compris, sinon le choix) ;
 - barre de la sélection (MJ) : « Attaquer avec » (le PNJ sélectionné attaque) et « Attaquer » (la
   sélection devient les cibles) ; « Attaquer avec la sélection » (plusieurs PNJ, § 8.2) ;
 - joueur, **visée rapide** (demandé par Théo le 2026-09-30) : un clic simple sur un PNJ qu'il voit

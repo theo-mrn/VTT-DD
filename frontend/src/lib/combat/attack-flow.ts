@@ -581,9 +581,10 @@ export function declaredStage(attack: Attack): DeclaredStage {
 // ─── Attaquant et tour ───────────────────────────────────────────────────────
 
 /**
- * Attaquant proposé à l'ouverture (§ 8.1, § 12.1) : celui demandé s'il est permis ; pour un
- * joueur, le personnage qu'il incarne ; pour le MJ, le participant qui agit s'il n'est pas du
- * camp des joueurs, sinon aucun (il choisit).
+ * Attaquant proposé à l'ouverture (§ 8.1, § 12.1) : celui demandé s'il est permis ; sinon le
+ * participant dont c'est le tour, quel que soit son camp (le MJ ne se voit plus demander « qui
+ * attaque ? » au tour d'un héros), s'il fait partie des attaquants permis ; sinon, pour un
+ * joueur, le personnage qu'il incarne, et pour le MJ aucun (il choisit).
  */
 export function defaultAttacker(input: {
   requested?: string | null;
@@ -593,12 +594,11 @@ export function defaultAttacker(input: {
   currentActorId: string | null;
   sideOf: (characterId: string) => CampaignSide | null;
 }): string | null {
-  const { requested, candidates, gm, heroId, currentActorId, sideOf } = input;
+  const { requested, candidates, gm, heroId, currentActorId } = input;
   const allowed = new Set(candidates);
   if (requested && allowed.has(requested)) return requested;
+  if (currentActorId && allowed.has(currentActorId)) return currentActorId;
   if (!gm) return heroId && allowed.has(heroId) ? heroId : (candidates[0] ?? null);
-  if (currentActorId && allowed.has(currentActorId) && sideOf(currentActorId) !== 'players')
-    return currentActorId;
   return null;
 }
 

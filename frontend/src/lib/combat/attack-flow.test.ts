@@ -306,11 +306,14 @@ describe('menu d’attaque : après la déclaration', () => {
 describe('attaquant par défaut et tour', () => {
   const sideOf = (id: string) => (id === 'hero' ? 'players' : 'enemies') as never;
 
-  it('joueur : le personnage incarné ; MJ : le PNJ qui agit, sinon aucun', () => {
+  it('celui dont c’est le tour (héros compris) ; sinon joueur : son personnage, MJ : aucun', () => {
     const base = { candidates: ['hero', 'gobelin'], heroId: 'hero', sideOf };
-    expect(defaultAttacker({ ...base, gm: false, currentActorId: 'gobelin' })).toBe('hero');
+    expect(
+      defaultAttacker({ ...base, gm: false, candidates: ['hero'], currentActorId: 'gobelin' }),
+    ).toBe('hero');
     expect(defaultAttacker({ ...base, gm: true, currentActorId: 'gobelin' })).toBe('gobelin');
-    expect(defaultAttacker({ ...base, gm: true, currentActorId: 'hero' })).toBeNull();
+    expect(defaultAttacker({ ...base, gm: true, currentActorId: 'hero' })).toBe('hero');
+    expect(defaultAttacker({ ...base, gm: true, currentActorId: null })).toBeNull();
     expect(defaultAttacker({ ...base, gm: true, currentActorId: null, requested: 'hero' })).toBe(
       'hero',
     );
