@@ -59,7 +59,8 @@ import {
   type Pool,
 } from './symboles.js';
 import { tirerTable, type TirageTable } from './tables.js';
-import { DesRequis } from './planification.js';
+import { DesRequis, ParametresRequis } from './planification.js';
+import { etapesAction } from './etapes.js';
 
 export interface DemandeAction {
   /** Identifiant de l'action du système. */
@@ -235,6 +236,8 @@ export function executer(
 
   const fournis = demande.parametres ?? {};
   const parametres: Record<string, Valeur> = {};
+  /** Paramètres choisis après le jet et pas encore fournis (l'arme, avant de savoir si on touche). */
+  const absents: string[] = [];
   const choisies = new Map<string, PossessionEffective>();
   for (const cle of Object.keys(fournis)) {
     if (!action.parametres.some((p) => p.id === cle))
@@ -258,6 +261,11 @@ export function executer(
         parametres[p.id] = '';
         continue;
       }
+    }
+    if (p.etape === 'apres' && v === undefined) {
+      absents.push(p.id);
+      parametres[p.id] = defautParametre(p);
+      continue;
     }
     if (p.type === 'entree' && p.facultatif && (v === undefined || v === '')) {
       parametres[p.id] = '';
@@ -402,6 +410,16 @@ export function executer(
 
   passer('jet');
   const ch = (x: string) => chemins.action(action.id, x);
+  const etapes = etapesAction(
+    action,
+    (x) => systeme.formules.get(x),
+    recoitSituation(action) ? (systeme.source.situation?.effets ?? []) : [],
+  );
+  /** Pendant le jet, les paramètres choisis après lui valent leur valeur neutre. */
+  const parametresJet: Record<string, Valeur> = { ...parametres };
+  for (const p of action.parametres)
+    if (etapes.apres.has(p.id)) parametresJet[p.id] = defautParametre(p);
+  let courants = parametresJet;
   const erreurs: ErreurJet[] = [];
   const explications: string[] = [];
   const variables = new Map<string, Valeur>();
@@ -523,10 +541,11 @@ export function executer(
 
   // ─── Paramètres et variables ──────────────────────────────────────────────
 
-  for (const p of action.parametres) {
-    const v = parametres[p.id]!;
+  /** Variables d'un paramètre ; `neutre` : un paramètre d'après le jet, pendant le jet. */
+  const poserParametre = (p: Parametre, neutre: boolean) => {
+    const v = neutre ? defautParametre(p) : parametres[p.id]!;
     variables.set(p.id, v);
-    const possession = choisies.get(p.id);
+    const possession = neutre ? undefined : choisies.get(p.id);
     if (!possession) {
       if (p.type === 'entree') {
         // Entrée facultative omise : rang 0 et champs à leur valeur neutre
@@ -541,14 +560,14 @@ export function executer(
               (c.type === 'nombre' || c.type === 'formule' ? 0 : c.type === 'booleen' ? false : ''),
           );
         }
-        explications.push(`${p.nom} : aucun`);
-        continue;
+        if (!neutre) explications.push(`${p.nom} : aucun`);
+        return;
       }
       // Situation sans rien de particulier : rien à raconter
-      if (p.section === 'situation' && v === defautParametre(p)) continue;
+      if (neutre || (p.section === 'situation' && v === defautParametre(p))) return;
       const option = p.type === 'choix' ? p.options.find((o) => o.valeur === v)?.nom : undefined;
       explications.push(`${p.nom} : ${option ?? String(v)}`);
-      continue;
+      return;
     }
     variables.set(`${p.id}.rang`, possession.rang);
     for (const c of possession.sorte.champs) {
@@ -558,7 +577,8 @@ export function executer(
       else variables.set(`${p.id}.${c.id}`, v);
     }
     explications.push(`${p.nom} : ${possession.entree.nom} (rang ${possession.rang})`);
-  }
+  };
+  for (const p of action.parametres) poserParametre(p, etapes.apres.has(p.id));
 
   // ─── Effets de jet des possessions actives ────────────────────────────────
 
@@ -582,7 +602,7 @@ export function executer(
   const variableJet = (nom: string): Valeur => {
     if (nom === 'action') return action.id;
     // Paramètre de l’action : sa valeur, ou sa valeur neutre si l’action ne l’a pas
-    if (neutres.has(nom)) return parametres[nom] ?? neutres.get(nom)!;
+    if (neutres.has(nom)) return courants[nom] ?? neutres.get(nom)!;
     // Rang et champs d'un paramètre entrée (`arme.competence`) ; neutres si l'action ne l'a pas
     const differee = differees.get(nom);
     if (differee) return differee();
@@ -605,109 +625,121 @@ export function executer(
    * arme, caractéristique liée d'une compétence).
    */
   const impliques = new Set<string>();
-  for (const p of action.parametres) {
-    const v = parametres[p.id];
-    if (typeof v !== 'string' || !v) continue;
-    if (p.type === 'attribut') impliques.add(`attribut:${v}`);
-    if (p.type !== 'entree') continue;
-    impliques.add(`entree:${v}`);
-    const choisie = choisies.get(p.id);
-    for (const c of choisie?.sorte.champs ?? []) {
-      if (c.type !== 'entree' && c.type !== 'attribut') continue;
-      const renvoi = valeurChamp(choisie!, c.id);
-      if (typeof renvoi === 'string' && renvoi) impliques.add(`${c.type}:${renvoi}`);
+  const impliquer = () => {
+    impliques.clear();
+    for (const p of action.parametres) {
+      const v = courants[p.id];
+      if (typeof v !== 'string' || !v) continue;
+      if (p.type === 'attribut') impliques.add(`attribut:${v}`);
+      if (p.type !== 'entree') continue;
+      impliques.add(`entree:${v}`);
+      const choisie = choisies.get(p.id);
+      for (const c of choisie?.sorte.champs ?? []) {
+        if (c.type !== 'entree' && c.type !== 'attribut') continue;
+        const renvoi = valeurChamp(choisie!, c.id);
+        if (typeof renvoi === 'string' && renvoi) impliques.add(`${c.type}:${renvoi}`);
+      }
     }
-  }
+  };
+  impliquer();
 
   type AjoutJet = NonNullable<Extract<Effet, { sur: 'jet' }>['ajout']>;
-  const effets: {
+  let effets: {
     source: string;
     ajout: AjoutJet;
     valeur: number;
     nom: string;
     cote: CoteJet;
   }[] = [];
-  // Effets de l'acteur, puis effets défensifs de la cible (`cote: cible`) :
-  // entrées du catalogue, exemplaires et bonus libres, par le même chemin
-  const porteurs: [Fiche, 'acteur' | 'cible'][] = [[acteur, 'acteur']];
-  if (cible) porteurs.push([cible, 'cible']);
-  for (const [fiche, cote] of porteurs) {
-    const attribut = attributsAvecCombat(fiche);
-    for (const source of fiche.sources) {
-      const ctxEffet = fiche.contexte({ variable: variablesEffet(source), attribut });
-      source.effets.forEach((f, i) => {
-        if (f.sur !== 'jet' || !f.ajout || source.desactive(i)) return;
-        if (f.cote !== cote) return;
-        if (f.actions && !f.actions.includes(action.id)) return;
+  /** Effets de jet de l'acteur, de la cible et de la situation, lus avec les paramètres courants. */
+  const calculerEffets = () => {
+    effets = [];
+    // Effets de l'acteur, puis effets défensifs de la cible (`cote: cible`) :
+    // entrées du catalogue, exemplaires et bonus libres, par le même chemin
+    const porteurs: [Fiche, 'acteur' | 'cible'][] = [[acteur, 'acteur']];
+    if (cible) porteurs.push([cible, 'cible']);
+    for (const [fiche, cote] of porteurs) {
+      const attribut = attributsAvecCombat(fiche);
+      for (const source of fiche.sources) {
+        const ctxEffet = fiche.contexte({ variable: variablesEffet(source), attribut });
+        source.effets.forEach((f, i) => {
+          if (f.sur !== 'jet' || !f.ajout || source.desactive(i)) return;
+          if (f.cote !== cote) return;
+          if (f.actions && !f.actions.includes(action.id)) return;
+          if (f.implique?.entree !== undefined && !impliques.has(`entree:${f.implique.entree}`))
+            return;
+          if (
+            f.implique?.attribut !== undefined &&
+            !impliques.has(`attribut:${f.implique.attribut}`)
+          )
+            return;
+          const ou = (x: string) => `${source.id}/effets/${i}/${x}`;
+          for (const [x, declaree] of [
+            ['condition', f.condition],
+            ['si', f.si],
+          ] as const) {
+            if (declaree === undefined) continue;
+            const cond = source.formule(i, x);
+            if (!cond || evaluerFormule(cond, ou(x), false, ctxEffet).valeur !== true) return;
+          }
+          const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
+          const formule = source.formule(i, cle);
+          if (!formule) return;
+          const valeur = Number(evaluerFormule(formule, ou(cle), 0, ctxEffet).valeur);
+          effets.push({
+            source: source.id,
+            ajout: f.ajout,
+            valeur,
+            nom: f.description ?? source.nom,
+            cote,
+          });
+        });
+      }
+    }
+
+    // Situation du système (couvert, avantage de situation…) : effets de l'action elle-même,
+    // lus avec ses paramètres, la cible et le combat ; sans effet, ils ne disent rien
+    if (recoitSituation(action)) {
+      // Paramètres de situation écartés par l'action (`situation.sauf`) : leur valeur neutre,
+      // même si l'action déclare un paramètre du même nom
+      const ecartes = new Map<string, Valeur>();
+      if (typeof action.situation === 'object')
+        for (const p of systeme.source.situation?.parametres ?? [])
+          if (action.situation.sauf.includes(p.id)) ecartes.set(p.id, defautParametre(p));
+      const ctxSituation: ContexteEvaluation = {
+        ...ctx,
+        variable: (nom) => ecartes.get(nom) ?? variableJet(nom),
+      };
+      (systeme.source.situation?.effets ?? []).forEach((f, i) => {
+        if (!f.ajout || (f.actions && !f.actions.includes(action.id))) return;
         if (f.implique?.entree !== undefined && !impliques.has(`entree:${f.implique.entree}`))
           return;
         if (f.implique?.attribut !== undefined && !impliques.has(`attribut:${f.implique.attribut}`))
           return;
-        const ou = (x: string) => `${source.id}/effets/${i}/${x}`;
-        for (const [x, declaree] of [
-          ['condition', f.condition],
-          ['si', f.si],
-        ] as const) {
-          if (declaree === undefined) continue;
-          const cond = source.formule(i, x);
-          if (!cond || evaluerFormule(cond, ou(x), false, ctxEffet).valeur !== true) return;
+        const ou = (x: string) => chemins.situation(action.id, i, x);
+        for (const x of ['condition', 'si'] as const) {
+          if (f[x] === undefined) continue;
+          if (calculerFormule(ou(x), false, ctxSituation).valeur !== true) return;
         }
         const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
-        const formule = source.formule(i, cle);
-        if (!formule) return;
-        const valeur = Number(evaluerFormule(formule, ou(cle), 0, ctxEffet).valeur);
+        const valeur = Number(calculerFormule(ou(cle), 0, ctxSituation).valeur);
+        if (!valeur) return;
         effets.push({
-          source: source.id,
+          source: SOURCE_SITUATION,
           ajout: f.ajout,
           valeur,
-          nom: f.description ?? source.nom,
-          cote,
+          nom: f.description ?? NOM_SITUATION,
+          cote: 'action',
         });
       });
     }
-  }
-
-  // Situation du système (couvert, avantage de situation…) : effets de l'action elle-même,
-  // lus avec ses paramètres, la cible et le combat ; sans effet, ils ne disent rien
-  if (recoitSituation(action)) {
-    // Paramètres de situation écartés par l'action (`situation.sauf`) : leur valeur neutre,
-    // même si l'action déclare un paramètre du même nom
-    const ecartes = new Map<string, Valeur>();
-    if (typeof action.situation === 'object')
-      for (const p of systeme.source.situation?.parametres ?? [])
-        if (action.situation.sauf.includes(p.id)) ecartes.set(p.id, defautParametre(p));
-    const ctxSituation: ContexteEvaluation = {
-      ...ctx,
-      variable: (nom) => ecartes.get(nom) ?? variableJet(nom),
-    };
-    (systeme.source.situation?.effets ?? []).forEach((f, i) => {
-      if (!f.ajout || (f.actions && !f.actions.includes(action.id))) return;
-      if (f.implique?.entree !== undefined && !impliques.has(`entree:${f.implique.entree}`)) return;
-      if (f.implique?.attribut !== undefined && !impliques.has(`attribut:${f.implique.attribut}`))
-        return;
-      const ou = (x: string) => chemins.situation(action.id, i, x);
-      for (const x of ['condition', 'si'] as const) {
-        if (f[x] === undefined) continue;
-        if (calculerFormule(ou(x), false, ctxSituation).valeur !== true) return;
-      }
-      const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
-      const valeur = Number(calculerFormule(ou(cle), 0, ctxSituation).valeur);
-      if (!valeur) return;
-      effets.push({
-        source: SOURCE_SITUATION,
-        ajout: f.ajout,
-        valeur,
-        nom: f.description ?? NOM_SITUATION,
-        cote: 'action',
-      });
-    });
-  }
+  };
+  calculerEffets();
 
   // ─── Variables de l'action (avec les effets qui s'y ajoutent), vérifications ─
 
   const connues = new Map<string, Valeur>(options.apercu ? variables : []);
-  for (const v of action.variables) {
-    const avant = erreurs.length;
+  const calculerVariable = (v: (typeof action.variables)[number]) => {
     let valeur = evType(ch(`variables/${v.cle}`));
     for (const e of effets) {
       if (!('variable' in e.ajout) || e.ajout.variable !== v.cle || typeof valeur !== 'number')
@@ -717,6 +749,12 @@ export function executer(
     }
     variables.set(v.cle, valeur);
     explications.push(`${v.cle} = ${String(valeur)}`);
+    return valeur;
+  };
+  for (const v of action.variables) {
+    if (etapes.variablesApres.has(v.cle)) continue;
+    const avant = erreurs.length;
+    const valeur = calculerVariable(v);
     // Aperçu : une variable qui dépend de la cible ou des dés n'est pas connue
     if (erreurs.length === avant) connues.set(v.cle, valeur);
   }
@@ -959,6 +997,31 @@ export function executer(
   // Dés du jet manquants : rien n'est encore exact
   passer('apres');
   const apresJet = etatA();
+
+  // Paramètres choisis après le jet : demandés sur une réussite (l'arme, une fois la cible
+  // touchée) ; sur un raté, l'étape n'existe pas et ils gardent leur valeur neutre
+  if (etapes.apres.size) {
+    if (absents.length && reussi) throw new ParametresRequis(absents, apresJet());
+    courants = parametres;
+    for (const p of action.parametres)
+      if (etapes.apres.has(p.id) && !absents.includes(p.id)) poserParametre(p, false);
+    impliquer();
+    calculerEffets();
+    for (const v of action.variables) if (etapes.variablesApres.has(v.cle)) calculerVariable(v);
+    const confirmer = jet.type === 'numerique' ? jet.confirmerCritique : undefined;
+    if (
+      confirmer !== undefined &&
+      resultatJet.type === 'numerique' &&
+      reussi &&
+      !resultatJet.critique &&
+      demande.forcer?.critique === undefined &&
+      ev(ch('jet/confirmerCritique'), false) === true
+    ) {
+      resultatJet = { ...resultatJet, critique: true };
+      variables.set('critique', true);
+      explications.push('Critique (confirmé après le jet)');
+    }
+  }
   for (const v of action.apres) {
     const chemin = ch(`apres/${v.cle}`);
     const r = calculerFormule(chemin, defautDe(systeme.formule(chemin).type), ctx);

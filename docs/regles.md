@@ -317,6 +317,31 @@ Moteur :
 - `vueActeur(systeme, resultat)` : dés et total (ou pool), issue, valeurs `visibilite: acteur`, déroulé reconstruit (en tête, la situation déclarée : paramètres rangés en situation qui ne sont pas à leur défaut, hors réactions de la cible) ; les lignes de la cible deviennent « Défense de la cible ». Jamais un attribut, une variable, une résistance, une modification ou une table de la cible.
 - Générateur : `entier(max, contexte?)` (`contexte.de` : sorte d'un dé à symboles) et `phase?(nom)`, appelé par le moteur au début du jet (`jet`), d'`apres`, des `tables` et à la `fin`. Un dé est repéré par sa phase, sa sorte et son rang dans la phase : `partagerGenerateur` (jet commun), `generateurParCible`, et `aleatoirePlanifie({ faces, commun, repli? })` pour les dés physiques (étape C) : il rejoue les faces fournies, note les dés manquants (valeur provisoire 1) et lève `DesRequis` au changement de phase ; `executerMulticible` les réunit dans `requis` (identifiants `phase:sorte:k`, préfixés par la place de la cible pour un jet par cible). Aucun calcul n'est rendu avec une valeur provisoire.
 
+### Paramètres choisis après le jet (`etape: apres`)
+
+On ne choisit pas son arme pour savoir si l'on touche : le jet d'attaque se lance sur le type
+d'attaque (Contact, Distance, Magie), l'arme se choisit ensuite, seulement si la cible est touchée.
+
+- **Paramètre `etape: apres`** (défaut `declaration`) : jamais demandé à la déclaration. Après un
+  jet réussi, `executer` lève `ParametresRequis` (le jet et son issue joints, déjà exacts) tant
+  qu'il manque ; `executerMulticible` met la cible en attente et réunit les paramètres demandés
+  dans `parametres` (les mêmes pour toutes les cibles). Sur un raté, rien n'est demandé : le
+  paramètre garde sa valeur neutre (entrée vide, rang 0, champs par défaut). Fourni d'avance (lot
+  du MJ, PNJ), il n'est pas redemandé. Une réaction de la cible (`par: cible`) ne peut pas l'être.
+- **Chargement** : aucune formule du jet (formule, réussite, critique, échec critique, réserve,
+  améliorations, vérifications, effets de situation sur le jet) ni aucune variable qu'elles lisent,
+  de proche en proche, ne lit un tel paramètre (« Le jet ne peut pas lire « arme.critique », choisi
+  après le jet »). Les autres variables de l'action sont calculées après le jet, avec lui (bonus
+  aux DM, dés de critique).
+- **Effets de jet** (possessions, situation) : pendant le jet, ils lisent le paramètre à sa valeur
+  neutre (« +1 au toucher à la hache » ne compte pas : l'arme n'est pas connue) ; ils sont relus
+  après le jet pour les variables calculées alors (« +1 DM à la hache » compte).
+- **`jet.confirmerCritique`** (jet numérique à `critique`) : lu après le jet, sur une réussite,
+  quand les paramètres d'après le jet sont connus ; vrai, le jet devient critique (seuil de
+  critique de l'arme : `naturel >= arme.critique`).
+- **Déterminisme** : mêmes faces et mêmes paramètres, même résultat ; l'étape suivante (les dés
+  de l'arme) n'est planifiée qu'une fois le paramètre fourni.
+
 ### Situation du combat
 
 Demande de Théo (combat.md § 5.7) : une attaque dépend de bien plus que de l'arme. Le couvert de

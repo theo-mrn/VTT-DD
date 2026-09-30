@@ -33,6 +33,7 @@ import type { Modification } from './modifications.js';
 import {
   DesRequis,
   generateurParCible,
+  ParametresRequis,
   partagerGenerateur,
   type DeRequis,
   type SourceDes,
@@ -84,6 +85,8 @@ export interface CibleEnAttente {
   phase: PhaseDes;
   /** Ce qui est déjà exact (jet et issue, puis valeurs après le jet) ; null avant le jet. */
   partiel: ResultatAction | null;
+  /** Paramètres `etape: apres` qu'elle attend (l'arme, une fois touchée). */
+  parametres?: string[];
 }
 
 export type ResultatMulticible =
@@ -99,6 +102,11 @@ export type ResultatMulticible =
       acteur: Modification[];
       /** Dés encore à lancer (générateur planifié) : le résultat n'est pas encore final. */
       requis: DeRequis[];
+      /**
+       * Paramètres `etape: apres` à fournir avant la suite (l'arme, une fois une cible touchée),
+       * dans l'ordre de l'action ; les mêmes pour toutes les cibles.
+       */
+      parametres: string[];
     };
 
 /** Mode de jet proposé par l'action (défaut : un jet par cible). */
@@ -161,6 +169,7 @@ export function executerMulticible(
   const enAttente: CibleEnAttente[] = [];
   const requis = new Map<string, DeRequis & { demandes: number }>();
   let acteur: Modification[] | undefined;
+  const aChoisir = new Set<string>();
   demande.cibles.forEach((c, index) => {
     const reaction = Object.fromEntries(
       Object.entries(c.reaction ?? {}).filter(([k]) => deCible.has(k)),
@@ -191,6 +200,19 @@ export function executerMulticible(
         },
       });
     } catch (e) {
+      if (e instanceof ParametresRequis) {
+        for (const p of e.parametres) aChoisir.add(p);
+        enAttente.push({
+          id: c.id,
+          phase: e.phase,
+          partiel: {
+            ...e.partiel,
+            modifications: e.partiel.modifications.filter((m) => m.entite === 'cible'),
+          },
+          parametres: e.parametres,
+        });
+        return;
+      }
       if (!(e instanceof DesRequis)) throw e;
       const partiel = e.partiel
         ? {
@@ -213,12 +235,14 @@ export function executerMulticible(
     return d;
   });
 
+  const parametres = action.parametres.filter((p) => aChoisir.has(p.id)).map((p) => p.id);
   return {
     ok: true,
     jet,
     cibles,
     enAttente,
-    acteur: aLancer.length ? [] : (acteur ?? []),
+    acteur: aLancer.length || parametres.length ? [] : (acteur ?? []),
     requis: aLancer,
+    parametres,
   };
 }

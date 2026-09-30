@@ -571,6 +571,13 @@ const ParametreCommun = {
    */
   par: z.enum(['acteur', 'cible']).default('acteur'),
   section: SectionParametre.default('preparation'),
+  /**
+   * `apres` : choisi après le jet, seulement s'il réussit (l'arme, une fois la cible touchée) ;
+   * fourni avec l'étape des dégâts, jamais demandé à la déclaration. Aucune formule du jet ne
+   * le lit (vérifié au chargement) ; les effets de jet le lisent à sa valeur neutre, les
+   * variables qui ne servent pas au jet sont calculées après lui (docs/regles.md).
+   */
+  etape: z.enum(['declaration', 'apres']).default('declaration'),
 };
 
 export const Parametre = z.discriminatedUnion('type', [
@@ -625,6 +632,11 @@ export const Jet = z.discriminatedUnion('type', [
     reussite: Formule.optional(),
     critique: Formule.optional(),
     fumble: Formule.optional(),
+    /**
+     * Critique confirmé après le jet, sur une réussite, quand les paramètres `etape: apres` sont
+     * connus (seuil de critique de l'arme choisie après le jet) : vrai, le jet devient critique.
+     */
+    confirmerCritique: Formule.optional(),
   }),
   z.object({
     type: z.literal('symboles'),

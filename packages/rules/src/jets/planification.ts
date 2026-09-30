@@ -48,6 +48,23 @@ export class DesRequis extends Error {
   }
 }
 
+/**
+ * Levée par `executer` après un jet réussi quand des paramètres `etape: apres` manquent (l'arme,
+ * une fois la cible touchée) : l'appelant les demande, puis rejoue avec eux. `partiel` : le jet
+ * et son issue, déjà exacts.
+ */
+export class ParametresRequis extends Error {
+  readonly phase: PhaseDes = 'apres';
+
+  constructor(
+    public readonly parametres: string[],
+    public readonly partiel: ResultatAction,
+  ) {
+    super(`Paramètre(s) à choisir après le jet : ${parametres.join(', ')}`);
+    this.name = 'ParametresRequis';
+  }
+}
+
 /** Ordre des phases d'une action. */
 export const PHASES: readonly PhaseDes[] = ['jet', 'apres', 'tables', 'fin'];
 

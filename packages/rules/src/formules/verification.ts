@@ -46,6 +46,8 @@ export interface FormuleVerifiee {
   dependances: Set<string>;
   /** Attributs lus sur d'autres entités, par entité (`cible` → {ENC}). */
   dependancesExternes: Map<string, Set<string>>;
+  /** Variables lues (paramètres d'une action, `arme.degats`, variables calculées). */
+  variables: Set<string>;
   /** Entrées de catalogue lues par `rang`/`possede`. */
   entrees: Set<string>;
   /** Règles optionnelles lues par `option("id")`. */
@@ -110,6 +112,7 @@ export function verifier(
   const dependances = new Set<string>();
   const dependancesExternes = new Map<string, Set<string>>();
   const entrees = new Set<string>();
+  const variables = new Set<string>();
   const options = new Set<string>();
   let aleatoire = false;
   let dynamique = false;
@@ -148,6 +151,7 @@ export function verifier(
       }
       case 'variable': {
         const t = env.variable(n.nom);
+        variables.add(n.nom);
         if (!t) erreur(`Variable inconnue : ${n.nom}`, n.pos);
         return t ?? null;
       }
@@ -287,6 +291,7 @@ export function verifier(
       type,
       dependances,
       dependancesExternes,
+      variables,
       entrees,
       options,
       aleatoire,

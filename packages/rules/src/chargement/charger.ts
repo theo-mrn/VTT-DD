@@ -26,6 +26,7 @@ import {
   type Table,
   type TypeEntite,
 } from '../schema/index.js';
+import { etapesAction } from '../jets/etapes.js';
 import { variablesFormuleChamp } from './champs.js';
 import { verifierEffets, variablesSource, type ContexteEffets } from './effets.js';
 import {
@@ -1096,6 +1097,19 @@ class Chargeur {
         if (t.modificateur !== undefined)
           this.compiler(`${ou}/modificateur`, t.modificateur, opts(), 'nombre');
       });
+
+      // Paramètres choisis après le jet : le jet ne les lit jamais (docs/regles.md)
+      for (const p of a.parametres)
+        if (p.etape === 'apres' && p.par === 'cible')
+          this.erreur(ch(`parametres/${p.id}`), 'Une réaction de la cible se choisit avant le jet');
+      const situation = recoitSituation(a) ? (this.s.situation?.effets ?? []) : [];
+      for (const c of etapesAction(a, (x) => this.formules.get(x), situation).conflits)
+        this.erreur(c.chemin, `Le jet ne peut pas lire « ${c.variable} », choisi après le jet`);
+      if (a.jet.type === 'numerique' && a.jet.confirmerCritique !== undefined) {
+        if (a.jet.critique === undefined)
+          this.erreur(ch('jet/confirmerCritique'), 'Critique confirmé sans critique au jet');
+        this.compiler(ch('jet/confirmerCritique'), a.jet.confirmerCritique, opts(), 'booleen');
+      }
 
       if (this.s.initiative?.action === a.id) {
         this.s.initiative.tri.forEach((t, i) => this.compiler(chemins.tri(i), t, opts(), 'nombre'));
