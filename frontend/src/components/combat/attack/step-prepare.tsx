@@ -16,7 +16,12 @@ import { ChevronDown, Dices, RotateCcw, SlidersHorizontal, Users } from 'lucide-
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { poolCounts, type ActionGroup, type RollPreview } from '@/lib/combat/actions';
+import {
+  multitargetOf,
+  poolCounts,
+  type ActionGroup,
+  type RollPreview,
+} from '@/lib/combat/actions';
 import { hasAdjustments, type FreeAdjustments } from '@/lib/combat/attack-flow';
 import {
   attackerParams,
@@ -93,6 +98,7 @@ export function StepPrepare({
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:gap-8">
       <div className="min-w-0 space-y-6">
         <ActionSummary
+          systeme={systeme}
           action={action}
           group={group?.title ?? null}
           canChange={canChangeAction}
@@ -187,11 +193,13 @@ export function StepPrepare({
 }
 
 function ActionSummary({
+  systeme,
   action,
   group,
   canChange,
   onChange,
 }: {
+  systeme: SystemeCharge;
   action: Action;
   group: string | null;
   canChange: boolean;
@@ -199,6 +207,18 @@ function ActionSummary({
 }) {
   const [more, setMore] = useState(false);
   const long = (action.description?.length ?? 0) > 180;
+  // Ce que l'action déclare : type de dégâts, plusieurs cibles
+  const damageType = action.typeDegats
+    ? (systeme.source.typesDegats.find((t) => t.id === action.typeDegats)?.nom ?? null)
+    : null;
+  const multi = multitargetOf(action);
+  const facts = [
+    ...(damageType ? [`Dégâts : ${damageType}`] : []),
+    ...(action.multicible
+      ? [multi.rollMode === 'shared' ? 'Zone : jet commun' : 'Un jet par cible']
+      : []),
+    ...(multi.max < 50 ? [`${multi.max} cible${multi.max > 1 ? 's' : ''} au plus`] : []),
+  ];
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
@@ -210,6 +230,15 @@ function ActionSummary({
         <h3 className="font-display text-2xl font-semibold leading-tight tracking-tight">
           {action.nom}
         </h3>
+        {facts.length > 0 && (
+          <p className="mt-1.5 flex flex-wrap gap-1.5">
+            {facts.map((f) => (
+              <Badge key={f} taille="md">
+                {f}
+              </Badge>
+            ))}
+          </p>
+        )}
         {action.description && (
           <p
             className={cn(
