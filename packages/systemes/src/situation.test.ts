@@ -6,6 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   aleatoireGraine,
+  apercuFormule,
+  apercuVariables,
   aleatoireImpose,
   calculer,
   chemins,
@@ -131,6 +133,23 @@ describe('dnd-classic : situation des attaques', () => {
   };
   const total = (r: ResultatAction) => Number(r.variables.total);
   const defense = cible.valeur('Defense') as number;
+
+  it('aperçu : la formule du jet s’écrit avec l’avantage choisi, sans cible ni dés', () => {
+    const jet = systeme.formules.get(chemins.action('attaque', 'jet/formule'))!;
+    const apercu = (avantage: string) => {
+      const v = apercuVariables(systeme, {
+        action: 'attaque',
+        acteur: heros,
+        parametres: { arme: 'epee-longue', avantage },
+      });
+      expect(v).not.toBeNull();
+      return apercuFormule(heros, jet, (nom) => v!.get(nom));
+    };
+    expect(apercu('avantage')).toMatch(/^2d20k1\b/);
+    expect(apercu('desavantage')).toMatch(/^2d20kl1\b/);
+    expect(apercu('normal')).toMatch(/^1d20\b/);
+    expect(apercu('normal')).not.toContain('si(');
+  });
 
   it('avantage de situation : 2d20, le meilleur ; désavantage : le pire', () => {
     const avec = ok(attaque('attaque', { avantage: 'avantage' }, [4, 15, 3]));

@@ -73,14 +73,14 @@ export function PreviewBox({
   return (
     <div
       aria-label="Aperçu du jet"
-      className="rounded-2xl border border-border bg-surface/70 px-4 py-3 text-[13px]"
+      className="min-w-0 rounded-2xl border border-border bg-surface/70 px-4 py-3 text-[13px]"
     >
       <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">
         Aperçu du jet
       </p>
       <div
         className={cn(
-          'text-foreground',
+          'text-foreground [overflow-wrap:anywhere]',
           preview.kind === 'numeric' && 'font-display text-xl font-semibold',
         )}
       >

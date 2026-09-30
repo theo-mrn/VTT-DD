@@ -12,6 +12,7 @@ import type { AttackRollMode } from '@vtt/contracts';
 import { ATTACK_TARGETS_MAX } from '@vtt/contracts';
 import {
   apercuFormule,
+  apercuVariables,
   chemins,
   type Action,
   type Fiche,
@@ -133,8 +134,29 @@ export type RollPreview =
     };
 
 /**
- * Variables connues avant le jet pour l'aperçu : valeurs des paramètres et champs simples de
- * l'entrée choisie (`arme.competence`, `arme.rang`). Ce qui ne se calcule pas reste écrit.
+ * Variables de l'action calculées par le moteur sans cible ni dés (`apercuVariables` :
+ * avantages de la situation, bonus des effets de l'attaquant…) ; null si la demande est
+ * refusée ou incomplète.
+ */
+function engineVariables(
+  systeme: SystemeCharge,
+  action: Action,
+  fiche: Fiche,
+  params: Record<string, Valeur>,
+): ReadonlyMap<string, Valeur> | null {
+  const ids = new Set(action.parametres.map((p) => p.id));
+  const parametres = Object.fromEntries(Object.entries(params).filter(([k]) => ids.has(k)));
+  try {
+    return apercuVariables(systeme, { action: action.id, acteur: fiche, parametres });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Variables connues avant le jet pour l'aperçu : celles du moteur (variables de l'action),
+ * puis valeurs des paramètres et champs simples de l'entrée choisie (`arme.competence`,
+ * `arme.rang`). Ce qui ne se calcule pas reste écrit.
  */
 function previewVariables(
   systeme: SystemeCharge,
@@ -161,7 +183,8 @@ function previewVariables(
       if (p.type === 'nombre' || p.type === 'booleen') values.set(p.id, p.defaut);
       else if (isChoiceParam(p)) values.set(p.id, defaultParamValue(fiche, p));
     }
-  return (name) => values.get(name);
+  const computed = engineVariables(systeme, action, fiche, params);
+  return (name) => computed?.get(name) ?? values.get(name);
 }
 
 /**

@@ -192,6 +192,42 @@ describe('paramètres de situation (§ 5.7) : choix, section, description', () =
     });
   });
 
+  it('aperçu : une variable de l’action (avantages) est calculée, la condition disparaît', () => {
+    const avantage = {
+      id: 'avantage',
+      nom: 'Avantage ou désavantage',
+      type: 'choix',
+      par: 'acteur',
+      section: 'situation',
+      options: [
+        { valeur: 'normal', nom: 'Normal' },
+        { valeur: 'avantage', nom: 'Avantage' },
+      ],
+    };
+    const sys = loadSystem({
+      ...combatSystem,
+      actions: [
+        {
+          id: 'tir',
+          nom: 'Tir',
+          pour: ['personnage'],
+          cible: 'personnage',
+          parametres: [avantage as never],
+          variables: [{ cle: 'avantages', formule: 'si(avantage == "avantage", 1, 0)' }],
+          jet: { type: 'numerique', formule: 'si(avantages > 0, 2d20k1, 1d20) + 2' },
+        },
+      ],
+    });
+    const tir = sys.actions.get('tir')!;
+    const f = sheet(sys);
+    const formula = (avantage: string) => {
+      const p = previewRoll(sys, tir, f, { avantage });
+      return p?.kind === 'numeric' ? p.formula : null;
+    };
+    expect(formula('avantage')).toBe('2d20k1 + 2');
+    expect(formula('normal')).toBe('1d20 + 2');
+  });
+
   it('rangement : situation à part, le reste en préparation ; description en info-bulle', () => {
     expect(paramSection(param('couvert'))).toBe('situation');
     expect(paramSection(param('surprise'))).toBe('main');

@@ -202,7 +202,11 @@ const nombreDes = (v: Valeur): number => Math.max(0, Math.floor(Number(v) || 0))
 
 const signe = (n: number) => (n < 0 ? `− ${-n}` : `+ ${n}`);
 
-export function executer(systeme: SystemeCharge, demande: DemandeAction): ExecutionInterne {
+export function executer(
+  systeme: SystemeCharge,
+  demande: DemandeAction,
+  options: { apercu?: boolean } = {},
+): ExecutionInterne {
   const { acteur, cible, aleatoire } = demande;
   const action = systeme.actions.get(demande.action);
   if (!action) return { ok: false, erreurs: [{ message: `Action inconnue : ${demande.action}` }] };
@@ -216,8 +220,10 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   if (!action.pour.includes(acteur.etat.type))
     refus.push({ message: `${action.nom} n’est pas permise à ${acteur.entite.type.nom}` });
   if (action.cible) {
-    if (!cible) refus.push({ message: `${action.nom} demande une cible` });
-    else if (systemeRacine(cible.systeme) !== systemeRacine(systeme))
+    // Aperçu : l'acteur seul, ce qui dépend de la cible reste inconnu
+    if (!cible) {
+      if (!options.apercu) refus.push({ message: `${action.nom} demande une cible` });
+    } else if (systemeRacine(cible.systeme) !== systemeRacine(systeme))
       refus.push({ message: 'La fiche de la cible a été calculée avec un autre système' });
     else if (!action.cible.includes(cible.etat.type)) {
       const attendu = action.cible.map((t) => systeme.entites.get(t)?.type.nom ?? t).join(' ou ');
@@ -684,7 +690,9 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
 
   // ─── Variables de l'action (avec les effets qui s'y ajoutent), vérifications ─
 
+  const connues = new Map<string, Valeur>(options.apercu ? variables : []);
   for (const v of action.variables) {
+    const avant = erreurs.length;
     let valeur = evType(ch(`variables/${v.cle}`));
     for (const e of effets) {
       if (!('variable' in e.ajout) || e.ajout.variable !== v.cle || typeof valeur !== 'number')
@@ -694,7 +702,10 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     }
     variables.set(v.cle, valeur);
     explications.push(`${v.cle} = ${String(valeur)}`);
+    // Aperçu : une variable qui dépend de la cible ou des dés n'est pas connue
+    if (erreurs.length === avant) connues.set(v.cle, valeur);
   }
+  if (options.apercu) throw new ArretApercu(connues);
 
   for (const [i, v] of action.verifications.entries()) {
     if (ev(ch(`verifications/${i}`), false) !== true) {
@@ -1064,6 +1075,38 @@ export const SOURCE_SITUATION = 'situation';
 const NOM_SITUATION = 'Situation';
 
 /** Valeur par défaut d'un paramètre (texte vide pour une entrée ou un attribut). */
+/** Fin de l'aperçu : les variables connues avant le jet (voir `apercuVariables`). */
+class ArretApercu {
+  constructor(readonly variables: ReadonlyMap<string, Valeur>) {}
+}
+
+/** Générateur de l'aperçu : un dé n'a pas de valeur avant le jet. */
+const SANS_DES: Generateur = {
+  entier: () => {
+    throw new ErreurEvaluation('Dé lancé pendant l’aperçu', 0);
+  },
+};
+
+/**
+ * Aperçu d'une action côté acteur, sans jet ni cible : paramètres (défauts compris) et
+ * variables de l'action avec les effets de l'acteur et de la situation. Une variable qui
+ * dépend de la cible ou d'un dé est absente. Null si la demande est refusée (paramètre
+ * manquant…). Sert à écrire la formule du jet avec ses valeurs (« 2d20k1 + 5 »).
+ */
+export function apercuVariables(
+  systeme: SystemeCharge,
+  demande: Omit<DemandeAction, 'aleatoire' | 'cible' | 'forcer'>,
+): ReadonlyMap<string, Valeur> | null {
+  try {
+    // Sans refus, l'exécution s'arrête toujours sur `ArretApercu` avant le jet
+    executer(systeme, { ...demande, aleatoire: SANS_DES }, { apercu: true });
+    return null;
+  } catch (e) {
+    if (e instanceof ArretApercu) return e.variables;
+    throw e;
+  }
+}
+
 export function defautParametre(p: Parametre): Valeur {
   switch (p.type) {
     case 'nombre':

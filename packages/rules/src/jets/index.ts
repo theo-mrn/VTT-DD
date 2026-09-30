@@ -1,4 +1,5 @@
 export {
+  apercuVariables,
   executerAction,
   NOM_AJUSTEMENT,
   SOURCE_AJUSTEMENT,
