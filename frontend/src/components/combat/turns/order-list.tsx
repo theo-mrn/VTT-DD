@@ -1,11 +1,10 @@
 'use client';
 
 /**
- * Ordre du tour (docs/combat.md § 12.3), colonne de gauche du panneau Combat : position,
+ * Ordre du tour (docs/combat.md § 12.6), déplié sous la barre du MJ : position,
  * portrait, nom, jauge de la ressource principale, détail d'initiative, états et durées, puces
  * de situation (surpris, a agi, visé ce round), « + » (ressources) ; tour courant surligné,
- * caché aux joueurs marqué, hors de combat grisé. Un clic consulte le participant (carte
- * « Consulté », ou sa fiche en vue empilée) ; glisser une ligne la déplace (ou « Monter »,
+ * caché aux joueurs marqué, hors de combat grisé. Un clic ouvre sa fiche de combat ; glisser une ligne la déplace (ou « Monter »,
  * « Descendre » au menu, au clavier) ; le menu de ligne donne le tour, attaque avec, relance ou
  * saisit l'initiative, cache, surprend, met hors de combat, retire.
  */
@@ -50,9 +49,7 @@ import { StateBadge } from './states-manager';
 import type { CastMember, ParticipantSheet } from './use-cast';
 
 export interface OrderActions {
-  /** Clic sur la ligne : consulter (carte « Consulté », ou fiche en vue empilée). */
-  consult(characterId: string): void;
-  /** Fiche détaillée (initiative à saisir…). */
+  /** Clic sur la ligne, « Fiche de combat », « Saisir l'initiative » : la fiche de combat. */
   open(characterId: string): void;
   attackWith(characterId: string): void;
   giveTurn(characterId: string): void;
@@ -72,20 +69,14 @@ export function OrderList({
   cast,
   sheets,
   busy,
-  consulted,
   canAttack,
-  followCurrent,
   actions,
 }: {
   combat: CombatState;
   cast: ReadonlyMap<string, CastMember>;
   sheets: ReadonlyMap<string, ParticipantSheet>;
   busy: boolean;
-  /** Participant affiché dans la carte « Consulté ». */
-  consulted: string | null;
   canAttack: boolean;
-  /** Colonne qui défile seule : la ligne du tour y reste en vue (jamais en vue empilée). */
-  followCurrent: boolean;
   actions: OrderActions;
 }) {
   const rows = turnRows(combat);
@@ -95,12 +86,12 @@ export function OrderList({
   const current = rows.find((r) => r.current)?.characterId ?? null;
   // Le tour passe : la ligne de celui qui agit reste en vue (longue liste, colonne défilée)
   useEffect(() => {
-    if (!current || !followCurrent) return;
+    if (!current) return;
     currentRef.current?.scrollIntoView({
       block: 'nearest',
       behavior: reduced ? 'auto' : 'smooth',
     });
-  }, [current, reduced, followCurrent]);
+  }, [current, reduced]);
   const [dropAt, setDropAt] = useState<number | null>(null);
 
   const over = (e: DragEvent<HTMLDivElement>, index: number) => {
@@ -170,7 +161,6 @@ export function OrderList({
               sheet={sheets.get(row.characterId) ?? null}
               count={rows.length}
               busy={busy}
-              consulted={consulted === row.characterId}
               canAttack={canAttack}
               actions={actions}
             />
@@ -187,7 +177,6 @@ function OrderRow({
   sheet,
   count,
   busy,
-  consulted,
   canAttack,
   actions,
 }: {
@@ -196,7 +185,6 @@ function OrderRow({
   sheet: ParticipantSheet | null;
   count: number;
   busy: boolean;
-  consulted: boolean;
   canAttack: boolean;
   actions: OrderActions;
 }) {
@@ -212,9 +200,7 @@ function OrderRow({
         'group relative flex items-center gap-2.5 rounded-xl border px-2 py-2 transition-colors',
         row.current
           ? 'border-primary/50 bg-primary/10 shadow-surface'
-          : consulted
-            ? 'border-info/40 bg-info/5'
-            : 'border-transparent hover:border-border hover:bg-surface',
+          : 'border-transparent hover:border-border hover:bg-surface',
         row.defeated && 'opacity-55',
       )}
       aria-current={row.current ? 'step' : undefined}
@@ -229,8 +215,8 @@ function OrderRow({
       )}
       <button
         type="button"
-        onClick={() => actions.consult(id)}
-        aria-label={`Consulter ${name}`}
+        onClick={() => actions.open(id)}
+        aria-label={`Fiche de combat de ${name}`}
         className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       />
       <span
@@ -415,14 +401,5 @@ function OrderRow({
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  );
-}
-
-/** Pastille d'aide de la liste (glisser, clic). */
-export function OrderHint() {
-  return (
-    <Info texte="Glissez une ligne pour changer l’ordre ; le tour reste au même participant.">
-      <span className="cursor-help text-[11px] text-subtle">Glisser pour réordonner</span>
-    </Info>
   );
 }

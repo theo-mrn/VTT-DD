@@ -63,11 +63,8 @@ export function OrderContent({
           cast={cast.byId}
           sheets={sheets}
           busy={busy}
-          consulted={null}
           canAttack={canAttack}
-          followCurrent
           actions={{
-            consult: onOpen,
             open: onOpen,
             attackWith: onAttack,
             giveTurn: turns.giveTurn,

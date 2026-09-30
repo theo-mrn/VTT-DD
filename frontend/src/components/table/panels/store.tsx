@@ -52,7 +52,7 @@ export function writePanelLocation(
   else window.history.replaceState(null, '', next);
 }
 
-/** Panneau demandé par l'adresse courante (anciens identifiants compris : `mj` → Combat). */
+/** Panneau demandé par l'adresse courante. */
 export function panelFromLocation(search: URLSearchParams): PanelId | null {
   return resolvePanelId(search.get(TABLE_PARAMS.panel));
 }

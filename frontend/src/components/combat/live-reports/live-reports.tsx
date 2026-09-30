@@ -4,8 +4,8 @@
  * Rapports en direct sous la barre de combat du MJ (docs/combat.md § 12.6). Chaque rapport qui
  * attend une décision sort de la barre dès qu'il arrive. Une seule carte dépliée (la plus
  * récente à décider, ou celle que le MJ choisit) ; les autres en lignes décidables d'un clic ;
- * attaques en cours et confirmations en lignes aussi. Trois au plus, « +n » ouvre le panneau
- * Combat ; la pastille de la barre replie la pile. Pile au focus : Entrée applique la carte
+ * attaques en cours et confirmations en lignes aussi. Trois au plus, « +n » déplie le reste ;
+ * la pastille de la barre replie la pile. Pile au focus : Entrée applique la carte
  * dépliée, Suppr ne l'applique pas.
  */
 import type { CombatState } from '@vtt/contracts';
@@ -30,8 +30,8 @@ import { EXIT, GLASS, NUMBER_SPRING, SPRING, TOUCH } from './look';
 import type { LiveItem } from './model';
 import { wholeScope, type LiveReports as Live } from './use-live-reports';
 
-/** La pile se montre : des rapports, et le panneau Combat fermé (il les montre déjà). */
-export const pileShown = (live: Live) => live.items.length > 0 && !live.panelOpen;
+/** La pile se montre : des rapports à décider, en cours ou tout juste décidés. */
+export const pileShown = (live: Live) => live.items.length > 0;
 
 export function LiveReports({
   live,

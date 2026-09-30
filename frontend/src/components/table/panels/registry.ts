@@ -8,7 +8,6 @@ import {
   NotebookPen,
   ScrollText,
   Settings2,
-  Swords,
   Users,
   Volume2,
   type LucideIcon,
@@ -212,20 +211,6 @@ export const panelRegistry = [
     ),
   },
   {
-    // Remplace le panneau « MJ » (alias `mj` : anciens liens et rails personnalisés)
-    id: 'combat',
-    label: 'Combat',
-    description: 'Ordre du tour, personnage actif, rapports d’attaque et héros de la table',
-    icon: Swords,
-    shortcut: { code: 'KeyM', label: 'M' },
-    // L'ancien tableau de bord : ordre à gauche, cartes et rapports à droite
-    width: 'full',
-    mode: 'side',
-    roles: ['gm'],
-    activity: ['combat.attack_resolved'],
-    component: lazy(() => import('../onglets/combat').then((m) => ({ default: m.OngletCombat }))),
-  },
-  {
     id: 'reglages',
     label: 'Réglages',
     description: 'Réglages de la campagne : règles optionnelles, lanceur, présentation',
@@ -251,14 +236,12 @@ export function isPanelId(value: string | null | undefined): value is PanelId {
   return value != null && BY_ID.has(value);
 }
 
-/** Anciens identifiants de panneaux, gardés pour les liens et les préférences enregistrées. */
-const PANEL_ALIASES: Readonly<Record<string, PanelId>> = { mj: 'combat' };
-
-/** Identifiant de panneau lu dans une adresse ou une préférence, alias compris ; null sinon. */
+/**
+ * Identifiant de panneau lu dans une adresse ou une préférence ; null sinon (anciens panneaux
+ * « MJ » et « Combat » compris : le combat se mène depuis la barre du MJ).
+ */
 export function resolvePanelId(value: string | null | undefined): PanelId | null {
-  if (value == null) return null;
-  if (isPanelId(value)) return value;
-  return PANEL_ALIASES[value] ?? null;
+  return isPanelId(value) ? value : null;
 }
 
 export function panelById(id: PanelId): TablePanel {

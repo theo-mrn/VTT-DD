@@ -2,14 +2,13 @@
 
 /**
  * État et commandes des rapports en direct du MJ (docs/combat.md § 12.6), partagés par la barre
- * (pastille, repli) et la pile (cartes, décisions). Les décisions passent par les mêmes corps
- * que le panneau Combat (`reports/model.ts`) ; les commandes par `use-attacks.ts`.
+ * (pastille, repli, menu ⋯) et la pile (cartes, décisions). Les décisions passent par les corps
+ * de `reports/model.ts` ; les commandes par `use-attacks.ts`.
  */
 import type { Attack, AttackTarget } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { usePanelStore } from '@/components/table/panels/store';
 import type { DetailCampagne } from '@/lib/campagnes';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { combatErrorMessage } from '@/lib/combat/api';
@@ -66,8 +65,6 @@ export interface LiveReports {
   busy: string | null;
   collapsed: boolean;
   setCollapsed(v: boolean): void;
-  /** Le panneau Combat est ouvert : il montre déjà les rapports, la pile s'efface. */
-  panelOpen: boolean;
   /** Rapport ouvert dans le tiroir « Modifier ». */
   deciding: Attack | null;
   setDeciding(id: string | null): void;
@@ -81,7 +78,6 @@ export interface LiveReports {
 
 export function useLiveReports(campagne: DetailCampagne): LiveReports {
   const campaignId = campagne.id;
-  const panelOpen = usePanelStore((s) => s.active === 'combat');
   const pending = useAttacks(campaignId, { status: 'pending', limit: 100 });
   const open = useAttacks(campaignId, { status: 'open', limit: 50 });
   const cast = useCast(campaignId);
@@ -103,7 +99,7 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
     () => liveItems([open.attacks, pending.attacks], settledAttacks),
     [open.attacks, pending.attacks, settledAttacks],
   );
-  // « +n » déplie toute la pile sur place (plus de renvoi au panneau Combat)
+  // « +n » déplie toute la pile sur place
   const [showAll, setShowAll] = useState(false);
   const stack = liveStack(items, collapsed, showAll ? Infinity : undefined);
   const focus = focusOf(stack, chosen);
@@ -202,7 +198,7 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
     } catch (err) {
       toast.error('L’application n’a pas pu être annulée', {
         description: revertConflictOf(err)
-          ? 'La fiche a changé entre-temps : voyez le panneau Combat.'
+          ? 'La fiche a changé entre-temps : voyez les rapports d’attaque du menu ⋯.'
           : combatErrorMessage(err),
       });
     } finally {
@@ -225,7 +221,6 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
     busy,
     collapsed,
     setCollapsed,
-    panelOpen,
     deciding,
     setDeciding,
     decide,

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 /** Anciens onglets de la table, devenus des panneaux ouverts par-dessus la carte. */
-const PANNEAUX = new Set(['fiche', 'des', 'notes', 'joueurs', 'historique', 'mj']);
+const PANNEAUX = new Set(['fiche', 'des', 'notes', 'joueurs', 'historique']);
 
 /**
  * Anciennes adresses par onglet (`table/des`, `table/joueurs/<id>`, `table/notes?note=…`) :

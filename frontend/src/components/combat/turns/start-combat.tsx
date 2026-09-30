@@ -3,11 +3,9 @@
 /**
  * Réglages du combat (docs/combat.md § 9.2) : interrupteurs partagés par le démarrage et le
  * combat en cours ; hors combat, la fenêtre des réglages du prochain combat (mode des tours et
- * réglages, envoyés au démarrage s'ils s'écartent du défaut). La liste des raccourcis du
- * panneau a sa fenêtre ici aussi.
+ * réglages, envoyés au démarrage s'ils s'écartent du défaut).
  */
 import type { CombatMode, CombatSettings } from '@vtt/contracts';
-import { Keyboard } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,11 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Kbd } from '@/components/ui/kbd';
 import { Label } from '@/components/ui/label';
 import { SelectField } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { COMBAT_SHORTCUTS, type CombatShortcut } from './shortcuts';
 
 export const MODE_LABELS: Record<CombatMode, string> = {
   individual: 'Individuel',
@@ -124,47 +120,6 @@ export function StartSettingsDialog({
           </div>
           <SettingsFields value={settings} onChange={onSettings} />
         </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/** Raccourcis clavier du panneau. */
-export function ShortcutsDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange(open: boolean): void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Keyboard className="size-4 text-primary" aria-hidden />
-            Raccourcis du panneau Combat
-          </DialogTitle>
-          <DialogDescription>
-            Quand le panneau est ouvert et qu’aucun champ n’est en cours de saisie.
-          </DialogDescription>
-        </DialogHeader>
-        <dl className="space-y-2">
-          {(Object.keys(COMBAT_SHORTCUTS) as CombatShortcut[]).map((k) => (
-            <div key={k} className="flex items-center justify-between gap-4 text-[13px]">
-              <dt>{COMBAT_SHORTCUTS[k].name}</dt>
-              <dd>
-                <Kbd>{COMBAT_SHORTCUTS[k].label}</Kbd>
-              </dd>
-            </div>
-          ))}
-          <div className="flex items-center justify-between gap-4 text-[13px]">
-            <dt>Ouvrir ou fermer le panneau</dt>
-            <dd>
-              <Kbd>M</Kbd>
-            </dd>
-          </div>
-        </dl>
       </DialogContent>
     </Dialog>
   );

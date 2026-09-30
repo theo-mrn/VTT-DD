@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * « Rapports d'attaque » du panneau Combat (docs/combat.md § 7, § 12.4), sous les cartes de la
- * colonne de droite, sur tout l'espace restant : « x/y appliqués », « Tout appliquer (n) »
+ * « Rapports d'attaque » du menu ⋯ de la barre du MJ (docs/combat.md § 7, § 12.4) : « x/y appliqués », « Tout appliquer (n) »
  * (revue groupée), filtres (en attente, décidés, tous ; ce combat, hors combat ; un
  * personnage), puis une carte par cible et les coûts des attaquants à part. Tous les rapports
  * de la campagne, pas seulement ceux du participant qui agit (l'ancienne app perdait les
@@ -14,12 +13,10 @@ import { CheckCheck, EyeOff, ScrollText, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Chips, ListSkeleton, Notice } from '@/components/resources/parts';
 import { Button } from '@/components/ui/button';
-import { Kbd } from '@/components/ui/kbd';
 import { SelectField } from '@/components/ui/select';
 import { Info } from '@/components/ui/tooltip';
 import { combatErrorMessage } from '@/lib/combat/api';
 import { cn } from '@/lib/utils';
-import { COMBAT_SHORTCUTS } from '../turns/shortcuts';
 import type { CastMember } from '../turns/use-cast';
 import type { ReportFilter, ReportScope } from './model';
 import { ActorCostCard, ReportCard } from './report-card';
@@ -98,17 +95,10 @@ export function ReportsSection({
           <span className="flex-1" />
           <Info
             texte={
-              <span className="flex items-center gap-2">
-                Revue groupée, valeurs modifiables <Kbd>{COMBAT_SHORTCUTS.applyAll.label}</Kbd>
-              </span>
+              <span className="flex items-center gap-2">Revue groupée, valeurs modifiables</span>
             }
           >
-            <Button
-              size="sm"
-              onClick={onReview}
-              disabled={!data.reviewCount}
-              aria-keyshortcuts={COMBAT_SHORTCUTS.applyAll.aria}
-            >
+            <Button size="sm" onClick={onReview} disabled={!data.reviewCount}>
               <CheckCheck />
               Tout appliquer ({data.reviewCount})
             </Button>
