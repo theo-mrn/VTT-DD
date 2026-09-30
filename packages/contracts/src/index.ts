@@ -6,3 +6,4 @@ export * from './audio.js';
 export * from './audio-sync.js';
 export * from './map.js';
 export * from './combat.js';
+export * from './uploads.js';
