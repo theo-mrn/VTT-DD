@@ -122,6 +122,8 @@ export type AttackFlowEvent =
   | { type: 'declared'; attack: Attack }
   | { type: 'rejected'; message: string; retryable: boolean }
   | { type: 'attackUpdated'; attack: Attack }
+  /** Montrer une attaque déjà déclarée (« Mes attaques ») : son suivi en direct. */
+  | { type: 'show'; attack: Attack }
   /** « Nouvelle attaque » (cibles vidées) ou « Mêmes cibles ». */
   | { type: 'again'; keepTargets: boolean }
   /** PNJ suivant d'une attaque à la suite. */
@@ -213,6 +215,23 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
       return event.attack.version >= state.attack.version
         ? { ...state, attack: event.attack }
         : state;
+    case 'show': {
+      if (state.phase === 'submitting') return state;
+      const a = event.attack;
+      return {
+        ...opened(state),
+        phase: 'declared',
+        attack: a,
+        draft: {
+          ...state.draft,
+          attackerId: a.attackerId,
+          actionId: a.action.id,
+          presetId: a.presetId ?? null,
+          params: a.params,
+          targetIds: a.targets.map((t) => t.characterId),
+        },
+      };
+    }
     case 'again':
       if (state.phase === 'submitting') return state;
       return compose({

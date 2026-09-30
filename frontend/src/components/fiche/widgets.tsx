@@ -15,7 +15,7 @@ import {
   type Widget,
   nouvellePossession,
 } from '@vtt/rules';
-import { ChevronRight, Coins, Dices, Pencil, Plus } from 'lucide-react';
+import { ChevronRight, Coins, Dices, Pencil, Plus, Swords } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { JaugeRessource, TuileAttribut } from '@/components/creation/apercu-fiche';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Progress } from '@/components/ui/progress';
 import { FittingLabel } from '@/components/ui/fitting-label';
 import { Info } from '@/components/ui/tooltip';
+import { targetedActions } from '@/lib/combat/actions';
+import { openAttackMenu } from '@/lib/combat/attack-menu-store';
 import { afficherValeur, champsLisibles, explication, groupesAttributs } from '@/lib/creation';
 import type {
   DemandeBonus,
@@ -673,7 +675,10 @@ export function BlocTexte({
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
 
-/** Actions lançables depuis la fiche : sans cible (les attaques se jouent en combat) et accessibles. */
+/**
+ * Actions lançables depuis la fiche : sans cible (celles à cible se jouent dans le menu
+ * d'attaque, bouton « Attaquer » du bloc) et accessibles.
+ */
 export function actionsDisponibles(ctx: ContexteFiche, ids?: string[]): Action[] {
   return [...ctx.systeme.actions.values()].filter((a) => {
     if (ids && !ids.includes(a.id)) return false;
@@ -694,13 +699,37 @@ export function BlocActions({
 }) {
   const actions = actionsDisponibles(ctx, widget.actions);
   const [ouverte, setOuverte] = useState<string | null>(null);
+  // Actions à cible (attaques, sorts, soins) : elles se jouent dans le menu d'attaque, en campagne
+  const campagne = ctx.personnage.roomId;
+  const attaque = Boolean(
+    campagne && ctx.operations && targetedActions(ctx.systeme, ctx.fiche).length,
+  );
   // Le service tire les jets d'action pour qui peut modifier le personnage
-  if (actions.length === 0 || !ctx.operations) return null;
+  if ((actions.length === 0 && !attaque) || !ctx.operations) return null;
   const operations = ctx.operations;
   const choisie = actions.find((a) => a.id === ouverte);
   return (
-    <Bloc titre={widget.titre}>
-      <div className="grid gap-2 sm:grid-cols-2">
+    <Bloc
+      titre={widget.titre}
+      action={
+        attaque ? (
+          <Button
+            size="xs"
+            onClick={() =>
+              openAttackMenu({
+                campaignId: campagne!,
+                origin: 'sheet',
+                attackerId: ctx.personnage.id,
+              })
+            }
+          >
+            <Swords />
+            Attaquer
+          </Button>
+        ) : undefined
+      }
+    >
+      <div className="grid gap-2 sm:grid-cols-2 empty:hidden">
         {actions.map((a) => (
           <button
             key={a.id}

@@ -23,14 +23,18 @@ import {
 
 export interface AttackMenuStore {
   flow: AttackFlowState;
+  /** Compteur des ouvertures (un hôte réagit à chaque « Attaquer », même menu déjà ouvert). */
+  opens: number;
   dispatch(event: AttackFlowEvent): void;
 }
 
 export const attackMenuStore = createStore<AttackMenuStore>()((set, get) => ({
   flow: CLOSED,
+  opens: 0,
   dispatch: (event) => {
     const next = reduceAttackFlow(get().flow, event);
-    if (next !== get().flow) set({ flow: next });
+    if (event.type === 'open') set((s) => ({ flow: next, opens: s.opens + 1 }));
+    else if (next !== get().flow) set({ flow: next });
   },
 }));
 

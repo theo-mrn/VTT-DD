@@ -268,6 +268,21 @@ describe('menu d’attaque : après la déclaration', () => {
     expect(reduceAttackFlow(s, { type: 'nextAttacker' })).toBe(s);
   });
 
+  it('« Mes attaques » : suivre une attaque déjà déclarée, puis la rejouer', () => {
+    const shown = reduceAttackFlow(open(), {
+      type: 'show',
+      attack: attack({ attackerId: 'hero', params: { arme: 'arc' } }),
+    });
+    expect(shown.phase).toBe('declared');
+    const again = reduceAttackFlow(shown, { type: 'again', keepTargets: true });
+    expect(again.phase === 'compose' && again.draft).toMatchObject({
+      attackerId: 'hero',
+      actionId: 'frappe',
+      params: { arme: 'arc' },
+      targetIds: ['gobelin'],
+    });
+  });
+
   it('étape affichée selon le statut', () => {
     expect(declaredStage(attack({ status: 'awaiting_reactions' }))).toBe('reactions');
     expect(declaredStage(attack({ status: 'awaiting_dice' }))).toBe('dice');

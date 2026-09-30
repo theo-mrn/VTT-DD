@@ -12,7 +12,7 @@
  * (`SubmitRollDice`) ; `partitionStep` dit déjà quels dés ont une forme 3D et lesquels restent
  * au serveur (d100, au-delà de `MAX_3D_DICE`).
  */
-import type { RollStep, SubmitRollDice } from '@vtt/contracts';
+import type { RollDiceMode, RollStep, SubmitRollDice } from '@vtt/contracts';
 import { MAX_3D_DICE, SHAPES_3D } from '../dice-throw';
 
 /** Les dés 3D des attaques sont branchés (étape C) ; faux : le serveur tire tout. */
@@ -53,4 +53,15 @@ export function partitionStep(
     else server.push(d);
   }
   return { thrown, server };
+}
+
+/**
+ * Dés d'une nouvelle attaque (§ 5.2, « Dés ») : 3D seulement si elle est branchée, permise par
+ * le combat et voulue par l'attaquant (préférence « animation 3D ») ; sinon le serveur tire.
+ */
+export function chooseDiceMode(o: {
+  physicalAllowed: boolean;
+  animation3d: boolean;
+}): RollDiceMode {
+  return PHYSICAL_DICE_READY && o.physicalAllowed && o.animation3d ? 'physical' : 'server';
 }

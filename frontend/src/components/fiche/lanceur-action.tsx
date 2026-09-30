@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  nomPossession,
   type Action,
   type Fiche,
   type Presentation,
@@ -15,6 +14,7 @@ import { Check, ChevronDown, Dices, Wand2, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Message } from '@/components/compte/elements';
+import { ParamField } from '@/components/combat/attack/params-form';
 import { DesDuJet, TotalJet } from '@/components/des/resultat-jet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,82 +25,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { messageErreur } from '@/lib/api';
+import { defaultParamValue } from '@/lib/combat/params';
 import { libelleAttribut } from '@/lib/creation';
 import { marquerJetsPerimes } from '@/lib/jets';
 import type { OperationsPersonnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { DesSymboles, ResultatsSymboles } from './symboles';
-
-type Parametre = Action['parametres'][number];
-
-/** Valeur par défaut d'un paramètre, pour préremplir le formulaire. */
-function defaut(fiche: Fiche, p: Parametre): Valeur {
-  switch (p.type) {
-    case 'nombre':
-      return p.defaut;
-    case 'booleen':
-      return p.defaut;
-    case 'attribut':
-      return optionsAttribut(fiche, p)[0] ?? '';
-    case 'entree':
-      return p.facultatif ? '' : (optionsEntree(fiche, p)[0]?.id ?? '');
-  }
-}
-
-function optionsAttribut(fiche: Fiche, p: Extract<Parametre, { type: 'attribut' }>): string[] {
-  // Un attribut d'une règle optionnelle éteinte n'est pas proposé
-  if (p.attributs?.length) return p.attributs.filter((c) => fiche.attributActif(c));
-  return [...fiche.entite.attributs.values()]
-    .filter((a) => a.groupe === p.groupe && fiche.attributActif(a.cle))
-    .map((a) => a.cle);
-}
-
-/**
- * Entrées proposées pour un paramètre `entree`. Une entrée possédée en plusieurs
- * exemplaires en propose chacun (`entree#exemplaire`) : l'action lit alors ses valeurs
- * et sa formule propres (dés d'une arme personnalisée).
- */
-function optionsEntree(fiche: Fiche, p: Extract<Parametre, { type: 'entree' }>) {
-  const convient = (e: { sorte: string; etiquettes: string[] }) =>
-    e.sorte === p.sorte && (!p.etiquette || e.etiquettes.includes(p.etiquette));
-  const exemplaires = (id: string) => {
-    const x = fiche.possessions.get(id);
-    if (!x || x.exemplaires.length < 2) return null;
-    return x.exemplaires.map((ex, i) => {
-      const nom = nomPossession(x.entree, x.sorte, ex);
-      return {
-        id: ex.exemplaire === undefined ? id : `${id}#${ex.exemplaire}`,
-        nom: nom === x.entree.nom ? `${nom} (n° ${i + 1})` : nom,
-        rang: x.rang,
-      };
-    });
-  };
-  if (!p.possedee)
-    return [...fiche.systeme.entrees.values()]
-      .filter(convient)
-      .flatMap(
-        (e) =>
-          exemplaires(e.id) ?? [
-            { id: e.id, nom: e.nom, rang: fiche.possessions.get(e.id)?.rang ?? 0 },
-          ],
-      );
-  return [...fiche.possessions.values()]
-    .filter((x) => convient(x.entree))
-    .flatMap(
-      (x) =>
-        exemplaires(x.entree.id) ?? [
-          {
-            id: x.entree.id,
-            nom: nomPossession(x.entree, x.sorte, x.possession),
-            rang: x.rang,
-          },
-        ],
-    );
-}
 
 /**
  * Exécute une action du système (test, initiative…) depuis la fiche :
@@ -129,7 +62,7 @@ export function LanceurAction({
   onAction: OperationsPersonnage['action'];
 }) {
   const [valeurs, setValeurs] = useState<Record<string, Valeur>>(() =>
-    Object.fromEntries(action.parametres.map((p) => [p.id, defaut(fiche, p)])),
+    Object.fromEntries(action.parametres.map((p) => [p.id, defaultParamValue(fiche, p)])),
   );
   const [resultat, setResultat] = useState<ResultatAction | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -186,7 +119,7 @@ export function LanceurAction({
         {action.parametres.length > 0 && (
           <div className="grid gap-4">
             {action.parametres.map((p) => (
-              <ChampParametre
+              <ParamField
                 key={p.id}
                 fiche={fiche}
                 parametre={p}
@@ -337,95 +270,5 @@ function BadgeReussite({ action, reussi }: { action: Action; reussi: boolean }) 
     <Badge ton="danger" taille="md">
       <X /> Échec
     </Badge>
-  );
-}
-
-function ChampParametre({
-  fiche,
-  parametre: p,
-  valeur,
-  onValeur,
-}: {
-  fiche: Fiche;
-  parametre: Parametre;
-  valeur: Valeur;
-  onValeur: (v: Valeur) => void;
-}) {
-  const id = `param-${p.id}`;
-  if (p.type === 'booleen')
-    return (
-      <div className="flex items-center justify-between gap-4">
-        <Label htmlFor={id}>{p.nom}</Label>
-        <Switch id={id} checked={valeur === true} onCheckedChange={onValeur} />
-      </div>
-    );
-  if (p.type === 'nombre')
-    return (
-      <div className="flex items-center justify-between gap-4">
-        <Label htmlFor={id}>{p.nom}</Label>
-        <Input
-          id={id}
-          type="number"
-          value={String(valeur)}
-          onChange={(e) => onValeur(Number(e.target.value))}
-          className="h-9 w-24 text-right font-mono"
-        />
-      </div>
-    );
-  if (p.type === 'attribut') {
-    const options = optionsAttribut(fiche, p);
-    return (
-      <div className="space-y-2">
-        <Label>{p.nom}</Label>
-        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={p.nom}>
-          {options.map((cle) => {
-            const v = fiche.valeurs.get(cle);
-            return (
-              <button
-                key={cle}
-                type="button"
-                role="radio"
-                aria-checked={valeur === cle}
-                onClick={() => onValeur(cle)}
-                className={cn(
-                  'flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[13px] transition-colors',
-                  valeur === cle
-                    ? 'border-primary/60 bg-primary/15 text-primary-strong'
-                    : 'border-border-strong text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {libelleAttribut(fiche, cle)}
-                {v?.modificateur !== undefined && (
-                  <span className="font-mono text-[11px] opacity-80">
-                    {v.modificateur >= 0 ? '+' : ''}
-                    {v.modificateur}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-  const options = optionsEntree(fiche, p);
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{p.nom}</Label>
-      <select
-        id={id}
-        value={String(valeur)}
-        onChange={(e) => onValeur(e.target.value)}
-        className="h-10 w-full rounded-lg border border-input bg-surface-2/60 px-3 text-sm"
-      >
-        {p.facultatif && <option value="">Aucune</option>}
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.nom}
-            {o.rang > 0 ? ` (rang ${o.rang})` : ''}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }
