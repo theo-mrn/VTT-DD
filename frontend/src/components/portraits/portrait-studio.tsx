@@ -581,7 +581,9 @@ function CropArea({
           onCropChange={setCrop}
           onZoomChange={setZoom}
           initialCroppedAreaPercentages={start}
-          onCropComplete={(pct) =>
+          // Chaque changement, y compris le cadrage enregistré appliqué au chargement :
+          // onCropComplete signale d'abord un cadrage centré, puis rien quand il est appliqué
+          onCropAreaChange={(pct) =>
             onChange({
               x: clamp01(pct.x / 100),
               y: clamp01(pct.y / 100),
