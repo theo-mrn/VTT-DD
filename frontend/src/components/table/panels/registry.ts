@@ -1,5 +1,4 @@
 import {
-  Crown,
   Dices,
   History,
   Library,
@@ -9,6 +8,7 @@ import {
   NotebookPen,
   ScrollText,
   Settings2,
+  Swords,
   Users,
   Volume2,
   type LucideIcon,
@@ -212,15 +212,17 @@ export const panelRegistry = [
     ),
   },
   {
-    id: 'mj',
-    label: 'MJ',
-    description: 'Les héros de la table d’un coup d’œil',
-    icon: Crown,
+    // Remplace le panneau « MJ » (alias `mj` : anciens liens et rails personnalisés)
+    id: 'combat',
+    label: 'Combat',
+    description: 'Tours, initiative, rapports d’attaque et héros de la table',
+    icon: Swords,
     shortcut: { code: 'KeyM', label: 'M' },
-    width: 'full',
+    width: 'medium',
     mode: 'side',
     roles: ['gm'],
-    component: lazy(() => import('../onglets/mj').then((m) => ({ default: m.OngletMj }))),
+    activity: ['combat.attack_resolved'],
+    component: lazy(() => import('../onglets/combat').then((m) => ({ default: m.OngletCombat }))),
   },
   {
     id: 'reglages',
@@ -246,6 +248,16 @@ const BY_ID = new Map<string, TablePanel>(panelRegistry.map((p) => [p.id, p]));
 
 export function isPanelId(value: string | null | undefined): value is PanelId {
   return value != null && BY_ID.has(value);
+}
+
+/** Anciens identifiants de panneaux, gardés pour les liens et les préférences enregistrées. */
+const PANEL_ALIASES: Readonly<Record<string, PanelId>> = { mj: 'combat' };
+
+/** Identifiant de panneau lu dans une adresse ou une préférence, alias compris ; null sinon. */
+export function resolvePanelId(value: string | null | undefined): PanelId | null {
+  if (value == null) return null;
+  if (isPanelId(value)) return value;
+  return PANEL_ALIASES[value] ?? null;
 }
 
 export function panelById(id: PanelId): TablePanel {

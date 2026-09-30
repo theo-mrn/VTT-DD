@@ -19,15 +19,15 @@ export function OngletFiche() {
         titre={gm ? 'Vous menez la partie' : 'Vous regardez la partie'}
         description={
           gm
-            ? 'En maître du jeu, vous n’incarnez pas de héros. Les fiches des joueurs sont dans « Joueurs » et « MJ ».'
+            ? 'En maître du jeu, vous n’incarnez pas de héros. Les fiches des joueurs sont dans « Personnages » et « Combat ».'
             : 'Les spectateurs n’incarnent pas de héros.'
         }
         action={
           <>
             <Button asChild>
-              <PanelLink panel={gm ? 'mj' : 'joueurs'}>
+              <PanelLink panel={gm ? 'combat' : 'joueurs'}>
                 {gm ? <Crown /> : <Users />}
-                {gm ? 'Vue MJ' : 'Voir les joueurs'}
+                {gm ? 'Panneau Combat' : 'Voir les joueurs'}
               </PanelLink>
             </Button>
             {gm && (

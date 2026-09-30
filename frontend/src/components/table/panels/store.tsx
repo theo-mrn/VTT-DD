@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import { isPanelId, TABLE_PARAMS, type PanelId } from './registry';
+import { resolvePanelId, TABLE_PARAMS, type PanelId } from './registry';
 
 /**
  * État des panneaux d'une table : le panneau ouvert, ceux déjà montés (gardés en mémoire après
@@ -52,10 +52,9 @@ export function writePanelLocation(
   else window.history.replaceState(null, '', next);
 }
 
-/** Panneau demandé par l'adresse courante. */
+/** Panneau demandé par l'adresse courante (anciens identifiants compris : `mj` → Combat). */
 export function panelFromLocation(search: URLSearchParams): PanelId | null {
-  const id = search.get(TABLE_PARAMS.panel);
-  return isPanelId(id) ? id : null;
+  return resolvePanelId(search.get(TABLE_PARAMS.panel));
 }
 
 const withMounted = (mounted: readonly PanelId[], id: PanelId | null) =>

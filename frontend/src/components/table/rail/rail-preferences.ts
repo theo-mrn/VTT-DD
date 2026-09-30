@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { usePreferenceLocale } from '@/lib/preference-locale';
-import { isPanelId, type PanelId, type TablePanel } from '../panels/registry';
+import { resolvePanelId, type PanelId, type TablePanel } from '../panels/registry';
 
 /**
  * Personnalisation du rail : ordre et panneaux masqués, par utilisateur et par campagne (chaque
@@ -19,8 +19,17 @@ const VIDE: RailLayout = { order: [], hidden: [] };
 /** Ne garde que des identifiants connus, sans doublon (la valeur vient du stockage local). */
 function nettoyer(valeur: unknown): RailLayout {
   if (!valeur || typeof valeur !== 'object') return VIDE;
+  // Anciens identifiants (`mj`) ramenés à leur panneau d'aujourd'hui
   const ids = (v: unknown) =>
-    Array.isArray(v) ? [...new Set(v.filter((x): x is PanelId => isPanelId(x)))] : [];
+    Array.isArray(v)
+      ? [
+          ...new Set(
+            v
+              .map((x) => (typeof x === 'string' ? resolvePanelId(x) : null))
+              .filter((x): x is PanelId => x !== null),
+          ),
+        ]
+      : [];
   const brut = valeur as Partial<Record<keyof RailLayout, unknown>>;
   return { order: ids(brut.order), hidden: ids(brut.hidden) };
 }
