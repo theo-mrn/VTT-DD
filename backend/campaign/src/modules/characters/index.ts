@@ -69,6 +69,8 @@ const CampaignCharacter = z.object({
   /** Depuis character ; null s'il est injoignable ou si le personnage n'existe plus. */
   name: z.string().nullable(),
   avatarUrl: z.string().nullable(),
+  /** Token du Studio du portrait (carte, listes) ; null : le portrait sert de token. */
+  tokenUrl: z.string().nullable(),
   type: z.string().nullable(),
   /** Personnage joueur ou PNJ, depuis character ; null s'il ne le dit pas. */
   kind: z.enum(['pc', 'npc']).nullable(),
@@ -142,6 +144,7 @@ async function campaignCharactersOf(
     characterId: e.characterId,
     name: summaries[i]?.name ?? null,
     avatarUrl: summaries[i]?.avatarUrl ?? null,
+    tokenUrl: summaries[i]?.tokenUrl ?? null,
     type: summaries[i]?.type ?? null,
     kind: summaries[i]?.kind ?? null,
     side: e.side,

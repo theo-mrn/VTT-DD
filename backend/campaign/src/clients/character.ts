@@ -36,6 +36,8 @@ const SummaryResponse = z.object({
   ownerId: z.string(),
   nom: z.string(),
   avatarUrl: z.string().nullable(),
+  /** Token du Studio du portrait ; absent des anciennes versions de character. */
+  tokenUrl: z.string().nullable().default(null),
   systeme: z.object({ id: z.string(), version: z.string() }),
   type: z.string(),
   /** Personnage joueur ou PNJ ; absent des anciennes versions de character : inconnu. */
@@ -67,6 +69,8 @@ export interface CharacterSummary {
   ownerId: string;
   name: string;
   avatarUrl: string | null;
+  /** Token du Studio du portrait ; null : le portrait sert de token. */
+  tokenUrl: string | null;
   system: { id: string; version: string };
   type: string;
   /** Personnage joueur (`pc`) ou PNJ (`npc`) ; null si character ne le dit pas. */
@@ -499,6 +503,7 @@ export function characterClient(o: {
           ownerId: r.ownerId,
           name: r.nom,
           avatarUrl: r.avatarUrl,
+          tokenUrl: r.tokenUrl,
           system: r.systeme,
           type: r.type,
           kind: r.kind,
