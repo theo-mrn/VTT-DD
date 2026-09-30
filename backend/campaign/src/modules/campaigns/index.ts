@@ -17,7 +17,15 @@
  *   GET    /v1/campaigns/:id/bans                bannissements (MJ)
  *   DELETE /v1/campaigns/:id/bans/:userId        lever un bannissement (MJ)
  */
-import { changesPayload, MediaUploadRequest, MediaUploadTicket, uuidv7 } from '@vtt/contracts';
+import {
+  changesPayload,
+  FileUploadRequest,
+  FileUploadTicket,
+  MediaUploadRequest,
+  MediaUploadTicket,
+  uuidv7,
+  type UploadUsageId,
+} from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import type { FastifyContextConfig } from 'fastify';
@@ -33,6 +41,7 @@ import {
   signUpload,
 } from '../../storage/images.js';
 import { removeFromCombat } from '../combat/repository.js';
+import { campaignReader, requireWriter } from '../notes/common.js';
 import {
   Accent,
   CampaignId,
@@ -98,6 +107,15 @@ const invalidImage = () =>
 
 /** Échappe les jokers de LIKE (%, _ et le caractère d'échappement \). */
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+/** Usages signés par la route commune de campaign. */
+const CAMPAIGN_UPLOAD_USAGES: readonly UploadUsageId[] = [
+  'campaign-image',
+  'note-image',
+  'map-background',
+  'map-object',
+  'npc-image',
+];
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -476,6 +494,28 @@ export const register: Module = async (app, deps) => {
         { contentType, size },
         req.log,
       );
+    },
+  );
+
+  // Route commune d'envoi (docs/uploads.md) : image de la campagne, fonds et objets de la
+  // carte, images des PNJ (MJ) ; images des notes (qui écrit des notes dans la campagne)
+  r.post(
+    '/v1/campaigns/:id/uploads',
+    {
+      config: UPLOAD_LIMIT,
+      preValidation: (req, reply) => app.authenticate(req, reply),
+      schema: {
+        params: Params,
+        body: FileUploadRequest,
+        response: { 200: FileUploadTicket },
+      },
+    },
+    async (req) => {
+      const id = req.params.id;
+      if (req.body.usage === 'note-image')
+        requireWriter(await campaignReader(db, id, currentUser(req)), id);
+      else await gmAccess(db, id, currentUser(req));
+      return deps.uploads.ticket(req.body, id, CAMPAIGN_UPLOAD_USAGES, req.log);
     },
   );
 

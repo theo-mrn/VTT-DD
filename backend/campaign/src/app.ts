@@ -1,4 +1,4 @@
-import { createService, type ServiceOptions } from '@vtt/platform';
+import { createService, Uploads, type ServiceOptions } from '@vtt/platform';
 import { sql } from 'drizzle-orm';
 import { characterClient, characterUnavailable } from './clients/character.js';
 import { noProfiles, profilesClient } from './clients/profiles.js';
@@ -47,6 +47,7 @@ export async function buildCampaign(
     onShutdown: [...(options.onShutdown ?? []), async () => connection?.pool.end()],
   });
 
+  const s3Signer = signer ?? createS3Signer(config);
   const deps: Deps = {
     config,
     db,
@@ -62,7 +63,9 @@ export async function buildCampaign(
           })
         : noProfiles),
     now: now ?? (() => new Date()),
-    signer: signer ?? createS3Signer(config),
+    signer: s3Signer,
+    // Même signataire pour la route commune `POST …/uploads`
+    uploads: new Uploads(s3Signer, config.S3_PUBLIC_URL),
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)

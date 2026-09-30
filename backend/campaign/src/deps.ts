@@ -1,3 +1,4 @@
+import type { Uploads } from '@vtt/platform';
 /**
  * Dépendances partagées par les modules du service. Chaque module
  * (src/modules/<nom>/index.ts) reçoit l'instance Fastify et ces dépendances.
@@ -26,6 +27,8 @@ export interface Deps {
   now: () => Date;
   /** URL d'envoi des images de campagne ; absent si le stockage n'est pas configuré. */
   signer: UploadSigner | undefined;
+  /** Envoi de fichiers, brique commune (`POST …/uploads`, docs/uploads.md). */
+  uploads: Uploads;
 }
 
 export type Module = (app: ServiceApp, deps: Deps) => Promise<void>;

@@ -328,6 +328,30 @@ describe.skipIf(!TEST_DATABASE_URL)('carte : refonte', () => {
     expect(map.backgroundUrl).toBe(video.publicUrl);
   });
 
+  it('route commune d’envoi : usages de la campagne, droits par usage (docs/uploads.md)', async () => {
+    const mo = 1024 * 1024;
+    const fond = await h.ok<{ method: string; publicUrl: string; key: string; headers: object }>(
+      gm,
+      'POST',
+      url('/uploads'),
+      { usage: 'map-background', contentType: 'video/webm', size: 80 * mo, name: 'foret.webm' },
+    );
+    expect(fond).toMatchObject({ method: 'PUT', headers: { 'Content-Type': 'video/webm' } });
+    expect(fond.publicUrl).toMatch(
+      new RegExp(`^https://cdn\\.test\\.local/vtt/campaigns/${campaignId}/[0-9a-f-]+\\.webm$`),
+    );
+    // Image de fond au-delà de 10 Mo, usage d'un autre service, joueur : refusés
+    const lourde = { usage: 'map-background', contentType: 'image/png', size: 11 * mo };
+    expect((await h.request(gm, 'POST', url('/uploads'), lourde)).statusCode).toBe(413);
+    const avatar = { usage: 'avatar', contentType: 'image/png', size: 10 };
+    expect((await h.request(gm, 'POST', url('/uploads'), avatar)).statusCode).toBe(422);
+    const objet = { usage: 'map-object', contentType: 'image/png', size: 10 };
+    expect((await h.request(alice, 'POST', url('/uploads'), objet)).statusCode).toBe(403);
+    // Une image de note : qui écrit des notes dans la campagne (joueur compris)
+    const note = { usage: 'note-image', contentType: 'image/png', size: 10 };
+    expect((await h.request(alice, 'POST', url('/uploads'), note)).statusCode).toBe(200);
+  });
+
   it('mise à l’échelle : toute la géométrie en une transaction', async () => {
     const map = await newMap({ spawn: { x: 10, y: 20 } });
     const base = url(`/maps/${map.id}`);
