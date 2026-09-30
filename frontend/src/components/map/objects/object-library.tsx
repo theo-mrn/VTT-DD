@@ -47,7 +47,6 @@ import { MapPanel } from '../map-panel';
 /** Type des données glissées depuis la bibliothèque. */
 const DRAG_TYPE = 'application/x-vtt-map-object';
 export const OBJECT_IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/avif,image/gif';
-const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 const ALL = '';
 const NO_CATEGORY = '__none';
 
@@ -102,10 +101,13 @@ async function uploadSource(
   campaignId: string,
   file: File,
   onTemplate: () => void,
+  onProgress?: (p: number) => void,
 ): Promise<ObjectSource> {
   if (!file.type.startsWith('image/')) throw new Error('Choisissez une image (png, jpeg, webp…).');
-  if (file.size > IMAGE_MAX_BYTES) throw new Error('Image trop lourde : 10 Mo au plus.');
-  const [url, aspect] = await Promise.all([mapsApi.upload(campaignId, file), fileAspect(file)]);
+  const [url, aspect] = await Promise.all([
+    mapsApi.upload(campaignId, file, 'map-object', (p) => onProgress?.(p.progress)),
+    fileAspect(file),
+  ]);
   const name = nameFromFile(file);
   void objectTemplatesApi
     .create(campaignId, { name, imageUrl: url })
@@ -164,6 +166,7 @@ function ObjectLibrary({ engine }: { engine: MapEngine }) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState(ALL);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [limit, setLimit] = useState(PAGE);
   const current: Tab = tab ?? (declared ? 'system' : 'campaign');
 
@@ -253,8 +256,9 @@ function ObjectLibrary({ engine }: { engine: MapEngine }) {
 
   const upload = async (file: File): Promise<ObjectSource | null> => {
     setUploading(true);
+    setProgress(0);
     try {
-      return await uploadSource(campaignId, file, refresh);
+      return await uploadSource(campaignId, file, refresh, setProgress);
     } catch (err) {
       toast.error(err instanceof Error && !('problem' in err) ? err.message : messageErreur(err));
       return null;
@@ -529,9 +533,24 @@ function ObjectLibrary({ engine }: { engine: MapEngine }) {
             Zone à fouiller
           </Button>
           <Button type="button" variant="secondary" size="sm" asChild>
-            <label className={cn('cursor-pointer', uploading && 'pointer-events-none opacity-60')}>
+            <label
+              className={cn(
+                'relative cursor-pointer overflow-hidden',
+                uploading && 'pointer-events-none',
+              )}
+            >
+              {/* Progression réelle de l'envoi, en fond du bouton */}
+              {uploading && (
+                <span
+                  aria-hidden
+                  className="absolute inset-y-0 left-0 -z-0 bg-primary/20 transition-[width] duration-200"
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              )}
               {uploading ? <LoaderCircle className="animate-spin" /> : <ImagePlus />}
-              {uploading ? 'Envoi…' : 'Envoyer une image'}
+              <span className="relative tabular-nums">
+                {uploading ? `Envoi… ${Math.round(progress * 100)} %` : 'Envoyer une image'}
+              </span>
               <input
                 type="file"
                 accept={OBJECT_IMAGE_ACCEPT}
