@@ -156,11 +156,41 @@ export function entryOptions(fiche: Fiche, p: EntryParam): EntryOption[] {
 export const entryIdOf = (option: string) => option.split('#', 1)[0]!;
 
 /**
+ * Champs booléens qui dispensent de posséder l'entrée d'un paramètre : l'action les lit à côté
+ * de `possede(<paramètre>)` (« arme possédée, ou utilisable par tous » : mains nues). Aucun
+ * champ nommé : c'est la formule du système qui le dit.
+ */
+export function possessionWaivers(systeme: SystemeCharge, action: Action, p: EntryParam): string[] {
+  const sorte = systeme.sortes.get(p.sorte);
+  if (!sorte) return [];
+  const flags = new Set(sorte.champs.filter((c) => c.type === 'booleen').map((c) => c.id));
+  if (!flags.size) return [];
+  const id = p.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const owns = new RegExp(`\\bpossede\\(\\s*${id}\\s*\\)`);
+  const field = new RegExp(`(?<![\\w.@])${id}\\.([A-Za-z_][\\w]*)`, 'g');
+  const prefix = chemins.action(action.id, '');
+  const out = new Set<string>();
+  for (const [path, f] of systeme.formules) {
+    if (!path.startsWith(prefix) || !owns.test(f.texte)) continue;
+    for (const m of f.texte.matchAll(field)) if (flags.has(m[1]!)) out.add(m[1]!);
+  }
+  return [...out];
+}
+
+/** L'entrée se passe d'être possédée (un de ses champs de dispense est vrai). */
+export function isWaived(fiche: Fiche, waivers: readonly string[], option: string): boolean {
+  if (!waivers.length) return false;
+  const entree = fiche.systeme.entrees.get(entryIdOf(option));
+  return Boolean(entree && waivers.some((c) => entree.champs[c] === true));
+}
+
+/**
  * Valeur par défaut d'un paramètre, pour préremplir le formulaire (`''` : aucune). Une entrée
  * prise dans tout le catalogue (`possedee: false`) propose d'abord celle que le personnage
- * possède (son arme plutôt que la première du catalogue).
+ * possède (son arme plutôt que la première du catalogue), sinon, si l'action est connue, une
+ * entrée qui se passe d'être possédée (mains nues).
  */
-export function defaultParamValue(fiche: Fiche, p: ActionParam): Valeur {
+export function defaultParamValue(fiche: Fiche, p: ActionParam, action?: Action): Valeur {
   if (isChoiceParam(p)) {
     const d = (p as { defaut?: unknown }).defaut;
     const options = choiceOptions(p);
@@ -178,7 +208,14 @@ export function defaultParamValue(fiche: Fiche, p: ActionParam): Valeur {
     case 'entree': {
       if (p.facultatif) return '';
       const options = entryOptions(fiche, p);
-      return (options.find((o) => o.owned) ?? options[0])?.id ?? '';
+      const waivers = action ? possessionWaivers(fiche.systeme, action, p) : [];
+      return (
+        (
+          options.find((o) => o.owned) ??
+          options.find((o) => isWaived(fiche, waivers, o.id)) ??
+          options[0]
+        )?.id ?? ''
+      );
     }
   }
   return '';
@@ -219,7 +256,7 @@ export function reactionParams(action: Action): ActionParam[] {
 /** Valeurs par défaut des paramètres de l'attaquant. */
 export function defaultParams(systeme: SystemeCharge, action: Action, fiche: Fiche): ActionParams {
   return Object.fromEntries(
-    attackerParams(systeme, action, fiche).map((p) => [p.id, defaultParamValue(fiche, p)]),
+    attackerParams(systeme, action, fiche).map((p) => [p.id, defaultParamValue(fiche, p, action)]),
   );
 }
 
@@ -237,7 +274,8 @@ export function mergeParams(
   const out: ActionParams = {};
   for (const p of attackerParams(systeme, action, fiche)) {
     const v = previous[p.id];
-    out[p.id] = v !== undefined && paramValueValid(fiche, p, v) ? v : defaultParamValue(fiche, p);
+    out[p.id] =
+      v !== undefined && paramValueValid(fiche, p, v) ? v : defaultParamValue(fiche, p, action);
   }
   return out;
 }

@@ -151,11 +151,8 @@ function AttackerSide({
         </span>
       </div>
       <div className="min-w-0 space-y-1.5 sm:space-y-2.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <h2
-            id="attack-menu-title"
-            className="truncate font-display text-lg font-semibold leading-tight tracking-tight sm:text-[1.9rem]"
-          >
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <h2 className="max-w-full truncate font-display text-lg font-semibold leading-tight tracking-tight sm:text-[1.9rem]">
             {label}
           </h2>
           {fc && (

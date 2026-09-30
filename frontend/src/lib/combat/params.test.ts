@@ -17,6 +17,8 @@ import {
   defaultParams,
   entryIdOf,
   entryOptions,
+  isWaived,
+  possessionWaivers,
   mergeParams,
   missingParams,
   paramDescription,
@@ -25,7 +27,7 @@ import {
   paramValueValid,
   reactionParams,
 } from './params';
-import { loadSystem, sheet } from './test-kit';
+import { combatSystem, loadSystem, sheet } from './test-kit';
 
 const s = loadSystem();
 const frappe = s.actions.get('frappe')!;
@@ -215,5 +217,56 @@ describe('armes proposées et pool', () => {
   it('raccourcis 1 à 9 : les actions dans l’ordre de leurs groupes', () => {
     const groups = groupActions(targetedActions(s, bretteur), null);
     expect(flatActions(groups).map((a) => a.id)).toEqual(['frappe', 'soin', 'charge']);
+  });
+});
+
+describe('entrée qui se passe d’être possédée (mains nues)', () => {
+  // Tout le catalogue d'armes, mais « possédée, ou utilisable par tous » (champ booléen)
+  const sys = loadSystem({
+    ...combatSystem,
+    sortes: [
+      {
+        id: 'arme',
+        nom: 'Arme',
+        pour: ['personnage'],
+        champs: [
+          { id: 'degats', nom: 'Dégâts', type: 'formule' },
+          { id: 'bonus', nom: 'Bonus', type: 'nombre', defaut: 0 },
+          { id: 'libre', nom: 'Toujours utilisable', type: 'booleen', defaut: false },
+        ],
+      },
+      { id: 'talent', nom: 'Talent', pour: ['personnage'] },
+    ],
+    catalogue: [
+      ...combatSystem.catalogue!,
+      { id: 'poings', sorte: 'arme', nom: 'Poings', champs: { degats: '1', libre: true } },
+    ],
+    actions: [
+      {
+        id: 'coup',
+        nom: 'Coup',
+        pour: ['personnage'],
+        cible: 'personnage',
+        parametres: [{ id: 'arme', nom: 'Arme', type: 'entree', sorte: 'arme', possedee: false }],
+        variables: [{ cle: 'dispo', formule: 'possede(arme) ou arme.libre' }],
+        verifications: [{ condition: 'dispo', message: 'Arme non possédée' }],
+        jet: { type: 'numerique', formule: '1d20 + arme.bonus' },
+      },
+    ],
+  });
+  const coup = sys.actions.get('coup')!;
+
+  it('la formule de l’action désigne le champ qui dispense de posséder', () => {
+    const p = coup.parametres[0]!;
+    expect(possessionWaivers(sys, coup, p as never)).toEqual(['libre']);
+    const f = sheet(sys);
+    expect(isWaived(f, ['libre'], 'poings')).toBe(true);
+    expect(isWaived(f, ['libre'], 'epee')).toBe(false);
+  });
+
+  it('sans arme possédée : celle qui s’en passe, pas la première du catalogue', () => {
+    expect(defaultParams(sys, coup, sheet(sys)).arme).toBe('poings');
+    const archer = sheet(sys, { possessions: [{ entree: 'arc', rang: 0 }] });
+    expect(defaultParams(sys, coup, archer).arme).toBe('arc');
   });
 });

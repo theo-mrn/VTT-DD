@@ -26,7 +26,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { paramFieldRefs } from '@/lib/combat/actions';
 import {
   entryOptions,
+  isWaived,
   paramDescription,
+  possessionWaivers,
   type EntryOption,
   type EntryParam,
 } from '@/lib/combat/params';
@@ -129,13 +131,17 @@ export function EntryPicker({
 
   const refs = paramFieldRefs(systeme, action, param.id);
   const owned = options.filter((o) => o.owned);
-  const catalogue = options.filter((o) => !o.owned);
+  // Catalogue : celles qui se passent d'être possédées (mains nues) en cartes, les autres à
+  // chercher dans la liste
+  const waivers = possessionWaivers(systeme, action, param);
+  const free = options.filter((o) => !o.owned && isWaived(fiche, waivers, o.id));
+  const catalogue = options.filter((o) => !o.owned && !free.includes(o));
   // Tout le catalogue : les armes du personnage, puis quelques-unes du catalogue (la choisie
   // d'abord) ; le reste dans la liste
   const selectedOther = catalogue.find((o) => o.id === value);
   const shownOthers =
     catalogue.length <= CATALOGUE_CARDS ? catalogue : selectedOther ? [selectedOther] : [];
-  const card = (o: EntryOption, faded = false) => {
+  const card = (o: EntryOption, note: string | null = null) => {
     const r = resolve(fiche, o);
     if (!r) return null;
     return (
@@ -146,7 +152,7 @@ export function EntryPicker({
         resolved={r}
         refs={refs}
         selected={value === o.id}
-        faded={faded}
+        note={note}
         disabled={disabled}
         onSelect={() => onChange(o.id)}
       />
@@ -175,7 +181,8 @@ export function EntryPicker({
           </button>
         )}
         {owned.map((o) => card(o))}
-        {shownOthers.map((o) => card(o, true))}
+        {free.map((o) => card(o, 'Toujours disponible'))}
+        {shownOthers.map((o) => card(o, 'Catalogue'))}
       </div>
       {!options.length && (
         <p className="rounded-xl border border-dashed border-border-strong px-3 py-3 text-[13px] text-muted-foreground">
@@ -205,7 +212,7 @@ function WeaponCard({
   resolved,
   refs,
   selected,
-  faded,
+  note,
   disabled,
   onSelect,
 }: {
@@ -214,7 +221,8 @@ function WeaponCard({
   resolved: Resolved;
   refs: readonly string[];
   selected: boolean;
-  faded: boolean;
+  /** Précision sous le nom (« Toujours disponible », « Catalogue »). */
+  note: string | null;
   disabled?: boolean | undefined;
   onSelect: () => void;
 }) {
@@ -267,7 +275,7 @@ function WeaponCard({
             <span className="shrink-0 font-mono text-[11px] text-subtle">rang {option.rang}</span>
           )}
         </span>
-        {faded && <span className="block text-[11px] text-subtle">Catalogue</span>}
+        {note && <span className="block text-[11px] text-subtle">{note}</span>}
         {fields.length > 0 && (
           <span className="mt-1.5 flex flex-wrap gap-1">
             {fields.map((f) => (
