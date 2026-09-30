@@ -8,6 +8,7 @@ import {
   NotebookPen,
   ScrollText,
   Settings2,
+  Swords,
   Users,
   Volume2,
   type LucideIcon,
@@ -195,6 +196,20 @@ export const panelRegistry = [
     mode: 'side',
     roles: ['gm'],
     component: lazy(() => import('../onglets/pnj').then((m) => ({ default: m.OngletPnj }))),
+  },
+  {
+    id: 'rencontres',
+    label: 'Rencontres',
+    description: 'Générer des rencontres équilibrées pour le groupe, les éditer, les garder',
+    icon: Swords,
+    // M comme monstres (libre depuis le retrait du panneau Combat)
+    shortcut: { code: 'KeyM', label: 'M' },
+    width: 'full',
+    mode: 'side',
+    roles: ['gm'],
+    component: lazy(() =>
+      import('../../encounters/encounters-panel').then((m) => ({ default: m.EncountersPanel })),
+    ),
   },
   {
     id: 'scenes',

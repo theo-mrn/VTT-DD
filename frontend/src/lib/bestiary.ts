@@ -132,6 +132,8 @@ export interface NpcTemplateWrite {
   systemeId?: string;
   type?: string;
   etat?: EtatEntite;
+  /** Création depuis une créature du bestiaire du système (`systemeId`) : état, image, actions. */
+  bestiary?: { key: string };
 }
 
 const templatesBase = (campaignId: string) => `/v1/campaigns/${encodeURIComponent(campaignId)}`;
