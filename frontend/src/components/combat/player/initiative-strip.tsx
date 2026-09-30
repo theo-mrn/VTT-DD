@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Info } from '@/components/ui/tooltip';
 import { combatFailure, useCombatCommands } from '@/lib/combat/use-combat';
 import { cn } from '@/lib/utils';
-import { EXIT, GLASS, LABEL, NUMBER_SPRING, SPRING, TOUCH } from '../live-reports/look';
+import { CTA, EXIT, GLASS, LABEL, NUMBER_SPRING, SPRING, TOUCH } from '../live-reports/look';
 import { SIDE_LABELS, currentActorOf, slotBar, turnRows, type TurnRow } from '../turns/model';
 import { useCast } from '../turns/use-cast';
 
@@ -86,7 +86,12 @@ export function InitiativeStrip({
     <MotionConfig reducedMotion="user">
       <section
         aria-label={`Combat, round ${combat.round}`}
-        className={cn(GLASS, 'pointer-events-auto flex max-w-full items-center gap-1 p-1')}
+        // Arrondis concentriques : barre 20 px, marge 6 px, commandes 40 px arrondies à 14 px ;
+        // la même marge tout autour, jusqu'au dernier bouton
+        className={cn(
+          GLASS,
+          'pointer-events-auto flex max-w-full items-center gap-1 rounded-[20px] p-1.5',
+        )}
       >
         <Round round={combat.round} />
         <Rule />
@@ -148,7 +153,7 @@ export function InitiativeStrip({
         {!combat.initiativeRolled ? (
           <Button
             size="sm"
-            className="mx-0.5 h-8 rounded-xl px-3 text-[13px] font-semibold shadow-glow hover:bg-primary-strong [@media(pointer:coarse)]:min-h-11"
+            className={cn(CTA, 'h-10 rounded-[14px] px-4')}
             onClick={() =>
               void run('init', 'L’initiative n’a pas pu être lancée', () =>
                 commands.rollInitiative(),
@@ -161,21 +166,12 @@ export function InitiativeStrip({
             Lancer l’initiative
           </Button>
         ) : (
-          // Précédent et Suivant : une seule commande en deux parties, même hauteur, même
-          // arrondi ; le principal se distingue par sa couleur, pas par sa forme
-          <span
-            role="group"
-            aria-label="Tours"
-            className="mx-0.5 flex h-8 shrink-0 items-stretch overflow-hidden rounded-xl border border-border-strong shadow-glow"
-          >
+          <span className="flex shrink-0 items-center gap-1">
             <Info texte="Tour précédent" cote="bottom">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className={cn(
-                  'h-full w-8 rounded-none border-r border-border-strong bg-surface-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground',
-                  TOUCH,
-                )}
+                className={cn('size-10 rounded-[14px]', TOUCH)}
                 aria-label="Tour précédent"
                 onClick={() =>
                   void run('previous', 'Le retour arrière n’a pas pu se faire', () =>
@@ -190,7 +186,7 @@ export function InitiativeStrip({
             </Info>
             <Button
               size="sm"
-              className="group h-full gap-1 rounded-none pl-3 pr-2 text-[13px] font-semibold hover:bg-primary-strong active:scale-[0.98] motion-reduce:active:scale-100 [@media(pointer:coarse)]:min-h-11"
+              className={cn(CTA, 'group h-10 rounded-[14px] pl-4 pr-3')}
               onClick={() =>
                 void run('next', 'Le tour n’a pas pu passer', () =>
                   commands.next({ version: combat.version }),
@@ -256,7 +252,7 @@ function Portraits({
   const { current, next, more } = upcomingRows(rows);
   return (
     <LayoutGroup id="combat-turn">
-      <ol className="flex min-w-0 items-center gap-2 px-1 py-2" aria-label="Ordre du tour">
+      <ol className="flex h-10 min-w-0 items-center gap-2 px-1" aria-label="Ordre du tour">
         {current && (
           <Face
             key={current.characterId}

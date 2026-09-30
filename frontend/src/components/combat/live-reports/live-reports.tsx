@@ -205,7 +205,7 @@ export function ReportsToggle({ live }: { live: Live }) {
         aria-expanded={!live.collapsed}
         aria-label={`${label}${waiting ? `, ${waiting} à décider` : ''}`}
         className={cn(
-          'relative grid size-8 shrink-0 place-items-center rounded-lg transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+          'relative grid size-10 shrink-0 place-items-center rounded-[14px] transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
           live.collapsed
             ? 'text-muted-foreground hover:text-foreground'
             : 'bg-surface-3 text-foreground',
