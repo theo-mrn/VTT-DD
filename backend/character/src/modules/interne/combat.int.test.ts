@@ -19,7 +19,7 @@ const interne = { 'x-internal-secret': SECRET };
 interface Resolution {
   targets: {
     characterId: string;
-    status: 'resolved' | 'failed';
+    status: 'resolved' | 'failed' | 'awaiting_dice';
     error: string | null;
     result: {
       outcome: { success: boolean };
@@ -29,9 +29,32 @@ interface Resolution {
       tables: { table: string; line: { entry?: string } | null }[];
       explanations: string[];
     } | null;
-    view: { values: { key: string; value: unknown }[]; explanations: string[] } | null;
+    view: {
+      outcome: { success: boolean };
+      values: { key: string; value: unknown }[];
+      explanations: string[];
+    } | null;
   }[];
   actor: { modifications: unknown[] };
+}
+
+interface Etape {
+  id: string;
+  phase: 'roll' | 'after' | 'table';
+  label?: string;
+  dice: { id: string; targetId: string | null; faces: number; die?: string }[];
+}
+
+interface Face {
+  id: string;
+  value: number;
+  source?: string;
+}
+
+interface Resolue {
+  step: Etape | null;
+  resolution: Resolution;
+  faces: Face[];
 }
 
 interface Preparee {
@@ -40,7 +63,7 @@ interface Preparee {
   rollMode: 'per_target' | 'shared';
   dice: string;
   targets: { characterId: string; error: string | null; reactionParams: string[] }[];
-  step: unknown;
+  step: Etape | null;
   resolution: Resolution | null;
 }
 
@@ -95,6 +118,26 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     expect(res.statusCode, res.body).toBe(200);
     return res.json() as Preparee;
   };
+  const resoudre = async (corps: object) => {
+    const res = await post('/internal/actions/resolve', corps);
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json() as Resolue;
+  };
+  /**
+   * Lance les étapes une à une, dés tirés par character (`results: []`), jusqu'aux résultats ;
+   * rend chaque réponse, la dernière porte la résolution.
+   */
+  const parEtapes = async (corps: object, premiere: Etape | null) => {
+    const reponses: Resolue[] = [];
+    let faces: Face[] = [];
+    for (let step = premiere; step;) {
+      const r = await resoudre({ ...corps, faces, step, results: [] });
+      reponses.push(r);
+      faces = r.faces;
+      step = r.step;
+    }
+    return reponses;
+  };
   const appliquer = async (applications: object[]) => {
     const res = await post('/internal/modifications/apply', { applications });
     expect(res.statusCode, res.body).toBe(200);
@@ -115,25 +158,51 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
 
   // ─── Préparer, résoudre ──────────────────────────────────────────────────────
 
-  it('prépare et résout une attaque en dés serveur : résultat du MJ, vue de l’attaquant', async () => {
+  it('attaque en deux étapes : le d20 (touché), puis les dégâts ; vue de l’attaquant', async () => {
     const thorin = await o.nainGuerrier(alice, 'Thorin');
     const gobelin = await o.nainGuerrier(mj, 'Gobelin');
     t.des.imposer(18, 6);
+    const diceHistory = { campaignId: campagne, authorId: alice.id, visibility: 'public' };
+    const params = { arme: 'epee-longue' };
     const p = await preparer({
       actorId: thorin.id,
       action: 'attaque',
-      params: { arme: 'epee-longue' },
+      params,
       targetIds: [gobelin.id],
-      diceHistory: { campaignId: campagne, authorId: alice.id, visibility: 'public' },
+      diceHistory,
     });
+    // Préparer ne lance rien : la première étape, le d20 de la cible
     expect(p).toMatchObject({
       action: { id: 'attaque', name: 'Attaque avec une arme' },
       rollMode: 'per_target',
       dice: 'server',
       targets: [{ characterId: gobelin.id, error: null, reactionParams: [] }],
-      step: null,
+      step: {
+        phase: 'roll',
+        label: 'Attaque avec une arme',
+        dice: [{ id: '0:jet:d20:0', targetId: gobelin.id, faces: 20 }],
+      },
+      resolution: null,
     });
-    const r = p.resolution!.targets[0]!;
+    const corps = { snapshot: p.snapshot, params, rollMode: p.rollMode, diceHistory };
+    const jet = await resoudre({ ...corps, step: p.step, results: [] });
+
+    // Étape 1 : touché, sans dégâts ; l'étape des dégâts, nommée d'après les données
+    expect(jet.step).toMatchObject({ phase: 'after', label: 'Dégâts' });
+    expect(jet.step!.dice.every((d) => d.targetId === gobelin.id)).toBe(true);
+    expect(jet.faces).toEqual([{ id: '0:jet:d20:0', value: 18, source: 'server' }]);
+    const t1 = jet.resolution.targets[0]!;
+    expect(t1).toMatchObject({ status: 'awaiting_dice', view: { outcome: { success: true } } });
+    expect(t1.view!.values).toEqual([]);
+    expect(t1.result!.modifications).toEqual([]);
+    expect(jet.resolution.actor.modifications).toEqual([]);
+    // Rien ne part à l'historique avant la fin
+    expect(t.jets).toHaveLength(0);
+    const degats = await resoudre({ ...corps, faces: jet.faces, step: jet.step, results: [] });
+
+    // Étape 2 : les dégâts, le rapport complet
+    expect(degats.step).toBeNull();
+    const r = degats.resolution.targets[0]!;
     expect(r.status).toBe('resolved');
     expect(r.result!.roll.kind).toBe('numeric');
     expect(r.result!.outcome.success).toBe(true);
@@ -156,6 +225,33 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
       visibility: 'public',
     });
     expect(t.jets[0]!.explanations.join('\n')).not.toMatch(/Défense|PV|subis/);
+  });
+
+  it('raté : une seule étape ; faces lues sur les dés 3D, faces invalides refusées', async () => {
+    const thorin = await o.nainGuerrier(alice, 'Thorin');
+    const gobelin = await o.nainGuerrier(mj, 'Gobelin');
+    const params = { arme: 'epee-longue' };
+    const p = await preparer({
+      actorId: thorin.id,
+      action: 'attaque',
+      params,
+      targetIds: [gobelin.id],
+    });
+    const corps = { snapshot: p.snapshot, params, rollMode: p.rollMode, step: p.step };
+    // Dé inconnu de l'étape, face hors du dé : 400, rien n'est résolu
+    for (const results of [[{ id: 'x', value: 3 }], [{ id: '0:jet:d20:0', value: 21 }]]) {
+      const res = await post('/internal/actions/resolve', { ...corps, results });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({ code: 'invalid_physical_result' });
+    }
+    // Le 1 lu sur le dé 3D : raté, pas d'étape de dégâts
+    const r = await resoudre({ ...corps, results: [{ id: '0:jet:d20:0', value: 1 }] });
+    expect(r.step).toBeNull();
+    expect(r.faces).toEqual([{ id: '0:jet:d20:0', value: 1, source: 'physical' }]);
+    expect(r.resolution.targets[0]).toMatchObject({
+      status: 'resolved',
+      result: { outcome: { success: false }, modifications: [] },
+    });
   });
 
   it('contexte du combat (@combat.*) : figé à la préparation, lu à la résolution', async () => {
@@ -182,19 +278,21 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
         ],
       },
     });
-    type Pool = { kind: string; pool?: { die: string; count: number }[] };
-    const fortune = (r: Resolution, i: number) =>
-      (r.targets[i]!.result!.roll as Pool).pool?.find((x) => x.die === 'fortune')?.count ?? 0;
-    expect(fortune(p.resolution!, 0)).toBe(fortune(p.resolution!, 1) + 2);
+    // La réserve de chaque cible est dans sa première étape : un dé de Fortune par dé
+    const fortune = (step: Etape | null, i: number) =>
+      step!.dice.filter((d) => d.die === 'fortune' && d.id.startsWith(`${i}:`)).length;
+    expect(fortune(p.step, 0)).toBe(fortune(p.step, 1) + 2);
     // L'instantané garde le contexte : la résolution suivante le relit
-    const res = await post('/internal/actions/resolve', {
+    const { resolution: r } = await resoudre({
       snapshot: p.snapshot,
       params: { arme: 'fusil-blaster', portee: 'moyenne' },
       rollMode: 'per_target',
+      serverFallback: true,
     });
-    expect(res.statusCode, res.body).toBe(200);
-    const r = (res.json() as { resolution: Resolution }).resolution;
-    expect(fortune(r, 0)).toBe(fortune(r, 1) + 2);
+    type Pool = { kind: string; pool?: { die: string; count: number }[] };
+    const tiree = (i: number) =>
+      (r.targets[i]!.result!.roll as Pool).pool?.find((x) => x.die === 'fortune')?.count ?? 0;
+    expect(tiree(0)).toBe(tiree(1) + 2);
     // Sans contexte : hors combat, rien d'office
     const hors = await preparer({
       actorId: bossk.id,
@@ -202,7 +300,7 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
       params: { arme: 'fusil-blaster', portee: 'moyenne' },
       targetIds: [endormi.id, vif.id],
     });
-    expect(fortune(hors.resolution!, 0)).toBe(fortune(hors.resolution!, 1));
+    expect(fortune(hors.step, 0)).toBe(fortune(hors.step, 1));
     // Contexte mal formé : refusé par la validation
     const mauvais = await post('/internal/actions/prepare', {
       userId: mj.id,
@@ -224,21 +322,29 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
       params: { arme: 'epee-longue' },
       targetIds: [gobelin.id],
     });
-    const resoudre = async () => {
+    const toutTirer = async () => {
       t.des.imposer(12, 3);
-      const res = await post('/internal/actions/resolve', {
+      return resoudre({
         snapshot: p.snapshot,
         params: { arme: 'epee-longue' },
         rollMode: 'per_target',
+        serverFallback: true,
       });
-      expect(res.statusCode, res.body).toBe(200);
-      return res.json() as { step: unknown; resolution: Resolution };
     };
-    const a = await resoudre();
+    const a = await toutTirer();
     // La fiche change entre-temps : l'instantané fait foi
     await t.db!.update(characters).set({ nom: 'Autre' }).where(eq(characters.id, gobelin.id));
-    expect(await resoudre()).toEqual(a);
+    expect(await toutTirer()).toEqual(a);
     expect(a.step).toBeNull();
+    // Rejouer les mêmes faces, sans étape : le même résultat, rien n'est tiré
+    t.des.imposer();
+    const rejoue = await resoudre({
+      snapshot: p.snapshot,
+      params: { arme: 'epee-longue' },
+      rollMode: 'per_target',
+      faces: a.faces,
+    });
+    expect(rejoue.resolution).toEqual(a.resolution);
   });
 
   it('jet commun : les mêmes dés pour toutes les cibles', async () => {
@@ -254,7 +360,19 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
       diceHistory: { campaignId: campagne, authorId: mj.id, visibility: 'gm' },
     });
     expect(p.rollMode).toBe('shared');
-    expect(p.resolution!.targets.map((x) => x.result!.variables.degats)).toEqual([7, 7]);
+    // Des dés communs : sans cible
+    expect(p.step!.dice.map((d) => d.targetId)).toEqual([null, null]);
+    const reponses = await parEtapes(
+      {
+        snapshot: p.snapshot,
+        params: { nbDes: 2, faces: 6, bonus: 0 },
+        rollMode: p.rollMode,
+        diceHistory: { campaignId: campagne, authorId: mj.id, visibility: 'gm' },
+      },
+      p.step,
+    );
+    const fin = reponses.at(-1)!.resolution;
+    expect(fin.targets.map((x) => x.result!.variables.degats)).toEqual([7, 7]);
     // Un seul jet dans l'historique pour un jet commun
     expect(t.jets).toHaveLength(1);
     expect(t.jets[0]!.visibility).toBe('gm');
@@ -309,7 +427,9 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     expect(p.targets.map((x) => x.reactionParams)).toEqual([['esquive'], []]);
     expect(p.resolution).toBeNull();
 
-    const res = await post('/internal/actions/resolve', {
+    expect(p.step).toBeNull();
+
+    const corps = {
       snapshot: p.snapshot,
       params,
       rollMode: p.rollMode,
@@ -317,10 +437,19 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
         { characterId: agile.id, params: { esquive: 2 } },
         { characterId: lourd.id, skipped: true },
       ],
-    });
-    expect(res.statusCode, res.body).toBe(200);
-    const { resolution } = res.json() as { resolution: Resolution };
-    const [a, l] = resolution.targets;
+    };
+    // Réactions reçues : la première étape, la réserve (l'Esquive y met ses Défis)
+    const plan = await resoudre(corps);
+    expect(plan.step!.phase).toBe('roll');
+    expect(plan.step!.dice.filter((d) => d.die === 'defi' && d.targetId === agile.id)).toHaveLength(
+      2,
+    );
+    expect(plan.resolution.targets.map((x) => x.status)).toEqual([
+      'awaiting_dice',
+      'awaiting_dice',
+    ]);
+    const reponses = await parEtapes(corps, plan.step);
+    const [a, l] = reponses.at(-1)!.resolution.targets;
     expect(a!.result!.roll.kind).toBe('symbols');
     expect(a!.result!.modifications).toContainEqual(
       expect.objectContaining({ entity: 'target', attribute: 'stress', value: 2 }),
@@ -476,7 +605,10 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     const l2 = await lire(gobelin.id);
     await t
       .db!.update(characters)
-      .set({ etat: { ...l2.etat, valeurs: { ...l2.etat.valeurs, PV: 1 } } })
+      // Une autre valeur que celle laissée par l'application (les PV de départ sont tirés)
+      .set({
+        etat: { ...l2.etat, valeurs: { ...l2.etat.valeurs, PV: l2.etat.valeurs.PV === 1 ? 2 : 1 } },
+      })
       .where(eq(characters.id, gobelin.id));
     const conflit = await post('/internal/modifications/revert', { applicationId: id2 });
     expect(conflit.statusCode).toBe(409);

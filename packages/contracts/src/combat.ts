@@ -533,10 +533,20 @@ export type RollStepRoller = z.infer<typeof RollStepRoller>;
 /**
  * Dés à lancer maintenant, tous ensemble. Le client les anime, lit la face du dessus de
  * chacun à l'arrêt et la renvoie (`SubmitRollDice`) ; il ne corrige jamais l'animation.
+ *
+ * Une attaque avance par étapes, une par phase de l'action qui demande des dés : le jet
+ * (`roll` : d20 de chaque cible, ou la réserve), puis `after` (dégâts des seules cibles
+ * touchées ; une explosion ajoute une étape de la même phase), puis `table` (blessure
+ * critique). L'attaquant voit l'issue d'une étape avant de lancer la suivante.
  */
 export const RollStep = z.object({
   id: z.string(),
   phase: RollPhase,
+  /**
+   * Ce que l'étape lance, tiré des données du système : l'action (`roll`), le nom des valeurs
+   * montrées à l'attaquant (`after` : « Dégâts », « Soins »), la table (`table`).
+   */
+  label: z.string().optional(),
   /** Absent : `author`. */
   roller: RollStepRoller.optional(),
   /** Pour `roller: target` : la cible dont le joueur lance. */
@@ -587,7 +597,9 @@ export type ParticipantInitiativeResult = z.infer<typeof ParticipantInitiativeRe
 /**
  * `POST …/attacks/:attackId/dice` et `…/initiative/dice` : faces lues sur les dés 3D.
  * Un dé de l'étape absent des résultats (pas de forme 3D, au-delà de la limite, dé resté en
- * l'air) est tiré par le serveur ; `serverFallback` : tout le reste du jet aussi.
+ * l'air) est tiré par le serveur : `results: []` fait tirer toute l'étape par le serveur, et
+ * l'étape suivante (s'il y en a une) est rendue. `serverFallback` : tout le reste du jet aussi,
+ * jusqu'au rapport (auteur parti, repli du MJ).
  */
 export const SubmitRollDice = z.strictObject({
   stepId: z.string().min(1).max(100),
@@ -898,6 +910,11 @@ export const Attack = z.object({
    * Une vue de joueur ne garde que les étapes qu'il doit lancer.
    */
   pendingSteps: z.array(RollStep),
+  /**
+   * Résolution en cours chez le serveur (réactions reçues, ou étape de dés envoyée) : ni dés
+   * à lancer, ni rapport pour l'instant. Absent : faux.
+   */
+  resolving: z.boolean().optional(),
   /** Note du MJ sur sa décision. */
   note: z.string().nullable().optional(),
   createdBy: Id,
@@ -1137,6 +1154,8 @@ export const AttackChange = z.enum([
   'reaction_requested',
   'reaction_received',
   'dice_requested',
+  /** Une étape de dés a été lancée ; la suivante attend (issue de l'étape visible). */
+  'dice_rolled',
   'resolved',
   'failed',
   'cancelled',

@@ -3,15 +3,22 @@
  * qui orchestre (droits, tours, rapports) ; character résout avec @vtt/rules.
  *
  *   POST /internal/actions/prepare   règles vérifiées, instantané des fiches (opaque, gardé par
- *        campaign), réactions proposées aux cibles, résolution immédiate (dés serveur, aucune
- *        réaction attendue)
- *   POST /internal/actions/resolve   résolution sur l'instantané : un résultat complet (MJ) et
- *        la vue de l'attaquant par cible, les coûts de l'attaquant une fois
+ *        campaign), réactions proposées aux cibles ; sans réaction attendue, la première étape
+ *        de dés (ou la résolution, pour une action sans dé)
+ *   POST /internal/actions/resolve   résolution sur l'instantané, étape par étape : les faces
+ *        déjà connues sont rejouées, celles de l'étape soumise ajoutées (lues sur les dés 3D, ou
+ *        tirées ici), puis l'étape suivante, ou les résultats (complet pour le MJ, vue de
+ *        l'attaquant) et les coûts de l'attaquant une fois
+ *
+ * Étapes (docs/combat.md § 6) : une phase de l'action qui demande des dés est une étape que
+ * l'attaquant déclenche (le d20, puis les dégâts des seules cibles touchées, puis la table).
+ * Character ne garde rien : campaign lui rend l'instantané et les faces à chaque appel, le
+ * moteur est déterministe (mêmes faces, même résultat). `serverFallback` : tout le reste est
+ * tiré ici, jusqu'aux résultats.
  *
  * Résoudre n'est pas appliquer : rien n'est écrit ici (voir ./modifications.ts). Le jet part à
- * l'historique des dés réduit à la vue de l'attaquant (jamais le déroulé complet, qui nomme les
- * défenses de la cible). Étape B : le serveur tire tous les dés (`aleatoireCrypto`) ; les dés
- * physiques (`faces`, `step`) viendront avec l'étape C.
+ * l'historique des dés, une fois l'attaque résolue, réduit à la vue de l'attaquant (jamais le
+ * déroulé complet, qui nomme les défenses de la cible).
  */
 import {
   AttackCombatContext,
@@ -19,16 +26,23 @@ import {
   AttackRollMode,
   AttackTargetResult,
   AttackTargetView,
+  DieSource,
   RollAdjustments,
   RollDiceMode,
   RollStep,
+  ROLL_STEP_DICE_MAX,
   type AttackVisibility,
   type CombatRulesParticipant,
+  type RollPhase,
 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import {
+  aleatoirePlanifie,
   executerMulticible,
   modeDeJet,
+  premierePhase,
+  type DeRequis,
+  type PhaseDes,
   type ContexteCombatSaisi,
   type ContexteCombattantSaisi,
   parametresReaction,
@@ -75,6 +89,14 @@ const CorpsPreparer = z.object({
   combat: AttackCombatContext.optional(),
 });
 
+/** Face connue d'un dé de l'attaque, et sa source. */
+const Face = z.object({
+  id: z.string().min(1).max(100),
+  value: z.number().int().min(1).max(1000),
+  source: DieSource.optional(),
+});
+type Face = z.infer<typeof Face>;
+
 const CorpsResoudre = z.object({
   snapshot: z.unknown(),
   params: Parametres.optional(),
@@ -87,11 +109,16 @@ const CorpsResoudre = z.object({
     )
     .max(50)
     .optional(),
-  stepId: z.string().max(100).optional(),
-  faces: z
+  /** Faces des étapes passées (gardées par campaign), rejouées dans l'ordre des identifiants. */
+  faces: z.array(Face).max(2000).optional(),
+  /** Étape soumise : ses dés absents de `results` sont tirés ici (source `server`). */
+  step: RollStep.optional(),
+  /** Faces lues sur les dés 3D pour cette étape (source `physical`). */
+  results: z
     .array(z.object({ id: z.string().min(1).max(100), value: z.number().int().min(1).max(1000) }))
-    .max(400)
+    .max(ROLL_STEP_DICE_MAX)
     .optional(),
+  /** Tout le reste est tiré ici : la réponse porte les résultats, jamais une étape. */
   serverFallback: z.boolean().optional(),
   forcer: z
     .array(
@@ -106,9 +133,14 @@ const CorpsResoudre = z.object({
   diceHistory: HistoriqueDes.optional(),
 });
 
+/**
+ * Résultat d'une cible. `awaiting_dice` : des dés lui restent à lancer ; `result` et `view`
+ * portent alors ce qui est déjà exact (le jet et son issue, sans les dégâts), ou null avant
+ * le jet.
+ */
 const ResolutionCible = z.object({
   characterId: z.string(),
-  status: z.enum(['resolved', 'failed']),
+  status: z.enum(['resolved', 'failed', 'awaiting_dice']),
   error: z.string().nullable(),
   result: AttackTargetResult.nullable(),
   view: AttackTargetView.nullable(),
@@ -210,9 +242,45 @@ function fichesDe(deps: Pick<Deps, 'catalogue'>, inst: Instantane): Fiches {
 // ─── Résolution ────────────────────────────────────────────────────────────────
 
 interface Resolue {
+  /** Étape de dés à lancer ensuite ; null : l'attaque est résolue. */
+  step: RollStep | null;
   resolution: Resolution;
-  /** Résultats du moteur par cible résolue, pour l'historique des dés. */
+  /** Faces connues après cet appel (passées, soumises, tirées), à garder par campaign. */
+  faces: Face[];
+  /** Résultats du moteur par cible résolue, pour l'historique des dés (attaque résolue). */
   resultats: { id: string; resultat: ResultatAction }[];
+}
+
+/** Dés de l'appel : faces connues, étape soumise et ses faces lues, repli du serveur. */
+interface DesAppel {
+  faces?: Face[] | undefined;
+  step?: RollStep | undefined;
+  results?: { id: string; value: number }[] | undefined;
+  serverFallback?: boolean | undefined;
+}
+
+const PHASE_ROLL: Record<Exclude<PhaseDes, 'fin'>, RollPhase> = {
+  jet: 'roll',
+  apres: 'after',
+  tables: 'table',
+};
+
+const invalidFace = (detail: string) => HttpError.badRequest(detail, 'invalid_physical_result');
+
+/**
+ * Libellé d'une étape, tiré des données : l'action pour le jet, les valeurs montrées à
+ * l'attaquant pour la phase d'après (« Dégâts »), les tables de l'action pour les tirages.
+ */
+function libelleEtape(systeme: SystemeCharge, actionId: string, phase: PhaseDes): string | null {
+  const action = systeme.actions.get(actionId);
+  if (!action) return null;
+  if (phase === 'jet') return action.nom;
+  if (phase === 'apres')
+    return action.apres.find((v) => v.visibilite === 'acteur' && v.nom)?.nom ?? null;
+  const tables = [
+    ...new Set(action.tables.map((t) => systeme.tables.get(t.table)?.nom ?? t.table)),
+  ];
+  return tables.length ? tables.join(', ') : null;
 }
 
 function resoudre(
@@ -225,6 +293,7 @@ function resoudre(
     reactions?: z.output<typeof CorpsResoudre>['reactions'];
     forcer?: z.output<typeof CorpsResoudre>['forcer'];
   },
+  des: DesAppel = {},
 ): Resolue {
   const { systeme, acteur, cibles } = fichesDe(deps, inst);
   const reaction = new Map(
@@ -232,38 +301,93 @@ function resoudre(
   );
   const forcer = new Map((o.forcer ?? []).map((f) => [f.characterId, f]));
   const aj = ajustements(o.adjustments);
-  const r = executerMulticible(systeme, {
-    action: inst.action,
-    acteur,
-    cibles: cibles.map((c) => {
-      const f = forcer.get(c.id);
-      const combat = contexteCombat(inst.combat, c.id);
-      return {
-        id: c.id,
-        fiche: c.fiche,
-        ...(combat ? { combat } : {}),
-        ...(reaction.has(c.id) ? { reaction: reaction.get(c.id)! } : {}),
-        ...(f && (f.success !== undefined || f.critical !== undefined)
-          ? {
-              forcer: {
-                ...(f.success !== undefined ? { reussi: f.success } : {}),
-                ...(f.critical !== undefined ? { critique: f.critical } : {}),
-              },
-            }
-          : {}),
-      };
-    }),
-    ...(o.params ? { parametres: o.params } : {}),
-    jet: MODE_JET[o.rollMode],
-    ...(aj ? { ajustements: aj } : {}),
-    aleatoire: deps.aleatoire(),
-  });
-  if (!r.ok) throw refus(messages(r.erreurs), 'action_refusee');
+  const aleatoire = deps.aleatoire();
 
+  // Faces connues, puis celles de l'étape soumise : lues sur les dés 3D, sinon tirées ici
+  const faces = new Map<string, Face>();
+  for (const f of des.faces ?? []) faces.set(f.id, f);
+  if (des.step) {
+    const lues = new Map((des.results ?? []).map((r) => [r.id, r.value]));
+    const connus = new Map(des.step.dice.map((d) => [d.id, d]));
+    for (const [id, value] of lues) {
+      const d = connus.get(id);
+      if (!d) throw invalidFace(`Dé inconnu de l’étape : ${id}`);
+      if (value > d.faces) throw invalidFace(`Face ${value} hors de 1..${d.faces} (dé ${id})`);
+    }
+    for (const d of des.step.dice) {
+      const lue = lues.get(d.id);
+      faces.set(
+        d.id,
+        lue !== undefined
+          ? { id: d.id, value: lue, source: 'physical' }
+          : {
+              id: d.id,
+              value: aleatoire.entier(d.faces, d.die ? { de: d.die } : undefined),
+              source: 'server',
+            },
+      );
+    }
+  }
+
+  const plan = aleatoirePlanifie({
+    faces: Object.fromEntries([...faces].map(([id, f]) => [id, f.value])),
+    commun: o.rollMode === 'shared',
+    ...(des.serverFallback ? { repli: aleatoire } : {}),
+  });
+  const executer = () =>
+    executerMulticible(systeme, {
+      action: inst.action,
+      acteur,
+      cibles: cibles.map((c) => {
+        const f = forcer.get(c.id);
+        const combat = contexteCombat(inst.combat, c.id);
+        return {
+          id: c.id,
+          fiche: c.fiche,
+          ...(combat ? { combat } : {}),
+          ...(reaction.has(c.id) ? { reaction: reaction.get(c.id)! } : {}),
+          ...(f && (f.success !== undefined || f.critical !== undefined)
+            ? {
+                forcer: {
+                  ...(f.success !== undefined ? { reussi: f.success } : {}),
+                  ...(f.critical !== undefined ? { critique: f.critical } : {}),
+                },
+              }
+            : {}),
+        };
+      }),
+      ...(o.params ? { parametres: o.params } : {}),
+      jet: MODE_JET[o.rollMode],
+      ...(aj ? { ajustements: aj } : {}),
+      aleatoire: plan,
+    });
+  let r: ReturnType<typeof executerMulticible>;
+  try {
+    r = executer();
+  } catch (e) {
+    // Une face connue qui ne tient pas sur le dé que le moteur lance (données incohérentes)
+    if (e instanceof Error && /hors de 1\.\./.test(e.message)) throw invalidFace(e.message);
+    throw e;
+  }
+  if (!r.ok) throw refus(messages(r.erreurs), 'action_refusee');
+  for (const [id, value] of Object.entries(plan.tires))
+    faces.set(id, { id, value, source: 'server' });
+
+  const step = r.requis.length ? etape(systeme, inst.action, r.requis, faces.size) : null;
   const parCible = new Map(r.cibles.map((c) => [c.id, c]));
+  const enAttente = new Map(r.enAttente.map((c) => [c.id, c]));
   const refusees = new Map(inst.refused.map((x) => [x.id, x.error]));
   const resultats: Resolue['resultats'] = [];
   const targets = inst.order.map((id): Resolution['targets'][number] => {
+    const attente = enAttente.get(id);
+    if (attente)
+      return {
+        characterId: id,
+        status: 'awaiting_dice',
+        error: null,
+        result: attente.partiel ? resultatCible(systeme, attente.partiel) : null,
+        view: attente.partiel ? vueCible(systeme, attente.partiel) : null,
+      };
     const c = parCible.get(id);
     if (!c || !c.ok)
       return {
@@ -283,8 +407,37 @@ function resoudre(
     };
   });
   return {
+    step,
     resolution: { targets, actor: { modifications: r.acteur.map(versModification) } },
-    resultats,
+    faces: [...faces.values()],
+    resultats: step ? [] : resultats,
+  };
+}
+
+/**
+ * Étape de dés : les dés que le moteur demande, pour toutes les cibles ensemble. Son
+ * identifiant suit le nombre de faces déjà connues (il croît à chaque étape) : une étape
+ * rejouée garde le sien, une étape passée ne revient jamais.
+ */
+function etape(
+  systeme: SystemeCharge,
+  actionId: string,
+  requis: DeRequis[],
+  connues: number,
+): RollStep {
+  const phase = premierePhase(requis.map((d) => d.phase)) ?? 'jet';
+  const rollPhase = PHASE_ROLL[phase === 'fin' ? 'tables' : phase];
+  const label = libelleEtape(systeme, actionId, phase);
+  return {
+    id: `${rollPhase}-${connues}`,
+    phase: rollPhase,
+    ...(label ? { label } : {}),
+    dice: requis.slice(0, ROLL_STEP_DICE_MAX).map((d) => ({
+      id: d.id,
+      targetId: d.cible ?? null,
+      faces: d.faces,
+      ...(d.de ? { die: d.de } : {}),
+    })),
   };
 }
 
@@ -457,7 +610,10 @@ export function registerActionRoutes(
         };
       });
 
-      // Aucune réaction attendue : les dés du serveur résolvent tout de suite
+      // Aucune réaction attendue : la première étape de dés (le jet), ou la résolution
+      // d'une action qui ne lance aucun dé. Avec des réactions, le plan attend leurs réponses
+      // (l'Esquive change la réserve).
+      let step: RollStep | null = null;
       let resolution: Resolution | null = null;
       if (targets.every((t) => !t.reactionParams.length)) {
         const resolue = resoudre(deps, inst, {
@@ -465,19 +621,22 @@ export function registerActionRoutes(
           rollMode,
           adjustments: b.adjustments,
         });
-        resolution = resolue.resolution;
-        if (b.diceHistory)
-          transmettre(deps, inst, resolue, rollMode, b.diceHistory, correlation(req));
+        step = resolue.step;
+        if (!step) {
+          resolution = resolue.resolution;
+          if (b.diceHistory)
+            transmettre(deps, inst, resolue, rollMode, b.diceHistory, correlation(req));
+        }
       }
 
       return {
         snapshot: inst,
         action: { id: action.id, name: action.nom },
         rollMode,
-        // Étape B : le serveur tire tous les dés (docs/combat.md § 6.6)
-        dice: 'server' as const,
+        // Les faces viennent des dés 3D ou du serveur, étape par étape (docs/combat.md § 6)
+        dice: b.dice ?? ('server' as const),
         targets,
-        step: null,
+        step,
         resolution,
       };
     },
@@ -491,7 +650,13 @@ export function registerActionRoutes(
       schema: {
         hide: true,
         body: CorpsResoudre,
-        response: { 200: z.object({ step: RollStep.nullable(), resolution: Resolution }) },
+        response: {
+          200: z.object({
+            step: RollStep.nullable(),
+            resolution: Resolution,
+            faces: z.array(Face),
+          }),
+        },
       },
     },
     async (req) => {
@@ -499,10 +664,11 @@ export function registerActionRoutes(
       const lu = Instantane.safeParse(b.snapshot);
       if (!lu.success) throw HttpError.badRequest('Instantané illisible', 'invalid_snapshot');
       const inst = lu.data;
-      const resolue = resoudre(deps, inst, b);
-      if (b.diceHistory)
+      const resolue = resoudre(deps, inst, b, b);
+      // Le jet part à l'historique une fois l'attaque résolue, jamais étape par étape
+      if (b.diceHistory && !resolue.step)
         transmettre(deps, inst, resolue, b.rollMode, b.diceHistory, correlation(req));
-      return { step: null, resolution: resolue.resolution };
+      return { step: resolue.step, resolution: resolue.resolution, faces: resolue.faces };
     },
   );
 }
