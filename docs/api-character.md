@@ -240,6 +240,7 @@ avec `@vtt/rules` ; campaign garde les attaques, les rapports et les décisions 
 | POST    | `/internal/modifications/apply`             | `{ applications: [{ applicationId, userId?, campaignId, items: [{ characterId, modifications, tables? }] }] }`              | `{ applications: [{ applicationId, replayed, items: [{ characterId, version, changes, defeated }] }] }`     |
 | POST    | `/internal/modifications/revert`            | `{ applicationId, characterIds?, force?, userId? }`                                                                         | `{ applicationId, items: [{ characterId, status, version, changes, defeated? }] }`                          |
 | POST    | `/internal/characters/:id/durees/decompter` | `{ userId?, roomId?, tickId?, clear? }`                                                                                     | `{ modifie, retirees, version, replayed?, personnage? }`                                                    |
+| POST    | `/internal/characters/:id/actions/:action`  | `{ parametres?, cibleId?, appliquer?, userId?, roomId?, visibility? }`                                                      | `{ resultat, cles?, personnage?, cible? }`                                                                  |
 
 - **Préparer** : les fiches de l'attaquant et des cibles sont figées dans `snapshot` (état et
   règles optionnelles de chaque campagne), objet opaque que campaign garde et rend tel quel à
@@ -275,9 +276,14 @@ shared` partage les dés par phase et par position. Par cible : `result` (contra
   `revert_conflict` avec `conflicts: [{ characterId, paths }]`, rien n'est écrit, et `force` rend
   quand même. `status` : `reverted`, `already_reverted` (annuler deux fois ne rend rien de plus),
   `missing` (personnage supprimé depuis). Application inconnue : **404** `application_not_found`.
+- **Initiative** (`…/actions/:action`, action d'initiative du système jouée par le serveur) :
+  `cles` donne les clés de tri ; `visibility` règle le jet transmis à dice (campaign demande `gm`
+  pour un PNJ, un allié ou un participant caché : son nom et sa statistique ne fuient pas ;
+  défaut : public).
 - Événements : `character.updated` (opérations `combat.application`, `combat.annulation`,
   `durees.decompte`, avec `applicationId` ou `tickId`), publiés dans la campagne en `gm_only`
-  avec `visibleToUsers` : le joueur qui incarne le personnage.
+  avec `visibleToUsers` : le joueur qui incarne le personnage (pour un décompte, lu dans les
+  droits de l'appelant, `incarnateurs`).
 - Base : changeset `0010-applications.sql` (`applications` : une par `applicationId` ou
   `tickId`, avec la réponse d'origine ; `application_items` : une par personnage touché, delta
   avant/après pour l'annulation, résultat, date d'annulation).
