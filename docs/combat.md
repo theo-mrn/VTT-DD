@@ -727,6 +727,100 @@ Publiques : `POST /possessions` accepte `duree` (états) et `soundAssetId` (son 
 par les joueurs (Q4). L'action publique `…/actions/:action` avec `appliquer` et une cible reste pour
 la compatibilité ; le front n'y passe plus pour attaquer.
 
+#### Forme exacte des routes internes (fixée par le lot 2)
+
+Champs en anglais ; types du contrat (`@vtt/contracts`, `combat.ts`) quand ils existent. Erreurs en
+problem+json : 400 `validation_failed`, 404 `character_not_found` (un personnage absent ou
+supprimé, rien n'est écrit), 422 `action_refusee` (règles), 422 `modification_invalide`.
+
+**`POST /internal/actions/prepare`**
+
+```
+{ actorId, action, params?, targetIds (1..50, uniques, l'attaquant permis),
+  rollMode?,            // absent : multicible.jet de l'action, sinon per_target
+  adjustments?,         // RollAdjustments
+  dice?,                // 'server' (défaut) | 'physical' ; étape B : toujours server
+  userId, campaignId,
+  diceHistory? }        // { campaignId, authorId, visibility } : jet transmis à dice si résolu ici
+→ 200 { snapshot,       // objet opaque : le rendre tel quel à resolve (colonne réservée de campaign)
+        action: { id, name },
+        rollMode, dice,  // retenus
+        targets: [{ characterId, error: string | null, reactionParams: string[] }],
+        step: RollStep | null,               // dés physiques à lancer (étape C)
+        resolution: ActionResolution | null } // résolu tout de suite : dés serveur, aucune réaction
+```
+
+- `params` : ceux de l'attaquant ; un paramètre `par: cible` envoyé ici est ignoré.
+- `reactionParams` : paramètres `par: cible` proposés à cette cible (leur `exige` est vrai pour
+  elle). Dès qu'une cible en a, `resolution` est null : campaign attend les réactions, puis appelle
+  resolve (même avec des dés serveur).
+- Refus de toutes les cibles, ou refus propre à l'attaquant (paramètre, `exige`) : 422
+  `action_refusee`, `detail` = les messages. Refus d'une partie des cibles : `error` renseigné,
+  la cible est `failed` dans la résolution, les autres continuent.
+
+**`POST /internal/actions/resolve`**
+
+```
+{ snapshot, params?, rollMode, adjustments?, dice?,
+  reactions?: [{ characterId, params?, skipped? }],  // absente ou skipped : valeurs par défaut
+  stepId?, faces?: [{ id, value }], serverFallback?, // étape C (étape B : le serveur tire tout)
+  forcer?: [{ characterId, success?, critical? }],   // étape D (§ 7.5)
+  diceHistory? }
+→ 200 { step: RollStep | null, resolution: ActionResolution | null }  // l'un ou l'autre
+
+ActionResolution = {
+  targets: [{ characterId, status: 'resolved' | 'failed', error: string | null,
+              result: AttackTargetResult | null,    // MJ seul
+              view: AttackTargetView | null }],     // attaquant (vueActeur)
+  actor: { modifications: AttackModification[] } }  // coûts de l'attaquant, comptés une fois
+```
+
+- Déterministe : même instantané, mêmes paramètres, mêmes faces, même résultat.
+- `result.modifications` : celles de la cible (`entity: target`) ; celles de l'attaquant sont dans
+  `actor` (celles de la première cible résolue, une seule fois, quel que soit `rollMode`).
+- Jet de l'historique (`diceHistory`) : transmis à dice après la résolution, réduit à la vue de
+  l'attaquant ; un par cible en `per_target`, un seul en `shared` (les dés communs).
+
+**`POST /internal/modifications/apply`**
+
+```
+{ applications: [{                       // 1..50, une seule transaction : tout ou rien
+    applicationId,                       // texte (UUIDv7 de campaign) ; idempotence
+    userId?, campaignId,                 // auteur (MJ) et campagne des événements character.updated
+    items: [{ characterId,               // 1..100 ; un personnage peut revenir (auto-attaque)
+              modifications: AttackModificationInput[],
+              tables?: [{ table, entry: string | null }] }] }] }  // entrée d'une ligne de la table
+→ 200 { applications: [{ applicationId, replayed: boolean,     // déjà appliquée : réponse d'origine
+        items: [{ characterId, version, changes, defeated }] }] } // un par personnage
+```
+
+- Aucun dé : les valeurs sont appliquées telles quelles ; une ressource est ramenée dans ses bornes
+  (un dépassement du maximum reste permis si elle n'est pas plafonnée).
+- `defeated` : formule `horsCombat` du type d'entité sur la fiche après application (faux sans
+  formule). 422 `modification_invalide` (attribut qui n'est ni de base ni une ressource, entrée
+  inconnue ou non possédable, table inconnue, entrée absente de la table), avec `errors:
+[{ characterId, message }]` ; rien n'est écrit.
+
+**`POST /internal/modifications/revert`**
+
+```
+{ applicationId, characterIds?, force?, userId? }
+→ 200 { applicationId,
+        items: [{ characterId, status: 'reverted' | 'already_reverted' | 'missing',
+                  version, changes, defeated }] }
+```
+
+- 404 `application_not_found` ; 409 `revert_conflict`, `conflicts: [{ characterId, paths }]`
+  (chemins au format de `changes` : `etat.valeurs.PV`, `etat.possessions[entree#exemplaire]`,
+  `etat.bonus[id]`), rien n'est écrit ; `force` rend quand même. `missing` : personnage supprimé
+  depuis, ignoré. Une fiche touchée deux fois dans une application (auto-attaque : cible et coûts
+  de l'attaquant) se rend en entier.
+- Un décompte de durées se rend de la même façon : `applicationId = tickId`.
+
+**`POST /internal/characters/:id/durees/decompter`** : corps existant + `tickId?` (texte,
+`tick:<combatId>:<round>`) ; réponse existante (`modifie`, `retirees`, `version`) + `replayed`. Même
+`tickId` et même personnage : rien n'est décompté une seconde fois, la réponse d'origine revient.
+
 ### 11.3 audio (Q2)
 
 `POST /internal/campaigns/:id/cues { assetId }` (auteur système) : joue un effet de la bibliothèque
