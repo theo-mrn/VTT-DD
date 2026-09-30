@@ -5,7 +5,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { characters, outbox } from '../../db/schema.js';
-import { appDeTest, TEST_DATABASE_URL } from '../../test/app-de-test.js';
+import { appDeTest, droitsSimules, TEST_DATABASE_URL } from '../../test/app-de-test.js';
 import { outils, type Utilisateur } from '../../test/outils.js';
 
 type Contexte = Awaited<ReturnType<typeof appDeTest>>;
@@ -164,6 +164,54 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
       actor: { userId: mj.id, role: 'gm' },
       payload: { retirees: ['aveugle'] },
     });
+  });
+
+  it('décompte annoncé au joueur qui incarne ; jet d’initiative caché sur demande', async () => {
+    const d = droitsSimules();
+    await t.fermer();
+    t = await appDeTest({ INTERNAL_API_SECRET: SECRET }, { droits: d.droits });
+    o = outils(t);
+    alice = await t.utilisateur();
+    mj = await t.utilisateur();
+    const roomId = crypto.randomUUID();
+    const p = await o.nainGuerrier(alice, 'Thorin');
+    d.accorder(p.id, mj.id, {
+      lecture: true,
+      ecriture: true,
+      incarnateurs: { [roomId]: alice.id },
+    });
+    const s = await o.ok(alice, 'GET', `/v1/characters/${p.id}`);
+    await o.ok(alice, 'POST', `/v1/characters/${p.id}/possessions`, {
+      version: s.version,
+      entree: 'aveugle',
+      duree: 1,
+    });
+    const r = await post(`/internal/characters/${p.id}/durees/decompter`, {
+      userId: mj.id,
+      roomId,
+      tickId: `tick:${crypto.randomUUID()}:1:x`,
+    });
+    expect(r.json()).toMatchObject({ modifie: true, retirees: ['aveugle'] });
+    const [evenement] = await t
+      .db!.select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(
+        sql`${outbox.envelope}->'aggregate'->>'id' = ${p.id} and ${outbox.envelope}->'payload'->>'operation' = 'durees.decompte'`,
+      );
+    expect(evenement!.envelope).toMatchObject({
+      visibility: 'gm_only',
+      payload: { visibleToUsers: [alice.id] },
+    });
+
+    // Initiative d'un PNJ : le jet transmis à dice est caché (MJ)
+    const res = await post(`/internal/characters/${p.id}/actions/initiative`, {
+      appliquer: true,
+      userId: mj.id,
+      roomId,
+      visibility: 'gm',
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(t.jets.at(-1)).toMatchObject({ actionId: 'initiative', visibility: 'gm' });
   });
 
   it('sans INTERNAL_API_SECRET, les routes internes n’existent pas', async () => {

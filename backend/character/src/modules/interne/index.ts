@@ -84,6 +84,20 @@ const appelant = (o: z.output<typeof Origine>): Appelant => ({
   roomId: o.roomId ?? null,
 });
 
+/**
+ * Membre qui incarne le personnage dans la campagne de l'appel (celui qui reçoit la fiche en
+ * direct), lu dans les droits de l'appelant ; null hors campagne ou si personne ne l'incarne.
+ */
+async function incarnateur(
+  deps: Pick<Parameters<Module>[1], 'droits'>,
+  characterId: string,
+  origine: z.output<typeof Origine>,
+): Promise<string | null> {
+  if (!origine.userId || !origine.roomId) return null;
+  const droits = await deps.droits.de(characterId, origine.userId);
+  return droits.incarnateurs?.[origine.roomId] ?? null;
+}
+
 export const register: Module = async (app, deps) => {
   const secret = deps.config.INTERNAL_API_SECRET;
   if (!secret) {
@@ -265,6 +279,8 @@ export const register: Module = async (app, deps) => {
       const ctx = contexte(req);
       const { tickId, clear = false, ...origine } = req.body;
       const options = await deps.droits.options(req.params.id);
+      // Le joueur qui incarne le personnage voit sa fiche changer en direct (états expirés)
+      const joueur = await incarnateur(deps, req.params.id, origine);
       return db.transaction(async (tx) => {
         const [ligne] = await verrouiller(tx, [req.params.id]);
         if (tickId) {
@@ -277,7 +293,7 @@ export const register: Module = async (app, deps) => {
               tx,
               ctx,
               catalogue,
-              appelant(origine),
+              { ...appelant(origine), joueur },
               ligne!,
               { etat },
               {
