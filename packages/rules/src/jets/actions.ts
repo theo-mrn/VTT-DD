@@ -59,7 +59,35 @@ export interface DemandeAction {
   /** Valeurs des paramètres, par identifiant ; les absents prennent leur défaut. */
   parametres?: Record<string, Valeur>;
   aleatoire: Generateur;
+  /** Ajustements libres du jet, hors règles, appliqués après les effets. */
+  ajustements?: Ajustements;
+  /** Issue corrigée par le MJ : remplace la réussite (et le critique d'un jet numérique). */
+  forcer?: IssueForcee;
 }
+
+/**
+ * Côté d'où vient une ligne d'un jet : l'action elle-même, l'acteur (ses effets, ses
+ * ajustements), ou la cible (défense active). La vue de l'acteur anonymise le côté cible.
+ */
+export type CoteJet = 'action' | 'acteur' | 'cible';
+
+/**
+ * Ajustements libres d'un jet (l'ancien compteur de pool « forcé ») : dés à symboles ajoutés
+ * (nombre positif) ou retirés (négatif) par sorte, bonus au total d'un jet numérique.
+ */
+export interface Ajustements {
+  des?: { de: string; nombre: number }[];
+  bonus?: number;
+}
+
+/** Issue imposée (« c'est un critique ») : les dés ne changent pas, seules ces valeurs. */
+export interface IssueForcee {
+  reussi?: boolean;
+  critique?: boolean;
+}
+
+/** Source des lignes d'un ajustement libre (construction du pool, bonus). */
+export const SOURCE_AJUSTEMENT = 'ajustement';
 
 export interface ErreurAction {
   /** Paramètre concerné, le cas échéant. */
@@ -72,6 +100,7 @@ export interface BonusJet {
   source: string;
   nom: string;
   valeur: number;
+  cote: CoteJet;
 }
 
 /** Étape de construction d'un pool de dés à symboles. */
@@ -83,6 +112,7 @@ export interface EtapePool {
   de: string;
   vers?: string;
   nombre: number;
+  cote: CoteJet;
 }
 
 export interface JetNumeriqueResultat {
@@ -127,6 +157,10 @@ export interface ResultatAction {
   explications: string[];
   /** Formules en échec (remplacées par une valeur par défaut). */
   erreurs: ErreurJet[];
+  /** Le jet porte des ajustements libres (hors règles). */
+  ajuste?: boolean;
+  /** L'issue a été imposée (`forcer`). */
+  force?: boolean;
 }
 
 export type ResultatExecution =
@@ -291,6 +325,16 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       }
     }
   }
+  const sortesDes = systeme.source.des?.sortes ?? [];
+  for (const a of demande.ajustements?.des ?? []) {
+    if (action.jet.type === 'symboles' && !sortesDes.some((x) => x.id === a.de))
+      refus.push({ message: `Ajustement : dé inconnu (${a.de})` });
+    if (!Number.isInteger(a.nombre))
+      refus.push({ message: `Ajustement : nombre de dés entier attendu` });
+  }
+  const bonusLibre = demande.ajustements?.bonus;
+  if (bonusLibre !== undefined && !Number.isFinite(bonusLibre))
+    refus.push({ message: 'Ajustement : bonus numérique attendu' });
   if (refus.length) return { ok: false, erreurs: refus };
 
   const exige = systeme.formules.get(chemins.action(action.id, 'exige'));
@@ -303,6 +347,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
 
   // ─── Contexte d'évaluation ────────────────────────────────────────────────
 
+  aleatoire.phase?.('jet');
   const ch = (x: string) => chemins.action(action.id, x);
   const erreurs: ErreurJet[] = [];
   const explications: string[] = [];
@@ -497,7 +542,13 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   }
 
   type AjoutJet = NonNullable<Extract<Effet, { sur: 'jet' }>['ajout']>;
-  const effets: { source: string; ajout: AjoutJet; valeur: number; nom: string }[] = [];
+  const effets: {
+    source: string;
+    ajout: AjoutJet;
+    valeur: number;
+    nom: string;
+    cote: CoteJet;
+  }[] = [];
   // Effets de l'acteur, puis effets défensifs de la cible (`cote: cible`) :
   // entrées du catalogue, exemplaires et bonus libres, par le même chemin
   const porteurs: [Fiche, 'acteur' | 'cible'][] = [[acteur, 'acteur']];
@@ -531,6 +582,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
           ajout: f.ajout,
           valeur,
           nom: f.description ?? source.nom,
+          cote,
         });
       });
     }
@@ -566,10 +618,14 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const valeur = Number(r.valeur);
     const bonus: BonusJet[] = [];
     for (const e of effets) {
-      if ('bonus' in e.ajout) bonus.push({ source: e.source, nom: e.nom, valeur: e.valeur });
+      if ('bonus' in e.ajout)
+        bonus.push({ source: e.source, nom: e.nom, valeur: e.valeur, cote: e.cote });
       else if (!('variable' in e.ajout))
         explications.push(`${e.nom} : ignoré (dés à symboles sur un jet numérique)`);
     }
+    if (bonusLibre) bonus.push(bonusAjustement(bonusLibre));
+    if (demande.ajustements?.des?.length)
+      explications.push('Ajustement des dés : ignoré (jet numérique)');
     const total = valeur + bonus.reduce((s, b) => s + b.valeur, 0);
     const naturel = r.jets.reduce((s, j) => s + j.total, 0);
     variables.set('total', total);
@@ -578,9 +634,11 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const lire = (k: 'critique' | 'fumble' | 'reussite', defaut: boolean): boolean =>
       jet[k] === undefined ? defaut : ev(ch(`jet/${k}`), false) === true;
     reussi = lire('reussite', true);
-    const critique = lire('critique', false);
+    let critique = lire('critique', false);
     const fumble = lire('fumble', false);
-    if (jet.critique !== undefined) variables.set('critique', critique);
+    if (demande.forcer?.critique !== undefined) critique = demande.forcer.critique;
+    if (jet.critique !== undefined || demande.forcer?.critique !== undefined)
+      variables.set('critique', critique);
     if (jet.fumble !== undefined) variables.set('fumble', fumble);
 
     const des = r.jets.length ? ` [${r.jets.map(decrireJet).join(' ; ')}]` : '';
@@ -604,20 +662,27 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   } else {
     const construction: EtapePool[] = [];
     let pool: Pool = [];
-    const ajouter = (source: string, nom: string, de: string, nombre: number) => {
-      construction.push({ source, nom, operation: 'ajouter', de, nombre });
+    const ajouter = (source: string, nom: string, de: string, nombre: number, cote: CoteJet) => {
+      construction.push({ source, nom, operation: 'ajouter', de, nombre, cote });
       pool.push({ de, nombre });
     };
-    const ameliorerPool = (source: string, nom: string, de: string, vers: string, n: number) => {
-      construction.push({ source, nom, operation: 'ameliorer', de, vers, nombre: n });
+    const ameliorerPool = (
+      source: string,
+      nom: string,
+      de: string,
+      vers: string,
+      n: number,
+      cote: CoteJet,
+    ) => {
+      construction.push({ source, nom, operation: 'ameliorer', de, vers, nombre: n, cote });
       pool = ameliorer(pool, de, vers, n);
     };
 
     jet.pool.forEach((p, i) =>
-      ajouter('action', action.nom, p.de, nombreDes(ev(ch(`jet/pool/${i}`), 0))),
+      ajouter('action', action.nom, p.de, nombreDes(ev(ch(`jet/pool/${i}`), 0)), 'action'),
     );
     for (const e of effets)
-      if ('de' in e.ajout) ajouter(e.source, e.nom, e.ajout.de, nombreDes(e.valeur));
+      if ('de' in e.ajout) ajouter(e.source, e.nom, e.ajout.de, nombreDes(e.valeur), e.cote);
     jet.ameliorations.forEach((a, i) =>
       ameliorerPool(
         'action',
@@ -625,11 +690,19 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         a.de,
         a.vers,
         nombreDes(ev(ch(`jet/ameliorations/${i}`), 0)),
+        'action',
       ),
     );
     for (const e of effets) {
       if ('ameliorer' in e.ajout)
-        ameliorerPool(e.source, e.nom, e.ajout.ameliorer, e.ajout.vers, nombreDes(e.valeur));
+        ameliorerPool(
+          e.source,
+          e.nom,
+          e.ajout.ameliorer,
+          e.ajout.vers,
+          nombreDes(e.valeur),
+          e.cote,
+        );
       else if ('bonus' in e.ajout)
         explications.push(`${e.nom} : ignoré (bonus sur un jet à symboles)`);
     }
@@ -644,6 +717,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         de,
         vers,
         nombre: n,
+        cote: e.cote,
       });
       pool = retrograder(pool, de, vers, n);
     }
@@ -651,9 +725,32 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       if (!('retirer' in e.ajout)) continue;
       const de = e.ajout.retirer;
       const n = nombreDes(e.valeur);
-      construction.push({ source: e.source, nom: e.nom, operation: 'retirer', de, nombre: n });
+      construction.push({
+        source: e.source,
+        nom: e.nom,
+        operation: 'retirer',
+        de,
+        nombre: n,
+        cote: e.cote,
+      });
       pool = retirer(pool, de, n);
     }
+    // Ajustements libres, après les effets : dés ajoutés ou retirés à la main
+    for (const a of demande.ajustements?.des ?? []) {
+      if (!a.nombre) continue;
+      const nombre = Math.abs(a.nombre);
+      const operation = a.nombre > 0 ? 'ajouter' : 'retirer';
+      construction.push({
+        source: SOURCE_AJUSTEMENT,
+        nom: NOM_AJUSTEMENT,
+        operation,
+        de: a.de,
+        nombre,
+        cote: 'acteur',
+      });
+      pool = a.nombre > 0 ? [...pool, { de: a.de, nombre }] : retirer(pool, a.de, nombre);
+    }
+    if (bonusLibre) explications.push(`${NOM_AJUSTEMENT} : bonus ignoré (jet à symboles)`);
 
     // Pool final, dans l'ordre des sortes du système, borné au nombre maximal de dés
     const sortes = systeme.source.des?.sortes ?? [];
@@ -683,11 +780,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
 
     for (const e of construction) {
       if (e.source === 'action' && e.operation === 'ajouter') continue;
-      explications.push(
-        e.operation === 'ajouter'
-          ? `${e.nom} : ${signe(e.nombre)} ${nomDe(e.de)}`
-          : `${e.nom} : ${e.nombre} ${nomDe(e.de)} → ${nomDe(e.vers!)}`,
-      );
+      explications.push(decrireEtape(e, nomDe));
     }
     explications.push(
       `Pool : ${pool.map((p) => `${p.nombre} × ${nomDe(p.de)}`).join(', ') || 'aucun dé'}`,
@@ -711,11 +804,15 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     };
   }
 
+  if (demande.forcer?.reussi !== undefined) reussi = demande.forcer.reussi;
+  const force = demande.forcer?.reussi !== undefined || demande.forcer?.critique !== undefined;
+  if (force) explications.push('Issue corrigée par le MJ');
   variables.set('reussi', reussi);
   explications.push(reussi ? 'Réussite' : 'Échec');
 
   // ─── Après le jet, conséquences, tables ───────────────────────────────────
 
+  aleatoire.phase?.('apres');
   for (const v of action.apres) {
     const chemin = ch(`apres/${v.cle}`);
     const r = calculerFormule(chemin, defautDe(systeme.formule(chemin).type), ctx);
@@ -826,6 +923,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     explications.push(`${qui} : ${nom} ${op}`);
   });
 
+  aleatoire.phase?.('tables');
   const tables: TirageTable[] = [];
   action.tables.forEach((t, i) => {
     const ou = ch(`tables/${i}`);
@@ -838,6 +936,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     explications.push(`${nom} : ${tirage.valeur} → ${tirage.ligne?.nom ?? 'aucune ligne'}`);
   });
 
+  aleatoire.phase?.('fin');
+  const ajuste = Boolean(bonusLibre) || (demande.ajustements?.des ?? []).some((a) => a.nombre);
   return {
     ok: true,
     resultat: {
@@ -850,13 +950,29 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       tables,
       explications,
       erreurs,
+      ...(ajuste ? { ajuste } : {}),
+      ...(force ? { force } : {}),
     },
     evaluer: ev,
   };
 }
 
+/** Libellé des lignes d'un ajustement libre. */
+export const NOM_AJUSTEMENT = 'Ajusté à la main';
+
+function bonusAjustement(valeur: number): BonusJet {
+  return { source: SOURCE_AJUSTEMENT, nom: NOM_AJUSTEMENT, valeur, cote: 'acteur' };
+}
+
+/** Ligne du déroulé pour une étape de construction d'un pool. */
+export function decrireEtape(e: EtapePool, nomDe: (id: string) => string): string {
+  if (e.operation === 'ajouter') return `${e.nom} : ${signe(e.nombre)} ${nomDe(e.de)}`;
+  if (e.operation === 'retirer') return `${e.nom} : ${signe(-e.nombre)} ${nomDe(e.de)}`;
+  return `${e.nom} : ${e.nombre} ${nomDe(e.de)} → ${nomDe(e.vers!)}`;
+}
+
 /** `d20 : 17` ; dés écartés entre parenthèses, dés d'explosion suivis de « ! ». */
-function decrireJet(j: JetDes): string {
+export function decrireJet(j: JetDes): string {
   const des = j.des.map((d) => {
     const v = `${d.valeur}${d.explosion ? '!' : ''}`;
     return d.garde ? v : `(${v})`;

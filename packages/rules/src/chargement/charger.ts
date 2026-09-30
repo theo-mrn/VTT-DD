@@ -109,6 +109,8 @@ export const chemins = {
   resultat: (cle: string) => `des/resultats/${cle}`,
   action: (id: string, champ: string) => `actions/${id}/${champ}`,
   tri: (i: number) => `initiative/tri/${i}`,
+  /** Formule « hors de combat » d'un type d'entité. */
+  horsCombat: (entite: string) => `entites/${entite}/horsCombat`,
   table: (id: string) => `tables/${id}/jet`,
 };
 
@@ -397,6 +399,8 @@ class Chargeur {
 
         if ('jet' in a && a.jet) this.verifierJet(id, a, a.jet, moi);
       }
+      if (e.type.horsCombat !== undefined)
+        this.compiler(chemins.horsCombat(id), e.type.horsCombat, moi, 'booleen');
     }
   }
 
@@ -851,6 +855,8 @@ class Chargeur {
       const ch = (x: string) => chemins.action(a.id, x);
       this.verifierTypes(chemin, a.pour);
       if (a.cible) this.verifierTypes(chemin, a.cible);
+      if (a.multicible && !a.cible)
+        this.erreur(`${chemin}/multicible`, 'Plusieurs cibles pour une action sans cible');
 
       const variables: Record<string, TypeValeur> = {};
       const declarer = (nom: string, type: TypeValeur, ou: string) => {

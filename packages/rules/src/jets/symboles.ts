@@ -118,7 +118,7 @@ export function lancerSymboles(
   const lances: DeSymbole[] = [];
   for (const sorte of des.sortes) {
     for (let i = 0; i < (nombres.get(sorte.id) ?? 0); i++) {
-      const face = generateur.entier(sorte.faces.length);
+      const face = generateur.entier(sorte.faces.length, { de: sorte.id });
       const porte: Record<string, number> = {};
       for (const [sym, n] of Object.entries(sorte.faces[face - 1]!)) {
         if (n <= 0) continue;

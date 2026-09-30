@@ -226,6 +226,11 @@ export const TypeEntite = z.object({
    * (`option("encombrement") et @surcharge`).
    */
   effets: z.array(Effet).default([]),
+  /**
+   * Hors de combat : formule booléenne sur l'entité (`@PV <= 0`, `@neutralise`), évaluée après
+   * chaque application d'une attaque. Absente : aucune détection, le MJ décide lui-même.
+   */
+  horsCombat: Formule.optional(),
 });
 export type TypeEntite = z.output<typeof TypeEntite>;
 
@@ -625,6 +630,31 @@ export const ConsequenceEntree = z.object({
 export const Consequence = z.union([ConsequenceAttribut, ConsequenceEntree]);
 export type Consequence = z.output<typeof Consequence>;
 
+/**
+ * Valeur calculée d'une action (`variables`, `apres`). `visibilite: acteur` : montrée à qui agit
+ * (dégâts lancés), dans sa vue du résultat et le jet de l'historique ; `mj` (défaut) : réservée
+ * au MJ, comme tout ce qui peut dépendre de la cible.
+ */
+export const ValeurAction = z.object({
+  cle: Cle,
+  formule: Formule,
+  /** Libellé montré avec la valeur (« Dégâts »). */
+  nom: Libelle.optional(),
+  visibilite: z.enum(['acteur', 'mj']).default('mj'),
+});
+export type ValeurAction = z.output<typeof ValeurAction>;
+
+/**
+ * Plusieurs cibles : `commun`, un seul jet partagé (zone : les dés de chaque phase sont lancés
+ * une fois pour toutes, un dé propre à une cible l'est pour elle seule) ; `par-cible`, un jet
+ * par cible. C'est le mode proposé par défaut ; `max` borne le nombre de cibles.
+ */
+export const Multicible = z.object({
+  jet: z.enum(['commun', 'par-cible']).default('par-cible'),
+  max: z.number().int().min(1).max(50).optional(),
+});
+export type Multicible = z.output<typeof Multicible>;
+
 export const Action = z.object({
   id: Id,
   nom: Libelle,
@@ -643,17 +673,19 @@ export const Action = z.object({
     .optional(),
   parametres: z.array(Parametre).default([]),
   /** Valeurs intermédiaires calculées avant le jet, utilisables ensuite par leur clé. */
-  variables: z.array(z.object({ cle: Cle, formule: Formule })).default([]),
+  variables: z.array(ValeurAction).default([]),
   /** Refus de l'action après lecture des paramètres et variables (arme non possédée…). */
   verifications: z.array(z.object({ condition: Formule, message: Libelle })).default([]),
   jet: Jet,
   /** Valeurs calculées après le jet (dégâts…), avec `total`/résultats et `reussi`. */
-  apres: z.array(z.object({ cle: Cle, formule: Formule })).default([]),
+  apres: z.array(ValeurAction).default([]),
   consequences: z.array(Consequence).default([]),
   /** Table à tirer si la condition est vraie (blessure critique…). */
   tables: z
     .array(z.object({ table: Id, condition: Formule, modificateur: Formule.optional() }))
     .default([]),
+  /** Action à cible jouable contre plusieurs cibles : mode de jet proposé, plafond. */
+  multicible: Multicible.optional(),
 });
 export type Action = z.output<typeof Action>;
 
@@ -661,7 +693,13 @@ export const Initiative = z.object({
   action: Id,
   /** Clés de tri, de la plus importante à la moins importante (ordre décroissant). */
   tri: z.array(Formule).min(1),
+  /**
+   * `individuel` : chacun agit à son tour, dans l'ordre ; `creneaux` : l'ordre donne une suite
+   * de créneaux par camp, un participant du camp agit pendant chacun (Star Wars).
+   */
+  mode: z.enum(['individuel', 'creneaux']).default('individuel'),
 });
+export type Initiative = z.output<typeof Initiative>;
 
 export const Table = z.object({
   id: Id,

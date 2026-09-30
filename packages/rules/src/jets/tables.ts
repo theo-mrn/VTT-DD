@@ -77,3 +77,15 @@ export function tirerTable(
 
   return { table: id, modificateur, valeur, jets, ligne, horsTable, erreurs };
 }
+
+/**
+ * Ligne d'une table qui donne l'entrée `entree` : une table appliquée donne l'entrée de sa
+ * ligne tirée, ou celle d'une autre ligne choisie par le MJ, sans nouveau tirage.
+ */
+export function ligneDeTable(
+  systeme: SystemeCharge,
+  table: string,
+  entree: string,
+): LigneTable | undefined {
+  return systeme.tables.get(table)?.lignes.find((l) => l.entree === entree);
+}

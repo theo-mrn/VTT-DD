@@ -311,6 +311,7 @@ describe('test de compétence à symboles', () => {
       { de: 'maitrise', nombre: 3 },
       { de: 'difficulte', nombre: 2 },
     ]);
+    // Côté de chaque ligne : l'action, ou l'acteur pour ses propres effets
     expect(jet(r).construction).toEqual([
       {
         source: 'action',
@@ -318,6 +319,7 @@ describe('test de compétence à symboles', () => {
         operation: 'ajouter',
         de: 'aptitude',
         nombre: 3,
+        cote: 'action',
       },
       {
         source: 'action',
@@ -325,8 +327,16 @@ describe('test de compétence à symboles', () => {
         operation: 'ajouter',
         de: 'difficulte',
         nombre: 2,
+        cote: 'action',
       },
-      { source: 'puissant', nom: 'Puissant', operation: 'ajouter', de: 'aptitude', nombre: 1 },
+      {
+        source: 'puissant',
+        nom: 'Puissant',
+        operation: 'ajouter',
+        de: 'aptitude',
+        nombre: 1,
+        cote: 'acteur',
+      },
       {
         source: 'action',
         nom: 'Test de compétence',
@@ -334,6 +344,7 @@ describe('test de compétence à symboles', () => {
         de: 'aptitude',
         vers: 'maitrise',
         nombre: 2,
+        cote: 'action',
       },
       {
         source: 'entraine',
@@ -342,6 +353,7 @@ describe('test de compétence à symboles', () => {
         de: 'aptitude',
         vers: 'maitrise',
         nombre: 1,
+        cote: 'acteur',
       },
     ]);
     expect(r.explications).toContain('Puissant : + 1 Aptitude');

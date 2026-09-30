@@ -202,6 +202,57 @@ export const RegleIconeObjet = z
 export type RegleIconeObjet = z.output<typeof RegleIconeObjet>;
 
 /**
+ * Icônes génériques des états (badges sur les tokens, fiche du participant) : le front les
+ * dessine, le système choisit lesquelles pour ses états (`combat.etats.icones`).
+ */
+export const IconeEtat = z.enum([
+  'etat',
+  'aveugle',
+  'assourdi',
+  'charme',
+  'peur',
+  'paralyse',
+  'etourdi',
+  'inconscient',
+  'poison',
+  'saignement',
+  'affaibli',
+  'desoriente',
+  'a-terre',
+  'entrave',
+  'danse',
+  'protection',
+  'couvert',
+  'blessure',
+  'feu',
+  'froid',
+  'rage',
+  'invisible',
+  'benediction',
+  'malediction',
+  'alerte',
+]);
+export type IconeEtat = z.output<typeof IconeEtat>;
+
+/**
+ * Combat (docs/combat.md § 12) : groupes d'actions du menu d'attaque (actions à cible, dans
+ * l'ordre ; les autres suivent sous « Autres ») et états du catalogue proposés sur la fiche du
+ * participant, avec leurs icônes.
+ */
+export const PresentationCombat = z.object({
+  groupes: z.array(z.object({ titre: Libelle, actions: z.array(Id).min(1) })).default([]),
+  etats: z
+    .object({
+      /** Sortes du catalogue qui sont des états (données avec une durée). */
+      sortes: z.array(Cle).min(1),
+      /** Icône de chaque état, par identifiant d'entrée ; absente : l'icône générique `etat`. */
+      icones: z.record(z.string(), IconeEtat).default({}),
+    })
+    .optional(),
+});
+export type PresentationCombat = z.output<typeof PresentationCombat>;
+
+/**
  * Ressources consultables (panneau « Ressources » de la table, page Ressources) : chaque
  * onglet n'existe que si le système le déclare ici. Voir docs/ressources.md.
  */
@@ -371,6 +422,8 @@ export const Presentation = z.object({
     .default({}),
   /** Ressources consultables : capacités, marché, bestiaire, images (docs/ressources.md). */
   references: References.default({}),
+  /** Menu d'attaque et états du combat. */
+  combat: PresentationCombat.optional(),
 });
 export type Presentation = z.output<typeof Presentation>;
 
@@ -457,8 +510,41 @@ export function verifierPresentation(
   });
 
   for (const e of erreursReferences(systeme, p.references)) erreur(e.chemin, e.message);
+  if (p.combat) for (const e of erreursCombat(systeme, p.combat)) erreur(e.chemin, e.message);
 
   return erreurs.length ? { ok: false, erreurs } : { ok: true, presentation: p };
+}
+
+/**
+ * Combat vérifié contre le système : actions connues, à cible, une seule fois dans les
+ * groupes ; sortes d'états connues ; icônes d'entrées de ces sortes.
+ */
+export function erreursCombat(systeme: SystemeCharge, c: PresentationCombat): ErreurPresentation[] {
+  const erreurs: ErreurPresentation[] = [];
+  const erreur = (chemin: string, message: string) =>
+    erreurs.push({ chemin: `combat/${chemin}`, message });
+  const vues = new Set<string>();
+  c.groupes.forEach((g, i) => {
+    for (const id of g.actions) {
+      const a = systeme.actions.get(id);
+      if (!a) erreur(`groupes/${i}`, `Action inconnue : ${id}`);
+      else if (!a.cible)
+        erreur(`groupes/${i}`, `${id} n’a pas de cible : pas dans le menu d’attaque`);
+      if (vues.has(id)) erreur(`groupes/${i}`, `${id} est déjà dans un autre groupe`);
+      vues.add(id);
+    }
+  });
+  if (c.etats) {
+    for (const so of c.etats.sortes)
+      if (!systeme.sortes.has(so)) erreur('etats/sortes', `Sorte inconnue : ${so}`);
+    for (const id of Object.keys(c.etats.icones)) {
+      const e = systeme.entrees.get(id);
+      if (!e) erreur('etats/icones', `Entrée inconnue : ${id}`);
+      else if (!c.etats.sortes.includes(e.sorte))
+        erreur('etats/icones', `${id} n’est pas un état (sorte ${e.sorte})`);
+    }
+  }
+  return erreurs;
 }
 
 /** Règle d'icône vérifiée : sorte connue, champ déclaré par la sorte (ou une sorte), valeur possible. */

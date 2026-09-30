@@ -4,9 +4,31 @@
  * de le rejouer ou de le vérifier côté serveur.
  */
 
+/** Ce que le moteur sait d'un dé demandé, au-delà de son nombre de faces. */
+export interface ContexteDe {
+  /**
+   * Sorte d'un dé à symboles (`aptitude`, `difficulte`…) : deux sortes peuvent avoir le même
+   * nombre de faces, un dé physique doit les distinguer. Absente : dé numérique.
+   */
+  de?: string;
+}
+
+/**
+ * Phase d'une action où des dés sont lancés : `jet` (variables et jet), `apres` (valeurs après
+ * le jet, conséquences), `tables` (tirages), `fin` (l'action est finie). Les dés d'une phase ne
+ * sont connus qu'une fois la précédente résolue (pas de dégâts sur un raté).
+ */
+export type PhaseDes = 'jet' | 'apres' | 'tables' | 'fin';
+
 export interface Generateur {
   /** Entier uniforme entre 1 et `max` inclus. */
-  entier(max: number): number;
+  entier(max: number, contexte?: ContexteDe): number;
+  /**
+   * Début d'une phase de l'action (appelé par le moteur des actions). Un générateur partagé
+   * (jet commun) ou planifié (dés physiques) s'en sert pour repérer chaque dé par sa phase et
+   * sa position ; les autres l'ignorent.
+   */
+  phase?(nom: PhaseDes): void;
 }
 
 /** Hachage 32 bits (cyrb53 réduit) pour dériver l'état initial d'une graine texte. */
