@@ -392,11 +392,12 @@ Règles de ces gestes :
   pendant la saisie. Une lettre est celle que la touche tape (`shortcutCode`, `lib/keyboard.ts`,
   comme les panneaux de la table) : en AZERTY, la touche A pose des personnages et ⌘/Ctrl+Z
   annule. Les chiffres comptent par leur position (sans ⇧ en AZERTY), pavé numérique compris.
-- **Lettres réservées** : la carte prend V, P, T, Z, W, G, L, I, A, X (outils), R (pivoter) et
-  K (calques, MJ) et Q (quadrillage). F, D, C, N, J, H, S, B, M, O, E (Scènes, MJ) et U (Mes
-  PNJ, MJ) appartiennent aux panneaux de la table. Encore libres : Y et les chiffres (pris
-  par l'outil actif quand il en a l'usage : nombre d'exemplaires d'une pose de PNJ, sous-modes
-  des outils W et G, formes de l'outil Z).
+- **Lettres réservées** : la carte prend V, P, T, Z, W, G, L, I, A, X (outils), R (pivoter),
+  K (calques, MJ), Q (quadrillage) et Y (attaquer : la sélection devient les cibles, module
+  `combat`, [combat.md](combat.md) § 12.1). F, D, C, N, J, H, S, B, M, O, E (Scènes, MJ) et U
+  (Mes PNJ, MJ) appartiennent aux panneaux de la table. Encore libres : les chiffres (pris par
+  l'outil actif quand il en a l'usage : nombre d'exemplaires d'une pose de PNJ, sous-modes des
+  outils W et G, formes de l'outil Z).
 - **⌘/Ctrl + clic** (outil sélection) : ne change pas la sélection ; le moteur le signale comme
   un clic de mesure (§ 10, Mesures). ⌘/Ctrl + glisser déplace la vue.
 
