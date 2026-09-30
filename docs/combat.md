@@ -401,6 +401,38 @@ Demandé par Théo le 2026-09-30 : le menu doit prendre bien plus de paramètres
   résistances, immunités, vulnérabilités). Le rapport les détaille au MJ (dégâts bruts, type, chaque
   réduction nommée, résultat) ; le tiroir de décision garde ses raccourcis (§ 7.1).
 
+Réalisé (moteur, systèmes, campaign, character) :
+
+- **Moteur** : bloc `situation: { parametres, effets }` du système, fusionné au chargement dans
+  chaque action à cible (`section: situation`) ; une action s'en exclut (`situation: false`, ou
+  `{ sauf: [...] }`) ; effets de situation = effets de jet (côté `action`, muets à 0). `choix` se
+  lit comme un texte, chaque texte comparé est vérifié au chargement. `@combat.enCours`, `.round`,
+  `.premierRound`, `.acteur.x` et `.cible.x` (`attaques`, `attaquesRound`, `vise`, `viseRound`,
+  `aAgi`, `surpris`) : formules d'action, situation, effets de jet ; neutres hors combat. La vue
+  de l'attaquant rappelle la situation déclarée ; le rapport dit le minimum qui a relevé les
+  dégâts (`minimum`, « au moins 1 DM »).
+- **D&D** : avantage ou désavantage (choix), abri de la cible (+2/+5 DEF), cible à terre (avantage
+  au contact, désavantage à distance), la cible esquive (désavantage), bonus au toucher et aux DM
+  (sur `bonusDM` : seulement si l'attaque touche) ; les paramètres booléens `avantage` et
+  `desavantage` des actions à cible disparaissent (les tests sans cible les gardent). Branché sur
+  `@combat` : Attaque sournoise contre une cible surprise ou prise à revers (case propre à
+  l'action, ou surprise marquée par le MJ), refusée contre un barbare vigilant ; À l'abordage !
+  d'office à la première attaque au contact d'un combat ; Attaque bondissante au premier tour
+  seulement. Soins et dégâts sans test d'attaque n'ont pas de situation ; attaques au d12 ou à
+  2d20 imposés : ni avantage, ni cible à terre, ni esquive.
+- **Nooblies** : avantage ou désavantage, abri, cible à terre, bonus au toucher et aux DM (règles
+  de D&D, dont il reprend la structure). Pas de « cible surprise » : aucune règle ne s'en sert.
+- **Star Wars** : Fortune et Infortune de situation, difficulté améliorée ou dégradée (attaque,
+  test contre un personnage, soins) ; propres à l'attaque et rangés en situation : couvert de la
+  cible (+1/+2 Difficulté aux tirs, le plus fort avec l'état porté), Viser, Difficulté
+  supplémentaire, Frappe rapide (d'office au premier round contre une cible dont le tour n'est
+  pas passé). Stimpack et Protecteur (sans dés) n'en ont pas.
+- **campaign** : `surprised` (démarrage, `PATCH`), `tally` sur les attaques ni annulées ni
+  refusées (`cancelled`, `failed` ; une cible refusée n'est pas visée) ; vue d'un joueur : attaques
+  publiques d'un attaquant qu'il voit. À la déclaration, contexte `AttackCombatContext` figé (vue
+  du MJ, sans l'attaque en cours, les précédentes d'un lot comprises) envoyé à character, qui le
+  garde dans l'instantané.
+
 ## 6. Dés : l'animation fait foi
 
 ### 6.1 Étapes de dés
@@ -872,8 +904,11 @@ mobile tout l'écran. Même menu pour un joueur et pour le MJ (qui attaque avec 
 - menu contextuel d'un token : « Attaquer » (cible : ce token ; attaquant : mon personnage, ou pour
   le MJ le participant qui agit, sinon le choix) ;
 - barre de la sélection (MJ) : « Attaquer avec » (le PNJ sélectionné attaque) et « Attaquer » (la
-  sélection devient les cibles) ; « Attaquer avec la sélection » (plusieurs PNJ, § 8.2) ; pour un
-  joueur, « Attaquer » s'affiche au clic sur un token qui n'est pas à lui (`forPlayers`) ;
+  sélection devient les cibles) ; « Attaquer avec la sélection » (plusieurs PNJ, § 8.2) ;
+- joueur, **visée rapide** (demandé par Théo le 2026-09-30) : un clic simple sur un PNJ qu'il voit
+  ouvre directement la pastille de visée, ce PNJ en cible et son personnage comme attaquant, sans
+  barre au-dessus du token ; « Attaquer » reste au clic droit. Rien au clic ni au glisser de son
+  propre token (il le déplace sans cesse), rien sur un allié joueur, rien sans personnage ;
 - gabarit ou mesure récente : « Attaquer la zone (n) » (tokens vus dans la forme, jet commun si
   l'action le déclare) ;
 - fiche : bouton « Attaquer » du bloc Actions ;
@@ -907,7 +942,9 @@ changer d'attaquant ; « Mes attaques » ; fermer.
 
 **Viser sur la carte** : réduit la fenêtre à une pastille (attaquant → n cibles, « Valider ») le
 temps de cliquer les tokens (⇧ : plusieurs) ; Échap ou « Valider » la rouvre. `combat.aim` part au
-MJ à chaque changement.
+MJ à chaque changement. Visée rapide (joueur) : même pastille, mais un clic choisit la cible (⇧ :
+en ajoute ou en retire) sans rouvrir le menu ; « Valider » l'ouvre à l'étape « Action » ; Échap,
+« Annuler » ou un clic dans le vide annulent sans rien déclarer ; un glisser déplace la vue.
 
 Réalisé (menu d'attaque, `components/combat/attack/`), précisions :
 
@@ -1008,10 +1045,13 @@ Entrées de menu (écart du lot 3) : elles ne sont pas écrites dans les menus d
 de la sélection et des mesures, mais données par un **fournisseur de menu du module combat**
 (`engine.registerMenuProvider`, `lib/map/modules/combat/menu.ts`) : le moteur les ajoute au menu
 contextuel comme à la barre de la sélection (`engine.menuItems`), sans que les modules `tokens` et
-`measurements` connaissent le combat. Token : « Attaquer (n) » (dans la barre d'un joueur au clic
-sur un token qui n'est pas à lui, `forPlayers`) ; MJ : « Attaquer avec », « Attaquer avec la
-sélection (n) » ; gabarit (hors ligne) : « Attaquer la zone (n) ». Touche `Y` : raccourci du même
-module (`engine.registerShortcut`).
+`measurements` connaissent le combat. Token : « Attaquer (n) » (dans la barre du MJ ; au clic
+droit seulement pour un joueur) ; MJ : « Attaquer avec », « Attaquer avec la sélection (n) » ;
+gabarit (hors ligne) : « Attaquer la zone (n) ». Touche `Y` : raccourci du même module
+(`engine.registerShortcut`). Visée rapide d'un joueur : le module écoute les clics simples de
+l'outil sélection (`engine.onMapClick`, `quickAimTarget` : token vu, pas à lui, PNJ ou d'un camp
+autre que celui des joueurs, sans ⇧ ni Alt) et ouvre le menu en visée (`aim: true`). L'outil de
+visée prend aussi le vide : un clic y annule la visée rapide, un glisser déplace la vue.
 
 ### 12.6 Vue des tours pour les joueurs
 
