@@ -143,9 +143,11 @@ describe('Star Wars — Aux confins de l’Empire : chargement', () => {
       'second-souffle',
       'presence-intense',
     ]);
+    // Créneaux par camp (docs/combat.md § 4.4)
     expect(systeme.source.initiative).toEqual({
       action: 'initiative',
       tri: ['succesNets', 'avantagesNets'],
+      mode: 'creneaux',
     });
     expect([...systeme.tables.keys()].sort()).toEqual([
       'blessures-critiques',

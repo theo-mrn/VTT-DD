@@ -119,3 +119,8 @@ references:
       - { titre: Équipement, dossiers: [items/equipment] }
       - { titre: Macabre, dossiers: [items/dark] }
       - { titre: Divers, dossiers: [items/misc] }
+
+# Combat (docs/combat.md § 12) : groupes du menu d'attaque
+combat:
+  groupes:
+    - { titre: Attaques, actions: [attaque, coup-de-corne] }

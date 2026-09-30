@@ -25,6 +25,8 @@ options:
 entites:
   - id: personnage
     nom: Personnage
+    # Hors de combat (docs/combat.md § 4.5) : à 0 PV, évalué après chaque application
+    horsCombat: '@PV <= 0'
     groupes:
       - { id: caracteristiques, nom: Caractéristiques }
       - { id: combat, nom: Combat }
@@ -319,6 +321,8 @@ actions:
     jet: { type: numerique, formule: 1d20 + valeur(score), reussite: total >= @cible.Defense }
     apres:
       - cle: degats
+        nom: Dégâts
+        visibilite: acteur
         formule: 'si(reussi et (nbDes > 0 ou bonus > 0), max(0, des(nbDes, faces) + bonus), 0)'
       - &subis
         cle: subis
@@ -342,7 +346,12 @@ actions:
     variables: *vars-attaque
     jet: { type: numerique, formule: 1d20 + @Contact, reussite: total >= @cible.Defense }
     apres:
-      - { cle: degats, formule: 'si(reussi, max(0, 1d6 + mod(@FOR)), 0)' }
+      - {
+          cle: degats,
+          nom: Dégâts,
+          visibilite: acteur,
+          formule: 'si(reussi, max(0, 1d6 + mod(@FOR)), 0)',
+        }
       - *subis
     consequences:
       - *retirer-pv
@@ -388,3 +397,5 @@ actions:
 initiative:
   action: initiative
   tri: [total]
+  # Chacun agit à son tour, dans l'ordre d'initiative
+  mode: individuel

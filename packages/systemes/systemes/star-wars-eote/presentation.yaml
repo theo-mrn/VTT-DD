@@ -200,3 +200,35 @@ references:
       - { titre: Environnement, dossiers: [items/starwars-environnement] }
       - { titre: Fournitures, dossiers: [items/starwars-fournitures] }
       - { titre: Armes, dossiers: [items/starwars-armes] }
+
+# Combat (docs/combat.md § 12) : groupes du menu d'attaque et états de la fiche du participant
+combat:
+  groupes:
+    - { titre: Combat, actions: [attaque] }
+    - { titre: Compétences, actions: [test-cible] }
+    - { titre: Soins, actions: [soins, stimpack] }
+    - { titre: Talents, actions: [protecteur] }
+  etats:
+    sortes: [etat, blessureCritique]
+    icones:
+      etourdi: etourdi
+      desoriente: desoriente
+      immobilise: entrave
+      a-terre: a-terre
+      manoeuvre-defensive: protection
+      couvert-partiel: couvert
+      couvert-integral: couvert
+      obligation-declenchee: alerte
+      obligation-personnelle-declenchee: alerte
+      egratignure: blessure
+      contusion: blessure
+      coupure: blessure
+      meurtrissure: blessure
+      blessure-ouverte: blessure
+      fracture: blessure
+      blessure-profonde: blessure
+      hemorragie: saignement
+      mutilation: blessure
+      traumatisme-severe: blessure
+      blessure-mortelle: blessure
+      mort: inconscient

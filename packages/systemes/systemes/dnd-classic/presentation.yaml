@@ -171,3 +171,93 @@ references:
       - { titre: Équipement, dossiers: [items/equipment] }
       - { titre: Macabre, dossiers: [items/dark] }
       - { titre: Divers, dossiers: [items/misc] }
+
+# Combat (docs/combat.md § 12) : groupes du menu d'attaque et états de la fiche du participant
+combat:
+  groupes:
+    - titre: Armes
+      actions: [attaque, attaque-libre, mains-nues, coup-de-bouclier, griffes, coup-de-corne]
+    - titre: Capacités de combat
+      actions:
+        - charge
+        - attaque-brutale
+        - attaque-apres-feinte
+        - attaque-flamboyante
+        - chatiment-divin
+        - frappe-lourde
+        - attaque-puissante
+        - attaque-parfaite
+        - charge-montee
+        - attaque-bondissante
+        - attaque-sournoise
+        - kamikaze
+        - fleche-intangible
+        - frappe-de-l-enclume
+        - mise-a-mort
+        - briser-l-armure
+        - choc-electrique
+        - mains-d-energie
+        - arme-d-argent
+        - baton-de-mage
+        - fureur-du-dragon
+        - blagues-et-cabrioles
+        - saignement
+        - sang-mordant
+    - titre: Sorts
+      actions:
+        - sort
+        - projectile-magique
+        - attaque-sonore
+        - foudre
+        - arme-dansante
+        - fleche-enflammee
+        - boule-de-feu
+        - desintegration
+        - projection-du-ki
+        - briser-les-coeurs
+        - strangulation
+        - putrefaction
+        - marteau-spirituel
+        - foudres-divines
+        - attaque-mentale
+        - aspect-de-la-succube
+        - baiser-du-vampire
+        - frappe-des-arcanes
+        - onde-de-choc
+        - souffle
+        - cone-de-froid
+        - cri-de-la-banshee
+        - destruction-des-morts-vivants
+        - armee-des-morts
+    - titre: Pièges et objets
+      actions: [degats-libres, feu-gregeois, piege-de-feu]
+    - titre: Soins
+      actions:
+        - soins-legers
+        - soins-moderes
+        - soins-de-groupe
+        - guerison
+        - premiers-soins
+        - rappel-a-la-vie
+        - zone-de-vie
+        - phenix
+        - regeneration
+        - baies-magiques
+        - elixir-de-guerison
+        - fortifiant
+  etats:
+    sortes: [etat]
+    icones:
+      aveugle: aveugle
+      charme: charme
+      assourdi: assourdi
+      effraye: peur
+      incapacite: entrave
+      paralyse: paralyse
+      empoisonne: poison
+      etourdi: etourdi
+      inconscient: inconscient
+      dansant: danse
+      desoriente: desoriente
+      affaibli: affaibli
+      saignant: saignement

@@ -14,6 +14,8 @@ description: >-
 entites:
   - id: personnage
     nom: Personnage
+    # Hors de combat (docs/combat.md § 4.5) : blessures ou stress au-delà du seuil, ou mort
+    horsCombat: '@neutralise ou possede("mort")'
     groupes:
       - { id: caracteristiques, nom: Caractéristiques }
       - { id: seuils, nom: Seuils }
@@ -357,6 +359,8 @@ entites:
 
   - id: vehicule
     nom: Véhicule
+    # Hors de combat : dégâts de coque au-delà du seuil
+    horsCombat: '@coque > @seuilCoque'
     description: Speeder, chasseur, cargo ou vaisseau capital.
     groupes:
       - { id: caracteristiques, nom: Caractéristiques }
@@ -1080,10 +1084,13 @@ actions:
       - *fortune
       - *infortune
       - { id: visee, nom: 'Manœuvres Viser (0 à 2) : 1 dé de Fortune chacune', type: nombre }
+      # Réaction de la cible (défense active) : elle choisit le stress qu'elle subit
       - {
           id: esquive,
-          nom: "Esquive de la cible : stress qu'elle subit pour améliorer la difficulté",
+          nom: 'Esquive : stress subi pour améliorer la difficulté',
           type: nombre,
+          par: cible,
+          exige: possede("esquive"),
         }
       - {
           id: frappeRapide,
@@ -1234,7 +1241,12 @@ actions:
           + si((arme.competence == "distance-lourde" ou arme.competence == "artillerie")
           et portee.ordre >= 3, rang("barrage"), 0)
           + si(degatsDestin == "", 0, valeur(degatsDestin.caracteristique))
-      - { cle: degatsBruts, formule: arme.degats + succesNets + degatsTalents }
+      - {
+          cle: degatsBruts,
+          nom: Dégâts bruts,
+          visibilite: acteur,
+          formule: arme.degats + succesNets + degatsTalents,
+        }
       # Point de pression ignore l'Encaissement
       - cle: encaissementCible
         formule: 'si(pointDePression, 0, max(0, @cible.encaissement - arme.perforant))'
@@ -1617,3 +1629,5 @@ actions:
 initiative:
   action: initiative
   tri: [succesNets, avantagesNets]
+  # Créneaux par camp : chaque créneau revient à un camp, un de ses participants y agit
+  mode: creneaux
