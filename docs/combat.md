@@ -1204,6 +1204,26 @@ Réalisé par le lot 1 (étapes A et B), précisions et écarts :
   `reaction-prompt.tsx` ; `components/table/hud.tsx` (bandeau).
 - `frontend/src/components/historique/format.ts` (rendu des nouveaux événements).
 
+### Intégration des lots (étapes A et B)
+
+- **Bout en bout** : `backend/campaign/src/modules/combat/real-character.int.test.ts` fait
+  tourner campaign contre le vrai character (`src/test/real-character.ts` : les deux services
+  dans le même processus, ports libres, vraies routes HTTP dans les deux sens, dés de character
+  pilotés, jets transmis à dice gardés). Lancé avec `TEST_DATABASE_URL` (campaign) et
+  `CHARACTER_TEST_DATABASE_URL` (character), sinon ignoré ; les données des utilisateurs du test
+  sont supprimées des deux bases.
+- **Jet d'initiative** : public pour un héros vu des joueurs, caché (`gm`) pour un PNJ, un allié
+  ou un participant caché ; campaign le demande par `visibility` sur la route interne d'action.
+- **Décompte des durées** : `character.updated` part aussi au joueur qui incarne le personnage.
+- **Enveloppe expurgée** (realtime) : sans charge ni `actor.characterId` (l'attaquant d'une
+  attaque d'un PNJ caché ne se trahit pas auprès du joueur qui a réagi).
+- **Front** : `no_combat` remet l'écran hors combat sans message ; 409
+  `idempotency_in_progress` : déclaration reprise avec la même clé ; chronique du MJ : un tour
+  en double (complet et expurgé) compté une fois, fiches touchées par le combat racontées
+  (`combat.application`, `combat.annulation`) ; icônes des états (`IconeEtat` → lucide) dans le
+  panneau et en badges sur les tokens (libellé au survol ; joueur : héros et alliés seulement) ;
+  token hors de combat grisé.
+
 ### Règles pour tous
 
 - On ne modifie que les fichiers de son lot ; un besoin hors lot (contrat, moteur) est un ajout
