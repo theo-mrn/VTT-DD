@@ -22,7 +22,7 @@ import {
   variablesObjet,
   type SystemeCharge,
 } from '../chargement/index.js';
-import { quantiteDe } from '../schema/index.js';
+import { defautChoix, quantiteDe, recoitSituation, type Parametre } from '../schema/index.js';
 import {
   ErreurEvaluation,
   evaluer,
@@ -225,11 +225,11 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const exige = systeme.formules.get(chemins.action(action.id, `parametres/${p.id}/exige`));
     const decideur = p.par === 'cible' ? cible : acteur;
     if (exige && decideur?.evaluer(exige, {}, false) !== true) {
-      if (v !== undefined && !(p.type !== 'entree' && p.type !== 'attribut' && v === p.defaut))
+      if (v !== undefined && v !== defautParametre(p))
         refuser(`${p.nom} : option non disponible (${exige.texte})`);
       v = undefined;
-      if (p.type === 'nombre' || p.type === 'booleen') {
-        parametres[p.id] = p.defaut;
+      if (p.type === 'nombre' || p.type === 'booleen' || p.type === 'choix') {
+        parametres[p.id] = defautParametre(p);
         continue;
       }
       if (p.type === 'entree') {
@@ -250,6 +250,12 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       case 'booleen':
         if (v === undefined) parametres[p.id] = p.defaut;
         else if (typeof v !== 'boolean') refuser(`${p.nom} : booléen attendu`);
+        else parametres[p.id] = v;
+        break;
+      case 'choix':
+        if (v === undefined) parametres[p.id] = defautChoix(p);
+        else if (typeof v !== 'string' || !p.options.some((o) => o.valeur === v))
+          refuser(`${p.nom} : option attendue (${p.options.map((o) => o.valeur).join(', ')})`);
         else parametres[p.id] = v;
         break;
       case 'attribut': {
@@ -481,7 +487,10 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         explications.push(`${p.nom} : aucun`);
         continue;
       }
-      explications.push(`${p.nom} : ${String(v)}`);
+      // Situation sans rien de particulier : rien à raconter
+      if (p.section === 'situation' && v === defautParametre(p)) continue;
+      const option = p.type === 'choix' ? p.options.find((o) => o.valeur === v)?.nom : undefined;
+      explications.push(`${p.nom} : ${option ?? String(v)}`);
       continue;
     }
     variables.set(`${p.id}.rang`, possession.rang);
@@ -501,25 +510,37 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   for (const a of systeme.actions.values())
     for (const p of a.parametres)
       if (!neutres.has(p.id))
-        neutres.set(p.id, p.type === 'nombre' ? 0 : p.type === 'booleen' ? false : '');
+        neutres.set(
+          p.id,
+          p.type === 'nombre'
+            ? 0
+            : p.type === 'booleen'
+              ? false
+              : p.type === 'choix'
+                ? defautChoix(p)
+                : '',
+        );
 
-  /** Variables d'un effet : celles de sa source (`rang`, `actif`, `source.x`), l'action et ses paramètres. */
+  /** Variables d'un effet de jet : l'action et ses paramètres (neutres s'il ne les a pas). */
+  const variableJet = (nom: string): Valeur => {
+    if (nom === 'action') return action.id;
+    // Paramètre de l’action : sa valeur, ou sa valeur neutre si l’action ne l’a pas
+    if (neutres.has(nom)) return parametres[nom] ?? neutres.get(nom)!;
+    // Rang et champs d'un paramètre entrée (`arme.competence`) ; neutres si l'action ne l'a pas
+    const differee = differees.get(nom);
+    if (differee) return differee();
+    const lu = variables.get(nom);
+    if (lu !== undefined) return lu;
+    if (nom.includes('.')) return nom.endsWith('.rang') ? 0 : '';
+    throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
+  };
+  /** Variables d'un effet : celles de sa source (`rang`, `actif`, `source.x`), puis `variableJet`. */
   const variablesEffet =
     (source: SourceEffets) =>
-    (nom: string): Valeur => {
-      if (nom === 'rang' || nom === 'actif' || nom.startsWith('source.'))
-        return source.variable(nom);
-      if (nom === 'action') return action.id;
-      // Paramètre de l’action : sa valeur, ou sa valeur neutre si l’action ne l’a pas
-      if (neutres.has(nom)) return parametres[nom] ?? neutres.get(nom)!;
-      // Rang et champs d'un paramètre entrée (`arme.competence`) ; neutres si l'action ne l'a pas
-      const differee = differees.get(nom);
-      if (differee) return differee();
-      const lu = variables.get(nom);
-      if (lu !== undefined) return lu;
-      if (nom.includes('.')) return nom.endsWith('.rang') ? 0 : '';
-      throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
-    };
+    (nom: string): Valeur =>
+      nom === 'rang' || nom === 'actif' || nom.startsWith('source.')
+        ? source.variable(nom)
+        : variableJet(nom);
 
   /**
    * Ce que le jet implique : entrées et attributs désignés par les paramètres,
@@ -586,6 +607,42 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         });
       });
     }
+
+  // Situation du système (couvert, avantage de situation…) : effets de l'action elle-même,
+  // lus avec ses paramètres, la cible et le combat ; sans effet, ils ne disent rien
+  if (recoitSituation(action)) {
+    // Paramètres de situation écartés par l'action (`situation.sauf`) : leur valeur neutre,
+    // même si l'action déclare un paramètre du même nom
+    const ecartes = new Map<string, Valeur>();
+    if (typeof action.situation === 'object')
+      for (const p of systeme.source.situation?.parametres ?? [])
+        if (action.situation.sauf.includes(p.id)) ecartes.set(p.id, defautParametre(p));
+    const ctxSituation: ContexteEvaluation = {
+      ...ctx,
+      variable: (nom) => ecartes.get(nom) ?? variableJet(nom),
+    };
+    (systeme.source.situation?.effets ?? []).forEach((f, i) => {
+      if (!f.ajout || (f.actions && !f.actions.includes(action.id))) return;
+      if (f.implique?.entree !== undefined && !impliques.has(`entree:${f.implique.entree}`)) return;
+      if (f.implique?.attribut !== undefined && !impliques.has(`attribut:${f.implique.attribut}`))
+        return;
+      const ou = (x: string) => chemins.situation(action.id, i, x);
+      for (const x of ['condition', 'si'] as const) {
+        if (f[x] === undefined) continue;
+        if (calculerFormule(ou(x), false, ctxSituation).valeur !== true) return;
+      }
+      const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
+      const valeur = Number(calculerFormule(ou(cle), 0, ctxSituation).valeur);
+      if (!valeur) return;
+      effets.push({
+        source: SOURCE_SITUATION,
+        ajout: f.ajout,
+        valeur,
+        nom: f.description ?? NOM_SITUATION,
+        cote: 'action',
+      });
+    });
+  }
 
   // ─── Variables de l'action (avec les effets qui s'y ajoutent), vérifications ─
 
@@ -960,6 +1017,24 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
 
 /** Libellé des lignes d'un ajustement libre. */
 export const NOM_AJUSTEMENT = 'Ajusté à la main';
+
+/** Source des lignes de la situation du système (`Systeme.situation.effets`). */
+export const SOURCE_SITUATION = 'situation';
+/** Libellé d'un effet de situation sans `description`. */
+const NOM_SITUATION = 'Situation';
+
+/** Valeur par défaut d'un paramètre (texte vide pour une entrée ou un attribut). */
+export function defautParametre(p: Parametre): Valeur {
+  switch (p.type) {
+    case 'nombre':
+    case 'booleen':
+      return p.defaut;
+    case 'choix':
+      return defautChoix(p);
+    default:
+      return '';
+  }
+}
 
 function bonusAjustement(valeur: number): BonusJet {
   return { source: SOURCE_AJUSTEMENT, nom: NOM_AJUSTEMENT, valeur, cote: 'acteur' };

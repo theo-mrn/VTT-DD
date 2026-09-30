@@ -12,6 +12,7 @@ import {
   type TypeValeur,
 } from '../formules/index.js';
 import {
+  recoitSituation,
   Systeme,
   type Achat,
   type Action,
@@ -30,6 +31,7 @@ import { verifierEffets, variablesSource, type ContexteEffets } from './effets.j
 import {
   AGREGATS,
   env,
+  comparaisonsChoixInvalides,
   infoAttribut,
   typeAttribut,
   typeChamp,
@@ -109,6 +111,9 @@ export const chemins = {
   resultat: (cle: string) => `des/resultats/${cle}`,
   action: (id: string, champ: string) => `actions/${id}/${champ}`,
   tri: (i: number) => `initiative/tri/${i}`,
+  /** Effet de la situation (`Systeme.situation.effets`), compilé pour une action qui la reçoit. */
+  situation: (action: string, i: number, champ: string) =>
+    `actions/${action}/situation/effets/${i}/${champ}`,
   /** Formule « hors de combat » d'un type d'entité. */
   horsCombat: (entite: string) => `entites/${entite}/horsCombat`,
   table: (id: string) => `tables/${id}/jet`,
@@ -209,6 +214,9 @@ class Chargeur {
       return null;
     }
     this.verifierLitteraux(chemin, r.formule.noeud);
+    if (o.choix?.size)
+      for (const e of comparaisonsChoixInvalides(r.formule.noeud, o.choix))
+        this.erreur(chemin, e.message, e.position);
     this.formules.set(chemin, r.formule);
     return r.formule;
   }
@@ -321,6 +329,46 @@ class Chargeur {
     }
     for (const sorte of s.sortes) {
       for (const t of sorte.pour) this.entites.get(t)?.sortes.add(sorte.id);
+    }
+    this.fusionnerSituation();
+  }
+
+  /**
+   * Paramètres de la situation (`Systeme.situation`) ajoutés à chaque action à cible, après
+   * les siens, rangés `section: situation` : le reste du chargement, le moteur, le front et
+   * les services les voient comme des paramètres ordinaires de l'action.
+   */
+  private fusionnerSituation(): void {
+    const situation = this.s.situation;
+    const communs = situation?.parametres ?? [];
+    if (situation) this.unique(communs, (p) => p.id, 'situation/parametres', 'Paramètre');
+    situation?.effets.forEach((f, i) => {
+      if (f.cote === 'cible')
+        this.erreur(`situation/effets/${i}/cote`, 'Un effet de situation ne vient d’aucun porteur');
+      for (const x of f.actions ?? [])
+        if (!this.actions.get(x)?.cible)
+          this.erreur(`situation/effets/${i}/actions`, `Action à cible inconnue : ${x}`);
+    });
+    for (const [id, a] of this.actions) {
+      const chemin = `actions/${id}`;
+      const sauf = typeof a.situation === 'object' ? a.situation.sauf : [];
+      for (const x of sauf)
+        if (!communs.some((p) => p.id === x))
+          this.erreur(`${chemin}/situation`, `Paramètre de situation inconnu : ${x}`);
+      if (!a.cible || a.situation === false || !communs.length) continue;
+      const recus = [];
+      for (const p of communs) {
+        if (sauf.includes(p.id)) continue;
+        if (a.parametres.some((x) => x.id === p.id)) {
+          this.erreur(
+            `${chemin}/parametres/${p.id}`,
+            'Paramètre déjà déclaré par la situation du système (l’écarter par situation.sauf)',
+          );
+          continue;
+        }
+        recus.push({ ...p, section: 'situation' as const });
+      }
+      this.actions.set(id, { ...a, parametres: [...a.parametres, ...recus] });
     }
   }
 
@@ -859,6 +907,8 @@ class Chargeur {
         this.erreur(`${chemin}/multicible`, 'Plusieurs cibles pour une action sans cible');
 
       const variables: Record<string, TypeValeur> = {};
+      /** Options des paramètres `choix` : un texte comparé à l'un d'eux doit en être une. */
+      const choix = new Map<string, string[]>();
       const declarer = (nom: string, type: TypeValeur, ou: string) => {
         if (nomReserve(nom)) this.erreur(ou, `Nom réservé : ${nom}`);
         else if (variables[nom]) this.erreur(ou, `Nom déjà utilisé : ${nom}`);
@@ -885,6 +935,17 @@ class Chargeur {
           }
           continue;
         }
+        if (p.type === 'choix') {
+          declarer(p.id, 'texte', ou);
+          this.unique(p.options, (o) => o.valeur, ou, 'Option');
+          if (p.defaut !== undefined && !p.options.some((o) => o.valeur === p.defaut))
+            this.erreur(ou, `Option par défaut inconnue : ${p.defaut}`);
+          choix.set(
+            p.id,
+            p.options.map((o) => o.valeur),
+          );
+          continue;
+        }
         if (p.type !== 'entree') {
           declarer(p.id, p.type, ou);
           continue;
@@ -906,6 +967,7 @@ class Chargeur {
         entite: this.attributsDe(a.pour),
         externes: a.cible ? { cible: this.attributsDe(a.cible) } : {},
         variables: { ...variables },
+        choix,
         dynamique: true,
         // Possessions de la cible : `cible_possede("mort-vivant")`, `cible_rang("esquive")`
         fonctions: a.cible
@@ -933,6 +995,8 @@ class Chargeur {
       if (a.exige !== undefined) {
         this.compiler(ch('exige'), a.exige, { entite: this.attributsDe(a.pour) }, 'booleen');
       }
+
+      if (recoitSituation(a)) this.verifierSituation(a, opts());
 
       for (const v of a.variables) {
         const f = this.compiler(ch(`variables/${v.cle}`), v.formule, opts());
@@ -1040,6 +1104,34 @@ class Chargeur {
     const ini = this.s.initiative;
     if (ini && !this.actions.has(ini.action))
       this.erreur('initiative', `Action inconnue : ${ini.action}`);
+  }
+
+  /**
+   * Effets de la situation, compilés pour chaque action qui la reçoit (sauf celles que leur
+   * `actions` écarte) : ils lisent les paramètres, l'acteur, la cible (`@cible.X`,
+   * `cible_possede`) et le combat (`@combat.*`) de cette action.
+   */
+  private verifierSituation(a: Action, o: OptionsEnv): void {
+    const effets = this.s.situation?.effets ?? [];
+    const ctx: ContexteEffets = {
+      ...this.contexteEffets(),
+      compiler: (chemin, texte, oe, attendu) =>
+        this.compiler(
+          chemin,
+          texte,
+          {
+            ...oe,
+            externes: o.externes ?? {},
+            fonctions: { ...oe.fonctions, ...o.fonctions },
+            choix: o.choix ?? new Map(),
+          },
+          attendu,
+        ),
+    };
+    effets.forEach((f, i) => {
+      if (f.actions && !f.actions.includes(a.id)) return;
+      verifierEffets(ctx, [f], (_, x) => chemins.situation(a.id, i, x), o.entite ?? [], {});
+    });
   }
 
   // ─── Tables ────────────────────────────────────────────────────────────────

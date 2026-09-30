@@ -16,6 +16,7 @@ import type { SystemeCharge } from './charger.js';
 import {
   AGREGATS,
   env,
+  comparaisonsChoixInvalides,
   typeAttribut,
   typeChamp,
   type Attributs,
@@ -75,6 +76,18 @@ function variablesJet(
     }
   }
   return vars;
+}
+
+/** Options des paramètres `choix` de toutes les actions (réunies quand un identifiant revient). */
+function choixJet(ctx: ContexteEffets): Map<string, string[]> {
+  const choix = new Map<string, string[]>();
+  for (const act of ctx.actions.values())
+    for (const p of act.parametres)
+      if (p.type === 'choix')
+        choix.set(p.id, [
+          ...new Set([...(choix.get(p.id) ?? []), ...p.options.map((o) => o.valeur)]),
+        ]);
+  return choix;
 }
 
 /**
@@ -158,7 +171,11 @@ export function verifierEffets(
             ctx.erreur(ch('implique'), `Attribut inconnu du porteur : ${attribut}`);
         }
         // Toutes les formules d'un effet de jet lisent les paramètres des actions
-        const oJet: OptionsEnv = { ...oEffet, variables: variablesJet(ctx, variables) };
+        const oJet: OptionsEnv = {
+          ...oEffet,
+          variables: variablesJet(ctx, variables),
+          choix: choixJet(ctx),
+        };
         if (f.si !== undefined) ctx.compiler(ch('si'), f.si, oJet, 'booleen');
         const aj = f.ajout;
         if (aj && 'de' in aj) {
@@ -234,6 +251,9 @@ export function compilerEffets(
           erreurs.push({ chemin: ch, message: e.message, position: e.position });
         return null;
       }
+      if (o.choix?.size)
+        for (const e of comparaisonsChoixInvalides(r.formule.noeud, o.choix))
+          erreurs.push({ chemin: ch, message: e.message, position: e.position });
       // Arguments littéraux des agrégats : sorte, entrée et marque existantes
       for (const appel of appelsLitteraux(r.formule.noeud)) {
         const [a, b] = appel.args;

@@ -3,7 +3,7 @@
  * l'endroit où elle est écrite (attribut, effet, achat, action…).
  */
 import type { EnvironnementTypes, InfoAttribut, SignatureFonction } from '../formules/index.js';
-import type { TypeValeur } from '../formules/index.js';
+import type { Noeud, TypeValeur } from '../formules/index.js';
 import type { Attribut, Champ } from '../schema/index.js';
 
 export function typeAttribut(a: Attribut): TypeValeur {
@@ -117,6 +117,59 @@ export interface OptionsEnv {
   option?: (id: string) => boolean;
   /** Sans les agrégats sur les possessions (`compte`, `somme`…) : attributs seuls. */
   sansAgregats?: boolean;
+  /**
+   * Options des paramètres `choix` lisibles (par identifiant) : un texte comparé à l'un d'eux
+   * (`couvert == "partiel"`) doit être l'une de ses options. Vérifié par le chargeur.
+   */
+  choix?: ReadonlyMap<string, readonly string[]>;
+}
+
+/**
+ * Textes comparés (`==`, `!=`) à un paramètre `choix` qui ne sont pas l'une de ses options :
+ * une faute de frappe (`"partiell"`) serait sinon toujours fausse, sans rien dire.
+ */
+export function comparaisonsChoixInvalides(
+  n: Noeud,
+  choix: ReadonlyMap<string, readonly string[]>,
+): { message: string; position: number }[] {
+  const erreurs: { message: string; position: number }[] = [];
+  const visiter = (x: Noeud): void => {
+    switch (x.t) {
+      case 'binaire':
+        if (x.op === '==' || x.op === '!=')
+          for (const [v, t] of [
+            [x.g, x.d],
+            [x.d, x.g],
+          ] as const) {
+            if (v.t !== 'variable' || t.t !== 'texte') continue;
+            const options = choix.get(v.nom);
+            if (options && !options.includes(t.v))
+              erreurs.push({
+                message: `« ${t.v} » n’est pas une option de ${v.nom} (${options.join(', ')})`,
+                position: t.pos,
+              });
+          }
+        visiter(x.g);
+        return visiter(x.d);
+      case 'appel':
+        return x.args.forEach(visiter);
+      case 'unaire':
+        return visiter(x.arg);
+      case 'si':
+        visiter(x.condition);
+        visiter(x.alors);
+        return visiter(x.sinon);
+      case 'des':
+        visiter(x.nombre);
+        visiter(x.faces);
+        if (x.garder) visiter(x.garder.n);
+        return;
+      default:
+        return;
+    }
+  };
+  visiter(n);
+  return erreurs;
 }
 
 export function env(o: OptionsEnv): EnvironnementTypes {

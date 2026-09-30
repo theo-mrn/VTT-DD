@@ -151,6 +151,46 @@ export const EffetDegats = z.object({
 });
 export type EffetDegats = z.output<typeof EffetDegats>;
 
+/**
+ * Effet sur un jet (voir `Effet`) : dés ajoutés, améliorés, rétrogradés ou retirés, bonus au total,
+ * valeur ajoutée à une variable de l'action. Seule sorte d'effet permise à la situation.
+ */
+export const EffetJet = z.object({
+  ...EffetCommun,
+  /**
+   * Modifie un jet : dés ajoutés, améliorés, rétrogradés ou retirés, bonus au
+   * total. Ordre d'application : ajouts, améliorations, rétrogradations, retraits.
+   */
+  sur: z.literal('jet'),
+  /** `cible` : l'effet s'applique quand le porteur est la cible de l'action (défense active). */
+  cote: z.enum(['acteur', 'cible']).default('acteur'),
+  /** Actions concernées (toutes si absent). */
+  actions: z.array(Id).optional(),
+  /**
+   * Le jet doit impliquer cette entrée ou cet attribut : un paramètre de
+   * l'action la désigne (compétence choisie, caractéristique testée) ou un
+   * champ du paramètre y renvoie (compétence d'une arme, caractéristique
+   * liée d'une compétence). « +2 aux tests de Discrétion » quel que soit le système.
+   */
+  implique: z.object({ entree: Id.optional(), attribut: Cle.optional() }).optional(),
+  /** Condition libre sur le jet, par exemple `competence == "perception"`. */
+  si: Formule.optional(),
+  ajout: z
+    .union([
+      z.object({ de: Id, nombre: Formule }),
+      z.object({ ameliorer: Id, vers: Id, nombre: Formule }),
+      /** Remplace des dés `retrograder` par `vers`, sans en ajouter s'il n'y en a pas. */
+      z.object({ retrograder: Id, vers: Id, nombre: Formule }),
+      /** Retire des dés du pool (jamais en dessous de zéro). */
+      z.object({ retirer: Id, nombre: Formule }),
+      /** Ajoute une valeur à une variable de l'action (`variables` ou `apres`) : avantage, dégâts… */
+      z.object({ variable: Cle, ajouter: Formule }),
+      z.object({ bonus: Formule }),
+    ])
+    .optional(),
+});
+export type EffetJet = z.output<typeof EffetJet>;
+
 export const Effet = z.discriminatedUnion('sur', [
   z.object({
     ...EffetCommun,
@@ -174,40 +214,7 @@ export const Effet = z.discriminatedUnion('sur', [
     marque: Cle,
     entrees: z.array(Id).min(1),
   }),
-  z.object({
-    ...EffetCommun,
-    /**
-     * Modifie un jet : dés ajoutés, améliorés, rétrogradés ou retirés, bonus au
-     * total. Ordre d'application : ajouts, améliorations, rétrogradations, retraits.
-     */
-    sur: z.literal('jet'),
-    /** `cible` : l'effet s'applique quand le porteur est la cible de l'action (défense active). */
-    cote: z.enum(['acteur', 'cible']).default('acteur'),
-    /** Actions concernées (toutes si absent). */
-    actions: z.array(Id).optional(),
-    /**
-     * Le jet doit impliquer cette entrée ou cet attribut : un paramètre de
-     * l'action la désigne (compétence choisie, caractéristique testée) ou un
-     * champ du paramètre y renvoie (compétence d'une arme, caractéristique
-     * liée d'une compétence). « +2 aux tests de Discrétion » quel que soit le système.
-     */
-    implique: z.object({ entree: Id.optional(), attribut: Cle.optional() }).optional(),
-    /** Condition libre sur le jet, par exemple `competence == "perception"`. */
-    si: Formule.optional(),
-    ajout: z
-      .union([
-        z.object({ de: Id, nombre: Formule }),
-        z.object({ ameliorer: Id, vers: Id, nombre: Formule }),
-        /** Remplace des dés `retrograder` par `vers`, sans en ajouter s'il n'y en a pas. */
-        z.object({ retrograder: Id, vers: Id, nombre: Formule }),
-        /** Retire des dés du pool (jamais en dessous de zéro). */
-        z.object({ retirer: Id, nombre: Formule }),
-        /** Ajoute une valeur à une variable de l'action (`variables` ou `apres`) : avantage, dégâts… */
-        z.object({ variable: Cle, ajouter: Formule }),
-        z.object({ bonus: Formule }),
-      ])
-      .optional(),
-  }),
+  EffetJet,
   EffetDegats,
 ]);
 export type Effet = z.output<typeof Effet>;
@@ -532,6 +539,22 @@ export const DesSymboles = z.object({
 export type DesSymboles = z.output<typeof DesSymboles>;
 
 /**
+ * Rangement d'un paramètre dans le formulaire d'une action : `preparation` (arme, options des
+ * talents, ce que l'acteur prépare) ou `situation` (couvert, surprise, avantage de situation :
+ * ce que la table constate). Sans effet sur le calcul.
+ */
+export const SectionParametre = z.enum(['preparation', 'situation']);
+export type SectionParametre = z.output<typeof SectionParametre>;
+
+/** Option d'un paramètre `choix` : sa `valeur` est lue comme un texte dans les formules. */
+export const OptionChoix = z.object({
+  valeur: Cle,
+  nom: Libelle,
+  description: z.string().max(500).optional(),
+});
+export type OptionChoix = z.output<typeof OptionChoix>;
+
+/**
  * `exige` : le paramètre n'est proposé que si la condition est vraie pour
  * l'acteur (option d'un talent possédé : « subir 2 stress pour… ») ; sinon
  * il garde sa valeur par défaut.
@@ -539,20 +562,34 @@ export type DesSymboles = z.output<typeof DesSymboles>;
 const ParametreCommun = {
   id: Cle,
   nom: Libelle,
+  /** Aide courte, montrée au survol du paramètre. */
+  description: z.string().max(500).optional(),
   exige: Formule.optional(),
   /**
    * `cible` : réaction choisie par la cible (Esquive…) ; `exige` est alors
    * évalué sur la cible. La valeur est fournie avec l'action.
    */
   par: z.enum(['acteur', 'cible']).default('acteur'),
+  section: SectionParametre.default('preparation'),
 };
 
-const Parametre = z.discriminatedUnion('type', [
+export const Parametre = z.discriminatedUnion('type', [
   z.object({ ...ParametreCommun, type: z.literal('nombre'), defaut: z.number().default(0) }),
   z.object({
     ...ParametreCommun,
     type: z.literal('booleen'),
     defaut: z.boolean().default(false),
+  }),
+  /**
+   * Une option parmi une liste nommée (couvert : aucun, partiel, important). Lue comme un
+   * texte, la `valeur` de l'option : `couvert == "partiel"` ; le chargement vérifie que le
+   * texte comparé est bien une option. `defaut` absent : la première option.
+   */
+  z.object({
+    ...ParametreCommun,
+    type: z.literal('choix'),
+    options: z.array(OptionChoix).min(1),
+    defaut: Cle.optional(),
   }),
   /** Une entrée possédée par l'acteur (compétence, arme…) ; ses champs deviennent `id.champ`. */
   z.object({
@@ -573,6 +610,12 @@ const Parametre = z.discriminatedUnion('type', [
     groupe: Id.optional(),
   }),
 ]);
+export type Parametre = z.output<typeof Parametre>;
+
+/** Valeur par défaut d'un paramètre `choix` : son `defaut`, sinon sa première option. */
+export function defautChoix(p: Extract<Parametre, { type: 'choix' }>): string {
+  return p.defaut ?? p.options[0]!.valeur;
+}
 
 export const Jet = z.discriminatedUnion('type', [
   z.object({
@@ -686,8 +729,32 @@ export const Action = z.object({
     .default([]),
   /** Action à cible jouable contre plusieurs cibles : mode de jet proposé, plafond. */
   multicible: Multicible.optional(),
+  /**
+   * Situation du système (`Systeme.situation`), reçue par toute action à cible : `false` n'en
+   * reçoit rien (soins), `{ sauf }` écarte certains de ses paramètres (lus alors à leur valeur
+   * neutre par ses effets). Sans effet sur une action sans cible.
+   */
+  situation: z.union([z.boolean(), z.object({ sauf: z.array(Cle).min(1) })]).default(true),
 });
 export type Action = z.output<typeof Action>;
+
+/** L'action reçoit la situation du système : une action à cible qui ne l'écarte pas. */
+export function recoitSituation(a: Pick<Action, 'cible' | 'situation'>): boolean {
+  return !!a.cible?.length && a.situation !== false;
+}
+
+/**
+ * Situation d'une action à cible, déclarée une fois pour tout le système (couvert, avantage de
+ * situation, cible surprise…). Au chargement, ses paramètres rejoignent ceux de chaque action à
+ * cible (rangés `section: situation`) : le front et les services les voient comme des paramètres
+ * ordinaires. Ses effets de jet s'appliquent à ces actions et lisent ces paramètres, la cible
+ * (`@cible.X`) et le combat (`@combat.*`).
+ */
+export const Situation = z.object({
+  parametres: z.array(Parametre).default([]),
+  effets: z.array(EffetJet).default([]),
+});
+export type Situation = z.output<typeof Situation>;
 
 export const Initiative = z.object({
   action: Id,
@@ -758,6 +825,8 @@ export const Systeme = z.object({
   arbres: z.array(Arbre).default([]),
   des: DesSymboles.optional(),
   actions: z.array(Action).default([]),
+  /** Situation commune des actions à cible (voir `Situation`). */
+  situation: Situation.optional(),
   initiative: Initiative.optional(),
   tables: z.array(Table).default([]),
   /** Types de dégâts (feu, froid, perforant…), lus par les conséquences et les résistances. */

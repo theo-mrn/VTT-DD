@@ -278,8 +278,10 @@ Ces notions sont implémentées dans `packages/rules`. Les systèmes de `package
 
 - `exige` : l'action est réservée à qui remplit la condition.
 - Paramètres :
-  - types `nombre`, `booleen`, `attribut` (choisi dans un groupe) et `entree` ;
+  - types `nombre`, `booleen`, `attribut` (choisi dans un groupe), `entree` et `choix` ;
   - pour une `entree` : `possedee: false` accepte une entrée non possédée, au rang 0 ; `facultatif: true` permet de l'omettre ;
+  - `choix` : une option parmi une liste nommée (`options: [{ valeur, nom, description? }]`, `defaut` ou, sans lui, la première option), voir « Situation du combat » ;
+  - `section` : `preparation` (défaut : arme, options des talents) ou `situation` (couvert, surprise…), où le formulaire range le paramètre ; `description` : aide courte, montrée au survol ;
   - `exige` sur un paramètre : c'est une option réservée, par exemple le talent qui l'accorde.
 - `verifications` : refus avec un message clair, une fois les paramètres lus.
 - Jet :
@@ -313,6 +315,75 @@ Moteur :
 - `executerMulticible(systeme, { action, acteur, cibles: [{ id, fiche, reaction?, forcer? }], parametres?, jet?, ajustements?, aleatoire })` : une exécution par cible ; les paramètres `par: cible` viennent des réactions ; résultat par cible (`ok`, ou les refus propres à cette cible), modifications de l'acteur (coûts) comptées une fois, celles de chaque cible dans son résultat.
 - `vueActeur(systeme, resultat)` : dés et total (ou pool), issue, valeurs `visibilite: acteur`, déroulé reconstruit ; les lignes de la cible deviennent « Défense de la cible ». Jamais un attribut, une variable, une résistance, une modification ou une table de la cible.
 - Générateur : `entier(max, contexte?)` (`contexte.de` : sorte d'un dé à symboles) et `phase?(nom)`, appelé par le moteur au début du jet (`jet`), d'`apres`, des `tables` et à la `fin`. Un dé est repéré par sa phase, sa sorte et son rang dans la phase : `partagerGenerateur` (jet commun), `generateurParCible`, et `aleatoirePlanifie({ faces, commun, repli? })` pour les dés physiques (étape C) : il rejoue les faces fournies, note les dés manquants (valeur provisoire 1) et lève `DesRequis` au changement de phase ; `executerMulticible` les réunit dans `requis` (identifiants `phase:sorte:k`, préfixés par la place de la cible pour un jet par cible). Aucun calcul n'est rendu avec une valeur provisoire.
+
+### Situation du combat
+
+Demande de Théo (combat.md § 5.7) : une attaque dépend de bien plus que de l'arme. Le couvert de
+la cible, un avantage de situation, une cible à terre ou surprise, un bonus décidé par le MJ se
+déclarent **une fois pour tout le système**, et chaque action à cible les reçoit.
+
+**Paramètre `choix`.** Une option parmi une liste nommée :
+
+```yaml
+- id: couvert
+  nom: Couvert de la cible
+  description: Abri partiel +2 DEF, important +5 DEF
+  type: choix
+  options:
+    - { valeur: aucun, nom: Aucun }
+    - { valeur: partiel, nom: Partiel (+2 DEF) }
+    - { valeur: important, nom: Important (+5 DEF) }
+  defaut: aucun # absent : la première option
+```
+
+Dans les formules, il se lit comme un **texte**, la `valeur` de l'option retenue :
+`si(couvert == "partiel", -2, si(couvert == "important", -5, 0))`. C'est le choix le plus propre
+pour le langage : un attribut `choix` et un champ `choix` d'une sorte se lisent déjà ainsi, le
+nombre attaché à chaque option reste écrit dans la règle qui s'en sert (un même choix peut valoir
+−2 à l'attaque et +1 à un jet de sauvegarde), et le chargement **vérifie chaque texte comparé**
+(`==`, `!=`) à un paramètre `choix` : `couvert == "partiell"` est refusé avec sa position, au lieu
+d'être toujours faux sans rien dire. Une valeur reçue hors des options est refusée à l'exécution.
+
+**Section et description.** Tout paramètre porte `section` (`preparation` par défaut,
+`situation`) et `description` (aide courte, 500 caractères). Ils ne changent aucun calcul : le
+formulaire range les paramètres de situation à part et montre la description au survol. Une
+action peut ranger ses propres paramètres en situation (Star Wars, Frappe rapide : « la cible n'a
+pas encore agi »).
+
+**Situation du système.** Bloc `situation` à la racine du système :
+
+```yaml
+situation:
+  parametres: # rejoignent chaque action à cible
+    - { id: bonusToucher, nom: Bonus ou malus au toucher, type: nombre }
+    - { id: couvert, … }
+  effets: # effets de jet (`sur: jet`), appliqués à ces actions
+    - sur: jet
+      description: Couvert de la cible
+      ajout: { variable: bonusAttaque, ajouter: 'si(couvert == "partiel", -2, …)' }
+    - { sur: jet, description: Bonus de situation, ajout: { bonus: bonusToucher } }
+```
+
+- **Fusion au chargement.** Chaque action qui déclare une `cible` reçoit les paramètres de la
+  situation, après les siens, rangés `section: situation` (quelle que soit la section écrite).
+  Le front et les services les voient comme des paramètres ordinaires de l'action
+  (`systeme.actions`) ; le document source, lui, n'est pas modifié (`systeme.source.actions`).
+- **S'en exclure.** `situation: false` sur une action : ni paramètres ni effets (soins, dégâts
+  sans jet d'attaque). `situation: { sauf: [avantage] }` : ces paramètres ne sont pas ajoutés,
+  les effets les lisent à leur valeur par défaut ; l'action peut alors déclarer le sien. Une
+  action qui déclare un paramètre du même nom sans l'écarter est refusée.
+- **Effets de situation.** Seulement des effets de jet (`sur: jet` : dés ajoutés, améliorés,
+  rétrogradés ou retirés, bonus au total, valeur ajoutée à une variable de l'action), sans côté
+  (`cote: cible` refusé : ils ne viennent d'aucun porteur). Ils sont compilés pour chaque action
+  qui reçoit la situation, avec ses paramètres, son acteur (`@X`) et sa cible (`@cible.X`,
+  `cible_possede`) ; `actions` les restreint à certaines actions,
+  `implique`, `condition` et `si` jouent comme pour un effet possédé. Un effet dont la valeur est
+  0 ne s'applique pas et ne dit rien ; sinon sa ligne a pour source `situation`, pour nom sa
+  `description` (sinon « Situation ») et pour côté `action` : l'attaquant la voit, c'est lui ou
+  le MJ qui l'a déclarée. Un effet sur une variable que l'action n'a pas (`bonusAttaque` d'un
+  soin) ne fait rien.
+- **Déroulé.** Un paramètre de situation laissé à sa valeur par défaut n'apparaît pas dans les
+  explications ; une option retenue y figure par son nom (« Couvert de la cible : Partiel »).
 
 ### Exemplaires, quantités et saisie
 
