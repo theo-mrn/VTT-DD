@@ -163,6 +163,7 @@ class Chargeur {
     this.verifierArbres();
     this.verifierActions();
     this.verifierTables();
+    this.verifierRencontres();
     this.calculerOrdres();
 
     if (this.erreurs.length) return { ok: false, erreurs: this.erreurs };
@@ -1155,6 +1156,27 @@ class Chargeur {
   }
 
   // ─── Tables ────────────────────────────────────────────────────────────────
+
+  /** Générateur de rencontres : attributs cités, scénarios cohérents, ids uniques. */
+  private verifierRencontres(): void {
+    const r = this.s.rencontres;
+    if (!r) return;
+    const attributs = new Set(this.s.entites.flatMap((e) => e.attributs.map((a) => a.cle)));
+    if (!attributs.has(r.niveau))
+      this.erreur('rencontres/niveau', `Attribut inconnu : ${r.niveau}`);
+    if (!attributs.has(r.puissance))
+      this.erreur('rencontres/puissance', `Attribut inconnu : ${r.puissance}`);
+    r.filtres.forEach((f, i) => {
+      if (!attributs.has(f)) this.erreur(`rencontres/filtres/${i}`, `Attribut inconnu : ${f}`);
+    });
+    this.unique(r.difficultes, (d) => d.id, 'rencontres/difficultes', 'Difficulté');
+    this.unique(r.scenarios, (x) => x.id, 'rencontres/scenarios', 'Scénario');
+    r.scenarios.forEach((x, i) => {
+      if (x.min > x.max) this.erreur(`rencontres/scenarios/${i}`, `min ${x.min} > max ${x.max}`);
+      if (x.chef && x.min < 2)
+        this.erreur(`rencontres/scenarios/${i}`, 'Un chef et ses sbires : 2 créatures au moins');
+    });
+  }
 
   private verifierTables(): void {
     for (const t of this.tables.values()) {

@@ -2683,3 +2683,178 @@ initiative:
   tri: [total]
   # Chacun agit à son tour, dans l'ordre d'initiative
   mode: individuel
+
+# Générateur de rencontres (panneau Rencontres du MJ), repris de l'ancienne app : budget d'XP par
+# personnage selon son niveau et la difficulté, coût d'une créature selon son niveau (le « niveau »
+# du bestiaire est son facteur de puissance), nombre de créatures qui alourdit le combat.
+rencontres:
+  niveau: niveau
+  puissance: niveau
+  nomPuissance: Niveau
+  unite: XP
+  cout:
+    - { puissance: 0, valeur: 10 }
+    - { puissance: 0.125, valeur: 25 }
+    - { puissance: 0.25, valeur: 50 }
+    - { puissance: 0.5, valeur: 100 }
+    - { puissance: 1, valeur: 200 }
+    - { puissance: 2, valeur: 450 }
+    - { puissance: 3, valeur: 700 }
+    - { puissance: 4, valeur: 1100 }
+    - { puissance: 5, valeur: 1800 }
+    - { puissance: 6, valeur: 2300 }
+    - { puissance: 7, valeur: 2900 }
+    - { puissance: 8, valeur: 3900 }
+    - { puissance: 9, valeur: 5000 }
+    - { puissance: 10, valeur: 5900 }
+    - { puissance: 11, valeur: 7200 }
+    - { puissance: 12, valeur: 8400 }
+    - { puissance: 13, valeur: 10000 }
+    - { puissance: 14, valeur: 11500 }
+    - { puissance: 15, valeur: 13000 }
+    - { puissance: 16, valeur: 15000 }
+    - { puissance: 17, valeur: 18000 }
+    - { puissance: 18, valeur: 20000 }
+    - { puissance: 19, valeur: 22000 }
+    - { puissance: 20, valeur: 25000 }
+    - { puissance: 21, valeur: 33000 }
+    - { puissance: 22, valeur: 41000 }
+    - { puissance: 23, valeur: 50000 }
+    - { puissance: 24, valeur: 62000 }
+    - { puissance: 30, valeur: 155000 }
+  difficultes:
+    - id: facile
+      nom: Facile
+      parNiveau:
+        [
+          25,
+          50,
+          75,
+          125,
+          250,
+          300,
+          350,
+          450,
+          550,
+          600,
+          800,
+          1000,
+          1100,
+          1250,
+          1400,
+          1600,
+          2000,
+          2100,
+          2400,
+          2800,
+        ]
+    - id: moyenne
+      nom: Moyenne
+      parNiveau:
+        [
+          50,
+          100,
+          150,
+          250,
+          500,
+          600,
+          750,
+          900,
+          1100,
+          1200,
+          1600,
+          2000,
+          2200,
+          2500,
+          2800,
+          3200,
+          3900,
+          4200,
+          4900,
+          5700,
+        ]
+    - id: difficile
+      nom: Difficile
+      parNiveau:
+        [
+          75,
+          150,
+          225,
+          375,
+          750,
+          900,
+          1100,
+          1400,
+          1600,
+          1900,
+          2400,
+          3000,
+          3400,
+          3800,
+          4300,
+          4800,
+          5900,
+          6300,
+          7300,
+          8500,
+        ]
+    - id: mortelle
+      nom: Mortelle
+      parNiveau:
+        [
+          100,
+          200,
+          400,
+          500,
+          1100,
+          1400,
+          1700,
+          2100,
+          2400,
+          2800,
+          3600,
+          4500,
+          5100,
+          5700,
+          6400,
+          7200,
+          8800,
+          9500,
+          10900,
+          12700,
+        ]
+  multiplicateurs:
+    - { nombre: 1, facteur: 1 }
+    - { nombre: 2, facteur: 1.5 }
+    - { nombre: 3, facteur: 2 }
+    - { nombre: 7, facteur: 2.5 }
+    - { nombre: 11, facteur: 3 }
+    - { nombre: 15, facteur: 4 }
+  scenarios:
+    - id: restreint
+      nom: Groupe restreint
+      description: Une ou deux créatures solides.
+      min: 1
+      max: 2
+      puissanceMax: 1.1
+    - id: horde
+      nom: Horde
+      description: Beaucoup de créatures plus faibles.
+      min: 4
+      max: 15
+      puissanceMax: 0.4
+    - id: boss
+      nom: Boss
+      description: Une seule créature très puissante.
+      min: 1
+      max: 1
+      puissanceMax: 1.6
+    - id: chef
+      nom: Chef et sbires
+      description: Un chef puissant entouré de sbires.
+      min: 3
+      max: 9
+      puissanceMax: 1.3
+      chef: true
+      puissanceSbires: 0.4
+  filtres: [PV_Max, Defense]

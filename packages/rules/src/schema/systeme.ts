@@ -821,6 +821,63 @@ export const OptionRegle = z.object({
 });
 export type OptionRegle = z.output<typeof OptionRegle>;
 
+// ─── Rencontres ──────────────────────────────────────────────────────────────
+
+/**
+ * Règles du générateur de rencontres (panneau Rencontres du MJ) : combien « coûte » une
+ * créature du bestiaire selon sa puissance, quel budget offre un groupe de personnages selon
+ * la difficulté voulue, et les formes de rencontre proposées. Tout est une donnée : un système
+ * sans ce bloc n'a pas de générateur.
+ */
+export const Rencontres = z.object({
+  /** Attribut du personnage qui donne son niveau (le budget se calcule par personnage). */
+  niveau: Cle,
+  /** Valeur d'une créature du bestiaire qui dit sa puissance (niveau de défi…). */
+  puissance: Cle,
+  /** Nom de la puissance à l'écran (« Niveau », « FP »). */
+  nomPuissance: Libelle.default('Puissance'),
+  /** Unité du budget (« XP »). */
+  unite: Libelle.default('XP'),
+  /** Coût d'une créature : palier le plus haut dont la puissance ne dépasse pas la sienne. */
+  cout: z.array(z.object({ puissance: z.number(), valeur: z.number().nonnegative() })).min(1),
+  /** Difficultés, de la plus facile à la plus dure : budget d'un personnage par niveau (1, 2…). */
+  difficultes: z
+    .array(
+      z.object({
+        id: Cle,
+        nom: Libelle,
+        parNiveau: z.array(z.number().nonnegative()).min(1),
+      }),
+    )
+    .min(1),
+  /** Le nombre de créatures pèse sur le coût : facteur à partir de `nombre` créatures. */
+  multiplicateurs: z
+    .array(z.object({ nombre: z.number().int().min(1), facteur: z.number().positive() }))
+    .default([{ nombre: 1, facteur: 1 }]),
+  /** Formes de rencontre proposées (groupe restreint, horde, boss…). */
+  scenarios: z
+    .array(
+      z.object({
+        id: Cle,
+        nom: Libelle,
+        description: Description,
+        /** Nombre de créatures. */
+        min: z.number().int().min(1),
+        max: z.number().int().min(1),
+        /** Puissance d'une créature au plus : rapport au niveau moyen du groupe. */
+        puissanceMax: z.number().positive(),
+        /** Un chef plus puissant (jusqu'à `puissanceMax` fois le niveau), le reste en sbires. */
+        chef: z.boolean().default(false),
+        /** Puissance d'un sbire au plus (rapport au niveau moyen), avec un chef. */
+        puissanceSbires: z.number().positive().optional(),
+      }),
+    )
+    .min(1),
+  /** Valeurs des créatures filtrables par intervalle (PV, Défense…). */
+  filtres: z.array(Cle).default([]),
+});
+export type Rencontres = z.output<typeof Rencontres>;
+
 // ─── Système ─────────────────────────────────────────────────────────────────
 
 export const Systeme = z.object({
@@ -848,6 +905,8 @@ export const Systeme = z.object({
   tables: z.array(Table).default([]),
   /** Types de dégâts (feu, froid, perforant…), lus par les conséquences et les résistances. */
   typesDegats: z.array(z.object({ id: Id, nom: Libelle, description: Description })).default([]),
+  /** Générateur de rencontres (voir `Rencontres`). */
+  rencontres: Rencontres.optional(),
   textes: z.array(z.object({ id: Id, titre: Libelle, contenu: z.string() })).default([]),
 });
 export type Systeme = z.output<typeof Systeme>;
