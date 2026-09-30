@@ -2,9 +2,10 @@
 
 /**
  * Formulaire des paramètres d'une action du système (docs/combat.md § 5.2) : un champ par
- * paramètre, généré depuis sa définition (`nombre`, `booleen`, `attribut`, `entree` avec ses
- * exemplaires). Champ partagé par le menu d'attaque, le lanceur d'actions de la fiche et le
- * formulaire d'initiative ; aucune clé de jeu.
+ * paramètre, généré depuis sa définition (`nombre`, `booleen`, `choix`, `attribut`, `entree`
+ * avec ses exemplaires), sa description en info-bulle. Champ partagé par le lanceur d'actions
+ * de la fiche, le formulaire d'initiative et la défense active ; le menu d'attaque a ses
+ * propres cartes (étape « Préparer »). Aucune clé de jeu.
  */
 import type { Action, Fiche, SystemeCharge, Valeur } from '@vtt/rules';
 import { useId } from 'react';
@@ -15,10 +16,14 @@ import { libelleAttribut } from '@/lib/creation';
 import {
   attackerParams,
   attributeOptions,
+  choiceOptions,
   entryOptions,
+  isChoiceParam,
+  paramDescription,
   type ActionParam,
 } from '@/lib/combat/params';
 import { cn } from '@/lib/utils';
+import { HintIcon, Segmented } from './controls';
 
 /** Un paramètre d'action, selon son type. */
 export function ParamField({
@@ -37,11 +42,34 @@ export function ParamField({
 }) {
   const id = `param-${useId()}-${p.id}`;
   const label = cn(compact && 'text-[13px]');
+  const aide = paramDescription(p);
+  const nom = (
+    <span className="inline-flex items-center gap-1">
+      {p.nom}
+      {aide && <HintIcon text={aide} />}
+    </span>
+  );
+  if (isChoiceParam(p))
+    return (
+      <div className="space-y-2">
+        <Label className={label}>{nom}</Label>
+        <Segmented
+          label={p.nom}
+          value={String(valeur)}
+          onChange={onValeur}
+          options={choiceOptions(p).map((o) => ({
+            value: o.valeur,
+            label: o.nom,
+            hint: o.description,
+          }))}
+        />
+      </div>
+    );
   if (p.type === 'booleen')
     return (
       <div className="flex items-center justify-between gap-4">
         <Label htmlFor={id} className={label}>
-          {p.nom}
+          {nom}
         </Label>
         <Switch id={id} checked={valeur === true} onCheckedChange={onValeur} />
       </div>
@@ -50,7 +78,7 @@ export function ParamField({
     return (
       <div className="flex items-center justify-between gap-4">
         <Label htmlFor={id} className={label}>
-          {p.nom}
+          {nom}
         </Label>
         <Input
           id={id}
@@ -66,7 +94,7 @@ export function ParamField({
     const options = attributeOptions(fiche, p);
     return (
       <div className="space-y-2">
-        <Label className={label}>{p.nom}</Label>
+        <Label className={label}>{nom}</Label>
         <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={p.nom}>
           {options.map((cle) => {
             const v = fiche.valeurs.get(cle);
@@ -98,11 +126,12 @@ export function ParamField({
       </div>
     );
   }
+  if (p.type !== 'entree') return null;
   const options = entryOptions(fiche, p);
   return (
     <div className="space-y-2">
       <Label htmlFor={id} className={label}>
-        {p.nom}
+        {nom}
       </Label>
       <select
         id={id}
