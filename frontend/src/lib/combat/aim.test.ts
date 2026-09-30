@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AIM_TTL_MS, AimBoard, AimSender, aimMessage } from './aim';
 import { declaredStage, stepButtonLabel, stepToLaunch } from './attack-flow';
-import { partitionStep, serverRunner } from './dice-steps';
+import { clientRunner, partitionStep, serverRunner } from './dice-steps';
 import { attack as testAttack } from './test-kit';
 
 describe('visée en direct (combat.aim)', () => {
@@ -67,6 +67,27 @@ describe('étapes de dés (point d’extension de l’étape C)', () => {
       'Tirer : Blessure critique',
     );
     expect(stepButtonLabel({ ...after, label: undefined })).toBe('Lancer la suite');
+  });
+
+  it('dés tirés dans le navigateur : une face valide par dé de l’étape', async () => {
+    const step = {
+      id: 'roll-0',
+      phase: 'roll' as const,
+      dice: [
+        { id: '0:jet:d20:0', targetId: 't1', faces: 20 },
+        { id: '1:jet:d20:0', targetId: 't2', faces: 20 },
+        { id: 'apres:d6:0', targetId: null, faces: 6 },
+      ],
+    };
+    for (let n = 0; n < 50; n++) {
+      const body = await clientRunner.run(step);
+      expect(body.stepId).toBe('roll-0');
+      expect(body.results.map((r) => r.id)).toEqual(step.dice.map((d) => d.id));
+      body.results.forEach((r, i) => {
+        expect(r.value).toBeGreaterThanOrEqual(1);
+        expect(r.value).toBeLessThanOrEqual(step.dice[i]!.faces);
+      });
+    }
   });
 
   it('dés lancés en 3D et dés laissés au serveur (d100, limite du lanceur)', () => {

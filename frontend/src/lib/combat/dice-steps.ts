@@ -31,6 +31,28 @@ export const serverRunner: DiceStepRunner = {
   run: async (step) => ({ stepId: step.id, results: [] }),
 };
 
+/** Face tirée dans le navigateur (aléa cryptographique, sans biais de modulo). */
+function rollFace(faces: number): number {
+  const n = Math.max(1, Math.floor(faces));
+  const max = Math.floor(0x1_0000_0000 / n) * n;
+  const buf = new Uint32Array(1);
+  do crypto.getRandomValues(buf);
+  while (buf[0]! >= max);
+  return (buf[0]! % n) + 1;
+}
+
+/**
+ * Dés tirés dans le navigateur (décidé par Théo le 2026-09-30) : chaque dé de l'étape reçoit sa
+ * face ici, le serveur ne fait que rejouer ces faces et calculer (la fiche de la cible reste
+ * chez lui). Aucun aller-retour pour tirer : un seul appel par étape.
+ */
+export const clientRunner: DiceStepRunner = {
+  run: async (step) => ({
+    stepId: step.id,
+    results: step.dice.map((d) => ({ id: d.id, value: rollFace(d.faces) })),
+  }),
+};
+
 /** Forme 3D d'un dé demandé, ou null s'il n'en a pas (dé à symboles : forme de la présentation). */
 export function shapeOf(
   die: RollStep['dice'][number],

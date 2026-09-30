@@ -57,6 +57,7 @@ import {
   stepToLaunch,
 } from '@/lib/combat/attack-flow';
 import { attackMenu, useAttackFlow } from '@/lib/combat/attack-menu-store';
+import { clientRunner } from '@/lib/combat/dice-steps';
 import { awaitingReaction, targetName } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
 import { AimPill } from './aim-pill';
@@ -134,13 +135,12 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
     setLaunching(true);
     try {
       let updated = await model.commands.submitDice(attack.id, {
-        stepId: nextStep.id,
-        results: [],
+        ...(await clientRunner.run(nextStep)),
         ...(params ? { params: params as ActionParams } : {}),
       });
       const then = params ? stepToLaunch(updated) : null;
       if (then && then.phase === nextStep.phase && !then.params?.length)
-        updated = await model.commands.submitDice(attack.id, { stepId: then.id, results: [] });
+        updated = await model.commands.submitDice(attack.id, await clientRunner.run(then));
       attackMenu.dispatch({ type: 'attackUpdated', attack: updated });
     } catch (err) {
       toast.error(combatErrorMessage(err));

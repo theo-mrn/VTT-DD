@@ -35,7 +35,7 @@ import {
   type TargetSummary,
 } from '@/lib/combat/attack-flow-result';
 import { attackMenu } from '@/lib/combat/attack-menu-store';
-import { serverRunner } from '@/lib/combat/dice-steps';
+import { clientRunner } from '@/lib/combat/dice-steps';
 import { ATTACK_STATUS_LABELS, useAttack, type useAttackCommands } from '@/lib/combat/use-attacks';
 import { awaitingReaction, targetName } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
@@ -66,15 +66,17 @@ export function useDeclaredAttack(flow: OpenFlow, commands: Commands): Attack | 
       attackMenu.dispatch({ type: 'attackUpdated', attack: live.attack });
   }, [declared, live.attack]);
 
-  // Jet d'attaque : lancé tout seul (le serveur tire, rien n'est animé) ; la suite (dégâts),
-  // l'attaquant la déclenche après avoir vu TOUCHÉ ou RATÉ (`stepToLaunch`)
+  // Jet d'attaque : lancé tout seul, dés tirés dans le navigateur ; la suite (dégâts),
+  // l'attaquant la déclenche après avoir vu TOUCHÉ ou RATÉ (`stepToLaunch`). Les étapes de
+  // chaque attaque s'appellent pareil (`roll-0`) : la clé porte l'attaque.
   const sent = useRef(new Set<string>());
   useEffect(() => {
     if (!attack || attack.status !== 'awaiting_dice' || attack.resolving) return;
     for (const step of attack.pendingSteps) {
-      if (step.phase !== 'roll' || sent.current.has(step.id)) continue;
-      sent.current.add(step.id);
-      void serverRunner
+      const key = `${attack.id}:${step.id}`;
+      if (step.phase !== 'roll' || sent.current.has(key)) continue;
+      sent.current.add(key);
+      void clientRunner
         .run(step)
         .then((body) => commands.submitDice(attack.id, body))
         .catch((err) => toast.error(combatErrorMessage(err)));
