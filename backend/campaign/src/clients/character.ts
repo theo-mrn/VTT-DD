@@ -3,12 +3,27 @@
  * partagé INTERNAL_API_SECRET, jamais relayées par la gateway) :
  *  - résumé d'un personnage (propriétaire, système) avant de l'engager ;
  *  - action d'initiative d'un participant (clés de tri renvoyées) ;
- *  - décompte des durées en fin de round ;
+ *  - décompte des durées en fin de round (idempotent par `tickId`, annulable) ;
+ *  - attaques (docs/combat.md § 11.2) : préparer, résoudre, appliquer les décisions du MJ,
+ *    annuler une application ;
  *  - instances de PNJ posées sur la carte (création, suppression) et butin d'un objet.
  *
  * Le contrat de ces routes appartient à character (champs en français) : ce
  * client le traduit en types anglais pour le reste du service.
  */
+import {
+  AttackModification,
+  AttackTargetResult,
+  AttackTargetView,
+  Change,
+  RollStep,
+  type ActionParams,
+  type AttackModificationInput,
+  type AttackRollMode,
+  type AttackVisibility,
+  type RollAdjustments,
+  type RollDiceMode,
+} from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { z } from 'zod';
 import { INTERNAL_SECRET_HEADER } from '../internal/secret.js';
@@ -72,6 +87,7 @@ const DurationsResponse = z.object({
   modifie: z.boolean(),
   retirees: z.array(z.string()),
   version: z.number(),
+  replayed: z.boolean().optional(),
 });
 
 export interface DurationsTick {
@@ -79,6 +95,133 @@ export interface DurationsTick {
   /** Entrées (états temporaires) arrivées à expiration. */
   expired: string[];
   version: number;
+  /** Même `tickId` déjà décompté : réponse d'origine, rien de plus. */
+  replayed: boolean;
+}
+
+// ─── Attaques (docs/combat.md § 11.2, forme fixée par le lot 2) ─────────────
+
+/** Jet transmis à l'historique des dés (service dice) par character. */
+export interface DiceHistory {
+  campaignId: string;
+  authorId: string;
+  visibility: AttackVisibility;
+}
+
+const ResolutionTarget = z.object({
+  characterId: z.string(),
+  status: z.enum(['resolved', 'failed']),
+  error: z.string().nullable().default(null),
+  result: AttackTargetResult.nullable().default(null),
+  view: AttackTargetView.nullable().default(null),
+});
+
+const ActionResolution = z.object({
+  targets: z.array(ResolutionTarget),
+  actor: z.object({ modifications: z.array(AttackModification) }).default({ modifications: [] }),
+});
+/** Résultats d'une attaque, cible par cible, et coûts de l'attaquant (comptés une fois). */
+export type ActionResolution = z.infer<typeof ActionResolution>;
+
+const PrepareResponse = z.object({
+  snapshot: z.unknown(),
+  action: z.object({ id: z.string(), name: z.string() }),
+  rollMode: z.enum(['per_target', 'shared']),
+  dice: z.enum(['physical', 'server']).default('server'),
+  targets: z.array(
+    z.object({
+      characterId: z.string(),
+      error: z.string().nullable().default(null),
+      reactionParams: z.array(z.string()).default([]),
+    }),
+  ),
+  step: RollStep.nullable().default(null),
+  resolution: ActionResolution.nullable().default(null),
+});
+export type PreparedAction = z.infer<typeof PrepareResponse>;
+
+export interface PrepareInput {
+  actorId: string;
+  action: string;
+  params?: ActionParams;
+  targetIds: string[];
+  rollMode?: AttackRollMode;
+  adjustments?: RollAdjustments;
+  dice?: RollDiceMode;
+  userId: string;
+  campaignId: string;
+  diceHistory?: DiceHistory;
+}
+
+const ResolveResponse = z.object({
+  step: RollStep.nullable().default(null),
+  resolution: ActionResolution.nullable().default(null),
+});
+export type ResolvedAction = z.infer<typeof ResolveResponse>;
+
+export interface ResolveInput {
+  snapshot: unknown;
+  params?: ActionParams;
+  rollMode: AttackRollMode;
+  adjustments?: RollAdjustments;
+  dice?: RollDiceMode;
+  reactions?: { characterId: string; params?: ActionParams; skipped?: boolean }[];
+  stepId?: string;
+  faces?: { id: string; value: number }[];
+  serverFallback?: boolean;
+  diceHistory?: DiceHistory;
+}
+
+/** Modifications décidées pour une fiche, et tables appliquées (entrée de la ligne). */
+export interface ApplicationItem {
+  characterId: string;
+  modifications: AttackModificationInput[];
+  tables?: { table: string; entry: string | null }[];
+}
+
+export interface ApplicationInput {
+  applicationId: string;
+  userId?: string;
+  campaignId: string;
+  items: ApplicationItem[];
+}
+
+const AppliedItem = z.object({
+  characterId: z.string(),
+  version: z.number(),
+  changes: z.array(Change).default([]),
+  defeated: z.boolean().default(false),
+});
+
+const ApplyResponse = z.object({
+  applications: z.array(
+    z.object({
+      applicationId: z.string(),
+      replayed: z.boolean().default(false),
+      items: z.array(AppliedItem),
+    }),
+  ),
+});
+export type AppliedModifications = z.infer<typeof ApplyResponse>;
+
+const RevertResponse = z.object({
+  applicationId: z.string(),
+  items: z.array(
+    z.object({
+      characterId: z.string(),
+      status: z.enum(['reverted', 'already_reverted', 'missing']),
+      version: z.number().nullable().optional(),
+      changes: z.array(Change).default([]),
+      defeated: z.boolean().optional(),
+    }),
+  ),
+});
+export type RevertedModifications = z.infer<typeof RevertResponse>;
+
+/** Chemins en conflit d'une annulation refusée (409 `revert_conflict`). */
+export interface RevertConflict {
+  characterId: string;
+  paths: string[];
 }
 
 /** Origine d'un appel : MJ déclencheur, campagne, corrélation (reprise dans les événements). */
@@ -94,6 +237,8 @@ export class CharacterError extends Error {
     public readonly status: number,
     message: string,
     public readonly code?: string,
+    /** Corps du problème renvoyé par character (`errors`, `conflicts`…). */
+    public readonly problem: Record<string, unknown> = {},
   ) {
     super(message);
     this.name = 'CharacterError';
@@ -154,7 +299,30 @@ export interface CharacterClient {
     body: { params?: Record<string, unknown>; apply?: boolean },
     origin?: CallOrigin,
   ): Promise<PlayedAction>;
-  tickDurations(id: string, origin?: CallOrigin): Promise<DurationsTick>;
+  /**
+   * Décompte des durées ; `tickId` : une seule fois par passage (idempotent, annulable) ;
+   * `clear` : tout ce qui a une durée est retiré (fin de combat).
+   */
+  tickDurations(
+    id: string,
+    origin?: CallOrigin,
+    tickId?: string,
+    options?: { clear?: boolean },
+  ): Promise<DurationsTick>;
+  /** Vérifie une attaque, fige l'instantané, propose les réactions (ou résout tout de suite). */
+  prepareAction(input: PrepareInput, origin?: CallOrigin): Promise<PreparedAction>;
+  /** Résout (ou avance d'une étape de dés) une attaque préparée. */
+  resolveAction(input: ResolveInput, origin?: CallOrigin): Promise<ResolvedAction>;
+  /** Applique des décisions, sans aucun dé ; une transaction, idempotent par applicationId. */
+  applyModifications(
+    applications: ApplicationInput[],
+    origin?: CallOrigin,
+  ): Promise<AppliedModifications>;
+  /** Rend les valeurs d'avant une application (ou un décompte : `applicationId = tickId`). */
+  revertModifications(
+    input: { applicationId: string; characterIds?: string[]; force?: boolean; userId?: string },
+    origin?: CallOrigin,
+  ): Promise<RevertedModifications>;
   /** Crée `count` personnages PNJ du MJ (`origin.userId`) pour la campagne (`origin.campaignId`). */
   createNpcs(
     input: { systemId: string; count: number; source: NpcSourceInput },
@@ -185,6 +353,18 @@ export const characterUnavailable: CharacterClient = {
     throw unavailable();
   },
   tickDurations: async () => {
+    throw unavailable();
+  },
+  prepareAction: async () => {
+    throw unavailable();
+  },
+  resolveAction: async () => {
+    throw unavailable();
+  },
+  applyModifications: async () => {
+    throw unavailable();
+  },
+  revertModifications: async () => {
     throw unavailable();
   },
   createNpcs: async () => {
@@ -238,11 +418,12 @@ export function characterClient(o: {
       throw new CharacterError(0, `character injoignable : ${(e as Error).message}`);
     }
     if (!res.ok) {
-      const problem = (await res.json().catch(() => ({}))) as { detail?: string; code?: string };
+      const problem = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       throw new CharacterError(
         res.status,
-        problem.detail ?? `character a répondu ${res.status}`,
-        problem.code,
+        typeof problem.detail === 'string' ? problem.detail : `character a répondu ${res.status}`,
+        typeof problem.code === 'string' ? problem.code : undefined,
+        problem,
       );
     }
     return schema.parse(await res.json());
@@ -294,15 +475,38 @@ export function characterClient(o: {
       );
       return { result: r.resultat, ...(r.cles ? { sortKeys: r.cles } : {}) };
     },
-    async tickDurations(characterId, origin) {
+    async tickDurations(characterId, origin, tickId, options) {
       const r = await request(
         'POST',
         `/internal/characters/${id(characterId)}/durees/decompter`,
         DurationsResponse,
         origin,
-        originBody(origin),
+        {
+          ...originBody(origin),
+          ...(tickId ? { tickId } : {}),
+          ...(options?.clear ? { clear: true } : {}),
+        },
       );
-      return { changed: r.modifie, expired: r.retirees, version: r.version };
+      return {
+        changed: r.modifie,
+        expired: r.retirees,
+        version: r.version,
+        replayed: r.replayed ?? false,
+      };
+    },
+    prepareAction(input, origin) {
+      return request('POST', '/internal/actions/prepare', PrepareResponse, origin, input);
+    },
+    resolveAction(input, origin) {
+      return request('POST', '/internal/actions/resolve', ResolveResponse, origin, input);
+    },
+    applyModifications(applications, origin) {
+      return request('POST', '/internal/modifications/apply', ApplyResponse, origin, {
+        applications,
+      });
+    },
+    revertModifications(input, origin) {
+      return request('POST', '/internal/modifications/revert', RevertResponse, origin, input);
     },
     async createNpcs(input, origin) {
       const r = await request('POST', '/internal/npcs', NpcsResponse, origin, {

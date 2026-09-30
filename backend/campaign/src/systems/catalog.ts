@@ -1,7 +1,7 @@
 /**
  * Systèmes de jeu connus de campaign : les systèmes de référence de
  * @vtt/systemes. campaign n'en lit que l'identité (id, version, nom), la
- * déclaration d'initiative (action à lancer, clés de tri), les attributs
+ * déclaration d'initiative (action à lancer, clés de tri, mode des tours), les attributs
  * jetables (réglages du lanceur) et les règles optionnelles (réglages de table) :
  * les règles elles-mêmes sont exécutées par character.
  */
@@ -14,8 +14,11 @@ export interface CampaignSystem {
   id: string;
   version: string;
   name: string;
-  /** Action d'initiative et clés de tri (ordre décroissant), si le système en déclare. */
-  initiative?: { action: string; sortKeys: string[] };
+  /**
+   * Action d'initiative, clés de tri (ordre décroissant) et mode des tours (`initiative.mode` :
+   * `creneaux` donne `slots`, sinon `individual`), si le système en déclare.
+   */
+  initiative?: { action: string; sortKeys: string[]; mode: 'individual' | 'slots' };
   /**
    * Attributs qui servent aux jets libres (déclarent `jet`), tous types d'entité confondus :
    * les seuls que le MJ peut retirer du lanceur de dés.
@@ -60,7 +63,7 @@ export function referenceCatalog(ids: string[] = referenceIds()): Catalog {
           id: string;
           version: string;
           nom: string;
-          initiative?: { action: string; tri: string[] };
+          initiative?: { action: string; tri: string[]; mode?: string };
           options?: { id: string; defaut?: boolean }[];
           entites?: { attributs?: { cle: string; jet?: unknown }[] }[];
         };
@@ -76,7 +79,16 @@ export function referenceCatalog(ids: string[] = referenceIds()): Catalog {
           rollAttributes: [...rollAttributes],
           options: (doc.options ?? []).map((o) => ({ id: o.id, default: o.defaut === true })),
           ...(doc.initiative
-            ? { initiative: { action: doc.initiative.action, sortKeys: [...doc.initiative.tri] } }
+            ? {
+                initiative: {
+                  action: doc.initiative.action,
+                  sortKeys: [...doc.initiative.tri],
+                  mode:
+                    doc.initiative.mode === 'creneaux'
+                      ? ('slots' as const)
+                      : ('individual' as const),
+                },
+              }
             : {}),
         };
         loaded.set(id, s);
