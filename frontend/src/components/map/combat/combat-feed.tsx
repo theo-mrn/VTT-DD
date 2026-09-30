@@ -14,13 +14,15 @@
  *   joueur : héros et alliés, jamais un PNJ ennemi, Q4), cache partagé avec la fiche.
  */
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { calculer, estHorsCombat } from '@vtt/rules';
+import { HeartPulse } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { combatPresentation, statesOf } from '@/components/combat/turns/use-cast';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { campagnes, clePersonnagesCampagne, useCampagne } from '@/lib/campagnes';
 import { AIM_TTL_MS, AimBoard, COMBAT_AIM_KIND } from '@/lib/combat/aim';
 import { isOpen, useAttacks } from '@/lib/combat/use-attacks';
-import { currentActorId, useCombat } from '@/lib/combat/use-combat';
+import { currentActorId, useCombat, useCombatCommands } from '@/lib/combat/use-combat';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { readableSheets, type MapStateBadge } from '@/lib/map/modules/combat/badges';
 import { defeatedOf } from '@/lib/map/modules/combat/model';
@@ -105,6 +107,45 @@ export function CombatMapFeed({ engine }: { engine: MapEngine }) {
   useEffect(() => {
     mod?.state.setState({ states });
   }, [mod, states]);
+
+  // Relever (MJ) : un participant marqué hors de combat dont la fiche ne l'est plus (PV rendus,
+  // soin, état retiré) redevient actif tout seul ; et « Relever » au menu de son token
+  const commands = useCombatCommands(campaignId);
+  const revived = useRef(new Set<string>());
+  useEffect(() => {
+    const s = sys.data;
+    if (!gm || !s || !defeatedIds.length) return;
+    for (const sheet of sheets) {
+      if (!sheet || !defeatedIds.includes(sheet.id)) continue;
+      const key = `${sheet.id}:${sheet.updatedAt}`;
+      if (revived.current.has(key)) continue;
+      let down: boolean | undefined;
+      try {
+        down = estHorsCombat(calculer(s.systeme, sheet.state));
+      } catch {
+        continue;
+      }
+      if (down !== false) continue;
+      revived.current.add(key);
+      void commands.updateParticipant(sheet.id, { defeated: false }).catch(() => undefined);
+    }
+  }, [gm, sys.data, sheets, defeatedIds, commands]);
+  useEffect(() => {
+    if (!gm) return;
+    return engine.registerMenuProvider(({ entities }) => {
+      if (entities.length !== 1) return [];
+      const id = (entities[0]!.data as TokenData).characterId;
+      if (typeof id !== 'string' || !defeatedIds.includes(id)) return [];
+      return [
+        {
+          id: 'combat:revive',
+          label: 'Relever',
+          icon: HeartPulse,
+          run: () => void commands.updateParticipant(id, { defeated: false }),
+        },
+      ];
+    });
+  }, [gm, engine, defeatedIds, commands]);
 
   // Visées des autres (le MJ seul les reçoit : `gmOnly`)
   const board = useRef(new AimBoard());
