@@ -103,3 +103,87 @@ export function rollSummary(systeme: SystemeCharge | null, roll: AttackRoll | nu
         .map(([k, v]) => `${v} ${k}`);
   return parts.length ? parts.join(', ') : 'aucun symbole net';
 }
+
+// ─── Situation retenue (§ 5.7) ───────────────────────────────────────────────
+
+/** Définition de paramètre lue sans supposer sa forme exacte (types à venir : `choix`). */
+interface LooseParam {
+  id: string;
+  nom?: string;
+  type?: string;
+  section?: string;
+  defaut?: unknown;
+  sorte?: string;
+  options?: unknown;
+}
+
+const isLooseParam = (p: unknown): p is LooseParam =>
+  !!p && typeof p === 'object' && typeof (p as { id?: unknown }).id === 'string';
+
+/**
+ * Paramètres de situation d'une action : ceux de l'action rangés `section: situation`, puis
+ * ceux que le système déclare pour toutes ses actions à cible (`situation`, à la racine ou sous
+ * `combat`), s'il en déclare.
+ */
+export function situationParams(systeme: SystemeCharge | null, actionId: string): LooseParam[] {
+  if (!systeme) return [];
+  const own = (systeme.actions.get(actionId)?.parametres ?? []) as unknown[];
+  const source = systeme.source as unknown as {
+    situation?: unknown;
+    combat?: { situation?: unknown };
+  };
+  const shared = source.situation ?? source.combat?.situation;
+  const sharedList = Array.isArray(shared)
+    ? shared
+    : shared &&
+        typeof shared === 'object' &&
+        Array.isArray((shared as { parametres?: unknown }).parametres)
+      ? (shared as { parametres: unknown[] }).parametres
+      : [];
+  const out: LooseParam[] = [];
+  const seen = new Set<string>();
+  for (const p of own)
+    if (isLooseParam(p) && p.section === 'situation' && !seen.has(p.id)) {
+      seen.add(p.id);
+      out.push(p);
+    }
+  for (const p of sharedList)
+    if (isLooseParam(p) && !seen.has(p.id)) {
+      seen.add(p.id);
+      out.push(p);
+    }
+  return out;
+}
+
+/** Nom d'une option d'un paramètre `choix` (`{ valeur | id, nom }`), sinon la valeur. */
+function optionName(p: LooseParam, value: string): string {
+  const options = Array.isArray(p.options) ? (p.options as unknown[]) : [];
+  for (const o of options) {
+    if (!o || typeof o !== 'object') continue;
+    const x = o as { valeur?: unknown; id?: unknown; nom?: unknown };
+    if ((x.valeur ?? x.id) === value && typeof x.nom === 'string') return x.nom;
+  }
+  return value;
+}
+
+/**
+ * Situation retenue pour une attaque, en mots : les paramètres de situation qui s'écartent de
+ * leur défaut (« Couvert : partiel », « Avantage », « Bonus au toucher +2 »).
+ */
+export function situationText(
+  systeme: SystemeCharge | null,
+  actionId: string,
+  params: ActionParams,
+): string[] {
+  return situationParams(systeme, actionId).flatMap((p) => {
+    const v = params[p.id];
+    if (v === undefined || v === null || v === p.defaut) return [];
+    const name = p.nom ?? p.id;
+    if (typeof v === 'boolean') return v ? [name] : [];
+    if (typeof v === 'number') return v === 0 ? [] : [`${name} ${v > 0 ? '+' : '−'}${Math.abs(v)}`];
+    if (typeof v !== 'string' || v === '') return [];
+    if (p.type === 'entree') return [`${name} : ${entryName(systeme, v)}`];
+    if (p.type === 'attribut') return [`${name} : ${attributeLabel(systeme, v)}`];
+    return [`${name} : ${optionName(p, v)}`];
+  });
+}

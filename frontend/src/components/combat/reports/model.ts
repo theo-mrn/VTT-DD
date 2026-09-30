@@ -459,3 +459,180 @@ export function revertConflictOf(err: unknown): RevertConflict[] | null {
   if (loose.length) out.push({ characterId: null, paths: loose });
   return out;
 }
+
+// ─── Cartes des rapports (une par cible) ─────────────────────────────────────
+
+/**
+ * Élément de la grille des rapports (§ 12.4) : une carte par cible, comme l'ancienne app, puis
+ * les coûts de l'attaquant de l'attaque sur une ligne à part.
+ */
+export type ReportItem =
+  | {
+      kind: 'target';
+      key: string;
+      attack: Attack;
+      target: AttackTarget;
+      /** Rang de la cible dans l'attaque (0…), et nombre de cibles. */
+      index: number;
+      count: number;
+    }
+  | { kind: 'actor'; key: string; attack: Attack };
+
+/** Cartes de ces attaques, dans leur ordre (les plus récentes d'abord). */
+export function reportItems(attacks: readonly Attack[]): ReportItem[] {
+  return attacks.flatMap((a): ReportItem[] => {
+    const targets = a.targets.map((t, index): ReportItem => ({
+      kind: 'target',
+      key: `${a.id}:${t.characterId}`,
+      attack: a,
+      target: t,
+      index,
+      count: a.targets.length,
+    }));
+    const actor =
+      a.actor && a.actor.modifications.length > 0
+        ? [{ kind: 'actor' as const, key: `${a.id}:actor`, attack: a }]
+        : [];
+    return [...targets, ...actor];
+  });
+}
+
+/** Le personnage figure dans ce rapport : attaquant, cible, ou personnage réattribué. */
+export function involves(a: Attack, characterId: string): boolean {
+  return (
+    a.attackerId === characterId ||
+    a.targets.some((t) => t.characterId === characterId || t.applied?.redirectedTo === characterId)
+  );
+}
+
+/** Attaques où figure ce personnage (null : toutes). */
+export function filterByCharacter(
+  attacks: readonly Attack[],
+  characterId: string | null,
+): Attack[] {
+  return characterId ? attacks.filter((a) => involves(a, characterId)) : [...attacks];
+}
+
+/** Personnages des rapports (attaquants et cibles), pour le filtre, par ordre d'apparition. */
+export function reportCharacters(attacks: readonly Attack[]): string[] {
+  const seen = new Set<string>();
+  for (const a of attacks) {
+    seen.add(a.attackerId);
+    for (const t of a.targets) seen.add(t.characterId);
+  }
+  return [...seen];
+}
+
+export interface ReportProgress {
+  applied: number;
+  skipped: number;
+  /** Cibles qui attendent encore (décision, défense ou dés). */
+  pending: number;
+  total: number;
+}
+
+/**
+ * « x/y appliqués » : cibles des rapports montrés, hors attaques abandonnées ou refusées et
+ * cibles refusées par les règles.
+ */
+export function reportProgress(attacks: readonly Attack[]): ReportProgress {
+  let applied = 0;
+  let skipped = 0;
+  let total = 0;
+  for (const a of attacks) {
+    if (a.status === 'cancelled' || a.status === 'failed') continue;
+    for (const t of a.targets) {
+      if (t.status === 'failed') continue;
+      total += 1;
+      if (t.decision === 'applied') applied += 1;
+      else if (t.decision === 'skipped') skipped += 1;
+    }
+  }
+  return { applied, skipped, pending: total - applied - skipped, total };
+}
+
+/** Cibles qui attendent la décision du MJ (carte « Cibles (n) »), par ordre d'apparition. */
+export function pendingTargetIds(attacks: readonly Attack[]): string[] {
+  const seen = new Set<string>();
+  for (const a of attacks) for (const t of decidableTargets(a)) seen.add(t.characterId);
+  return [...seen];
+}
+
+// ─── Valeurs et réductions d'une cible ───────────────────────────────────────
+
+export type AttributeModification = Extract<AttackModification, { kind: 'attribute' }>;
+
+/** Valeurs proposées pour la cible (dégâts, soins, stress…) : les cases en gros chiffres. */
+export function targetAmounts(t: AttackTarget): AttributeModification[] {
+  return (t.result?.modifications ?? []).filter(
+    (m): m is AttributeModification =>
+      m.entity === 'target' && m.kind === 'attribute' && m.operation !== 'set',
+  );
+}
+
+/** Autres conséquences pour la cible (valeur fixée, état donné ou retiré). */
+export function targetOthers(t: AttackTarget): AttackModification[] {
+  return (t.result?.modifications ?? []).filter(
+    (m) => m.entity === 'target' && !(m.kind === 'attribute' && m.operation !== 'set'),
+  );
+}
+
+export interface ReductionLine {
+  name: string;
+  /** « −2 », « ×0,5 », « immunité ». */
+  effect: string;
+  /** Écartée : une réduction plus forte de la même famille s'applique. */
+  ignored: boolean;
+}
+
+export interface ReductionDetail {
+  /** Dégâts bruts, avant les réductions de la cible. */
+  raw: number;
+  damageType: string | null;
+  lines: ReductionLine[];
+  /** Valeur proposée, après les réductions. */
+  result: number;
+}
+
+const NUMBER = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
+
+/**
+ * Détail des réductions de la cible sur une valeur (§ 5.7) : dégâts bruts, type, chaque
+ * réduction nommée, résultat. Null s'il n'y a rien à détailler (aucune réduction, brut égal).
+ */
+export function reductionDetail(m: AttributeModification): ReductionDetail | null {
+  const resistances = m.resistances ?? [];
+  const raw = m.raw ?? m.value;
+  if (!resistances.length && raw === m.value) return null;
+  return {
+    raw,
+    damageType: m.damageType ?? null,
+    lines: resistances.map((r) => ({
+      name: r.name,
+      effect:
+        r.operation === 'cancel'
+          ? 'immunité'
+          : r.operation === 'multiply'
+            ? `×${NUMBER.format(r.value)}`
+            : `−${NUMBER.format(r.value)}`,
+      ignored: r.ignored,
+    })),
+    result: m.value,
+  };
+}
+
+// ─── Rapports récemment décidés ──────────────────────────────────────────────
+
+/**
+ * Rapports décidés sous les yeux du MJ (vus en attente dans cette session, décidés depuis) et
+ * pas encore rangés : ils restent grisés dans la liste « En attente », avec « Annuler
+ * l'application », jusqu'au passage de tour (comme l'ancienne app, qui les gardait jusqu'à
+ * « Suivant »).
+ */
+export function recentlyDecided(
+  decided: readonly Attack[],
+  seenPending: ReadonlySet<string>,
+  cleared: ReadonlySet<string>,
+): Attack[] {
+  return decided.filter((a) => isDecided(a) && seenPending.has(a.id) && !cleared.has(a.id));
+}
