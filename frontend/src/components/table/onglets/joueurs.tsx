@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Personnages de la table : un onglet par personnage présent (incarné par un membre, quel
- * qu'il soit), et sa fiche juste en dessous. Un clic passe d'une fiche à l'autre, sans
+ * Personnages de la table : un onglet par personnage joueur de la campagne, incarné ou non
+ * (le joueur qui l'incarne, sinon « Non incarné »), et sa fiche juste en dessous. Un clic passe d'une fiche à l'autre, sans
  * retour ; le personnage choisi est dans l'adresse (`?personnage=`), partageable. On arrive
  * sur le sien, sinon sur le premier.
  */
@@ -27,7 +27,8 @@ import { TABLE_PARAMS } from '../panels/registry';
 
 interface Present {
   personnage: Personnage;
-  joueur: Membre;
+  /** Membre qui l'incarne, ou null. */
+  joueur: Membre | null;
 }
 
 export function PanneauJoueurs() {
@@ -41,16 +42,16 @@ export function PanneauJoueurs() {
     [presence.users],
   );
 
-  // Présents : les personnages incarnés par un membre, le mien d'abord
+  // Tous les personnages joueurs : le mien d'abord, puis ceux qui sont incarnés, puis les autres
   const presents = useMemo((): Present[] => {
-    const parId = new Map((personnages.data ?? []).map((p) => [p.id, p]));
-    return campagne.members
-      .filter((m) => m.characterId && parId.has(m.characterId))
-      .map((m) => ({ personnage: parId.get(m.characterId!)!, joueur: m }))
+    const joueurDe = new Map(
+      campagne.members.filter((m) => m.characterId).map((m) => [m.characterId!, m]),
+    );
+    const rang = (x: Present) => (x.joueur?.userId === moi ? 0 : x.joueur ? 1 : 2);
+    return (personnages.data ?? [])
+      .map((p) => ({ personnage: p, joueur: joueurDe.get(p.id) ?? null }))
       .sort(
-        (a, b) =>
-          Number(b.joueur.userId === moi) - Number(a.joueur.userId === moi) ||
-          a.personnage.name.localeCompare(b.personnage.name, 'fr'),
+        (a, b) => rang(a) - rang(b) || a.personnage.name.localeCompare(b.personnage.name, 'fr'),
       );
   }, [campagne.members, personnages.data, moi]);
 
@@ -79,7 +80,7 @@ export function PanneauJoueurs() {
         <EtatVide
           icone={UserRound}
           titre="Aucun personnage à la table"
-          description="Les personnages apparaissent ici dès qu’un joueur en incarne un."
+          description="Les personnages joueurs de la campagne apparaissent ici."
         />
       </Page>
     );
@@ -116,13 +117,15 @@ export function PanneauJoueurs() {
                         position="top"
                         className="size-9 rounded-lg ring-1 ring-border"
                       />
-                      <span
-                        aria-hidden
-                        className={cn(
-                          'absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background',
-                          enLigne.has(j.userId) ? 'bg-success' : 'bg-surface-3',
-                        )}
-                      />
+                      {j && (
+                        <span
+                          aria-hidden
+                          className={cn(
+                            'absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background',
+                            enLigne.has(j.userId) ? 'bg-success' : 'bg-surface-3',
+                          )}
+                        />
+                      )}
                     </span>
                     <span className="min-w-0 text-left">
                       <span
@@ -134,8 +137,9 @@ export function PanneauJoueurs() {
                         {p.name}
                       </span>
                       <span className="block max-w-40 truncate text-[11px] text-muted-foreground">
-                        {j.userId === moi ? 'Vous' : j.name}
-                        {enLigne.has(j.userId) ? '' : ' · hors ligne'}
+                        {!j
+                          ? 'Non incarné'
+                          : `${j.userId === moi ? 'Vous' : j.name}${enLigne.has(j.userId) ? '' : ' · hors ligne'}`}
                       </span>
                     </span>
                   </PanelLink>
@@ -143,7 +147,7 @@ export function PanneauJoueurs() {
               );
             })}
           </ul>
-          {actif.joueur.userId !== moi && (
+          {actif.joueur && actif.joueur.userId !== moi && (
             <Info texte={`Chuchoter à ${actif.joueur.name}`}>
               <Button variant="ghost" size="icon-sm" asChild>
                 <PanelLink
