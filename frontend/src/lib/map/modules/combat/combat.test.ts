@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import {
   CLOSED,
+  isMinimized,
+  menuStage,
   reduceAttackFlow,
   type AttackFlowEvent,
   type AttackFlowState,
@@ -155,6 +157,24 @@ describe('outil de visée', () => {
     const flow = t.menu.flow();
     expect(flow.phase === 'compose' && flow.aiming).toBe(false);
     expect(flow.phase === 'compose' && flow.draft.targetIds).toEqual(['gobelin']);
+  });
+
+  it('pastille : menu réduit pendant la visée, « Valider » le rouvre à l’étape « Préparer »', () => {
+    const t = setup();
+    t.menu.port.open({ campaignId: 'campagne', origin: 'map', attackerId: 'hero' });
+    t.menu.port.dispatch({ type: 'chooseAction', actionId: 'frappe' });
+    t.menu.port.dispatch({ type: 'aim', on: true });
+    expect(isMinimized(t.menu.flow())).toBe(true);
+    t.click({ x: 500, y: 500 }, { shift: true });
+    t.click({ x: 700, y: 700 }, { shift: true });
+    // Toujours réduit : les clics ⇧ ajoutent sans rouvrir
+    expect(isMinimized(t.menu.flow())).toBe(true);
+    t.menu.port.dispatch({ type: 'aim', on: false });
+    const flow = t.menu.flow();
+    expect(isMinimized(flow)).toBe(false);
+    expect(t.engine.tools.getActiveId()).toBe(SELECT_TOOL_ID);
+    expect(menuStage(flow, { actionCount: 3, revealed: false })).toBe('prepare');
+    expect(flow.phase === 'compose' && flow.draft.targetIds).toEqual(['gobelin', 'loup']);
   });
 
   it('menu fermé pendant la visée : l’outil rend la main', () => {

@@ -94,6 +94,7 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
   useAimBroadcast(flow);
   const reduced = useReducedMotion() ?? false;
   const [revealedId, setRevealedId] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const draft = flow.draft;
   const composing = flow.phase === 'compose';
@@ -201,7 +202,13 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
             )}
           />
           <DialogPrimitive.Content
+            ref={contentRef}
             aria-describedby={undefined}
+            // Le focus sur la fenêtre elle-même : Entrée lance, au lieu d'ouvrir « Mes attaques »
+            onOpenAutoFocus={(e) => {
+              e.preventDefault();
+              contentRef.current?.focus();
+            }}
             onInteractOutside={(e) => e.preventDefault()}
             onKeyDown={onKeyDown}
             className="fixed inset-0 z-50 flex items-stretch justify-center outline-none sm:items-center sm:p-4"
