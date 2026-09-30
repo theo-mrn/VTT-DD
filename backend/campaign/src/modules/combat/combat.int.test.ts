@@ -187,22 +187,25 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
     expect(c.currentIndex).toBe(2);
     expect(callsTo('/durees/decompter')).toHaveLength(0);
 
-    // Dernier tour : nouveau round, chaque participant décompte ses durées une fois
+    // Dernier tour : nouveau round, chaque participant décompte ses durées une fois ; le
+    // joueur ne reçoit que celles du camp des joueurs (les états d'un PNJ ne fuient pas)
     c = await h.ok<Combat>(bob, 'POST', url(id, '/next'), { characterId: brom });
     expect(c).toMatchObject({ round: 2, currentIndex: 0 });
     expect(c.order.every((p) => !p.hasActed)).toBe(true);
     expect(c.durationUpdates).toEqual(
       expect.arrayContaining([
         { characterId: aria, expired: ['beni'] },
-        { characterId: npc, expired: [] },
         { characterId: brom, expired: [] },
       ]),
     );
+    expect(c.durationUpdates).toHaveLength(2);
     expect(c.durationFailures).toBeUndefined();
     const ticks = callsTo('/durees/decompter');
     expect(ticks).toHaveLength(3);
+    const tickId = ticks[0]!.body.tickId as string;
+    expect(tickId).toMatch(/^tick:/);
     for (const r of ticks)
-      expect(r).toMatchObject({ secret: SECRET, body: { userId: bob.id, roomId: id } });
+      expect(r).toMatchObject({ secret: SECRET, body: { userId: bob.id, roomId: id, tickId } });
 
     // Round 2 complet par le MJ : les états suivants arrivent à 0
     await h.ok(gm, 'POST', url(id, '/next'), {});
@@ -217,8 +220,15 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
     );
     expect(callsTo('/durees/decompter')).toHaveLength(6);
 
-    const types = await events(id);
-    expect(types.filter((x) => x === 'combat.turn_changed')).toHaveLength(7);
+    // Initiative : charge complète (ordre, clés) aux MJ et expurgée à tous ; suivant : une seule
+    const turns = await t
+      .db!.select({ visibility: sql<string>`${outbox.envelope}->>'visibility'` })
+      .from(outbox)
+      .where(
+        sql`${outbox.envelope}->>'roomId' = ${id} and ${outbox.envelope}->>'type' = 'combat.turn_changed'`,
+      );
+    expect(turns.filter((e) => e.visibility === 'public')).toHaveLength(7);
+    expect(turns.filter((e) => e.visibility === 'gm_only')).toHaveLength(1);
   });
 
   it('un décompte en échec est signalé sans bloquer le round', async () => {
@@ -301,7 +311,9 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
     c = await h.ok<Combat>(alice, 'POST', url(id, '/next'), { characterId: kesh });
     expect(c).toMatchObject({ round: 2, currentIndex: 0 });
     expect(c.order.every((p) => !p.hasActed)).toBe(true);
-    expect(c.durationUpdates).toHaveLength(4);
+    // Décompte des quatre, rendu au joueur pour le camp des joueurs seulement
+    expect(callsTo('/durees/decompter')).toHaveLength(4);
+    expect(c.durationUpdates).toHaveLength(2);
   });
 
   it('fin : MJ seulement, le combat disparaît et peut reprendre', async () => {

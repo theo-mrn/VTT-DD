@@ -4,7 +4,7 @@
  * Une campagne dont l'appelant n'est pas membre est introuvable (404) : on ne
  * révèle pas son existence. Un membre sans le rôle requis reçoit 403.
  */
-import type { ActorRole, Visibility } from '@vtt/contracts';
+import type { ActorRole, CombatState, Visibility } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
@@ -25,7 +25,8 @@ import {
 } from '../../db/schema.js';
 import type { Deps } from '../../deps.js';
 import { visibleEngagements } from '../characters/visibility.js';
-import { combatApi, type CombatApi } from '../combat/api.js';
+import { combatApi } from '../combat/api.js';
+import { combatFor } from '../combat/view.js';
 import { currentUser } from '../schemas.js';
 
 export type Campaign = typeof campaigns.$inferSelect;
@@ -168,7 +169,8 @@ export interface CampaignApi extends CampaignFieldsApi {
     addedBy: string;
     playedBy: string | null;
   }[];
-  combat?: CombatApi;
+  /** Combat en cours : vue expurgée pour un joueur ou un spectateur (docs/combat.md § 9.3). */
+  combat?: CombatState;
   invitees: InviteeApi[];
   version: number;
   createdAt: string;
@@ -392,7 +394,7 @@ export async function campaignDetail(
       addedBy: p.addedBy,
       playedBy: p.playedBy,
     })),
-    ...(combat ? { combat: combatApi(combat, participants) } : {}),
+    ...(combat ? { combat: combatFor(combatApi(combat, participants), a.role === 'gm') } : {}),
     invitees: invitees.map((i) => ({
       userId: i.userId,
       name: profiles.get(i.userId)?.name ?? null,

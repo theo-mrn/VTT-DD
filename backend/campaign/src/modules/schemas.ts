@@ -1,4 +1,5 @@
 /** Schémas Zod partagés par les routes du service. */
+import { CombatState } from '@vtt/contracts';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { ACCENTS, COMBAT_MODES, ROLES, SIDES } from '../db/schema.js';
@@ -97,23 +98,8 @@ export const InvitedCampaign = CampaignSummary.extend({
   invitedAt: z.string(),
 });
 
-export const CombatResponse = z.object({
-  id: z.string(),
-  round: z.number().int(),
-  mode: CombatMode,
-  order: z.array(
-    z.object({
-      characterId: z.string(),
-      side: Side,
-      sortKeys: z.array(z.number()),
-      hasActed: z.boolean(),
-    }),
-  ),
-  currentIndex: z.number().int(),
-  slots: z.array(z.object({ side: Side })).optional(),
-  initiativeRolled: z.boolean(),
-  version: z.number().int(),
-});
+/** État du combat (contrat partagé, docs/combat.md § 4) ; vue expurgée pour un joueur. */
+export const CombatResponse = CombatState;
 
 export const CampaignResponse = z.object({
   ...CampaignFields,

@@ -2,7 +2,13 @@
  * Faux service character pour les tests : vrai serveur HTTP local qui répond
  * aux routes internes utilisées par campaign (le vrai client HTTP de campaign
  * est donc exercé), avec des personnages et des clés d'initiative imposés.
- * Les réponses suivent le contrat de character (champs en français).
+ * Les réponses suivent le contrat de character (docs/combat.md § 11.2).
+ *
+ * Attaques : un moteur minimal et déterministe (`actions`) : un d20 par cible (`per_target`)
+ * ou un seul pour toutes (`shared`), pris dans `rolls` puis 10 ; touché si le jet + `bonus`
+ * atteint `valeurs.Defense` de la cible (10 par défaut) ; dégâts `degats` (5), moins la
+ * réaction `esquive` ; coût `cout` en `Stress` pour l'attaquant ; un 20 tire la table
+ * `critiques`. Applications et décomptes gardent leur diff : annulables, idempotents.
  */
 import { createServer, type IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -30,6 +36,37 @@ export interface FakeCharacter {
   templateId?: string | null;
   /** Supprimé (introuvable ensuite). */
   deleted?: boolean;
+  /** Valeurs de la fiche (attributs), modifiées par les applications. */
+  values?: Record<string, number>;
+  /** Entrées possédées (états, blessures) données par les applications. */
+  entries?: string[];
+  /** Hors de combat après une application (formule `horsCombat`). */
+  defeatedWhen?: (values: Record<string, number>) => boolean;
+}
+
+/** Action à cible du faux moteur. */
+export interface FakeAction {
+  name: string;
+  /** Refus des règles pour l'attaquant (422 `action_refusee`). */
+  refuse?: string;
+  /** Refus propre à une cible (sa résolution échoue, les autres continuent). */
+  refuseTarget?: (targetId: string) => string | null;
+  /** Paramètres `par: cible` proposés à une cible. */
+  reactionParams?: (targetId: string) => string[];
+  /** `multicible.jet` de l'action. */
+  rollMode?: 'per_target' | 'shared';
+}
+
+interface Change {
+  path: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+interface StoredApplication {
+  response: Record<string, unknown>;
+  diffs: Map<string, Change[]>;
+  reverted: Set<string>;
 }
 
 export interface Call {
@@ -54,7 +91,13 @@ export interface FakeCharacterBehaviour {
   failReceive?: { status: number; code: string };
   /** Identifiants imposés aux instances créées (un personnage existant est gardé tel quel). */
   npcIds?: string[];
+  /** Panne (503) de ces routes internes, par chemin exact. */
+  down?: Set<string>;
 }
+
+const valuePath = (key: string) => `etat.valeurs.${key}`;
+const entryPath = (key: string) => `etat.possessions[${key}]`;
+const durationPath = (key: string) => `etat.durees.${key}`;
 
 export async function fakeCharacter(secret: string) {
   const characters = new Map<string, FakeCharacter>();
@@ -62,6 +105,124 @@ export async function fakeCharacter(secret: string) {
   const behaviour: FakeCharacterBehaviour = {};
   /** Objets reçus par personnage (butin). */
   const loot = new Map<string, Record<string, unknown>[]>();
+  /** Actions à cible du faux moteur, par identifiant. */
+  const actions = new Map<string, FakeAction>([['attaque', { name: 'Attaque' }]]);
+  /** Faces des d20 tirés par le faux moteur, dans l'ordre (10 une fois épuisées). */
+  const rolls: number[] = [];
+  /** Applications et décomptes (`tickId`) enregistrés, par identifiant. */
+  const applications = new Map<string, StoredApplication>();
+  /** Décomptes déjà faits : `tickId|personnage` → réponse d'origine. */
+  const ticks = new Map<string, Record<string, unknown>>();
+
+  const sheet = (id: string) => {
+    const c = characters.get(id);
+    return c && !c.deleted ? c : undefined;
+  };
+  const d20 = () => rolls.shift() ?? 10;
+
+  /** Résolution du faux moteur, à partir de l'instantané des fiches. */
+  function resolveAttack(body: Record<string, unknown>) {
+    const snap = body.snapshot as {
+      actorId: string;
+      action: string;
+      params: Record<string, unknown>;
+      targets: { id: string; values: Record<string, number>; error: string | null }[];
+    };
+    const reactions = (body.reactions ?? []) as {
+      characterId: string;
+      params?: Record<string, unknown>;
+      skipped?: boolean;
+    }[];
+    const shared = body.rollMode === 'shared';
+    const common = shared ? d20() : 0;
+    const bonus = Number(snap.params.bonus ?? 0);
+    const damage = Number(snap.params.degats ?? 5);
+    const targets = snap.targets.map((t) => {
+      if (t.error)
+        return { characterId: t.id, status: 'failed', error: t.error, result: null, view: null };
+      const die = shared ? common : d20();
+      const total = die + bonus;
+      const defense = t.values.Defense ?? 10;
+      const success = total >= defense;
+      const reaction = reactions.find((r) => r.characterId === t.id);
+      const dodge = reaction && !reaction.skipped ? Number(reaction.params?.esquive ?? 0) : 0;
+      const dealt = success ? Math.max(0, damage - dodge) : 0;
+      const outcome = { success, critical: die === 20, fumble: die === 1 };
+      const roll = {
+        kind: 'numeric',
+        formula: `1d20 + ${bonus}`,
+        dice: [
+          { faces: 20, values: [{ value: die, kept: true, exploded: false, source: 'server' }] },
+        ],
+        value: total,
+        bonuses: [],
+        total,
+        natural: die,
+      };
+      const tables =
+        success && die === 20
+          ? [
+              {
+                table: 'critiques',
+                modifier: 0,
+                value: 42,
+                dice: [],
+                line: { min: 1, max: 100, name: 'Jambe cassée', entry: 'jambe-cassee' },
+                outOfRange: false,
+              },
+            ]
+          : [];
+      return {
+        characterId: t.id,
+        status: 'resolved',
+        error: null,
+        result: {
+          outcome,
+          roll,
+          variables: { defenseCible: defense, degats: dealt, esquive: dodge },
+          modifications: success
+            ? [
+                {
+                  kind: 'attribute',
+                  entity: 'target',
+                  attribute: 'PV',
+                  operation: 'subtract',
+                  value: dealt,
+                  raw: damage,
+                  resistances: [],
+                },
+              ]
+            : [],
+          tables,
+          explanations: [`Jet : ${total}`, `Défense de la cible : ${defense}`],
+          errors: [],
+        },
+        view: {
+          outcome,
+          roll,
+          values: success ? [{ key: 'degats', name: 'Dégâts', value: damage }] : [],
+          explanations: [`Jet : ${total}`],
+        },
+      };
+    });
+    const cost = Number(snap.params.cout ?? 0);
+    return {
+      targets,
+      actor: {
+        modifications: cost
+          ? [
+              {
+                kind: 'attribute',
+                entity: 'actor',
+                attribute: 'Stress',
+                operation: 'add',
+                value: cost,
+              },
+            ]
+          : [],
+      },
+    };
+  }
 
   const server = createServer(async (req, res) => {
     const body = await readBody(req);
@@ -78,6 +239,182 @@ export async function fakeCharacter(secret: string) {
       res.end(JSON.stringify(json));
     };
     if (received !== secret) return reply(401, { title: 'Authentification requise' });
+    if (behaviour.down?.has(path)) return reply(503, { title: 'Indisponible' });
+
+    // ─── Attaques (docs/combat.md § 11.2) ───
+    if (req.method === 'POST' && path === '/internal/actions/prepare') {
+      const action = actions.get(body.action as string);
+      const actor = sheet(body.actorId as string);
+      if (!action || !actor)
+        return reply(404, { title: 'Introuvable', code: 'character_not_found', detail: 'absent' });
+      if (action.refuse)
+        return reply(422, { title: 'Refusé', code: 'action_refusee', detail: action.refuse });
+      const targetIds = body.targetIds as string[];
+      const missing = targetIds.find((id) => !sheet(id));
+      if (missing)
+        return reply(404, { title: 'Introuvable', code: 'character_not_found', detail: missing });
+      const targets = targetIds.map((id) => ({
+        characterId: id,
+        error: action.refuseTarget?.(id) ?? null,
+        reactionParams: action.reactionParams?.(id) ?? [],
+      }));
+      if (targets.every((t) => t.error))
+        return reply(422, {
+          title: 'Refusé',
+          code: 'action_refusee',
+          detail: targets.map((t) => t.error).join(' ; '),
+        });
+      const rollMode = (body.rollMode as string) ?? action.rollMode ?? 'per_target';
+      const snapshot = {
+        actorId: body.actorId,
+        action: body.action,
+        params: body.params ?? {},
+        targets: targetIds.map((id, i) => ({
+          id,
+          values: { ...(sheet(id)!.values ?? {}) },
+          error: targets[i]!.error,
+        })),
+      };
+      const waiting = targets.some((t) => !t.error && t.reactionParams.length);
+      return reply(200, {
+        snapshot,
+        action: { id: body.action, name: action.name },
+        rollMode,
+        dice: 'server',
+        targets,
+        step: null,
+        resolution: waiting ? null : resolveAttack({ ...body, snapshot, rollMode }),
+      });
+    }
+    if (req.method === 'POST' && path === '/internal/actions/resolve') {
+      return reply(200, { step: null, resolution: resolveAttack(body) });
+    }
+    if (req.method === 'POST' && path === '/internal/modifications/apply') {
+      const list = body.applications as {
+        applicationId: string;
+        items: {
+          characterId: string;
+          modifications: Record<string, unknown>[];
+          tables?: { table: string; entry: string | null }[];
+        }[];
+      }[];
+      // Tout ou rien : on vérifie tout avant d'écrire
+      for (const app of list) {
+        if (applications.has(app.applicationId)) continue;
+        for (const item of app.items) {
+          const c = sheet(item.characterId);
+          if (!c)
+            return reply(404, {
+              title: 'Introuvable',
+              code: 'character_not_found',
+              detail: item.characterId,
+            });
+          for (const m of item.modifications)
+            if (m.kind === 'attribute' && !((m.attribute as string) in (c.values ?? {})))
+              return reply(422, {
+                title: 'Refusé',
+                code: 'modification_invalide',
+                detail: `Attribut inconnu : ${m.attribute as string}`,
+                errors: [{ characterId: item.characterId, message: 'attribut inconnu' }],
+              });
+        }
+      }
+      const out = list.map((app) => {
+        const stored = applications.get(app.applicationId);
+        if (stored) return { ...stored.response, replayed: true };
+        const diffs = new Map<string, Change[]>();
+        for (const item of app.items) {
+          const c = sheet(item.characterId)!;
+          c.values ??= {};
+          c.entries ??= [];
+          const changes = diffs.get(item.characterId) ?? [];
+          for (const m of item.modifications) {
+            if (m.kind === 'attribute') {
+              const key = m.attribute as string;
+              const before = c.values[key]!;
+              const v = Number(m.value);
+              const after =
+                m.operation === 'set' ? v : m.operation === 'add' ? before + v : before - v;
+              c.values[key] = after;
+              changes.push({ path: valuePath(key), before, after });
+            } else if (m.operation === 'give') {
+              c.entries.push(m.entry as string);
+              changes.push({ path: entryPath(m.entry as string), after: true });
+            }
+          }
+          for (const t of item.tables ?? [])
+            if (t.entry) {
+              c.entries.push(t.entry);
+              changes.push({ path: entryPath(t.entry), after: true });
+            }
+          diffs.set(item.characterId, changes);
+        }
+        const response = {
+          applicationId: app.applicationId,
+          items: [...diffs].map(([characterId, changes]) => {
+            const c = sheet(characterId)!;
+            return {
+              characterId,
+              version: 2,
+              changes,
+              defeated: c.defeatedWhen?.(c.values ?? {}) ?? false,
+            };
+          }),
+        };
+        applications.set(app.applicationId, { response, diffs, reverted: new Set() });
+        return { ...response, replayed: false };
+      });
+      return reply(200, { applications: out });
+    }
+    if (req.method === 'POST' && path === '/internal/modifications/revert') {
+      const stored = applications.get(body.applicationId as string);
+      if (!stored)
+        return reply(404, {
+          title: 'Introuvable',
+          code: 'application_not_found',
+          detail: 'absente',
+        });
+      const wanted = (body.characterIds as string[] | undefined) ?? [...stored.diffs.keys()];
+      const current = (id: string, path: string) => {
+        const c = sheet(id);
+        if (!c) return undefined;
+        if (path.startsWith('etat.valeurs.')) return c.values?.[path.slice(13)];
+        if (path.startsWith('etat.durees.')) return c.durations?.[path.slice(12)];
+        return c.entries?.includes(path.slice(17, -1)) ? true : undefined;
+      };
+      const conflicts = wanted.flatMap((id) => {
+        if (stored.reverted.has(id)) return [];
+        const paths = (stored.diffs.get(id) ?? [])
+          .filter((ch) => current(id, ch.path) !== ch.after)
+          .map((ch) => ch.path);
+        return paths.length ? [{ characterId: id, paths }] : [];
+      });
+      if (conflicts.length && !body.force)
+        return reply(409, {
+          title: 'Conflit',
+          code: 'revert_conflict',
+          detail: 'La fiche a changé',
+          conflicts,
+        });
+      const items = wanted.map((id) => {
+        const c = sheet(id);
+        if (!c) return { characterId: id, status: 'missing', version: null, changes: [] };
+        if (stored.reverted.has(id))
+          return { characterId: id, status: 'already_reverted', version: 3, changes: [] };
+        const changes = (stored.diffs.get(id) ?? []).map((ch) => {
+          if (ch.path.startsWith('etat.valeurs.'))
+            c.values![ch.path.slice(13)] = ch.before as number;
+          else if (ch.path.startsWith('etat.durees.')) {
+            c.durations ??= {};
+            c.durations[ch.path.slice(12)] = ch.before as number;
+          } else c.entries = (c.entries ?? []).filter((e) => e !== ch.path.slice(17, -1));
+          return { path: ch.path, before: ch.after, after: ch.before };
+        });
+        stored.reverted.add(id);
+        return { characterId: id, status: 'reverted', version: 3, changes, defeated: false };
+      });
+      return reply(200, { applicationId: body.applicationId, items });
+    }
 
     // Instances de PNJ : de vrais personnages du faux service, numérotés comme character
     if (req.method === 'POST' && path === '/internal/npcs') {
@@ -166,15 +503,35 @@ export async function fakeCharacter(secret: string) {
       return reply(200, { version: 2, entree: (item.ref as string) ?? 'objet-libre' });
     }
     if (req.method === 'POST' && rest === '/durees/decompter') {
-      const durations = c.durations ?? {};
+      const tickId = body.tickId as string | undefined;
+      const done = tickId ? ticks.get(`${tickId}|${id}`) : undefined;
+      if (done) return reply(200, { ...done, replayed: true });
+      c.durations ??= {};
+      const durations = c.durations;
       const retirees: string[] = [];
+      const changes: Change[] = [];
       for (const [entry, n] of Object.entries(durations)) {
-        if (n - 1 <= 0) {
+        if (body.clear === true || n - 1 <= 0) {
           retirees.push(entry);
           delete durations[entry];
-        } else durations[entry] = n - 1;
+          changes.push({ path: durationPath(entry), before: n });
+        } else {
+          durations[entry] = n - 1;
+          changes.push({ path: durationPath(entry), before: n, after: n - 1 });
+        }
       }
-      return reply(200, { modifie: retirees.length > 0, retirees, version: 2 });
+      const response = { modifie: retirees.length > 0, retirees, version: 2 };
+      if (tickId) {
+        ticks.set(`${tickId}|${id}`, response);
+        const stored = applications.get(tickId) ?? {
+          response: {},
+          diffs: new Map<string, Change[]>(),
+          reverted: new Set<string>(),
+        };
+        stored.diffs.set(id, changes);
+        applications.set(tickId, stored);
+      }
+      return reply(200, response);
     }
     return reply(404, { title: 'Route introuvable' });
   });
@@ -188,6 +545,9 @@ export async function fakeCharacter(secret: string) {
     calls,
     behaviour,
     loot,
+    actions,
+    rolls,
+    applications,
     /** Ajoute un personnage et renvoie son identifiant. */
     add(c: FakeCharacter): string {
       const id = crypto.randomUUID();

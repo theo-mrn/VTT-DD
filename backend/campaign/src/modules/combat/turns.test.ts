@@ -1,16 +1,30 @@
 /**
- * Règles de tour sans base : tri d'initiative, individual, slots, retrait.
+ * Règles de tour sans base : tri d'initiative, individual, slots, retrait, ajout, donner le
+ * tour, acteur du créneau, réordonner.
  */
 import { describe, expect, it } from 'vitest';
 import type { Side } from '../../db/schema.js';
-import { canActNow, next, remove, sortByInitiative, start, type Participant } from './turns.js';
+import {
+  addParticipants,
+  canActNow,
+  chooseSlotActor,
+  currentActorOf,
+  followSlot,
+  next,
+  participant,
+  placeParticipant,
+  remove,
+  setTurn,
+  sortByInitiative,
+  start,
+  updateParticipant,
+  withOrder,
+  type Participant,
+} from './turns.js';
 
-const p = (characterId: string, side: Side, sortKeys: number[] = []): Participant => ({
-  characterId,
-  side,
-  sortKeys,
-  hasActed: false,
-});
+const p = (characterId: string, side: Side, sortKeys: number[] = []): Participant =>
+  participant(characterId, side, { sortKeys });
+const ids = (order: Participant[]) => order.map((x) => x.characterId);
 
 describe('sortByInitiative', () => {
   it('clé par clé, la plus haute d’abord', () => {
@@ -87,5 +101,131 @@ describe('remove', () => {
     state = next(state).state;
     expect(remove(state, ['b'])).toMatchObject({ round: 2, currentIndex: 0 });
     expect(remove(state, ['a', 'b'])).toMatchObject({ currentIndex: 0, order: [] });
+  });
+});
+
+describe('acteur du créneau (slots)', () => {
+  const combat = () => start('slots', [p('p1', 'players'), p('e1', 'enemies'), p('p2', 'players')]);
+
+  it('désigné : lui seul termine le créneau, puis le créneau suivant est libre', () => {
+    let state = chooseSlotActor(combat(), 'p2');
+    expect(state.currentActorId).toBe('p2');
+    expect(state.turn).toBe(1);
+    expect(currentActorOf(state)).toBe('p2');
+    expect(canActNow(state).map((x) => x.characterId)).toEqual(['p2']);
+    expect(() => next(state, 'p1')).toThrow(/désigné/);
+    const after = next(state);
+    expect(after.acted).toBe('p2');
+    state = after.state;
+    expect(state).toMatchObject({ currentIndex: 1, currentActorId: null, turn: 2 });
+  });
+
+  it('refus : autre camp, déjà agi sans force, mode individuel', () => {
+    expect(() => chooseSlotActor(combat(), 'e1')).toThrow(/camp/);
+    const state = next(combat(), 'p1').state;
+    const players = next(state, 'e1').state;
+    expect(() => chooseSlotActor(players, 'p1')).toThrow(/déjà agi/);
+    expect(chooseSlotActor(players, 'p1', true).currentActorId).toBe('p1');
+    expect(() => chooseSlotActor(start('individual', [p('a', 'players')]), 'a')).toThrow(
+      /individuel/,
+    );
+  });
+
+  it('retrait de l’acteur désigné : le créneau redevient libre', () => {
+    const state = chooseSlotActor(combat(), 'p1');
+    expect(remove(state, ['p1']).currentActorId).toBeNull();
+  });
+});
+
+describe('donner le tour', () => {
+  it('individual : à un participant, sans marquer personne', () => {
+    const state = setTurn(start('individual', [p('a', 'players'), p('b', 'enemies')]), {
+      characterId: 'b',
+    });
+    expect(state).toMatchObject({ currentIndex: 1, turn: 1 });
+    expect(state.order.every((x) => !x.hasActed)).toBe(true);
+    expect(() => setTurn(state, { slotIndex: 0 })).toThrow(/participant/);
+    expect(() => setTurn(state, { characterId: 'zz' })).toThrow(/ne participe pas/);
+  });
+
+  it('slots : à un créneau, ou au prochain créneau du camp d’un participant', () => {
+    const state = start('slots', [p('p1', 'players'), p('e1', 'enemies'), p('p2', 'players')]);
+    expect(setTurn(state, { slotIndex: 2 })).toMatchObject({
+      currentIndex: 2,
+      currentActorId: null,
+    });
+    expect(() => setTurn(state, { slotIndex: 3 })).toThrow(/créneau/);
+    const on = setTurn({ ...state, currentIndex: 1 }, { characterId: 'p1' });
+    expect(on).toMatchObject({ currentIndex: 2, currentActorId: 'p1' });
+  });
+});
+
+describe('ajout de participants', () => {
+  it('individual : à sa place d’initiative, le tour ne change pas de main', () => {
+    let state = start('individual', [p('a', 'players', [18]), p('b', 'enemies', [10])]);
+    state = next(state).state; // tour de b
+    const added = addParticipants(state, [p('c', 'allies', [15]), p('d', 'enemies', [2])]);
+    expect(ids(added.order)).toEqual(['a', 'c', 'b', 'd']);
+    expect(added.currentIndex).toBe(2);
+    expect(currentActorOf(added)).toBe('b');
+    // Sans initiative : à la fin
+    expect(ids(addParticipants(state, [p('e', 'enemies')]).order)).toEqual(['a', 'b', 'e']);
+  });
+
+  it('slots : un créneau de son camp à sa place', () => {
+    let state = start('slots', [p('p1', 'players', [3]), p('e1', 'enemies', [1])]);
+    state = next(state, 'p1').state; // créneau enemies
+    const added = addParticipants(state, [p('p2', 'players', [2])]);
+    expect(added.slots).toEqual(['players', 'players', 'enemies']);
+    expect(added.currentIndex).toBe(2);
+  });
+});
+
+describe('réordonner, replacer', () => {
+  it('individual : le tour reste au même participant', () => {
+    let state = start('individual', [p('a', 'players'), p('b', 'enemies'), p('c', 'allies')]);
+    state = next(state).state; // tour de b
+    const byId = new Map(state.order.map((x) => [x.characterId, x]));
+    const moved = withOrder(
+      state,
+      ['b', 'c', 'a'].map((id) => byId.get(id)!),
+    );
+    expect(moved.currentIndex).toBe(0);
+    expect(currentActorOf(moved)).toBe('b');
+  });
+
+  it('slots : le créneau courant garde son camp et son rang dans le camp', () => {
+    expect(
+      followSlot(['enemies', 'players', 'enemies', 'players'], 2, [
+        'players',
+        'enemies',
+        'players',
+        'enemies',
+      ]),
+    ).toBe(3);
+    const state = {
+      ...start('slots', [p('e1', 'enemies'), p('p1', 'players'), p('e2', 'enemies')]),
+      currentIndex: 2,
+    };
+    const byId = new Map(state.order.map((x) => [x.characterId, x]));
+    const moved = withOrder(
+      state,
+      ['p1', 'e1', 'e2'].map((id) => byId.get(id)!),
+    );
+    expect(moved.slots).toEqual(['players', 'enemies', 'enemies']);
+    expect(moved.currentIndex).toBe(2);
+  });
+
+  it('initiative saisie : replacé, tour inchangé', () => {
+    let state = start('individual', [
+      p('a', 'players', [18]),
+      p('b', 'enemies', [10]),
+      p('c', 'allies', [5]),
+    ]);
+    state = next(state).state; // tour de b
+    state = updateParticipant(state, 'c', { sortKeys: [20] });
+    state = placeParticipant(state, 'c');
+    expect(ids(state.order)).toEqual(['c', 'a', 'b']);
+    expect(currentActorOf(state)).toBe('b');
   });
 });
