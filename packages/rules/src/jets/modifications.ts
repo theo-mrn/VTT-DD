@@ -6,6 +6,7 @@
  */
 import type { Fiche } from '../calcul/index.js';
 import type { SystemeCharge } from '../chargement/index.js';
+import type { LigneResistance } from './degats.js';
 import {
   estExemplaire,
   nouvellePossession,
@@ -25,6 +26,8 @@ export interface ModificationAttribut {
   /** Type de dégâts, et dégâts avant résistances. */
   type?: string;
   brut?: number;
+  /** Résistances, immunités et vulnérabilités de l'entité touchée, appliquées aux dégâts. */
+  resistances?: LigneResistance[];
 }
 
 /**

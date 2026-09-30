@@ -134,7 +134,19 @@ describe('types de dégâts et résistances', () => {
     });
     if (!res.ok) throw new Error(JSON.stringify(res.erreurs));
     expect(res.resultat.modifications).toEqual([
-      { entite: 'cible', attribut: 'PV', operation: 'retirer', valeur: 3, type: 'feu', brut: 11 },
+      {
+        entite: 'cible',
+        attribut: 'PV',
+        operation: 'retirer',
+        valeur: 3,
+        type: 'feu',
+        brut: 11,
+        // Résistances de la cible gardées avec la modification (rapport du MJ)
+        resistances: [
+          { source: 'ecailles', nom: 'Écailles', operation: 'multiplier', valeur: 0.5 },
+          { source: 'ecailles', nom: 'Écailles', operation: 'reduire', valeur: 2 },
+        ],
+      },
       { entite: 'cible', entree: 'brulure', operation: 'donner', rangs: 2, duree: 3 },
     ]);
     expect(res.resultat.explications).toContain('Dégâts (Feu) : 11 → 3');

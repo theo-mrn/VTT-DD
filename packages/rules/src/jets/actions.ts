@@ -904,6 +904,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         valeur: recus.valeur,
         ...(typeDegats ? { type: typeDegats } : {}),
         brut: recus.brut,
+        ...(recus.lignes.length ? { resistances: recus.lignes } : {}),
       });
       valeur = recus.valeur;
     } else {
