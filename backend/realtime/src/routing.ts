@@ -95,9 +95,13 @@ export function deliveryFor(
   }
 }
 
-/** Version expurgée : l'enveloppe sans sa charge utile. */
+/**
+ * Version expurgée : l'enveloppe sans sa charge utile, ni le personnage qu'elle nomme (pour
+ * une attaque, l'attaquant : un PNJ caché ne doit pas se trahir auprès du joueur qui a
+ * seulement réagi). L'auteur ne reçoit qu'un signal pour relire ce qu'il a le droit de voir.
+ */
 export function redact(event: EventEnvelope): EventEnvelope {
-  return { ...event, payload: {} };
+  return { ...event, actor: { ...event.actor, characterId: null }, payload: {} };
 }
 
 /** Message `event` envoyé au client : la séquence du flux sert de curseur de reprise. */

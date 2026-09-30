@@ -59,13 +59,26 @@ describe('routage des événements', () => {
     expect(targetsFor(system).full).toEqual([]);
   });
 
-  it('version expurgée : sans charge utile, marquée', () => {
+  it('version expurgée : sans charge utile ni personnage nommé, marquée', () => {
     const e = envelope({ type: 'dice.rolled', roomId: C, actor, payload: { total: 20 } });
     expect(packet(e, 7)).toEqual({ seq: 7, event: e });
     const r = packet(e, 7, true);
     expect(r.redacted).toBe(true);
     expect(r.event.payload).toEqual({});
     expect(r.event.aggregate).toEqual(e.aggregate);
+    // Attaque résolue par la réaction d'un joueur : l'attaquant (PNJ caché) ne se trahit pas
+    const npc = crypto.randomUUID();
+    const resolved = envelope({
+      type: 'combat.attack_resolved',
+      roomId: C,
+      visibility: 'gm_only',
+      actor: { ...actor, characterId: npc },
+      aggregate: { type: 'attack', id: 'a1' },
+      payload: { attack: { attackerId: npc } },
+    });
+    const signal = packet(resolved, 8, true).event;
+    expect(signal.actor).toEqual({ ...actor, characterId: null });
+    expect(JSON.stringify(signal)).not.toContain(npc);
   });
 });
 
