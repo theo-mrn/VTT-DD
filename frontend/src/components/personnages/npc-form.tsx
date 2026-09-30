@@ -170,7 +170,7 @@ export function NpcForm({
   const upload = async (f: File) => {
     setUploading(true);
     try {
-      setImage(await mapsApi.upload(campaignId, f));
+      setImage(await mapsApi.upload(campaignId, f, 'npc-image'));
     } catch (err) {
       toast.error(messageErreur(err, 'L’image n’a pas pu être envoyée.'));
     } finally {

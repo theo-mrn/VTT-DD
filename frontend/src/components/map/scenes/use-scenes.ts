@@ -76,7 +76,7 @@ export function useScenesActions(campaignId: string) {
     ...options,
   });
   const upload = useMutation({
-    mutationFn: (file: File) => mapsApi.upload(campaignId, file),
+    mutationFn: (file: File) => mapsApi.upload(campaignId, file, 'map-background'),
     onError: fail,
   });
 

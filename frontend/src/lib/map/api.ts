@@ -29,13 +29,14 @@ import {
   type MapSettings,
   type MapSnapshot,
   type MapToken,
-  type MediaUploadTicket,
   type TravelToMap,
   type UpdateMapGroup,
   type UpdateMapScene,
   type UpdateMapSettings,
 } from '@vtt/contracts';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { MAX_SIDE, prepareImage } from '@/lib/uploads/image';
+import { uploadFile, type UploadProgress } from '@/lib/uploads/uploader';
 import type { EngineBackend } from './engine/map-engine';
 import { collectionByKey } from './store/collections';
 import type { ArrangeSender, EntityUpdate, Persistence } from './store/commands';
@@ -337,42 +338,23 @@ export const mapsApi = {
     }),
 
   /**
-   * Envoie un fond ou une image (URL présignée) et rend son adresse publique. Images de 10 Mo,
-   * vidéos webm ou mp4 de 100 Mo au plus. Tant que `/media` n'est pas déployé, une image passe
-   * par l'ancienne route `/image`.
+   * Envoie un média de la carte (route commune d'envoi, docs/uploads.md) et rend son adresse
+   * publique : image compressée en WebP à la taille de l'usage, vidéo telle quelle ; progression
+   * par `onProgress`.
    */
-  async upload(campaignId: string, file: File): Promise<string> {
-    const kind = file.type.startsWith('video/') ? 'video' : 'image';
-    let ticket: MediaUploadTicket;
-    try {
-      ticket = await api<MediaUploadTicket>(campaignUrl(campaignId, '/media'), {
-        method: 'POST',
-        ...json({ kind, contentType: file.type, size: file.size }),
-      });
-    } catch (err) {
-      const missing = err instanceof ApiError && err.status === 404 && !err.problem.code;
-      if (!missing || kind !== 'image') throw err;
-      ticket = await api<MediaUploadTicket>(campaignUrl(campaignId, '/image'), {
-        method: 'POST',
-        ...json({ contentType: file.type, size: file.size }),
-      });
-    }
-    let res: Response;
-    try {
-      res = await fetch(ticket.uploadUrl, {
-        method: 'PUT',
-        headers: { 'content-type': file.type },
-        body: file,
-      });
-    } catch {
-      throw new ApiError({ status: 0, title: 'L’envoi du fichier vers le stockage a échoué.' });
-    }
-    if (!res.ok)
-      throw new ApiError({
-        status: res.status,
-        title: 'Le stockage a refusé le fichier (format ou taille).',
-      });
-    return ticket.publicUrl;
+  async upload(
+    campaignId: string,
+    file: File,
+    usage: 'map-background' | 'map-object' | 'npc-image' = 'map-object',
+    onProgress?: (p: UploadProgress) => void,
+  ): Promise<string> {
+    const ready = await prepareImage(file, { maxSide: MAX_SIDE[usage] });
+    return uploadFile(
+      { kind: 'campaign', id: campaignId },
+      usage,
+      ready,
+      onProgress ? { onProgress } : {},
+    );
   },
 };
 

@@ -357,7 +357,7 @@ function ImageField({ tokens, entity }: { tokens: TokensState; entity: TokenEnti
     setError(null);
     try {
       const campaignId = engine.store.getState().campaignId;
-      const publicUrl = await mapsApi.upload(campaignId, f);
+      const publicUrl = await mapsApi.upload(campaignId, f, 'npc-image');
       setUrl(publicUrl);
       save(publicUrl);
     } catch (err) {

@@ -8,6 +8,8 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from './api';
+import { MAX_SIDE, prepareImage } from './uploads/image';
+import { uploadFile, type UploadProgress } from './uploads/uploader';
 
 // ─── Contrat de l'API (schémas Zod de backend/campaign/src/modules/schemas.ts) ─
 
@@ -392,11 +394,6 @@ function versCorps(m: ModificationCampagne): Record<string, unknown> {
 const url = (id: string, suite = '') => `/v1/campaigns/${encodeURIComponent(id)}${suite}`;
 const json = (corps: unknown) => ({ body: JSON.stringify(corps) });
 
-interface UrlEnvoi {
-  uploadUrl: string;
-  publicUrl: string;
-}
-
 export const campagnes = {
   lister: async () => (await api<MyCampaignSummaryApi[]>('/v1/campaigns')).map(versCampagne),
 
@@ -454,27 +451,22 @@ export const campagnes = {
   modifier: async (id: string, m: ModificationCampagne) =>
     versDetail(await api<CampaignApi>(url(id), { method: 'PATCH', ...json(versCorps(m)) })),
 
-  /** Envoie une image de couverture sur le stockage, puis l'enregistre. */
-  async envoyerCouverture(id: string, fichier: File): Promise<DetailCampagne> {
-    const { uploadUrl, publicUrl } = await api<UrlEnvoi>(url(id, '/image'), {
-      method: 'POST',
-      ...json({ contentType: fichier.type, size: fichier.size }),
-    });
-    let depot: Response;
-    try {
-      depot = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'content-type': fichier.type },
-        body: fichier,
-      });
-    } catch {
-      throw new ApiError({ status: 0, title: "L'envoi de l'image vers le stockage a échoué." });
-    }
-    if (!depot.ok)
-      throw new ApiError({
-        status: depot.status,
-        title: "Le stockage a refusé l'image (format ou taille).",
-      });
+  /**
+   * Envoie une image de couverture (route commune d'envoi, docs/uploads.md : compressée en
+   * WebP, déposée sur le stockage), puis l'enregistre.
+   */
+  async envoyerCouverture(
+    id: string,
+    fichier: File,
+    onProgress?: (p: UploadProgress) => void,
+  ): Promise<DetailCampagne> {
+    const pret = await prepareImage(fichier, { maxSide: MAX_SIDE['campaign-image'] });
+    const publicUrl = await uploadFile(
+      { kind: 'campaign', id },
+      'campaign-image',
+      pret,
+      onProgress ? { onProgress } : {},
+    );
     return campagnes.modifier(id, { coverUrl: publicUrl });
   },
 
