@@ -31,6 +31,7 @@ import {
 import { useEffect } from 'react';
 import { api, ApiError } from './api';
 import { useCampaignEvents, type RealtimeEvent } from './realtime';
+import { premiereFois, relireVersion } from './realtime-bridge';
 
 // ─── Contrat de l'API (schémas Zod de backend/campaign/src/modules/notes/schemas.ts) ─
 
@@ -704,9 +705,58 @@ export function appliquerEvenementNote(client: QueryClient, e: RealtimeEvent): v
     const version = typeof payload.version === 'number' ? payload.version : null;
     if (connue && version !== null && connue.version >= version) return;
   }
+  if (type === 'note.updated') {
+    noteChangeeAilleurs(client, id, typeof payload.version === 'number' ? payload.version : null);
+    return;
+  }
   void client.invalidateQueries({ queryKey: clesNotes.une(id) });
   void client.invalidateQueries({ queryKey: clesNotes.listes });
   void client.invalidateQueries({ queryKey: clesNotes.facettes });
+}
+
+/** Relectures regroupées, par cache : une seule part au bout du délai, quel que soit le flot. */
+const regroupees = new WeakMap<QueryClient, Set<string>>();
+function plusTard(client: QueryClient, cle: string, ms: number, relire: () => void) {
+  let enAttente = regroupees.get(client);
+  if (!enAttente) regroupees.set(client, (enAttente = new Set()));
+  if (enAttente.has(cle)) return;
+  enAttente.add(cle);
+  setTimeout(() => {
+    enAttente.delete(cle);
+    relire();
+  }, ms);
+}
+
+/** Délai des relectures déclenchées par l'enregistrement automatique d'un collègue. */
+const DELAI_RELECTURE_MS = 2_000;
+
+/**
+ * Note modifiée par un collègue (l'enregistrement automatique en publie une toutes les
+ * 600 ms pendant qu'il écrit). Ouverte ici : relue, puis reportée dans les listes, qui
+ * sont seulement marquées périmées. Fermée : marquée périmée, et les listes affichées
+ * relues au plus une fois par délai. Les facettes aussi, au plus une fois par délai.
+ */
+function noteChangeeAilleurs(client: QueryClient, id: string, version: number | null) {
+  const cle = clesNotes.une(id);
+  const ouverte =
+    (client.getQueryCache().find({ queryKey: cle, exact: true })?.getObserversCount() ?? 0) > 0;
+  if (ouverte) {
+    void relireVersion<Note>(client, cle, version, (n) => n.version).then(() => {
+      const note = client.getQueryData<Note>(cle);
+      if (!note) return;
+      const resume = resumeDe(note);
+      majListes(client, (items) => items.map((n) => (n.id === id ? resume : n)));
+      void client.invalidateQueries({ queryKey: clesNotes.listes, refetchType: 'none' });
+    });
+  } else {
+    void client.invalidateQueries({ queryKey: cle });
+    plusTard(client, 'listes', DELAI_RELECTURE_MS, () => {
+      void client.invalidateQueries({ queryKey: clesNotes.listes });
+    });
+  }
+  plusTard(client, 'facettes', DELAI_RELECTURE_MS, () => {
+    void client.invalidateQueries({ queryKey: clesNotes.facettes });
+  });
 }
 
 /**
@@ -719,12 +769,17 @@ export function useNotesSync(campaignId: string | null, enabled = true): { live:
   const { live, generation } = useCampaignEvents(
     campaignId,
     TYPES_TEMPS_REEL,
-    (e) => appliquerEvenementNote(client, e),
+    (e) => {
+      if (premiereFois(client, 'notes', e)) appliquerEvenementNote(client, e);
+    },
     { enabled },
   );
   useEffect(() => {
     if (!enabled || generation === 0) return;
-    void client.invalidateQueries({ queryKey: clesNotes.racine });
+    // Plusieurs campagnes suivies se (ré)abonnent ensemble : une seule relecture
+    plusTard(client, 'racine', 100, () => {
+      void client.invalidateQueries({ queryKey: clesNotes.racine });
+    });
   }, [client, enabled, generation]);
   return { live };
 }
