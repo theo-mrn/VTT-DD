@@ -193,9 +193,16 @@ export interface Fiche {
 
 /**
  * Effets propres à une entité, compilés une fois par système et par contenu :
- * le calcul est rejoué à chaque écriture, la compilation ne l'est pas.
+ * le calcul est rejoué à chaque écriture, la compilation ne l'est pas. Le tableau
+ * d'effets sert de clé tant qu'il ne change pas (le même état recalculé) ; sinon,
+ * son contenu sérialisé, dans un cache borné qui oublie d'abord le moins récent.
  */
-const cacheEffets = new WeakMap<SystemeCharge, Map<string, EffetsCompiles>>();
+interface CacheEffets {
+  parTableau: WeakMap<readonly Effet[], Map<string, EffetsCompiles>>;
+  parContenu: Map<string, EffetsCompiles>;
+}
+const TAILLE_CACHE_EFFETS = 500;
+const cacheEffets = new WeakMap<SystemeCharge, CacheEffets>();
 function effetsCompiles(
   systeme: SystemeCharge,
   type: string,
@@ -204,14 +211,28 @@ function effetsCompiles(
   variables: Parameters<typeof compilerEffets>[4],
 ): EffetsCompiles {
   let cache = cacheEffets.get(systeme);
-  if (!cache) cacheEffets.set(systeme, (cache = new Map()));
-  const cle = `${type}\n${prefixe}\n${JSON.stringify(effets)}`;
-  let c = cache.get(cle);
-  if (!c) {
+  if (!cache)
+    cacheEffets.set(systeme, (cache = { parTableau: new WeakMap(), parContenu: new Map() }));
+  const lieu = `${type}\n${prefixe}`;
+  let parLieu = cache.parTableau.get(effets);
+  const deja = parLieu?.get(lieu);
+  if (deja) return deja;
+
+  const cle = `${lieu}\n${JSON.stringify(effets)}`;
+  let c = cache.parContenu.get(cle);
+  if (c) {
+    // Le plus récent passe en fin de file (ordre d'insertion de la Map)
+    cache.parContenu.delete(cle);
+  } else {
     c = compilerEffets(systeme, type, effets, (i, x) => `${prefixe}/effets/${i}/${x}`, variables);
-    if (cache.size > 500) cache.clear();
-    cache.set(cle, c);
+    if (cache.parContenu.size >= TAILLE_CACHE_EFFETS) {
+      const ancienne = cache.parContenu.keys().next().value;
+      if (ancienne !== undefined) cache.parContenu.delete(ancienne);
+    }
   }
+  cache.parContenu.set(cle, c);
+  if (!parLieu) cache.parTableau.set(effets, (parLieu = new Map()));
+  parLieu.set(lieu, c);
   return c;
 }
 
