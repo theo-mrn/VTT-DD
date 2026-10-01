@@ -7,6 +7,7 @@
  *   plantages GPU relevés sur les dés 3D ; machine modeste). MSAA seulement sous 1,5 et hors
  *   machine économe : au-delà, la densité de pixels lisse déjà les bords.
  * - Le système d'événements de Pixi est coupé : le toucher est celui du moteur (index spatial).
+ * - Groupes de rendu : le monde (la caméra est sa seule transformation) et le plan `content`.
  * - Un conteneur par plan (`planes.ts`) ; le plan `content` contient un conteneur par calque du
  *   MJ, trié par `sortOrder`, et chaque calque trie ses entités par `z` (tri refait seulement
  *   quand un `z` change).
@@ -117,7 +118,11 @@ interface Ping {
 class PixiView implements EngineView {
   readonly canvas: HTMLCanvasElement;
   readonly pixi = PIXI;
-  private readonly world = new Container({ label: 'world' });
+  /**
+   * Monde : un groupe de rendu. La caméra n'est que sa transformation (appliquée par le GPU) :
+   * un déplacement ou un zoom ne recalcule pas la transformation de chaque entité.
+   */
+  private readonly world = new Container({ label: 'world', isRenderGroup: true });
   private readonly planes = new Map<PlaneId, Container>();
   private readonly layerContainers = new Map<string, Container>();
   readonly theme: MapTheme;
@@ -169,7 +174,14 @@ class PixiView implements EngineView {
     app.stage.eventMode = 'none';
     app.stage.addChild(this.world);
     for (const id of MAP_PLANES) {
-      const plane = new Container({ label: `plane:${id}`, sortableChildren: id === 'content' });
+      // Contenu (calques du MJ) : son propre groupe de rendu, ses instructions ne sont pas
+      // refaites quand un autre plan change (météo, vision, aperçus)
+      const content = id === 'content';
+      const plane = new Container({
+        label: `plane:${id}`,
+        sortableChildren: content,
+        isRenderGroup: content,
+      });
       this.planes.set(id, plane);
       this.world.addChild(plane);
     }
