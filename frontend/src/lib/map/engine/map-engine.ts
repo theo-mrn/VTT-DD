@@ -1547,13 +1547,11 @@ export class MapEngine {
   ) {
     const backend = this.backend!;
     try {
-      if (previous && this.entityMap.size) {
-        const ok = await this.confirm({
-          title: 'Le fond a changé de taille',
-          message: `Adapter les éléments posés à la nouvelle taille (${previous.width} × ${previous.height} → ${width} × ${height}) ?`,
-          confirmLabel: 'Adapter les éléments',
-        });
-        if (ok) await backend.rescale(width / previous.width, height / previous.height);
+      // Fond changé de taille : éléments, grilles et point d'apparition suivent, sans question
+      // (le serveur met toute la géométrie à l'échelle, `rescale`)
+      if (previous) {
+        await backend.rescale(width / previous.width, height / previous.height);
+        if (this.entityMap.size) this.notify('Éléments adaptés à la nouvelle taille du fond');
       }
       const scene = this.store.getState().scene;
       const saved = await backend.updateScene({ width, height }, scene?.version);

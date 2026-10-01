@@ -17,6 +17,7 @@ import type { Container, Graphics } from 'pixi.js';
 import type { StoreApi } from 'zustand/vanilla';
 import { GridControls } from '@/components/map/grid/grid-menu';
 import { GridScaleAssistant } from '@/components/map/grid/scale-assistant';
+import { ScaleMenu } from '@/components/map/grid/scale-menu';
 import { isGm, type RenderContext } from '../../engine/entities/entity-kind';
 import { destroyDisplay } from '../../engine/destroy-display';
 import type { Point } from '../../engine/geometry';
@@ -284,6 +285,14 @@ export const gridModule: MapModule = {
         slot: 'view',
         order: 20,
         component: GridControls,
+      }),
+      // Échelle de la scène (MJ) : case, taille des tokens, détecter, calibrer
+      engine.registerToolbarItem({
+        id: 'grid:scale',
+        slot: 'view',
+        order: 21,
+        available: isGm,
+        component: ScaleMenu,
       }),
       // Échelle d'un nouveau fond : quadrillage détecté, ou calibrage proposé (MJ)
       engine.registerOverlay({

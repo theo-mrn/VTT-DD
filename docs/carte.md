@@ -756,6 +756,11 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
     cartes quadrillées sur 20 et aucun faux positif sur 16 sans grille dans la bibliothèque) :
     trouvé, il devient la grille de jeu cachée aux joueurs (commande annulable, « Ajuster ») ;
     sinon un bandeau « Échelle de la carte » propose de calibrer (`scale-assistant.tsx`).
+    Menu « Échelle de la scène » (MJ, barre de la carte, `scale-menu.tsx`), toujours là : case
+    en px (grille de jeu, créée cachée au besoin), taille des tokens (toutes les scènes,
+    `tokenScale`), Détecter, Calibrer, Auto (retour à la largeur ÷ 25).
+  - Fond changé de taille : toute la géométrie suit (`rescale` : éléments, grilles, point
+    d'apparition), sans question.
   - Fond vidéo lu en variante 1080p : la taille du monde reste celle de l'original (lue par
     ses en-têtes), la variante est étirée à cette taille.
   - Choix (`components/map/scenes/background-picker.tsx`) : bouton « Fond de la scène » de la

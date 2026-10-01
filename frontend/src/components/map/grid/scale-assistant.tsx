@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { isVideoUrl, videoVariant } from '@/lib/map/engine/background-prefs';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { detectGrid } from '@/lib/map/modules/grid/detect';
-import { GRID_CALIBRATE_TOOL_ID, newGrid } from '@/lib/map/modules/grid/model';
+import { GRID_CALIBRATE_TOOL_ID, newGrid, withGrid } from '@/lib/map/modules/grid/model';
 import { calibrateSettings, gridsOf, saveGrids } from '@/lib/map/modules/grid/state';
 import { useMapState } from '../engine-context';
 
@@ -34,7 +34,7 @@ function dismissed(key: string): boolean {
 }
 
 /** Lance le calibrage de la grille de jeu (créée au besoin, à la case actuelle de la scène). */
-function calibrate(engine: MapEngine) {
+export function calibrateScene(engine: MapEngine) {
   const grids = gridsOf(engine);
   let play = playGridOf({ grids });
   const run = () => {
@@ -53,6 +53,41 @@ function calibrate(engine: MapEngine) {
   void Promise.resolve(saveGrids(engine, 'Grille de jeu', [...grids, play])).then(run);
 }
 
+/**
+ * Cherche le quadrillage du fond de la scène affichée et en fait la grille de jeu (cachée aux
+ * joueurs, commande annulable). Vrai s'il est trouvé.
+ */
+export async function detectSceneGrid(engine: MapEngine): Promise<boolean> {
+  const scene = engine.store.getState().scene;
+  const url = (scene?.backgroundUrl as string | null | undefined) ?? null;
+  const width = (scene?.width as number | null | undefined) ?? undefined;
+  if (!url) return false;
+  const video = isVideoUrl(url);
+  const found = await detectGrid(video ? (videoVariant(url) ?? url) : url, video, width);
+  if (!found) return false;
+  const grids = gridsOf(engine);
+  const play = playGridOf({ grids });
+  const placed = {
+    size: Math.round(found.size * 100) / 100,
+    offsetX: Math.round(found.offsetX * 100) / 100,
+    offsetY: Math.round(found.offsetY * 100) / 100,
+  };
+  if (play) {
+    await saveGrids(engine, 'Quadrillage détecté', withGrid(grids, play.id, placed));
+  } else {
+    const created = newGrid(grids, found.size);
+    if (!created) return false;
+    await saveGrids(engine, 'Quadrillage détecté', [
+      ...grids,
+      { ...created, ...placed, visibleToPlayers: false },
+    ]);
+  }
+  toast.success(`Quadrillage détecté : ${Math.round(found.size)} px par case`, {
+    action: { label: 'Ajuster', onClick: () => calibrateScene(engine) },
+  });
+  return true;
+}
+
 export function GridScaleAssistant({ engine }: { engine: MapEngine }) {
   const scene = useMapState((s) => s.scene);
   const url = (scene?.backgroundUrl as string | null | undefined) ?? null;
@@ -67,24 +102,8 @@ export function GridScaleAssistant({ engine }: { engine: MapEngine }) {
     if (!key || !url || !width || hasPlayGrid || tried.has(key) || dismissed(key)) return;
     tried.add(key);
     let alive = true;
-    const video = isVideoUrl(url);
-    void detectGrid(video ? (videoVariant(url) ?? url) : url, video, width).then((found) => {
-      if (!alive) return;
-      if (!found) return setBanner(key);
-      const existing = gridsOf(engine);
-      const created = newGrid(existing, found.size);
-      if (!created) return setBanner(key);
-      const grid: MapGrid = {
-        ...created,
-        size: Math.round(found.size * 100) / 100,
-        offsetX: Math.round(found.offsetX * 100) / 100,
-        offsetY: Math.round(found.offsetY * 100) / 100,
-        visibleToPlayers: false,
-      };
-      void saveGrids(engine, 'Quadrillage détecté', [...existing, grid]);
-      toast.success(`Quadrillage détecté : ${Math.round(found.size)} px par case`, {
-        action: { label: 'Ajuster', onClick: () => calibrate(engine) },
-      });
+    void detectSceneGrid(engine).then((found) => {
+      if (alive && !found) setBanner(key);
     });
     return () => {
       alive = false;
@@ -117,7 +136,7 @@ export function GridScaleAssistant({ engine }: { engine: MapEngine }) {
           <Button
             size="sm"
             onClick={() => {
-              calibrate(engine);
+              calibrateScene(engine);
               close(false);
             }}
           >
