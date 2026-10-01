@@ -1408,9 +1408,9 @@ mesure se voit chez tous pendant le geste, s'efface ensuite, ou s'épingle en ga
 ### Barre du groupe (`components/map/party/party-bar.tsx`)
 
 En haut à droite de la table, à la place de l'ancien bloc « héros / Maître du jeu » : les
-personnages de la scène (un par personnage, les miens d'abord), le MJ basculant entre joueurs et
-PNJ. Portrait cerclé de la ressource principale (anneau vert, ambre, rouge ; sens inversé pour
-une ressource qui se remplit ; grisé à zéro). Au-delà de huit : « +N » (liste). Rendue par la
+personnages de la scène (un par personnage, les miens d'abord), le MJ basculant entre héros et
+PNJ d'un seul bouton, et rangeant ou montrant sa barre de combat hors combat. Portrait cerclé de la ressource principale (anneau vert, ambre, rouge ; sens inversé pour
+une ressource qui se remplit ; grisé à zéro). Au-delà de six : « +N » (liste) ; largeur plafonnée (40 % de l'écran), les portraits défilent. Rendue par la
 carte (elle connaît la scène, l'annuaire, la caméra) dans l'emplacement `TABLE_HUD_RIGHT` du HUD,
 par portail. Clic : carte du personnage :
 
@@ -1419,8 +1419,6 @@ par portail. Clic : carte du personnage :
 - ressource (MJ, ou son propre personnage) : − et + (Maj : 5), saisie, pleine forme ; les clics
   rapprochés font une seule écriture ;
 - message privé à son joueur (discussion, audience `{ gm: false, userIds: [joueur] }`).
-
-« Changer de héros » y reste, au bout de la barre.
 
 ## 11. Hors de ce lot, conservé
 

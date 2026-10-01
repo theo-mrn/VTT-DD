@@ -18,13 +18,11 @@ import {
   Plus,
   SendHorizontal,
   Swords,
-  UserRoundCog,
   Users,
   VenetianMask,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
@@ -62,7 +60,7 @@ interface Member {
 }
 
 /** Portraits montrés avant le « +N ». */
-const SHOWN = 8;
+const SHOWN = 6;
 
 /** Part « en bonne santé » d'une ressource, de 0 à 1. */
 function health(r: ResourceGauge): number {
@@ -114,44 +112,36 @@ export function PartyBar() {
   const tokens = useTokens(engine);
   const viewer = engine.viewer;
   const gm = viewer.role === 'gm';
-  const campaignId = useMapState((s) => s.campaignId);
   const [mode, setMode] = useState<Mode>('players');
   const members = useMembers(tokens, gm ? mode : 'players', viewer.characterIds);
   const shown = members.slice(0, SHOWN);
   const rest = members.slice(SHOWN);
 
   return (
-    <div className={cn(HUD_BAR, 'max-w-[min(34rem,calc(100vw-1.5rem))]')}>
+    <div className={cn(HUD_BAR, 'max-w-[min(26rem,40vw)]')}>
       {gm && (
-        <div
-          className="flex h-10 shrink-0 gap-0.5 rounded-[14px] bg-surface-2/80 p-1"
-          role="tablist"
-        >
-          {(
-            [
-              ['players', 'Joueurs', Users],
-              ['npcs', 'PNJ', VenetianMask],
-            ] as const
-          ).map(([id, label, Icon]) => (
-            <Info key={id} texte={label} cote="bottom">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === id}
-                aria-label={label}
-                onClick={() => setMode(id)}
-                className={cn(
-                  'grid size-8 place-items-center rounded-[10px] transition-colors',
-                  mode === id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
+        <Info texte={mode === 'players' ? 'Afficher les PNJ' : 'Afficher les héros'} cote="bottom">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={mode === 'players' ? 'Afficher les PNJ' : 'Afficher les héros'}
+            onClick={() => setMode((m) => (m === 'players' ? 'npcs' : 'players'))}
+            className={cn(HUD_CONTROL, 'shrink-0', mode === 'npcs' && 'bg-primary/10 text-primary')}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={mode}
+                initial={{ opacity: 0, rotate: -30, scale: 0.8 }}
+                animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                exit={{ opacity: 0, rotate: 30, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                className="grid place-items-center"
               >
-                <Icon className="size-3.5" aria-hidden />
-              </button>
-            </Info>
-          ))}
-        </div>
+                {mode === 'players' ? <Users /> : <VenetianMask />}
+              </motion.span>
+            </AnimatePresence>
+          </Button>
+        </Info>
       )}
 
       {gm && <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />}
@@ -182,19 +172,10 @@ export function PartyBar() {
         )}
       </div>
 
-      {(gm || (viewer.role !== 'spectator' && campaignId)) && (
-        <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
-      )}
-      {gm && <CombatBarToggle />}
-      {viewer.role !== 'spectator' && campaignId && (
+      {gm && (
         <>
-          <Info texte={gm ? 'Jouer un héros ou mener en MJ' : 'Changer de héros'} cote="bottom">
-            <Button variant="ghost" size="icon-sm" asChild className={cn(HUD_CONTROL, 'shrink-0')}>
-              <Link href={`/campagnes/${campaignId}/personnage`} aria-label="Changer de héros">
-                <UserRoundCog />
-              </Link>
-            </Button>
-          </Info>
+          <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
+          <CombatBarToggle />
         </>
       )}
     </div>

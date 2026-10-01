@@ -67,7 +67,7 @@ export const HudCombat = memo(function HudCombat({ table }: { table: Table }) {
   const sys = useCampaignSystem(reacts ? c.system : null, c.id);
   if (role !== 'gm' && !reacts) return null;
   return (
-    <div className="pointer-events-none flex min-w-0 flex-1 flex-col items-center gap-2">
+    <div className="pointer-events-none flex min-w-0 max-w-full flex-1 flex-col items-center gap-2">
       {role === 'gm' && !isLoading && <GmCombat campagne={c} combat={combat} />}
       {reacts && (
         <ReactionPrompts campaignId={c.id} mine={mine} systeme={sys.data?.systeme ?? null} />

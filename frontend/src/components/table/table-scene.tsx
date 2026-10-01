@@ -159,11 +159,12 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
       <PanelLocationSync allowed={permis} />
       <main className="absolute inset-x-0 top-0 bottom-[var(--table-dock-h)]">{children}</main>
 
-      <div className="pointer-events-none absolute inset-x-3 top-3 z-20 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-3 lg:left-20">
-        <div className="flex min-w-0 justify-start">
-          <HudCampaign table={table} />
+      <div className="pointer-events-none absolute inset-x-3 top-3 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 lg:left-20">
+        {/* Gauche et droite à leur taille, le combat centré dans ce qui reste : jamais dessous */}
+        <HudCampaign table={table} />
+        <div className="flex min-w-0 justify-center">
+          <HudCombat table={table} />
         </div>
-        <HudCombat table={table} />
         {/* Barre du groupe : rendue ici par la carte (elle connaît la scène), voir PartyBar */}
         <div id={TABLE_HUD_RIGHT} className="flex min-w-0 justify-end" />
       </div>
