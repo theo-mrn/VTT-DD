@@ -7,16 +7,20 @@ import { cn } from '@/lib/utils';
  * Vignette pré-calculée d'un skin (`public/dice/<skin>.png`) : une simple
  * image, aucun canevas WebGL (la grille de la boutique en affiche des dizaines,
  * et le survol 3D fait planter Chrome sous Windows). Image absente : silhouette
- * neutre.
+ * neutre. En petit (`small`, jusqu'à 64 px affichés), la variante WebP de 128 px
+ * (`public/dice/thumbs/<skin>.webp`, quelques Ko) au lieu du PNG de 512 px.
  */
 export function SkinThumbnail({
   skinId,
   alt = '',
   className,
+  small = false,
 }: {
   skinId: string;
   alt?: string;
   className?: string;
+  /** Affichée à 64 px ou moins : vignette WebP de 128 px. */
+  small?: boolean;
 }) {
   const [absente, setAbsente] = useState<string | null>(null);
 
@@ -35,7 +39,11 @@ export function SkinThumbnail({
   return (
     // Vignettes statiques servies telles quelles, sans optimisation d'image
     <img
-      src={`/dice/${encodeURIComponent(skinId)}.png`}
+      src={
+        small
+          ? `/dice/thumbs/${encodeURIComponent(skinId)}.webp`
+          : `/dice/${encodeURIComponent(skinId)}.png`
+      }
       alt={alt}
       loading="lazy"
       decoding="async"

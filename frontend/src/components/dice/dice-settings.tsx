@@ -69,7 +69,11 @@ export function DiceSettings() {
       <Popover open={ouvert} onOpenChange={setOuvert}>
         <PopoverTrigger asChild>
           <Button variant="secondary" size="sm" aria-label="Réglages des dés">
-            {p ? <SkinThumbnail skinId={p.skinId} className="-ml-1 size-5" /> : <Box aria-hidden />}
+            {p ? (
+              <SkinThumbnail skinId={p.skinId} small className="-ml-1 size-5" />
+            ) : (
+              <Box aria-hidden />
+            )}
             Dés
             {p && !p.animation3d && <span className="text-[11px] text-subtle">2D</span>}
             {p && !p.sound && <VolumeX className="text-subtle" aria-label="Son coupé" />}
@@ -91,7 +95,7 @@ export function DiceSettings() {
                 className="group flex w-full items-center gap-3 rounded-xl border border-border bg-surface-2/60 p-2.5 text-left transition-colors hover:border-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
               >
                 <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-surface-3/70">
-                  <SkinThumbnail skinId={p.skinId} alt="" className="size-11" />
+                  <SkinThumbnail skinId={p.skinId} alt="" small className="size-11" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-medium">
