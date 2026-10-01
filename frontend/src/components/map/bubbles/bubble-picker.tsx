@@ -11,8 +11,8 @@ import {
   BUBBLE_DURATION_MIN_MS,
   BUBBLE_TEXT_MAX,
 } from '@vtt/contracts';
-import { MessageCircle, SendHorizontal, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { MessageCircle, Search, SendHorizontal, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { useMapEngine } from '../engine-context';
 import { bubbleControlOf } from './bubble-control';
 import { EMOJI_CATEGORIES } from './emoji';
+import { searchEmoji } from './emoji-search';
 
 const RECENT_KEY = 'vtt:bulles:recents';
 const RECENT_MAX = 16;
@@ -114,16 +115,33 @@ function Picker({
   const [tab, setTab] = useState<string>(EMOJI_CATEGORIES[0]!.id);
   const [text, setText] = useState('');
   const [seconds, setSeconds] = useState(BUBBLE_DURATION_DEFAULT_MS / 1000);
+  const [query, setQuery] = useState('');
+  // Mots-clés français chargés à la première recherche (125 Ko)
+  const [keywords, setKeywords] = useState<Readonly<Record<string, string>> | null>(null);
   useEffect(() => {
     const r = readRecent();
     setRecent(r);
     if (r.length) setTab('recent');
   }, []);
+  useEffect(() => {
+    if (!query.trim() || keywords) return;
+    let live = true;
+    void import('./emoji-keywords').then((m) => live && setKeywords(m.EMOJI_KEYWORDS));
+    return () => {
+      live = false;
+    };
+  }, [query, keywords]);
+  const results = useMemo(
+    () => (keywords && query.trim() ? searchEmoji(keywords, query) : null),
+    [keywords, query],
+  );
 
-  const category =
-    tab === 'recent'
-      ? { id: 'recent', emojis: recent }
-      : (EMOJI_CATEGORIES.find((c) => c.id === tab) ?? EMOJI_CATEGORIES[0]!);
+  const searching = query.trim().length > 0;
+  const shown = searching
+    ? (results ?? [])
+    : tab === 'recent'
+      ? recent
+      : (EMOJI_CATEGORIES.find((c) => c.id === tab) ?? EMOJI_CATEGORIES[0]!).emojis;
   const ms = seconds * 1000;
 
   return (
@@ -149,8 +167,21 @@ function Picker({
         </Button>
       </form>
 
+      {/* Recherche d'emoji (en français) */}
+      <label className="flex items-center gap-2 border-b border-border px-3 py-1.5">
+        <Search className="size-4 shrink-0 text-subtle" aria-hidden />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rechercher un emoji…"
+          aria-label="Rechercher un emoji"
+          className="h-8 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-subtle"
+        />
+      </label>
+
       {/* Onglets des emoji */}
       <div
+        hidden={searching}
         role="tablist"
         aria-label="Thèmes d’emoji"
         className="flex items-center gap-0.5 overflow-x-auto border-b border-border px-1.5 py-1 [scrollbar-width:none]"
@@ -164,7 +195,10 @@ function Picker({
       </div>
 
       <div className="grid h-72 grid-cols-9 content-start gap-0.5 overflow-y-auto p-1.5">
-        {category.emojis.map((e) => (
+        {searching && results?.length === 0 && (
+          <p className="col-span-full py-6 text-center text-[13px] text-subtle">Aucun emoji</p>
+        )}
+        {shown.map((e) => (
           <button
             key={e}
             type="button"
