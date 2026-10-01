@@ -35,7 +35,7 @@ import {
   type UpdateMapSettings,
 } from '@vtt/contracts';
 import { api } from '@/lib/api';
-import { MAX_SIDE, prepareImage } from '@/lib/uploads/image';
+import { prepareUpload } from '@/lib/uploads/prepare';
 import { uploadFile, type UploadProgress } from '@/lib/uploads/uploader';
 import type { EngineBackend } from './engine/map-engine';
 import { collectionByKey } from './store/collections';
@@ -348,7 +348,8 @@ export const mapsApi = {
     usage: 'map-background' | 'map-object' | 'npc-image' = 'map-object',
     onProgress?: (p: UploadProgress) => void,
   ): Promise<string> {
-    const ready = await prepareImage(file, { maxSide: MAX_SIDE[usage] });
+    // Fond vidéo réencodé (H.264 1080p 30 i/s), image réduite et compressée
+    const ready = await prepareUpload(file, usage);
     return uploadFile(
       { kind: 'campaign', id: campaignId },
       usage,

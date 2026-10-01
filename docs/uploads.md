@@ -80,6 +80,11 @@ que vérifier ses droits puis appeler `ticket`.
 - `lib/uploads/image.ts` : image préparée avant l'envoi, dans le navigateur : recadrage, côté le
   plus long borné selon l'usage (`MAX_SIDE`), compression en WebP (qualité 0,85). GIF et vidéos
   partent tels quels ; une image déjà plus légère que sa version compressée aussi.
+- `lib/uploads/video.ts` : un fond de carte vidéo est réencodé avant l'envoi, dans le navigateur
+  (WebCodecs, mediabunny chargé à la demande) : H.264 en MP4, 1920 px de large au plus, 30 i/s,
+  sans son. Décodé par le matériel partout, contrairement aux VP8/VP9 4K des cartes animées du
+  commerce. Déjà en H.264 assez petit, ou navigateur sans encodeur : envoyé tel quel.
+  `lib/uploads/prepare.ts` choisit image ou vidéo selon l'usage (zone commune et carte).
 - `lib/uploads/uploader.ts` : `uploadFile(cible, usage, fichier, { onProgress, signal })` : Uppy
   (`@uppy/aws-s3`, sans multipart) envoie au stockage avec la progression et l'annulation ; la
   signature passe par la route du service.

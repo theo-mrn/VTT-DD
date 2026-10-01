@@ -22,13 +22,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
-import {
-  fetchImage,
-  isProcessable,
-  MAX_SIDE,
-  prepareImage,
-  type CropArea,
-} from '@/lib/uploads/image';
+import { fetchImage, isProcessable, MAX_SIDE, type CropArea } from '@/lib/uploads/image';
+import { prepareUpload } from '@/lib/uploads/prepare';
 import { uploadFile, type UploadProgress, type UploadTarget } from '@/lib/uploads/uploader';
 import { cn } from '@/lib/utils';
 import { DotsBackdrop } from '../combat/backdrop';
@@ -36,7 +31,14 @@ import { DotsBackdrop } from '../combat/backdrop';
 type Phase =
   | { kind: 'idle' }
   | { kind: 'crop'; file: File; src: string }
-  | { kind: 'upload'; name: string; preview: string | null; progress: UploadProgress | null }
+  | {
+      kind: 'upload';
+      name: string;
+      preview: string | null;
+      /** Conversion d'une vidéo avant l'envoi, de 0 à 1 ; null : pas de conversion en cours. */
+      encoding: number | null;
+      progress: UploadProgress | null;
+    }
   | { kind: 'error'; message: string; retry: File | null };
 
 const MB = 1024 * 1024;
@@ -103,10 +105,16 @@ export function ImageDrop({
       kind: 'upload',
       name: file.name,
       preview: file.type.startsWith('image/') ? objectUrl(file) : null,
+      encoding: null,
       progress: null,
     });
     try {
-      const ready = await prepareImage(file, { maxSide: MAX_SIDE[usage], crop });
+      const ready = await prepareUpload(file, usage, {
+        crop,
+        signal: ctrl.signal,
+        onEncode: (encoding) => setPhase((p) => (p.kind === 'upload' ? { ...p, encoding } : p)),
+      });
+      setPhase((p) => (p.kind === 'upload' ? { ...p, encoding: null } : p));
       const publicUrl = await uploadFile(target, usage, ready, {
         signal: ctrl.signal,
         onProgress: (progress) => setPhase((p) => (p.kind === 'upload' ? { ...p, progress } : p)),
@@ -241,7 +249,11 @@ export function ImageDrop({
                   className="absolute inset-0 -z-10 size-full object-cover opacity-40"
                 />
               )}
-              <UploadMeter progress={phase.progress} onCancel={() => abort.current?.abort()} />
+              <UploadMeter
+                progress={phase.progress}
+                encoding={phase.encoding}
+                onCancel={() => abort.current?.abort()}
+              />
             </motion.div>
           ) : !value ? (
             <motion.div
@@ -391,12 +403,16 @@ export function ImageDrop({
 /** Progression de l'envoi : anneau, pourcentage, octets, annuler. */
 function UploadMeter({
   progress,
+  encoding,
   onCancel,
 }: {
   progress: UploadProgress | null;
+  /** Conversion d'une vidéo avant l'envoi (0 à 1). */
+  encoding: number | null;
   onCancel(): void;
 }) {
-  const p = progress?.progress ?? 0;
+  const p = progress?.progress ?? encoding ?? 0;
+  const shown = progress !== null || encoding !== null;
   const r = 22;
   const c = 2 * Math.PI * r;
   return (
@@ -417,7 +433,7 @@ function UploadMeter({
             transition={{ duration: 0.2 }}
           />
         </svg>
-        {progress ? (
+        {shown ? (
           <span className="font-mono text-sm font-bold tabular-nums">{Math.round(p * 100)}%</span>
         ) : (
           <Loader2 className="size-5 animate-spin text-primary" aria-hidden />
@@ -426,7 +442,9 @@ function UploadMeter({
       <span className="font-mono text-[11px] text-muted-foreground tabular-nums" aria-live="polite">
         {progress
           ? `${fmtSize(progress.bytesUploaded)} / ${fmtSize(progress.bytesTotal)}`
-          : 'Préparation…'}
+          : encoding !== null
+            ? 'Conversion…'
+            : 'Préparation…'}
       </span>
       <Button
         type="button"
