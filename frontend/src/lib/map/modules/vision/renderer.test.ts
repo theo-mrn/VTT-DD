@@ -116,6 +116,8 @@ describe('rendu de la visibilité (sans WebGL)', () => {
       'vision:vis',
       'vision:mist',
     ]);
+    // Image suivante : textures neuves refaites une fois (un premier rendu peut sortir vide)
+    expect(h.draw()).toContain('vision:vis');
     // Rien de neuf : rien
     expect(h.draw()).toEqual([]);
     // Caméra : tout, à l'échelle de l'écran
@@ -169,6 +171,7 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     const h = harness({
       extra: { lights: [light('l', 600, 600)], fogZones: [fogZone('z', 700, 700)] },
     });
+    h.draw();
     h.draw();
     expect(h.draw()).toEqual([]);
     h.r.redrawAll();

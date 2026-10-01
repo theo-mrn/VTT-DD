@@ -69,3 +69,17 @@ export function exposeStats(stats: VisionStats): () => void {
     if (w.__vttVision?.stats === stats) delete w.__vttVision;
   };
 }
+
+/**
+ * Diagnostic de la vision en développement : `copy(__vttVisionDebug())` dans la console copie
+ * l'état de la vision et du rendu (observateurs, versions, décisions).
+ */
+export function exposeDebug(read: () => unknown): () => void {
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return () => {};
+  const w = window as unknown as { __vttVisionDebug?: () => string };
+  const fn = () => JSON.stringify(read(), null, 1);
+  w.__vttVisionDebug = fn;
+  return () => {
+    if (w.__vttVisionDebug === fn) delete w.__vttVisionDebug;
+  };
+}

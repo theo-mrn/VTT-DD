@@ -414,6 +414,11 @@ export class VisionRenderer {
   private lightVersion = -1;
   private viewerVersion = -1;
   private shown = false;
+  /**
+   * Textures redimensionnées ou observateur ajouté à cette image : le premier rendu dans une
+   * texture neuve (ou un masque neuf) peut sortir vide, on les refait à l'image suivante.
+   */
+  private redrawNext = false;
   private hasFog = false;
   private hasGlow = false;
   private destroyed = false;
@@ -599,7 +604,10 @@ export class VisionRenderer {
       cam.zoom / rt.zoom < 2;
     this.drawKey = cameraKey;
     this.wasMoving = moving;
-    const cameraChanged = !deferred && (cameraKey !== this.cameraKey || !this.shown);
+    // Geste de caméra en cours : la reprise attend l'image où les textures sont refaites
+    const retry = this.redrawNext && !deferred;
+    if (retry) this.redrawNext = false;
+    const cameraChanged = !deferred && (retry || cameraKey !== this.cameraKey || !this.shown);
     if (cameraChanged) {
       this.cameraKey = cameraKey;
       this.rtCam = { ...cam };
@@ -608,8 +616,10 @@ export class VisionRenderer {
       for (const t of Object.values(this.targets)) {
         const w = Math.ceil(cam.width);
         const h = Math.ceil(cam.height);
-        if (t.rt.width !== w || t.rt.height !== h || t.rt.source.resolution !== res * t.scale)
+        if (t.rt.width !== w || t.rt.height !== h || t.rt.source.resolution !== res * t.scale) {
           t.rt.resize(w, h, res * t.scale);
+          this.redrawNext = true;
+        }
       }
       for (const root of [this.rangeRoot, this.fogRoot, this.glowRoot, this.visRoot]) {
         root.scale.set(cam.zoom);
@@ -620,13 +630,17 @@ export class VisionRenderer {
     if (lightsChanged) this.buildLights(picture.lights);
     if (fogChanged) this.buildFog(picture);
     if (lightsChanged) this.buildGlow(picture.lights);
-    if (viewersChanged || fogChanged) this.buildVis(picture);
+    if (viewersChanged || fogChanged || retry) {
+      const nodes = this.viewerNodes.length;
+      this.buildVis(picture);
+      if (this.viewerNodes.length > nodes) this.redrawNext = true;
+    }
 
     // Sprites de portée : le rectangle de la vue des textures, dans le repère du monde
     const tc = this.rtCam!;
     const left = tc.x - tc.width / 2 / tc.zoom;
     const top = tc.y - tc.height / 2 / tc.zoom;
-    if (cameraChanged || viewersChanged || fogChanged)
+    if (cameraChanged || viewersChanged || fogChanged || retry)
       for (const s of this.contentSprites) {
         s.position.set(left, top);
         s.width = tc.width / tc.zoom;
@@ -645,7 +659,7 @@ export class VisionRenderer {
     if (this.hasFog && fogStale) render(this.fogRoot, this.targets.fog);
     this.hasGlow = picture.showGlow && picture.lights.length > 0;
     if (this.hasGlow && (cameraChanged || lightsChanged)) render(this.glowRoot, this.targets.glow);
-    if (renderRange || viewersChanged) render(this.visRoot, this.targets.vis);
+    if (renderRange || viewersChanged || retry) render(this.visRoot, this.targets.vis);
     this.fogVersion = picture.versions.fog;
     this.lightVersion = picture.versions.lights;
     this.viewerVersion = picture.versions.viewers;
@@ -654,7 +668,7 @@ export class VisionRenderer {
     this.updateComposite(picture, cam, tc);
     this.shown = true;
     this.onRender?.(performance.now() - started);
-    return deferred;
+    return deferred || this.redrawNext;
   }
 
   /** Portée hors observateur : hors brouillard (zones dans l'ordre), refaite avec les zones. */
@@ -874,6 +888,18 @@ export class VisionRenderer {
   noisePeriod = 150;
 
   /** La brume est-elle à l'écran (animation utile) ? */
+  /** Diagnostic (dev) : ce que le rendu a fait à la dernière image. */
+  debugState() {
+    return {
+      shown: this.shown,
+      cameraKey: this.cameraKey,
+      drawKey: this.drawKey,
+      versions: { fog: this.fogVersion, lights: this.lightVersion, viewers: this.viewerVersion },
+      compositeVisible: this.composite.visible,
+      redrawNext: this.redrawNext,
+    };
+  }
+
   get fogVisible() {
     return this.shown && this.hasFog && this.composite.visible;
   }

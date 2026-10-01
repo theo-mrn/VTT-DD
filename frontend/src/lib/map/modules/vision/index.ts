@@ -23,7 +23,7 @@ import { Fades, VISION_MASK } from './fades';
 import { VisionRings } from './radius-rings';
 import { visionPrefs } from './prefs';
 import { CAMERA_REFRESH_MS, VisionRenderer } from './renderer';
-import { exposeStats, VisionStats } from './stats';
+import { exposeDebug, exposeStats, VisionStats } from './stats';
 import { VisionState } from './vision-state';
 
 /** Opacité des personnages joueurs hors de ma vue (plan `allies`). */
@@ -80,6 +80,27 @@ export const visionModule: MapModule = {
 
     const cleanups: (() => void)[] = [
       exposeStats(stats),
+      exposeDebug(() => {
+        const picture = state.picture();
+        const member = state.member();
+        const decisions = [...state.decisions().values()];
+        const tokens = engine.store.getState().collections.tokens;
+        return {
+          mode: state.mode,
+          viewer: engine.viewer,
+          member,
+          directoryCharacters: engine.directory.characters().length,
+          players: state.players().map((p) => ({ userId: p.userId, characterIds: p.characterIds })),
+          tokens: tokens?.size ?? 0,
+          observers: picture?.viewers.map((v) => ({ id: v.id, pos: v.pos })) ?? null,
+          pictureVersions: picture?.versions ?? null,
+          bounds: picture?.bounds ?? null,
+          darkness: picture?.darkness ?? null,
+          decisions: { total: decisions.length, masked: decisions.filter((d) => d.masked).length },
+          renderer: renderer?.debugState() ?? null,
+          mounted: engine.ui.getState().mounted,
+        };
+      }),
       engine.registerToolbarItem({
         id: 'vision:view',
         slot: 'view',
