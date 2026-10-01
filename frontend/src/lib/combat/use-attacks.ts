@@ -34,9 +34,10 @@ import type {
   RevertAttack,
   SubmitRollDice,
 } from '@vtt/contracts';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { marquerJetsPerimes } from '../jets';
-import { useCampaignEvents, type RealtimeEvent } from '../realtime';
+import type { RealtimeEvent } from '../realtime';
+import { relireVersion, usePontCampagne } from '../realtime-bridge';
 import { attacksApi, combatKeys } from './api';
 
 export const ATTACK_EVENTS = [
@@ -101,7 +102,7 @@ export function applyAttackEvent(client: QueryClient, campaignId: string, e: Rea
     const known = client.getQueryData<Attack>(key);
     // Déjà à jour (ma propre écriture)
     if (known && version !== null && known.version >= version) return;
-    void client.invalidateQueries({ queryKey: key, exact: true });
+    void relireVersion<Attack>(client, key, version, (a) => a.version);
   }
   void client.invalidateQueries({ queryKey: combatKeys.attackLists(campaignId) });
   // Le jet d'une attaque résolue arrive dans l'historique des dés
@@ -112,20 +113,20 @@ export function applyAttackEvent(client: QueryClient, campaignId: string, e: Rea
     marquerJetsPerimes(client);
 }
 
-/** Relit les attaques sur leurs événements et à chaque (ré)abonnement sans rejeu. */
+/**
+ * Relit les attaques sur leurs événements et à chaque (ré)abonnement sans rejeu. Chaque
+ * liste et chaque détail le demandent : le pont est partagé, un événement est appliqué une
+ * fois (`realtime-bridge.ts`).
+ */
 export function useAttackEvents(campaignId: string | null | undefined, enabled = true) {
-  const client = useQueryClient();
-  const on = Boolean(campaignId) && enabled;
-  const { live, generation } = useCampaignEvents(
-    campaignId ?? null,
+  const { live } = usePontCampagne(
+    'attaques',
+    campaignId,
     ATTACK_EVENTS,
-    (e) => applyAttackEvent(client, campaignId!, e),
-    { enabled: on },
+    applyAttackEvent,
+    (client, id) => void client.invalidateQueries({ queryKey: combatKeys.attacks(id) }),
+    enabled,
   );
-  useEffect(() => {
-    if (!on || generation === 0) return;
-    void client.invalidateQueries({ queryKey: combatKeys.attacks(campaignId!) });
-  }, [client, campaignId, on, generation]);
   return { live };
 }
 

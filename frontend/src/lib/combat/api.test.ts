@@ -124,6 +124,10 @@ describe('tours reçus en direct', () => {
     expect(client.getQueryData<CombatState>(key)?.redacted).toBe(false);
     // Un tour plus récent : relu (en REST, vue complète pour le MJ)
     applyCombatEvent(client, 'camp', turn('gm_only', 5));
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: key, exact: true });
+    // Sans annuler une lecture déjà en route (revérifiée sur la version annoncée)
+    expect(invalidate).toHaveBeenCalledWith(
+      { queryKey: key, exact: true },
+      { cancelRefetch: false },
+    );
   });
 });

@@ -37,8 +37,9 @@ import type {
   UpdateCombatSettings,
 } from '@vtt/contracts';
 import { DEFAULT_COMBAT_SETTINGS } from '@vtt/contracts';
-import { useEffect, useMemo } from 'react';
-import { useCampaignEvents, type RealtimeEvent } from '../realtime';
+import { useMemo } from 'react';
+import type { RealtimeEvent } from '../realtime';
+import { relireVersion, usePontCampagne } from '../realtime-bridge';
 import { combatApi, combatErrorMessage, combatKeys, isNoCombat } from './api';
 
 /** Événements des tours (les attaques ont les leurs, `use-attacks.ts`). */
@@ -99,7 +100,10 @@ export function applyCombatEvent(client: QueryClient, campaignId: string, e: Rea
   const version = typeof payload?.version === 'number' ? payload.version : null;
   // Déjà à jour (ma propre écriture, ou le second événement expurgé de même version)
   if (!e.redacted && known && version !== null && known.version >= version) return;
-  void client.invalidateQueries({ queryKey: key, exact: true });
+  // Expurgé : la version annoncée ne dit pas tout, la relecture repart de zéro
+  void relireVersion<CombatState | null>(client, key, e.redacted ? null : version, (c) =>
+    c ? c.version : -1,
+  );
   if (type === 'combat.started' || type === 'combat.participant_defeated')
     void client.invalidateQueries({ queryKey: combatKeys.attacks(campaignId) });
 }
@@ -109,7 +113,6 @@ export function applyCombatEvent(client: QueryClient, campaignId: string, e: Rea
  * (ou tant qu'il se charge : voir `isLoading`).
  */
 export function useCombat(campaignId: string | null | undefined, opts: { enabled?: boolean } = {}) {
-  const client = useQueryClient();
   const enabled = Boolean(campaignId) && (opts.enabled ?? true);
   const query = useQuery({
     queryKey: combatKeys.state(campaignId ?? ''),
@@ -117,16 +120,15 @@ export function useCombat(campaignId: string | null | undefined, opts: { enabled
     enabled,
     staleTime: 15_000,
   });
-  const { live, generation } = useCampaignEvents(
-    campaignId ?? null,
+  // Pont partagé par tous les lecteurs du combat : un événement est appliqué une fois
+  const { live } = usePontCampagne(
+    'combat',
+    campaignId,
     COMBAT_TURN_EVENTS,
-    (e) => applyCombatEvent(client, campaignId!, e),
-    { enabled },
+    applyCombatEvent,
+    (c, id) => void c.invalidateQueries({ queryKey: combatKeys.state(id), exact: true }),
+    enabled,
   );
-  useEffect(() => {
-    if (!enabled || generation === 0) return;
-    void client.invalidateQueries({ queryKey: combatKeys.state(campaignId!), exact: true });
-  }, [client, campaignId, enabled, generation]);
 
   return {
     combat: query.data ?? null,
