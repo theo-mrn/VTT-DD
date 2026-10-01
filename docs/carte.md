@@ -398,7 +398,8 @@ Règles de ces gestes :
   segments des murs existants s'aimantent toujours, pour les souder. Les flèches du clavier
   avancent toujours d'une case.
 - **Panneau de la sélection** : toutes les actions de l'élément sélectionné, au clic comme au clic
-  droit (pas de second menu par-dessus).
+  droit (pas de second menu par-dessus). Un joueur n'en a pas sur les tokens, le sien compris :
+  seulement sur un objet (Fouiller), un portail (Emprunter) ou un gabarit (Attaquer la zone).
 - **Éléments superposés** : un clic (sans ⇧ ni Alt) sur plusieurs éléments presque confondus
   (taille comparable, boîtes recouvertes à 60 % au moins de la plus petite ; un token sur un
   grand tapis n'est pas concerné) ouvre un menu « Lequel voulez-vous prendre ? » avec image et
@@ -517,7 +518,8 @@ de messages seulement.
 - **`map.ping`** : `{ m, x, y, focus? }`.
 - **`map.bubble`** : `{ c, b: { t, v, d } | null }`, bulle d'interaction (emoji ou texte de 40
   caractères au plus, 1 à 60 s) au-dessus des tokens du héros `c` ; `null` la retire. Joueurs
-  seulement (K, barre en bas de la carte, palette de jeu et derniers emoji) : acceptée à la
+  seulement (bouton « Bulle » de la barre d'outils ou K : texte, 417 emoji par thème et derniers
+  utilisés, durée) : acceptée à la
   réception de celui qui incarne le personnage (à défaut, son propriétaire), jamais pour un PNJ ;
   cachée avec son token (vision, calque). `lib/map/bubbles`, `components/map/bubbles`.
   - Alt+clic : onde à cet endroit, chez tous.

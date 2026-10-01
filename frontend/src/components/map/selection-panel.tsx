@@ -73,6 +73,9 @@ export function SelectionPanel() {
   // « Inspecter » : les réglages sont dans le panneau même
   const rest = tidy(items.filter((i) => !i.primary && i !== remove && i.id !== 'inspect'));
   if (!entities.length || (!leaves.length && !sections.length)) return null;
+  // Un joueur n'a pas de menu sur les tokens (le sien compris) : seulement Fouiller, Emprunter,
+  // Attaquer la zone, sur un objet, un portail, un gabarit
+  if (engine.viewer.role !== 'gm' && entities.some((e) => e.kind.id === TOKEN_KIND_ID)) return null;
 
   const single = entities.length === 1 ? entities[0]! : null;
   const title = single
