@@ -3,6 +3,7 @@
 import type { CombatState } from '@vtt/contracts';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { AnimatePresence, motion } from 'motion/react';
 import { memo, useMemo } from 'react';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { GmCombatBar } from '@/components/combat/bar/gm-combat-bar';
@@ -18,6 +19,7 @@ import { useCombat } from '@/lib/combat/use-combat';
 import type { DetailCampagne } from '@/lib/campagnes';
 import { cn } from '@/lib/utils';
 import type { Table } from './contexte';
+import { useHudPrefs, useHudPrefsHydration } from './hud-prefs';
 
 /** En haut à gauche : retour au salon, campagne et système. */
 export const HudCampaign = memo(function HudCampaign({ table }: { table: Table }) {
@@ -77,9 +79,24 @@ export const HudCombat = memo(function HudCombat({ table }: { table: Table }) {
 /** Barre du MJ et pile de rapports : l'état des rapports est partagé (pastille, repli). */
 function GmCombat({ campagne, combat }: { campagne: DetailCampagne; combat: CombatState | null }) {
   const live = useLiveReports(campagne);
+  useHudPrefsHydration();
+  // Hors combat, la barre peut être rangée (bouton de la barre du groupe) ; les rapports restent
+  const idle = useHudPrefs((s) => s.combatBarIdle);
   return (
     <>
-      <GmCombatBar campagne={campagne} combat={combat} live={live} />
+      <AnimatePresence initial={false}>
+        {(combat !== null || idle) && (
+          <motion.div
+            key="bar"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+          >
+            <GmCombatBar campagne={campagne} combat={combat} live={live} />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <LiveReports live={live} campagne={campagne} combat={combat} />
     </>
   );

@@ -20,6 +20,7 @@ import {
   Swords,
   UserRoundCog,
   Users,
+  VenetianMask,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -32,6 +33,7 @@ import { Illustration } from '@/components/commun/illustration';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useHudPrefs } from '@/components/table/hud-prefs';
 import { TABLE_HUD_RIGHT } from '@/components/table/hud-slots';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
@@ -128,7 +130,7 @@ export function PartyBar() {
           {(
             [
               ['players', 'Joueurs', Users],
-              ['npcs', 'PNJ', Swords],
+              ['npcs', 'PNJ', VenetianMask],
             ] as const
           ).map(([id, label, Icon]) => (
             <Info key={id} texte={label} cote="bottom">
@@ -180,9 +182,12 @@ export function PartyBar() {
         )}
       </div>
 
+      {(gm || (viewer.role !== 'spectator' && campaignId)) && (
+        <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
+      )}
+      {gm && <CombatBarToggle />}
       {viewer.role !== 'spectator' && campaignId && (
         <>
-          <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
           <Info texte={gm ? 'Jouer un héros ou mener en MJ' : 'Changer de héros'} cote="bottom">
             <Button variant="ghost" size="icon-sm" asChild className={cn(HUD_CONTROL, 'shrink-0')}>
               <Link href={`/campagnes/${campaignId}/personnage`} aria-label="Changer de héros">
@@ -193,6 +198,26 @@ export function PartyBar() {
         </>
       )}
     </div>
+  );
+}
+
+/** MJ : la barre de combat hors combat, montrée ou rangée (en combat, toujours là). */
+function CombatBarToggle() {
+  const on = useHudPrefs((s) => s.combatBarIdle);
+  const set = useHudPrefs((s) => s.setCombatBarIdle);
+  return (
+    <Info texte={on ? 'Ranger la barre de combat' : 'Montrer la barre de combat'} cote="bottom">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Barre de combat hors combat"
+        aria-pressed={on}
+        onClick={() => set(!on)}
+        className={cn(HUD_CONTROL, 'shrink-0', on && 'bg-primary/10 text-primary')}
+      >
+        <Swords />
+      </Button>
+    </Info>
   );
 }
 
