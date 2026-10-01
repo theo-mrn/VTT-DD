@@ -177,14 +177,21 @@ export class MapBackground {
       if (document.hidden || !animate()) video.pause();
       else void video.play().catch(() => undefined);
     };
+    // Taille du monde : celle de l'original, même quand la variante 1080p est lue (étirée à
+    // cette taille) ; sinon une scène créée avec l'original verrait son fond « changer de taille »
+    const worldSize = (): Promise<{ width: number; height: number } | null> =>
+      variant ? originalSize(url) : Promise.resolve(null);
     const onMeta = () => {
       if (this.destroyed || seq !== this.seq) return;
-      const width = video.videoWidth;
-      const height = video.videoHeight;
-      video.style.width = `${width}px`;
-      video.style.height = `${height}px`;
-      this.host.onLoaded(width, height);
-      this.host.invalidate();
+      const shown = { width: video.videoWidth, height: video.videoHeight };
+      void worldSize().then((original) => {
+        if (this.destroyed || seq !== this.seq) return;
+        const { width, height } = original ?? shown;
+        video.style.width = `${width}px`;
+        video.style.height = `${height}px`;
+        this.host.onLoaded(width, height);
+        this.host.invalidate();
+      });
     };
     const onData = () => {
       video.style.visibility = 'visible';
@@ -244,4 +251,26 @@ export class MapBackground {
     this.destroyed = true;
     this.clear();
   }
+}
+
+/**
+ * Taille naturelle d'une vidéo, lue sans la télécharger (en-têtes seulement : `preload`
+ * metadata). Null si elle ne se lit pas (la taille de la vidéo affichée sert alors).
+ */
+function originalSize(url: string): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const probe = document.createElement('video');
+    probe.muted = true;
+    probe.preload = 'metadata';
+    const done = (r: { width: number; height: number } | null) => {
+      probe.removeAttribute('src');
+      probe.load();
+      resolve(r);
+    };
+    probe.addEventListener('loadedmetadata', () =>
+      done(probe.videoWidth > 0 ? { width: probe.videoWidth, height: probe.videoHeight } : null),
+    );
+    probe.addEventListener('error', () => done(null));
+    probe.src = url;
+  });
 }
