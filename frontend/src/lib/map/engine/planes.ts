@@ -3,6 +3,9 @@
  * « Affichage » du MJ (`map.display`, ex-`map.layers`). Données pures : le moteur crée un
  * conteneur Pixi par plan, dans cet ordre, au montage.
  *
+ * La météo n'est pas un plan : elle a son propre canvas, au-dessus de celui de la carte
+ * (`modules/weather/overlay.ts`), donc au-dessus de tous les plans.
+ *
  * À ne pas confondre avec les **calques du MJ** (`layers.ts`) : une pile ordonnée par carte,
  * tout entière dans le plan `content`.
  */
@@ -18,8 +21,6 @@ export const MAP_PLANES = [
   'vision',
   /** Personnages joueurs hors de ma vue : toujours vus, au-dessus de l'ombre à 60 %. */
   'allies',
-  /** Météo de la scène (module `weather`), en pixels d'écran, sous annotations et surcouches. */
-  'weather',
   /** Dessins et textes hors calque (`layerId` nul) : annotations, jamais dans l'ombre. */
   'annotations',
   /** Surcouches MJ : murs, portes, pièces, contours de brouillard, lumières. */

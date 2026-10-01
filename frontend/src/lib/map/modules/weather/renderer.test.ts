@@ -1,13 +1,13 @@
 /**
  * Rendu Pixi de la météo sans WebGL : conteneurs de particules branchés sur la simulation (sans
- * copie), conteneur qui annule la caméra, arrêt, changement d'effet, destruction. Les textures
+ * copie), scène en pixels d'écran (aucune caméra), arrêt, changement d'effet, destruction. Les textures
  * (canevas 2D) sont remplacées par la texture blanche de Pixi.
  */
 import * as PIXI from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import type { AtlasFrame } from './effects';
 import { normalizeWeather } from './model';
-import { WeatherRenderer, type WeatherCamera } from './renderer';
+import { WeatherRenderer, type WeatherViewport } from './renderer';
 import { WeatherSim } from './simulation';
 import type { WeatherTextures } from './textures';
 
@@ -33,7 +33,7 @@ function harness() {
   const textures = fakeTextures();
   const r = new WeatherRenderer(PIXI, plane, textures);
   const sim = new WeatherSim(() => 0.5);
-  const cam: WeatherCamera = { x: 500, y: 400, zoom: 2, width: 800, height: 600 };
+  const cam: WeatherViewport = { width: 800, height: 600 };
   const root = plane.children[0] as PIXI.Container;
   const particles = () =>
     root.children
@@ -45,7 +45,7 @@ function harness() {
 const weather = (type: string, intensity = 1) => normalizeWeather({ type, intensity });
 
 describe('météo : rendu Pixi (sans WebGL)', () => {
-  it('particules de la simulation telles quelles, conteneur qui annule la caméra', () => {
+  it('particules de la simulation telles quelles, scène en pixels d’écran', () => {
     const { r, sim, cam, root, particles } = harness();
     sim.configure(weather('rain'), cam.width, cam.height, {});
     r.draw(sim, cam);
@@ -54,10 +54,13 @@ describe('météo : rendu Pixi (sans WebGL)', () => {
     expect(drops!.particleChildren).toBe(sim.emitters[0]!.particles);
     expect(splashes!.particleChildren).toBe(sim.emitters[1]!.particles);
     expect(drops!.particleChildren[0]!.texture).toBe(PIXI.Texture.WHITE);
-    // Un enfant en (0, 0) tombe au coin haut gauche de l'écran
-    expect(root.scale.x).toBeCloseTo(0.5);
-    expect(root.position.x).toBeCloseTo(500 - 800 / 4);
-    expect(root.position.y).toBeCloseTo(400 - 600 / 4);
+    // Canvas à part, sans caméra : un enfant en (0, 0) est au coin haut gauche de la vue
+    expect(root.scale.x).toBe(1);
+    expect(root.position.x).toBe(0);
+    expect(root.position.y).toBe(0);
+    const veil = root.children.find((c) => c.label === 'weather:veil')!;
+    expect(veil.width).toBe(800);
+    expect(veil.height).toBe(600);
   });
 
   it('aucune création d’objet Pixi par image ; changement d’effet : nouveaux conteneurs', () => {

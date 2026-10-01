@@ -124,7 +124,7 @@ frontend/src/lib/map/
     portals/             portails : même carte, autre scène, aller-retour, outil X, emprunter
     measurements/        distance au clic, outil Mesurer (Z), gabarits épinglés, effets animés
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
-    weather/             météo de la scène (pluie, neige, brouillard…), plan `weather`, espace écran
+    weather/             météo de la scène (pluie, neige, brouillard…), son canvas, espace écran
 frontend/src/components/map/
   table-map.tsx          la carte à la table : choix de la scène, montage dans MapStage
   use-table-map.ts       quelle scène afficher (joueur : celle de son personnage ; MJ : `?scene=`)
@@ -229,13 +229,16 @@ abonnements au store, et renvoie son nettoyage.
   | 2   | `content`     | les **calques du MJ** (ci-dessous), du plus bas au plus haut ; dans chaque calque, les entités par `z` croissant                            |
   | 3   | `vision`      | obscurité, brouillard, lueurs (§ 9), pour les joueurs et la « vue joueur » du MJ                                                            |
   | 4   | `allies`      | personnages joueurs hors de ma vue : toujours vus, dessinés au-dessus de l'ombre à 60 %                                                     |
-  | 5   | `weather`     | météo de la scène (§ 10, Météo), en pixels d'écran : sur le décor, les personnages et l'ombre, sous les annotations et les surcouches       |
-  | 6   | `annotations` | dessins et textes hors calque (`layerId` nul) : annotations, jamais dans l'ombre                                                            |
-  | 7   | `gm`          | surcouches MJ : murs, portes, pièces, contours de brouillard, lumières. Toujours au-dessus de l'ombre, quel que soit le réglage d'affichage |
-  | 8   | `adornments`  | survol, sélection, poignées, étiquettes (taille constante)                                                                                  |
-  | 9   | `live`        | fantômes des glissers des autres, tracés en cours, curseurs, pings                                                                          |
-  | 10  | `tool`        | aperçu de l'outil actif                                                                                                                     |
+  | 5   | `annotations` | dessins et textes hors calque (`layerId` nul) : annotations, jamais dans l'ombre                                                            |
+  | 6   | `gm`          | surcouches MJ : murs, portes, pièces, contours de brouillard, lumières. Toujours au-dessus de l'ombre, quel que soit le réglage d'affichage |
+  | 7   | `adornments`  | survol, sélection, poignées, étiquettes (taille constante)                                                                                  |
+  | 8   | `live`        | fantômes des glissers des autres, tracés en cours, curseurs, pings                                                                          |
+  | 9   | `tool`        | aperçu de l'outil actif                                                                                                                     |
 
+- **Météo : son propre canvas**, au-dessus de tous les plans (§ 10, Météo). Ce n'est plus un
+  plan : un second canvas WebGL transparent, posé sur celui de la carte, qu'une image de météo
+  rend seul. Elle passe donc aussi au-dessus des annotations, des surcouches du MJ, de la
+  sélection et des curseurs (écart accepté : une image de météo ne redessine plus la carte).
 - **Portes pour les joueurs.** Les icônes de porte sont dessinées dans `adornments` pour qu'un
   joueur puisse ouvrir une porte proche ; celles des portes hors de sa vue sont masquées (et ne
   s'ouvrent pas), § 9.
@@ -1044,8 +1047,8 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
 
 Refonte de la météo de l'ancienne carte (`WeatherCanvas`, `WeatherPicker`) : un canevas 2D
 plein écran redessiné à 60 i/s tant qu'une météo était choisie, sans plafond sous Windows ni
-pause en arrière-plan. Ici, le même rendu que le reste de la carte (Pixi, rendu à la demande),
-plafonné, et arrêté dès qu'il ne sert à rien.
+pause en arrière-plan. Ici, Pixi comme le reste de la carte, mais sur son propre canvas (une image
+de météo ne redessine pas la carte), plafonné, et arrêté dès qu'il ne sert à rien.
 
 - **Données** : état durable de la scène, le même pour tous. `maps.weather`, contrat
   `MapWeather` :
@@ -1079,11 +1082,25 @@ plafonné, et arrêté dès qu'il ne sert à rien.
   `alert` et `static` venaient du bundle Star Wars de l'ancienne app. Ils sont offerts à toutes
   les campagnes, rangés à part (« Science-fiction ») dans le choix : aucune clé de système en dur.
 
-- **Plan `weather`** (§ 5), au-dessus de `vision` et `allies`, sous `annotations`, `gm` et les
-  surcouches : la météo tombe sur le décor, sur les personnages et dans l'obscurité ; les
-  annotations, les surcouches du MJ, la sélection et les curseurs restent nets.
+- **Canvas à part** (`modules/weather/overlay.ts`), au-dessus de celui de la carte : un second
+  rendu WebGL, transparent, de même taille et de même résolution, `pointer-events: none` (le
+  toucher reste celui de la carte). Une image de météo ne rend que ce canvas : ni le fond, ni la
+  grille, ni le contenu, ni la vision ne sont redessinés, et la carte ne se redessine qu'à ses
+  propres changements.
+  - La météo couvre donc tout ce qui est dans le canvas de la carte : décor, personnages, ombre,
+    mais aussi annotations, surcouches du MJ, sélection, curseurs et aperçus d'outil (écart
+    accepté ; avant, elle était sous les annotations et les surcouches). Les éditeurs DOM posés
+    dans l'hôte (notes) restent au-dessus : le canvas est inséré juste après celui de la carte.
+  - Un `WebGLRenderer` nu, sans `Application` ni ticker : la boucle est celle du module. Un
+    même renderer ne peut pas dessiner dans deux canvas sans recopie (le mode `multiView` de
+    Pixi rend dans un canvas caché puis copie chaque image par `drawImage`, celles de la carte
+    comprises) : un second contexte coûte moins qu'une copie de la carte à chaque image.
+  - Créé à la première météo active seulement : sans météo, la page garde ses deux contextes
+    (carte, dés). Caché (`display: none`) quand la météo s'arrête, rendu au navigateur (contexte
+    perdu volontairement par Pixi) à la destruction de la carte. Contexte perdu puis restauré :
+    les textures de canevas sont renvoyées au GPU et une image refaite, sans toucher à la carte.
 - **Espace écran, ancré à la carte au déplacement.**
-  - Tout est dessiné en pixels d'écran (le conteneur du module annule la caméra) : même taille
+  - Tout est dessiné en pixels d'écran (la scène de la météo n'a pas de caméra) : même taille
     de goutte et même densité à tous les zooms, nombre de particules proportionnel à la surface
     de la vue. En espace monde, un zoom arrière sur une grande carte ferait des milliers de
     gouttes minuscules, un zoom avant des flocons géants, et le budget dépendrait de la carte.
@@ -1102,7 +1119,8 @@ plafonné, et arrêté dès qu'il ne sert à rien.
     (`dynamicProperties` : la position ; rotation, couleur ou taille selon l'émetteur) ;
   - vignette, éclair, grain, trames, bandes : sprites et `TilingSprite` sur des textures faites
     une fois ;
-  - ni filtre, ni mode de fusion avancé, ni second contexte WebGL.
+  - ni filtre, ni mode de fusion avancé ; un second contexte WebGL, le sien, seulement quand
+    une météo est active (voir « Canvas à part »).
 - **Intensité** (`densityFactor`, `overdrive`, testés). Jusqu'à 1, les plages de chaque effet
   (densité × intensité, opacités entre leurs deux bornes). De 1 à 2, un renfort propre à
   l'effet (`strong`), linéaire, sans palier : 2,3 à 2,4 fois plus de particules, et pour la
@@ -1116,12 +1134,16 @@ plafonné, et arrêté dès qu'il ne sert à rien.
   de la vue ; seuls les très grands écrans touchent le plafond total. Animation coupée ou
   « mouvement réduit » : 35 % des particules, à 60 % de leur opacité, immobiles.
 - **Cadence et arrêt** (`WeatherDriver`, testé sans WebGL) :
-  - la simulation avance à chaque image rendue (à 60 i/s pendant un glisser, puisque l'image
-    est rendue de toute façon) ; la météo ne demande elle-même une image que 33 ms après la
-    précédente : **30 i/s au plus** (20 i/s et moitié moins de particules en économie). Si le
-    module dépasse 8 ms par image en moyenne, son budget de particules est divisé par deux
-    (jusqu'à un huitième). Pas de temps borné à 0,1 s (retour sur l'onglet) ;
-  - **arrêt complet** (plan caché, ni minuteur, ni simulation, particules rendues) : aucune
+  - **boucle à part** : le module a son propre `requestAnimationFrame`, qui ne rend que son
+    canvas et n'appelle jamais `engine.invalidate`. La météo ne demande elle-même une image que
+    33 ms après la précédente : **30 i/s au plus** (20 i/s et moitié moins de particules en
+    économie). Si le module dépasse 8 ms par image en moyenne (simulation et objets Pixi, hors
+    rendu), son budget de particules est divisé par deux (jusqu'à un huitième). Pas de temps
+    borné à 0,1 s (retour sur l'onglet) ;
+  - **caméra** : à chaque image de la carte où la caméra ou la taille de la vue ont changé, la
+    météo est rendue dans cette même image (ancrage et taille sans une image de retard ; 60 i/s
+    pendant un glisser, comme avant). Elle ne demande rien de plus à la carte ;
+  - **arrêt complet** (canvas caché, ni boucle, ni minuteur, ni simulation) : aucune
     météo, type inconnu, intensité nulle ;
   - **pause** (aucun minuteur) : onglet en arrière-plan (`visibilitychange`), vue de taille
     nulle, animation coupée ou « mouvement réduit » : une image fixe et discrète, qui suit encore
@@ -1149,8 +1171,10 @@ plafonné, et arrêté dès qu'il ne sert à rien.
 - **Joueurs** : le bouton n'apparaît que quand la scène a une météo : son nom, son intensité et
   les préférences locales.
 - **Mesures** : en développement, `window.__vttWeather.summary()` (étapes `step` : simulation,
-  `draw` : objets Pixi, `frame` : tout le module ; nombre de particules) et un résumé dans la
-  console toutes les 5 s. `weather.bench.ts` mesure la part CPU à blanc (Apple Silicon,
+  `draw` : objets Pixi, `frame` : tout le module hors rendu, `render` : rendu de son canvas ;
+  nombre de particules) et un résumé dans la console toutes les 5 s. Avec `?perf`,
+  `engine.perf.weather` et `weatherMs` comptent les images de la météo, à part des images de la
+  carte (`engine.perf.frames`). `weather.bench.ts` mesure la part CPU à blanc (Apple Silicon,
   Node 24), simulation et ancrage d'une image :
 
   | Cas (intensité 2)                     | Particules | Moyenne | p99     |

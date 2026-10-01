@@ -1,12 +1,13 @@
 /**
  * Compteur de temps de la météo (développement), comme celui de la visibilité : durées des
- * étapes (`step` : simulation, `draw` : mise à jour des objets Pixi, `frame` : tout le module),
+ * étapes (`step` : simulation, `draw` : mise à jour des objets Pixi, `frame` : tout le module
+ * hors rendu, `render` : rendu de son canvas),
  * moyenne et maximum sur les 240 dernières mesures, et le nombre de particules. En
  * développement, `window.__vttWeather` les expose et un résumé part dans la console toutes les
  * 5 s s'il y a eu du travail.
  */
 
-export type WeatherStep = 'step' | 'draw' | 'frame';
+export type WeatherStep = 'step' | 'draw' | 'frame' | 'render';
 
 const WINDOW = 240;
 
@@ -21,8 +22,9 @@ export class WeatherStats {
     step: new Float64Array(WINDOW),
     draw: new Float64Array(WINDOW),
     frame: new Float64Array(WINDOW),
+    render: new Float64Array(WINDOW),
   };
-  private readonly counts: Record<WeatherStep, number> = { step: 0, draw: 0, frame: 0 };
+  private readonly counts: Record<WeatherStep, number> = { step: 0, draw: 0, frame: 0, render: 0 };
   private dirty = false;
   /** Particules vivantes à la dernière image. */
   particles = 0;
@@ -54,7 +56,7 @@ export class WeatherStats {
     const out: Partial<Record<WeatherStep, WeatherStepSummary>> & { particles: number } = {
       particles: this.particles,
     };
-    for (const step of ['step', 'draw', 'frame'] as const) {
+    for (const step of ['step', 'draw', 'frame', 'render'] as const) {
       const count = Math.min(WINDOW, this.counts[step]);
       if (!count) continue;
       let total = 0;

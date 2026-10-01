@@ -9,7 +9,10 @@ avant de corriger** (le fond vidéo 4K, vraie cause de la chauffe à la table, n
 - **`?perf`** dans l'adresse (gardé dans `localStorage`, `?perf=0` l'éteint) : un compteur en bas à
   gauche (`components/perf/perf-overlay.tsx`, `lib/perf/monitor.ts`), sur une seconde glissante :
   - carte : images rendues par seconde, temps par image, et ce qui demande l'image suivante
-    (continu, caméra, direct, animations des modules) ; au repos, on attend **0 i/s** ;
+    (continu, caméra, direct, animations des modules) ; au repos, on attend **0 i/s**, météo
+    active comprise. Les images de la météo, rendues dans son propre canvas, n'y figurent pas :
+    elles sont comptées à part dans `engine.perf.weather` et `weatherMs` (pas encore affichées
+    par le compteur) ;
   - longues tâches (plus de 50 ms) et leur durée ;
   - requêtes réseau par seconde (une tempête de relectures se voit ici) ;
   - messages du temps réel par seconde ;
@@ -30,6 +33,10 @@ antialiasing. Les préférences explicites de l'utilisateur l'emportent toujours
 ## Principes retenus
 
 - **Rendu à la demande** partout (carte, dés) : rien ne se dessine tant que rien ne bouge.
+- **Météo sur son propre canvas** : un second contexte WebGL transparent au-dessus de la carte,
+  créé à la première météo active, avec sa propre boucle (30 i/s, 20 en économie). Une image de
+  météo ne rend que ce canvas : avant, chacune redessinait toute la carte (fond, grille, contenu,
+  vision), soit 30 rendus complets par seconde tant qu'il pleuvait.
 - **Vidéo native** : un fond de carte vidéo est un `<video>` sous le canvas (docs/carte.md), jamais
   copié dans WebGL. Cartes animées de la bibliothèque : variantes 1080p H.264 30 i/s
   (`infra/library/maps-1080p.sh`), décodées par le matériel ; les originaux sont en VP8 4K

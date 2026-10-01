@@ -1,9 +1,9 @@
 /**
  * Cadence de la météo (docs/carte.md § 10, Météo), sans Pixi ni DOM, testée à blanc.
  *
- * - La simulation avance à chaque image rendue (un glisser rend déjà à 60 i/s) ; la météo ne
- *   demande elle-même une image que ~33 ms après la précédente : 30 i/s au plus (20 sur une
- *   machine économe, ~50 ms).
+ * - La simulation avance à chaque image de la météo : celles de sa boucle, et celles de la
+ *   carte dont la caméra a bougé (un glisser la rend à 60 i/s). Elle ne demande elle-même une
+ *   image que ~33 ms après la précédente : 30 i/s au plus (20 sur une machine économe, ~50 ms).
  * - En pause (animation coupée, onglet caché, vue nulle) ou à l'arrêt (aucune météo) : aucun
  *   minuteur, aucun pas de simulation.
  * - Le rappel du minuteur est créé une fois : aucune allocation par image.

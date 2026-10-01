@@ -405,8 +405,19 @@ export class MapEngine {
   /**
    * Compteurs de la mesure (`?perf`, `lib/perf/monitor.ts`) : images rendues, temps passé, et ce
    * qui a demandé l'image suivante. Cumulés, jamais remis à zéro (le compteur fait la différence).
+   * `weather` et `weatherMs` : images du canvas de la météo (module `weather`), à part de celles
+   * de la carte (`frames`), qu'elles ne déclenchent jamais.
    */
-  readonly perf = { frames: 0, ms: 0, continuous: 0, camera: 0, live: 0, animations: 0 };
+  readonly perf = {
+    frames: 0,
+    ms: 0,
+    continuous: 0,
+    camera: 0,
+    live: 0,
+    animations: 0,
+    weather: 0,
+    weatherMs: 0,
+  };
   private detachPerf: (() => void) | null = null;
   private continuous = 0;
   private readonly frameCallbacks = new Set<(now: number) => boolean | void>();

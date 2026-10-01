@@ -1,7 +1,9 @@
 /**
- * Rendu Pixi de la météo (docs/carte.md § 10, Météo), dans le plan `weather`.
+ * Rendu Pixi de la météo (docs/carte.md § 10, Météo), dans la scène de son propre canvas
+ * (`overlay.ts`), au-dessus de celui de la carte.
  *
- * - Le conteneur racine annule la caméra : ses enfants sont en pixels d'écran (CSS).
+ * - Aucune caméra : la scène est en pixels d'écran (CSS) ; l'ancrage à la carte au déplacement
+ *   est fait par la simulation (`WeatherSim.shift`).
  * - Du bas vers le haut : voile, nappes (`TilingSprite`), un `ParticleContainer` par émetteur
  *   (particules de la simulation, sans copie), grain et trames, bandes, vignette, éclair.
  * - Les objets Pixi sont créés au montage ou au changement d'effet ; à chaque image, seules des
@@ -14,10 +16,8 @@ import { destroyDisplay } from '../../engine/destroy-display';
 import { MAX_BANDS, type EmitterState, type WeatherSim } from './simulation';
 import { createWeatherTextures, type WeatherTextures } from './textures';
 
-export interface WeatherCamera {
-  x: number;
-  y: number;
-  zoom: number;
+/** Taille de la vue, en pixels CSS. */
+export interface WeatherViewport {
   width: number;
   height: number;
 }
@@ -40,7 +40,8 @@ export class WeatherRenderer {
 
   constructor(
     private readonly pixi: typeof Pixi,
-    plane: Container,
+    /** Racine de la scène de la météo (`WeatherOverlay.stage`). */
+    stage: Container,
     /** Textures faites une fois (canevas 2D) ; données par les tests, sans DOM. */
     textures?: WeatherTextures,
   ) {
@@ -78,7 +79,7 @@ export class WeatherRenderer {
       this.vignette,
       this.flash,
     );
-    plane.addChild(this.root);
+    stage.addChild(this.root);
   }
 
   /** Recrée les conteneurs de particules quand les émetteurs changent (nouvel effet). */
@@ -122,22 +123,18 @@ export class WeatherRenderer {
     return c;
   }
 
-  /** Une image : la météo de la simulation, à la place de la caméra. */
-  draw(sim: WeatherSim, cam: WeatherCamera) {
+  /** Une image : la météo de la simulation, sur toute la vue. */
+  draw(sim: WeatherSim, view: WeatherViewport) {
     const root = this.root;
     if (!sim.active) {
       if (root.visible) root.visible = false;
       return;
     }
     root.visible = true;
-    // Le conteneur annule la caméra : ses enfants sont en pixels d'écran
-    const z = cam.zoom || 1;
-    root.scale.set(1 / z);
-    root.position.set(cam.x - cam.width / (2 * z), cam.y - cam.height / (2 * z));
-    if (cam.width !== this.width || cam.height !== this.height) {
-      this.width = cam.width;
-      this.height = cam.height;
-      this.resize(cam.width, cam.height);
+    if (view.width !== this.width || view.height !== this.height) {
+      this.width = view.width;
+      this.height = view.height;
+      this.resize(view.width, view.height);
     }
 
     this.syncStructure(sim);
@@ -185,7 +182,7 @@ export class WeatherRenderer {
       band.visible = i < f.bandCount;
       if (!band.visible) continue;
       band.position.set(b.shift, b.y);
-      band.width = cam.width;
+      band.width = view.width;
       band.height = b.h;
       band.alpha = b.alpha;
     }

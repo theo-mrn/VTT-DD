@@ -189,7 +189,7 @@ class PixiView implements EngineView {
     app.stage.addChild(this.world);
     for (const id of MAP_PLANES) {
       // Contenu (calques du MJ) : son propre groupe de rendu, ses instructions ne sont pas
-      // refaites quand un autre plan change (météo, vision, aperçus)
+      // refaites quand un autre plan change (vision, aperçus, surcouches)
       const content = id === 'content';
       const plane = new Container({
         label: `plane:${id}`,
