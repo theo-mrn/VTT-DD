@@ -484,7 +484,7 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
                 color="#ffeedd"
               />
               <pointLight position={[0, 20, 0]} intensity={0.8} color="#fff8e7" />
-              <Environment preset="city" resolution={128} />
+              <Environment preset="city" />
 
               {warmTarget && (
                 <ShaderWarmer
