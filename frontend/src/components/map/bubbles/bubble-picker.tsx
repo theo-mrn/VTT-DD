@@ -10,7 +10,14 @@ import {
   BUBBLE_DURATION_MAX_MS,
   BUBBLE_TEXT_MAX,
 } from '@vtt/contracts';
-import { EmojiPicker, type SkinTone } from 'frimousse';
+import {
+  EmojiPicker,
+  type EmojiPickerListCategoryHeaderProps,
+  type EmojiPickerListComponents,
+  type EmojiPickerListEmojiProps,
+  type EmojiPickerListRowProps,
+  type SkinTone,
+} from 'frimousse';
 import {
   ChevronDown,
   LoaderCircle,
@@ -22,7 +29,7 @@ import {
   Trash2,
   Type,
 } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import {
@@ -124,6 +131,13 @@ function BubbleComposer({
   const [mode, setMode] = useState<Mode>('emoji');
   const [seconds, setSeconds] = useState(BUBBLE_DURATION_DEFAULT_MS / 1000);
   const ms = seconds * 1000;
+  // Envoi stable : le sélecteur d'emoji (mémoïsé) ne se redessine pas à chaque changement
+  const latest = useRef({ onSend, ms });
+  latest.current = { onSend, ms };
+  const pickEmoji = useCallback(
+    (emoji: string) => latest.current.onSend('emoji', emoji, latest.current.ms),
+    [],
+  );
 
   return (
     <div className="flex flex-col">
@@ -155,11 +169,14 @@ function BubbleComposer({
         </div>
       </header>
 
-      {mode === 'emoji' ? (
-        <EmojiPane onPick={(emoji) => onSend('emoji', emoji, ms)} />
-      ) : (
-        <TextPane onSend={(text) => onSend('text', text, ms)} />
-      )}
+      {/* Les deux volets restent montés : revenir aux emoji est immédiat (recherche et
+          défilement gardés) */}
+      <div hidden={mode !== 'emoji'}>
+        <EmojiPane onPick={pickEmoji} active={mode === 'emoji'} />
+      </div>
+      <div hidden={mode !== 'text'}>
+        <TextPane onSend={(text) => onSend('text', text, ms)} active={mode === 'text'} />
+      </div>
     </div>
   );
 }
@@ -223,7 +240,66 @@ function DurationMenu({ seconds, onChange }: { seconds: number; onChange: (s: nu
   );
 }
 
-function EmojiPane({ onPick }: { onPick: (emoji: string) => void }) {
+// Composants de la liste, déclarés une fois : recréés à chaque rendu, ils démonteraient toutes
+// les lignes visibles à chaque survol d'un emoji
+const CategoryHeader = memo(function CategoryHeader({
+  category,
+  ...props
+}: EmojiPickerListCategoryHeaderProps) {
+  return (
+    <div
+      {...props}
+      className="bg-popover px-2 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wider text-subtle"
+    >
+      {category.label}
+    </div>
+  );
+});
+
+const Row = memo(function Row({ children, ...props }: EmojiPickerListRowProps) {
+  return (
+    <div {...props} className="scroll-my-1.5 px-2">
+      {children}
+    </div>
+  );
+});
+
+/** Une colonne sur COLUMNS : la grille remplit la ligne, les lignes incomplètes restent alignées. */
+const EMOJI_WIDTH = `${100 / COLUMNS}%`;
+
+const EmojiButton = memo(function EmojiButton({ emoji, ...props }: EmojiPickerListEmojiProps) {
+  return (
+    <button
+      {...props}
+      style={{ ...props.style, width: EMOJI_WIDTH }}
+      className={cn(
+        'flex h-8 shrink-0 items-center justify-center rounded-md text-[22px] leading-none',
+        emoji.isActive && 'bg-surface-3',
+      )}
+    >
+      {emoji.emoji}
+    </button>
+  );
+});
+
+const LIST_COMPONENTS: Partial<EmojiPickerListComponents> = {
+  CategoryHeader,
+  Row,
+  Emoji: EmojiButton,
+};
+
+/** Le sélecteur ne se redessine pas quand l'en-tête (mode, durée) ou la barre d'outils changent. */
+const EmojiPane = memo(function EmojiPane({
+  onPick,
+  active,
+}: {
+  onPick: (emoji: string) => void;
+  active: boolean;
+}) {
+  const search = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (active) search.current?.focus({ preventScroll: true });
+  }, [active]);
   const [skin, setSkin] = useState<SkinTone>(readSkin);
   return (
     <EmojiPicker.Root
@@ -233,11 +309,11 @@ function EmojiPane({ onPick }: { onPick: (emoji: string) => void }) {
       onEmojiSelect={({ emoji }) => onPick(emoji)}
       className="isolate flex h-[23rem] flex-col"
     >
-      <div className="flex items-center gap-1.5 px-2 pb-1 pt-2">
+      <div className="flex items-center gap-1.5 p-2 pb-1">
         <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border-strong bg-surface-2 px-2.5 focus-within:ring-2 focus-within:ring-ring/40">
           <Search className="size-4 shrink-0 text-subtle" aria-hidden />
           <EmojiPicker.Search
-            autoFocus
+            ref={search}
             placeholder="Rechercher un emoji…"
             aria-label="Rechercher un emoji"
             className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-subtle [&::-webkit-search-cancel-button]:hidden"
@@ -281,38 +357,7 @@ function EmojiPane({ onPick }: { onPick: (emoji: string) => void }) {
         <EmojiPicker.Empty className="absolute inset-0 flex items-center justify-center text-[13px] text-subtle">
           Aucun emoji
         </EmojiPicker.Empty>
-        <EmojiPicker.List
-          className="select-none pb-2"
-          components={{
-            CategoryHeader: ({ category, ...props }) => (
-              <div
-                {...props}
-                className="bg-popover px-2 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-subtle"
-              >
-                {category.label}
-              </div>
-            ),
-            Row: ({ children, ...props }) => (
-              <div {...props} className="scroll-my-1.5 px-2">
-                {children}
-              </div>
-            ),
-            Emoji: ({ emoji, ...props }) => (
-              <button
-                {...props}
-                // Une colonne sur COLUMNS : la grille remplit la ligne, les lignes incomplètes restent
-                // alignées sur les autres
-                style={{ ...props.style, width: `${100 / COLUMNS}%` }}
-                className={cn(
-                  'flex h-8 shrink-0 items-center justify-center rounded-md text-[22px] leading-none',
-                  emoji.isActive && 'bg-surface-3',
-                )}
-              >
-                {emoji.emoji}
-              </button>
-            ),
-          }}
-        />
+        <EmojiPicker.List className="select-none pb-2" components={LIST_COMPONENTS} />
       </EmojiPicker.Viewport>
 
       <footer className="flex h-11 shrink-0 items-center gap-2 border-t border-border px-2">
@@ -331,10 +376,14 @@ function EmojiPane({ onPick }: { onPick: (emoji: string) => void }) {
       </footer>
     </EmojiPicker.Root>
   );
-}
+});
 
-function TextPane({ onSend }: { onSend: (text: string) => void }) {
+function TextPane({ onSend, active }: { onSend: (text: string) => void; active: boolean }) {
   const [text, setText] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (active) input.current?.focus({ preventScroll: true });
+  }, [active]);
   return (
     <form
       className="flex items-center gap-1.5 p-2"
@@ -345,7 +394,7 @@ function TextPane({ onSend }: { onSend: (text: string) => void }) {
     >
       <div className="relative min-w-0 flex-1">
         <input
-          autoFocus
+          ref={input}
           value={text}
           maxLength={BUBBLE_TEXT_MAX}
           onChange={(e) => setText(e.target.value)}
