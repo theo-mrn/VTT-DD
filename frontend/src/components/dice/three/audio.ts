@@ -52,11 +52,21 @@ export const getAudioContext = (): AudioContext | null => {
 // this is only ever called after it exists.
 export const getMasterGain = (ctx: AudioContext): AudioNode => masterGainNode ?? ctx.destination;
 
-const noiseBuffer = (ctx: AudioContext, seconds: number) => {
-  const size = Math.max(1, Math.floor(ctx.sampleRate * seconds));
-  const buffer = ctx.createBuffer(1, size, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+// Bruit blanc des impacts : généré une seule fois par contexte (un tampon par
+// impact coûtait une allocation et une boucle de milliers d'échantillons à
+// chaque rebond). Chaque impact en lit une tranche courte à un point de départ
+// aléatoire, pour que deux chocs ne sonnent jamais exactement pareil.
+const IMPACT_NOISE_S = 0.5;
+const impactNoise = new WeakMap<AudioContext, AudioBuffer>();
+const impactNoiseBuffer = (ctx: AudioContext) => {
+  let buffer = impactNoise.get(ctx);
+  if (!buffer) {
+    const size = Math.max(1, Math.floor(ctx.sampleRate * IMPACT_NOISE_S));
+    buffer = ctx.createBuffer(1, size, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+    impactNoise.set(ctx, buffer);
+  }
   return buffer;
 };
 
@@ -117,7 +127,7 @@ export const playRoll = (velocity: number) => {
 
     // 2. Short low-passed noise burst: the soft mat clack/scrape.
     const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer(ctx, 0.05);
+    noise.buffer = impactNoiseBuffer(ctx);
     const noiseFilter = ctx.createBiquadFilter();
     noiseFilter.type = 'lowpass';
     noiseFilter.frequency.value = 800 + velocity * 100;
@@ -131,7 +141,7 @@ export const playRoll = (velocity: number) => {
 
     osc.start(t0);
     osc.stop(t0 + 0.1);
-    noise.start(t0);
+    noise.start(t0, Math.random() * (IMPACT_NOISE_S - 0.05), 0.05);
   } catch {
     /* audio must never break the roll */
   }

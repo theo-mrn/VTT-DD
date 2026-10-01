@@ -1,6 +1,5 @@
 'use client';
 
-import { calculer } from '@vtt/rules';
 import {
   Crop,
   Hammer,
@@ -57,6 +56,7 @@ import {
   type SheetLayout,
 } from '@/lib/personnages';
 import { useSynchroCampagne } from '@/lib/realtime-sync';
+import { calculerMemo } from '@/lib/rules-cache';
 import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { BannerIdentity, BannerStats } from './banner';
@@ -81,7 +81,7 @@ export function useFicheCalculee(id: string | null | undefined) {
   // Le MJ modifie la fiche (ou le joueur, vu du MJ) : elle change en direct
   useSynchroCampagne(perso.data?.roomId, { personnage: id ?? null });
   const fiche = useMemo(
-    () => (sys.data && perso.data ? calculer(sys.data.systeme, perso.data.state) : null),
+    () => (sys.data && perso.data ? calculerMemo(sys.data.systeme, perso.data.state) : null),
     [sys.data, perso.data],
   );
   const operations = useMemo<OperationsFiche>(() => {
@@ -500,6 +500,7 @@ function PortraitFiche({
   const [studio, setStudio] = useState(false);
   const image = (
     <Illustration
+      largeur={192}
       src={p.portraitUrl}
       graine={p.name}
       position="top"

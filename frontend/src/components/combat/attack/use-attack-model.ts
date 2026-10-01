@@ -11,7 +11,7 @@
  */
 import { useQueryClient } from '@tanstack/react-query';
 import type { ActionParams, Attack, DeclareAttack } from '@vtt/contracts';
-import { calculer, type Action } from '@vtt/rules';
+import type { Action, Fiche } from '@vtt/rules';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDicePreferences } from '@/lib/dice-preferences';
 import {
@@ -54,6 +54,7 @@ import { mergeParams, missingParams, paramsToSend } from '@/lib/combat/params';
 import { useAttackCommands } from '@/lib/combat/use-attacks';
 import { combatSettings, currentActorId } from '@/lib/combat/use-combat';
 import { clesPersonnages, personnages } from '@/lib/personnages';
+import { calculerMemo } from '@/lib/rules-cache';
 import { useComputedSheet, type AttackContext } from './use-attack-context';
 
 /** Faces tirées dans le navigateur, étape par étape. */
@@ -238,7 +239,7 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
    */
   async function startInBrowser(body: DeclareAttack): Promise<LocalSession | null> {
     if (!systeme || !fiche || !action) return null;
-    let targets: { id: string; fiche: ReturnType<typeof calculer> }[];
+    let targets: { id: string; fiche: Fiche }[];
     try {
       targets = await Promise.all(
         body.targets.map(async (id) => {
@@ -248,7 +249,7 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
             queryFn: () => personnages.lire(id),
             staleTime: 2_000,
           });
-          return { id, fiche: calculer(systeme, p.state) };
+          return { id, fiche: calculerMemo(systeme, p.state) };
         }),
       );
     } catch {

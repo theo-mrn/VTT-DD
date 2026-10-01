@@ -14,13 +14,14 @@
  * `character.updated` met la jauge à jour.
  */
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { calculer, type Fiche } from '@vtt/rules';
+import type { Fiche } from '@vtt/rules';
 import { useEffect, useMemo, useRef } from 'react';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { campagnes, clePersonnagesCampagne, useCampagne } from '@/lib/campagnes';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import type { CharacterInfo, ResourceGauge, TokenData } from '@/lib/map/modules/tokens/model';
 import { clesPersonnages, personnages, type FichePersonnage } from '@/lib/personnages';
+import { calculerMemo } from '@/lib/rules-cache';
 import { useMapState } from '../engine-context';
 import { mainResource } from './resource';
 import { useTokens } from './use-tokens';
@@ -92,7 +93,7 @@ export function TokenCharacterFeed({ engine }: { engine: MapEngine }) {
       }
       let gauge: ResourceGauge | null = null;
       try {
-        const calculee: Fiche = calculer(s.systeme, fiche.state);
+        const calculee: Fiche = calculerMemo(s.systeme, fiche.state);
         gauge = mainResource({
           systeme: s.systeme,
           presentation: s.presentation,

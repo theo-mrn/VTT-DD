@@ -12,13 +12,7 @@
 
 import { useQueries, useQuery } from '@tanstack/react-query';
 import type { CampaignSide } from '@vtt/contracts';
-import {
-  calculer,
-  type Fiche,
-  type IconeEtat,
-  type Presentation,
-  type SystemeCharge,
-} from '@vtt/rules';
+import type { Fiche, IconeEtat, Presentation, SystemeCharge } from '@vtt/rules';
 import { useMemo, useRef } from 'react';
 import {
   estRessource,
@@ -32,6 +26,7 @@ import { campagnes, clePersonnagesCampagne } from '@/lib/campagnes';
 import { stateIconOf, stateIconsOf } from '@/lib/combat/state-icons';
 import type { ResourceGauge } from '@/lib/map/modules/tokens/model';
 import { clesPersonnages, personnages, type FichePersonnage } from '@/lib/personnages';
+import { calculerMemo } from '@/lib/rules-cache';
 
 export interface CastMember {
   id: string;
@@ -269,7 +264,7 @@ export function useParticipantSheets(
       let gauge: ResourceGauge | null = null;
       let keyStats: KeyStat[] = [];
       try {
-        fiche = calculer(s.systeme, sheet.state);
+        fiche = calculerMemo(s.systeme, sheet.state);
         const personnage = { id: sheet.id, name: sheet.name, roomId: campaignId };
         gauge = mainResource({
           systeme: s.systeme,

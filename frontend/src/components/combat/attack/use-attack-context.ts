@@ -8,13 +8,14 @@
  * Un joueur ne lit que la fiche de son propre personnage : jamais celle d'une cible.
  */
 import { useQuery } from '@tanstack/react-query';
-import { calculer, type Fiche } from '@vtt/rules';
+import type { Fiche } from '@vtt/rules';
 import { useMemo } from 'react';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { campagnes, clePersonnagesCampagne, useCampagne } from '@/lib/campagnes';
 import { attackerCandidates, rosterOf, type RosterCharacter } from '@/lib/combat/roster';
 import { useCombat } from '@/lib/combat/use-combat';
 import { usePersonnage } from '@/lib/personnages';
+import { calculerMemo } from '@/lib/rules-cache';
 import { useProfil } from '@/lib/session';
 
 export function useAttackContext(campaignId: string) {
@@ -65,7 +66,7 @@ export function useComputedSheet(
   const fiche = useMemo(() => {
     if (!p.data || !ctx.systeme) return null;
     try {
-      return calculer(ctx.systeme, p.data.state);
+      return calculerMemo(ctx.systeme, p.data.state);
     } catch {
       return null;
     }

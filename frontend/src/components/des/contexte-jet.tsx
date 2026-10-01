@@ -1,6 +1,6 @@
 'use client';
 
-import { calculer, type Fiche } from '@vtt/rules';
+import type { Fiche } from '@vtt/rules';
 import { Check, ChevronsUpDown, Swords, UserRound, type LucideIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import { degradeDe } from '@/components/commun/illustration';
@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { usePersonnage, type Personnage } from '@/lib/personnages';
+import { calculerMemo } from '@/lib/rules-cache';
 import type { RollableAttribute, RollableGroup } from '@/lib/rollable-attributes';
 import { cn } from '@/lib/utils';
 
@@ -34,7 +35,7 @@ export function useFichePersonnage(personnage: Personnage | null) {
   const calcul = useMemo((): { fiche: Fiche | null; erreur: string | null } => {
     if (!etat || !systeme.data) return { fiche: null, erreur: null };
     try {
-      return { fiche: calculer(systeme.data.systeme, etat), erreur: null };
+      return { fiche: calculerMemo(systeme.data.systeme, etat), erreur: null };
     } catch (e) {
       return { fiche: null, erreur: e instanceof Error ? e.message : 'Fiche illisible' };
     }
