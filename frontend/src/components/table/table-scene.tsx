@@ -17,7 +17,8 @@ import { useProfilRequis } from '@/lib/session';
 import { useSystemTypography } from '@/lib/system-fonts';
 import { useSysteme } from '@/lib/systemes';
 import { FournisseurHeros, FournisseurTable, type Table } from './contexte';
-import { HudCampaign, HudCombat, HudHero } from './hud';
+import { HudCampaign, HudCombat } from './hud';
+import { TABLE_HUD_RIGHT } from './hud-slots';
 import { PanelLocationSync } from './panels/navigation';
 import { PanelHost } from './panels/panel-host';
 import { panelsFor, type TableRole } from './panels/registry';
@@ -158,10 +159,13 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
       <PanelLocationSync allowed={permis} />
       <main className="absolute inset-x-0 top-0 bottom-[var(--table-dock-h)]">{children}</main>
 
-      <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-3 lg:left-20">
-        <HudCampaign table={table} />
+      <div className="pointer-events-none absolute inset-x-3 top-3 z-20 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-3 lg:left-20">
+        <div className="flex min-w-0 justify-start">
+          <HudCampaign table={table} />
+        </div>
         <HudCombat table={table} />
-        <HudHero table={table} />
+        {/* Barre du groupe : rendue ici par la carte (elle connaît la scène), voir PartyBar */}
+        <div id={TABLE_HUD_RIGHT} className="flex min-w-0 justify-end" />
       </div>
 
       <TableRail layout={rail} />

@@ -44,6 +44,13 @@ export class CharacterDirectory {
     return this.entries.size;
   }
 
+  private snapshot: readonly CharacterInfo[] | null = null;
+  /** Tous les personnages connus, dans un tableau stable tant que l'annuaire ne change pas. */
+  list(): readonly CharacterInfo[] {
+    this.snapshot ??= [...this.entries.values()];
+    return this.snapshot;
+  }
+
   /** Remplace tout l'annuaire ; prévient des seuls personnages ajoutés, changés ou retirés. */
   replace(list: Iterable<CharacterInfo>) {
     const next = new Map<string, CharacterInfo>();
@@ -58,7 +65,10 @@ export class CharacterDirectory {
     }
     for (const id of this.entries.keys()) if (!next.has(id)) changed.add(id);
     this.entries = next;
-    if (changed.size) for (const l of [...this.listeners]) l(changed);
+    if (changed.size) {
+      this.snapshot = null;
+      for (const l of [...this.listeners]) l(changed);
+    }
   }
 
   /** Utilisateurs (propriétaires, incarnateurs) de ces personnages : audience du direct. */

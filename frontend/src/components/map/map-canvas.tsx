@@ -34,6 +34,7 @@ import { MapEngineProvider } from './engine-context';
 import { MapInspector } from './inspector';
 import { LayersPanel } from './layers/layers-panel';
 import { MapOverlays } from './overlays';
+import { PartyBarHost } from './party/party-bar';
 import { SelectionBar } from './selection-bar';
 import { MapToolbar } from './toolbar';
 
@@ -244,6 +245,7 @@ function MapRuntime({
         <>
           <MapToolbar />
           <MapOverlays />
+          <PartyBarHost />
           <SelectionBar hostRef={hostRef} />
           <div className="pointer-events-none absolute bottom-24 right-3 top-20 z-10 flex items-start justify-end gap-3">
             <MapInspector />
