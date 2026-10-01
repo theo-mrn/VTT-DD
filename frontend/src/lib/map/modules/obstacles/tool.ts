@@ -75,7 +75,7 @@ import {
   type RoomData,
 } from './model';
 import { ObstacleSnapper, SNAP_PX, type SnapTarget } from './snap';
-import { dashedPolyline } from './overlay';
+import { dashedPolyline, zoomStep, unitAt } from './overlay';
 
 export type ObstacleMode = 'wall' | 'rect' | 'door' | 'window' | 'oneway' | 'room' | 'edit';
 
@@ -1047,13 +1047,16 @@ export class ObstacleTool implements Tool {
   private label: BitmapText | null = null;
   /** L'aperçu dynamique est à redessiner. */
   private dirty = true;
-  /** Ce que montrent les poignées dessinées (redessinées seulement si cela change). */
+  /**
+   * Ce que montrent les poignées dessinées (redessinées seulement si cela change) : elles
+   * couvrent la vue élargie d'une marge, à la taille du palier de zoom ; un déplacement qui
+   * reste dans la marge ne les retesselle pas.
+   */
   private readonly drawn = {
     obstacles: null as unknown,
     rooms: null as unknown,
-    zoom: 0,
-    x: NaN,
-    y: NaN,
+    step: NaN,
+    area: null as Rect | null,
     hover: null as Point | null,
     sub: null as SubSelection | null,
     vertexDrag: null as VertexDrag | null,
@@ -1097,12 +1100,18 @@ export class ObstacleTool implements Tool {
     const s = engine.store.getState();
     const drag = this.vertexDrag;
     const d = this.drawn;
+    const step = zoomStep(cam.zoom);
+    const visible = cam.visibleRect();
+    const area = d.area;
     if (
       d.obstacles === s.collections.obstacles &&
       d.rooms === s.collections.rooms &&
-      d.zoom === cam.zoom &&
-      d.x === cam.x &&
-      d.y === cam.y &&
+      d.step === step &&
+      area !== null &&
+      visible.x >= area.x &&
+      visible.y >= area.y &&
+      visible.x + visible.width <= area.x + area.width &&
+      visible.y + visible.height <= area.y + area.height &&
       d.hover === this.hoverVertex &&
       d.sub === this.sub &&
       d.vertexDrag === drag &&
@@ -1111,17 +1120,16 @@ export class ObstacleTool implements Tool {
       return;
     d.obstacles = s.collections.obstacles;
     d.rooms = s.collections.rooms;
-    d.zoom = cam.zoom;
-    d.x = cam.x;
-    d.y = cam.y;
+    d.step = step;
+    d.area = inflateRect(visible, Math.max(visible.width, visible.height) * 0.5);
     d.hover = this.hoverVertex;
     d.sub = this.sub;
     d.vertexDrag = drag;
     d.moveDrag = this.moveDrag;
     const g = this.handles!;
     g.clear();
-    const u = 1 / rc.zoom;
-    const view = inflateRect(cam.visibleRect(), 20 * u);
+    const u = unitAt(rc.zoom);
+    const view = inflateRect(d.area, 20 * u);
     const { primary, background, muted } = rc.theme;
     const moving = this.moveDrag?.skip;
     for (const v of this.snapper.allVertices()) {
