@@ -64,8 +64,12 @@ export function MockupCtaSection({ onStart }: { onStart: () => void }) {
           >
             <div className="glass-card relative rounded-3xl p-4 md:p-6">
               <img
-                src="/landingpage/mockup.png"
+                src="/landingpage/mockup.webp"
                 alt="YNER VTT sur laptop"
+                width={1200}
+                height={858}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-auto rounded-xl"
               />
             </div>

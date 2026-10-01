@@ -297,7 +297,7 @@ export function Features1() {
             icon={<ScrollText className="w-5 h-5" />}
             title="Fiches personnalisables"
             description="Stats, compétences, inventaire, effets actifs — tout est accessible d'un coup d'œil."
-            image="/landingpage/fiche.png"
+            image="/landingpage/fiche.webp"
             imageAlt="Fiche de personnage personnalisable"
             span="md:col-span-1"
             imageClassName="object-top"
