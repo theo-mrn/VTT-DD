@@ -286,6 +286,7 @@ export class InteractionController {
     const hit = engine.hitTest(e.world);
     if (hit) {
       if (!engine.selection.has(hit.id)) engine.selection.replace([hit.id]);
+      engine.showSelectionPanel();
       engine.closeMenu();
       return;
     }

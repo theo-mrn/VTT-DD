@@ -138,6 +138,8 @@ export class SelectTool implements Tool {
         }
         this.state = 'dragging';
         engine.setHovered(null);
+        // On déplace : pas de panneau, ni pendant ni après
+        engine.showSelectionPanel(false);
         const primary = movable.includes(this.target) ? this.target : movable[0]!;
         this.drag = new DragSession(engine, movable, this.start.world, primary);
         this.drag.update(e.world, { snap: !e.alt });
@@ -205,6 +207,8 @@ export class SelectTool implements Tool {
           if (e.shift) engine.selection.toggle(target.id);
           else engine.selection.replace([target.id]);
         }
+        // Clic simple, sans glisser : le panneau de la sélection s'ouvre
+        engine.showSelectionPanel();
         break;
       case 'dragging':
         void this.drag?.commit();
@@ -222,6 +226,7 @@ export class SelectTool implements Tool {
         const ids = engine.entitiesInRect(rect).map((x) => x.id);
         if (this.lassoAdditive) engine.selection.add(ids);
         else engine.selection.replace(ids);
+        engine.showSelectionPanel();
         engine.invalidate();
         break;
       }
@@ -255,11 +260,13 @@ export class SelectTool implements Tool {
     // La sorte prend le double clic (texte édité en place), sinon l'inspecteur
     if (hit?.kind.doubleClick?.(hit, { viewer: engine.viewer, engine, world: e.world })) {
       engine.selection.replace([hit.id]);
+      engine.showSelectionPanel();
       return true;
     }
     if (!hit || !hasCapability(hit.kind, 'inspect') || !hit.kind.can('inspect', hit, engine.viewer))
       return false;
     engine.selection.replace([hit.id]);
+    engine.showSelectionPanel();
     engine.openInspector([hit.id]);
     return true;
   }

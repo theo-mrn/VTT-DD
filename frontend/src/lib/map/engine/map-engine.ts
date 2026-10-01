@@ -218,6 +218,11 @@ export interface MapUiState {
   picker: MenuRequest | null;
   /** Entités de l'inspecteur ouvert. */
   inspector: readonly string[] | null;
+  /**
+   * Panneau de la sélection affiché : seulement sur demande (clic sans glisser, double clic, clic
+   * droit, lasso) ; glisser le masque, et tout changement de sélection le referme.
+   */
+  selectionPanel: boolean;
   confirm: ConfirmRequest | null;
   /** Panneau des calques (MJ, touche K). */
   layersPanel: boolean;
@@ -462,6 +467,7 @@ export class MapEngine {
       menu: null,
       picker: null,
       inspector: null,
+      selectionPanel: false,
       confirm: null,
       layersPanel: false,
       activeLayerId: null,
@@ -1380,6 +1386,7 @@ export class MapEngine {
 
   private onSelection() {
     const ids = new Set(this.selection.ids);
+    if (this.ui.getState().selectionPanel) this.ui.setState({ selectionPanel: false });
     // L'élément choisi dans une pile n'est plus sélectionné : les autres reviennent
     if (this.chosenId && !ids.has(this.chosenId)) this.releaseSidelined();
     for (const e of this.entityMap.values()) {
@@ -2094,6 +2101,12 @@ export class MapEngine {
 
   closeMenu() {
     if (this.ui.getState().menu) this.ui.setState({ menu: null });
+  }
+
+  /** Affiche (ou masque) le panneau de la sélection courante. */
+  showSelectionPanel(on = true) {
+    const show = on && this.selection.size > 0;
+    if (this.ui.getState().selectionPanel !== show) this.ui.setState({ selectionPanel: show });
   }
 
   openInspector(ids: readonly string[]) {

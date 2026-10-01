@@ -61,6 +61,20 @@ describe('gestes communs', () => {
     expect(t.engine.selection.ids).toEqual(['a']);
   });
 
+  it('panneau de la sélection : au clic simple, jamais pendant ni après un glisser', () => {
+    const t = setup({ boxes: [box('a', 100, 100), box('b', 300, 300)] });
+    const panel = () => t.engine.ui.getState().selectionPanel;
+    t.drag({ x: 100, y: 100 }, { x: 160, y: 100 });
+    expect([t.engine.selection.ids, panel()]).toEqual([['a'], false]);
+    t.click({ x: 300, y: 300 });
+    expect([t.engine.selection.ids, panel()]).toEqual([['b'], true]);
+    // Glisser l'élément ouvert : le panneau se ferme et ne revient pas au lâcher
+    t.drag({ x: 300, y: 300 }, { x: 360, y: 300 });
+    expect([t.engine.selection.ids, panel()]).toEqual([['b'], false]);
+    t.click({ x: 700, y: 700 });
+    expect([t.engine.selection.ids, panel()]).toEqual([[], false]);
+  });
+
   it('glisser déplace toute la sélection en une seule commande', async () => {
     const t = setup({ boxes: [box('a', 100, 100), box('b', 300, 300), box('c', 600, 600)] });
     t.click({ x: 100, y: 100 });

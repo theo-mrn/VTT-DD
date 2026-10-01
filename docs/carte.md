@@ -397,8 +397,9 @@ Règles de ces gestes :
   (glisser, poser un jeton, un objet, une lumière, tracer un mur ou une zone). Les extrémités et
   segments des murs existants s'aimantent toujours, pour les souder. Les flèches du clavier
   avancent toujours d'une case.
-- **Panneau de la sélection** : toutes les actions de l'élément sélectionné, au clic comme au clic
-  droit (pas de second menu par-dessus). Un joueur n'en a pas sur les tokens, le sien compris :
+- **Panneau de la sélection** : toutes les actions de l'élément sélectionné, au clic simple (sans
+  glisser), au double clic, au clic droit ou après un lasso ; jamais pendant ni après un
+  déplacement (`ui.selectionPanel`, refermé à chaque changement de sélection). Un joueur n'en a pas sur les tokens, le sien compris :
   seulement sur un objet (Fouiller), un portail (Emprunter) ou un gabarit (Attaquer la zone).
 - **Éléments superposés** : un clic (sans ⇧ ni Alt) sur plusieurs éléments presque confondus
   (taille comparable, boîtes recouvertes à 60 % au moins de la plus petite ; un token sur un
