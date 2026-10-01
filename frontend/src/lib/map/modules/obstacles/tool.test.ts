@@ -349,15 +349,28 @@ describe('outil obstacles : édition', () => {
 });
 
 describe('portes : clic de tous, hors de l’outil', () => {
-  it('outil sélection : un clic sur l’icône ouvre la porte (hors de la pile), sans la sélectionner', () => {
+  it('MJ : un clic sur l’icône sélectionne la porte et ouvre son panneau, sans l’ouvrir', () => {
     const b = bench({ walls: [wall('d', [P(100, 100), P(150, 100)], { kind: 'door' })] });
     b.engine.tools.activate('select');
+    b.click(P(125, 100));
+    expect(b.walls()[0]!.isOpen).toBe(false);
+    expect(b.engine.selection.ids).toEqual(['d']);
+    expect(b.engine.ui.getState().selectionPanel).toBe(true);
+    // « Ouvrir la porte » : l'action principale de son panneau
+    const toggle = b.engine.menuItems(['d'], P(125, 100)).find((i) => i.id === 'door:toggle');
+    expect(toggle).toMatchObject({ label: 'Ouvrir la porte', primary: true });
+    toggle!.run!();
+    expect(b.walls()[0]!.isOpen).toBe(true);
+  });
+
+  it('joueur : un clic sur l’icône ouvre la porte (hors de la pile), sans la sélectionner', () => {
+    const b = bench({ walls: [wall('d', [P(100, 100), P(150, 100)], { kind: 'door' })] });
+    b.engine.tools.activate('select');
+    b.engine.setViewer({ userId: 'joueur', role: 'player', characterIds: [] });
     b.click(P(125, 100));
     expect(b.walls()[0]!.isOpen).toBe(true);
     expect(b.engine.selection.size).toBe(0);
     expect(b.commands.history.undo).toHaveLength(0);
-    // Un mur ne se touche pas hors de l'outil
-    expect(b.engine.hitTest(P(125, 101), { tolerancePx: 30 })?.id).toBe('d');
   });
 
   it('joueur : une porte verrouillée refuse, avec un message', () => {

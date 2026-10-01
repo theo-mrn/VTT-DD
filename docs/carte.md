@@ -1008,9 +1008,11 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
     mur, en une commande. Un segment plus court que la porte devient la porte ; un bout de mur
     de moins de 2 px n'est pas gardé.
   - Ailleurs : porte libre en deux clics.
-  - Icône de porte (tous, taille constante) : un clic ouvre ou ferme, hors de la pile
-    d'annulation ; porte verrouillée : un joueur est refusé (toast). Clic droit (MJ) :
-    « Verrouiller la porte ». Un joueur ne voit que les icônes des portes dans sa vue (§ 9).
+  - Icône de porte (tous, taille constante). Joueur : un clic ouvre ou ferme, hors de la pile
+    d'annulation ; porte verrouillée : refusé (toast). MJ : un clic sélectionne la porte et
+    ouvre son panneau (« Ouvrir la porte » en action principale, « Verrouiller la porte ») :
+    jamais d'ouverture par mégarde. Un joueur ne voit que les icônes des portes dans sa vue
+    (§ 9).
 - **Fenêtre** (4), **mur à sens unique** (5) : mêmes gestes que le mur. La flèche, au milieu de
   chaque segment, montre le sens où l'on voit. Menu : « Inverser le sens ».
 - **Pièce** (6).

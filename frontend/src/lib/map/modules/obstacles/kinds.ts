@@ -4,9 +4,9 @@
  *
  * - Réservées à l'outil obstacles (`editTool`, W) : hors de lui, un mur ne se touche pas (un
  *   token posé contre lui garde son clic).
- * - Porte : son icône se touche toujours ; un clic ouvre ou ferme (`click`), pour tous, sauf une
- *   porte verrouillée pour un joueur (règle du serveur, rappelée par un toast) ; le clic droit
- *   donne « Verrouiller » au MJ.
+ * - Porte : son icône se touche toujours. Joueur : un clic ouvre ou ferme (`click`), sauf une
+ *   porte verrouillée (règle du serveur, rappelée par un toast). MJ : un clic la sélectionne et
+ *   ouvre son panneau (Ouvrir, Verrouiller…), jamais d'ouverture par mégarde.
  * - Plans : murs et pièces dans `gm` (MJ seulement), portes dans `adornments` (icône vue de
  *   tous).
  */
@@ -224,7 +224,8 @@ export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
     render: (e) => view.mount(e),
     update: (e) => view.draw(e),
     dispose: (e) => view.unmount(e),
-    click: (e) => obstacleOf(e).kind === 'door' && toggleDoors(ctx, [e]),
+    // Joueur seulement : le MJ passe par le panneau de la porte
+    click: (e) => obstacleOf(e).kind === 'door' && !isGm(engine.viewer) && toggleDoors(ctx, [e]),
     // Icône de porte : un joueur ne la voit (et ne l'ouvre) que si la porte est dans sa vue
     visionSamples(e) {
       const d = obstacleOf(e);
@@ -262,7 +263,8 @@ export function obstacleActions(ctx: ObstacleContext, entities: readonly MapEnti
       id: 'door:toggle',
       label: allOpen ? 'Fermer la porte' : 'Ouvrir la porte',
       icon: allOpen ? DoorClosed : DoorOpen,
-      shortcut: 'Clic',
+      // MJ : l'action principale de son panneau ; joueur : le clic sur la porte
+      ...(gm ? { primary: true } : { shortcut: 'Clic' }),
       disabled: lockedForMe,
       run: () => void toggleDoors(ctx, doors, !allOpen),
     });
