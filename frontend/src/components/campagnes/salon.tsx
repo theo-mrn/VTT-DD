@@ -191,7 +191,6 @@ function Banniere({
         graine={c.name}
         initiale={false}
         className="absolute inset-0 -z-10"
-        classeImage="scale-105 blur-[1px]"
       />
       <div
         aria-hidden
@@ -376,7 +375,7 @@ function BandeauBienvenue({ campagne }: { campagne: DetailCampagne }) {
     <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-primary/[0.07] p-5 shadow-glow">
       <div
         aria-hidden
-        className="absolute -right-10 -top-10 size-40 rounded-full bg-primary/20 blur-3xl"
+        className="absolute -right-24 -top-24 size-72 bg-[radial-gradient(closest-side,hsl(var(--primary)/0.16),transparent)]"
       />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">

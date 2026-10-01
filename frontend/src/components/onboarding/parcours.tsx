@@ -187,7 +187,7 @@ function EtapeBienvenue({ nom, onCommencer }: { nom: string; onCommencer: () => 
       >
         <span
           aria-hidden
-          className="absolute inset-0 animate-glow-pulse rounded-3xl bg-primary/30 blur-2xl"
+          className="absolute inset-0 animate-glow-pulse-few rounded-3xl bg-primary/30 blur-2xl motion-reduce:animate-none"
         />
         <span className="relative flex size-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary-strong via-primary to-primary/50 shadow-glow">
           <Dices className="size-9 text-primary-foreground" />

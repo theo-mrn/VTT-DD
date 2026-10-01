@@ -355,7 +355,7 @@ function PremiersPas() {
     <section className="relative mb-8 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-surface">
       <div
         aria-hidden
-        className="absolute -left-20 -top-24 size-64 rounded-full bg-primary/10 blur-3xl"
+        className="absolute -left-36 -top-40 size-96 bg-[radial-gradient(closest-side,hsl(var(--primary)/0.08),transparent)]"
       />
       <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center">
         <div className="lg:w-64">
