@@ -114,14 +114,14 @@ export function MapToolbar() {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex flex-col items-center gap-2 px-3">
       {Options && (
-        <div className="pointer-events-auto max-w-full rounded-xl border border-border-strong bg-background/90 px-2 py-1.5 shadow-elevated backdrop-blur-md">
+        <div className="pointer-events-auto max-w-full rounded-xl border border-border-strong bg-background/95 px-2 py-1.5 shadow-elevated">
           <Options engine={engine} />
         </div>
       )}
       <div
         role="toolbar"
         aria-label="Outils de la carte"
-        className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-border-strong bg-background/90 p-1.5 shadow-elevated backdrop-blur-md [scrollbar-width:none]"
+        className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-border-strong bg-background/95 p-1.5 shadow-elevated [scrollbar-width:none]"
       >
         {tools.map((def) => {
           const Icon = def.icon;

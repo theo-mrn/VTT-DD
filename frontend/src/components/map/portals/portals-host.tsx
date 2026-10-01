@@ -168,7 +168,7 @@ function Prompt({ ctx }: { ctx: PortalModule }) {
       ref={ref}
       role="dialog"
       aria-label={`Emprunter ${name}`}
-      className="pointer-events-auto absolute left-0 top-0 z-20 flex items-center gap-2 rounded-xl border border-border bg-background/95 py-1 pl-1.5 pr-1 shadow-elevated backdrop-blur-md"
+      className="pointer-events-auto absolute left-0 top-0 z-20 flex items-center gap-2 rounded-xl border border-border bg-background py-1 pl-1.5 pr-1 shadow-elevated"
       style={{ visibility: 'hidden' }}
       onPointerDown={(e) => e.stopPropagation()}
     >

@@ -90,7 +90,7 @@ function NoteField({ engine, session }: { engine: MapEngine; session: NoteSessio
           color: session.color,
         }}
       />
-      <p className="mt-1.5 flex w-max items-center gap-1.5 rounded-md border border-border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground shadow-elevated backdrop-blur-md">
+      <p className="mt-1.5 flex w-max items-center gap-1.5 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground shadow-elevated">
         <Kbd>Entrée</Kbd> valider <Kbd>⇧ Entrée</Kbd> à la ligne <Kbd>Échap</Kbd> annuler
       </p>
     </div>

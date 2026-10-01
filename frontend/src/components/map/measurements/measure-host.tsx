@@ -57,7 +57,7 @@ function PinBar({ ctx }: { ctx: MeasureModule }) {
       ref={ref}
       role="dialog"
       aria-label="Mesure"
-      className="pointer-events-auto absolute left-0 top-0 z-20 flex items-center gap-1 rounded-xl border border-border bg-background/95 p-1 shadow-elevated backdrop-blur-md"
+      className="pointer-events-auto absolute left-0 top-0 z-20 flex items-center gap-1 rounded-xl border border-border bg-background p-1 shadow-elevated"
       style={{ visibility: 'hidden' }}
       onPointerDown={(e) => e.stopPropagation()}
     >

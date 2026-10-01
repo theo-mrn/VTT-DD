@@ -140,7 +140,7 @@ export function SelectionBar({ hostRef }: { hostRef: RefObject<HTMLElement | nul
       ref={barRef}
       role="toolbar"
       aria-label={barLabel(entities.length, engine)}
-      className="pointer-events-auto absolute left-0 top-0 z-20 flex items-center gap-0.5 rounded-xl border border-border bg-background/95 p-1 shadow-elevated backdrop-blur-md"
+      className="pointer-events-auto absolute left-0 top-0 z-20 flex items-center gap-0.5 rounded-xl border border-border bg-background p-1 shadow-elevated"
       style={{ visibility: 'hidden' }}
       // Un clic sur la barre ne part pas à la carte (pas de désélection, pas de pan)
       onPointerDown={(e) => e.stopPropagation()}

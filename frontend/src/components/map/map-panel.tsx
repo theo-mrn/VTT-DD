@@ -48,7 +48,7 @@ export function MapPanel({
       aria-label={label}
       onKeyDown={onKeyDown}
       className={cn(
-        'pointer-events-auto flex max-h-full max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border-strong bg-background/95 shadow-elevated backdrop-blur-md',
+        'pointer-events-auto flex max-h-full max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border-strong bg-background shadow-elevated',
         drag.dragging && 'select-none shadow-2xl',
         className,
       )}

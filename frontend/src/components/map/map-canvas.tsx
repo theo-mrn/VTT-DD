@@ -203,7 +203,7 @@ function MapRuntime({
 
       {(status === 'loading' || (!mounted && !failure)) && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <p className="flex items-center gap-2 rounded-full border border-border bg-background/70 px-4 py-2 text-sm text-muted-foreground backdrop-blur-md">
+          <p className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2 text-sm text-muted-foreground">
             <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden />
             Chargement de la scène…
           </p>
@@ -227,7 +227,7 @@ function MapRuntime({
                 ? 'Elle a été supprimée, ou le MJ l’a cachée.'
                 : 'Le service de la carte ne répond pas.')
             }
-            className="w-full max-w-md bg-background/85 backdrop-blur-md"
+            className="w-full max-w-md bg-background/95"
             action={
               status === 'error' ? (
                 <Button variant="secondary" onClick={() => void sync.load()}>
