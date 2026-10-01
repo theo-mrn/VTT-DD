@@ -23,8 +23,10 @@ import {
   Trash2,
   UserRoundPlus,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { TrashButton } from '@/components/commun/trash-button';
 import { NpcForm, type NpcFormResult } from '@/components/personnages/npc-form';
 import { templateItem, type BestiaryItem } from '@/components/resources/model/bestiary';
 import { normaliser } from '@/components/resources/model/catalogue';
@@ -59,6 +61,7 @@ import {
   type NpcTemplateCategory,
 } from '@/lib/bestiary';
 import { useCampaignSystem } from '@/lib/campaign-settings';
+import { refreshTemplateTrash, undoAction, useTemplateTrash } from '@/lib/trash';
 import { cn } from '@/lib/utils';
 import { useTable } from '../contexte';
 
@@ -105,6 +108,9 @@ export function OngletPnj() {
   const sys = useCampaignSystem(campagne.system, campagne.id);
   const templates = useNpcTemplates(campagne.id);
   const refresh = useRefreshNpcTemplates(campagne.id);
+  const client = useQueryClient();
+  const trash = useTemplateTrash(campagne.id);
+  const trashed = useMemo(() => trash.data?.filter((i) => i.kind === 'npc_template'), [trash.data]);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState(ALL);
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -205,12 +211,16 @@ export function OngletPnj() {
     );
   };
 
-  const remove = (t: NpcTemplate) =>
-    void run(
-      'Le PNJ n’a pas pu être supprimé',
-      () => npcTemplatesApi.remove(campagne.id, t.id),
-      `« ${t.name} » supprimé de vos PNJ`,
+  const remove = async (t: NpcTemplate) => {
+    const ok = await run('Le PNJ n’a pas pu être supprimé', () =>
+      npcTemplatesApi.remove(campagne.id, t.id),
     );
+    if (!ok) return;
+    refreshTemplateTrash(client, campagne.id);
+    toast.success(`« ${t.name} » supprimé de vos PNJ`, {
+      action: undoAction(client, { id: t.id, kind: 'npc_template', name: t.name }, campagne.id),
+    });
+  };
 
   const move = (t: NpcTemplate, categoryId: string | null) =>
     void run('Le PNJ n’a pas pu être rangé', () =>
@@ -251,6 +261,7 @@ export function OngletPnj() {
           className="sm:w-64"
         />
         <div className="ml-auto flex items-center gap-1.5">
+          <TrashButton items={trashed} campaignId={campagne.id} />
           <CategoryManager campaignId={campagne.id} categories={categories} onChanged={refresh} />
           <Button size="sm" onClick={() => setEditing({ mode: 'new' })}>
             <Plus />
@@ -315,7 +326,7 @@ export function OngletPnj() {
                 onEdit={() => setEditing({ mode: 'edit', template: t })}
                 onDuplicate={() => duplicate(t)}
                 onMove={(categoryId) => move(t, categoryId)}
-                onDelete={() => remove(t)}
+                onDelete={() => void remove(t)}
               />
             </li>
           ))}

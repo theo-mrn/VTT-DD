@@ -12,6 +12,7 @@ import {
   Trash2,
   UserRound,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -58,6 +59,7 @@ import {
 import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { calculerMemo } from '@/lib/rules-cache';
 import { useProfil } from '@/lib/session';
+import { undoAction } from '@/lib/trash';
 import { cn } from '@/lib/utils';
 import { BannerIdentity, BannerStats } from './banner';
 import { styleThemeSysteme } from './theme';
@@ -702,6 +704,7 @@ function DialogueSuppression({
 }) {
   const router = useRouter();
   const supprimer = useSupprimerPersonnage();
+  const client = useQueryClient();
   const [confirmation, setConfirmation] = useState('');
   return (
     <Dialog open={ouvert} onOpenChange={onOuvert}>
@@ -709,7 +712,7 @@ function DialogueSuppression({
         <DialogHeader>
           <DialogTitle>Supprimer {p.name} ?</DialogTitle>
           <DialogDescription>
-            La fiche et son historique disparaissent définitivement.
+            Restaurable 7 jours depuis la corbeille de vos personnages.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -729,7 +732,9 @@ function DialogueSuppression({
             onClick={() =>
               supprimer.mutate(p.id, {
                 onSuccess: () => {
-                  toast.success(`${p.name} a quitté l'aventure`);
+                  toast.success(`${p.name} a quitté l'aventure`, {
+                    action: undoAction(client, { id: p.id, kind: 'character', name: p.name }),
+                  });
                   router.replace('/personnages');
                 },
                 onError: (e) => toast.error(messageErreur(e)),

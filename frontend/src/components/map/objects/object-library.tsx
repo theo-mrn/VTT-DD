@@ -17,6 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Box, ImagePlus, LoaderCircle, Package, SquareDashed, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent } from 'react';
 import { toast } from 'sonner';
+import { TrashButton } from '@/components/commun/trash-button';
 import { SearchField } from '@/components/resources/parts';
 import { normaliser } from '@/components/resources/model/catalogue';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import { systemObjects } from '@/lib/map/modules/objects/system-library';
 import { OBJECTS_TOOL_ID } from '@/lib/map/modules/objects/types';
 import { useCampaignEvents } from '@/lib/realtime';
 import { useSysteme } from '@/lib/systemes';
+import { refreshTemplateTrash, undoAction, useTemplateTrash } from '@/lib/trash';
 import { cn } from '@/lib/utils';
 import { useActiveToolId } from '../engine-context';
 import { MapPanel } from '../map-panel';
@@ -148,6 +150,11 @@ function ObjectLibrary({ engine }: { engine: MapEngine }) {
     staleTime: 60_000,
   });
   const refresh = () => void client.invalidateQueries({ queryKey: key });
+  const trash = useTemplateTrash(campaignId);
+  const trashed = useMemo(
+    () => trash.data?.filter((i) => i.kind === 'object_template'),
+    [trash.data],
+  );
   // Modèles créés, modifiés ou supprimés ailleurs (autre onglet du MJ)
   useCampaignEvents(campaignId, ['object_template.*'], refresh);
 
@@ -340,6 +347,10 @@ function ObjectLibrary({ engine }: { engine: MapEngine }) {
       await objectTemplatesApi.remove(campaignId, t.id);
       if (armed?.key === `template:${t.id}`) tool?.disarm(engine);
       refresh();
+      refreshTemplateTrash(client, campaignId);
+      toast.success(`« ${t.name} » retiré`, {
+        action: undoAction(client, { id: t.id, kind: 'object_template', name: t.name }, campaignId),
+      });
     } catch (err) {
       toast.error(messageErreur(err));
     }
@@ -383,13 +394,16 @@ function ObjectLibrary({ engine }: { engine: MapEngine }) {
             </TabsList>
           </Tabs>
         )}
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          label="Rechercher un objet"
-          placeholder="Rechercher…"
-          className="sm:w-full"
-        />
+        <div className="flex items-center gap-1">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            label="Rechercher un objet"
+            placeholder="Rechercher…"
+            className="min-w-0 flex-1 sm:w-full"
+          />
+          <TrashButton items={trashed} campaignId={campaignId} />
+        </div>
         {categories.length > 1 && (
           <div
             role="group"

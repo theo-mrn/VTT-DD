@@ -4,6 +4,7 @@ import { Plus, Search, Swords, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { EnTetePage, EtatVide, Page } from '@/components/commun/page';
+import { TrashButton } from '@/components/commun/trash-button';
 import { Message } from '@/components/compte/elements';
 import {
   CartePersonnage,
@@ -15,6 +16,7 @@ import { InputGroup } from '@/components/ui/input';
 import { useCampagnes } from '@/lib/campagnes';
 import { lienPersonnage, usePersonnages } from '@/lib/personnages';
 import { useSystemes } from '@/lib/systemes';
+import { useCharacterTrash } from '@/lib/trash';
 import { cn } from '@/lib/utils';
 
 /** Galerie des personnages du joueur, filtrable par système et par campagne. */
@@ -22,6 +24,7 @@ export default function PagePersonnages() {
   const personnages = usePersonnages();
   const campagnes = useCampagnes();
   const systemes = useSystemes();
+  const corbeille = useCharacterTrash();
   const [systeme, setSysteme] = useState<string | null>(null);
   const [recherche, setRecherche] = useState('');
 
@@ -45,12 +48,15 @@ export default function PagePersonnages() {
         titre="Personnages"
         description="Chaque fiche est calculée par les règles de son système : valeurs, bonus et jets sont toujours justes."
         actions={
-          <Button asChild>
-            <Link href="/personnages/nouveau">
-              <Plus />
-              Nouveau personnage
-            </Link>
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <TrashButton items={corbeille.data} />
+            <Button asChild>
+              <Link href="/personnages/nouveau">
+                <Plus />
+                Nouveau personnage
+              </Link>
+            </Button>
+          </div>
         }
       />
 
