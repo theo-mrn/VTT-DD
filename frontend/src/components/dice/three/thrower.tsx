@@ -687,11 +687,12 @@ export const DiceThrower = () => {
   const animating = rolling || effectIds.size > 0;
   const tickMs = hasDice && !animating ? IDLE_FRAME_MS : warming && !animating ? WARM_FRAME_MS : 0;
 
-  // Réglages lus une fois : machine économe (Windows, machine modeste) ou
-  // écran à haute densité, où l'antialiasing ne se voit guère.
+  // Réglages lus une fois. Machine économe (Windows, machine modeste) : pas
+  // d'antialiasing, densité 1. Ailleurs l'antialiasing reste : la densité
+  // rendue est plafonnée à 1,25, même sur un écran haute densité, où les
+  // arêtes se verraient sans lui.
   const glSettings = useMemo(() => {
     const economy = prefersEconomy();
-    const hiDpi = typeof window !== 'undefined' && window.devicePixelRatio >= 1.5;
     return {
       economy,
       gl: {
@@ -699,7 +700,7 @@ export const DiceThrower = () => {
         // Canevas jamais démonté : ne pas réclamer le GPU puissant (portables
         // à deux GPU, batterie) pour quelques dés.
         powerPreference: 'default' as const,
-        antialias: !economy && !hiDpi,
+        antialias: !economy,
         stencil: false,
       },
     };
