@@ -281,8 +281,6 @@ function MemberAvatar({
   const r = info.resource;
   const name = info.name ?? 'Personnage';
   const down = r ? health(r) <= 0 : false;
-  // En pleine forme : le rail seul ; la couleur ne dit que les dégâts
-  const hurt = r ? health(r) < 0.999 : false;
   const size = 40;
   const radius = size / 2 - 1.25;
   const c = 2 * Math.PI * radius;
@@ -326,7 +324,7 @@ function MemberAvatar({
                 strokeWidth="2.5"
                 className="stroke-border-strong"
               />
-              {r && hurt && (
+              {r && (
                 <circle
                   cx={size / 2}
                   cy={size / 2}
