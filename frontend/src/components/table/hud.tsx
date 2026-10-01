@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { CombatState } from '@vtt/contracts';
 import { AnimatePresence, motion } from 'motion/react';
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { GmCombatBar } from '@/components/combat/bar/gm-combat-bar';
 import { LiveReports } from '@/components/combat/live-reports/live-reports';
 import { HUD_BAR, HUD_CONTROL } from '@/components/combat/live-reports/look';
@@ -64,12 +64,19 @@ export const HudCombat = memo(function HudCombat({ table }: { table: Table }) {
 function GmCombat({ campagne, combat }: { campagne: DetailCampagne; combat: CombatState | null }) {
   const live = useLiveReports(campagne);
   useHudPrefsHydration();
-  // Hors combat, la barre peut être rangée (bouton de la barre du groupe) ; les rapports restent
-  const idle = useHudPrefs((s) => s.combatBarIdle);
+  // La barre peut être rangée (bouton de la barre du groupe) ; les rapports restent. Un combat
+  // qui commence la fait revenir
+  const shown = useHudPrefs((s) => s.combatBar);
+  const fighting = combat !== null;
+  const was = useRef(fighting);
+  useEffect(() => {
+    if (fighting && !was.current) useHudPrefs.getState().setCombatBar(true);
+    was.current = fighting;
+  }, [fighting]);
   return (
     <>
       <AnimatePresence initial={false}>
-        {(combat !== null || idle) && (
+        {shown && (
           <motion.div
             key="bar"
             initial={{ opacity: 0, y: -8 }}

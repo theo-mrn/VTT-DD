@@ -13,6 +13,8 @@
 import {
   ArrowLeft,
   Crosshair,
+  EyeOff,
+  Flag,
   HeartPulse,
   IdCard,
   MessageSquare,
@@ -30,8 +32,16 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { HUD_BAR, HUD_CONTROL } from '@/components/combat/live-reports/look';
+import { EndCombatDialog } from '@/components/combat/turns/combat-dialogs';
 import { Illustration } from '@/components/commun/illustration';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useHudPrefs } from '@/components/table/hud-prefs';
@@ -200,35 +210,61 @@ export function PartyBar() {
 }
 
 /**
- * MJ : la barre de combat hors combat, montrée ou rangée. En combat elle est toujours là : le
- * bouton est alors inactif.
+ * MJ : la barre de combat, rangée ou montrée. En plein combat, la ranger propose aussi de
+ * terminer le combat (la fenêtre de la barre de combat).
  */
 function CombatBarToggle({ campaignId }: { campaignId: string }) {
-  const on = useHudPrefs((s) => s.combatBarIdle);
-  const set = useHudPrefs((s) => s.setCombatBarIdle);
-  const fighting = useCombat(campaignId).combat !== null;
-  const tip = fighting
-    ? 'Barre de combat affichée pendant le combat'
-    : on
-      ? 'Ranger la barre de combat'
-      : 'Montrer la barre de combat';
+  const on = useHudPrefs((s) => s.combatBar);
+  const set = useHudPrefs((s) => s.setCombatBar);
+  const combat = useCombat(campaignId).combat;
+  const [ending, setEnding] = useState(false);
+  const button = (onClick?: () => void) => (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={on ? 'Ranger la barre de combat' : 'Montrer la barre de combat'}
+      aria-pressed={on}
+      onClick={onClick}
+      className={cn(HUD_CONTROL, 'shrink-0', on && 'bg-primary/10 text-primary')}
+    >
+      <Swords />
+    </Button>
+  );
+  if (!combat || !on)
+    return (
+      <Info texte={on ? 'Ranger la barre de combat' : 'Montrer la barre de combat'} cote="bottom">
+        {button(() => set(!on))}
+      </Info>
+    );
   return (
-    <Info texte={tip} cote="bottom">
-      {/* Un bouton inactif ne reçoit pas le survol : l'info-bulle passe par l'enveloppe */}
-      <span className="shrink-0">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Barre de combat hors combat"
-          aria-pressed={fighting || on}
-          disabled={fighting}
-          onClick={() => set(!on)}
-          className={cn(HUD_CONTROL, (fighting || on) && 'bg-primary/10 text-primary')}
-        >
-          <Swords />
-        </Button>
-      </span>
-    </Info>
+    <>
+      <DropdownMenu>
+        <Info texte="Barre de combat" cote="bottom">
+          <DropdownMenuTrigger asChild>{button()}</DropdownMenuTrigger>
+        </Info>
+        <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuItem onSelect={() => set(false)}>
+            <EyeOff />
+            Masquer la barre
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onSelect={() => setEnding(true)}
+          >
+            <Flag />
+            Terminer le combat…
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <EndCombatDialog
+        open={ending}
+        onOpenChange={setEnding}
+        campaignId={campaignId}
+        combat={combat}
+        pendingReports={0}
+      />
+    </>
   );
 }
 
