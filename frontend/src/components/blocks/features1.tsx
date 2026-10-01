@@ -3,7 +3,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Aclonica } from 'next/font/google';
 import { cn } from '@/lib/utils';
-import { mapImagePath } from '@/utils/imagePathMapper';
 import {
   UserCircle2,
   ScrollText,
@@ -247,19 +246,6 @@ const MINI_FEATURES = [
 ];
 
 export function Features1() {
-  const [assets, setAssets] = React.useState<Record<string, string>>({});
-
-  React.useEffect(() => {
-    Promise.all([
-      mapImagePath('/landingpage/creation.png'),
-      mapImagePath('/landingpage/fiche.png'),
-      mapImagePath('/landingpage/ombres.gif'),
-      mapImagePath('/landingpage/weather.mp4'),
-    ]).then(([creation, fiche, ombres, weather]) => {
-      setAssets({ creation, fiche, ombres, weather });
-    });
-  }, []);
-
   return (
     <section className="overflow-hidden py-16 md:py-24 bg-[#0c0c0e]">
       <div className="mx-auto max-w-6xl px-6">
@@ -287,54 +273,46 @@ export function Features1() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {assets.creation && (
-            <BentoCard
-              icon={<UserCircle2 className="w-5 h-5" />}
-              title="Créez vos personnages"
-              description="Un système de création complet en 7 étapes : informations, espèce, profil, compétences, caractéristiques, inventaire et portrait."
-              image={assets.creation}
-              imageAlt="Système de création de personnage"
-              span="md:col-span-3"
-              imageFit="contain"
-              delay={0}
-            />
-          )}
-          {assets.fiche && (
-            <BentoCard
-              icon={<ScrollText className="w-5 h-5" />}
-              title="Fiches personnalisables"
-              description="Stats, compétences, inventaire, effets actifs — tout est accessible d'un coup d'œil."
-              image={assets.fiche}
-              imageAlt="Fiche de personnage personnalisable"
-              span="md:col-span-1"
-              imageClassName="object-top"
-              compact
-              delay={0.2}
-            />
-          )}
-          {assets.ombres && (
-            <BentoCard
-              icon={<Eye className="w-5 h-5" />}
-              title="Vision et ombres dynamiques"
-              description="Calcul d'ombres en temps réel : chaque joueur ne voit que ce que son personnage perçoit."
-              image={assets.ombres}
-              imageAlt="Système de vision dynamique et ombres"
-              span="md:col-span-1"
-              compact
-              delay={0.3}
-            />
-          )}
-          {assets.weather && (
-            <BentoVideoCard
-              icon={<CloudRain className="w-5 h-5" />}
-              title="Météo dynamique"
-              description="Pluie, neige, brouillard ou tempête : habillez vos cartes en un clic pour planter le décor."
-              src={assets.weather}
-              span="md:col-span-1"
-              compact
-              delay={0.4}
-            />
-          )}
+          <BentoCard
+            icon={<UserCircle2 className="w-5 h-5" />}
+            title="Créez vos personnages"
+            description="Un système de création complet en 7 étapes : informations, espèce, profil, compétences, caractéristiques, inventaire et portrait."
+            image="/landingpage/creation.png"
+            imageAlt="Système de création de personnage"
+            span="md:col-span-3"
+            imageFit="contain"
+            delay={0}
+          />
+          <BentoCard
+            icon={<ScrollText className="w-5 h-5" />}
+            title="Fiches personnalisables"
+            description="Stats, compétences, inventaire, effets actifs — tout est accessible d'un coup d'œil."
+            image="/landingpage/fiche.png"
+            imageAlt="Fiche de personnage personnalisable"
+            span="md:col-span-1"
+            imageClassName="object-top"
+            compact
+            delay={0.2}
+          />
+          <BentoCard
+            icon={<Eye className="w-5 h-5" />}
+            title="Vision et ombres dynamiques"
+            description="Calcul d'ombres en temps réel : chaque joueur ne voit que ce que son personnage perçoit."
+            image="/landingpage/ombres.gif"
+            imageAlt="Système de vision dynamique et ombres"
+            span="md:col-span-1"
+            compact
+            delay={0.3}
+          />
+          <BentoVideoCard
+            icon={<CloudRain className="w-5 h-5" />}
+            title="Météo dynamique"
+            description="Pluie, neige, brouillard ou tempête : habillez vos cartes en un clic pour planter le décor."
+            src="/landingpage/weather.mp4"
+            span="md:col-span-1"
+            compact
+            delay={0.4}
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">

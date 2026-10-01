@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { motion } from 'framer-motion';
-import { mapImagePath } from '@/utils/imagePathMapper';
+import { vignette } from '@/lib/assets';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Aclonica } from 'next/font/google';
@@ -9,23 +9,19 @@ import { ChevronRight } from 'lucide-react';
 
 const aclonica = Aclonica({ weight: '400', subsets: ['latin'] });
 
+// Fond plein écran (3 Mo à la source) : version redimensionnée par le CDN.
+const BG_IMAGE = vignette('https://assets.yner.fr/Cartes/Foret/image2.webp', 1920);
+
 export function StartCampaignSection({ onStart }: { onStart: () => void }) {
-  const [bgImage, setBgImage] = React.useState('');
-
-  React.useEffect(() => {
-    mapImagePath('/Cartes/Foret/image2.webp').then(setBgImage);
-  }, []);
-
   return (
     <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden">
-      {bgImage && (
-        <img
-          src={bgImage}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
-        />
-      )}
+      <img
+        src={BG_IMAGE}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
+        decoding="async"
+      />
       <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0e] via-[#0c0c0e]/80 to-[#0c0c0e]/60" />
 
       <motion.div

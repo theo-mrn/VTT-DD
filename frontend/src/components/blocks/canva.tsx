@@ -5,12 +5,14 @@ import { cn } from '@/lib/utils';
 import { Aclonica } from 'next/font/google';
 import { ChevronDown } from 'lucide-react';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
-import { mapImagePath } from '@/utils/imagePathMapper';
+import { vignette } from '@/lib/assets';
 
 const aclonica = Aclonica({
   weight: '400',
   subsets: ['latin'],
 });
+
+const CDN = 'https://assets.yner.fr';
 
 interface DemoCharacter {
   id: string;
@@ -25,7 +27,7 @@ const DEMO_CHARACTERS: DemoCharacter[] = [
   {
     id: 'nain',
     name: 'Borin',
-    path: '/Photos/Nain/Nain235.webp',
+    path: `${CDN}/Photos/Nain/Nain235.webp`,
     x: 0.44,
     y: 0.46,
     color: '#c9a965',
@@ -33,7 +35,7 @@ const DEMO_CHARACTERS: DemoCharacter[] = [
   {
     id: 'elfe',
     name: 'Sylenne',
-    path: '/Photos/Elfe/Elfe34.webp',
+    path: `${CDN}/Photos/Elfe/Elfe34.webp`,
     x: 0.5,
     y: 0.14,
     color: '#8fbf9f',
@@ -41,12 +43,19 @@ const DEMO_CHARACTERS: DemoCharacter[] = [
   {
     id: 'humain',
     name: 'Corvin',
-    path: '/Photos/Humain/Humain1.webp',
+    path: `${CDN}/Photos/Humain/Humain1.webp`,
     x: 0.72,
     y: 0.7,
     color: '#c98f65',
   },
-  { id: 'orc', name: 'Grokk', path: '/Photos/Orc/Orc1.webp', x: 0.46, y: 0.79, color: '#8f6bc9' },
+  {
+    id: 'orc',
+    name: 'Grokk',
+    path: `${CDN}/Photos/Orc/Orc1.webp`,
+    x: 0.46,
+    y: 0.79,
+    color: '#8f6bc9',
+  },
 ];
 
 // Fond animé unique, déjà présent dans la bibliothèque de cartes (BackgroundSelector, Map/Camp/Animated)
@@ -89,7 +98,6 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
   const positionsRef = React.useRef<Record<string, { x: number; y: number }>>(
     Object.fromEntries(DEMO_CHARACTERS.map((c) => [c.id, { x: c.x, y: c.y }])),
   );
-  const [images, setImages] = React.useState<Record<string, string>>({});
   // positions ne pilote que le rendu initial ; pendant le drag on écrit directement le style DOM
   // via requestAnimationFrame pour rester fluide à 60fps sans re-render React à chaque pointermove.
   const [positions] = React.useState(positionsRef.current);
@@ -108,12 +116,6 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
     offsetX: number;
     offsetY: number;
   } | null>(null);
-
-  React.useEffect(() => {
-    Promise.all(DEMO_CHARACTERS.map(async (c) => [c.id, await mapImagePath(c.path)] as const)).then(
-      (entries) => setImages(Object.fromEntries(entries)),
-    );
-  }, []);
 
   const recomputeCoverRect = React.useCallback(() => {
     if (!containerRef.current) return;
@@ -285,7 +287,8 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
         {coverRect &&
           DEMO_CHARACTERS.map((c) => {
             const pos = positions[c.id];
-            const src = images[c.id];
+            // Jeton de 72 px : vignette redimensionnée par le CDN (2x pour les écrans denses)
+            const src = vignette(c.path, TOKEN_SIZE * 2);
             const isSelected = selectedId === c.id;
             const screenPos = toScreenPixels(pos);
             return (

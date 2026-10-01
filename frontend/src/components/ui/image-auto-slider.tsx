@@ -1,36 +1,26 @@
 import React from 'react';
-import { mapImagePath } from '@/utils/imagePathMapper';
+import { vignette } from '@/lib/assets';
 
 interface ImageAutoSliderProps {
   images?: string[];
   className?: string;
 }
 
+// Portraits de la bibliothèque (CDN), en vignettes de 448 px : la tuile fait
+// 224 px au plus, 2x pour les écrans denses (au lieu de ~500 Ko chacun).
+const DEFAULT_IMAGES = [
+  'Nain/Nain235',
+  'Elfe/Elfe34',
+  'Humain/Humain1',
+  'Orc/Orc1',
+  'Drakonide/Drakonide1',
+  'Nain/Nain100',
+  'Elfe/Elfe100',
+  'Humain/Humain200',
+].map((p) => vignette(`https://assets.yner.fr/Photos/${p}.webp`, 448));
+
 export const ImageAutoSlider = ({ images: customImages, className = '' }: ImageAutoSliderProps) => {
-  // Default local paths that will be mapped to R2
-  const defaultLocalPaths = [
-    '/Photos/Nain/Nain235.webp',
-    '/Photos/Elfe/Elfe34.webp',
-    '/Photos/Humain/Humain1.webp',
-    '/Photos/Orc/Orc1.webp',
-    '/Photos/Drakonide/Drakonide1.webp',
-    '/Photos/Nain/Nain100.webp',
-    '/Photos/Elfe/Elfe100.webp',
-    '/Photos/Humain/Humain200.webp',
-  ];
-
-  const [images, setImages] = React.useState<string[]>(customImages || []);
-
-  React.useEffect(() => {
-    if (!customImages) {
-      // Map local paths to R2 URLs
-      const loadImages = async () => {
-        const mappedImages = await Promise.all(defaultLocalPaths.map((path) => mapImagePath(path)));
-        setImages(mappedImages);
-      };
-      loadImages();
-    }
-  }, [customImages]);
+  const images = customImages ?? DEFAULT_IMAGES;
 
   // Duplicate images for seamless loop
   const duplicatedImages = [...images, ...images];

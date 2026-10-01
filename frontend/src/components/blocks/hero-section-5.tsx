@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
 import { cn } from '@/lib/utils';
-import { Menu, X, Mail, ChevronDown, Send } from 'lucide-react';
-import { useScroll, motion, useTransform } from 'framer-motion';
+import { Menu, X, Mail, Send } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Aclonica } from 'next/font/google';
 import { FormulaireConnexion } from '@/components/auth/formulaire-connexion';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,6 @@ import { FrontiereErreur } from '@/components/commun/frontiere-erreur';
 import { CanvaSection } from '@/components/blocks/canva';
 import { TestimonialsSection } from '@/components/ui/testimonial-v2';
 import { ImageAutoSlider } from '@/components/ui/image-auto-slider';
-import { mapImagePath } from '@/utils/imagePathMapper';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -44,99 +43,6 @@ const aclonica = Aclonica({
   weight: '400',
   subsets: ['latin'],
 });
-
-const HERO_PORTRAITS = [
-  {
-    path: '/Photos/Nain/Nain235.webp',
-    position: 'left-[3%] top-[18%]',
-    size: 'w-32 h-44 md:w-44 md:h-60',
-    rotation: '-rotate-6',
-    delay: 0,
-    hideMobile: false,
-  },
-  {
-    path: '/Photos/Elfe/Elfe34.webp',
-    position: 'right-[4%] top-[12%]',
-    size: 'w-28 h-40 md:w-40 md:h-56',
-    rotation: 'rotate-3',
-    delay: 0.3,
-    hideMobile: false,
-  },
-  {
-    path: '/Photos/Humain/Humain1.webp',
-    position: 'left-[12%] bottom-[18%]',
-    size: 'w-28 h-38 md:w-36 md:h-48',
-    rotation: 'rotate-6',
-    delay: 0.6,
-    hideMobile: true,
-  },
-  {
-    path: '/Photos/Orc/Orc1.webp',
-    position: 'right-[10%] bottom-[15%]',
-    size: 'w-28 h-38 md:w-38 md:h-52',
-    rotation: '-rotate-3',
-    delay: 0.9,
-    hideMobile: true,
-  },
-  {
-    path: '/Photos/Drakonide/Drakonide1.webp',
-    position: 'left-[28%] top-[8%]',
-    size: 'w-24 h-32 md:w-32 md:h-44',
-    rotation: 'rotate-2',
-    delay: 1.2,
-    hideMobile: false,
-  },
-];
-
-const FloatingPortrait = ({
-  src,
-  position,
-  size,
-  rotation,
-  delay,
-  index,
-  scrollProgress,
-  hideMobile,
-}: {
-  src: string;
-  position: string;
-  size: string;
-  rotation: string;
-  delay: number;
-  index: number;
-  scrollProgress: any;
-  hideMobile: boolean;
-}) => {
-  const y = useTransform(scrollProgress, [0, 0.3], [0, -60 - index * 20]);
-  const opacity = useTransform(scrollProgress, [0, 0.25], [1, 0]);
-
-  return (
-    <motion.div
-      className={cn(
-        'absolute z-0 rounded-2xl overflow-hidden border border-[#c9a965]/20 shadow-xl pointer-events-none',
-        position,
-        size,
-        rotation,
-        hideMobile && 'hidden md:block',
-      )}
-      style={{ y, opacity, willChange: 'transform' }}
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{
-        opacity: 1,
-        scale: 1,
-        y: [0, -12, 0],
-      }}
-      transition={{
-        opacity: { duration: 0.8, delay: delay + 0.5 },
-        scale: { duration: 0.8, delay: delay + 0.5 },
-        y: { duration: 3.5 + index * 0.5, repeat: Infinity, ease: 'easeInOut', delay: delay },
-      }}
-    >
-      {src && <img src={src} alt="" className="w-full h-full object-cover" loading="eager" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-    </motion.div>
-  );
-};
 
 const HeroHeader = ({
   onOpenAuth,
@@ -248,20 +154,12 @@ const Logo = () => {
 
 export function HeroSection() {
   const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
-  const [heroPortraits, setHeroPortraits] = React.useState<string[]>([]);
 
   const { statut, profil, seDeconnecter } = useSession();
   const isUserLoggedIn = statut === 'chargement' ? null : statut === 'connecte';
   // Même forme que l'ancien document Firestore (pp, name) pour le menu utilisateur
   const userData = profil ? { pp: profil.avatarUrl, name: profil.name, email: profil.email } : null;
   const router = useRouter();
-  const { scrollYProgress } = useScroll();
-
-  const heroRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    Promise.all(HERO_PORTRAITS.map((p) => mapImagePath(p.path))).then(setHeroPortraits);
-  }, []);
 
   const handleStartAdventure = () => {
     if (isUserLoggedIn) {
@@ -282,7 +180,7 @@ export function HeroSection() {
         router={router}
       />
       <main className="overflow-x-hidden">
-        <div ref={heroRef} className="relative">
+        <div className="relative">
           <CanvaSection onStart={handleStartAdventure} isUserLoggedIn={isUserLoggedIn} />
           <div
             className="absolute bottom-0 left-0 w-full h-[420px] pointer-events-none z-10"
@@ -292,82 +190,6 @@ export function HeroSection() {
             }}
           />
         </div>
-
-        {/* Ancien hero (portraits flottants), conservé mais inutilisé —
-                    voir CanvaSection ci-dessus pour le hero actif. */}
-        {false && (
-          <section className="relative min-h-screen flex items-center justify-center">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {heroPortraits.map((src, i) => (
-                <FloatingPortrait
-                  key={i}
-                  src={src}
-                  position={HERO_PORTRAITS[i].position}
-                  size={HERO_PORTRAITS[i].size}
-                  rotation={HERO_PORTRAITS[i].rotation}
-                  delay={HERO_PORTRAITS[i].delay}
-                  index={i}
-                  scrollProgress={scrollYProgress}
-                  hideMobile={HERO_PORTRAITS[i].hideMobile}
-                />
-              ))}
-            </div>
-
-            <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-              >
-                <h1
-                  className={cn(
-                    'text-5xl md:text-6xl xl:text-8xl gold-text-gradient leading-tight',
-                    aclonica.className,
-                  )}
-                >
-                  Votre table virtuelle ultime
-                </h1>
-              </motion.div>
-              <motion.p
-                className={cn(
-                  'mt-6 max-w-2xl mx-auto text-lg md:text-xl text-white/70',
-                  aclonica.className,
-                )}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-              >
-                Créez des aventures épiques avec votre groupe. Plateforme VTT simple et intuitive.
-              </motion.p>
-
-              <motion.div
-                className="mt-10 flex items-center justify-center"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.8 }}
-              >
-                <InteractiveHoverButton
-                  onClick={handleStartAdventure}
-                  disabled={isUserLoggedIn === null}
-                  className={cn('h-14 px-8 text-lg', aclonica.className)}
-                >
-                  {isUserLoggedIn === null ? 'Chargement...' : "Commencer l'aventure"}
-                </InteractiveHoverButton>
-              </motion.div>
-            </div>
-
-            <motion.div
-              className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/40"
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <span className={cn('text-xs tracking-widest uppercase', aclonica.className)}>
-                Découvrir
-              </span>
-              <ChevronDown className="w-5 h-5" />
-            </motion.div>
-          </section>
-        )}
 
         <motion.section
           initial={{ opacity: 0, y: 50 }}
