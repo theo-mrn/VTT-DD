@@ -55,6 +55,8 @@ type Mode = 'players' | 'npcs';
 
 interface Member {
   info: CharacterInfo;
+  /** Portrait, sinon l'image de son token sur la scène (PNJ), sinon son token du Studio. */
+  image: string | null;
   /** Premier token du personnage sur la scène (pour centrer la vue). */
   tokenId: string;
 }
@@ -93,7 +95,9 @@ function useMembers(tokens: TokensState, mode: Mode, mine: readonly string[]): M
       const info = byId.get(id);
       if (!info || (mode === 'npcs') !== isNpc(info)) continue;
       seen.add(id);
-      out.push({ info, tokenId });
+      const image =
+        info.portraitUrl ?? (t as unknown as TokenData).imageUrl ?? info.tokenUrl ?? null;
+      out.push({ info, tokenId, image });
     }
     // Les miens d'abord
     return out.sort((a, b) => Number(mine.includes(b.info.id)) - Number(mine.includes(a.info.id)));
@@ -280,7 +284,7 @@ function MemberAvatar({
             </svg>
             <Illustration
               largeur={size}
-              src={info.portraitUrl}
+              src={member.image}
               graine={name}
               position="top"
               className={cn('size-[31px] rounded-full', down && 'opacity-60 grayscale')}
@@ -329,7 +333,7 @@ function MemberCard({
       <div className="flex items-center gap-3">
         <Illustration
           largeur={48}
-          src={info.portraitUrl}
+          src={member.image}
           graine={name}
           position="top"
           className="size-12 shrink-0 rounded-xl ring-1 ring-border"
@@ -606,7 +610,7 @@ function Overflow({
               >
                 <Illustration
                   largeur={28}
-                  src={m.info.portraitUrl}
+                  src={m.image}
                   graine={m.info.name ?? '?'}
                   position="top"
                   className="size-7 shrink-0 rounded-full"

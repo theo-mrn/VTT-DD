@@ -118,6 +118,8 @@ export interface CampaignCharacterApi {
   avatarUrl: string | null;
   /** Token du Studio du portrait ; null : le portrait sert de token. */
   tokenUrl?: string | null;
+  /** Image d'un de ses tokens sur les cartes (PNJ sans portrait) : dernier recours. */
+  mapImageUrl?: string | null;
   type: string | null;
   /** Personnage joueur ou PNJ, selon character ; null s'il ne le dit pas. */
   kind: CharacterKindApi | null;

@@ -53,7 +53,9 @@ export function useCast(campaignId: string) {
       (list.data ?? []).map((c) => ({
         id: c.characterId,
         name: c.name ?? UNKNOWN_NAME,
-        portraitUrl: c.avatarUrl,
+        // Sans portrait (PNJ du bestiaire, d'un modèle) : son token du Studio, sinon son image
+        // sur la carte
+        portraitUrl: c.avatarUrl ?? c.tokenUrl ?? c.mapImageUrl ?? null,
         side: c.side,
         kind: c.kind,
         playedBy: c.playedBy,

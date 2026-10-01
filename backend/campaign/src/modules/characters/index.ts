@@ -36,7 +36,7 @@
  * avec son `token.deleted`.
  */
 import { HttpError } from '@vtt/platform';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -71,6 +71,11 @@ const CampaignCharacter = z.object({
   avatarUrl: z.string().nullable(),
   /** Token du Studio du portrait (carte, listes) ; null : le portrait sert de token. */
   tokenUrl: z.string().nullable(),
+  /**
+   * Image d'un de ses tokens sur les cartes de la campagne (PNJ posés depuis le bestiaire ou un
+   * modèle, sans portrait) : dernier recours des listes et du combat ; null sans token imagé.
+   */
+  mapImageUrl: z.string().nullable(),
   type: z.string().nullable(),
   /** Personnage joueur ou PNJ, depuis character ; null s'il ne le dit pas. */
   kind: z.enum(['pc', 'npc']).nullable(),
@@ -140,11 +145,27 @@ async function campaignCharactersOf(
       }),
     ),
   );
+  // Image de token par personnage (le premier token imagé, pour les personnages listés)
+  const ids = engagements.map((e) => e.characterId);
+  const images = new Map<string, string>();
+  if (ids.length)
+    for (const t of await deps.db
+      .select({ characterId: mapTokens.characterId, imageUrl: mapTokens.imageUrl })
+      .from(mapTokens)
+      .where(
+        and(
+          eq(mapTokens.campaignId, a.campaign.id),
+          inArray(mapTokens.characterId, ids),
+          isNotNull(mapTokens.imageUrl),
+        ),
+      ))
+      if (t.imageUrl && !images.has(t.characterId)) images.set(t.characterId, t.imageUrl);
   const list = engagements.map((e, i) => ({
     characterId: e.characterId,
     name: summaries[i]?.name ?? null,
     avatarUrl: summaries[i]?.avatarUrl ?? null,
     tokenUrl: summaries[i]?.tokenUrl ?? null,
+    mapImageUrl: images.get(e.characterId) ?? null,
     type: summaries[i]?.type ?? null,
     kind: summaries[i]?.kind ?? null,
     side: e.side,

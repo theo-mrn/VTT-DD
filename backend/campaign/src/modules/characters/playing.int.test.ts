@@ -67,6 +67,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
         name: 'Aria',
         avatarUrl: 'https://img/aria.png',
         tokenUrl: null,
+        mapImageUrl: null,
         type: 'personnage',
         kind: 'pc',
         side: 'players',
@@ -80,6 +81,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
         name: 'Gobelin',
         avatarUrl: null,
         tokenUrl: null,
+        mapImageUrl: null,
         type: 'pnj',
         // Ancienne version de character : ni nature (joueur / PNJ) ni résumé
         kind: null,
