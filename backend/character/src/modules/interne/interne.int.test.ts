@@ -63,6 +63,7 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
       ownerId: alice.id,
       nom: 'Thorin',
       avatarUrl: null,
+      tokenUrl: null,
       systeme: { id: 'dnd-classic', version: expect.any(String) },
       type: 'personnage',
       kind: 'pc',

@@ -12,7 +12,12 @@ import { findWriteRoutes, routeKey, type WriteRoute } from '@vtt/platform/testin
 import { beforeAll, describe, expect, it } from 'vitest';
 
 /** Routes d'écriture sans événement, et pourquoi. */
-const EXCEPTIONS: Record<string, string> = {};
+const EXCEPTIONS: Record<string, string> = {
+  'POST /v1/characters/:id/uploads':
+    'billet d’envoi signé : le fichier n’est rattaché qu’au PATCH du portrait, qui émet',
+  'POST /v1/characters/:id/uploads/import':
+    'copie d’une image distante sur le stockage : rattachée ensuite par le PATCH du portrait',
+};
 
 describe('garde-fou : chaque route d’écriture émet un événement', () => {
   let routes: WriteRoute[] = [];
