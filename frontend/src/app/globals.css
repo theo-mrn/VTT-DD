@@ -99,7 +99,6 @@
     font-feature-settings:
       'ss01' 1,
       'cv11' 1;
-    text-rendering: optimizeLegibility;
   }
 
   ::selection {
