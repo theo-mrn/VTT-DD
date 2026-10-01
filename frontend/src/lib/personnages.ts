@@ -406,11 +406,88 @@ export const clesPersonnages = {
   un: (id: string) => ['personnages', 'un', id] as const,
 };
 
-/** Listes à recharger après une écriture (les fiches complètes sont à jour dans le cache). */
+/** Listes à recharger (création, suppression, engagement) : les fiches complètes restent. */
 function invaliderListes(client: QueryClient) {
   void client.invalidateQueries({
     queryKey: clesPersonnages.racine,
     predicate: (q) => q.queryKey[1] !== 'un',
+  });
+}
+
+/** La liste en cache (les miens, une campagne) contient ce personnage. */
+function listeContient(data: unknown, id: string): boolean {
+  return (
+    Array.isArray(data) &&
+    data.some((p: { id?: unknown; characterId?: unknown }) => p?.id === id || p?.characterId === id)
+  );
+}
+
+/**
+ * Recharge seulement les listes en cache où figure ce personnage (changement distant d'une
+ * fiche que personne n'affiche ici) : les autres ne sont pas concernées.
+ */
+export function invaliderListesAvec(client: QueryClient, id: string) {
+  void client.invalidateQueries({
+    queryKey: clesPersonnages.racine,
+    predicate: (q) => q.queryKey[1] !== 'un' && listeContient(q.state.data, id),
+  });
+}
+
+/** Remplace l'élément trouvé ; undefined (rien à changer) laisse la liste telle quelle. */
+function remplacerDans<T>(
+  liste: T[] | undefined,
+  trouve: (x: T) => boolean,
+  suivant: (x: T) => T,
+): T[] | undefined {
+  if (!liste) return undefined;
+  const i = liste.findIndex(trouve);
+  if (i < 0) return undefined;
+  const copie = liste.slice();
+  copie[i] = suivant(liste[i]!);
+  return copie;
+}
+
+/**
+ * Après une écriture (ou la relecture d'une fiche changée ailleurs) : la fiche fraîche
+ * reporte nom, portrait et résumé dans les listes en cache, sans les relire. Elles sont
+ * seulement marquées périmées : relues à leur prochain affichage.
+ */
+export function reporterDansListes(client: QueryClient, fiche: FichePersonnage) {
+  client.setQueryData<CharacterListItemApi[]>(clesPersonnages.miens, (liste) =>
+    remplacerDans(
+      liste,
+      (p) => p.id === fiche.id,
+      (p) => ({
+        ...p,
+        nom: fiche.name,
+        avatarUrl: fiche.portraitUrl,
+        creation: fiche.inCreation,
+        concept: fiche.details.concept,
+        summary: fiche.summary,
+        updatedAt: fiche.updatedAt,
+      }),
+    ),
+  );
+  client.setQueriesData<CampaignCharacterApi[]>(
+    { queryKey: [...clesPersonnages.racine, 'campagne'] },
+    (liste) =>
+      remplacerDans(
+        liste,
+        (e) => e.characterId === fiche.id,
+        (e) => ({
+          ...e,
+          name: fiche.name,
+          avatarUrl: fiche.portraitUrl,
+          tokenUrl: fiche.tokenUrl,
+          inCreation: fiche.inCreation,
+          summary: fiche.summary,
+        }),
+      ),
+  );
+  void client.invalidateQueries({
+    queryKey: clesPersonnages.racine,
+    predicate: (q) => q.queryKey[1] !== 'un' && listeContient(q.state.data, fiche.id),
+    refetchType: 'none',
   });
 }
 
@@ -461,7 +538,7 @@ function ecrire(
       client.setQueryData<FichePersonnage>(cle, (p) =>
         reste > 0 && p ? { ...fiche, state: p.state, sheetLayout: p.sheetLayout } : fiche,
       );
-      invaliderListes(client);
+      reporterDansListes(client, fiche);
       return { fiche, brut };
     } catch (err) {
       if (err instanceof ApiError && err.problem.code === 'version_perimee') {
@@ -595,6 +672,7 @@ export function useOperationsPersonnage(id: string): OperationsPersonnage {
         const r = await w((version) => post('/possessions/give', { version, ...d }), apercu);
         // Le receveur a changé aussi : sa fiche en cache est relue
         void client.invalidateQueries({ queryKey: clesPersonnages.un(d.to) });
+        invaliderListesAvec(client, d.to);
         return r.fiche;
       },
       dossiers: async (folders, apercu) =>
@@ -663,7 +741,7 @@ export function useOperationsPersonnage(id: string): OperationsPersonnage {
             : null;
           if (fiche) {
             client.setQueryData(clesPersonnages.un(id), fiche);
-            invaliderListes(client);
+            reporterDansListes(client, fiche);
           }
           return { resultat: r.resultat, fiche };
         }),

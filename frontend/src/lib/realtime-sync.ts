@@ -14,11 +14,16 @@
 'use client';
 
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { campaignSettingsKey } from './campaign-settings';
 import { clePersonnagesCampagne, clesCampagnes } from './campagnes';
-import { clesPersonnages, type FichePersonnage } from './personnages';
-import { useCampaignEvents, type RealtimeEvent } from './realtime';
+import {
+  clesPersonnages,
+  invaliderListesAvec,
+  reporterDansListes,
+  type FichePersonnage,
+} from './personnages';
+import type { RealtimeEvent } from './realtime';
+import { relireVersion, usePontCampagne, useRelectureUnique } from './realtime-bridge';
 import { useProfil } from './session';
 
 const TYPES = ['campaign.*', 'character.*'] as const;
@@ -28,6 +33,27 @@ function invaliderListesPersonnages(client: QueryClient) {
   void client.invalidateQueries({
     queryKey: clesPersonnages.racine,
     predicate: (q) => q.queryKey[1] !== 'un',
+  });
+}
+
+/**
+ * Fiche changée ailleurs : affichée ici, elle est relue (sans annuler une lecture déjà en
+ * route, revérifiée sur la version annoncée) et son résumé reporté dans les listes ; sinon,
+ * seules les listes qui la montrent sont relues.
+ */
+function relireFicheChangee(client: QueryClient, id: string, version: number | null) {
+  const cle = clesPersonnages.un(id);
+  const affichee =
+    (client.getQueryCache().find({ queryKey: cle, exact: true })?.getObserversCount() ?? 0) > 0;
+  if (!affichee) {
+    void client.invalidateQueries({ queryKey: cle });
+    invaliderListesAvec(client, id);
+    return;
+  }
+  void relireVersion<FichePersonnage>(client, cle, version, (f) => f.version).then(() => {
+    const f = client.getQueryData<FichePersonnage>(cle);
+    if (f) reporterDansListes(client, f);
+    else invaliderListesAvec(client, id);
   });
 }
 
@@ -94,8 +120,12 @@ export function appliquerEvenement(client: QueryClient, moi: string, e: Realtime
       const version = typeof payload.version === 'number' ? payload.version : null;
       // Déjà à jour : c'est mon écriture, appliquée par sa réponse
       if (connue && version !== null && connue.version >= version) return;
-      void client.invalidateQueries({ queryKey: clesPersonnages.un(id) });
-      invaliderListesPersonnages(client);
+      // La mise en page ne change rien aux listes (nom, portrait, résumé)
+      if (type === 'character.layout_changed') {
+        void client.invalidateQueries({ queryKey: clesPersonnages.un(id) });
+        return;
+      }
+      relireFicheChangee(client, id, version);
       return;
     }
     if (type === 'character.created') invaliderListesPersonnages(client);
@@ -106,6 +136,9 @@ export function appliquerEvenement(client: QueryClient, moi: string, e: Realtime
  * Tient à jour en direct une campagne (détail, sessions, personnages engagés)
  * et, s'il est donné, un personnage affiché. À chaque (ré)abonnement sans rejeu
  * possible, l'état est relu en REST. Sans campagne : rien.
+ *
+ * Plusieurs composants le demandent (la table, la fiche, le HUD…) : le pont est
+ * partagé, chaque événement appliqué une fois (`realtime-bridge.ts`).
  */
 export function useSynchroCampagne(
   campaignId: string | null | undefined,
@@ -113,20 +146,22 @@ export function useSynchroCampagne(
 ): { live: boolean } {
   const client = useQueryClient();
   const moi = useProfil().id;
-  const { live, generation } = useCampaignEvents(
-    campaignId ?? null,
+  const { live, generation } = usePontCampagne(
+    'synchro',
+    campaignId,
     TYPES,
-    (e) => appliquerEvenement(client, moi, e),
-    { enabled: Boolean(campaignId) },
+    (c, _id, e) => appliquerEvenement(c, moi, e),
+    (c, id) => {
+      void c.invalidateQueries({ queryKey: clesCampagnes.une(id) });
+      void c.invalidateQueries({ queryKey: clePersonnagesCampagne(id) });
+    },
   );
   const personnage = options.personnage ?? null;
-
-  useEffect(() => {
-    if (!campaignId || generation === 0) return;
-    void client.invalidateQueries({ queryKey: clesCampagnes.une(campaignId) });
-    void client.invalidateQueries({ queryKey: clePersonnagesCampagne(campaignId) });
-    if (personnage) void client.invalidateQueries({ queryKey: clesPersonnages.un(personnage) });
-  }, [client, campaignId, generation, personnage]);
+  useRelectureUnique(
+    campaignId && personnage ? `synchro|${campaignId}|${personnage}` : null,
+    generation,
+    () => void client.invalidateQueries({ queryKey: clesPersonnages.un(personnage!) }),
+  );
 
   return { live };
 }
