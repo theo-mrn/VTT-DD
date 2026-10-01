@@ -15,7 +15,8 @@
  * - Destruction complète : scène, textures chargées, contexte WebGL rendu au navigateur.
  */
 import * as PIXI from 'pixi.js';
-import { Application, Assets, Container, Graphics, Text, type Texture } from 'pixi.js';
+import { Application, Assets, Container, Graphics, ImageSource, Text, Texture } from 'pixi.js';
+import { surCdn, vignette } from '@/lib/assets';
 import { prefersEconomy } from '@/lib/perf/device';
 import { MapBackground } from './background';
 import { CursorLayer } from './cursors';
@@ -126,6 +127,9 @@ class PixiView implements EngineView {
 
   // Textures chargées par le moteur et les sortes (libérées à la destruction)
   private readonly textures = new Map<string, Promise<Texture>>();
+  /** Textures réduites décodées ici (hors cache Assets), détruites avec la vue. */
+  private readonly thumbnails = new Map<string, Promise<Texture>>();
+  private readonly ownTextures = new Set<Texture>();
 
   // Surcouches
   private readonly adorn = new Graphics({ label: 'adornments' });
@@ -232,9 +236,57 @@ class PixiView implements EngineView {
       theme: this.theme,
       screenSpace: this.engine.screenSpace,
       texture: this.textureFn,
+      thumbnail: this.thumbnailFn,
       invalidate: this.invalidateFn,
     };
     return this.rc;
+  }
+
+  private readonly thumbnailFn = (url: string, size: number) => this.thumbnail(url, size);
+
+  /**
+   * Texture réduite d'une image : redimensionnée par le CDN quand il la sert, sinon décodée
+   * ici au plus `size` pixels de petit côté (mipmaps compris). L'original en cas d'échec.
+   */
+  thumbnail(url: string, size: number): Promise<Texture> {
+    if (surCdn(url)) return this.texture(vignette(url, size));
+    const key = `${size}:${url}`;
+    let t = this.thumbnails.get(key);
+    if (!t) {
+      t = this.decodeThumbnail(url, size).catch(() => this.texture(url));
+      this.thumbnails.set(key, t);
+    }
+    return t;
+  }
+
+  private async decodeThumbnail(url: string, size: number): Promise<Texture> {
+    if (typeof createImageBitmap !== 'function') throw new Error('createImageBitmap absent');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Image illisible (${res.status})`);
+    let bitmap = await createImageBitmap(await res.blob());
+    const k = size / Math.min(bitmap.width, bitmap.height);
+    if (k < 1) {
+      const resized = await createImageBitmap(bitmap, {
+        resizeWidth: Math.max(1, Math.round(bitmap.width * k)),
+        resizeHeight: Math.max(1, Math.round(bitmap.height * k)),
+        resizeQuality: 'high',
+      });
+      bitmap.close();
+      bitmap = resized;
+    }
+    if (this.destroyed) {
+      bitmap.close();
+      throw new Error('Vue détruite');
+    }
+    const texture = new Texture({
+      source: new ImageSource({
+        resource: bitmap,
+        alphaMode: 'premultiply-alpha-on-upload',
+        autoGenerateMipmaps: true,
+      }),
+    });
+    this.ownTextures.add(texture);
+    return texture;
   }
 
   private readonly textureFn = (url: string) => this.texture(url);
@@ -600,6 +652,13 @@ class PixiView implements EngineView {
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     for (const url of this.textures.keys()) void Assets.unload(url).catch(() => undefined);
     this.textures.clear();
+    for (const t of this.ownTextures) {
+      const bitmap = t.source.resource as ImageBitmap | undefined;
+      t.destroy(true);
+      bitmap?.close?.();
+    }
+    this.ownTextures.clear();
+    this.thumbnails.clear();
     this.layerContainers.clear();
     this.cursorLayer.destroy();
     // Rendre le contexte WebGL tout de suite (HMR, changement de scène) : pas de fuite

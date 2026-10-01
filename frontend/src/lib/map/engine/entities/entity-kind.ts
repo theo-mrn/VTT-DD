@@ -146,6 +146,11 @@ export interface RenderContext extends KindContext {
   screenSpace: ScreenSpace;
   /** Texture d'une image (chargée une fois, gardée par le moteur). */
   texture(url: string): Promise<Pixi.Texture>;
+  /**
+   * Texture réduite d'une image (petit côté à `size` pixels au plus, chargée une fois) : un
+   * portrait de 70 px n'a pas besoin de l'original. Absente : `texture`.
+   */
+  thumbnail?(url: string, size: number): Promise<Pixi.Texture>;
   /** Redemande une image (après un chargement asynchrone). */
   invalidate(): void;
 }

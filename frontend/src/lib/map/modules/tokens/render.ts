@@ -222,6 +222,9 @@ export function disposeToken(entity: MapEntity<TokenData>) {
 
 // ─── Texture du portrait ─────────────────────────────────────────────────────
 
+/** Petit côté de la texture d'un portrait, en pixels (un token fait ~70 px à l'écran). */
+export const PORTRAIT_TEXTURE_PX = 256;
+
 function loadTexture(
   entity: MapEntity<TokenData>,
   v: TokenVisual,
@@ -236,7 +239,8 @@ function loadTexture(
   }
   if (v.textureUrl === url || v.loading === url) return;
   v.loading = url;
-  ctx.texture(url).then(
+  // Portrait de quelques dizaines de pixels : une version réduite, pas l'original
+  (ctx.thumbnail ? ctx.thumbnail(url, PORTRAIT_TEXTURE_PX) : ctx.texture(url)).then(
     (texture) => {
       if (v.loading !== url || v.body.destroyed) return;
       v.loading = null;
