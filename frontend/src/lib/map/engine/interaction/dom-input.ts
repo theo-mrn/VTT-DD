@@ -44,10 +44,19 @@ interface GestureLike extends UIEvent {
 export function bindDomInput(engine: MapEngine, el: HTMLElement): () => void {
   const controller = engine.controller;
 
-  const local = (clientX: number, clientY: number) => {
-    const r = el.getBoundingClientRect();
-    return { x: clientX - r.left, y: clientY - r.top };
+  // Place de la carte dans la page, en cache : un `getBoundingClientRect` par mouvement du
+  // pointeur forcerait la mise en page. Relue au redimensionnement, au défilement, à l'entrée du
+  // pointeur et au début d'un geste (un panneau voisin a pu la décaler)
+  let rect: DOMRect | null = null;
+  const forget = () => {
+    rect = null;
   };
+  const local = (clientX: number, clientY: number) => {
+    rect ??= el.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+  const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(forget) : null;
+  resizeObserver?.observe(el);
 
   const toPointer = (e: PointerEvent, button: number): MapPointer => {
     const screen = local(e.clientX, e.clientY);
@@ -69,6 +78,7 @@ export function bindDomInput(engine: MapEngine, el: HTMLElement): () => void {
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.target !== el && !(e.target instanceof HTMLCanvasElement)) return;
+    forget();
     el.focus({ preventScroll: true });
     try {
       el.setPointerCapture(e.pointerId);
@@ -126,6 +136,7 @@ export function bindDomInput(engine: MapEngine, el: HTMLElement): () => void {
   };
 
   el.addEventListener('pointerdown', onPointerDown);
+  el.addEventListener('pointerenter', forget);
   el.addEventListener('pointermove', onPointerMove);
   el.addEventListener('pointerup', onPointerUp);
   el.addEventListener('pointercancel', onPointerCancel);
@@ -138,8 +149,14 @@ export function bindDomInput(engine: MapEngine, el: HTMLElement): () => void {
   el.addEventListener('keyup', onKeyUp);
   el.addEventListener('blur', onBlur);
   window.addEventListener('keydown', onWindowKeyDown, { capture: true });
+  window.addEventListener('scroll', forget, { capture: true, passive: true });
+  window.addEventListener('resize', forget);
 
   return () => {
+    resizeObserver?.disconnect();
+    el.removeEventListener('pointerenter', forget);
+    window.removeEventListener('scroll', forget, { capture: true });
+    window.removeEventListener('resize', forget);
     el.removeEventListener('pointerdown', onPointerDown);
     el.removeEventListener('pointermove', onPointerMove);
     el.removeEventListener('pointerup', onPointerUp);
