@@ -112,7 +112,9 @@ export function Soundboard({
                   <Icon
                     className={cn(
                       'size-3.5 shrink-0',
-                      actif ? 'animate-pulse text-primary-strong' : 'text-muted-foreground',
+                      actif
+                        ? 'animate-pulse-slow text-primary-strong motion-reduce:animate-none'
+                        : 'text-muted-foreground',
                     )}
                     aria-hidden
                   />

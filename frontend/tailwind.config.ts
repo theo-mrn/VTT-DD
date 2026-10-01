@@ -131,6 +131,8 @@ const config: Config = {
         'border-beam': 'border-beam var(--duration) infinite linear',
         shine: 'shine var(--duration) infinite linear',
         'glow-pulse': 'glow-pulse 3s ease-in-out infinite',
+        // État durable (son en lecture) : respiration d'opacité lente, rien d'autre
+        'pulse-slow': 'glow-pulse 4s ease-in-out infinite',
         float: 'float 6s ease-in-out infinite',
         'shake-die': 'shake-die 0.35s ease-in-out infinite',
       },

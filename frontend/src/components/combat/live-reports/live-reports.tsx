@@ -226,7 +226,7 @@ export function ReportsToggle({ live }: { live: Live }) {
         ) : (
           <span
             aria-hidden
-            className="absolute right-0.5 top-0.5 size-2 animate-pulse rounded-full bg-warning motion-reduce:animate-none"
+            className="absolute right-0.5 top-0.5 size-2 animate-pulse rounded-full bg-warning [animation-iteration-count:4] motion-reduce:animate-none"
           />
         )}
       </button>

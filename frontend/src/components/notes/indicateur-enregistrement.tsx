@@ -35,7 +35,7 @@ export function IndicateurEnregistrement({
           {cle === 'en-attente' && (
             <>
               <span className="relative flex size-2 items-center justify-center" aria-hidden>
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/50" />
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/50 motion-reduce:hidden" />
                 <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
               </span>
               <span className="text-muted-foreground">Enregistrement…</span>

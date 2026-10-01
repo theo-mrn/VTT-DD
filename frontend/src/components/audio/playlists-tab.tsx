@@ -404,7 +404,10 @@ function PlaylistView({
                   className="grid size-6 shrink-0 place-items-center rounded text-[12px] tabular-nums text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
                 >
                   {actif && joue ? (
-                    <Music className="size-3.5 animate-pulse text-primary-strong" aria-hidden />
+                    <Music
+                      className="size-3.5 animate-pulse-slow text-primary-strong motion-reduce:animate-none"
+                      aria-hidden
+                    />
                   ) : (
                     <>
                       <span className="group-hover:hidden">{i + 1}</span>

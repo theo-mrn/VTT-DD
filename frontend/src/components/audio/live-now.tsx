@@ -87,7 +87,10 @@ function LiveLine({ live }: { live: ReturnType<typeof useLiveSounds> }) {
           const Icon = k.icon;
           return (
             <span key={l.id} className="inline-flex min-w-0 items-center gap-1.5">
-              <Icon className="size-3.5 shrink-0 animate-pulse text-primary-strong" aria-hidden />
+              <Icon
+                className="size-3.5 shrink-0 animate-pulse-slow text-primary-strong motion-reduce:animate-none"
+                aria-hidden
+              />
               <span className="max-w-48 truncate text-foreground">{l.label || k.label}</span>
               <span className="text-subtle">{k.label.toLowerCase()}</span>
             </span>
