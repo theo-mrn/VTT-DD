@@ -2,15 +2,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Aclonica } from 'next/font/google';
 import { ChevronDown } from 'lucide-react';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
 import { vignette } from '@/lib/assets';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 const CDN = 'https://assets.yner.fr';
 
@@ -241,14 +235,14 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
             <h1
               className={cn(
                 'relative text-6xl md:text-7xl xl:text-9xl leading-tight shimmer-text',
-                aclonica.className,
+                'font-logo',
               )}
             >
               Yner
             </h1>
           </motion.div>
           <motion.p
-            className={cn('mt-4 max-w-md text-base md:text-lg text-white/60', aclonica.className)}
+            className={cn('mt-4 max-w-md text-base md:text-lg text-white/60', 'font-logo')}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
@@ -266,7 +260,7 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
             <InteractiveHoverButton
               onClick={onStart}
               disabled={isUserLoggedIn === null}
-              className={cn('h-14 px-8 text-lg', aclonica.className)}
+              className={cn('h-14 px-8 text-lg', 'font-logo')}
             >
               {isUserLoggedIn === null ? 'Chargement...' : "Commencer l'aventure"}
             </InteractiveHoverButton>
@@ -278,9 +272,7 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <span className={cn('text-xs tracking-widest uppercase', aclonica.className)}>
-            Découvrir
-          </span>
+          <span className={cn('text-xs tracking-widest uppercase', 'font-logo')}>Découvrir</span>
           <ChevronDown className="w-5 h-5" />
         </motion.div>
 
@@ -333,7 +325,7 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
                 <span
                   className={cn(
                     'text-xs text-white/80 bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap pointer-events-none',
-                    aclonica.className,
+                    'font-logo',
                   )}
                 >
                   {c.name}

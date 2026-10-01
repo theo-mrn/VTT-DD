@@ -3,7 +3,6 @@ import React from 'react';
 import YouTube, { YouTubeEvent } from 'react-youtube';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Aclonica } from 'next/font/google';
 import { Music, Play, Pause, Upload, Youtube, FileAudio, Library, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,11 +11,6 @@ import {
   SUGGESTED_MUSICS,
   MUSIC_CATEGORIES,
 } from '@/lib/suggested-sounds';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 function extractVideoId(url: string): string | null {
   const patterns = [
@@ -179,9 +173,7 @@ export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#c9a965] animate-pulse" />
           )}
         </div>
-        <h3 className={cn('text-lg font-semibold text-white', aclonica.className)}>
-          Ambiance sonore
-        </h3>
+        <h3 className={cn('text-lg font-semibold text-white', 'font-logo')}>Ambiance sonore</h3>
         <div className="mt-4 grid grid-cols-3 gap-2 bg-white/5 p-1 rounded-lg">
           <button
             onClick={() => setCreationType('file')}
@@ -214,7 +206,7 @@ export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
             onClick={() => fileInputRef.current?.click()}
             className={cn(
               'mt-2 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 bg-white/5 border border-dashed border-white/20 text-white/60 hover:text-white hover:border-[#c9a965]/40 transition-all text-xs cursor-pointer',
-              aclonica.className,
+              'font-logo',
             )}
           >
             <Upload className="w-3.5 h-3.5" />
@@ -240,14 +232,14 @@ export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
             canToggle
               ? 'bg-[#c9a965]/10 border-[#c9a965]/25 text-[#c9a965] hover:bg-[#c9a965]/20 cursor-pointer'
               : 'bg-white/5 border-white/10 text-white/25 cursor-not-allowed',
-            aclonica.className,
+            'font-logo',
           )}
         >
           {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
           {isPlaying ? 'Pause' : 'Lecture'}
         </button>
 
-        <p className={cn('mt-2 text-[9px] text-white/25 text-center', aclonica.className)}>
+        <p className={cn('mt-2 text-[9px] text-white/25 text-center', 'font-logo')}>
           Rien n&apos;est envoyé, tout reste dans votre navigateur.
         </p>
 
@@ -289,10 +281,7 @@ export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
             <div className="p-5 border-b border-white/10 flex flex-col gap-3 shrink-0">
               <div className="flex items-center justify-between">
                 <span
-                  className={cn(
-                    'text-sm tracking-widest uppercase text-[#c9a965]/80',
-                    aclonica.className,
-                  )}
+                  className={cn('text-sm tracking-widest uppercase text-[#c9a965]/80', 'font-logo')}
                 >
                   Bibliothèque
                 </span>
@@ -382,15 +371,13 @@ export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
                       ) : (
                         <Play className="w-3.5 h-3.5 shrink-0" />
                       )}
-                      <span className={cn('text-xs truncate', aclonica.className)}>
-                        {item.name}
-                      </span>
+                      <span className={cn('text-xs truncate', 'font-logo')}>{item.name}</span>
                     </button>
                   );
                 })}
               </div>
               {filteredLibraryItems.length === 0 && (
-                <p className={cn('text-center text-white/30 text-sm py-10', aclonica.className)}>
+                <p className={cn('text-center text-white/30 text-sm py-10', 'font-logo')}>
                   Aucun résultat.
                 </p>
               )}

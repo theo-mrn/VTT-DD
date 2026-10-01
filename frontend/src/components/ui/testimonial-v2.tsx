@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Aclonica } from 'next/font/google';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 interface Testimonial {
   text: string;
@@ -64,7 +58,7 @@ const TestimonialsColumn = (props: {
                     <p
                       className={cn(
                         'text-[#f5edd6]/70 leading-relaxed font-normal m-0 transition-colors duration-300',
-                        aclonica.className,
+                        'font-logo',
                       )}
                     >
                       &ldquo;{text}&rdquo;
@@ -81,7 +75,7 @@ const TestimonialsColumn = (props: {
                         <cite
                           className={cn(
                             'font-semibold not-italic tracking-tight leading-5 text-white transition-colors duration-300',
-                            aclonica.className,
+                            'font-logo',
                           )}
                         >
                           {name}
@@ -138,7 +132,7 @@ export const TestimonialsSection = () => {
             <div
               className={cn(
                 'border border-[#c9a965]/30 py-1 px-4 rounded-full text-xs font-semibold tracking-wide uppercase text-[#c9a965] bg-[#c9a965]/5 transition-colors',
-                aclonica.className,
+                'font-logo',
               )}
             >
               Témoignages
@@ -149,7 +143,7 @@ export const TestimonialsSection = () => {
             id="testimonials-heading"
             className={cn(
               'text-4xl md:text-5xl font-extrabold tracking-tight mt-6 text-center gold-text-gradient transition-colors',
-              aclonica.className,
+              'font-logo',
             )}
           >
             Ce que disent les aventuriers
@@ -157,7 +151,7 @@ export const TestimonialsSection = () => {
           <p
             className={cn(
               'text-center mt-5 text-white/50 text-lg leading-relaxed max-w-sm transition-colors',
-              aclonica.className,
+              'font-logo',
             )}
           >
             Découvrez les retours de la communauté sur leur expérience YNER.

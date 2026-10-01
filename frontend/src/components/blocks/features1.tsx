@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Aclonica } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import {
   UserCircle2,
@@ -15,11 +14,6 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { AmbiancePlayerCard } from '@/components/blocks/ambiance-widget';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 interface BentoCardProps {
   icon: React.ReactNode;
@@ -71,7 +65,7 @@ function BentoCard({
             compact
               ? 'text-lg font-semibold text-white'
               : 'text-xl md:text-2xl font-semibold text-white',
-            aclonica.className,
+            'font-logo',
           )}
         >
           {title}
@@ -82,7 +76,7 @@ function BentoCard({
           compact
             ? 'text-white/60 text-sm leading-relaxed'
             : 'text-white/60 text-sm md:text-base leading-relaxed max-w-md',
-          aclonica.className,
+          'font-logo',
         )}
       >
         {description}
@@ -157,7 +151,7 @@ function BentoVideoCard({
             compact
               ? 'text-lg font-semibold text-white'
               : 'text-xl md:text-2xl font-semibold text-white',
-            aclonica.className,
+            'font-logo',
           )}
         >
           {title}
@@ -168,7 +162,7 @@ function BentoVideoCard({
           compact
             ? 'text-white/60 text-sm leading-relaxed'
             : 'text-white/60 text-sm md:text-base leading-relaxed max-w-md',
-          aclonica.className,
+          'font-logo',
         )}
       >
         {description}
@@ -205,10 +199,8 @@ function MiniFeatureCard({ icon, title, description, delay }: MiniFeatureCardPro
       <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#c9a965]/10 text-[#c9a965] shrink-0 mb-3">
         {icon}
       </div>
-      <h3 className={cn('text-lg font-semibold text-white', aclonica.className)}>{title}</h3>
-      <p className={cn('mt-2 text-white/60 text-sm leading-relaxed', aclonica.className)}>
-        {description}
-      </p>
+      <h3 className={cn('text-lg font-semibold text-white', 'font-logo')}>{title}</h3>
+      <p className={cn('mt-2 text-white/60 text-sm leading-relaxed', 'font-logo')}>{description}</p>
     </motion.div>
   );
 }
@@ -253,7 +245,7 @@ export function Features1() {
           <span
             className={cn(
               'text-xs md:text-sm tracking-[0.3em] uppercase text-[#c9a965]/70',
-              aclonica.className,
+              'font-logo',
             )}
           >
             Fonctionnalités
@@ -261,12 +253,12 @@ export function Features1() {
           <h2
             className={cn(
               'mt-3 text-4xl font-semibold lg:text-5xl gold-text-gradient',
-              aclonica.className,
+              'font-logo',
             )}
           >
             Tout pour vos parties, au même endroit
           </h2>
-          <p className={cn('mt-6 text-lg text-white/60', aclonica.className)}>
+          <p className={cn('mt-6 text-lg text-white/60', 'font-logo')}>
             Création de personnage, table de jeu, fiches et éclairage dynamique — une plateforme
             complète pensée pour les rôlistes.
           </p>

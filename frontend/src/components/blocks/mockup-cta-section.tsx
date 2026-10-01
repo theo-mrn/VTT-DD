@@ -1,13 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
-import { Aclonica } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { Dices, Map, ScrollText, Users } from 'lucide-react';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 const HIGHLIGHTS = [
   { icon: Map, label: 'Cartes & tokens' },
@@ -29,19 +23,11 @@ export function MockupCtaSection({ onStart }: { onStart: () => void }) {
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           >
             <h2
-              className={cn(
-                'text-4xl font-semibold lg:text-5xl gold-text-gradient',
-                aclonica.className,
-              )}
+              className={cn('text-4xl font-semibold lg:text-5xl gold-text-gradient', 'font-logo')}
             >
               Tout ce dont vous avez besoin, dans votre navigateur
             </h2>
-            <p
-              className={cn(
-                'mt-6 text-lg text-white/60 max-w-xl mx-auto lg:mx-0',
-                aclonica.className,
-              )}
-            >
+            <p className={cn('mt-6 text-lg text-white/60 max-w-xl mx-auto lg:mx-0', 'font-logo')}>
               Cartes, tokens, dés, fiches de personnage, système de combat — une plateforme
               complète, sans installation.
             </p>
@@ -53,7 +39,7 @@ export function MockupCtaSection({ onStart }: { onStart: () => void }) {
                   className="glass-card rounded-xl px-4 py-3 flex items-center gap-2.5"
                 >
                   <Icon className="w-4 h-4 text-[#c9a965] shrink-0" />
-                  <span className={cn('text-sm text-white/80', aclonica.className)}>{label}</span>
+                  <span className={cn('text-sm text-white/80', 'font-logo')}>{label}</span>
                 </div>
               ))}
             </div>
@@ -62,7 +48,7 @@ export function MockupCtaSection({ onStart }: { onStart: () => void }) {
               onClick={onStart}
               className={cn(
                 'mt-10 px-8 py-3 rounded-full bg-[#c9a965] text-black font-semibold text-lg shadow-[0_0_30px_rgba(201,169,101,0.3)] hover:shadow-[0_0_50px_rgba(201,169,101,0.5)] hover:scale-105 transition-all duration-300',
-                aclonica.className,
+                'font-logo',
               )}
             >
               Commencer gratuitement

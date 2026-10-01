@@ -6,7 +6,6 @@ import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button
 import { cn } from '@/lib/utils';
 import { Menu, X, Mail, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Aclonica } from 'next/font/google';
 import { FormulaireConnexion } from '@/components/auth/formulaire-connexion';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/lib/session';
@@ -38,11 +37,6 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 const HeroHeader = ({
   onOpenAuth,
@@ -129,7 +123,7 @@ const HeroHeader = ({
                 ) : (
                   <InteractiveHoverButton
                     onClick={onOpenAuth}
-                    className={cn('text-sm', aclonica.className)}
+                    className={cn('text-sm', 'font-logo')}
                   >
                     S&apos;identifier
                   </InteractiveHoverButton>
@@ -147,7 +141,7 @@ const Logo = () => {
   return (
     <div className="flex items-center gap-3">
       <img src="/logo.png" alt="Yner Logo" className="h-12 w-auto drop-shadow-md" />
-      <h1 className={cn('text-3xl tracking-wider text-white', aclonica.className)}>YNER</h1>
+      <h1 className={cn('text-3xl tracking-wider text-white', 'font-logo')}>YNER</h1>
     </div>
   );
 };
@@ -222,7 +216,7 @@ export function HeroSection() {
               <span
                 className={cn(
                   'inline-block text-xs md:text-sm tracking-[0.3em] uppercase text-[#c9a965]/70',
-                  aclonica.className,
+                  'font-logo',
                 )}
               >
                 Bibliothèque
@@ -230,12 +224,12 @@ export function HeroSection() {
               <h2
                 className={cn(
                   'mt-3 text-4xl font-semibold lg:text-5xl gold-text-gradient',
-                  aclonica.className,
+                  'font-logo',
                 )}
               >
                 Plus de 1000 images et portraits
               </h2>
-              <p className={cn('mt-6 text-lg text-white/60', aclonica.className)}>
+              <p className={cn('mt-6 text-lg text-white/60', 'font-logo')}>
                 Une bibliothèque massive de portraits, cartes et tokens pour donner vie à votre
                 campagne.
               </p>
@@ -293,12 +287,12 @@ const Footer = ({ userData }: { userData: any }) => {
             <h2
               className={cn(
                 'text-3xl md:text-4xl font-bold tracking-tight gold-text-gradient',
-                aclonica.className,
+                'font-logo',
               )}
             >
               Un retour ?
             </h2>
-            <p className={cn('text-zinc-400 text-lg max-w-md', aclonica.className)}>
+            <p className={cn('text-zinc-400 text-lg max-w-md', 'font-logo')}>
               Votre avis nous aide à améliorer l&apos;aventure ! Dites-nous tout.
             </p>
             <div className="flex flex-wrap gap-4">
@@ -347,14 +341,14 @@ const FeedbackDialog = ({ userData }: { userData: any }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className={cn('rounded-full h-12 px-8', aclonica.className)}>
+        <Button className={cn('rounded-full h-12 px-8', 'font-logo')}>
           <Mail className="mr-2 h-5 w-5" />
           Nous écrire
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px] bg-[#0c0c0e] border-[#c9a965]/20 text-white shadow-2xl">
         <DialogHeader>
-          <DialogTitle className={cn('text-2xl gold-text-gradient', aclonica.className)}>
+          <DialogTitle className={cn('text-2xl gold-text-gradient', 'font-logo')}>
             Envoyer un feedback
           </DialogTitle>
           <DialogDescription className="text-zinc-400">
@@ -363,7 +357,7 @@ const FeedbackDialog = ({ userData }: { userData: any }) => {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
           <div className="space-y-2">
-            <Label htmlFor="message" className={cn('text-sm font-medium', aclonica.className)}>
+            <Label htmlFor="message" className={cn('text-sm font-medium', 'font-logo')}>
               Message
             </Label>
             <Textarea
@@ -380,7 +374,7 @@ const FeedbackDialog = ({ userData }: { userData: any }) => {
             <Button
               type="submit"
               disabled={isSending}
-              className={cn('w-full h-12 rounded-xl group', aclonica.className)}
+              className={cn('w-full h-12 rounded-xl group', 'font-logo')}
             >
               {isSending ? (
                 <span className="flex items-center">
