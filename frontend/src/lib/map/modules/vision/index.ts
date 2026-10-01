@@ -28,8 +28,8 @@ import { VisionState } from './vision-state';
 
 /** Opacité des personnages joueurs hors de ma vue (plan `allies`). */
 export const ALLIES_ALPHA = 0.6;
-/** Cadence de l'animation de la brume (images par seconde). */
-export const FOG_FPS = 20;
+/** Cadence de l'animation de la brume (images par seconde) : une dérive lente, 10 suffisent. */
+export const FOG_FPS = 10;
 
 /**
  * Applique masques et plans forcés décidés par l'état de la visibilité ; une entité sans
@@ -62,6 +62,21 @@ export const visionModule: MapModule = {
     let fogClock = 0;
     let lastTick = 0;
     let fogTimer: ReturnType<typeof setTimeout> | null = null;
+    // Entrées lues par `sync()` à la dernière image : inchangées, rien à refaire (ni vues, ni
+    // décisions). La caméra n'en fait pas partie (seul le rendu en dépend)
+    const inputs: unknown[] = [];
+    const inputsChanged = () => {
+      const next = [
+        engine.revision,
+        engine.viewer,
+        engine.ui.getState().viewAs,
+        engine.directory.characters(),
+        engine.directory.players?.(),
+      ];
+      const same = inputs.length === next.length && next.every((v, i) => v === inputs[i]);
+      if (!same) inputs.splice(0, inputs.length, ...next);
+      return !same;
+    };
 
     const cleanups: (() => void)[] = [
       exposeStats(stats),
@@ -103,9 +118,11 @@ export const visionModule: MapModule = {
     cleanups.push(
       engine.onFrame((now) => {
         const started = performance.now();
-        state.sync();
-        // Vue du MJ : aucune décision, tout se remontre et retrouve son plan
-        applyDecisions(engine, state, fades, now);
+        if (inputsChanged()) {
+          state.sync();
+          // Vue du MJ : aucune décision, tout se remontre et retrouve son plan
+          applyDecisions(engine, state, fades, now);
+        }
         const fading = fades.step(now);
         if (renderer) {
           // Horloge de la brume : avance seulement quand elle est animée

@@ -8,6 +8,9 @@
  * - `fog` (¼, floutée) : le brouillard lui-même (où dessiner la brume) ;
  * - `glow` (¼) : lueurs additives des lumières (couleur, intensité, dégradé), coupées par leur
  *   ligne de vue (polygone éventail) ;
+ * - `mist` (¼) : densité de la brume (bruit fractal ancré au monde, lent, désactivable), refaite
+ *   seulement quand elle dérive ou que la caméra bouge : le bruit coûte cher, il est calculé sur
+ *   un seizième des pixels puis lissé par le filtrage ;
  * - `vis` (½) : Vu = ⋃ observateurs, chacun dessiné sous masques stencil : sa ligne de vue
  *   (éventail exact, aucun mur soudé percé), sa pièce de confinement, moins les pièces fermées
  *   qui ne le contiennent pas ; dedans, `range` ∪ son disque de vision (bord doux), en `max`.
@@ -15,9 +18,8 @@
  *   `range` et `fog`, avant le découpage par les murs : les bords de la vue suivent les murs.
  *
  * Puis un seul quadrilatère (le rectangle visible de la carte) et un shader composent :
- * obscurité (`darkness × (1 − vu)`), brume animée (bruit fractal ancré au monde, lent,
- * désactivable) là où il y a du brouillard et pas de vue, lueurs × vu. Sortie en alpha
- * prémultiplié : obscurcit et éclaire en une passe.
+ * obscurité (`darkness × (1 − vu)`), brume (densité de `mist`) là où il y a du brouillard et
+ * pas de vue, lueurs × vu. Sortie en alpha prémultiplié : obscurcit et éclaire en une passe.
  */
 import type * as Pixi from 'pixi.js';
 import type { FogZone, Polygon, Vec } from '@vtt/vision';
@@ -76,21 +78,14 @@ void main() {
 }
 `;
 
-/** Composition : obscurité, brume, lueurs (alpha prémultiplié). */
-const COMPOSITE_FRAGMENT = `
+/**
+ * Densité de la brume (canal rouge), au quart de la résolution : `vUV` couvre la vue, `uWorld`
+ * la place dans le monde. Rien hors du brouillard.
+ */
+const MIST_FRAGMENT = `
 in vec2 vUV;
 out vec4 finalColor;
-uniform sampler2D uVis;
 uniform sampler2D uFog;
-uniform sampler2D uGlow;
-uniform float uDarkness;
-uniform float uFogAlpha;
-uniform float uFogOn;
-uniform float uGlowOn;
-uniform float uGlowFloor;
-uniform vec3 uShadowColor;
-uniform vec3 uFogDark;
-uniform vec3 uFogLight;
 uniform vec4 uWorld;
 uniform float uNoiseScale;
 uniform float uPeriodPx;
@@ -113,14 +108,14 @@ float vnoise(vec2 p) {
   return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
-// Bruit fractal ; une octave plus fine que 3 pixels d'écran s'efface (pas de scintillement).
+// Bruit fractal, 3 octaves ; une octave plus fine que 2 texels s'efface (pas de scintillement).
 float fbm(vec2 p) {
   float v = 0.0;
   float amp = 0.5;
   float total = 0.0;
   float period = uPeriodPx;
-  for (int i = 0; i < 5; i++) {
-    float w = amp * clamp((period - 3.0) / 6.0, 0.0, 1.0);
+  for (int i = 0; i < 3; i++) {
+    float w = amp * clamp((period - 2.0) / 4.0, 0.0, 1.0);
     v += w * vnoise(p);
     total += w;
     p = p * 2.03 + vec2(17.0, 9.0);
@@ -131,6 +126,35 @@ float fbm(vec2 p) {
 }
 
 void main() {
+  if (texture(uFog, vUV).a <= 0.001) {
+    finalColor = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+  vec2 p = (uWorld.xy + vUV * uWorld.zw) * uNoiseScale;
+  float n = 0.62 * fbm(p + vec2(uTime * 0.021, uTime * 0.013))
+    + 0.38 * fbm(p * 1.7 + vec2(-uTime * 0.017, uTime * 0.024) + 31.0);
+  finalColor = vec4(smoothstep(0.25, 0.85, n), 0.0, 0.0, 1.0);
+}
+`;
+
+/** Composition : obscurité, brume, lueurs (alpha prémultiplié). */
+const COMPOSITE_FRAGMENT = `
+in vec2 vUV;
+out vec4 finalColor;
+uniform sampler2D uVis;
+uniform sampler2D uFog;
+uniform sampler2D uMist;
+uniform sampler2D uGlow;
+uniform float uDarkness;
+uniform float uFogAlpha;
+uniform float uFogOn;
+uniform float uGlowOn;
+uniform float uGlowFloor;
+uniform vec3 uShadowColor;
+uniform vec3 uFogDark;
+uniform vec3 uFogLight;
+
+void main() {
   float vis = texture(uVis, vUV).a;
   float dark = uDarkness * (1.0 - vis);
   vec3 rgb = uShadowColor * dark;
@@ -138,10 +162,7 @@ void main() {
   if (uFogOn > 0.5) {
     float fog = texture(uFog, vUV).a * (1.0 - vis);
     if (fog > 0.001) {
-      vec2 p = (uWorld.xy + vUV * uWorld.zw) * uNoiseScale;
-      float n = 0.62 * fbm(p + vec2(uTime * 0.021, uTime * 0.013))
-        + 0.38 * fbm(p * 1.7 + vec2(-uTime * 0.017, uTime * 0.024) + 31.0);
-      float density = smoothstep(0.25, 0.85, n);
+      float density = texture(uMist, vUV).r;
       float fa = fog * uFogAlpha * mix(0.72, 1.0, density);
       vec3 fc = mix(uFogDark, uFogLight, density);
       rgb = fc * fa + rgb * (1.0 - fa);
@@ -356,7 +377,7 @@ interface Target {
 }
 
 export class VisionRenderer {
-  private readonly targets: Record<'range' | 'fog' | 'glow' | 'vis', Target>;
+  private readonly targets: Record<'range' | 'fog' | 'mist' | 'glow' | 'vis', Target>;
   private readonly rangeRoot: Pixi.Container;
   private readonly rangeBody: Pixi.Container;
   private readonly rangeZones: Pixi.Container;
@@ -365,6 +386,10 @@ export class VisionRenderer {
   private readonly fogBody: Pixi.Container;
   private readonly glowRoot: Pixi.Container;
   private readonly visRoot: Pixi.Container;
+  private readonly mistRoot: Pixi.Container;
+  private readonly mistGeometry: Pixi.MeshGeometry;
+  private readonly mistUniforms: Pixi.UniformGroup;
+  private mistKey = '';
   private readonly lightFans: Fan[] = [];
   private readonly glowFans: { fan: Fan; shader: Pixi.Shader }[] = [];
   private readonly viewerNodes: ViewerNode[] = [];
@@ -399,6 +424,7 @@ export class VisionRenderer {
     this.targets = {
       range: make(SOFT_RESOLUTION),
       fog: make(SOFT_RESOLUTION),
+      mist: make(SOFT_RESOLUTION),
       glow: make(SOFT_RESOLUTION),
       vis: make(VIS_RESOLUTION),
     };
@@ -428,26 +454,42 @@ export class VisionRenderer {
       uShadowColor: { value: rgb(mixColor(theme.background, 0x000000, 0.65)), type: 'vec3<f32>' },
       uFogDark: { value: rgb(mixColor(theme.background, theme.muted, 0.35)), type: 'vec3<f32>' },
       uFogLight: { value: rgb(mixColor(theme.muted, theme.foreground, 0.35)), type: 'vec3<f32>' },
+    });
+    const shader = pixi.Shader.from({
+      gl: { vertex: VERTEX, fragment: COMPOSITE_FRAGMENT, name: 'vision-composite' },
+      resources: {
+        visionUniforms: this.uniforms,
+        uVis: this.targets.vis.rt.source,
+        uFog: this.targets.fog.rt.source,
+        uMist: this.targets.mist.rt.source,
+        uGlow: this.targets.glow.rt.source,
+      },
+    });
+
+    // Brume : un quadrilatère sur toute la vue (pixels CSS), rendu dans `mist`
+    this.mistUniforms = new pixi.UniformGroup({
       uWorld: { value: new Float32Array(4), type: 'vec4<f32>' },
       uNoiseScale: { value: 1 / 150, type: 'f32' },
       uPeriodPx: { value: 150, type: 'f32' },
       uTime: { value: 0, type: 'f32' },
     });
-    const shader = pixi.Shader.from({
+    const mistShader = pixi.Shader.from({
       // Coordonnées du monde dans le bruit : pleine précision (sinon des bandes sur mobile)
       gl: {
         vertex: VERTEX,
-        fragment: COMPOSITE_FRAGMENT,
-        name: 'vision-composite',
+        fragment: MIST_FRAGMENT,
+        name: 'vision-mist',
         preferredFragmentPrecision: 'highp',
       },
-      resources: {
-        visionUniforms: this.uniforms,
-        uVis: this.targets.vis.rt.source,
-        uFog: this.targets.fog.rt.source,
-        uGlow: this.targets.glow.rt.source,
-      },
+      resources: { mistUniforms: this.mistUniforms, uFog: this.targets.fog.rt.source },
     });
+    this.mistGeometry = new pixi.MeshGeometry({
+      positions: new Float32Array(8),
+      uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    });
+    this.mistRoot = new pixi.Container({ label: 'vision:mist' });
+    this.mistRoot.addChild(new pixi.Mesh({ geometry: this.mistGeometry, shader: mistShader }));
     this.compositeGeometry = new pixi.MeshGeometry({
       positions: new Float32Array(8),
       uvs: new Float32Array(8),
@@ -504,6 +546,7 @@ export class VisionRenderer {
    */
   redrawAll() {
     this.shown = false;
+    this.mistKey = '';
   }
 
   /** Dessine l'image ; ne refait que les textures dont un terme a changé. */
@@ -554,9 +597,12 @@ export class VisionRenderer {
     const render = (container: Pixi.Container, target: Target, clear = true) =>
       this.renderer.render({ container, target: target.rt, clear, clearColor: [0, 0, 0, 0] });
     if (renderRange) render(this.rangeRoot, this.targets.range);
+    const hadFog = this.hasFog;
     this.hasFog =
       picture.showFog && (picture.fogFull || picture.fogZones.some((z) => z.mode === 'fog'));
-    if (this.hasFog && (cameraChanged || fogChanged)) render(this.fogRoot, this.targets.fog);
+    // Brouillard remontré (affichage de la scène) : sa texture date d'avant, on la refait
+    const fogStale = cameraChanged || fogChanged || !hadFog;
+    if (this.hasFog && fogStale) render(this.fogRoot, this.targets.fog);
     this.hasGlow = picture.showGlow && picture.lights.length > 0;
     if (this.hasGlow && (cameraChanged || lightsChanged)) render(this.glowRoot, this.targets.glow);
     if (renderRange || viewersChanged) render(this.visRoot, this.targets.vis);
@@ -564,7 +610,8 @@ export class VisionRenderer {
     this.lightVersion = picture.versions.lights;
     this.viewerVersion = picture.versions.viewers;
 
-    this.updateComposite(picture, cam, time, left, top);
+    if (this.hasFog) this.renderMist(cam, time, left, top, fogStale);
+    this.updateComposite(picture, cam, left, top);
     this.shown = true;
     this.onRender?.(performance.now() - started);
   }
@@ -706,13 +753,38 @@ export class VisionRenderer {
     }
   }
 
-  private updateComposite(
-    p: VisionPicture,
-    cam: CameraView,
-    time: number,
-    left: number,
-    top: number,
-  ) {
+  /** Densité de la brume : refaite si elle a dérivé, ou si la vue ou le brouillard ont changé. */
+  private renderMist(cam: CameraView, time: number, left: number, top: number, moved: boolean) {
+    const res = this.renderer.resolution;
+    const key = `${time}:${this.noisePeriod}`;
+    if (!moved && key === this.mistKey) return;
+    this.mistKey = key;
+    const viewW = cam.width / cam.zoom;
+    const viewH = cam.height / cam.zoom;
+    const pos = this.mistGeometry.positions;
+    pos[2] = pos[4] = cam.width;
+    pos[5] = pos[7] = cam.height;
+    this.mistGeometry.getBuffer('aPosition').update();
+    const u = this.mistUniforms.uniforms;
+    const world = u.uWorld as Float32Array;
+    world[0] = left;
+    world[1] = top;
+    world[2] = viewW;
+    world[3] = viewH;
+    u.uTime = time;
+    u.uNoiseScale = 1 / this.noisePeriod;
+    // Période en texels de `mist` (les octaves trop fines pour elle s'effacent)
+    u.uPeriodPx = this.noisePeriod * cam.zoom * res * SOFT_RESOLUTION;
+    this.mistUniforms.update();
+    this.renderer.render({
+      container: this.mistRoot,
+      target: this.targets.mist.rt,
+      clear: true,
+      clearColor: [0, 0, 0, 0],
+    });
+  }
+
+  private updateComposite(p: VisionPicture, cam: CameraView, left: number, top: number) {
     const viewW = cam.width / cam.zoom;
     const viewH = cam.height / cam.zoom;
     // Rectangle visible ∩ carte : pas d'ombre hors de la carte
@@ -743,14 +815,6 @@ export class VisionRenderer {
     u.uFogOn = this.hasFog ? 1 : 0;
     u.uGlowOn = this.hasGlow ? 1 : 0;
     u.uGlowFloor = p.glowFloor;
-    const world = u.uWorld as Float32Array;
-    world[0] = left;
-    world[1] = top;
-    world[2] = viewW;
-    world[3] = viewH;
-    u.uTime = time;
-    u.uNoiseScale = 1 / this.noisePeriod;
-    u.uPeriodPx = this.noisePeriod * cam.zoom;
     this.uniforms.update();
     this.composite.visible = true;
   }
@@ -772,6 +836,12 @@ export class VisionRenderer {
     this.composite.destroy();
     shader?.destroy();
     this.compositeGeometry.destroy();
+    const mistMesh = this.mistRoot.children[0] as Pixi.Mesh<Pixi.MeshGeometry, Pixi.Shader>;
+    const mistShader = mistMesh.shader;
+    mistMesh.destroy();
+    mistShader?.destroy();
+    this.mistGeometry.destroy();
+    this.mistRoot.destroy();
     for (const node of this.viewerNodes.splice(0)) node.destroy();
     for (const fan of this.lightFans.splice(0)) fan.destroy();
     for (const e of this.glowFans.splice(0)) {

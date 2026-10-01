@@ -60,11 +60,11 @@ function harness(opts: Parameters<typeof setup>[0] = {}) {
   const plane = new PIXI.Container();
   const r = new VisionRenderer(PIXI, renderer, plane, THEME);
   let cam: CameraView = { x: 500, y: 500, zoom: 1, width: 800, height: 600 };
-  const draw = (patch: Partial<CameraView> = {}) => {
+  const draw = (patch: Partial<CameraView> = {}, time = 0) => {
     cam = { ...cam, ...patch };
     t.run();
     render.mockClear();
-    r.draw(t.state.picture(), cam, 0);
+    r.draw(t.state.picture(), cam, time);
     return render.mock.calls.map((c) => (c[0] as { container: PIXI.Container }).container.label);
   };
   // Intérieur du rendu (tests seulement)
@@ -109,11 +109,23 @@ describe('rendu de la visibilité (sans WebGL)', () => {
       extra: { lights: [light('l', 600, 600)], fogZones: [fogZone('z', 700, 700)] },
     });
     // Première image : tout
-    expect(h.draw()).toEqual(['vision:range', 'vision:fog', 'vision:glow', 'vision:vis']);
+    expect(h.draw()).toEqual([
+      'vision:range',
+      'vision:fog',
+      'vision:glow',
+      'vision:vis',
+      'vision:mist',
+    ]);
     // Rien de neuf : rien
     expect(h.draw()).toEqual([]);
     // Caméra : tout, à l'échelle de l'écran
-    expect(h.draw({ x: 520 })).toEqual(['vision:range', 'vision:fog', 'vision:glow', 'vision:vis']);
+    expect(h.draw({ x: 520 })).toEqual([
+      'vision:range',
+      'vision:fog',
+      'vision:glow',
+      'vision:vis',
+      'vision:mist',
+    ]);
     // Mon héros bouge : la vue seule
     const heros = h.engine.entity('heros')!;
     h.engine.setPreview(heros, { ...heros.geometry, x: 120 });
@@ -127,7 +139,9 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     expect(h.draw()).toEqual(['vision:range', 'vision:glow', 'vision:vis']);
     // Une zone : portée, brouillard, vue
     h.store.getState().upsert('fogZones', [{ ...fogZone('z', 720, 700), version: 2 }]);
-    expect(h.draw()).toEqual(['vision:range', 'vision:fog', 'vision:vis']);
+    expect(h.draw()).toEqual(['vision:range', 'vision:fog', 'vision:vis', 'vision:mist']);
+    // La brume dérive (horloge) : sa densité seule
+    expect(h.draw({}, 1)).toEqual(['vision:mist']);
   });
 
   it('contexte WebGL restauré : toutes les textures refaites à l’image suivante', () => {
@@ -137,7 +151,13 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     h.draw();
     expect(h.draw()).toEqual([]);
     h.r.redrawAll();
-    expect(h.draw()).toEqual(['vision:range', 'vision:fog', 'vision:glow', 'vision:vis']);
+    expect(h.draw()).toEqual([
+      'vision:range',
+      'vision:fog',
+      'vision:glow',
+      'vision:vis',
+      'vision:mist',
+    ]);
     expect(h.draw()).toEqual([]);
   });
 

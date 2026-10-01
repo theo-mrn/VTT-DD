@@ -405,6 +405,16 @@ export class MapEngine {
   private readonly frameCallbacks = new Set<(now: number) => boolean | void>();
   private readonly frameList: ((now: number) => boolean | void)[] = [];
   private cullDirty = true;
+  private rev = 0;
+
+  /**
+   * Révision des entrées des modules : magasin, entités (arrivées, données, départs), aperçus
+   * et direct, viewer, « Vue de… ». Inchangée : rien de ce qu'ils lisent n'a bougé (la vision
+   * ne refait alors rien à l'image suivante).
+   */
+  get revision(): number {
+    return this.rev;
+  }
   private inView = new Set<string>();
   private readonly remoteIds = new Set<string>();
 
@@ -469,8 +479,8 @@ export class MapEngine {
     );
     if (this.live) {
       this.cleanups.push(
-        this.live.onActivity(() => {
-          this.invalidate();
+        this.live.onActivity((visible) => {
+          if (visible) this.invalidate();
           // Un fantôme ou un curseur muet doit disparaître, même si plus rien ne bouge
           if (this.expiryTimer) clearTimeout(this.expiryTimer);
           this.expiryTimer = setTimeout(
@@ -794,6 +804,7 @@ export class MapEngine {
 
   private onStore(state: MapStoreState, prev: MapStoreState) {
     if (this.destroyed) return;
+    this.rev += 1;
     const before = this.kindCtx;
     if (state.settings !== prev.settings || state.scene !== prev.scene)
       this.kindCtx = this.computeKindContext(state);
@@ -864,6 +875,7 @@ export class MapEngine {
     entity.state.selected = this.selection.has(entity.id);
     entity.state.pending = this.store.getState().pending.has(entity.id);
     this.entityMap.set(entity.id, entity);
+    this.rev += 1;
     let set = this.byCollection.get(collection);
     if (!set) {
       set = new Set();
@@ -877,6 +889,7 @@ export class MapEngine {
   }
 
   private updateEntityData(entity: MapEntity, data: MapDto) {
+    this.rev += 1;
     const previous = entity.data;
     entity.data = data;
     entity.geometry = entity.kind.geometry(data, this.kindCtx);
@@ -902,6 +915,7 @@ export class MapEngine {
 
   private removeEntity(entity: MapEntity | undefined) {
     if (!entity) return;
+    this.rev += 1;
     this.sidelined.delete(entity.id);
     this.entityMap.delete(entity.id);
     this.planeOverrides.delete(entity.id);
@@ -1305,6 +1319,7 @@ export class MapEngine {
 
   /** Géométrie affichée pendant un geste (null : celle de la donnée). */
   setPreview(entity: MapEntity, geometry: EntityGeometry | null) {
+    if (entity.preview !== geometry) this.rev += 1;
     entity.preview = geometry;
     this.index.set(entity.id, entity.bounds());
     this.view?.syncTransform(entity);
@@ -2111,12 +2126,14 @@ export class MapEngine {
   }
 
   setViewAs(userId: string | null) {
+    this.rev += 1;
     this.ui.setState({ viewAs: userId });
     this.invalidate();
   }
 
   /** Change de viewer (droits relus, rendu mis à jour). */
   setViewer(viewer: MapViewer) {
+    this.rev += 1;
     this.viewer = viewer;
     this.kindCtx = this.computeKindContext(this.store.getState());
     for (const key of this.byCollection.keys()) this.syncCollection(key, true);

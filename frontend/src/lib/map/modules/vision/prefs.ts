@@ -1,9 +1,11 @@
 /**
  * Préférences locales de la visibilité (confort de chacun, jamais partagées) : animation de la
- * brume (« mouvement réduit » l'éteint par défaut) et rayons de vision (montrés par défaut).
- * Gardées dans `localStorage` quand il répond.
+ * brume (« mouvement réduit » et les machines économes l'éteignent par défaut) et rayons de
+ * vision (montrés par défaut). Gardées dans `localStorage` quand il répond : un choix explicite
+ * l'emporte toujours sur le défaut.
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import { prefersEconomy, prefersReducedMotion } from '@/lib/perf/device';
 import type { MapEngine } from '../../engine/map-engine';
 
 export interface VisionPrefs {
@@ -26,10 +28,11 @@ function read(key: string): string | null {
 
 function initial(): VisionPrefs {
   const stored = read(KEY);
-  const reduced =
-    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   return {
-    fogAnimation: stored === '0' || stored === '1' ? stored === '1' : !reduced,
+    fogAnimation:
+      stored === '0' || stored === '1'
+        ? stored === '1'
+        : !prefersReducedMotion() && !prefersEconomy(),
     visionRadius: read(RADIUS_KEY) !== '0',
   };
 }
