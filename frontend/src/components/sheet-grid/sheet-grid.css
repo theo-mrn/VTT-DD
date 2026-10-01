@@ -6,15 +6,27 @@
   /* Marge basse du cadre de chaque bloc (= MARGIN de model.ts) : la carte s'arrête au-dessus */
   --sheet-gap: 12px;
   position: relative;
+}
+
+/*
+ * Hors édition, seul le déplacement (transform, composité) est animé : animer left, top,
+ * width ou height relance la mise en page à chaque image, à chaque redimensionnement.
+ */
+.sheet-grid .react-grid-item.cssTransforms {
+  transition: transform 200ms ease;
+}
+
+/* En édition, les blocs glissent et changent de taille en douceur. */
+.sheet-grid.sheet-grid-editing {
   transition: height 200ms ease;
 }
 
-.sheet-grid .react-grid-item {
+.sheet-grid.sheet-grid-editing .react-grid-item {
   transition: all 200ms ease;
   transition-property: left, top, width, height;
 }
 
-.sheet-grid .react-grid-item.cssTransforms {
+.sheet-grid.sheet-grid-editing .react-grid-item.cssTransforms {
   transition-property: transform, width, height;
 }
 
