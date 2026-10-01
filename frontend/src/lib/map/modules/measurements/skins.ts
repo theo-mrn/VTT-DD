@@ -4,12 +4,15 @@
  * `Effect/Cone` pour le cône, vignettes webp du même nom. La valeur enregistrée reste le chemin
  * relatif de l'ancienne app (`Cone/cone1.webm`).
  *
- * `SkinTextures` : une texture vidéo **partagée** par effet (compte de références), cadencée à
- * 30 i/s au plus comme le fond vidéo, en pause dès qu'aucune mesure ne la montre ou quand
- * l'animation est coupée (image fixe). Pixi est pris sur le moteur.
+ * `SkinTextures` : une texture vidéo **partagée** par effet (compte de références), en pause dès
+ * qu'aucune mesure ne la montre, quand l'animation est coupée (image fixe) ou l'onglet caché.
+ * Une seule horloge pour tous les effets, comme le fond vidéo : 24 i/s au plus (15 sur une
+ * machine économe), une image demandée par battement, et seules les vidéos qui ont une image
+ * neuve sont renvoyées au GPU. Pixi est pris sur le moteur.
  */
 import type * as Pixi from 'pixi.js';
 import type { Container, Graphics, Sprite, Texture, VideoSource } from 'pixi.js';
+import { prefersEconomy } from '@/lib/perf/device';
 import type { MapEngine } from '../../engine/map-engine';
 import { WHITE } from '../../engine/visibility-badge';
 import {
@@ -91,7 +94,9 @@ export function skinUrl(value: string, assets: readonly SkinAsset[]): string | n
 // ─── Textures vidéo partagées ────────────────────────────────────────────────
 
 /** Images par seconde des effets, au plus (comme le fond vidéo). */
-export const SKIN_FPS = 30;
+export const SKIN_FPS = 24;
+/** Même chose sur une machine économe. */
+export const SKIN_FPS_ECONOMY = 15;
 /** Le cercle déborde un peu : les vidéos ont des marges transparentes (ancienne app). */
 export const CIRCLE_SKIN_SCALE = 1.35;
 
@@ -102,7 +107,12 @@ interface Entry {
   texture: Texture | null;
   failed: boolean;
   video: HTMLVideoElement | null;
+  /** En lecture : arrête le suivi de ses images (null : en pause). */
   stopFrames: (() => void) | null;
+  /** Une image neuve attend d'être envoyée au GPU (battement suivant de l'horloge). */
+  fresh: boolean;
+  /** Sans `requestVideoFrameCallback` : image renvoyée à chaque battement. */
+  polled: boolean;
 }
 
 let catalog: Promise<readonly SkinAsset[]> | null = null;
@@ -123,8 +133,39 @@ export class SkinTextures {
   private readonly readyListeners = new Set<() => void>();
   private animate = true;
   private disposed = false;
+  /** Onglet caché : toutes les vidéos en pause. */
+  private hidden = typeof document !== 'undefined' && document.hidden;
+  /** Horloge commune des effets en lecture. */
+  private clock: ReturnType<typeof setTimeout> | null = null;
+  private readonly interval = 1000 / (prefersEconomy() ? SKIN_FPS_ECONOMY : SKIN_FPS);
 
-  constructor(private readonly engine: MapEngine) {}
+  constructor(private readonly engine: MapEngine) {
+    if (typeof document !== 'undefined')
+      document.addEventListener('visibilitychange', this.onVisibility);
+  }
+
+  private readonly onVisibility = () => {
+    this.hidden = document.hidden;
+    for (const e of this.entries.values()) this.drive(e);
+  };
+
+  /** Battement : les images neuves partent au GPU, une seule image demandée pour toutes. */
+  private readonly tick = () => {
+    this.clock = null;
+    if (this.disposed) return;
+    let playing = false;
+    let updated = false;
+    for (const e of this.entries.values()) {
+      if (!e.stopFrames) continue;
+      playing = true;
+      if (!e.fresh) continue;
+      e.fresh = e.polled;
+      (e.texture?.source as VideoSource | undefined)?.update();
+      updated = true;
+    }
+    if (updated) this.engine.invalidate();
+    if (playing) this.clock = setTimeout(this.tick, this.interval);
+  };
 
   /** Une texture vient d'arriver : les mesures qui l'attendent se redessinent. */
   onReady(listener: () => void): () => void {
@@ -136,7 +177,16 @@ export class SkinTextures {
   acquire(value: string): Texture | null {
     let e = this.entries.get(value);
     if (!e) {
-      e = { refs: 0, url: null, texture: null, failed: false, video: null, stopFrames: null };
+      e = {
+        refs: 0,
+        url: null,
+        texture: null,
+        failed: false,
+        video: null,
+        stopFrames: null,
+        fresh: false,
+        polled: false,
+      };
       this.entries.set(value, e);
       void this.load(value, e);
     }
@@ -203,15 +253,17 @@ export class SkinTextures {
     }
   }
 
-  /** Lecture ou pause selon le besoin : montrée et animée, elle joue à 30 i/s au plus. */
+  /** Lecture ou pause selon le besoin : montrée, animée et onglet visible, elle joue. */
   private drive(e: Entry) {
     const video = e.video;
     const source = e.texture?.source as VideoSource | undefined;
     if (!video || !source) return;
-    const play = e.refs > 0 && this.animate;
+    const play = e.refs > 0 && this.animate && !this.hidden;
     if (!play) {
       e.stopFrames?.();
       e.stopFrames = null;
+      e.fresh = false;
+      e.polled = false;
       if (!video.paused) video.pause();
       source.update();
       this.engine.invalidate();
@@ -219,18 +271,12 @@ export class SkinTextures {
     }
     if (e.stopFrames) return;
     void video.play().catch(() => undefined);
-    let last = 0;
-    const frame = (now: number) => {
-      if (now - last < 1000 / SKIN_FPS - 2) return;
-      last = now;
-      source.update();
-      this.engine.invalidate();
-    };
     if (typeof video.requestVideoFrameCallback === 'function') {
+      // Une image décodée : marquée, envoyée au battement suivant
       let handle: number | null = null;
-      const onFrame = (now: number) => {
+      const onFrame = () => {
         if (this.disposed) return;
-        frame(now);
+        e.fresh = true;
         handle = video.requestVideoFrameCallback(onFrame);
       };
       handle = video.requestVideoFrameCallback(onFrame);
@@ -238,15 +284,20 @@ export class SkinTextures {
         if (handle !== null) video.cancelVideoFrameCallback(handle);
       };
     } else {
-      e.stopFrames = this.engine.onFrame((now) => {
-        if (!video.paused) frame(now);
-        return !video.paused;
-      });
+      // Sans l'API : chaque battement renvoie l'image courante
+      e.stopFrames = () => undefined;
+      e.fresh = true;
+      e.polled = true;
     }
+    this.clock ??= setTimeout(this.tick, this.interval);
   }
 
   dispose() {
     this.disposed = true;
+    if (this.clock) clearTimeout(this.clock);
+    this.clock = null;
+    if (typeof document !== 'undefined')
+      document.removeEventListener('visibilitychange', this.onVisibility);
     const pixi = this.engine.pixi;
     for (const e of this.entries.values()) {
       e.stopFrames?.();
