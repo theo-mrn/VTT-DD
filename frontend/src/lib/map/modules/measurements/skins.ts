@@ -48,6 +48,16 @@ export interface SkinOption {
   thumbnail: string | null;
 }
 
+/**
+ * Variante 512 px d'un effet de la bibliothèque (`infra/library/effects-512.sh`) :
+ * `Effect/Cone/cone1.webm` → `Effect/Cone/512/cone1.webm`, VP9 avec transparence, copiée dans
+ * WebGL à chaque image affichée (les originaux font 600 à 800 px). Null hors bibliothèque.
+ */
+export function effectVariant(url: string): string | null {
+  const m = /^(https:\/\/assets\.yner\.fr\/Effect\/.+)\/([^/]+\.webm)$/i.exec(url);
+  return m ? `${m[1]}/512/${m[2]}` : null;
+}
+
 /** Chemin relatif d'un effet (`Cone/cone1.webm`), sans `/Effect/`. */
 export const skinValueOf = (localPath: string) =>
   localPath.replace(/^\/+/, '').replace(/^Effect\//, '');
@@ -221,9 +231,9 @@ export class SkinTextures {
       e.failed = true;
       return;
     }
-    try {
-      const texture = await pixi.Assets.load<Texture>({
-        src: url,
+    const video = (src: string) =>
+      pixi.Assets.load<Texture>({
+        src,
         parser: 'video',
         data: {
           autoPlay: false,
@@ -234,8 +244,19 @@ export class SkinTextures {
           crossorigin: true,
         },
       });
+    try {
+      // Variante 512 px (VP9 avec transparence) d'abord ; absente ou illisible : l'original
+      let src = effectVariant(url) ?? url;
+      let texture: Texture;
+      try {
+        texture = await video(src);
+      } catch (err) {
+        if (src === url) throw err;
+        src = url;
+        texture = await video(url);
+      }
       if (this.disposed) {
-        void pixi.Assets.unload(url).catch(() => undefined);
+        void pixi.Assets.unload(src).catch(() => undefined);
         return;
       }
       const source = texture.source as VideoSource;
@@ -244,7 +265,7 @@ export class SkinTextures {
       e.video.muted = true;
       e.video.loop = true;
       e.texture = texture;
-      e.url = url;
+      e.url = src;
       this.drive(e);
       for (const l of this.readyListeners) l();
       this.engine.invalidate();
