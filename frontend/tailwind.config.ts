@@ -128,6 +128,9 @@ const config: Config = {
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-up': 'fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both',
         shimmer: 'shimmer 2s infinite linear',
+        // Signaux ponctuels : quelques passages puis fixe
+        'shimmer-few': 'shimmer 2s 3 linear',
+        'pulse-few': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 4',
         'border-beam': 'border-beam var(--duration) infinite linear',
         shine: 'shine var(--duration) infinite linear',
         'glow-pulse': 'glow-pulse 3s ease-in-out infinite',

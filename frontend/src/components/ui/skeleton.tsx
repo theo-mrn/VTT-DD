@@ -10,7 +10,7 @@ function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
       aria-hidden
       className={cn(
         'relative overflow-hidden rounded-lg bg-surface-2',
-        'before:absolute before:inset-0 before:-translate-x-full before:animate-shimmer before:bg-gradient-to-r before:[animation-iteration-count:3] motion-reduce:before:animate-none before:from-transparent before:via-white/[0.04] before:to-transparent',
+        'before:absolute before:inset-0 before:-translate-x-full before:animate-shimmer-few before:bg-gradient-to-r motion-reduce:before:animate-none before:from-transparent before:via-white/[0.04] before:to-transparent',
         className,
       )}
       {...props}
