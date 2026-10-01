@@ -25,7 +25,7 @@
  *   l'effet critique du dé et la carte de résultat le signalent.
  */
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { Physics, useConvexPolyhedron } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
 import { DiceSkin, getSkinById, CriticalType } from './dice-definitions';
@@ -35,6 +35,9 @@ import { playRoll, startAmbience, ambienceForSkin, playOneShotForSkin, Ambience 
 import { Table, visibleHalfExtents, DICE_CAM_HEIGHT, DICE_CAM_FOV } from './scene';
 import { VisualDie } from './visual-die';
 import { ShaderWarmer } from './shader-warmer';
+import { ModelCoreLights } from './cores';
+import { DICE_ENVIRONMENT } from './environment';
+import { prefersEconomy } from '@/lib/perf/device';
 import {
   diceThrowerChannel,
   useDiceThrowStore,
@@ -56,6 +59,38 @@ const WARM_DEADLINE_MS = 4000;
  */
 const STALL_TIMEOUT_MS = 1500;
 
+/** Les dés d'un lancer restent affichés ce temps après l'arrêt du dernier. */
+const SETTLED_DISPLAY_MS = 2000;
+/** Délai minimal après la fin d'un effet critique (éclats posés, lueur éteinte). */
+const AFTER_EFFECT_MS = 800;
+/** Filet de sécurité : un dé qui ne s'arrête jamais disparaît quand même. */
+const MAX_DIE_LIFETIME_MS = 12_000;
+/**
+ * Cadence de rendu quand tous les dés sont arrêtés et qu'aucun effet ne
+ * court : les shaders animés des faces continuent, sans 60 images par seconde.
+ */
+const IDLE_FRAME_MS = 40;
+/**
+ * Cadence pendant le préchauffage : les pilotes ne font avancer les
+ * compilations parallèles (KHR_parallel_shader_compile) que si le contexte
+ * travaille, inutile pour autant de rendre en continu.
+ */
+const WARM_FRAME_MS = 50;
+
+/**
+ * Rend une image toutes les `intervalMs` en mode `demand` : animations des
+ * faces au ralenti, sans boucle de rendu continue.
+ */
+const FrameTicker = ({ intervalMs }: { intervalMs: number }) => {
+  const invalidate = useThree((st) => st.invalidate);
+  useEffect(() => {
+    invalidate();
+    const id = window.setInterval(() => invalidate(), intervalMs);
+    return () => window.clearInterval(id);
+  }, [invalidate, intervalMs]);
+  return null;
+};
+
 /** Safety net: NEVER hold rolls hostage to a warm-up that hangs or is slow. */
 const WarmDeadline = ({ onExpire }: { onExpire: () => void }) => {
   useEffect(() => {
@@ -70,19 +105,25 @@ const WarmDeadline = ({ onExpire }: { onExpire: () => void }) => {
 const Die = React.forwardRef(
   (
     {
+      id,
       type,
       position,
       impulse,
       skin,
       onResult,
+      onEffect,
       onStall,
       faces,
     }: {
+      id: string;
       type: string;
       position: [number, number, number];
       impulse: [number, number, number];
       skin: DiceSkin;
-      onResult: (val: string) => void;
+      /** Le dé s'est arrêté : face lue (une seule fois). */
+      onResult: (id: string, val: string) => void;
+      /** Un effet critique commence (true) ou est terminé (false). */
+      onEffect: (id: string, active: boolean) => void;
       /** Le moteur physique n'a rien envoyé à ce dé : il faut le relancer. */
       onStall?: () => void;
       faces?: Die3DSymbol[][];
@@ -238,13 +279,12 @@ const Die = React.forwardRef(
     const quaternion = useRef([0, 0, 0, 1]);
     useEffect(() => api.quaternion.subscribe((q) => (quaternion.current = q)), [api]);
 
-    // Track physics position for particles (world space)
-    const physicsPosition = useRef<[number, number, number]>(position);
-    useEffect(
-      () =>
-        api.position.subscribe((p) => (physicsPosition.current = p as [number, number, number])),
-      [api],
-    );
+    // Rappels lus par référence : l'intervalle de lecture n'est pas recréé
+    // quand le lanceur se rend à nouveau.
+    const onResultRef = useRef(onResult);
+    onResultRef.current = onResult;
+    const onEffectRef = useRef(onEffect);
+    onEffectRef.current = onEffect;
 
     useEffect(() => {
       if (!canCheck || stopped) return;
@@ -287,20 +327,32 @@ const Die = React.forwardRef(
             if (type === 'd20') {
               if (resultValue === '20') {
                 setCritType('success');
+                onEffectRef.current(id, true);
               } else if (resultValue === '1') {
                 setCritType('fail');
+                onEffectRef.current(id, true);
                 // Shatter the die after a delay so player sees the 1
                 setTimeout(() => setIsShattered(true), 2000);
               }
             }
 
             setStopped(true);
-            onResult(resultValue);
+            onResultRef.current(id, resultValue);
           }
         }
       }, 80); // Checks every 80ms
       return () => clearInterval(interval);
-    }, [stopped, canCheck, trueFaces, onResult, type]);
+    }, [stopped, canCheck, trueFaces, type, id]);
+
+    // Fin de l'effet : lueur éteinte pour un 20, éclats posés pour un 1
+    const critTypeRef = useRef(critType);
+    critTypeRef.current = critType;
+    const handleCritComplete = useCallback(() => {
+      // Un 1 reste « en effet » jusqu'à ce que ses éclats soient posés
+      if (critTypeRef.current === 'success') onEffectRef.current(id, false);
+      setCritType(null);
+    }, [id]);
+    const handleShatterComplete = useCallback(() => onEffectRef.current(id, false), [id]);
 
     return (
       <group ref={ref as any}>
@@ -310,7 +362,8 @@ const Die = React.forwardRef(
           isShattered={isShattered}
           critType={critType}
           stopped={stopped}
-          onCritComplete={() => setCritType(null)}
+          onCritComplete={handleCritComplete}
+          onShatterComplete={handleShatterComplete}
           faceSymbols={faceSymbols}
           ref={null}
         />
@@ -334,8 +387,26 @@ type ThrownDie = {
 /** Skin de chaque dé d'une requête : le sien, sinon celui du jet, sinon or. */
 const requestSkin = (req: ThrowRequest, skinId?: string) => req.skinId || skinId || 'gold';
 
+/** Affichage d'un lancer : ses dés, ceux encore en mouvement, ses minuteries. */
+type RollDisplay = {
+  dieIds: string[];
+  rolling: number;
+  lastStop: number;
+  effectEnded: boolean;
+  removeTimer?: number;
+  capTimer?: number;
+};
+
 export const DiceThrower = () => {
   const [dice, setDice] = useState<ThrownDie[]>([]);
+  // Dés arrêtés (face lue) et dés dont l'effet critique court encore : ils
+  // décident de la boucle de rendu et de la pause du moteur physique.
+  const [stoppedIds, setStoppedIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [effectIds, setEffectIds] = useState<ReadonlySet<string>>(() => new Set());
+  const effectIdsRef = useRef(new Set<string>());
+  const stoppedRef = useRef(new Set<string>());
+  const diceByIdRef = useRef(new Map<string, ThrownDie>());
+  const displayRef = useRef(new Map<string, RollDisplay>());
   const activeRollsRef = useRef<
     Map<string, { expected: number; results: { type: string; value: number; tag?: string }[] }>
   >(new Map());
@@ -366,6 +437,59 @@ export const DiceThrower = () => {
     });
   }, []);
 
+  /** Retire de l'écran les dés d'un lancer. */
+  const removeRoll = useCallback((rollId: string) => {
+    const display = displayRef.current.get(rollId);
+    if (!display) return;
+    window.clearTimeout(display.removeTimer);
+    window.clearTimeout(display.capTimer);
+    displayRef.current.delete(rollId);
+    const ids = new Set(display.dieIds);
+    ids.forEach((id) => {
+      diceByIdRef.current.delete(id);
+      effectIdsRef.current.delete(id);
+      stoppedRef.current.delete(id);
+    });
+    setDice((prev) => prev.filter((d) => !ids.has(d.id)));
+    const without = (prev: ReadonlySet<string>) => {
+      const next = new Set([...prev].filter((id) => !ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    };
+    setStoppedIds(without);
+    setEffectIds(without);
+  }, []);
+
+  /**
+   * Programme le retrait d'un lancer dont tous les dés sont arrêtés et dont
+   * aucun effet critique ne court plus : 2 s après le dernier arrêt, et au
+   * moins 0,8 s après la fin du dernier effet.
+   */
+  const scheduleRemoval = useCallback(
+    (rollId: string) => {
+      const display = displayRef.current.get(rollId);
+      if (!display || display.rolling > 0) return;
+      if (display.dieIds.some((id) => effectIdsRef.current.has(id))) return;
+      window.clearTimeout(display.removeTimer);
+      const delay = Math.max(
+        SETTLED_DISPLAY_MS - (performance.now() - display.lastStop),
+        display.effectEnded ? AFTER_EFFECT_MS : 0,
+      );
+      display.removeTimer = window.setTimeout(() => removeRoll(rollId), delay);
+    },
+    [removeRoll],
+  );
+
+  // Minuteries des lancers encore affichés, coupées si le lanceur est démonté
+  useEffect(
+    () => () => {
+      displayRef.current.forEach((d) => {
+        window.clearTimeout(d.removeTimer);
+        window.clearTimeout(d.capTimer);
+      });
+    },
+    [],
+  );
+
   const handleResult = (rollId: string, type: string, val: string, tag?: string) => {
     const rollData = activeRollsRef.current.get(rollId);
     if (rollData) {
@@ -379,6 +503,45 @@ export const DiceThrower = () => {
       }
     }
   };
+
+  const handleResultRef = useRef(handleResult);
+  handleResultRef.current = handleResult;
+
+  /** Un dé s'est arrêté : sa face part à l'appelant, son lancer peut finir. */
+  const handleDieResult = useCallback(
+    (dieId: string, val: string) => {
+      const die = diceByIdRef.current.get(dieId);
+      // Une seule face par dé, même s'il a été remonté (relance du moteur)
+      if (!die || stoppedRef.current.has(dieId)) return;
+      stoppedRef.current.add(dieId);
+      setStoppedIds((prev) => (prev.has(dieId) ? prev : new Set(prev).add(dieId)));
+      handleResultRef.current(die.rollId, die.type, val, die.tag);
+      const display = displayRef.current.get(die.rollId);
+      if (!display) return;
+      display.rolling -= 1;
+      display.lastStop = performance.now();
+      scheduleRemoval(die.rollId);
+    },
+    [scheduleRemoval],
+  );
+
+  /** Effet critique d'un dé commencé ou fini (lueur, bris puis éclats posés). */
+  const handleDieEffect = useCallback(
+    (dieId: string, active: boolean) => {
+      const effects = effectIdsRef.current;
+      if (active === effects.has(dieId)) return;
+      if (active) effects.add(dieId);
+      else effects.delete(dieId);
+      setEffectIds(new Set(effects));
+      const die = diceByIdRef.current.get(dieId);
+      const display = die && displayRef.current.get(die.rollId);
+      if (!active && display) {
+        display.effectEnded = true;
+        scheduleRemoval(die.rollId);
+      }
+    },
+    [scheduleRemoval],
+  );
 
   const throwDice = (rollId: string, requests: ThrowRequest[], skinId?: string) => {
     const newDice: ThrownDie[] = [];
@@ -448,13 +611,20 @@ export const DiceThrower = () => {
 
     if (totalDiceCount > 0) {
       activeRollsRef.current.set(rollId, { expected: totalDiceCount, results: [] });
+      newDice.forEach((d) => diceByIdRef.current.set(d.id, d));
+      // Retrait 2 s après l'arrêt du dernier dé (voir scheduleRemoval), ou au
+      // bout de MAX_DIE_LIFETIME_MS si un dé ne s'arrête jamais.
+      displayRef.current.set(rollId, {
+        dieIds: newDice.map((d) => d.id),
+        rolling: newDice.length,
+        lastStop: performance.now(),
+        effectEnded: false,
+        capTimer: window.setTimeout(() => removeRoll(rollId), MAX_DIE_LIFETIME_MS),
+      });
       setDice((prev) => [...prev, ...newDice]);
       // Les dés partent vraiment maintenant (après chargement et préchauffage) :
       // l'appelant ne fait courir son délai de repli qu'à partir d'ici.
       diceThrowerChannel.started(rollId);
-      setTimeout(() => {
-        setDice((prev) => prev.filter((d) => !newDice.find((nd) => nd.id === d.id)));
-      }, 8000);
     }
   };
   const throwDiceRef = useRef(throwDice);
@@ -507,14 +677,39 @@ export const DiceThrower = () => {
   }, [revision, flush]);
 
   const hasDice = dice.length > 0;
+  // Un dé roule encore : moteur physique et rendu à pleine cadence. Tous
+  // arrêtés : le moteur est en pause (sinon chaque pas relance un rendu), et
+  // seule une image toutes les 40 ms entretient les shaders animés, sauf
+  // pendant un effet critique (particules, bris), rendu à pleine cadence.
+  const rolling = dice.some((d) => !stoppedIds.has(d.id));
+  const animating = rolling || effectIds.size > 0;
+  const tickMs = hasDice && !animating ? IDLE_FRAME_MS : warming && !animating ? WARM_FRAME_MS : 0;
+
+  // Réglages lus une fois : machine économe (Windows, machine modeste) ou
+  // écran à haute densité, où l'antialiasing ne se voit guère.
+  const glSettings = useMemo(() => {
+    const economy = prefersEconomy();
+    const hiDpi = typeof window !== 'undefined' && window.devicePixelRatio >= 1.5;
+    return {
+      economy,
+      gl: {
+        alpha: true,
+        // Canevas jamais démonté : ne pas réclamer le GPU puissant (portables
+        // à deux GPU, batterie) pour quelques dés.
+        powerPreference: 'default' as const,
+        antialias: !economy && !hiDpi,
+        stencil: false,
+      },
+    };
+  }, []);
 
   // The canvas stays mounted even with no dice so the WebGL context, the
-  // (heavy) "city" environment map and the compiled skin shaders persist
-  // between rolls instead of being recreated/recompiled on every throw.
-  // When idle it's hidden and switched to on-demand rendering (no render
-  // loop, ~0 cost). While warming it keeps rendering: drivers only progress
-  // async shader compiles (KHR_parallel_shader_compile) while the context
-  // does work.
+  // environment map and the compiled skin shaders persist between rolls
+  // instead of being recreated/recompiled on every throw. When idle it's
+  // hidden and switched to on-demand rendering (no render loop, ~0 cost).
+  // The scene's light count NEVER changes (no light per die, fixed rig for
+  // model cores): a new die, a critical or a model orb reuses the programs
+  // already compiled instead of recompiling all of them mid-roll.
   return (
     <div
       aria-hidden
@@ -523,14 +718,21 @@ export const DiceThrower = () => {
     >
       <Canvas
         camera={{ position: [0, DICE_CAM_HEIGHT, 0], fov: DICE_CAM_FOV }}
-        gl={{ alpha: true, powerPreference: 'high-performance' }}
+        gl={glSettings.gl}
         // Same fill-cost cap as the fun thrower: procedural die
         // shaders are expensive per pixel, 1.25 dpr is invisible on
-        // dice in motion.
-        dpr={[1, 1.25]}
-        frameloop={hasDice || warming ? 'always' : 'demand'}
+        // dice in motion (1 on economy machines).
+        dpr={glSettings.economy ? 1 : [1, 1.25]}
+        frameloop={animating ? 'always' : 'demand'}
+        onCreated={({ gl }) => {
+          // Dés orbes (verre à transmission) : la passe de transmission
+          // rend toute la scène dans une texture à chaque image ; à demi
+          // résolution (un quart en économie), invisible derrière le verre.
+          gl.transmissionResolutionScale = glSettings.economy ? 0.25 : 0.5;
+        }}
         style={{ pointerEvents: 'none' }}
       >
+        {tickMs > 0 && <FrameTicker intervalMs={tickMs} />}
         {/* Flat, even lighting: mostly ambient with faint key lights, so
                     no single facet ever catches a face-wide blown highlight. */}
         <ambientLight intensity={1.05} />
@@ -546,39 +748,44 @@ export const DiceThrower = () => {
 
         {/* Environment kept for metallic reflections, but dimmed so it
                     can't wash faces out. */}
-        <Environment preset="city" environmentIntensity={0.55} />
+        <Environment files={DICE_ENVIRONMENT} environmentIntensity={0.55} />
 
-        {warming && (
-          <React.Fragment key={warming.skins.join(',')}>
-            <ShaderWarmer diceType={warming.type} skins={warming.skins} onDone={handleWarmed} />
-            <WarmDeadline onExpire={handleWarmed} />
-          </React.Fragment>
-        )}
+        <ModelCoreLights>
+          {warming && (
+            <React.Fragment key={warming.skins.join(',')}>
+              <ShaderWarmer diceType={warming.type} skins={warming.skins} onDone={handleWarmed} />
+              <WarmDeadline onExpire={handleWarmed} />
+            </React.Fragment>
+          )}
 
-        <Physics
-          key={physicsEpoch}
-          gravity={[0, -60, 0]}
-          defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }}
-          allowSleep={true}
-          iterations={7}
-        >
-          <Table />
-          {dice.map((d, i) => (
-            <Die
-              key={d.id}
-              ref={(el: any) => {
-                if (el) diceRefs.current[i] = { id: d.id, ref: { current: el } };
-              }}
-              type={d.type}
-              position={d.pos}
-              impulse={d.imp}
-              skin={getSkinById(d.skinId)}
-              onResult={(val) => handleResult(d.rollId, d.type, val, d.tag)}
-              onStall={handleStall}
-              faces={d.faces}
-            />
-          ))}
-        </Physics>
+          <Physics
+            key={physicsEpoch}
+            gravity={[0, -60, 0]}
+            defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }}
+            allowSleep={true}
+            iterations={7}
+            isPaused={!rolling}
+          >
+            <Table />
+            {dice.map((d, i) => (
+              <Die
+                key={d.id}
+                ref={(el: any) => {
+                  if (el) diceRefs.current[i] = { id: d.id, ref: { current: el } };
+                }}
+                id={d.id}
+                type={d.type}
+                position={d.pos}
+                impulse={d.imp}
+                skin={getSkinById(d.skinId)}
+                onResult={handleDieResult}
+                onEffect={handleDieEffect}
+                onStall={handleStall}
+                faces={d.faces}
+              />
+            ))}
+          </Physics>
+        </ModelCoreLights>
       </Canvas>
     </div>
   );
