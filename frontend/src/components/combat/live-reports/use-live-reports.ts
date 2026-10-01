@@ -101,16 +101,20 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
   );
   // « +n » déplie toute la pile sur place
   const [showAll, setShowAll] = useState(false);
-  const stack = liveStack(items, collapsed, showAll ? Infinity : undefined);
+  const stack = useMemo(
+    () => liveStack(items, collapsed, showAll ? Infinity : undefined),
+    [items, collapsed, showAll],
+  );
   const focus = focusOf(stack, chosen);
   // La carte dépliée le reste : un rapport qui arrive se range en ligne au-dessus, sans
   // replier celle que le MJ lit (ni déplacer le bouton qu'il allait cliquer)
   useEffect(() => {
     if (focus && focus !== chosen) setFocus(focus);
   }, [focus, chosen]);
-  const deciding = decidingId
-    ? (items.find((i) => i.attack.id === decidingId)?.attack ?? null)
-    : null;
+  const deciding = useMemo(
+    () => (decidingId ? (items.find((i) => i.attack.id === decidingId)?.attack ?? null) : null),
+    [decidingId, items],
+  );
 
   // Une confirmation s'en va d'elle-même
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -128,59 +132,70 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
     return () => all.forEach(clearTimeout);
   }, []);
 
-  const nameOf = (id: string) => cast.byId.get(id)?.name ?? 'Personnage';
+  // Commandes stables d'un rendu à l'autre : elles lisent les dernières valeurs ici
+  const latest = useRef({ commands, systeme, castById: cast.byId });
+  latest.current = { commands, systeme, castById: cast.byId };
 
-  const decide = async (a: Attack, scope: Scope, apply: boolean) => {
-    setBusy(scopeKey(a, scope, apply));
-    try {
-      const actor =
-        scope.actor && actorDecidable(a)
-          ? { apply, modifications: a.actor!.modifications.map(toInput) }
-          : null;
-      const updated = await commands.apply(
-        a.id,
-        buildApply(
-          a,
-          scope.targets.map((t) => ({ ...draftOf(t), apply })),
-          actor,
-        ),
-      );
-      reportDefeated(defeatedBy(updated));
-      if (updated.status !== 'pending') {
-        const message = settledMessage(updated, nameOf, systeme, cast.byId);
-        setSettled((s) => new Map(s).set(a.id, { attack: updated, ...message }));
-        clearTimeout(timers.current.get(a.id));
-        timers.current.set(
+  const decide = useCallback(
+    async (a: Attack, scope: Scope, apply: boolean) => {
+      const { commands, systeme, castById } = latest.current;
+      const nameOf = (id: string) => castById.get(id)?.name ?? 'Personnage';
+      setBusy(scopeKey(a, scope, apply));
+      try {
+        const actor =
+          scope.actor && actorDecidable(a)
+            ? { apply, modifications: a.actor!.modifications.map(toInput) }
+            : null;
+        const updated = await commands.apply(
           a.id,
-          setTimeout(() => forget(a.id), SETTLED_MS),
+          buildApply(
+            a,
+            scope.targets.map((t) => ({ ...draftOf(t), apply })),
+            actor,
+          ),
         );
+        reportDefeated(defeatedBy(updated));
+        if (updated.status !== 'pending') {
+          const message = settledMessage(updated, nameOf, systeme, castById);
+          setSettled((s) => new Map(s).set(a.id, { attack: updated, ...message }));
+          clearTimeout(timers.current.get(a.id));
+          timers.current.set(
+            a.id,
+            setTimeout(() => forget(a.id), SETTLED_MS),
+          );
+        }
+      } catch (err) {
+        toast.error('La décision n’a pas pu être appliquée', {
+          description: combatErrorMessage(err),
+        });
+      } finally {
+        setBusy(null);
       }
-    } catch (err) {
-      toast.error('La décision n’a pas pu être appliquée', {
-        description: combatErrorMessage(err),
-      });
-    } finally {
-      setBusy(null);
-    }
-  };
+    },
+    [forget],
+  );
 
-  const rollRest = async (a: Attack) => {
+  const rollRest = useCallback(async (a: Attack) => {
     const step = a.pendingSteps[0];
     if (!step) return;
     setBusy(`${a.id}:server`);
     try {
-      await commands.submitDice(a.id, { stepId: step.id, results: [], serverFallback: true });
+      await latest.current.commands.submitDice(a.id, {
+        stepId: step.id,
+        results: [],
+        serverFallback: true,
+      });
     } catch (err) {
       toast.error('Les dés n’ont pas pu être tirés', { description: combatErrorMessage(err) });
     } finally {
       setBusy(null);
     }
-  };
+  }, []);
 
-  const cancel = async (a: Attack) => {
+  const cancel = useCallback(async (a: Attack) => {
     setBusy(`${a.id}:cancel`);
     try {
-      await commands.cancel(a.id, { version: a.version });
+      await latest.current.commands.cancel(a.id, { version: a.version });
     } catch (err) {
       toast.error('L’attaque n’a pas pu être abandonnée', {
         description: combatErrorMessage(err),
@@ -188,47 +203,73 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
     } finally {
       setBusy(null);
     }
-  };
+  }, []);
 
-  const undo = async (s: Settled) => {
-    setBusy(`${s.attack.id}:undo`);
-    try {
-      await commands.revert(s.attack.id, { version: s.attack.version });
-      forget(s.attack.id);
-    } catch (err) {
-      toast.error('L’application n’a pas pu être annulée', {
-        description: revertConflictOf(err)
-          ? 'La fiche a changé entre-temps : voyez les rapports d’attaque du menu ⋯.'
-          : combatErrorMessage(err),
-      });
-    } finally {
-      setBusy(null);
-    }
-  };
+  const undo = useCallback(
+    async (s: Settled) => {
+      setBusy(`${s.attack.id}:undo`);
+      try {
+        await latest.current.commands.revert(s.attack.id, { version: s.attack.version });
+        forget(s.attack.id);
+      } catch (err) {
+        toast.error('L’application n’a pas pu être annulée', {
+          description: revertConflictOf(err)
+            ? 'La fiche a changé entre-temps : voyez les rapports d’attaque du menu ⋯.'
+            : combatErrorMessage(err),
+        });
+      } finally {
+        setBusy(null);
+      }
+    },
+    [forget],
+  );
 
-  return {
-    campaignId,
-    cast: cast.byId,
-    systeme,
-    presentation,
-    items,
-    stack,
-    showAll,
-    setShowAll,
-    focus,
-    setFocus,
-    settled,
-    busy,
-    collapsed,
-    setCollapsed,
-    deciding,
-    setDeciding,
-    decide,
-    rollRest,
-    cancel,
-    undo,
-    forget,
-  };
+  // Même objet tant que rien ne change : la barre et la pile ne se re-rendent pas pour rien
+  return useMemo(
+    () => ({
+      campaignId,
+      cast: cast.byId,
+      systeme,
+      presentation,
+      items,
+      stack,
+      showAll,
+      setShowAll,
+      focus,
+      setFocus,
+      settled,
+      busy,
+      collapsed,
+      setCollapsed,
+      deciding,
+      setDeciding,
+      decide,
+      rollRest,
+      cancel,
+      undo,
+      forget,
+    }),
+    [
+      campaignId,
+      cast.byId,
+      systeme,
+      presentation,
+      items,
+      stack,
+      showAll,
+      focus,
+      settled,
+      busy,
+      collapsed,
+      setCollapsed,
+      deciding,
+      decide,
+      rollRest,
+      cancel,
+      undo,
+      forget,
+    ],
+  );
 }
 
 /** Tout ce qui reste à décider d'un rapport : ses cibles décidables et les coûts. */

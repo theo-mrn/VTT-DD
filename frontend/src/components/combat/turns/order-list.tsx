@@ -124,7 +124,9 @@ export function OrderList({
         <motion.li
           key={row.characterId}
           ref={row.current ? currentRef : undefined}
+          // Mesurée seulement quand le rang change (pas à chaque rendu de la liste)
           layout="position"
+          layoutDependency={i}
           transition={ROW_TRANSITION}
         >
           <div

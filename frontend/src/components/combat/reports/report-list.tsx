@@ -192,10 +192,12 @@ export function ReportsSection({
             aria-label="Cartes des rapports, une par cible"
           >
             <AnimatePresence initial={false}>
-              {data.items.map((item) => (
+              {data.items.map((item, i) => (
                 <motion.li
                   key={item.key}
+                  // Mesurée quand le rang change, pas à chaque rendu de la liste
                   layout="position"
+                  layoutDependency={i}
                   {...ITEM_MOTION}
                   className={cn('h-full', item.kind === 'actor' && 'col-span-full')}
                 >

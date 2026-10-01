@@ -120,6 +120,8 @@ export function ReactionForm({
   );
 }
 
+const attacksOf = (results: { data?: Attack }[]) => results.map((r) => r.data);
+
 /**
  * Invites de réaction d'un joueur : les attaques qui attendent la défense d'un de ses
  * personnages. Signalées par `combat.attack_updated` (`reaction_requested`, envoyé aux seuls
@@ -151,6 +153,8 @@ export function ReactionPrompts({
       staleTime: 5_000,
       retry: false,
     })),
+    // Les attaques seules : le même tableau tant qu'elles ne changent pas (pas à chaque état)
+    combine: attacksOf,
   });
   const known = useQuery({
     queryKey: clePersonnagesCampagne(campaignId),
@@ -165,7 +169,7 @@ export function ReactionPrompts({
   const pending = useMemo(() => {
     const byId = new Map<string, Attack>();
     for (const a of open.attacks) byId.set(a.id, a);
-    for (const q of fetched) if (q.data) byId.set(q.data.id, q.data);
+    for (const a of fetched) if (a) byId.set(a.id, a);
     return [...byId.values()].flatMap((a) =>
       awaitingMyReaction(a, mine).map((t) => ({ attack: a, target: t })),
     );

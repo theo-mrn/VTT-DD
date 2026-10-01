@@ -261,7 +261,9 @@ function TargetRow({
   const isBusy = busy !== null && busy.startsWith(`${a.id}:`);
   return (
     <motion.li
+      // L'ordre des cibles ne change qu'avec leur nombre
       layout="position"
+      layoutDependency={a.targets.length}
       className={cn(
         'flex items-center gap-2.5 rounded-xl py-1 pl-1 pr-0.5 transition-opacity',
         !decidable && 'opacity-50',

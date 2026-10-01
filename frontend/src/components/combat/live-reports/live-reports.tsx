@@ -83,10 +83,12 @@ export function LiveReports({
               className="pointer-events-auto flex max-h-[min(62vh,36rem)] flex-col gap-1.5 overflow-y-auto overscroll-contain rounded-2xl [scrollbar-width:thin]"
             >
               <AnimatePresence initial={false} mode="popLayout">
-                {stack.visible.map((item) => (
+                {stack.visible.map((item, i) => (
                   <motion.li
                     key={item.attack.id}
+                    // Mesurée quand le rang ou le dépli changent, pas à chaque rendu de la pile
                     layout
+                    layoutDependency={`${i}:${item.attack.id === focus}`}
                     initial={{ opacity: 0, y: -16, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, x: 24, scale: 0.98, transition: EXIT }}
@@ -103,6 +105,7 @@ export function LiveReports({
                 <motion.div
                   key="more"
                   layout
+                  layoutDependency={stack.visible.length}
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, transition: EXIT }}

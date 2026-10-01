@@ -14,7 +14,7 @@
 import type { CombatState, CombatTurnResponse } from '@vtt/contracts';
 import { ChevronLeft, ChevronRight, Dices, ListOrdered, Loader2 } from 'lucide-react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
-import { useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
 import { Button } from '@/components/ui/button';
@@ -85,11 +85,17 @@ export function InitiativeStrip({
 }) {
   const commands = useCombatCommands(campaignId);
   const cast = useCast(campaignId);
-  const nameOf = (id: string) => cast.byId.get(id)?.name ?? 'Adversaire';
+  // Stables tant que la distribution ne change pas : les portraits (mémoïsés) n'en dépendent
+  const castById = cast.byId;
+  const nameOf = useCallback((id: string) => castById.get(id)?.name ?? 'Adversaire', [castById]);
+  const portraitOf = useCallback((id: string) => castById.get(id)?.portraitUrl, [castById]);
+  const onFaceRef = useRef(onFace);
+  onFaceRef.current = onFace;
+  const openFace = useCallback((id: string) => onFaceRef.current?.(id), []);
   const [busy, setBusy] = useState<string | null>(null);
   const barRef = useRef<HTMLElement | null>(null);
 
-  const rows = turnRows(combat);
+  const rows = useMemo(() => turnRows(combat), [combat]);
   const actor = currentActorOf(combat);
   const slots = slotBar(combat);
   const currentSlot = combat.mode === 'slots' ? combat.slots?.[combat.currentIndex] : undefined;
@@ -162,8 +168,8 @@ export function InitiativeStrip({
       <Portraits
         rows={rows}
         nameOf={nameOf}
-        portraitOf={(id) => cast.byId.get(id)?.portraitUrl}
-        onFace={onFace}
+        portraitOf={portraitOf}
+        onFace={onFace ? openFace : undefined}
         onMore={toggleOrder}
         moreOpen={order?.open ?? false}
       />
@@ -333,7 +339,7 @@ function Round({ round }: { round: number }) {
  * initiative attendue : point d'alerte. Au bout de la pile, « +n » (ou l'icône de la liste)
  * déplie l'ordre complet.
  */
-function Portraits({
+const Portraits = memo(function Portraits({
   rows,
   nameOf,
   portraitOf,
@@ -406,10 +412,13 @@ function Portraits({
       </ol>
     </LayoutGroup>
   );
-}
+});
 
-/** Un portrait : grand et souligné pour qui agit, empilé pour les suivants. */
-function Face({
+/**
+ * Un portrait : grand et souligné pour qui agit, empilé pour les suivants. Mémoïsé, et sa
+ * place n'est mesurée (animation de mise en page) que quand elle peut changer.
+ */
+const Face = memo(function Face({
   row: r,
   name,
   portrait,
@@ -459,8 +468,10 @@ function Face({
   );
   return (
     <motion.li
+      // Taille comprise : un suivant qui devient le tour courant grandit
       layout
       layoutId={`face-${r.characterId}`}
+      layoutDependency={big ? 'big' : z}
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: r.acted && !r.current ? 0.5 : 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
@@ -501,4 +512,4 @@ function Face({
       )}
     </motion.li>
   );
-}
+});
