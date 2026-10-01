@@ -1,4 +1,10 @@
-import { createService, Uploads, type ServiceOptions } from '@vtt/platform';
+import {
+  createService,
+  registerStorageReferences,
+  type ServiceOptions,
+  Uploads,
+} from '@vtt/platform';
+import type pg from 'pg';
 import { aleatoireCrypto } from '@vtt/rules';
 import { sql } from 'drizzle-orm';
 import type { CharacterConfig } from './config.js';
@@ -64,6 +70,13 @@ export async function buildCharacter(
   for (const module of [systemes, personnages, templates, interne]) {
     await module(app, deps);
   }
+
+  // Fichiers encore référencés par ce service : le balayage des orphelins le demande à chacun
+  registerStorageReferences(app, {
+    pool: (db as Db & { $client: pg.Pool }).$client,
+    schema: 'characters',
+    secret: config.INTERNAL_API_SECRET,
+  });
 
   return app;
 }

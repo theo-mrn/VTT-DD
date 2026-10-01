@@ -4,6 +4,14 @@
  */
 import type pg from 'pg';
 import type { Logger } from './logger.js';
+import {
+  referencedKeys,
+  remoteReferences,
+  sweepOrphans,
+  type ReferenceChecker,
+} from './orphans.js';
+import { createObjectStore } from './storage.js';
+import type { StorageSettings } from './uploads.js';
 
 /**
  * Exécute `fn` si le verrou `name` est libre (session dédiée), sinon ne fait rien : une autre
@@ -66,4 +74,62 @@ export function periodic(o: {
     clearTimeout(timer);
     await current;
   };
+}
+
+/**
+ * Balayage périodique des fichiers orphelins d'un service (docs/nettoyage.md § Fichiers) : ses
+ * dossiers, vérifiés auprès de sa base et de chaque autre service. Ne démarre pas sans stockage,
+ * sans secret interne ou sans la liste des autres services : jamais de suppression à l'aveugle.
+ */
+export function startOrphanSweep(o: {
+  name: string;
+  pool: pg.Pool;
+  schema: string;
+  prefixes: readonly string[];
+  settings: StorageSettings & {
+    INTERNAL_API_SECRET?: string | undefined;
+    ORPHAN_SWEEP: 'off' | 'dry-run' | 'on';
+    ORPHAN_MIN_AGE_HOURS: number;
+    ORPHAN_SWEEP_EVERY_MINUTES: number;
+    STORAGE_REFERENCE_URLS?: string[] | undefined;
+  };
+  logger: Pick<Logger, 'info' | 'warn' | 'error'>;
+}): () => Promise<void> {
+  const s = o.settings;
+  if (s.ORPHAN_SWEEP === 'off') return async () => undefined;
+  const store = createObjectStore(s);
+  const secret = s.INTERNAL_API_SECRET;
+  const others = s.STORAGE_REFERENCE_URLS ?? [];
+  if (!store || !secret || !others.length) {
+    o.logger.warn(
+      { store: Boolean(store), secret: Boolean(secret), services: others.length },
+      'fichiers orphelins : balayage désactivé (stockage, secret ou STORAGE_REFERENCE_URLS absent)',
+    );
+    return async () => undefined;
+  }
+  const checkers: ReferenceChecker[] = [
+    (keys) => referencedKeys(o.pool, o.schema, keys),
+    ...others.map((url) => remoteReferences(url, secret)),
+  ];
+  const dryRun = s.ORPHAN_SWEEP !== 'on';
+  return periodic({
+    name: o.name,
+    everyMs: s.ORPHAN_SWEEP_EVERY_MINUTES * 60_000,
+    logger: o.logger,
+    run: async () => {
+      await withAdvisoryLock(o.pool, o.name, async () => {
+        const report = await sweepOrphans({
+          store,
+          prefixes: o.prefixes,
+          checkers,
+          minAgeMs: s.ORPHAN_MIN_AGE_HOURS * 3_600_000,
+          dryRun,
+        });
+        o.logger.info(
+          { ...report, prefixes: o.prefixes, dryRun },
+          dryRun ? 'fichiers orphelins (essai) : rien supprimé' : 'fichiers orphelins supprimés',
+        );
+      });
+    },
+  });
 }

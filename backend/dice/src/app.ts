@@ -1,4 +1,5 @@
-import { createService, type ServiceOptions } from '@vtt/platform';
+import { createService, registerStorageReferences, type ServiceOptions } from '@vtt/platform';
+import type pg from 'pg';
 import { aleatoireCrypto } from '@vtt/rules';
 import { sql } from 'drizzle-orm';
 import { campaignRights, noCampaigns } from './clients/campaign.js';
@@ -84,6 +85,13 @@ export async function buildDice(
   for (const module of [rolls, stats, preferences, internal]) {
     await module(app, deps);
   }
+
+  // Fichiers encore référencés par ce service : le balayage des orphelins le demande à chacun
+  registerStorageReferences(app, {
+    pool: (db as Db & { $client: pg.Pool }).$client,
+    schema: 'dice',
+    secret: config.INTERNAL_API_SECRET,
+  });
 
   return app;
 }

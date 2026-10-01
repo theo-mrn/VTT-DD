@@ -1,4 +1,4 @@
-import { BaseConfig } from '@vtt/platform';
+import { BaseConfig, OrphanSweepSettings } from '@vtt/platform';
 import { z } from 'zod';
 
 /** Variable facultative : une valeur vide dans le .env vaut absente. */
@@ -61,5 +61,8 @@ export const CampaignConfig = BaseConfig.extend({
   PRESET_IMAGES_URL: z
     .preprocess((v) => (v === '' ? null : v), z.string().url().nullable())
     .default('https://assets.yner.fr/'),
+
+  /** Fichiers orphelins de ses dossiers du stockage (docs/nettoyage.md § Fichiers). */
+  ...OrphanSweepSettings,
 });
 export type CampaignConfig = z.infer<typeof CampaignConfig>;

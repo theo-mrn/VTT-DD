@@ -17,3 +17,5 @@ export * from './remote-image.js';
 export * from './uploads.js';
 export * from './maintenance.js';
 export * from './storage.js';
+export * from './internal-secret.js';
+export * from './orphans.js';

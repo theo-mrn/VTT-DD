@@ -1,4 +1,4 @@
-import { BaseConfig } from '@vtt/platform';
+import { BaseConfig, OrphanSweepSettings } from '@vtt/platform';
 import type { JWK } from 'jose';
 import { z } from 'zod';
 import type { FirebaseScryptParams } from './passwords/firebase-scrypt.js';
@@ -85,6 +85,9 @@ export const IdentityConfig = BaseConfig.extend({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+
+  /** Fichiers orphelins de ses dossiers du stockage (docs/nettoyage.md § Fichiers). */
+  ...OrphanSweepSettings,
 });
 export type IdentityConfig = z.infer<typeof IdentityConfig>;
 

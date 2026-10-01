@@ -23,6 +23,11 @@ env:
   # Images des campagnes : même bucket qu'identity (dossier campaigns/). La signature des URL
   # d'envoi se calcule sur place : aucun flux réseau vers le stockage depuis le pod.
   S3_REGION: auto
+  # Fichiers orphelins de ses dossiers (docs/nettoyage.md § Fichiers) : chaque autre service qui
+  # garde des adresses de fichiers (même INTERNAL_API_SECRET partout) ; essai tant que les
+  # journaux n'ont pas été vérifiés, puis « on »
+  STORAGE_REFERENCE_URLS: http://character.vtt-prod.svc,http://identity.vtt-prod.svc,http://dice.vtt-prod.svc
+  ORPHAN_SWEEP: dry-run
 # Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
@@ -51,6 +56,8 @@ networkPolicy:
     - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
     # dice demande le rôle de l'appelant (/internal) et le détail d'une campagne
     - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
+    # identity demande quels fichiers ses tables référencent (/internal/storage)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: identity } }
 migrations:
   enabled: true
   image:

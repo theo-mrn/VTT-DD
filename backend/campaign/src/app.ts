@@ -1,4 +1,10 @@
-import { createService, Uploads, type ServiceOptions } from '@vtt/platform';
+import {
+  createService,
+  registerStorageReferences,
+  type ServiceOptions,
+  Uploads,
+} from '@vtt/platform';
+import type pg from 'pg';
 import { sql } from 'drizzle-orm';
 import { characterClient, characterUnavailable } from './clients/character.js';
 import { noProfiles, profilesClient } from './clients/profiles.js';
@@ -84,6 +90,13 @@ export async function buildCampaign(
   ]) {
     await module(app, deps);
   }
+
+  // Fichiers encore référencés par ce service : le balayage des orphelins le demande à chacun
+  registerStorageReferences(app, {
+    pool: (db as Db & { $client: pg.Pool }).$client,
+    schema: 'campaign',
+    secret: config.INTERNAL_API_SECRET,
+  });
 
   return app;
 }

@@ -69,50 +69,56 @@ la chronique de la partie ; les événements portent déjà le nom du personnage
 
 ## Fichiers orphelins
 
-Passe horaire de chaque service qui **possède un dossier** du stockage :
+Passe horaire de chaque service qui **possède un dossier** du stockage (`startOrphanSweep`) :
 
-| Dossier                          | Service   | Référencé par                                                                    |
-| -------------------------------- | --------- | -------------------------------------------------------------------------------- |
-| `characters/<id>/`               | character | personnage (portrait, token, source du Studio) ; tokens de carte (campaign)      |
-| `campaigns/<id>/`                | campaign  | campagne (couverture), notes, cartes (fonds, objets), modèles et PNJ (character) |
-| `avatars/<id>/`, `banners/<id>/` | identity  | profil                                                                           |
+| Dossier                | Service   |
+| ---------------------- | --------- |
+| `characters/`          | character |
+| `campaigns/`           | campaign  |
+| `avatars/`, `banners/` | identity  |
 
-Pour chaque fichier **de plus de 24 h** (date de l'objet sur le stockage) :
+Pour chaque fichier, par lots de 500 (`sweepOrphans`, `@vtt/platform`) :
 
-1. le service liste ses fichiers (par pages, `ListObjectsV2` sous le préfixe) ;
-2. il demande « référencés ? » à **chaque** service qui peut en stocker l'adresse :
-   `POST /internal/storage/references` `{ urls: string[] }` → `{ referenced: string[] }`
-   (route interne, secret partagé, comme les autres routes internes) ;
-3. il supprime ceux que personne ne référence (`DeleteObjects`, par 1000), et journalise le
-   nombre et le volume libéré.
+1. **jamais touché** s'il n'est pas au format exact de nos envois
+   (`<dossier>/<uuid>/<uuid>.<ext>`, `uploadKey`) : un reste de l'ancienne app n'est pas candidat ;
+2. **jamais touché** s'il a moins de 24 h (un envoi précède l'enregistrement de son adresse) ;
+3. sinon, le service demande « référencé ? » à **chaque** service qui garde des adresses de
+   fichiers, lui compris : character, campaign, identity, dice
+   (`POST /internal/storage/references` `{ keys }` → `{ referenced }`, secret partagé) ;
+4. supprimé seulement si aucun ne le référence ; un service qui ne répond pas arrête la passe sans
+   rien supprimer.
 
-Le délai de 24 h protège les envois en cours (un fichier est envoyé avant que son adresse soit
-enregistrée). Un service injoignable : la passe s'arrête sans rien supprimer (jamais sur une
-réponse incomplète).
+« Référencé » se cherche dans **toutes les tables** du service, la ligne entière lue comme texte
+(colonne d'adresse, vignette du CDN, JSON, texte d'une note) : une nouvelle colonne est couverte
+sans rien changer. Seuls sont exclus l'outbox, l'inbox et les tables de Liquibase (le journal des
+événements garderait tout pour toujours). Les modèles comptent toujours : leurs images ne partent
+jamais tant qu'ils existent. Lecture seule, délai de 60 s par passe de table.
 
-La bibliothèque du produit (`assets.yner.fr`, variantes 1080p, effets 512 px) n'est **jamais**
-balayée : elle n'appartient à aucun service.
+Audio (ses propres sons), history et billing ne gardent pas d'adresse d'image : ils ne sont pas
+interrogés. La bibliothèque du produit (`assets.yner.fr`) n'est **jamais** balayée.
+
+Réglages (`OrphanSweepSettings`) : `ORPHAN_SWEEP` = `off` | `dry-run` (défaut : journalise le
+nombre, le volume et 20 exemples, sans rien supprimer) | `on` ; `ORPHAN_MIN_AGE_HOURS` (24) ;
+`ORPHAN_SWEEP_EVERY_MINUTES` (60) ; `STORAGE_REFERENCE_URLS` (les autres services ; absent : pas de
+balayage). Sans stockage, sans secret ou sans cette liste, la passe ne démarre pas.
 
 ## Briques
 
-- `@vtt/platform` : `Uploads.list(prefix)`, `Uploads.remove(keys)`, `withAdvisoryLock(db, name, fn)`,
-  `periodic(name, everyMs, fn)` (arrêtée proprement à l'extinction), client de la route
-  `references`.
-- Chaque service : sa route `references` (requêtes `IN` sur ses colonnes d'adresses), sa passe de
-  purge, sa passe de fichiers.
-- Réglages : `TRASH_DAYS` (7), `ORPHAN_MIN_AGE_HOURS` (24), `CLEANUP_EVERY_MINUTES` (60),
-  `CLEANUP_DRY_RUN` (journalise sans supprimer : à activer la première fois en prod).
+- `@vtt/platform` : `createObjectStore` (lister, supprimer), `withAdvisoryLock(pool, name, fn)`,
+  `periodic`, `requireInternalSecret`, `referencedKeys`, `registerStorageReferences`,
+  `remoteReferences`, `sweepOrphans`, `startOrphanSweep`.
+- character : purge de la corbeille (`src/maintenance/`), `CLEANUP_EVERY_MINUTES` (60),
+  `CLEANUP_DRY_RUN`.
 
 ## Ordre de réalisation
 
 1. Corbeille des personnages, restauration, bouton Corbeille (front). Fait ; corbeille des
    modèles retirée (principe 2).
 2. ~~Consommateur campaign~~ : abandonné (voir Corbeille, « Campagne »).
-3. Purge définitive dans character (lignes et événements, pas de fichier). Fait (`src/maintenance/`).
-4. Route `references` dans character, campaign, identity ; passe des fichiers orphelins, d'abord en
-   `CLEANUP_DRY_RUN`.
-5. Tests d'intégration : corbeille et restauration, purge et événements, fichier référencé
-   jamais supprimé, fichier récent jamais supprimé, service injoignable : rien supprimé.
+3. Purge définitive dans character (lignes et événements, pas de fichier). Fait.
+4. Fichiers orphelins : route `references` (character, campaign, identity, dice), balayage dans
+   character, campaign, identity. Fait, **en essai** (`dry-run`) : passer à `on` après lecture des
+   journaux.
 
 ## Questions ouvertes
 

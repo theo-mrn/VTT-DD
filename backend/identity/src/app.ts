@@ -1,5 +1,6 @@
 import cookie from '@fastify/cookie';
-import { createService, type ServiceOptions } from '@vtt/platform';
+import { createService, registerStorageReferences, type ServiceOptions } from '@vtt/platform';
+import type pg from 'pg';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet } from 'jose';
 import { firebaseParams, type IdentityConfig } from './config.js';
@@ -92,6 +93,13 @@ export async function buildIdentity(
   for (const module of [securite, oauth, profil, titres, amis, clesApi, premium]) {
     await module(app, deps);
   }
+
+  // Fichiers encore référencés par ce service : le balayage des orphelins le demande à chacun
+  registerStorageReferences(app, {
+    pool: (db as Db & { $client: pg.Pool }).$client,
+    schema: 'identity',
+    secret: config.INTERNAL_API_SECRET,
+  });
 
   return app;
 }

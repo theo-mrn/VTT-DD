@@ -1,4 +1,4 @@
-import { BaseConfig } from '@vtt/platform';
+import { BaseConfig, OrphanSweepSettings } from '@vtt/platform';
 import { z } from 'zod';
 
 /** Variable facultative : une valeur vide dans le .env vaut absente. */
@@ -67,5 +67,8 @@ export const CharacterConfig = BaseConfig.extend({
     .transform((v) => v === 'true'),
   /** Durée de vie en mémoire des droits renvoyés par campaign, en millisecondes. */
   DROITS_CACHE_MS: z.coerce.number().int().nonnegative().default(5_000),
+
+  /** Fichiers orphelins de ses dossiers du stockage (docs/nettoyage.md § Fichiers). */
+  ...OrphanSweepSettings,
 });
 export type CharacterConfig = z.infer<typeof CharacterConfig>;

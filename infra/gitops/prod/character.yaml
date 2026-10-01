@@ -19,6 +19,11 @@ env:
   CAMPAIGN_URL: http://campaign.vtt-prod.svc
   # Historique des jets : chaque jet d'action est transmis à dice (/internal/rolls)
   DICE_URL: http://dice.vtt-prod.svc
+  # Fichiers orphelins de ses dossiers (docs/nettoyage.md § Fichiers) : chaque autre service qui
+  # garde des adresses de fichiers (même INTERNAL_API_SECRET partout) ; essai tant que les
+  # journaux n'ont pas été vérifiés, puis « on »
+  STORAGE_REFERENCE_URLS: http://campaign.vtt-prod.svc,http://identity.vtt-prod.svc,http://dice.vtt-prod.svc
+  ORPHAN_SWEEP: dry-run
 # Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
@@ -44,6 +49,8 @@ networkPolicy:
     - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
     # dice lit la fiche d'un personnage pour les variables de ses jets (/internal)
     - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
+    # identity demande quels fichiers ses tables référencent (/internal/storage)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: identity } }
 migrations:
   enabled: true
   image:
