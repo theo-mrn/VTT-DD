@@ -51,6 +51,13 @@ export const OrbShell = ({
   );
 };
 
+// Géométries des cœurs, partagées par tous les dés (créées une fois, jamais
+// libérées : passées en prop, R3F ne les libère pas au démontage). 24×24
+// segments suffisent pour une sphère de 0,6 vue à travers le verre.
+const CORE_SPHERE = new THREE.SphereGeometry(0.6, 24, 24);
+const CORE_RING = new THREE.RingGeometry(0.62, 0.78, 64);
+const EYE_DISC = new THREE.CircleGeometry(0.72, 64);
+
 // Procedural core — a dense, contrasted element seen through the glass.
 // Dark saturated center + luminous fresnel rim (not a blown-out white lamp).
 export const GlowCore = ({ skin }: { skin: DiceSkin }) => {
@@ -118,12 +125,9 @@ export const GlowCore = ({ skin }: { skin: DiceSkin }) => {
   return (
     <group>
       {/* Dense fresnel core sphere */}
-      <mesh ref={coreRef} material={coreMat} renderOrder={0}>
-        <sphereGeometry args={[0.6, 48, 48]} />
-      </mesh>
+      <mesh ref={coreRef} geometry={CORE_SPHERE} material={coreMat} renderOrder={0} />
       {/* Luminous ring around the core (billboard plane) */}
-      <mesh ref={ringRef} renderOrder={0}>
-        <ringGeometry args={[0.62, 0.78, 64]} />
+      <mesh ref={ringRef} geometry={CORE_RING} renderOrder={0}>
         <meshBasicMaterial
           color={color}
           transparent
@@ -263,9 +267,7 @@ export const EyeCore = ({ skin }: { skin: DiceSkin }) => {
 
   return (
     <group>
-      <mesh renderOrder={0} material={material}>
-        <circleGeometry args={[0.72, 64]} />
-      </mesh>
+      <mesh renderOrder={0} geometry={EYE_DISC} material={material} />
       <pointLight color={skin.coreColor || '#1fa2ff'} intensity={0.8} distance={4} decay={2} />
     </group>
   );
