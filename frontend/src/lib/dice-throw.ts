@@ -75,6 +75,11 @@ interface DiceThrowState {
   revision: number;
   /** Son des dés (préférence du service dice) : impacts et ambiances. */
   sound: boolean;
+  /**
+   * Des dés sont à l'écran : les autres canevas 3D (aperçu de la boutique)
+   * se mettent en pause pour laisser le GPU au lancer.
+   */
+  onScreen: boolean;
 }
 
 export const useDiceThrowStore = create<DiceThrowState>()(() => ({
@@ -83,6 +88,7 @@ export const useDiceThrowStore = create<DiceThrowState>()(() => ({
   warmup: [],
   revision: 0,
   sound: true,
+  onScreen: false,
 }));
 
 interface Waiter {
@@ -215,6 +221,11 @@ export const diceThrowerChannel = {
   /** Les dés partent vraiment (après chargement et préchauffage) : le délai d'arrêt commence. */
   started(rollId: string): void {
     waiters.get(rollId)?.onStarted();
+  },
+  /** Des dés apparaissent à l'écran, ou le dernier vient d'en être retiré. */
+  shown(onScreen: boolean): void {
+    if (useDiceThrowStore.getState().onScreen !== onScreen)
+      useDiceThrowStore.setState({ onScreen });
   },
   /** Tous les dés du lancer sont arrêtés : faces lues, dans l'ordre d'arrêt. */
   completed(rollId: string, results: ThrowResult[]): void {

@@ -677,6 +677,8 @@ export const DiceThrower = () => {
   }, [revision, flush]);
 
   const hasDice = dice.length > 0;
+  useEffect(() => diceThrowerChannel.shown(hasDice), [hasDice]);
+  useEffect(() => () => diceThrowerChannel.shown(false), []);
   // Un dé roule encore : moteur physique et rendu à pleine cadence. Tous
   // arrêtés : le moteur est en pause (sinon chaque pas relance un rendu), et
   // seule une image toutes les 40 ms entretient les shaders animés, sauf
