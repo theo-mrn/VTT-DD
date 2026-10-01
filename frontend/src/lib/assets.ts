@@ -45,6 +45,21 @@ const CDN = 'https://assets.yner.fr/';
  * au lieu d'un ou deux Mo. Toute autre adresse est rendue telle quelle.
  */
 export function vignette(url: string, largeur: number): string {
-  if (!url.startsWith(CDN)) return url;
+  if (!surCdn(url)) return url;
   return `${CDN}cdn-cgi/image/width=${Math.round(largeur)},format=auto/${url.slice(CDN.length)}`;
+}
+
+/** L'adresse est servie par le CDN, qui sait la redimensionner. */
+export function surCdn(url: string): boolean {
+  return url.startsWith(CDN);
+}
+
+/**
+ * Fond flouté d'une image : 96 px floutés par le CDN, quelques Ko, à agrandir en CSS sans
+ * filtre (une petite image agrandie est déjà floue). Hors CDN, `null` : l'appelant garde un
+ * flou CSS, sur un calque isolé.
+ */
+export function flou(url: string): string | null {
+  if (!surCdn(url)) return null;
+  return `${CDN}cdn-cgi/image/width=96,blur=20,format=auto/${url.slice(CDN.length)}`;
 }

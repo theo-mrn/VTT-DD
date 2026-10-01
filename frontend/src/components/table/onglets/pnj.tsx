@@ -388,6 +388,7 @@ function TemplateCard({
       />
       <Thumb
         src={image}
+        width={56}
         alt=""
         className="size-14 shrink-0 rounded-lg bg-surface-2 object-cover object-top"
         fallback={

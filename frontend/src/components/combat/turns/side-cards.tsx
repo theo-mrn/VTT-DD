@@ -89,6 +89,7 @@ export function TargetsDialog({
                   className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2 text-left transition-colors hover:border-destructive/40 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
                 >
                   <Illustration
+                    largeur={40}
                     src={m?.portraitUrl ?? null}
                     graine={name}
                     position="top"
@@ -160,6 +161,7 @@ export function SlotPickCard({
                   className="h-9 gap-2 pl-1.5"
                 >
                   <Illustration
+                    largeur={24}
                     src={m?.portraitUrl ?? null}
                     graine={name}
                     position="top"

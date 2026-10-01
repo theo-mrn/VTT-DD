@@ -235,6 +235,7 @@ function OrderRow({
       </span>
       <span className="relative shrink-0">
         <Illustration
+          largeur={40}
           src={member?.portraitUrl ?? null}
           graine={name}
           position="top"

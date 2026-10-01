@@ -337,6 +337,7 @@ function TargetEditor({
     >
       <div className="flex flex-wrap items-center gap-2">
         <Illustration
+          largeur={32}
           src={member?.portraitUrl ?? null}
           graine={name}
           position="top"

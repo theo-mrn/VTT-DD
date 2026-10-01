@@ -189,6 +189,7 @@ function AttackerSide({
                 )}
               >
                 <Illustration
+                  largeur={128}
                   src={portraitUrl}
                   graine={label}
                   alt=""
@@ -216,6 +217,7 @@ function AttackerSide({
         </Popover>
       ) : attackerId ? (
         <Illustration
+          largeur={128}
           src={portraitUrl}
           graine={label}
           alt=""
@@ -291,7 +293,12 @@ function AttackerSwitch({
         setOpen(false);
       }}
     >
-      <Illustration src={c.portraitUrl} graine={c.name ?? '?'} className="size-6 rounded-full" />
+      <Illustration
+        src={c.portraitUrl}
+        graine={c.name ?? '?'}
+        largeur={24}
+        className="size-6 rounded-full"
+      />
       <span className="min-w-0 flex-1 truncate">{c.name ?? 'Personnage'}</span>
       {c.id === attackerId && <Check className="text-primary" aria-hidden />}
     </CommandItem>
@@ -481,6 +488,7 @@ function TargetPortrait({
   return (
     <li className="group relative" style={{ zIndex: z }}>
       <Illustration
+        largeur={128}
         src={c?.portraitUrl}
         graine={name}
         alt={name}
@@ -553,6 +561,7 @@ function TargetPicker({
           {on && <Check className="!size-3" strokeWidth={3} />}
         </span>
         <Illustration
+          largeur={24}
           src={c.portraitUrl}
           graine={name}
           className={cn('size-6 rounded-full', p?.defeated && 'opacity-50 grayscale')}

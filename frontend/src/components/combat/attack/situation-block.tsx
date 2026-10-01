@@ -204,6 +204,7 @@ function SituationRow({
     <li className="flex items-start gap-2.5">
       {tone === 'target' ? (
         <Illustration
+          largeur={28}
           src={portrait}
           graine={label}
           className="mt-0.5 size-7 shrink-0 rounded-full ring-1 ring-destructive/50"

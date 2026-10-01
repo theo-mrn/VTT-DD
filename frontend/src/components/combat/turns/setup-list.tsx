@@ -104,6 +104,7 @@ export function SetupList({
                 className="relative z-10"
               />
               <Illustration
+                largeur={40}
                 src={m?.portraitUrl ?? null}
                 graine={name}
                 position="top"

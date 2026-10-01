@@ -153,6 +153,7 @@ export function ImagesTab({ presentation }: { presentation: Presentation | null 
                   />
                   <Thumb
                     src={img.url}
+                    width={320}
                     alt={img.name}
                     className="relative size-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
                     fallback={null}

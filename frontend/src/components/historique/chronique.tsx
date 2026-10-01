@@ -242,6 +242,7 @@ function ChoixPersonnage({
           className="group flex flex-col items-center gap-2 rounded-2xl p-2 outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-ring/60"
         >
           <Illustration
+            largeur={128}
             src={p.portraitUrl}
             graine={p.name}
             position="top"
@@ -380,6 +381,7 @@ function Ligne({
     <li className="flex items-start gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-surface-2/60">
       <div className="relative shrink-0">
         <Illustration
+          largeur={40}
           src={avatar}
           graine={l.characterName ?? l.source}
           initiale={l.characterName ? undefined : '·'}

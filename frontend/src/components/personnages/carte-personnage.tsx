@@ -30,6 +30,7 @@ export function CartePersonnage({
 }) {
   const contenu = (
     <Illustration
+      largeur={320}
       src={p.portraitUrl}
       graine={p.name}
       position="top"

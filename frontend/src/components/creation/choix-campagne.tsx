@@ -90,6 +90,7 @@ function CarteChoix({ campagne }: { campagne: Campagne }) {
       className="group overflow-hidden rounded-2xl border border-border bg-card shadow-surface transition-all hover:-translate-y-0.5 hover:border-primary/50"
     >
       <Illustration
+        largeur={640}
         src={campagne.coverUrl}
         graine={campagne.name || 'Campagne'}
         className="aspect-[16/8] w-full"

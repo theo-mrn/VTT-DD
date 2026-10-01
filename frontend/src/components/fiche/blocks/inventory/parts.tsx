@@ -8,6 +8,7 @@ import type { Sorte } from '@vtt/rules';
 import { Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Info } from '@/components/ui/tooltip';
+import { vignette } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 import { iconeSorte } from './item-icon';
 import type { BonusLabel } from './model';
@@ -33,7 +34,7 @@ export function Thumbnail({
       )}
     >
       {image ? (
-        <img src={image} alt="" className="size-full object-cover" />
+        <img src={vignette(image, 72)} alt="" className="size-full object-cover" />
       ) : (
         <Icone className="size-4" />
       )}

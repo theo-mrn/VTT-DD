@@ -42,6 +42,7 @@ export function CarteSysteme({
       )}
     >
       <Illustration
+        largeur={640}
         src={systeme.couverture}
         graine={systeme.id}
         initiale={systeme.nom.charAt(0)}

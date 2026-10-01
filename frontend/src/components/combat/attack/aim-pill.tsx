@@ -94,6 +94,7 @@ export function AimPill({
     >
       <div className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-full border border-border-strong bg-popover/95 py-1.5 pl-1.5 pr-1.5 shadow-elevated sm:gap-3">
         <Illustration
+          largeur={36}
           src={attackerPortrait ?? (attackerId ? ctx.known.get(attackerId)?.portraitUrl : null)}
           graine={name}
           alt={name}
@@ -105,6 +106,7 @@ export function AimPill({
             {targetIds.slice(0, 4).map((id, i) => (
               <li key={id} style={{ zIndex: 4 - i }}>
                 <Illustration
+                  largeur={32}
                   src={ctx.known.get(id)?.portraitUrl}
                   graine={targetName(id, ctx.known)}
                   alt={targetName(id, ctx.known)}

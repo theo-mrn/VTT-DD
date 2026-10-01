@@ -543,6 +543,7 @@ function OptionCard({
       describedBy={statusId}
     >
       <Illustration
+        largeur={64}
         src={p.portraitUrl}
         graine={p.name}
         position="top"
@@ -733,6 +734,7 @@ function CharacterPanel({
       className="overflow-hidden rounded-2xl border border-border bg-card shadow-surface"
     >
       <Illustration
+        largeur={480}
         src={p.portraitUrl}
         graine={p.name}
         position="top"
@@ -801,6 +803,7 @@ function MobileBar({
       <div className="mx-auto flex max-w-6xl items-center gap-3">
         {selected && selected !== GM_OPTION ? (
           <Illustration
+            largeur={48}
             src={selected.character.portraitUrl}
             graine={selected.character.name}
             position="top"

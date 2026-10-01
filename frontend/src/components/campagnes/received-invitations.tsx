@@ -82,6 +82,7 @@ function LigneInvitation({
       className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/[0.05] p-3"
     >
       <Illustration
+        largeur={112}
         src={i.coverUrl}
         graine={i.name}
         className="size-14 shrink-0 rounded-xl ring-1 ring-white/10"

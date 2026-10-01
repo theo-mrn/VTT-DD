@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogDescription, DialogTitle, SheetContent } from '@/components/ui/dialog';
 import { InputGroup } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { surCdn, vignette } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 
 // ─── Mise en page ────────────────────────────────────────────────────────────
@@ -360,17 +361,25 @@ export function Thumb({
   alt,
   className,
   fallback,
+  width,
 }: {
   src: string | null;
   alt: string;
   className?: string;
   fallback: ReactNode;
+  /** Largeur affichée (px CSS) : vignette du CDN en 1x/2x au lieu de la pleine résolution. */
+  width?: number;
 }) {
   if (!src) return <>{fallback}</>;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- images du CDN public, tailles variées
     <img
-      src={src}
+      src={width ? vignette(src, width * 2) : src}
+      srcSet={
+        width && surCdn(src)
+          ? `${vignette(src, width)} 1x, ${vignette(src, width * 2)} 2x`
+          : undefined
+      }
       alt={alt}
       loading="lazy"
       decoding="async"

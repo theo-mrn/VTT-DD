@@ -434,6 +434,7 @@ function Face({
   const face = (
     <>
       <Illustration
+        largeur={36}
         src={portrait ?? null}
         graine={name}
         position="top"

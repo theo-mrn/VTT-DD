@@ -197,6 +197,7 @@ export function DefeatedDialog({
                 className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2"
               >
                 <Illustration
+                  largeur={36}
                   src={r.member?.portraitUrl ?? null}
                   graine={name}
                   position="top"

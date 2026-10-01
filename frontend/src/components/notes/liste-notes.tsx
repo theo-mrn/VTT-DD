@@ -262,6 +262,7 @@ export function ListeNotes({
                   className="z-10 flex items-center gap-1.5 px-3 pb-1.5 pt-4 text-[11px] font-medium uppercase tracking-[0.12em] text-subtle lg:sticky lg:top-0 lg:bg-gradient-to-b lg:from-background lg:via-background/95 lg:to-background/0"
                 >
                   <Illustration
+                    largeur={28}
                     src={parCampagne.get(g.id)?.coverUrl}
                     graine={g.titre}
                     initiale={false}
@@ -560,6 +561,7 @@ function FiltresNotes({
               {campagne ? (
                 <>
                   <Illustration
+                    largeur={28}
                     src={campagne.coverUrl}
                     graine={campagne.name}
                     initiale={false}
@@ -594,6 +596,7 @@ function FiltresNotes({
                 onSelect={() => onFiltre({ ...filtre, campagne: c.id })}
               >
                 <Illustration
+                  largeur={40}
                   src={c.coverUrl}
                   graine={c.name}
                   initiale={false}

@@ -14,6 +14,7 @@ function DetailsBlock({ ctx, widget }: SheetBlockProps<'details'>) {
     <Bloc titre={widget.titre}>
       <div className="flex gap-4">
         <Illustration
+          largeur={112}
           src={personnage.portraitUrl ?? null}
           graine={personnage.name}
           position="top"

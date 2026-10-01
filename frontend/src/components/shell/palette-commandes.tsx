@@ -123,6 +123,7 @@ export function PaletteCommandes({
                     onSelect={() => aller(`/campagnes/${c.id}`)}
                   >
                     <Illustration
+                      largeur={40}
                       src={c.coverUrl}
                       graine={c.name}
                       initiale={false}
@@ -146,6 +147,7 @@ export function PaletteCommandes({
                     onSelect={() => aller(lienPersonnage(p))}
                   >
                     <Illustration
+                      largeur={20}
                       src={p.portraitUrl}
                       graine={p.name}
                       initiale={false}

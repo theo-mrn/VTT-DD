@@ -69,6 +69,7 @@ export function Portrait({
 }) {
   return (
     <Illustration
+      largeur={36}
       src={src ?? null}
       graine={name}
       position="top"

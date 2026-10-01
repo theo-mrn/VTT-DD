@@ -249,6 +249,7 @@ export function AddParticipantsDialog({
                     label={`Ajouter ${name}`}
                   />
                   <Illustration
+                    largeur={32}
                     src={m?.portraitUrl ?? null}
                     graine={name}
                     position="top"

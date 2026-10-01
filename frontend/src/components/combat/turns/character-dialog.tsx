@@ -239,6 +239,7 @@ function DialogBody({
     <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
       <header className="flex items-center gap-3.5 px-5 pb-3 pt-5 pr-12">
         <Illustration
+          largeur={56}
           src={member?.portraitUrl ?? perso.data?.portraitUrl ?? null}
           graine={name}
           position="top"

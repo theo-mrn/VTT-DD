@@ -204,6 +204,7 @@ export function EtapeChoisir({
                   )}
                 >
                   <Illustration
+                    largeur={320}
                     src={image}
                     graine={e.nom}
                     position="top"
@@ -396,6 +397,7 @@ function DetailEntree({
       <div className="flex gap-4 p-5">
         {image && (
           <Illustration
+            largeur={150}
             src={image}
             graine={e.nom}
             position="top"

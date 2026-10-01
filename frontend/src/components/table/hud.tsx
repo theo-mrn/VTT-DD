@@ -48,6 +48,7 @@ export function HudCampaign({ table }: { table: Table }) {
         </Button>
       </Info>
       <Illustration
+        largeur={64}
         src={c.coverUrl}
         graine={c.name}
         className="hidden size-8 shrink-0 rounded-lg ring-1 ring-border sm:block"
@@ -158,6 +159,7 @@ function HerosIncarne({
         </span>
       </span>
       <Illustration
+        largeur={36}
         src={heros.portraitUrl}
         graine={heros.name}
         position="top"

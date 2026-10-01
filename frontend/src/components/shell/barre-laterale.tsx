@@ -145,6 +145,7 @@ export function BarreLaterale({
                   )}
                 >
                   <Illustration
+                    largeur={40}
                     src={c.coverUrl}
                     graine={c.name}
                     initiale={false}

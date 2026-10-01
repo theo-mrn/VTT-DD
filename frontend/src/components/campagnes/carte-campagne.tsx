@@ -55,6 +55,7 @@ export function CarteCampagne({
   const contenu = (
     <>
       <Illustration
+        largeur={grande ? undefined : 640}
         src={campagne.coverUrl}
         graine={campagne.name || 'Campagne'}
         className={cn('w-full', grande ? 'aspect-[16/8]' : 'aspect-[16/9]')}

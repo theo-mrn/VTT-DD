@@ -181,6 +181,7 @@ export function ReglagesForm({
                 )}
               >
                 <Illustration
+                  largeur={320}
                   src={cv.url}
                   graine={cv.nom}
                   initiale={false}
@@ -191,6 +192,7 @@ export function ReglagesForm({
             {importee && (
               <span className="overflow-hidden rounded-lg border-2 border-primary">
                 <Illustration
+                  largeur={320}
                   src={f.coverUrl}
                   graine={c.name}
                   initiale={false}

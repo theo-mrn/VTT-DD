@@ -439,6 +439,7 @@ function EtapeAmbiance({ b, maj }: PropsEtape) {
                   )}
                 >
                   <Illustration
+                    largeur={320}
                     src={c.url}
                     graine={c.nom}
                     className="aspect-[16/10]"

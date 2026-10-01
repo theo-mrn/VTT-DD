@@ -87,6 +87,7 @@ export function ResultCard({
     <li className="space-y-2.5 rounded-xl border border-border bg-surface-2/50 p-3">
       <div className="flex items-center gap-2.5">
         <Illustration
+          largeur={32}
           src={known.get(d.characterId)?.portraitUrl}
           graine={name}
           className="size-8 shrink-0 rounded-full"

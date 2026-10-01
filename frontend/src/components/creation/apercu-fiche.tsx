@@ -164,6 +164,7 @@ export function ApercuFiche({
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-surface">
       <Illustration
+        largeur={480}
         src={portraitUrl}
         graine={nom || 'Héros'}
         position="top"

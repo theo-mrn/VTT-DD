@@ -222,6 +222,7 @@ function Vignette({
       )}
     >
       <Illustration
+        largeur={200}
         src={src}
         graine={nom}
         position="top"

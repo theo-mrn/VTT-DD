@@ -132,6 +132,7 @@ export function ProprietesNote({
             <DropdownMenu>
               <DropdownMenuTrigger className={styleDeclencheur} disabled={!permissions.move}>
                 <Illustration
+                  largeur={40}
                   src={campagne?.coverUrl}
                   graine={campagne?.name ?? roomId}
                   initiale={false}
@@ -150,6 +151,7 @@ export function ProprietesNote({
                 {destinations.map((c) => (
                   <DropdownMenuItem key={c.id} onSelect={() => onCampagne(c.id)}>
                     <Illustration
+                      largeur={40}
                       src={c.coverUrl}
                       graine={c.name}
                       initiale={false}

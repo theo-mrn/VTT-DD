@@ -649,6 +649,7 @@ function PersonChip({
       title={`Fiche de ${name}`}
     >
       <Illustration
+        largeur={24}
         src={portrait}
         graine={name}
         position="top"

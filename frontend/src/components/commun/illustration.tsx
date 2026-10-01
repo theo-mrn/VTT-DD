@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { surCdn, vignette } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 
 /** Teinte stable dérivée d'un texte : chaque campagne ou héros garde sa couleur. */
@@ -29,6 +30,7 @@ export function Illustration({
   voile = false,
   children,
   position = 'center',
+  largeur,
 }: {
   src: string | null | undefined;
   graine: string;
@@ -41,6 +43,11 @@ export function Illustration({
   voile?: boolean;
   children?: ReactNode;
   position?: 'center' | 'top';
+  /**
+   * Largeur affichée, en px CSS : l'image est alors demandée au CDN à cette taille (1x) et au
+   * double (2x) au lieu de sa pleine résolution. L'adresse enregistrée ne change pas.
+   */
+  largeur?: number;
 }) {
   const [echec, setEchec] = useState<string | null>(null);
   const image = src && echec !== src ? src : null;
@@ -50,7 +57,12 @@ export function Illustration({
     <div className={cn('relative isolate overflow-hidden bg-surface-2', className)}>
       {image ? (
         <img
-          src={image}
+          src={largeur ? vignette(image, largeur * 2) : image}
+          srcSet={
+            largeur && surCdn(image)
+              ? `${vignette(image, largeur)} 1x, ${vignette(image, largeur * 2)} 2x`
+              : undefined
+          }
           alt={alt}
           loading="lazy"
           decoding="async"

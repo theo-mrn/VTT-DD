@@ -173,6 +173,7 @@ function CarteOuverte({
       className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-surface transition-colors hover:border-primary/40"
     >
       <Illustration
+        largeur={640}
         src={c.coverUrl}
         graine={c.name || 'Campagne'}
         className={cn('w-full', compacte ? 'aspect-[16/6]' : 'aspect-[16/8]')}

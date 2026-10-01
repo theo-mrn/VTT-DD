@@ -243,7 +243,7 @@ function EntryRow({
     >
       {image && (
         <span className="size-9 shrink-0 overflow-hidden rounded-lg bg-surface-2">
-          <Thumb src={image} alt="" className="size-full object-cover" fallback={null} />
+          <Thumb src={image} alt="" width={36} className="size-full object-cover" fallback={null} />
         </span>
       )}
       <span className="min-w-0 flex-1">

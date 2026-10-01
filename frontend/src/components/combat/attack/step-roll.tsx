@@ -541,6 +541,7 @@ function TargetRow({
     >
       <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
         <Illustration
+          largeur={48}
           src={ctx.known.get(summary.characterId)?.portraitUrl}
           graine={name}
           position="top"

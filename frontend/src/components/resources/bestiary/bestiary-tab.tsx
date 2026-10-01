@@ -223,6 +223,7 @@ function CreatureCard({ item, onOpen }: { item: BestiaryItem; onOpen(): void }) 
         <Skull className="absolute size-8 text-subtle/60" aria-hidden />
         <Thumb
           src={item.image}
+          width={320}
           alt=""
           className="relative size-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.03]"
           fallback={null}
@@ -258,6 +259,7 @@ function CreatureSheet({ item }: { item: BestiaryItem }) {
           <span className="size-24 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-2 sm:size-28">
             <Thumb
               src={item.image}
+              width={112}
               alt=""
               className="size-full object-contain p-1"
               fallback={null}

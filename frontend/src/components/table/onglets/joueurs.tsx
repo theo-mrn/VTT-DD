@@ -112,6 +112,7 @@ export function PanneauJoueurs() {
                   >
                     <span className="relative">
                       <Illustration
+                        largeur={36}
                         src={p.portraitUrl}
                         graine={p.name}
                         position="top"
