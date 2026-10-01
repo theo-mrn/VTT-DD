@@ -4,8 +4,15 @@ import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { XIcon } from 'lucide-react';
 
+import dynamic from 'next/dynamic';
+
 import { cn } from '@/lib/utils';
-import { BorderTrail } from '@/components/motion-primitives/border-trail';
+
+// Liseré animé (motion/react) : chargé seulement si une fenêtre le demande, jamais au démarrage
+const BorderTrail = dynamic(
+  () => import('@/components/motion-primitives/border-trail').then((m) => m.BorderTrail),
+  { ssr: false },
+);
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
