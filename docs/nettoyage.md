@@ -1,6 +1,6 @@
 # Nettoyage : corbeille, purge, fichiers orphelins
 
-> Conception à valider avant le code. Ce qui est supprimé, quand, par quel service.
+> Conception validée le 2026-10-01. Ce qui est supprimé, quand, par quel service.
 
 ## Constat
 
@@ -35,9 +35,12 @@
 | Modèle de PNJ  | character | `deleted_at` (nouveau), `npc_template.deleted`    | `POST …/npc-templates/:id/restore`                    |
 | Modèle d'objet | character | `deleted_at` (nouveau), `object_template.deleted` | idem                                                  |
 
-- Les lectures excluent déjà les personnages supprimés ; elles excluront de même les modèles.
-- Campaign, sur `character.deleted` : **masque** (n'efface pas) engagement, tokens et place en
-  combat ; sur `character.restored`, les rend. Le combat retire le participant de l'ordre du tour.
+- Les lectures excluent déjà les personnages supprimés ; elles excluent de même les modèles.
+- **Instances de PNJ** (`kind` npc, posées sur la carte) : jamais dans la corbeille, leur modèle
+  demeure ; purgées à la passe suivante, sans attendre 7 jours.
+- **Campagne** : rien n'est masqué ni rendu. Supprimer un personnage le retire d'abord de ses
+  campagnes (route existante : engagement, tokens, place en combat, avec leurs événements) ;
+  restauré, il revient sans campagne, à réengager.
 - Interface : une section « Corbeille » (mes personnages ; modèles de la campagne pour le MJ) avec
   « Restaurer » et la date de purge. Changements Liquibase : `deleted_at` sur `npc_templates` et
   `object_templates` (nouveau changeset, jamais un changeset existant modifié).
@@ -53,14 +56,9 @@
 3. fichiers : le dossier `characters/<id>/` entier pour un personnage ; pour un modèle, ses images
    seulement si plus rien ne les référence (§ Fichiers).
 
-**campaign**, consommateur durable `campaign-cleanup` (dédoublonné par `inbox`) :
-
-| Événement             | Effet                                                                                                                                                      |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `character.deleted`   | masque engagement, tokens, place en combat (réversible)                                                                                                    |
-| `character.restored`  | les rend                                                                                                                                                   |
-| `character.purged`    | supprime engagement, tokens, participants de combat, cibles d'attaque ; détache les notes (`character_id` à null : la note reste, c'est l'écrit du joueur) |
-| `npc_template.purged` | rien en base (les instances déjà créées sont des personnages à part entière)                                                                               |
+**campaign** n'écoute rien : le retrait de la campagne a déjà eu lieu à la suppression. Les
+notes gardent leur `character_id` (la note reste, c'est l'écrit du joueur) ; une instance purgée
+n'a plus de token (son retrait de la carte est ce qui l'a supprimée).
 
 **Gardé volontairement** : l'historique (service history) et les jets de dés journalisés. Ce sont
 la chronique de la partie ; les événements portent déjà le nom du personnage.
@@ -103,8 +101,8 @@ balayée : elle n'appartient à aucun service.
 
 ## Ordre de réalisation
 
-1. Corbeille des modèles (changeset `deleted_at`), restauration, section Corbeille (front).
-2. Consommateur campaign : masquer / rendre / supprimer sur `character.*`.
+1. Corbeille des modèles (changeset `deleted_at`), restauration, section Corbeille (front). Fait.
+2. ~~Consommateur campaign~~ : abandonné (voir Corbeille, « Campagne »).
 3. Purge définitive dans character (+ dossier `characters/<id>/`).
 4. Route `references` dans character, campaign, identity ; passe des fichiers orphelins, d'abord en
    `CLEANUP_DRY_RUN`.

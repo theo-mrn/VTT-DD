@@ -28,7 +28,7 @@ import {
   type ReglagesOptions,
   type SystemeCharge,
 } from '@vtt/rules';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { campaignIndisponible, type Droits, type DroitsCampagnes } from '../../droits/campaign.js';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
@@ -691,8 +691,12 @@ export async function supprimer(db: Db, ctx: EventContext, appelant: Appelant, i
   });
 }
 
-/** Supprimé depuis moins de `TRASH_DAYS` jours : restaurable (au-delà, en attente de purge). */
+/**
+ * Supprimé depuis moins de `TRASH_DAYS` jours : restaurable (au-delà, en attente de purge). Les
+ * instances de PNJ n'y passent pas : leur modèle demeure, elles sont purgées à la passe suivante.
+ */
 const dansLaCorbeille = and(
+  ne(characters.kind, 'npc'),
   sql`${characters.deletedAt} IS NOT NULL`,
   sql`${characters.deletedAt} > now() - make_interval(days => ${TRASH_DAYS})`,
 );
@@ -712,8 +716,8 @@ export function corbeille(db: Db, ownerId: string) {
 }
 
 /**
- * Restaure un personnage de la corbeille (son propriétaire seul) : `character.restored`, que
- * campaign écoute pour rendre engagement, tokens et place en combat (docs/nettoyage.md).
+ * Restaure un personnage de la corbeille (son propriétaire seul) : la fiche revient, à réengager
+ * dans une campagne (son retrait l'en avait sorti, tokens et place en combat compris).
  */
 export async function restaurer(db: Db, ctx: EventContext, appelant: Appelant, id: string) {
   const owner = appelant.userId;

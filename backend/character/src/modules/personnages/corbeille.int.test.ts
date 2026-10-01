@@ -103,6 +103,18 @@ describe.skipIf(!TEST_DATABASE_URL)('corbeille', () => {
     expect((await o.requete(alice, 'POST', `/v1/characters/${p.id}/restore`)).statusCode).toBe(404);
   });
 
+  it('instance de PNJ : jamais dans la corbeille (son modèle demeure)', async () => {
+    const p = await o.ok(alice, 'POST', '/v1/characters', {
+      systemeId: 'dnd-classic',
+      type: 'personnage',
+      nom: 'Gobelin 1',
+    });
+    await t.db!.update(characters).set({ kind: 'npc' }).where(eq(characters.id, p.id));
+    await json(alice, 'DELETE', `/v1/characters/${p.id}`);
+    expect(await json(alice, 'GET', '/v1/characters/trash')).toEqual([]);
+    expect((await o.requete(alice, 'POST', `/v1/characters/${p.id}/restore`)).statusCode).toBe(404);
+  });
+
   it('modèles : corbeille du MJ, exclus des listes et de l’instanciation, restaurables', async () => {
     const orque = (await json(alice, 'POST', `${base}/npc-templates`, {
       name: 'Orque',
