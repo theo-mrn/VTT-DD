@@ -103,7 +103,7 @@ balayée : elle n'appartient à aucun service.
 
 1. Corbeille des modèles (changeset `deleted_at`), restauration, section Corbeille (front). Fait.
 2. ~~Consommateur campaign~~ : abandonné (voir Corbeille, « Campagne »).
-3. Purge définitive dans character (+ dossier `characters/<id>/`).
+3. Purge définitive dans character (+ dossier `characters/<id>/`). Fait (`src/maintenance/`).
 4. Route `references` dans character, campaign, identity ; passe des fichiers orphelins, d'abord en
    `CLEANUP_DRY_RUN`.
 5. Tests d'intégration : corbeille et restauration, purge et événements, fichier référencé

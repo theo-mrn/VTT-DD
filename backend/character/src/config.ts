@@ -58,6 +58,13 @@ export const CharacterConfig = BaseConfig.extend({
   S3_SECRET_ACCESS_KEY: facultatif(z.string()),
   /** URL publique des fichiers envoyés (domaine R2 en prod). */
   S3_PUBLIC_URL: facultatif(z.string().url()),
+  /** Passe d'entretien (purge de la corbeille, docs/nettoyage.md), en minutes ; 0 : jamais. */
+  CLEANUP_EVERY_MINUTES: z.coerce.number().int().nonnegative().default(60),
+  /** Journalise ce que la passe supprimerait, sans rien supprimer (première mise en prod). */
+  CLEANUP_DRY_RUN: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   /** Durée de vie en mémoire des droits renvoyés par campaign, en millisecondes. */
   DROITS_CACHE_MS: z.coerce.number().int().nonnegative().default(5_000),
 });

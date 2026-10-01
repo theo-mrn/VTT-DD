@@ -15,3 +15,5 @@ export * from './bus.js';
 export * from './outbox-relay.js';
 export * from './remote-image.js';
 export * from './uploads.js';
+export * from './maintenance.js';
+export * from './storage.js';

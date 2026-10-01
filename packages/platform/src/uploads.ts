@@ -63,7 +63,8 @@ export type ObjectWriter = (o: {
 /** Télécharge une image d'un autre site. Injectable pour les tests. */
 export type RemoteFetcher = (url: string, o: FetchOptions) => Promise<RemoteImage>;
 
-function s3Client(s: StorageSettings) {
+/** Client S3 du stockage, ou undefined s'il n'est pas configuré. */
+export function s3Client(s: StorageSettings) {
   const { S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = s;
   if (!S3_ENDPOINT || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) return undefined;
   const client = new S3Client({
