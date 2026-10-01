@@ -92,8 +92,7 @@ export function FormulaireConnexion({
     <div
       className={cn(
         'w-full max-w-[400px]',
-        carte &&
-          'rounded-2xl border border-border-strong bg-popover/95 p-6 shadow-elevated backdrop-blur-xl sm:p-8',
+        carte && 'rounded-2xl border border-border-strong bg-popover p-6 shadow-elevated sm:p-8',
       )}
     >
       <div className="mb-7 space-y-2">

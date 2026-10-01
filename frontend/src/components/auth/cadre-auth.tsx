@@ -45,13 +45,13 @@ export function CadreAuth({ children }: { children: ReactNode }) {
   );
 }
 
-const flotte = (delai: number) => ({
+// Entrée en fondu des cartes de la vitrine. Plus de flottement sans fin : trois
+// cartes animées en continu sur une illustration plein cadre repeignaient la
+// moitié de l'écran à chaque image.
+const entree = (delai: number) => ({
   initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: [0, -8, 0] },
-  transition: {
-    opacity: { duration: 0.6, delay: delai },
-    y: { duration: 7, repeat: Infinity, ease: 'easeInOut' as const, delay: delai },
-  },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, delay: delai, ease: 'easeOut' as const },
 });
 
 function Vitrine() {
@@ -73,8 +73,8 @@ function Vitrine() {
         {/* Cartes flottantes : un aperçu de l'app, pas une capture */}
         <div className="absolute inset-0">
           <motion.div
-            {...flotte(0.2)}
-            className="absolute left-[8%] top-[12%] w-64 rounded-2xl border border-white/10 bg-black/45 p-4 shadow-elevated backdrop-blur-xl"
+            {...entree(0.2)}
+            className="absolute left-[8%] top-[12%] w-64 rounded-2xl border border-white/10 bg-black/70 p-4 shadow-elevated"
           >
             <p className="text-[11px] font-medium uppercase tracking-wider text-white/50">
               Jet d&apos;attaque · 1d20 + 5
@@ -93,12 +93,13 @@ function Vitrine() {
           </motion.div>
 
           <motion.div
-            {...flotte(0.5)}
-            className="absolute right-[7%] top-[30%] w-72 overflow-hidden rounded-2xl border border-white/10 bg-black/45 shadow-elevated backdrop-blur-xl"
+            {...entree(0.5)}
+            className="absolute right-[7%] top-[30%] w-72 overflow-hidden rounded-2xl border border-white/10 bg-black/70 shadow-elevated"
           >
             <Illustration
               src="https://assets.yner.fr/Map/Cimetiere/Illustration/Graveyard_illustration_Night_04.webp"
               graine="La Crypte d'Ashenvale"
+              largeur={288}
               className="h-24"
               voile
             />
@@ -133,13 +134,14 @@ function Vitrine() {
           </motion.div>
 
           <motion.div
-            {...flotte(0.8)}
-            className="absolute bottom-[26%] left-[14%] w-60 rounded-2xl border border-white/10 bg-black/45 p-4 shadow-elevated backdrop-blur-xl"
+            {...entree(0.8)}
+            className="absolute bottom-[26%] left-[14%] w-60 rounded-2xl border border-white/10 bg-black/70 p-4 shadow-elevated"
           >
             <div className="flex items-center gap-3">
               <Illustration
                 src="https://assets.yner.fr/images/races/Elfe.webp"
                 graine="Aelys"
+                largeur={44}
                 position="top"
                 className="size-11 rounded-xl ring-1 ring-white/15"
               />
