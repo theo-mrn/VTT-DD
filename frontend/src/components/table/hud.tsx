@@ -25,8 +25,9 @@ import { JaugesFiche } from './jauges';
 import { PanelLink } from './panels/navigation';
 import { usePanelStore } from './panels/store';
 
-const VERRE =
-  'rounded-2xl border border-border-strong bg-popover/75 shadow-elevated backdrop-blur-xl';
+// Fond presque opaque, sans backdrop-filter : sur le canvas de la carte, le flou serait
+// recalculé à chaque image.
+const VERRE = 'rounded-2xl border border-border-strong bg-popover/95 shadow-elevated';
 
 /** En haut à gauche : retour au salon, campagne et système. */
 export function HudCampaign({ table }: { table: Table }) {

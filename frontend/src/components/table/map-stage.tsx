@@ -44,7 +44,7 @@ export function MapStage({
             className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,hsl(var(--background))_75%)]"
           />
           <div className="absolute inset-0 grid place-items-center p-6">
-            <p className="flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2 text-sm text-muted-foreground backdrop-blur-md">
+            <p className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2 text-sm text-muted-foreground">
               <IconeCarte className="size-4 text-primary" aria-hidden />
               {emptyMessage}
             </p>

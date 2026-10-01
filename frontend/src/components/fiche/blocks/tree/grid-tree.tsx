@@ -253,7 +253,7 @@ export function GridTree({
         </div>
       </div>
       <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1">
-        <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg border border-border-strong bg-popover/90 p-0.5 shadow-elevated backdrop-blur">
+        <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg border border-border-strong bg-popover/95 p-0.5 shadow-elevated">
           <Button
             variant="ghost"
             size="icon-xs"

@@ -92,7 +92,7 @@ export function AimPill({
       transition={{ duration: 0.2, ease: 'easeOut' }}
       className="pointer-events-none fixed inset-x-3 bottom-[calc(var(--table-dock-h,0px)+0.75rem)] z-50 flex justify-center lg:bottom-6"
     >
-      <div className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-full border border-border-strong bg-popover/95 py-1.5 pl-1.5 pr-1.5 shadow-elevated backdrop-blur-md sm:gap-3">
+      <div className="pointer-events-auto flex max-w-full items-center gap-2.5 rounded-full border border-border-strong bg-popover/95 py-1.5 pl-1.5 pr-1.5 shadow-elevated sm:gap-3">
         <Illustration
           src={attackerPortrait ?? (attackerId ? ctx.known.get(attackerId)?.portraitUrl : null)}
           graine={name}

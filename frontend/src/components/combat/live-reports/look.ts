@@ -7,13 +7,16 @@
 import type { Transition } from 'motion/react';
 import type { OutcomeTone } from '@/lib/combat/view';
 
-/** Verre des pièces du HUD (campagne, héros) : la barre et les lignes compactes. */
-export const GLASS =
-  'rounded-2xl border border-border-strong bg-popover/80 shadow-elevated backdrop-blur-xl';
+/**
+ * Verre des pièces du HUD (campagne, héros) : la barre et les lignes compactes. Fond presque
+ * opaque, sans backdrop-filter : posé sur le canvas de la carte, le flou serait recalculé à
+ * chaque image.
+ */
+export const GLASS = 'rounded-2xl border border-border-strong bg-popover/95 shadow-elevated';
 
-/** Carte d'un rapport : la carte du lanceur, posée sur la carte de jeu (verre dense). */
+/** Carte d'un rapport : la carte du lanceur, posée sur la carte de jeu (verre dense, sans flou). */
 export const CARD =
-  'relative isolate overflow-hidden rounded-2xl border border-border-strong bg-card/95 shadow-elevated backdrop-blur-xl';
+  'relative isolate overflow-hidden rounded-2xl border border-border-strong bg-card/95 shadow-elevated';
 
 /** Libellé discret au-dessus d'un chiffre (bandeau de la fiche). */
 export const LABEL = 'text-[11px] font-medium uppercase tracking-wider text-subtle';

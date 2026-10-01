@@ -41,7 +41,7 @@ const PORTRAIT =
   'aspect-[3/4] w-12 shrink-0 rounded-xl shadow-elevated xs:w-14 sm:w-[5.5rem] lg:w-24';
 
 const iconButton = cn(
-  'grid size-8 shrink-0 place-items-center rounded-full border border-border-strong bg-surface-2/80 text-muted-foreground backdrop-blur transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-40 max-sm:size-9',
+  'grid size-8 shrink-0 place-items-center rounded-full border border-border-strong bg-surface-2/95 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-40 max-sm:size-9',
   FOCUS,
 );
 

@@ -348,7 +348,7 @@ export function BulleMiseEnForme({ editor }: { editor: Editor }) {
         const { from, to } = state.selection;
         return state.doc.textBetween(from, to, ' ').trim().length > 0;
       }}
-      className="z-40 flex items-center rounded-xl border border-border-strong bg-popover/95 p-1 shadow-elevated backdrop-blur-xl"
+      className="z-40 flex items-center rounded-xl border border-border-strong bg-popover/95 p-1 shadow-elevated"
     >
       <BarreMiseEnForme editor={editor} variante="bulle" />
     </BubbleMenu>

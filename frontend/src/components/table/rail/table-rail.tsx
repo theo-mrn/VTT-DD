@@ -32,7 +32,7 @@ export function TableRail({ layout }: { layout: RailLayout }) {
     <>
       <nav
         aria-label="Panneaux de la table"
-        className="fixed left-3 top-1/2 z-40 hidden max-h-[calc(100dvh-8rem)] -translate-y-1/2 flex-col items-center gap-1 overflow-y-auto rounded-2xl border border-border-strong bg-popover/80 p-1.5 shadow-elevated backdrop-blur-xl lg:flex"
+        className="fixed left-3 top-1/2 z-40 hidden max-h-[calc(100dvh-8rem)] -translate-y-1/2 flex-col items-center gap-1 overflow-y-auto rounded-2xl border border-border-strong bg-popover/95 p-1.5 shadow-elevated lg:flex"
       >
         {visibles.map((i) => (
           <RailButton key={i.panel.id} panel={i.panel} variante="rail" />
@@ -43,7 +43,7 @@ export function TableRail({ layout }: { layout: RailLayout }) {
 
       <nav
         aria-label="Panneaux de la table"
-        className="fixed inset-x-0 bottom-0 z-50 flex h-[var(--table-dock-h)] items-start border-t border-border-strong bg-popover/90 px-1 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 flex h-[var(--table-dock-h)] items-start border-t border-border-strong bg-popover/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 lg:hidden"
       >
         <div className="no-scrollbar flex w-full items-center gap-0.5 overflow-x-auto">
           <DockMap />

@@ -178,7 +178,7 @@ export function ReactionPrompts({
     <section
       role="alertdialog"
       aria-labelledby="reaction-title"
-      className="pointer-events-auto w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl border border-warning/40 bg-popover/95 p-3 shadow-elevated backdrop-blur-xl"
+      className="pointer-events-auto w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl border border-warning/40 bg-popover/95 p-3 shadow-elevated"
     >
       <div className="mb-2 flex items-start gap-2">
         <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
