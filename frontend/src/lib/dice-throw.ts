@@ -106,16 +106,42 @@ const newId = () =>
 
 // ─── Côté écrans ─────────────────────────────────────────────────────────────
 
+/** Délai maximal avant un préchauffage reporté, même si le fil n'est jamais libre. */
+const PREPARE_IDLE_TIMEOUT_MS = 3000;
+/** Skins à préchauffer, regroupés jusqu'au prochain moment libre. */
+const preparing = new Set<string>();
+let prepareScheduled = false;
+
+const whenIdle = (run: () => void) => {
+  if (typeof window.requestIdleCallback === 'function')
+    window.requestIdleCallback(run, { timeout: PREPARE_IDLE_TIMEOUT_MS });
+  else window.setTimeout(run, 200);
+};
+
 /**
  * Prépare le lanceur (module 3D chargé, shaders de ces skins préchauffés)
- * avant le premier jet : à l'ouverture de la table ou du lanceur rapide.
+ * avant le premier jet : à l'ouverture de la table, du lanceur rapide ou en
+ * équipant un skin. Reporté au premier moment libre du fil principal : la
+ * carte et le panneau qui s'ouvrent passent d'abord. Les demandes rapprochées
+ * sont regroupées en une seule, et le lanceur ne préchauffe qu'un lot à la
+ * fois (jamais deux rafales de compilation ensemble). Un lancer demandé
+ * entre-temps n'attend pas : il préchauffe lui-même ses skins.
  */
 export function prepareDice3D(skinIds: readonly string[]): void {
-  useDiceThrowStore.setState((s) => ({
-    active: true,
-    warmup: [...new Set([...s.warmup, ...skinIds.filter(Boolean)])],
-    revision: s.revision + 1,
-  }));
+  if (typeof window === 'undefined') return;
+  skinIds.filter(Boolean).forEach((id) => preparing.add(id));
+  if (prepareScheduled) return;
+  prepareScheduled = true;
+  whenIdle(() => {
+    prepareScheduled = false;
+    const skins = [...preparing];
+    preparing.clear();
+    useDiceThrowStore.setState((s) => ({
+      active: true,
+      warmup: [...new Set([...s.warmup, ...skins])],
+      revision: s.revision + 1,
+    }));
+  });
 }
 
 /** Son des dés (préférence du service) : le lanceur le lit à chaque impact. */
