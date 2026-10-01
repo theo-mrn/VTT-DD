@@ -518,8 +518,8 @@ de messages seulement.
 - **`map.ping`** : `{ m, x, y, focus? }`.
 - **`map.bubble`** : `{ c, b: { t, v, d } | null }`, bulle d'interaction (emoji ou texte de 40
   caractères au plus, 1 à 60 s) au-dessus des tokens du héros `c` ; `null` la retire. Joueurs
-  seulement (bouton « Bulle » de la barre d'outils ou K : texte, 417 emoji par thème et derniers
-  utilisés, durée) : acceptée à la
+  seulement (bouton « Bulle » de la barre d'outils ou K : texte, tous les emoji Unicode par
+  catégorie après une sélection « Partie », derniers utilisés, durée) : acceptée à la
   réception de celui qui incarne le personnage (à défaut, son propriétaire), jamais pour un PNJ ;
   cachée avec son token (vision, calque). `lib/map/bubbles`, `components/map/bubbles`.
   - Alt+clic : onde à cet endroit, chez tous.

@@ -163,7 +163,7 @@ function Picker({
         ))}
       </div>
 
-      <div className="grid h-60 grid-cols-9 content-start gap-0.5 overflow-y-auto p-1.5">
+      <div className="grid h-72 grid-cols-9 content-start gap-0.5 overflow-y-auto p-1.5">
         {category.emojis.map((e) => (
           <button
             key={e}
