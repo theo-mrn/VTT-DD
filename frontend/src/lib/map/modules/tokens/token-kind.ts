@@ -17,6 +17,7 @@ import { confirmNpcDeletion, removeTokens, TOKEN_KIND_ID } from './edit';
 import { tokenMenu } from './menu';
 import {
   applyTokenGeometry,
+  isNpc,
   ownsToken,
   TOKENS_COLLECTION,
   tokenCan,
@@ -39,6 +40,12 @@ const offline: Persistence<MapDto> = {
 export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
   const { engine, directory } = tokens;
   const info = (d: TokenData) => directory.get(d.characterId);
+  // Un joueur ne connaît pas le nom des PNJ (ni sur la carte, ni au survol, ni dans les menus)
+  const nameOf = (d: TokenData): string | null => {
+    const c = info(d);
+    if (engine.viewer.role !== 'gm' && isNpc(c)) return null;
+    return c?.name ?? d.draft?.name ?? null;
+  };
 
   const lookOf = (e: MapEntity<TokenData>): TokenLook => {
     const d = e.data;
@@ -51,7 +58,7 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
       // Token du Studio : sa forme et son cadre sont déjà dans l'image
       baked: tokenImage(d, c).baked,
       side: c?.side ?? d.draft?.side ?? null,
-      name: c?.name ?? d.draft?.name ?? null,
+      name: nameOf(d),
       resource: c?.resource ?? null,
       pending: !!d.draft || d.id.startsWith('tmp-'),
       badge:
@@ -111,7 +118,7 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
       set: (d, h) => withVisibility(d, h ? 'invisible' : 'visible'),
     },
     isOwn: ownsToken,
-    name: (d) => info(d)?.name ?? d.draft?.name ?? null,
+    name: nameOf,
     thumbnail: (d) => tokenImage(d, info(d)).url,
     can: (action, e, viewer) => tokenCan(action, e.data, viewer, info(e.data)),
     hitTest: (e, p, tolerance) => tokenContains(e.data.shape, e.current, p, tolerance),
