@@ -1420,8 +1420,10 @@ mesure se voit chez tous pendant le geste, s'efface ensuite, ou s'épingle en ga
 En haut à gauche de la table, la sortie (retour au salon) en tête, à la place des anciens blocs
 « campagne » et « héros / Maître du jeu » (sans scène : la sortie seule) : les
 personnages de la scène (un par personnage, les miens d'abord), le MJ basculant entre héros et
-PNJ d'un seul bouton, et rangeant ou montrant sa barre de combat (en combat : masquer, ou terminer le combat ; elle revient au début d’un combat). Portrait cerclé de la ressource principale (anneau vert, ambre, rouge ; sens inversé pour
-une ressource qui se remplit ; grisé à zéro). Au-delà de six : « +N » (liste) ; largeur plafonnée (40 % de l'écran), les portraits défilent. Rendue par la
+PNJ d'un seul bouton, et rangeant ou montrant sa barre de combat (en combat : masquer, ou terminer le combat ; elle revient au début d’un combat). Portrait cerclé de la ressource principale : rail gris, arc de la part restante (vert au-dessus
+de la moitié, ambre au-dessus du quart, rouge en dessous ; aucun arc en pleine forme ; sens
+inversé pour une ressource qui se remplit ; portrait grisé à zéro). Point d'accent : un héros
+que j'incarne. Au-delà de six : « +N » (liste) ; largeur plafonnée (40 % de l'écran), les portraits défilent. Rendue par la
 carte (elle connaît la scène, l'annuaire, la caméra) dans l'emplacement `TABLE_HUD_LEFT` du HUD,
 par portail. Clic : carte du personnage :
 

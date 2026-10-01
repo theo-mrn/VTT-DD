@@ -183,7 +183,7 @@ export function PartyBar() {
                 engine={engine}
                 tokens={tokens}
                 member={m}
-                mine={viewer.characterIds.includes(m.info.id)}
+                mine={m.info.playedBy === viewer.userId}
               />
             </motion.div>
           ))}
@@ -324,7 +324,7 @@ function MemberAvatar({
                 r={radius}
                 fill="none"
                 strokeWidth="2.5"
-                className={mine ? 'stroke-primary' : 'stroke-border-strong'}
+                className="stroke-border-strong"
               />
               {r && hurt && (
                 <circle
@@ -348,6 +348,13 @@ function MemberAvatar({
               position="top"
               className={cn('size-[31px] rounded-full', down && 'opacity-60 grayscale')}
             />
+            {/* Héros que j'incarne : un point d'accent, le rail ne parle que de la vie */}
+            {mine && (
+              <span
+                aria-hidden
+                className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-popover"
+              />
+            )}
           </button>
         </PopoverTrigger>
       </Info>
