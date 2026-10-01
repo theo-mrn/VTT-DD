@@ -37,6 +37,8 @@ export class TokenPlaceTool implements Tool {
   /** Le bouton pressé a posé : son lâcher ne va pas à la sélection. */
   private pressedToPlace = false;
   private ghost: Graphics | null = null;
+  /** Ce que montre le fantôme : inchangé, il n'est pas retessellé. */
+  private ghostKey = '';
   private unsubscribe: (() => void) | null = null;
 
   constructor(private readonly tokens: TokensState) {}
@@ -81,6 +83,7 @@ export class TokenPlaceTool implements Tool {
     this.pressedToPlace = false;
     this.tokens.library.setState({ armed: null });
     this.ghost?.clear();
+    this.ghostKey = '';
     engine.invalidate();
   }
 
@@ -132,6 +135,7 @@ export class TokenPlaceTool implements Tool {
     if (this.state === 'armed') {
       this.arm(null);
       this.ghost?.clear();
+      this.ghostKey = '';
       engine.invalidate();
       return true;
     }
@@ -161,22 +165,33 @@ export class TokenPlaceTool implements Tool {
     if (!g || g.destroyed) {
       g = new ctx.pixi.Graphics({ label: 'pose-pnj' });
       this.ghost = g;
+      this.ghostKey = '';
     }
     if (g.parent !== layer) layer.addChild(g);
-    g.clear();
     // Lasso de la sélection (outil sélection embarqué)
     const lasso = this.select.lasso;
     const px = 1 / Math.max(ctx.zoom, 1e-6);
+    const shown = armed && this.hover;
+    const count = clampCount(lib.count);
+    const engine = this.tokens.engine;
+    const center = shown
+      ? snapPlacement(this.hover!, count, ctx, engine.snapGrid(this.free))
+      : null;
+    const step = cellSize(ctx);
+    const color = sideColor(ctx.theme, lib.side);
+    const key = [
+      lasso ? `${lasso.x}:${lasso.y}:${lasso.width}:${lasso.height}` : '',
+      center ? `${center.x}:${center.y}:${count}:${step}:${lib.shape}:${color}` : '',
+      px,
+    ].join('|');
+    if (key === this.ghostKey) return;
+    this.ghostKey = key;
+    g.clear();
     if (lasso)
       g.rect(lasso.x, lasso.y, lasso.width, lasso.height)
         .fill({ color: ctx.theme.primary, alpha: 0.08 })
         .stroke({ width: px, color: ctx.theme.primary, alpha: 0.9 });
-    if (!armed || !this.hover) return;
-    const count = clampCount(lib.count);
-    const engine = this.tokens.engine;
-    const center = snapPlacement(this.hover, count, ctx, engine.snapGrid(this.free));
-    const step = cellSize(ctx);
-    const color = sideColor(ctx.theme, lib.side);
+    if (!center) return;
     for (const p of gridAround(center, count, step)) {
       const r = step / 2;
       if (lib.shape === 'square') g.roundRect(p.x - r, p.y - r, r * 2, r * 2, r * 0.18);
@@ -198,5 +213,6 @@ export class TokenPlaceTool implements Tool {
       this.ghost.destroy();
     }
     this.ghost = null;
+    this.ghostKey = '';
   }
 }

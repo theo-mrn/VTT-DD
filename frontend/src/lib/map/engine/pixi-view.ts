@@ -3,17 +3,20 @@
  * `MapEngine.mount` : c'est le seul fichier du moteur qui importe `pixi.js`.
  *
  * - `Application` en WebGL (jamais WebGPU), ticker arrêté : le moteur rend à la demande.
- *   `resolution = min(devicePixelRatio, 2)`, 1,5 au plus sous Windows et sans MSAA (plantages
- *   GPU relevés sur les dés 3D).
+ *   `resolution = min(devicePixelRatio, 2)`, 1 au plus sur une machine économe (Windows :
+ *   plantages GPU relevés sur les dés 3D ; machine modeste). MSAA seulement sous 1,5 et hors
+ *   machine économe : au-delà, la densité de pixels lisse déjà les bords.
  * - Le système d'événements de Pixi est coupé : le toucher est celui du moteur (index spatial).
  * - Un conteneur par plan (`planes.ts`) ; le plan `content` contient un conteneur par calque du
  *   MJ, trié par `sortOrder`, et chaque calque trie ses entités par `z` (tri refait seulement
  *   quand un `z` change).
- * - Fond : `background.ts` (image ou vidéo muette en boucle, 30 i/s au plus, taille du monde).
+ * - Fond : `background.ts` (image avec mipmaps, ou vidéo muette en boucle, 24 i/s au plus, taille
+ *   du monde).
  * - Destruction complète : scène, textures chargées, contexte WebGL rendu au navigateur.
  */
 import * as PIXI from 'pixi.js';
 import { Application, Assets, Container, Graphics, Text, type Texture } from 'pixi.js';
+import { prefersEconomy } from '@/lib/perf/device';
 import { MapBackground } from './background';
 import { CursorLayer } from './cursors';
 import { destroyDisplay } from './destroy-display';
@@ -33,15 +36,9 @@ import type { Tool } from './tools/tool';
 import type { MapDto } from '../store/map-store';
 
 const PING_MS = 1_400;
+const NO_CURSORS: readonly never[] = [];
 /** Opacité des calques estompés quand un calque est isolé. */
 const ISOLATED_DIM = 0.2;
-
-const isWindows = () => {
-  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
-  return (
-    /win/i.test(nav.userAgentData?.platform ?? nav.platform ?? '') || /Windows/i.test(nav.userAgent)
-  );
-};
 
 // ─── Couleurs du thème (variables CSS « h s% l% ») ───────────────────────────
 
@@ -72,20 +69,32 @@ function readTheme(host: HTMLElement): MapTheme {
   };
 }
 
+/** Côté maximal d'une texture pour ce GPU (8192 si la question échoue). */
+function maxTextureSize(app: Application): number {
+  const gl = (app.renderer as unknown as { gl?: WebGLRenderingContext }).gl;
+  try {
+    const n = gl?.getParameter(gl.MAX_TEXTURE_SIZE);
+    return typeof n === 'number' && n > 0 ? n : 8192;
+  } catch {
+    return 8192;
+  }
+}
+
 // ─── Vue ─────────────────────────────────────────────────────────────────────
 
 export async function createPixiView(engine: MapEngine, host: HTMLElement): Promise<EngineView> {
   const app = new Application();
-  const windows = isWindows();
+  const economy = prefersEconomy();
   const width = Math.max(1, host.clientWidth);
   const height = Math.max(1, host.clientHeight);
+  const resolution = Math.min(window.devicePixelRatio || 1, economy ? 1 : 2);
   await app.init({
     width,
     height,
     preference: 'webgl',
-    resolution: Math.min(window.devicePixelRatio || 1, windows ? 1.5 : 2),
+    resolution,
     autoDensity: true,
-    antialias: !windows,
+    antialias: !economy && resolution < 1.5,
     backgroundAlpha: 0,
     autoStart: false,
     sharedTicker: false,
@@ -130,6 +139,13 @@ class PixiView implements EngineView {
   private adornDirty = true;
   private adornZoom = 0;
   private pingFrame: (() => void) | null = null;
+  /** Clés de ce qui est déjà dessiné : une image sans changement ne retesselle rien. */
+  private tooltipKey = '';
+  private pingsDrawn = false;
+  private lassoKey = '';
+  private cursorCss = '';
+  private rc: RenderContext | null = null;
+  private rcKey: { kind: unknown; zoom: number } = { kind: null, zoom: 0 };
 
   constructor(
     private readonly engine: MapEngine,
@@ -173,6 +189,7 @@ class PixiView implements EngineView {
     this.background = new MapBackground({
       plane: this.plane('background'),
       texture: (url) => this.texture(url),
+      maxTextureSize: maxTextureSize(app),
       onLoaded: (w, h) => engine.backgroundLoaded(w, h),
       onError: (url, err) => {
         console.warn('[carte] fond illisible', url, err);
@@ -202,17 +219,26 @@ class PixiView implements EngineView {
 
   // ─── Contexte de rendu des sortes ──────────────────────────────────────────
 
+  /** Contexte des sortes et des outils, refait seulement si le contexte du moteur ou le zoom change. */
   renderContext(): RenderContext {
-    return {
-      ...this.engine.kindContext(),
+    const kind = this.engine.kindContext();
+    const zoom = this.engine.camera.zoom;
+    if (this.rc && this.rcKey.kind === kind && this.rcKey.zoom === zoom) return this.rc;
+    this.rcKey = { kind, zoom };
+    this.rc = {
+      ...kind,
       pixi: PIXI,
-      zoom: this.engine.camera.zoom,
+      zoom,
       theme: this.theme,
       screenSpace: this.engine.screenSpace,
-      texture: (url) => this.texture(url),
-      invalidate: () => this.engine.invalidate(),
+      texture: this.textureFn,
+      invalidate: this.invalidateFn,
     };
+    return this.rc;
   }
+
+  private readonly textureFn = (url: string) => this.texture(url);
+  private readonly invalidateFn = () => this.engine.invalidate();
 
   /** Texture d'une image, chargée une fois (même URL pour plusieurs entités). */
   texture(url: string): Promise<Texture> {
@@ -359,6 +385,8 @@ class PixiView implements EngineView {
   // ─── Curseur, pings ────────────────────────────────────────────────────────
 
   setCursor(css: string) {
+    if (css === this.cursorCss) return;
+    this.cursorCss = css;
     this.canvas.style.cursor = css;
   }
 
@@ -486,13 +514,17 @@ class PixiView implements EngineView {
     if (!e || !name || !e.display?.visible || e.state.dragging) {
       this.tooltip.visible = false;
       this.tooltipBack.visible = false;
+      this.tooltipKey = '';
       return;
     }
-    if (this.tooltip.text !== name) this.tooltip.text = name;
     const zoom = this.engine.camera.zoom;
     const b = e.bounds();
     const x = b.x + b.width / 2;
     const y = b.y - 6 / zoom;
+    const key = `${name}|${x}|${y}|${zoom}`;
+    if (key === this.tooltipKey) return;
+    this.tooltipKey = key;
+    if (this.tooltip.text !== name) this.tooltip.text = name;
     this.tooltip.visible = true;
     this.tooltip.scale.set(1 / zoom);
     this.tooltip.position.set(x, y - 3 / zoom);
@@ -510,8 +542,10 @@ class PixiView implements EngineView {
   private drawLive(now: number) {
     const zoom = this.engine.camera.zoom;
     const g = this.pingGfx;
-    g.clear();
-    this.pings = this.pings.filter((p) => now - p.start < PING_MS);
+    if (this.pings.length) this.pings = this.pings.filter((p) => now - p.start < PING_MS);
+    // Sans ping : rien à effacer une fois l'onde partie
+    if (this.pings.length || this.pingsDrawn) g.clear();
+    this.pingsDrawn = this.pings.length > 0;
     for (const p of this.pings) {
       const t = (now - p.start) / PING_MS;
       for (const delay of [0, 0.25]) {
@@ -529,7 +563,7 @@ class PixiView implements EngineView {
 
     const live = this.engine.live;
     this.cursorLayer.sync(
-      live ? live.cursorPositions(now) : [],
+      live ? live.cursorPositions(now) : NO_CURSORS,
       zoom,
       (userId) => this.engine.directory.userName(userId) ?? 'Joueur',
     );
@@ -539,13 +573,16 @@ class PixiView implements EngineView {
   private drawTool() {
     const tool = this.engine.tools.active;
     const g = this.lassoGfx;
-    g.clear();
-    if (tool instanceof SelectTool && tool.lasso) {
-      const r = tool.lasso;
-      const px = 1 / this.engine.camera.zoom;
-      g.rect(r.x, r.y, r.width, r.height)
-        .fill({ color: this.theme.primary, alpha: 0.08 })
-        .stroke({ width: px, color: this.theme.primary, alpha: 0.9 });
+    const r = tool instanceof SelectTool ? tool.lasso : null;
+    const zoom = this.engine.camera.zoom;
+    const key = r ? `${r.x}:${r.y}:${r.width}:${r.height}:${zoom}` : '';
+    if (key !== this.lassoKey) {
+      this.lassoKey = key;
+      g.clear();
+      if (r)
+        g.rect(r.x, r.y, r.width, r.height)
+          .fill({ color: this.theme.primary, alpha: 0.08 })
+          .stroke({ width: 1 / zoom, color: this.theme.primary, alpha: 0.9 });
     }
     (tool as Tool).renderPreview?.(this.plane('tool'), this.renderContext());
   }
