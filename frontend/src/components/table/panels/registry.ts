@@ -6,7 +6,6 @@ import {
   MessagesSquare,
   Music,
   NotebookPen,
-  ScrollText,
   Settings2,
   Swords,
   Users,
@@ -74,17 +73,6 @@ const ALL_ROLES = ['gm', 'player', 'spectator'] as const;
 
 export const panelRegistry = [
   {
-    id: 'fiche',
-    label: 'Ma fiche',
-    description: 'La fiche de mon héros, modifiable en direct',
-    icon: ScrollText,
-    shortcut: { code: 'KeyF', label: 'F' },
-    width: 'full',
-    mode: 'side',
-    roles: ['gm', 'player'],
-    component: lazy(() => import('../onglets/fiche').then((m) => ({ default: m.OngletFiche }))),
-  },
-  {
     id: 'des',
     label: 'Dés',
     description: 'Lancer les dés et suivre les jets de la table',
@@ -142,7 +130,8 @@ export const panelRegistry = [
     shortcut: { code: 'KeyH', label: 'H' },
     width: 'narrow',
     mode: 'side',
-    roles: ALL_ROLES,
+    // La chronique dévoile ce que les joueurs n'ont pas à savoir : MJ seulement
+    roles: ['gm'],
     component: lazy(() =>
       import('../onglets/historique').then((m) => ({ default: m.OngletHistorique })),
     ),
