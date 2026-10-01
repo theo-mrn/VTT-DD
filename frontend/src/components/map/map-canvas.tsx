@@ -33,6 +33,7 @@ import { EntityPicker } from './entity-picker';
 import { MapEngineProvider } from './engine-context';
 import { MapInspector } from './inspector';
 import { LayersPanel } from './layers/layers-panel';
+import { MapBubbles } from './bubbles/map-bubbles';
 import { MapOverlays } from './overlays';
 import { PartyBarHost } from './party/party-bar';
 import { SelectionPanel } from './selection-panel';
@@ -245,6 +246,7 @@ function MapRuntime({
         <>
           <MapToolbar />
           <MapOverlays />
+          <MapBubbles campaignId={campaignId} hostRef={hostRef} />
           <PartyBarHost />
           <div className="pointer-events-none absolute bottom-24 right-3 top-20 z-10 flex items-start justify-end gap-3">
             <MapInspector />

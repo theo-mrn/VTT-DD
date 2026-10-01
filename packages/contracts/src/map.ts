@@ -1409,3 +1409,26 @@ export const MapPingMessage = z.object({
   focus: z.boolean().optional(),
 });
 export type MapPingMessage = z.infer<typeof MapPingMessage>;
+
+/** Bulle d'interaction (emoji ou texte) au-dessus du token d'un joueur, relayée, jamais stockée. */
+export const MAP_BUBBLE_KIND = 'map.bubble';
+export const BUBBLE_TEXT_MAX = 40;
+export const BUBBLE_DURATION_MIN_MS = 1_000;
+export const BUBBLE_DURATION_MAX_MS = 60_000;
+export const BUBBLE_DURATION_DEFAULT_MS = 5_000;
+
+/**
+ * `map.bubble` : la bulle du personnage `c` (celui que l'émetteur incarne, vérifié à la réception),
+ * ou `b: null` pour la retirer. Une nouvelle bulle remplace la précédente.
+ */
+export const MapBubbleMessage = z.object({
+  c: z.string().max(64),
+  b: z
+    .object({
+      t: z.enum(['emoji', 'text']),
+      v: z.string().trim().min(1).max(BUBBLE_TEXT_MAX),
+      d: z.number().int().min(BUBBLE_DURATION_MIN_MS).max(BUBBLE_DURATION_MAX_MS),
+    })
+    .nullable(),
+});
+export type MapBubbleMessage = z.infer<typeof MapBubbleMessage>;

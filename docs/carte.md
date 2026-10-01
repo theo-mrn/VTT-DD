@@ -515,6 +515,11 @@ de messages seulement.
   effacée (Échap) ; `pinned` : épinglée, le gabarit durable suit. Après `end`, elle reste 6 s.
 
 - **`map.ping`** : `{ m, x, y, focus? }`.
+- **`map.bubble`** : `{ c, b: { t, v, d } | null }`, bulle d'interaction (emoji ou texte de 40
+  caractères au plus, 1 à 60 s) au-dessus des tokens du héros `c` ; `null` la retire. Joueurs
+  seulement (K, barre en bas de la carte, palette de jeu et derniers emoji) : acceptée à la
+  réception de celui qui incarne le personnage (à défaut, son propriétaire), jamais pour un PNJ ;
+  cachée avec son token (vision, calque). `lib/map/bubbles`, `components/map/bubbles`.
   - Alt+clic : onde à cet endroit, chez tous.
   - `focus` (MJ) : la caméra de chacun va à ce point (« amener tout le monde ici »).
 
