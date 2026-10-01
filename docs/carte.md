@@ -191,8 +191,10 @@ abonnements au store, et renvoie son nettoyage.
   les seuls éléments visibles.
 - **Densité.**
   - `resolution = min(devicePixelRatio, 2)` et `autoDensity`.
-  - Sous Windows, `resolution ≤ 1,5` et pas d'antialias MSAA (plantages GPU relevés sur les
-    dés 3D).
+  - Machine économe (`prefersEconomy()`, `lib/perf/device.ts` : Windows, 4 cœurs ou 4 Go au
+    plus) : `resolution = 1`. MSAA seulement sous 1,5 de résolution et hors machine économe.
+  - `world` et le plan `content` sont des groupes de rendu (`isRenderGroup`) : la caméra est
+    la transformation du groupe, appliquée par le GPU.
   - Préférence `webgl`, pas `webgpu`.
 - **Gestes de caméra.**
   - Molette : zoom autour du curseur. Pincement du pavé tactile (`ctrlKey` + molette) : zoom.
@@ -210,7 +212,10 @@ abonnements au store, et renvoie son nettoyage.
   - Le ticker Pixi ne tourne que si quelque chose l'exige : geste en cours, interpolation du
     direct, animation, fond vidéo. Sinon, une image est rendue quand le store ou la caméra change
     (`engine.invalidate()`).
-  - Fond vidéo : 30 i/s au plus.
+  - Fond vidéo : 24 i/s au plus (15 en économie), en pause onglet caché, figé (première
+    image) avec « mouvement réduit ». Fond image : décodé hors du fil (`createImageBitmap`),
+    mipmaps, réduit au-delà de `MAX_TEXTURE_SIZE` (4096 px en économie).
+  - Un curseur distant immobile (keepalive identique) ne relance pas la boucle d'images.
 - **Culling** par l'index spatial : seuls les éléments qui touchent la vue sont `visible`.
 - **Plans de rendu, du bas vers le haut** (`planes.ts`) :
 
@@ -597,7 +602,10 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
     que la sienne ; Vu(joueur) est l'union de ces vues, sans recalcul.
     Positions affichées : aperçu d'un glisser local, direct interpolé des autres.
 - **Textures** à l'échelle de l'écran, refaites seulement quand un de leurs termes change
-  (caméra, zones, lumières, observateurs) :
+  (caméra, zones, lumières, observateurs). Pendant un pan ou un zoom, elles sont refaites au
+  plus toutes les 60 ms ; entre-temps la composition relit les précédentes à leur place dans
+  le monde, et une image refaite à la caméra finale suit. La synchronisation de la vision est
+  court-circuitée tant que `engine.revision` (store, entités, aperçus, viewer) ne change pas :
   - `range` (¼ de la résolution, floutée de 3 px) : la portée hors observateur, hors brouillard
     (zones dans l'ordre : `fog` en `ERASE`, `clear` en blanc) ∪ zones éclairées ;
   - `fog` (¼, floutée de 10 px) : le brouillard lui-même, où dessiner la brume ;
@@ -613,9 +621,11 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
   l'un derrière l'autre : l'ombre la plus claire des deux (pas le produit), écart assumé.
 - **Composition** : un seul quadrilatère (le rectangle visible de la carte, rien hors de la
   carte) et un shader, en alpha prémultiplié : obscurité `shadowOpacity × (1 − vu)`, brume
-  (bruit fractal ancré au monde, période de 3 cases, octaves plus fines que 3 pixels effacées,
-  dérive lente à 20 i/s, désactivable : « Animer la brume » dans « Vue », préférence locale,
-  éteinte par défaut avec « mouvement réduit ») là où il y a du brouillard et pas de vue,
+  (bruit fractal ancré au monde, période de 3 cases, 3 octaves, calculé dans une texture
+  `mist` au ¼ de la résolution, refaite seulement quand la brume dérive ou que la caméra ou le
+  brouillard changent ; dérive lente à 10 i/s, désactivable : « Animer la brume » dans
+  « Vue », préférence locale, figée par défaut avec « mouvement réduit » ou sur machine
+  économe) là où il y a du brouillard et pas de vue,
   lueurs × vu. Une seule passe obscurcit et éclaire.
 - **MJ** : tout visible, l'ombre des joueurs (union de leurs observateurs) en voile à 25 %,
   brume à 25 %, lueurs presque entières ; « Vue de … » (sélecteur « Vue », emplacement `view`
@@ -1104,7 +1114,9 @@ plafonné, et arrêté dès qu'il ne sert à rien.
 - **Cadence et arrêt** (`WeatherDriver`, testé sans WebGL) :
   - la simulation avance à chaque image rendue (à 60 i/s pendant un glisser, puisque l'image
     est rendue de toute façon) ; la météo ne demande elle-même une image que 33 ms après la
-    précédente : **30 i/s au plus**. Pas de temps borné à 0,1 s (retour sur l'onglet) ;
+    précédente : **30 i/s au plus** (20 i/s et moitié moins de particules en économie). Si le
+    module dépasse 8 ms par image en moyenne, son budget de particules est divisé par deux
+    (jusqu'à un huitième). Pas de temps borné à 0,1 s (retour sur l'onglet) ;
   - **arrêt complet** (plan caché, ni minuteur, ni simulation, particules rendues) : aucune
     météo, type inconnu, intensité nulle ;
   - **pause** (aucun minuteur) : onglet en arrière-plan (`visibilitychange`), vue de taille
@@ -1330,7 +1342,7 @@ mesure se voit chez tous pendant le geste, s'efface ensuite, ou s'épingle en ga
   dossiers `Effect/Fireballs` pour le cercle, `Effect/Cone` pour le cône, vignettes webp),
   choisies dans la barre ou l'inspecteur ; la valeur enregistrée reste le chemin relatif de
   l'ancienne app (`Cone/cone1.webm`). Rendu : une texture vidéo **partagée** par effet
-  (compte de références), cadencée à 30 i/s au plus comme le fond vidéo, mise en pause dès
+  (compte de références), sur une horloge commune à 24 i/s (15 en économie), en pause onglet caché, mise en pause dès
   qu'aucune mesure ne la montre ; cône : découpée par la forme ; cercle : 1,35 × le rayon
   (marges transparentes des vidéos), comme avant. Préférence locale « Animer les effets »
   (éteinte avec « mouvement réduit » : première image fixe).
