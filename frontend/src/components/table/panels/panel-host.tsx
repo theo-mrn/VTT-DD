@@ -189,10 +189,7 @@ function PanelFrame({ panel, visible }: { panel: TablePanel; visible: boolean })
         initial={{ opacity: 0 }}
         animate={{ opacity: visible ? 1 : 0 }}
         transition={{ duration: reduit ? 0 : 0.2 }}
-        className={cn(
-          'absolute inset-0 bg-background/70 backdrop-blur-sm',
-          !visible && 'pointer-events-none',
-        )}
+        className={cn('absolute inset-0 bg-background/85', !visible && 'pointer-events-none')}
       />
       {cadre}
     </div>

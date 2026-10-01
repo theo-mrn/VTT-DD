@@ -226,7 +226,7 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay
             className={cn(
-              'fixed inset-0 z-50 bg-black/80 sm:bg-black/70 sm:backdrop-blur-[3px]',
+              'fixed inset-0 z-50 bg-black/80',
               'data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none',
             )}
           />

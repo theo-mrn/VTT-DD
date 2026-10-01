@@ -231,7 +231,7 @@ export function ImageDrop({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 grid place-items-center bg-background/70 backdrop-blur-sm"
+              className="absolute inset-0 grid place-items-center bg-background/85"
             >
               {phase.preview && (
                 // eslint-disable-next-line @next/next/no-img-element
