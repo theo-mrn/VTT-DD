@@ -25,7 +25,15 @@ import type {
 } from '@vtt/contracts';
 import { positionAt, type Point } from '@vtt/contracts/audio-sync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type RefObject,
+} from 'react';
 import { ApiError } from '../api';
 import { useCampaignEvents } from '../realtime';
 import { audioApi } from './api';
@@ -146,7 +154,7 @@ export function useCampaignAudio(
     };
   }, [campaignId]);
 
-  const { generation } = useCampaignEvents(
+  const { live, generation } = useCampaignEvents(
     campaignId,
     ['audio.*'],
     (e) => {
@@ -194,10 +202,18 @@ export function useCampaignAudio(
       .catch((e: Error) => !cancelled && setError(e));
     // Après une reconnexion, l'horloge est remesurée
     if (generation > 1) void getAudioEngine().clock.resync();
-    // Filet de sécurité : l'état du serveur est relu régulièrement ; un événement perdu
-    // (réseau, onglet en veille, rechargement du code) est rattrapé en quelques secondes.
-    // Seul un état plus récent que le nôtre est appliqué (version).
-    const timer = setInterval(() => {
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignId, generation]);
+
+  // Filet de sécurité : l'état du serveur est relu au retour sur l'onglet, et régulièrement
+  // tant que le temps réel est coupé ; un événement perdu (réseau, onglet en veille,
+  // rechargement du code) est rattrapé. Seul un état plus récent que le nôtre est appliqué.
+  useEffect(() => {
+    if (!campaignId) return;
+    let cancelled = false;
+    const refresh = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       void audioApi
         .channels(campaignId)
@@ -214,17 +230,20 @@ export function useCampaignAudio(
           for (const name of ['music', 'ambience'] as const) engine.applyChannel(r.channels[name]);
         })
         .catch(() => undefined);
-    }, CHANNELS_REFRESH_MS);
+    };
+    document.addEventListener('visibilitychange', refresh);
+    const timer = live ? null : setInterval(refresh, CHANNELS_REFRESH_MS);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+      if (timer) clearInterval(timer);
     };
-  }, [campaignId, generation]);
+  }, [campaignId, live]);
 
   return { ready, error };
 }
 
-/** Relecture de l'état des canaux (filet de sécurité, en plus du temps réel). */
+/** Relecture de l'état des canaux tant que le temps réel est coupé (filet de sécurité). */
 const CHANNELS_REFRESH_MS = 10_000;
 
 function useEngineChannel(channel: ChannelName): ChannelState | null {
@@ -289,17 +308,73 @@ export function useChannel(campaignId: string, channel: ChannelName) {
   );
 }
 
-/** Position courante d'un canal (heure du serveur), rafraîchie toutes les `intervalMs`. */
-export function useChannelPosition(channel: ChannelName, intervalMs = 250): number {
+const subscribeVisibility = (listener: () => void) => {
+  document.addEventListener('visibilitychange', listener);
+  return () => document.removeEventListener('visibilitychange', listener);
+};
+
+/** L'onglet est-il visible ? Les rafraîchissements d'affichage se taisent onglet caché. */
+function useDocumentVisible(): boolean {
+  return useSyncExternalStore(
+    subscribeVisibility,
+    () => document.visibilityState !== 'hidden',
+    () => true,
+  );
+}
+
+/**
+ * Position courante d'un canal (heure du serveur), rafraîchie toutes les `intervalMs` tant que
+ * `active` (panneau affiché) et l'onglet visible. Chaque tic re-rend l'appelant : à réserver à
+ * un petit composant feuille.
+ */
+export function useChannelPosition(
+  channel: ChannelName,
+  intervalMs = 1_000,
+  active = true,
+): number {
   const state = useEngineChannel(channel);
+  const visible = useDocumentVisible();
   const [, tick] = useState(0);
+  const running = active && visible && state?.status === 'playing';
   useEffect(() => {
-    if (state?.status !== 'playing') return;
+    if (!running) return;
     const t = setInterval(() => tick((x) => x + 1), intervalMs);
     return () => clearInterval(t);
-  }, [state?.status, intervalMs]);
+  }, [running, intervalMs]);
   if (!state) return 0;
   return positionAt(state, getAudioEngine().clock.now()).positionMs;
+}
+
+/**
+ * Barre de progression d'un canal tenue par `ref` : `transform: scaleX()` écrit à chaque image,
+ * sans état React (aucun rendu). Rien ne tourne panneau masqué (`active` faux), onglet caché
+ * ou canal arrêté ; la barre garde alors sa dernière valeur.
+ */
+export function useChannelProgress(
+  channel: ChannelName,
+  ref: RefObject<HTMLElement | null>,
+  active = true,
+): void {
+  const state = useEngineChannel(channel);
+  const visible = useDocumentVisible();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const track = state?.track;
+    const duration = track && !track.deleted ? track.durationMs : null;
+    const paint = () => {
+      const ms = state ? positionAt(state, getAudioEngine().clock.now()).positionMs : 0;
+      const k = duration ? Math.max(0, Math.min(1, ms / duration)) : 0;
+      el.style.transform = `scaleX(${k})`;
+    };
+    paint();
+    if (!active || !visible || state?.status !== 'playing' || !duration) return;
+    let frame = requestAnimationFrame(function loop() {
+      paint();
+      frame = requestAnimationFrame(loop);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [state, active, visible, ref]);
 }
 
 // ─── Effets ─────────────────────────────────────────────────────────────────
@@ -634,6 +709,11 @@ export interface SpatialSource {
   volume: number;
 }
 
+/** Écart minimal entre deux mises à jour des sons spatiaux (15 Hz). */
+const SPATIAL_MIN_GAP_MS = 66;
+/** Passage lent tant que des voix muettes attendent leur libération. */
+const SPATIAL_HOUSEKEEPING_MS = 1_000;
+
 /**
  * Sons spatiaux de la carte : la carte fournit l'auditeur (token incarné ;
  * MJ en « vue joueur », sinon null) et les sources ; `enabled: false` coupe
@@ -668,27 +748,60 @@ export function useSpatialAudio(
     ];
   });
   const [activeIds, setActiveIds] = useState<string[]>([]);
+  const schedule = useRef<() => void>(() => undefined);
 
+  // Mise à jour à la demande (auditeur, sources, état du moteur), 15 fois par seconde au plus ;
+  // plus rien ne tourne quand il n'y a ni source à jouer ni voix à éteindre.
   useEffect(() => {
-    const player = new SpatialPlayer(getAudioEngine());
-    let frame = 0;
+    const engine = getAudioEngine();
+    const player = new SpatialPlayer(engine);
     let last = '';
-    const loop = () => {
+    let lastRun = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const run = () => {
+      timer = null;
+      lastRun = Date.now();
       const { listener, enabled } = latest.current;
-      const ids = player.update(listener, resolved.current, enabled);
+      const sources = resolved.current;
+      // Rien à entendre ni à libérer : aucun calcul, aucun contexte audio créé
+      if ((!enabled || !listener || !sources.length) && !player.size) {
+        if (last) {
+          last = '';
+          setActiveIds([]);
+        }
+        return;
+      }
+      const ids = player.update(listener, sources, enabled);
       const key = ids.join('|');
       if (key !== last) {
         last = key;
         setActiveIds(ids);
       }
-      frame = requestAnimationFrame(loop);
+      // Voix muettes à libérer au bout de 10 s : un passage lent jusqu'à leur libération
+      if (player.releasing) timer = setTimeout(run, SPATIAL_HOUSEKEEPING_MS);
     };
-    frame = requestAnimationFrame(loop);
+    schedule.current = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(run, Math.max(0, lastRun + SPATIAL_MIN_GAP_MS - Date.now()));
+    };
+    // Déverrouillage du son : les voix retenues peuvent enfin partir
+    let status = engine.status;
+    const unsubscribe = engine.subscribe(() => {
+      if (engine.status === status) return;
+      status = engine.status;
+      schedule.current();
+    });
+    schedule.current();
     return () => {
-      cancelAnimationFrame(frame);
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+      schedule.current = () => undefined;
       player.dispose();
     };
   }, [campaignId]);
+
+  const signature = JSON.stringify([input.enabled, input.listener, resolved.current]);
+  useEffect(() => schedule.current(), [signature]);
 
   return { activeIds };
 }

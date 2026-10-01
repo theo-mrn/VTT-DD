@@ -21,14 +21,21 @@ import {
   Volume2,
   Wind,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
-import { useAudioStatus, useChannel, useChannelPosition, useLiveSounds } from '@/lib/audio';
+import { usePanelVisible } from '@/components/table/panels/navigation';
+import {
+  useAudioStatus,
+  useChannel,
+  useChannelPosition,
+  useChannelProgress,
+  useLiveSounds,
+} from '@/lib/audio';
 import { cn } from '@/lib/utils';
 import { formatTime } from './parts';
 
@@ -51,7 +58,8 @@ export function Deck({
 }) {
   const c = useChannel(campaignId, channel);
   const s = c.state;
-  const position = useChannelPosition(channel);
+  // Panneau gardé monté mais masqué : la position cesse de se rafraîchir
+  const visible = usePanelVisible();
   const duration = s?.track?.durationMs ?? null;
   const [dragging, setDragging] = useState<number | null>(null);
   const [volume, setVolume] = useState<number | null>(null);
@@ -81,8 +89,6 @@ export function Deck({
         ? 'En pause'
         : 'Arrêté';
 
-  const pct = hasTrack && duration ? Math.min(100, ((dragging ?? position) / duration) * 100) : 0;
-
   return (
     <section
       aria-label={LABELS[channel]}
@@ -95,7 +101,9 @@ export function Deck({
         <Icon
           className={cn(
             'size-4 shrink-0',
-            heard ? 'animate-pulse text-primary-strong' : 'text-muted-foreground',
+            heard
+              ? 'animate-pulse-slow text-primary-strong motion-reduce:animate-none'
+              : 'text-muted-foreground',
           )}
           aria-hidden
         />
@@ -131,7 +139,8 @@ export function Deck({
               <span className="uppercase tracking-wide">{LABELS[channel]}</span>
               {duration !== null && (
                 <span>
-                  · {formatTime(dragging ?? position)} / {formatTime(duration)}
+                  · <DeckTime channel={channel} dragging={dragging} active={visible} /> /{' '}
+                  {formatTime(duration)}
                 </span>
               )}
               {isMusic && s && s.queueLength > 1 && s.queueIndex !== null && (
@@ -257,29 +266,84 @@ export function Deck({
       {hasTrack && duration !== null && (
         <div className="mt-1.5">
           {gm ? (
-            <Slider
-              aria-label="Position dans le morceau"
-              min={0}
-              max={duration}
-              step={1000}
-              value={[dragging ?? Math.min(position, duration)]}
-              onValueChange={([v]) => setDragging(v ?? 0)}
-              onValueCommit={([v]) => {
+            <DeckSeek
+              channel={channel}
+              duration={duration}
+              dragging={dragging}
+              active={visible}
+              onDrag={setDragging}
+              onSeek={(v) => {
                 setDragging(null);
-                void run(c.seek(v ?? 0));
+                void run(c.seek(v));
               }}
-              className="py-1 [&_[role=slider]]:size-3"
             />
           ) : (
-            <div className="relative h-1 overflow-hidden rounded-full bg-surface-3" aria-hidden>
-              <div
-                className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-200"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
+            <DeckProgress channel={channel} active={visible} />
           )}
         </div>
       )}
     </section>
+  );
+}
+
+// Feuilles qui suivent la position : seules elles se re-rendent au fil de la lecture.
+
+/** Temps écoulé, rafraîchi chaque seconde (la valeur glissée pendant un déplacement). */
+function DeckTime({
+  channel,
+  dragging,
+  active,
+}: {
+  channel: ChannelName;
+  dragging: number | null;
+  active: boolean;
+}) {
+  const position = useChannelPosition(channel, 1_000, active && dragging === null);
+  return <>{formatTime(dragging ?? position)}</>;
+}
+
+/** Curseur de position du MJ (pas d'une seconde : un rafraîchissement par seconde suffit). */
+function DeckSeek({
+  channel,
+  duration,
+  dragging,
+  active,
+  onDrag,
+  onSeek,
+}: {
+  channel: ChannelName;
+  duration: number;
+  dragging: number | null;
+  active: boolean;
+  onDrag: (v: number) => void;
+  onSeek: (v: number) => void;
+}) {
+  const position = useChannelPosition(channel, 1_000, active && dragging === null);
+  return (
+    <Slider
+      aria-label="Position dans le morceau"
+      min={0}
+      max={duration}
+      step={1000}
+      value={[dragging ?? Math.min(position, duration)]}
+      onValueChange={([v]) => onDrag(v ?? 0)}
+      onValueCommit={([v]) => onSeek(v ?? 0)}
+      className="py-1 [&_[role=slider]]:size-3"
+    />
+  );
+}
+
+/** Barre des joueurs : échelle horizontale écrite à chaque image, sans rendu React. */
+function DeckProgress({ channel, active }: { channel: ChannelName; active: boolean }) {
+  const bar = useRef<HTMLDivElement>(null);
+  useChannelProgress(channel, bar, active);
+  return (
+    <div className="relative h-1 overflow-hidden rounded-full bg-surface-3" aria-hidden>
+      <div
+        ref={bar}
+        className="absolute inset-0 origin-left rounded-full bg-primary will-change-transform"
+        style={{ transform: 'scaleX(0)' }}
+      />
+    </div>
   );
 }

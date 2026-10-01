@@ -35,6 +35,17 @@ export class SpatialPlayer {
 
   constructor(private readonly host: EngineHost) {}
 
+  /** Voix tenues (actives ou muettes en attente de libération). */
+  get size(): number {
+    return this.voices.size;
+  }
+
+  /** Des voix muettes attendent leur libération : un passage lent reste nécessaire. */
+  get releasing(): boolean {
+    for (const entry of this.voices.values()) if (entry.silentSince !== null) return true;
+    return false;
+  }
+
   /** Une image : volumes et panoramiques recalculés. */
   update(
     listener: Point | null,

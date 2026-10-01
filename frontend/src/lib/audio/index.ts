@@ -18,6 +18,7 @@ export {
   useCampaignAudio,
   useChannel,
   useChannelPosition,
+  useChannelProgress,
   useMixer,
   usePreview,
   useLiveSounds,
