@@ -2,7 +2,8 @@
  * Cadence de la météo (docs/carte.md § 10, Météo), sans Pixi ni DOM, testée à blanc.
  *
  * - La simulation avance à chaque image rendue (un glisser rend déjà à 60 i/s) ; la météo ne
- *   demande elle-même une image que ~33 ms après la précédente : 30 i/s au plus.
+ *   demande elle-même une image que ~33 ms après la précédente : 30 i/s au plus (20 sur une
+ *   machine économe, ~50 ms).
  * - En pause (animation coupée, onglet caché, vue nulle) ou à l'arrêt (aucune météo) : aucun
  *   minuteur, aucun pas de simulation.
  * - Le rappel du minuteur est créé une fois : aucune allocation par image.
@@ -17,7 +18,12 @@ export const MAX_STEP_S = 0.1;
  * verticale de 33 ms (60, 90, 120 Hz) ou juste après (144 Hz), jamais avant. Un minuteur de
  * 33 ms pile ferait attendre la synchronisation suivante : 20 i/s à 60 Hz.
  */
-export const FRAME_TARGET_MS = 1000 / WEATHER_FPS - 5;
+export const FRAME_TARGET_MS = frameTarget(WEATHER_FPS);
+
+/** Délai de l'image suivante pour une cadence donnée (voir `FRAME_TARGET_MS`). */
+export function frameTarget(fps: number): number {
+  return 1000 / fps - 5;
+}
 
 export interface DriverEnv {
   now(): number;
@@ -46,6 +52,7 @@ export const browserEnv = (): DriverEnv => ({
 export class WeatherDriver {
   private timer: unknown = null;
   private last = 0;
+  private readonly targetMs: number;
   /** Vrai tant que la météo s'anime (minuteur armé à chaque image). */
   running = false;
   private readonly tick = () => {
@@ -56,7 +63,10 @@ export class WeatherDriver {
   constructor(
     private readonly request: () => void,
     private readonly env: DriverEnv = browserEnv(),
-  ) {}
+    fps: number = WEATHER_FPS,
+  ) {
+    this.targetMs = frameTarget(fps);
+  }
 
   /**
    * Appelé à chaque image rendue : renvoie le pas de simulation (secondes), 0 en pause ; arme
@@ -74,7 +84,7 @@ export class WeatherDriver {
     if (this.timer === null)
       this.timer = this.env.setTimeout(
         this.tick,
-        Math.max(0, now + FRAME_TARGET_MS - this.env.now()),
+        Math.max(0, now + this.targetMs - this.env.now()),
       );
     return Math.max(0, dt);
   }

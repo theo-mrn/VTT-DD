@@ -35,6 +35,21 @@ export class WeatherStats {
     this.dirty = true;
   }
 
+  /** Moyenne des `n` dernières mesures d'une étape (0 sans mesure). */
+  recent(step: WeatherStep, n: number): number {
+    const count = Math.min(WINDOW, n, this.counts[step]);
+    if (!count) return 0;
+    let total = 0;
+    const end = this.counts[step];
+    for (let i = end - count; i < end; i++) total += this.samples[step][i % WINDOW]!;
+    return total / count;
+  }
+
+  /** Mesures enregistrées depuis le début pour une étape. */
+  count(step: WeatherStep): number {
+    return this.counts[step];
+  }
+
   summary(): Partial<Record<WeatherStep, WeatherStepSummary>> & { particles: number } {
     const out: Partial<Record<WeatherStep, WeatherStepSummary>> & { particles: number } = {
       particles: this.particles,

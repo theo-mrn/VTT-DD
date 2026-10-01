@@ -5,20 +5,28 @@
  * - État durable de la scène (`maps.weather`), le même pour tous ; le MJ le règle par le bouton
  *   « Météo » (commande annulable), les joueurs n'ont que leurs préférences de confort.
  * - Rendu dans le plan `weather`, en pixels d'écran, ancré à la carte au déplacement.
- * - Cadence : 30 i/s au plus demandées par la météo ; arrêt complet sans météo ; pause (image
- *   fixe) quand l'onglet est caché, la vue nulle, ou l'animation coupée.
+ * - Cadence : 30 i/s au plus demandées par la météo (20 sur une machine économe) ; arrêt complet
+ *   sans météo ; pause (image fixe) quand l'onglet est caché, la vue nulle, ou l'animation coupée.
+ * - Budget : moitié moins de particules sur une machine économe ; divisé par deux (jusqu'au
+ *   huitième) tant que le module coûte plus de 8 ms par image, en moyenne.
  *
  * État sans Pixi : `simulation.ts`, `driver.ts`, `model.ts` (testés à blanc) ; rendu :
  * `renderer.ts`.
  */
 import type { MapModule } from '../../engine/map-engine';
 import { WeatherControls } from '@/components/map/weather/weather-menu';
-import { WeatherDriver } from './driver';
-import { isWindowsPlatform, normalizeWeather } from './model';
+import { prefersEconomy } from '@/lib/perf/device';
+import { browserEnv, WeatherDriver } from './driver';
+import { normalizeWeather, WEATHER_FPS, WEATHER_FPS_ECONOMY } from './model';
 import { WeatherRenderer } from './renderer';
 import { WeatherSim } from './simulation';
 import { displayedWeather, weatherPreview, weatherPrefs } from './state';
 import { exposeWeatherStats, WeatherStats } from './stats';
+
+/** Coût moyen du module par image au-delà duquel le budget de particules est divisé. */
+export const DEGRADE_MS = 8;
+const DEGRADE_WINDOW = 60;
+const MIN_BUDGET = 1 / 8;
 
 export const weatherModule: MapModule = {
   id: 'weather',
@@ -27,8 +35,15 @@ export const weatherModule: MapModule = {
     const preview = weatherPreview(engine);
     const stats = new WeatherStats();
     const sim = new WeatherSim();
-    const driver = new WeatherDriver(() => engine.invalidate());
-    const windows = isWindowsPlatform(typeof navigator !== 'undefined' ? navigator : undefined);
+    const economy = prefersEconomy();
+    const driver = new WeatherDriver(
+      () => engine.invalidate(),
+      browserEnv(),
+      economy ? WEATHER_FPS_ECONOMY : WEATHER_FPS,
+    );
+    // Part du budget de particules : divisée quand les images coûtent trop (jamais remontée)
+    let budgetScale = 1;
+    let checkedAt = 0;
     let renderer: WeatherRenderer | null = null;
 
     // Entrées de la dernière configuration : comparées par identité, sans allocation
@@ -104,7 +119,8 @@ export const weatherModule: MapModule = {
           lastAnimate = animate;
           lastFlashes = flashes;
           sim.configure(normalizeWeather(raw), width, height, {
-            windows,
+            windows: economy,
+            scale: budgetScale,
             still: !animate,
             flashes,
           });
@@ -134,6 +150,15 @@ export const weatherModule: MapModule = {
         stats.record('draw', performance.now() - t);
         stats.particles = sim.particleCount;
         stats.record('frame', performance.now() - started);
+        // Dégradation : toutes les 60 images animées, moitié moins de particules si le module
+        // dépasse 8 ms en moyenne
+        if (dt > 0 && stats.count('frame') - checkedAt >= DEGRADE_WINDOW) {
+          checkedAt = stats.count('frame');
+          if (budgetScale > MIN_BUDGET && stats.recent('frame', DEGRADE_WINDOW) > DEGRADE_MS) {
+            budgetScale /= 2;
+            lastRaw = undefined;
+          }
+        }
         return false;
       }),
     );

@@ -7,9 +7,12 @@ import { WEATHER_EFFECTS, type WeatherEffect, type WeatherType } from './effects
 
 /** Images par seconde demandées par la météo elle-même, au plus. */
 export const WEATHER_FPS = 30;
+/** Même chose sur une machine économe (Windows, machine modeste). */
+export const WEATHER_FPS_ECONOMY = 20;
 /**
  * Plafonds de particules : par million de pixels CSS de la vue (le nombre reste proportionnel à
- * sa surface), et en tout (grands écrans) ; plus bas sous Windows (plantages GPU relevés).
+ * sa surface), et en tout (grands écrans) ; moitié moins sur une machine économe (option
+ * `windows` : Windows, où des plantages GPU ont été relevés, ou machine modeste).
  */
 export const MAX_DENSITY = 1_400;
 export const MAX_DENSITY_WINDOWS = 700;
@@ -103,9 +106,12 @@ export interface BudgetOptions {
   width: number;
   height: number;
   intensity: number;
+  /** Réglages économes : plafonds bas (Windows, machine modeste). */
   windows?: boolean;
   /** Image fixe (animation coupée) : 35 % des particules, sans les éclaboussures. */
   still?: boolean;
+  /** Part du budget gardée (dégradation automatique quand les images coûtent trop) ; 1 : tout. */
+  scale?: number;
 }
 
 /**
@@ -121,9 +127,11 @@ export function particleBudget(effect: WeatherEffect, opts: BudgetOptions): numb
     return e.density * area * level * (opts.still ? STILL_COUNT : 1);
   });
   const total = raw.reduce((a, b) => a + b, 0);
-  const cap = opts.windows
-    ? Math.min(MAX_PARTICLES_WINDOWS, MAX_DENSITY_WINDOWS * area)
-    : Math.min(MAX_PARTICLES, MAX_DENSITY * area);
+  const scale = Math.min(1, Math.max(0, opts.scale ?? 1));
+  const cap =
+    (opts.windows
+      ? Math.min(MAX_PARTICLES_WINDOWS, MAX_DENSITY_WINDOWS * area)
+      : Math.min(MAX_PARTICLES, MAX_DENSITY * area)) * scale;
   const k = total > cap ? cap / total : 1;
   return raw.map((n) => Math.floor(n * k));
 }

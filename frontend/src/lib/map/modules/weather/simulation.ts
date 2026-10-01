@@ -137,7 +137,10 @@ export interface WeatherFrame {
 }
 
 export interface SimOptions {
+  /** Réglages économes : plafonds bas (Windows, machine modeste). */
   windows?: boolean;
+  /** Part du budget de particules gardée (dégradation automatique). */
+  scale?: number;
   /** Image fixe : animation coupée ou « mouvement réduit ». */
   still?: boolean;
   /** Éclairs et clignotements permis. */
@@ -230,6 +233,7 @@ export class WeatherSim {
       height: this.height,
       intensity: settings.intensity,
       windows: opts.windows,
+      scale: opts.scale,
       still: this.still,
     });
     this.emitters.forEach((e, i) => {
