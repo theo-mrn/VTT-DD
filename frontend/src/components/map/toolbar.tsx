@@ -95,7 +95,6 @@ export function MapToolbar() {
   const gm = viewer.role === 'gm';
   const definitions = useToolDefinitions();
   const activeId = useActiveToolId();
-  const commands = useCommandsState();
   const { toolbarItems } = useExtensions();
   const layersOpen = useMapUi((s) => s.layersPanel);
   const shareCursor = useMapUi((s) => s.shareCursor);
@@ -147,22 +146,7 @@ export function MapToolbar() {
         {viewer.role !== 'spectator' && (
           <>
             <Separator />
-            <ToolbarButton
-              label={commands.undoLabel ? `Annuler « ${commands.undoLabel} »` : 'Annuler'}
-              shortcut={`${MOD}Z`}
-              disabled={!commands.canUndo}
-              onClick={() => void engine.commands.undo()}
-            >
-              <Undo2 />
-            </ToolbarButton>
-            <ToolbarButton
-              label={commands.redoLabel ? `Refaire « ${commands.redoLabel} »` : 'Refaire'}
-              shortcut={`${MOD}⇧Z`}
-              disabled={!commands.canRedo}
-              onClick={() => void engine.commands.redo()}
-            >
-              <Redo2 />
-            </ToolbarButton>
+            <UndoRedo />
           </>
         )}
         {viewer.role === 'player' && <BubbleToolbarButton />}
@@ -205,6 +189,35 @@ export function MapToolbar() {
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Annuler, refaire : seuls à suivre l'historique, qui change à chaque déplacement (le reste de la
+ * barre ne se redessine pas pour autant).
+ */
+function UndoRedo() {
+  const engine = useMapEngine();
+  const commands = useCommandsState();
+  return (
+    <>
+      <ToolbarButton
+        label={commands.undoLabel ? `Annuler « ${commands.undoLabel} »` : 'Annuler'}
+        shortcut={`${MOD}Z`}
+        disabled={!commands.canUndo}
+        onClick={() => void engine.commands.undo()}
+      >
+        <Undo2 />
+      </ToolbarButton>
+      <ToolbarButton
+        label={commands.redoLabel ? `Refaire « ${commands.redoLabel} »` : 'Refaire'}
+        shortcut={`${MOD}⇧Z`}
+        disabled={!commands.canRedo}
+        onClick={() => void engine.commands.redo()}
+      >
+        <Redo2 />
+      </ToolbarButton>
+    </>
   );
 }
 

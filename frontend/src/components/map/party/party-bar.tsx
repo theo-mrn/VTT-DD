@@ -25,7 +25,15 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { HUD_BAR, HUD_CONTROL } from '@/components/combat/live-reports/look';
@@ -89,14 +97,21 @@ const toneOf = (r: ResourceGauge | null) => {
 };
 
 /** Personnages de la scène (un par personnage, dans l'ordre des tokens), selon le mode. */
-function useMembers(tokens: TokensState, mode: Mode, mine: readonly string[]): Member[] {
+function useMembers(tokens: TokensState, mode: Mode, mine: readonly string[]): readonly Member[] {
   const list = useMapState((s) => collectionOf(s, TOKENS_COLLECTION));
+  const subscribe = useCallback(
+    (cb: () => void) => tokens.directory.subscribe(() => cb()),
+    [tokens.directory],
+  );
   const infos = useSyncExternalStore(
-    (cb) => tokens.directory.subscribe(() => cb()),
+    subscribe,
     () => tokens.directory.list(),
     () => tokens.directory.list(),
   );
-  return useMemo(() => {
+  // Membres d'avant gardés tels quels s'ils n'ont pas changé : un token déplacé (la collection
+  // change à chaque lâcher) ne redessine pas les avatars
+  const previous = useRef<readonly Member[]>([]);
+  const members = useMemo(() => {
     const byId = new Map(infos.map((i) => [i.id, i]));
     const seen = new Set<string>();
     const out: Member[] = [];
@@ -111,8 +126,23 @@ function useMembers(tokens: TokensState, mode: Mode, mine: readonly string[]): M
       out.push({ info, tokenId, image });
     }
     // Les miens d'abord
-    return out.sort((a, b) => Number(mine.includes(b.info.id)) - Number(mine.includes(a.info.id)));
+    out.sort((a, b) => Number(mine.includes(b.info.id)) - Number(mine.includes(a.info.id)));
+    const before = new Map(previous.current.map((m) => [m.info.id, m]));
+    const stable = out.map((m) => {
+      const old = before.get(m.info.id);
+      return old && old.info === m.info && old.tokenId === m.tokenId && old.image === m.image
+        ? old
+        : m;
+    });
+    const same =
+      stable.length === previous.current.length &&
+      stable.every((m, i) => m === previous.current[i]);
+    return same ? previous.current : stable;
   }, [list, infos, mode, mine]);
+  useEffect(() => {
+    previous.current = members;
+  }, [members]);
+  return members;
 }
 
 /** La barre, rendue dans l'emplacement en haut à gauche du HUD de la table (s'il existe). */
@@ -266,7 +296,7 @@ function CombatBarToggle({ campaignId }: { campaignId: string }) {
 }
 
 /** Portrait cerclé de sa ressource ; un clic ouvre la carte du personnage. */
-function MemberAvatar({
+const MemberAvatar = memo(function MemberAvatar({
   engine,
   tokens,
   member,
@@ -363,7 +393,7 @@ function MemberAvatar({
       </PopoverContent>
     </Popover>
   );
-}
+});
 
 function centerOn(engine: MapEngine, member: Member) {
   const e = engine.entity(member.tokenId);

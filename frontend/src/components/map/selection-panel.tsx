@@ -56,14 +56,15 @@ export function SelectionPanel() {
   const requested = useMapUi((s) => s.selectionPanel);
 
   const items = useMemo(() => {
-    if (!entities.length) return [];
+    // Panneau fermé (déplacement, rien demandé) : pas d'actions à calculer
+    if (!requested || !entities.length) return [];
     const box = selectionBox(entities);
     return engine.menuItems(
       entities.map((e) => e.id),
       { x: box.x + box.width / 2, y: box.y + box.height / 2 },
     );
     // `layers` et `activeLayer` : recalcul quand les calques changent
-  }, [engine, entities, layers, activeLayer]);
+  }, [engine, entities, layers, activeLayer, requested]);
   const sections = useMemo(
     () => inspectorSections.filter((s) => entities.length && s.appliesTo(entities, engine.viewer)),
     [inspectorSections, entities, engine],
