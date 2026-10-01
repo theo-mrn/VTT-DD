@@ -8,7 +8,7 @@
  * temps réel : `lib/campaign-chat.ts`.
  */
 import { WifiOff } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useChatLive,
   useChatMessages,
@@ -24,7 +24,7 @@ import { Composer, type ComposerHandle } from './composer';
 import type { MessageContext } from './message-item';
 import { MessageList } from './message-list';
 import { useChatOutbox } from './use-chat-outbox';
-import { useChatTyping } from './use-chat-typing';
+import { useChatTyping, useTypingIds, type TypingStore } from './use-chat-typing';
 
 /** Délai avant d'annoncer que le temps réel est coupé. */
 const OFFLINE_NOTICE_MS = 5_000;
@@ -43,7 +43,11 @@ function useLasting(flag: boolean, ms: number): boolean {
   return lasting;
 }
 
-export function CampaignChat({
+/**
+ * Mémoïsée : le panneau se re-rend à chaque changement d'adresse (ouverture d'un autre
+ * panneau), la discussion seulement si ses propriétés changent.
+ */
+export const CampaignChat = memo(function CampaignChat({
   campaign,
   visible,
   whisperTo,
@@ -162,7 +166,6 @@ export function CampaignChat({
       people,
       personOf: (id) => byId.get(id),
       nameOf,
-      editingId,
       setEditingId: (id) => {
         setEditingId(id);
         // Fin de correction : retour à la saisie
@@ -171,40 +174,40 @@ export function CampaignChat({
       onRetrySend: outbox.retry,
       onDiscardSend: outbox.discard,
     }),
-    [campaign.id, me, gm, people, byId, nameOf, editingId, outbox.retry, outbox.discard],
+    [campaign.id, me, gm, people, byId, nameOf, outbox.retry, outbox.discard],
   );
 
-  const send = (body: string) => {
-    const recipients: ChatMessage['recipients'] = audience
-      ? {
-          gm: audience.gm,
-          users: audience.userIds.map((id) => ({
-            id,
-            name: byId.get(id)?.name ?? null,
-            avatarUrl: byId.get(id)?.avatarUrl ?? null,
-          })),
-        }
-      : null;
-    outbox.send(body, audience, recipients);
-    typing.resetTyping();
-    setUnreadFrom(null);
-  };
+  const { send: sendOutbox } = outbox;
+  const { resetTyping } = typing;
+  const send = useCallback(
+    (body: string) => {
+      const recipients: ChatMessage['recipients'] = audience
+        ? {
+            gm: audience.gm,
+            users: audience.userIds.map((id) => ({
+              id,
+              name: byId.get(id)?.name ?? null,
+              avatarUrl: byId.get(id)?.avatarUrl ?? null,
+            })),
+          }
+        : null;
+      sendOutbox(body, audience, recipients);
+      resetTyping();
+      setUnreadFrom(null);
+    },
+    [audience, byId, sendOutbox, resetTyping],
+  );
 
-  const editLast = () => {
-    const mine = [...chat.messages].reverse().find((m) => m.author.id === me);
+  const editLast = useCallback(() => {
+    const mine = [...messagesRef.current].reverse().find((m) => m.author.id === me);
     if (mine) setEditingId(mine.id);
-  };
+  }, [me]);
+
+  const { retry: retryChat } = chat;
+  const onRetry = useCallback(() => void retryChat(), [retryChat]);
 
   // Temps réel absent depuis un moment (pas pendant la connexion d'ouverture)
   const offline = useLasting(!live && !chat.isPending, OFFLINE_NOTICE_MS);
-
-  const typingLabel = useMemo(() => {
-    const names = typing.typingIds.map((id) => byId.get(id)?.name).filter(Boolean) as string[];
-    if (!names.length) return null;
-    if (names.length === 1) return `${names[0]} écrit…`;
-    if (names.length === 2) return `${names[0]} et ${names[1]} écrivent…`;
-    return 'Plusieurs personnes écrivent…';
-  }, [typing.typingIds, byId]);
 
   return (
     <div className="flex h-[calc(100%-3.5rem)] min-h-0 flex-col">
@@ -220,10 +223,11 @@ export function CampaignChat({
       <MessageList
         thread={thread}
         ctx={ctx}
+        editingId={editingId}
         isPending={chat.isPending}
         isError={chat.isError}
         error={chat.error}
-        onRetry={() => void chat.retry()}
+        onRetry={onRetry}
         hasOlder={chat.hasOlder}
         isLoadingOlder={chat.isLoadingOlder}
         olderError={chat.olderError}
@@ -240,8 +244,24 @@ export function CampaignChat({
         onSend={send}
         onTyping={typing.notifyTyping}
         onEditLast={editLast}
-        typingLabel={typingLabel}
+        typingLabel={<TypingLabel store={typing.store} byId={byId} />}
       />
     </div>
   );
+});
+
+/** « Alice écrit… » : seul ce texte se re-rend quand quelqu'un écrit. */
+function TypingLabel({
+  store,
+  byId,
+}: {
+  store: TypingStore;
+  byId: ReadonlyMap<string, ChatPerson>;
+}) {
+  const ids = useTypingIds(store);
+  const names = ids.map((id) => byId.get(id)?.name).filter(Boolean) as string[];
+  if (!names.length) return null;
+  if (names.length === 1) return `${names[0]} écrit…`;
+  if (names.length === 2) return `${names[0]} et ${names[1]} écrivent…`;
+  return 'Plusieurs personnes écrivent…';
 }

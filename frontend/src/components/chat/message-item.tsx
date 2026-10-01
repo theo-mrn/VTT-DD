@@ -1,7 +1,7 @@
 'use client';
 
 import { Clock, Crown, Loader2, Lock, Pencil, RotateCw, Trash2, X } from 'lucide-react';
-import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
 import { AvatarJoueur } from '@/components/compte/elements';
 import { Button } from '@/components/ui/button';
@@ -35,22 +35,36 @@ export interface MessageContext {
   personOf: (id: string) => ChatPerson | undefined;
   /** Nom affiché d'un utilisateur (membre, sinon nom connu du message). */
   nameOf: (id: string, fallback: string | null) => string;
-  editingId: string | null;
   setEditingId: (id: string | null) => void;
   onRetrySend: (localId: string) => void;
   onDiscardSend: (localId: string) => void;
 }
 
-/** Un message du fil : en-tête (avatar, nom, heure) s'il ouvre un groupe, texte, actions. */
-export function MessageItem({
-  item,
-  first,
-  ctx,
-}: {
+interface MessageItemProps {
   item: ThreadMessage;
   first: boolean;
   ctx: MessageContext;
-}) {
+  /** Ce message est en cours de correction. */
+  editing: boolean;
+}
+
+/**
+ * Un message du fil : en-tête (avatar, nom, heure) s'il ouvre un groupe, texte, actions.
+ * Mémoïsé : un nouveau message, une frappe ou une correction ailleurs ne re-rendent pas
+ * tout le fil (le fil est reconstruit à chaque message, d'où la comparaison sur le contenu).
+ */
+export const MessageItem = memo(
+  MessageItemView,
+  (a: MessageItemProps, b: MessageItemProps) =>
+    a.item.message === b.item.message &&
+    a.item.pending?.status === b.item.pending?.status &&
+    a.item.pending?.error === b.item.pending?.error &&
+    a.first === b.first &&
+    a.editing === b.editing &&
+    a.ctx === b.ctx,
+);
+
+function MessageItemView({ item, first, ctx, editing: enCorrection }: MessageItemProps) {
   const m = item.message;
   const person = ctx.personOf(m.author.id);
   const name = ctx.nameOf(m.author.id, m.author.name);
@@ -59,7 +73,7 @@ export function MessageItem({
   const segments = useMemo(() => parseBody(m.body, ctx.people), [m.body, ctx.people]);
   const forMe = !mine && mentions(segments, ctx.me);
   const whisper = m.recipients !== null;
-  const editing = ctx.editingId === m.id && !item.pending;
+  const editing = enCorrection && !item.pending;
 
   return (
     <li

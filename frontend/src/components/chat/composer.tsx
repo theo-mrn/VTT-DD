@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react';
 import { AvatarJoueur } from '@/components/compte/elements';
 import { Button } from '@/components/ui/button';
@@ -54,8 +55,8 @@ interface ComposerProps {
   onTyping: () => void;
   /** Flèche haut dans une saisie vide : corriger mon dernier message. */
   onEditLast: () => void;
-  /** « Alice écrit… » */
-  typingLabel: string | null;
+  /** « Alice écrit… » (un composant qui suit lui-même qui écrit) */
+  typingLabel: ReactNode;
 }
 
 /**

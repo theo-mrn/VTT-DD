@@ -16,6 +16,8 @@ const LOAD_OLDER_PX = 160;
 interface MessageListProps {
   thread: ThreadItem[];
   ctx: MessageContext;
+  /** Message en cours de correction. */
+  editingId: string | null;
   isPending: boolean;
   isError: boolean;
   error: unknown;
@@ -34,6 +36,7 @@ interface MessageListProps {
 export function MessageList({
   thread,
   ctx,
+  editingId,
   isPending,
   isError,
   error,
@@ -72,7 +75,10 @@ export function MessageList({
     loadOlder();
   }, [hasOlder, isLoadingOlder, loadOlder]);
 
-  const onScroll = () => {
+  // Défilement lu une fois par image au plus (mesures et états, pas à chaque événement)
+  const image = useRef(0);
+  const lireDefilement = useRef(() => {});
+  lireDefilement.current = () => {
     const el = scroller.current;
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
@@ -81,6 +87,14 @@ export function MessageList({
     if (atBottom.current) setUnseen(0);
     if (el.scrollTop < LOAD_OLDER_PX && !olderError) requestOlder();
   };
+  const onScroll = useCallback(() => {
+    if (image.current) return;
+    image.current = requestAnimationFrame(() => {
+      image.current = 0;
+      lireDefilement.current();
+    });
+  }, []);
+  useEffect(() => () => cancelAnimationFrame(image.current), []);
 
   // Après chaque changement du fil : garder la lecture en place (anciens messages ajoutés en
   // haut), rester en bas, ou compter les nouveaux messages arrivés pendant qu'on lit plus haut
@@ -199,7 +213,13 @@ export function MessageList({
                     </span>
                   </li>
                 ) : (
-                  <MessageItem key={i.key} item={i.item} first={i.first} ctx={ctx} />
+                  <MessageItem
+                    key={i.key}
+                    item={i.item}
+                    first={i.first}
+                    ctx={ctx}
+                    editing={editingId === i.item.message.id}
+                  />
                 ),
               )}
             </ol>
