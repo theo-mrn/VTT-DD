@@ -6,6 +6,7 @@ import { MotionConfig } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { DiceThrowerHost } from '@/components/dice/thrower-host';
+import { PerfOverlay } from '@/components/perf/perf-overlay';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SessionProvider } from '@/lib/session';
 
@@ -32,6 +33,7 @@ export function Fournisseurs({ children }: { children: ReactNode }) {
             {/* Dés 3D de toute l'app, montés une seule fois (contexte WebGL, shaders et moteur
                 physique gardés entre l'app et la table), chargés au premier lancer */}
             <DiceThrowerHost />
+            <PerfOverlay />
           </LegacyMotionConfig>
         </MotionConfig>
       </SessionProvider>

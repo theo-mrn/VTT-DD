@@ -14,6 +14,7 @@
  * Les composants passent par des hooks de domaine construits sur ceux-ci
  * (historique des dés, carte…), jamais directement par le socket.
  */
+import { countRealtime } from './perf/monitor';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { api, refreshSession } from './api';
@@ -222,10 +223,12 @@ class RealtimeClient {
       // Refus du handshake (jeton absent ou invalide) : pas de nouvelle tentative automatique
       if (!socket.active && this.users > 0) this.retryConnect(RETRY_MS);
     });
-    socket.on('event', (p: { seq: number; event: RealtimeEnvelope; redacted?: boolean }) =>
-      this.onEvent({ seq: p.seq, event: p.event, redacted: p.redacted === true }),
-    );
+    socket.on('event', (p: { seq: number; event: RealtimeEnvelope; redacted?: boolean }) => {
+      countRealtime();
+      this.onEvent({ seq: p.seq, event: p.event, redacted: p.redacted === true });
+    });
     socket.on('presence', (p: { campaignId: string; users: PresenceUser[] }) => {
+      countRealtime();
       const sub = this.subs.get(p.campaignId);
       if (!sub) return;
       sub.presence = p.users;
@@ -239,6 +242,7 @@ class RealtimeClient {
       this.changed();
     });
     socket.on('ephemeral', (m: EphemeralMessage) => {
+      countRealtime();
       for (const l of this.ephemeralListeners) l(m);
     });
 

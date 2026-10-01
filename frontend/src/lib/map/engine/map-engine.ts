@@ -24,6 +24,7 @@
  * - `onFrame(cb)` : une animation (renvoyer vrai tant qu'elle continue) ;
  * - `plane(id)` : le conteneur Pixi d'un plan (vision, gm…), après le montage.
  */
+import { attachMapPerf, perfEnabled } from '@/lib/perf/monitor';
 import { playGridOf, scenePixelsPerUnit, type MapGrid } from '@vtt/contracts';
 import { Crosshair, Focus, MousePointer2, Radio } from 'lucide-react';
 import type { ComponentType } from 'react';
@@ -401,6 +402,12 @@ export class MapEngine {
 
   // Rendu à la demande
   private frameHandle: number | null = null;
+  /**
+   * Compteurs de la mesure (`?perf`, `lib/perf/monitor.ts`) : images rendues, temps passé, et ce
+   * qui a demandé l'image suivante. Cumulés, jamais remis à zéro (le compteur fait la différence).
+   */
+  readonly perf = { frames: 0, ms: 0, continuous: 0, camera: 0, live: 0, animations: 0 };
+  private detachPerf: (() => void) | null = null;
   private continuous = 0;
   private readonly frameCallbacks = new Set<(now: number) => boolean | void>();
   private readonly frameList: ((now: number) => boolean | void)[] = [];
@@ -645,6 +652,7 @@ export class MapEngine {
       this.restoreCamera();
       this.cullDirty = true;
       this.ui.setState({ mounted: true, failure: null });
+      if (perfEnabled()) this.detachPerf = attachMapPerf(this);
       for (const entry of this.mountedCallbacks) entry.cleanup = entry.cb() ?? null;
       this.refreshCursor();
       this.invalidate();
@@ -660,6 +668,7 @@ export class MapEngine {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.detachPerf?.();
     if (this.frameHandle !== null) cancelAnimationFrame(this.frameHandle);
     this.frameHandle = null;
     if (this.tooltipTimer) clearTimeout(this.tooltipTimer);
@@ -746,8 +755,11 @@ export class MapEngine {
 
   private readonly frame = (now: number) => {
     this.frameHandle = null;
+    const start = performance.now();
     const again = this.tick(now);
     this.view?.render(now);
+    this.perf.frames += 1;
+    this.perf.ms += performance.now() - start;
     if (again) this.invalidate();
   };
 
@@ -757,8 +769,15 @@ export class MapEngine {
    */
   tick(now: number): boolean {
     let again = this.continuous > 0;
-    if (this.camera.animating) again = this.camera.step(now) || again;
-    if (this.live) again = this.applyLive(now) || again;
+    if (again) this.perf.continuous += 1;
+    if (this.camera.animating && this.camera.step(now)) {
+      again = true;
+      this.perf.camera += 1;
+    }
+    if (this.live && this.applyLive(now)) {
+      again = true;
+      this.perf.live += 1;
+    }
     // Liste figée avant les appels (un rappel ajouté attend l'image suivante), dans un tableau
     // réutilisé : aucune allocation par image
     const list = this.frameList;
@@ -767,7 +786,10 @@ export class MapEngine {
       for (let i = 0; i < list.length; i++) {
         const cb = list[i]!;
         // Retiré par un rappel précédent de cette image : plus appelé
-        if (this.frameCallbacks.has(cb) && cb(now) === true) again = true;
+        if (this.frameCallbacks.has(cb) && cb(now) === true) {
+          again = true;
+          this.perf.animations += 1;
+        }
       }
     } finally {
       list.length = 0;
