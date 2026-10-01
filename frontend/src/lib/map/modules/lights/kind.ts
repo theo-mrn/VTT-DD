@@ -10,7 +10,7 @@
  *   compris) ; elle ne se déplace pas seule.
  * - Éteinte : le serveur ne l'envoie pas aux joueurs ; son direct reste chez le MJ.
  */
-import { Lightbulb, LightbulbOff, Link2, Link2Off } from 'lucide-react';
+import { Lightbulb, LightbulbOff, Link2, Link2Off, SlidersHorizontal, Trash2 } from 'lucide-react';
 import type { Container, Graphics, GraphicsContext } from 'pixi.js';
 import type { MapEntity } from '../../engine/entities/entity';
 import {
@@ -294,6 +294,73 @@ export function attachItems(ctx: LightContext, entities: readonly MapEntity[]): 
         ),
     });
   return items;
+}
+
+/**
+ * Menu d'un token qui porte une lumière (MJ) : son icône est sur le token, un clic prend le
+ * token. « Lumière portée ▸ » : éteindre ou allumer, réglages, détacher, retirer.
+ */
+export function carriedLightItems(
+  ctx: LightContext,
+  entities: readonly MapEntity[],
+  viewer: MapViewer,
+): MenuItem[] {
+  if (!isGm(viewer) || !entities.length || entities.some((e) => e.kind.id !== TOKEN_KIND))
+    return [];
+  const { engine } = ctx;
+  const ids = new Set(entities.map((e) => e.id));
+  const lights = engine.entitiesOfKind(LIGHT_KIND).filter((l) => {
+    const to = lightOf(l).attachedTokenId;
+    return to !== null && ids.has(to);
+  });
+  if (!lights.length) return [];
+  const allOn = lights.every((l) => lightOf(l).visible);
+  return [
+    {
+      id: 'light:carried',
+      label: lights.length > 1 ? 'Lumières portées' : 'Lumière portée',
+      icon: Lightbulb,
+      children: [
+        {
+          id: 'light:carried:toggle',
+          label: allOn ? 'Éteindre' : 'Allumer',
+          icon: allOn ? LightbulbOff : Lightbulb,
+          run: () =>
+            void patchLights(
+              ctx,
+              lights,
+              () => ({ visible: !allOn }),
+              allOn ? 'Éteindre la lumière' : 'Allumer la lumière',
+            ),
+        },
+        {
+          id: 'light:carried:settings',
+          label: 'Réglages',
+          icon: SlidersHorizontal,
+          run: () => engine.openInspector(lights.map((l) => l.id)),
+        },
+        {
+          id: 'light:carried:detach',
+          label: 'Détacher du token',
+          icon: Link2Off,
+          run: () =>
+            void patchLights(
+              ctx,
+              lights,
+              (l) => ({ attachedTokenId: null, pos: roundPoint(lightPosition(engine, l)) }),
+              'Détacher la lumière',
+            ),
+        },
+        {
+          id: 'light:carried:remove',
+          label: lights.length > 1 ? 'Retirer les lumières' : 'Retirer la lumière',
+          icon: Trash2,
+          danger: true,
+          run: () => void engine.deleteEntities(lights),
+        },
+      ],
+    },
+  ];
 }
 
 const roundPoint = (p: Point): Point => ({

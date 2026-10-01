@@ -132,6 +132,23 @@ describe('lumière attachée à un token (torche)', () => {
     await b.commands.idle();
   });
 
+  it('menu du token qui la porte (MJ) : éteindre, régler, retirer', async () => {
+    const b = bench({ lights: [light('l', { attachedTokenId: 'tok' })] });
+    b.engine.tick(0);
+    const items = b.engine.menuItems(['tok'], P(200, 200));
+    const carried = items.find((i) => i.id === 'light:carried');
+    expect(carried?.children?.map((c) => c.id)).toEqual([
+      'light:carried:toggle',
+      'light:carried:settings',
+      'light:carried:detach',
+      'light:carried:remove',
+    ]);
+    carried!.children!.find((c) => c.id === 'light:carried:toggle')!.run!();
+    b.engine.tick(0);
+    expect(b.lights()[0]).toMatchObject({ visible: false });
+    await b.commands.idle();
+  });
+
   it('token absent : sa propre position', () => {
     const b = bench();
     expect(lightPosition(b.engine, { pos: P(1, 2), attachedTokenId: 'nope' })).toEqual(P(1, 2));

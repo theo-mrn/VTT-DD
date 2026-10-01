@@ -7,7 +7,7 @@ import type { ComponentType } from 'react';
 import { isGm } from '../../engine/entities/entity-kind';
 import type { InspectorSectionProps, MapEngine } from '../../engine/map-engine';
 import { echoPersistence } from '../obstacles/commands';
-import { followTokens, lightKind, LightView, type LightContext } from './kind';
+import { carriedLightItems, followTokens, lightKind, LightView, type LightContext } from './kind';
 import { LIGHT_KIND, LIGHTS, LIGHTS_TOOL_ID } from './model';
 import { LightTool } from './tool';
 
@@ -41,6 +41,8 @@ export function registerLights(engine: MapEngine, ui: LightUi = {}): () => void 
       options: ui.options,
     }),
     followTokens(engine),
+    // Token qui porte une lumière : l'éteindre, la régler, la détacher ou la retirer
+    engine.registerMenuProvider(({ entities, viewer }) => carriedLightItems(ctx, entities, viewer)),
   ];
   if (ui.inspector)
     unregister.push(
