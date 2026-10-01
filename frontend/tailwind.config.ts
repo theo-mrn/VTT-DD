@@ -11,7 +11,12 @@ const config: Config = {
   future: {
     hoverOnlyWhenSupported: true,
   },
-  content: ['./src/components/**/*.{ts,tsx}', './src/app/**/*.{ts,tsx}'],
+  // Sans les tests : aucune classe d'interface, et un test supprimé ne casse plus le CSS
+  content: [
+    './src/components/**/*.{ts,tsx}',
+    './src/app/**/*.{ts,tsx}',
+    '!./src/**/*.test.{ts,tsx}',
+  ],
   theme: {
     extend: {
       screens: {
