@@ -9,6 +9,7 @@
 import {
   Check,
   Focus,
+  ImageIcon,
   Layers,
   Magnet,
   MousePointerClick,
@@ -16,7 +17,7 @@ import {
   SlidersHorizontal,
   Undo2,
 } from 'lucide-react';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -25,6 +26,7 @@ import { Info } from '@/components/ui/tooltip';
 import { SNAP_STEPS, type SnapStep } from '@/lib/map/engine/map-engine';
 import { DISPLAY_TOGGLES, displayOf, isDisplayed } from '@/lib/map/engine/planes';
 import { cn } from '@/lib/utils';
+import { BackgroundPicker } from './scenes/background-picker';
 import {
   useActiveToolId,
   useCommandsState,
@@ -177,6 +179,7 @@ export function MapToolbar() {
             >
               <Layers />
             </ToolbarButton>
+            <BackgroundButton />
             <DisplayMenu />
           </>
         )}
@@ -200,6 +203,29 @@ export function MapToolbar() {
         ))}
       </div>
     </div>
+  );
+}
+
+/** Fond de la scène affichée (MJ) : bibliothèque ou import, une commande annulable. */
+function BackgroundButton() {
+  const engine = useMapEngine();
+  const [open, setOpen] = useState(false);
+  const scene = useMapState((s) => s.scene);
+  const campaignId = useMapState((s) => s.campaignId);
+  if (!scene || !campaignId) return null;
+  return (
+    <>
+      <ToolbarButton label="Fond de la scène" active={open} onClick={() => setOpen(true)}>
+        <ImageIcon />
+      </ToolbarButton>
+      <BackgroundPicker
+        open={open}
+        onOpenChange={setOpen}
+        campaignId={campaignId}
+        current={(scene.backgroundUrl as string | null | undefined) ?? null}
+        onPick={(url) => void engine.updateScene('Changer le fond', { backgroundUrl: url })}
+      />
+    </>
   );
 }
 

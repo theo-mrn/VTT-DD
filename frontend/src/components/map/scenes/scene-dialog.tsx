@@ -6,8 +6,8 @@
  * joueurs.
  */
 import type { MapGroup, MapScene } from '@vtt/contracts';
+import { ImageIcon } from 'lucide-react';
 import { useEffect, useId, useState, type FormEvent } from 'react';
-import { ImageDrop } from '@/components/uploads/image-drop';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,6 +23,10 @@ import { SelectField } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Info } from '@/components/ui/tooltip';
+import { vignette } from '@/lib/assets';
+import { isVideoUrl, videoVariant } from '@/lib/map/engine/background-prefs';
+import { cn } from '@/lib/utils';
+import { BackgroundPicker } from './background-picker';
 import type { ScenesActions } from './use-scenes';
 
 export function SceneDialog({
@@ -49,6 +53,7 @@ export function SceneDialog({
   const [groupId, setGroupId] = useState('');
   const [visible, setVisible] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Formulaire remis à zéro à chaque ouverture
@@ -142,13 +147,13 @@ export function SceneDialog({
 
           <div className="grid gap-2">
             <span className="text-sm font-medium">Fond</span>
-            <ImageDrop
-              target={{ kind: 'campaign', id: campaignId }}
-              usage="map-background"
-              value={url}
-              onChange={setUrl}
-              label="Fond de la scène"
-              cropAspect={null}
+            <BackgroundField url={url} onOpen={() => setPicking(true)} />
+            <BackgroundPicker
+              open={picking}
+              onOpenChange={setPicking}
+              campaignId={campaignId}
+              current={url}
+              onPick={setUrl}
             />
           </div>
 
@@ -170,5 +175,49 @@ export function SceneDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Aperçu du fond choisi ; un clic ouvre le sélecteur (bibliothèque ou import). */
+function BackgroundField({ url, onOpen }: { url: string | null; onOpen(): void }) {
+  const video = url ? isVideoUrl(url) : false;
+  const variant = url && video ? videoVariant(url) : null;
+  const poster = url
+    ? video
+      ? variant
+        ? vignette(variant.replace(/\.mp4$/, '.webp'), 640)
+        : null
+      : vignette(url, 640)
+    : null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group relative grid aspect-video w-full place-items-center overflow-hidden rounded-xl border border-border bg-surface-2 transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {poster ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={poster} alt="" className="absolute inset-0 size-full object-cover" />
+      ) : url && video ? (
+        <video
+          src={`${url}#t=0.5`}
+          muted
+          playsInline
+          preload="metadata"
+          className="absolute inset-0 size-full object-cover"
+        />
+      ) : null}
+      <span
+        className={cn(
+          'relative flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium',
+          url
+            ? 'bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'
+            : 'text-muted-foreground',
+        )}
+      >
+        <ImageIcon className="size-4" aria-hidden />
+        {url ? 'Changer le fond' : 'Choisir un fond'}
+      </span>
+    </button>
   );
 }

@@ -747,6 +747,11 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 - **Fond.**
   - Image : png, jpeg, webp, avif, gif (première image seulement : pas d'animation). Vidéo :
     webm, mp4, muette, en boucle, `playsinline`.
+  - Choix (`components/map/scenes/background-picker.tsx`) : bouton « Fond de la scène » de la
+    barre (MJ, commande annulable) et champ « Fond » du dialogue de scène. Bibliothèque de
+    cartes (dossiers, Cartes / Animées / Illustrations, recherche ; vignettes du CDN, affiche
+    WebP pour une carte animée, lue en 1080p au survol) ou import (vidéo réencodée avant
+    l'envoi, docs/uploads.md).
   - Les médias sont servis avec les en-têtes CORS : WebGL refuse une image d'une autre origine
     sans `Access-Control-Allow-Origin`.
   - Envoi par URL présignée (`/media`, § 12).

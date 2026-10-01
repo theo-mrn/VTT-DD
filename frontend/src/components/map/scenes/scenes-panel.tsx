@@ -59,6 +59,7 @@ import { messageErreur } from '@/lib/api';
 import { useActiveMap } from '@/lib/map/active-map';
 import { SPAWN_TOOL_ID } from '@/lib/map/modules/scene';
 import { usePersonnagesCampagne } from '@/lib/personnages';
+import { videoVariant } from '@/lib/map/engine/background-prefs';
 import { cn } from '@/lib/utils';
 import { openScene } from '../use-table-map';
 import { SceneDialog } from './scene-dialog';
@@ -284,6 +285,9 @@ function SceneRow({
 }) {
   const { close } = usePanels();
   const video = isVideoBackground(scene.backgroundUrl);
+  // Carte animée de la bibliothèque : son affiche (la vidéo n'est jamais chargée ici)
+  const variant = video && scene.backgroundUrl ? videoVariant(scene.backgroundUrl) : null;
+  const poster = variant ? variant.replace(/\.mp4$/, '.webp') : null;
   const toggleVisible = () =>
     actions.updateScene.mutate({
       mapId: scene.id,
@@ -305,15 +309,16 @@ function SceneRow({
         title="Ouvrir cette scène pour moi"
       >
         <span className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg ring-1 ring-border">
-          {video ? (
+          {video && !poster ? (
             <span className="grid size-full place-items-center bg-surface-3 text-muted-foreground">
               <Film className="size-5" aria-hidden />
             </span>
           ) : (
             <Illustration
-              src={scene.backgroundUrl}
+              src={poster ?? scene.backgroundUrl}
               graine={scene.name}
               initiale={false}
+              largeur={80}
               className="size-full"
             />
           )}
