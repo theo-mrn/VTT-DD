@@ -21,7 +21,9 @@ export function useAssets() {
     queryFn: async () => {
       const res = await fetch('/asset-mappings.json');
       if (!res.ok) throw new Error('Bibliothèque d’images indisponible');
-      return (await res.json()) as Asset[];
+      // Adresses encodées (espaces → %20) : valides partout où une URL est attendue (fond de
+      // carte, portrait, objet), le serveur refusant une adresse qui contient un espace
+      return ((await res.json()) as Asset[]).map((a) => ({ ...a, path: encodeURI(a.path) }));
     },
     staleTime: Infinity,
   });
