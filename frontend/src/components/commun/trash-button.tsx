@@ -4,7 +4,7 @@
  * Bouton « Corbeille » (docs/nettoyage.md) : absent tant qu'elle est vide, il ouvre la liste des
  * éléments supprimés, chacun avec sa date de purge et « Restaurer ».
  */
-import { Box, Trash2, UserRound } from 'lucide-react';
+import { Trash2, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,19 +19,16 @@ const full = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 's
 
 export function TrashButton({
   items,
-  campaignId,
   className,
 }: {
   items: TrashItem[] | undefined;
-  /** Campagne des modèles (absente pour mes personnages). */
-  campaignId?: string;
   className?: string;
 }) {
-  const restore = useRestore(campaignId);
+  const restore = useRestore();
   if (!items?.length) return null;
 
   const restoreItem = (item: TrashItem) =>
-    restore.mutate(item, {
+    restore.mutate(item.id, {
       onSuccess: () => toast.success(`« ${item.name} » restauré`),
       onError: (err) => toast.error('Restauration impossible', { description: messageErreur(err) }),
     });
@@ -49,7 +46,6 @@ export function TrashButton({
       <PopoverContent align="end" className="w-80 p-1.5">
         <ul className="max-h-80 overflow-y-auto">
           {items.map((item) => {
-            const Fallback = item.kind === 'object_template' ? Box : UserRound;
             const purge = new Date(item.purgeAt);
             return (
               <li key={item.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
@@ -62,7 +58,7 @@ export function TrashButton({
                       loading="lazy"
                     />
                   ) : (
-                    <Fallback className="size-4" />
+                    <UserRound className="size-4" />
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -74,7 +70,7 @@ export function TrashButton({
                 <Button
                   variant="outline"
                   size="xs"
-                  loading={restore.isPending && restore.variables?.id === item.id}
+                  loading={restore.isPending && restore.variables === item.id}
                   onClick={() => restoreItem(item)}
                 >
                   Restaurer

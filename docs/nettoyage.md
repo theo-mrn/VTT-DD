@@ -15,48 +15,50 @@
 
 ## Principes
 
-1. **Corbeille de 7 jours.** Supprimer marque l'élément (`deleted_at`) : il disparaît aussitôt
-   pour tous (listes, carte, combat), il est restaurable 7 jours par son propriétaire (ou le MJ
-   pour un modèle), puis purgé définitivement.
-2. **Purge définitive, par le service propriétaire.** Chaque service ne supprime que ses données
+1. **Corbeille de 7 jours pour les personnages.** Supprimer marque le personnage (`deleted_at`) :
+   il disparaît aussitôt pour tous (listes, carte, combat), il est restaurable 7 jours par son
+   propriétaire, puis purgé définitivement.
+2. **Un modèle n'est jamais supprimé par le système**, quoi qu'il arrive : ni parce qu'il ne sert
+   plus, ni après un délai. Il disparaît seulement quand le MJ le supprime lui-même, aussitôt et
+   définitivement (pas de corbeille : un modèle se prépare longtemps à l'avance ou se réutilise
+   bien plus tard, rien d'automatique ne doit y toucher).
+3. **Purge définitive, par le service propriétaire.** Chaque service ne supprime que ses données
    et ses fichiers ; les autres réagissent à un événement (`*.purged`), jamais à un appel direct.
-3. **Un fichier n'est supprimé que s'il n'est plus référencé nulle part** (les PNJ partagent
+4. **Un fichier n'est supprimé que s'il n'est plus référencé nulle part** (les PNJ partagent
    l'image de leur modèle, un token peut porter l'image d'un autre) : chaque service qui stocke des
    adresses de fichiers répond « référencées ou non » pour une liste d'adresses.
-4. **Tâches périodiques dans les services**, pas de nouveau service : une passe toutes les heures,
+5. **Tâches périodiques dans les services**, pas de nouveau service : une passe toutes les heures,
    protégée par un verrou consultatif Postgres (`pg_try_advisory_lock`) : une seule instance la
    fait. Idempotente : relancée, elle termine ce qui reste.
 
 ## Corbeille
 
-| Élément        | Service   | Suppression (immédiate)                           | Restauration (7 jours)                                |
-| -------------- | --------- | ------------------------------------------------- | ----------------------------------------------------- |
-| Personnage     | character | `deleted_at`, `character.deleted` (existe)        | `POST …/characters/:id/restore`, `character.restored` |
-| Modèle de PNJ  | character | `deleted_at` (nouveau), `npc_template.deleted`    | `POST …/npc-templates/:id/restore`                    |
-| Modèle d'objet | character | `deleted_at` (nouveau), `object_template.deleted` | idem                                                  |
+| Élément    | Service   | Suppression (immédiate)                    | Restauration (7 jours)                                |
+| ---------- | --------- | ------------------------------------------ | ----------------------------------------------------- |
+| Personnage | character | `deleted_at`, `character.deleted` (existe) | `POST …/characters/:id/restore`, `character.restored` |
 
-- Les lectures excluent déjà les personnages supprimés ; elles excluent de même les modèles.
+- Les modèles n'ont pas de corbeille (principe 2) : leur suppression par le MJ est immédiate et
+  définitive, comme avant. Une première version leur en avait donné une (0012) ; 0013 la retire.
 - **Instances de PNJ** (`kind` npc, posées sur la carte) : jamais dans la corbeille, leur modèle
   demeure ; purgées à la passe suivante, sans attendre 7 jours.
 - **Campagne** : rien n'est masqué ni rendu. Supprimer un personnage le retire d'abord de ses
   campagnes (route existante : engagement, tokens, place en combat, avec leurs événements) ;
   restauré, il revient sans campagne, à réengager.
-- Interface : une section « Corbeille » (mes personnages ; modèles de la campagne pour le MJ) avec
-  « Restaurer » et la date de purge. Changements Liquibase : `deleted_at` sur `npc_templates` et
-  `object_templates` (nouveau changeset, jamais un changeset existant modifié).
+- Interface : un bouton « Corbeille » (page Personnages, absent si vide) avec « Restaurer » et la
+  date de purge ; le toast de suppression propose « Annuler ».
 
 ## Purge définitive (après 7 jours)
 
 **character**, passe horaire :
 
-1. personnages et modèles dont `deleted_at` < maintenant − 7 jours, par lots de 50 ;
+1. personnages dont `deleted_at` < maintenant − 7 jours, et instances de PNJ supprimées, par lots
+   de 50 ; **jamais un modèle** ;
 2. pour chacun : suppression de la ligne (les tables liées suivent par `ON DELETE CASCADE` :
-   `legacy_ids`, `legacy_items`, `application_items`…), événement `character.purged` /
-   `npc_template.purged` / `object_template.purged` (outbox, même transaction) ;
+   `legacy_ids`, `legacy_items`, `application_items`…), événement `character.purged` (outbox,
+   même transaction) ;
 3. fichiers : **aucun** à ce moment. Une image se partage (la copie d'un PNJ reprend le portrait
-   de l'original, rangé dans le dossier de celui-ci ; un modèle peut porter l'image d'un PNJ) :
-   seule la passe des fichiers orphelins la supprime, quand plus rien ne la référence (§ Fichiers).
-4. un modèle n'est jamais supprimé parce qu'il ne sert plus : seulement par le MJ, puis 7 jours.
+   de l'original, rangé dans le dossier de celui-ci) : seule la passe des fichiers orphelins la
+   supprime, quand plus rien ne la référence (§ Fichiers).
 
 **campaign** n'écoute rien : le retrait de la campagne a déjà eu lieu à la suppression. Les
 notes gardent leur `character_id` (la note reste, c'est l'écrit du joueur) ; une instance purgée
@@ -103,7 +105,8 @@ balayée : elle n'appartient à aucun service.
 
 ## Ordre de réalisation
 
-1. Corbeille des modèles (changeset `deleted_at`), restauration, section Corbeille (front). Fait.
+1. Corbeille des personnages, restauration, bouton Corbeille (front). Fait ; corbeille des
+   modèles retirée (principe 2).
 2. ~~Consommateur campaign~~ : abandonné (voir Corbeille, « Campagne »).
 3. Purge définitive dans character (lignes et événements, pas de fichier). Fait (`src/maintenance/`).
 4. Route `references` dans character, campaign, identity ; passe des fichiers orphelins, d'abord en

@@ -4,7 +4,7 @@
  */
 import { inArray, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { characters, npcTemplates, objectTemplates, outbox } from '../db/schema.js';
+import { characters, outbox } from '../db/schema.js';
 import { appDeTest, TEST_DATABASE_URL } from '../test/app-de-test.js';
 import { outils, type Utilisateur } from '../test/outils.js';
 import { purge } from './purge.js';
@@ -15,7 +15,6 @@ describe.skipIf(!TEST_DATABASE_URL)('purge définitive', () => {
   let t: Contexte;
   let o: ReturnType<typeof outils>;
   let alice: Utilisateur;
-  const campagne = crypto.randomUUID();
 
   beforeEach(async () => {
     t = await appDeTest();
@@ -24,8 +23,6 @@ describe.skipIf(!TEST_DATABASE_URL)('purge définitive', () => {
   });
 
   afterEach(async () => {
-    await t.db!.delete(npcTemplates).where(sql`${npcTemplates.campaignId} = ${campagne}`);
-    await t.db!.delete(objectTemplates).where(sql`${objectTemplates.campaignId} = ${campagne}`);
     await t.fermer();
   });
 
@@ -73,7 +70,7 @@ describe.skipIf(!TEST_DATABASE_URL)('purge définitive', () => {
     expect(await restants(tous)).toEqual([...tous].sort());
 
     const report = await purge({ db: t.db!, ctx: { correlationId: crypto.randomUUID() } });
-    expect(report.characters).toBeGreaterThanOrEqual(2);
+    expect(report).toBeGreaterThanOrEqual(2);
     expect(await restants(tous)).toEqual([recent!, vivant!].sort());
     expect((await purges(tous)).sort()).toEqual([vieux!, pnj!].sort());
 
@@ -86,47 +83,5 @@ describe.skipIf(!TEST_DATABASE_URL)('purge définitive', () => {
         sql`, `,
       )})`,
     );
-  });
-
-  it('modèles : purgés après TRASH_DAYS jours seulement', async () => {
-    const modele = (name: string, jours: number | null) => ({
-      id: crypto.randomUUID(),
-      campaignId: campagne,
-      name,
-      deletedAt: jours === null ? null : sql`now() - make_interval(days => ${jours})`,
-    });
-    const npcs = [modele('Orque', 8), modele('Gobelin', 3), modele('Loup', null)];
-    await t.db!.insert(npcTemplates).values(
-      npcs.map((n) => ({
-        ...n,
-        systemId: 'dnd-classic',
-        systemVersion: '1',
-        type: 'personnage',
-        etat: {},
-      })) as never,
-    );
-    const objets = [modele('Coffre', 9), modele('Tonneau', 1)];
-    await t.db!.insert(objectTemplates).values(objets as never);
-
-    await purge({ db: t.db!, ctx: { correlationId: crypto.randomUUID() } });
-    const npcIds = (
-      await t
-        .db!.select({ name: npcTemplates.name })
-        .from(npcTemplates)
-        .where(sql`${npcTemplates.campaignId} = ${campagne}`)
-    )
-      .map((r) => r.name)
-      .sort();
-    const objIds = (
-      await t
-        .db!.select({ name: objectTemplates.name })
-        .from(objectTemplates)
-        .where(sql`${objectTemplates.campaignId} = ${campagne}`)
-    ).map((r) => r.name);
-    expect(npcIds).toEqual(['Gobelin', 'Loup']);
-    expect(objIds).toEqual(['Tonneau']);
-    const ids = [npcs[0]!.id, objets[0]!.id];
-    expect((await purges(ids)).sort()).toEqual([...ids].sort());
-    await t.db!.delete(outbox).where(sql`${outbox.envelope}->>'roomId' = ${campagne}`);
   });
 });

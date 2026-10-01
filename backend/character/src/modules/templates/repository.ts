@@ -8,10 +8,10 @@
  * L'accès (MJ de la campagne) est vérifié avant, par les routes ; ici, une
  * ligne d'une autre campagne est simplement introuvable.
  */
-import { changesPayload, TRASH_DAYS, uuidv7 } from '@vtt/contracts';
+import { changesPayload, uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { EtatEntite, ficheJson, type SystemeCharge, type Valeur } from '@vtt/rules';
-import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
 import {
@@ -283,7 +283,7 @@ export function listNpcTemplates(db: Db, campaignId: string) {
   return db
     .select()
     .from(npcTemplates)
-    .where(and(eq(npcTemplates.campaignId, campaignId), isNull(npcTemplates.deletedAt)))
+    .where(eq(npcTemplates.campaignId, campaignId))
     .orderBy(asc(npcTemplates.createdAt), asc(npcTemplates.id));
 }
 
@@ -351,18 +351,11 @@ export function createNpcTemplate(
   });
 }
 
-/** Modèle verrouillé ; `trashed` : celui de la corbeille (restauration), sinon un modèle actif. */
-async function lockNpcTemplate(tx: Tx, campaignId: string, id: string, trashed = false) {
+async function lockNpcTemplate(tx: Tx, campaignId: string, id: string) {
   const [row] = await tx
     .select()
     .from(npcTemplates)
-    .where(
-      and(
-        eq(npcTemplates.id, id),
-        eq(npcTemplates.campaignId, campaignId),
-        trashed ? inTrash(npcTemplates.deletedAt) : isNull(npcTemplates.deletedAt),
-      ),
-    )
+    .where(and(eq(npcTemplates.id, id), eq(npcTemplates.campaignId, campaignId)))
     .for('update');
   if (!row) throw HttpError.notFound('Modèle de PNJ introuvable');
   return row;
@@ -415,11 +408,7 @@ export function updateNpcTemplate(
 export async function deleteNpcTemplate(db: Db, ctx: EventContext, author: Author, id: string) {
   await db.transaction(async (tx) => {
     const row = await lockNpcTemplate(tx, author.campaignId, id);
-    // Corbeille : marqué, restaurable `TRASH_DAYS` jours, puis purgé (docs/nettoyage.md)
-    await tx
-      .update(npcTemplates)
-      .set({ deletedAt: sql`now()`, version: row.version + 1, updatedAt: sql`now()` })
-      .where(eq(npcTemplates.id, id));
+    await tx.delete(npcTemplates).where(eq(npcTemplates.id, id));
     await emit(
       tx,
       ctx,
@@ -443,7 +432,7 @@ export function listObjectTemplates(db: Db, campaignId: string) {
   return db
     .select()
     .from(objectTemplates)
-    .where(and(eq(objectTemplates.campaignId, campaignId), isNull(objectTemplates.deletedAt)))
+    .where(eq(objectTemplates.campaignId, campaignId))
     .orderBy(asc(objectTemplates.createdAt), asc(objectTemplates.id));
 }
 
@@ -477,17 +466,11 @@ export function createObjectTemplate(
   });
 }
 
-async function lockObjectTemplate(tx: Tx, campaignId: string, id: string, trashed = false) {
+async function lockObjectTemplate(tx: Tx, campaignId: string, id: string) {
   const [row] = await tx
     .select()
     .from(objectTemplates)
-    .where(
-      and(
-        eq(objectTemplates.id, id),
-        eq(objectTemplates.campaignId, campaignId),
-        trashed ? inTrash(objectTemplates.deletedAt) : isNull(objectTemplates.deletedAt),
-      ),
-    )
+    .where(and(eq(objectTemplates.id, id), eq(objectTemplates.campaignId, campaignId)))
     .for('update');
   if (!row) throw HttpError.notFound("Modèle d'objet introuvable");
   return row;
@@ -524,10 +507,7 @@ export function updateObjectTemplate(
 export async function deleteObjectTemplate(db: Db, ctx: EventContext, author: Author, id: string) {
   await db.transaction(async (tx) => {
     const row = await lockObjectTemplate(tx, author.campaignId, id);
-    await tx
-      .update(objectTemplates)
-      .set({ deletedAt: sql`now()`, version: row.version + 1, updatedAt: sql`now()` })
-      .where(eq(objectTemplates.id, id));
+    await tx.delete(objectTemplates).where(eq(objectTemplates.id, id));
     await emit(
       tx,
       ctx,
@@ -536,69 +516,5 @@ export async function deleteObjectTemplate(db: Db, ctx: EventContext, author: Au
       { type: 'object_template', id },
       { name: row.name },
     );
-  });
-}
-
-// ─── Corbeille (docs/nettoyage.md) ──────────────────────────────────────────
-
-/** Marqué depuis moins de `TRASH_DAYS` jours : restaurable (au-delà, en attente de purge). */
-function inTrash(column: typeof npcTemplates.deletedAt | typeof objectTemplates.deletedAt) {
-  return and(isNotNull(column), sql`${column} > now() - make_interval(days => ${TRASH_DAYS})`)!;
-}
-
-/** Modèles de PNJ et d'objets de la corbeille d'une campagne, les plus récents d'abord. */
-export async function trashedTemplates(db: Db, campaignId: string) {
-  const [npcs, objects] = await Promise.all([
-    db
-      .select()
-      .from(npcTemplates)
-      .where(and(eq(npcTemplates.campaignId, campaignId), inTrash(npcTemplates.deletedAt)))
-      .orderBy(desc(npcTemplates.deletedAt)),
-    db
-      .select()
-      .from(objectTemplates)
-      .where(and(eq(objectTemplates.campaignId, campaignId), inTrash(objectTemplates.deletedAt)))
-      .orderBy(desc(objectTemplates.deletedAt)),
-  ]);
-  return { npcs, objects };
-}
-
-export async function restoreNpcTemplate(db: Db, ctx: EventContext, author: Author, id: string) {
-  return db.transaction(async (tx) => {
-    const row = await lockNpcTemplate(tx, author.campaignId, id, true);
-    const [after] = await tx
-      .update(npcTemplates)
-      .set({ deletedAt: null, version: row.version + 1, updatedAt: sql`now()` })
-      .where(eq(npcTemplates.id, id))
-      .returning();
-    await emit(
-      tx,
-      ctx,
-      author,
-      'npc_template.restored',
-      { type: 'npc_template', id },
-      { version: after!.version, name: row.name },
-    );
-    return after!;
-  });
-}
-
-export async function restoreObjectTemplate(db: Db, ctx: EventContext, author: Author, id: string) {
-  return db.transaction(async (tx) => {
-    const row = await lockObjectTemplate(tx, author.campaignId, id, true);
-    const [after] = await tx
-      .update(objectTemplates)
-      .set({ deletedAt: null, version: row.version + 1, updatedAt: sql`now()` })
-      .where(eq(objectTemplates.id, id))
-      .returning();
-    await emit(
-      tx,
-      ctx,
-      author,
-      'object_template.restored',
-      { type: 'object_template', id },
-      { version: after!.version, name: row.name },
-    );
-    return after!;
   });
 }

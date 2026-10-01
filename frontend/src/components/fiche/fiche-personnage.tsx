@@ -733,7 +733,7 @@ function DialogueSuppression({
               supprimer.mutate(p.id, {
                 onSuccess: () => {
                   toast.success(`${p.name} a quitté l'aventure`, {
-                    action: undoAction(client, { id: p.id, kind: 'character', name: p.name }),
+                    action: undoAction(client, { id: p.id, name: p.name }),
                   });
                   router.replace('/personnages');
                 },
