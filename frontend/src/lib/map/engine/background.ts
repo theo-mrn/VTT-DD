@@ -20,7 +20,7 @@
 import { ImageSource, Sprite, Texture, type Container } from 'pixi.js';
 import type { StoreApi } from 'zustand/vanilla';
 import { prefersEconomy } from '@/lib/perf/device';
-import { isVideoUrl, type BackgroundPrefs } from './background-prefs';
+import { isVideoUrl, videoVariant, type BackgroundPrefs } from './background-prefs';
 
 export { isVideoUrl };
 /** Côté maximal de l'image de fond sur une machine économe (au-delà : réduite). */
@@ -190,15 +190,24 @@ export class MapBackground {
       video.style.visibility = 'visible';
       sync();
     };
+    // Variante 1080p de la bibliothèque d'abord ; absente ou illisible : l'original
+    const variant = videoVariant(url);
+    let fallback = variant !== null;
     const onError = () => {
-      if (seq === this.seq) this.host.onError(url, video.error);
+      if (seq !== this.seq) return;
+      if (fallback) {
+        fallback = false;
+        video.src = url;
+        return;
+      }
+      this.host.onError(url, video.error);
     };
     video.addEventListener('loadedmetadata', onMeta);
     video.addEventListener('loadeddata', onData);
     video.addEventListener('error', onError);
     document.addEventListener('visibilitychange', sync);
     const unsubscribe = this.host.prefs.subscribe(sync);
-    video.src = url;
+    video.src = variant ?? url;
     this.host.underlay.appendChild(video);
     this.stopVideo = () => {
       unsubscribe();
