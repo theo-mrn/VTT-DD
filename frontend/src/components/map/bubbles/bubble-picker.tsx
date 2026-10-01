@@ -127,7 +127,7 @@ function BubbleComposer({
 
   return (
     <div className="flex flex-col">
-      <header className="flex items-center gap-1 border-b border-border p-1.5">
+      <header className="flex items-center gap-1 border-b border-border px-2 py-1.5">
         <div role="tablist" className="flex items-center gap-0.5 rounded-lg bg-surface-2 p-0.5">
           <ModeTab
             icon={Smile}
@@ -233,7 +233,7 @@ function EmojiPane({ onPick }: { onPick: (emoji: string) => void }) {
       onEmojiSelect={({ emoji }) => onPick(emoji)}
       className="isolate flex h-[23rem] flex-col"
     >
-      <div className="flex items-center gap-1.5 px-2 pt-2">
+      <div className="flex items-center gap-1.5 px-2 pb-1 pt-2">
         <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border-strong bg-surface-2 px-2.5 focus-within:ring-2 focus-within:ring-ring/40">
           <Search className="size-4 shrink-0 text-subtle" aria-hidden />
           <EmojiPicker.Search
@@ -282,12 +282,12 @@ function EmojiPane({ onPick }: { onPick: (emoji: string) => void }) {
           Aucun emoji
         </EmojiPicker.Empty>
         <EmojiPicker.List
-          className="select-none pb-1.5"
+          className="select-none pb-2"
           components={{
             CategoryHeader: ({ category, ...props }) => (
               <div
                 {...props}
-                className="bg-popover px-3 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-wider text-subtle"
+                className="bg-popover px-2 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-subtle"
               >
                 {category.label}
               </div>
@@ -300,8 +300,11 @@ function EmojiPane({ onPick }: { onPick: (emoji: string) => void }) {
             Emoji: ({ emoji, ...props }) => (
               <button
                 {...props}
+                // Une colonne sur COLUMNS : la grille remplit la ligne, les lignes incomplètes restent
+                // alignées sur les autres
+                style={{ ...props.style, width: `${100 / COLUMNS}%` }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md text-[22px] leading-none',
+                  'flex h-8 shrink-0 items-center justify-center rounded-md text-[22px] leading-none',
                   emoji.isActive && 'bg-surface-3',
                 )}
               >
@@ -312,7 +315,7 @@ function EmojiPane({ onPick }: { onPick: (emoji: string) => void }) {
         />
       </EmojiPicker.Viewport>
 
-      <footer className="flex h-11 shrink-0 items-center gap-2.5 border-t border-border px-3">
+      <footer className="flex h-11 shrink-0 items-center gap-2 border-t border-border px-2">
         <EmojiPicker.ActiveEmoji>
           {({ emoji }) =>
             emoji ? (
