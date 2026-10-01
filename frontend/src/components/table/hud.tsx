@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { memo, useMemo } from 'react';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { GmCombatBar } from '@/components/combat/bar/gm-combat-bar';
+import { HUD_BAR, HUD_CONTROL } from '@/components/combat/live-reports/look';
 import { LiveReports } from '@/components/combat/live-reports/live-reports';
 import { useLiveReports } from '@/components/combat/live-reports/use-live-reports';
 import { ReactionPrompts } from '@/components/combat/player/reaction-prompt';
@@ -18,33 +19,24 @@ import type { DetailCampagne } from '@/lib/campagnes';
 import { cn } from '@/lib/utils';
 import type { Table } from './contexte';
 
-// Fond presque opaque, sans backdrop-filter : sur le canvas de la carte, le flou serait
-// recalculé à chaque image.
-const VERRE = 'rounded-2xl border border-border-strong bg-popover/95 shadow-elevated';
-
 /** En haut à gauche : retour au salon, campagne et système. */
 export const HudCampaign = memo(function HudCampaign({ table }: { table: Table }) {
   const c = table.campagne;
   const nomSysteme = useNomSysteme(c.system);
   return (
-    <div
-      className={cn(
-        VERRE,
-        'pointer-events-auto flex min-w-0 max-w-[min(22rem,calc(100vw-8rem))] items-center gap-1 p-1 pr-3',
-      )}
-    >
+    <div className={cn(HUD_BAR, 'min-w-0 max-w-[min(22rem,calc(100vw-8rem))] pr-3')}>
       <Info texte="Retour au salon" cote="bottom">
-        <Button variant="ghost" size="icon-sm" asChild>
+        <Button variant="ghost" size="icon-sm" asChild className={cn(HUD_CONTROL, 'shrink-0')}>
           <Link href={`/campagnes/${c.id}`} aria-label="Retour au salon">
             <ArrowLeft />
           </Link>
         </Button>
       </Info>
       <Illustration
-        largeur={64}
+        largeur={40}
         src={c.coverUrl}
         graine={c.name}
-        className="hidden size-8 shrink-0 rounded-lg ring-1 ring-border sm:block"
+        className={cn(HUD_CONTROL, 'hidden shrink-0 ring-1 ring-border sm:block')}
       />
       <span className="ml-1.5 min-w-0">
         <span className="block truncate font-display text-sm font-semibold leading-tight">

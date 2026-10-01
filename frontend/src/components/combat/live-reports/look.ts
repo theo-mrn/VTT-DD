@@ -14,6 +14,16 @@ import type { OutcomeTone } from '@/lib/combat/view';
  */
 export const GLASS = 'rounded-2xl border border-border-strong bg-popover/95 shadow-elevated';
 
+/**
+ * Pièce du HUD de la table (campagne, barre de combat, barre du groupe) : une seule géométrie
+ * pour qu'elles s'alignent. Arrondis concentriques : pièce 20 px, marge 6 px, commandes de 40 px
+ * arrondies à 14 px (`HUD_CONTROL`) : 52 px de haut partout.
+ */
+export const HUD_BAR = `${GLASS} pointer-events-auto flex items-center gap-1 rounded-[20px] p-1.5`;
+
+/** Commande ou vignette d'une pièce du HUD : 40 px, arrondie à 14 px. */
+export const HUD_CONTROL = 'size-10 rounded-[14px]';
+
 /** Carte d'un rapport : la carte du lanceur, posée sur la carte de jeu (verre dense, sans flou). */
 export const CARD =
   'relative isolate overflow-hidden rounded-2xl border border-border-strong bg-card/95 shadow-elevated';

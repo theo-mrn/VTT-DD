@@ -27,6 +27,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
+import { HUD_BAR, HUD_CONTROL } from '@/components/combat/live-reports/look';
 import { Illustration } from '@/components/commun/illustration';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -118,9 +119,12 @@ export function PartyBar() {
   const rest = members.slice(SHOWN);
 
   return (
-    <div className="pointer-events-auto flex max-w-[min(34rem,calc(100vw-1.5rem))] items-center gap-1 rounded-2xl border border-border-strong bg-popover/95 p-1 shadow-elevated">
+    <div className={cn(HUD_BAR, 'max-w-[min(34rem,calc(100vw-1.5rem))]')}>
       {gm && (
-        <div className="flex shrink-0 rounded-xl bg-surface-2/80 p-0.5" role="tablist">
+        <div
+          className="flex h-10 shrink-0 gap-0.5 rounded-[14px] bg-surface-2/80 p-1"
+          role="tablist"
+        >
           {(
             [
               ['players', 'Joueurs', Users],
@@ -135,7 +139,7 @@ export function PartyBar() {
                 aria-label={label}
                 onClick={() => setMode(id)}
                 className={cn(
-                  'grid size-7 place-items-center rounded-lg transition-colors',
+                  'grid size-8 place-items-center rounded-[10px] transition-colors',
                   mode === id
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground',
@@ -148,7 +152,8 @@ export function PartyBar() {
         </div>
       )}
 
-      <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto px-1 [scrollbar-width:none]">
+      {gm && <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />}
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
         <AnimatePresence initial={false} mode="popLayout">
           {shown.map((m) => (
             <motion.div
@@ -179,7 +184,7 @@ export function PartyBar() {
         <>
           <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
           <Info texte={gm ? 'Jouer un héros ou mener en MJ' : 'Changer de héros'} cote="bottom">
-            <Button variant="ghost" size="icon-sm" asChild className="shrink-0">
+            <Button variant="ghost" size="icon-sm" asChild className={cn(HUD_CONTROL, 'shrink-0')}>
               <Link href={`/campagnes/${campaignId}/personnage`} aria-label="Changer de héros">
                 <UserRoundCog />
               </Link>
@@ -207,8 +212,10 @@ function MemberAvatar({
   const r = info.resource;
   const name = info.name ?? 'Personnage';
   const down = r ? health(r) <= 0 : false;
+  // En pleine forme : le rail seul ; la couleur ne dit que les dégâts
+  const hurt = r ? health(r) < 0.999 : false;
   const size = 40;
-  const radius = size / 2 - 1.5;
+  const radius = size / 2 - 1.25;
   const c = 2 * Math.PI * radius;
   const [open, setOpen] = useState(false);
   return (
@@ -232,8 +239,8 @@ function MemberAvatar({
             aria-label={name}
             onDoubleClick={() => centerOn(engine, member)}
             className={cn(
-              'relative grid shrink-0 place-items-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              open && 'scale-105',
+              'relative grid shrink-0 place-items-center rounded-full transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 motion-reduce:hover:translate-y-0',
+              open && '-translate-y-0.5',
             )}
             style={{ width: size, height: size }}
           >
@@ -247,16 +254,16 @@ function MemberAvatar({
                 cy={size / 2}
                 r={radius}
                 fill="none"
-                strokeWidth="3"
-                className="stroke-border"
+                strokeWidth="2.5"
+                className={mine ? 'stroke-primary' : 'stroke-border-strong'}
               />
-              {r && (
+              {r && hurt && (
                 <circle
                   cx={size / 2}
                   cy={size / 2}
                   r={radius}
                   fill="none"
-                  strokeWidth="3"
+                  strokeWidth="2.5"
                   strokeLinecap="round"
                   stroke="currentColor"
                   strokeDasharray={c}
@@ -270,11 +277,7 @@ function MemberAvatar({
               src={info.portraitUrl}
               graine={name}
               position="top"
-              className={cn(
-                'size-[32px] rounded-full',
-                down && 'grayscale',
-                mine && 'ring-2 ring-primary ring-offset-1 ring-offset-popover',
-              )}
+              className={cn('size-[31px] rounded-full', down && 'opacity-60 grayscale')}
             />
           </button>
         </PopoverTrigger>
@@ -579,7 +582,7 @@ function Overflow({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="grid size-10 shrink-0 place-items-center rounded-full border border-border bg-surface-2 text-xs font-semibold tabular-nums text-muted-foreground transition-colors hover:text-foreground"
+          className="grid size-10 shrink-0 place-items-center rounded-full bg-surface-2 font-mono text-[11px] font-semibold tabular-nums text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground"
           aria-label={`${members.length} de plus`}
         >
           +{members.length}

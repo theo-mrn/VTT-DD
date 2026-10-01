@@ -22,7 +22,16 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Info } from '@/components/ui/tooltip';
 import { combatFailure, useCombatCommands } from '@/lib/combat/use-combat';
 import { cn } from '@/lib/utils';
-import { CTA, EXIT, GLASS, LABEL, NUMBER_SPRING, SPRING, TOUCH } from '../live-reports/look';
+import {
+  CTA,
+  EXIT,
+  GLASS,
+  HUD_BAR,
+  LABEL,
+  NUMBER_SPRING,
+  SPRING,
+  TOUCH,
+} from '../live-reports/look';
 import { SIDE_LABELS, currentActorOf, slotBar, turnRows, type TurnRow } from '../turns/model';
 import { useCast } from '../turns/use-cast';
 
@@ -132,10 +141,7 @@ export function InitiativeStrip({
       aria-label={`Combat, round ${combat.round}`}
       // Arrondis concentriques : barre 20 px, marge 6 px, commandes 40 px arrondies à 14 px ;
       // la même marge tout autour, jusqu'au dernier bouton
-      className={cn(
-        GLASS,
-        'pointer-events-auto flex max-w-full items-center gap-1 rounded-[20px] p-1.5',
-      )}
+      className={cn(HUD_BAR, 'max-w-full')}
     >
       <Round round={combat.round} />
       <Rule />

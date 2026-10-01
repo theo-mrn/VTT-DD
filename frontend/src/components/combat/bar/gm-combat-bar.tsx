@@ -37,7 +37,7 @@ import { openAttackMenu, useAttackHost } from '@/lib/combat/attack-menu-store';
 import { currentActorId } from '@/lib/combat/use-combat';
 import { cn } from '@/lib/utils';
 import { ReportsToggle } from '../live-reports/live-reports';
-import { GLASS, TOUCH } from '../live-reports/look';
+import { HUD_BAR, TOUCH } from '../live-reports/look';
 import type { LiveReports } from '../live-reports/use-live-reports';
 import { InitiativeStrip } from '../player/initiative-strip';
 import { isPending, pendingTargetIds } from '../reports/model';
@@ -254,10 +254,7 @@ function OffCombatBar({
   menu: ReactNode;
 }) {
   return (
-    <section
-      aria-label="Combat"
-      className={cn(GLASS, 'pointer-events-auto flex items-center gap-1 rounded-[20px] p-1.5')}
-    >
+    <section aria-label="Combat" className={HUD_BAR}>
       <Button
         variant="ghost"
         size="sm"
