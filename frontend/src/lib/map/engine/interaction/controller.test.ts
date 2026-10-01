@@ -157,12 +157,12 @@ describe('gestes communs', () => {
     expect(t.engine.ui.getState().inspector).toEqual(['a']);
   });
 
-  it('clic droit : menu des actions communes et de la sorte', () => {
+  it('clic droit : l’entité est sélectionnée, son panneau sert de menu ; menu de la carte au vide', () => {
     const t = setup({ boxes: [box('a', 100, 100), box('b', 300, 300)] });
     t.engine.controller.pointerDown(t.pointer({ x: 100, y: 100 }, { button: 2, buttons: 2 }));
-    const menu = t.engine.ui.getState().menu;
-    expect(menu?.ids).toEqual(['a']);
-    const labels = t.engine.menuItems(menu!.ids, menu!.world).map((i) => i.label);
+    expect(t.engine.ui.getState().menu).toBeNull();
+    expect(t.engine.selection.ids).toEqual(['a']);
+    const labels = t.engine.menuItems(['a'], { x: 100, y: 100 }).map((i) => i.label);
     expect(labels).toEqual(
       expect.arrayContaining([
         'Inspecter',
@@ -180,12 +180,13 @@ describe('gestes communs', () => {
     expect(t.engine.menuItems([], empty.world).map((i) => i.id)).toContain('map:ping');
   });
 
-  it('appui long au doigt : menu contextuel', () => {
+  it('appui long au doigt : sélectionne l’entité, menu de la carte au vide', () => {
     vi.useFakeTimers();
     const t = setup({ boxes: [box('a', 100, 100)] });
     t.engine.controller.pointerDown(t.pointer({ x: 100, y: 100 }, { type: 'touch' }));
     vi.advanceTimersByTime(LONG_PRESS_MS + 10);
-    expect(t.engine.ui.getState().menu?.ids).toEqual(['a']);
+    expect(t.engine.ui.getState().menu).toBeNull();
+    expect(t.engine.selection.ids).toEqual(['a']);
   });
 
   it('clavier : Suppr supprime, flèches déplacent d’une case, ⌘Z annule', async () => {

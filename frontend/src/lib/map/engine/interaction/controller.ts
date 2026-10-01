@@ -277,13 +277,20 @@ export class InteractionController {
     this.longPress = null;
   }
 
-  /** Menu au point : l'entité touchée rejoint la sélection (seule si elle n'y était pas). */
+  /**
+   * Clic droit ou appui long. Sur une entité : elle rejoint la sélection (seule si elle n'y était
+   * pas) et le panneau de la sélection tient lieu de menu. Dans le vide : le menu de la carte.
+   */
   private openMenuAt(e: MapPointer) {
     const engine = this.engine;
     const hit = engine.hitTest(e.world);
-    if (hit && !engine.selection.has(hit.id)) engine.selection.replace([hit.id]);
-    if (!hit) engine.selection.clear();
-    engine.openMenu({ screen: e.screen, world: e.world, ids: hit ? engine.selection.ids : [] });
+    if (hit) {
+      if (!engine.selection.has(hit.id)) engine.selection.replace([hit.id]);
+      engine.closeMenu();
+      return;
+    }
+    engine.selection.clear();
+    engine.openMenu({ screen: e.screen, world: e.world, ids: [] });
   }
 
   // ─── Clavier ───────────────────────────────────────────────────────────────

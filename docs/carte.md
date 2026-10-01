@@ -367,7 +367,7 @@ Dès qu'un élément est sélectionné, toutes ses options dans un panneau flott
 « Attaquer », « Fouiller ») en boutons ; les autres en liste lisible (icône, libellé, raccourci),
 les sous-menus (Calque, Visibilité, Vision…) dépliés sur place, les cases cochées visibles ; les
 réglages de l'inspecteur dépliables (double clic ou « Inspecter » les déplient) ; « Supprimer » à
-part, en dernier. Mêmes entrées que le menu du clic droit (`engine.menuItems`). L'inspecteur
+part, en dernier. Il tient lieu de menu contextuel (`engine.menuItems`). L'inspecteur
 séparé ne s'ouvre plus que pour d'autres éléments que la sélection (lumière portée d'un token…).
 
 ### Gestes communs (`interaction/controller.ts`)
@@ -379,7 +379,7 @@ séparé ne s'ouvre plus que pour d'autres éléments que la sélection (lumièr
 | Glisser (seuil de 4 px écran)              | déplace la sélection si `move` et `can` ; aperçu local, direct (§ 8), aimantation (réglage « Aimantation », Alt l'inverse) ; au lâcher : **une** commande pour toute la sélection ; Échap pendant le geste : annule |
 | Glisser dans le vide (outil sélection)     | déplace la carte ; un glisser sur un élément qui ne bouge pas (verrouillé, mur, PNJ pour un joueur) aussi ; ⇧ + glisser : lasso, qui ajoute à la sélection                                                          |
 | Double clic                                | réglages du panneau de la sélection (fiche du PNJ, propriétés de l'objet…) ; un texte s'édite en place                                                                                                              |
-| Clic droit ou appui long (500 ms, tactile) | menu contextuel : actions communes et actions de la sorte ; sélection multiple : actions communes à toutes                                                                                                          |
+| Clic droit ou appui long (500 ms, tactile) | sur un élément : il est sélectionné, le panneau de la sélection sert de menu ; dans le vide : menu de la carte                                                                                                      |
 | Poignées (`transform-gizmo.ts`)            | rotation (⇧ : pas de 15°), taille par les coins (⇧ : garde les proportions) ; mêmes poignées pour objets, tokens et textes                                                                                          |
 | Suppr / Retour arrière                     | supprime la sélection (confirmation pour une instance de PNJ)                                                                                                                                                       |
 | Flèches                                    | déplacent d'une case (⇧ : de 5)                                                                                                                                                                                     |
@@ -397,10 +397,8 @@ Règles de ces gestes :
   (glisser, poser un jeton, un objet, une lumière, tracer un mur ou une zone). Les extrémités et
   segments des murs existants s'aimantent toujours, pour les souder. Les flèches du clavier
   avancent toujours d'une case.
-- **Barre de la sélection** (MJ) : au clic, les actions de l'élément apparaissent au-dessus de
-  lui (mêmes entrées que le clic droit). Un joueur n'en a pas au clic, il clique sans cesse son
-  token pour le déplacer : seules les actions marquées pour lui (`forPlayers`, « Fouiller »)
-  s'y montrent, le reste est au clic droit.
+- **Panneau de la sélection** : toutes les actions de l'élément sélectionné, au clic comme au clic
+  droit (pas de second menu par-dessus).
 - **Éléments superposés** : un clic (sans ⇧ ni Alt) sur plusieurs éléments presque confondus
   (taille comparable, boîtes recouvertes à 60 % au moins de la plus petite ; un token sur un
   grand tapis n'est pas concerné) ouvre un menu « Lequel voulez-vous prendre ? » avec image et
