@@ -120,6 +120,24 @@ describe('MapSync', () => {
     expect(t.get('tokens', 'a')?.pos).toEqual({ x: 0, y: 0 });
   });
 
+  it('déplacé ailleurs : la version suit (sinon la prochaine écriture serait refusée)', async () => {
+    const t = setup();
+    await t.sync.load();
+    const moved = (x: number, version: number) =>
+      event('token.moved', {
+        tokenId: 'a',
+        characterId: 'perso-a',
+        from: null,
+        to: { mapId: 'carte', x, y: 0 },
+        version,
+      });
+    t.sync.handle(moved(30, 5));
+    expect(t.get('tokens', 'a')).toMatchObject({ pos: { x: 30, y: 0 }, version: 5 });
+    // Écho en retard d'un déplacement plus ancien : ignoré, la position ne recule pas
+    t.sync.handle(moved(10, 4));
+    expect(t.get('tokens', 'a')).toMatchObject({ pos: { x: 30, y: 0 }, version: 5 });
+  });
+
   it('suit les tokens qui bougent, arrivent ou partent', async () => {
     const t = setup();
     await t.sync.load();

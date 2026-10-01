@@ -1198,6 +1198,12 @@ export const TokenMovedPayload = z.object({
   characterId: Id,
   from: Place.nullable(),
   to: Place,
+  /**
+   * Version du token après le déplacement : les autres clients la reprennent (sans elle, leur
+   * prochaine écriture partait avec une version périmée, refusée en 409). Absente des anciens
+   * événements.
+   */
+  version: z.number().int().optional(),
 });
 export type TokenMovedPayload = z.infer<typeof TokenMovedPayload>;
 

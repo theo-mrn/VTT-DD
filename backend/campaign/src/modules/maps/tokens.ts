@@ -217,6 +217,7 @@ async function movedEvent(
       characterId: after.characterId,
       from: before ? { mapId: before.token.mapId, ...before.token.pos } : null,
       to: { mapId: after.mapId, ...after.pos },
+      version: after.version,
     },
     ...eventTarget(audience),
   });

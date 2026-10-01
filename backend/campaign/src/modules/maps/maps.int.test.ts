@@ -338,6 +338,8 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
       tokenId: hero.id,
       from: { mapId: map.id, x: 100, y: 100 },
       to: { mapId: map.id, x: 120, y: 110 },
+      // Version après le déplacement : les autres clients la reprennent
+      version: expect.any(Number),
     });
 
     // Un personnage non engagé ne se pose pas ; pas deux tokens sur la même carte
