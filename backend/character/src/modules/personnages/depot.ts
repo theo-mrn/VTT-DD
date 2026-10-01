@@ -12,7 +12,13 @@
  * introuvable (404) : on ne révèle pas son existence.
  */
 import type { PortraitStudio } from '@vtt/contracts';
-import { changesPayload, uuidv7, type ActorRole, type DiffOptions } from '@vtt/contracts';
+import {
+  changesPayload,
+  TRASH_DAYS,
+  uuidv7,
+  type ActorRole,
+  type DiffOptions,
+} from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import {
   avecOptions,
@@ -681,6 +687,54 @@ export async function supprimer(db: Db, ctx: EventContext, appelant: Appelant, i
       actor: acteur(appelant, id),
       aggregate: { type: 'character', id },
       payload: { version: ligne!.version + 1 },
+    });
+  });
+}
+
+/** Supprimé depuis moins de `TRASH_DAYS` jours : restaurable (au-delà, en attente de purge). */
+const dansLaCorbeille = and(
+  sql`${characters.deletedAt} IS NOT NULL`,
+  sql`${characters.deletedAt} > now() - make_interval(days => ${TRASH_DAYS})`,
+);
+
+/** Corbeille d'un utilisateur : ses personnages supprimés, restaurables, les plus récents d'abord. */
+export function corbeille(db: Db, ownerId: string) {
+  return db
+    .select({
+      id: characters.id,
+      nom: characters.nom,
+      avatarUrl: characters.avatarUrl,
+      deletedAt: characters.deletedAt,
+    })
+    .from(characters)
+    .where(and(eq(characters.ownerId, ownerId), dansLaCorbeille))
+    .orderBy(desc(characters.deletedAt));
+}
+
+/**
+ * Restaure un personnage de la corbeille (son propriétaire seul) : `character.restored`, que
+ * campaign écoute pour rendre engagement, tokens et place en combat (docs/nettoyage.md).
+ */
+export async function restaurer(db: Db, ctx: EventContext, appelant: Appelant, id: string) {
+  const owner = appelant.userId;
+  if (!owner) throw HttpError.notFound('Personnage introuvable dans la corbeille');
+  await db.transaction(async (tx) => {
+    const [ligne] = await tx
+      .select({ version: characters.version })
+      .from(characters)
+      .where(and(eq(characters.id, id), eq(characters.ownerId, owner), dansLaCorbeille))
+      .for('update');
+    if (!ligne) throw HttpError.notFound('Personnage introuvable dans la corbeille');
+    await tx
+      .update(characters)
+      .set({ deletedAt: null, version: ligne.version + 1, updatedAt: sql`now()` })
+      .where(eq(characters.id, id));
+    await appendEvent(tx, ctx, {
+      type: 'character.restored',
+      ...salle(appelant),
+      actor: acteur(appelant, id),
+      aggregate: { type: 'character', id },
+      payload: { version: ligne.version + 1 },
     });
   });
 }

@@ -106,7 +106,12 @@ export function registerNpcRoutes(
         .select()
         .from(npcTemplates)
         .where(
-          and(eq(npcTemplates.id, source.templateId), eq(npcTemplates.campaignId, o.campaignId)),
+          and(
+            eq(npcTemplates.id, source.templateId),
+            eq(npcTemplates.campaignId, o.campaignId),
+            // Un modèle à la corbeille ne se pose plus
+            isNull(npcTemplates.deletedAt),
+          ),
         );
       if (!t) throw notFound('Modèle de PNJ');
       if (t.systemId !== o.systemId) throw mismatch(t.systemId, o.systemId);

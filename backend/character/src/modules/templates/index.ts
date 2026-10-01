@@ -10,6 +10,7 @@
  *
  * GET liste, POST crée, PATCH modifie (avec `version`), DELETE supprime.
  */
+import { purgeDate, TrashItem } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -29,8 +30,11 @@ import {
   listObjectTemplates,
   npcTemplateApi,
   objectTemplateApi,
+  restoreNpcTemplate,
+  restoreObjectTemplate,
   systemOf,
   templateState,
+  trashedTemplates,
   updateCategory,
   updateNpcTemplate,
   updateObjectTemplate,
@@ -285,4 +289,57 @@ export const register: Module = async (app, deps) => {
       reply.code(204);
     },
   );
+
+  // ─── Corbeille (docs/nettoyage.md) ─────────────────────────────────────────
+
+  // Modèles supprimés depuis moins de TRASH_DAYS jours, restaurables (MJ)
+  r.get(
+    '/v1/campaigns/:campaignId/template-trash',
+    { ...auth, schema: { params: inCampaign, response: { 200: z.array(TrashItem) } } },
+    async (req) => {
+      const a = await gm(req, req.params.campaignId);
+      const { npcs, objects: things } = await trashedTemplates(db, a.campaignId);
+      return [
+        ...npcs.map((t) => trashItem('npc_template', t)),
+        ...things.map((t) => trashItem('object_template', t)),
+      ].sort((x, y) => y.deletedAt.localeCompare(x.deletedAt));
+    },
+  );
+
+  r.post(
+    `${npc}/:templateId/restore`,
+    { ...auth, schema: { params: oneNpc, response: { 200: NpcTemplateResponse } } },
+    async (req) => {
+      const a = await gm(req, req.params.campaignId);
+      const row = await restoreNpcTemplate(db, context(req), a, req.params.templateId);
+      return npcTemplateApi(catalogue, row);
+    },
+  );
+
+  r.post(
+    `${objects}/:templateId/restore`,
+    { ...auth, schema: { params: oneObject, response: { 200: ObjectTemplateResponse } } },
+    async (req) => {
+      const a = await gm(req, req.params.campaignId);
+      return objectTemplateApi(
+        await restoreObjectTemplate(db, context(req), a, req.params.templateId),
+      );
+    },
+  );
 };
+
+/** Ligne de la corbeille : nom, image, date de suppression et de purge. */
+function trashItem(
+  kind: 'npc_template' | 'object_template',
+  t: { id: string; name: string; imageUrl: string | null; deletedAt: Date | string | null },
+): TrashItem {
+  const deletedAt = new Date(t.deletedAt!).toISOString();
+  return {
+    id: t.id,
+    kind,
+    name: t.name,
+    imageUrl: t.imageUrl,
+    deletedAt,
+    purgeAt: purgeDate(deletedAt).toISOString(),
+  };
+}

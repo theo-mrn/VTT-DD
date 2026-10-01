@@ -8,3 +8,4 @@ export * from './map.js';
 export * from './combat.js';
 export * from './uploads.js';
 export * from './portrait.js';
+export * from './trash.js';

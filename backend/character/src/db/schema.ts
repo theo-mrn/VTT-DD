@@ -133,6 +133,8 @@ export const npcTemplates = schemaCharacters.table(
     version: integer('version').notNull().default(1),
     createdAt: horodatage('created_at').notNull().defaultNow(),
     updatedAt: horodatage('updated_at').notNull().defaultNow(),
+    /** Corbeille (docs/nettoyage.md) : marqué, restaurable, puis purgé. */
+    deletedAt: horodatage('deleted_at'),
   },
   (t) => [
     foreignKey({
@@ -154,6 +156,8 @@ export const objectTemplates = schemaCharacters.table('object_templates', {
   version: integer('version').notNull().default(1),
   createdAt: horodatage('created_at').notNull().defaultNow(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),
+  /** Corbeille (docs/nettoyage.md) : marqué, restaurable, puis purgé. */
+  deletedAt: horodatage('deleted_at'),
 });
 
 /**

@@ -10,6 +10,8 @@
 import {
   FileImport,
   FileImportRequest,
+  purgeDate,
+  TrashItem,
   FileUploadRequest,
   FileUploadTicket,
   PortraitStudio,
@@ -58,6 +60,8 @@ import {
   lister,
   modifier,
   modifierPaire,
+  corbeille,
+  restaurer,
   supprimer,
   systemeDe,
   versApi,
@@ -353,6 +357,35 @@ export const register: Module = async (app, deps) => {
     await supprimer(db, contexte(req), { userId: moi(req), role: 'user' }, req.params.id);
     reply.code(204);
   });
+
+  // ─── Corbeille (docs/nettoyage.md) ─────────────────────────────────────────
+
+  // Mes personnages supprimés depuis moins de TRASH_DAYS jours, restaurables
+  r.get(
+    '/v1/characters/trash',
+    { ...auth, schema: { response: { 200: z.array(TrashItem) } } },
+    async (req) =>
+      (await corbeille(db, moi(req))).map((c) => {
+        const deletedAt = new Date(c.deletedAt!).toISOString();
+        return {
+          id: c.id,
+          kind: 'character' as const,
+          name: c.nom,
+          imageUrl: c.avatarUrl,
+          deletedAt,
+          purgeAt: purgeDate(deletedAt).toISOString(),
+        };
+      }),
+  );
+
+  r.post(
+    '/v1/characters/:id/restore',
+    { ...auth, schema: { params: Params } },
+    async (req, reply) => {
+      await restaurer(db, contexte(req), { userId: moi(req), role: 'user' }, req.params.id);
+      reply.code(204);
+    },
+  );
 
   // ─── Valeurs saisies ───────────────────────────────────────────────────────
 
