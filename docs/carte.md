@@ -360,6 +360,16 @@ même ordre partout (`entities/common-actions.ts`) :
 Une sélection mixte (token, objet, dessin…) ne propose que les actions communes permises pour
 toutes les entités.
 
+### Panneau de la sélection (`components/map/selection-panel.tsx`)
+
+Dès qu'un élément est sélectionné, toutes ses options dans un panneau flottant posé à droite
+(déplaçable, pas collé à l'élément) : les actions principales de la sorte (« Fiche »,
+« Attaquer », « Fouiller ») en boutons ; les autres en liste lisible (icône, libellé, raccourci),
+les sous-menus (Calque, Visibilité, Vision…) dépliés sur place, les cases cochées visibles ; les
+réglages de l'inspecteur dépliables (double clic ou « Inspecter » les déplient) ; « Supprimer » à
+part, en dernier. Mêmes entrées que le menu du clic droit (`engine.menuItems`). L'inspecteur
+séparé ne s'ouvre plus que pour d'autres éléments que la sélection (lumière portée d'un token…).
+
 ### Gestes communs (`interaction/controller.ts`)
 
 | Geste                                      | Effet                                                                                                                                                                                                               |
@@ -368,7 +378,7 @@ toutes les entités.
 | Clic                                       | sélectionne (⇧ : ajoute ou retire) ; clic dans le vide : désélectionne                                                                                                                                              |
 | Glisser (seuil de 4 px écran)              | déplace la sélection si `move` et `can` ; aperçu local, direct (§ 8), aimantation (réglage « Aimantation », Alt l'inverse) ; au lâcher : **une** commande pour toute la sélection ; Échap pendant le geste : annule |
 | Glisser dans le vide (outil sélection)     | déplace la carte ; un glisser sur un élément qui ne bouge pas (verrouillé, mur, PNJ pour un joueur) aussi ; ⇧ + glisser : lasso, qui ajoute à la sélection                                                          |
-| Double clic                                | inspecteur (fiche du PNJ, propriétés de l'objet…) ; un texte s'édite en place                                                                                                                                       |
+| Double clic                                | réglages du panneau de la sélection (fiche du PNJ, propriétés de l'objet…) ; un texte s'édite en place                                                                                                              |
 | Clic droit ou appui long (500 ms, tactile) | menu contextuel : actions communes et actions de la sorte ; sélection multiple : actions communes à toutes                                                                                                          |
 | Poignées (`transform-gizmo.ts`)            | rotation (⇧ : pas de 15°), taille par les coins (⇧ : garde les proportions) ; mêmes poignées pour objets, tokens et textes                                                                                          |
 | Suppr / Retour arrière                     | supprime la sélection (confirmation pour une instance de PNJ)                                                                                                                                                       |
@@ -1274,7 +1284,7 @@ comme les autres, et le serveur décide qui passe et où.
     « Automatique ». Aucune n'est l'action principale de la barre : faire passer le groupe par
     mégarde doit rester impossible d'un clic.
   - Token ou sélection de tokens (MJ) : « Emprunter un portail ▸ » (portails de la carte).
-  - Joueur : « Emprunter » (barre de la sélection, `forPlayers`) sur un portail où se trouve un
+  - Joueur : « Emprunter » (panneau de la sélection, `forPlayers`) sur un portail où se trouve un
     de ses tokens, « Trop loin » grisé sinon ; sur son token dans un portail, au clic droit.
 - **Emprunter** (`POST …/portals/:id/use`, § 12) :
   - un joueur qui **lâche** son token (glisser, flèches) dans un portail visible où il n'était

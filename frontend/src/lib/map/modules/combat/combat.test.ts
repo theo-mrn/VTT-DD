@@ -12,7 +12,6 @@ import {
 } from '@/lib/combat/attack-flow';
 import type { MenuItem, MapViewer } from '../../engine/entities/entity-kind';
 import { SELECT_TOOL_ID } from '../../engine/tools/tool-manager';
-import { barLayout } from '@/components/map/selection-bar';
 import { ALICE, character, setupTokens, SPECTATOR, token } from '../tokens/test-kit';
 import { aimDistanceText } from './aim-distance';
 import { AIM_TOOL_ID } from './aim-tool';
@@ -99,7 +98,6 @@ describe('entrées « Attaquer » de la carte', () => {
     const enemy = find(t.items('g1'), 'combat:attack')!;
     expect(enemy).toMatchObject({ primary: false });
     expect(enemy.forPlayers).toBeFalsy();
-    expect(barLayout(t.items('g1'), false).primary).toEqual([]);
     expect(find(t.items('g1'), 'combat:attack-with')).toBeUndefined();
     // Son propre token : au clic droit aussi (se viser reste possible)
     expect(find(t.items('h1'), 'combat:attack')).toMatchObject({ primary: false });

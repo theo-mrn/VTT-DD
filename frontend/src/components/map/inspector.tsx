@@ -7,12 +7,19 @@
  */
 import { SlidersHorizontal } from 'lucide-react';
 import { useMemo } from 'react';
-import { useEntities, useExtensions, useMapEngine, useMapUi } from './engine-context';
+import {
+  useEntities,
+  useExtensions,
+  useMapEngine,
+  useMapUi,
+  useSelectionIds,
+} from './engine-context';
 import { MapPanel } from './map-panel';
 
 export function MapInspector() {
   const engine = useMapEngine();
   const ids = useMapUi((s) => s.inspector);
+  const selection = useSelectionIds();
   const entities = useEntities(ids);
   const { inspectorSections } = useExtensions();
   const sections = useMemo(
@@ -20,6 +27,8 @@ export function MapInspector() {
     [inspectorSections, entities, engine],
   );
   if (!ids || !entities.length) return null;
+  // La sélection elle-même : ses réglages sont dans le panneau de la sélection
+  if (sameIds(ids, selection)) return null;
 
   const single = entities.length === 1 ? entities[0]! : null;
   const title = single
@@ -57,3 +66,6 @@ export function MapInspector() {
     </MapPanel>
   );
 }
+
+export const sameIds = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((id) => b.includes(id));
