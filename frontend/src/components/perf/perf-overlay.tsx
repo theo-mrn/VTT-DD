@@ -11,6 +11,8 @@ interface Rates {
   fps: number;
   msPerFrame: number;
   causes: string;
+  weatherFps: number;
+  weatherMs: number;
   realtime: number;
   requests: number;
   longTasks: number;
@@ -38,6 +40,11 @@ function rates(prev: PerfSnapshot, next: PerfSnapshot, seconds: number): Rates {
     fps: d(prev.map.frames, next.map.frames),
     msPerFrame: frames > 0 ? (next.map.ms - prev.map.ms) / frames : 0,
     causes,
+    weatherFps: d(prev.map.weather, next.map.weather),
+    weatherMs:
+      next.map.weather > prev.map.weather
+        ? (next.map.weatherMs - prev.map.weatherMs) / (next.map.weather - prev.map.weather)
+        : 0,
     realtime: d(prev.realtime, next.realtime),
     requests: d(prev.requests, next.requests),
     longTasks: next.longTasks - prev.longTasks,
@@ -80,6 +87,8 @@ export function PerfOverlay() {
     >
       {line('carte', `${r.fps.toFixed(0)} i/s · ${r.msPerFrame.toFixed(1)} ms`, r.fps > 5)}
       {r.causes && <div className="truncate text-muted-foreground">{r.causes}</div>}
+      {r.weatherFps > 0 &&
+        line('météo', `${r.weatherFps.toFixed(0)} i/s · ${r.weatherMs.toFixed(1)} ms`)}
       {line('longues tâches', `${r.longTasks} · ${Math.round(r.longTaskMs)} ms`, r.longTasks > 0)}
       {line('requêtes', `${r.requests.toFixed(0)}/s`, r.requests > 2)}
       {line('temps réel', `${r.realtime.toFixed(0)}/s`)}

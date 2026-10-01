@@ -36,6 +36,9 @@ export interface MapPerf {
   camera: number;
   live: number;
   animations: number;
+  /** Images de la météo, sur son propre canvas (sans redessiner la carte). */
+  weather: number;
+  weatherMs: number;
 }
 
 const maps = new Set<{ perf: MapPerf }>();
@@ -94,7 +97,16 @@ function observe() {
 
 export function perfSnapshot(): PerfSnapshot {
   observe();
-  const map: MapPerf = { frames: 0, ms: 0, continuous: 0, camera: 0, live: 0, animations: 0 };
+  const map: MapPerf = {
+    frames: 0,
+    ms: 0,
+    continuous: 0,
+    camera: 0,
+    live: 0,
+    animations: 0,
+    weather: 0,
+    weatherMs: 0,
+  };
   for (const m of maps) {
     map.frames += m.perf.frames;
     map.ms += m.perf.ms;
@@ -102,6 +114,8 @@ export function perfSnapshot(): PerfSnapshot {
     map.camera += m.perf.camera;
     map.live += m.perf.live;
     map.animations += m.perf.animations;
+    map.weather += m.perf.weather;
+    map.weatherMs += m.perf.weatherMs;
   }
   const videos: string[] = [];
   for (const v of document.querySelectorAll('video')) {
