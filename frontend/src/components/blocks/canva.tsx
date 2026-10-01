@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { ChevronDown } from 'lucide-react';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
 import { vignette } from '@/lib/assets';
+import { useVisibleVideo } from '@/components/blocks/use-visible-video';
 
 const CDN = 'https://assets.yner.fr';
 
@@ -55,6 +56,8 @@ const DEMO_CHARACTERS: DemoCharacter[] = [
 // Fond animé unique, déjà présent dans la bibliothèque de cartes (BackgroundSelector, Map/Camp/Animated)
 const CITY_BACKGROUND_VIDEO =
   'https://assets.yner.fr/Map/Camp/Animated/Goblin_Camp_Day_NoGrid_Audio.webm';
+// Première image de la vidéo, affichée avant sa lecture (ou à sa place avec le mouvement réduit)
+const CITY_BACKGROUND_POSTER = '/landingpage/canva-poster.webp';
 // Dimensions intrinsèques de la vidéo (fallback avant que loadedmetadata ait répondu)
 const VIDEO_ASPECT_RATIO = 3840 / 2160;
 
@@ -87,7 +90,8 @@ interface CanvaSectionProps {
 
 export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const videoRef = React.useRef<HTMLVideoElement>(null);
+  // Lecture seulement à l'écran et onglet visible (vidéo 4K distante)
+  const videoRef = useVisibleVideo();
   const tokenRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   const positionsRef = React.useRef<Record<string, { x: number; y: number }>>(
     Object.fromEntries(DEMO_CHARACTERS.map((c) => [c.id, { x: c.x, y: c.y }])),
@@ -215,7 +219,8 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
         <video
           ref={videoRef}
           src={CITY_BACKGROUND_VIDEO}
-          autoPlay
+          poster={CITY_BACKGROUND_POSTER}
+          preload="metadata"
           loop
           muted
           playsInline
@@ -267,14 +272,12 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
           </motion.div>
         </div>
 
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/40 z-10 pointer-events-none"
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <span className={cn('text-xs tracking-widest uppercase', 'font-logo')}>Découvrir</span>
-          <ChevronDown className="w-5 h-5" />
-        </motion.div>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/40 z-10 pointer-events-none">
+          <div className="scroll-hint flex flex-col items-center gap-2">
+            <span className={'font-logo text-xs tracking-widest uppercase'}>Découvrir</span>
+            <ChevronDown className="w-5 h-5" />
+          </div>
+        </div>
 
         {coverRect &&
           DEMO_CHARACTERS.map((c) => {

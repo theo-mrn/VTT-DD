@@ -237,14 +237,16 @@
   background-clip: text;
 }
 
-/* Reflet animé qui balaie le texte en boucle lente, façon titre « premium » */
+/* Reflet animé qui balaie le texte, façon titre « premium ». Quelques passages
+   seulement : animer background-position repeint le titre géant à chaque image. */
 .shimmer-text {
   background: linear-gradient(100deg, #c9a965 40%, #fdf6e3 50%, #c9a965 60%);
   background-size: 220% auto;
+  background-position: -20% center;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: shimmer-sweep 5s ease-in-out infinite;
+  animation: shimmer-sweep 5s ease-in-out 3 both;
 }
 
 @keyframes shimmer-sweep {
@@ -259,9 +261,10 @@
   }
 }
 
-/* Respiration des jetons du hero interactif : signale l'interactivité sans gêner le drag */
+/* Respiration des jetons du hero interactif : signale l'interactivité sans gêner le drag.
+   Quelques cycles à l'arrivée, pas une boucle sans fin. */
 .token-breathe {
-  animation: token-breathe 3.5s ease-in-out infinite;
+  animation: token-breathe 3.5s ease-in-out 4;
 }
 
 @keyframes token-breathe {
@@ -274,10 +277,33 @@
   }
 }
 
+/* Invite « Découvrir » du hero : léger rebond vertical, quelques cycles */
+.scroll-hint {
+  animation: scroll-hint 2s ease-in-out 5;
+}
+
+@keyframes scroll-hint {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text,
+  .token-breathe,
+  .scroll-hint {
+    animation: none;
+  }
+}
+
 .glass-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
