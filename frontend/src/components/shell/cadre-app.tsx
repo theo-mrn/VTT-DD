@@ -4,7 +4,6 @@ import { ChevronsRight } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
-import { DiceThrowerHost } from '@/components/dice/thrower-host';
 import { Dialog, SheetContent, DialogTitle } from '@/components/ui/dialog';
 import { Info } from '@/components/ui/tooltip';
 import { onboardingTermine } from '@/lib/onboarding';
@@ -97,8 +96,6 @@ export function CadreApp({ children }: { children: ReactNode }) {
 
       <NavMobile chemin={chemin} />
       <PaletteCommandes ouverte={palette} onOuverte={setPalette} />
-      {/* Dés 3D de toute l'app (table, lanceur rapide, boutique), chargés au premier lancer */}
-      <DiceThrowerHost />
     </div>
   );
 }

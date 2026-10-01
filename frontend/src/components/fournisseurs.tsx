@@ -5,6 +5,7 @@ import { MotionConfig as LegacyMotionConfig } from 'framer-motion';
 import { MotionConfig } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
+import { DiceThrowerHost } from '@/components/dice/thrower-host';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SessionProvider } from '@/lib/session';
 
@@ -28,6 +29,9 @@ export function Fournisseurs({ children }: { children: ReactNode }) {
         <MotionConfig reducedMotion="user">
           <LegacyMotionConfig reducedMotion="user">
             <TooltipProvider delayDuration={250}>{children}</TooltipProvider>
+            {/* Dés 3D de toute l'app, montés une seule fois (contexte WebGL, shaders et moteur
+                physique gardés entre l'app et la table), chargés au premier lancer */}
+            <DiceThrowerHost />
           </LegacyMotionConfig>
         </MotionConfig>
       </SessionProvider>

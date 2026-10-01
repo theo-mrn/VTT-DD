@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { memo, useEffect, useMemo, type ReactNode } from 'react';
 import { EtatVide } from '@/components/commun/page';
 import { TableAudio } from '@/components/audio/table-audio';
-import { DiceThrowerHost } from '@/components/dice/thrower-host';
 import { EcranChargement } from '@/components/shell/ecran-chargement';
 import { Button } from '@/components/ui/button';
 import { ApiError, messageErreur } from '@/lib/api';
@@ -169,8 +168,6 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
       <PanelHost panels={panels} />
       {/* Son de la campagne : canaux synchronisés, effets, mixeur, bandeau d'activation */}
       <TableAudio campaignId={table.campagne.id} gm={table.gm} />
-      {/* Dés 3D de la table, chargés au premier lancer, au-dessus de tout */}
-      <DiceThrowerHost />
     </div>
   );
 });
