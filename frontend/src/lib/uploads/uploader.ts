@@ -6,9 +6,10 @@
  *
  * Uppy (plugin S3) ne donne à la signature que la clé qu'il a choisie : on lui fait prendre
  * l'identifiant du fichier, on retrouve ainsi le fichier, et notre route rend la vraie clé.
+ *
+ * Uppy n'est chargé qu'au premier envoi (import dynamique) : ce module est importé par la
+ * session, donc par toutes les pages, et doit rester léger.
  */
-import AwsS3 from '@uppy/aws-s3';
-import Uppy from '@uppy/core';
 import {
   checkUpload,
   type FileImport,
@@ -83,6 +84,12 @@ export async function uploadFile(
 ): Promise<string> {
   const refus = checkUpload({ usage, contentType: file.type, size: file.size });
   if (refus) throw new Error(refus.message);
+
+  const [{ default: Uppy }, { default: AwsS3 }] = await Promise.all([
+    import('@uppy/core'),
+    import('@uppy/aws-s3'),
+  ]);
+  if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError');
 
   const tickets = new Map<string, FileUploadTicket>();
   const uppy = new Uppy({ autoProceed: false, allowMultipleUploadBatches: false });
