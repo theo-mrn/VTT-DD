@@ -29,7 +29,7 @@ export function BarreHaute({
   const recues = demandes.data?.received ?? [];
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/75 px-3 backdrop-blur-xl sm:px-5">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 sm:px-5">
       <Button
         variant="ghost"
         size="icon-sm"

@@ -799,7 +799,7 @@ function MobileBar({
   const name =
     selected === GM_OPTION ? 'Maître du jeu' : (selected?.character.name ?? 'Aucun personnage');
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-xl lg:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 lg:hidden">
       <div className="mx-auto flex max-w-6xl items-center gap-3">
         {selected && selected !== GM_OPTION ? (
           <Illustration

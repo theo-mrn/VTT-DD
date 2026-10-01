@@ -344,7 +344,7 @@ function Flux({
     <div className="space-y-6">
       {jours.map((j) => (
         <section key={j.cle} aria-label={libelleJour(j.date)}>
-          <h3 className="sticky top-14 z-10 -mx-3 mb-2 flex items-center gap-3 bg-card/90 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle backdrop-blur sm:-mx-5 sm:px-5">
+          <h3 className="sticky top-14 z-10 -mx-3 mb-2 flex items-center gap-3 bg-card/95 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle sm:-mx-5 sm:px-5">
             <span className="h-px flex-1 bg-border" aria-hidden />
             {Number.isNaN(j.date.getTime()) ? 'Date inconnue' : libelleJour(j.date)}
             <span className="h-px flex-1 bg-border" aria-hidden />

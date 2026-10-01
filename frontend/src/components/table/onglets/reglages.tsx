@@ -27,11 +27,7 @@ export function OngletReglages() {
       <p className="px-6 pt-5 text-[13px] text-muted-foreground">
         Visibles par toute la table. Le système de jeu ne change pas.
       </p>
-      <ReglagesForm
-        campagne={campagne}
-        actif
-        pied="sticky bottom-0 z-10 bg-background/95 backdrop-blur"
-      />
+      <ReglagesForm campagne={campagne} actif pied="sticky bottom-0 z-10 bg-background/95" />
     </div>
   );
 }

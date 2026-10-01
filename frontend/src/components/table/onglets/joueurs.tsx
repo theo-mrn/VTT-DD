@@ -90,7 +90,7 @@ export function PanneauJoueurs() {
       {/* Onglets des personnages : collés en haut du panneau pendant le défilement de la fiche */}
       <nav
         aria-label="Personnages de la table"
-        className="sticky top-14 z-20 border-b border-border bg-background/95 backdrop-blur"
+        className="sticky top-14 z-20 border-b border-border bg-background/95"
       >
         <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 sm:px-6 lg:px-8">
           <ul className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]">

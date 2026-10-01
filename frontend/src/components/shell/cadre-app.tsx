@@ -107,7 +107,7 @@ function NavMobile({ chemin }: { chemin: string }) {
   return (
     <nav
       aria-label="Navigation"
-      className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-around rounded-2xl border border-border-strong bg-popover/85 px-1 py-1.5 shadow-elevated backdrop-blur-xl lg:hidden"
+      className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-around rounded-2xl border border-border-strong bg-popover/95 px-1 py-1.5 shadow-elevated lg:hidden"
     >
       {NAV_PRINCIPALE.map((l) => {
         const actif = estActif(l, chemin);

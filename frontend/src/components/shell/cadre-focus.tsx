@@ -34,7 +34,7 @@ export function EnTeteFocus({
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl sm:px-6',
+        'sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/60 bg-background/95 px-4 sm:px-6',
         className,
       )}
     >

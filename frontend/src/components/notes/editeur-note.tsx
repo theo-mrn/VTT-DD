@@ -454,7 +454,7 @@ export function EditeurNote({
   return (
     <div className="flex min-h-full flex-col lg:h-full lg:min-h-0">
       {/* Barre du volet : retour (mobile), liste, état d'enregistrement, actions */}
-      <header className="sticky top-14 z-20 border-b border-border/70 bg-background/80 backdrop-blur-xl lg:top-0">
+      <header className="sticky top-14 z-20 border-b border-border/70 bg-background/95 lg:top-0">
         <div className="flex h-12 items-center gap-1 px-2 sm:px-3">
           <Button
             variant="ghost"
