@@ -145,10 +145,13 @@ export function useFicheCalculee(id: string | null | undefined) {
 export function FichePersonnage({
   id,
   dansPanneau = false,
+  valeursOuvertes = false,
 }: {
   id: string;
   /** Dans un panneau de la table : en-tête plus compact. */
   dansPanneau?: boolean;
+  /** Ouverte sur ses valeurs (stats à modifier), depuis la carte. */
+  valeursOuvertes?: boolean;
 }) {
   const { perso, sys, ctx, proprietaire, peutModifier, permissions, ecritures } =
     useFicheCalculee(id);
@@ -191,6 +194,7 @@ export function FichePersonnage({
         proprietaire={proprietaire}
         peutModifier={peutModifier}
         dansPanneau={dansPanneau}
+        valeursOuvertes={valeursOuvertes}
         personnaliser={
           permissions.layout && ctx && !edition ? () => setPersonnalisation(true) : undefined
         }
@@ -250,6 +254,7 @@ function EnTeteFiche({
   proprietaire,
   peutModifier,
   dansPanneau,
+  valeursOuvertes,
   personnaliser,
 }: {
   personnage: Fiche;
@@ -259,6 +264,8 @@ function EnTeteFiche({
   /** Droit d'écrire sur la fiche (`permissions.write`) : identité comprise. */
   peutModifier: boolean;
   dansPanneau: boolean;
+  /** Fenêtre des valeurs ouverte d'emblée. */
+  valeursOuvertes: boolean;
   /** Présent si l'utilisateur peut changer la mise en page de la fiche. */
   personnaliser?: () => void;
 }) {
@@ -266,7 +273,7 @@ function EnTeteFiche({
   const campagne = useCampagne(p.roomId);
   const [edition, setEdition] = useState(false);
   const [suppression, setSuppression] = useState(false);
-  const [valeurs, setValeurs] = useState(false);
+  const [valeurs, setValeurs] = useState(valeursOuvertes);
   const [progression, setProgression] = useState<string | null>(null);
   // Progression (passage de niveau) et valeurs : à qui peut écrire sur la fiche (joueur
   // qui l'incarne, MJ), comme toutes les écritures (`ctx.operations`)

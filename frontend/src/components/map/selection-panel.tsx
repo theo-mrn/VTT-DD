@@ -11,13 +11,20 @@
  * - les réglages de l'inspecteur (sections des modules), dépliables ;
  * - « Supprimer » à part, en dernier.
  */
-import { Check, ChevronRight, MousePointer2, SlidersHorizontal } from 'lucide-react';
+import {
+  Check,
+  ChevronRight,
+  MousePointer2,
+  SlidersHorizontal,
+  SlidersVertical,
+} from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import type { MenuItem } from '@/lib/map/engine/entities/entity-kind';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
+import { TOKEN_KIND_ID } from '@/lib/map/modules/tokens/edit';
+import type { TokenData } from '@/lib/map/modules/tokens/model';
 import { cn } from '@/lib/utils';
 import {
   useEntities,
@@ -29,6 +36,8 @@ import {
 } from './engine-context';
 import { sameIds } from './inspector';
 import { MapPanel } from './map-panel';
+import { ResourceEditor } from './tokens/resource-editor';
+import { useCharacterInfo, useTokens } from './tokens/use-tokens';
 
 const isSeparator = (i: MenuItem) => i.id.startsWith('sep:');
 const isHeading = (i: MenuItem) => i.id.startsWith('label:');
@@ -61,7 +70,8 @@ export function SelectionPanel() {
   const leaves = items.filter((i) => !isSeparator(i));
   const remove = leaves.find((i) => i.id === 'delete') ?? null;
   const primary = leaves.filter((i) => i.primary && i !== remove);
-  const rest = items.filter((i) => !i.primary && i !== remove);
+  // « Inspecter » : les réglages sont dans le panneau même
+  const rest = tidy(items.filter((i) => !i.primary && i !== remove && i.id !== 'inspect'));
   if (!entities.length || (!leaves.length && !sections.length)) return null;
 
   const single = entities.length === 1 ? entities[0]! : null;
@@ -80,6 +90,16 @@ export function SelectionPanel() {
       icon={MousePointer2}
       title={title}
       subtitle={subtitle}
+      media={
+        thumbnail ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnail}
+            alt=""
+            className="size-10 shrink-0 rounded-xl object-cover ring-1 ring-border"
+          />
+        ) : undefined
+      }
       closeLabel="Désélectionner"
       onClose={() => engine.selection.replace([])}
       className="w-72"
@@ -89,33 +109,18 @@ export function SelectionPanel() {
         // Un clic dans le panneau ne part pas à la carte (pas de désélection, pas de pan)
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {thumbnail && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbnail}
-            alt=""
-            className="mx-auto size-20 rounded-2xl object-cover ring-1 ring-border"
-          />
+        {single && single.kind.id === TOKEN_KIND_ID && (
+          <CharacterQuick engine={engine} characterId={(single.data as TokenData).characterId} />
         )}
 
-        {primary.length > 0 && (
-          <div className={cn('grid gap-1.5', primary.length > 1 && 'grid-cols-2')}>
-            {primary.map((item) => (
-              <Button
-                key={item.id}
-                disabled={item.disabled}
-                onClick={() => run(engine, item)}
-                className="h-10 rounded-[14px] shadow-glow"
-              >
-                {item.icon && <item.icon />}
-                {item.label}
-              </Button>
-            ))}
-          </div>
-        )}
-
-        {rest.some((i) => !isSeparator(i)) && (
+        {(primary.length > 0 || rest.length > 0) && (
           <ul className="space-y-0.5">
+            {primary.map((item) => (
+              <ActionRow key={item.id} engine={engine} item={item} depth={0} emphasis />
+            ))}
+            {primary.length > 0 && rest.length > 0 && (
+              <li aria-hidden className="my-1.5 h-px bg-border" />
+            )}
             {rest.map((item, n) => (
               <ActionRow key={`${item.id}:${n}`} engine={engine} item={item} depth={0} />
             ))}
@@ -145,8 +150,61 @@ export function SelectionPanel() {
   );
 }
 
+/**
+ * Personnage d'un token (MJ, ou le sien) : sa ressource principale modifiable sur place, et ses
+ * stats à modifier (la fiche ouverte sur ses valeurs).
+ */
+function CharacterQuick({ engine, characterId }: { engine: MapEngine; characterId: string }) {
+  const tokens = useTokens(engine);
+  const info = useCharacterInfo(tokens, characterId);
+  const viewer = engine.viewer;
+  if (!info) return null;
+  const allowed =
+    viewer.role === 'gm' ||
+    viewer.characterIds.includes(characterId) ||
+    info.playedBy === viewer.userId ||
+    info.ownerId === viewer.userId;
+  if (!allowed) return null;
+  const r = info.resource;
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-surface-2/40 p-2.5">
+      {r && (
+        <>
+          <div className="flex items-baseline justify-between px-0.5 text-xs">
+            <span className="font-medium">{r.label}</span>
+            <span className="font-mono tabular-nums text-muted-foreground">
+              {r.value} / {r.max}
+            </span>
+          </div>
+          <ResourceEditor characterId={characterId} resource={r} />
+        </>
+      )}
+      <button
+        type="button"
+        onClick={() => tokens.library.setState({ sheetFor: characterId, sheetValues: true })}
+        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] font-medium transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+      >
+        <SlidersVertical className="size-4 text-primary" aria-hidden />
+        <span className="flex-1">Modifier les stats</span>
+        <ChevronRight className="size-4 text-subtle" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 /** Une entrée : action, case à cocher, sous-menu dépliable, titre ou séparateur. */
-function ActionRow({ engine, item, depth }: { engine: MapEngine; item: MenuItem; depth: number }) {
+function ActionRow({
+  engine,
+  item,
+  depth,
+  emphasis = false,
+}: {
+  engine: MapEngine;
+  item: MenuItem;
+  depth: number;
+  /** Action principale de la sorte : mise en avant sobre (icône d'accent, texte appuyé). */
+  emphasis?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   if (isSeparator(item)) return <li aria-hidden className="my-1.5 h-px bg-border" />;
   if (isHeading(item))
@@ -159,7 +217,11 @@ function ActionRow({ engine, item, depth }: { engine: MapEngine; item: MenuItem;
   const sub = !!item.children?.length;
   const row = cn(
     'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50',
-    item.danger ? 'text-destructive hover:bg-destructive/10' : 'text-foreground hover:bg-surface-2',
+    item.danger
+      ? 'text-destructive hover:bg-destructive/10'
+      : emphasis
+        ? 'font-medium text-foreground hover:bg-primary/10'
+        : 'text-foreground hover:bg-surface-2',
   );
   return (
     <li>
@@ -175,7 +237,7 @@ function ActionRow({ engine, item, depth }: { engine: MapEngine; item: MenuItem;
         <span
           className={cn(
             'grid size-4 shrink-0 place-items-center [&_svg]:size-4',
-            item.danger ? 'text-destructive' : 'text-muted-foreground',
+            item.danger ? 'text-destructive' : emphasis ? 'text-primary' : 'text-muted-foreground',
           )}
         >
           {item.checked !== undefined && !Icon ? (
@@ -251,6 +313,17 @@ function Settings({ children, forced }: { children: React.ReactNode; forced: boo
       </AnimatePresence>
     </div>
   );
+}
+
+/** Sans séparateur en tête, en fin, ni deux de suite (après les entrées retirées). */
+function tidy(items: MenuItem[]): MenuItem[] {
+  const out: MenuItem[] = [];
+  for (const i of items) {
+    if (isSeparator(i) && (!out.length || isSeparator(out[out.length - 1]!))) continue;
+    out.push(i);
+  }
+  while (out.length && isSeparator(out[out.length - 1]!)) out.pop();
+  return out;
 }
 
 function run(engine: MapEngine, item: MenuItem) {

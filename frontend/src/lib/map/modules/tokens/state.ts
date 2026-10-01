@@ -35,6 +35,8 @@ export interface LibraryState {
   placing: boolean;
   /** Personnage dont la fiche est ouverte (panneau), ou null. */
   sheetFor: string | null;
+  /** La fiche s'ouvre sur ses valeurs (stats à modifier). */
+  sheetValues?: boolean;
 }
 
 /** Ce que la bibliothèque demande à l'outil de pose (glisser une carte vers la scène). */

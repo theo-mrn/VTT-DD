@@ -17,6 +17,7 @@ export function MapPanel({
   id,
   label,
   icon: Icon,
+  media,
   title,
   subtitle,
   shortcut,
@@ -31,6 +32,8 @@ export function MapPanel({
   /** Nom accessible du panneau. */
   label: string;
   icon: ComponentType<{ className?: string }>;
+  /** Image de l'élément à la place de l'icône (vignette d'un token…). */
+  media?: ReactNode;
   title: ReactNode;
   subtitle?: ReactNode;
   shortcut?: string;
@@ -65,9 +68,11 @@ export function MapPanel({
           drag.dragging ? 'cursor-grabbing' : 'cursor-grab',
         )}
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <Icon className="size-4" aria-hidden />
-        </span>
+        {media ?? (
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="size-4" aria-hidden />
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[15px] font-semibold">{title}</h2>
           {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}

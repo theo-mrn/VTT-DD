@@ -14,9 +14,10 @@ import { MapPanel } from '../map-panel';
 export function TokenSheetPanel({ engine }: { engine: MapEngine }) {
   const tokens = useTokens(engine);
   const characterId = useLibrary(tokens, (s) => s.sheetFor);
+  const values = useLibrary(tokens, (s) => s.sheetValues === true);
   const info = useCharacterInfo(tokens, characterId);
   if (!characterId) return null;
-  const close = () => tokens.library.setState({ sheetFor: null });
+  const close = () => tokens.library.setState({ sheetFor: null, sheetValues: false });
   const name = info?.name ?? 'Personnage';
   return (
     <MapPanel
@@ -35,7 +36,12 @@ export function TokenSheetPanel({ engine }: { engine: MapEngine }) {
       className="w-[36rem]"
     >
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <FichePersonnage key={characterId} id={characterId} dansPanneau />
+        <FichePersonnage
+          key={`${characterId}:${values}`}
+          id={characterId}
+          dansPanneau
+          valeursOuvertes={values}
+        />
       </div>
     </MapPanel>
   );
