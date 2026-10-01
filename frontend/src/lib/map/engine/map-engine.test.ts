@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LiveChannel, LIVE_KIND } from '../live/live-channel';
 import { CommandHistory, CommandManager } from '../store/commands';
 import { createMapStore } from '../store/map-store';
@@ -7,6 +7,13 @@ import { MapEngine } from './map-engine';
 import { box, boxKind, fakeBackend, GM, setup, spyPersistence, type Box } from './test-kit';
 
 describe('MapEngine', () => {
+  it('changer de viewer redessine aussitôt (vision de mes personnages, arrivés après)', () => {
+    const t = setup({ boxes: [box('a', 100, 100)] });
+    const invalidate = vi.spyOn(t.engine, 'invalidate');
+    t.engine.setViewer({ userId: 'joueur', role: 'player', characterIds: ['heros'] });
+    expect(invalidate).toHaveBeenCalled();
+  });
+
   it('suit le magasin par diffs : ajout, changement, retrait (et la sélection suit)', () => {
     const t = setup({ boxes: [box('a', 100, 100)] });
     const entity = t.engine.entity('a')!;

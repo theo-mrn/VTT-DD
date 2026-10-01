@@ -2181,6 +2181,9 @@ export class MapEngine {
     this.viewer = viewer;
     this.kindCtx = this.computeKindContext(this.store.getState());
     for (const key of this.byCollection.keys()) this.syncCollection(key, true);
+    // Une image tout de suite : la vision (mes personnages, arrivés après le montage) et les
+    // masques se refont sans attendre un geste
+    this.invalidate();
   }
 }
 
