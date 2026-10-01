@@ -3,7 +3,7 @@
  * CLEANUP_EVERY_MINUTES, faite par une seule instance (verrou consultatif).
  */
 import { uuidv7 } from '@vtt/contracts';
-import { createObjectStore, periodic, withAdvisoryLock, type Logger } from '@vtt/platform';
+import { periodic, withAdvisoryLock, type Logger } from '@vtt/platform';
 import type { CharacterConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import { purge } from './purge.js';
@@ -11,8 +11,6 @@ import { purge } from './purge.js';
 export function startMaintenance(config: CharacterConfig, logger: Logger): () => Promise<void> {
   if (!config.CLEANUP_EVERY_MINUTES) return async () => undefined;
   const { db, pool } = createDb(config.DATABASE_URL);
-  const store = createObjectStore(config);
-  if (!store) logger.warn({}, 'stockage non configuré : la purge laisse les fichiers');
   const stop = periodic({
     name: 'character-cleanup',
     everyMs: config.CLEANUP_EVERY_MINUTES * 60_000,
@@ -21,7 +19,6 @@ export function startMaintenance(config: CharacterConfig, logger: Logger): () =>
       await withAdvisoryLock(pool, 'character-cleanup', async () => {
         await purge({
           db,
-          store,
           ctx: { correlationId: uuidv7() },
           dryRun: config.CLEANUP_DRY_RUN,
           log: logger,

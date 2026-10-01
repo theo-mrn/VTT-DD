@@ -2,11 +2,10 @@
  * Purge définitive (docs/nettoyage.md) : personnages et modèles restés plus de `TRASH_DAYS` jours
  * dans la corbeille, instances de PNJ supprimées dès la passe suivante (leur modèle demeure).
  * La ligne part (les tables liées suivent par ON DELETE CASCADE) avec son `*.purged` dans
- * l'outbox ; puis, après la transaction, le dossier `characters/<id>/` du stockage. Un dossier non
- * supprimé (stockage injoignable) sera repris par la passe des fichiers orphelins. Les images des
- * modèles aussi : elles peuvent être partagées par des PNJ déjà posés.
+ * l'outbox. Aucun fichier n'est supprimé ici : une image se partage (la copie d'un PNJ reprend
+ * le portrait de l'original, un modèle celui d'un PNJ), seule la passe des fichiers orphelins,
+ * qui vérifie que plus rien ne la référence, la supprime.
  */
-import { removePrefix, type ObjectStore } from '@vtt/platform';
 import { TRASH_DAYS } from '@vtt/contracts';
 import { and, eq, inArray, isNotNull, or, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
@@ -26,38 +25,28 @@ export interface PurgeReport {
   characters: number;
   npcTemplates: number;
   objectTemplates: number;
-  files: number;
 }
 
 interface Options {
   db: Db;
-  store: ObjectStore | undefined;
   ctx: EventContext;
   /** Journalise ce qui serait purgé, sans rien supprimer. */
   dryRun?: boolean;
-  log?: { info: (o: object, m: string) => void; warn: (o: object, m: string) => void };
+  log?: { info: (o: object, m: string) => void };
 }
 
 /** Une passe complète, par lots, jusqu'à ce qu'il ne reste rien à purger. */
 export async function purge(o: Options): Promise<PurgeReport> {
-  const report: PurgeReport = { characters: 0, npcTemplates: 0, objectTemplates: 0, files: 0 };
+  const report: PurgeReport = { characters: 0, npcTemplates: 0, objectTemplates: 0 };
   if (o.dryRun) {
     const due = await dueCounts(o.db);
     o.log?.info(due, 'purge (essai) : rien supprimé');
-    return { ...due, files: 0 };
+    return due;
   }
   for (;;) {
-    const ids = await purgeCharacters(o.db, o.ctx);
-    report.characters += ids.length;
-    for (const id of ids) {
-      if (!o.store) break;
-      try {
-        report.files += await removePrefix(o.store, `characters/${id}/`);
-      } catch (err) {
-        o.log?.warn({ err, characterId: id }, 'dossier du personnage non supprimé');
-      }
-    }
-    if (ids.length < PURGE_BATCH) break;
+    const n = await purgeCharacters(o.db, o.ctx);
+    report.characters += n;
+    if (n < PURGE_BATCH) break;
   }
   for (;;) {
     const n = await purgeTemplates(o.db, o.ctx, 'npc');
@@ -90,7 +79,7 @@ async function dueCounts(db: Db) {
 }
 
 /** Un lot de personnages ; SKIP LOCKED : une écriture en cours n'est pas attendue. */
-function purgeCharacters(db: Db, ctx: EventContext): Promise<string[]> {
+function purgeCharacters(db: Db, ctx: EventContext): Promise<number> {
   return db.transaction(async (tx) => {
     const rows = await tx
       .select({ id: characters.id, campaignId: characters.campaignId, kind: characters.kind })
@@ -98,7 +87,7 @@ function purgeCharacters(db: Db, ctx: EventContext): Promise<string[]> {
       .where(dueCharacters)
       .limit(PURGE_BATCH)
       .for('update', { skipLocked: true });
-    if (!rows.length) return [];
+    if (!rows.length) return 0;
     await tx.delete(characters).where(
       inArray(
         characters.id,
@@ -113,7 +102,7 @@ function purgeCharacters(db: Db, ctx: EventContext): Promise<string[]> {
         aggregate: { type: 'character', id: r.id },
         payload: { kind: r.kind },
       });
-    return rows.map((r) => r.id);
+    return rows.length;
   });
 }
 

@@ -1,8 +1,7 @@
 /**
- * Purge définitive : ce qui a passé TRASH_DAYS jours dans la corbeille part (ligne, événement,
- * dossier du stockage), les instances de PNJ supprimées tout de suite ; le reste ne bouge pas.
+ * Purge définitive : ce qui a passé TRASH_DAYS jours dans la corbeille part (ligne et événement ;
+ * aucun fichier, voir purge.ts), les instances de PNJ supprimées tout de suite ; le reste ne bouge pas.
  */
-import { memoryObjectStore } from '@vtt/platform';
 import { inArray, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { characters, npcTemplates, objectTemplates, outbox } from '../db/schema.js';
@@ -60,35 +59,26 @@ describe.skipIf(!TEST_DATABASE_URL)('purge définitive', () => {
         )
     ).map((e) => (e.envelope as { aggregate: { id: string } }).aggregate.id);
 
-  it('personnages : expirés et instances de PNJ purgés avec leur dossier, le reste gardé', async () => {
+  it('personnages : expirés et instances de PNJ purgés, le reste gardé', async () => {
     const [vieux, recent, vivant, pnj] = await Promise.all(
       ['Vieux', 'Récent', 'Vivant', 'Gobelin 1'].map(creer),
     );
     await supprimer(vieux!, 8);
     await supprimer(recent!, 2);
     await supprimer(pnj!, 0, 'npc');
-    const { store, objects } = memoryObjectStore({
-      [`characters/${vieux}/a.webp`]: new Date(),
-      [`characters/${vieux}/b.webp`]: new Date(),
-      [`characters/${recent}/c.webp`]: new Date(),
-      [`characters/${vivant}/d.webp`]: new Date(),
-    });
     const tous = [vieux!, recent!, vivant!, pnj!];
 
     // Essai : rien ne bouge
-    await purge({ db: t.db!, store, ctx: { correlationId: crypto.randomUUID() }, dryRun: true });
+    await purge({ db: t.db!, ctx: { correlationId: crypto.randomUUID() }, dryRun: true });
     expect(await restants(tous)).toEqual([...tous].sort());
 
-    const report = await purge({ db: t.db!, store, ctx: { correlationId: crypto.randomUUID() } });
+    const report = await purge({ db: t.db!, ctx: { correlationId: crypto.randomUUID() } });
     expect(report.characters).toBeGreaterThanOrEqual(2);
     expect(await restants(tous)).toEqual([recent!, vivant!].sort());
     expect((await purges(tous)).sort()).toEqual([vieux!, pnj!].sort());
-    expect([...objects.keys()].sort()).toEqual(
-      [`characters/${recent}/c.webp`, `characters/${vivant}/d.webp`].sort(),
-    );
 
     // Rejouée : plus rien pour eux
-    await purge({ db: t.db!, store, ctx: { correlationId: crypto.randomUUID() } });
+    await purge({ db: t.db!, ctx: { correlationId: crypto.randomUUID() } });
     expect(await purges(tous)).toHaveLength(2);
     await t.db!.delete(outbox).where(
       sql`${outbox.envelope}->'aggregate'->>'id' IN (${sql.join(
@@ -118,7 +108,7 @@ describe.skipIf(!TEST_DATABASE_URL)('purge définitive', () => {
     const objets = [modele('Coffre', 9), modele('Tonneau', 1)];
     await t.db!.insert(objectTemplates).values(objets as never);
 
-    await purge({ db: t.db!, store: undefined, ctx: { correlationId: crypto.randomUUID() } });
+    await purge({ db: t.db!, ctx: { correlationId: crypto.randomUUID() } });
     const npcIds = (
       await t
         .db!.select({ name: npcTemplates.name })

@@ -53,8 +53,10 @@
 2. pour chacun : suppression de la ligne (les tables liées suivent par `ON DELETE CASCADE` :
    `legacy_ids`, `legacy_items`, `application_items`…), événement `character.purged` /
    `npc_template.purged` / `object_template.purged` (outbox, même transaction) ;
-3. fichiers : le dossier `characters/<id>/` entier pour un personnage ; pour un modèle, ses images
-   seulement si plus rien ne les référence (§ Fichiers).
+3. fichiers : **aucun** à ce moment. Une image se partage (la copie d'un PNJ reprend le portrait
+   de l'original, rangé dans le dossier de celui-ci ; un modèle peut porter l'image d'un PNJ) :
+   seule la passe des fichiers orphelins la supprime, quand plus rien ne la référence (§ Fichiers).
+4. un modèle n'est jamais supprimé parce qu'il ne sert plus : seulement par le MJ, puis 7 jours.
 
 **campaign** n'écoute rien : le retrait de la campagne a déjà eu lieu à la suppression. Les
 notes gardent leur `character_id` (la note reste, c'est l'écrit du joueur) ; une instance purgée
@@ -103,7 +105,7 @@ balayée : elle n'appartient à aucun service.
 
 1. Corbeille des modèles (changeset `deleted_at`), restauration, section Corbeille (front). Fait.
 2. ~~Consommateur campaign~~ : abandonné (voir Corbeille, « Campagne »).
-3. Purge définitive dans character (+ dossier `characters/<id>/`). Fait (`src/maintenance/`).
+3. Purge définitive dans character (lignes et événements, pas de fichier). Fait (`src/maintenance/`).
 4. Route `references` dans character, campaign, identity ; passe des fichiers orphelins, d'abord en
    `CLEANUP_DRY_RUN`.
 5. Tests d'intégration : corbeille et restauration, purge et événements, fichier référencé
