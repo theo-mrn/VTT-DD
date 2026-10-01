@@ -1,13 +1,13 @@
 /**
  * Purge définitive (docs/nettoyage.md) : personnages restés plus de `TRASH_DAYS` jours dans la
- * corbeille, instances de PNJ supprimées dès la passe suivante (leur modèle demeure). Les modèles
+ * corbeille, instances de PNJ supprimées depuis plus de `NPC_UNDO_HOURS` heures (leur modèle demeure). Les modèles
  * ne sont jamais touchés : seul le MJ les supprime.
  * La ligne part (les tables liées suivent par ON DELETE CASCADE) avec son `*.purged` dans
  * l'outbox. Aucun fichier n'est supprimé ici : une image se partage (la copie d'un PNJ reprend
  * le portrait de l'original), seule la passe des fichiers orphelins,
  * qui vérifie que plus rien ne la référence, la supprime.
  */
-import { TRASH_DAYS } from '@vtt/contracts';
+import { NPC_UNDO_HOURS, TRASH_DAYS } from '@vtt/contracts';
 import { and, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { appendEvent, type EventContext } from '../db/outbox.js';
@@ -17,11 +17,17 @@ export const PURGE_BATCH = 50;
 
 const SYSTEM = { userId: null, role: 'system', characterId: null } as const;
 
-/** Instance de PNJ supprimée, ou personnage supprimé depuis plus de TRASH_DAYS jours. */
-const due = or(
-  and(isNotNull(characters.deletedAt), eq(characters.kind, 'npc')),
-  and(
-    isNotNull(characters.deletedAt),
+/**
+ * Instance de PNJ supprimée depuis plus de NPC_UNDO_HOURS heures (avant : Ctrl+Z du MJ la
+ * restaure), ou personnage supprimé depuis plus de TRASH_DAYS jours.
+ */
+const due = and(
+  isNotNull(characters.deletedAt),
+  or(
+    and(
+      eq(characters.kind, 'npc'),
+      sql`${characters.deletedAt} <= now() - make_interval(hours => ${NPC_UNDO_HOURS})`,
+    ),
     sql`${characters.deletedAt} <= now() - make_interval(days => ${TRASH_DAYS})`,
   ),
 );

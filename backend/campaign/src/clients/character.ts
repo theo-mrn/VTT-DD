@@ -383,6 +383,11 @@ export interface CharacterClient {
     ids: string[],
     origin: Required<Pick<CallOrigin, 'userId' | 'campaignId'>> & CallOrigin,
   ): Promise<string[]>;
+  /** Restaure des instances de PNJ supprimées (Ctrl+Z du MJ) ; renvoie les restaurées. */
+  restoreNpcs(
+    ids: string[],
+    origin: Required<Pick<CallOrigin, 'userId' | 'campaignId'>> & CallOrigin,
+  ): Promise<string[]>;
   /** Ajoute à l'inventaire d'un personnage un objet pris sur la carte. */
   receiveItem(
     characterId: string,
@@ -424,6 +429,9 @@ export const characterUnavailable: CharacterClient = {
     throw unavailable();
   },
   deleteNpcs: async () => {
+    throw unavailable();
+  },
+  restoreNpcs: async () => {
     throw unavailable();
   },
   receiveItem: async () => {
@@ -589,6 +597,16 @@ export function characterClient(o: {
         { ids, userId: origin.userId, roomId: origin.campaignId },
       );
       return r.deleted;
+    },
+    async restoreNpcs(ids, origin) {
+      const r = await request(
+        'POST',
+        '/internal/npcs/restore',
+        z.object({ restored: z.array(z.string()) }),
+        origin,
+        { ids, userId: origin.userId, roomId: origin.campaignId },
+      );
+      return r.restored;
     },
     async receiveItem(characterId, body, origin) {
       return request(

@@ -6,6 +6,8 @@
  *   POST   /v1/campaigns/:id/maps/:mapId/tokens/:itemId/duplicate       cloner un PNJ posé (MJ)
  *   DELETE /v1/campaigns/:id/maps/:mapId/tokens/:itemId[?character=delete]
  *          retirer le token ; avec `character=delete`, supprimer aussi le PNJ (MJ)
+ *   POST   /v1/campaigns/:id/maps/:mapId/npcs/restore
+ *          annuler la suppression (Ctrl+Z du MJ) : même fiche, même token, même camp
  *
  * Création : character crée les personnages (sa transaction), puis campaign les engage
  * et pose les tokens (la sienne). Si la seconde échoue, les personnages sont supprimés
@@ -17,6 +19,8 @@ import {
   DeleteMapTokenQuery,
   DuplicateMapToken,
   MapNpcsCreated,
+  MapNpcsRestored,
+  RestoreMapNpcs,
   uuidv7,
   type MapNpcCharacter,
   type MapPoint,
@@ -381,6 +385,88 @@ export const registerNpcs: Module = async (app, deps: Deps) => {
             ),
           );
       reply.code(204);
+    },
+  );
+  r.post(
+    '/v1/campaigns/:id/maps/:mapId/npcs/restore',
+    {
+      ...auth,
+      schema: { params: MapParams, body: RestoreMapNpcs, response: { 200: MapNpcsRestored } },
+    },
+    async (req) => {
+      const { userId, ctx } = requestContext(req);
+      const v = await viewerOf(db, req.params.id, userId);
+      requireGm(v);
+      await loadMap(db, v, req.params.mapId);
+      const { items } = req.body;
+      // La fiche d'abord (character) : seules les restaurées reviennent sur la carte
+      const restored = new Set(
+        await deps.character
+          .restoreNpcs(
+            items.map((i) => i.characterId),
+            origin(req, v),
+          )
+          .catch((e: unknown) => characterFailure(e, req.log)),
+      );
+      const back = items.filter((i) => restored.has(i.characterId));
+      if (!back.length)
+        throw HttpError.notFound(
+          'Ces PNJ ne peuvent plus être restaurés (supprimés depuis trop longtemps)',
+        );
+      const names = new Map(
+        await Promise.all(
+          back.map(
+            async (i) =>
+              [
+                i.characterId,
+                (await deps.character.summary(i.characterId, origin(req, v)).catch(() => null))
+                  ?.name ?? null,
+              ] as const,
+          ),
+        ),
+      );
+      try {
+        const tokens = await db.transaction(async (tx) => {
+          const current = await viewerOf(tx, req.params.id, userId);
+          requireGm(current);
+          const map = await loadMap(tx, current, req.params.mapId, true);
+          const campaignId = map.campaignId;
+          await lockCampaign(tx, campaignId);
+          const out: TokenRow[] = [];
+          for (const { tokenId, characterId, side, ...look } of back) {
+            if (look.layerId) await checkLayer(tx, current, map.id, look.layerId);
+            await tx
+              .insert(campaignCharacters)
+              .values({ campaignId, characterId, ownerId: userId, side, addedBy: userId })
+              .onConflictDoNothing();
+            await campaignEvent(tx, ctx, {
+              type: 'campaign.character_added',
+              campaignId,
+              userId,
+              role: current.access.role,
+              payload: { characterId, side, ownerId: userId, name: names.get(characterId) ?? null },
+              visibility: 'gm_only',
+            });
+            const [token] = await tx
+              .insert(mapTokens)
+              .values({ ...look, id: tokenId, campaignId, mapId: map.id, characterId })
+              .returning();
+            await tokenEvent(tx, ctx, current, token!, 'token.created');
+            out.push(token!);
+          }
+          return out;
+        });
+        return { items: tokens.map(tokenApi) };
+      } catch (err) {
+        // Rien à moitié : la fiche repart à la corbeille si la carte n'a pas pu la reprendre
+        await deps.character
+          .deleteNpcs(
+            back.map((i) => i.characterId),
+            origin(req, v),
+          )
+          .catch(() => undefined);
+        throw err;
+      }
     },
   );
 };

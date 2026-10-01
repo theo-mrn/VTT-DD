@@ -568,6 +568,33 @@ export type DuplicateMapToken = z.input<typeof DuplicateMapToken>;
 export const DeleteMapTokenQuery = z.object({ character: z.enum(['keep', 'delete']).optional() });
 export type DeleteMapTokenQuery = z.infer<typeof DeleteMapTokenQuery>;
 
+/**
+ * Annuler la suppression de PNJ (MJ, Ctrl+Z) : la fiche est restaurée telle quelle, le PNJ
+ * réengagé dans son camp, son token reposé avec son identifiant et ses réglages d'avant.
+ * Possible tant que la purge ne l'a pas effacé (`NPC_UNDO_HOURS`).
+ */
+export const RestoreMapNpcs = z.strictObject({
+  items: z
+    .array(
+      MapTokenFields.partial()
+        .extend({
+          tokenId: InputId('Identifiant de token invalide'),
+          characterId: InputId('Identifiant de personnage invalide'),
+          side: CampaignSide.exclude(['players']),
+          pos: MapPoint,
+        })
+        .strict(),
+    )
+    .min(1)
+    .max(50),
+});
+export type RestoreMapNpcs = z.input<typeof RestoreMapNpcs>;
+export const MapNpcsRestored = z.object({ items: z.array(MapToken) });
+export type MapNpcsRestored = z.infer<typeof MapNpcsRestored>;
+
+/** Délai pendant lequel un PNJ supprimé de la carte peut être restauré (Ctrl+Z). */
+export const NPC_UNDO_HOURS = 24;
+
 // ─── Objets ──────────────────────────────────────────────────────────────────
 
 /**

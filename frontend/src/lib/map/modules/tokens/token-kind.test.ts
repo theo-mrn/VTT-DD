@@ -132,7 +132,7 @@ describe('sorte token : direct', () => {
 });
 
 describe('sorte token : supprimer, dupliquer', () => {
-  it('Suppr sur un PNJ : confirmation, suppression avec le personnage, hors pile', async () => {
+  it('Suppr sur un PNJ : confirmation, suppression avec le personnage ; Ctrl+Z le restaure', async () => {
     const t = setupTokens({ tokens: [hero(), goblin()], characters: people() });
     const done = t.engine.deleteEntities([t.entity('g1')]);
     const confirm = t.engine.ui.getState().confirm!;
@@ -144,8 +144,26 @@ describe('sorte token : supprimer, dupliquer', () => {
     expect(t.api.removeWithCharacter).toHaveBeenCalledWith('g1');
     expect(t.base.remove).not.toHaveBeenCalled();
     expect(t.data('g1')).toBeUndefined();
-    // Définitif : rien à annuler
-    expect(t.commands.getSnapshot().canUndo).toBe(false);
+    // Ctrl+Z : le même PNJ revient (même token, même fiche, même camp)
+    expect(t.commands.getSnapshot().canUndo).toBe(true);
+    await t.commands.undo();
+    await t.commands.idle();
+    expect(t.api.restore).toHaveBeenCalledWith({
+      items: [
+        expect.objectContaining({
+          tokenId: 'g1',
+          characterId: goblin().characterId,
+          side: 'enemies',
+          pos: goblin().pos,
+        }),
+      ],
+    });
+    expect(t.data('g1')).toBeDefined();
+    // Refaire : supprimé de nouveau
+    await t.commands.redo();
+    await t.commands.idle();
+    expect(t.api.removeWithCharacter).toHaveBeenCalledTimes(2);
+    expect(t.data('g1')).toBeUndefined();
   });
 
   it('refus de la confirmation : rien ne part', async () => {

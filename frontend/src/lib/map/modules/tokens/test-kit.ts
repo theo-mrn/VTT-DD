@@ -99,6 +99,11 @@ export function fakeNpcApi() {
       created(body.count ?? 1, body.pos),
     ),
     removeWithCharacter: vi.fn(async (_id: string) => undefined),
+    restore: vi.fn(
+      async (body: { items: { tokenId: string; characterId: string; pos: unknown }[] }) => ({
+        items: body.items.map((i) => ({ ...i, id: i.tokenId, version: 1 })),
+      }),
+    ),
   };
   return api as typeof api & NpcApi;
 }

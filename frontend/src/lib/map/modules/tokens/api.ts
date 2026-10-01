@@ -3,7 +3,13 @@
  * un PNJ posé, le supprimer avec son personnage. Les tokens eux-mêmes (déplacer, modifier,
  * retirer de la carte) passent par la persistance commune (`api.ts`, `tokenPersistence`).
  */
-import type { CreateMapNpcs, DuplicateMapToken, MapNpcsCreated } from '@vtt/contracts';
+import type {
+  CreateMapNpcs,
+  DuplicateMapToken,
+  MapNpcsCreated,
+  MapNpcsRestored,
+  RestoreMapNpcs,
+} from '@vtt/contracts';
 import { api } from '@/lib/api';
 
 export interface NpcApi {
@@ -13,6 +19,8 @@ export interface NpcApi {
   duplicate(tokenId: string, body: DuplicateMapToken): Promise<MapNpcsCreated>;
   /** `DELETE …/tokens/:tokenId?character=delete` : le token et le personnage (PNJ seulement). */
   removeWithCharacter(tokenId: string): Promise<void>;
+  /** `POST …/npcs/restore` : annule la suppression (même fiche, même token). */
+  restore(body: RestoreMapNpcs): Promise<MapNpcsRestored>;
 }
 
 export function createNpcApi(campaignId: string, mapId: string): NpcApi {
@@ -26,5 +34,6 @@ export function createNpcApi(campaignId: string, mapId: string): NpcApi {
       api<void>(`${base}/tokens/${encodeURIComponent(tokenId)}?character=delete`, {
         method: 'DELETE',
       }),
+    restore: (body) => api<MapNpcsRestored>(`${base}/npcs/restore`, json(body)),
   };
 }

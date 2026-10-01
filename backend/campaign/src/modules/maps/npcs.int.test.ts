@@ -234,6 +234,55 @@ describe.skipIf(!TEST_DATABASE_URL)('carte : PNJ et fouille', () => {
       .from(mapTokens)
       .where(and(eq(mapTokens.mapId, map.id), eq(mapTokens.characterId, orc!.characterId)));
     expect(left).toEqual([]);
+    // Ctrl+Z du MJ : la même fiche, le même token (identifiant, réglages), le même camp
+    const back = await h.ok<{ items: Token[] }>(gm, 'POST', url(`/maps/${map.id}/npcs/restore`), {
+      items: [
+        {
+          tokenId: orc!.id,
+          characterId: orc!.characterId,
+          side: 'allies',
+          pos: orc!.pos,
+          visionRadius: 42,
+          layerId: orc!.layerId,
+        },
+      ],
+    });
+    expect(back.items[0]).toMatchObject({
+      id: orc!.id,
+      visionRadius: 42,
+      characterId: orc!.characterId,
+    });
+    expect(t.character.characters.get(orc!.characterId)!.deleted).toBe(false);
+    expect((await engaged()).find((r) => r.characterId === orc!.characterId)).toMatchObject({
+      side: 'allies',
+    });
+    // Un PNJ qui n'est plus restaurable (purgé) : refusé, rien n'est posé
+    const gone = await h.request(gm, 'POST', url(`/maps/${map.id}/npcs/restore`), {
+      items: [
+        {
+          tokenId: crypto.randomUUID(),
+          characterId: crypto.randomUUID(),
+          side: 'enemies',
+          pos: { x: 0, y: 0 },
+        },
+      ],
+    });
+    expect(gone.statusCode).toBe(404);
+    // Un joueur ne restaure rien
+    expect(
+      (
+        await h.request(alice, 'POST', url(`/maps/${map.id}/npcs/restore`), {
+          items: [
+            {
+              tokenId: orc!.id,
+              characterId: orc!.characterId,
+              side: 'allies',
+              pos: { x: 0, y: 0 },
+            },
+          ],
+        })
+      ).statusCode,
+    ).toBe(403);
     // Retirer seulement le token : le personnage reste engagé
     await h.ok(gm, 'DELETE', url(`/maps/${map.id}/tokens/${copies.items[0]!.id}`));
     expect((await engaged()).map((r) => r.characterId)).toContain(copies.items[0]!.characterId);

@@ -5,30 +5,18 @@
  *   apparaissent tout de suite (fantômes), puis les tokens du serveur les remplacent. Annuler
  *   supprime ces PNJ avec leur personnage ; refaire les recrée.
  * - `deleteNpcsCommand` : supprimer des PNJ avec leur personnage (`?character=delete`).
- *   Définitif : exécutée hors de la pile d'annulation, sauf comme inverse d'une pose.
+ *   Annuler les restaure tels quels (`restoreNpcsCommand` : même fiche, même token), tant que
+ *   la purge ne les a pas effacés (`NPC_UNDO_HOURS`) ; inverse d'une pose : les reposer.
  * - `tokenPersistence` : la persistance commune des tokens, plus la copie d'un PNJ (Dupliquer :
  *   `/duplicate`) et le retrait d'une instance créée ici (avec son personnage).
  */
-import type { CreateMapNpcs, MapToken } from '@vtt/contracts';
+import type { CampaignSide, CreateMapNpcs, MapToken } from '@vtt/contracts';
 import type { Command, CommandContext, Persistence } from '../../store/commands';
 import { itemOf, type MapDto } from '../../store/map-store';
 import type { NpcApi } from './api';
 import { TOKENS_COLLECTION, type TokenData } from './model';
 
 const C = TOKENS_COLLECTION;
-
-/** Commande sans effet (inverse d'une écriture définitive, jamais empilée). */
-function noopCommand(label: string): Command {
-  const cmd: Command = {
-    label,
-    targets: () => [],
-    apply: () => undefined,
-    revert: () => undefined,
-    send: async () => undefined,
-    inverse: () => cmd,
-  };
-  return cmd;
-}
 
 /**
  * Pose de PNJ : `drafts` sont les fantômes (identifiants provisoires, positions en grille),
@@ -84,15 +72,18 @@ export function placeNpcsCommand(opts: {
 
 /**
  * Supprime des PNJ avec leur personnage. `recreate` : commande qui les refait (inverse d'une
- * pose annulée) ; sans elle, la suppression est définitive (à exécuter hors de la pile).
+ * pose annulée) ; sinon, annuler les restaure tels quels, dans leur camp (`sideOf`).
  */
 export function deleteNpcsCommand(opts: {
   label: string;
   api: NpcApi;
   items: readonly TokenData[];
   recreate?: () => Command;
+  sideOf?: (characterId: string) => CampaignSide | null | undefined;
 }): Command {
   const { label, api, items, recreate } = opts;
+  // Camp de chacun au moment de la suppression : l'engagement disparaît avec lui
+  const sides = new Map(items.map((i) => [i.characterId, opts.sideOf?.(i.characterId) ?? null]));
   let saved: MapDto[] = [];
   const ids = (ctx: CommandContext) => items.map((i) => ctx.resolve(i.id));
   return {
@@ -119,7 +110,85 @@ export function deleteNpcsCommand(opts: {
         throw failed.reason;
       }
     },
-    inverse: () => (recreate ? recreate() : noopCommand(label)),
+    inverse: () =>
+      recreate
+        ? recreate()
+        : restoreNpcsCommand({ label, api, items: saved.length ? saved : items, sides }),
+  };
+}
+
+/** Champs d'un token repris tels quels à la restauration. */
+const LOOK_KEYS = [
+  'layerId',
+  'z',
+  'scale',
+  'shape',
+  'imageUrl',
+  'visibility',
+  'visibleTo',
+  'visionRadius',
+  'visionBoost',
+  'notes',
+  'audio',
+  'interactions',
+] as const;
+
+/** Annule la suppression de PNJ : même fiche, même token (identifiant, réglages), même camp. */
+export function restoreNpcsCommand(opts: {
+  label: string;
+  api: NpcApi;
+  items: readonly MapDto[];
+  sides: ReadonlyMap<string, CampaignSide | null>;
+}): Command {
+  const { label, api, sides } = opts;
+  const items = opts.items as readonly TokenData[];
+  const ids = (ctx: CommandContext) => items.map((i) => ctx.resolve(i.id));
+  return {
+    label,
+    targets: (ctx) => ids(ctx).map((id) => ({ collection: C, id })),
+    apply(ctx) {
+      ctx.store.getState().upsert(
+        C,
+        items.map((i) => ({ ...i, id: ctx.resolve(i.id) })),
+        { force: true },
+      );
+    },
+    revert(ctx) {
+      ctx.store.getState().remove(C, ids(ctx));
+    },
+    async send(ctx) {
+      const current = ids(ctx);
+      const body = {
+        items: items.map((i, n) => {
+          const look: Record<string, unknown> = {};
+          for (const k of LOOK_KEYS) if (i[k] !== undefined) look[k] = i[k];
+          const side = sides.get(i.characterId);
+          return {
+            ...look,
+            tokenId: current[n]!,
+            characterId: i.characterId,
+            side: side === 'allies' ? ('allies' as const) : ('enemies' as const),
+            pos: i.pos,
+          };
+        }),
+      };
+      const restored = await api.restore(body);
+      const back = restored.items as unknown as MapDto[];
+      const store = ctx.store.getState();
+      // Ceux que la purge a déjà effacés ne reviennent pas
+      store.remove(
+        C,
+        current.filter((id) => !back.some((t) => t.id === id)),
+      );
+      store.upsert(C, back, { force: true });
+    },
+    inverse: () =>
+      deleteNpcsCommand({
+        label,
+        api,
+        items,
+        sideOf: (id) => sides.get(id),
+      }),
   };
 }
 

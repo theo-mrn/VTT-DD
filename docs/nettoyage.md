@@ -40,7 +40,8 @@
 - Les modèles n'ont pas de corbeille (principe 2) : leur suppression par le MJ est immédiate et
   définitive, comme avant. Une première version leur en avait donné une (0012) ; 0013 la retire.
 - **Instances de PNJ** (`kind` npc, posées sur la carte) : jamais dans la corbeille, leur modèle
-  demeure ; purgées à la passe suivante, sans attendre 7 jours.
+  demeure ; Ctrl+Z du MJ les restaure telles quelles pendant `NPC_UNDO_HOURS` (24 h :
+  `POST …/maps/:mapId/npcs/restore`, `/internal/npcs/restore`), puis elles sont purgées.
 - **Campagne** : rien n'est masqué ni rendu. Supprimer un personnage le retire d'abord de ses
   campagnes (route existante : engagement, tokens, place en combat, avec leurs événements) ;
   restauré, il revient sans campagne, à réengager.
@@ -51,8 +52,8 @@
 
 **character**, passe horaire :
 
-1. personnages dont `deleted_at` < maintenant − 7 jours, et instances de PNJ supprimées, par lots
-   de 50 ; **jamais un modèle** ;
+1. personnages dont `deleted_at` < maintenant − 7 jours, et instances de PNJ supprimées depuis plus
+   de 24 h, par lots de 50 ; **jamais un modèle** ;
 2. pour chacun : suppression de la ligne (les tables liées suivent par `ON DELETE CASCADE` :
    `legacy_ids`, `legacy_items`, `application_items`…), événement `character.purged` (outbox,
    même transaction) ;

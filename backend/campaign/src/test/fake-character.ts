@@ -577,6 +577,16 @@ export async function fakeCharacter(secret: string) {
       return reply(200, { deleted });
     }
 
+    if (req.method === 'POST' && path === '/internal/npcs/restore') {
+      const restored = (body.ids as string[]).filter((id) => {
+        const c = characters.get(id);
+        if (!c || c.kind !== 'npc' || !c.deleted) return false;
+        c.deleted = false;
+        return true;
+      });
+      return reply(200, { restored });
+    }
+
     const m = /^\/internal\/characters\/([^/]+)(\/.*)?$/.exec(path);
     const c = m ? characters.get(m[1]!) : undefined;
     if (!m || !c || c.deleted)

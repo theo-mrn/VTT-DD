@@ -1,6 +1,6 @@
 /**
  * Purge définitive : ce qui a passé TRASH_DAYS jours dans la corbeille part (ligne et événement ;
- * aucun fichier, voir purge.ts), les instances de PNJ supprimées tout de suite ; le reste ne bouge pas.
+ * aucun fichier, voir purge.ts), les instances de PNJ après NPC_UNDO_HOURS heures ; le reste ne bouge pas.
  */
 import { inArray, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -57,13 +57,15 @@ describe.skipIf(!TEST_DATABASE_URL)('purge définitive', () => {
     ).map((e) => (e.envelope as { aggregate: { id: string } }).aggregate.id);
 
   it('personnages : expirés et instances de PNJ purgés, le reste gardé', async () => {
-    const [vieux, recent, vivant, pnj] = await Promise.all(
-      ['Vieux', 'Récent', 'Vivant', 'Gobelin 1'].map(creer),
+    const [vieux, recent, vivant, pnj, pnjRecent] = await Promise.all(
+      ['Vieux', 'Récent', 'Vivant', 'Gobelin 1', 'Gobelin 2'].map(creer),
     );
     await supprimer(vieux!, 8);
     await supprimer(recent!, 2);
-    await supprimer(pnj!, 0, 'npc');
-    const tous = [vieux!, recent!, vivant!, pnj!];
+    await supprimer(pnj!, 2, 'npc');
+    // Supprimé à l'instant : le MJ peut encore l'annuler (NPC_UNDO_HOURS)
+    await supprimer(pnjRecent!, 0, 'npc');
+    const tous = [vieux!, recent!, vivant!, pnj!, pnjRecent!];
 
     // Essai : rien ne bouge
     await purge({ db: t.db!, ctx: { correlationId: crypto.randomUUID() }, dryRun: true });
@@ -71,7 +73,7 @@ describe.skipIf(!TEST_DATABASE_URL)('purge définitive', () => {
 
     const report = await purge({ db: t.db!, ctx: { correlationId: crypto.randomUUID() } });
     expect(report).toBeGreaterThanOrEqual(2);
-    expect(await restants(tous)).toEqual([recent!, vivant!].sort());
+    expect(await restants(tous)).toEqual([recent!, vivant!, pnjRecent!].sort());
     expect((await purges(tous)).sort()).toEqual([vieux!, pnj!].sort());
 
     // Rejouée : plus rien pour eux

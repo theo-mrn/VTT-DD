@@ -150,8 +150,8 @@ export function DefeatedDialog({
                 label: `Supprimer ${r.member?.name ?? 'le PNJ'}`,
                 api: tokens.api,
                 items,
+                sideOf: (id) => tokens.directory.get(id)?.side,
               }),
-              { undoable: false },
             );
         }
       } catch (err) {

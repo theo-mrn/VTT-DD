@@ -107,6 +107,29 @@ describe.skipIf(!TEST_DATABASE_URL)('instances de PNJ et butin', () => {
     expect(res.json()).toEqual({ deleted: [gobelins[0]!.id] });
     expect((await row(gobelins[0]!.id)).deletedAt).not.toBeNull();
     expect((await row(heros.id)).deletedAt).toBeNull();
+    // Restauration (Ctrl+Z du MJ) : la même fiche revient ; plus après NPC_UNDO_HOURS
+    const back = await post('/internal/npcs/restore', {
+      ids: [gobelins[0]!.id, heros.id],
+      userId: mj.id,
+      roomId: campagne,
+    });
+    expect(back.json()).toEqual({ restored: [gobelins[0]!.id] });
+    expect((await row(gobelins[0]!.id)).deletedAt).toBeNull();
+    await post('/internal/npcs/delete', {
+      ids: [gobelins[0]!.id],
+      userId: mj.id,
+      roomId: campagne,
+    });
+    await t
+      .db!.update(characters)
+      .set({ deletedAt: sql`now() - interval '25 hours'` })
+      .where(eq(characters.id, gobelins[0]!.id));
+    const late = await post('/internal/npcs/restore', {
+      ids: [gobelins[0]!.id],
+      userId: mj.id,
+      roomId: campagne,
+    });
+    expect(late.json()).toEqual({ restored: [] });
     // Le nom libéré n'est pas repris : la suite continue
     expect((await npcs({ quick: { name: 'Gobelin', type: 'personnage' } }))[0]!.nom).toBe(
       'Gobelin 5',

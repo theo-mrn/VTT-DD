@@ -12,10 +12,10 @@
  * (création terminée), avec son origine (`template_id`, `campaign_id`). Ses événements
  * sont publiés dans la campagne, pour les MJ seulement.
  */
-import { uuidv7 } from '@vtt/contracts';
+import { NPC_UNDO_HOURS, uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import type { EtatEntite } from '@vtt/rules';
-import { and, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, like, or, sql } from 'drizzle-orm';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -305,6 +305,54 @@ export function registerNpcRoutes(
         return rows.map((c) => c.id);
       });
       return { deleted };
+    },
+  );
+
+  // Annuler une suppression (Ctrl+Z du MJ) : la fiche revient telle quelle, tant que la purge
+  // ne l'a pas effacée (NPC_UNDO_HOURS)
+  r.post(
+    '/internal/npcs/restore',
+    {
+      ...guard,
+      schema: {
+        hide: true,
+        body: z.object({ ids: z.array(Uuid).min(1).max(200), userId: Uuid, roomId: Uuid }),
+        response: { 200: z.object({ restored: z.array(z.string()) }) },
+      },
+    },
+    async (req) => {
+      const { ids, userId, roomId } = req.body;
+      const ctx = context(req);
+      const restored = await db.transaction(async (tx) => {
+        const rows = await tx
+          .update(characters)
+          .set({
+            deletedAt: null,
+            version: sql`${characters.version} + 1`,
+            updatedAt: sql`now()`,
+          })
+          .where(
+            and(
+              inArray(characters.id, ids),
+              eq(characters.kind, 'npc'),
+              isNotNull(characters.deletedAt),
+              sql`${characters.deletedAt} > now() - make_interval(hours => ${NPC_UNDO_HOURS})`,
+              or(eq(characters.campaignId, roomId), eq(characters.ownerId, userId)),
+            ),
+          )
+          .returning({ id: characters.id, version: characters.version });
+        for (const c of rows)
+          await appendEvent(tx, ctx, {
+            type: 'character.restored',
+            roomId,
+            visibility: 'gm_only',
+            actor: { userId, role: 'gm', characterId: c.id },
+            aggregate: { type: 'character', id: c.id },
+            payload: { version: c.version },
+          });
+        return rows.map((c) => c.id);
+      });
+      return { restored };
     },
   );
 

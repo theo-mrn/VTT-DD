@@ -115,8 +115,8 @@ export function removeFromMap(tokens: TokensState, entities: readonly TokenEntit
 
 /**
  * Suppression commune (Suppr, « Supprimer ») : un PNJ disparaît avec son personnage, après
- * confirmation du moteur, et c'est définitif (hors de la pile d'annulation) ; un personnage
- * joueur est seulement retiré de la carte (annulable).
+ * confirmation du moteur ; Ctrl+Z le restaure tel quel (`NPC_UNDO_HOURS`). Un personnage joueur
+ * est seulement retiré de la carte. Les deux s'annulent.
  */
 export async function removeTokens(
   tokens: TokensState,
@@ -134,8 +134,8 @@ export async function removeTokens(
           label: npcs.length > 1 ? `Supprimer ${npcs.length} PNJ` : `Supprimer ${name ?? 'le PNJ'}`,
           api: tokens.api,
           items: npcs.map((e) => e.data),
+          sideOf: (id) => tokens.directory.get(id)?.side,
         }),
-        { undoable: false },
       ),
     );
   }
