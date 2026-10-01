@@ -4,6 +4,7 @@
   "private": true,
   "description": "Moteur de règles générique : les systèmes de jeu sont décrits en données",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

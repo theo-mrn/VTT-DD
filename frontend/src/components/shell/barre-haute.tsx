@@ -1,10 +1,10 @@
 'use client';
 
 import { Bell, ChevronRight, Dices, Menu, Search } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Fragment, useState } from 'react';
-import { LanceurRapide } from '@/components/des/lanceur-rapide';
 import { AvatarJoueur } from '@/components/compte/elements';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -15,6 +15,12 @@ import { useCampagne } from '@/lib/campagnes';
 import { usePersonnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { LIBELLES_SEGMENTS } from './navigation';
+
+// Lanceur de dés (moteur de règles, zod) : chargé à la première ouverture du popover seulement
+const LanceurRapide = dynamic(
+  () => import('@/components/des/lanceur-rapide').then((m) => m.LanceurRapide),
+  { ssr: false, loading: () => <div className="h-24" aria-busy /> },
+);
 
 /** Barre du haut : menu mobile, fil d'Ariane, lanceur de dés, demandes, recherche. */
 export function BarreHaute({

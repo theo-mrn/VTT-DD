@@ -1,9 +1,9 @@
 'use client';
 
-import { Dices, LogIn, Plus, Swords, UserRound } from 'lucide-react';
+import { LogIn, Plus, Swords, UserRound } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
 import {
   Command,
@@ -17,11 +17,14 @@ import {
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
 import { useCampagnes } from '@/lib/campagnes';
-import { messageErreur } from '@/lib/api';
-import { useLancer, verifierFormule } from '@/lib/jets';
 import { iconeNote, useNotes } from '@/lib/notes';
 import { lienPersonnage, usePersonnages } from '@/lib/personnages';
 import { LIENS_COMPTE, NAV_PRINCIPALE, NAV_SOCIALE } from './navigation';
+
+// Moteur de règles (jets) : chargé seulement quand la saisie ressemble à une formule de dés
+const GroupeLancer = dynamic(() => import('./palette-jet').then((m) => m.GroupeLancer), {
+  ssr: false,
+});
 
 /** Palette ⌘K : aller partout, créer, et lancer une formule de dés directement. */
 export function PaletteCommandes({
@@ -36,30 +39,12 @@ export function PaletteCommandes({
   const campagnes = useCampagnes();
   const personnages = usePersonnages();
   const notes = useNotes();
-  const lancer = useLancer();
-
-  const formule = /\d*d\d/i.test(saisie) && verifierFormule(saisie).ok ? saisie.trim() : null;
+  const formuleProbable = /\d*d\d/i.test(saisie);
 
   function aller(href: string) {
     onOuverte(false);
     setSaisie('');
     router.push(href);
-  }
-
-  // Jet personnel : les dés 3D roulent par-dessus l'app, le résultat arrive à leur arrêt
-  async function lancerFormule(f: string) {
-    onOuverte(false);
-    setSaisie('');
-    try {
-      const jet = await lancer.mutateAsync({ formula: f });
-      toast(`${jet.symbolResult ?? jet.total}`, {
-        description: `${jet.formula}${jet.critical === 'success' ? ' · critique !' : jet.critical === 'failure' ? ' · échec critique' : ''}`,
-        icon: <Dices className="size-4 text-primary" />,
-        action: { label: 'Table de dés', onClick: () => router.push('/des') },
-      });
-    } catch (e) {
-      toast.error('Jet impossible', { description: messageErreur(e) });
-    }
   }
 
   return (
@@ -80,14 +65,14 @@ export function PaletteCommandes({
           <CommandList>
             <CommandEmpty>Aucun résultat.</CommandEmpty>
 
-            {formule && (
-              <CommandGroup heading="Lancer">
-                <CommandItem value={`lancer ${formule}`} onSelect={() => lancerFormule(formule)}>
-                  <Dices className="text-primary" />
-                  Lancer <span className="font-mono text-foreground">{formule}</span>
-                  <CommandShortcut>↵</CommandShortcut>
-                </CommandItem>
-              </CommandGroup>
+            {formuleProbable && (
+              <GroupeLancer
+                saisie={saisie}
+                onLance={() => {
+                  onOuverte(false);
+                  setSaisie('');
+                }}
+              />
             )}
 
             <CommandGroup heading="Actions">
