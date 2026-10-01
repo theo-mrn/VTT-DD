@@ -747,6 +747,17 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 - **Fond.**
   - Image : png, jpeg, webp, avif, gif (première image seulement : pas d'animation). Vidéo :
     webm, mp4, muette, en boucle, `playsinline`.
+  - **Échelle** : la case de la scène est sa grille de jeu ; sans elle, `largeur du fond / 25`
+    (`scenePixelsPerUnit`, client et serveur), jamais une taille fixe : une même carte en deux
+    résolutions garde des tokens à la même échelle. Le réglage de campagne `pixelsPerUnit` ne
+    sert que sans taille connue. Pour un fond sans grille de jeu, le client du MJ cherche une
+    fois le quadrillage dessiné dans l'image (`modules/grid/detect.ts` : profils des contours,
+    peigne au plus petit pas significatif, cases carrées, blocs de compression écartés ; 19
+    cartes quadrillées sur 20 et aucun faux positif sur 16 sans grille dans la bibliothèque) :
+    trouvé, il devient la grille de jeu cachée aux joueurs (commande annulable, « Ajuster ») ;
+    sinon un bandeau « Échelle de la carte » propose de calibrer (`scale-assistant.tsx`).
+  - Fond vidéo lu en variante 1080p : la taille du monde reste celle de l'original (lue par
+    ses en-têtes), la variante est étirée à cette taille.
   - Choix (`components/map/scenes/background-picker.tsx`) : bouton « Fond de la scène » de la
     barre (MJ, commande annulable) et champ « Fond » du dialogue de scène. Bibliothèque de
     cartes (dossiers, Cartes / Animées / Illustrations, recherche ; vignettes du CDN, affiche

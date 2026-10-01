@@ -16,6 +16,7 @@ import { Ruler } from 'lucide-react';
 import type { Container, Graphics } from 'pixi.js';
 import type { StoreApi } from 'zustand/vanilla';
 import { GridControls } from '@/components/map/grid/grid-menu';
+import { GridScaleAssistant } from '@/components/map/grid/scale-assistant';
 import { isGm, type RenderContext } from '../../engine/entities/entity-kind';
 import { destroyDisplay } from '../../engine/destroy-display';
 import type { Point } from '../../engine/geometry';
@@ -283,6 +284,13 @@ export const gridModule: MapModule = {
         slot: 'view',
         order: 20,
         component: GridControls,
+      }),
+      // Échelle d'un nouveau fond : quadrillage détecté, ou calibrage proposé (MJ)
+      engine.registerOverlay({
+        id: 'grid:scale',
+        slot: 'none',
+        available: isGm,
+        component: GridScaleAssistant,
       }),
       engine.registerShortcut({
         code: GRID_TOGGLE_SHORTCUT.code,
