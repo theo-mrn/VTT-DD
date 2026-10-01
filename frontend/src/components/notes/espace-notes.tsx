@@ -36,7 +36,6 @@ import { ImportNotesLocales } from './local-import';
 import { depuisModele, type ModeleNote } from './modeles';
 import { SynchroNotes } from './notes-sync';
 import { grouper, indexer, termes } from './outils';
-import { useMaintenant } from './use-maintenant';
 
 const URL_NOTES = '/notes';
 
@@ -122,7 +121,6 @@ export function EspaceNotes({
   const facettes = useFacettesNotes();
   const creer = useCreerNote();
   const supprimer = useSupprimerNote();
-  const maintenant = useMaintenant();
 
   const campagnes = useMemo(() => campagnesQ.data ?? [], [campagnesQ.data]);
   const ecrivables = useMemo(() => campagnesEcrivables(campagnes), [campagnes]);
@@ -461,7 +459,6 @@ export function EspaceNotes({
           onFiltre={setFiltre}
           campagnes={campagnes}
           campagneFixe={Boolean(campagneFixe)}
-          maintenant={maintenant}
           onSelection={selectionner}
           onOuvrir={(id) => {
             selectionner(id);

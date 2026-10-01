@@ -33,6 +33,7 @@ import { cn } from '@/lib/utils';
 import { BoutonNouvelleNote } from './bouton-nouvelle-note';
 import type { ModeleNote } from './modeles';
 import { dateCourte, iconeNote, segments, type Groupe, type NoteIndexee } from './outils';
+import { useMaintenant } from './use-maintenant';
 
 export interface FiltreNotes {
   epinglees: boolean;
@@ -81,7 +82,6 @@ export function ListeNotes({
   onFiltre,
   campagnes,
   campagneFixe = false,
-  maintenant,
   onSelection,
   onOuvrir,
   onNouvelle,
@@ -111,7 +111,6 @@ export function ListeNotes({
   campagnes: Campagne[];
   /** Espace d'une seule campagne : pas de filtre de campagne. */
   campagneFixe?: boolean;
-  maintenant: number;
   onSelection: (id: string) => void;
   onOuvrir: (id: string) => void;
   onNouvelle: (modele?: ModeleNote) => void;
@@ -281,7 +280,6 @@ export function ListeNotes({
                     mots={mots}
                     selectionnee={n.note.id === idSelection}
                     auteur={n.note.authorId === moi ? null : n.note.authorName}
-                    maintenant={maintenant}
                     onChoix={() => onSelection(n.note.id)}
                   />
                 ))}
@@ -322,12 +320,17 @@ export function ListeNotes({
   );
 }
 
+/** Date d'une note (« 14:32 », « hier »…), rafraîchie par l'horloge partagée. */
+function DateCourte({ iso }: { iso: string }) {
+  const maintenant = useMaintenant();
+  return <>{dateCourte(iso, maintenant)}</>;
+}
+
 function ElementNote({
   n,
   mots,
   selectionnee,
   auteur,
-  maintenant,
   onChoix,
 }: {
   n: NoteIndexee;
@@ -335,7 +338,6 @@ function ElementNote({
   selectionnee: boolean;
   /** Auteur, si la note est celle d'un autre joueur. */
   auteur: string | null;
-  maintenant: number;
   onChoix: () => void;
 }) {
   const { note } = n;
@@ -389,7 +391,7 @@ function ElementNote({
               <Surligne texte={titre || 'Sans titre'} mots={titre ? mots : []} />
             </p>
             <span className="shrink-0 text-[11px] leading-5 text-subtle tabular">
-              {dateCourte(note.updatedAt, maintenant)}
+              <DateCourte iso={note.updatedAt} />
             </span>
           </div>
           <p className="mt-0.5 line-clamp-2 break-words text-[12.5px] leading-[1.5] text-muted-foreground/90">

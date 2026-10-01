@@ -25,6 +25,16 @@ export interface Conflit {
 
 const estVide = (m: ModificationNote) => Object.keys(m).length === 0;
 
+/**
+ * Texte saisi, lu seulement au moment d'envoyer : sérialiser une longue note à chaque
+ * frappe coûte cher. `sale` : une saisie attend ; `lire` rend le texte s'il a changé
+ * depuis la dernière lecture (et remet `sale` à faux), sinon undefined.
+ */
+export interface ContenuDiffere {
+  sale: () => boolean;
+  lire: () => string | undefined;
+}
+
 /** Fusionne deux lots de modifications (les détails champ par champ). */
 export function fusionner(a: ModificationNote, b: ModificationNote): ModificationNote {
   const details = a.details || b.details ? { details: { ...a.details, ...b.details } } : {};
@@ -45,7 +55,7 @@ export function fusionner(a: ModificationNote, b: ModificationNote): Modificatio
  */
 export function useEnregistrementAuto(
   note: Note,
-  o: { onConflit: (c: Conflit) => void; delai?: number },
+  o: { onConflit: (c: Conflit) => void; delai?: number; contenu?: ContenuDiffere },
 ) {
   const delai = o.delai ?? 600;
   const id = note.id;
@@ -64,6 +74,14 @@ export function useEnregistrementAuto(
   const enPause = useRef(false);
   const onConflit = useRef(o.onConflit);
   onConflit.current = o.onConflit;
+  const contenu = useRef(o.contenu);
+  contenu.current = o.contenu;
+
+  /** Le texte saisi depuis le dernier envoi rejoint les modifications en attente. */
+  const collecter = useCallback(() => {
+    const c = contenu.current?.lire();
+    if (c !== undefined) attente.current = fusionner(attente.current, { content: c });
+  }, []);
 
   const conflit = useCallback(
     async (refusees: ModificationNote) => {
@@ -98,6 +116,7 @@ export function useEnregistrementAuto(
       await enCours.current;
       return vider();
     }
+    collecter();
     const patch = attente.current;
     if (estVide(patch)) {
       setEtat('enregistre');
@@ -115,10 +134,12 @@ export function useEnregistrementAuto(
         enCours.current = null;
         base.current = enregistree.version;
         etiquettes.current = enregistree.tagRefs;
-        setEtat(estVide(attente.current) ? 'enregistre' : 'en-attente');
+        setEtat(estVide(attente.current) && !contenu.current?.sale() ? 'enregistre' : 'en-attente');
       },
       async (err: unknown) => {
         enCours.current = null;
+        // Le texte saisi pendant l'envoi fait partie des modifications refusées
+        collecter();
         const refusees = fusionner(patch, attente.current);
         if (estConflit(err)) {
           attente.current = {};
@@ -148,9 +169,14 @@ export function useEnregistrementAuto(
     );
     enCours.current = envoi;
     await envoi;
-    if (!estVide(attente.current) && !minuteur.current && actif.current && !enPause.current)
+    if (
+      (!estVide(attente.current) || contenu.current?.sale()) &&
+      !minuteur.current &&
+      actif.current &&
+      !enPause.current
+    )
       return vider();
-  }, [id, mutateAsync, conflit]);
+  }, [id, mutateAsync, conflit, collecter]);
 
   /** Ajoute des modifications ; `immediat` pour les choix ponctuels (type, visibilité…). */
   const planifier = useCallback(
@@ -175,13 +201,14 @@ export function useEnregistrementAuto(
     (modifs?: ModificationNote) => {
       enPause.current = false;
       // Saisies faites pendant le conflit : parties avec le reste
+      collecter();
       const suite = attente.current;
       attente.current = {};
       setEtat('enregistre');
       const lot = modifs ? fusionner(modifs, suite) : suite;
       if (!estVide(lot)) planifier(lot, true);
     },
-    [planifier],
+    [planifier, collecter],
   );
 
   /** L'éditeur a adopté une version plus récente du service (rien n'était en attente). */
@@ -199,7 +226,11 @@ export function useEnregistrementAuto(
   }, []);
 
   const enAttente = useCallback(
-    () => !estVide(attente.current) || enCours.current !== null || enPause.current,
+    () =>
+      !estVide(attente.current) ||
+      contenu.current?.sale() === true ||
+      enCours.current !== null ||
+      enPause.current,
     [],
   );
 

@@ -18,7 +18,7 @@ import {
   Pin,
   Trash2,
 } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,7 +49,7 @@ import {
 import { cn } from '@/lib/utils';
 import { BarreMiseEnForme, BulleMiseEnForme } from './barre-mise-en-forme';
 import { AlignementTexte, ImageNote } from './editor-extensions';
-import { useEnregistrementAuto, type Conflit } from './enregistrement';
+import { useEnregistrementAuto, type Conflit, type ContenuDiffere } from './enregistrement';
 import { IndicateurEnregistrement } from './indicateur-enregistrement';
 import { aDesDetails, DetailsNote } from './note-details';
 import { compterMots, dateLongue, depuis, iconeNote } from './outils';
@@ -101,6 +101,59 @@ function statistiques(editor: Editor) {
   const texte = doc.textBetween(0, doc.content.size, ' ', ' ');
   return { mots: compterMots(texte), caracteres: texte.replace(/\s/g, '').length };
 }
+
+/** Délai avant de recompter mots et caractères après une saisie. */
+const DELAI_STATISTIQUES_MS = 300;
+
+/**
+ * Mots et caractères du texte, recomptés peu après chaque modification (pas à chaque
+ * frappe, ni au déplacement du curseur) : seul le composant qui les affiche se re-rend.
+ */
+function useStatistiques(editor: Editor | null) {
+  const [stats, setStats] = useState({ mots: 0, caracteres: 0 });
+  useEffect(() => {
+    if (!editor) return;
+    setStats(statistiques(editor));
+    let minuteur: ReturnType<typeof setTimeout> | null = null;
+    const surTransaction = ({ transaction }: { transaction: { docChanged: boolean } }) => {
+      if (!transaction.docChanged || minuteur) return;
+      minuteur = setTimeout(() => {
+        minuteur = null;
+        if (!editor.isDestroyed) setStats(statistiques(editor));
+      }, DELAI_STATISTIQUES_MS);
+    };
+    editor.on('transaction', surTransaction);
+    return () => {
+      editor.off('transaction', surTransaction);
+      if (minuteur) clearTimeout(minuteur);
+    };
+  }, [editor]);
+  return stats;
+}
+
+/** Extensions de l'éditeur : les mêmes pour toutes les notes (comparées à chaque rendu). */
+const EXTENSIONS = [
+  StarterKit.configure({
+    heading: { levels: [1, 2, 3] },
+    link: {
+      openOnClick: false,
+      autolink: true,
+      defaultProtocol: 'https',
+      HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },
+    },
+  }),
+  Placeholder.configure({
+    placeholder: ({ node }) =>
+      node.type.name === 'heading'
+        ? `Titre ${String(node.attrs.level ?? '')}`.trim()
+        : 'Écrivez librement… « # » pour un titre, « - » pour une liste, « > » pour une citation',
+  }),
+  // Guillemets à la française, espaces fines insécables comprises
+  Typography.configure({ openDoubleQuote: '« ', closeDoubleQuote: ' »' }),
+  // Notes de l'ancien éditeur : images du texte et alignement
+  ImageNote,
+  AlignementTexte,
+];
 
 /**
  * Focus immédiat dans le texte. `commands.focus()` attend l'image suivante :
@@ -167,13 +220,30 @@ export function EditeurNote({
   const editeurRef = useRef<Editor | null>(null);
   const [brouillon, setBrouillon] = useState<Brouillon>(() => brouillonDe(note));
   const [confirmation, setConfirmation] = useState(false);
-  // Compteurs recalculés à chaque modification du texte (pas à chaque déplacement du curseur)
-  const [stats, setStats] = useState({ mots: 0, caracteres: 0 });
+  // Dernier texte lu de l'éditeur ; `sale` : une saisie l'a changé depuis (le HTML n'est
+  // sérialisé qu'au moment d'enregistrer, pas à chaque frappe)
   const dernierContenu = useRef<string | null>(null);
+  const sale = useRef(false);
   const titreRef = useRef<HTMLTextAreaElement>(null);
   const [titreVisible, setTitreVisible] = useState(true);
-  const maintenant = useMaintenant();
   const epingler = useEpinglerNote();
+  const contenuDiffere = useMemo<ContenuDiffere>(
+    () => ({
+      sale: () => sale.current,
+      lire: () => {
+        const e = editeurRef.current;
+        if (!sale.current || !e) return undefined;
+        sale.current = false;
+        const contenu = contenuDe(e);
+        // Seules les saisies comptent : un paragraphe de fin ajouté par un greffon
+        // (TrailingNode) ne « modifie » pas la note
+        if (contenu === dernierContenu.current) return undefined;
+        dernierContenu.current = contenu;
+        return contenu;
+      },
+    }),
+    [],
+  );
 
   /** Affiche une version du service (titre, propriétés, texte), curseur gardé si possible. */
   function afficherVersion(n: Note) {
@@ -186,7 +256,7 @@ export function EditeurNote({
     if (e.isFocused)
       e.commands.setTextSelection({ from: Math.min(from, fin), to: Math.min(to, fin) });
     dernierContenu.current = contenuDe(e);
-    setStats(statistiques(e));
+    sale.current = false;
   }
 
   const { etat, planifier, vider, abandonner, reprendre, adopter, enAttente, versionDeBase } =
@@ -195,6 +265,7 @@ export function EditeurNote({
         afficherVersion(c.recente);
         setConflit(c);
       },
+      contenu: contenuDiffere,
     });
 
   // Version plus récente venue du service, rien en attente ici : adoptée en direct
@@ -217,34 +288,11 @@ export function EditeurNote({
     [planifier],
   );
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    editable: !lecture,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-        link: {
-          openOnClick: false,
-          autolink: true,
-          defaultProtocol: 'https',
-          HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },
-        },
-      }),
-      Placeholder.configure({
-        placeholder: ({ node }) =>
-          node.type.name === 'heading'
-            ? `Titre ${String(node.attrs.level ?? '')}`.trim()
-            : 'Écrivez librement… « # » pour un titre, « - » pour une liste, « > » pour une citation',
-      }),
-      // Guillemets à la française, espaces fines insécables comprises
-      Typography.configure({ openDoubleQuote: '« ', closeDoubleQuote: ' »' }),
-      // Notes de l'ancien éditeur : images du texte et alignement
-      ImageNote,
-      AlignementTexte,
-    ],
-    // Assaini par le service à l'écriture, et encore ici avant d'entrer dans l'éditeur
-    content: preparerContenu(note.content),
-    editorProps: {
+  // Options stables d'un rendu à l'autre : sinon l'éditeur les réapplique (setOptions) à
+  // chaque rendu. Contenu initial assaini une fois (le service l'assainit aussi à l'écriture).
+  const [contenuInitial] = useState(() => preparerContenu(note.content));
+  const editorProps = useMemo<NonNullable<Parameters<typeof useEditor>[0]>['editorProps']>(
+    () => ({
       attributes: {
         class: 'editeur-note min-h-[40vh] pb-6',
         'aria-label': 'Contenu de la note',
@@ -263,26 +311,28 @@ export function EditeurNote({
         }
         return false;
       },
-    },
+    }),
+    [],
+  );
+
+  const editor = useEditor({
+    immediatelyRender: false,
+    editable: !lecture,
+    extensions: EXTENSIONS,
+    content: contenuInitial,
+    editorProps,
     onCreate: ({ editor: e }) => {
       editeurRef.current = e;
       dernierContenu.current = contenuDe(e);
-      setStats(statistiques(e));
     },
     onDestroy: () => {
       editeurRef.current = null;
     },
-    onUpdate: ({ editor: e, transaction }) => {
-      setStats(statistiques(e));
-      const contenu = contenuDe(e);
-      // Seules les saisies comptent : un paragraphe de fin ajouté par un greffon
-      // (TrailingNode, sur une transaction sans modification) ne « modifie » pas la note
-      if (!transaction.docChanged || contenu === dernierContenu.current) {
-        dernierContenu.current = contenu;
-        return;
-      }
-      dernierContenu.current = contenu;
-      planifier({ content: contenu }, false);
+    onUpdate: ({ transaction }) => {
+      // Saisie : le texte sera lu à l'enregistrement (`contenuDiffere`)
+      if (!transaction.docChanged) return;
+      sale.current = true;
+      planifier({}, false);
     },
   });
 
@@ -393,7 +443,7 @@ export function EditeurNote({
     if (content !== undefined && e) {
       e.commands.setContent(preparerContenu(content), { emitUpdate: false });
       dernierContenu.current = contenuDe(e);
-      setStats(statistiques(e));
+      sale.current = false;
     }
     setConflit(null);
     reprendre(m);
@@ -709,28 +759,20 @@ export function EditeurNote({
           </div>
 
           <p className="mt-10 flex flex-wrap gap-x-3 gap-y-1 text-xs text-subtle tabular lg:hidden">
-            <span>{stats.mots ?? 0} mots</span>
-            <span>Modifiée {depuis(note.updatedAt, maintenant)}</span>
+            <MotsNote editor={editor} />
+            <span>
+              Modifiée <IlYA iso={note.updatedAt} />
+            </span>
           </p>
         </article>
       </div>
 
       <footer className="hidden h-9 shrink-0 items-center justify-between gap-4 border-t border-border/70 px-4 text-[11px] text-subtle tabular lg:flex">
-        <span className="flex items-center gap-2">
-          <span>
-            {(stats.mots ?? 0).toLocaleString('fr-FR')} mot{(stats.mots ?? 0) > 1 ? 's' : ''}
-          </span>
-          <span aria-hidden>·</span>
-          <span>{(stats.caracteres ?? 0).toLocaleString('fr-FR')} caractères</span>
-          {(stats.mots ?? 0) >= 200 && (
-            <>
-              <span aria-hidden>·</span>
-              <span>{Math.round((stats.mots ?? 0) / 200)} min de lecture</span>
-            </>
-          )}
-        </span>
+        <StatistiquesNote editor={editor} />
         <Info texte={`Créée le ${dateLongue(note.createdAt)}`} cote="top">
-          <span className="cursor-default">Modifiée {depuis(note.updatedAt, maintenant)}</span>
+          <span className="cursor-default">
+            Modifiée <IlYA iso={note.updatedAt} />
+          </span>
         </Info>
       </footer>
 
@@ -759,5 +801,37 @@ export function EditeurNote({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** « il y a 3 min », rafraîchi par l'horloge partagée : seul ce texte se re-rend. */
+function IlYA({ iso }: { iso: string }) {
+  const maintenant = useMaintenant();
+  return <>{depuis(iso, maintenant)}</>;
+}
+
+/** Nombre de mots (petit écran). */
+function MotsNote({ editor }: { editor: Editor | null }) {
+  const stats = useStatistiques(editor);
+  return <span>{stats.mots ?? 0} mots</span>;
+}
+
+/** Mots, caractères et temps de lecture (pied de l'éditeur). */
+function StatistiquesNote({ editor }: { editor: Editor | null }) {
+  const stats = useStatistiques(editor);
+  return (
+    <span className="flex items-center gap-2">
+      <span>
+        {(stats.mots ?? 0).toLocaleString('fr-FR')} mot{(stats.mots ?? 0) > 1 ? 's' : ''}
+      </span>
+      <span aria-hidden>·</span>
+      <span>{(stats.caracteres ?? 0).toLocaleString('fr-FR')} caractères</span>
+      {(stats.mots ?? 0) >= 200 && (
+        <>
+          <span aria-hidden>·</span>
+          <span>{Math.round((stats.mots ?? 0) / 200)} min de lecture</span>
+        </>
+      )}
+    </span>
   );
 }
