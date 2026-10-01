@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface Testimonial {
@@ -9,26 +9,27 @@ interface Testimonial {
   role: string;
 }
 
+// Défilement vertical en keyframes CSS sur transform (composité, hors du
+// thread principal), mis en pause quand la section n'est pas à l'écran.
+const COLUMN_KEYFRAMES = `@keyframes testimonials-scroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@media (prefers-reduced-motion: reduce) { .testimonials-column { animation: none !important; } }`;
+
 const TestimonialsColumn = (props: {
   className?: string;
   testimonials: Testimonial[];
   duration?: number;
+  playing: boolean;
 }) => {
   if (props.testimonials.length === 0) return null;
 
   return (
     <div className={props.className}>
-      <motion.ul
-        animate={{
-          translateY: '-50%',
+      <ul
+        style={{
+          animation: `testimonials-scroll ${props.duration || 10}s linear infinite`,
+          animationPlayState: props.playing ? 'running' : 'paused',
         }}
-        transition={{
-          duration: props.duration || 10,
-          repeat: Infinity,
-          ease: 'linear',
-          repeatType: 'loop',
-        }}
-        className="flex flex-col gap-6 pb-6 bg-transparent transition-colors duration-300 list-none m-0 p-0"
+        className="testimonials-column flex flex-col gap-6 pb-6 bg-transparent list-none m-0 p-0"
       >
         {[
           ...new Array(2).fill(0).map((_, index) => (
@@ -52,7 +53,7 @@ const TestimonialsColumn = (props: {
                       '0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 0 20px rgba(201, 169, 101, 0.08)',
                     transition: { type: 'spring', stiffness: 400, damping: 17 },
                   }}
-                  className="p-10 rounded-3xl border border-[#c9a965]/10 max-w-xs w-full bg-white/[0.03] backdrop-blur-sm transition-all duration-300 cursor-default select-none group focus:outline-none focus:ring-2 focus:ring-[#c9a965]/20 hover:border-[#c9a965]/25"
+                  className="p-10 rounded-3xl border border-[#c9a965]/10 max-w-xs w-full bg-white/[0.05] transition-colors duration-300 cursor-default select-none group focus:outline-none focus:ring-2 focus:ring-[#c9a965]/20 hover:border-[#c9a965]/25"
                 >
                   <blockquote className="m-0 p-0">
                     <p
@@ -64,7 +65,7 @@ const TestimonialsColumn = (props: {
                       &ldquo;{text}&rdquo;
                     </p>
                     <footer className="flex items-center gap-3 mt-6">
-                      <div className="h-10 w-10 shrink-0 rounded-full bg-[#c9a965] flex items-center justify-center overflow-hidden text-[#0c0c0e] font-bold ring-2 ring-[#c9a965]/20 group-hover:ring-[#c9a965]/40 transition-all duration-300">
+                      <div className="h-10 w-10 shrink-0 rounded-full bg-[#c9a965] flex items-center justify-center overflow-hidden text-[#0c0c0e] font-bold ring-2 ring-[#c9a965]/20 group-hover:ring-[#c9a965]/40 transition-shadow duration-300">
                         {image ? (
                           <img src={image} alt={name} className="h-full w-full object-cover" />
                         ) : (
@@ -88,13 +89,15 @@ const TestimonialsColumn = (props: {
             </React.Fragment>
           )),
         ]}
-      </motion.ul>
+      </ul>
     </div>
   );
 };
 
 export const TestimonialsSection = () => {
   const [dbTestimonials, setDbTestimonials] = useState<Testimonial[]>([]);
+  const sectionRef = React.useRef<HTMLElement>(null);
+  const inView = useInView(sectionRef, { margin: '100px' });
 
   // Les témoignages viennent des retours des joueurs : la section reste masquée
   // tant que le service « retours » n'existe pas dans la nouvelle stack.
@@ -113,6 +116,7 @@ export const TestimonialsSection = () => {
 
   return (
     <section
+      ref={sectionRef}
       aria-labelledby="testimonials-heading"
       className="bg-transparent py-24 relative overflow-hidden"
     >
@@ -163,12 +167,14 @@ export const TestimonialsSection = () => {
           role="region"
           aria-label="Scrolling Testimonials"
         >
-          <TestimonialsColumn testimonials={firstColumn} duration={15} />
+          <style>{COLUMN_KEYFRAMES}</style>
+          <TestimonialsColumn testimonials={firstColumn} duration={15} playing={inView} />
           {secondColumn.length > 0 && (
             <TestimonialsColumn
               testimonials={secondColumn}
               className="hidden md:block"
               duration={19}
+              playing={inView}
             />
           )}
           {thirdColumn.length > 0 && (
@@ -176,6 +182,7 @@ export const TestimonialsSection = () => {
               testimonials={thirdColumn}
               className="hidden lg:block"
               duration={17}
+              playing={inView}
             />
           )}
         </div>

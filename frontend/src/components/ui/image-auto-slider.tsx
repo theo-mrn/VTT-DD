@@ -1,4 +1,6 @@
+'use client';
 import React from 'react';
+import { useInView } from 'framer-motion';
 import { vignette } from '@/lib/assets';
 
 interface ImageAutoSliderProps {
@@ -21,6 +23,9 @@ const DEFAULT_IMAGES = [
 
 export const ImageAutoSlider = ({ images: customImages, className = '' }: ImageAutoSliderProps) => {
   const images = customImages ?? DEFAULT_IMAGES;
+  // Défilement en pause quand le bandeau n'est pas à l'écran
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const inView = useInView(containerRef, { margin: '100px' });
 
   // Duplicate images for seamless loop
   const duplicatedImages = [...images, ...images];
@@ -39,6 +44,12 @@ export const ImageAutoSlider = ({ images: customImages, className = '' }: ImageA
 
         .infinite-scroll {
           animation: scroll-right 30s linear infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .infinite-scroll {
+            animation: none;
+          }
         }
 
         .scroll-container {
@@ -68,10 +79,13 @@ export const ImageAutoSlider = ({ images: customImages, className = '' }: ImageA
         }
       `}</style>
 
-      <div className={`w-full relative overflow-hidden ${className}`}>
+      <div ref={containerRef} className={`w-full relative overflow-hidden ${className}`}>
         {/* Scrolling images container */}
         <div className="scroll-container w-full">
-          <div className="infinite-scroll flex gap-6 w-max">
+          <div
+            className="infinite-scroll flex gap-6 w-max"
+            style={{ animationPlayState: inView ? 'running' : 'paused' }}
+          >
             {duplicatedImages.map((image, index) => (
               <div
                 key={index}
@@ -82,6 +96,7 @@ export const ImageAutoSlider = ({ images: customImages, className = '' }: ImageA
                   alt={`Portrait ${(index % images.length) + 1}`}
                   className="w-full h-full object-cover"
                   loading="lazy"
+                  decoding="async"
                 />
               </div>
             ))}

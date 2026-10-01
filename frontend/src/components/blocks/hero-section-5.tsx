@@ -15,7 +15,6 @@ import { StartCampaignSection } from '@/components/blocks/start-campaign-section
 import { DiceWidget } from '@/components/blocks/dice-widget';
 import { FrontiereErreur } from '@/components/commun/frontiere-erreur';
 import { CanvaSection } from '@/components/blocks/canva';
-import { TestimonialsSection } from '@/components/ui/testimonial-v2';
 import { ImageAutoSlider } from '@/components/ui/image-auto-slider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
