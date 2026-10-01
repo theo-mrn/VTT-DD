@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  ArrowLeft,
   ChevronDown,
   ChevronUp,
   Eye,
@@ -9,6 +10,7 @@ import {
   RotateCcw,
   Settings2,
 } from 'lucide-react';
+import Link from 'next/link';
 import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -27,7 +29,13 @@ type RailLayout = ReturnType<typeof useRailLayout>;
  * Navigation de la table : rail vertical flottant à gauche (grand écran), dock en bas avec un
  * bouton Carte (mobile). Mêmes panneaux, même ordre personnalisé.
  */
-export const TableRail = memo(function TableRail({ layout }: { layout: RailLayout }) {
+export const TableRail = memo(function TableRail({
+  layout,
+  campaignId,
+}: {
+  layout: RailLayout;
+  campaignId: string;
+}) {
   const visibles = layout.items.filter((i) => !i.hidden);
   return (
     <>
@@ -35,6 +43,8 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
         aria-label="Panneaux de la table"
         className="fixed left-3 top-1/2 z-40 hidden max-h-[calc(100dvh-8rem)] -translate-y-1/2 flex-col items-center gap-1 overflow-y-auto rounded-2xl border border-border-strong bg-popover/95 p-1.5 shadow-elevated lg:flex"
       >
+        <BackToLounge campaignId={campaignId} variante="rail" />
+        <span aria-hidden className="my-1 h-px w-6 bg-border-strong" />
         {visibles.map((i) => (
           <RailButton key={i.panel.id} panel={i.panel} variante="rail" />
         ))}
@@ -47,6 +57,7 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
         className="fixed inset-x-0 bottom-0 z-50 flex h-[var(--table-dock-h)] items-start border-t border-border-strong bg-popover/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 lg:hidden"
       >
         <div className="no-scrollbar flex w-full items-center gap-0.5 overflow-x-auto">
+          <BackToLounge campaignId={campaignId} variante="dock" />
           <DockMap />
           <span aria-hidden className="mx-0.5 h-8 w-px shrink-0 bg-border-strong" />
           {visibles.map((i) => (
@@ -59,6 +70,31 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
     </>
   );
 });
+
+/** Retour au salon de la campagne, en tête du rail (et du dock). */
+function BackToLounge({ campaignId, variante }: { campaignId: string; variante: 'rail' | 'dock' }) {
+  const lien = (
+    <Link
+      href={`/campagnes/${campaignId}`}
+      aria-label="Retour au salon"
+      className={cn(
+        'relative flex shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+        variante === 'rail'
+          ? 'size-11 rounded-xl'
+          : 'h-12 min-w-14 flex-col gap-0.5 rounded-xl px-1 text-[10px] font-medium',
+      )}
+    >
+      <ArrowLeft className="size-5" aria-hidden />
+      {variante === 'dock' && <span>Salon</span>}
+    </Link>
+  );
+  if (variante === 'dock') return lien;
+  return (
+    <Info cote="right" texte="Retour au salon">
+      {lien}
+    </Info>
+  );
+}
 
 function Pastille({ nombre }: { nombre: number }) {
   return (

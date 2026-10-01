@@ -1405,6 +1405,13 @@ mesure se voit chez tous pendant le geste, s'efface ensuite, ou s'épingle en ga
   orienté vers le pointeur (l'ancienne app le gardait droit) ; les mesures éphémères ne
   passent plus par une base (RTDB) mais par le direct.
 
+### Scène affichée (`components/map/scenes/scene-pill.tsx`)
+
+En haut à gauche de la table (emplacement `TABLE_HUD_LEFT`, par portail) : le nom de la scène,
+une couronne si c'est celle du groupe. Pour le MJ, un sélecteur : les scènes (la courante cochée,
+celle du groupe couronnée, les cachées marquées), ouvertes pour lui seul (`openScene`), et
+« Toutes les scènes » (panneau E). « Retour au salon » est en tête du rail (et du dock).
+
 ### Barre du groupe (`components/map/party/party-bar.tsx`)
 
 En haut à droite de la table, à la place de l'ancien bloc « héros / Maître du jeu » : les

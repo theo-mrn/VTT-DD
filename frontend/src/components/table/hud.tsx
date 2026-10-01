@@ -1,54 +1,18 @@
 'use client';
 
 import type { CombatState } from '@vtt/contracts';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useMemo } from 'react';
-import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { GmCombatBar } from '@/components/combat/bar/gm-combat-bar';
-import { HUD_BAR, HUD_CONTROL } from '@/components/combat/live-reports/look';
 import { LiveReports } from '@/components/combat/live-reports/live-reports';
 import { useLiveReports } from '@/components/combat/live-reports/use-live-reports';
 import { ReactionPrompts } from '@/components/combat/player/reaction-prompt';
-import { Illustration } from '@/components/commun/illustration';
-import { Button } from '@/components/ui/button';
-import { Info } from '@/components/ui/tooltip';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { useCombat } from '@/lib/combat/use-combat';
 import type { DetailCampagne } from '@/lib/campagnes';
 import { cn } from '@/lib/utils';
 import type { Table } from './contexte';
 import { useHudPrefs, useHudPrefsHydration } from './hud-prefs';
-
-/** En haut à gauche : retour au salon, campagne et système. */
-export const HudCampaign = memo(function HudCampaign({ table }: { table: Table }) {
-  const c = table.campagne;
-  const nomSysteme = useNomSysteme(c.system);
-  return (
-    <div className={cn(HUD_BAR, 'min-w-0 max-w-[min(22rem,calc(100vw-8rem))] pr-3')}>
-      <Info texte="Retour au salon" cote="bottom">
-        <Button variant="ghost" size="icon-sm" asChild className={cn(HUD_CONTROL, 'shrink-0')}>
-          <Link href={`/campagnes/${c.id}`} aria-label="Retour au salon">
-            <ArrowLeft />
-          </Link>
-        </Button>
-      </Info>
-      <Illustration
-        largeur={40}
-        src={c.coverUrl}
-        graine={c.name}
-        className={cn(HUD_CONTROL, 'hidden shrink-0 ring-1 ring-border sm:block')}
-      />
-      <span className="ml-1.5 min-w-0">
-        <span className="block truncate font-display text-sm font-semibold leading-tight">
-          {c.name}
-        </span>
-        <span className="block truncate text-[11px] text-subtle">{nomSysteme}</span>
-      </span>
-    </div>
-  );
-});
 
 /**
  * Au centre : la barre de combat du MJ (docs/combat.md § 12.6), en combat comme hors combat, et
