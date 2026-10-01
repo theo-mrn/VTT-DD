@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
@@ -224,6 +224,26 @@ export function FichePersonnage({
   );
 }
 
+/** Délai de l'animation de fermeture d'un dialogue, avant de le démonter. */
+const FERMETURE_DIALOGUE_MS = 300;
+
+/**
+ * Dialogue monté à son ouverture et démonté après sa fermeture animée : fermé, il ne
+ * recalcule rien à chaque écriture sur la fiche.
+ */
+function MonteSiOuvert({ open, children }: { open: boolean; children: ReactNode }) {
+  const [garde, setGarde] = useState(open);
+  useEffect(() => {
+    if (open) {
+      setGarde(true);
+      return;
+    }
+    const t = setTimeout(() => setGarde(false), FERMETURE_DIALOGUE_MS);
+    return () => clearTimeout(t);
+  }, [open]);
+  return open || garde ? children : null;
+}
+
 function EnTeteFiche({
   personnage: p,
   ctx,
@@ -250,9 +270,12 @@ function EnTeteFiche({
   const [progression, setProgression] = useState<string | null>(null);
   // Progression (passage de niveau) et valeurs : à qui peut écrire sur la fiche (joueur
   // qui l'incarne, MJ), comme toutes les écritures (`ctx.operations`)
-  const progressions = ctx?.operations ? actionsProgression(ctx) : [];
+  const progressions = useMemo(() => (ctx?.operations ? actionsProgression(ctx) : []), [ctx]);
   const peutValeurs = Boolean(ctx?.operations);
-  const details = ctx ? widgetsDe(ctx).find((w) => w.type === 'details') : undefined;
+  const details = useMemo(
+    () => (ctx ? widgetsDe(ctx).find((w) => w.type === 'details') : undefined),
+    [ctx],
+  );
 
   return (
     <section className="relative isolate overflow-hidden" data-ambiance={campagne.data?.ambiance}>
@@ -340,21 +363,24 @@ function EnTeteFiche({
       </div>
       {ctx &&
         progressions.map((a) => (
-          <ProgressionDialog
-            key={a.id}
-            ctx={ctx}
-            action={a}
-            open={progression === a.id}
-            onOpenChange={(o) => setProgression(o ? a.id : null)}
-          />
+          <MonteSiOuvert key={a.id} open={progression === a.id}>
+            <ProgressionDialog
+              ctx={ctx}
+              action={a}
+              open={progression === a.id}
+              onOpenChange={(o) => setProgression(o ? a.id : null)}
+            />
+          </MonteSiOuvert>
         ))}
       {ctx && peutValeurs && (
-        <ValuesDialog
-          ctx={ctx}
-          proprietaire={peutModifier}
-          open={valeurs}
-          onOpenChange={setValeurs}
-        />
+        <MonteSiOuvert open={valeurs}>
+          <ValuesDialog
+            ctx={ctx}
+            proprietaire={peutModifier}
+            open={valeurs}
+            onOpenChange={setValeurs}
+          />
+        </MonteSiOuvert>
       )}
       {peutModifier && <EditionIdentite personnage={p} ouvert={edition} onOuvert={setEdition} />}
       {proprietaire && (

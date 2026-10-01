@@ -67,6 +67,15 @@ const DELAI_ENREGISTREMENT = 700;
 
 type Statut = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
 
+/** Rappels d'un bloc, liés à son id. */
+interface RappelsBloc {
+  onMeasure: (px: number) => void;
+  onHeightModeChange: (mode: HeightMode) => void;
+  onArrangementChange: (arrangement: TileArrangement | undefined) => void;
+  onWidgetChange: (widget: Widget) => void;
+  onRemove: () => void;
+}
+
 /** Compactage vertical : chaque bloc remonte au plus haut sans chevaucher ceux placés avant. */
 function compact(items: SheetLayoutItem[]): SheetLayoutItem[] {
   const places: SheetLayoutItem[] = [];
@@ -166,26 +175,55 @@ export function SheetGrid({
   useEffect(() => {
     const el = conteneur.current;
     if (!el) return;
-    const obs = new ResizeObserver(([e]) => setLargeur(Math.floor(e!.contentRect.width)));
+    // Une mesure par image au plus : un panneau qui s'ouvre redimensionne à chaque pixel
+    let image = 0;
+    let derniere = 0;
+    const obs = new ResizeObserver(([e]) => {
+      derniere = Math.floor(e!.contentRect.width);
+      if (image) return;
+      image = requestAnimationFrame(() => {
+        image = 0;
+        setLargeur(derniere);
+      });
+    });
     obs.observe(el);
     setLargeur(Math.floor(el.getBoundingClientRect().width));
-    return () => obs.disconnect();
+    return () => {
+      obs.disconnect();
+      cancelAnimationFrame(image);
+    };
   }, []);
   const bp = breakpointFor(largeur);
 
   // ─── Mise en page : enregistrée, ou brouillon pendant la personnalisation ──
-  const sizeOf = useMemo(() => sizeFor(ctx), [ctx]);
+  // Une écriture sur la fiche change `ctx` : la mise en page n'est recalculée que si elle
+  // change, ou ses règles. Les tailles estimées lisent la fiche du moment (blocs ajoutés,
+  // positions à compléter) ; affichés, les blocs en hauteur automatique sont mesurés.
+  const ctxRef = useRef(ctx);
+  ctxRef.current = ctx;
+  const sizeOf = useMemo<ReturnType<typeof sizeFor>>(
+    () => (block, cle, px) => sizeFor(ctxRef.current)(block, cle, px),
+    [],
+  );
+  const { systeme } = ctx;
+  const type = ctx.fiche.etat.type;
+  // Disposition par défaut (sans mise en page enregistrée) : gardée tant que ses blocs ne
+  // changent pas (ceux déduits de la fiche suivent les sortes possédées)
+  const defautsCalcules = useMemo(() => (layout ? null : defaultWidgets(ctx)), [layout, ctx]);
+  const cleDefauts = defautsCalcules ? JSON.stringify(defautsCalcules) : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const defauts = useMemo(() => defautsCalcules ?? [], [cleDefauts]);
   const serveur = useMemo(
     () =>
       stateFrom(
         layout,
-        () => defaultWidgets(ctx).map((w, i) => gridBlock(`p${i + 1}`, w)),
+        () => defauts.map((w, i) => gridBlock(`p${i + 1}`, w)),
         sizeOf,
         minSizeOf,
         // Bloc enregistré qui vise un attribut ou une sorte retirés des règles : indisponible
-        (w) => erreursWidget(ctx.systeme, ctx.fiche.etat.type, w).length === 0,
+        (w) => erreursWidget(systeme, type, w).length === 0,
       ),
-    [layout, ctx, sizeOf],
+    [layout, defauts, systeme, type, sizeOf],
   );
   const [brouillon, setBrouillon] = useState<GridState | null>(null);
   const etat = editing && brouillon ? brouillon : serveur;
@@ -260,11 +298,17 @@ export function SheetGrid({
   }, [envoyer, onEditingChange]);
 
   // ─── Blocs affichés ────────────────────────────────────────────────────────
-  const vides = useMemo(
+  // Blocs vides : relus à chaque écriture, mais l'ensemble garde son identité tant qu'il ne
+  // change pas (la grille ne se recompose pas pour rien)
+  const idsVides = useMemo(
     () =>
-      new Set(etat.blocks.filter((b) => b.widget && isBlockEmpty(ctx, b.widget)).map((b) => b.id)),
+      etat.blocks
+        .filter((b) => b.widget && isBlockEmpty(ctx, b.widget))
+        .map((b) => b.id)
+        .join('\n'),
     [etat.blocks, ctx],
   );
+  const vides = useMemo(() => new Set(idsVides ? idsVides.split('\n') : []), [idsVides]);
   const visibles = useMemo(
     () => (editing ? etat.blocks : etat.blocks.filter((b) => b.widget && !vides.has(b.id))),
     [editing, etat.blocks, vides],
@@ -483,6 +527,26 @@ export function SheetGrid({
     [brouillon, bp, retirer, appliquerPositions, modes, layouts],
   );
 
+  // Rappels de chaque bloc, stables d'un rendu à l'autre (le cadre est mémoïsé) : ils
+  // appellent la dernière version des actions
+  const actions = useRef({ mesurer, changerHauteur, changerDisposition, changerWidget, retirer });
+  actions.current = { mesurer, changerHauteur, changerDisposition, changerWidget, retirer };
+  const rappels = useRef(new Map<string, RappelsBloc>());
+  const rappelsDe = (id: string): RappelsBloc => {
+    let r = rappels.current.get(id);
+    if (!r) {
+      r = {
+        onMeasure: (px) => actions.current.mesurer(id, px),
+        onHeightModeChange: (m) => actions.current.changerHauteur(id, m),
+        onArrangementChange: (a) => actions.current.changerDisposition(id, a),
+        onWidgetChange: (w) => actions.current.changerWidget(id, w),
+        onRemove: () => actions.current.retirer(id),
+      };
+      rappels.current.set(id, r);
+    }
+    return r;
+  };
+
   const [selecteur, setSelecteur] = useState(false);
   const presents = useMemo(
     () => etat.blocks.map((b) => b.widget).filter((w): w is Widget => w !== null),
@@ -581,11 +645,7 @@ export function SheetGrid({
                     editing={editing}
                     empty={vides.has(b.id)}
                     heightMode={modes.get(b.id) ?? 'auto'}
-                    onMeasure={(px) => mesurer(b.id, px)}
-                    onHeightModeChange={(m) => changerHauteur(b.id, m)}
-                    onArrangementChange={(a) => changerDisposition(b.id, a)}
-                    onWidgetChange={(w) => changerWidget(b.id, w)}
-                    onRemove={() => retirer(b.id)}
+                    {...rappelsDe(b.id)}
                   />
                 </div>
               );

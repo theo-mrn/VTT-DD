@@ -9,6 +9,7 @@ import type { Widget } from '@vtt/rules';
 import { GripVertical, RotateCw, TriangleAlert, X } from 'lucide-react';
 import {
   Component,
+  memo,
   Suspense,
   useEffect,
   useLayoutEffect,
@@ -186,7 +187,11 @@ function HeightSwitch({
   );
 }
 
-export function BlockFrame({
+/**
+ * Cadre d'un bloc, mémoïsé : une mesure, une annonce ou l'enregistrement de la grille ne le
+ * re-rendent pas ; une écriture sur la fiche (nouveau `ctx`), si.
+ */
+export const BlockFrame = memo(function BlockFrame({
   block,
   ctx,
   editing,
@@ -337,4 +342,4 @@ export function BlockFrame({
       </div>
     </div>
   );
-}
+});
