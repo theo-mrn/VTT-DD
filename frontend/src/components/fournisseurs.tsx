@@ -1,6 +1,8 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MotionConfig as LegacyMotionConfig } from 'framer-motion';
+import { MotionConfig } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -18,10 +20,16 @@ export function Fournisseurs({ children }: { children: ReactNode }) {
       }),
   );
 
+  // Mouvement réduit du système respecté partout : motion/react et framer-motion 11 sont deux
+  // paquets distincts (deux contextes), chacun reçoit sa configuration
   return (
     <QueryClientProvider client={client}>
       <SessionProvider>
-        <TooltipProvider delayDuration={250}>{children}</TooltipProvider>
+        <MotionConfig reducedMotion="user">
+          <LegacyMotionConfig reducedMotion="user">
+            <TooltipProvider delayDuration={250}>{children}</TooltipProvider>
+          </LegacyMotionConfig>
+        </MotionConfig>
       </SessionProvider>
       <Toaster
         theme="dark"
