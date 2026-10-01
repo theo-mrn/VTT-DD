@@ -1,7 +1,7 @@
-import React, { createElement, useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { createElement, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import type { Die3DSymbol } from '@/lib/dice-throw';
+import type { FadingLabel, FadingLabels } from './face-number';
 
 // Symbols of one face of a symbol die (Star Wars…), drawn like the face numbers
 // of <FaceNumber>: same place, same size, same fade toward faces pointing away.
@@ -132,27 +132,26 @@ const symbolTexture = (symbols: Die3DSymbol[], fill: string, outline: string) =>
 
 export const FaceSymbol = ({
   face,
+  index,
+  labels,
   symbols,
   scale,
   color,
   outlineColor,
   radius = 1.01,
   maxOpacity = 1,
-  stopped = false,
 }: {
   face: { pos: THREE.Vector3; norm: THREE.Vector3 };
+  /** Index de la face, clé de l'étiquette dans `labels`. */
+  index: number;
+  labels?: FadingLabels;
   symbols: Die3DSymbol[];
   scale: number;
   color: string;
   outlineColor: string;
   radius?: number;
   maxOpacity?: number;
-  stopped?: boolean;
 }) => {
-  const groupRef = useRef<THREE.Group>(null);
-  const _wn = useRef(new THREE.Vector3());
-  const _up = useRef(new THREE.Vector3(0, 1, 0));
-  const hasFinalizedRef = useRef(false);
   const [texture, setTexture] = useState<THREE.CanvasTexture | null>(null);
 
   useEffect(() => {
@@ -185,21 +184,25 @@ export const FaceSymbol = ({
   );
   const pos = useMemo(() => face.pos.clone().multiplyScalar(radius), [face.pos, radius]);
 
-  // Same fade as <FaceNumber>: readable on top, gone on faces pointing away.
-  useFrame(() => {
-    if (stopped && hasFinalizedRef.current) return;
-    const g = groupRef.current;
-    if (!g) return;
-    const wn = _wn.current.copy(face.norm);
-    if (g.parent) wn.transformDirection(g.parent.matrixWorld);
-    const o = THREE.MathUtils.clamp((_up.current.dot(wn) - 0.1) / 0.8, 0, 1);
-    material.opacity = o * maxOpacity;
-    if (stopped) hasFinalizedRef.current = true;
-  });
+  // Same fade as <FaceNumber>: readable on top, gone on faces pointing away
+  // (driven by the die's single <FaceFadeDriver>).
+  useEffect(() => {
+    if (!labels) return;
+    const label: FadingLabel = {
+      norm: face.norm,
+      setOpacity: (o) => {
+        material.opacity = o * maxOpacity;
+      },
+    };
+    labels.set(index, label);
+    return () => {
+      if (labels.get(index) === label) labels.delete(index);
+    };
+  }, [labels, index, face.norm, material, maxOpacity]);
 
   if (!texture) return null;
   return (
-    <group ref={groupRef} position={pos} quaternion={quat} renderOrder={1}>
+    <group position={pos} quaternion={quat} renderOrder={1}>
       <mesh geometry={plane(scale * 1.6)} material={material} renderOrder={1} />
     </group>
   );

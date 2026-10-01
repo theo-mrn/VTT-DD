@@ -4,18 +4,52 @@ import * as THREE from 'three';
 import { CriticalType } from '../dice-definitions';
 
 const CRIT_PARTICLE_COUNT = 60;
+/** Taille de départ des particules, réduite jusqu'à 0 au fil de l'effet. */
+const CRIT_PARTICLE_SIZE = 0.4;
+/** Lueur émissive ajoutée au dé au début de l'effet (puis éteinte). */
+const CRIT_FLASH = { success: 0.9, fail: 0.6 };
+
+type Emissive = THREE.Material & { emissive: THREE.Color; emissiveIntensity: number };
+const hasEmissive = (m: THREE.Material): m is Emissive =>
+  (m as Partial<Emissive>).emissive instanceof THREE.Color;
+
+/**
+ * Matériaux émissifs des maillages de `root` (corps, halo, coque d'orbe), avec
+ * leur émissif d'origine pour le rendre à la fin. Les chiffres (matériaux de
+ * base, sans émissif) ne sont pas touchés.
+ */
+const collectEmissive = (root: THREE.Object3D) => {
+  const found: { mat: Emissive; color: THREE.Color; intensity: number }[] = [];
+  root.traverse((o) => {
+    const mats = (o as THREE.Mesh).isMesh ? (o as THREE.Mesh).material : null;
+    for (const m of Array.isArray(mats) ? mats : mats ? [mats] : []) {
+      if (hasEmissive(m) && !found.some((f) => f.mat === m))
+        found.push({ mat: m, color: m.emissive.clone(), intensity: m.emissiveIntensity });
+    }
+  });
+  return found;
+};
 
 export const CriticalEffect = ({
   type,
   onComplete,
+  flashTarget,
 }: {
   type: CriticalType;
   onComplete: () => void;
+  /**
+   * Maillages du dé qui s'illuminent pendant l'effet. Auparavant une lumière
+   * ponctuelle au centre du dé : sa venue changeait le nombre de lumières de
+   * la scène, donc recompilait tous les programmes au pire moment. La lueur
+   * passe par l'émissif des matériaux, sans aucune recompilation.
+   */
+  flashTarget?: React.RefObject<THREE.Object3D | null>;
 }) => {
   const pointsRef = useRef<THREE.Points>(null);
-  const lightRef = useRef<THREE.PointLight>(null);
   const progressRef = useRef(0);
   const completedRef = useRef(false);
+  const flashRef = useRef<ReturnType<typeof collectEmissive> | null>(null);
+  const _flash = useRef(new THREE.Color());
 
   const isSuccess = type === 'success';
   const primaryColor = isSuccess ? '#ffd700' : '#ff2200';
@@ -24,7 +58,6 @@ export const CriticalEffect = ({
   const { geometry, material } = useMemo(() => {
     const positions = new Float32Array(CRIT_PARTICLE_COUNT * 3);
     const colors = new Float32Array(CRIT_PARTICLE_COUNT * 3);
-    const sizes = new Float32Array(CRIT_PARTICLE_COUNT);
 
     const color1 = new THREE.Color(primaryColor);
     const color2 = new THREE.Color(secondaryColor);
@@ -41,17 +74,16 @@ export const CriticalEffect = ({
       colors[i3] = c.r;
       colors[i3 + 1] = c.g;
       colors[i3 + 2] = c.b;
-
-      sizes[i] = 0.2 + Math.random() * 0.3;
     }
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
+    // PointsMaterial n'a qu'une taille pour tous les points (pas d'attribut
+    // `size` par point) : c'est elle qui est animée.
     const mat = new THREE.PointsMaterial({
-      size: 0.4,
+      size: CRIT_PARTICLE_SIZE,
       vertexColors: true,
       transparent: true,
       opacity: 1,
@@ -89,24 +121,34 @@ export const CriticalEffect = ({
     velocitiesRef.current = velocities;
   }, [isSuccess]);
 
+  // L'émissif d'origine est toujours rendu, même si le dé disparaît en cours d'effet.
+  const restoreFlash = () => {
+    for (const f of flashRef.current ?? []) {
+      f.mat.emissive.copy(f.color);
+      f.mat.emissiveIntensity = f.intensity;
+    }
+    flashRef.current = [];
+  };
+  useEffect(() => () => restoreFlash(), []);
+
   useFrame((_, delta) => {
-    if (!pointsRef.current || !velocitiesRef.current) return;
+    if (completedRef.current || !pointsRef.current || !velocitiesRef.current) return;
 
     progressRef.current += delta;
     const progress = progressRef.current;
     const duration = isSuccess ? 1.5 : 1.2;
 
-    if (progress >= duration && !completedRef.current) {
+    if (progress >= duration) {
       completedRef.current = true;
+      restoreFlash();
       onComplete();
       return;
     }
 
     const posAttr = pointsRef.current.geometry.attributes.position;
-    const sizeAttr = pointsRef.current.geometry.attributes.size;
     const positions = posAttr.array as Float32Array;
-    const sizes = sizeAttr.array as Float32Array;
     const velocities = velocitiesRef.current;
+    const fade = 1 - progress / duration;
 
     // Animate particles
     for (let i = 0; i < CRIT_PARTICLE_COUNT; i++) {
@@ -124,38 +166,73 @@ export const CriticalEffect = ({
         velocities[i3] *= 0.97;
         velocities[i3 + 2] *= 0.97;
       }
-
-      // Fade out size
-      const fadeProgress = progress / duration;
-      sizes[i] = (0.3 + Math.random() * 0.2) * (1 - fadeProgress);
     }
 
     posAttr.needsUpdate = true;
-    sizeAttr.needsUpdate = true;
 
-    // Animate light
-    if (lightRef.current) {
-      const fadeProgress = progress / duration;
-      lightRef.current.intensity = (isSuccess ? 5 : 3) * (1 - fadeProgress);
+    // Particles shrink and fade out together
+    material.size = CRIT_PARTICLE_SIZE * fade;
+    material.opacity = fade;
+
+    // Lueur du dé : l'émissif d'origine plus la couleur du critique, qui
+    // s'éteint avec l'effet (simples uniformes, aucun programme recompilé).
+    if (!flashRef.current && flashTarget?.current)
+      flashRef.current = collectEmissive(flashTarget.current);
+    const glow = _flash.current
+      .set(primaryColor)
+      .multiplyScalar((isSuccess ? CRIT_FLASH.success : CRIT_FLASH.fail) * fade);
+    for (const f of flashRef.current ?? []) {
+      f.mat.emissive.copy(f.color).multiplyScalar(f.intensity).add(glow);
+      f.mat.emissiveIntensity = 1;
     }
-
-    // Fade material opacity
-    material.opacity = 1 - progress / duration;
   });
 
   if (!type) return null;
 
+  return <points ref={pointsRef} geometry={geometry} material={material} />;
+};
+
+/**
+ * Programmes des effets critiques (particules, éclats), à compiler pendant le
+ * préchauffage plutôt qu'au moment du 20 ou du 1 : mêmes réglages de
+ * matériaux, géométries minuscules, jamais visibles (hors champ).
+ */
+const warmPoints = () => {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3), 3));
+  return geo;
+};
+export const CriticalWarmup = () => {
+  const { geometry, points, fragment, fragmentGeometry } = useMemo(
+    () => ({
+      geometry: warmPoints(),
+      points: new THREE.PointsMaterial({
+        size: CRIT_PARTICLE_SIZE,
+        vertexColors: true,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        sizeAttenuation: true,
+      }),
+      fragment: new THREE.MeshStandardMaterial({ metalness: 0.8, roughness: 0.2 }),
+      fragmentGeometry: new THREE.TetrahedronGeometry(0.3, 0),
+    }),
+    [],
+  );
+  useEffect(
+    () => () => {
+      geometry.dispose();
+      points.dispose();
+      fragment.dispose();
+      fragmentGeometry.dispose();
+    },
+    [geometry, points, fragment, fragmentGeometry],
+  );
   return (
     <group>
-      <points ref={pointsRef} geometry={geometry} material={material} />
-      <pointLight
-        ref={lightRef}
-        position={[0, 0, 0]}
-        color={primaryColor}
-        intensity={isSuccess ? 5 : 3}
-        distance={20}
-        decay={2}
-      />
+      <points geometry={geometry} material={points} />
+      <mesh geometry={fragmentGeometry} material={fragment} />
     </group>
   );
 };
@@ -173,6 +250,9 @@ interface FragmentData {
   rotationSpeed: THREE.Vector3;
   scale: number;
 }
+
+/** Rotation résiduelle (rad/s) sous laquelle un éclat posé est considéré immobile. */
+const FRAGMENT_REST_SPIN = 0.3;
 
 export const ShatteredDie = ({ color, onComplete }: { color: string; onComplete: () => void }) => {
   const groupRef = useRef<THREE.Group>(null);
@@ -226,9 +306,11 @@ export const ShatteredDie = ({ color, onComplete }: { color: string; onComplete:
   useEffect(() => () => fragments.forEach((g) => g.dispose()), [fragments]);
 
   useFrame((_, delta) => {
-    if (!groupRef.current) return;
+    // Tous les éclats posés et immobiles : plus rien à animer
+    if (completedRef.current || !groupRef.current) return;
 
     progressRef.current += delta;
+    let resting = true;
 
     // Update each fragment
     groupRef.current.children.forEach((child, i) => {
@@ -255,18 +337,26 @@ export const ShatteredDie = ({ color, onComplete }: { color: string; onComplete:
         data.position.y = floorY;
         data.velocity.set(0, 0, 0);
 
-        // Slow down rotation when grounded
-        data.rotationSpeed.multiplyScalar(0.95);
+        // Slow down rotation when grounded (×0.95 per 60 Hz frame, whatever
+        // the actual frame rate)
+        data.rotationSpeed.multiplyScalar(Math.pow(0.95, delta * 60));
         data.rotation.x += data.rotationSpeed.x * delta;
         data.rotation.y += data.rotationSpeed.y * delta;
         data.rotation.z += data.rotationSpeed.z * delta;
       }
+
+      if (!isGrounded || data.rotationSpeed.lengthSq() > FRAGMENT_REST_SPIN ** 2) resting = false;
 
       // Apply to mesh (no fading, stay visible)
       child.position.copy(data.position);
       child.rotation.copy(data.rotation);
       child.scale.setScalar(data.scale);
     });
+
+    if (resting) {
+      completedRef.current = true;
+      onComplete();
+    }
   });
 
   return (

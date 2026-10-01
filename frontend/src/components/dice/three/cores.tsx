@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -137,8 +137,10 @@ export const GlowCore = ({ skin }: { skin: DiceSkin }) => {
           depthWrite={false}
         />
       </mesh>
-      {/* Light cast into the surrounding glass so the orb feels lit from within */}
-      <pointLight color={color} intensity={1.0} distance={4} decay={2} />
+      {/* Plus de lumière ponctuelle ici : placée au centre de l'orbe, elle
+                n'éclairait rien du dé lui-même (coque de face vers l'extérieur,
+                cœur non éclairé) mais changeait le nombre de lumières de la
+                scène, donc recompilait tous les programmes au lancer. */}
     </group>
   );
 };
@@ -267,18 +269,103 @@ export const EyeCore = ({ skin }: { skin: DiceSkin }) => {
 
   return (
     <group>
+      {/* Pas de lumière ponctuelle (voir GlowCore) */}
       <mesh renderOrder={0} geometry={EYE_DISC} material={material} />
-      <pointLight color={skin.coreColor || '#1fa2ff'} intensity={0.8} distance={4} decay={2} />
     </group>
+  );
+};
+
+// ── Éclairage des cœurs « modèle » ───────────────────────────────────────
+// Chaque cœur modèle apportait ses propres lumières (ambiante, deux
+// directionnelles, une ponctuelle) : à son arrivée, le nombre de lumières de la
+// scène changeait et TOUS les programmes étaient recompilés d'un coup, au
+// lancer. Dans le lanceur, ces lumières forment un banc fixe, toujours monté
+// (intensité nulle sans cœur modèle à l'écran) : le nombre de lumières ne
+// change plus jamais. Le banc suit le premier cœur modèle affiché, avec les
+// mêmes positions relatives qu'avant ; comme avant, il éclaire toute la scène.
+
+/** Lumières d'un cœur modèle, dans le repère du cœur (tourné vers la caméra). */
+const MODEL_LIGHTS = {
+  ambient: 1.4,
+  key: { position: new THREE.Vector3(2, 3, 4), intensity: 2.5 },
+  fill: { position: new THREE.Vector3(-3, 1, 2), intensity: 1.5 },
+  point: { position: new THREE.Vector3(0, 0, 2), intensity: 2, distance: 6, decay: 2 },
+};
+
+interface ModelCoreLight {
+  /** Groupe du cœur, dont la matrice monde place les lumières. */
+  anchor: THREE.Object3D;
+  color: string;
+}
+const ModelCoreLightsContext = createContext<{
+  register(core: ModelCoreLight): () => void;
+} | null>(null);
+
+/** Banc de lumières fixe des cœurs modèle, à monter une fois par canevas. */
+export const ModelCoreLights = ({ children }: { children: React.ReactNode }) => {
+  const cores = useMemo(() => new Set<ModelCoreLight>(), []);
+  const [first, setFirst] = useState<ModelCoreLight | null>(null);
+  const keyRef = useRef<THREE.DirectionalLight>(null);
+  const fillRef = useRef<THREE.DirectionalLight>(null);
+  const pointRef = useRef<THREE.PointLight>(null);
+  const api = useMemo(
+    () => ({
+      register(core: ModelCoreLight) {
+        cores.add(core);
+        setFirst(cores.values().next().value ?? null);
+        return () => {
+          cores.delete(core);
+          setFirst(cores.values().next().value ?? null);
+        };
+      },
+    }),
+    [cores],
+  );
+
+  useFrame(() => {
+    if (!first) return;
+    const m = first.anchor.matrixWorld;
+    keyRef.current?.position.copy(MODEL_LIGHTS.key.position).applyMatrix4(m);
+    fillRef.current?.position.copy(MODEL_LIGHTS.fill.position).applyMatrix4(m);
+    pointRef.current?.position.copy(MODEL_LIGHTS.point.position).applyMatrix4(m);
+  });
+
+  const on = first ? 1 : 0;
+  return (
+    <ModelCoreLightsContext.Provider value={api}>
+      <ambientLight intensity={MODEL_LIGHTS.ambient * on} />
+      <directionalLight ref={keyRef} intensity={MODEL_LIGHTS.key.intensity * on} />
+      <directionalLight
+        ref={fillRef}
+        intensity={MODEL_LIGHTS.fill.intensity * on}
+        color={first?.color ?? '#ffffff'}
+      />
+      <pointLight
+        ref={pointRef}
+        color={'#ffffff'}
+        intensity={MODEL_LIGHTS.point.intensity * on}
+        distance={MODEL_LIGHTS.point.distance}
+        decay={MODEL_LIGHTS.point.decay}
+      />
+      {children}
+    </ModelCoreLightsContext.Provider>
   );
 };
 
 // Loaded .glb/.gltf core. Auto-centers and scales the model to fit inside the
 // orb, with a gentle idle spin/bob so it feels alive. Lit from within.
 const ModelCore = ({ skin, url }: { skin: DiceSkin; url: string }) => {
+  const rootRef = useRef<THREE.Group>(null);
   const bobRef = useRef<THREE.Group>(null);
   const spinRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF(url);
+  // Banc de lumières partagé (lanceur) ; sans lui (aperçu), lumières propres.
+  const sharedLights = useContext(ModelCoreLightsContext);
+  const coreColor = skin.coreColor || '#ffffff';
+  useEffect(() => {
+    if (!sharedLights || !rootRef.current) return;
+    return sharedLights.register({ anchor: rootRef.current, color: coreColor });
+  }, [sharedLights, coreColor]);
 
   // Clone, recenter on origin, and normalize to a target diameter (~1.3 units).
   const normalized = useMemo(() => {
@@ -308,7 +395,7 @@ const ModelCore = ({ skin, url }: { skin: DiceSkin; url: string }) => {
   const rot = skin.coreRotation ?? [0, 0, 0];
 
   return (
-    <group>
+    <group ref={rootRef}>
       {/* outer = presentation tilt + bob ; inner = idle spin */}
       <group ref={bobRef} rotation={rot as [number, number, number]}>
         <group ref={spinRef}>
@@ -316,11 +403,29 @@ const ModelCore = ({ skin, url }: { skin: DiceSkin; url: string }) => {
         </group>
       </group>
       {/* Dedicated rig so the model is always well-lit inside the glass,
-                regardless of where the die rolls. */}
-      <ambientLight intensity={1.4} />
-      <directionalLight position={[2, 3, 4]} intensity={2.5} />
-      <directionalLight position={[-3, 1, 2]} intensity={1.5} color={skin.coreColor || '#ffffff'} />
-      <pointLight position={[0, 0, 2]} color={'#ffffff'} intensity={2} distance={6} decay={2} />
+                regardless of where the die rolls (shared fixed rig in the
+                thrower, see ModelCoreLights). */}
+      {!sharedLights && (
+        <>
+          <ambientLight intensity={MODEL_LIGHTS.ambient} />
+          <directionalLight
+            position={MODEL_LIGHTS.key.position}
+            intensity={MODEL_LIGHTS.key.intensity}
+          />
+          <directionalLight
+            position={MODEL_LIGHTS.fill.position}
+            intensity={MODEL_LIGHTS.fill.intensity}
+            color={coreColor}
+          />
+          <pointLight
+            position={MODEL_LIGHTS.point.position}
+            color={'#ffffff'}
+            intensity={MODEL_LIGHTS.point.intensity}
+            distance={MODEL_LIGHTS.point.distance}
+            decay={MODEL_LIGHTS.point.decay}
+          />
+        </>
+      )}
     </group>
   );
 };

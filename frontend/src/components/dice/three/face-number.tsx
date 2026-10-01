@@ -1,13 +1,69 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text, Line } from '@react-three/drei';
 import * as THREE from 'three';
 
-// A single face number that fades based on whether its face points up toward
-// the (top-down) camera: top faces stay readable, bottom/side faces fade out so
-// the focus stays on the visible result. Used by every die type.
+/**
+ * Chiffre ou symbole d'une face dont l'opacité suit l'orientation du dé :
+ * lisible sur le dessus, effacé sur les faces tournées vers la table.
+ */
+export interface FadingLabel {
+  /** Normale de la face, dans le repère du dé. */
+  norm: THREE.Vector3;
+  /** Opacité de 0 à 1 (le plafond propre au dé est appliqué par l'étiquette). */
+  setOpacity(o: number): void;
+}
+/** Étiquettes d'un dé, par index de face, animées par une seule boucle. */
+export type FadingLabels = Map<number, FadingLabel>;
+
+/**
+ * Une seule boucle par dé pour les opacités de toutes ses faces (auparavant un
+ * `useFrame` par face : 20 par d20). Elle lit l'orientation du dé dans la
+ * matrice monde de `root` (mise à jour par le dernier rendu). Une fois le dé
+ * arrêté, un dernier calcul fige les opacités et `onFrozen` démonte la boucle :
+ * plus aucun travail par image.
+ */
+export const FaceFadeDriver = ({
+  labels,
+  root,
+  stopped,
+  onFrozen,
+}: {
+  labels: FadingLabels;
+  root: React.RefObject<THREE.Object3D | null>;
+  stopped: boolean;
+  onFrozen: () => void;
+}) => {
+  const _wn = useRef(new THREE.Vector3());
+  const frozenRef = useRef(false);
+  useFrame(() => {
+    if (frozenRef.current) return;
+    const r = root.current;
+    if (r && labels.size) {
+      for (const label of labels.values()) {
+        // dot with world up = y of the world normal: 1 = facing the camera
+        // (top), <= 0 = bottom/side. Map [0.1 .. 0.9] of upward-ness to [0 .. 1].
+        const up = _wn.current.copy(label.norm).transformDirection(r.matrixWorld).y;
+        label.setOpacity(THREE.MathUtils.clamp((up - 0.1) / 0.8, 0, 1));
+      }
+    }
+    if (stopped) {
+      frozenRef.current = true;
+      onFrozen();
+    }
+  });
+  return null;
+};
+
+// A single face number. Its fade (see <FaceFadeDriver>) only applies without
+// an outline: with one, troika draws the text with TWO materials (outline +
+// text, `material` is then an array) and the old per-face fade, which wrote
+// the opacity on that array, never had any effect — outlined numbers have
+// always stayed fully opaque. They are kept that way, and not registered.
 export const FaceNumber = ({
   face,
+  index,
+  labels,
   value,
   scale,
   color,
@@ -15,9 +71,11 @@ export const FaceNumber = ({
   radius = 1.01,
   maxOpacity = 1,
   outlineWidth = 0.06,
-  stopped = false,
 }: {
   face: { pos: THREE.Vector3; norm: THREE.Vector3 };
+  /** Index de la face, clé de l'étiquette dans `labels`. */
+  index: number;
+  labels?: FadingLabels;
   value: string;
   scale: number;
   color: string;
@@ -25,58 +83,32 @@ export const FaceNumber = ({
   radius?: number;
   maxOpacity?: number;
   outlineWidth?: number;
-  stopped?: boolean;
 }) => {
-  const groupRef = useRef<THREE.Group>(null);
   const textRef = useRef<any>(null);
-  const _wn = useRef(new THREE.Vector3());
-  const _up = useRef(new THREE.Vector3(0, 1, 0));
-  // Une fois le dé arrêté, son orientation ne change plus : on fait un dernier calcul
-  // pour figer l'opacité à la bonne valeur, puis on arrête ce useFrame. Sans ça, chaque
-  // face de chaque dé continue de tourner un calcul (dont un getWorldQuaternion) à 60fps
-  // pendant les 8s où le dé reste affiché après son arrêt — multiplié par jusqu'à 20
-  // faces x plusieurs dés, c'est du travail GC/CPU pur gaspillage.
-  const hasFinalizedRef = useRef(false);
   const quat = useMemo(
     () => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), face.norm),
     [face.norm],
   );
   const pos = useMemo(() => face.pos.clone().multiplyScalar(radius), [face.pos, radius]);
 
-  useFrame(() => {
-    if (stopped && hasFinalizedRef.current) return;
-
-    const t = textRef.current;
-    const g = groupRef.current;
-    const mat = t?.material as
-      (THREE.Material & { opacity: number; transparent: boolean }) | undefined;
-    if (!t || !g || !mat) return;
-    // World normal of this face = parent(die) world rotation applied to local
-    // normal. Read from the parent's world matrix (updated by the last render)
-    // instead of getWorldQuaternion(), which recomputed the whole parent chain
-    // once per face per frame (20× per d20).
-    const parent = g.parent;
-    const wn = _wn.current.copy(face.norm);
-    if (parent) wn.transformDirection(parent.matrixWorld);
-    // dot with world up: 1 = facing camera (top), <=0 = bottom/side
-    const up = _up.current.dot(wn);
-    // Map [0.1 .. 0.9] of upward-ness to [0 .. 0.85] opacity. Mutating the
-    // derived material opacity directly avoids a costly troika sync().
-    const o = THREE.MathUtils.clamp((up - 0.1) / 0.8, 0, 1);
-    mat.transparent = true;
-    mat.opacity = o * maxOpacity;
-    const outline = (t as any).outlineMaterial as
-      { opacity: number; transparent: boolean } | undefined;
-    if (outline) {
-      outline.transparent = true;
-      outline.opacity = o * maxOpacity;
-    }
-
-    if (stopped) hasFinalizedRef.current = true;
-  });
+  useEffect(() => {
+    if (!labels || outlineWidth) return;
+    const label: FadingLabel = {
+      norm: face.norm,
+      // Mutating the derived material opacity directly avoids a costly troika sync().
+      setOpacity: (o) => {
+        const mat = textRef.current?.material as THREE.Material | THREE.Material[] | undefined;
+        if (mat && !Array.isArray(mat)) mat.opacity = o * maxOpacity;
+      },
+    };
+    labels.set(index, label);
+    return () => {
+      if (labels.get(index) === label) labels.delete(index);
+    };
+  }, [labels, index, face.norm, maxOpacity, outlineWidth]);
 
   return (
-    <group ref={groupRef} position={pos} quaternion={quat} renderOrder={1}>
+    <group position={pos} quaternion={quat} renderOrder={1}>
       <Text
         ref={textRef}
         scale={[scale, scale, scale]}

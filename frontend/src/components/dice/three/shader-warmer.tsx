@@ -5,6 +5,7 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { DiceSkin, getSkinById } from './dice-definitions';
 import { VisualDie } from './visual-die';
+import { CriticalWarmup } from './effects/critical';
 
 // ============================================================================
 // SHADER WARMER
@@ -112,11 +113,13 @@ export const ShaderWarmer = ({
     // Pushed far away + tiny so it never shows; only there to exist in the
     // scene graph long enough for the programs to compile.
     <group ref={groupRef} position={[0, -1000, 0]} scale={0.001}>
+      {/* Particules et éclats des critiques, compilés une fois ici. */}
+      <CriticalWarmup />
       {/* Full-fidelity die mounted for the WHOLE warm-up (not batched):
-                compiles the face-number text + rim programs, and keeps the
-                scene's light count constant across batches (its innerGlow
-                point light would otherwise invalidate previously-warmed
-                programs mid-run). */}
+                compiles the face-number text + rim programs. (Dice no longer
+                carry point lights, so the scene's light count is the same
+                for 1 die or 15: programs warmed here are the ones a roll
+                uses.) */}
       {fullSkin && (
         <VisualDie type={diceType} skin={fullSkin} isShattered={false} critType={null} />
       )}
