@@ -418,7 +418,7 @@ export function ChipsDetails({
         <FichePossession key={p.entree.id} ctx={ctx} id={p.entree.id}>
           <button
             type="button"
-            className="flex items-center gap-2 rounded-full border border-border-strong bg-surface-2/80 py-1 pl-3 pr-2 text-[13px] backdrop-blur transition-colors hover:border-primary/40"
+            className="flex items-center gap-2 rounded-full border border-border-strong bg-surface-2/95 py-1 pl-3 pr-2 text-[13px] transition-colors hover:border-primary/40"
           >
             <span className="text-subtle">{p.sorte.nom}</span>
             <span className="font-medium">{p.entree.nom}</span>
@@ -433,7 +433,7 @@ export function ChipsDetails({
         return (
           <span
             key={cle}
-            className="flex items-center gap-2 rounded-full border border-border-strong bg-surface-2/80 px-3 py-1 text-[13px] backdrop-blur"
+            className="flex items-center gap-2 rounded-full border border-border-strong bg-surface-2/95 px-3 py-1 text-[13px]"
           >
             <span className="text-subtle">{a.nom}</span>
             <span className="font-medium">

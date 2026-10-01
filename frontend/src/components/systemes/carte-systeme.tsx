@@ -60,11 +60,11 @@ export function CarteSysteme({
         <span
           aria-hidden
           className={cn(
-            'absolute right-3 top-3 flex size-6 items-center justify-center border backdrop-blur transition-all',
+            'absolute right-3 top-3 flex size-6 items-center justify-center border transition-all',
             multiple ? 'rounded-md' : 'rounded-full',
             choisie
               ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-white/25 bg-black/30 text-transparent',
+              : 'border-white/25 bg-black/50 text-transparent',
           )}
         >
           <Check className="size-3.5" strokeWidth={3} />

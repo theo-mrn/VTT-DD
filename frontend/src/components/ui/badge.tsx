@@ -15,7 +15,7 @@ const badgeVariants = cva(
         danger: 'border-destructive/25 bg-destructive/10 text-destructive',
         info: 'border-info/25 bg-info/10 text-info',
         arcane: 'border-arcane/25 bg-arcane/10 text-arcane',
-        verre: 'border-white/10 bg-black/40 text-white backdrop-blur-md',
+        verre: 'border-white/10 bg-black/60 text-white',
       },
       taille: {
         sm: 'h-5 px-2 text-[11px]',
