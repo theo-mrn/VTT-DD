@@ -130,6 +130,13 @@ export default function MapCanvas(props: MapCanvasProps) {
       runtime.engine.setViewer(viewer);
   }, [runtime, viewer, characterKey]);
 
+  // Annuaire arrivé ou changé (personnages, joueurs, membres) : le moteur le lit à l'image, il en
+  // faut une tout de suite (vision du joueur, noms), sans attendre un geste
+  const { characters, players, members } = props;
+  useEffect(() => {
+    runtime?.engine.invalidate();
+  }, [runtime, characters, players, members]);
+
   if (!runtime) return null;
   return (
     <MapEngineProvider value={runtime.engine}>
