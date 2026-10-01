@@ -44,7 +44,11 @@ export function lireSystemes() {
 
 const cache = new Map<string, Promise<SystemeComplet>>();
 
-/** Charge et valide un système (une seule fois par onglet). */
+/**
+ * Charge et valide un système (une seule fois par onglet). @vtt/rules n'a pas de chargement
+ * sans validation : `charger()` applique les valeurs par défaut du schéma et compile les
+ * formules, il ne peut pas être sauté sans risque ; le résultat est donc gardé ici.
+ */
 export function chargerSysteme(id: string, avecPresentation = true): Promise<SystemeComplet> {
   const existant = cache.get(id);
   if (existant) return existant;
@@ -68,7 +72,12 @@ export function chargerSysteme(id: string, avecPresentation = true): Promise<Sys
 }
 
 export function useSystemes() {
-  return useQuery({ queryKey: ['systemes'], queryFn: lireSystemes, staleTime: Infinity });
+  return useQuery({
+    queryKey: ['systemes'],
+    queryFn: lireSystemes,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
 }
 
 export function useSysteme(id: string | null | undefined) {
@@ -76,7 +85,10 @@ export function useSysteme(id: string | null | undefined) {
     queryKey: ['systemes', id],
     queryFn: () => chargerSysteme(id!),
     enabled: Boolean(id),
+    // Validé une fois par onglet (cache ci-dessus) ; gardé toute la session, sans repasser par
+    // l'état de chargement au remontage
     staleTime: Infinity,
+    gcTime: Infinity,
   });
 }
 

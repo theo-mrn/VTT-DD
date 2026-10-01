@@ -27,6 +27,8 @@ export function useSystemBestiary(systemId: string | null | undefined, enabled =
     queryFn: () => readSystemBestiary(systemId!),
     enabled: Boolean(systemId) && enabled,
     staleTime: Infinity,
+    // Document de référence validé (~370 Ko) : gardé toute la session, jamais revalidé au remontage
+    gcTime: Infinity,
   });
 }
 
