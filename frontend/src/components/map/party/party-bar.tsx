@@ -1,15 +1,17 @@
 'use client';
 
 /**
- * Barre du groupe (docs/carte.md § 11), en haut à droite de la table : les personnages de la
- * scène, leur ressource principale en anneau autour du portrait (couleur selon l'état, sens
- * inversé pour une ressource qui se remplit). Le MJ bascule entre joueurs et PNJ.
+ * Barre du groupe (docs/carte.md § 11), en haut à gauche de la table, la sortie (retour au salon)
+ * en tête : les personnages de la scène, leur ressource principale en anneau autour du portrait
+ * (couleur selon l'état, sens inversé pour une ressource qui se remplit). Le MJ bascule entre
+ * héros et PNJ.
  *
  * Un clic sur un portrait ouvre sa carte : centrer la vue sur son token, ouvrir la fiche,
  * ajuster la ressource (MJ, ou son propre héros), écrire en privé à son joueur. Double clic :
  * centrer.
  */
 import {
+  ArrowLeft,
   Crosshair,
   HeartPulse,
   IdCard,
@@ -23,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
@@ -32,7 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useHudPrefs } from '@/components/table/hud-prefs';
-import { TABLE_HUD_RIGHT } from '@/components/table/hud-slots';
+import { TABLE_HUD_LEFT } from '@/components/table/hud-slots';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
 import { chatApi } from '@/lib/campaign-chat';
@@ -104,10 +107,10 @@ function useMembers(tokens: TokensState, mode: Mode, mine: readonly string[]): M
   }, [list, infos, mode, mine]);
 }
 
-/** La barre, rendue dans l'emplacement en haut à droite du HUD de la table (s'il existe). */
+/** La barre, rendue dans l'emplacement en haut à gauche du HUD de la table (s'il existe). */
 export function PartyBarHost() {
   const [target, setTarget] = useState<HTMLElement | null>(null);
-  useEffect(() => setTarget(document.getElementById(TABLE_HUD_RIGHT)), []);
+  useEffect(() => setTarget(document.getElementById(TABLE_HUD_LEFT)), []);
   return target ? createPortal(<PartyBar />, target) : null;
 }
 
@@ -116,13 +119,22 @@ export function PartyBar() {
   const tokens = useTokens(engine);
   const viewer = engine.viewer;
   const gm = viewer.role === 'gm';
+  const campaignId = useMapState((s) => s.campaignId);
   const [mode, setMode] = useState<Mode>('players');
   const members = useMembers(tokens, gm ? mode : 'players', viewer.characterIds);
   const shown = members.slice(0, SHOWN);
   const rest = members.slice(SHOWN);
 
   return (
-    <div className={cn(HUD_BAR, 'max-w-[min(26rem,40vw)]')}>
+    <div data-party-bar className={cn(HUD_BAR, 'max-w-[min(28rem,42vw)]')}>
+      <Info texte="Retour au salon" cote="bottom">
+        <Button variant="ghost" size="icon-sm" asChild className={cn(HUD_CONTROL, 'shrink-0')}>
+          <Link href={`/campagnes/${campaignId}`} aria-label="Retour au salon">
+            <ArrowLeft />
+          </Link>
+        </Button>
+      </Info>
+      <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
       {gm && (
         <Info texte={mode === 'players' ? 'Afficher les PNJ' : 'Afficher les héros'} cote="bottom">
           <Button
@@ -292,7 +304,7 @@ function MemberAvatar({
           </button>
         </PopoverTrigger>
       </Info>
-      <PopoverContent align="end" className="w-72 p-0">
+      <PopoverContent align="start" className="w-72 p-0">
         <MemberCard engine={engine} tokens={tokens} member={member} onDone={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
@@ -598,7 +610,7 @@ function Overflow({
           +{members.length}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 p-1.5">
+      <PopoverContent align="start" className="w-64 p-1.5">
         <ul className="max-h-80 space-y-0.5 overflow-y-auto [scrollbar-width:thin]">
           {members.map((m) => (
             <li key={m.info.id}>

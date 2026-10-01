@@ -17,8 +17,8 @@ import { useProfilRequis } from '@/lib/session';
 import { useSystemTypography } from '@/lib/system-fonts';
 import { useSysteme } from '@/lib/systemes';
 import { FournisseurHeros, FournisseurTable, type Table } from './contexte';
-import { HudCombat } from './hud';
-import { TABLE_HUD_LEFT, TABLE_HUD_RIGHT } from './hud-slots';
+import { HudCombat, HudExit } from './hud';
+import { TABLE_HUD_LEFT } from './hud-slots';
 import { PanelLocationSync } from './panels/navigation';
 import { PanelHost } from './panels/panel-host';
 import { panelsFor, type TableRole } from './panels/registry';
@@ -161,16 +161,21 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
 
       <div className="pointer-events-none absolute inset-x-3 top-3 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 lg:left-20">
         {/* Gauche et droite à leur taille, le combat centré dans ce qui reste : jamais dessous */}
-        {/* Scène affichée : rendue ici par la carte, voir ScenePill */}
-        <div id={TABLE_HUD_LEFT} className="flex min-w-0 justify-start" />
+        {/* Barre du groupe et sortie : rendues ici par la carte, voir PartyBar */}
+        <div
+          id={TABLE_HUD_LEFT}
+          className="flex min-w-0 justify-start [&:has([data-party-bar])>[data-hud-exit]]:hidden"
+        >
+          {/* Sans scène (pas de barre du groupe), la sortie seule */}
+          <HudExit table={table} />
+        </div>
         <div className="flex min-w-0 justify-center">
           <HudCombat table={table} />
         </div>
-        {/* Barre du groupe : rendue ici par la carte (elle connaît la scène), voir PartyBar */}
-        <div id={TABLE_HUD_RIGHT} className="flex min-w-0 justify-end" />
+        <div aria-hidden />
       </div>
 
-      <TableRail layout={rail} campaignId={table.campagne.id} />
+      <TableRail layout={rail} />
       <PanelHost panels={panels} />
       {/* Son de la campagne : canaux synchronisés, effets, mixeur, bandeau d'activation */}
       <TableAudio campaignId={table.campagne.id} gm={table.gm} />

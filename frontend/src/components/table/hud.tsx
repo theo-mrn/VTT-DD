@@ -1,10 +1,15 @@
 'use client';
 
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import type { CombatState } from '@vtt/contracts';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useMemo } from 'react';
 import { GmCombatBar } from '@/components/combat/bar/gm-combat-bar';
 import { LiveReports } from '@/components/combat/live-reports/live-reports';
+import { HUD_BAR, HUD_CONTROL } from '@/components/combat/live-reports/look';
+import { Button } from '@/components/ui/button';
+import { Info } from '@/components/ui/tooltip';
 import { useLiveReports } from '@/components/combat/live-reports/use-live-reports';
 import { ReactionPrompts } from '@/components/combat/player/reaction-prompt';
 import { useCampaignSystem } from '@/lib/campaign-settings';
@@ -13,6 +18,21 @@ import type { DetailCampagne } from '@/lib/campagnes';
 import { cn } from '@/lib/utils';
 import type { Table } from './contexte';
 import { useHudPrefs, useHudPrefsHydration } from './hud-prefs';
+
+/** Sortie seule (retour au salon), quand aucune scène n'affiche la barre du groupe. */
+export const HudExit = memo(function HudExit({ table }: { table: Table }) {
+  return (
+    <div data-hud-exit className={HUD_BAR}>
+      <Info texte="Retour au salon" cote="bottom">
+        <Button variant="ghost" size="icon-sm" asChild className={HUD_CONTROL}>
+          <Link href={`/campagnes/${table.campagne.id}`} aria-label="Retour au salon">
+            <ArrowLeft />
+          </Link>
+        </Button>
+      </Info>
+    </div>
+  );
+});
 
 /**
  * Au centre : la barre de combat du MJ (docs/combat.md § 12.6), en combat comme hors combat, et
