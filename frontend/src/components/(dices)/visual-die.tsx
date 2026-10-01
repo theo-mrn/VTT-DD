@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import * as THREE from 'three';
 import { DiceSkin, CriticalType } from './dice-definitions';
 import { getCachedGeometry, getDieValue } from './geometry';
@@ -80,16 +80,12 @@ export const VisualDie = React.forwardRef(
         {/* Shattered die fragments */}
         {isShattered && <ShatteredDie color={skin.bodyColor} onComplete={() => {}} />}
 
-        {/* Inner glow effect */}
-        {!isShattered && skin.innerGlow && (
-          <pointLight
-            position={[0, 0, 0]}
-            color={skin.innerGlowColor}
-            intensity={skin.innerGlowIntensity}
-            distance={5}
-            decay={2}
-          />
-        )}
+        {/* Pas de pointLight « innerGlow » : posée au centre d'un volume fermé,
+            elle n'éclaire pas les faces du dé (normales tournées vers
+            l'extérieur), et chaque lumière ajoutée change le nombre de
+            lumières de la scène, donc invalide et recompile TOUS les
+            programmes de shaders (rafale GPU, plantage de Chrome sous
+            Windows). La lueur des skins passe par leur émissif. */}
 
         {/* Main die body */}
         {!isShattered && (

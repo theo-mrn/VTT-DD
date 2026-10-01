@@ -7,6 +7,10 @@
  * Autoplay : un seul déverrouillage, au premier `pointerdown`, `keydown` ou
  * `touchend` (capture) ; l'état `interrupted` d'iOS vaut `locked`. Au
  * déverrouillage, chaque canal repart à la position de la ligne de temps.
+ *
+ * Veille : sans voix ni effet depuis `IDLE_SUSPEND_MS`, le contexte est suspendu (le thread
+ * audio s'arrête) ; toute demande de contexte le réveille. Le relevé ne tourne que s'il y a
+ * quelque chose à surveiller (campagne, voix, contexte éveillé) et jamais onglet caché.
  */
 import type { BusName, ChannelName, ChannelState } from '@vtt/contracts';
 import { busGain, DEFAULT_MIXER, reduceChannel } from '@vtt/contracts/audio-sync';
@@ -22,10 +26,12 @@ import {
   anyStalled,
   disposeAllVoices,
   kickAll,
+  onVoiceRegistered,
   refreshAllOutputs,
   reportVoices,
   scanAudio,
   sweepYoutubeHost,
+  voiceCount,
   type LiveSound,
 } from './registry';
 import { needsDirectMedia } from './compat';
@@ -53,6 +59,9 @@ export interface AudioEngineOptions {
 /** Fréquence du relevé réel de ce qui sonne (orphelines coupées, panneau à jour). */
 export const SCAN_EVERY_MS = 500;
 
+/** Silence (aucune voix, aucun effet, aucune demande) au bout duquel le contexte se met en veille. */
+export const IDLE_SUSPEND_MS = 10_000;
+
 /**
  * Gestes qui autorisent le son : le premier, n'importe où dans la page, débloque le contexte
  * et relance les lecteurs YouTube bloqués (le bandeau « Activer le son » n'est qu'une aide).
@@ -76,6 +85,12 @@ export class AudioEngine implements EngineHost {
   private liveSounds: LiveSound[] = [];
   /** Une voix voulue est bloquée par le navigateur (YouTube sans geste) : bandeau d'activation. */
   private blocked = false;
+  /** Dernière activité (demande de contexte, voix ou effet vus au relevé). */
+  private lastActiveAt = Date.now();
+  /** Contexte suspendu par la veille (pas par le navigateur) : il compte comme déverrouillé. */
+  private idleSuspended = false;
+  /** Réveil en cours (`resume()` pas encore résolu). */
+  private waking = false;
 
   // Campagne attachée
   campaignId: string | null = null;
@@ -100,8 +115,10 @@ export class AudioEngine implements EngineHost {
     for (const player of Object.values(this.channels))
       player.onYoutubeEnded = (s) => this.onYoutubeEnded?.(s);
     this.cues = new CuePlayer(this);
-    if (typeof window !== 'undefined' && options.scan !== false)
-      this.scanTimer = setInterval(() => this.scan(), SCAN_EVERY_MS);
+    // Relevé à la demande : une voix qui naît le relance, l'onglet caché l'arrête
+    onVoiceRegistered(() => this.ensureScan());
+    if (typeof document !== 'undefined' && options.scan !== false)
+      document.addEventListener('visibilitychange', this.onVisibility);
   }
 
   // ── Ce qui sonne vraiment ──
@@ -156,10 +173,99 @@ export class AudioEngine implements EngineHost {
       next.every(
         (s, i) => s.id === this.liveSounds[i]!.id && s.label === this.liveSounds[i]!.label,
       );
-    if (same) return;
-    this.liveSounds = next;
-    this.emit();
+    if (!same) {
+      this.liveSounds = next;
+      this.emit();
+    }
+    this.settle();
   }
+
+  /** Relevé périodique, s'il n'est pas déjà lancé (jamais onglet caché ni côté serveur). */
+  private ensureScan() {
+    if (this.scanTimer || this.options.scan === false || typeof window === 'undefined') return;
+    if (typeof document !== 'undefined' && document.hidden) return;
+    this.scanTimer = setInterval(() => this.scan(), SCAN_EVERY_MS);
+  }
+
+  private stopScan() {
+    if (!this.scanTimer) return;
+    clearInterval(this.scanTimer);
+    this.scanTimer = null;
+  }
+
+  /**
+   * Après un relevé : tant qu'une voix ou un effet existe, rien ne change. Sinon le contexte
+   * éveillé passe en veille au bout d'`IDLE_SUSPEND_MS`, puis le relevé s'arrête (une voix
+   * inscrite ou une demande de contexte le relance).
+   */
+  private settle() {
+    const now = Date.now();
+    if (voiceCount() > 0 || this.cues.list.length > 0) {
+      this.lastActiveAt = now;
+      return;
+    }
+    if (this.waking) return;
+    if (this.ctx?.state === 'running' && !this.idleSuspended) {
+      if (now - this.lastActiveAt >= IDLE_SUSPEND_MS) this.suspendIdle();
+      return;
+    }
+    if (this.liveSounds.length) {
+      this.liveSounds = [];
+      this.emit();
+    }
+    this.stopScan();
+  }
+
+  /** Veille : le thread audio s'arrête ; le moteur reste « déverrouillé » pour les lecteurs. */
+  private suspendIdle() {
+    const ctx = this.ctx as AudioContext | null;
+    if (!ctx?.suspend || ctx.state !== 'running' || this.idleSuspended) return;
+    this.idleSuspended = true;
+    ctx.suspend().catch(() => {
+      this.idleSuspended = false;
+    });
+  }
+
+  /**
+   * Sortie de veille. `idleSuspended` reste vrai jusqu'à la reprise effective : les lecteurs
+   * planifient leurs voix tout de suite (heure du contexte figée, elles partent à la reprise,
+   * aucun premier son perdu). Reprise refusée : le moteur redevient verrouillé (bandeau).
+   */
+  private wake() {
+    if (!this.idleSuspended || this.waking) return;
+    const ctx = this.ctx as AudioContext | null;
+    if (!ctx?.resume) {
+      this.idleSuspended = false;
+      return;
+    }
+    this.waking = true;
+    ctx
+      .resume()
+      .catch(() => undefined)
+      .finally(() => {
+        this.waking = false;
+        this.idleSuspended = false;
+        this.lastActiveAt = Date.now();
+        this.emit();
+      });
+  }
+
+  /** Une demande de contexte : activité, relevé relancé, sortie de veille. */
+  private touch() {
+    this.lastActiveAt = Date.now();
+    this.ensureScan();
+    this.wake();
+  }
+
+  private readonly onVisibility = () => {
+    if (!document.hidden) {
+      this.ensureScan();
+      return;
+    }
+    this.stopScan();
+    // Onglet caché sans voix ni effet : personne n'écoute, veille tout de suite
+    if (voiceCount() === 0 && this.cues.list.length === 0 && !this.waking) this.suspendIdle();
+  };
 
   // ── État observable ──
 
@@ -173,6 +279,8 @@ export class AudioEngine implements EngineHost {
 
   get status(): EngineStatus {
     if (this.unsupported) return 'unsupported';
+    // En veille, le contexte repart à la première demande : pas de bandeau « activer le son »
+    if (this.idleSuspended) return 'running';
     return this.ctx?.state === 'running' ? 'running' : 'locked';
   }
 
@@ -184,7 +292,11 @@ export class AudioEngine implements EngineHost {
   // ── Contexte, graphe ──
 
   context(): BaseAudioContext | null {
-    if (this.ctx || this.unsupported) return this.ctx;
+    if (this.ctx) {
+      this.touch();
+      return this.ctx;
+    }
+    if (this.unsupported) return null;
     try {
       const create =
         this.options.createContext ??
@@ -212,10 +324,16 @@ export class AudioEngine implements EngineHost {
     this.graph = new AudioGraph(this.ctx);
     this.applyMixer();
     this.ctx.onstatechange = () => {
+      // Repris par un autre (dés, diagnostic) : la veille est finie, le relevé la surveillera
+      if (this.ctx?.state === 'running' && !this.waking) {
+        this.idleSuspended = false;
+        this.ensureScan();
+      }
       this.emit();
       if (this.ctx?.state === 'running') this.reconcile();
     };
     this.bindUnlock();
+    this.touch();
     this.emit();
     return this.ctx;
   }
@@ -231,6 +349,8 @@ export class AudioEngine implements EngineHost {
   }
 
   pool(): ElementPool {
+    // Toujours par context() : une voix qui va naître réveille le contexte en veille
+    this.context();
     this.elementPool ??= new ElementPool(
       this.context()!,
       this.options.createElement,
@@ -252,6 +372,7 @@ export class AudioEngine implements EngineHost {
   readonly directMedia: boolean;
 
   cache(): BufferCache {
+    this.context();
     this.buffers ??= new BufferCache(this.context()!);
     return this.buffers;
   }
@@ -284,7 +405,8 @@ export class AudioEngine implements EngineHost {
     const handler = () => {
       // Pendant le geste : les lecteurs YouTube bloqués repartent (ils l'exigent)
       kickAll();
-      if (this.ctx?.state === 'running') return;
+      // En veille, un clic ne réveille pas le contexte : seule une demande de son le fait
+      if (this.ctx?.state === 'running' || this.idleSuspended) return;
       // Contexte créé ici au besoin : le geste courant l'autorise à démarrer
       void this.unlock();
     };
@@ -334,6 +456,7 @@ export class AudioEngine implements EngineHost {
     if (this.campaignId === campaignId) return;
     this.detachCampaign();
     this.campaignId = campaignId;
+    this.ensureScan();
     void this.clock.resync();
     if (!this.resyncTimer && typeof window !== 'undefined') {
       this.resyncTimer = setInterval(() => void this.clock.resync(), RESYNC_EVERY_MS);
@@ -358,6 +481,8 @@ export class AudioEngine implements EngineHost {
       this.resyncTimer = null;
       document.removeEventListener('visibilitychange', this.onVisible);
     }
+    // Plus rien d'inscrit et contexte au repos : le relevé s'arrête ici, sinon au prochain tour
+    this.settle();
     this.emit();
   }
 

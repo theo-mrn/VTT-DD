@@ -53,6 +53,8 @@ interface Store {
   contexts?: Set<BaseAudioContext>;
   /** Boîtes des lecteurs YouTube suivis, dans le conteneur caché. */
   youtubeBoxes?: Set<Element>;
+  /** Prévenu à chaque voix inscrite (le moteur relance son relevé). Un seul : le moteur courant. */
+  onRegister?: (() => void) | null;
 }
 
 const store: Store = ((
@@ -108,6 +110,17 @@ export function sweepYoutubeHost(): number {
 
 export function registerVoice(v: Registered): void {
   store.voices.set(v.id, v);
+  store.onRegister?.();
+}
+
+/** Le moteur courant veut savoir qu'une voix est née (relevé arrêté quand il n'y en a aucune). */
+export function onVoiceRegistered(listener: (() => void) | null): void {
+  store.onRegister = listener;
+}
+
+/** Voix inscrites, sonnantes ou non. */
+export function voiceCount(): number {
+  return store.voices.size;
 }
 
 export function unregisterVoice(id: string): void {

@@ -122,6 +122,11 @@ export class FakeAudioContext {
     this.onstatechange?.();
     return Promise.resolve();
   }
+  suspend() {
+    this.state = 'suspended';
+    this.onstatechange?.();
+    return Promise.resolve();
+  }
 }
 
 /** Chemin d'un nœud jusqu'à la destination (types des nœuds traversés). */

@@ -67,6 +67,27 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// Contexte audio au repos : un AudioContext actif garde le thread audio du
+// navigateur éveillé (CPU) même sans aucun son. Il est suspendu après quelques
+// secondes sans demande, et repris à la suivante.
+const IDLE_SUSPEND_MS = 4000;
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+const armIdleSuspend = () => {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    idleTimer = null;
+    const ctx = sharedAudioContext;
+    if (!ctx || ctx.state !== 'running') return;
+    // Une ambiance en boucle joue encore : on repasse plus tard.
+    if (activeAmbiences.size > 0) {
+      armIdleSuspend();
+      return;
+    }
+    ctx.suspend().catch(() => {});
+  }, IDLE_SUSPEND_MS);
+};
+
 export const getAudioContext = (): AudioContext | null => {
   try {
     if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
@@ -75,6 +96,8 @@ export const getAudioContext = (): AudioContext | null => {
       masterGainNode.gain.value = readDice3dVolume();
       masterGainNode.connect(sharedAudioContext.destination);
     }
+    if (sharedAudioContext.state === 'suspended') sharedAudioContext.resume().catch(() => {});
+    armIdleSuspend();
     return sharedAudioContext;
   } catch {
     return null;

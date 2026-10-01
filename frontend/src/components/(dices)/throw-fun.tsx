@@ -11,35 +11,31 @@ import React, {
 import { Canvas, useThree } from '@react-three/fiber';
 import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
-import * as THREE from 'three';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
 import { VisualDie } from './visual-die';
-import { createBeveledGeometry, getCachedGeometry } from './geometry';
+import { getCachedGeometry } from './geometry';
 import { getAudioContext, playOneShotForSkin } from './audio';
+import { prefersEconomy } from '@/lib/perf/device';
 
 // Skins eligible for the random "for fun" roll. Orb skins use a heavier
 // transmission + GLTF-core path, so we keep the random pool to the procedural
-// skins — those are the ones whose shaders we pre-warm below.
+// skins.
 const FUN_SKIN_POOL = Object.values(DICE_SKINS)
   .filter((s) => s.effectType !== 'orb')
   .map((s) => s.id);
 
-// NOTE: compiled shader programs belong to ONE WebGL context. Warming must
-// therefore happen once per <Canvas>, never once per session — an earlier
-// module-wide "already warmed" flag made every FunDiceThrower after the first
-// (e.g. the store modal's, which mounts its own canvas) skip warming, so its
-// first throw cold-compiled the die's whole shader set in one synchronous
-// burst on a fresh context. On some Windows GPUs that burst trips the
-// driver's timeout watchdog (TDR) and kills Chrome's GPU process outright.
+const randomPoolSkin = () => FUN_SKIN_POOL[Math.floor(Math.random() * FUN_SKIN_POOL.length)];
 
-// One full-fidelity die (face numbers, rim, inner-glow point light) is warmed
-// alongside the simple pool: the text/rim programs — and the extra-light
-// shader permutation an innerGlow creates — are what the first real throw
-// needs, and none of them are covered by `simple` warm dice.
-const FULL_WARM_SKIN =
-  Object.values(DICE_SKINS).find((s) => s.effectType !== 'orb' && s.innerGlow && s.rimLight) ||
-  Object.values(DICE_SKINS).find((s) => s.effectType !== 'orb' && s.innerGlow) ||
-  getSkinById(Object.values(DICE_SKINS).filter((s) => s.effectType !== 'orb')[0].id);
+// NOTE: compiled shader programs belong to ONE WebGL context, so warming is
+// tracked per FunDiceThrower instance (= per <Canvas>).
+//
+// Préchauffage à l'intention uniquement : rien n'est compilé tant que
+// l'utilisateur n'a pas survolé, focalisé ou cliqué le bouton du dé. Et on ne
+// compile QUE le skin qui sera lancé (tiré au sort d'avance), jamais le pool
+// entier : l'ancienne compilation de ~60 skins par lots cumulatifs était une
+// rafale GPU qui faisait planter Chrome sous Windows (TDR du pilote). Le
+// nombre de lumières de la scène est désormais constant (plus de pointLight
+// innerGlow, cf. visual-die.tsx) : un programme compilé reste valide.
 
 // ============================================================================
 // WALL & TABLE
@@ -80,140 +76,159 @@ const Table = () => {
 // FUN DIE COMPONENT (Physics only, no target/result logic)
 // ============================================================================
 
-const FunDie = React.forwardRef(
-  (
-    {
-      type,
-      position,
-      impulse,
-      angularVelocity,
-      skin,
-    }: {
-      type: string;
-      position: [number, number, number];
-      impulse: [number, number, number];
-      angularVelocity: [number, number, number];
-      skin: DiceSkin;
-    },
-    fRef: any,
-  ) => {
-    const { vertices, faces } = getCachedGeometry(type);
-    const lastImpactTime = useRef(0);
+// Seuils d'immobilité (somme des composantes) et nombre de relevés consécutifs
+// sous ces seuils avant de considérer le dé arrêté.
+const REST_SPEED = 0.3;
+const REST_SPIN = 0.5;
+const REST_CHECKS = 2;
+const REST_CHECK_MS = 150;
 
-    const playClick = useCallback((vel: number) => {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      try {
-        const osc = ctx.createOscillator();
-        const oscGain = ctx.createGain();
-        osc.type = 'sine';
-        const baseFreq = 120 + Math.random() * 40;
-        osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.08);
-        oscGain.gain.setValueAtTime(Math.min(0.4, vel / 5), ctx.currentTime);
-        oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-        osc.connect(oscGain);
-        oscGain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.1);
-      } catch (e) {}
-    }, []);
+const FunDie = ({
+  type,
+  position,
+  impulse,
+  angularVelocity,
+  skin,
+  onStopped,
+}: {
+  type: string;
+  position: [number, number, number];
+  impulse: [number, number, number];
+  angularVelocity: [number, number, number];
+  skin: DiceSkin;
+  onStopped: () => void;
+}) => {
+  const { vertices, faces } = getCachedGeometry(type);
+  const lastImpactTime = useRef(0);
+  const [stopped, setStopped] = useState(false);
 
-    const [ref, api] = useConvexPolyhedron(() => ({
-      mass: 5,
-      position,
-      args: [vertices as any, faces],
-      material: { friction: 0.15, restitution: 0.5 },
-      linearDamping: 0.08,
-      angularDamping: 0.08,
-      allowSleep: true,
-      onCollide: (e) => {
-        const impactVelocity = e.contact.impactVelocity;
-        const now = performance.now();
-        if (impactVelocity > 0.1 && now - lastImpactTime.current > 40) {
-          lastImpactTime.current = now;
-          playClick(impactVelocity);
-        }
-      },
-    }));
+  const playClick = useCallback((vel: number) => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    try {
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
+      osc.type = 'sine';
+      const baseFreq = 120 + Math.random() * 40;
+      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.08);
+      oscGain.gain.setValueAtTime(Math.min(0.4, vel / 5), ctx.currentTime);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.connect(oscGain);
+      oscGain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.1);
+    } catch (e) {}
+  }, []);
 
-    useEffect(() => {
-      if (api) {
-        api.angularVelocity.set(...angularVelocity);
-        api.velocity.set(...impulse);
+  const [ref, api] = useConvexPolyhedron(() => ({
+    mass: 5,
+    position,
+    args: [vertices as any, faces],
+    material: { friction: 0.15, restitution: 0.5 },
+    linearDamping: 0.08,
+    angularDamping: 0.08,
+    allowSleep: true,
+    onCollide: (e) => {
+      const impactVelocity = e.contact.impactVelocity;
+      const now = performance.now();
+      if (impactVelocity > 0.1 && now - lastImpactTime.current > 40) {
+        lastImpactTime.current = now;
+        playClick(impactVelocity);
       }
-    }, [api, impulse, angularVelocity]);
+    },
+  }));
 
-    // One-shot themed sound (e.g. butterfly wings) — plays once when this die
-    // is thrown, no loop.
-    useEffect(() => {
-      playOneShotForSkin(skin);
-    }, [skin]);
+  useEffect(() => {
+    if (api) {
+      api.angularVelocity.set(...angularVelocity);
+      api.velocity.set(...impulse);
+    }
+  }, [api, impulse, angularVelocity]);
 
-    return (
-      <group ref={ref as any}>
-        <VisualDie type={type} skin={skin} isShattered={false} critType={null} ref={null} />
-      </group>
-    );
-  },
-);
-FunDie.displayName = 'FunDie';
+  // One-shot themed sound (e.g. butterfly wings) — plays once when this die
+  // is thrown, no loop.
+  useEffect(() => {
+    playOneShotForSkin(skin);
+  }, [skin]);
+
+  // Détection de l'arrêt : une fois le dé immobile, les numéros de faces
+  // cessent leurs calculs par image et le lanceur passe la boucle de rendu
+  // en mode « à la demande ».
+  const velocity = useRef<number[] | null>(null);
+  const spin = useRef<number[] | null>(null);
+  const onStoppedRef = useRef(onStopped);
+  useEffect(() => {
+    onStoppedRef.current = onStopped;
+  });
+  useEffect(() => api.velocity.subscribe((v) => (velocity.current = v)), [api]);
+  useEffect(() => api.angularVelocity.subscribe((v) => (spin.current = v)), [api]);
+  useEffect(() => {
+    if (stopped) return;
+    let calm = 0;
+    const id = window.setInterval(() => {
+      const v = velocity.current;
+      const av = spin.current;
+      if (!v || !av) return;
+      const speed = Math.abs(v[0]!) + Math.abs(v[1]!) + Math.abs(v[2]!);
+      const turn = Math.abs(av[0]!) + Math.abs(av[1]!) + Math.abs(av[2]!);
+      calm = speed < REST_SPEED && turn < REST_SPIN ? calm + 1 : 0;
+      if (calm >= REST_CHECKS) {
+        setStopped(true);
+        onStoppedRef.current();
+      }
+    }, REST_CHECK_MS);
+    return () => window.clearInterval(id);
+  }, [stopped]);
+
+  return (
+    <group ref={ref as any}>
+      <VisualDie type={type} skin={skin} isShattered={false} critType={null} stopped={stopped} />
+    </group>
+  );
+};
 
 // ============================================================================
 // SHADER WARMER
 // ----------------------------------------------------------------------------
-// Renders every pooled skin once, far off-screen, and asks the renderer to
-// compile their shader programs asynchronously. This moves the (synchronous,
-// frame-blocking) shader compilation off the click path, so throwing dice no
-// longer freezes the page the first time a given skin appears.
+// Rend UN seul dé (celui qui sera lancé), loin hors champ, et demande au
+// renderer de compiler ses programmes de façon asynchrone : le premier lancer
+// ne fige plus la page, sans rafale de compilation.
 // ============================================================================
 
-// Each skin's onBeforeCompile injects distinct GLSL, so ~50 pooled skins mean
-// ~50 separate shader programs. `gl.compile()` (even via `compileAsync`,
-// which runs it synchronously under the hood) issues every compile/link call
-// for the whole scene in a single JS tick — a one-shot GPU burst big enough
-// to trip Windows' driver-timeout watchdog (TDR) on some machines: Chrome's
-// GPU process dies instantly with no JS error. So the pool is warmed a few
-// skins at a time, yielding a frame between batches.
-const WARM_BATCH_SIZE = 4;
-
-const ShaderWarmer = ({ diceType, onDone }: { diceType: string; onDone: () => void }) => {
+const ShaderWarmer = ({
+  diceType,
+  skinId,
+  onDone,
+}: {
+  diceType: string;
+  skinId: string;
+  onDone: () => void;
+}) => {
   const { gl, scene, camera } = useThree();
-  const groupRef = useRef<THREE.Group>(null);
-  const [batchEnd, setBatchEnd] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      for (
-        let end = WARM_BATCH_SIZE;
-        end < FUN_SKIN_POOL.length + WARM_BATCH_SIZE;
-        end += WARM_BATCH_SIZE
-      ) {
-        if (cancelled) return;
-        // Let the new batch's meshes mount before compiling them.
-        await new Promise((r) => requestAnimationFrame(r));
-        if (cancelled) return;
-        setBatchEnd(Math.min(end, FUN_SKIN_POOL.length));
-        await new Promise((r) => requestAnimationFrame(r));
-        if (cancelled) return;
-        try {
-          const anyGl = gl as any;
-          if (typeof anyGl.compileAsync === 'function') {
-            // compileAsync polls KHR_parallel_shader_compile, and
-            // some drivers only progress that status while the
-            // context is doing work — never let one stuck batch
-            // hang the whole warm-up (and with it the roll queue).
-            await Promise.race([
-              anyGl.compileAsync(scene, camera),
-              new Promise((r) => setTimeout(r, 1200)),
-            ]);
-          } else {
-            gl.compile(scene, camera);
-          }
-        } catch {
-          // best-effort warmup — ignore failures
+      // Let the die's meshes mount before compiling them.
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+      if (cancelled) return;
+      try {
+        const anyGl = gl as any;
+        if (typeof anyGl.compileAsync === 'function') {
+          // compileAsync polls KHR_parallel_shader_compile, and some
+          // drivers only progress that status while the context is doing
+          // work — never let it hang the roll queue.
+          await Promise.race([
+            anyGl.compileAsync(scene, camera),
+            new Promise((r) => setTimeout(r, 1200)),
+          ]);
+        } else {
+          gl.compile(scene, camera);
         }
+      } catch {
+        // best-effort warmup — ignore failures
       }
       if (!cancelled) onDone();
     };
@@ -226,23 +241,14 @@ const ShaderWarmer = ({ diceType, onDone }: { diceType: string; onDone: () => vo
   return (
     // Pushed far away + tiny so it never shows; only there to exist in the
     // scene graph long enough for the programs to compile.
-    <group ref={groupRef} position={[0, -1000, 0]} scale={0.001}>
-      {/* Full-fidelity die mounted for the WHOLE warm-up (not batched):
-                compiles the face-number text + rim programs, and keeps the
-                scene's light count constant across batches (its innerGlow
-                point light would otherwise invalidate previously-warmed
-                programs mid-run). */}
-      <VisualDie type={diceType} skin={FULL_WARM_SKIN} isShattered={false} critType={null} />
-      {FUN_SKIN_POOL.slice(0, batchEnd).map((skinId) => (
-        <VisualDie
-          key={skinId}
-          type={diceType}
-          skin={getSkinById(skinId)}
-          isShattered={false}
-          critType={null}
-          simple
-        />
-      ))}
+    <group position={[0, -1000, 0]} scale={0.001}>
+      <VisualDie
+        type={diceType}
+        skin={getSkinById(skinId)}
+        isShattered={false}
+        critType={null}
+        stopped
+      />
     </group>
   );
 };
@@ -264,7 +270,20 @@ interface FunDiceProps {
 export interface FunDiceHandle {
   /** Roll a die with a specific skin (falls back to a random skin) */
   roll: (skinId?: string, diceType?: string) => void;
+  /** Préchauffe le prochain dé (intention : survol, focus du bouton) */
+  warm: (diceType?: string) => void;
 }
+
+interface FunDieState {
+  id: string;
+  type: string;
+  pos: [number, number, number];
+  imp: [number, number, number];
+  ang: [number, number, number];
+  skinId: string;
+}
+
+const warmKey = (type: string, skinId: string) => `${type}:${skinId}`;
 
 export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
   (
@@ -277,114 +296,153 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
     },
     ref,
   ) => {
-    const [dice, setDice] = useState<
-      {
-        id: string;
-        type: string;
-        pos: [number, number, number];
-        imp: [number, number, number];
-        ang: [number, number, number];
-        skinId: string;
-      }[]
-    >([]);
-    // Pre-warm shaders once per INSTANCE (i.e. per WebGL context — see note
-    // above FULL_WARM_SKIN). We start shortly after mount so it doesn't
-    // compete with the initial page load; a click before then starts it
-    // immediately.
-    const [startWarm, setStartWarm] = useState(false);
-    const [warmDone, setWarmDone] = useState(false);
-    const warmDoneRef = useRef(false);
-    // Rolls requested while shaders are still compiling: spawning a die
-    // mid-warm-up both cold-compiles its programs and (via its glow light)
-    // invalidates every already-warmed program in the scene — one giant
-    // recompile burst, the exact thing that crashes Windows GPU drivers. So
-    // early rolls wait here and fire as soon as the warm-up finishes.
-    const pendingRolls = useRef<{ skinId?: string; diceType?: string }[]>([]);
+    const [dice, setDice] = useState<FunDieState[]>([]);
+    // Dés arrêtés (ids) : quand tous le sont, la boucle de rendu passe en
+    // « à la demande ».
+    const [stoppedIds, setStoppedIds] = useState<ReadonlySet<string>>(() => new Set());
+    // Le canevas n'est monté qu'à la première intention, puis reste en place
+    // pour garder les programmes compilés.
+    const [canvasOn, setCanvasOn] = useState(false);
+    // Skin en cours de préchauffage (un seul à la fois).
+    const [warmTarget, setWarmTarget] = useState<{ skinId: string; type: string } | null>(null);
+    const warmTargetRef = useRef<{ skinId: string; type: string } | null>(null);
+    const warmed = useRef(new Set<string>());
+    // Prochain skin aléatoire, tiré d'avance pour être préchauffé avant le lancer.
+    const nextSkin = useRef<string | null>(null);
+    // Lancers demandés pendant un préchauffage : ils partent dès qu'il finit
+    // (un dé qui apparaît en pleine compilation la rallonge d'autant).
+    const pendingRolls = useRef<{ skinId: string; diceType: string }[]>([]);
+    const [economy] = useState(() => prefersEconomy());
 
-    useEffect(() => {
-      const id = window.setTimeout(() => setStartWarm(true), 600);
-      return () => window.clearTimeout(id);
+    const startWarm = useCallback((skinId: string, type: string) => {
+      setCanvasOn(true);
+      if (warmed.current.has(warmKey(type, skinId)) || warmTargetRef.current) return;
+      const target = { skinId, type };
+      warmTargetRef.current = target;
+      setWarmTarget(target);
     }, []);
 
-    const spawnDie = useCallback(
-      (skinId?: string, diceType?: string) => {
-        // Pick a random skin (from the pre-warmed pool) when none is requested.
-        const resolvedSkinId =
-          skinId || FUN_SKIN_POOL[Math.floor(Math.random() * FUN_SKIN_POOL.length)];
+    const spawnDie = useCallback((skinId: string, diceType: string) => {
+      // Random start position
+      const startX = (Math.random() - 0.5) * 10;
+      const startZ = 10 + Math.random() * 5;
+      const startY = 8 + Math.random() * 4;
 
-        // Random start position
-        const startX = (Math.random() - 0.5) * 10;
-        const startZ = 10 + Math.random() * 5;
-        const startY = 8 + Math.random() * 4;
+      // Throw towards center (0,0,0)
+      const forceX = -startX * (1.2 + Math.random() * 0.5);
+      const forceY = 4 + Math.random() * 4;
+      const forceZ = -startZ * (1.2 + Math.random() * 0.5);
 
-        // Throw towards center (0,0,0)
-        const forceX = -startX * (1.2 + Math.random() * 0.5);
-        const forceY = 4 + Math.random() * 4;
-        const forceZ = -startZ * (1.2 + Math.random() * 0.5);
+      // Random spin
+      const angX = (Math.random() - 0.5) * 60;
+      const angY = (Math.random() - 0.5) * 60;
+      const angZ = (Math.random() - 0.5) * 60;
 
-        // Random spin
-        const angX = (Math.random() - 0.5) * 60;
-        const angY = (Math.random() - 0.5) * 60;
-        const angZ = (Math.random() - 0.5) * 60;
+      const newDie: FunDieState = {
+        id: crypto.randomUUID(),
+        type: diceType,
+        pos: [startX, startY, startZ],
+        imp: [forceX, forceY, forceZ],
+        ang: [angX, angY, angZ],
+        skinId,
+      };
 
-        const newDie = {
-          id: crypto.randomUUID(),
-          type: diceType || defaultDiceType,
-          pos: [startX, startY, startZ] as [number, number, number],
-          imp: [forceX, forceY, forceZ] as [number, number, number],
-          ang: [angX, angY, angZ] as [number, number, number],
-          skinId: resolvedSkinId,
-        };
+      setCanvasOn(true);
+      setDice((prev) => [...prev, newDie]);
 
-        setDice((prev) => [...prev, newDie]);
-
-        // Auto-cleanup so the die doesn't linger forever
-        setTimeout(() => {
-          setDice((prev) => prev.filter((d) => d.id !== newDie.id));
-        }, 7000);
-      },
-      [defaultDiceType],
-    );
+      // Auto-cleanup so the die doesn't linger forever
+      setTimeout(() => {
+        setDice((prev) => prev.filter((d) => d.id !== newDie.id));
+        setStoppedIds((prev) => {
+          if (!prev.has(newDie.id)) return prev;
+          const next = new Set(prev);
+          next.delete(newDie.id);
+          return next;
+        });
+      }, 7000);
+    }, []);
 
     const handleWarmed = useCallback(() => {
-      if (warmDoneRef.current) return; // idempotent (real onDone + safety net below)
-      warmDoneRef.current = true;
-      setWarmDone(true);
+      const target = warmTargetRef.current;
+      if (!target) return; // idempotent (real onDone + safety net below)
+      warmed.current.add(warmKey(target.type, target.skinId));
+      warmTargetRef.current = null;
+      setWarmTarget(null);
       // Fire the rolls that were requested during warm-up, slightly
       // staggered so several queued dice don't all mount in one frame.
       const pending = pendingRolls.current.splice(0);
-      pending.forEach((p, i) => setTimeout(() => spawnDie(p.skinId, p.diceType), i * 150));
+      pending.forEach((p, i) =>
+        i === 0
+          ? spawnDie(p.skinId, p.diceType)
+          : setTimeout(() => spawnDie(p.skinId, p.diceType), i * 150),
+      );
     }, [spawnDie]);
 
-    // Safety net: NEVER hold rolls hostage to a warm-up that hangs or is slow
-    // (e.g. a driver that only progresses async shader compiles while frames
-    // render). Warming is an optimisation, not a gate — after this deadline
-    // the queue flushes no matter what.
+    // Safety net: warming is an optimisation, not a gate — after this
+    // deadline the queue flushes no matter what.
     useEffect(() => {
-      if (!startWarm || warmDone) return;
+      if (!warmTarget) return;
       const t = window.setTimeout(handleWarmed, 4000);
       return () => window.clearTimeout(t);
-    }, [startWarm, warmDone, handleWarmed]);
+    }, [warmTarget, handleWarmed]);
+
+    const warm = useCallback(
+      (diceType?: string) => {
+        if (!nextSkin.current) nextSkin.current = randomPoolSkin();
+        startWarm(nextSkin.current, diceType || defaultDiceType);
+      },
+      [startWarm, defaultDiceType],
+    );
 
     const rollDie = useCallback(
       (skinId?: string, diceType?: string) => {
-        if (!warmDoneRef.current) {
-          pendingRolls.current.push({ skinId, diceType });
-          setStartWarm(true); // mount the canvas + warmer right away
+        const type = diceType || defaultDiceType;
+        let resolved = skinId;
+        if (!resolved) {
+          // Le skin tiré d'avance (préchauffé au survol), sinon un nouveau.
+          resolved = nextSkin.current || randomPoolSkin();
+          nextSkin.current = null;
+        }
+        const ready = warmed.current.has(warmKey(type, resolved));
+        // Dés déjà à l'écran : un seul programme à compiler, on lance tout de suite.
+        if (ready || (dice.length > 0 && !warmTargetRef.current)) {
+          spawnDie(resolved, type);
           return;
         }
-        spawnDie(skinId, diceType);
+        pendingRolls.current.push({ skinId: resolved, diceType: type });
+        startWarm(resolved, type);
       },
-      [spawnDie],
+      [defaultDiceType, dice.length, spawnDie, startWarm],
     );
 
-    useImperativeHandle(ref, () => ({ roll: rollDie }), [rollDie]);
+    // Table vide après un lancer : on prépare le dé suivant (un seul skin).
+    useEffect(() => {
+      if (!canvasOn || dice.length > 0 || warmTarget) return;
+      if (warmed.current.size === 0) return; // pas encore d'intention
+      if (!nextSkin.current) nextSkin.current = randomPoolSkin();
+      startWarm(nextSkin.current, defaultDiceType);
+    }, [canvasOn, dice.length, warmTarget, startWarm, defaultDiceType]);
+
+    const markStopped = useCallback((id: string) => {
+      setStoppedIds((prev) => {
+        if (prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+    }, []);
+
+    useImperativeHandle(ref, () => ({ roll: rollDie, warm }), [rollDie, warm]);
+
+    const moving = dice.some((d) => !stoppedIds.has(d.id));
 
     return (
       <div className={`relative ${className}`}>
         {!hideButton && (
           <button
             onClick={() => rollDie()}
+            onPointerEnter={() => warm()}
+            onFocus={() => warm()}
             className="px-4 py-2 bg-[var(--bg-canvas)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--bg-panel)] hover:border-[var(--accent-brown)] transition-colors shadow-sm font-medium z-10 relative"
           >
             🎲 {buttonText}
@@ -394,25 +452,26 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
         {/* One persistent canvas. It hosts both the dice and the offscreen
                 shader warmer so they share a single WebGL context — programs
                 compiled by the warmer are then reused (no compile stall) when
-                dice are actually thrown. It only mounts once warming starts or
-                dice exist, and stays mounted afterwards to keep the cache warm. */}
-        {(startWarm || dice.length > 0) && (
+                dice are actually thrown. It only mounts on the first intent,
+                and stays mounted afterwards to keep the cache warm. */}
+        {canvasOn && (
           <div
             className="fixed inset-0 pointer-events-none"
             style={{ zIndex: overlayZIndex, visibility: dice.length > 0 ? 'visible' : 'hidden' }}
           >
             <Canvas
               camera={{ position: [0, 40, 0], fov: 45 }}
-              gl={{ alpha: true, powerPreference: 'high-performance' }}
+              gl={{ alpha: true, powerPreference: 'default' }}
               // Procedural die shaders are expensive PER PIXEL (many
-              // fbm calls) — capping dpr at 1.25 cuts fill cost ~30%
-              // vs 1.5 for an invisible difference on moving dice.
-              dpr={[1, 1.25]}
-              // Keep rendering while warming: drivers only progress
-              // async shader compiles (KHR_parallel_shader_compile)
-              // while the context does work — with 'demand' here the
-              // warm-up never finished and queued rolls never fired.
-              frameloop={dice.length > 0 || !warmDone ? 'always' : 'demand'}
+              // fbm calls) — capping dpr cuts fill cost for an invisible
+              // difference on moving dice.
+              dpr={economy ? 1 : [1, 1.25]}
+              // Rendu continu seulement pendant un préchauffage (certains
+              // pilotes ne font avancer la compilation asynchrone que si le
+              // contexte travaille) ou tant qu'un dé roule ; une fois les
+              // dés arrêtés, RestTicker entretient les shaders animés à
+              // cadence réduite.
+              frameloop={moving || warmTarget ? 'always' : 'demand'}
               style={{ pointerEvents: 'none' }}
             >
               <ambientLight intensity={0.4} />
@@ -425,9 +484,18 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
                 color="#ffeedd"
               />
               <pointLight position={[0, 20, 0]} intensity={0.8} color="#fff8e7" />
-              <Environment preset="city" />
+              <Environment preset="city" resolution={128} />
 
-              {!warmDone && <ShaderWarmer diceType={defaultDiceType} onDone={handleWarmed} />}
+              {warmTarget && (
+                <ShaderWarmer
+                  key={warmKey(warmTarget.type, warmTarget.skinId)}
+                  diceType={warmTarget.type}
+                  skinId={warmTarget.skinId}
+                  onDone={handleWarmed}
+                />
+              )}
+
+              {dice.length > 0 && !moving && <RestTicker fps={economy ? 12 : 24} />}
 
               {dice.length > 0 && (
                 <Physics
@@ -445,6 +513,7 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
                       impulse={d.imp}
                       angularVelocity={d.ang}
                       skin={getSkinById(d.skinId)}
+                      onStopped={() => markStopped(d.id)}
                     />
                   ))}
                 </Physics>
@@ -457,5 +526,18 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
   },
 );
 FunDiceThrower.displayName = 'FunDiceThrower';
+
+/**
+ * Dés arrêtés, boucle « à la demande » : quelques images par seconde suffisent
+ * à garder vivantes les lueurs animées des faces (shaders), au lieu de 60.
+ */
+function RestTicker({ fps }: { fps: number }) {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    const id = window.setInterval(() => invalidate(), 1000 / fps);
+    return () => window.clearInterval(id);
+  }, [invalidate, fps]);
+  return null;
+}
 
 export default FunDiceThrower;

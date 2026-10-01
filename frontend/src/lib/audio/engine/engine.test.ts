@@ -8,8 +8,9 @@ import {
   type FakeNode,
 } from '../test/fake-audio';
 import { BufferCache } from './cache';
-import { AudioEngine } from './engine';
+import { AudioEngine, IDLE_SUSPEND_MS } from './engine';
 import { AudioGraph, nodeStats } from './graph';
+import { disposeAllVoices } from './registry';
 import { ElementPool, MediaVoice } from './voices';
 
 vi.mock('../api', () => ({ audioApi: { clock: async () => ({ serverTime: 0 }) } }));
@@ -135,6 +136,41 @@ describe('voix', () => {
 });
 
 describe('moteur', () => {
+  it('veille : suspendu après 10 s sans voix ni effet, réveillé par la demande suivante', async () => {
+    vi.useFakeTimers();
+    const flush = async () => {
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+    };
+    // Voix laissées par les tests précédents (registre partagé)
+    disposeAllVoices();
+    const { engine, ctx, elements } = setup();
+    engine.attachCampaign(CAMPAIGN);
+    await engine.unlock();
+    // Une voix inscrite garde le contexte éveillé
+    engine.applyChannel(state({}));
+    vi.advanceTimersByTime(IDLE_SUSPEND_MS + 1_000);
+    engine.scan();
+    expect(ctx.state).toBe('running');
+    // Plus rien : veille au bout du délai, sans bandeau « activer le son »
+    engine.applyChannel(state({ version: 2, status: 'stopped', positionMs: 0, endsAt: null }));
+    vi.advanceTimersByTime(500);
+    engine.scan();
+    expect(ctx.state).toBe('running');
+    vi.advanceTimersByTime(IDLE_SUSPEND_MS);
+    engine.scan();
+    expect(ctx.state).toBe('suspended');
+    expect(engine.status).toBe('running');
+    expect(engine.needsUnlock).toBe(false);
+    // Nouveau morceau : la voix part tout de suite, le contexte reprend
+    engine.applyChannel(state({ version: 3, track: asset('b') }));
+    expect(elements.some((e) => !e.paused && e.src === 'https://cdn.test/b.mp3')).toBe(true);
+    await flush();
+    expect(ctx.state).toBe('running');
+    expect(engine.status).toBe('running');
+    engine.detachCampaign();
+    vi.useRealTimers();
+  });
+
   it('verrouillé : rien ne joue mais le bandeau est demandé ; déverrouillé : départ à la position de la ligne de temps', async () => {
     const { engine, elements, serverNow } = setup();
     engine.attachCampaign(CAMPAIGN);
