@@ -68,7 +68,7 @@ export function DiceWidget() {
           {/* Image précalculée du dé (même rendu que la carte de la boutique,
               dont l'aperçu 3D au survol était de toute façon inaccessible ici) */}
           <img
-            src="/dice/marbre_blanc.png"
+            src="/dice/thumbs/marbre_blanc.webp"
             alt=""
             draggable={false}
             className="absolute inset-0 w-full h-full object-contain"
