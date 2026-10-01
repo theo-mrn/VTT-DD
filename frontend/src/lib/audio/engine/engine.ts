@@ -259,7 +259,8 @@ export class AudioEngine implements EngineHost {
 
   private readonly onVisibility = () => {
     if (!document.hidden) {
-      this.ensureScan();
+      // Retour sur l'onglet : relevé seulement s'il a quelque chose à surveiller
+      if (this.campaignId || voiceCount() > 0 || this.ctx?.state === 'running') this.ensureScan();
       return;
     }
     this.stopScan();
