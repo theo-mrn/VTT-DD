@@ -14,6 +14,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { AmbiancePlayerCard } from '@/components/blocks/ambiance-widget';
+import { useVisibleVideo } from '@/components/blocks/use-visible-video';
 
 interface BentoCardProps {
   icon: React.ReactNode;
@@ -111,6 +112,9 @@ interface BentoVideoCardProps {
   title: string;
   description: string;
   src: string;
+  /** Première image, affichée avant la lecture (ou à sa place, mouvement réduit) */
+  poster: string;
+  label: string;
   span: string;
   compact?: boolean;
   delay: number;
@@ -121,10 +125,14 @@ function BentoVideoCard({
   title,
   description,
   src,
+  poster,
+  label,
   span,
   compact,
   delay,
 }: BentoVideoCardProps) {
+  // Lecture seulement à l'écran et onglet visible
+  const videoRef = useVisibleVideo();
   return (
     <motion.div
       className={cn(
@@ -173,7 +181,17 @@ function BentoVideoCard({
           compact ? 'min-h-[140px]' : 'min-h-[180px]',
         )}
       >
-        <video src={src} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+        <video
+          ref={videoRef}
+          src={src}
+          poster={poster}
+          preload="none"
+          loop
+          muted
+          playsInline
+          aria-label={label}
+          className="w-full h-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
       </div>
     </motion.div>
@@ -286,12 +304,13 @@ export function Features1() {
             compact
             delay={0.2}
           />
-          <BentoCard
+          <BentoVideoCard
             icon={<Eye className="w-5 h-5" />}
             title="Vision et ombres dynamiques"
             description="Calcul d'ombres en temps réel : chaque joueur ne voit que ce que son personnage perçoit."
-            image="/landingpage/ombres.gif"
-            imageAlt="Système de vision dynamique et ombres"
+            src="/landingpage/ombres.mp4"
+            poster="/landingpage/ombres-poster.webp"
+            label="Système de vision dynamique et ombres"
             span="md:col-span-1"
             compact
             delay={0.3}
@@ -301,6 +320,8 @@ export function Features1() {
             title="Météo dynamique"
             description="Pluie, neige, brouillard ou tempête : habillez vos cartes en un clic pour planter le décor."
             src="/landingpage/weather.mp4"
+            poster="/landingpage/weather-poster.webp"
+            label="Météo dynamique sur une carte"
             span="md:col-span-1"
             compact
             delay={0.4}
