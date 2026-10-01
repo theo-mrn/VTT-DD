@@ -26,6 +26,15 @@ export function usePanelLocationSync(allowed: ReadonlySet<PanelId>) {
   }, [store, cible]);
 }
 
+/**
+ * `usePanelLocationSync` dans un composant feuille : seul lui se re-rend quand l'adresse
+ * change (chaque ouverture de panneau l'écrit), pas le plateau qui le monte.
+ */
+export function PanelLocationSync({ allowed }: { allowed: ReadonlySet<PanelId> }) {
+  usePanelLocationSync(allowed);
+  return null;
+}
+
 /** Adresse d'un panneau (lien partageable), depuis l'adresse courante. */
 export function panelHref(search: URLSearchParams, id: PanelId, params: PanelParams = {}): string {
   const next = new URLSearchParams(search);

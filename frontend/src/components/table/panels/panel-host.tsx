@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { X } from 'lucide-react';
-import { Suspense, useEffect, useRef, type KeyboardEvent } from 'react';
+import { memo, Suspense, useEffect, useMemo, useRef, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Info } from '@/components/ui/tooltip';
@@ -23,18 +23,25 @@ const WIDTH: Record<PanelWidth, string> = {
   full: 'lg:w-[min(72rem,calc(100vw-6rem))]',
 };
 
+/**
+ * Fermé (fin de l'animation) : masqué, et `content-visibility: hidden` saute le rendu de son
+ * contenu (style, mise en page, peinture) en gardant son état et sa position de défilement.
+ */
+const OUVERT = { visibility: 'visible', contentVisibility: 'visible' } as const;
+const FERME = { transitionEnd: { visibility: 'hidden', contentVisibility: 'hidden' } } as const;
+
 const VARIANTS: Record<TablePanel['mode'], Variants> = {
   side: {
-    open: { opacity: 1, x: 0, visibility: 'visible' },
-    closed: { opacity: 0, x: -16, transitionEnd: { visibility: 'hidden' } },
+    open: { opacity: 1, x: 0, ...OUVERT },
+    closed: { opacity: 0, x: -16, ...FERME },
   },
   floating: {
-    open: { opacity: 1, x: 0, visibility: 'visible' },
-    closed: { opacity: 0, x: -12, transitionEnd: { visibility: 'hidden' } },
+    open: { opacity: 1, x: 0, ...OUVERT },
+    closed: { opacity: 0, x: -12, ...FERME },
   },
   centered: {
-    open: { opacity: 1, scale: 1, y: 0, visibility: 'visible' },
-    closed: { opacity: 0, scale: 0.98, y: 8, transitionEnd: { visibility: 'hidden' } },
+    open: { opacity: 1, scale: 1, y: 0, ...OUVERT },
+    closed: { opacity: 0, scale: 0.98, y: 8, ...FERME },
   },
 };
 
@@ -51,7 +58,7 @@ export function PanelHost({ panels }: { panels: TablePanel[] }) {
     <>
       {mounted.map((id) => {
         const panel = panels.find((p) => p.id === id);
-        return panel ? <PanelFrame key={id} panel={panel} visible={active === id} /> : null;
+        return panel ? <PanelFrameMemo key={id} panel={panel} visible={active === id} /> : null;
       })}
     </>
   );
@@ -110,6 +117,19 @@ function PanelFrame({ panel, visible }: { panel: TablePanel; visible: boolean })
   };
 
   const Icone = panel.icon;
+  // Corps du panneau : même élément d'un rendu à l'autre, il ne se re-rend pas quand le
+  // panneau s'ouvre ou se ferme (seuls les lecteurs de `usePanelVisible` le suivent)
+  const Corps = panel.component;
+  const corps = useMemo(
+    () => (
+      <FrontiereTable nom={panel.label}>
+        <Suspense fallback={<ChargementOnglet />}>
+          <Corps />
+        </Suspense>
+      </FrontiereTable>
+    ),
+    [Corps, panel.label],
+  );
   const cadre = (
     <motion.section
       ref={ref}
@@ -164,13 +184,7 @@ function PanelFrame({ panel, visible }: { panel: TablePanel; visible: boolean })
             </Button>
           </Info>
         </header>
-        <PanelVisibleProvider value={visible}>
-          <FrontiereTable nom={panel.label}>
-            <Suspense fallback={<ChargementOnglet />}>
-              <panel.component />
-            </Suspense>
-          </FrontiereTable>
-        </PanelVisibleProvider>
+        <PanelVisibleProvider value={visible}>{corps}</PanelVisibleProvider>
       </div>
     </motion.section>
   );
@@ -195,3 +209,12 @@ function PanelFrame({ panel, visible }: { panel: TablePanel; visible: boolean })
     </div>
   );
 }
+
+/**
+ * Re-rendu seulement quand le panneau s'ouvre ou se ferme : ouvrir un autre panneau, ou un
+ * rendu de l'hôte, ne touche pas les panneaux gardés en mémoire.
+ */
+const PanelFrameMemo = memo(
+  PanelFrame,
+  (a, b) => a.panel.id === b.panel.id && a.visible === b.visible,
+);

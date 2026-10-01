@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Settings2,
 } from 'lucide-react';
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -26,7 +27,7 @@ type RailLayout = ReturnType<typeof useRailLayout>;
  * Navigation de la table : rail vertical flottant à gauche (grand écran), dock en bas avec un
  * bouton Carte (mobile). Mêmes panneaux, même ordre personnalisé.
  */
-export function TableRail({ layout }: { layout: RailLayout }) {
+export const TableRail = memo(function TableRail({ layout }: { layout: RailLayout }) {
   const visibles = layout.items.filter((i) => !i.hidden);
   return (
     <>
@@ -57,7 +58,7 @@ export function TableRail({ layout }: { layout: RailLayout }) {
       </nav>
     </>
   );
-}
+});
 
 function Pastille({ nombre }: { nombre: number }) {
   return (

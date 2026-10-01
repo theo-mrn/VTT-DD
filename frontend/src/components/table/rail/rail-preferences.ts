@@ -78,5 +78,9 @@ export function useRailLayout(userId: string, campaignId: string, available: Tab
 
   const customized = layout.order.length > 0 || layout.hidden.length > 0;
 
-  return { items, move, setHidden, reset, customized };
+  // Stable entre deux rendus : le rail (mémoïsé) ne se re-rend que si sa disposition change
+  return useMemo(
+    () => ({ items, move, setHidden, reset, customized }),
+    [items, move, setHidden, reset, customized],
+  );
 }

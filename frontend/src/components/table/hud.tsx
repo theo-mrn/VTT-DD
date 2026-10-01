@@ -3,7 +3,7 @@
 import type { CombatState } from '@vtt/contracts';
 import { ArrowLeft, Crown, Eye, UserRoundCog } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { GmCombatBar } from '@/components/combat/bar/gm-combat-bar';
 import { LiveReports } from '@/components/combat/live-reports/live-reports';
@@ -19,7 +19,7 @@ import { useCombat } from '@/lib/combat/use-combat';
 import type { DetailCampagne } from '@/lib/campagnes';
 import type { Personnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
-import type { Table } from './contexte';
+import { useTableHeros, type Table } from './contexte';
 import { FrontiereTable } from './frontiere';
 import { JaugesFiche } from './jauges';
 import { PanelLink } from './panels/navigation';
@@ -30,7 +30,7 @@ import { usePanelStore } from './panels/store';
 const VERRE = 'rounded-2xl border border-border-strong bg-popover/95 shadow-elevated';
 
 /** En haut à gauche : retour au salon, campagne et système. */
-export function HudCampaign({ table }: { table: Table }) {
+export const HudCampaign = memo(function HudCampaign({ table }: { table: Table }) {
   const c = table.campagne;
   const nomSysteme = useNomSysteme(c.system);
   return (
@@ -61,14 +61,14 @@ export function HudCampaign({ table }: { table: Table }) {
       </span>
     </div>
   );
-}
+});
 
 /**
  * Au centre : la barre de combat du MJ (docs/combat.md § 12.6), en combat comme hors combat, et
  * dessous ses rapports d'attaque en direct, un seul ensemble ; pour un joueur, les invites de
  * défense active quand son personnage est attaqué (en combat ou non).
  */
-export function HudCombat({ table }: { table: Table }) {
+export const HudCombat = memo(function HudCombat({ table }: { table: Table }) {
   const { campagne: c, gm, moi } = table;
   const { combat, isLoading } = useCombat(c.id);
   const role = gm ? 'gm' : moi.role;
@@ -87,7 +87,7 @@ export function HudCombat({ table }: { table: Table }) {
       )}
     </div>
   );
-}
+});
 
 /** Barre du MJ et pile de rapports : l'état des rapports est partagé (pastille, repli). */
 function GmCombat({ campagne, combat }: { campagne: DetailCampagne; combat: CombatState | null }) {
@@ -101,15 +101,16 @@ function GmCombat({ campagne, combat }: { campagne: DetailCampagne; combat: Comb
 }
 
 /** En haut à droite : mon héros (portrait, jauges) et « Changer de héros ». */
-export function HudHero({ table }: { table: Table }) {
+export const HudHero = memo(function HudHero({ table }: { table: Table }) {
   const { campagne: c, gm, moi } = table;
+  const heros = useTableHeros();
   // Un panneau ouvert : le héros se fait discret (portrait seul)
   const compact = usePanelStore((s) => s.active !== null);
   return (
     <div className={cn(VERRE, 'pointer-events-auto flex min-w-0 items-center gap-1 p-1')}>
-      {table.heros ? (
+      {heros ? (
         <FrontiereTable nom="Fiche" compacte>
-          <HerosIncarne heros={table.heros} herosId={table.herosId} compact={compact} />
+          <HerosIncarne heros={heros} herosId={table.herosId} compact={compact} />
         </FrontiereTable>
       ) : table.herosId ? (
         <Skeleton className="size-9 rounded-full" aria-label="Chargement du héros" />
@@ -130,7 +131,7 @@ export function HudHero({ table }: { table: Table }) {
       )}
     </div>
   );
-}
+});
 
 function HerosIncarne({
   heros,

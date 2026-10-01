@@ -1,24 +1,25 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { DoorOpen, RotateCw } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, type ReactNode } from 'react';
 import { EtatVide } from '@/components/commun/page';
 import { TableAudio } from '@/components/audio/table-audio';
 import { DiceThrowerHost } from '@/components/dice/thrower-host';
 import { EcranChargement } from '@/components/shell/ecran-chargement';
 import { Button } from '@/components/ui/button';
 import { ApiError, messageErreur } from '@/lib/api';
-import { useCampagne } from '@/lib/campagnes';
-import { usePersonnagesCampagne } from '@/lib/personnages';
+import { campagnes, useCampagne } from '@/lib/campagnes';
+import { clesPersonnages, usePersonnagesCampagne } from '@/lib/personnages';
 import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfilRequis } from '@/lib/session';
 import { useSystemTypography } from '@/lib/system-fonts';
 import { useSysteme } from '@/lib/systemes';
-import { FournisseurTable, type Table } from './contexte';
+import { FournisseurHeros, FournisseurTable, type Table } from './contexte';
 import { HudCampaign, HudCombat, HudHero } from './hud';
-import { usePanelLocationSync } from './panels/navigation';
+import { PanelLocationSync } from './panels/navigation';
 import { PanelHost } from './panels/panel-host';
 import { panelsFor, type TableRole } from './panels/registry';
 import { PanelStoreProvider } from './panels/store';
@@ -39,7 +40,14 @@ export function TableScene({ id, children }: { id: string; children: ReactNode }
   const profil = useProfilRequis();
   const router = useRouter();
   const campagne = useCampagne(profil ? id : null);
-  const engages = usePersonnagesCampagne(profil ? id : null);
+  // Engagés (le héros du HUD) lus dès l'arrivée, avec la campagne ; leurs changements ne
+  // re-rendent pas la scène (`notifyOnChangeProps: []`), seulement `HerosTable`
+  useQuery({
+    queryKey: clesPersonnages.campagne(id),
+    queryFn: () => campagnes.personnages(id),
+    enabled: Boolean(profil),
+    notifyOnChangeProps: [],
+  });
   const c = campagne.data;
   const moi = c?.members.find((m) => m.userId === profil?.id) ?? null;
   const herosId = c?.playedCharacterId ?? null;
@@ -58,11 +66,6 @@ export function TableScene({ id, children }: { id: string; children: ReactNode }
     else if (sansHeros) router.replace(`/campagnes/${id}/personnage`);
   }, [refuse, horsTable, sansHeros, router, id]);
 
-  const heros = useMemo(
-    () => engages.data?.find((p) => p.id === herosId) ?? null,
-    [engages.data, herosId],
-  );
-
   const table = useMemo<Table | null>(
     () =>
       c && moi
@@ -71,11 +74,10 @@ export function TableScene({ id, children }: { id: string; children: ReactNode }
             moi,
             gm: c.role === 'gm',
             herosId,
-            heros,
             base: `/campagnes/${id}/table`,
           }
         : null,
-    [c, moi, herosId, heros, id],
+    [c, moi, herosId, id],
   );
 
   if (!profil || campagne.isLoading || refuse || horsTable || sansHeros)
@@ -105,18 +107,41 @@ export function TableScene({ id, children }: { id: string; children: ReactNode }
 
   return (
     <FournisseurTable value={table}>
-      <PanelStoreProvider key={table.campagne.id}>
-        <Plateau table={table}>{children}</Plateau>
-      </PanelStoreProvider>
+      <HerosTable campaignId={id} herosId={herosId}>
+        <PanelStoreProvider key={table.campagne.id}>
+          <Plateau table={table}>{children}</Plateau>
+        </PanelStoreProvider>
+      </HerosTable>
     </FournisseurTable>
   );
 }
 
-function Plateau({ table, children }: { table: Table; children: ReactNode }) {
+/**
+ * Résumé de mon héros, lu dans les personnages engagés : il change à chaque écriture sur sa
+ * fiche, seuls ses lecteurs (`useTableHeros`) se re-rendent, pas le plateau.
+ */
+function HerosTable({
+  campaignId,
+  herosId,
+  children,
+}: {
+  campaignId: string;
+  herosId: string | null;
+  children: ReactNode;
+}) {
+  const engages = usePersonnagesCampagne(campaignId);
+  const heros = useMemo(
+    () => engages.data?.find((p) => p.id === herosId) ?? null,
+    [engages.data, herosId],
+  );
+  return <FournisseurHeros value={heros}>{children}</FournisseurHeros>;
+}
+
+/** Re-rendu seulement quand la table change (pas à chaque écriture d'une fiche ou d'un panneau). */
+const Plateau = memo(function Plateau({ table, children }: { table: Table; children: ReactNode }) {
   const role: TableRole = table.gm ? 'gm' : table.moi.role;
   const panels = useMemo(() => panelsFor(role), [role]);
   const permis = useMemo(() => new Set(panels.map((p) => p.id)), [panels]);
-  usePanelLocationSync(permis);
   useTableShortcuts(panels);
   const viewer = useMemo(
     () => ({ userId: table.moi.userId, gm: table.gm }),
@@ -130,6 +155,8 @@ function Plateau({ table, children }: { table: Table; children: ReactNode }) {
       data-ambiance={table.campagne.ambiance}
       className="fixed inset-0 overflow-hidden bg-background text-foreground [--table-dock-h:calc(4rem+env(safe-area-inset-bottom))] lg:[--table-dock-h:0px]"
     >
+      {/* L'adresse suit le panneau ouvert : seul ce composant la lit, le plateau ne bouge pas */}
+      <PanelLocationSync allowed={permis} />
       <main className="absolute inset-x-0 top-0 bottom-[var(--table-dock-h)]">{children}</main>
 
       <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-3 lg:left-20">
@@ -146,4 +173,4 @@ function Plateau({ table, children }: { table: Table; children: ReactNode }) {
       <DiceThrowerHost />
     </div>
   );
-}
+});
