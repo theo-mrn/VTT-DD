@@ -38,6 +38,7 @@ import { useHudPrefs } from '@/components/table/hud-prefs';
 import { TABLE_HUD_LEFT } from '@/components/table/hud-slots';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
+import { useCombat } from '@/lib/combat/use-combat';
 import { chatApi } from '@/lib/campaign-chat';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import {
@@ -188,32 +189,45 @@ export function PartyBar() {
         )}
       </div>
 
-      {gm && (
+      {gm && campaignId && (
         <>
           <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
-          <CombatBarToggle />
+          <CombatBarToggle campaignId={campaignId} />
         </>
       )}
     </div>
   );
 }
 
-/** MJ : la barre de combat hors combat, montrée ou rangée (en combat, toujours là). */
-function CombatBarToggle() {
+/**
+ * MJ : la barre de combat hors combat, montrée ou rangée. En combat elle est toujours là : le
+ * bouton est alors inactif.
+ */
+function CombatBarToggle({ campaignId }: { campaignId: string }) {
   const on = useHudPrefs((s) => s.combatBarIdle);
   const set = useHudPrefs((s) => s.setCombatBarIdle);
+  const fighting = useCombat(campaignId).combat !== null;
+  const tip = fighting
+    ? 'Barre de combat affichée pendant le combat'
+    : on
+      ? 'Ranger la barre de combat'
+      : 'Montrer la barre de combat';
   return (
-    <Info texte={on ? 'Ranger la barre de combat' : 'Montrer la barre de combat'} cote="bottom">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Barre de combat hors combat"
-        aria-pressed={on}
-        onClick={() => set(!on)}
-        className={cn(HUD_CONTROL, 'shrink-0', on && 'bg-primary/10 text-primary')}
-      >
-        <Swords />
-      </Button>
+    <Info texte={tip} cote="bottom">
+      {/* Un bouton inactif ne reçoit pas le survol : l'info-bulle passe par l'enveloppe */}
+      <span className="shrink-0">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Barre de combat hors combat"
+          aria-pressed={fighting || on}
+          disabled={fighting}
+          onClick={() => set(!on)}
+          className={cn(HUD_CONTROL, (fighting || on) && 'bg-primary/10 text-primary')}
+        >
+          <Swords />
+        </Button>
+      </span>
     </Info>
   );
 }
