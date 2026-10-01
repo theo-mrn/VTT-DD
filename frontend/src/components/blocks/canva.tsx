@@ -53,8 +53,11 @@ const DEMO_CHARACTERS: DemoCharacter[] = [
   },
 ];
 
-// Fond animé unique, déjà présent dans la bibliothèque de cartes (BackgroundSelector, Map/Camp/Animated)
+// Fond animé unique, déjà présent dans la bibliothèque de cartes (BackgroundSelector, Map/Camp/Animated) :
+// sa variante 1080p H.264 (décodée par le matériel), l'original VP8 4K en repli
 const CITY_BACKGROUND_VIDEO =
+  'https://assets.yner.fr/Map/Camp/Animated/1080p/Goblin_Camp_Day_NoGrid_Audio.mp4';
+const CITY_BACKGROUND_VIDEO_FALLBACK =
   'https://assets.yner.fr/Map/Camp/Animated/Goblin_Camp_Day_NoGrid_Audio.webm';
 // Première image de la vidéo, affichée avant sa lecture (ou à sa place avec le mouvement réduit)
 const CITY_BACKGROUND_POSTER = '/landingpage/canva-poster.webp';
@@ -218,7 +221,6 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
       >
         <video
           ref={videoRef}
-          src={CITY_BACKGROUND_VIDEO}
           poster={CITY_BACKGROUND_POSTER}
           preload="metadata"
           loop
@@ -226,7 +228,10 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
           playsInline
           onLoadedMetadata={handleVideoLoadedMetadata}
           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-        />
+        >
+          <source src={CITY_BACKGROUND_VIDEO} type="video/mp4" />
+          <source src={CITY_BACKGROUND_VIDEO_FALLBACK} type="video/webm" />
+        </video>
         <div className="absolute inset-0 pointer-events-none bg-black/40" />
         {/* Vignette douce sur les bords pour un rendu plus cinématique, sans assombrir le centre */}
         <div className="absolute inset-0 pointer-events-none [box-shadow:inset_0_0_180px_60px_rgba(0,0,0,0.45)]" />
