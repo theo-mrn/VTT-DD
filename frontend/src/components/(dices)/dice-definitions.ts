@@ -1,4 +1,10 @@
-import { getAssetUrl } from '@/lib/asset-loader';
+// Mêmes adresses que l'ancien `getAssetUrl` de `@/lib/asset-loader`, sans
+// embarquer sa table de correspondance (1,1 Mo) dans le JS : chaque texture
+// ci-dessous est servie par le CDN au même chemin, les modèles des orbes ne le
+// sont pas (chemin local).
+const R2_ASSETS = 'https://assets.yner.fr';
+const getAssetUrl = (localPath: string): string =>
+  localPath.startsWith('/textures/') ? `${R2_ASSETS}${localPath}` : localPath;
 
 export type SkinEffectType =
   | 'metallic'
