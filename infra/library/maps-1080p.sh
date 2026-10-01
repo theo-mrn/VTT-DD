@@ -7,7 +7,8 @@
 #   Map/Camp/Animated/Camp_Day.webm  →  Map/Camp/Animated/1080p/Camp_Day.mp4
 #
 # Usage : infra/library/maps-1080p.sh            (réencode dans $OUT, reprend où il en était)
-#         infra/library/maps-1080p.sh --upload   (envoie $OUT sur R2, variables R2_* requises)
+#         infra/library/maps-1080p.sh --upload   (envoie $OUT sur R2, variables R2_* requises,
+#           par exemple : set -a; . ~/.config/vtt/r2-library.env; set +a)
 # Compatible bash 3.2 (macOS). Encodeur matériel VideoToolbox s'il existe, sinon libx264.
 set -euo pipefail
 
@@ -20,6 +21,7 @@ if [ "${1:-}" = "--upload" ]; then
   : "${R2_ENDPOINT:?R2_ENDPOINT manquant}" "${R2_BUCKET_NAME:?R2_BUCKET_NAME manquant}"
   : "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID manquant}" "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY manquant}"
   AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
+    AWS_DEFAULT_REGION=auto \
     aws s3 sync "$OUT/" "s3://$R2_BUCKET_NAME/" --endpoint-url "$R2_ENDPOINT" \
     --exclude "*" --include "*/1080p/*.mp4" --content-type video/mp4 \
     --cache-control "public, max-age=31536000, immutable"
