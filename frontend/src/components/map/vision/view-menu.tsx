@@ -6,7 +6,7 @@
  * non vues masquées). Chacun peut figer la brume, montrer les rayons de vision et la distance au
  * clic (préférences locales).
  */
-import { CircleDashed, Cloudy, Eye, Ruler, ScanEye } from 'lucide-react';
+import { CircleDashed, Cloudy, Eye, Film, Ruler, ScanEye } from 'lucide-react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +20,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Info } from '@/components/ui/tooltip';
+import {
+  backgroundPrefs,
+  isVideoUrl,
+  setBackgroundAnimation,
+} from '@/lib/map/engine/background-prefs';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { measurePrefs, setClickDistance } from '@/lib/map/modules/measurements/prefs';
 import { setFogAnimation, setVisionRadiusShown, visionPrefs } from '@/lib/map/modules/vision/prefs';
@@ -31,6 +36,8 @@ export function VisionViewMenu({ engine }: { engine: MapEngine }) {
   const gm = engine.viewer.role === 'gm';
   const viewAs = useStore(engine.ui, (s) => s.viewAs);
   const fogAnimation = useStore(visionPrefs(engine), (s) => s.fogAnimation);
+  const backgroundAnimation = useStore(backgroundPrefs(engine), (s) => s.animate);
+  const videoBackground = useStore(engine.store, (s) => isVideoUrl(s.scene?.backgroundUrl ?? ''));
   const radius = useStore(visionPrefs(engine), (s) => s.visionRadius);
   const clickDistance = useStore(measurePrefs(engine), (s) => s.clickDistance);
   const players = gm ? (engine.directory.players?.() ?? []) : [];
@@ -98,6 +105,15 @@ export function VisionViewMenu({ engine }: { engine: MapEngine }) {
           <Cloudy className="size-4 text-muted-foreground" />
           Animer la brume
         </DropdownMenuCheckboxItem>
+        {videoBackground && (
+          <DropdownMenuCheckboxItem
+            checked={backgroundAnimation}
+            onCheckedChange={(on) => setBackgroundAnimation(engine, on === true)}
+          >
+            <Film className="size-4 text-muted-foreground" />
+            Animer le fond
+          </DropdownMenuCheckboxItem>
+        )}
         <DropdownMenuCheckboxItem
           checked={clickDistance}
           onCheckedChange={(on) => setClickDistance(engine, on === true)}

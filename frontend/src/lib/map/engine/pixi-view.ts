@@ -11,8 +11,8 @@
  * - Un conteneur par plan (`planes.ts`) ; le plan `content` contient un conteneur par calque du
  *   MJ, trié par `sortOrder`, et chaque calque trie ses entités par `z` (tri refait seulement
  *   quand un `z` change).
- * - Fond : `background.ts` (image avec mipmaps, ou vidéo muette en boucle, 24 i/s au plus, taille
- *   du monde).
+ * - Fond : `background.ts` (image avec mipmaps dans le plan `background`, ou vidéo native dans un
+ *   calque sous le canvas, transformée comme la caméra ; taille du monde).
  * - Destruction complète : scène, textures chargées, contexte WebGL rendu au navigateur.
  */
 import * as PIXI from 'pixi.js';
@@ -20,6 +20,7 @@ import { Application, Assets, Container, Graphics, ImageSource, Text, Texture } 
 import { surCdn, vignette } from '@/lib/assets';
 import { prefersEconomy } from '@/lib/perf/device';
 import { MapBackground } from './background';
+import { backgroundPrefs } from './background-prefs';
 import { CursorLayer } from './cursors';
 import { destroyDisplay } from './destroy-display';
 import type { EntityChange, MapTheme, RenderContext } from './entities/entity-kind';
@@ -129,6 +130,8 @@ class PixiView implements EngineView {
   private destroyed = false;
 
   private readonly background: MapBackground;
+  /** Calque DOM sous le canvas : le fond vidéo, composé par le navigateur. */
+  private readonly underlay: HTMLDivElement;
 
   // Textures chargées par le moteur et les sortes (libérées à la destruction)
   private readonly textures = new Map<string, Promise<Texture>>();
@@ -168,6 +171,17 @@ class PixiView implements EngineView {
     // Contexte WebGL restauré par Pixi après une perte (GPU réinitialisé) : rien ne bouge, mais
     // l'image est à refaire (rendu à la demande)
     this.canvas.addEventListener('webglcontextrestored', this.onContextRestored);
+    // Le canvas (transparent) passe au-dessus du calque du fond vidéo
+    this.canvas.style.position = 'relative';
+    this.underlay = document.createElement('div');
+    this.underlay.setAttribute('aria-hidden', 'true');
+    Object.assign(this.underlay.style, {
+      position: 'absolute',
+      inset: '0',
+      overflow: 'hidden',
+      pointerEvents: 'none',
+    } satisfies Partial<CSSStyleDeclaration>);
+    host.appendChild(this.underlay);
     host.appendChild(this.canvas);
     this.theme = readTheme(host);
 
@@ -204,6 +218,8 @@ class PixiView implements EngineView {
     this.plane('tool').addChild(this.lassoGfx);
     this.background = new MapBackground({
       plane: this.plane('background'),
+      underlay: this.underlay,
+      prefs: backgroundPrefs(engine),
       texture: (url) => this.texture(url),
       maxTextureSize: maxTextureSize(app),
       onLoaded: (w, h) => engine.backgroundLoaded(w, h),
@@ -212,7 +228,6 @@ class PixiView implements EngineView {
         engine.notify('Le fond de la carte n’a pas pu être chargé.');
       },
       invalidate: () => engine.invalidate(),
-      onFrame: (cb) => engine.onFrame(cb),
     });
     this.applyCamera();
   }
@@ -469,8 +484,11 @@ class PixiView implements EngineView {
   private applyCamera() {
     const cam = this.engine.camera;
     const { width, height } = cam.viewport;
+    const x = width / 2 - cam.x * cam.zoom;
+    const y = height / 2 - cam.y * cam.zoom;
     this.world.scale.set(cam.zoom);
-    this.world.position.set(width / 2 - cam.x * cam.zoom, height / 2 - cam.y * cam.zoom);
+    this.world.position.set(x, y);
+    this.background.setCamera(cam.zoom, x, y);
   }
 
   render(now: number) {
@@ -658,6 +676,7 @@ class PixiView implements EngineView {
     this.destroyed = true;
     this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
     this.background.destroy();
+    this.underlay.remove();
     this.pingFrame?.();
     const gl = (this.app.renderer as unknown as { gl?: WebGLRenderingContext }).gl;
     // Textures du cache Assets : libérées par `unload`, pas par la destruction de la scène

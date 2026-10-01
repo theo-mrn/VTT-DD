@@ -212,8 +212,12 @@ abonnements au store, et renvoie son nettoyage.
   - Le ticker Pixi ne tourne que si quelque chose l'exige : geste en cours, interpolation du
     direct, animation, fond vidéo. Sinon, une image est rendue quand le store ou la caméra change
     (`engine.invalidate()`).
-  - Fond vidéo : 24 i/s au plus (15 en économie), en pause onglet caché, figé (première
-    image) avec « mouvement réduit ». Fond image : décodé hors du fil (`createImageBitmap`),
+  - Fond vidéo : un `<video>` natif dans un calque **sous** le canvas (transparent), transformé
+    comme la caméra (`matrix(zoom, …)`). Le navigateur le décode et le compose (matériel, sans
+    copie vers WebGL) : aucun rendu de la carte tant que rien ne bouge, même en 4K. « Animer le
+    fond » (menu Vue, préférence locale, `background-prefs.ts`) : sinon la première image ;
+    figé par défaut avec « mouvement réduit » ou sur machine économe. En pause onglet caché.
+    Fond image : décodé hors du fil (`createImageBitmap`),
     mipmaps, réduit au-delà de `MAX_TEXTURE_SIZE` (4096 px en économie).
   - Un curseur distant immobile (keepalive identique) ne relance pas la boucle d'images.
 - **Culling** par l'index spatial : seuls les éléments qui touchent la vue sont `visible`.

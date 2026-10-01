@@ -9,29 +9,30 @@
  * machine économe, elle est réduite au décodage ; le sprite garde la taille naturelle (le monde
  * ne change pas).
  *
- * Vidéo : 24 images par seconde au plus (15 sur une machine économe), sans le ticker partagé de
- * Pixi. Chaque nouvelle image de la vidéo (`requestVideoFrameCallback`) met la texture à jour et
- * demande un rendu ; sans cette API, la boucle du moteur tourne tant que la vidéo joue. Onglet
- * caché : en pause (reprise au retour). « Mouvement réduit » : la première image, figée.
+ * Vidéo : un élément `<video>` du navigateur, dans un calque placé SOUS le canvas (transparent),
+ * transformé comme la caméra (`setCamera`). Le navigateur la décode et la compose lui-même
+ * (décodage matériel, sans copie vers WebGL) : la carte ne redessine rien tant que rien ne bouge,
+ * même sur un fond animé en 4K. Préférence « Animer le fond » (`background-prefs.ts`) : sinon la
+ * première image, figée. Onglet caché : en pause (reprise au retour).
  *
  * Chargé avec le rendu (`pixi-view.ts`) : importe Pixi.
  */
-import { Assets, ImageSource, Sprite, Texture, type Container, type VideoSource } from 'pixi.js';
-import { prefersEconomy, prefersReducedMotion } from '@/lib/perf/device';
+import { ImageSource, Sprite, Texture, type Container } from 'pixi.js';
+import type { StoreApi } from 'zustand/vanilla';
+import { prefersEconomy } from '@/lib/perf/device';
+import { isVideoUrl, type BackgroundPrefs } from './background-prefs';
 
-/** Images de la vidéo de fond par seconde, au plus. */
-export const VIDEO_FPS = 24;
-/** Même chose sur une machine économe. */
-export const VIDEO_FPS_ECONOMY = 15;
+export { isVideoUrl };
 /** Côté maximal de l'image de fond sur une machine économe (au-delà : réduite). */
 export const ECONOMY_MAX_TEXTURE = 4096;
 
-const VIDEO_EXT = /\.(webm|mp4|m4v|mov)(\?|#|$)/i;
-export const isVideoUrl = (url: string) => VIDEO_EXT.test(url);
-
 export interface BackgroundHost {
-  /** Plan `background`. */
+  /** Plan `background` (image). */
   plane: Container;
+  /** Calque DOM sous le canvas (vidéo), de la taille de la vue. */
+  underlay: HTMLElement;
+  /** « Animer le fond » : la vidéo joue ou reste sur sa première image. */
+  prefs: StoreApi<BackgroundPrefs>;
   /** Texture d'une image (cache du rendu, libérée à la destruction) : repli sans décodage. */
   texture(url: string): Promise<Texture>;
   /** Côté maximal d'une texture pour ce GPU (`MAX_TEXTURE_SIZE`). */
@@ -40,8 +41,6 @@ export interface BackgroundHost {
   onLoaded(width: number, height: number): void;
   onError(url: string, err: unknown): void;
   invalidate(): void;
-  /** Animation du moteur (repli sans `requestVideoFrameCallback`). */
-  onFrame(cb: (now: number) => boolean | void): () => void;
 }
 
 interface Loaded {
@@ -58,7 +57,9 @@ export class MapBackground {
   private owned: Texture | null = null;
   private url: string | null = null;
   private seq = 0;
+  private video: HTMLVideoElement | null = null;
   private stopVideo: (() => void) | null = null;
+  private camera = '';
   private destroyed = false;
 
   constructor(private readonly host: BackgroundHost) {}
@@ -70,31 +71,13 @@ export class MapBackground {
     const seq = ++this.seq;
     this.clear();
     if (!url) return;
-    const video = isVideoUrl(url);
-    const frozen = video && prefersReducedMotion();
-    const load: Promise<Loaded> = video
-      ? Assets.load<Texture>({
-          src: url,
-          parser: 'video',
-          data: {
-            autoPlay: !frozen,
-            loop: true,
-            muted: true,
-            playsinline: true,
-            preload: true,
-            crossorigin: true,
-          },
-        }).then((texture) => ({
-          texture,
-          width: texture.width,
-          height: texture.height,
-          owned: false,
-        }))
-      : this.loadImage(url);
-    load.then(
+    if (isVideoUrl(url)) {
+      this.showVideo(url, seq);
+      return;
+    }
+    this.loadImage(url).then(
       ({ texture, width, height, owned }) => {
         if (this.destroyed || seq !== this.seq) {
-          if (video) void Assets.unload(url).catch(() => undefined);
           if (owned) texture.destroy(true);
           return;
         }
@@ -105,7 +88,6 @@ export class MapBackground {
         this.sprite = sprite;
         this.owned = owned ? texture : null;
         this.host.plane.addChild(sprite);
-        if (video) this.driveVideo(texture.source as VideoSource, url, frozen);
         this.host.onLoaded(Math.round(width), Math.round(height));
         this.host.invalidate();
       },
@@ -113,6 +95,14 @@ export class MapBackground {
         if (seq === this.seq) this.host.onError(url, err);
       },
     );
+  }
+
+  /** Caméra du monde (échelle, translation en pixels CSS) : la vidéo suit, sans rendu. */
+  setCamera(zoom: number, x: number, y: number) {
+    const key = `${zoom} ${x} ${y}`;
+    if (key === this.camera) return;
+    this.camera = key;
+    if (this.video) this.video.style.transform = `matrix(${zoom},0,0,${zoom},${x},${y})`;
   }
 
   /**
@@ -157,69 +147,77 @@ export class MapBackground {
     return { texture: new Texture({ source }), width, height, owned: true };
   }
 
-  private driveVideo(source: VideoSource, url: string, frozen: boolean) {
-    source.autoUpdate = false;
-    const video = source.resource as HTMLVideoElement;
+  /**
+   * Vidéo native sous le canvas. Taille naturelle à `loadedmetadata` (taille du monde) ; lecture
+   * selon « Animer le fond », en pause onglet caché.
+   */
+  private showVideo(url: string, seq: number) {
+    const video = document.createElement('video');
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
-    if (frozen) {
-      // Mouvement réduit : la première image, sans lecture
-      video.pause();
-      source.update();
-      this.stopVideo = () => void Assets.unload(url).catch(() => undefined);
-      return;
-    }
-    void video.play().catch(() => undefined);
-    const interval = 1000 / (prefersEconomy() ? VIDEO_FPS_ECONOMY : VIDEO_FPS);
-    let last = -Infinity;
-    /** Nouvelle image si la précédente date d'au moins un intervalle (cadence tenue en moyenne). */
-    const frame = (now: number) => {
-      const elapsed = now - last;
-      if (elapsed < interval - 2) return;
-      last = elapsed > 4 * interval ? now : now - (elapsed % interval);
-      source.update();
+    video.preload = 'auto';
+    video.disablePictureInPicture = true;
+    video.setAttribute('aria-hidden', 'true');
+    Object.assign(video.style, {
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      transformOrigin: '0 0',
+      maxWidth: 'none',
+      pointerEvents: 'none',
+      // Pas d'image avant la première image décodée (évite un flash)
+      visibility: 'hidden',
+    } satisfies Partial<CSSStyleDeclaration>);
+    this.video = video;
+    this.camera = '';
+
+    const animate = () => this.host.prefs.getState().animate;
+    const sync = () => {
+      if (document.hidden || !animate()) video.pause();
+      else void video.play().catch(() => undefined);
+    };
+    const onMeta = () => {
+      if (this.destroyed || seq !== this.seq) return;
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      video.style.width = `${width}px`;
+      video.style.height = `${height}px`;
+      this.host.onLoaded(width, height);
       this.host.invalidate();
     };
-    let stop: () => void;
-    if (typeof video.requestVideoFrameCallback === 'function') {
-      let handle: number | null = null;
-      const onFrame = (now: number) => {
-        if (this.destroyed) return;
-        frame(now);
-        handle = video.requestVideoFrameCallback(onFrame);
-      };
-      handle = video.requestVideoFrameCallback(onFrame);
-      stop = () => {
-        if (handle !== null) video.cancelVideoFrameCallback(handle);
-      };
-    } else {
-      stop = this.host.onFrame((now) => {
-        if (!video.paused) frame(now);
-        return !video.paused;
-      });
-    }
-    // Onglet caché : la vidéo ne se décode plus pour rien
-    const onVisibility = () => {
-      if (document.hidden) video.pause();
-      else {
-        void video.play().catch(() => undefined);
-        // Repli sans `requestVideoFrameCallback` : la boucle s'était arrêtée avec la pause
-        this.host.invalidate();
-      }
+    const onData = () => {
+      video.style.visibility = 'visible';
+      sync();
     };
-    document.addEventListener('visibilitychange', onVisibility);
+    const onError = () => {
+      if (seq === this.seq) this.host.onError(url, video.error);
+    };
+    video.addEventListener('loadedmetadata', onMeta);
+    video.addEventListener('loadeddata', onData);
+    video.addEventListener('error', onError);
+    document.addEventListener('visibilitychange', sync);
+    const unsubscribe = this.host.prefs.subscribe(sync);
+    video.src = url;
+    this.host.underlay.appendChild(video);
     this.stopVideo = () => {
-      document.removeEventListener('visibilitychange', onVisibility);
-      stop();
+      unsubscribe();
+      document.removeEventListener('visibilitychange', sync);
+      video.removeEventListener('loadedmetadata', onMeta);
+      video.removeEventListener('loadeddata', onData);
+      video.removeEventListener('error', onError);
       video.pause();
-      void Assets.unload(url).catch(() => undefined);
+      // Libère le décodeur tout de suite
+      video.removeAttribute('src');
+      video.load();
+      video.remove();
     };
   }
 
   private clear() {
     this.stopVideo?.();
     this.stopVideo = null;
+    this.video = null;
     if (this.sprite) {
       this.sprite.removeFromParent();
       this.sprite.destroy();
