@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { surCdn, vignette } from '@/lib/assets';
+import { flou, surCdn, vignette } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 
 /** Teinte stable dérivée d'un texte : chaque campagne ou héros garde sa couleur. */
@@ -31,6 +31,7 @@ export function Illustration({
   children,
   position = 'center',
   largeur,
+  floute = false,
 }: {
   src: string | null | undefined;
   graine: string;
@@ -48,18 +49,25 @@ export function Illustration({
    * double (2x) au lieu de sa pleine résolution. L'adresse enregistrée ne change pas.
    */
   largeur?: number;
+  /**
+   * Fond flouté (en-têtes de fiche et de duel). Sur le CDN, une image de 96 px déjà floutée par
+   * Cloudflare, agrandie avec un flou CSS léger ; ailleurs, le flou CSS fort d'avant, sur un
+   * calque isolé.
+   */
+  floute?: boolean;
 }) {
   const [echec, setEchec] = useState<string | null>(null);
   const image = src && echec !== src ? src : null;
+  const fond = floute && image ? flou(image) : null;
   const lettre = initiale === false ? null : (initiale ?? graine.trim().charAt(0).toUpperCase());
 
   return (
     <div className={cn('relative isolate overflow-hidden bg-surface-2', className)}>
       {image ? (
         <img
-          src={largeur ? vignette(image, largeur * 2) : image}
+          src={fond ?? (largeur ? vignette(image, largeur * 2) : image)}
           srcSet={
-            largeur && surCdn(image)
+            largeur && !floute && surCdn(image)
               ? `${vignette(image, largeur)} 1x, ${vignette(image, largeur * 2)} 2x`
               : undefined
           }
@@ -70,6 +78,7 @@ export function Illustration({
           className={cn(
             'absolute inset-0 size-full object-cover',
             position === 'top' && 'object-top',
+            floute && (fond ? 'scale-110 blur-md' : 'scale-110 transform-gpu blur-3xl'),
             classeImage,
           )}
         />

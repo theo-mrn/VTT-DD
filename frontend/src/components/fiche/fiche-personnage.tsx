@@ -261,7 +261,7 @@ function EnTeteFiche({
         graine={p.name}
         initiale={false}
         className="absolute inset-0 -z-10 opacity-50"
-        classeImage="scale-110 blur-3xl"
+        floute
       />
       <div
         aria-hidden

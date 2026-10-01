@@ -3,6 +3,7 @@
 import { Map as IconeCarte } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Illustration } from '@/components/commun/illustration';
+import { cn } from '@/lib/utils';
 
 export interface MapStageProps {
   /** Couverture de la campagne, en toile de fond tant que la carte n'est pas là. */
@@ -37,7 +38,8 @@ export function MapStage({
             src={backdropUrl}
             graine={seed}
             initiale={false}
-            className="absolute inset-0 scale-110 opacity-40 blur-2xl"
+            floute
+            className={cn('absolute inset-0 opacity-40', !backdropUrl && 'scale-110 blur-2xl')}
           />
           <div
             aria-hidden

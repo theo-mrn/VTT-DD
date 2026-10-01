@@ -101,14 +101,14 @@ export function VersusHeader({
           graine={attackerName ?? known?.name ?? 'attaquant'}
           initiale={false}
           className="opacity-40"
-          classeImage="scale-110 blur-3xl"
+          floute
         />
         <Illustration
           src={firstTarget?.portraitUrl}
           graine={firstTarget?.name ?? targetIds[0] ?? 'cible'}
           initiale={false}
           className={cn('opacity-40', !targetIds.length && 'opacity-0')}
-          classeImage="scale-110 blur-3xl"
+          floute
         />
       </div>
       <div
