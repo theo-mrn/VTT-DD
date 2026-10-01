@@ -42,7 +42,7 @@ describe('adaptateur contrat → @vtt/vision', () => {
       },
     });
     const g = geometryInput(t.store.getState());
-    expect(g).toMatchObject({ width: 1000, height: 1000, fogFull: false });
+    expect(g).toMatchObject({ width: 1250, height: 1250, fogFull: false });
     expect(g.obstacles[0]).toEqual({
       id: 'mur',
       kind: 'wall',

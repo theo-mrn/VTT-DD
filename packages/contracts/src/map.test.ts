@@ -180,6 +180,10 @@ describe('contrat de la carte', () => {
     expect(scenePixelsPerUnit({ grids: [grid('a', false), grid('b', true, 88)] }, null)).toBe(88);
     expect(scenePixelsPerUnit({ grids: [grid('a', false)] }, { pixelsPerUnit: 64 })).toBe(64);
     expect(scenePixelsPerUnit(null, null)).toBe(50);
+    // Sans grille de jeu : une part de la largeur du fond, quelle que soit sa résolution
+    expect(scenePixelsPerUnit({ grids: [], width: 3840 }, { pixelsPerUnit: 64 })).toBe(153.6);
+    expect(scenePixelsPerUnit({ grids: [], width: 1920 }, null)).toBe(76.8);
+    expect(scenePixelsPerUnit({ grids: [grid('b', true, 88)], width: 3840 }, null)).toBe(88);
   });
 
   it('météo : vent facultatif (données anciennes), borné, sans clé inconnue', () => {

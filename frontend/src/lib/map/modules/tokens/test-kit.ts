@@ -122,7 +122,7 @@ export function setupTokens(
   const base = spyPersistence();
   const backend = { ...fakeBackend(), collection: () => base };
   store.getState().hydrate({
-    scene: { id: 'carte', version: 1, width: 1000, height: 1000, backgroundUrl: null },
+    scene: { id: 'carte', version: 1, width: 1250, height: 1250, backgroundUrl: null },
     settings: { version: 1, pixelsPerUnit: 50, tokenScale: 1, unitName: 'm' },
     collections: { tokens: opts.tokens ?? [], layers: LAYERS },
   });

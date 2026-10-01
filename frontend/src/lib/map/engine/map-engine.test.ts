@@ -59,9 +59,11 @@ describe('MapEngine', () => {
 
   it('contexte des sortes : échelle et nom de l’unité, défauts du serveur', () => {
     const t = setup();
+    // Sans grille de jeu, la case est une part de la largeur du fond (1250 / 25), quel que soit
+    // le réglage de la campagne, qui ne sert que sans taille connue
     expect(t.engine.kindContext()).toMatchObject({ pixelsPerUnit: 50, unitName: 'm' });
     t.store.getState().patchSettings({ unitName: 'cases', pixelsPerUnit: 70 });
-    expect(t.engine.kindContext()).toMatchObject({ pixelsPerUnit: 70, unitName: 'cases' });
+    expect(t.engine.kindContext()).toMatchObject({ pixelsPerUnit: 50, unitName: 'cases' });
     t.store.getState().patchSettings({ unitName: '  ' });
     expect(t.engine.kindContext().unitName).toBe('m');
   });

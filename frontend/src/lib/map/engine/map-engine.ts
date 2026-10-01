@@ -817,9 +817,9 @@ export class MapEngine {
       viewer: this.viewer,
       scene: s.scene,
       settings,
-      // Case de la scène : sa grille de jeu, sinon le réglage de la campagne (comme le serveur)
+      // Case de la scène : sa grille de jeu, sinon une part de la largeur du fond (comme le serveur)
       pixelsPerUnit: scenePixelsPerUnit(
-        s.scene as { grids?: MapGrid[] } | null,
+        s.scene as { grids?: MapGrid[]; width?: number | null } | null,
         settings as { pixelsPerUnit?: number } | null,
       ),
       tokenScale:

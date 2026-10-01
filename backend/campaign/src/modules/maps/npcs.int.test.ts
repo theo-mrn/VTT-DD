@@ -55,7 +55,7 @@ describe.skipIf(!TEST_DATABASE_URL)('carte : PNJ et fouille', () => {
       .where(sql`${outbox.envelope}->>'roomId' = ${campaignId}`)
       .orderBy(outbox.id);
   const newMap = () =>
-    h.ok<Item>(gm, 'POST', url('/maps'), { name: 'Taverne', width: 1000, height: 1000 });
+    h.ok<Item>(gm, 'POST', url('/maps'), { name: 'Taverne', width: 1250, height: 1250 });
   const engaged = async () =>
     t.db!.select().from(campaignCharacters).where(eq(campaignCharacters.campaignId, campaignId));
 

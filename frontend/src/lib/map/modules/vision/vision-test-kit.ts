@@ -132,7 +132,7 @@ export function setup(
 ) {
   const store = createMapStore('campagne', 'carte');
   store.getState().hydrate({
-    scene: { id: 'carte', version: 1, width: 1000, height: 1000, fogFull: false, display: {} },
+    scene: { id: 'carte', version: 1, width: 1250, height: 1250, fogFull: false, display: {} },
     settings: { version: 1, pixelsPerUnit: 50, tokenScale: 1, shadowOpacity: 0.8 },
     collections: {
       tokens: [token('heros', 100, 100), ...(opts.tokens ?? [])],

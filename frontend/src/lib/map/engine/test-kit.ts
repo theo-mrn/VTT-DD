@@ -115,7 +115,7 @@ export function setup(
   const backend = fakeBackend();
   const persistence = spyPersistence();
   store.getState().hydrate({
-    scene: { id: 'carte', version: 1, width: 1000, height: 1000, backgroundUrl: null },
+    scene: { id: 'carte', version: 1, width: 1250, height: 1250, backgroundUrl: null },
     settings: { version: 1, pixelsPerUnit: 50, tokenScale: 1 },
     collections: { boxes: opts.boxes ?? [], layers: opts.layers ?? [] },
   });

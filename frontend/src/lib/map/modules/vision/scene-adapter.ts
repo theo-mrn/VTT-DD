@@ -123,7 +123,7 @@ export function scaleOf(state: MapStoreState) {
   const s = state.settings;
   return {
     pixelsPerUnit: scenePixelsPerUnit(
-      state.scene as { grids?: MapGrid[] } | null,
+      state.scene as { grids?: MapGrid[]; width?: number | null } | null,
       s as { pixelsPerUnit?: number } | null,
     ),
     tokenScale: num(s?.tokenScale, 1) > 0 ? num(s?.tokenScale, 1) : 1,

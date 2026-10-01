@@ -177,16 +177,27 @@ export function playGridOf(
   return scene?.grids?.find((g) => g.primary) ?? null;
 }
 
+/** Sans grille de jeu, cases sur la largeur du fond (repli proportionnel à l'image). */
+export const FALLBACK_CELLS_ACROSS = 25;
+
 /**
- * Case d'une scène, en pixels du monde : sa grille de jeu, sinon le réglage de la campagne
- * (`pixelsPerUnit`, 50 par défaut). Même règle pour le client et le serveur.
+ * Case d'une scène, en pixels du monde : sa grille de jeu ; sinon une part de la largeur du
+ * fond (`FALLBACK_CELLS_ACROSS` cases) : une même carte en deux résolutions garde des tokens à
+ * la même échelle ; sans taille connue, le réglage de la campagne (`pixelsPerUnit`, 50 par
+ * défaut). Même règle pour le client et le serveur.
  */
 export function scenePixelsPerUnit(
-  scene: { grids?: readonly MapGrid[] | null } | null | undefined,
+  scene:
+    | { grids?: readonly MapGrid[] | null; width?: number | null; height?: number | null }
+    | null
+    | undefined,
   settings: { pixelsPerUnit?: number | null } | null | undefined,
 ): number {
   const grid = playGridOf(scene);
   if (grid && grid.size > 0) return grid.size;
+  const width = scene?.width;
+  if (typeof width === 'number' && width > 0)
+    return Math.round((width / FALLBACK_CELLS_ACROSS) * 100) / 100;
   const ppu = settings?.pixelsPerUnit;
   return typeof ppu === 'number' && ppu > 0 ? ppu : 50;
 }

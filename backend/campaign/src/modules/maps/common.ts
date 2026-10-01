@@ -259,19 +259,30 @@ export async function mapSettingsOf(db: Db | Tx, campaignId: string) {
 
 /**
  * Réglages vus depuis une scène : la case (`pixelsPerUnit`) est celle de sa grille de jeu si
- * elle en a une, sinon celle de la campagne (`scenePixelsPerUnit`, même règle que le client).
+ * elle en a une, sinon une part de la largeur de son fond, sinon celle de la campagne
+ * (`scenePixelsPerUnit`, même règle que le client).
  */
 export async function sceneSettingsOf(
   db: Db | Tx,
-  map: { id: string; campaignId: string; grids?: MapRow['grids'] },
+  map: {
+    id: string;
+    campaignId: string;
+    grids?: MapRow['grids'];
+    width?: MapRow['width'];
+  },
 ) {
   const settings = await mapSettingsOf(db, map.campaignId);
   let grids = map.grids;
-  if (!grids) {
-    const [row] = await db.select({ grids: maps.grids }).from(maps).where(eq(maps.id, map.id));
-    grids = row?.grids ?? [];
+  let width = map.width;
+  if (!grids || width === undefined) {
+    const [row] = await db
+      .select({ grids: maps.grids, width: maps.width })
+      .from(maps)
+      .where(eq(maps.id, map.id));
+    grids = grids ?? row?.grids ?? [];
+    width = row?.width ?? null;
   }
-  return { ...settings, pixelsPerUnit: scenePixelsPerUnit({ grids }, settings) };
+  return { ...settings, pixelsPerUnit: scenePixelsPerUnit({ grids, width }, settings) };
 }
 
 export const iso = (d: Date) => d.toISOString();
