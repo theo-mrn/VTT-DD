@@ -10,7 +10,7 @@
  * - Carte d'un modèle : portrait, nom, type, statistiques de la présentation du système ; clic :
  *   modifier ; menu : dupliquer, changer de catégorie, supprimer (les PNJ déjà posés restent).
  */
-import type { SystemeCharge } from '@vtt/rules';
+import type { Presentation, SystemeCharge } from '@vtt/rules';
 import {
   AlertTriangle,
   Copy,
@@ -26,7 +26,7 @@ import {
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { NpcForm, type NpcFormResult } from '@/components/personnages/npc-form';
-import { templateItem } from '@/components/resources/model/bestiary';
+import { templateItem, type BestiaryItem } from '@/components/resources/model/bestiary';
 import { normaliser } from '@/components/resources/model/catalogue';
 import { Chips, ListSkeleton, Notice, SearchField, Thumb } from '@/components/resources/parts';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,39 @@ const NONE = '__none';
 
 type Editing = { mode: 'new' } | { mode: 'edit'; template: NpcTemplate };
 
+/**
+ * Carte d'un modèle, calculée par les règles (fiche du modèle comprise) une fois par modèle :
+ * le modèle garde son identité tant qu'il ne change pas (partage structurel de TanStack
+ * Query), la carte est refaite seulement si lui, les règles ou les catégories changent.
+ */
+const cartes = new WeakMap<
+  NpcTemplate,
+  {
+    systeme: SystemeCharge;
+    presentation: Presentation | null;
+    categories: readonly NpcTemplateCategory[];
+    item: BestiaryItem;
+  }
+>();
+function carteDe(
+  systeme: SystemeCharge,
+  presentation: Presentation | null,
+  t: NpcTemplate,
+  categories: readonly NpcTemplateCategory[],
+): BestiaryItem {
+  const connue = cartes.get(t);
+  if (
+    connue &&
+    connue.systeme === systeme &&
+    connue.presentation === presentation &&
+    connue.categories === categories
+  )
+    return connue.item;
+  const item = templateItem(systeme, presentation, t, categories);
+  cartes.set(t, { systeme, presentation, categories, item });
+  return item;
+}
+
 export function OngletPnj() {
   const { campagne } = useTable();
   const sys = useCampaignSystem(campagne.system, campagne.id);
@@ -84,19 +117,32 @@ export function OngletPnj() {
     return templates.data.templates
       .map((t) => ({
         template: t,
-        item: templateItem(rules.systeme, rules.presentation, t, categories),
+        item: carteDe(rules.systeme, rules.presentation, t, categories),
       }))
       .sort((a, b) => a.template.name.localeCompare(b.template.name, 'fr'));
   }, [sys.data, templates.data, categories]);
 
   const q = normaliser(query);
-  const shown = cards.filter(
-    (c) =>
-      (!q || c.item.text.includes(q)) &&
-      (category === ALL ||
-        (category === NONE ? !c.template.categoryId : c.template.categoryId === category)),
+  const shown = useMemo(
+    () =>
+      cards.filter(
+        (c) =>
+          (!q || c.item.text.includes(q)) &&
+          (category === ALL ||
+            (category === NONE ? !c.template.categoryId : c.template.categoryId === category)),
+      ),
+    [cards, q, category],
   );
-  const withoutCategory = cards.some((c) => !c.template.categoryId);
+  // Modèles par catégorie (clé vide : sans catégorie), comptés une fois
+  const counts = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const c of cards) {
+      const id = c.template.categoryId ?? '';
+      n.set(id, (n.get(id) ?? 0) + 1);
+    }
+    return n;
+  }, [cards]);
+  const withoutCategory = (counts.get('') ?? 0) > 0;
 
   const run = async (label: string, work: () => Promise<unknown>, done?: string) => {
     try {
@@ -223,14 +269,14 @@ export function OngletPnj() {
             ...categories.map((c) => ({
               value: c.id,
               label: c.name,
-              count: cards.filter((x) => x.template.categoryId === c.id).length,
+              count: counts.get(c.id) ?? 0,
             })),
             ...(withoutCategory
               ? [
                   {
                     value: NONE,
                     label: 'Sans catégorie',
-                    count: cards.filter((x) => !x.template.categoryId).length,
+                    count: counts.get('') ?? 0,
                   },
                 ]
               : []),
