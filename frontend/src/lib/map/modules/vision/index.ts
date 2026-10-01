@@ -22,7 +22,7 @@ import { VisionViewMenu } from '@/components/map/vision/view-menu';
 import { Fades, VISION_MASK } from './fades';
 import { VisionRings } from './radius-rings';
 import { visionPrefs } from './prefs';
-import { VisionRenderer } from './renderer';
+import { CAMERA_REFRESH_MS, VisionRenderer } from './renderer';
 import { exposeStats, VisionStats } from './stats';
 import { VisionState } from './vision-state';
 
@@ -111,8 +111,18 @@ export const visionModule: MapModule = {
         engine.invalidate();
       }, 1000 / FOG_FPS);
     };
+    // Geste de caméra : la vue n'a pas été refaite à cette image, une image plus tard la refera
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleSettle = () => {
+      if (settleTimer) return;
+      settleTimer = setTimeout(() => {
+        settleTimer = null;
+        engine.invalidate();
+      }, CAMERA_REFRESH_MS);
+    };
     cleanups.push(() => {
       if (fogTimer) clearTimeout(fogTimer);
+      if (settleTimer) clearTimeout(settleTimer);
     });
 
     cleanups.push(
@@ -131,7 +141,7 @@ export const visionModule: MapModule = {
           lastTick = now;
           const cam = engine.camera;
           renderer.noisePeriod = Math.max(20, engine.kindContext().pixelsPerUnit * 3);
-          renderer.draw(
+          const stale = renderer.draw(
             state.picture(),
             {
               x: cam.x,
@@ -142,6 +152,7 @@ export const visionModule: MapModule = {
             },
             fogClock,
           );
+          if (stale) scheduleSettle();
           scheduleFog();
         }
         rings?.draw(state.picture(), engine.camera.zoom, prefs.getState().visionRadius);

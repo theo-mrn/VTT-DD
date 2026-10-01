@@ -144,6 +144,27 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     expect(h.draw({}, 1)).toEqual(['vision:mist']);
   });
 
+  it('geste de caméra : textures gardées, puis refaites à la caméra finale', () => {
+    const h = harness({
+      extra: { lights: [light('l', 600, 600)], fogZones: [fogZone('z', 700, 700)] },
+    });
+    const all = ['vision:range', 'vision:fog', 'vision:glow', 'vision:vis', 'vision:mist'];
+    h.draw();
+    // Premier déplacement après le repos : tout, tout de suite
+    expect(h.draw({ x: 510 })).toEqual(all);
+    // Le geste continue : les textures d'il y a un instant servent encore
+    expect(h.draw({ x: 520 })).toEqual([]);
+    expect(h.draw({ x: 530, zoom: 1.2 })).toEqual([]);
+    // Un terme change pendant le geste : tout est refait à la caméra courante
+    const heros = h.engine.entity('heros')!;
+    h.engine.setPreview(heros, { ...heros.geometry, x: 140 });
+    expect(h.draw({ x: 540 })).toEqual(all);
+    // Caméra arrêtée (image suivante, même caméra) : refaite si elle était en retard
+    expect(h.draw({ x: 550 })).toEqual([]);
+    expect(h.draw()).toEqual(all);
+    expect(h.draw()).toEqual([]);
+  });
+
   it('contexte WebGL restauré : toutes les textures refaites à l’image suivante', () => {
     const h = harness({
       extra: { lights: [light('l', 600, 600)], fogZones: [fogZone('z', 700, 700)] },

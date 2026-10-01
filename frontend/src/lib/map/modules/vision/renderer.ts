@@ -37,6 +37,8 @@ export const FOG_BLUR = 10;
 export const DISC_SOFT_EDGE = 0.12;
 /** Période du bruit de la brume, en cases. */
 export const FOG_PERIOD_CELLS = 3;
+/** Pendant un pan ou un zoom : textures refaites au plus toutes les … ms. */
+export const CAMERA_REFRESH_MS = 60;
 
 export interface CameraView {
   x: number;
@@ -400,7 +402,14 @@ export class VisionRenderer {
   private readonly uniforms: Pixi.UniformGroup;
   private readonly contentSprites = new Set<Pixi.Sprite>();
 
+  /** Caméra des textures (celle de leur dernier rendu). */
   private cameraKey = '';
+  private rtCam: CameraView | null = null;
+  private rtAt = -Infinity;
+  private rtRes = 0;
+  /** Caméra de l'image précédente, et si elle venait de changer (geste en cours). */
+  private drawKey = '';
+  private wasMoving = false;
   private fogVersion = -1;
   private lightVersion = -1;
   private viewerVersion = -1;
@@ -549,20 +558,53 @@ export class VisionRenderer {
     this.mistKey = '';
   }
 
-  /** Dessine l'image ; ne refait que les textures dont un terme a changé. */
-  draw(picture: VisionPicture | null, cam: CameraView, time: number) {
-    if (this.destroyed) return;
+  /**
+   * Dessine l'image ; ne refait que les textures dont un terme a changé. Pendant un pan ou un
+   * zoom (caméra changée deux images de suite), les textures ne sont refaites que toutes les
+   * `CAMERA_REFRESH_MS` : entre-temps, la composition les relit à leur place dans le monde
+   * (même image, déplacée ou mise à l'échelle). Renvoie vrai si une image est due plus tard
+   * pour les refaire à la caméra finale.
+   */
+  draw(picture: VisionPicture | null, cam: CameraView, time: number): boolean {
+    if (this.destroyed) return false;
     if (!picture || cam.width < 1 || cam.height < 1) {
       this.composite.visible = false;
       this.shown = false;
-      return;
+      return false;
     }
     const started = performance.now();
     const res = this.renderer.resolution;
     const cameraKey = `${cam.x}:${cam.y}:${cam.zoom}:${cam.width}:${cam.height}:${res}`;
-    const cameraChanged = cameraKey !== this.cameraKey || !this.shown;
+    const fogChanged = picture.versions.fog !== this.fogVersion;
+    const lightsChanged = picture.versions.lights !== this.lightVersion;
+    const viewersChanged = picture.versions.viewers !== this.viewerVersion;
+    // Geste de caméra : déjà changée à l'image précédente, textures récentes, même taille de
+    // vue, zoom proche ; rien d'autre n'a changé
+    const moving = this.drawKey !== '' && cameraKey !== this.drawKey;
+    const rt = this.rtCam;
+    const deferred =
+      moving &&
+      this.wasMoving &&
+      this.shown &&
+      rt !== null &&
+      cameraKey !== this.cameraKey &&
+      started - this.rtAt < CAMERA_REFRESH_MS &&
+      !fogChanged &&
+      !lightsChanged &&
+      !viewersChanged &&
+      rt.width === cam.width &&
+      rt.height === cam.height &&
+      res === this.rtRes &&
+      cam.zoom / rt.zoom > 0.5 &&
+      cam.zoom / rt.zoom < 2;
+    this.drawKey = cameraKey;
+    this.wasMoving = moving;
+    const cameraChanged = !deferred && (cameraKey !== this.cameraKey || !this.shown);
     if (cameraChanged) {
       this.cameraKey = cameraKey;
+      this.rtCam = { ...cam };
+      this.rtAt = started;
+      this.rtRes = res;
       for (const t of Object.values(this.targets)) {
         const w = Math.ceil(cam.width);
         const h = Math.ceil(cam.height);
@@ -574,23 +616,21 @@ export class VisionRenderer {
         root.position.set(cam.width / 2 - cam.x * cam.zoom, cam.height / 2 - cam.y * cam.zoom);
       }
     }
-    const fogChanged = picture.versions.fog !== this.fogVersion;
-    const lightsChanged = picture.versions.lights !== this.lightVersion;
-    const viewersChanged = picture.versions.viewers !== this.viewerVersion;
     if (fogChanged) this.buildZones(picture);
     if (lightsChanged) this.buildLights(picture.lights);
     if (fogChanged) this.buildFog(picture);
     if (lightsChanged) this.buildGlow(picture.lights);
     if (viewersChanged || fogChanged) this.buildVis(picture);
 
-    // Sprites de portée : le rectangle de la vue, dans le repère du monde
-    const left = cam.x - cam.width / 2 / cam.zoom;
-    const top = cam.y - cam.height / 2 / cam.zoom;
+    // Sprites de portée : le rectangle de la vue des textures, dans le repère du monde
+    const tc = this.rtCam!;
+    const left = tc.x - tc.width / 2 / tc.zoom;
+    const top = tc.y - tc.height / 2 / tc.zoom;
     if (cameraChanged || viewersChanged || fogChanged)
       for (const s of this.contentSprites) {
         s.position.set(left, top);
-        s.width = cam.width / cam.zoom;
-        s.height = cam.height / cam.zoom;
+        s.width = tc.width / tc.zoom;
+        s.height = tc.height / tc.zoom;
       }
 
     const renderRange = cameraChanged || fogChanged || lightsChanged;
@@ -610,10 +650,11 @@ export class VisionRenderer {
     this.lightVersion = picture.versions.lights;
     this.viewerVersion = picture.versions.viewers;
 
-    if (this.hasFog) this.renderMist(cam, time, left, top, fogStale);
-    this.updateComposite(picture, cam, left, top);
+    if (this.hasFog) this.renderMist(tc, time, left, top, fogStale);
+    this.updateComposite(picture, cam, tc);
     this.shown = true;
     this.onRender?.(performance.now() - started);
+    return deferred;
   }
 
   /** Portée hors observateur : hors brouillard (zones dans l'ordre), refaite avec les zones. */
@@ -784,9 +825,19 @@ export class VisionRenderer {
     });
   }
 
-  private updateComposite(p: VisionPicture, cam: CameraView, left: number, top: number) {
+  /**
+   * Quadrilatère sur le rectangle visible (caméra `cam`) ; coordonnées de texture dans la vue des
+   * textures (`tc`, la même hors d'un geste de caméra).
+   */
+  private updateComposite(p: VisionPicture, cam: CameraView, tc: CameraView) {
     const viewW = cam.width / cam.zoom;
     const viewH = cam.height / cam.zoom;
+    const left = cam.x - viewW / 2;
+    const top = cam.y - viewH / 2;
+    const texW = tc.width / tc.zoom;
+    const texH = tc.height / tc.zoom;
+    const texLeft = tc.x - texW / 2;
+    const texTop = tc.y - texH / 2;
     // Rectangle visible ∩ carte : pas d'ombre hors de la carte
     const x0 = Math.max(left, 0);
     const y0 = Math.max(top, 0);
@@ -803,8 +854,8 @@ export class VisionRenderer {
     for (let i = 0; i < 4; i++) {
       pos[2 * i] = corners[2 * i]!;
       pos[2 * i + 1] = corners[2 * i + 1]!;
-      uv[2 * i] = (corners[2 * i]! - left) / viewW;
-      uv[2 * i + 1] = (corners[2 * i + 1]! - top) / viewH;
+      uv[2 * i] = (corners[2 * i]! - texLeft) / texW;
+      uv[2 * i + 1] = (corners[2 * i + 1]! - texTop) / texH;
     }
     g.getBuffer('aPosition').update();
     g.getBuffer('aUV').update();
