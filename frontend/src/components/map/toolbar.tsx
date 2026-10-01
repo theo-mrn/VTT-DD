@@ -26,6 +26,7 @@ import { Info } from '@/components/ui/tooltip';
 import { SNAP_STEPS, type SnapStep } from '@/lib/map/engine/map-engine';
 import { DISPLAY_TOGGLES, displayOf, isDisplayed } from '@/lib/map/engine/planes';
 import { cn } from '@/lib/utils';
+import { BubbleToolbarButton } from './bubbles/bubble-picker';
 import { BackgroundPicker } from './scenes/background-picker';
 import {
   useActiveToolId,
@@ -164,6 +165,7 @@ export function MapToolbar() {
             </ToolbarButton>
           </>
         )}
+        {viewer.role === 'player' && <BubbleToolbarButton />}
 
         {(items('view').length > 0 || gm) && <Separator />}
         {items('view').map((item) => (
