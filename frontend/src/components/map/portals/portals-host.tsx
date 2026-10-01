@@ -24,6 +24,7 @@ import { portalModuleOf, type PortalModule } from '@/lib/map/modules/portals/reg
 import { PORTAL_ICON_PX } from '@/lib/map/modules/portals/view';
 import { useCampaignEvents } from '@/lib/realtime';
 import { openScene } from '../use-table-map';
+import { trackOverlay, type OverlaySizes } from '../overlay-tracker';
 import { PortalGlyph } from './portal-glyph';
 
 export function PortalsHost({ engine }: { engine: MapEngine }) {
@@ -124,41 +125,42 @@ function Prompt({ ctx }: { ctx: PortalModule }) {
   const busy = useStore(travel.state, (s) => s.busy);
   const ref = useRef<HTMLDivElement>(null);
   const portal = prompt ? travel.portal(prompt.portalId) : undefined;
+  const shown = !!portal;
 
-  // Au-dessus de l'icône du portail, suivie sans re-rendre React
+  // Au-dessus de l'icône du portail, suivie sans re-rendre React ni lire la mise en page à
+  // chaque image (`trackOverlay`)
   useEffect(() => {
     if (!prompt) return;
+    // Échap ferme la proposition (la carte garde ses autres usages d'Échap)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') travel.dismiss();
+    };
+    window.addEventListener('keydown', onKey);
+    const el = ref.current;
+    const host = el?.parentElement;
+    if (!el || !host) return () => window.removeEventListener('keydown', onKey);
     let last = '';
-    const place = () => {
-      const el = ref.current;
+    const place = ({ w, h, hostW, hostH }: OverlaySizes) => {
       const p = travel.portal(prompt.portalId);
-      const host = el?.parentElement;
-      if (!el || !p || !host) return;
+      if (!p) return;
       const at = engine.camera.worldToScreen(p.pos);
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      const x = Math.round(Math.min(Math.max(at.x - w / 2, 8), host.clientWidth - w - 8));
+      const x = Math.round(Math.min(Math.max(at.x - w / 2, 8), hostW - w - 8));
       let y = at.y - PORTAL_ICON_PX - 14 - h;
       if (y < 64) y = at.y + PORTAL_ICON_PX + 28;
-      y = Math.round(Math.min(Math.max(y, 8), host.clientHeight - h - 8));
+      y = Math.round(Math.min(Math.max(y, 8), hostH - h - 8));
       const key = `${x}:${y}`;
       if (key === last) return;
       last = key;
       el.style.transform = `translate(${x}px, ${y}px)`;
       el.style.visibility = 'visible';
     };
-    place();
-    const stop = engine.onFrame(() => void place());
-    // Échap ferme la proposition (la carte garde ses autres usages d'Échap)
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') travel.dismiss();
-    };
-    window.addEventListener('keydown', onKey);
+    const stop = trackOverlay(engine, el, host, place);
     return () => {
       stop();
       window.removeEventListener('keydown', onKey);
     };
-  }, [engine, travel, prompt]);
+    // `shown` : la proposition est rendue (son portail est connu)
+  }, [engine, travel, prompt, shown]);
 
   if (!prompt || !portal) return null;
   const name = portalLabel(portal);

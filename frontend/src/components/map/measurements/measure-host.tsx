@@ -4,7 +4,8 @@
  * Présence du module « mesures » à la table (surcouche sans emplacement) : au bout de ma mesure
  * récente, « Épingler » (Entrée avec l'outil Z), « Attaquer la zone (n) » et « Effacer », tant
  * qu'elle est là (6 s). La
- * barre suit la mesure sans re-rendre React : sa position est écrite dans le DOM à chaque image.
+ * barre suit la mesure sans re-rendre React : sa position est écrite dans le DOM quand la caméra
+ * ou sa taille changent (`trackOverlay`).
  */
 import { Pin, Target, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
@@ -17,6 +18,7 @@ import { charactersOf } from '@/lib/map/modules/combat/model';
 import { measureModuleOf } from '@/lib/map/modules/measurements/register';
 import { labelAnchor } from '@/lib/map/modules/measurements/render';
 import type { LocalMeasure, MeasureModule } from '@/lib/map/modules/measurements/context';
+import { trackOverlay, type OverlaySizes } from '../overlay-tracker';
 
 export function MeasureHost({ engine }: { engine: MapEngine }) {
   const ctx = measureModuleOf(engine);
@@ -30,25 +32,21 @@ function PinBar({ ctx }: { ctx: MeasureModule }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!recent) return;
+    const el = ref.current;
+    const host = el?.parentElement;
+    if (!recent || !el || !host) return;
     let last = '';
-    const place = () => {
-      const el = ref.current;
-      const host = el?.parentElement;
-      if (!el || !host) return;
+    const place = ({ w, h, hostW, hostH }: OverlaySizes) => {
       const at = engine.camera.worldToScreen(labelAnchor(recent.spec));
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      const x = Math.round(Math.min(Math.max(at.x + 12, 8), host.clientWidth - w - 8));
-      const y = Math.round(Math.min(Math.max(at.y + 14, 8), host.clientHeight - h - 8));
+      const x = Math.round(Math.min(Math.max(at.x + 12, 8), hostW - w - 8));
+      const y = Math.round(Math.min(Math.max(at.y + 14, 8), hostH - h - 8));
       const key = `${x}:${y}`;
       if (key === last) return;
       last = key;
       el.style.transform = `translate(${x}px, ${y}px)`;
       el.style.visibility = 'visible';
     };
-    place();
-    return engine.onFrame(() => void place());
+    return trackOverlay(engine, el, host, place);
   }, [engine, recent]);
 
   if (!recent) return null;

@@ -7,8 +7,8 @@
  * libellé (« Fouiller », « Fiche »), les actions à icône en boutons, les sous-menus (Ordre,
  * Calque, Visibilité…) en listes, tout le menu sous « … », et « Supprimer » à part, en dernier.
  *
- * Elle suit la sélection sans re-rendre React : sa position est écrite dans le DOM à chaque
- * image du moteur. Elle s'efface pendant un geste (glisser, lasso, pan) et quand le menu du
+ * Elle suit la sélection sans re-rendre React : sa position est écrite dans le DOM quand la
+ * caméra, la sélection ou sa taille changent (`trackOverlay`). Elle s'efface pendant un geste (glisser, lasso, pan) et quand le menu du
  * clic droit est ouvert.
  */
 import { MoreHorizontal } from 'lucide-react';
@@ -25,6 +25,7 @@ import type { MenuItem } from '@/lib/map/engine/entities/entity-kind';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { cn } from '@/lib/utils';
 import { MenuItems } from './context-menu';
+import { trackOverlay, type OverlaySizes } from './overlay-tracker';
 import {
   useEntities,
   useMapEngine,
@@ -90,12 +91,18 @@ export function SelectionBar({ hostRef }: { hostRef: RefObject<HTMLElement | nul
 
   // Position : au-dessus de la sélection (en dessous s'il n'y a pas la place), dans la carte
   useEffect(() => {
-    if (!shown) return;
+    const el = barRef.current;
+    const host = hostRef.current;
+    if (!shown || !el || !host) return;
     let last = '';
-    const place = () => {
-      const el = barRef.current;
-      const host = hostRef.current;
-      if (!el || !host) return;
+    // Geste en cours, entité tenue ou masquée : la barre s'efface
+    const hiddenKey = () => {
+      let k = engine.controller.busy ? 1 : 0;
+      for (const e of engine.selectedEntities())
+        k = (k * 31 + (e.state.dragging || !e.display?.visible ? 2 : 1)) | 0;
+      return k;
+    };
+    const place = ({ w, h, hostW, hostH }: OverlaySizes) => {
       const selected = engine.selectedEntities();
       const busy =
         engine.controller.busy || selected.some((e) => e.state.dragging || !e.display?.visible);
@@ -107,24 +114,19 @@ export function SelectionBar({ hostRef }: { hostRef: RefObject<HTMLElement | nul
       const box = selectionBox(selected);
       const top = engine.camera.worldToScreen({ x: box.x + box.width / 2, y: box.y });
       const bottom = engine.camera.worldToScreen({ x: box.x, y: box.y + box.height });
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      const maxX = host.clientWidth - w - EDGE;
+      const maxX = hostW - w - EDGE;
       const x = Math.round(Math.min(Math.max(top.x - w / 2, EDGE), Math.max(EDGE, maxX)));
       // La barre d'outils et le bandeau occupent le haut : en dessous si ça ne tient pas
       let y = top.y - GAP - h;
       if (y < 64) y = bottom.y + GAP;
-      y = Math.round(Math.min(Math.max(y, EDGE), host.clientHeight - h - EDGE));
+      y = Math.round(Math.min(Math.max(y, EDGE), hostH - h - EDGE));
       const key = `${x}:${y}`;
       if (key === last) return;
       if (last === 'hidden' || last === '') el.style.visibility = 'visible';
       last = key;
       el.style.transform = `translate(${x}px, ${y}px)`;
     };
-    place();
-    return engine.onFrame(() => {
-      place();
-    });
+    return trackOverlay(engine, el, host, place, hiddenKey);
   }, [engine, hostRef, shown, ids]);
 
   const container = hostRef.current?.parentElement;
