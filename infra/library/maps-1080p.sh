@@ -23,7 +23,7 @@ if [ "${1:-}" = "--upload" ]; then
   AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
     AWS_DEFAULT_REGION=auto \
     aws s3 sync "$OUT/" "s3://$R2_BUCKET_NAME/" --endpoint-url "$R2_ENDPOINT" \
-    --exclude "*" --include "*/1080p/*.mp4" --content-type video/mp4 \
+    --exclude "*" --include "*/1080p/*.mp4" --exclude "*.part.mp4" --content-type video/mp4 \
     --cache-control "public, max-age=31536000, immutable"
   exit 0
 fi
