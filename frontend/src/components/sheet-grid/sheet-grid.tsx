@@ -179,7 +179,10 @@ export function SheetGrid({
     let image = 0;
     let derniere = 0;
     const obs = new ResizeObserver(([e]) => {
-      derniere = Math.floor(e!.contentRect.width);
+      const w = Math.floor(e!.contentRect.width);
+      // Panneau fermé (contenu sauté, largeur 0) : la grille garde sa dernière largeur
+      if (w === 0 && derniere > 0) return;
+      derniere = w;
       if (image) return;
       image = requestAnimationFrame(() => {
         image = 0;
