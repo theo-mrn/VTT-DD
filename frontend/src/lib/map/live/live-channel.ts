@@ -198,11 +198,12 @@ export class LiveChannel {
   // Réception
   private readonly tracks = new Map<string, Track>();
   private readonly lastSeq = new Map<string, { s: number; t: number }>();
-  private readonly cursors = new Map<string, { samples: Sample[]; last: number }>();
+  /** `last` : dernier message (expiration) ; `moved` : dernier déplacement (animation). */
+  private readonly cursors = new Map<string, { samples: Sample[]; last: number; moved: number }>();
   private readonly pingListeners = new Set<(p: PingEvent) => void>();
   private readonly strokeListeners = new Set<(s: StrokeEvent) => void>();
   private readonly measureListeners = new Set<(m: MeasureEvent) => void>();
-  private readonly activityListeners = new Set<() => void>();
+  private readonly activityListeners = new Set<(visible: boolean) => void>();
 
   /** Messages envoyés (tests, diagnostic). */
   sent = 0;
@@ -481,8 +482,11 @@ export class LiveChannel {
     return () => void this.measureListeners.delete(listener);
   }
 
-  /** Quelque chose est arrivé : le moteur relance ses images. */
-  onActivity(listener: () => void): () => void {
+  /**
+   * Quelque chose est arrivé : le moteur relance ses images si `visible` (un simple rappel d'un
+   * curseur immobile ne change rien à l'écran, il ne fait que repousser son expiration).
+   */
+  onActivity(listener: (visible: boolean) => void): () => void {
     this.activityListeners.add(listener);
     return () => void this.activityListeners.delete(listener);
   }
@@ -527,10 +531,26 @@ export class LiveChannel {
     for (const e of msg.transform ?? []) {
       this.push(e[0], user, { t, x: e[1], y: e[2], width: e[3], height: e[4], rotation: e[5] });
     }
+    let visible =
+      msg.drag !== undefined ||
+      msg.transform !== undefined ||
+      msg.stroke !== undefined ||
+      msg.measure !== undefined ||
+      msg.end === true;
     if (msg.cursor) {
-      const c = this.cursors.get(user) ?? { samples: [], last: t };
-      c.samples.push({ t, x: msg.cursor[0], y: msg.cursor[1] });
-      if (c.samples.length > MAX_SAMPLES) c.samples.shift();
+      const [x, y] = msg.cursor;
+      const c = this.cursors.get(user) ?? { samples: [], last: t, moved: -Infinity };
+      const prev = c.samples[c.samples.length - 1];
+      if (prev && prev.x === x && prev.y === y) {
+        // Rappel d'un curseur immobile : il n'expire pas, mais rien ne bouge (aucune image). Un
+        // échantillon ancien est recalé, pour que le prochain déplacement parte de maintenant
+        if (t - prev.t > LIVE_BUFFER_MS) c.samples = [{ t, x, y }];
+      } else {
+        c.samples.push({ t, x, y });
+        if (c.samples.length > MAX_SAMPLES) c.samples.shift();
+        c.moved = t;
+        visible = true;
+      }
       c.last = t;
       this.cursors.set(user, c);
     }
@@ -546,7 +566,7 @@ export class LiveChannel {
           track.ended = true;
           track.last = t;
         }
-    for (const l of this.activityListeners) l();
+    for (const l of this.activityListeners) l(visible);
   }
 
   private push(entityId: string, userId: string, s: Sample) {
@@ -580,7 +600,7 @@ export class LiveChannel {
   animating(now = this.now()): boolean {
     const recent = (last: number) => now - last <= LIVE_BUFFER_MS + 250;
     for (const t of this.tracks.values()) if (recent(t.last)) return true;
-    for (const c of this.cursors.values()) if (recent(c.last)) return true;
+    for (const c of this.cursors.values()) if (recent(c.moved)) return true;
     return false;
   }
 
