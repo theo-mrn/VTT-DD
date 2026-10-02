@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { messageErreur } from '@/lib/api';
 import type { useSoundboard, useSoundCues } from '@/lib/audio';
+import { canDragSound, startSoundDrag } from '@/lib/map/modules/sounds/model';
 import { cn } from '@/lib/utils';
 import { formatTime, KIND_ICONS, SectionTitle } from './parts';
 
@@ -96,6 +97,9 @@ export function Soundboard({
                 <button
                   type="button"
                   disabled={!pret || editing}
+                  // Glissé sur la carte : une zone sonore (docs/carte.md § 10)
+                  draggable={!editing && canDragSound(a)}
+                  onDragStart={(e) => startSoundDrag(e, a)}
                   onClick={() => jouer(a)}
                   aria-label={`Jouer ${a.name} pour la table`}
                   className={cn(

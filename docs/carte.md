@@ -1426,6 +1426,42 @@ mesure se voit chez tous pendant le geste, s'efface ensuite, ou s'épingle en ga
   orienté vers le pointeur (l'ancienne app le gardait droit) ; les mesures éphémères ne
   passent plus par une base (RTDB) mais par le direct.
 
+### Zones sonores (`sounds`)
+
+Décisions du 2026-10-02 : son étouffé derrière les murs, le MJ n'écoute pas, zones en cercle ;
+glisser-déposer depuis la bibliothèque ou l'ordinateur, marche et arrêt par zone, outil F. Pas de
+son attaché à un token pour l'instant (`token.audio` reste en base). Moteur et courbes : docs/audio.md
+§ 3.8 et § 4.6.
+
+- **Données** : couche `music-zones` (`map_music_zones`, écriture MJ), cercle `pos` + `radius`
+  (pixels du monde), `volume` (0 à 1), `assetId` (son de la bibliothèque, service audio),
+  `active`, `name`. `url` ne sert plus qu'aux zones importées de l'ancienne carte (repli quand
+  `assetId` est vide). Une zone arrêtée n'est pas envoyée aux joueurs (comme une lumière éteinte).
+- **Poser** (MJ) :
+  - glisser un son de la bibliothèque (musique, ambiance, table d'effets) sur la carte : une zone
+    à cet endroit, au nom du son ;
+  - glisser un fichier audio de l'ordinateur : envoyé dans la bibliothèque (ambiance), puis zone
+    posée au point de dépôt ;
+  - outil **Zones sonores** (F) : la barre contextuelle choisit le son, le rayon et le volume des
+    zones posées ; un clic pose, poignée de rayon comme les lumières ; sans son choisi, la zone
+    est posée et son inspecteur s'ouvre ;
+  - un son YouTube est refusé (il ne passe pas par Web Audio : ni direction ni étouffement).
+- **Rendu MJ** (plan `gm`, famille d'affichage `music`) : disque teinté et cercle du rayon,
+  icône de note à taille constante ; tirets et icône grisée si la zone est arrêtée ou sans son.
+  Les joueurs ne voient rien.
+- **Menu et inspecteur** : Arrêter / Lancer ; nom, son (bibliothèque, préécoute), volume, rayon.
+- **Écoute** (`components/map/sounds/map-sounds.tsx`) :
+  - auditeur : mon token sélectionné, sinon celui du personnage que j'incarne (en tête de
+    `viewer.characterIds`), sinon mon premier token de la scène ; position affichée (glisser
+    compris), relue à 15 Hz au plus ; MJ et spectateur : aucun ;
+  - volume `volume × (1 − (d/r)²)`, panoramique `clamp(dx / 0,6r)` (courbes de l'ancienne carte),
+    8 zones au plus, boucle calée sur l'heure du serveur (deux joueurs entendent le même passage) ;
+  - famille `music` masquée par le MJ : coupé pour tous (décision Q5 de docs/audio.md).
+- **Murs** : on compte les segments qui bloquent sur la droite auditeur → centre de la zone (murs,
+  murs à sens unique, translucides compris, portes fermées ; ni fenêtre ni porte ouverte). Par
+  segment traversé, volume × 0,5 ; passe-bas à 1 200 Hz pour un, 500 Hz au-delà ; transitions
+  lissées sur 50 ms. Le son ne contourne pas : une porte ouverte à côté ne l'éclaircit pas.
+
 ### Barre du groupe (`components/map/party/party-bar.tsx`)
 
 En haut à gauche de la table, la sortie (retour au salon) en tête, à la place des anciens blocs
@@ -1448,7 +1484,6 @@ par portail. Clic : carte du personnage :
 
 Les données et routes restent, et le lot suivant les rebranche sur le même modèle d'entité :
 
-- zones sonores (service audio) ;
 - partage d'écran ;
 - attaque et combat depuis la carte ;
 - interactions marchand, jeu et butin ;

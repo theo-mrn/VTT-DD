@@ -1,0 +1,62 @@
+'use client';
+
+/**
+ * Barre contextuelle de l'outil Zones sonores (F) : son, rayon et volume des zones posées.
+ */
+import { useStore } from 'zustand';
+import type { MapEngine } from '@/lib/map/engine/map-engine';
+import { RADIUS_RANGE } from '@/lib/map/modules/sounds/model';
+import { SoundTool } from '@/lib/map/modules/sounds/tool';
+import { OptionSeparator, RangeField } from '../obstacles/controls';
+import { SoundPicker } from './sound-picker';
+
+export function SoundOptions({ engine }: { engine: MapEngine }) {
+  const tool = engine.tools.active;
+  if (!(tool instanceof SoundTool)) return null;
+  return <Options engine={engine} tool={tool} />;
+}
+
+const percent = (v: number) => `${Math.round(v * 100)} %`;
+
+function Options({ engine, tool }: { engine: MapEngine; tool: SoundTool }) {
+  const radius = useStore(tool.settings, (s) => s.radius);
+  const volume = useStore(tool.settings, (s) => s.volume);
+  const assetId = useStore(tool.settings, (s) => s.assetId);
+  const unit = engine.kindContext().unitName;
+  const set = tool.settings.setState;
+
+  return (
+    <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
+      <span className="px-1 text-xs text-muted-foreground">Nouvelle zone</span>
+      <SoundPicker
+        campaignId={engine.store.getState().campaignId}
+        value={assetId}
+        onChange={(a) => set({ assetId: a.id, name: a.name })}
+        className="w-56"
+      />
+      <OptionSeparator />
+      <div className="w-40 px-1">
+        <RangeField
+          label="Rayon"
+          value={radius}
+          min={RADIUS_RANGE.min}
+          max={20}
+          step={RADIUS_RANGE.step}
+          format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
+          onCommit={(v) => set({ radius: v })}
+        />
+      </div>
+      <div className="w-36 px-1">
+        <RangeField
+          label="Volume"
+          value={volume}
+          min={0.05}
+          max={1}
+          step={0.05}
+          format={percent}
+          onCommit={(v) => set({ volume: v })}
+        />
+      </div>
+    </div>
+  );
+}

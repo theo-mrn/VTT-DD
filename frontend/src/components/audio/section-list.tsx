@@ -38,6 +38,7 @@ import { Input } from '@/components/ui/input';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
 import { usePreview, type useAudioLibrary, type useChannel, type useSoundboard } from '@/lib/audio';
+import { canDragSound, startSoundDrag } from '@/lib/map/modules/sounds/model';
 import { cn } from '@/lib/utils';
 import { formatTime } from './parts';
 
@@ -225,6 +226,9 @@ function Row({
 
   return (
     <li
+      // Glissé sur la carte : une zone sonore (docs/carte.md § 10)
+      draggable={renaming === null && canDragSound(asset)}
+      onDragStart={(e) => startSoundDrag(e, asset)}
       className={cn(
         'flex items-center gap-1.5 rounded-lg px-1.5 py-1.5',
         current && 'bg-primary/[0.06]',

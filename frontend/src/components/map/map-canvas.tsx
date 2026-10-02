@@ -36,6 +36,7 @@ import { LayersPanel } from './layers/layers-panel';
 import { MapBubbles } from './bubbles/map-bubbles';
 import { MapOverlays } from './overlays';
 import { PartyBarHost } from './party/party-bar';
+import { MapSounds } from './sounds/map-sounds';
 import { SelectionPanel } from './selection-panel';
 import { MapToolbar } from './toolbar';
 
@@ -254,6 +255,7 @@ function MapRuntime({
           <MapToolbar />
           <MapOverlays />
           <MapBubbles campaignId={campaignId} hostRef={hostRef} />
+          <MapSounds campaignId={campaignId} hostRef={hostRef} />
           <PartyBarHost />
           <div className="pointer-events-none absolute bottom-24 right-3 top-20 z-10 flex items-start justify-end gap-3">
             <MapInspector />
