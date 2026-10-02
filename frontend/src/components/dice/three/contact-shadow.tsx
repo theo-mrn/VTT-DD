@@ -13,9 +13,9 @@ import * as THREE from 'three';
 /** Hauteur du centre d'un dé posé (environ) : au-dessus, il est en l'air. */
 const REST_HEIGHT = 1.5;
 /** Opacité de l'ombre d'un dé posé. */
-const OPACITY = 0.55;
+const OPACITY = 0.8;
 /** Rayon de l'ombre d'un dé posé (unités de la scène). */
-const RADIUS = 2.3;
+const RADIUS = 2.7;
 
 let gradient: THREE.CanvasTexture | null = null;
 /** Dégradé radial (noir au centre, transparent au bord), créé une fois. */
@@ -36,6 +36,7 @@ function shadowTexture(): THREE.CanvasTexture {
 }
 
 const PLANE = new THREE.PlaneGeometry(2, 2);
+const _p = new THREE.Vector3();
 
 export function ContactShadow({ target }: { target: RefObject<THREE.Object3D | null> }) {
   const mesh = useRef<THREE.Mesh>(null);
@@ -54,10 +55,12 @@ export function ContactShadow({ target }: { target: RefObject<THREE.Object3D | n
     const t = target.current;
     const m = mesh.current;
     if (!t || !m) return;
-    const air = Math.max(0, t.position.y - REST_HEIGHT);
+    // Position du dé lue dans sa matrice : le moteur physique l'y écrit, sans toucher à `position`
+    const p = _p.setFromMatrixPosition(t.matrix);
+    const air = Math.max(0, p.y - REST_HEIGHT);
     // En l'air : plus large, plus pâle, plus décalée
     const spread = 1 + air * 0.12;
-    m.position.set(t.position.x - 0.3 * spread, 0.02, t.position.z - 0.3 * spread);
+    m.position.set(p.x - 0.3 * spread, 0.02, p.z - 0.3 * spread);
     m.scale.setScalar(RADIUS * spread);
     material.opacity = OPACITY / (1 + air * 0.35);
   });
