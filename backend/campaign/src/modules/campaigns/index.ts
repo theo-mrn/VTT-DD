@@ -104,6 +104,7 @@ const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 /** Usages signés par la route commune de campaign. */
 const CAMPAIGN_UPLOAD_USAGES: readonly UploadUsageId[] = [
   'campaign-image',
+  'handout',
   'note-image',
   'map-background',
   'map-object',

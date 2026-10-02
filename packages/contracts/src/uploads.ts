@@ -88,6 +88,14 @@ export const UPLOAD_USAGES = {
     folder: 'campaigns',
     aspect: null,
   },
+  // Documents projetés ou envoyés aux joueurs (docs/projection.md)
+  handout: {
+    label: 'Document',
+    types: [...UPLOAD_MAP_IMAGE_TYPES, ...UPLOAD_VIDEO_TYPES],
+    maxBytes: 100 * MB,
+    folder: 'campaigns',
+    aspect: null,
+  },
   'npc-image': {
     label: 'Image de PNJ',
     types: UPLOAD_IMAGE_TYPES,
@@ -123,8 +131,8 @@ export const UPLOAD_IMAGE_MAX_BYTES_MAP = 10 * MB;
 /** Taille maximale d'un fichier pour cet usage et ce type. */
 export function uploadMaxBytes(usage: UploadUsageId, contentType: string): number {
   const u: UploadUsage = UPLOAD_USAGES[usage];
-  // Fond de carte : 100 Mo pour une vidéo, 10 Mo pour une image
-  if (usage === 'map-background' && contentType.startsWith('image/'))
+  // Fond de carte, document : 100 Mo pour une vidéo, 10 Mo pour une image
+  if ((usage === 'map-background' || usage === 'handout') && contentType.startsWith('image/'))
     return UPLOAD_IMAGE_MAX_BYTES_MAP;
   return u.maxBytes;
 }

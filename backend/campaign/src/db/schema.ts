@@ -912,3 +912,28 @@ export const campaignStorageInventories = campaignSchema.table('campaign_storage
   campaignId: uuid('campaign_id').primaryKey(),
   inventoriedAt: timestampTz('inventoried_at').notNull(),
 });
+
+// ─── Projection et documents (docs/projection.md) ────────────────────────────
+
+export const campaignHandouts = campaignSchema.table('campaign_handouts', {
+  id: uuid('id').primaryKey(),
+  campaignId: uuid('campaign_id').notNull(),
+  name: text('name').notNull(),
+  url: text('url').notNull(),
+  contentType: text('content_type').notNull(),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+});
+
+export const campaignHandoutShares = campaignSchema.table('campaign_handout_shares', {
+  id: uuid('id').primaryKey(),
+  campaignId: uuid('campaign_id').notNull(),
+  handoutId: uuid('handout_id').notNull(),
+  mode: text('mode').$type<'show' | 'send'>().notNull(),
+  /** Destinataires (utilisateurs) ; null : toute la table. */
+  recipients: uuid('recipients').array(),
+  sharedBy: uuid('shared_by').notNull(),
+  sharedAt: timestampTz('shared_at').notNull().defaultNow(),
+  startsAt: timestampTz('starts_at').notNull(),
+  stoppedAt: timestampTz('stopped_at'),
+});
