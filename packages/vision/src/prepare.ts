@@ -9,6 +9,7 @@ import { buildGrid, gridDims, type Grid, visitBox } from './grid.js';
 import { PolygonShape } from './shape.js';
 import { computeStar, type StarPolygon, starContains } from './sweep.js';
 import type { FogZone, Light, PrepareOptions, Room, Segment, Vec, VisionScene } from './types.js';
+import { detectWallRooms } from './wall-rooms.js';
 import { FLAG_LEFT, FLAG_RIGHT, type RawWall, WallSet } from './walls.js';
 
 /** Pièce préparée. */
@@ -187,16 +188,21 @@ export function prepareScene(scene: VisionScene, options: PrepareOptions = {}): 
   });
   const walls = new WallSet(width, height, raw, snap);
 
-  // Pièces et portes de leur contour.
-  const doors = scene.segments.filter((s) => s.kind === 'door' && finiteVec(s.a) && finiteVec(s.b));
+  // Pièces et portes de leur contour : les pièces posées par le MJ, puis les salles détectées
+  // des murs (toute boucle fermée de murs, portes, fenêtres). Une fenêtre ouvre la pièce comme
+  // une porte ouverte : on voit au travers, la ligne de vue décide du reste.
+  const doors = scene.segments.filter(
+    (s) => (s.kind === 'door' || s.kind === 'window') && finiteVec(s.a) && finiteVec(s.b),
+  );
   const rooms: PreparedRoom[] = [];
-  (scene.rooms ?? []).forEach((room) => {
+  const addRoom = (room: Room, closedHint?: boolean) => {
     const shape = new PolygonShape(room.points);
     if (shape.count < 3) return;
     const doorIds: string[] = [];
     let open = false;
     const tol2 = doorTolerance * doorTolerance;
-    for (const d of doors) {
+    // Salle détectée des murs : son ouverture est déjà connue, pas de recherche des portes
+    for (const d of closedHint === undefined ? doors : []) {
       if (
         Math.max(d.a.x, d.b.x) < shape.minX - doorTolerance ||
         Math.min(d.a.x, d.b.x) > shape.maxX + doorTolerance ||
@@ -214,12 +220,17 @@ export function prepareScene(scene: VisionScene, options: PrepareOptions = {}): 
         shape.boundaryDistSq(d.b.x, d.b.y) <= tol2 &&
         shape.boundaryDistSq(mx, my) <= tol2
       ) {
-        if (!doorIds.includes(d.id)) doorIds.push(d.id);
-        if (d.open === true) open = true;
+        if (d.kind === 'door' && !doorIds.includes(d.id)) doorIds.push(d.id);
+        if (d.kind === 'window' || d.open === true) open = true;
       }
     }
-    rooms.push({ id: room.id, index: rooms.length, room, shape, doorIds, closed: !open });
-  });
+    const closed = closedHint ?? !open;
+    rooms.push({ id: room.id, index: rooms.length, room, shape, doorIds, closed });
+  };
+  for (const room of scene.rooms ?? []) addRoom(room);
+  if (options.wallRooms !== false)
+    for (const r of detectWallRooms(scene.segments, snap))
+      addRoom({ id: r.id, points: r.points }, r.closed);
   const closedList: number[] = [];
   const closedRank = new Int32Array(rooms.length).fill(-1);
   for (const r of rooms) {

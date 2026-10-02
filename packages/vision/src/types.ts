@@ -103,6 +103,11 @@ export interface VisionScene {
 /** Réglages de `prepareScene`. */
 export interface PrepareOptions {
   /**
+   * Salles détectées des murs (vrai par défaut) : toute boucle fermée de segments est une pièce,
+   * fermée si aucune fenêtre, porte ouverte, sens unique ou mur translucide n'est sur son contour.
+   */
+  wallRooms?: boolean;
+  /**
    * Tolérance de soudure, en pixels (0,5 par défaut) : deux extrémités plus proches sont
    * fusionnées et une extrémité aussi proche d'un mur est soudée dessus (jonction en T). Une
    * fente plus étroite ne laisse donc jamais passer la vue.

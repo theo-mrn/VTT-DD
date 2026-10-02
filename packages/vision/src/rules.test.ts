@@ -180,8 +180,21 @@ describe('pièces', () => {
 
   it('porte fermée : la pièce est fermée', () => {
     const prep = prepareScene(scene(walledRoom({ open: false }), { rooms: [room] }));
-    expect(closedRooms(prep)).toEqual(new Set(['salle']));
+    expect(closedRooms(prep).has('salle')).toBe(true);
     expect(viewerView(prep, viewer(50, 200)).contains({ x: 200, y: 200 })).toBe(false);
+  });
+
+  it('salle détectée des murs, sans pièce posée : fermée, puis ouverte par sa porte', () => {
+    const closed = prepareScene(scene(walledRoom({ open: false })));
+    expect(closedRooms(closed).size).toBe(1);
+    expect(viewerView(closed, viewer(50, 200)).contains({ x: 200, y: 200 })).toBe(false);
+    expect(viewerView(closed, viewer(200, 200)).contains({ x: 50, y: 200 })).toBe(false);
+    const open = prepareScene(scene(walledRoom({ open: true })));
+    expect(closedRooms(open).size).toBe(0);
+    expect(viewerView(open, viewer(50, 200)).contains({ x: 200, y: 200 })).toBe(true);
+    // Désactivable : sans pièce posée, la salle n'existe plus (seuls les murs comptent)
+    const off = prepareScene(scene(walledRoom({ open: false })), { wallRooms: false });
+    expect(closedRooms(off).size).toBe(0);
   });
 
   it('porte à 3 px du contour : comptée ; à 10 px : non', () => {
@@ -216,15 +229,16 @@ describe('pièces', () => {
     );
   });
 
-  it('une fenêtre sur le contour n’ouvre pas la pièce', () => {
+  it('une fenêtre sur le contour ouvre la pièce : on voit au travers', () => {
     const segs = walledRoom({}).map((s) =>
       s.id === 'porte' ? { ...s, kind: 'window' as const } : s,
     );
     const prep = prepareScene(scene(segs, { rooms: [room] }));
-    expect(closedRooms(prep)).toEqual(new Set(['salle']));
-    // La ligne de vue passe par la fenêtre, mais la pièce fermée reste invisible de dehors.
-    expect(viewerView(prep, viewer(50, 200)).contains({ x: 200, y: 200 })).toBe(false);
-    expect(viewerView(prep, viewer(200, 200)).contains({ x: 50, y: 200 })).toBe(false);
+    expect(closedRooms(prep).size).toBe(0);
+    // La ligne de vue passe par la fenêtre, dans les deux sens ; le reste de la pièce reste caché
+    expect(viewerView(prep, viewer(50, 200)).contains({ x: 200, y: 200 })).toBe(true);
+    expect(viewerView(prep, viewer(50, 200)).contains({ x: 200, y: 110 })).toBe(false);
+    expect(viewerView(prep, viewer(200, 200)).contains({ x: 50, y: 200 })).toBe(true);
   });
 
   it('pièces imbriquées : la plus intérieure confine, les fermées voisines sont retirées', () => {
