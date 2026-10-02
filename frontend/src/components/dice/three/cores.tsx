@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import { ENGRAVING_NORMAL_SCALE, injectInk } from './engraving';
+import type { EngravingProps } from './materials/procedural-material';
 import { SkeletonUtils } from 'three-stdlib';
 import { DiceSkin } from './dice-definitions';
 
@@ -17,9 +19,12 @@ import { DiceSkin } from './dice-definitions';
 export const OrbShell = ({
   skin,
   geometry,
+  engraving,
 }: {
   skin: DiceSkin;
   geometry: THREE.BufferGeometry;
+  /** Chiffres gravés sur le verre (encre lumineuse : visible malgré la transmission). */
+  engraving?: EngravingProps;
 }) => {
   const shellColor = skin.shellColor || skin.bodyColor;
   // Higher attenuationDistance + lower thickness => less tint, clearer core.
@@ -45,6 +50,14 @@ export const OrbShell = ({
           transparent
           opacity={1}
           depthWrite={false}
+          {...(engraving
+            ? {
+                normalMap: engraving.map,
+                normalScale: ENGRAVING_NORMAL_SCALE,
+                onBeforeCompile: (shader: THREE.WebGLProgramParametersWithUniforms) =>
+                  injectInk(shader, engraving.ink),
+              }
+            : {})}
         />
       </mesh>
     </group>

@@ -2,6 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { DiceSkin } from '../dice-definitions';
+import { ENGRAVING_NORMAL_SCALE, injectInk, type InkUniforms } from '../engraving';
 
 // Maps a style name to the numeric id consumed by the shader.
 export const STYLE_ID: Record<string, number> = {
@@ -993,10 +994,37 @@ const COMMON_FRAGMENT_HEADER = `
     vec3 emissiveAccum;
 `;
 
+/**
+ * Skins « vides » : rendu sans éclairage, seule l'émission procédurale les montre (âmes,
+ * brume, éclairs…). Leur encre doit briller pour rester lisible.
+ */
+export const isVoidSkin = (skin: DiceSkin) =>
+  skin.procStyle === 'spectre' ||
+  skin.procStyle === 'poison' ||
+  skin.procStyle === 'storm' ||
+  skin.procStyle === 'astral' ||
+  skin.procStyle === 'kyber' ||
+  skin.procStyle === 'sith' ||
+  skin.procStyle === 'hyperspace' ||
+  skin.procStyle === 'lightside' ||
+  skin.procStyle === 'forcespirit';
+
+/** Gravure d'un dé : texture (normales + encre) et réglages de l'encre (`engraving.ts`). */
+export interface EngravingProps {
+  map: THREE.Texture;
+  ink: InkUniforms;
+}
+
 // Procedural material for solid-color dice (no textureMap). Extends
 // meshStandardMaterial (keeps full PBR + envMap) and injects per-effect
 // procedural matter so flat colors gain veins, brushing, lava, etc.
-export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
+export const ProceduralMaterial = ({
+  skin,
+  engraving,
+}: {
+  skin: DiceSkin;
+  engraving?: EngravingProps;
+}) => {
   const matRef = useRef<THREE.MeshStandardMaterial>(null);
   const styleId = resolveStyleId(skin);
   const uniforms = useMemo(
@@ -1076,8 +1104,9 @@ export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
           '#include <emissivemap_fragment>',
           `#include <emissivemap_fragment>\ntotalEmissiveRadiance += emissiveAccum;`,
         );
+      if (engraving) injectInk(shader, engraving.ink);
     },
-    [uniforms, styleId],
+    [uniforms, styleId, engraving],
   );
 
   // CPU-side event schedulers for storm strikes & magma surges: they drive
@@ -1189,16 +1218,7 @@ export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
   // plasma/lightning/starlines must glow against a dark unlit body,
   // never be washed out by scene lights or envMap reflections.
   // (Death Star is deliberately NOT here — it's lit imperial steel.)
-  const isVoid =
-    skin.procStyle === 'spectre' ||
-    skin.procStyle === 'poison' ||
-    skin.procStyle === 'storm' ||
-    skin.procStyle === 'astral' ||
-    skin.procStyle === 'kyber' ||
-    skin.procStyle === 'sith' ||
-    skin.procStyle === 'hyperspace' ||
-    skin.procStyle === 'lightside' ||
-    skin.procStyle === 'forcespirit';
+  const isVoid = isVoidSkin(skin);
   // Eclipse: hot-black polished body — keep a whisper of reflection for the
   // obsidian sheen, but low enough that the emissive corona always dominates.
   const isEclipse = skin.procStyle === 'eclipse';
@@ -1219,11 +1239,13 @@ export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
     transparent: skin.opacity < 1,
     opacity: skin.opacity,
     onBeforeCompile,
+    // Gravure des chiffres (carte de normales sur uv1, encre dans son alpha)
+    ...(engraving ? { normalMap: engraving.map, normalScale: ENGRAVING_NORMAL_SCALE } : {}),
     // Shared per STYLE (not per skin): every skin of a style reuses the
     // same small compiled program; per-skin looks are pure uniforms.
     // (three.js's parameter hash already separates standard vs physical,
     // transparent, lights, etc. — this key only adds the style dimension.)
-    customProgramCacheKey: () => 'proc-style-' + styleId,
+    customProgramCacheKey: () => 'proc-style-' + styleId + (engraving ? '-engraved' : ''),
   };
 
   if (needsPhysical) {

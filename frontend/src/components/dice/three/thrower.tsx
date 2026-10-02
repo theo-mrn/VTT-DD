@@ -30,7 +30,7 @@ import { Physics, useConvexPolyhedron } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
 import { DiceSkin, getSkinById, CriticalType } from './dice-definitions';
 import * as THREE from 'three';
-import { getCachedGeometry, getDieValue } from './geometry';
+import { dieShape, readTop } from './polyhedra';
 import { playRoll, startAmbience, ambienceForSkin, playOneShotForSkin, Ambience } from './audio';
 import { Table, visibleHalfExtents, DICE_CAM_HEIGHT, DICE_CAM_FOV } from './scene';
 import { VisualDie } from './visual-die';
@@ -130,24 +130,20 @@ const Die = React.forwardRef(
     },
     fRef: any,
   ) => {
-    const { vertices, faces: hull, trueFaces } = getCachedGeometry(type);
+    const shape = dieShape(type);
+    const { hull } = shape;
     const [stopped, setStopped] = useState(false);
     const [canCheck, setCanCheck] = useState(false);
     const [critType, setCritType] = useState<CriticalType>(null);
     const [isShattered, setIsShattered] = useState(false);
     const lastImpactTime = useRef(0);
     const _q = useRef(new THREE.Quaternion());
-    const _up = useRef(new THREE.Vector3(0, 1, 0));
-    const _worldNormal = useRef(new THREE.Vector3());
 
     // Symbol die: each physical face shows the symbols of the declared face
     // whose number it carries, so the face read on top IS the face drawn.
     const faceSymbols = useMemo(
-      () =>
-        faces?.length
-          ? trueFaces.map((_, i) => faces[Number(getDieValue(type, i)) - 1] ?? [])
-          : undefined,
-      [faces, trueFaces, type],
+      () => (faces?.length ? shape.faces.map((f) => faces[Number(f.value) - 1] ?? []) : undefined),
+      [faces, shape],
     );
 
     const [ref, api] = useConvexPolyhedron(() => ({
@@ -161,7 +157,7 @@ const Die = React.forwardRef(
         Math.random() * Math.PI * 2,
         Math.random() * Math.PI * 2,
       ] as [number, number, number],
-      args: [vertices as any, hull],
+      args: [hull.vertices as any, hull.faces],
       // Lower friction than before: at 0.28 the die's slide/roll bled off
       // within a bounce or two and it read as "dropped" rather than
       // "thrown". Enough grip to convert some sliding into tumbling, but
@@ -307,22 +303,9 @@ const Die = React.forwardRef(
             quaternion.current[2]!,
             quaternion.current[3]!,
           );
-          const up = _up.current;
-
-          let maxDot = -Infinity;
-          let bestIndex = -1;
-
-          trueFaces.forEach((face, index) => {
-            const dot = _worldNormal.current.copy(face.norm).applyQuaternion(q).dot(up);
-            if (dot > maxDot) {
-              maxDot = dot;
-              bestIndex = index;
-            }
-          });
-
-          if (bestIndex !== -1) {
-            const resultValue = getDieValue(type, bestIndex);
-
+          // Face du dessus ; d4 : coin du sommet
+          const resultValue = readTop(shape, q);
+          if (resultValue) {
             // Check for critical on d20
             if (type === 'd20') {
               if (resultValue === '20') {
@@ -342,7 +325,7 @@ const Die = React.forwardRef(
         }
       }, 80); // Checks every 80ms
       return () => clearInterval(interval);
-    }, [stopped, canCheck, trueFaces, type, id]);
+    }, [stopped, canCheck, shape, type, id]);
 
     // Fin de l'effet : lueur éteinte pour un 20, éclats posés pour un 1
     const critTypeRef = useRef(critType);

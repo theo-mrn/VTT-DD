@@ -3,8 +3,8 @@ import * as THREE from 'three';
 import type { Die3DSymbol } from '@/lib/dice-throw';
 import type { FadingLabel, FadingLabels } from './face-number';
 
-// Symbols of one face of a symbol die (Star Wars…), drawn like the face numbers
-// of <FaceNumber>: same place, same size, same fade toward faces pointing away.
+// Symbols of one face of a symbol die (Star Wars…), laid on the face (the numbers of
+// the other dice are engraved, see engraving.ts), faded toward faces pointing away.
 // Each distinct (symbols, colours) set is drawn ONCE into a small canvas
 // texture shared by every face and every die that shows it.
 
@@ -184,7 +184,7 @@ export const FaceSymbol = ({
   );
   const pos = useMemo(() => face.pos.clone().multiplyScalar(radius), [face.pos, radius]);
 
-  // Same fade as <FaceNumber>: readable on top, gone on faces pointing away
+  // Readable on top, gone on faces pointing away
   // (driven by the die's single <FaceFadeDriver>).
   useEffect(() => {
     if (!labels) return;

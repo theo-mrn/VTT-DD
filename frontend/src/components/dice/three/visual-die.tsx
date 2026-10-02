@@ -1,11 +1,13 @@
 import React, { useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { DiceSkin, CriticalType } from './dice-definitions';
-import { getCachedGeometry, getDieValue } from './geometry';
+import { dieShape } from './polyhedra';
+import { engravingTexture, inkUniforms } from './engraving';
 import { TexturedMaterial } from './materials/textured-material';
+import { isVoidSkin, type EngravingProps } from './materials/procedural-material';
 import { CriticalEffect, ShatteredDie } from './effects/critical';
 import { DiceCore, OrbShell } from './cores';
-import { FaceFadeDriver, FaceNumber, type FadingLabels } from './face-number';
+import { FaceFadeDriver, type FadingLabels } from './face-number';
 import { FaceSymbol } from './face-symbol';
 import type { Die3DSymbol } from '@/lib/dice-throw';
 
@@ -31,9 +33,16 @@ const rimEmissive = (skin: DiceSkin) => {
   return emissive;
 };
 
+/** Lueur de l'encre : pigment sur un dé éclairé, lumineuse sur un dé sans éclairage ou en verre. */
+const inkGlow = (skin: DiceSkin) => (skin.effectType === 'orb' ? 1 : isVoidSkin(skin) ? 0.9 : 0.12);
+
 // Visual Die Component (Pure Rendering). The parent handles positioning /
 // rotation via a Group, so this just renders the mesh + effects at 0,0,0.
 // Reusable for both the physics die and previews (no physics).
+//
+// Forme et chiffres (`polyhedra.ts`, `engraving.ts`) : vrai polyèdre aux arêtes arrondies,
+// chiffres gravés dans une texture partagée par type de dé. Un dé à symboles garde ses
+// symboles posés sur les faces (sans gravure dessous).
 export const VisualDie = React.forwardRef(
   (
     {
@@ -57,26 +66,56 @@ export const VisualDie = React.forwardRef(
       /** Les éclats du dé brisé sont posés : l'effet est fini. */
       onShatterComplete?: () => void;
       /**
-       * Symbol die: symbols of each physical face (index of `trueFaces`),
+       * Symbol die: symbols of each physical face (index of the shape's faces),
        * drawn instead of the numbers; an empty face shows nothing.
        */
       faceSymbols?: Die3DSymbol[][];
     },
-    ref: any,
+    _ref: unknown,
   ) => {
-    const { trueFaces, geometry } = getCachedGeometry(type);
+    const shape = dieShape(type);
+    const { geometry, faces } = shape;
     const rootRef = useRef<THREE.Group>(null);
     // Maillages qui s'illuminent pendant un critique (corps, halo, coque).
     const flashRef = useRef<THREE.Group>(null);
-    // Chiffres et symboles fondus selon l'orientation, par une seule boucle.
+    // Symboles fondus selon l'orientation, par une seule boucle.
     const labels = useMemo<FadingLabels>(() => new Map(), []);
     const [labelsFrozen, setLabelsFrozen] = useState(false);
     const rimGlow = useMemo(
       () => rimEmissive(skin),
       [skin.rimLightColor, skin.innerGlow, skin.innerGlowColor, skin.innerGlowIntensity],
     );
+    const glow = inkGlow(skin);
+    const ink = skin.effectType === 'orb' ? '#ffffff' : skin.textColor;
+    const engraving = useMemo<EngravingProps | undefined>(
+      () =>
+        faceSymbols
+          ? undefined
+          : { map: engravingTexture(shape.type), ink: inkUniforms(ink, glow) },
+      [faceSymbols, shape.type, ink, glow],
+    );
 
-    const fadeDriver = !simple && !labelsFrozen && (
+    const symbols =
+      faceSymbols && !simple && !isShattered
+        ? faces.map((face, index) =>
+            faceSymbols[index]?.length ? (
+              <FaceSymbol
+                key={index}
+                face={face}
+                index={index}
+                labels={labels}
+                symbols={faceSymbols[index]!}
+                scale={type === 'd20' ? 0.45 : 0.7}
+                color={skin.effectType === 'orb' ? '#ffffff' : skin.textColor}
+                outlineColor={skin.shadowColor}
+                radius={skin.effectType === 'orb' ? 0.92 : 1.01}
+                maxOpacity={skin.effectType === 'orb' ? 0.85 : 1}
+              />
+            ) : null,
+          )
+        : null;
+
+    const fadeDriver = symbols && !labelsFrozen && (
       <FaceFadeDriver
         labels={labels}
         root={rootRef}
@@ -99,53 +138,18 @@ export const VisualDie = React.forwardRef(
           )}
           {fadeDriver}
 
-          {/* Core + numbers render FIRST (low renderOrder) so the transmissive
-                    shell, drawn last, can sample them and refract correctly. */}
-
-          {/* Billboarded core element (never rotates with the die) */}
+          {/* Core renders FIRST (low renderOrder) so the transmissive shell,
+                    drawn last, can sample it and refract correctly. */}
           <group renderOrder={0}>
             <DiceCore skin={skin} />
           </group>
 
-          {/* Face numbers — opacity driven per-frame by face orientation:
-                    top faces (toward the camera) stay readable, others fade out. */}
-          {!simple &&
-            trueFaces.map((face, index) =>
-              faceSymbols ? (
-                faceSymbols[index]?.length ? (
-                  <FaceSymbol
-                    key={index}
-                    face={face}
-                    index={index}
-                    labels={labels}
-                    symbols={faceSymbols[index]!}
-                    scale={type === 'd20' ? 0.45 : 0.7}
-                    color={'#ffffff'}
-                    outlineColor={skin.shadowColor}
-                    radius={0.92}
-                    maxOpacity={0.85}
-                  />
-                ) : null
-              ) : (
-                <FaceNumber
-                  key={index}
-                  face={face}
-                  index={index}
-                  labels={labels}
-                  value={getDieValue(type, index)}
-                  scale={type === 'd20' ? 0.45 : 0.7}
-                  color={'#ffffff'}
-                  outlineColor={skin.shadowColor}
-                  radius={0.92}
-                  maxOpacity={0.85}
-                  outlineWidth={0}
-                />
-              ),
-            )}
+          {symbols}
 
-          {/* Transparent glass shell (rolls with the die body), drawn LAST */}
+          {/* Transparent glass shell (rolls with the die body), drawn LAST; its
+                    numbers are engraved in the glass */}
           <group ref={flashRef}>
-            <OrbShell skin={skin} geometry={geometry} />
+            <OrbShell skin={skin} geometry={geometry} engraving={engraving} />
           </group>
         </group>
       );
@@ -170,9 +174,9 @@ export const VisualDie = React.forwardRef(
 
         {!isShattered && (
           <group ref={flashRef}>
-            {/* Main die body */}
+            {/* Main die body, numbers engraved */}
             <mesh geometry={geometry}>
-              <TexturedMaterial skin={skin} />
+              <TexturedMaterial skin={skin} {...(engraving ? { engraving } : {})} />
             </mesh>
 
             {/* Rim lighting effect (+ the inner glow, as emissive) */}
@@ -193,41 +197,7 @@ export const VisualDie = React.forwardRef(
           </group>
         )}
 
-        {/* Face numbers — fade out on faces pointing away from the camera */}
-        {!isShattered &&
-          !simple &&
-          trueFaces.map((face, index) =>
-            faceSymbols ? (
-              faceSymbols[index]?.length ? (
-                <FaceSymbol
-                  key={index}
-                  face={face}
-                  index={index}
-                  labels={labels}
-                  symbols={faceSymbols[index]!}
-                  scale={type === 'd20' ? 0.45 : 0.7}
-                  color={skin.textColor}
-                  outlineColor={skin.shadowColor}
-                  radius={1.01}
-                  maxOpacity={1}
-                />
-              ) : null
-            ) : (
-              <FaceNumber
-                key={index}
-                face={face}
-                index={index}
-                labels={labels}
-                value={getDieValue(type, index)}
-                scale={type === 'd20' ? 0.45 : 0.7}
-                color={skin.textColor}
-                outlineColor={skin.shadowColor}
-                radius={1.01}
-                maxOpacity={1}
-                outlineWidth={0.06}
-              />
-            ),
-          )}
+        {symbols}
       </group>
     );
   },
