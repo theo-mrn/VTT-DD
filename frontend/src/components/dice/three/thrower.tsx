@@ -34,7 +34,6 @@ import { dieShape, readTop } from './polyhedra';
 import { playRoll, startAmbience, ambienceForSkin, playOneShotForSkin, Ambience } from './audio';
 import { Table, visibleHalfExtents, DICE_CAM_HEIGHT, DICE_CAM_FOV } from './scene';
 import { VisualDie } from './visual-die';
-import { ContactShadow } from './contact-shadow';
 import { ShaderWarmer } from './shader-warmer';
 import { ModelCoreLights } from './cores';
 import { DICE_ENVIRONMENT } from './environment';
@@ -353,24 +352,20 @@ const Die = React.forwardRef(
     const handleShatterComplete = useCallback(() => onEffectRef.current(id, false), [id]);
 
     return (
-      <>
-        {/* Ombre de contact : la tache sous le dé (le dé brisé n'en a plus) */}
-        {!isShattered && <ContactShadow target={ref as React.RefObject<THREE.Object3D | null>} />}
-        <group ref={ref as any}>
-          <VisualDie
-            type={type}
-            skin={skin}
-            isShattered={isShattered}
-            critType={critType}
-            stopped={stopped}
-            onCritComplete={handleCritComplete}
-            onShatterComplete={handleShatterComplete}
-            faceSymbols={faceSymbols}
-            highlight={shown}
-            ref={null}
-          />
-        </group>
-      </>
+      <group ref={ref as any}>
+        <VisualDie
+          type={type}
+          skin={skin}
+          isShattered={isShattered}
+          critType={critType}
+          stopped={stopped}
+          onCritComplete={handleCritComplete}
+          onShatterComplete={handleShatterComplete}
+          faceSymbols={faceSymbols}
+          highlight={shown}
+          ref={null}
+        />
+      </group>
     );
   },
 );

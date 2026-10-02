@@ -12,9 +12,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
-import type * as THREE from 'three';
 import { VisualDie } from './visual-die';
-import { ContactShadow } from './contact-shadow';
 import { dieShape } from './polyhedra';
 import { getAudioContext, playOneShotForSkin } from './audio';
 import { prefersEconomy } from '@/lib/perf/device';
@@ -184,12 +182,9 @@ const FunDie = ({
   }, [stopped]);
 
   return (
-    <>
-      <ContactShadow target={ref as React.RefObject<THREE.Object3D | null>} />
-      <group ref={ref as any}>
-        <VisualDie type={type} skin={skin} isShattered={false} critType={null} stopped={stopped} />
-      </group>
-    </>
+    <group ref={ref as any}>
+      <VisualDie type={type} skin={skin} isShattered={false} critType={null} stopped={stopped} />
+    </group>
   );
 };
 
