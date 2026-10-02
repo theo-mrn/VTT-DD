@@ -158,4 +158,118 @@ async function run(opts: {
   r.destroy();
   return out;
 }
-(window as unknown as { visionBench: unknown }).visionBench = { init, run };
+/** Mesure : le héros glisse sur `steps` positions ; durées moyennes par image (ms). */
+async function perf(opts: {
+  obstacles: Obs[];
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  steps: number;
+}) {
+  app.stage.removeChildren();
+  const store = createMapStore('c', 'm');
+  store.getState().hydrate({
+    scene: { id: 'm', version: 1, width: W, height: H, fogFull: false, display: {} },
+    settings: { version: 1, pixelsPerUnit: 50, tokenScale: 1, shadowOpacity: 0.7 },
+    collections: {
+      tokens: [
+        {
+          id: 'heros',
+          version: 1,
+          mapId: 'm',
+          characterId: 'c-heros',
+          layerId: null,
+          z: 0,
+          pos: opts.from,
+          scale: 1,
+          visibility: 'visible',
+          visibleTo: [],
+          visionRadius: 200,
+          visionBoost: false,
+        },
+      ],
+      obstacles: opts.obstacles.map((o) => ({
+        version: 1,
+        mapId: 'm',
+        isOpen: false,
+        isLocked: false,
+        color: null,
+        opacity: 1,
+        roomMode: null,
+        blocksFrom: null,
+        ...o,
+      })),
+      layers: [],
+    },
+  });
+  const commands = new CommandManager({
+    store,
+    history: new CommandHistory(),
+    notify: () => {},
+    refetch: async () => {},
+  });
+  const engine = new MapEngine({
+    store,
+    viewer: { userId: 'alice', role: 'player', characterIds: ['c-heros'] },
+    commands,
+    rememberCamera: false,
+    directory: {
+      characters: () => [{ id: 'c-heros', name: 'Héros' }],
+      userName: () => null,
+      players: () => [{ userId: 'alice', name: 'A', characterIds: ['c-heros'] }],
+    },
+  });
+  engine.registerKind(tokenKind);
+  const state = new VisionState(engine);
+  app.stage.addChild(new PIXI.Graphics().rect(0, 0, W, H).fill(0xffffff));
+  const plane = new PIXI.Container();
+  app.stage.addChild(plane);
+  const r = new VisionRenderer(PIXI as never, app.renderer as never, plane, {
+    primary: 0,
+    foreground: 0xffffff,
+    background: 0x000000,
+    muted: 0x808080,
+    destructive: 0,
+    success: 0,
+  });
+  const cam = { x: W / 2, y: H / 2, zoom: 1, width: W, height: H };
+  state.sync();
+  r.draw(state.picture(), cam, 0);
+  app.renderer.render(app.stage);
+  let sync = 0,
+    draw = 0,
+    render = 0;
+  const gl = (app.renderer as unknown as { gl: WebGL2RenderingContext }).gl;
+  for (let i = 1; i <= opts.steps; i++) {
+    const t = i / opts.steps;
+    const pos = {
+      x: opts.from.x + (opts.to.x - opts.from.x) * t,
+      y: opts.from.y + (opts.to.y - opts.from.y) * t,
+    };
+    const heros = engine.entity('heros')!;
+    engine.setPreview(heros, { ...heros.geometry, x: pos.x, y: pos.y });
+    const t0 = performance.now();
+    state.sync();
+    const t1 = performance.now();
+    r.draw(state.picture(), cam, 0);
+    const t2 = performance.now();
+    app.renderer.render(app.stage);
+    gl.finish();
+    const t3 = performance.now();
+    sync += t1 - t0;
+    draw += t2 - t1;
+    render += t3 - t2;
+  }
+  // Au repos : plus aucune image due (sinon la carte se redessine sans fin)
+  const idle: boolean[] = [];
+  for (let i = 0; i < 4; i++) idle.push(r.draw(state.picture(), cam, 0));
+  r.destroy();
+  const n = opts.steps;
+  return {
+    sync: +(sync / n).toFixed(2),
+    draw: +(draw / n).toFixed(2),
+    render: +(render / n).toFixed(2),
+    rooms: state.picture()?.hiddenRooms.polygons.length ?? 0,
+    idle,
+  };
+}
+(window as unknown as { visionBench: unknown }).visionBench = { init, run, perf };
