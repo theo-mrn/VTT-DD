@@ -223,7 +223,9 @@ class Fan {
       pos[0] = pos[2] = pos[4] = origin.x;
       pos[1] = pos[3] = pos[5] = origin.y;
       const idx = g.indices;
-      idx[0] = 0;
+      // Tout le tampon à zéro : un maillage regroupé (batch) relit tous les indices, pas
+      // seulement `indexCount`, et redessinerait les triangles d'une vue précédente
+      idx.fill(0);
       idx[1] = 1;
       idx[2] = 2;
       g.getBuffer('aPosition').update();
@@ -250,6 +252,10 @@ class Fan {
       idx[3 * i + 1] = 1 + i;
       idx[3 * i + 2] = 1 + ((i + 1) % n);
     }
+    // Triangles au-delà de cette vue : nuls. Un maillage regroupé (batch) relit tout le tampon,
+    // pas seulement `indexCount` : sans cela, une vue précédente plus grande restait dessinée
+    // (de la lumière derrière un mur)
+    idx.fill(0, 3 * n);
     if (uv) {
       for (let i = 0; i <= n; i++) {
         uvs[2 * i] = (pos[2 * i]! - uv.cx) / uv.r;
