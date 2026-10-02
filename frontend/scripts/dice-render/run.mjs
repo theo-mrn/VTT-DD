@@ -31,6 +31,8 @@ await build({
 const html =
   '<!doctype html><html><body style="margin:0;background:#000"><script src="bundle.js"></script></body></html>';
 const repo = join(front, '..');
+const originalsArg = process.argv.find((a) => a.startsWith('--originals='));
+const originalsDir = originalsArg ? originalsArg.slice('--originals='.length) : '';
 const server = createServer(async (req, res) => {
   // Modèles des cœurs d'orbes : d'origine (legacy) et optimisés (public du front)
   const model = /^\/(legacy3d|3d)\/([\w-]+\.glb)$/.exec(req.url ?? '');
@@ -38,6 +40,13 @@ const server = createServer(async (req, res) => {
     const base =
       model[1] === '3d' ? join(front, 'public', '3d') : join(repo, 'legacy', 'public', '3d');
     res.end(await readFile(join(base, model[2])));
+    return;
+  }
+  // Textures des skins : WebP du front, et originaux (dossier de `--originals`)
+  const tex = /^\/(dice\/textures|orig-tex)\/([\w.-]+)$/.exec(req.url ?? '');
+  if (tex) {
+    const base = tex[1] === 'orig-tex' ? originalsDir : join(front, 'public', 'dice', 'textures');
+    res.end(await readFile(join(base, tex[2])));
     return;
   }
   if (req.url === '/bundle.js') res.end(await readFile(join(dir, 'bundle.js')));
@@ -56,6 +65,25 @@ await page.goto(`http://127.0.0.1:${server.address().port}/`);
 const resin = process.argv.includes('--resin');
 const compare = process.argv.includes('--compare');
 const rim = process.argv.includes('--rim');
+if (originalsDir) {
+  // Correspondance WebP → original (même nom, autre extension)
+  const { readdirSync } = await import('node:fs');
+  const originals = Object.fromEntries(
+    readdirSync(originalsDir).map((f) => [
+      `/dice/textures/${f.replace(/\.[^.]+$/, '')}.webp`,
+      `/orig-tex/${f}`,
+    ]),
+  );
+  await page.evaluate(
+    (o) => window.diceBench.textures({ width: 1600, height: 1000, originals: o }),
+    originals,
+  );
+  await page.screenshot({ path: out });
+  await browser.close();
+  server.close();
+  console.log(out);
+  process.exit(0);
+}
 if (process.argv.includes('--cores')) {
   const names = ['beholder', 'book', 'butterfly', 'mimique', 'mug', 'potion', 'ring', 'shield'];
   await page.evaluate(

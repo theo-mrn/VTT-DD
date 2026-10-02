@@ -1,9 +1,5 @@
-// Same URLs as `getAssetUrl` of `@/lib/asset-loader`, without shipping its
-// 1.1 MB mapping table in the 3D chunk: every texture below is mapped to the
-// R2 bucket at the same path, the orb models are not mapped (local path).
-const R2_ASSETS = 'https://assets.yner.fr';
-const getAssetUrl = (localPath: string): string =>
-  localPath.startsWith('/textures/') ? `${R2_ASSETS}${localPath}` : localPath;
+// Textures des skins (`public/dice/textures`, WebP de 512 px) et modèles des cœurs d'orbes
+// (`public/3d`, compressés meshopt) : servis par le front, allégés pour les dés.
 
 export type SkinEffectType =
   | 'metallic'
@@ -621,7 +617,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     // Flat like the ring — keep it facing the camera (no spin) so we see
     // the face, not the edge.
     coreType: 'model',
-    coreModelUrl: getAssetUrl('/3d/shield.glb'),
+    coreModelUrl: '/3d/shield.glb',
     coreColor: '#aed2ff', // inner light tint
     coreScale: 1.0,
     shellColor: '#9cbce0', // very light steel glass
@@ -657,7 +653,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     // A real 3D book model floating inside clear violet glass
     coreType: 'model',
-    coreModelUrl: getAssetUrl('/3d/book.glb'),
+    coreModelUrl: '/3d/book.glb',
     coreColor: '#d4b0ff', // inner light tint
     coreScale: 1.0,
     coreSpin: 0.8, // slow idle spin
@@ -694,7 +690,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     // A real 3D potion model floating inside clear green glass
     coreType: 'model',
-    coreModelUrl: getAssetUrl('/3d/potion.glb'),
+    coreModelUrl: '/3d/potion.glb',
     coreColor: '#8affc8', // inner light tint
     coreScale: 1.0,
     coreSpin: 0.8, // slow idle spin
@@ -731,7 +727,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     // A real 3D mug model floating inside clear amber glass
     coreType: 'model',
-    coreModelUrl: getAssetUrl('/3d/mug.glb'),
+    coreModelUrl: '/3d/mug.glb',
     coreColor: '#ffd98a', // inner light tint
     coreScale: 1.0,
     coreSpin: 0.8, // slow idle spin
@@ -768,7 +764,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     // A real 3D mimic model floating inside warm glass
     coreType: 'model',
-    coreModelUrl: getAssetUrl('/3d/mimique.glb'),
+    coreModelUrl: '/3d/mimique.glb',
     coreColor: '#ffb27a', // inner light tint
     coreScale: 1.0, // slightly smaller
     coreSpin: 0.8, // slow idle spin like the ring
@@ -805,7 +801,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     // A real 3D ring model floating inside warm amber glass
     coreType: 'model',
-    coreModelUrl: getAssetUrl('/3d/ring.glb'),
+    coreModelUrl: '/3d/ring.glb',
     coreColor: '#ffcf66', // inner light tint
     coreScale: 1,
     coreRotation: [1.2, 0, 0.3], // tilt the ring so we see the circle, not the edge
@@ -844,7 +840,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     // A real 3D beholder model floating inside clear teal glass
     coreType: 'model',
-    coreModelUrl: getAssetUrl('/3d/beholder.glb'),
+    coreModelUrl: '/3d/beholder.glb',
     coreColor: '#6affc0', // inner light tint
     coreScale: 1,
     shellColor: '#3fae82', // light teal glass
@@ -880,7 +876,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     // A real 3D butterfly model floating inside clear violet-pink glass
     coreType: 'model',
-    coreModelUrl: getAssetUrl('/3d/butterfly.glb'),
+    coreModelUrl: '/3d/butterfly.glb',
     coreColor: '#ffb2ea', // inner light tint
     coreScale: 0.8,
     coreRotation: [1.5708, 0, 0], // tilt so we see the wings from above, not edge-on
@@ -1335,7 +1331,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ff3366',
     particleColor2: '#ffffff',
-    textureMap: getAssetUrl('/textures/rubis_diffuse.jpg'),
+    textureMap: '/dice/textures/rubis_diffuse.webp',
     price: 250,
     description: "Une gemme ardente pulsant d'énergie magique.",
     rarity: 'rare',
@@ -1390,7 +1386,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#33ff99',
     particleColor2: '#00ff88',
-    textureMap: getAssetUrl('/textures/jade.jpg'),
+    textureMap: '/dice/textures/jade.webp',
     price: 125,
     description: 'Symbole de sérénité et de chance.',
     rarity: 'uncommon',
@@ -1445,7 +1441,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#3399ff',
     particleColor2: '#ffffff',
-    textureMap: getAssetUrl('/textures/saphire_diffuse.jpg'),
+    textureMap: '/dice/textures/saphire_diffuse.webp',
     price: 250,
     description: "Aussi profond que l'océan, aussi dur que l'acier.",
     rarity: 'rare',
@@ -1473,7 +1469,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#bb66ff',
     particleColor2: '#ffffff',
-    textureMap: getAssetUrl('/textures/amethyst_diffuse.jpg'),
+    textureMap: '/dice/textures/amethyst_diffuse.webp',
     price: 250,
     description: 'Mystique et royale, favorisée par les mages.',
     rarity: 'rare',
@@ -1583,7 +1579,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ffd700',
     particleColor2: '#ffffff',
-    textureMap: getAssetUrl('/textures/marblebleu_diffuse.jpg'),
+    textureMap: '/dice/textures/marblebleu_diffuse.webp',
     price: 125,
     description: 'Élégance classique avec une touche royale.',
     rarity: 'epic',
@@ -1611,7 +1607,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#9933ff',
     particleColor2: '#ffffff',
-    textureMap: getAssetUrl('/textures/cosmos_diffuse.jpeg'),
+    textureMap: '/dice/textures/cosmos_diffuse.webp',
     price: 1250,
     description: 'Contient des galaxies entières dans chaque face.',
     rarity: 'epic',
@@ -1639,7 +1635,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#00ffff',
     particleColor2: '#ffffff',
-    textureMap: getAssetUrl('/textures/space_diifuse.avif'),
+    textureMap: '/dice/textures/space_diifuse.webp',
     price: 500,
     description: 'Le vide infini entre les étoiles.',
     rarity: 'epic',
@@ -1667,7 +1663,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#00bfff',
     particleColor2: '#ffffff',
-    textureMap: getAssetUrl('/textures/ocean_diffuse.webp'),
+    textureMap: '/dice/textures/ocean_diffuse.webp',
     price: 250,
     description: "Pour ceux qui entendent l'appel du large.",
     rarity: 'rare',
@@ -1722,7 +1718,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ffd700',
     particleColor2: '#ffffff',
-    textureMap: getAssetUrl('/textures/merveille_diffuse.png'),
+    textureMap: '/dice/textures/merveille_diffuse.webp',
     price: 1250,
     description: "Une merveille d'artisanat magique.",
     rarity: 'rare',
@@ -1995,7 +1991,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#d4a76a',
     particleColor2: '#5c4033',
     // Wood texture
-    textureMap: getAssetUrl('/textures/wood_diffuse.png'),
+    textureMap: '/dice/textures/wood_diffuse.webp',
     price: 50,
     description: 'Simple, robuste et fiable. Comme un bon nain.',
     rarity: 'common',
@@ -2051,7 +2047,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#8b7355',
     particleColor2: '#3d2b1f',
-    textureMap: getAssetUrl('/textures/leather_diffuse.png'),
+    textureMap: '/dice/textures/leather_diffuse.webp',
     price: 50,
     description: "Sent le vieux livre et l'aventure.",
     rarity: 'common',
@@ -2079,7 +2075,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#6b8e6b',
     particleColor2: '#5a5a5a',
-    textureMap: getAssetUrl('/textures/stone_diffuse.png'),
+    textureMap: '/dice/textures/stone_diffuse.webp',
     price: 0,
     description: "Aussi froid que le sol d'un cachot.",
     rarity: 'common',
@@ -2107,7 +2103,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#cd853f',
     particleColor2: '#5a4a3a',
-    textureMap: getAssetUrl('/textures/rust_diffuse.png'),
+    textureMap: '/dice/textures/rust_diffuse.webp',
     price: 25,
     description: 'Oublié depuis longtemps, mais toujours solide.',
     rarity: 'common',
@@ -2135,7 +2131,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ff4500',
     particleColor2: '#ff6600',
-    textureMap: getAssetUrl('/textures/lava_diffuse.png'),
+    textureMap: '/dice/textures/lava_diffuse.webp',
     price: 250,
     description: "Attention, c'est chaud !",
     rarity: 'rare',
@@ -2163,7 +2159,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#e0ffff',
     particleColor2: '#ffffff',
-    textureMap: getAssetUrl('/textures/ice_diffuse.png'),
+    textureMap: '/dice/textures/ice_diffuse.webp',
     price: 250,
     description: 'Ne fond jamais, même dans un volcan.',
     rarity: 'rare',
@@ -2191,7 +2187,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#6b8e23',
     particleColor2: '#3d3d2d',
-    textureMap: getAssetUrl('/textures/bark_diffuse.png'),
+    textureMap: '/dice/textures/bark_diffuse.webp',
     price: 125,
     description: 'La nature reprend toujours ses droits.',
     rarity: 'uncommon',
@@ -2219,7 +2215,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#d2b48c',
     particleColor2: '#f5deb3',
-    textureMap: getAssetUrl('/textures/parchment_diffuse.png'),
+    textureMap: '/dice/textures/parchment_diffuse.webp',
     price: 50,
     description: 'Les mots ont un pouvoir.',
     rarity: 'common',
@@ -2246,7 +2242,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     rimLightColor: '#ff0000',
     particleType: 'none',
     particleColor: '#ff0000',
-    textureMap: getAssetUrl('/textures/lava_diffuse.png'),
+    textureMap: '/dice/textures/lava_diffuse.webp',
     price: 1500,
     description: 'Tombé du ciel pendant une éclips de sang.',
     rarity: 'epic',

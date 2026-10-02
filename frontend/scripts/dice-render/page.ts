@@ -37,6 +37,11 @@ declare global {
         rim?: boolean;
       }): void;
       cores(o: { width: number; height: number; names: string[] }): Promise<void>;
+      textures(o: {
+        width: number;
+        height: number;
+        originals: Record<string, string>;
+      }): Promise<void>;
     };
   }
 }
@@ -53,6 +58,47 @@ const SKINS = [
 ];
 
 window.diceBench = {
+  /** Skins à texture : texture d'origine (à gauche) et WebP 512 px (à droite). */
+  async textures({ width, height, originals }) {
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    document.body.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#1b1d24');
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.55;
+    scene.add(new THREE.AmbientLight(0xffffff, 1.05));
+    const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 200);
+    camera.position.set(0, 46, 0.01);
+    camera.lookAt(0, 0, 0);
+    const loader = new THREE.TextureLoader();
+    const shape = dieShape('d20');
+    const skins = Object.values(DICE_SKINS).filter((k) => k.textureMap);
+    for (const [i, skin] of skins.entries())
+      for (const [k, url] of [originals[skin.textureMap!] ?? '', skin.textureMap!].entries()) {
+        const map = await loader.loadAsync(url);
+        map.colorSpace = THREE.SRGBColorSpace;
+        map.wrapS = map.wrapT = THREE.RepeatWrapping;
+        map.anisotropy = 8;
+        const mat = new THREE.MeshStandardMaterial({
+          map,
+          color: skin.tintTexture ? skin.bodyColor : '#ffffff',
+          metalness: skin.metalness,
+          roughness: skin.roughness,
+          envMapIntensity: skin.envMapIntensity,
+        });
+        const mesh = new THREE.Mesh(shape.geometry, mat);
+        const col = i % 5;
+        const row = Math.floor(i / 5);
+        mesh.position.set((col - 2) * 6.6 + (k - 0.5) * 3.2, 0, (row - 1.5) * 4.4);
+        mesh.quaternion.setFromUnitVectors(shape.faces[0]!.norm, new THREE.Vector3(0, 1, 0));
+        mesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), 0.5);
+        scene.add(mesh);
+      }
+    renderer.render(scene, camera);
+  },
   /** Cœurs d'orbes : modèle d'origine (à gauche) et optimisé (à droite), à la même taille. */
   async cores({ width, height, names }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
