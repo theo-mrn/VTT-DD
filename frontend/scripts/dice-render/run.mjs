@@ -2,7 +2,7 @@
  * Banc visuel des dés : rend les six formes sous trois matières en vrai WebGL (Chromium sans
  * interface) et enregistre l'image.
  *
- *   node scripts/dice-render/run.mjs [sortie.png] [--resin]      (depuis frontend/)
+ *   node scripts/dice-render/run.mjs [sortie.png] [--resin | --compare]      (depuis frontend/)
  */
 import { build } from 'esbuild';
 import { createServer } from 'node:http';
@@ -45,10 +45,11 @@ page.on('pageerror', (e) => console.log('erreur de la page :', e.message));
 page.on('console', (m) => m.type() === 'error' && console.log('console :', m.text()));
 await page.goto(`http://127.0.0.1:${server.address().port}/`);
 const resin = process.argv.includes('--resin');
-await page.evaluate(
-  (resin) => window.diceBench.render({ width: 1600, height: 1000, resin }),
+const compare = process.argv.includes('--compare');
+await page.evaluate((o) => window.diceBench.render({ width: 1600, height: 1000, ...o }), {
   resin,
-);
+  compare,
+});
 await page.screenshot({ path: out });
 await browser.close();
 server.close();

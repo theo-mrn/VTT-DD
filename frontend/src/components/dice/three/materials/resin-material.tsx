@@ -14,6 +14,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import type { DiceSkin, ResinLook } from '../dice-definitions';
 import { ENGRAVING_NORMAL_SCALE, injectInk } from '../engraving';
+import { bakeCube } from './bake';
 import type { EngravingProps } from './procedural-material';
 
 const PATTERN_ID: Record<ResinLook['pattern'], number> = {
@@ -22,15 +23,6 @@ const PATTERN_ID: Record<ResinLook['pattern'], number> = {
   smoke: 2,
   jade: 3,
 };
-
-const BAKE_SIZE = 256;
-
-const BAKE_VERTEX = /* glsl */ `
-varying vec3 vDir;
-void main() {
-  vDir = position;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}`;
 
 const BAKE_FRAGMENT = /* glsl */ `
 precision highp float;
@@ -103,46 +95,17 @@ void main() {
   gl_FragColor = vec4(col, flake);
 }`;
 
-/** Motifs cuits, par contexte WebGL (une texture n'appartient qu'au sien) et par skin. */
-const baked = new WeakMap<THREE.WebGLRenderer, Map<string, THREE.CubeTexture>>();
-
 /** Motif cuit d'un skin résine (une fois par contexte WebGL et par skin). */
 export function bakeResin(gl: THREE.WebGLRenderer, id: string, look: ResinLook, seed = seedOf(id)) {
-  let byId = baked.get(gl);
-  if (!byId) {
-    byId = new Map();
-    baked.set(gl, byId);
-  }
-  const done = byId.get(id);
-  if (done) return done;
-  const target = new THREE.WebGLCubeRenderTarget(BAKE_SIZE, {
-    type: THREE.HalfFloatType,
-    generateMipmaps: true,
-    minFilter: THREE.LinearMipmapLinearFilter,
+  return bakeCube(gl, `resin:${id}`, BAKE_FRAGMENT, {
+    uPattern: { value: PATTERN_ID[look.pattern] },
+    uC1: { value: new THREE.Color(look.colors[0]) },
+    uC2: { value: new THREE.Color(look.colors[1]) },
+    uC3: { value: new THREE.Color(look.colors[2]) },
+    uSeed: { value: seed },
+    uFlakes: { value: look.flakes ?? 0 },
+    uScale: { value: look.scale ?? 1.6 },
   });
-  const scene = new THREE.Scene();
-  const material = new THREE.ShaderMaterial({
-    vertexShader: BAKE_VERTEX,
-    fragmentShader: BAKE_FRAGMENT,
-    side: THREE.BackSide,
-    uniforms: {
-      uPattern: { value: PATTERN_ID[look.pattern] },
-      uC1: { value: new THREE.Color(look.colors[0]) },
-      uC2: { value: new THREE.Color(look.colors[1]) },
-      uC3: { value: new THREE.Color(look.colors[2]) },
-      uSeed: { value: seed },
-      uFlakes: { value: look.flakes ?? 0 },
-      uScale: { value: look.scale ?? 1.6 },
-    },
-  });
-  const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), material);
-  scene.add(sphere);
-  const camera = new THREE.CubeCamera(0.1, 10, target);
-  camera.update(gl, scene);
-  sphere.geometry.dispose();
-  material.dispose();
-  byId.set(id, target.texture);
-  return target.texture;
 }
 
 function seedOf(id: string) {

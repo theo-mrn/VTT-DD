@@ -34,6 +34,7 @@ import { dieShape, readTop } from './polyhedra';
 import { playRoll, startAmbience, ambienceForSkin, playOneShotForSkin, Ambience } from './audio';
 import { Table, visibleHalfExtents, DICE_CAM_HEIGHT, DICE_CAM_FOV } from './scene';
 import { VisualDie } from './visual-die';
+import { isAnimatedSkin } from './materials/procedural-material';
 import { ShaderWarmer } from './shader-warmer';
 import { ModelCoreLights } from './cores';
 import { DICE_ENVIRONMENT } from './environment';
@@ -70,6 +71,8 @@ const MAX_DIE_LIFETIME_MS = 12_000;
  * court : les shaders animés des faces continuent, sans 60 images par seconde.
  */
 const IDLE_FRAME_MS = 40;
+/** Images entretenues après l'arrêt, le temps du fondu du chiffre doré. */
+const SETTLE_FRAMES_MS = 600;
 /**
  * Cadence pendant le préchauffage : les pilotes ne font avancer les
  * compilations parallèles (KHR_parallel_shader_compile) que si le contexte
@@ -711,7 +714,18 @@ export const DiceThrower = () => {
   // pendant un effet critique (particules, bris), rendu à pleine cadence.
   const rolling = dice.some((d) => !stoppedIds.has(d.id));
   const animating = rolling || effectIds.size > 0;
-  const tickMs = hasDice && !animating ? IDLE_FRAME_MS : warming && !animating ? WARM_FRAME_MS : 0;
+  // Au repos, des images seulement si un dé visible bouge encore (motif animé, orbe), et le
+  // temps du fondu du chiffre doré juste après l'arrêt
+  const anyAnimated = dice.some((d) => isAnimatedSkin(getSkinById(d.skinId)));
+  const [settling, setSettling] = useState(false);
+  useEffect(() => {
+    if (rolling || !hasDice) return;
+    setSettling(true);
+    const t = window.setTimeout(() => setSettling(false), SETTLE_FRAMES_MS);
+    return () => window.clearTimeout(t);
+  }, [rolling, hasDice]);
+  const idleTick = anyAnimated || settling ? IDLE_FRAME_MS : 0;
+  const tickMs = hasDice && !animating ? idleTick : warming && !animating ? WARM_FRAME_MS : 0;
 
   // Réglages lus une fois. Machine économe (Windows, machine modeste) : pas
   // d'antialiasing, densité 1. Ailleurs l'antialiasing reste : la densité

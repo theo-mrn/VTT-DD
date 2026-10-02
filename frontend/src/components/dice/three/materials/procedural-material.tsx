@@ -1,8 +1,9 @@
 import React, { useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { DiceSkin } from '../dice-definitions';
 import { ENGRAVING_NORMAL_SCALE, injectInk, type InkUniforms } from '../engraving';
+import { bakeCube } from './bake';
 
 // Maps a style name to the numeric id consumed by the shader.
 export const STYLE_ID: Record<string, number> = {
@@ -1015,71 +1016,27 @@ export interface EngravingProps {
   ink: InkUniforms;
 }
 
-// Procedural material for solid-color dice (no textureMap). Extends
-// meshStandardMaterial (keeps full PBR + envMap) and injects per-effect
-// procedural matter so flat colors gain veins, brushing, lava, etc.
-export const ProceduralMaterial = ({
-  skin,
-  engraving,
-}: {
-  skin: DiceSkin;
-  engraving?: EngravingProps;
-}) => {
-  const matRef = useRef<THREE.MeshStandardMaterial>(null);
-  const styleId = resolveStyleId(skin);
-  const uniforms = useMemo(
-    () => ({
-      uTime: { value: 0 },
-      uAccent: { value: new THREE.Color(skin.edgeColor) },
-      uDeep: { value: new THREE.Color(skin.bodyColor).multiplyScalar(0.45) },
-      // Per-skin seed so two skins of the same effect look different.
-      uSeed: { value: skinSeed(skin.id) },
-      // CPU-driven event envelopes (storm strikes / magma surge): computed
-      // in useFrame so the matching SOUND fires exactly with the visuals.
-      uFlash1: { value: 0 },
-      uFlash2: { value: 0 },
-      uSeed1: { value: 0 },
-      uSeed2: { value: 0 },
-      uSurge: { value: 0 },
-    }),
-    [skin.effectType, skin.procStyle, skin.edgeColor, skin.bodyColor, skin.id],
-  );
+/** Uniformes d'un skin procédural (couleurs, graine, enveloppes des événements). */
+function liveUniforms(skin: DiceSkin) {
+  return {
+    uTime: { value: 0 },
+    uAccent: { value: new THREE.Color(skin.edgeColor) },
+    uDeep: { value: new THREE.Color(skin.bodyColor).multiplyScalar(0.45) },
+    // Per-skin seed so two skins of the same effect look different.
+    uSeed: { value: skinSeed(skin.id) },
+    // CPU-driven event envelopes (storm strikes / magma surge): computed
+    // in useFrame so the matching SOUND fires exactly with the visuals.
+    uFlash1: { value: 0 },
+    uFlash2: { value: 0 },
+    uSeed1: { value: 0 },
+    uSeed2: { value: 0 },
+    uSurge: { value: 0 },
+  };
+}
+type LiveUniforms = ReturnType<typeof liveUniforms>;
 
-  const onBeforeCompile = useMemo(
-    () => (shader: any) => {
-      shader.uniforms.uTime = uniforms.uTime;
-      shader.uniforms.uAccent = uniforms.uAccent;
-      shader.uniforms.uDeep = uniforms.uDeep;
-      shader.uniforms.uSeed = uniforms.uSeed;
-      shader.uniforms.uFlash1 = uniforms.uFlash1;
-      shader.uniforms.uFlash2 = uniforms.uFlash2;
-      shader.uniforms.uSeed1 = uniforms.uSeed1;
-      shader.uniforms.uSeed2 = uniforms.uSeed2;
-      shader.uniforms.uSurge = uniforms.uSurge;
-
-      // Pass local position + view-space data to the fragment shader.
-      // vVSphereN is the view-space "sphere normal" (direction from the die's
-      // centre): it varies SMOOTHLY across flat facets, so silhouette-based
-      // effects (eclipse corona) form a thin ring instead of tinting whole
-      // faces like the flat face normal would.
-      shader.vertexShader = shader.vertexShader
-        .replace(
-          '#include <common>',
-          `#include <common>\nvarying vec3 vLocalPos;\nvarying vec3 vVNormal;\nvarying vec3 vVPos;\nvarying vec3 vVSphereN;`,
-        )
-        .replace('#include <begin_vertex>', `#include <begin_vertex>\nvLocalPos = position;`)
-        .replace(
-          '#include <defaultnormal_vertex>',
-          `#include <defaultnormal_vertex>\nvVNormal = normalize(transformedNormal);\nvVSphereN = normalize(normalMatrix * normalize(position));`,
-        )
-        // mvPosition is defined inside <project_vertex>; safe place for view pos.
-        .replace('#include <project_vertex>', `#include <project_vertex>\nvVPos = mvPosition.xyz;`);
-
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', `#include <common>${COMMON_FRAGMENT_HEADER}`)
-        .replace(
-          '#include <color_fragment>',
-          `#include <color_fragment>
+/** Motif d'un style : couleur (et émission) du dé, commun au rendu vivant et à la cuisson. */
+const patternBlock = (styleId: number) => `
                 {
                     // Per-skin variation: offset, rotate and scale-jitter the
                     // noise domain so two skins of the same effect differ.
@@ -1097,119 +1054,210 @@ export const ProceduralMaterial = ({
                     diffuseColor.rgb = col;
                     diffuseColor.a *= procAlpha;
                 }
-            `,
-        )
-        // Add our extra emissive contribution so glows actually emit light.
-        .replace(
-          '#include <emissivemap_fragment>',
-          `#include <emissivemap_fragment>\ntotalEmissiveRadiance += emissiveAccum;`,
-        );
-      if (engraving) injectInk(shader, engraving.ink);
-    },
-    [uniforms, styleId, engraving],
-  );
+`;
 
-  // CPU-side event schedulers for storm strikes & magma surges: they drive
-  // the shader envelopes (uFlash*/uSurge) with an unpredictable random rhythm.
-  const sched = useRef({
-    strikes: [
-      { t0: -9, seed: 0, next: 0.8 + Math.random() * 1.5 },
-      { t0: -9, seed: 0, next: 1.8 + Math.random() * 2.2 },
-    ],
-    surge: { t0: -9, next: 0.8 + Math.random() * 2.5 },
+/**
+ * Styles sans animation (métal, marbre et pierre, gemme, obsidienne) : leur motif est cuit une
+ * fois dans une cubemap (`bake.ts`), le dé n'en fait plus qu'une lecture par pixel. Tous ces
+ * skins partagent un seul programme.
+ */
+export const STATIC_STYLES: ReadonlySet<number> = new Set([1, 2, 4, 5]);
+export const isBakedSkin = (skin: DiceSkin) =>
+  !skin.textureMap &&
+  !skin.resin &&
+  skin.effectType !== 'orb' &&
+  STATIC_STYLES.has(resolveStyleId(skin));
+
+/**
+ * Skin qui bouge au repos (motif animé, cœur d'orbe) : le lanceur continue de rendre quelques
+ * images par seconde une fois les dés arrêtés. Les autres (cuits, à texture, résines) n'en ont
+ * plus besoin.
+ */
+export const isAnimatedSkin = (skin: DiceSkin) =>
+  skin.effectType === 'orb' || (!skin.textureMap && !skin.resin && !isBakedSkin(skin));
+
+/** Rayon où le motif est évalué à la cuisson (moyenne entre faces et coins des dés). */
+const BAKE_RADIUS = 1.6;
+
+/** Cuisson du motif d'un style : le même code qu'au rendu, évalué sur une sphère. */
+const bakeFragment = (styleId: number) => `precision highp float;
+varying vec3 vDir;
+uniform vec3 uBase;
+${COMMON_FRAGMENT_HEADER.replace(/\s*varying vec3 \w+;/g, '')}
+void main() {
+  vec3 vLocalPos = normalize(vDir) * ${BAKE_RADIUS.toFixed(2)};
+  vec4 diffuseColor = vec4(uBase, 1.0);
+  ${patternBlock(styleId)}
+  gl_FragColor = vec4(diffuseColor.rgb, 1.0);
+}`;
+
+/** Motif cuit d'un skin à motif fixe (une fois par contexte WebGL et par skin). */
+export function bakeProcedural(gl: THREE.WebGLRenderer, skin: DiceSkin): THREE.CubeTexture {
+  return bakeCube(gl, `proc:${skin.id}`, bakeFragment(resolveStyleId(skin)), {
+    uBase: { value: new THREE.Color(skin.bodyColor) },
+    ...liveUniforms(skin),
   });
+}
 
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    uniforms.uTime.value = t;
+/** Programme d'un skin animé : le motif calculé à chaque pixel et à chaque image. */
+export function liveCompile(styleId: number, uniforms: LiveUniforms, engraving?: EngravingProps) {
+  return (shader: THREE.WebGLProgramParametersWithUniforms) => {
+    Object.assign(shader.uniforms, uniforms);
+    // Pass local position + view-space data to the fragment shader.
+    // vVSphereN is the view-space "sphere normal" (direction from the die's
+    // centre): it varies SMOOTHLY across flat facets, so silhouette-based
+    // effects (eclipse corona) form a thin ring instead of tinting whole
+    // faces like the flat face normal would.
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        `#include <common>\nvarying vec3 vLocalPos;\nvarying vec3 vVNormal;\nvarying vec3 vVPos;\nvarying vec3 vVSphereN;`,
+      )
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\nvLocalPos = position;`)
+      .replace(
+        '#include <defaultnormal_vertex>',
+        `#include <defaultnormal_vertex>\nvVNormal = normalize(transformedNormal);\nvVSphereN = normalize(normalMatrix * normalize(position));`,
+      )
+      // mvPosition is defined inside <project_vertex>; safe place for view pos.
+      .replace('#include <project_vertex>', `#include <project_vertex>\nvVPos = mvPosition.xyz;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>${COMMON_FRAGMENT_HEADER}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>\n${patternBlock(styleId)}`)
+      // Add our extra emissive contribution so glows actually emit light.
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>\ntotalEmissiveRadiance += emissiveAccum;`,
+      );
+    if (engraving) injectInk(shader, engraving.ink);
+  };
+}
 
-    // STORM (10) and SITH (19) both use the two-channel strike scheduler
-    // for their branching lightning. Sith strikes are a touch rarer so
-    // each crackle lands with weight. (The Light-side die is style 21 and
-    // deliberately has NO lightning — it uses the gentle surge below.)
-    if (styleId === 10 || styleId === 19) {
-      const s = sched.current.strikes;
-      const isSith = styleId === 19;
-      for (let ch = 0; ch < 2; ch++) {
-        const c = s[ch];
-        if (t >= c.next) {
-          c.t0 = t;
-          c.seed = Math.random();
-          c.next = t + (isSith ? 1.4 : 0.9) + Math.random() * (isSith ? 3.2 : 2.6);
-        }
-        // sharp attack, fast decay + weaker restrike
-        const dts = t - c.t0;
-        const env =
-          dts < 0 ? 0 : Math.exp(-dts * 15) + (dts > 0.13 ? Math.exp(-(dts - 0.13) * 20) * 0.6 : 0);
-        if (ch === 0) {
-          uniforms.uFlash1.value = env;
-          uniforms.uSeed1.value = c.seed;
-        } else {
-          uniforms.uFlash2.value = env;
-          uniforms.uSeed2.value = c.seed;
-        }
-      }
-    } else if (styleId === 11) {
-      // magma: slow swelling surges
-      const c = sched.current.surge;
+/** Programme d'un skin à motif fixe : une lecture de la cubemap cuite. */
+export function bakedCompile(texture: THREE.CubeTexture, engraving?: EngravingProps) {
+  return (shader: THREE.WebGLProgramParametersWithUniforms) => {
+    shader.uniforms.uBaked = { value: texture };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vLocalPos;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLocalPos = position;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform samplerCube uBaked;\nvarying vec3 vLocalPos;',
+      )
+      .replace(
+        '#include <color_fragment>',
+        // Biais vers la netteté : le grain fin du motif (brossé des métaux) survit à la réduction
+        '#include <color_fragment>\ndiffuseColor.rgb = textureCube( uBaked, normalize( vLocalPos ), -1.0 ).rgb;',
+      );
+    if (engraving) injectInk(shader, engraving.ink);
+  };
+}
+
+/** Enveloppes des événements des styles animés (éclairs, poussées…), à chaque image. */
+function driveEnvelopes(
+  styleId: number,
+  uniforms: LiveUniforms,
+  sched: {
+    strikes: { t0: number; seed: number; next: number }[];
+    surge: { t0: number; next: number };
+  },
+  t: number,
+) {
+  // STORM (10) and SITH (19) both use the two-channel strike scheduler
+  // for their branching lightning. Sith strikes are a touch rarer so
+  // each crackle lands with weight. (The Light-side die is style 21 and
+  // deliberately has NO lightning — it uses the gentle surge below.)
+  if (styleId === 10 || styleId === 19) {
+    const s = sched.strikes;
+    const isSith = styleId === 19;
+    for (let ch = 0; ch < 2; ch++) {
+      const c = s[ch];
       if (t >= c.next) {
         c.t0 = t;
-        c.next = t + 3.5 + Math.random() * 4;
+        c.seed = Math.random();
+        c.next = t + (isSith ? 1.4 : 0.9) + Math.random() * (isSith ? 3.2 : 2.6);
       }
+      // sharp attack, fast decay + weaker restrike
       const dts = t - c.t0;
-      uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 2.5);
-    } else if (styleId === 17) {
-      // kyber: quick saber ignite/clash flare — sharp rise, fast decay.
-      const c = sched.current.surge;
-      if (t >= c.next) {
-        c.t0 = t;
-        c.next = t + 2.5 + Math.random() * 3.5;
+      const env =
+        dts < 0 ? 0 : Math.exp(-dts * 15) + (dts > 0.13 ? Math.exp(-(dts - 0.13) * 20) * 0.6 : 0);
+      if (ch === 0) {
+        uniforms.uFlash1.value = env;
+        uniforms.uSeed1.value = c.seed;
+      } else {
+        uniforms.uFlash2.value = env;
+        uniforms.uSeed2.value = c.seed;
       }
-      const dts = t - c.t0;
-      uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 6.0);
-    } else if (styleId === 18) {
-      // death star: long superlaser charge, then a fast beam
-      // discharge. Envelope swells over ~1.6s then snaps to a
-      // bright peak at fire time before collapsing.
-      const c = sched.current.surge;
-      if (t >= c.next) {
-        c.t0 = t;
-        c.next = t + 4.5 + Math.random() * 4;
-      }
-      const dts = t - c.t0;
-      // rise 0->1 over 1.6s (charge), hold the peak briefly (fire),
-      // then decay back to dark.
-      const charge = Math.min(Math.max(dts, 0) / 1.6, 1);
-      const fire = dts > 1.6 ? Math.exp(-(dts - 1.6) * 3.0) : 0;
-      uniforms.uSurge.value = Math.max(charge * charge * 0.7, fire);
-    } else if (styleId === 20) {
-      // hyperspace: mostly steady flow, with an occasional bright
-      // "jump" bloom that stretches the starlines.
-      const c = sched.current.surge;
-      if (t >= c.next) {
-        c.t0 = t;
-        c.next = t + 3.0 + Math.random() * 4;
-      }
-      const dts = t - c.t0;
-      uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 3.5);
-    } else if (styleId === 21 || styleId === 22) {
-      // Light-side serenity (21) and the Force-spirit balance pulse (22)
-      // share the same gentle rhythm: a slow symmetric swell (ease in AND
-      // out) spaced generously, so it reads as a calm breath — never a jolt.
-      const c = sched.current.surge;
-      if (t >= c.next) {
-        c.t0 = t;
-        c.next = t + 5.0 + Math.random() * 5.0;
-      }
-      const dts = t - c.t0;
-      // bell-shaped envelope centred ~1.1s after onset: rises softly,
-      // peaks, falls softly — never a spike.
-      uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-Math.pow((dts - 1.1) * 1.3, 2.0));
     }
-  });
+  } else if (styleId === 11) {
+    // magma: slow swelling surges
+    const c = sched.surge;
+    if (t >= c.next) {
+      c.t0 = t;
+      c.next = t + 3.5 + Math.random() * 4;
+    }
+    const dts = t - c.t0;
+    uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 2.5);
+  } else if (styleId === 17) {
+    // kyber: quick saber ignite/clash flare — sharp rise, fast decay.
+    const c = sched.surge;
+    if (t >= c.next) {
+      c.t0 = t;
+      c.next = t + 2.5 + Math.random() * 3.5;
+    }
+    const dts = t - c.t0;
+    uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 6.0);
+  } else if (styleId === 18) {
+    // death star: long superlaser charge, then a fast beam
+    // discharge. Envelope swells over ~1.6s then snaps to a
+    // bright peak at fire time before collapsing.
+    const c = sched.surge;
+    if (t >= c.next) {
+      c.t0 = t;
+      c.next = t + 4.5 + Math.random() * 4;
+    }
+    const dts = t - c.t0;
+    // rise 0->1 over 1.6s (charge), hold the peak briefly (fire),
+    // then decay back to dark.
+    const charge = Math.min(Math.max(dts, 0) / 1.6, 1);
+    const fire = dts > 1.6 ? Math.exp(-(dts - 1.6) * 3.0) : 0;
+    uniforms.uSurge.value = Math.max(charge * charge * 0.7, fire);
+  } else if (styleId === 20) {
+    // hyperspace: mostly steady flow, with an occasional bright
+    // "jump" bloom that stretches the starlines.
+    const c = sched.surge;
+    if (t >= c.next) {
+      c.t0 = t;
+      c.next = t + 3.0 + Math.random() * 4;
+    }
+    const dts = t - c.t0;
+    uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 3.5);
+  } else if (styleId === 21 || styleId === 22) {
+    // Light-side serenity (21) and the Force-spirit balance pulse (22)
+    // share the same gentle rhythm: a slow symmetric swell (ease in AND
+    // out) spaced generously, so it reads as a calm breath — never a jolt.
+    const c = sched.surge;
+    if (t >= c.next) {
+      c.t0 = t;
+      c.next = t + 5.0 + Math.random() * 5.0;
+    }
+    const dts = t - c.t0;
+    // bell-shaped envelope centred ~1.1s after onset: rises softly,
+    // peaks, falls softly — never a spike.
+    uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-Math.pow((dts - 1.1) * 1.3, 2.0));
+  }
+}
 
-  const needsPhysical =
-    skin.effectType === 'glass' || skin.effectType === 'gem' || skin.procStyle === 'ocean';
+/**
+ * Réglages du matériau d'un skin procédural : métal, rugosité, émission ; physique (vernis) pour
+ * le verre, les gemmes, l'océan et les skins vernis (`varnish` : marbres).
+ */
+export function materialSettings(skin: DiceSkin) {
+  const physical =
+    skin.effectType === 'glass' ||
+    skin.effectType === 'gem' ||
+    skin.procStyle === 'ocean' ||
+    !!skin.varnish;
   // "Void" signature styles render an emissive-only look (souls/mist in the
   // dark). Scene lights + envMap would wash the dark void to a pale colour, so
   // we make them effectively unlit: no reflections, fully matte, no base
@@ -1222,34 +1270,89 @@ export const ProceduralMaterial = ({
   // Eclipse: hot-black polished body — keep a whisper of reflection for the
   // obsidian sheen, but low enough that the emissive corona always dominates.
   const isEclipse = skin.procStyle === 'eclipse';
+  return {
+    physical,
+    // Vernis : celui des marbres (comme les résines), plus marqué que celui des gemmes
+    clearcoat: skin.varnish ? 1 : 0.8,
+    clearcoatRoughness: skin.varnish ? 0.07 : 0.15,
+    props: {
+      color: skin.bodyColor,
+      metalness: isVoid ? 0 : isEclipse ? 0.15 : skin.metalness,
+      // Higher floors kill the face-wide specular sheen that flat facets catch
+      // from scene spotlights (the "one face blown out" effect).
+      roughness: isVoid
+        ? 1
+        : isEclipse
+          ? Math.max(skin.roughness, 0.5)
+          : Math.max(skin.roughness, 0.25),
+      envMapIntensity: isVoid ? 0 : isEclipse ? 0.2 : Math.min(skin.envMapIntensity, 0.9),
+      emissive: isVoid || isEclipse ? '#000000' : skin.emissive,
+      emissiveIntensity: isVoid || isEclipse ? 1 : skin.emissiveIntensity,
+      transparent: skin.opacity < 1,
+      opacity: skin.opacity,
+    },
+  };
+}
+
+// Procedural material for solid-color dice (no textureMap). Extends
+// meshStandardMaterial (keeps full PBR + envMap) and injects per-effect
+// procedural matter so flat colors gain veins, brushing, lava, etc. Styles
+// without animation are baked once (`isBakedSkin`) and only sampled.
+export const ProceduralMaterial = ({
+  skin,
+  engraving,
+}: {
+  skin: DiceSkin;
+  engraving?: EngravingProps;
+}) => {
+  const gl = useThree((s) => s.gl);
+  const styleId = resolveStyleId(skin);
+  const baked = isBakedSkin(skin);
+  const uniforms = useMemo(
+    () => liveUniforms(skin),
+    [skin.effectType, skin.procStyle, skin.edgeColor, skin.bodyColor, skin.id],
+  );
+  const texture = useMemo(() => (baked ? bakeProcedural(gl, skin) : null), [baked, gl, skin]);
+  const onBeforeCompile = useMemo(
+    () => (texture ? bakedCompile(texture, engraving) : liveCompile(styleId, uniforms, engraving)),
+    [texture, styleId, uniforms, engraving],
+  );
+
+  // CPU-side event schedulers for storm strikes & magma surges: they drive
+  // the shader envelopes (uFlash*/uSurge) with an unpredictable random rhythm.
+  const sched = useRef({
+    strikes: [
+      { t0: -9, seed: 0, next: 0.8 + Math.random() * 1.5 },
+      { t0: -9, seed: 0, next: 1.8 + Math.random() * 2.2 },
+    ],
+    surge: { t0: -9, next: 0.8 + Math.random() * 2.5 },
+  });
+  useFrame((state) => {
+    if (baked) return;
+    const t = state.clock.elapsedTime;
+    uniforms.uTime.value = t;
+    driveEnvelopes(styleId, uniforms, sched.current, t);
+  });
+
+  const { physical, clearcoat, clearcoatRoughness, props } = materialSettings(skin);
   const common = {
-    ref: matRef as any,
-    color: skin.bodyColor,
-    metalness: isVoid ? 0 : isEclipse ? 0.15 : skin.metalness,
-    // Higher floors kill the face-wide specular sheen that flat facets catch
-    // from scene spotlights (the "one face blown out" effect).
-    roughness: isVoid
-      ? 1
-      : isEclipse
-        ? Math.max(skin.roughness, 0.5)
-        : Math.max(skin.roughness, 0.25),
-    envMapIntensity: isVoid ? 0 : isEclipse ? 0.2 : Math.min(skin.envMapIntensity, 0.9),
-    emissive: isVoid || isEclipse ? '#000000' : skin.emissive,
-    emissiveIntensity: isVoid || isEclipse ? 1 : skin.emissiveIntensity,
-    transparent: skin.opacity < 1,
-    opacity: skin.opacity,
+    ...props,
     onBeforeCompile,
     // Gravure des chiffres (carte de normales sur uv1, encre dans son alpha)
     ...(engraving ? { normalMap: engraving.map, normalScale: ENGRAVING_NORMAL_SCALE } : {}),
-    // Shared per STYLE (not per skin): every skin of a style reuses the
-    // same small compiled program; per-skin looks are pure uniforms.
-    // (three.js's parameter hash already separates standard vs physical,
-    // transparent, lights, etc. — this key only adds the style dimension.)
-    customProgramCacheKey: () => 'proc-style-' + styleId + (engraving ? '-engraved' : ''),
+    // Skins animés : un programme par STYLE (les looks de chaque skin sont des uniformes) ;
+    // skins à motif fixe : un seul programme pour tous (la cubemap fait la différence).
+    customProgramCacheKey: () =>
+      (baked ? 'proc-baked' : 'proc-style-' + styleId) + (engraving ? '-engraved' : ''),
   };
 
-  if (needsPhysical) {
-    return <meshPhysicalMaterial {...common} clearcoat={0.8} clearcoatRoughness={0.15} />;
-  }
+  if (physical)
+    return (
+      <meshPhysicalMaterial
+        {...common}
+        clearcoat={clearcoat}
+        clearcoatRoughness={clearcoatRoughness}
+      />
+    );
   return <meshStandardMaterial {...common} />;
 };

@@ -118,6 +118,8 @@ export interface DiceSkin {
   rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   /** Matériau résine (série de test) : remplace le matériau procédural. */
   resin?: ResinLook;
+  /** Vernis (clearcoat) sur le matériau procédural : marbres. */
+  varnish?: boolean;
 }
 
 export const DICE_SKINS: Record<string, DiceSkin> = {
@@ -1231,6 +1233,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
   },
   marbre_saphir: {
     id: 'marbre_saphir',
+    varnish: true,
     name: 'Marbre Saphir',
     bodyColor: '#16306e', // deep midnight-blue marble body
     edgeColor: '#dfe9ff', // silvery-white veins
@@ -1861,6 +1864,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
   },
   royal_marble: {
     id: 'royal_marble',
+    varnish: true,
     name: 'Marbre Royal',
     bodyColor: '#f5f5f5',
     edgeColor: '#ffffff',
@@ -1998,6 +2002,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
   },
   marbre_blanc: {
     id: 'marbre_blanc',
+    varnish: true,
     name: 'Marbre Blanc',
     bodyColor: '#eceae6', // bright marble white body
     edgeColor: '#b8902f', // refined gold veins on white
@@ -2248,6 +2253,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
   },
   marbre_emeraude: {
     id: 'marbre_emeraude',
+    varnish: true,
     name: 'Marbre Émeraude',
     bodyColor: '#0f7a44', // deep emerald body
     edgeColor: '#e8b54a', // saturated metallic gold veins
@@ -2274,6 +2280,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
   },
   marbre_ambre: {
     id: 'marbre_ambre',
+    varnish: true,
     name: 'Marbre Ambré',
     bodyColor: '#8a4a18', // deep amber/caramel body
     edgeColor: '#fff3df', // creamy white veins (reads better than gold on amber)

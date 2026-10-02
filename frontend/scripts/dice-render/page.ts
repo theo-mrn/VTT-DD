@@ -14,10 +14,20 @@ import {
 import { DIE_TYPES, dieShape } from '@/components/dice/three/polyhedra';
 import { DICE_SKINS } from '@/components/dice/three/dice-definitions';
 import { bakeResin, injectResin } from '@/components/dice/three/materials/resin-material';
+import {
+  bakedCompile,
+  bakeProcedural,
+  isBakedSkin,
+  liveCompile,
+  materialSettings,
+  resolveStyleId,
+} from '@/components/dice/three/materials/procedural-material';
 
 declare global {
   interface Window {
-    diceBench: { render(o: { width: number; height: number; resin?: boolean }): void };
+    diceBench: {
+      render(o: { width: number; height: number; resin?: boolean; compare?: boolean }): void;
+    };
   }
 }
 
@@ -33,7 +43,7 @@ const SKINS = [
 ];
 
 window.diceBench = {
-  render({ width, height, resin = false }) {
+  render({ width, height, resin = false, compare = false }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -50,6 +60,73 @@ window.diceBench = {
     const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 200);
     camera.position.set(0, 26, 16);
     camera.lookAt(0, 0, 0);
+
+    if (compare) {
+      // Avant (motif calculé en direct, sans vernis) / après (motif cuit, vernis des marbres)
+      const skins = Object.values(DICE_SKINS).filter(isBakedSkin);
+      const shape = dieShape('d20');
+      const geometry = shape.geometry;
+      const live = (skin: (typeof skins)[number], baked: boolean) => {
+        const s = materialSettings(baked ? skin : { ...skin, varnish: false });
+        const params = {
+          ...s.props,
+          normalMap: engravingTexture('d20'),
+          normalScale: ENGRAVING_NORMAL_SCALE,
+        };
+        const mat = s.physical
+          ? new THREE.MeshPhysicalMaterial({
+              ...params,
+              clearcoat: s.clearcoat,
+              clearcoatRoughness: s.clearcoatRoughness,
+            })
+          : new THREE.MeshStandardMaterial(params);
+        const engraving = {
+          map: engravingTexture('d20'),
+          ink: inkUniforms(skin.textColor, 0.12, skin.shadowColor),
+        };
+        // Clé de programme explicite, comme l'app : sans elle, three reconnaît le programme à
+        // son code source, identique pour tous les styles (ils partageraient le premier)
+        mat.customProgramCacheKey = () =>
+          baked ? 'proc-baked' : `proc-style-${resolveStyleId(skin)}`;
+        if (baked) mat.onBeforeCompile = bakedCompile(bakeProcedural(renderer, skin), engraving);
+        else {
+          const u = {
+            uTime: { value: 0 },
+            uAccent: { value: new THREE.Color(skin.edgeColor) },
+            uDeep: { value: new THREE.Color(skin.bodyColor).multiplyScalar(0.45) },
+            uSeed: { value: 0 },
+            uFlash1: { value: 0 },
+            uFlash2: { value: 0 },
+            uSeed1: { value: 0 },
+            uSeed2: { value: 0 },
+            uSurge: { value: 0 },
+          };
+          let h = 2166136261;
+          for (let i = 0; i < skin.id.length; i++) {
+            h ^= skin.id.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+          }
+          u.uSeed.value = ((h >>> 0) % 1000) / 1000;
+          mat.onBeforeCompile = liveCompile(resolveStyleId(skin), u, engraving);
+        }
+        return mat;
+      };
+      camera.position.set(0, 46, 0.01);
+      camera.lookAt(0, 0, 0);
+      skins.forEach((skin, i) => {
+        const col = i % 4;
+        const row = Math.floor(i / 4);
+        [false, true].forEach((baked, k) => {
+          const mesh = new THREE.Mesh(geometry, live(skin, baked));
+          mesh.position.set((col - 1.5) * 8.2 + (k - 0.5) * 3.8, 0, (row - 2) * 4.4);
+          mesh.quaternion.setFromUnitVectors(shape.faces[0]!.norm, new THREE.Vector3(0, 1, 0));
+          mesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), 0.5);
+          scene.add(mesh);
+        });
+      });
+      renderer.render(scene, camera);
+      return;
+    }
 
     if (resin) {
       RESIN.forEach((id, row) => {
