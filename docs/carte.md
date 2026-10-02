@@ -641,6 +641,11 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
     contiennent pas), avec dedans `range` ∪ son disque de vision (bord doux sur 12 % du rayon),
     en mélange `max`. Le flou ne touche que `range` et `fog`, avant le découpage par les murs :
     le bord de la vue suit les murs, aucun mur soudé n'est percé.
+- **Banc WebGL** (`frontend/scripts/vision-render`, `node scripts/vision-render/run.mjs`) : dix
+  scènes (mur seul, salle à fenêtre, porte ouverte ou fermée, salles voisines, sens unique,
+  déplacements successifs) dessinées par le vrai rendu dans Chromium, l'obscurité lue aux
+  points sondés. À rejouer à chaque changement du rendu : il attrape ce que les tests sans WebGL
+  ne voient pas (masques Pixi imbriqués, tampons réutilisés).
 - **Ombres partielles** : derrière un mur translucide, la même portée atténuée de son opacité,
   masquée par le polygone d'ombre et toujours dans la ligne de vue. Deux murs translucides
   l'un derrière l'autre : l'ombre la plus claire des deux (pas le produit), écart assumé.
