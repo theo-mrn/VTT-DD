@@ -254,6 +254,13 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
       radius: 50,
       url: 'E8Ced6hW45',
     });
+    // Zone sonore arrêtée : jamais envoyée aux joueurs
+    const silent = await h.ok<Item>(gm, 'POST', `${base}/music-zones`, {
+      pos: { x: 100, y: 100 },
+      assetId: '0190a8f0-0000-7000-8000-000000000001',
+      active: false,
+    });
+    expect(silent).toMatchObject({ active: false, radius: 100, volume: 0.5 });
 
     // Portail vers une carte d'une autre campagne : refusé
     const elsewhere = await h.campaign(gm);
@@ -279,6 +286,7 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
     expect(snap.measurements).toHaveLength(1);
     expect(snap.notes).toHaveLength(1);
     expect(snap.musicZones).toHaveLength(1);
+    expect((await h.ok<Record<string, Item[]>>(gm, 'GET', base)).musicZones).toHaveLength(2);
     expect(snap.fogZones).toEqual([]);
     expect(snap.layers!.map((l) => l.name)).toEqual(['Sol', 'Objets', 'Personnages']);
     // Fenêtre d'affichage : seuls les éléments qui la touchent

@@ -762,8 +762,12 @@ export const mapMusicZones = campaignSchema.table('map_music_zones', {
   pos: point('pos').notNull(),
   radius: real('radius').notNull().default(100),
   url: text('url'),
+  /** Son de la bibliothèque du service audio (0027). */
+  assetId: uuid('asset_id'),
   volume: real('volume').notNull().default(0.5),
   color: text('color'),
+  /** Arrêtée : pas envoyée aux joueurs (0027). */
+  active: boolean('active').notNull().default(true),
 });
 
 export const mapPortals = campaignSchema.table('map_portals', {

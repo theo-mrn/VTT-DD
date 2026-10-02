@@ -918,10 +918,14 @@ export const MapMusicZone = z.object({
   pos: MapPoint,
   /** Pixels. */
   radius: z.number(),
-  /** Fichier audio (https) ou identifiant de vidéo YouTube. */
+  /** Repli des zones importées : fichier audio (https) ou identifiant de vidéo YouTube. */
   url: z.string().nullable(),
+  /** Son de la bibliothèque (service audio) ; prime sur `url`. */
+  assetId: z.uuid().nullable(),
   volume: z.number(),
   color: z.string().nullable(),
+  /** Arrêtée : silencieuse, et jamais envoyée aux joueurs. */
+  active: z.boolean(),
 });
 export type MapMusicZone = z.infer<typeof MapMusicZone>;
 
@@ -930,8 +934,10 @@ export const MapMusicZoneFields = z.strictObject({
   pos: MapPoint,
   radius: z.number().min(0).max(100_000),
   url: MediaUrl.or(z.string().regex(/^[\w-]{6,20}$/, 'URL ou id YouTube attendu')).nullable(),
+  assetId: z.uuid().nullable(),
   volume: z.number().min(0).max(1),
   color: MapColor.nullable(),
+  active: z.boolean(),
 });
 export const CreateMapMusicZone = MapMusicZoneFields.partial().required({ pos: true });
 export type CreateMapMusicZone = z.input<typeof CreateMapMusicZone>;

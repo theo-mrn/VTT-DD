@@ -345,6 +345,8 @@ export const LAYERS: LayerDef[] = [
     table: mapMusicZones,
     geom: mapMusicZones.pos,
     write: 'gm',
+    // Arrêtée : jamais envoyée aux joueurs
+    isPublic: (r) => r.active === true,
   },
   {
     path: 'portals',
