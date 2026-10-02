@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { AMBIANCES, COUVERTURES } from './elements';
 import { ReglagesLanceur } from './reglages-lanceur';
 import { ReglagesRegles } from './reglages-regles';
+import { OngletsReglages, StockageCampagne } from './stockage-campagne';
 
 const AUCUNE_REGLE: Record<string, boolean> = {};
 
@@ -313,16 +314,26 @@ export function ReglagesCampagne({
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
 }) {
+  const [vue, setVue] = useState<'campagne' | 'stockage'>('campagne');
   return (
     <Dialog open={ouvert} onOpenChange={onOuvert}>
       <SheetContent cote="right" className="w-[94vw] max-w-lg" data-ambiance={c.ambiance}>
-        <div className="border-b border-border px-6 py-5">
-          <DialogTitle className="text-lg font-semibold">Réglages de la campagne</DialogTitle>
-          <DialogDescription className="text-[13px] text-muted-foreground">
-            Visibles par toute la table. Le système de jeu ne change pas.
-          </DialogDescription>
+        <div className="space-y-4 border-b border-border px-6 py-5">
+          <div>
+            <DialogTitle className="text-lg font-semibold">Réglages de la campagne</DialogTitle>
+            <DialogDescription className="text-[13px] text-muted-foreground">
+              Visibles par toute la table. Le système de jeu ne change pas.
+            </DialogDescription>
+          </div>
+          <OngletsReglages vue={vue} onVue={setVue} />
         </div>
-        <ReglagesForm campagne={c} actif={ouvert} onTermine={() => onOuvert(false)} />
+        {vue === 'campagne' ? (
+          <ReglagesForm campagne={c} actif={ouvert} onTermine={() => onOuvert(false)} />
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <StockageCampagne campaignId={c.id} />
+          </div>
+        )}
       </SheetContent>
     </Dialog>
   );
