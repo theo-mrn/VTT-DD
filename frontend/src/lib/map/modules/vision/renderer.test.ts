@@ -208,7 +208,7 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     const u = h.inner.uniforms.uniforms;
     expect(u.uFogOn).toBe(0);
     expect(u.uGlowOn).toBe(0);
-    expect(u.uDarkness).toBeCloseTo(0.8);
+    expect(u.uDarkness).toBe(1);
   });
 
   it('observateur : ligne de vue en masque, pièce de confinement, pièces retirées', () => {

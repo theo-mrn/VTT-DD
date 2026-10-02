@@ -181,7 +181,7 @@ describe('observateurs et masquage (joueur)', () => {
     const t = setup();
     t.run();
     const p = t.state.picture()!;
-    expect(p.darkness).toBeCloseTo(0.8);
+    expect(p.darkness).toBe(1);
     expect(p.viewers.map((v) => v.id)).toEqual(['heros']);
     expect(p.topDown).toBeNull();
     // Spectateur sans personnage : vue d'en haut
@@ -206,7 +206,7 @@ describe('MJ : voile et « Vue de… »', () => {
     expect(t.state.mode).toBe('view-as');
     expect(t.masked('orc')).toBe(true);
     expect(t.masked('fantome')).toBe(true);
-    expect(t.state.picture()!.darkness).toBeCloseTo(0.8);
+    expect(t.state.picture()!.darkness).toBe(1);
     t.engine.setViewAs(null);
     t.run();
     expect(t.masked('orc')).toBe(false);

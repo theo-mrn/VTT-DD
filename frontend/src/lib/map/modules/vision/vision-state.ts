@@ -534,7 +534,8 @@ export class VisionState {
       fogFull: scene.fogFull === true,
       fogZones: scene.fogZones ?? [],
       lights,
-      darkness: Math.max(0, Math.min(1, shadow)) * (gm ? GM_VEIL : 1),
+      // Joueur : toute ombre est noire à 100 %, quel que soit le réglage ; MJ : voile léger
+      darkness: gm ? Math.max(0, Math.min(1, shadow)) * GM_VEIL : 1,
       obstacleDarkness: gm ? Math.max(0, Math.min(1, shadow)) * GM_VEIL : 1,
       fogAlpha: FOG_ALPHA * (gm ? GM_VEIL : 1),
       glowFloor: gm ? 1 - GM_VEIL : 0,
