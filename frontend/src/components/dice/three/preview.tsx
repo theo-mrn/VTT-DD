@@ -91,9 +91,8 @@ export function DicePreview({
         frameloop={active ? 'demand' : 'never'}
       >
         <Resume active={active} />
+        {/* Pas de projecteur : à 17 unités, en unités physiques, il n'éclairait presque rien */}
         <ambientLight intensity={0.9} />
-        <spotLight position={[10, 10, 10]} angle={0.6} penumbra={1} intensity={1.1} />
-        <pointLight position={[-10, -10, -10]} intensity={0.4} />
         <Environment files={DICE_ENVIRONMENT} environmentIntensity={0.6} />
         <AutoRotatingDie type={type} skinId={skinId} />
         <OrbitControls enableZoom={false} enablePan={false} />

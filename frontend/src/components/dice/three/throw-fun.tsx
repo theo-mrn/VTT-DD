@@ -474,16 +474,9 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
               frameloop={moving || warmTarget ? 'always' : 'demand'}
               style={{ pointerEvents: 'none' }}
             >
+              {/* Pas de projecteurs : à cette distance, en unités physiques, ils n'éclairaient
+                  presque rien (voir `thrower.tsx`) */}
               <ambientLight intensity={0.4} />
-              <spotLight position={[15, 40, 15]} angle={0.5} penumbra={0.5} intensity={2} />
-              <spotLight
-                position={[-10, 30, -10]}
-                angle={0.4}
-                penumbra={0.8}
-                intensity={1}
-                color="#ffeedd"
-              />
-              <pointLight position={[0, 20, 0]} intensity={0.8} color="#fff8e7" />
               <Environment preset="city" />
 
               {warmTarget && (

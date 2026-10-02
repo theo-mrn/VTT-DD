@@ -39,6 +39,7 @@ declare global {
       }): void;
       cores(o: { width: number; height: number; names: string[] }): Promise<void>;
       orbs(o: { width: number; height: number }): Promise<void>;
+      lightsDiff(o: { size: number }): Record<string, string>;
       cost(o: {
         size: number;
         frames: number;
@@ -65,6 +66,99 @@ const SKINS = [
 ];
 
 window.diceBench = {
+  /**
+   * Apport des trois lumières d'ambiance du lanceur (valeurs exactes de `thrower.tsx`) : écart
+   * maximal par canal (0-255) et part des pixels changés, avec et sans elles, skin par skin.
+   */
+  lightsDiff({ size }) {
+    const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+    renderer.setSize(size, size);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    document.body.appendChild(renderer.domElement);
+    const gl = renderer.getContext();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+    camera.position.set(0, 7.5, 0.01);
+    camera.lookAt(0, 0, 0);
+    const shape = dieShape('d20');
+    const engraving = {
+      map: engravingTexture('d20'),
+      ink: inkUniforms('#ffffff', 0.12, '#000000'),
+    };
+    const shot = (mat: THREE.Material, lights: boolean) => {
+      const scene = new THREE.Scene();
+      scene.environment = env;
+      scene.environmentIntensity = 0.55;
+      scene.add(new THREE.AmbientLight(0xffffff, 1.05));
+      if (lights) {
+        const spot = new THREE.SpotLight(0xffffff, 0.45, 0, 0.6, 1);
+        spot.position.set(15, 40, 15);
+        const spot2 = new THREE.SpotLight(0xffeedd, 0.25, 0, 0.5, 1);
+        spot2.position.set(-10, 30, -10);
+        const point = new THREE.PointLight(0xfff8e7, 0.25);
+        point.position.set(0, 20, 0);
+        scene.add(spot, spot2, point);
+      }
+      const mesh = new THREE.Mesh(shape.geometry, mat);
+      mesh.quaternion.setFromUnitVectors(shape.faces[0]!.norm, new THREE.Vector3(0, 1, 0));
+      mesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), 0.5);
+      scene.add(mesh);
+      renderer.render(scene, camera);
+      const px = new Uint8Array(size * size * 4);
+      gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      return px;
+    };
+    const out: Record<string, string> = {};
+    const skins = Object.values(DICE_SKINS).filter(
+      (k) => !k.textureMap && !k.resin && k.effectType !== 'orb',
+    );
+    for (const skin of skins.filter((k, i) => i % 3 === 0)) {
+      const s = materialSettings(skin);
+      const mat = s.physical
+        ? new THREE.MeshPhysicalMaterial({
+            ...s.props,
+            clearcoat: s.clearcoat,
+            clearcoatRoughness: s.clearcoatRoughness,
+          })
+        : new THREE.MeshStandardMaterial(s.props);
+      mat.normalMap = engraving.map;
+      mat.normalScale = ENGRAVING_NORMAL_SCALE;
+      const id = resolveStyleId(skin);
+      const baked = isBakedSkin(skin);
+      mat.customProgramCacheKey = () => (baked ? 'proc-baked' : `proc-style-${id}`);
+      const u = {
+        uTime: { value: 0 },
+        uAccent: { value: new THREE.Color(skin.edgeColor) },
+        uDeep: { value: new THREE.Color(skin.bodyColor).multiplyScalar(0.45) },
+        uSeed: { value: 0.3 },
+        uFlash1: { value: 0 },
+        uFlash2: { value: 0 },
+        uSeed1: { value: 0 },
+        uSeed2: { value: 0 },
+        uSurge: { value: 0 },
+      };
+      mat.onBeforeCompile = baked
+        ? bakedCompile(bakeProcedural(renderer, skin), engraving)
+        : liveCompile(id, u, engraving);
+      const a = shot(mat, true);
+      const b = shot(mat, false);
+      let max = 0;
+      let changed = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        const d = Math.max(
+          Math.abs(a[i]! - b[i]!),
+          Math.abs(a[i + 1]! - b[i + 1]!),
+          Math.abs(a[i + 2]! - b[i + 2]!),
+        );
+        max = Math.max(max, d);
+        if (d > 0) changed++;
+      }
+      out[skin.id] =
+        `écart max ${max}, pixels changés ${((changed / (size * size)) * 100).toFixed(2)} %`;
+    }
+    return out;
+  },
   /** Coût du motif de chaque style : ms par image, un d20 qui remplit le cadre. */
   cost({ size, frames, rig = 'all' }) {
     const renderer = new THREE.WebGLRenderer({ antialias: false });

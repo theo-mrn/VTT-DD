@@ -801,18 +801,11 @@ export const DiceThrower = () => {
       >
         {tickMs > 0 && <FrameTicker intervalMs={tickMs} />}
         <ShapeWarmer />
-        {/* Flat, even lighting: mostly ambient with faint key lights, so
-                    no single facet ever catches a face-wide blown highlight. */}
+        {/* Lumière ambiante et carte d'environnement seulement. Les projecteurs et la lumière
+            ponctuelle d'avant, en unités physiques (atténuation au carré de la distance), n'apportaient
+            qu'environ 1/2000 de leur intensité à 20-45 unités : invisibles (écart de 1/255 sur le
+            banc, `--lights`), mais calculés à chaque pixel. */}
         <ambientLight intensity={1.05} />
-        <spotLight position={[15, 40, 15]} angle={0.6} penumbra={1} intensity={0.45} />
-        <spotLight
-          position={[-10, 30, -10]}
-          angle={0.5}
-          penumbra={1}
-          intensity={0.25}
-          color="#ffeedd"
-        />
-        <pointLight position={[0, 20, 0]} intensity={0.25} color="#fff8e7" />
 
         {/* Environment kept for metallic reflections, but dimmed so it
                     can't wash faces out. */}

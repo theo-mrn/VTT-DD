@@ -84,6 +84,13 @@ if (originalsDir) {
   console.log(out);
   process.exit(0);
 }
+if (process.argv.includes('--lights')) {
+  const r = await page.evaluate(() => window.diceBench.lightsDiff({ size: 500 }));
+  for (const [k, v] of Object.entries(r)) console.log(k.padEnd(24), v);
+  await browser.close();
+  server.close();
+  process.exit(0);
+}
 if (process.argv.includes('--cost')) {
   const rig = process.argv.find((a) => a.startsWith('--rig='))?.slice(6) ?? 'all';
   const r = await page.evaluate(
