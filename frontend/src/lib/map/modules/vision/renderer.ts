@@ -513,6 +513,9 @@ export class VisionRenderer {
     this.composite.label = 'vision:composite';
     this.composite.visible = false;
     plane.addChild(this.composite);
+    // Intérieur des salles fermées hors de portée : noir opaque, sous le tracé des murs
+    this.roomFill = new pixi.Graphics({ label: 'vision:hidden-rooms' });
+    plane.addChild(this.roomFill);
     // Tracé sombre des murs pour les joueurs, au-dessus de l'ombre (comme l'ancienne carte)
     this.wallLines = new pixi.Graphics({ label: 'vision:walls' });
     this.wallColor = mixColor(theme.background, 0x000000, 0.65);
@@ -520,6 +523,19 @@ export class VisionRenderer {
   }
 
   private readonly wallLines: Pixi.Graphics;
+  private readonly roomFill: Pixi.Graphics;
+  private roomKey: string | null = null;
+
+  /** Salles fermées où le joueur n'est pas : noir opaque ; refait seulement si elles changent. */
+  private drawHiddenRooms(p: VisionPicture) {
+    this.roomFill.visible = true;
+    if (this.roomKey === p.hiddenRooms.key) return;
+    this.roomKey = p.hiddenRooms.key;
+    const g = this.roomFill;
+    g.clear();
+    for (const poly of p.hiddenRooms.polygons) g.poly(Array.from(poly), true);
+    if (p.hiddenRooms.polygons.length) g.fill({ color: this.wallColor, alpha: 1 });
+  }
   private readonly wallColor: number;
   private wallKey: { walls: Float64Array | null; width: number; darkness: number } | null = null;
 
@@ -604,6 +620,7 @@ export class VisionRenderer {
     if (!picture || cam.width < 1 || cam.height < 1) {
       this.composite.visible = false;
       this.wallLines.visible = false;
+      this.roomFill.visible = false;
       this.shown = false;
       return false;
     }
@@ -696,6 +713,7 @@ export class VisionRenderer {
 
     if (this.hasFog) this.renderMist(tc, time, left, top, fogStale);
     this.updateComposite(picture, cam, tc);
+    this.drawHiddenRooms(picture);
     this.drawWalls(picture);
     this.shown = true;
     this.onRender?.(performance.now() - started);
@@ -944,6 +962,7 @@ export class VisionRenderer {
     this.composite.destroy();
     shader?.destroy();
     this.wallLines.destroy();
+    this.roomFill.destroy();
     this.compositeGeometry.destroy();
     const mistMesh = this.mistRoot.children[0] as Pixi.Mesh<Pixi.MeshGeometry, Pixi.Shader>;
     const mistShader = mistMesh.shader;

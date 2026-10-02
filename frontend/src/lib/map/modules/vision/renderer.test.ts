@@ -255,8 +255,8 @@ describe('rendu de la visibilité (sans WebGL)', () => {
   it('se détruit sans rien laisser dans le plan', () => {
     const h = harness({ objects: [object('coffre', 300, 90)] });
     h.draw();
-    // L'ombre et le tracé des murs
-    expect(h.plane.children).toHaveLength(2);
+    // L'ombre, les salles cachées et le tracé des murs
+    expect(h.plane.children).toHaveLength(3);
     h.r.destroy();
     expect(h.plane.children).toHaveLength(0);
     h.r.draw(h.state.picture(), { x: 0, y: 0, zoom: 1, width: 10, height: 10 }, 0);

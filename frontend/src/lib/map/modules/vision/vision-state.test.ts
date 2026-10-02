@@ -379,3 +379,28 @@ describe('invalidations : ce qui déclenche un calcul', () => {
     expect(t.state.picture()!.versions.lights).toBe(v + 1);
   });
 });
+
+describe('salles fermées hors de portée', () => {
+  const box = (id: string, x: number, y: number, size: number): ReturnType<typeof wall> => ({
+    ...wall(id, x, y, y + size),
+    points: [
+      { x, y },
+      { x: x + size, y },
+      { x: x + size, y: y + size },
+      { x, y: y + size },
+      { x, y },
+    ],
+  });
+
+  it('joueur dehors : l’intérieur noir opaque ; dedans : pas pour la sienne ; MJ : jamais', () => {
+    // Le héros est en (100, 100) ; une salle loin, une autre autour de lui
+    const t = setup({ obstacles: [box('loin', 400, 400, 200), box('ici', 50, 50, 100)] });
+    t.run();
+    const hidden = t.state.picture()!.hiddenRooms;
+    expect(hidden.polygons).toHaveLength(1);
+    expect(Math.min(...hidden.polygons[0]!)).toBe(400);
+    const gm = setup({ viewer: GM, obstacles: [box('loin', 400, 400, 200)] });
+    gm.run();
+    expect(gm.state.picture()!.hiddenRooms.polygons).toHaveLength(0);
+  });
+});

@@ -15,6 +15,7 @@
 import {
   closedRooms,
   playerView,
+  pointInPolygon,
   prepareScene,
   translucentShadows,
   viewerView,
@@ -103,6 +104,12 @@ export interface VisionPicture {
   readonly walls: Float64Array | null;
   /** Épaisseur de ce tracé, en pixels du monde (un dixième de case). */
   readonly wallWidth: number;
+  /**
+   * Salles fermées où le joueur n'a aucun observateur : leur intérieur est noir opaque, quel que
+   * soit `darkness` (on devine le terrain hors de vue, jamais l'intérieur d'une salle). Vide pour
+   * le MJ. `key` change quand la liste change.
+   */
+  readonly hiddenRooms: { readonly key: string; readonly polygons: readonly Polygon[] };
   /** Versions : un terme qui change fait refaire ce qui en dépend. */
   readonly versions: { readonly fog: number; readonly lights: number; readonly viewers: number };
 }
@@ -219,6 +226,7 @@ export class VisionState {
   private geoPrep: PreparedScene | null = null;
   private geoScene: ReturnType<typeof geometryScene> | null = null;
   private wallCache: { scene: unknown; walls: Float64Array } | null = null;
+  private hiddenCache: { key: string; prep: unknown; polygons: Polygon[] } | null = null;
   private foggedGeo: PreparedScene | null = null;
   private fogVersion = 0;
 
@@ -500,9 +508,23 @@ export class VisionState {
       typeof state.settings?.shadowOpacity === 'number' ? state.settings.shadowOpacity : 1;
     const gm = this.mode === 'gm';
     const scene = this.geoScene!;
+    // Salles fermées sans observateur du joueur montré (MJ : aucune)
+    const hidden = gm
+      ? []
+      : prep.rooms.filter(
+          (r) => r.closed && !observers.some((o) => pointInPolygon(o.pos, r.room.points)),
+        );
+    const hiddenKey = hidden.map((r) => r.id).join('|');
+    if (this.hiddenCache?.key !== hiddenKey || this.hiddenCache.prep !== prep)
+      this.hiddenCache = {
+        key: hiddenKey,
+        prep,
+        polygons: hidden.map((r) => Float64Array.from(r.room.points.flatMap((p) => [p.x, p.y]))),
+      };
     if (this.wallCache?.scene !== scene) this.wallCache = { scene, walls: blockingWalls(scene) };
     this.pictureCache = {
       walls: gm ? null : this.wallCache.walls,
+      hiddenRooms: { key: `${this.fogVersion}:${hiddenKey}`, polygons: this.hiddenCache.polygons },
       wallWidth: Math.max(2, scaleOf(state).pixelsPerUnit * 0.1),
       bounds: scene.bounds,
       viewers: layers,

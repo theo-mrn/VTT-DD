@@ -576,6 +576,9 @@ Vu(O)   = Pièce ∩ Portée
 Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
 ```
 
+- **Salle fermée hors de portée** : l'intérieur d'une salle fermée où le joueur n'a aucun
+  observateur est noir opaque, quel que soit `shadowOpacity` : on devine le terrain hors de vue,
+  jamais l'intérieur d'une salle (MJ : non, il voit tout).
 - **Murs tracés pour les joueurs** : chaque mur qui bloque la vue (murs, portes fermées, sens
   unique) est tracé en sombre au-dessus de l'ombre, épais d'un dixième de case, à l'opacité de
   l'obscurité, comme l'ancienne carte : les limites des salles restent lisibles. Le MJ a son
