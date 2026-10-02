@@ -64,7 +64,7 @@ const NOMS: Record<SoundTarget, string> = {
   sfx: 'la table d’effets',
 };
 
-const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+export const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 const baseName = (name: string) =>
   name
@@ -162,7 +162,8 @@ export function AddSoundDialog({
   );
 }
 
-function FileSource({
+/** Envoi d'un fichier (aussi pour la fenêtre des zones sonores de la carte). */
+export function FileSource({
   target,
   library,
   ranger,
