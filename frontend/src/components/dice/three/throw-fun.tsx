@@ -13,7 +13,7 @@ import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/can
 import { Environment } from '@react-three/drei';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
 import { VisualDie } from './visual-die';
-import { getCachedGeometry } from './geometry';
+import { dieShape } from './polyhedra';
 import { getAudioContext, playOneShotForSkin } from './audio';
 import { prefersEconomy } from '@/lib/perf/device';
 
@@ -98,7 +98,7 @@ const FunDie = ({
   skin: DiceSkin;
   onStopped: () => void;
 }) => {
-  const { vertices, faces } = getCachedGeometry(type);
+  const { hull } = dieShape(type);
   const lastImpactTime = useRef(0);
   const [stopped, setStopped] = useState(false);
 
@@ -124,7 +124,7 @@ const FunDie = ({
   const [ref, api] = useConvexPolyhedron(() => ({
     mass: 5,
     position,
-    args: [vertices as any, faces],
+    args: [hull.vertices as any, hull.faces],
     material: { friction: 0.15, restitution: 0.5 },
     linearDamping: 0.08,
     angularDamping: 0.08,

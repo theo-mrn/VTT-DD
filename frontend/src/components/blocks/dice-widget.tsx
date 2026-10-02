@@ -1,8 +1,8 @@
 'use client';
 import React from 'react';
-import type { FunDiceHandle } from '@/components/(dices)/throw-fun';
+import type { FunDiceHandle } from '@/components/dice/three/throw-fun';
 
-type ThrowerModule = typeof import('@/components/(dices)/throw-fun');
+type ThrowerModule = typeof import('@/components/dice/three/throw-fun');
 type ThrowerComponent = ThrowerModule['FunDiceThrower'];
 
 // Le lanceur 3D (three, cannon, r3f, carte d'environnement) reste hors du
@@ -10,7 +10,7 @@ type ThrowerComponent = ThrowerModule['FunDiceThrower'];
 // (survol, focus ou appui sur le bouton). Import manuel plutôt que
 // next/dynamic pour garder la ref impérative (roll, warm).
 let throwerModule: Promise<ThrowerModule> | null = null;
-const loadThrower = () => (throwerModule ??= import('@/components/(dices)/throw-fun'));
+const loadThrower = () => (throwerModule ??= import('@/components/dice/three/throw-fun'));
 
 export function DiceWidget() {
   const throwerRef = React.useRef<FunDiceHandle>(null);
