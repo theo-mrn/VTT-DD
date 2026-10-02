@@ -37,6 +37,7 @@ declare global {
         rim?: boolean;
       }): void;
       cores(o: { width: number; height: number; names: string[] }): Promise<void>;
+      cost(o: { size: number; frames: number }): Record<string, number>;
       textures(o: {
         width: number;
         height: number;
@@ -58,6 +59,88 @@ const SKINS = [
 ];
 
 window.diceBench = {
+  /** Coût du motif de chaque style : ms par image, un d20 qui remplit le cadre. */
+  cost({ size, frames }) {
+    const renderer = new THREE.WebGLRenderer({ antialias: false });
+    renderer.setSize(size, size);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    document.body.appendChild(renderer.domElement);
+    const gl = renderer.getContext();
+    const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.add(new THREE.AmbientLight(0xffffff, 1.05));
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+    camera.position.set(0, 7.5, 0.01);
+    camera.lookAt(0, 0, 0);
+    const shape = dieShape('d20');
+    const mesh = new THREE.Mesh(shape.geometry);
+    scene.add(mesh);
+    const engraving = {
+      map: engravingTexture('d20'),
+      ink: inkUniforms('#ffffff', 0.12, '#000000'),
+    };
+    const time = (label: string, mat: THREE.Material, tick?: (t: number) => void) => {
+      mesh.material = mat;
+      const px = new Uint8Array(4);
+      const flush = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      for (let i = 0; i < 5; i++) {
+        tick?.(i);
+        renderer.render(scene, camera);
+        flush();
+      }
+      const t0 = performance.now();
+      for (let i = 0; i < frames; i++) {
+        tick?.(i / 30);
+        renderer.render(scene, camera);
+        flush();
+      }
+      // Matière physique (vernis) signalée : son surcoût n'est pas celui du motif
+      const varnish = (mat as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial ? ' vernis' : '';
+      out[label + varnish] = Math.round(((performance.now() - t0) / frames) * 10) / 10;
+    };
+    const out: Record<string, number> = {};
+    const plain = new THREE.MeshStandardMaterial({ color: '#888888', normalMap: engraving.map });
+    plain.onBeforeCompile = (sh) => injectInk(sh, engraving.ink);
+    time('uni', plain);
+    const seen = new Set<number>();
+    for (const skin of Object.values(DICE_SKINS)) {
+      if (skin.textureMap || skin.resin || skin.effectType === 'orb') continue;
+      const id = resolveStyleId(skin);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const s = materialSettings(skin);
+      const mat = s.physical
+        ? new THREE.MeshPhysicalMaterial({
+            ...s.props,
+            clearcoat: s.clearcoat,
+            clearcoatRoughness: s.clearcoatRoughness,
+          })
+        : new THREE.MeshStandardMaterial(s.props);
+      mat.normalMap = engraving.map;
+      mat.normalScale = ENGRAVING_NORMAL_SCALE;
+      const baked = isBakedSkin(skin);
+      mat.customProgramCacheKey = () => (baked ? 'proc-baked' : `proc-style-${id}`);
+      const u = {
+        uTime: { value: 0 },
+        uAccent: { value: new THREE.Color(skin.edgeColor) },
+        uDeep: { value: new THREE.Color(skin.bodyColor).multiplyScalar(0.45) },
+        uSeed: { value: 0.3 },
+        uFlash1: { value: 0 },
+        uFlash2: { value: 0 },
+        uSeed1: { value: 0 },
+        uSeed2: { value: 0 },
+        uSurge: { value: 0 },
+      };
+      mat.onBeforeCompile = baked
+        ? bakedCompile(bakeProcedural(renderer, skin), engraving)
+        : liveCompile(id, u, engraving);
+      time(`${id} ${skin.procStyle ?? skin.effectType}${baked ? ' (cuit)' : ''}`, mat, (t) => {
+        u.uTime.value = t;
+      });
+    }
+    return out;
+  },
   /** Skins à texture : texture d'origine (à gauche) et WebP 512 px (à droite). */
   async textures({ width, height, originals }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
