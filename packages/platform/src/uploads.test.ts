@@ -25,6 +25,35 @@ describe('envois', () => {
     expect(uploads.isOwnFile(t.publicUrl, 'characters', 'perso-2')).toBe(false);
   });
 
+  it('réservation : appelée avant la signature, son refus empêche le billet', async () => {
+    const reserve = vi.fn(async () => undefined);
+    const t = await uploads.ticket(
+      { usage: 'map-background', contentType: 'video/webm', size: 5000 },
+      'campagne-1',
+      ['map-background'],
+      log,
+      reserve,
+    );
+    expect(reserve).toHaveBeenCalledWith({
+      key: t.key,
+      size: 5000,
+      usage: 'map-background',
+      contentType: 'video/webm',
+    });
+    const full = new HttpError(422, 'Plus de place', 'storage_quota_exceeded', 'Plein');
+    await expect(
+      uploads.ticket(
+        { usage: 'map-background', contentType: 'image/png', size: 10 },
+        'campagne-1',
+        ['map-background'],
+        log,
+        async () => {
+          throw full;
+        },
+      ),
+    ).rejects.toBe(full);
+  });
+
   it('refus : usage d’une autre route, format, taille, stockage absent', async () => {
     const code = async (p: Promise<unknown>) => {
       try {

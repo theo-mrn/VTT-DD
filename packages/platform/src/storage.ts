@@ -63,13 +63,16 @@ export async function removePrefix(store: ObjectStore, prefix: string): Promise<
   return keys.length ? store.remove(keys) : 0;
 }
 
-/** Magasin en mémoire, pour les tests. */
-export function memoryObjectStore(initial: Record<string, Date> = {}) {
+/** Magasin en mémoire, pour les tests (taille 1 par défaut, ou `sizes[clé]`). */
+export function memoryObjectStore(
+  initial: Record<string, Date> = {},
+  sizes: Record<string, number> = {},
+) {
   const objects = new Map(Object.entries(initial));
   const store: ObjectStore = {
     async *list(prefix) {
       for (const [key, lastModified] of [...objects].sort(([a], [b]) => a.localeCompare(b)))
-        if (key.startsWith(prefix)) yield { key, size: 1, lastModified };
+        if (key.startsWith(prefix)) yield { key, size: sizes[key] ?? 1, lastModified };
     },
     async remove(keys) {
       let n = 0;

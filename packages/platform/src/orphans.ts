@@ -31,12 +31,16 @@ export function isUploadKey(key: string): boolean {
   return KEY.test(key);
 }
 
-/** Tables jamais lues : journal des événements et suivi des migrations. */
+/**
+ * Tables jamais lues : journal des événements, suivi des migrations, et l'inventaire du stockage
+ * (campaign, docs/stockage.md), qui cite tous les fichiers sans les utiliser.
+ */
 export const REFERENCE_EXCLUDED_TABLES = [
   'outbox',
   'inbox',
   'databasechangelog',
   'databasechangeloglock',
+  'campaign_storage_files',
 ] as const;
 
 /** Parmi `keys`, celles qu'une ligne d'une table du schéma mentionne (adresse, vignette, JSON…). */
@@ -46,8 +50,21 @@ export async function referencedKeys(
   keys: readonly string[],
   exclude: readonly string[] = REFERENCE_EXCLUDED_TABLES,
 ): Promise<string[]> {
+  return Object.keys(await referencePlaces(pool, schema, keys, exclude));
+}
+
+/**
+ * Comme `referencedKeys`, avec les tables qui citent chaque clé (`{ clé: [tables] }`) : l'écran
+ * du stockage dit où sert un fichier (docs/stockage.md).
+ */
+export async function referencePlaces(
+  pool: pg.Pool,
+  schema: string,
+  keys: readonly string[],
+  exclude: readonly string[] = REFERENCE_EXCLUDED_TABLES,
+): Promise<Record<string, string[]>> {
   const wanted = keys.map((k) => k.toLowerCase()).filter(isUploadKey);
-  if (!wanted.length) return [];
+  if (!wanted.length) return {};
   // Lecture seule, délai propre : un service peut couper ses requêtes plus tôt (5 s)
   const client = await pool.connect();
   try {
@@ -58,7 +75,7 @@ export async function referencedKeys(
         WHERE table_schema = $1 AND table_type = 'BASE TABLE' AND NOT (table_name = ANY($2::text[]))`,
       [schema, exclude],
     );
-    const found = new Set<string>();
+    const found: Record<string, string[]> = {};
     const ident = (s: string) => `"${s.replaceAll('"', '""')}"`;
     for (const { name } of tables) {
       const { rows } = await client.query<{ key: string }>(
@@ -68,10 +85,10 @@ export async function referencedKeys(
           WHERE r.m[1] = ANY($2::text[])`,
         [`(${KEY_PATTERN})`, wanted],
       );
-      for (const r of rows) found.add(r.key);
+      for (const r of rows) (found[r.key] ??= []).push(name);
     }
     await client.query('COMMIT');
-    return [...found];
+    return found;
   } catch (err) {
     await client.query('ROLLBACK').catch(() => undefined);
     throw err;
@@ -81,7 +98,11 @@ export async function referencedKeys(
 }
 
 const ReferencesBody = z.object({ keys: z.array(z.string().max(512)).max(1000) });
-const ReferencesReply = z.object({ referenced: z.array(z.string()) });
+const ReferencesReply = z.object({
+  referenced: z.array(z.string()),
+  /** Tables qui citent chaque clé (services à jour ; absent d'un service plus ancien). */
+  places: z.record(z.string(), z.array(z.string())).optional(),
+});
 
 /**
  * Route interne `POST /internal/storage/references` `{ keys }` → `{ referenced }` : chaque service
@@ -103,7 +124,8 @@ export function registerStorageReferences(
     { preValidation: requireInternalSecret(o.secret) },
     async (req) => {
       const { keys } = ReferencesBody.parse(req.body);
-      return { referenced: await referencedKeys(o.pool, o.schema, keys) };
+      const places = await referencePlaces(o.pool, o.schema, keys);
+      return { referenced: Object.keys(places), places };
     },
   );
 }
@@ -126,6 +148,28 @@ export function remoteReferences(
     });
     if (!res.ok) throw new Error(`${url} : ${res.status}`);
     return ReferencesReply.parse(await res.json()).referenced;
+  };
+}
+
+/** Tables qui citent chaque clé, chez un autre service (écran du stockage). */
+export type PlacesChecker = (keys: readonly string[]) => Promise<Record<string, string[]>>;
+
+export function remotePlaces(
+  baseUrl: string,
+  secret: string,
+  fetcher: typeof fetch = fetch,
+): PlacesChecker {
+  const url = `${baseUrl.replace(/\/+$/, '')}/internal/storage/references`;
+  return async (keys) => {
+    const res = await fetcher(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-secret': secret },
+      body: JSON.stringify({ keys }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) throw new Error(`${url} : ${res.status}`);
+    const reply = ReferencesReply.parse(await res.json());
+    return reply.places ?? Object.fromEntries(reply.referenced.map((k) => [k, []]));
   };
 }
 

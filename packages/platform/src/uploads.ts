@@ -60,6 +60,17 @@ export type ObjectWriter = (o: {
   contentType: UploadContentType;
 }) => Promise<void>;
 
+/**
+ * Réserve la place d'un fichier avant de signer son envoi (quota de la campagne,
+ * docs/stockage.md) : lève une erreur HTTP (422 `storage_quota_exceeded`) s'il n'y en a plus.
+ */
+export type UploadReserve = (f: {
+  key: string;
+  size: number;
+  usage: UploadUsageId;
+  contentType: UploadContentType;
+}) => Promise<void>;
+
 /** Télécharge une image d'un autre site. Injectable pour les tests. */
 export type RemoteFetcher = (url: string, o: FetchOptions) => Promise<RemoteImage>;
 
@@ -169,6 +180,7 @@ export class Uploads {
     owner: string,
     allowed: readonly UploadUsageId[],
     log: FastifyBaseLogger,
+    reserve?: UploadReserve,
   ): Promise<FileUploadTicket> {
     if (!allowed.includes(req.usage)) throw uploadErrors.usageNotAllowed(req.usage);
     const refus = checkUpload(req);
@@ -182,6 +194,7 @@ export class Uploads {
     if (!this.signer || !this.publicBase) throw uploadErrors.storageUnavailable();
     const contentType = req.contentType as UploadContentType;
     const key = uploadKey(req.usage, owner, contentType);
+    await reserve?.({ key, size: req.size, usage: req.usage, contentType });
     let url: string;
     try {
       url = await this.signer({ key, contentType, size: req.size, expiresIn: this.expiresIn });
@@ -210,6 +223,7 @@ export class Uploads {
     owner: string,
     allowed: readonly UploadUsageId[],
     log: FastifyBaseLogger,
+    reserve?: UploadReserve,
   ): Promise<FileImport> {
     if (!allowed.includes(req.usage)) throw uploadErrors.usageNotAllowed(req.usage);
     if (!this.writer || !this.publicBase) throw uploadErrors.storageUnavailable();
@@ -243,6 +257,12 @@ export class Uploads {
         refus.message,
       );
     const key = uploadKey(req.usage, owner, image.contentType);
+    await reserve?.({
+      key,
+      size: image.body.length,
+      usage: req.usage,
+      contentType: image.contentType,
+    });
     try {
       await this.writer({ key, body: image.body, contentType: image.contentType });
     } catch (err) {
