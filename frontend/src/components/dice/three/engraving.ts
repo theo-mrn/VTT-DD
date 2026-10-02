@@ -179,10 +179,17 @@ export function engravingTexture(type: string): THREE.DataTexture {
 
 /** Doré du chiffre retenu, et sa lueur. */
 export const HIGHLIGHT_COLOR = '#ffbf33';
-/** Lueur du chiffre retenu sur un dé foncé (sur un dé clair : aucune, l'or profond suffit). */
-const HIGHLIGHT_GLOW = 1.1;
-/** Halo autour du chiffre retenu, sur un dé foncé seulement. */
-const HIGHLIGHT_AURA = 1.4;
+/**
+ * Chiffre retenu : plus gras (niveau flou lu pour l'épaissir) et cerclé d'or (niveau plus flou :
+ * bordure plus large), lumineuse sur un dé foncé.
+ */
+const BOLD_LOD = 1.0;
+const RING_LOD = 2.2;
+const RING_GLOW_LIGHT = 0.25;
+const RING_GLOW_DARK = 1.3;
+/** Bordure des chiffres : niveau flou lu (largeur) et opacité. */
+const EDGE_LOD = 1.6;
+const EDGE_STRENGTH = 0.8;
 /** Zone vide : jamais touchée par les UV (0 à 1). */
 const NO_RECT = new THREE.Vector4(2, 2, 2, 2);
 
@@ -195,10 +202,13 @@ export interface InkUniforms {
   uHiRects: { value: THREE.Vector4[] };
   /** Apparition du doré, de 0 à 1. */
   uHiAmount: { value: number };
+  /** Bordure sombre autour des chiffres : lisibles sur les motifs chargés. */
+  uOutlineColor: { value: THREE.Color };
 }
 
-export const inkUniforms = (color: string, glow: number): InkUniforms => ({
+export const inkUniforms = (color: string, glow: number, outline = '#000000'): InkUniforms => ({
   uInkColor: { value: new THREE.Color(color) },
+  uOutlineColor: { value: new THREE.Color(outline) },
   uInkGlow: { value: glow },
   uHiRects: { value: [NO_RECT.clone(), NO_RECT.clone(), NO_RECT.clone()] },
   uHiAmount: { value: 0 },
@@ -254,6 +264,7 @@ export function injectInk(shader: THREE.WebGLProgramParametersWithUniforms, u: I
   shader.uniforms.uInkGlow = u.uInkGlow;
   shader.uniforms.uHiRects = u.uHiRects;
   shader.uniforms.uHiAmount = u.uHiAmount;
+  shader.uniforms.uOutlineColor = u.uOutlineColor;
   shader.uniforms.uHiColor = { value: new THREE.Color(HIGHLIGHT_COLOR) };
   shader.fragmentShader = shader.fragmentShader
     .replace(
@@ -263,44 +274,54 @@ uniform vec3 uInkColor;
 uniform float uInkGlow;
 uniform vec4 uHiRects[3];
 uniform float uHiAmount;
-uniform vec3 uHiColor;`,
+uniform vec3 uHiColor;
+uniform vec3 uOutlineColor;`,
     )
     .replace(
       '#include <roughnessmap_fragment>',
       `#include <roughnessmap_fragment>
 float inkMask = 0.0;
 float inkHi = 0.0;
-float inkAura = 0.0;
+float inkEdge = 0.0;
+float inkRing = 0.0;
 #ifdef USE_NORMALMAP
   // Biais vers la netteté : réduit à l'écran, le chiffre ne bave pas (il paraîtrait plus gras)
   inkMask = texture2D( normalMap, vNormalMapUv, -0.75 ).a;
-  // Chiffre retenu : doré
+  // Chiffre retenu
   for ( int i = 0; i < 3; i ++ ) {
     vec4 r = uHiRects[ i ];
     if ( vNormalMapUv.x >= r.x && vNormalMapUv.x <= r.z && vNormalMapUv.y >= r.y && vNormalMapUv.y <= r.w ) inkHi = uHiAmount;
   }
+  // … plus gras (masque un peu dilaté) …
+  if ( inkHi > 0.0 ) inkMask = max( inkMask, inkHi * smoothstep( 0.3, 0.55, textureLod( normalMap, vNormalMapUv, ${BOLD_LOD.toFixed(2)} ).a ) );
+  // Bordure : le masque dilaté (niveau flou fixe : même largeur à toute distance), hors du chiffre
+  inkEdge = smoothstep( 0.03, 0.25, textureLod( normalMap, vNormalMapUv, ${EDGE_LOD.toFixed(2)} ).a ) * ( 1.0 - inkMask );
+  // … et cerclé d'une bordure dorée
+  if ( inkHi > 0.0 ) inkRing = smoothstep( 0.03, 0.2, textureLod( normalMap, vNormalMapUv, ${RING_LOD.toFixed(2)} ).a ) * ( 1.0 - inkMask ) * inkHi;
 #endif
-// Chiffre retenu selon la clarté du dé : or profond sur un dé clair, or vif lumineux (et
-// léger halo, lu dans un niveau flou de la texture) sur un dé foncé
+// Or selon la clarté du dé : profond sur un dé clair, vif et lumineux sur un dé foncé
 float inkDark = 1.0 - smoothstep( 0.2, 0.55, dot( diffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) ) );
-#ifdef USE_NORMALMAP
-  if ( inkHi > 0.0 ) inkAura = smoothstep( 0.08, 0.45, texture2D( normalMap, vNormalMapUv, 2.0 ).a ) * ( 1.0 - inkMask ) * inkHi * inkDark;
-#endif
-vec3 hiColor = mix( vec3( 0.42, 0.24, 0.0 ), uHiColor, inkDark );
-vec3 inkColor = mix( uInkColor, hiColor, inkHi );
+vec3 ringColor = mix( vec3( 0.5, 0.3, 0.0 ), uHiColor, inkDark );
+vec3 inkColor = uInkColor;
+// Bordure sombre pour une encre claire seulement (une encre foncée n'en a pas besoin : elle
+// paraîtrait plus grasse) ; la bordure dorée la remplace sur le chiffre retenu
+inkEdge *= ${EDGE_STRENGTH.toFixed(2)} * smoothstep( 0.2, 0.5, dot( inkColor, vec3( 0.299, 0.587, 0.114 ) ) ) * ( 1.0 - inkRing );
+diffuseColor.rgb = mix( diffuseColor.rgb, uOutlineColor, inkEdge );
+diffuseColor.rgb = mix( diffuseColor.rgb, ringColor, inkRing );
 diffuseColor.rgb = mix( diffuseColor.rgb, inkColor, inkMask );
 roughnessFactor = mix( roughnessFactor, 0.55, inkMask );`,
     )
     .replace(
       '#include <metalnessmap_fragment>',
       `#include <metalnessmap_fragment>
-metalnessFactor = mix( metalnessFactor, 0.0, inkMask );`,
+metalnessFactor = mix( metalnessFactor, 0.0, max( inkMask, inkRing ) );`,
     )
     // Après l'éclairage (et l'émission propre aux skins) : l'encre garde sa lueur partout
     .replace(
       '#include <aomap_fragment>',
       `#include <aomap_fragment>
-totalEmissiveRadiance = mix( totalEmissiveRadiance, inkColor * mix( uInkGlow, ${HIGHLIGHT_GLOW.toFixed(2)} * inkDark, inkHi ), inkMask );
-totalEmissiveRadiance += uHiColor * inkAura * ${HIGHLIGHT_AURA.toFixed(2)};`,
+totalEmissiveRadiance *= 1.0 - inkEdge;
+totalEmissiveRadiance = mix( totalEmissiveRadiance, ringColor * mix( ${RING_GLOW_LIGHT.toFixed(2)}, ${RING_GLOW_DARK.toFixed(2)}, inkDark ), inkRing );
+totalEmissiveRadiance = mix( totalEmissiveRadiance, inkColor * uInkGlow, inkMask );`,
     );
 }

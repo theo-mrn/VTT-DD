@@ -95,8 +95,11 @@ export const VisualDie = React.forwardRef(
       () =>
         faceSymbols
           ? undefined
-          : { map: engravingTexture(shape.type), ink: inkUniforms(ink, glow) },
-      [faceSymbols, shape.type, ink, glow],
+          : {
+              map: engravingTexture(shape.type),
+              ink: inkUniforms(ink, glow, skin.shadowColor),
+            },
+      [faceSymbols, shape.type, ink, glow, skin.shadowColor],
     );
 
     // Chiffre retenu : doré, en fondu ; un nouveau chiffre (dé bousculé) repart de zéro
