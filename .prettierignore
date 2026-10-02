@@ -4,3 +4,8 @@ pnpm-lock.yaml
 infra/helm/**/templates/
 README.md
 .claude/
+
+# Sorties compilées : jamais reformatées
+**/.next/
+**/dist/
+**/*.tsbuildinfo
