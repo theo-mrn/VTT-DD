@@ -17,6 +17,7 @@ import { DIE_TYPES, dieShape } from '@/components/dice/three/polyhedra';
 import { DICE_SKINS } from '@/components/dice/three/dice-definitions';
 import { bakeResin, injectResin } from '@/components/dice/three/materials/resin-material';
 import { rimShaderColor } from '@/components/dice/three/visual-die';
+import { coreRigUniforms, injectCoreRig } from '@/components/dice/three/cores';
 import {
   bakedCompile,
   bakeProcedural,
@@ -37,7 +38,12 @@ declare global {
         rim?: boolean;
       }): void;
       cores(o: { width: number; height: number; names: string[] }): Promise<void>;
-      cost(o: { size: number; frames: number }): Record<string, number>;
+      orbs(o: { width: number; height: number }): Promise<void>;
+      cost(o: {
+        size: number;
+        frames: number;
+        rig?: 'all' | 'main' | 'none' | 'dir';
+      }): Record<string, number>;
       textures(o: {
         width: number;
         height: number;
@@ -60,7 +66,7 @@ const SKINS = [
 
 window.diceBench = {
   /** Coût du motif de chaque style : ms par image, un d20 qui remplit le cadre. */
-  cost({ size, frames }) {
+  cost({ size, frames, rig = 'all' }) {
     const renderer = new THREE.WebGLRenderer({ antialias: false });
     renderer.setSize(size, size);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -70,6 +76,29 @@ window.diceBench = {
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.add(new THREE.AmbientLight(0xffffff, 1.05));
+    // Lumières du lanceur : trois d'ambiance, plus le banc des cœurs d'orbes (éteint, mais
+    // toujours dans la scène pour ne jamais recompiler)
+    if (rig === 'all' || rig === 'main') {
+      const spot = new THREE.SpotLight(0xffffff, 0.45, 0, 0.6, 1);
+      spot.position.set(15, 40, 15);
+      const spot2 = new THREE.SpotLight(0xffeedd, 0.25, 0, 0.5, 1);
+      spot2.position.set(-10, 30, -10);
+      const point = new THREE.PointLight(0xfff8e7, 0.25);
+      point.position.set(0, 20, 0);
+      scene.add(spot, spot2, point);
+    }
+    if (rig === 'all')
+      scene.add(
+        new THREE.AmbientLight(0xffffff, 0),
+        new THREE.DirectionalLight(0xffffff, 0),
+        new THREE.DirectionalLight(0xffffff, 0),
+        new THREE.PointLight(0xffffff, 0, 3, 2),
+      );
+    if (rig === 'dir') {
+      const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+      dir.position.set(15, 40, 15);
+      scene.add(dir);
+    }
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
     camera.position.set(0, 7.5, 0.01);
     camera.lookAt(0, 0, 0);
@@ -183,6 +212,120 @@ window.diceBench = {
     renderer.render(scene, camera);
   },
   /** Cœurs d'orbes : modèle d'origine (à gauche) et optimisé (à droite), à la même taille. */
+  /** Orbes à modèle : lumières du cœur dans la scène (à gauche), dans son shader (à droite). */
+  async orbs({ width, height }) {
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(width, height);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.setScissorTest(true);
+    renderer.autoClear = false;
+    document.body.appendChild(renderer.domElement);
+    renderer.setClearColor('#1b1d24');
+    renderer.clear();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    const shape = dieShape('d20');
+    const skins = Object.values(DICE_SKINS).filter((k) => k.coreType === 'model');
+    const cell = Math.floor(width / 8);
+    for (const [i, skin] of skins.entries()) {
+      const gltf = await loader.loadAsync(skin.coreModelUrl!);
+      for (const k of [0, 1]) {
+        const scene = new THREE.Scene();
+        scene.environment = env;
+        scene.environmentIntensity = 0.55;
+        scene.add(new THREE.AmbientLight(0xffffff, 1.05));
+        const spot = new THREE.SpotLight(0xffffff, 0.45, 0, 0.6, 1);
+        spot.position.set(15, 40, 15);
+        const spot2 = new THREE.SpotLight(0xffeedd, 0.25, 0, 0.5, 1);
+        spot2.position.set(-10, 30, -10);
+        const point = new THREE.PointLight(0xfff8e7, 0.25);
+        point.position.set(0, 20, 0);
+        scene.add(spot, spot2, point);
+        // Caméra du lanceur (vue de dessus), orbe sous elle
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
+        camera.position.set(0, 5.2, 0);
+        camera.lookAt(0, 0, 0);
+        camera.updateMatrixWorld();
+        const rig = k === 1 ? coreRigUniforms(skin.coreColor || '#ffffff') : undefined;
+        const glass = new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color(skin.shellColor || skin.bodyColor).multiplyScalar(0.45),
+          roughness: 0.06,
+          clearcoat: 1,
+          clearcoatRoughness: 0.04,
+          envMapIntensity: skin.envMapIntensity,
+          transparent: true,
+          opacity: (skin.shellOpacity ?? 0.25) * 0.6,
+          depthWrite: false,
+          normalMap: engravingTexture('d20'),
+          normalScale: ENGRAVING_NORMAL_SCALE,
+        });
+        const ink = inkUniforms('#ffffff', 1, '#000000', { glass: true });
+        glass.onBeforeCompile = (sh) => {
+          injectInk(sh, ink);
+          if (rig) injectCoreRig(sh, rig);
+        };
+        glass.customProgramCacheKey = () => (rig ? 'orb-shell-rig' : 'orb-shell');
+        const shell = new THREE.Mesh(shape.geometry, glass);
+        shell.renderOrder = 10;
+        shell.quaternion.setFromUnitVectors(shape.faces[0]!.norm, new THREE.Vector3(0, 1, 0));
+        shell.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), 0.4);
+        scene.add(shell);
+        // Cœur tourné vers la caméra, normalisé comme dans `ModelCore`
+        const core = new THREE.Group();
+        core.quaternion.copy(camera.quaternion);
+        core.scale.setScalar(skin.coreScale ?? 1);
+        const model = gltf.scene.clone(true);
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const sc = ((skin.coreScale ?? 1) * 2.1) / (Math.max(size.x, size.y, size.z) || 1);
+        model.position.sub(box.getCenter(new THREE.Vector3()).multiplyScalar(sc));
+        model.scale.setScalar(sc);
+        const tilt = new THREE.Group();
+        tilt.rotation.set(...((skin.coreRotation ?? [0, 0, 0]) as [number, number, number]));
+        tilt.add(model);
+        core.add(tilt);
+        scene.add(core);
+        core.updateMatrixWorld(true);
+        if (rig) {
+          model.traverse((o) => {
+            const mesh = o as THREE.Mesh;
+            if (!mesh.isMesh) return;
+            const lit = (m: THREE.Material) => {
+              const c = m.clone();
+              c.onBeforeCompile = (sh) => injectCoreRig(sh, rig);
+              c.customProgramCacheKey = () => 'core-rig';
+              return c;
+            };
+            mesh.material = Array.isArray(mesh.material)
+              ? mesh.material.map(lit)
+              : lit(mesh.material);
+          });
+          rig.uCorePoint.value
+            .set(0, 0, 2)
+            .applyMatrix4(core.matrixWorld)
+            .applyMatrix4(camera.matrixWorldInverse);
+        } else {
+          // Ancien banc : lumières de la scène placées dans le repère du cœur
+          const at = (v: [number, number, number]) =>
+            new THREE.Vector3(...v).applyMatrix4(core.matrixWorld);
+          scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+          const key = new THREE.DirectionalLight(0xffffff, 2.5);
+          key.position.copy(at([2, 3, 4]));
+          const fill = new THREE.DirectionalLight(skin.coreColor || '#ffffff', 1.5);
+          fill.position.copy(at([-3, 1, 2]));
+          const p = new THREE.PointLight(0xffffff, 2, 6, 2);
+          p.position.copy(at([0, 0, 2]));
+          scene.add(key, fill, p);
+        }
+        const x = (i % 4) * cell * 2 + k * cell;
+        const y = height - (Math.floor(i / 4) + 1) * cell;
+        renderer.setViewport(x, y, cell, cell);
+        renderer.setScissor(x, y, cell, cell);
+        renderer.render(scene, camera);
+      }
+    }
+  },
   async cores({ width, height, names }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);

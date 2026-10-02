@@ -7,7 +7,7 @@ import { engravingTexture, highlightRects, inkUniforms } from './engraving';
 import { TexturedMaterial } from './materials/textured-material';
 import { isVoidSkin, type EngravingProps } from './materials/procedural-material';
 import { CriticalEffect, ShatteredDie } from './effects/critical';
-import { DiceCore, OrbShell } from './cores';
+import { coreRigUniforms, DiceCore, OrbShell } from './cores';
 import { FaceFadeDriver, type FadingLabels } from './face-number';
 import { FaceSymbol } from './face-symbol';
 import type { Die3DSymbol } from '@/lib/dice-throw';
@@ -118,6 +118,13 @@ export const VisualDie = React.forwardRef(
       [faceSymbols, shape.type, ink, glow, skin.shadowColor, rim?.getHexString(), orb],
     );
 
+    // Éclairage du cœur modèle d'un orbe (cœur et verre), calculé dans leurs shaders
+    const coreColor = skin.coreColor || '#ffffff';
+    const rig = useMemo(
+      () => (orb && skin.coreType === 'model' ? coreRigUniforms(coreColor) : undefined),
+      [orb, skin.coreType, coreColor],
+    );
+
     // Chiffre retenu : doré, en fondu ; un nouveau chiffre (dé bousculé) repart de zéro
     const hiTarget = useRef(0);
     useEffect(() => {
@@ -179,7 +186,7 @@ export const VisualDie = React.forwardRef(
           {/* Core renders FIRST (low renderOrder) so the transmissive shell,
                     drawn last, can sample it and refract correctly. */}
           <group renderOrder={0}>
-            <DiceCore skin={skin} />
+            <DiceCore skin={skin} {...(rig ? { rig } : {})} />
           </group>
 
           {symbols}
@@ -187,7 +194,12 @@ export const VisualDie = React.forwardRef(
           {/* Transparent glass shell (rolls with the die body), drawn LAST; its
                     numbers are engraved in the glass */}
           <group ref={flashRef}>
-            <OrbShell skin={skin} geometry={geometry} engraving={engraving} />
+            <OrbShell
+              skin={skin}
+              geometry={geometry}
+              {...(engraving ? { engraving } : {})}
+              {...(rig ? { rig } : {})}
+            />
           </group>
         </group>
       );

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -22,11 +22,14 @@ export const OrbShell = ({
   skin,
   geometry,
   engraving,
+  rig,
 }: {
   skin: DiceSkin;
   geometry: THREE.BufferGeometry;
   /** Chiffres gravés sur le verre (encre lumineuse : visible malgré la transmission). */
   engraving?: EngravingProps;
+  /** Éclairage du cœur modèle, qui éclaire aussi le verre. */
+  rig?: CoreRig;
 }) => {
   const shellColor = skin.shellColor || skin.bodyColor;
   // Verre teinté sombre, comme celui de la transmission (sa couleur assombrie par l'épaisseur)
@@ -50,9 +53,11 @@ export const OrbShell = ({
           transparent
           opacity={(skin.shellOpacity ?? 0.25) * GLASS_CENTER}
           depthWrite={false}
-          onBeforeCompile={(shader: THREE.WebGLProgramParametersWithUniforms) =>
-            injectInk(shader, ink)
-          }
+          onBeforeCompile={(shader: THREE.WebGLProgramParametersWithUniforms) => {
+            injectInk(shader, ink);
+            if (rig) injectCoreRig(shader, rig);
+          }}
+          customProgramCacheKey={() => (rig ? 'orb-shell-rig' : 'orb-shell')}
           {...(engraving ? { normalMap: engraving.map, normalScale: ENGRAVING_NORMAL_SCALE } : {})}
         />
       </mesh>
@@ -285,13 +290,12 @@ export const EyeCore = ({ skin }: { skin: DiceSkin }) => {
 };
 
 // ── Éclairage des cœurs « modèle » ───────────────────────────────────────
-// Chaque cœur modèle apportait ses propres lumières (ambiante, deux
-// directionnelles, une ponctuelle) : à son arrivée, le nombre de lumières de la
-// scène changeait et TOUS les programmes étaient recompilés d'un coup, au
-// lancer. Dans le lanceur, ces lumières forment un banc fixe, toujours monté
-// (intensité nulle sans cœur modèle à l'écran) : le nombre de lumières ne
-// change plus jamais. Le banc suit le premier cœur modèle affiché, avec les
-// mêmes positions relatives qu'avant ; comme avant, il éclaire toute la scène.
+// Chaque cœur modèle apportait ses lumières (ambiante, deux directionnelles, une ponctuelle).
+// Dans le lanceur, elles formaient un banc fixe toujours monté, éteint sans orbe à l'écran, pour
+// ne jamais changer le nombre de lumières (recompilation de tous les programmes au lancer) : tous
+// les dés les calculaient donc à chaque pixel, même éteintes (environ 15 % de chaque image). Elles
+// sont désormais calculées dans le shader du cœur et de sa coque, avec la même BRDF que les
+// lumières de la scène : seuls les orbes à modèle en paient le prix.
 
 /** Lumières d'un cœur modèle, dans le repère du cœur (tourné vers la caméra). */
 const MODEL_LIGHTS = {
@@ -301,80 +305,72 @@ const MODEL_LIGHTS = {
   point: { position: new THREE.Vector3(0, 0, 2), intensity: 2, distance: 6, decay: 2 },
 };
 
-interface ModelCoreLight {
-  /** Groupe du cœur, dont la matrice monde place les lumières. */
-  anchor: THREE.Object3D;
-  color: string;
+/**
+ * Uniformes de l'éclairage d'un cœur modèle. Le cœur fait face à la caméra : ses directions sont
+ * les mêmes dans son repère et dans celui de la vue ; seule la lumière ponctuelle suit le dé
+ * (`uCorePoint`, repère de la vue, mis à jour à chaque image par le cœur).
+ */
+export function coreRigUniforms(color: string) {
+  return {
+    uCoreAmbient: { value: new THREE.Color('#ffffff').multiplyScalar(MODEL_LIGHTS.ambient) },
+    uCoreKey: { value: new THREE.Color('#ffffff').multiplyScalar(MODEL_LIGHTS.key.intensity) },
+    uCoreKeyDir: { value: MODEL_LIGHTS.key.position.clone().normalize() },
+    uCoreFill: { value: new THREE.Color(color).multiplyScalar(MODEL_LIGHTS.fill.intensity) },
+    uCoreFillDir: { value: MODEL_LIGHTS.fill.position.clone().normalize() },
+    uCorePoint: { value: new THREE.Vector3() },
+    uCorePointColor: {
+      value: new THREE.Color('#ffffff').multiplyScalar(MODEL_LIGHTS.point.intensity),
+    },
+  };
 }
-const ModelCoreLightsContext = createContext<{
-  register(core: ModelCoreLight): () => void;
-} | null>(null);
+export type CoreRig = ReturnType<typeof coreRigUniforms>;
 
-/** Banc de lumières fixe des cœurs modèle, à monter une fois par canevas. */
-export const ModelCoreLights = ({ children }: { children: React.ReactNode }) => {
-  const cores = useMemo(() => new Set<ModelCoreLight>(), []);
-  const [first, setFirst] = useState<ModelCoreLight | null>(null);
-  const keyRef = useRef<THREE.DirectionalLight>(null);
-  const fillRef = useRef<THREE.DirectionalLight>(null);
-  const pointRef = useRef<THREE.PointLight>(null);
-  const api = useMemo(
-    () => ({
-      register(core: ModelCoreLight) {
-        cores.add(core);
-        setFirst(cores.values().next().value ?? null);
-        return () => {
-          cores.delete(core);
-          setFirst(cores.values().next().value ?? null);
-        };
-      },
-    }),
-    [cores],
-  );
+/** Ajoute l'éclairage d'un cœur modèle au programme d'un matériau éclairé (sans effet sinon). */
+export function injectCoreRig(shader: THREE.WebGLProgramParametersWithUniforms, rig: CoreRig) {
+  Object.assign(shader.uniforms, rig);
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      '#include <common>',
+      `#include <common>
+uniform vec3 uCoreAmbient;
+uniform vec3 uCoreKey;
+uniform vec3 uCoreKeyDir;
+uniform vec3 uCoreFill;
+uniform vec3 uCoreFillDir;
+uniform vec3 uCorePoint;
+uniform vec3 uCorePointColor;`,
+    )
+    .replace(
+      '#include <lights_fragment_maps>',
+      `{
+  irradiance += uCoreAmbient;
+  IncidentLight coreLight;
+  coreLight.visible = true;
+  coreLight.color = uCoreKey;
+  coreLight.direction = uCoreKeyDir;
+  RE_Direct( coreLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+  coreLight.color = uCoreFill;
+  coreLight.direction = uCoreFillDir;
+  RE_Direct( coreLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+  vec3 toPoint = uCorePoint - geometryPosition;
+  float pointDistance = length( toPoint );
+  coreLight.direction = toPoint / pointDistance;
+  coreLight.color = uCorePointColor * getDistanceAttenuation( pointDistance, ${MODEL_LIGHTS.point.distance.toFixed(1)}, ${MODEL_LIGHTS.point.decay.toFixed(1)} );
+  RE_Direct( coreLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+}
+#include <lights_fragment_maps>`,
+    );
+}
 
-  useFrame(() => {
-    if (!first) return;
-    const m = first.anchor.matrixWorld;
-    keyRef.current?.position.copy(MODEL_LIGHTS.key.position).applyMatrix4(m);
-    fillRef.current?.position.copy(MODEL_LIGHTS.fill.position).applyMatrix4(m);
-    pointRef.current?.position.copy(MODEL_LIGHTS.point.position).applyMatrix4(m);
-  });
-
-  const on = first ? 1 : 0;
-  return (
-    <ModelCoreLightsContext.Provider value={api}>
-      <ambientLight intensity={MODEL_LIGHTS.ambient * on} />
-      <directionalLight ref={keyRef} intensity={MODEL_LIGHTS.key.intensity * on} />
-      <directionalLight
-        ref={fillRef}
-        intensity={MODEL_LIGHTS.fill.intensity * on}
-        color={first?.color ?? '#ffffff'}
-      />
-      <pointLight
-        ref={pointRef}
-        color={'#ffffff'}
-        intensity={MODEL_LIGHTS.point.intensity * on}
-        distance={MODEL_LIGHTS.point.distance}
-        decay={MODEL_LIGHTS.point.decay}
-      />
-      {children}
-    </ModelCoreLightsContext.Provider>
-  );
-};
+const _point = new THREE.Vector3();
 
 // Loaded .glb/.gltf core. Auto-centers and scales the model to fit inside the
 // orb, with a gentle idle spin/bob so it feels alive. Lit from within.
-const ModelCore = ({ skin, url }: { skin: DiceSkin; url: string }) => {
+const ModelCore = ({ skin, url, rig }: { skin: DiceSkin; url: string; rig: CoreRig }) => {
   const rootRef = useRef<THREE.Group>(null);
   const bobRef = useRef<THREE.Group>(null);
   const spinRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF(url);
-  // Banc de lumières partagé (lanceur) ; sans lui (aperçu), lumières propres.
-  const sharedLights = useContext(ModelCoreLightsContext);
-  const coreColor = skin.coreColor || '#ffffff';
-  useEffect(() => {
-    if (!sharedLights || !rootRef.current) return;
-    return sharedLights.register({ anchor: rootRef.current, color: coreColor });
-  }, [sharedLights, coreColor]);
 
   // Clone, recenter on origin, and normalize to a target diameter (~1.3 units).
   const normalized = useMemo(() => {
@@ -387,13 +383,34 @@ const ModelCore = ({ skin, url }: { skin: DiceSkin; url: string }) => {
     const s = target / maxDim;
     obj.position.sub(center.multiplyScalar(s));
     obj.scale.setScalar(s);
+    // Matériaux propres à ce cœur (le clone partage ceux du modèle), éclairés par son shader.
+    // Jamais libérés : leur programme reste compilé pour le prochain dé.
+    obj.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const lit = (m: THREE.Material) => {
+        const c = m.clone();
+        c.onBeforeCompile = (shader) => injectCoreRig(shader, rig);
+        c.customProgramCacheKey = () => 'core-rig';
+        return c;
+      };
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(lit) : lit(mesh.material);
+    });
     return obj;
-  }, [scene]);
+  }, [scene, rig]);
 
   const spin = skin.coreSpin ?? 0;
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
+    // Lumière ponctuelle devant le cœur, dans le repère de la vue
+    if (rootRef.current)
+      rig.uCorePoint.value.copy(
+        _point
+          .copy(MODEL_LIGHTS.point.position)
+          .applyMatrix4(rootRef.current.matrixWorld)
+          .applyMatrix4(state.camera.matrixWorldInverse),
+      );
     // Subtle floating bob on the outer group (keeps the presentation tilt).
     if (bobRef.current) bobRef.current.position.y = Math.sin(t * 1.2) * 0.06;
     // Idle spin around the model's own up axis, so an inclined ring keeps
@@ -411,30 +428,6 @@ const ModelCore = ({ skin, url }: { skin: DiceSkin; url: string }) => {
           <primitive object={normalized} />
         </group>
       </group>
-      {/* Dedicated rig so the model is always well-lit inside the glass,
-                regardless of where the die rolls (shared fixed rig in the
-                thrower, see ModelCoreLights). */}
-      {!sharedLights && (
-        <>
-          <ambientLight intensity={MODEL_LIGHTS.ambient} />
-          <directionalLight
-            position={MODEL_LIGHTS.key.position}
-            intensity={MODEL_LIGHTS.key.intensity}
-          />
-          <directionalLight
-            position={MODEL_LIGHTS.fill.position}
-            intensity={MODEL_LIGHTS.fill.intensity}
-            color={coreColor}
-          />
-          <pointLight
-            position={MODEL_LIGHTS.point.position}
-            color={'#ffffff'}
-            intensity={MODEL_LIGHTS.point.intensity}
-            distance={MODEL_LIGHTS.point.distance}
-            decay={MODEL_LIGHTS.point.decay}
-          />
-        </>
-      )}
     </group>
   );
 };
@@ -457,7 +450,7 @@ class CoreErrorBoundary extends React.Component<
 // The core element, billboarded so it always faces the camera and never rolls
 // with the die. It lives inside the rolling die group, so we counter-rotate it
 // every frame using the camera's world quaternion.
-export const DiceCore = ({ skin }: { skin: DiceSkin }) => {
+export const DiceCore = ({ skin, rig }: { skin: DiceSkin; rig?: CoreRig }) => {
   const groupRef = useRef<THREE.Group>(null);
   const parentQuat = useRef(new THREE.Quaternion());
   const { camera } = useThree();
@@ -479,10 +472,10 @@ export const DiceCore = ({ skin }: { skin: DiceSkin }) => {
 
   return (
     <group ref={groupRef} scale={scale}>
-      {skin.coreType === 'model' && skin.coreModelUrl ? (
+      {skin.coreType === 'model' && skin.coreModelUrl && rig ? (
         <CoreErrorBoundary fallback={<GlowCore skin={skin} />}>
           <React.Suspense fallback={<GlowCore skin={skin} />}>
-            <ModelCore skin={skin} url={skin.coreModelUrl} />
+            <ModelCore skin={skin} url={skin.coreModelUrl} rig={rig} />
           </React.Suspense>
         </CoreErrorBoundary>
       ) : skin.coreType === 'eye' ? (

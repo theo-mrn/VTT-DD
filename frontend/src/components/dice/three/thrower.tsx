@@ -37,7 +37,6 @@ import { Table, visibleHalfExtents, DICE_CAM_HEIGHT, DICE_CAM_FOV } from './scen
 import { VisualDie } from './visual-die';
 import { isAnimatedSkin } from './materials/procedural-material';
 import { ShaderWarmer } from './shader-warmer';
-import { ModelCoreLights } from './cores';
 import { DICE_ENVIRONMENT } from './environment';
 import { prefersEconomy } from '@/lib/perf/device';
 import {
@@ -779,8 +778,8 @@ export const DiceThrower = () => {
   // environment map and the compiled skin shaders persist between rolls
   // instead of being recreated/recompiled on every throw. When idle it's
   // hidden and switched to on-demand rendering (no render loop, ~0 cost).
-  // The scene's light count NEVER changes (no light per die, fixed rig for
-  // model cores): a new die, a critical or a model orb reuses the programs
+  // The scene's light count NEVER changes (no light per die; model cores are
+  // lit in their own shader, `cores.tsx`): a new die, a critical or a model orb reuses the programs
   // already compiled instead of recompiling all of them mid-roll.
   return (
     <div
@@ -819,43 +818,41 @@ export const DiceThrower = () => {
                     can't wash faces out. */}
         <Environment files={DICE_ENVIRONMENT} environmentIntensity={0.55} />
 
-        <ModelCoreLights>
-          {warming && (
-            <React.Fragment key={warming.skins.join(',')}>
-              <ShaderWarmer diceType={warming.type} skins={warming.skins} onDone={handleWarmed} />
-              <WarmDeadline onExpire={handleWarmed} />
-            </React.Fragment>
-          )}
+        {warming && (
+          <React.Fragment key={warming.skins.join(',')}>
+            <ShaderWarmer diceType={warming.type} skins={warming.skins} onDone={handleWarmed} />
+            <WarmDeadline onExpire={handleWarmed} />
+          </React.Fragment>
+        )}
 
-          <Physics
-            key={physicsEpoch}
-            gravity={[0, -60, 0]}
-            defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }}
-            allowSleep={true}
-            iterations={7}
-            isPaused={!rolling}
-          >
-            <Table />
-            {dice.map((d, i) => (
-              <Die
-                key={d.id}
-                ref={(el: any) => {
-                  if (el) diceRefs.current[i] = { id: d.id, ref: { current: el } };
-                }}
-                id={d.id}
-                type={d.type}
-                position={d.pos}
-                impulse={d.imp}
-                skin={getSkinById(d.skinId)}
-                onResult={handleDieResult}
-                onEffect={handleDieEffect}
-                onStall={handleStall}
-                faces={d.faces}
-                final={finalRolls.has(d.rollId)}
-              />
-            ))}
-          </Physics>
-        </ModelCoreLights>
+        <Physics
+          key={physicsEpoch}
+          gravity={[0, -60, 0]}
+          defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }}
+          allowSleep={true}
+          iterations={7}
+          isPaused={!rolling}
+        >
+          <Table />
+          {dice.map((d, i) => (
+            <Die
+              key={d.id}
+              ref={(el: any) => {
+                if (el) diceRefs.current[i] = { id: d.id, ref: { current: el } };
+              }}
+              id={d.id}
+              type={d.type}
+              position={d.pos}
+              impulse={d.imp}
+              skin={getSkinById(d.skinId)}
+              onResult={handleDieResult}
+              onEffect={handleDieEffect}
+              onStall={handleStall}
+              faces={d.faces}
+              final={finalRolls.has(d.rollId)}
+            />
+          ))}
+        </Physics>
       </Canvas>
     </div>
   );

@@ -2,7 +2,7 @@
  * Banc visuel des dés : rend les six formes sous trois matières en vrai WebGL (Chromium sans
  * interface) et enregistre l'image.
  *
- *   node scripts/dice-render/run.mjs [sortie.png] [--resin | --compare | --rim | --cores | --cost]      (depuis frontend/)
+ *   node scripts/dice-render/run.mjs [sortie.png] [--resin | --compare | --rim | --cores | --orbs | --cost]      (depuis frontend/)
  */
 import { build } from 'esbuild';
 import { createServer } from 'node:http';
@@ -85,11 +85,23 @@ if (originalsDir) {
   process.exit(0);
 }
 if (process.argv.includes('--cost')) {
-  const r = await page.evaluate(() => window.diceBench.cost({ size: 700, frames: 12 }));
+  const rig = process.argv.find((a) => a.startsWith('--rig='))?.slice(6) ?? 'all';
+  const r = await page.evaluate(
+    (rig) => window.diceBench.cost({ size: 700, frames: 12, rig }),
+    rig,
+  );
   for (const [k, v] of Object.entries(r).sort((a, b) => b[1] - a[1]))
     console.log(String(v).padStart(7), k);
   await browser.close();
   server.close();
+  process.exit(0);
+}
+if (process.argv.includes('--orbs')) {
+  await page.evaluate(() => window.diceBench.orbs({ width: 1600, height: 400 }));
+  await page.screenshot({ path: out, clip: { x: 0, y: 0, width: 1600, height: 400 } });
+  await browser.close();
+  server.close();
+  console.log(out);
   process.exit(0);
 }
 if (process.argv.includes('--cores')) {
