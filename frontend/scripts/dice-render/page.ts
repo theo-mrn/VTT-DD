@@ -7,6 +7,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import {
   ENGRAVING_NORMAL_SCALE,
   engravingTexture,
+  highlightRects,
   injectInk,
   inkUniforms,
 } from '@/components/dice/three/engraving';
@@ -55,6 +56,14 @@ window.diceBench = {
           normalScale: ENGRAVING_NORMAL_SCALE,
         });
         mat.onBeforeCompile = (shader) => injectInk(shader, ink);
+        // Dernière rangée : chiffre retenu doré (face ou coin tourné vers la caméra)
+        if (row !== 1) {
+          ink.uHiRects.value = highlightRects(
+            type,
+            shape.corners ? shape.corners[0]!.value : shape.faces[0]!.value,
+          );
+          ink.uHiAmount.value = 1;
+        }
         const mesh = new THREE.Mesh(shape.geometry, mat);
         mesh.position.set((col - 2.5) * 4.6, 0, (row - 1) * 5);
         // Une face (ou un coin) vers le haut, légèrement penchée vers la caméra
@@ -62,7 +71,7 @@ window.diceBench = {
         // Face 0 tournée vers la caméra (contrôle du sens des chiffres)
         const toCamera = camera.position.clone().sub(mesh.position).normalize();
         mesh.quaternion.setFromUnitVectors(top, toCamera);
-        if (row > 0) {
+        if (row === 1) {
           mesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), 0.35 + row * 0.15);
           mesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), 0.4 * (col - 2));
         }

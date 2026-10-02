@@ -26,7 +26,7 @@ const DEPTH = 3.2;
 /** Intensité de la carte de normales dans le matériau. */
 export const ENGRAVING_NORMAL_SCALE = new THREE.Vector2(1, 1);
 
-const FONT = (px: number) => `500 ${px}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+const FONT = (px: number) => `400 ${px}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
 
 /** Hauteur des chiffres selon la forme (part de la cellule). */
 const TEXT_SIZE: Record<string, number> = {
@@ -177,17 +177,72 @@ export function engravingTexture(type: string): THREE.DataTexture {
   return t;
 }
 
+/** Doré du chiffre retenu, et sa lueur. */
+export const HIGHLIGHT_COLOR = '#ffbf33';
+/** Lueur du chiffre retenu sur un dé foncé (sur un dé clair : aucune, l'or profond suffit). */
+const HIGHLIGHT_GLOW = 1.1;
+/** Halo autour du chiffre retenu, sur un dé foncé seulement. */
+const HIGHLIGHT_AURA = 1.4;
+/** Zone vide : jamais touchée par les UV (0 à 1). */
+const NO_RECT = new THREE.Vector4(2, 2, 2, 2);
+
 /** Réglages de l'encre d'un matériau de dé. */
 export interface InkUniforms {
   uInkColor: { value: THREE.Color };
   /** Émission de l'encre (0 : simple pigment ; 1 : lumineuse, skins sans éclairage). */
   uInkGlow: { value: number };
+  /** Chiffre retenu, doré : zones de l'atlas (u0, v0, u1, v1), 3 au plus (d4). */
+  uHiRects: { value: THREE.Vector4[] };
+  /** Apparition du doré, de 0 à 1. */
+  uHiAmount: { value: number };
 }
 
 export const inkUniforms = (color: string, glow: number): InkUniforms => ({
   uInkColor: { value: new THREE.Color(color) },
   uInkGlow: { value: glow },
+  uHiRects: { value: [NO_RECT.clone(), NO_RECT.clone(), NO_RECT.clone()] },
+  uHiAmount: { value: 0 },
 });
+
+/**
+ * Zones de l'atlas où est gravé le chiffre `value` d'un dé posé : la cellule de sa face ; d4 :
+ * les trois chiffres du sommet (un par face qui le touche).
+ */
+export function highlightRects(type: string, value: string | null): THREE.Vector4[] {
+  const shape = dieShape(type);
+  const { grid, faces } = shape.atlas;
+  const out: THREE.Vector4[] = [];
+  const rect = (cell: number, x0: number, y0: number, x1: number, y1: number) => {
+    const cx = cell % grid;
+    const cy = Math.floor(cell / grid);
+    out.push(
+      new THREE.Vector4(
+        (cx + x0) / grid,
+        1 - (cy + 1 - y0) / grid,
+        (cx + x1) / grid,
+        1 - (cy + 1 - y1) / grid,
+      ),
+    );
+  };
+  if (value)
+    for (const f of faces) {
+      if (shape.type === 'd4' && f.cornerValues) {
+        const i = f.cornerValues.indexOf(value);
+        if (i < 0) continue;
+        const center = f.polygon.reduce(
+          (s, p) => [s[0] + p[0] / f.polygon.length, s[1] + p[1] / f.polygon.length],
+          [0, 0],
+        );
+        const corner = f.polygon[i]!;
+        const x = center[0] + (corner[0] - center[0]) * 0.56;
+        const y = center[1] + (corner[1] - center[1]) * 0.56;
+        const h = (TEXT_SIZE.d4 ?? 0.27) * 0.75;
+        rect(f.cell, x - h, y - h, x + h, y + h);
+      } else if (f.value === value) rect(f.cell, 0, 0, 1, 1);
+    }
+  while (out.length < 3) out.push(NO_RECT.clone());
+  return out.slice(0, 3);
+}
 
 /**
  * Ajoute l'encre au programme d'un matériau standard ou physique dont `normalMap` est la
@@ -197,19 +252,43 @@ export const inkUniforms = (color: string, glow: number): InkUniforms => ({
 export function injectInk(shader: THREE.WebGLProgramParametersWithUniforms, u: InkUniforms) {
   shader.uniforms.uInkColor = u.uInkColor;
   shader.uniforms.uInkGlow = u.uInkGlow;
+  shader.uniforms.uHiRects = u.uHiRects;
+  shader.uniforms.uHiAmount = u.uHiAmount;
+  shader.uniforms.uHiColor = { value: new THREE.Color(HIGHLIGHT_COLOR) };
   shader.fragmentShader = shader.fragmentShader
     .replace(
       '#include <common>',
-      '#include <common>\nuniform vec3 uInkColor;\nuniform float uInkGlow;',
+      `#include <common>
+uniform vec3 uInkColor;
+uniform float uInkGlow;
+uniform vec4 uHiRects[3];
+uniform float uHiAmount;
+uniform vec3 uHiColor;`,
     )
     .replace(
       '#include <roughnessmap_fragment>',
       `#include <roughnessmap_fragment>
 float inkMask = 0.0;
+float inkHi = 0.0;
+float inkAura = 0.0;
 #ifdef USE_NORMALMAP
-  inkMask = texture2D( normalMap, vNormalMapUv ).a;
+  // Biais vers la netteté : réduit à l'écran, le chiffre ne bave pas (il paraîtrait plus gras)
+  inkMask = texture2D( normalMap, vNormalMapUv, -0.75 ).a;
+  // Chiffre retenu : doré
+  for ( int i = 0; i < 3; i ++ ) {
+    vec4 r = uHiRects[ i ];
+    if ( vNormalMapUv.x >= r.x && vNormalMapUv.x <= r.z && vNormalMapUv.y >= r.y && vNormalMapUv.y <= r.w ) inkHi = uHiAmount;
+  }
 #endif
-diffuseColor.rgb = mix( diffuseColor.rgb, uInkColor, inkMask );
+// Chiffre retenu selon la clarté du dé : or profond sur un dé clair, or vif lumineux (et
+// léger halo, lu dans un niveau flou de la texture) sur un dé foncé
+float inkDark = 1.0 - smoothstep( 0.2, 0.55, dot( diffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) ) );
+#ifdef USE_NORMALMAP
+  if ( inkHi > 0.0 ) inkAura = smoothstep( 0.08, 0.45, texture2D( normalMap, vNormalMapUv, 2.0 ).a ) * ( 1.0 - inkMask ) * inkHi * inkDark;
+#endif
+vec3 hiColor = mix( vec3( 0.42, 0.24, 0.0 ), uHiColor, inkDark );
+vec3 inkColor = mix( uInkColor, hiColor, inkHi );
+diffuseColor.rgb = mix( diffuseColor.rgb, inkColor, inkMask );
 roughnessFactor = mix( roughnessFactor, 0.55, inkMask );`,
     )
     .replace(
@@ -221,6 +300,7 @@ metalnessFactor = mix( metalnessFactor, 0.0, inkMask );`,
     .replace(
       '#include <aomap_fragment>',
       `#include <aomap_fragment>
-totalEmissiveRadiance = mix( totalEmissiveRadiance, uInkColor * uInkGlow, inkMask );`,
+totalEmissiveRadiance = mix( totalEmissiveRadiance, inkColor * mix( uInkGlow, ${HIGHLIGHT_GLOW.toFixed(2)} * inkDark, inkHi ), inkMask );
+totalEmissiveRadiance += uHiColor * inkAura * ${HIGHLIGHT_AURA.toFixed(2)};`,
     );
 }

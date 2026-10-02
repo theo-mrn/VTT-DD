@@ -114,14 +114,20 @@ const Die = React.forwardRef(
       onEffect,
       onStall,
       faces,
+      final,
     }: {
       id: string;
       type: string;
       position: [number, number, number];
       impulse: [number, number, number];
       skin: DiceSkin;
-      /** Le dé s'est arrêté : face lue (une seule fois). */
-      onResult: (id: string, val: string) => void;
+      /**
+       * Le dé s'est arrêté sur `val` (relu s'il est bousculé avant la fin du lancer) ; vrai si
+       * la valeur est retenue, faux si le lancer est déjà fini.
+       */
+      onResult: (id: string, val: string) => boolean;
+      /** Lancer fini : les valeurs sont parties, plus rien ne change. */
+      final: boolean;
       /** Un effet critique commence (true) ou est terminé (false). */
       onEffect: (id: string, active: boolean) => void;
       /** Le moteur physique n'a rien envoyé à ce dé : il faut le relancer. */
@@ -133,6 +139,9 @@ const Die = React.forwardRef(
     const shape = dieShape(type);
     const { hull } = shape;
     const [stopped, setStopped] = useState(false);
+    // Valeur retenue (dorée sur le dé) et dernière face lue
+    const [shown, setShown] = useState<string | null>(null);
+    const lastRead = useRef<string | null>(null);
     const [canCheck, setCanCheck] = useState(false);
     const [critType, setCritType] = useState<CriticalType>(null);
     const [isShattered, setIsShattered] = useState(false);
@@ -283,7 +292,7 @@ const Die = React.forwardRef(
     onEffectRef.current = onEffect;
 
     useEffect(() => {
-      if (!canCheck || stopped) return;
+      if (!canCheck || final) return;
 
       const interval = setInterval(() => {
         // Aucune donnée physique : le dé n'a pas roulé, rien à lire
@@ -303,29 +312,34 @@ const Die = React.forwardRef(
             quaternion.current[2]!,
             quaternion.current[3]!,
           );
-          // Face du dessus ; d4 : coin du sommet
+          // Face du dessus ; d4 : coin du sommet. Relue tant que le lancer n'est pas fini : un
+          // dé bousculé par un autre change de valeur (et de chiffre doré)
           const resultValue = readTop(shape, q);
-          if (resultValue) {
-            // Check for critical on d20
-            if (type === 'd20') {
-              if (resultValue === '20') {
-                setCritType('success');
-                onEffectRef.current(id, true);
-              } else if (resultValue === '1') {
-                setCritType('fail');
-                onEffectRef.current(id, true);
-                // Shatter the die after a delay so player sees the 1
-                setTimeout(() => setIsShattered(true), 2000);
-              }
-            }
-
+          if (resultValue && resultValue !== lastRead.current) {
+            lastRead.current = resultValue;
+            if (onResultRef.current(id, resultValue)) setShown(resultValue);
             setStopped(true);
-            onResultRef.current(id, resultValue);
           }
         }
       }, 80); // Checks every 80ms
       return () => clearInterval(interval);
-    }, [stopped, canCheck, shape, type, id]);
+    }, [final, canCheck, shape, id]);
+
+    // Critique d'un d20, sur la valeur définitive (lancer fini)
+    const critDone = useRef(false);
+    useEffect(() => {
+      if (!final || critDone.current || type !== 'd20') return;
+      critDone.current = true;
+      if (shown === '20') {
+        setCritType('success');
+        onEffectRef.current(id, true);
+      } else if (shown === '1') {
+        setCritType('fail');
+        onEffectRef.current(id, true);
+        // Shatter the die after a delay so player sees the 1
+        setTimeout(() => setIsShattered(true), 2000);
+      }
+    }, [final, shown, type, id]);
 
     // Fin de l'effet : lueur éteinte pour un 20, éclats posés pour un 1
     const critTypeRef = useRef(critType);
@@ -348,6 +362,7 @@ const Die = React.forwardRef(
           onCritComplete={handleCritComplete}
           onShatterComplete={handleShatterComplete}
           faceSymbols={faceSymbols}
+          highlight={shown}
           ref={null}
         />
       </group>
@@ -390,9 +405,19 @@ export const DiceThrower = () => {
   const stoppedRef = useRef(new Set<string>());
   const diceByIdRef = useRef(new Map<string, ThrownDie>());
   const displayRef = useRef(new Map<string, RollDisplay>());
+  // Lancers en cours : valeur retenue de chaque dé (remplacée si le dé est bousculé)
   const activeRollsRef = useRef<
-    Map<string, { expected: number; results: { type: string; value: number; tag?: string }[] }>
+    Map<
+      string,
+      {
+        expected: number;
+        order: string[];
+        results: Map<string, { type: string; value: number; tag?: string }>;
+      }
+    >
   >(new Map());
+  // Lancers finis : leurs dés ne changent plus de valeur
+  const [finalRolls, setFinalRolls] = useState<ReadonlySet<string>>(() => new Set());
   const diceRefs = useRef<any[]>([]);
 
   // Shader warm-up (per canvas: compiled programs belong to ONE WebGL
@@ -440,6 +465,12 @@ export const DiceThrower = () => {
     };
     setStoppedIds(without);
     setEffectIds(without);
+    setFinalRolls((prev) => {
+      if (!prev.has(rollId)) return prev;
+      const next = new Set(prev);
+      next.delete(rollId);
+      return next;
+    });
   }, []);
 
   /**
@@ -473,37 +504,45 @@ export const DiceThrower = () => {
     [],
   );
 
-  const handleResult = (rollId: string, type: string, val: string, tag?: string) => {
-    const rollData = activeRollsRef.current.get(rollId);
-    if (rollData) {
+  /**
+   * Un dé s'est arrêté sur `val` : valeur retenue (ou remplacée, s'il a été bousculé) tant que
+   * son lancer n'est pas fini. Le lancer finit quand chaque dé a une valeur : elles partent à
+   * l'appelant, dans l'ordre des dés. Faux : lancer déjà fini, la valeur ne compte plus.
+   */
+  const handleDieResult = useCallback(
+    (dieId: string, val: string): boolean => {
+      const die = diceByIdRef.current.get(dieId);
+      if (!die) return false;
+      const roll = activeRollsRef.current.get(die.rollId);
+      if (!roll) return false;
       // tag : identifiant optionnel echoé tel quel (ex clé d'un dé à symboles) — permet à
       // l'appelant de réassocier chaque résultat à SON type de dé quand deux types partagent la
       // même forme physique (ex Aptitude et Difficulté, tous deux d8).
-      rollData.results.push({ type, value: parseInt(val), ...(tag ? { tag } : {}) });
-      if (rollData.results.length === rollData.expected) {
-        activeRollsRef.current.delete(rollId);
-        diceThrowerChannel.completed(rollId, rollData.results);
-      }
-    }
-  };
-
-  const handleResultRef = useRef(handleResult);
-  handleResultRef.current = handleResult;
-
-  /** Un dé s'est arrêté : sa face part à l'appelant, son lancer peut finir. */
-  const handleDieResult = useCallback(
-    (dieId: string, val: string) => {
-      const die = diceByIdRef.current.get(dieId);
-      // Une seule face par dé, même s'il a été remonté (relance du moteur)
-      if (!die || stoppedRef.current.has(dieId)) return;
-      stoppedRef.current.add(dieId);
-      setStoppedIds((prev) => (prev.has(dieId) ? prev : new Set(prev).add(dieId)));
-      handleResultRef.current(die.rollId, die.type, val, die.tag);
+      roll.results.set(dieId, {
+        type: die.type,
+        value: parseInt(val),
+        ...(die.tag ? { tag: die.tag } : {}),
+      });
       const display = displayRef.current.get(die.rollId);
-      if (!display) return;
-      display.rolling -= 1;
-      display.lastStop = performance.now();
-      scheduleRemoval(die.rollId);
+      // Premier arrêt du dé (une seule fois, même s'il a été remonté : relance du moteur)
+      if (!stoppedRef.current.has(dieId)) {
+        stoppedRef.current.add(dieId);
+        setStoppedIds((prev) => (prev.has(dieId) ? prev : new Set(prev).add(dieId)));
+        if (display) display.rolling -= 1;
+      }
+      if (display) {
+        display.lastStop = performance.now();
+        scheduleRemoval(die.rollId);
+      }
+      if (roll.results.size === roll.expected) {
+        activeRollsRef.current.delete(die.rollId);
+        diceThrowerChannel.completed(
+          die.rollId,
+          roll.order.map((id) => roll.results.get(id)!),
+        );
+        setFinalRolls((prev) => new Set(prev).add(die.rollId));
+      }
+      return true;
     },
     [scheduleRemoval],
   );
@@ -593,7 +632,11 @@ export const DiceThrower = () => {
     });
 
     if (totalDiceCount > 0) {
-      activeRollsRef.current.set(rollId, { expected: totalDiceCount, results: [] });
+      activeRollsRef.current.set(rollId, {
+        expected: totalDiceCount,
+        order: newDice.map((d) => d.id),
+        results: new Map(),
+      });
       newDice.forEach((d) => diceByIdRef.current.set(d.id, d));
       // Retrait 2 s après l'arrêt du dernier dé (voir scheduleRemoval), ou au
       // bout de MAX_DIE_LIFETIME_MS si un dé ne s'arrête jamais.
@@ -768,6 +811,7 @@ export const DiceThrower = () => {
                 onEffect={handleDieEffect}
                 onStall={handleStall}
                 faces={d.faces}
+                final={finalRolls.has(d.rollId)}
               />
             ))}
           </Physics>

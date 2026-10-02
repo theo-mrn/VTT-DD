@@ -1,8 +1,9 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { DiceSkin, CriticalType } from './dice-definitions';
 import { dieShape } from './polyhedra';
-import { engravingTexture, inkUniforms } from './engraving';
+import { engravingTexture, highlightRects, inkUniforms } from './engraving';
 import { TexturedMaterial } from './materials/textured-material';
 import { isVoidSkin, type EngravingProps } from './materials/procedural-material';
 import { CriticalEffect, ShatteredDie } from './effects/critical';
@@ -55,6 +56,7 @@ export const VisualDie = React.forwardRef(
       onCritComplete,
       onShatterComplete,
       faceSymbols,
+      highlight = null,
     }: {
       type: string;
       skin: DiceSkin;
@@ -70,6 +72,8 @@ export const VisualDie = React.forwardRef(
        * drawn instead of the numbers; an empty face shows nothing.
        */
       faceSymbols?: Die3DSymbol[][];
+      /** Chiffre retenu sur le dé posé : doré (null : aucun). */
+      highlight?: string | null;
     },
     _ref: unknown,
   ) => {
@@ -94,6 +98,21 @@ export const VisualDie = React.forwardRef(
           : { map: engravingTexture(shape.type), ink: inkUniforms(ink, glow) },
       [faceSymbols, shape.type, ink, glow],
     );
+
+    // Chiffre retenu : doré, en fondu ; un nouveau chiffre (dé bousculé) repart de zéro
+    const hiTarget = useRef(0);
+    useEffect(() => {
+      if (!engraving) return;
+      const rects = highlightRects(shape.type, highlight);
+      engraving.ink.uHiRects.value.forEach((r, i) => r.copy(rects[i]!));
+      engraving.ink.uHiAmount.value = 0;
+      hiTarget.current = highlight ? 1 : 0;
+    }, [engraving, highlight, shape.type]);
+    useFrame((_, dt) => {
+      const amount = engraving?.ink.uHiAmount;
+      if (!amount || amount.value >= hiTarget.current) return;
+      amount.value = Math.min(hiTarget.current, amount.value + dt * 4);
+    });
 
     const symbols =
       faceSymbols && !simple && !isShattered
