@@ -14,6 +14,7 @@ import { Environment } from '@react-three/drei';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
 import { VisualDie } from './visual-die';
 import { dieShape } from './polyhedra';
+import { ContinuousFrames } from './scene';
 import { getAudioContext, playOneShotForSkin } from './audio';
 import { prefersEconomy } from '@/lib/perf/device';
 
@@ -466,12 +467,12 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
               // fbm calls) — capping dpr cuts fill cost for an invisible
               // difference on moving dice.
               dpr={economy ? 1 : [1, 1.25]}
-              // Rendu continu seulement pendant un préchauffage (certains
-              // pilotes ne font avancer la compilation asynchrone que si le
-              // contexte travaille) ou tant qu'un dé roule ; une fois les
-              // dés arrêtés, RestTicker entretient les shaders animés à
+              // Rendu continu (`ContinuousFrames`, sans changer de boucle : cela remettrait
+              // l'horloge à zéro) seulement pendant un préchauffage (certains pilotes ne font
+              // avancer la compilation asynchrone que si le contexte travaille) ou tant qu'un dé
+              // roule ; une fois les dés arrêtés, RestTicker entretient les shaders animés à
               // cadence réduite.
-              frameloop={moving || warmTarget ? 'always' : 'demand'}
+              frameloop="demand"
               style={{ pointerEvents: 'none' }}
             >
               {/* Pas de projecteurs : à cette distance, en unités physiques, ils n'éclairaient
@@ -488,6 +489,7 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
                 />
               )}
 
+              {(moving || warmTarget) && <ContinuousFrames />}
               {dice.length > 0 && !moving && <RestTicker fps={economy ? 12 : 24} />}
 
               {dice.length > 0 && (

@@ -33,7 +33,13 @@ import * as THREE from 'three';
 import { DIE_TYPES, dieShape, readTop } from './polyhedra';
 import { engravingTexture } from './engraving';
 import { playRoll, startAmbience, ambienceForSkin, playOneShotForSkin, Ambience } from './audio';
-import { Table, visibleHalfExtents, DICE_CAM_HEIGHT, DICE_CAM_FOV } from './scene';
+import {
+  ContinuousFrames,
+  Table,
+  visibleHalfExtents,
+  DICE_CAM_HEIGHT,
+  DICE_CAM_FOV,
+} from './scene';
 import { VisualDie } from './visual-die';
 import { isAnimatedSkin } from './materials/procedural-material';
 import { ShaderWarmer } from './shader-warmer';
@@ -796,9 +802,11 @@ export const DiceThrower = () => {
         // En mouvement, densité 1 (la différence ne se voit pas) ; arrêtés, 1,25 pour les
         // chiffres et le doré
         dpr={glSettings.economy || rolling ? 1 : [1, 1.25]}
-        frameloop={animating ? 'always' : 'demand'}
+        // Toujours « à la demande » : changer de boucle remet l'horloge à zéro (`ContinuousFrames`)
+        frameloop="demand"
         style={{ pointerEvents: 'none' }}
       >
+        {animating && <ContinuousFrames />}
         {tickMs > 0 && <FrameTicker intervalMs={tickMs} />}
         <ShapeWarmer />
         {/* Lumière ambiante et carte d'environnement seulement. Les projecteurs et la lumière

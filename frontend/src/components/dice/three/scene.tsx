@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { usePlane, useBox } from '@react-three/cannon';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 
 // Shared camera constants for the dice scene. The walls AND the spawn logic
 // (throw.tsx) both derive the playable area from these, so dice always settle
@@ -62,4 +62,22 @@ export const Table = () => {
       <Wall args={[halfThick, 50, 80]} position={[wx, 25, 0]} />
     </group>
   );
+};
+
+/**
+ * Rendu continu sans quitter la boucle « à la demande » : changer `frameloop` remet l'horloge de
+ * R3F à zéro (`setFrameloop`), et tout ce qui la lit (cœurs d'orbes, motifs animés, effets)
+ * sautait en arrière quand les dés s'arrêtaient. Tant qu'il est monté, chaque image en demande
+ * une autre. À son arrivée, l'horloge avale le temps passé au repos : le premier pas de la
+ * physique reste court.
+ */
+export const ContinuousFrames = () => {
+  const clock = useThree((st) => st.clock);
+  const invalidate = useThree((st) => st.invalidate);
+  useEffect(() => {
+    clock.getDelta();
+    invalidate();
+  }, [clock, invalidate]);
+  useFrame((st) => st.invalidate());
+  return null;
 };
