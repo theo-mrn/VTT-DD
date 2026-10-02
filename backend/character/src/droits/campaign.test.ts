@@ -225,4 +225,40 @@ describe('règles optionnelles de la campagne d’un personnage', () => {
     enPanne = true;
     await expect(droits.camp('camp-2', 'pnj-1', 'user-1')).rejects.toMatchObject({ status: 503 });
   });
+
+  it('réservation de place : quota plein → 422 de campaign ; campaign injoignable → envoi accepté', async () => {
+    let mode: 'plein' | 'ok' | 'panne' = 'ok';
+    const fetch = vi.fn(async (_url: URL | RequestInfo, init?: RequestInit) => {
+      if (mode === 'panne') throw new Error('réseau');
+      expect(new Headers(init?.headers).get('x-internal-secret')).toBe(SECRET);
+      return mode === 'ok'
+        ? new Response(null, { status: 204 })
+        : reponse({ code: 'storage_quota_exceeded', detail: 'Espace plein' }, 422);
+    });
+    const signaler = vi.fn();
+    const droits = droitsCampaign({
+      url: 'http://campaign.local',
+      secret: SECRET,
+      cacheMs: 0,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      signaler,
+    });
+    const demande = {
+      characterId: '0190a8f0-0000-7000-8000-000000000001',
+      key: 'characters/x/y.png',
+      size: 10,
+      usage: 'portrait',
+      contentType: 'image/png',
+    };
+    await expect(droits.reserver!(demande)).resolves.toBeUndefined();
+    expect(String(fetch.mock.calls[0]![0])).toBe('http://campaign.local/internal/storage/reserve');
+    mode = 'plein';
+    await expect(droits.reserver!(demande)).rejects.toMatchObject({
+      status: 422,
+      code: 'storage_quota_exceeded',
+    });
+    mode = 'panne';
+    await expect(droits.reserver!(demande)).resolves.toBeUndefined();
+    expect(signaler).toHaveBeenCalled();
+  });
 });

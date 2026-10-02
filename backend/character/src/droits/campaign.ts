@@ -30,6 +30,7 @@
  * (character ne lit pas le bus : un réglage du MJ compte au plus tard à
  * l'expiration). Une panne de campaign donne les défauts du système, sans cache.
  */
+import type { ReserveStorage } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { z } from 'zod';
 import { EN_TETE_SECRET_INTERNE } from '../interne/secret.js';
@@ -88,6 +89,12 @@ export interface DroitsCampagnes {
    * s'il n'y est pas engagé. Lève une erreur 503 si campaign ne répond pas.
    */
   camp(campaignId: string, characterId: string, userId: string): Promise<CampPersonnage | null>;
+  /**
+   * Réserve la place d'un envoi sur le quota de la campagne (docs/stockage.md) ; lève l'erreur
+   * de campaign s'il n'y en a plus (422 `storage_quota_exceeded`). campaign injoignable :
+   * l'envoi passe, le prochain inventaire le comptera.
+   */
+  reserver?(demande: ReserveStorage): Promise<void>;
 }
 
 export const AUCUN_DROIT: Droits = Object.freeze({ lecture: false, ecriture: false });
@@ -173,6 +180,26 @@ export function droitsCampaign(o: OptionsCampaign): DroitsCampagnes {
   const camps = new Map<string, { camp: CampPersonnage | null; jusqua: number }>();
 
   return {
+    async reserver(demande) {
+      let res: Response;
+      try {
+        res = await appel(new URL('/internal/storage/reserve', o.url), {
+          method: 'POST',
+          headers: { [EN_TETE_SECRET_INTERNE]: o.secret, 'content-type': 'application/json' },
+          body: JSON.stringify(demande),
+          signal: AbortSignal.timeout(DELAI_MS),
+        });
+      } catch (erreur) {
+        o.signaler?.(erreur);
+        return;
+      }
+      if (res.ok) return;
+      const corps = (await res.json().catch(() => ({}))) as { code?: string; detail?: string };
+      if (res.status === 422 && corps.code)
+        throw new HttpError(422, 'Espace de la campagne plein', corps.code, corps.detail);
+      o.signaler?.(new Error(`campaign a répondu ${res.status} à la réservation`));
+    },
+
     async camp(campaignId, characterId, userId) {
       const cle = `${campaignId}:${characterId}:${userId}`;
       const entree = camps.get(cle);

@@ -16,7 +16,9 @@ import {
   FileUploadTicket,
   PortraitStudio,
 } from '@vtt/contracts';
-import { HttpError } from '@vtt/platform';
+import { HttpError, type UploadReserve } from '@vtt/platform';
+import { eq } from 'drizzle-orm';
+import { characters } from '../../db/schema.js';
 import { campaignIndisponible } from '../../droits/campaign.js';
 import { achatsPossibles, creationDe, etapesCreation } from '@vtt/rules';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
@@ -312,6 +314,27 @@ export const register: Module = async (app, deps) => {
     },
   );
 
+  /**
+   * Place réservée sur le quota de la campagne du personnage (docs/stockage.md) : celle d'une
+   * instance de PNJ, sinon campaign retrouve celle où il est engagé.
+   */
+  const reserve =
+    (id: string): UploadReserve =>
+    async (f) => {
+      if (!deps.droits.reserver) return;
+      const [p] = await db
+        .select({ campaignId: characters.campaignId })
+        .from(characters)
+        .where(eq(characters.id, id));
+      await deps.droits.reserver({
+        ...(p?.campaignId ? { campaignId: p.campaignId } : { characterId: id }),
+        key: f.key,
+        size: f.size,
+        usage: f.usage,
+        contentType: f.contentType,
+      });
+    };
+
   // Envoi d'un portrait (docs/uploads.md) : billet signé, le navigateur envoie le fichier
   // au stockage, puis enregistre son adresse par PATCH /v1/characters/:id { portraitUrl }
   r.post(
@@ -328,7 +351,7 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const { id } = req.params;
       await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
-      return deps.uploads.ticket(req.body, id, ['portrait', 'token'], req.log);
+      return deps.uploads.ticket(req.body, id, ['portrait', 'token'], req.log, reserve(id));
     },
   );
 
@@ -348,7 +371,7 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const { id } = req.params;
       await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
-      return deps.uploads.importFromUrl(req.body, id, ['portrait', 'token'], req.log);
+      return deps.uploads.importFromUrl(req.body, id, ['portrait', 'token'], req.log, reserve(id));
     },
   );
 
