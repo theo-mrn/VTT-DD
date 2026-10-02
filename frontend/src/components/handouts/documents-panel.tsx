@@ -134,7 +134,14 @@ function Agrandi({ doc, onClose }: { doc: Handout | null; onClose: () => void })
 function Recus({ campaignId }: { campaignId: string }) {
   const docs = useDocuments(campaignId);
   const [ouvert, setOuvert] = useState<Handout | null>(null);
-  const items = docs.data?.items ?? [];
+  // Un document partagé plusieurs fois (projeté puis renvoyé…) n'apparaît qu'une fois, à la date
+  // de son dernier partage (la liste arrive du plus récent au plus ancien)
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    return (docs.data?.items ?? []).filter((d) =>
+      seen.has(d.handout.id) ? false : (seen.add(d.handout.id), true),
+    );
+  }, [docs.data?.items]);
   return (
     <div className="px-5 py-4">
       {docs.isPending ? (
