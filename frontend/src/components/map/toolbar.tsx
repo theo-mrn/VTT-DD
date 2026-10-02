@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useStore } from 'zustand';
+import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -54,6 +55,7 @@ function ToolbarButton({
   label,
   shortcut,
   active,
+  glide,
   disabled,
   onClick,
   children,
@@ -61,6 +63,8 @@ function ToolbarButton({
   label: string;
   shortcut?: string;
   active?: boolean;
+  /** Outil : la pastille glisse d'un outil à l'autre (un seul actif à la fois). */
+  glide?: boolean;
   disabled?: boolean;
   onClick(): void;
   children: ReactNode;
@@ -83,9 +87,12 @@ function ToolbarButton({
         disabled={disabled}
         onClick={onClick}
         className={cn(
-          active && 'bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary',
+          'relative isolate',
+          active && 'text-primary hover:text-primary',
+          active && (glide ? 'hover:bg-transparent' : 'bg-primary/15 hover:bg-primary/20'),
         )}
       >
+        {active && glide && <ActivePill className="bg-primary/15" />}
         {children}
       </Button>
     </Info>
@@ -133,81 +140,87 @@ export function MapToolbar() {
       )}
     >
       {Options && (
-        <div className="pointer-events-auto max-w-full rounded-xl border border-border-strong bg-background/95 px-2 py-1.5 shadow-elevated">
+        <div
+          key={activeId}
+          className="pointer-events-auto max-w-full rounded-xl border border-border-strong bg-background/95 px-2 py-1.5 shadow-elevated duration-200 ease-out animate-in fade-in-0 slide-in-from-bottom-2"
+        >
           <Options engine={engine} />
         </div>
       )}
-      <div
-        role="toolbar"
-        aria-label="Outils de la carte"
-        className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-border-strong bg-background/95 p-1.5 shadow-elevated [scrollbar-width:none]"
-      >
-        {tools.map((def) => {
-          const Icon = def.icon;
-          return (
+      <PillGroup>
+        <div
+          role="toolbar"
+          aria-label="Outils de la carte"
+          className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-border-strong bg-background/95 p-1.5 shadow-elevated [scrollbar-width:none]"
+        >
+          {tools.map((def) => {
+            const Icon = def.icon;
+            return (
+              <ToolbarButton
+                key={def.id}
+                label={def.label}
+                shortcut={def.shortcut?.label}
+                active={def.id === activeId}
+                glide
+                onClick={() => {
+                  // Recliquer sur l'outil actif le referme (son menu avec) : retour à la sélection
+                  engine.tools.activate(
+                    def.id === activeId && def.id !== SELECT_TOOL_ID ? SELECT_TOOL_ID : def.id,
+                  );
+                  focusMap();
+                }}
+              >
+                <Icon />
+              </ToolbarButton>
+            );
+          })}
+
+          {viewer.role !== 'spectator' && (
+            <>
+              <Separator />
+              <UndoRedo />
+            </>
+          )}
+          {viewer.role === 'player' && <BubbleToolbarButton />}
+
+          {(items('view').length > 0 || gm) && <Separator />}
+          {items('view').map((item) => (
+            <item.component key={item.id} engine={engine} />
+          ))}
+          {gm && (
+            <>
+              <ToolbarButton
+                label="Calques"
+                shortcut="K"
+                active={layersOpen}
+                onClick={() => engine.toggleLayersPanel()}
+              >
+                <Layers />
+              </ToolbarButton>
+              <BackgroundButton />
+              <DisplayMenu />
+            </>
+          )}
+
+          <Separator />
+          {viewer.role !== 'spectator' && <SnapMenu />}
+          {viewer.role !== 'spectator' && (
             <ToolbarButton
-              key={def.id}
-              label={def.label}
-              shortcut={def.shortcut?.label}
-              active={def.id === activeId}
-              onClick={() => {
-                // Recliquer sur l'outil actif le referme (son menu avec) : retour à la sélection
-                engine.tools.activate(
-                  def.id === activeId && def.id !== SELECT_TOOL_ID ? SELECT_TOOL_ID : def.id,
-                );
-                focusMap();
-              }}
+              label={shareCursor ? 'Cacher mon curseur' : 'Montrer mon curseur'}
+              active={shareCursor}
+              onClick={() => engine.setShareCursor(!shareCursor)}
             >
-              <Icon />
+              <MousePointerClick />
             </ToolbarButton>
-          );
-        })}
-
-        {viewer.role !== 'spectator' && (
-          <>
-            <Separator />
-            <UndoRedo />
-          </>
-        )}
-        {viewer.role === 'player' && <BubbleToolbarButton />}
-
-        {(items('view').length > 0 || gm) && <Separator />}
-        {items('view').map((item) => (
-          <item.component key={item.id} engine={engine} />
-        ))}
-        {gm && (
-          <>
-            <ToolbarButton
-              label="Calques"
-              shortcut="K"
-              active={layersOpen}
-              onClick={() => engine.toggleLayersPanel()}
-            >
-              <Layers />
-            </ToolbarButton>
-            <BackgroundButton />
-            <DisplayMenu />
-          </>
-        )}
-
-        <Separator />
-        {viewer.role !== 'spectator' && <SnapMenu />}
-        {viewer.role !== 'spectator' && (
-          <ToolbarButton
-            label={shareCursor ? 'Cacher mon curseur' : 'Montrer mon curseur'}
-            active={shareCursor}
-            onClick={() => engine.setShareCursor(!shareCursor)}
-          >
-            <MousePointerClick />
+          )}
+          <ToolbarButton label="Recadrer la vue" onClick={() => engine.fitView()}>
+            <Focus />
           </ToolbarButton>
-        )}
-        <ToolbarButton label="Recadrer la vue" onClick={() => engine.fitView()}>
-          <Focus />
-        </ToolbarButton>
-        {items('end').map((item) => (
-          <item.component key={item.id} engine={engine} />
-        ))}
-      </div>
+          {items('end').map((item) => (
+            <item.component key={item.id} engine={engine} />
+          ))}
+        </div>
+      </PillGroup>
     </div>
   );
 }

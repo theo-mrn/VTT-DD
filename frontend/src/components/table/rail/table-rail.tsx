@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Info } from '@/components/ui/tooltip';
+import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { cn } from '@/lib/utils';
 import { panelDomId } from '../panels/panel-host';
 import type { TablePanel } from '../panels/registry';
@@ -35,9 +36,11 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
         aria-label="Panneaux de la table"
         className="fixed left-3 top-1/2 z-40 hidden max-h-[calc(100dvh-8rem)] -translate-y-1/2 flex-col items-center gap-1 overflow-y-auto rounded-2xl border border-border-strong bg-popover/95 p-1.5 shadow-elevated lg:flex"
       >
-        {visibles.map((i) => (
-          <RailButton key={i.panel.id} panel={i.panel} variante="rail" />
-        ))}
+        <PillGroup>
+          {visibles.map((i) => (
+            <RailButton key={i.panel.id} panel={i.panel} variante="rail" />
+          ))}
+        </PillGroup>
         <span aria-hidden className="my-1 h-px w-6 bg-border-strong" />
         <RailCustomizer layout={layout} cote="right" />
       </nav>
@@ -49,9 +52,11 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
         <div className="no-scrollbar flex w-full items-center gap-0.5 overflow-x-auto">
           <DockMap />
           <span aria-hidden className="mx-0.5 h-8 w-px shrink-0 bg-border-strong" />
-          {visibles.map((i) => (
-            <RailButton key={i.panel.id} panel={i.panel} variante="dock" />
-          ))}
+          <PillGroup>
+            {visibles.map((i) => (
+              <RailButton key={i.panel.id} panel={i.panel} variante="dock" />
+            ))}
+          </PillGroup>
           <span aria-hidden className="mx-0.5 h-8 w-px shrink-0 bg-border-strong" />
           <RailCustomizer layout={layout} cote="top" />
         </div>
@@ -63,8 +68,10 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
 function Pastille({ nombre }: { nombre: number }) {
   return (
     <span
+      // Nouvelle valeur : la pastille « saute » (remontée à chaque changement)
+      key={nombre}
       aria-hidden
-      className="absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground ring-2 ring-popover"
+      className="duration-300 ease-out animate-in zoom-in-50 absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground ring-2 ring-popover"
     >
       {nombre > 99 ? '99+' : nombre}
     </span>
@@ -88,19 +95,18 @@ function RailButton({ panel, variante }: { panel: TablePanel; variante: 'rail' |
       aria-keyshortcuts={panel.shortcut.label}
       aria-label={`${panel.label}${nouveautes}`}
       className={cn(
-        'relative flex shrink-0 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+        'relative isolate flex shrink-0 items-center justify-center transition-[color,background-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 active:scale-95',
         variante === 'rail'
           ? 'size-11 rounded-xl'
           : 'h-12 min-w-14 flex-1 flex-col gap-0.5 rounded-xl px-1 text-[10px] font-medium',
-        actif
-          ? 'bg-primary/15 text-primary'
-          : 'text-muted-foreground hover:bg-surface-3 hover:text-foreground',
+        actif ? 'text-primary' : 'text-muted-foreground hover:bg-surface-3 hover:text-foreground',
       )}
     >
+      {actif && <ActivePill className="bg-primary/15" />}
       {variante === 'rail' && actif && (
-        <span
-          aria-hidden
-          className="absolute -left-1.5 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary"
+        <ActivePill
+          id="rail-marker"
+          className="inset-auto -left-1.5 top-3 z-0 h-5 w-1 rounded-l-none rounded-r-full bg-primary"
         />
       )}
       <Icone className="size-5" aria-hidden />

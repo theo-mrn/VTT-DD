@@ -12,6 +12,7 @@ import { Dialog, DialogDescription, DialogTitle, SheetContent } from '@/componen
 import { InputGroup } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { surCdn, vignette } from '@/lib/assets';
+import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { cn } from '@/lib/utils';
 
 // ─── Mise en page ────────────────────────────────────────────────────────────
@@ -155,33 +156,38 @@ export function Chips({
   label: string;
 }) {
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
-      {options.map((o) => {
-        const actif = o.value === value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            aria-pressed={actif}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              actif
-                ? 'border-primary/50 bg-primary/15 text-primary-strong'
-                : 'border-border-strong text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {o.label}
-            {o.count !== undefined && (
-              <span className={cn('text-[11px]', actif ? 'text-primary-strong/80' : 'text-subtle')}>
-                {o.count}
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </div>
+    <PillGroup>
+      <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
+        {options.map((o) => {
+          const actif = o.value === value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={actif}
+              onClick={() => onChange(o.value)}
+              className={cn(
+                'relative isolate inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors duration-200',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]',
+                actif
+                  ? 'border-primary/50 text-primary-strong'
+                  : 'border-border-strong text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {actif && <ActivePill className="bg-primary/15" />}
+              {o.label}
+              {o.count !== undefined && (
+                <span
+                  className={cn('text-[11px]', actif ? 'text-primary-strong/80' : 'text-subtle')}
+                >
+                  {o.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </PillGroup>
   );
 }
 

@@ -52,6 +52,8 @@ export function MapPanel({
       onKeyDown={onKeyDown}
       className={cn(
         'pointer-events-auto flex max-h-full max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border-strong bg-background shadow-elevated',
+        // Entrée : fondu, léger zoom et glissé depuis le bord droit (sa position reste `translate`)
+        'duration-200 ease-out animate-in fade-in-0 zoom-in-[0.98] slide-in-from-right-3',
         drag.dragging && 'select-none shadow-2xl',
         className,
       )}

@@ -4,6 +4,7 @@
 import type { AssetKind } from '@vtt/contracts';
 import { AudioLines, Music, Wind, type LucideIcon } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
+import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { cn } from '@/lib/utils';
 
 export const KIND_LABELS: Record<AssetKind, string> = {
@@ -66,39 +67,40 @@ export function Segmented({
     e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')[n]?.focus();
   };
   return (
-    <div
-      role="radiogroup"
-      aria-label={label}
-      onKeyDown={clavier}
-      className="flex gap-1 rounded-xl border border-border bg-surface-2 p-1"
-    >
-      {options.map((o) => {
-        const actif = o.value === value;
-        const Icon = o.icon;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            role="radio"
-            aria-checked={actif}
-            tabIndex={actif ? 0 : -1}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              'flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-medium transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-              actif
-                ? 'bg-background text-foreground shadow-surface'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {Icon && <Icon className="size-3.5 shrink-0" aria-hidden />}
-            <span className="truncate">{o.label}</span>
-            {o.count !== undefined && (
-              <span className="text-[11px] tabular-nums text-subtle">{o.count}</span>
-            )}
-          </button>
-        );
-      })}
-    </div>
+    <PillGroup>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        onKeyDown={clavier}
+        className="flex gap-1 rounded-xl border border-border bg-surface-2 p-1"
+      >
+        {options.map((o) => {
+          const actif = o.value === value;
+          const Icon = o.icon;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={actif}
+              tabIndex={actif ? 0 : -1}
+              onClick={() => onChange(o.value)}
+              className={cn(
+                'relative isolate flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-medium transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+                actif ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {actif && <ActivePill className="bg-background shadow-surface" />}
+              {Icon && <Icon className="size-3.5 shrink-0" aria-hidden />}
+              <span className="truncate">{o.label}</span>
+              {o.count !== undefined && (
+                <span className="text-[11px] tabular-nums text-subtle">{o.count}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </PillGroup>
   );
 }
