@@ -119,7 +119,7 @@ describe('rendu de la visibilité (sans WebGL)', () => {
       'vision:mist',
     ]);
     // Image suivante : textures neuves refaites une fois (un premier rendu peut sortir vide)
-    expect(h.draw()).toContain('vision:vis', 'vision:vis');
+    expect(h.draw()).toContain('vision:vis');
     // Rien de neuf : rien
     expect(h.draw()).toEqual([]);
     // Caméra : tout, à l'échelle de l'écran
