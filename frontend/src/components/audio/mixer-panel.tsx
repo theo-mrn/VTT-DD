@@ -8,6 +8,7 @@ import type { BusName } from '@vtt/contracts';
 import { RotateCcw, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { EditableValue } from '@/components/ui/editable-value';
 import { Slider } from '@/components/ui/slider';
 import { useMixer } from '@/lib/audio';
 import { cn } from '@/lib/utils';
@@ -68,8 +69,18 @@ export function MixerPanel() {
                 onValueChange={([v]) => m.setVolume(bus, v ?? 0)}
                 className={cn(muted && 'opacity-50')}
               />
-              <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
-                {Math.round(volume * 100)}%
+              <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                <EditableValue
+                  label={`Volume ${label.toLowerCase()}`}
+                  value={volume}
+                  format={(v) => `${Math.round(v * 100)}%`}
+                  min={0}
+                  max={1}
+                  scale={100}
+                  disabled={muted}
+                  onCommit={(v) => m.setVolume(bus, v)}
+                  className="w-12"
+                />
               </span>
             </li>
           );

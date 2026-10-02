@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { EditableValue } from '@/components/ui/editable-value';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Info } from '@/components/ui/tooltip';
@@ -441,7 +442,18 @@ function SliderRow({
     <div className="space-y-1">
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
         <span>{label}</span>
-        <span className="tabular-nums">{format(draft)}</span>
+        <EditableValue
+          label={label}
+          value={draft}
+          format={format}
+          min={min}
+          max={max}
+          onCommit={(v) => {
+            setDraft(v);
+            onCommit(v);
+          }}
+          className="tabular-nums"
+        />
       </div>
       <Slider
         aria-label={label}

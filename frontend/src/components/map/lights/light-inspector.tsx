@@ -94,7 +94,8 @@ export function LightInspector({ engine, entities }: InspectorSectionProps) {
         label="Rayon"
         value={same((l) => l.radius) ?? first.radius}
         min={RADIUS_RANGE.min}
-        max={RADIUS_RANGE.max}
+        max={RADIUS_RANGE.slider}
+        inputMax={RADIUS_RANGE.max}
         step={RADIUS_RANGE.step}
         format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
         onCommit={(v) => patch('Rayon de la lumière', () => ({ radius: v }))}
@@ -116,6 +117,7 @@ export function LightInspector({ engine, entities }: InspectorSectionProps) {
         max={1}
         step={0.05}
         format={percent}
+        scale={100}
         onCommit={(v) => patch('Intensité de la lumière', () => ({ intensity: v }))}
       />
       <RangeField
@@ -125,6 +127,7 @@ export function LightInspector({ engine, entities }: InspectorSectionProps) {
         max={1}
         step={0.05}
         format={(v) => (v === 0 ? 'bord net' : percent(v))}
+        scale={100}
         onCommit={(v) => patch('Dégradé de la lumière', () => ({ falloff: v }))}
       />
 

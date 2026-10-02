@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Kbd } from '@/components/ui/kbd';
+import { EditableValue } from '@/components/ui/editable-value';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
@@ -166,7 +167,18 @@ export function RangeSetting({
       <div className="flex items-baseline justify-between">
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
         <span className="font-mono text-xs tabular-nums text-foreground">
-          {format(value)}
+          <EditableValue
+            label={label}
+            value={value}
+            format={format}
+            min={min}
+            max={max}
+            disabled={disabled}
+            onCommit={(v) => {
+              onChange(v);
+              onCommit?.(v);
+            }}
+          />
           {unit && <span className="text-subtle"> {unit}</span>}
         </span>
       </div>

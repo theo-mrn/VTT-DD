@@ -40,8 +40,8 @@ export const DEFAULT_SOUND: SoundDefaults = {
   name: '',
 };
 
-/** Rayon permis, en unités. */
-export const RADIUS_RANGE = { min: 0.5, max: 60, step: 0.5 };
+/** Rayon permis, en unités : le curseur s'arrête à `slider`, la saisie directe va jusqu'à `max`. */
+export const RADIUS_RANGE = { min: 0.5, max: 60, slider: 20, step: 0.5 };
 
 const round = (v: number) => Math.round(v * 100) / 100;
 

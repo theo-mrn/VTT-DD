@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { EditableValue } from '@/components/ui/editable-value';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
 import {
@@ -348,7 +349,18 @@ function LayerRow({
           <div className="px-2.5 py-2" onKeyDown={(e) => e.stopPropagation()}>
             <p className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
               Opacité
-              <span className="tabular-nums">{Math.round((opacity ?? layer.opacity) * 100)} %</span>
+              <EditableValue
+                label={`Opacité de ${layer.name}`}
+                value={opacity ?? layer.opacity}
+                format={(v) => `${Math.round(v * 100)} %`}
+                min={0}
+                max={1}
+                scale={100}
+                onCommit={(v) =>
+                  void updateLayer(engine, layer.id, { opacity: v }, 'Opacité du calque')
+                }
+                className="tabular-nums"
+              />
             </p>
             <Slider
               aria-label={`Opacité de ${layer.name}`}

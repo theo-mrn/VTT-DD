@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { EditableValue } from '@/components/ui/editable-value';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
 import { mapsApi } from '@/lib/map/api';
@@ -141,9 +142,19 @@ export function ScaleMenu({ engine }: { engine: MapEngine }) {
             <Info texte="Toutes les scènes de la campagne">
               <span className="font-semibold">Taille des tokens</span>
             </Info>
-            <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-              {Math.round(scale * 100)} %
-            </span>
+            <EditableValue
+              label="Taille des tokens"
+              value={scale}
+              format={(v) => `${Math.round(v * 100)} %`}
+              min={0.25}
+              max={4}
+              scale={100}
+              onCommit={(v) => {
+                setScale(v);
+                commitScale(v);
+              }}
+              className="ml-auto text-xs tabular-nums text-muted-foreground"
+            />
           </div>
           <Slider
             value={[scale]}

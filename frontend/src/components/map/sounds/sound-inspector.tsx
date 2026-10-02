@@ -95,13 +95,15 @@ export function SoundInspector({ engine, entities }: InspectorSectionProps) {
         max={1}
         step={0.05}
         format={percent}
+        scale={100}
         onCommit={(v) => patch('Volume de la zone sonore', () => ({ volume: v }))}
       />
       <RangeField
         label="Rayon"
-        value={Math.round(((same((z) => z.radius) ?? first.radius) / ppu) * 2) / 2}
+        value={Math.round(((same((z) => z.radius) ?? first.radius) / ppu) * 100) / 100}
         min={RADIUS_RANGE.min}
-        max={RADIUS_RANGE.max}
+        max={RADIUS_RANGE.slider}
+        inputMax={RADIUS_RANGE.max}
         step={RADIUS_RANGE.step}
         format={(v) => `${v.toLocaleString('fr-FR')} ${unitName}`}
         onCommit={(v) =>

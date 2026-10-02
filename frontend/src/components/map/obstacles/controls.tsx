@@ -2,12 +2,13 @@
 
 /**
  * Briques des barres contextuelles et des inspecteurs des outils de visibilité (obstacles,
- * brouillard, lumières) : bouton d'option, séparateur, ligne de réglage, curseur avec sa valeur,
- * nuancier des couleurs de données (murs, lumières).
+ * brouillard, lumières) : bouton d'option, séparateur, ligne de réglage, curseur avec sa valeur
+ * (saisissable au clic), nuancier des couleurs de données (murs, lumières).
  */
 import { Check, Pipette } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { EditableValue } from '@/components/ui/editable-value';
 import { Kbd } from '@/components/ui/kbd';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
@@ -102,6 +103,8 @@ export function RangeField({
   format,
   onCommit,
   disabled,
+  scale,
+  inputMax,
 }: {
   label: string;
   value: number;
@@ -111,6 +114,10 @@ export function RangeField({
   format(v: number): string;
   onCommit(v: number): void;
   disabled?: boolean;
+  /** Facteur d'affichage de la saisie directe (100 : valeur de 0 à 1 montrée en %). */
+  scale?: number;
+  /** Plafond de la saisie directe, au-delà du curseur (défaut : `max`). */
+  inputMax?: number;
 }) {
   const [local, setLocal] = useState<number | null>(null);
   const shown = local ?? value;
@@ -118,9 +125,17 @@ export function RangeField({
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between">
         <span className="text-[13px] text-foreground">{label}</span>
-        <span className="font-mono text-xs tabular-nums text-muted-foreground">
-          {format(shown)}
-        </span>
+        <EditableValue
+          label={label}
+          value={shown}
+          format={format}
+          min={min}
+          max={inputMax ?? max}
+          scale={scale}
+          disabled={disabled}
+          onCommit={onCommit}
+          className="font-mono text-xs tabular-nums text-muted-foreground"
+        />
       </div>
       <Slider
         aria-label={label}

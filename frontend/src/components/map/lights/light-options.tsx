@@ -60,6 +60,7 @@ function Options({ engine, tool }: { engine: MapEngine; tool: LightTool }) {
               max={1}
               step={0.05}
               format={percent}
+              scale={100}
               onCommit={(v) => set({ intensity: v })}
             />
             <RangeField
@@ -69,6 +70,7 @@ function Options({ engine, tool }: { engine: MapEngine; tool: LightTool }) {
               max={1}
               step={0.05}
               format={(v) => (v === 0 ? 'bord net' : percent(v))}
+              scale={100}
               onCommit={(v) => set({ falloff: v })}
             />
           </PopoverContent>
@@ -79,7 +81,8 @@ function Options({ engine, tool }: { engine: MapEngine; tool: LightTool }) {
             label="Rayon"
             value={radius}
             min={RADIUS_RANGE.min}
-            max={20}
+            max={RADIUS_RANGE.slider}
+            inputMax={RADIUS_RANGE.max}
             step={RADIUS_RANGE.step}
             format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
             onCommit={(v) => set({ radius: v })}
