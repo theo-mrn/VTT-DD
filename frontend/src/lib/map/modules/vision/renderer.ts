@@ -147,6 +147,8 @@ uniform sampler2D uVis;
 uniform sampler2D uFog;
 uniform sampler2D uMist;
 uniform sampler2D uGlow;
+uniform sampler2D uLos;
+uniform float uObstacleDark;
 uniform float uDarkness;
 uniform float uFogAlpha;
 uniform float uFogOn;
@@ -158,7 +160,10 @@ uniform vec3 uFogLight;
 
 void main() {
   float vis = texture(uVis, vUV).a;
-  float dark = uDarkness * (1.0 - vis);
+  // Derrière un obstacle (hors de la ligne de vue, salle fermée) : uObstacleDark (noir plein pour
+  // un joueur) ; ailleurs hors de vue : l'ombre réglée par le MJ
+  float los = texture(uLos, vUV).a;
+  float dark = mix(uObstacleDark, uDarkness * (1.0 - vis), los);
   vec3 rgb = uShadowColor * dark;
   float a = dark;
   if (uFogOn > 0.5) {
@@ -375,7 +380,7 @@ interface Target {
 }
 
 export class VisionRenderer {
-  private readonly targets: Record<'range' | 'fog' | 'mist' | 'glow' | 'vis', Target>;
+  private readonly targets: Record<'range' | 'fog' | 'mist' | 'glow' | 'vis' | 'los', Target>;
   private readonly rangeRoot: Pixi.Container;
   private readonly rangeBody: Pixi.Container;
   private readonly rangeZones: Pixi.Container;
@@ -437,6 +442,7 @@ export class VisionRenderer {
       mist: make(SOFT_RESOLUTION),
       glow: make(SOFT_RESOLUTION),
       vis: make(VIS_RESOLUTION),
+      los: make(VIS_RESOLUTION),
     };
 
     this.rangeRoot = new pixi.Container({ label: 'vision:range' });
@@ -464,6 +470,7 @@ export class VisionRenderer {
       uFogOn: { value: 0, type: 'f32' },
       uGlowOn: { value: 0, type: 'f32' },
       uGlowFloor: { value: 0, type: 'f32' },
+      uObstacleDark: { value: 1, type: 'f32' },
       uShadowColor: { value: rgb(mixColor(theme.background, 0x000000, 0.65)), type: 'vec3<f32>' },
       uFogDark: { value: rgb(mixColor(theme.background, theme.muted, 0.35)), type: 'vec3<f32>' },
       uFogLight: { value: rgb(mixColor(theme.muted, theme.foreground, 0.35)), type: 'vec3<f32>' },
@@ -473,6 +480,7 @@ export class VisionRenderer {
       resources: {
         visionUniforms: this.uniforms,
         uVis: this.targets.vis.rt.source,
+        uLos: this.targets.los.rt.source,
         uFog: this.targets.fog.rt.source,
         uMist: this.targets.mist.rt.source,
         uGlow: this.targets.glow.rt.source,
@@ -512,29 +520,14 @@ export class VisionRenderer {
     this.composite.label = 'vision:composite';
     this.composite.visible = false;
     plane.addChild(this.composite);
-    // Intérieur des salles fermées hors de portée : noir opaque, sous le tracé des murs
-    this.roomFill = new pixi.Graphics({ label: 'vision:hidden-rooms' });
-    plane.addChild(this.roomFill);
     // Tracé sombre des murs pour les joueurs, au-dessus de l'ombre (comme l'ancienne carte)
     this.wallLines = new pixi.Graphics({ label: 'vision:walls' });
     this.wallColor = mixColor(theme.background, 0x000000, 0.65);
-    plane.addChild(this.wallLines);
+    // Sous la composition : l'ombre et la brume passent par-dessus
+    plane.addChildAt(this.wallLines, 0);
   }
 
   private readonly wallLines: Pixi.Graphics;
-  private readonly roomFill: Pixi.Graphics;
-  private roomKey: string | null = null;
-
-  /** Salles fermées où le joueur n'est pas : noir opaque ; refait seulement si elles changent. */
-  private drawHiddenRooms(p: VisionPicture) {
-    this.roomFill.visible = true;
-    if (this.roomKey === p.hiddenRooms.key) return;
-    this.roomKey = p.hiddenRooms.key;
-    const g = this.roomFill;
-    g.clear();
-    for (const poly of p.hiddenRooms.polygons) g.poly(Array.from(poly), true);
-    if (p.hiddenRooms.polygons.length) g.fill({ color: this.wallColor, alpha: 1 });
-  }
   private readonly wallColor: number;
   private wallKey: { walls: Float64Array | null; width: number; darkness: number } | null = null;
 
@@ -588,14 +581,41 @@ export class VisionRenderer {
 
   /** Contenu d'un observateur : la portée ∪ son disque (placés à chaque mise à jour). */
   private makeViewerContent(): Pixi.Container {
-    const c = new this.pixi.Container();
-    c.addChild(this.rangeSprite());
+    const normal = new this.pixi.Container();
+    normal.addChild(this.rangeSprite());
     const disc = new this.pixi.Sprite(this.discTexture);
     disc.anchor.set(0.5);
     disc.blendMode = 'max';
     disc.label = 'disc';
-    c.addChild(disc);
+    normal.addChild(disc);
+    return this.withFull(normal);
+  }
+
+  /** Contenus doublés d'un aplat blanc (passe de la ligne de vue seule), à basculer ensemble. */
+  private readonly passContents = new Set<{ normal: Pixi.Container; full: Pixi.Sprite }>();
+
+  /** `normal` et un aplat blanc caché, dans un même conteneur. */
+  private withFull(normal: Pixi.Container): Pixi.Container {
+    const c = new this.pixi.Container();
+    normal.label = 'normal';
+    const full = new this.pixi.Sprite(this.pixi.Texture.WHITE);
+    full.label = 'full';
+    full.position.set(-1e6, -1e6);
+    full.width = full.height = 2e6;
+    full.visible = false;
+    c.addChild(normal, full);
+    const entry = { normal, full };
+    this.passContents.add(entry);
+    c.on('destroyed', () => this.passContents.delete(entry));
     return c;
+  }
+
+  /** Passe de la ligne de vue : chaque contenu remplacé par son aplat. */
+  private losPass(on: boolean) {
+    for (const e of this.passContents) {
+      e.normal.visible = !on;
+      e.full.visible = on;
+    }
   }
 
   /**
@@ -619,7 +639,6 @@ export class VisionRenderer {
     if (!picture || cam.width < 1 || cam.height < 1) {
       this.composite.visible = false;
       this.wallLines.visible = false;
-      this.roomFill.visible = false;
       this.shown = false;
       return false;
     }
@@ -705,14 +724,19 @@ export class VisionRenderer {
     if (this.hasFog && fogStale) render(this.fogRoot, this.targets.fog);
     this.hasGlow = picture.showGlow && picture.lights.length > 0;
     if (this.hasGlow && (cameraChanged || lightsChanged)) render(this.glowRoot, this.targets.glow);
-    if (renderRange || viewersChanged || retry) render(this.visRoot, this.targets.vis);
+    if (renderRange || viewersChanged || retry) {
+      render(this.visRoot, this.targets.vis);
+      // Même montage, contenu plein : la ligne de vue seule (où les obstacles cachent)
+      this.losPass(true);
+      render(this.visRoot, this.targets.los);
+      this.losPass(false);
+    }
     this.fogVersion = picture.versions.fog;
     this.lightVersion = picture.versions.lights;
     this.viewerVersion = picture.versions.viewers;
 
     if (this.hasFog) this.renderMist(tc, time, left, top, fogStale);
     this.updateComposite(picture, cam, tc);
-    this.drawHiddenRooms(picture);
     this.drawWalls(picture);
     this.shown = true;
     this.onRender?.(performance.now() - started);
@@ -810,7 +834,7 @@ export class VisionRenderer {
   /** Vu : un nœud masqué par observateur, ou la vue d'en haut sans observateur. */
   private buildVis(p: VisionPicture) {
     const place = (c: Pixi.Container, layer: ViewerLayer | null) => {
-      const disc = c.getChildByLabel('disc') as Pixi.Sprite | null;
+      const disc = c.getChildByLabel('disc', true) as Pixi.Sprite | null;
       if (!disc) return;
       const r = layer?.terms.visionRadius ?? 0;
       disc.visible = r > 0;
@@ -850,7 +874,7 @@ export class VisionRenderer {
         root.addChild(rooms);
         root.setMask({ mask: rooms, inverse: true });
       }
-      body.addChild(this.rangeSprite());
+      body.addChild(this.withFull(this.rangeSprite()));
       root.addChild(body);
       this.visRoot.addChild(root);
       this.topDownNode = { root, key, body };
@@ -941,6 +965,7 @@ export class VisionRenderer {
     u.uFogOn = this.hasFog ? 1 : 0;
     u.uGlowOn = this.hasGlow ? 1 : 0;
     u.uGlowFloor = p.glowFloor;
+    u.uObstacleDark = p.obstacleDarkness;
     this.uniforms.update();
     this.composite.visible = true;
   }
@@ -974,7 +999,6 @@ export class VisionRenderer {
     this.composite.destroy();
     shader?.destroy();
     this.wallLines.destroy();
-    this.roomFill.destroy();
     this.compositeGeometry.destroy();
     const mistMesh = this.mistRoot.children[0] as Pixi.Mesh<Pixi.MeshGeometry, Pixi.Shader>;
     const mistShader = mistMesh.shader;

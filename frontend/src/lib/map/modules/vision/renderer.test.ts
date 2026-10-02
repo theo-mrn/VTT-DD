@@ -115,10 +115,11 @@ describe('rendu de la visibilité (sans WebGL)', () => {
       'vision:fog',
       'vision:glow',
       'vision:vis',
+      'vision:vis',
       'vision:mist',
     ]);
     // Image suivante : textures neuves refaites une fois (un premier rendu peut sortir vide)
-    expect(h.draw()).toContain('vision:vis');
+    expect(h.draw()).toContain('vision:vis', 'vision:vis');
     // Rien de neuf : rien
     expect(h.draw()).toEqual([]);
     // Caméra : tout, à l'échelle de l'écran
@@ -127,22 +128,29 @@ describe('rendu de la visibilité (sans WebGL)', () => {
       'vision:fog',
       'vision:glow',
       'vision:vis',
+      'vision:vis',
       'vision:mist',
     ]);
     // Mon héros bouge : la vue seule
     const heros = h.engine.entity('heros')!;
     h.engine.setPreview(heros, { ...heros.geometry, x: 120 });
-    expect(h.draw()).toEqual(['vision:vis']);
+    expect(h.draw()).toEqual(['vision:vis', 'vision:vis']);
     // Un PNJ bouge : rien à refaire (il est masqué ou montré, pas dessiné ici)
     const orc = h.engine.entity('orc')!;
     h.engine.setPreview(orc, { ...orc.geometry, x: 310 });
     expect(h.draw()).toEqual([]);
     // Une lumière : portée, lueurs, vue ; pas le brouillard
     h.store.getState().upsert('lights', [light('l', 620, 600, { version: 2 })]);
-    expect(h.draw()).toEqual(['vision:range', 'vision:glow', 'vision:vis']);
+    expect(h.draw()).toEqual(['vision:range', 'vision:glow', 'vision:vis', 'vision:vis']);
     // Une zone : portée, brouillard, vue
     h.store.getState().upsert('fogZones', [{ ...fogZone('z', 720, 700), version: 2 }]);
-    expect(h.draw()).toEqual(['vision:range', 'vision:fog', 'vision:vis', 'vision:mist']);
+    expect(h.draw()).toEqual([
+      'vision:range',
+      'vision:fog',
+      'vision:vis',
+      'vision:vis',
+      'vision:mist',
+    ]);
     // La brume dérive (horloge) : sa densité seule
     expect(h.draw({}, 1)).toEqual(['vision:mist']);
   });
@@ -151,7 +159,14 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     const h = harness({
       extra: { lights: [light('l', 600, 600)], fogZones: [fogZone('z', 700, 700)] },
     });
-    const all = ['vision:range', 'vision:fog', 'vision:glow', 'vision:vis', 'vision:mist'];
+    const all = [
+      'vision:range',
+      'vision:fog',
+      'vision:glow',
+      'vision:vis',
+      'vision:vis',
+      'vision:mist',
+    ];
     h.draw();
     // Premier déplacement après le repos : tout, tout de suite
     expect(h.draw({ x: 510 })).toEqual(all);
@@ -181,6 +196,7 @@ describe('rendu de la visibilité (sans WebGL)', () => {
       'vision:fog',
       'vision:glow',
       'vision:vis',
+      'vision:vis',
       'vision:mist',
     ]);
     expect(h.draw()).toEqual([]);
@@ -188,7 +204,7 @@ describe('rendu de la visibilité (sans WebGL)', () => {
 
   it('sans brouillard ni lumière : ni brume ni lueurs', () => {
     const h = harness();
-    expect(h.draw()).toEqual(['vision:range', 'vision:vis']);
+    expect(h.draw()).toEqual(['vision:range', 'vision:vis', 'vision:vis']);
     const u = h.inner.uniforms.uniforms;
     expect(u.uFogOn).toBe(0);
     expect(u.uGlowOn).toBe(0);
@@ -226,9 +242,12 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     expect(erase.bounds).toMatchObject({ minX: 600, minY: 600, maxX: 700, maxY: 700 });
     // Contenu : la portée et le disque, en `max`
     const body = subBox.children[0]!;
+    // Contenu : la portée et le disque (en `max`), et l'aplat de la passe « ligne de vue seule »
     const content = body.children[0]!;
-    expect(content.children.map((c) => c.blendMode)).toEqual(['max', 'max']);
-    const disc = content.getChildByLabel('disc') as PIXI.Sprite;
+    expect(content.children.map((c) => c.label)).toEqual(['normal', 'full']);
+    const normal = content.children[0]!;
+    expect(normal.children.map((c) => c.blendMode)).toEqual(['max', 'max']);
+    const disc = content.getChildByLabel('disc', true) as PIXI.Sprite;
     expect(disc.position).toMatchObject({ x: 100, y: 100 });
     expect(disc.width).toBeCloseTo(200);
   });
@@ -263,8 +282,8 @@ describe('rendu de la visibilité (sans WebGL)', () => {
   it('se détruit sans rien laisser dans le plan', () => {
     const h = harness({ objects: [object('coffre', 300, 90)] });
     h.draw();
-    // L'ombre, les salles cachées et le tracé des murs
-    expect(h.plane.children).toHaveLength(3);
+    // Le tracé des murs, sous la composition (ombre et brume par-dessus)
+    expect(h.plane.children.map((c) => c.label)).toEqual(['vision:walls', 'vision:composite']);
     h.r.destroy();
     expect(h.plane.children).toHaveLength(0);
     h.r.draw(h.state.picture(), { x: 0, y: 0, zoom: 1, width: 10, height: 10 }, 0);

@@ -89,8 +89,10 @@ export interface VisionPicture {
   readonly fogFull: boolean;
   readonly fogZones: readonly FogZone[];
   readonly lights: readonly LightLayer[];
-  /** Opacité de l'obscurité hors de la vue. */
+  /** Opacité de l'obscurité hors de la vue (réglage du MJ), là où aucun obstacle ne cache. */
   readonly darkness: number;
+  /** Obscurité derrière un obstacle ou dans une salle fermée : 1 pour un joueur (MJ : voile). */
+  readonly obstacleDarkness: number;
   readonly fogAlpha: number;
   /** Part des lueurs gardée hors de la vue (MJ : on les voit presque toutes). */
   readonly glowFloor: number;
@@ -533,6 +535,7 @@ export class VisionState {
       fogZones: scene.fogZones ?? [],
       lights,
       darkness: Math.max(0, Math.min(1, shadow)) * (gm ? GM_VEIL : 1),
+      obstacleDarkness: gm ? Math.max(0, Math.min(1, shadow)) * GM_VEIL : 1,
       fogAlpha: FOG_ALPHA * (gm ? GM_VEIL : 1),
       glowFloor: gm ? 1 - GM_VEIL : 0,
       showFog: display.fog !== false,
