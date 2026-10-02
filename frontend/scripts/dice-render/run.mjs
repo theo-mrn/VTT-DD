@@ -30,7 +30,16 @@ await build({
 });
 const html =
   '<!doctype html><html><body style="margin:0;background:#000"><script src="bundle.js"></script></body></html>';
+const repo = join(front, '..');
 const server = createServer(async (req, res) => {
+  // Modèles des cœurs d'orbes : d'origine (legacy) et optimisés (public du front)
+  const model = /^\/(legacy3d|3d)\/([\w-]+\.glb)$/.exec(req.url ?? '');
+  if (model) {
+    const base =
+      model[1] === '3d' ? join(front, 'public', '3d') : join(repo, 'legacy', 'public', '3d');
+    res.end(await readFile(join(base, model[2])));
+    return;
+  }
   if (req.url === '/bundle.js') res.end(await readFile(join(dir, 'bundle.js')));
   else res.end(html);
 }).listen(0, '127.0.0.1');
@@ -47,6 +56,18 @@ await page.goto(`http://127.0.0.1:${server.address().port}/`);
 const resin = process.argv.includes('--resin');
 const compare = process.argv.includes('--compare');
 const rim = process.argv.includes('--rim');
+if (process.argv.includes('--cores')) {
+  const names = ['beholder', 'book', 'butterfly', 'mimique', 'mug', 'potion', 'ring', 'shield'];
+  await page.evaluate(
+    (names) => window.diceBench.cores({ width: 1600, height: 1000, names }),
+    names,
+  );
+  await page.screenshot({ path: out });
+  await browser.close();
+  server.close();
+  console.log(out);
+  process.exit(0);
+}
 await page.evaluate((o) => window.diceBench.render({ width: 1600, height: 1000, ...o }), {
   resin,
   compare,

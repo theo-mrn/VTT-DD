@@ -3,6 +3,8 @@
  * chiffres gravés (`engraving.ts`), rendus en vrai WebGL sous plusieurs angles et matières.
  */
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import {
   ENGRAVING_NORMAL_SCALE,
@@ -34,6 +36,7 @@ declare global {
         compare?: boolean;
         rim?: boolean;
       }): void;
+      cores(o: { width: number; height: number; names: string[] }): Promise<void>;
     };
   }
 }
@@ -50,6 +53,39 @@ const SKINS = [
 ];
 
 window.diceBench = {
+  /** Cœurs d'orbes : modèle d'origine (à gauche) et optimisé (à droite), à la même taille. */
+  async cores({ width, height, names }) {
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    document.body.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#1b1d24');
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 200);
+    camera.position.set(0, 3, 31);
+    camera.lookAt(0, 0, 0);
+    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    for (const [i, name] of names.entries())
+      for (const [k, dir] of ['legacy3d', '3d'].entries()) {
+        const gltf = await loader.loadAsync(`/${dir}/${name}.glb`);
+        const model = gltf.scene;
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3()).length();
+        model.scale.setScalar(2.4 / size);
+        const center = box.getCenter(new THREE.Vector3()).multiplyScalar(2.4 / size);
+        model.position.set(
+          ((i % 4) - 1.5) * 6.2 + (k - 0.5) * 2.6 - center.x,
+          (i < 4 ? 2.3 : -2.3) - center.y,
+          -center.z,
+        );
+        model.rotation.y = 0.5;
+        scene.add(model);
+      }
+    renderer.render(scene, camera);
+  },
   render({ width, height, resin = false, compare = false, rim = false }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
