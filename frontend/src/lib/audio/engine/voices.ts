@@ -88,6 +88,8 @@ const nextId = (prefix: string) => `${prefix}-${++counter}`;
 
 /** Gain au-dessous duquel une voix est considérée muette. */
 const AUDIBLE = 0.001;
+/** Passe-bas grand ouvert : rien n'est coupé dans l'audible. */
+export const OPEN_CUTOFF_HZ = 20_000;
 
 export class MediaVoice implements Voice, Registered {
   readonly id = nextId('media');
@@ -102,6 +104,8 @@ export class MediaVoice implements Voice, Registered {
   /** Absents en mode direct (volume de l'élément). */
   private readonly gain: GainNode | null;
   private readonly panner: StereoPannerNode | null;
+  /** Passe-bas des sons étouffés (zones derrière un mur). */
+  private readonly filter: BiquadFilterNode | null;
   private readonly destination: AudioNode;
   /** Mode direct : gain voulu de la voix (hors mixeur) et fondu en cours. */
   private directGain = 0;
@@ -116,7 +120,7 @@ export class MediaVoice implements Voice, Registered {
     private readonly pool: ElementPool,
     readonly url: string,
     destination: AudioNode,
-    o: { pan?: boolean; loop?: boolean; initialGain?: number } = {},
+    o: { pan?: boolean; muffle?: boolean; loop?: boolean; initialGain?: number } = {},
   ) {
     this.item = pool.acquire(this);
     this.destination = destination;
@@ -125,6 +129,7 @@ export class MediaVoice implements Voice, Registered {
       // Lecture directe : ni nœud ni panoramique, le volume de l'élément fait tout
       this.gain = null;
       this.panner = null;
+      this.filter = null;
       this.directGain = o.initialGain ?? 0;
       this.applyDirect();
     } else {
@@ -133,11 +138,21 @@ export class MediaVoice implements Voice, Registered {
       this.gain.gain.value = o.initialGain ?? 0;
       this.panner = o.pan ? ctx.createStereoPanner() : null;
       if (this.panner) nodeStats.live += 1;
+      this.filter = o.muffle ? ctx.createBiquadFilter() : null;
+      if (this.filter) {
+        nodeStats.live += 1;
+        this.filter.type = 'lowpass';
+        this.filter.frequency.value = OPEN_CUTOFF_HZ;
+      }
+      // source → gain → [passe-bas] → [panoramique] → bus
       this.item.source.connect(this.gain);
-      if (this.panner) {
-        this.gain.connect(this.panner);
-        this.panner.connect(destination);
-      } else this.gain.connect(destination);
+      let tail: AudioNode = this.gain;
+      for (const node of [this.filter, this.panner]) {
+        if (!node) continue;
+        tail.connect(node);
+        tail = node;
+      }
+      tail.connect(destination);
     }
     el.loop = !!o.loop;
     el.playbackRate = 1;
@@ -314,6 +329,14 @@ export class MediaVoice implements Voice, Registered {
     this.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, value)), t, 0.05);
   }
 
+  /** Fréquence de coupure du passe-bas (étouffement), glissée comme le panoramique. */
+  setCutoff(hz: number) {
+    if (!this.filter || this.disposed) return;
+    const t = this.ctx.currentTime;
+    this.filter.frequency.cancelScheduledValues(t);
+    this.filter.frequency.setTargetAtTime(Math.max(20, Math.min(OPEN_CUTOFF_HZ, hz)), t, 0.05);
+  }
+
   dispose(fadeMs = 0) {
     if (this.disposed) return;
     if (this.startTimer) clearTimeout(this.startTimer);
@@ -338,6 +361,10 @@ export class MediaVoice implements Voice, Registered {
       }
       if (this.panner) {
         this.panner.disconnect();
+        nodeStats.live -= 1;
+      }
+      if (this.filter) {
+        this.filter.disconnect();
         nodeStats.live -= 1;
       }
       el.removeAttribute('src');

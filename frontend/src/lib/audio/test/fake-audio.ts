@@ -91,6 +91,15 @@ export class FakeAudioContext {
       release: new FakeParam(),
     });
   }
+  filters: (FakeNode & { type: string; frequency: FakeParam })[] = [];
+  createBiquadFilter() {
+    const f = Object.assign(new FakeNode('filter'), {
+      type: 'lowpass',
+      frequency: new FakeParam(350),
+    });
+    this.filters.push(f);
+    return f;
+  }
   createStereoPanner() {
     return Object.assign(new FakeNode('panner'), { pan: new FakeParam(0) });
   }

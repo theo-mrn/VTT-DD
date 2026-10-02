@@ -5,14 +5,26 @@
  * legacy (`zoneMix`) et joue chaque source en boucle déterministe
  * (`loopPosition` sur l'heure du serveur) : deux joueurs dans la même taverne
  * entendent le même passage. Une voix muette depuis 10 s est libérée.
+ *
+ * Murs (docs/carte.md § 10, Zones sonores) : la carte compte les murs entre
+ * l'auditeur et chaque source ; chacun divise le volume par deux et un passe-bas
+ * étouffe le son.
  */
 import { dbToGain, loopPosition, selectActiveSources, type Point } from '@vtt/contracts/audio-sync';
 import type { EngineHost } from './host';
-import { MediaVoice } from './voices';
+import { MediaVoice, OPEN_CUTOFF_HZ } from './voices';
 
 export const MAX_SPATIAL = 8;
 const RELEASE_AFTER_MS = 10_000;
 const SMOOTH_S = 0.05;
+/** Volume gardé par mur traversé. */
+export const WALL_GAIN = 0.5;
+
+/** Étouffement derrière `walls` murs : volume gardé et coupure du passe-bas. */
+export function muffle(walls: number): { gain: number; cutoffHz: number } {
+  if (!(walls > 0)) return { gain: 1, cutoffHz: OPEN_CUTOFF_HZ };
+  return { gain: WALL_GAIN ** walls, cutoffHz: walls === 1 ? 1_200 : 500 };
+}
 
 export interface ResolvedSource {
   id: string;
@@ -24,6 +36,8 @@ export interface ResolvedSource {
   /** Normalisation de l'asset (0 pour une URL brute). */
   gainDb: number;
   durationMs: number | null;
+  /** Murs entre l'auditeur et la source (0 : son clair). */
+  walls: number;
 }
 
 export class SpatialPlayer {
@@ -55,8 +69,12 @@ export class SpatialPlayer {
   ): string[] {
     const ctx = this.host.context();
     if (!ctx) return [];
+    // Les murs comptent dans le choix des 8 : une source étouffée cède sa place
+    const heard = sources.map((s) =>
+      s.walls > 0 ? { ...s, volume: s.volume * muffle(s.walls).gain } : s,
+    );
     const chosen =
-      enabled && listener ? selectActiveSources(listener, sources, MAX_SPATIAL, this.active) : [];
+      enabled && listener ? selectActiveSources(listener, heard, MAX_SPATIAL, this.active) : [];
     if (chosen.length) this.host.wantSound();
     const playing = this.host.running();
     this.active = new Set(chosen.map((c) => c.source.id));
@@ -71,6 +89,7 @@ export class SpatialPlayer {
         const voice = new MediaVoice(ctx, this.host.pool(), source.url, this.host.bus('zones'), {
           loop: true,
           pan: true,
+          muffle: true,
         });
         voice.label = source.id;
         voice.kind = 'zones';
@@ -85,6 +104,7 @@ export class SpatialPlayer {
       entry.silentSince = null;
       entry.voice.glideGain(gain * dbToGain(source.gainDb), SMOOTH_S);
       entry.voice.setPan(pan);
+      entry.voice.setCutoff(muffle(source.walls).cutoffHz);
     }
     // Sources sorties du lot : silence, puis libération après 10 s
     for (const [id, entry] of this.voices) {

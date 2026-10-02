@@ -11,6 +11,7 @@ import { BufferCache } from './cache';
 import { AudioEngine, IDLE_SUSPEND_MS } from './engine';
 import { AudioGraph, nodeStats } from './graph';
 import { disposeAllVoices } from './registry';
+import { muffle, SpatialPlayer, type ResolvedSource } from './spatial-player';
 import { ElementPool, MediaVoice } from './voices';
 
 vi.mock('../api', () => ({ audioApi: { clock: async () => ({ serverTime: 0 }) } }));
@@ -271,6 +272,48 @@ describe('moteur', () => {
     engine.cues.stopAll();
     expect(engine.cues.list).toEqual([]);
     engine.detachCampaign();
+  });
+});
+
+describe('zones sonores', () => {
+  const zone = (id: string, o: Partial<ResolvedSource> = {}): ResolvedSource => ({
+    id,
+    url: `https://cdn.test/${id}.mp3`,
+    x: 50,
+    y: 0,
+    radius: 100,
+    volume: 1,
+    gainDb: 0,
+    durationMs: 60_000,
+    walls: 0,
+    ...o,
+  });
+
+  it('murs : volume divisé par deux par mur, passe-bas qui se ferme', () => {
+    expect(muffle(0)).toEqual({ gain: 1, cutoffHz: 20_000 });
+    expect(muffle(1)).toEqual({ gain: 0.5, cutoffHz: 1_200 });
+    expect(muffle(3)).toEqual({ gain: 0.125, cutoffHz: 500 });
+  });
+
+  it('une voix par zone entendue : panoramique à droite, étouffée derrière un mur', async () => {
+    disposeAllVoices();
+    const { engine, ctx } = setup();
+    engine.attachCampaign(CAMPAIGN);
+    await engine.unlock();
+    const player = new SpatialPlayer(engine);
+    const ids = player.update({ x: 0, y: 0 }, [zone('clair'), zone('mur', { walls: 1 })], true);
+    expect(ids.sort()).toEqual(['clair', 'mur']);
+    expect(ctx.filters.map((f) => f.frequency.value).sort((a, b) => a - b)).toEqual([
+      1_200, 20_000,
+    ]);
+    // Le mur passe : le son s'éclaircit
+    player.update({ x: 0, y: 0 }, [zone('clair'), zone('mur')], true);
+    expect(ctx.filters.every((f) => f.frequency.value === 20_000)).toBe(true);
+    // Hors de portée : plus rien n'est choisi
+    expect(player.update({ x: 500, y: 0 }, [zone('clair')], true)).toEqual([]);
+    player.dispose();
+    engine.detachCampaign();
+    expect(nodeStats.live).toBe(0);
   });
 });
 

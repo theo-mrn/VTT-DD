@@ -627,6 +627,9 @@ export function useAudioAssets(
     queryFn: async () => (await audioApi.resolve(campaignId, key.split(','))).items,
     enabled: key.length > 0,
     staleTime: 60_000,
+    // Un son tout juste envoyé n'a d'URL qu'une fois analysé par le worker
+    refetchInterval: (query) =>
+      query.state.data?.some((a) => a.status === 'processing') ? 3_000 : false,
   });
   return useMemo(() => Object.fromEntries((q.data ?? []).map((a) => [a.id, a])), [q.data]);
 }
@@ -707,6 +710,8 @@ export interface SpatialSource {
   y: number;
   radius: number;
   volume: number;
+  /** Murs entre l'auditeur et la source : le son est étouffé. */
+  walls?: number;
 }
 
 /** Écart minimal entre deux mises à jour des sons spatiaux (15 Hz). */
@@ -744,6 +749,7 @@ export function useSpatialAudio(
         volume: s.volume * (a?.volume ?? 1),
         gainDb: a?.gainDb ?? 0,
         durationMs: a?.durationMs ?? null,
+        walls: s.walls ?? 0,
       },
     ];
   });
