@@ -160,23 +160,26 @@ uniform vec3 uFogLight;
 
 void main() {
   float vis = texture(uVis, vUV).a;
-  // Derrière un obstacle (hors de la ligne de vue, salle fermée) : uObstacleDark (noir plein pour
-  // un joueur) ; ailleurs hors de vue : l'ombre réglée par le MJ
+  // Hors de portée mais dans la ligne de vue (brouillard) : l'ombre réglée, la brume grise
+  // par-dessus ; derrière un obstacle (hors de la ligne de vue, salle fermée) : uObstacleDark
+  // par-dessus tout, brouillard compris
   float los = texture(uLos, vUV).a;
-  float dark = mix(uObstacleDark, uDarkness * (1.0 - vis), los);
-  // Brouillard d'abord, l'ombre par-dessus (alpha prémultiplié)
-  vec3 rgb = vec3(0.0);
-  float a = 0.0;
+  float range = uDarkness * (1.0 - vis) * los;
+  vec3 rgb = uShadowColor * range;
+  float a = range;
   if (uFogOn > 0.5) {
     float fog = texture(uFog, vUV).a * (1.0 - vis);
     if (fog > 0.001) {
       float density = texture(uMist, vUV).r;
-      a = fog * uFogAlpha * mix(0.72, 1.0, density);
-      rgb = mix(uFogDark, uFogLight, density) * a;
+      float fa = fog * uFogAlpha * mix(0.72, 1.0, density);
+      vec3 fc = mix(uFogDark, uFogLight, density);
+      rgb = fc * fa + rgb * (1.0 - fa);
+      a = fa + a * (1.0 - fa);
     }
   }
-  rgb = uShadowColor * dark + rgb * (1.0 - dark);
-  a = dark + a * (1.0 - dark);
+  float hidden = uObstacleDark * (1.0 - los);
+  rgb = uShadowColor * hidden + rgb * (1.0 - hidden);
+  a = hidden + a * (1.0 - hidden);
   if (uGlowOn > 0.5) {
     vec3 glow = texture(uGlow, vUV).rgb;
     rgb += glow * mix(uGlowFloor, 1.0, vis);
