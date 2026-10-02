@@ -30,7 +30,8 @@ import { Physics, useConvexPolyhedron } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
 import { DiceSkin, getSkinById, CriticalType } from './dice-definitions';
 import * as THREE from 'three';
-import { dieShape, readTop } from './polyhedra';
+import { DIE_TYPES, dieShape, readTop } from './polyhedra';
+import { engravingTexture } from './engraving';
 import { playRoll, startAmbience, ambienceForSkin, playOneShotForSkin, Ambience } from './audio';
 import { Table, visibleHalfExtents, DICE_CAM_HEIGHT, DICE_CAM_FOV } from './scene';
 import { VisualDie } from './visual-die';
@@ -91,6 +92,34 @@ const FrameTicker = ({ intervalMs }: { intervalMs: number }) => {
     const id = window.setInterval(() => invalidate(), intervalMs);
     return () => window.clearInterval(id);
   }, [invalidate, intervalMs]);
+  return null;
+};
+
+/**
+ * Gravures et géométries des six formes, préparées une par une aux moments libres et envoyées
+ * au GPU d'avance : le premier jet d'une forme ne calcule plus sa texture au moment du clic.
+ */
+const ShapeWarmer = () => {
+  const gl = useThree((st) => st.gl);
+  useEffect(() => {
+    let cancelled = false;
+    let i = 0;
+    const idle = (run: () => void) =>
+      typeof window.requestIdleCallback === 'function'
+        ? window.requestIdleCallback(run, { timeout: 2000 })
+        : window.setTimeout(run, 200);
+    const next = () => {
+      if (cancelled || i >= DIE_TYPES.length) return;
+      const type = DIE_TYPES[i++]!;
+      dieShape(type);
+      gl.initTexture(engravingTexture(type));
+      idle(next);
+    };
+    idle(next);
+    return () => {
+      cancelled = true;
+    };
+  }, [gl]);
   return null;
 };
 
@@ -772,6 +801,7 @@ export const DiceThrower = () => {
         style={{ pointerEvents: 'none' }}
       >
         {tickMs > 0 && <FrameTicker intervalMs={tickMs} />}
+        <ShapeWarmer />
         {/* Flat, even lighting: mostly ambient with faint key lights, so
                     no single facet ever catches a face-wide blown highlight. */}
         <ambientLight intensity={1.05} />

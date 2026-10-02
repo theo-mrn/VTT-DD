@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { memo, useEffect, useMemo, type ReactNode } from 'react';
 import { EtatVide } from '@/components/commun/page';
 import { TableAudio } from '@/components/audio/table-audio';
+import { useDicePreferences } from '@/lib/dice-preferences';
+import { prepareDice3D } from '@/lib/dice-throw';
 import { Projection } from '@/components/handouts/projection';
 import { EcranChargement } from '@/components/shell/ecran-chargement';
 import { Button } from '@/components/ui/button';
@@ -139,7 +141,20 @@ function HerosTable({
 }
 
 /** Re-rendu seulement quand la table change (pas à chaque écriture d'une fiche ou d'un panneau). */
+/**
+ * Dés 3D préparés dès l'arrivée à la table (module, shaders, motifs cuits, gravures) : le premier
+ * jet, d'où qu'il vienne (fiche, combat, attaque, panneau des dés), part sans à-coup.
+ */
+function useDicePreheat() {
+  const prefs = useDicePreferences().data;
+  const skin = prefs?.animation3d ? prefs.skinId : null;
+  useEffect(() => {
+    if (skin) prepareDice3D([skin]);
+  }, [skin]);
+}
+
 const Plateau = memo(function Plateau({ table, children }: { table: Table; children: ReactNode }) {
+  useDicePreheat();
   const role: TableRole = table.gm ? 'gm' : table.moi.role;
   const panels = useMemo(() => panelsFor(role), [role]);
   const permis = useMemo(() => new Set(panels.map((p) => p.id)), [panels]);
