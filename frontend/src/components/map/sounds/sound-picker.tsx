@@ -216,8 +216,29 @@ function PickRow({
   );
 }
 
-function kindChips<T>(items: readonly T[], kindOf: (x: T) => AssetKind) {
-  return [
+/** Hors catalogue (fichiers envoyés) : leur propre catégorie. */
+const UPLOADS = 'uploads';
+
+/**
+ * Filtres d'une liste de sons : le type, puis la catégorie (celles du catalogue : créatures,
+ * combat, magie, pas, portes…) parmi les sons de ce type, dès qu'il y en a deux.
+ */
+function useSoundFilters<T>(
+  items: readonly T[],
+  kindOf: (x: T) => AssetKind,
+  categoryOf: (x: T) => string,
+  labelOf: (category: string) => string,
+) {
+  const [kind, setKindState] = useState('all');
+  const [category, setCategory] = useState('all');
+  const setKind = (k: string) => {
+    setKindState(k);
+    setCategory('all');
+  };
+  const ofKind = items.filter((x) => kind === 'all' || kindOf(x) === kind);
+  const counts = new Map<string, number>();
+  for (const x of ofKind) counts.set(categoryOf(x), (counts.get(categoryOf(x)) ?? 0) + 1);
+  const kindChips = [
     { value: 'all', label: 'Tous', count: items.length },
     ...KINDS.map((k) => ({
       value: k,
@@ -225,7 +246,36 @@ function kindChips<T>(items: readonly T[], kindOf: (x: T) => AssetKind) {
       count: items.filter((x) => kindOf(x) === k).length,
     })).filter((c) => c.count > 0),
   ];
+  const categoryChips =
+    counts.size > 1
+      ? [
+          { value: 'all', label: 'Toutes', count: ofKind.length },
+          ...[...counts]
+            .map(([value, count]) => ({ value, label: labelOf(value), count }))
+            .sort(
+              (a, b) =>
+                Number(a.value === UPLOADS) - Number(b.value === UPLOADS) ||
+                a.label.localeCompare(b.label, 'fr'),
+            ),
+        ]
+      : null;
+  const active = categoryChips && counts.has(category) ? category : 'all';
+  return {
+    keep: (x: T) =>
+      (kind === 'all' || kindOf(x) === kind) && (active === 'all' || categoryOf(x) === active),
+    chips: (
+      <>
+        <Chips label="Type" value={kind} onChange={setKind} options={kindChips} />
+        {categoryChips && (
+          <Chips label="Catégorie" value={active} onChange={setCategory} options={categoryChips} />
+        )}
+      </>
+    ),
+  };
 }
+
+/** Catégorie d'un son du catalogue d'après son id (`bibliothèque.catégorie.nom`). */
+const catalogCategory = (catalogId: string | null) => catalogId?.split('.')[1] ?? UPLOADS;
 
 function MineList({
   library,
@@ -238,18 +288,26 @@ function MineList({
   value: string | null;
   onPick(a: Asset): void;
 }) {
+  const { campagne } = useTable();
+  const catalog = useAudioCatalog(campagne.system);
   const [query, setQuery] = useState('');
-  const [kind, setKind] = useState('all');
   const sounds = useMemo(() => zoneSounds(library.assets), [library.assets]);
-  const items = useMemo(() => {
-    const q = plain(query.trim());
-    return sounds
-      .filter((a) => (kind === 'all' || a.kind === kind) && (!q || plain(a.name).includes(q)))
-      .sort(
-        (a, b) =>
-          KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.name.localeCompare(b.name, 'fr'),
-      );
-  }, [sounds, query, kind]);
+  const labels = useMemo(
+    () => new Map(catalog.categories.map((c) => [c.id, c.label])),
+    [catalog.categories],
+  );
+  const filters = useSoundFilters(
+    sounds,
+    (a) => a.kind,
+    (a) => catalogCategory(a.catalogId),
+    (c) => (c === UPLOADS ? 'Mes envois' : (labels.get(c) ?? c)),
+  );
+  const q = plain(query.trim());
+  const items = sounds
+    .filter((a) => filters.keep(a) && (!q || plain(a.name).includes(q)))
+    .sort(
+      (a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.name.localeCompare(b.name, 'fr'),
+    );
 
   return (
     <div className="space-y-2 pt-1">
@@ -260,12 +318,7 @@ function MineList({
         label="Rechercher dans mes sons"
         className="sm:w-full"
       />
-      <Chips
-        label="Type"
-        value={kind}
-        onChange={setKind}
-        options={kindChips(sounds, (a) => a.kind)}
-      />
+      {filters.chips}
       {library.loading ? (
         <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
       ) : items.length === 0 ? (
@@ -310,7 +363,6 @@ function CatalogList({
 }) {
   const catalog = useAudioCatalog(systemId);
   const [query, setQuery] = useState('');
-  const [kind, setKind] = useState('all');
   const [busy, setBusy] = useState<string | null>(null);
   const labels = useMemo(
     () => new Map(catalog.categories.map((c) => [c.id, c.label])),
@@ -320,15 +372,18 @@ function CatalogList({
     () => new Map(library.assets.filter((a) => a.catalogId).map((a) => [a.catalogId!, a])),
     [library.assets],
   );
-  const items = useMemo(() => {
-    const q = plain(query.trim());
-    return catalog.items
-      .filter((e) => (kind === 'all' || e.kind === kind) && (!q || plain(e.name).includes(q)))
-      .sort(
-        (a, b) =>
-          KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.name.localeCompare(b.name, 'fr'),
-      );
-  }, [catalog.items, query, kind]);
+  const filters = useSoundFilters(
+    catalog.items,
+    (e) => e.kind,
+    (e) => e.category,
+    (c) => labels.get(c) ?? c,
+  );
+  const q = plain(query.trim());
+  const items = catalog.items
+    .filter((e) => filters.keep(e) && (!q || plain(e.name).includes(q)))
+    .sort(
+      (a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.name.localeCompare(b.name, 'fr'),
+    );
 
   async function pick(e: CatalogEntry) {
     setBusy(e.id);
@@ -350,12 +405,7 @@ function CatalogList({
         label="Rechercher un son fourni"
         className="sm:w-full"
       />
-      <Chips
-        label="Type"
-        value={kind}
-        onChange={setKind}
-        options={kindChips(catalog.items, (e) => e.kind)}
-      />
+      {filters.chips}
       {catalog.loading ? (
         <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
       ) : (
