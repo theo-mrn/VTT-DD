@@ -1027,13 +1027,9 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
     (§ 9).
 - **Fenêtre** (4), **mur à sens unique** (5) : mêmes gestes que le mur. La flèche, au milieu de
   chaque segment, montre le sens où l'on voit. Menu : « Inverser le sens ».
-- **Pièce** (6).
-  - Rectangle glissé, ou polygone clic à clic (premier point, double clic ou Entrée pour finir).
-  - « Poser aussi les murs » (activé par défaut) : murs soudés sur le contour, et aux murs
-    existants, en une commande.
-  - « Créer une pièce » sur une boucle de murs fermée sélectionnée (les bouts pendants sont
-    ignorés ; plusieurs boucles : refusé). « Poser les murs du contour » sur une pièce.
-- **Édition** (7).
+- **Pièce** : plus d'outil dédié ; une salle est détectée de toute boucle de murs (le rectangle de
+  murs en pose une). Les pièces posées avant restent.
+- **Édition** (6).
   - Glisser un sommet : les sommets soudés (murs et pièces) bougent ensemble ; Alt + glisser le
     détache. Glisser un mur : il se déplace et ses voisins soudés s'étirent (Alt : il s'en
     détache). Flèches : une case (⇧ : cinq), voisins étirés.

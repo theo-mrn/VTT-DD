@@ -251,10 +251,13 @@ describe('outil obstacles : autres modes', () => {
     expect(b.walls()).toHaveLength(0);
   });
 
-  it('les chiffres 1 à 7 changent de sous-mode', () => {
+  it('les chiffres 1 à 6 changent de sous-mode (plus d’outil Pièce)', () => {
     const b = bench();
     b.engine.controller.keyDown(b.key('3', { code: 'Digit3' }));
     expect(b.tool.mode).toBe('door');
+    b.engine.controller.keyDown(b.key('6', { code: 'Digit6' }));
+    expect(b.tool.mode).toBe('edit');
+    // 7 : plus rien
     b.engine.controller.keyDown(b.key('7', { code: 'Digit7' }));
     expect(b.tool.mode).toBe('edit');
   });

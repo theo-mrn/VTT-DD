@@ -2,7 +2,8 @@
  * Outil obstacles (W) (docs/carte.md § 10) : une machine à états, testée sans rendu.
  *
  * Sous-modes (barre contextuelle, chiffres 1 à 7) : Mur, Rectangle de murs, Porte, Fenêtre,
- * Sens unique, Pièce, Édition.
+ * Sens unique, Édition. Les salles sont détectées des murs : plus d'outil « Pièce » (le
+ * rectangle de murs en fait une).
  *
  * | État       | Entrée                                               | Sortie                                         |
  * | ---------- | ---------------------------------------------------- | ---------------------------------------------- |
@@ -108,11 +109,10 @@ export const OBSTACLE_MODES: readonly ObstacleModeInfo[] = [
     key: '5',
     hint: 'Comme un mur. La flèche montre le sens où l’on voit (menu : Inverser le sens).',
   },
-  { id: 'room', label: 'Pièce', key: '6', hint: 'Glisser : rectangle. Clic à clic : polygone.' },
   {
     id: 'edit',
     label: 'Édition',
-    key: '7',
+    key: '6',
     hint: 'Glisser un sommet (Alt : le détacher). Double clic : ajouter un sommet. Suppr : supprimer.',
   },
 ];
@@ -460,9 +460,10 @@ export class ObstacleTool implements Tool {
 
   key(k: MapKey, engine: MapEngine): boolean {
     if (k.ctrl || k.meta) return false;
-    const digit = /^(?:Digit|Numpad)([1-7])$/.exec(k.code);
-    if (digit && !k.alt && !k.shift) {
-      this.setMode(OBSTACLE_MODES[Number(digit[1]) - 1]!.id);
+    const digit = /^(?:Digit|Numpad)([1-9])$/.exec(k.code);
+    const pick = digit ? OBSTACLE_MODES[Number(digit[1]) - 1] : undefined;
+    if (pick && !k.alt && !k.shift) {
+      this.setMode(pick.id);
       return true;
     }
     if (k.alt) return false;
