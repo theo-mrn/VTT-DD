@@ -769,12 +769,6 @@ export const DiceThrower = () => {
         // chiffres et le doré
         dpr={glSettings.economy || rolling ? 1 : [1, 1.25]}
         frameloop={animating ? 'always' : 'demand'}
-        onCreated={({ gl }) => {
-          // Dés orbes (verre à transmission) : la passe de transmission
-          // rend toute la scène dans une texture à chaque image ; à demi
-          // résolution (un quart en économie), invisible derrière le verre.
-          gl.transmissionResolutionScale = glSettings.economy ? 0.25 : 0.5;
-        }}
         style={{ pointerEvents: 'none' }}
       >
         {tickMs > 0 && <FrameTicker intervalMs={tickMs} />}

@@ -15,7 +15,6 @@ import { VisualDie } from './visual-die';
 import { getSkinById } from './dice-definitions';
 import { DICE_ENVIRONMENT } from './environment';
 import { useDiceThrowStore } from '@/lib/dice-throw';
-import { prefersEconomy } from '@/lib/perf/device';
 
 /**
  * Dé qui tourne lentement sur lui-même. Le canevas est en `demand` : chaque
@@ -90,10 +89,6 @@ export function DicePreview({
         gl={{ alpha: true, antialias: true, powerPreference: 'default', stencil: false }}
         dpr={[1, 1.25]}
         frameloop={active ? 'demand' : 'never'}
-        onCreated={({ gl }) => {
-          // Orbes : passe de transmission à demi résolution (un quart en économie)
-          gl.transmissionResolutionScale = prefersEconomy() ? 0.25 : 0.5;
-        }}
       >
         <Resume active={active} />
         <ambientLight intensity={0.9} />

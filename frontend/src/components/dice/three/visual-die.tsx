@@ -34,6 +34,17 @@ const rimEmissive = (skin: DiceSkin) => {
   return emissive;
 };
 
+/**
+ * Halo dans le shader du dé (lueur de Fresnel sur ses bords) : la couleur du halo et sa lueur,
+ * à la place du second dé transparent qui l'entourait (deux dessins par dé).
+ */
+export const rimShaderColor = (skin: DiceSkin) =>
+  new THREE.Color(skin.rimLightColor)
+    .multiplyScalar(RIM_TINT)
+    .add(rimEmissive(skin).multiplyScalar(RIM_GLOW));
+const RIM_TINT = 0.3;
+const RIM_GLOW = 0.45;
+
 /** Lueur de l'encre : pigment sur un dé éclairé, lumineuse sur un dé sans éclairage ou en verre. */
 const inkGlow = (skin: DiceSkin) => (skin.effectType === 'orb' ? 1 : isVoidSkin(skin) ? 0.9 : 0.12);
 
@@ -91,15 +102,20 @@ export const VisualDie = React.forwardRef(
     );
     const glow = inkGlow(skin);
     const ink = skin.effectType === 'orb' ? '#ffffff' : skin.textColor;
+    const orb = skin.effectType === 'orb';
+    const rim = skin.rimLight && !simple && !orb ? rimShaderColor(skin) : undefined;
     const engraving = useMemo<EngravingProps | undefined>(
       () =>
         faceSymbols
           ? undefined
           : {
               map: engravingTexture(shape.type),
-              ink: inkUniforms(ink, glow, skin.shadowColor),
+              ink: inkUniforms(ink, glow, skin.shadowColor, {
+                ...(rim ? { rim } : {}),
+                glass: orb,
+              }),
             },
-      [faceSymbols, shape.type, ink, glow, skin.shadowColor],
+      [faceSymbols, shape.type, ink, glow, skin.shadowColor, rim?.getHexString(), orb],
     );
 
     // Chiffre retenu : doré, en fondu ; un nouveau chiffre (dé bousculé) repart de zéro
@@ -201,8 +217,9 @@ export const VisualDie = React.forwardRef(
               <TexturedMaterial skin={skin} {...(engraving ? { engraving } : {})} />
             </mesh>
 
-            {/* Rim lighting effect (+ the inner glow, as emissive) */}
-            {!simple && skin.rimLight && (
+            {/* Halo des dés à symboles (sans gravure) : second dé transparent autour ; les
+                autres l'ont dans leur shader (`rimShaderColor`) */}
+            {!simple && skin.rimLight && !engraving && (
               <mesh geometry={geometry} scale={[1.02, 1.02, 1.02]}>
                 <meshStandardMaterial
                   color={skin.rimLightColor}

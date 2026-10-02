@@ -14,6 +14,7 @@ import {
 import { DIE_TYPES, dieShape } from '@/components/dice/three/polyhedra';
 import { DICE_SKINS } from '@/components/dice/three/dice-definitions';
 import { bakeResin, injectResin } from '@/components/dice/three/materials/resin-material';
+import { rimShaderColor } from '@/components/dice/three/visual-die';
 import {
   bakedCompile,
   bakeProcedural,
@@ -26,7 +27,13 @@ import {
 declare global {
   interface Window {
     diceBench: {
-      render(o: { width: number; height: number; resin?: boolean; compare?: boolean }): void;
+      render(o: {
+        width: number;
+        height: number;
+        resin?: boolean;
+        compare?: boolean;
+        rim?: boolean;
+      }): void;
     };
   }
 }
@@ -43,7 +50,7 @@ const SKINS = [
 ];
 
 window.diceBench = {
-  render({ width, height, resin = false, compare = false }) {
+  render({ width, height, resin = false, compare = false, rim = false }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -60,6 +67,140 @@ window.diceBench = {
     const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 200);
     camera.position.set(0, 26, 16);
     camera.lookAt(0, 0, 0);
+
+    if (rim) {
+      // Halo : avant (second dé transparent autour) / après (Fresnel dans le shader) ; dernière
+      // rangée : orbe, verre à transmission / verre simulé
+      const skins = Object.values(DICE_SKINS)
+        .filter((k) => k.rimLight && !k.textureMap && !k.resin && k.effectType !== 'orb')
+        .slice(0, 9);
+      const shape = dieShape('d20');
+      const body = (skin: (typeof skins)[number], withRim: boolean) => {
+        const s = materialSettings(skin);
+        const mat = s.physical
+          ? new THREE.MeshPhysicalMaterial({
+              ...s.props,
+              clearcoat: s.clearcoat,
+              clearcoatRoughness: s.clearcoatRoughness,
+            })
+          : new THREE.MeshStandardMaterial(s.props);
+        mat.normalMap = engravingTexture('d20');
+        mat.normalScale = ENGRAVING_NORMAL_SCALE;
+        const engraving = {
+          map: engravingTexture('d20'),
+          ink: inkUniforms(
+            skin.textColor,
+            0.12,
+            skin.shadowColor,
+            withRim ? { rim: rimShaderColor(skin) } : {},
+          ),
+        };
+        const baked = isBakedSkin(skin);
+        mat.customProgramCacheKey = () =>
+          baked ? 'proc-baked' : `proc-style-${resolveStyleId(skin)}`;
+        if (baked) mat.onBeforeCompile = bakedCompile(bakeProcedural(renderer, skin), engraving);
+        else {
+          const u = {
+            uTime: { value: 0 },
+            uAccent: { value: new THREE.Color(skin.edgeColor) },
+            uDeep: { value: new THREE.Color(skin.bodyColor).multiplyScalar(0.45) },
+            uSeed: { value: 0.3 },
+            uFlash1: { value: 0 },
+            uFlash2: { value: 0 },
+            uSeed1: { value: 0 },
+            uSeed2: { value: 0 },
+            uSurge: { value: 0 },
+          };
+          mat.onBeforeCompile = liveCompile(resolveStyleId(skin), u, engraving);
+        }
+        return mat;
+      };
+      camera.position.set(0, 46, 0.01);
+      camera.lookAt(0, 0, 0);
+      const place = (m: THREE.Object3D, i: number, k: number) => {
+        const col = i % 4;
+        const row = Math.floor(i / 4);
+        m.position.set((col - 1.5) * 8.2 + (k - 0.5) * 3.8, 0, (row - 1.5) * 4.6);
+        m.quaternion.setFromUnitVectors(shape.faces[0]!.norm, new THREE.Vector3(0, 1, 0));
+        m.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), 0.5);
+        scene.add(m);
+      };
+      skins.forEach((skin, i) => {
+        // Avant : corps + second dé transparent (BackSide, 1,02), comme l'ancien VisualDie
+        const before = new THREE.Group();
+        before.add(new THREE.Mesh(shape.geometry, body(skin, false)));
+        const rimC = new THREE.Color(skin.rimLightColor);
+        const emissive = rimC.clone().multiplyScalar(0.5);
+        if (skin.innerGlow && skin.innerGlowIntensity > 0)
+          emissive.add(
+            new THREE.Color(skin.innerGlowColor)
+              .multiply(rimC)
+              .multiplyScalar(skin.innerGlowIntensity / Math.PI),
+          );
+        const shell = new THREE.Mesh(
+          shape.geometry,
+          new THREE.MeshStandardMaterial({
+            color: skin.rimLightColor,
+            emissive,
+            metalness: 0,
+            roughness: 1,
+            transparent: true,
+            opacity: 0.25,
+            side: THREE.BackSide,
+          }),
+        );
+        shell.scale.setScalar(1.02);
+        before.add(shell);
+        place(before, i, 0);
+        place(new THREE.Mesh(shape.geometry, body(skin, true)), i, 1);
+      });
+      // Orbe : cœur lumineux dans une coque, transmission (avant) / verre simulé (après)
+      const orb = Object.values(DICE_SKINS).find((k) => k.effectType === 'orb')!;
+      [false, true].forEach((simulated, k) => {
+        const g = new THREE.Group();
+        g.add(
+          new THREE.Mesh(
+            new THREE.SphereGeometry(0.6, 32, 16),
+            new THREE.MeshBasicMaterial({ color: orb.coreColor ?? orb.edgeColor }),
+          ),
+        );
+        const shellMat = simulated
+          ? new THREE.MeshPhysicalMaterial({
+              color: new THREE.Color(orb.shellColor ?? orb.bodyColor).multiplyScalar(0.45),
+              roughness: 0.06,
+              clearcoat: 1,
+              clearcoatRoughness: 0.04,
+              transparent: true,
+              opacity: (orb.shellOpacity ?? 0.25) * 0.6,
+              depthWrite: false,
+              normalMap: engravingTexture('d20'),
+              normalScale: ENGRAVING_NORMAL_SCALE,
+            })
+          : new THREE.MeshPhysicalMaterial({
+              color: orb.shellColor ?? orb.bodyColor,
+              roughness: 0.08,
+              transmission: 1,
+              thickness: orb.shellThickness ?? 1.8,
+              ior: 1.45,
+              attenuationColor: orb.shellColor ?? orb.bodyColor,
+              attenuationDistance: orb.shellTintDistance ?? 2.5,
+              clearcoat: 1,
+              clearcoatRoughness: 0.04,
+              transparent: true,
+              depthWrite: false,
+              normalMap: engravingTexture('d20'),
+              normalScale: ENGRAVING_NORMAL_SCALE,
+            });
+        const ink = inkUniforms('#ffffff', 1, '#000000', { glass: simulated });
+        shellMat.onBeforeCompile = (shader) => injectInk(shader, ink);
+        const shellMesh = new THREE.Mesh(shape.geometry, shellMat);
+        shellMesh.renderOrder = 10;
+        g.add(shellMesh);
+        place(g, skins.length + (skins.length % 4 ? 4 - (skins.length % 4) : 0), k);
+      });
+      renderer.render(scene, camera);
+      return;
+    }
 
     if (compare) {
       // Avant (motif calculé en direct, sans vernis) / après (motif cuit, vernis des marbres)

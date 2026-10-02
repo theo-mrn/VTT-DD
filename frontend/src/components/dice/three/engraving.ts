@@ -183,6 +183,8 @@ export const HIGHLIGHT_COLOR = '#ffbf33';
 const RING_LOD = 1.6;
 const RING_GLOW_LIGHT = 0.25;
 const RING_GLOW_DARK = 1.3;
+/** Netteté du halo (plus grand : halo plus serré sur les bords). */
+const RIM_POWER = 3.6;
 /** Bordure des chiffres : niveau flou lu (largeur) et opacité. */
 const EDGE_LOD = 1.6;
 const EDGE_STRENGTH = 0.8;
@@ -200,9 +202,20 @@ export interface InkUniforms {
   uHiAmount: { value: number };
   /** Bordure sombre autour des chiffres : lisibles sur les motifs chargés. */
   uOutlineColor: { value: THREE.Color };
+  /** Halo du dé (lueur de Fresnel sur ses bords) ; noir : aucun. */
+  uRimColor: { value: THREE.Color };
+  /** Verre simulé (orbes) : transparent au centre, plus opaque et reflétant sur les bords. */
+  uGlass: { value: number };
 }
 
-export const inkUniforms = (color: string, glow: number, outline = '#000000'): InkUniforms => ({
+export const inkUniforms = (
+  color: string,
+  glow: number,
+  outline = '#000000',
+  o: { rim?: THREE.Color; glass?: boolean } = {},
+): InkUniforms => ({
+  uRimColor: { value: o.rim?.clone() ?? new THREE.Color(0, 0, 0) },
+  uGlass: { value: o.glass ? 1 : 0 },
   uInkColor: { value: new THREE.Color(color) },
   uOutlineColor: { value: new THREE.Color(outline) },
   uInkGlow: { value: glow },
@@ -261,6 +274,8 @@ export function injectInk(shader: THREE.WebGLProgramParametersWithUniforms, u: I
   shader.uniforms.uHiRects = u.uHiRects;
   shader.uniforms.uHiAmount = u.uHiAmount;
   shader.uniforms.uOutlineColor = u.uOutlineColor;
+  shader.uniforms.uRimColor = u.uRimColor;
+  shader.uniforms.uGlass = u.uGlass;
   shader.uniforms.uHiColor = { value: new THREE.Color(HIGHLIGHT_COLOR) };
   shader.fragmentShader = shader.fragmentShader
     .replace(
@@ -271,7 +286,9 @@ uniform float uInkGlow;
 uniform vec4 uHiRects[3];
 uniform float uHiAmount;
 uniform vec3 uHiColor;
-uniform vec3 uOutlineColor;`,
+uniform vec3 uOutlineColor;
+uniform vec3 uRimColor;
+uniform float uGlass;`,
     )
     .replace(
       '#include <roughnessmap_fragment>',
@@ -316,6 +333,10 @@ metalnessFactor = mix( metalnessFactor, 0.0, max( inkMask, inkRing ) );`,
       `#include <aomap_fragment>
 totalEmissiveRadiance *= 1.0 - inkEdge;
 totalEmissiveRadiance = mix( totalEmissiveRadiance, ringColor * mix( ${RING_GLOW_LIGHT.toFixed(2)}, ${RING_GLOW_DARK.toFixed(2)}, inkDark ), inkRing );
-totalEmissiveRadiance = mix( totalEmissiveRadiance, inkColor * uInkGlow, inkMask );`,
+totalEmissiveRadiance = mix( totalEmissiveRadiance, inkColor * uInkGlow, inkMask );
+// Bords du dé vus de biais (Fresnel) : halo, et opacité du verre simulé
+float rimFresnel = 1.0 - saturate( dot( normal, normalize( vViewPosition ) ) );
+totalEmissiveRadiance += uRimColor * pow( rimFresnel, ${RIM_POWER.toFixed(2)} ) * ( 1.0 - inkMask );
+if ( uGlass > 0.5 ) diffuseColor.a = max( mix( diffuseColor.a, 0.92, pow( rimFresnel, 2.2 ) ), inkMask );`,
     );
 }

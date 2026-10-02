@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
-import { ENGRAVING_NORMAL_SCALE, injectInk } from './engraving';
+import { ENGRAVING_NORMAL_SCALE, injectInk, inkUniforms } from './engraving';
 import type { EngravingProps } from './materials/procedural-material';
 import { SkeletonUtils } from 'three-stdlib';
 import { DiceSkin } from './dice-definitions';
@@ -11,11 +11,13 @@ import { DiceSkin } from './dice-definitions';
 // ORB DICE — transparent glass shell + billboarded core element
 // ============================================================================
 
-// Transparent glassy shell that rolls with the die body.
-// IMPORTANT: the VTT canvas is transparent (alpha:true) — there is no opaque
-// background to sample, so FBO-based MeshTransmissionMaterial renders as an
-// opaque blob. meshPhysicalMaterial's transmission works WITHOUT an FBO and
-// gives reliable glass on a transparent canvas, lit by <Environment city>.
+// Transparent glassy shell that rolls with the die body. Verre SIMULÉ : transparent au centre,
+// plus opaque et reflétant sur les bords (Fresnel, `engraving.ts`), sous un vernis. La vraie
+// transmission rendait toute la scène une seconde fois à chaque image pour une légère réfraction.
+const GLASS_INK = inkUniforms('#ffffff', 1, '#000000', { glass: true });
+/** Teinte du verre simulé (part de la couleur de la coque) et transparence de son centre. */
+const GLASS_TINT = 0.45;
+const GLASS_CENTER = 0.6;
 export const OrbShell = ({
   skin,
   geometry,
@@ -27,37 +29,31 @@ export const OrbShell = ({
   engraving?: EngravingProps;
 }) => {
   const shellColor = skin.shellColor || skin.bodyColor;
-  // Higher attenuationDistance + lower thickness => less tint, clearer core.
-  const tintDistance = skin.shellTintDistance ?? 2.5;
-  const thickness = skin.shellThickness ?? 1.8;
+  // Verre teinté sombre, comme celui de la transmission (sa couleur assombrie par l'épaisseur)
+  const glassColor = useMemo(
+    () => new THREE.Color(shellColor).multiplyScalar(GLASS_TINT),
+    [shellColor],
+  );
+  const ink = engraving?.ink ?? GLASS_INK;
 
   return (
     <group>
       {/* Colored glass body */}
       <mesh geometry={geometry} renderOrder={10}>
         <meshPhysicalMaterial
-          color={shellColor}
+          color={glassColor}
           metalness={0}
-          roughness={0.08}
-          transmission={1}
-          thickness={thickness}
-          ior={1.45}
-          attenuationColor={shellColor}
-          attenuationDistance={tintDistance}
+          roughness={0.06}
           clearcoat={1}
           clearcoatRoughness={0.04}
           envMapIntensity={skin.envMapIntensity}
           transparent
-          opacity={1}
+          opacity={(skin.shellOpacity ?? 0.25) * GLASS_CENTER}
           depthWrite={false}
-          {...(engraving
-            ? {
-                normalMap: engraving.map,
-                normalScale: ENGRAVING_NORMAL_SCALE,
-                onBeforeCompile: (shader: THREE.WebGLProgramParametersWithUniforms) =>
-                  injectInk(shader, engraving.ink),
-              }
-            : {})}
+          onBeforeCompile={(shader: THREE.WebGLProgramParametersWithUniforms) =>
+            injectInk(shader, ink)
+          }
+          {...(engraving ? { normalMap: engraving.map, normalScale: ENGRAVING_NORMAL_SCALE } : {})}
         />
       </mesh>
     </group>
