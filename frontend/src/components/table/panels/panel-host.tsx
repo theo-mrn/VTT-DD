@@ -163,9 +163,11 @@ function PanelFrame({ panel, visible }: { panel: TablePanel; visible: boolean })
           <h2 id={titreId} className="min-w-0 flex-1 truncate text-[15px] font-semibold">
             {panel.label}
           </h2>
-          <Kbd className="hidden lg:inline-flex" aria-hidden>
-            {panel.shortcut.label}
-          </Kbd>
+          {panel.shortcut && (
+            <Kbd className="hidden lg:inline-flex" aria-hidden>
+              {panel.shortcut.label}
+            </Kbd>
+          )}
           <Info
             texte={
               <span className="flex items-center gap-2">

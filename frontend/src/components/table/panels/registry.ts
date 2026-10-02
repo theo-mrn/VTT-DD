@@ -1,6 +1,7 @@
 import {
   Dices,
   History,
+  Images,
   Library,
   MapPinned,
   MessagesSquare,
@@ -51,7 +52,8 @@ export interface PanelDefinition {
   /** Phrase courte des infobulles et de la personnalisation du rail. */
   description: string;
   icon: LucideIcon;
-  shortcut: PanelShortcut;
+  /** Touche du panneau ; absente quand toutes les lettres sont prises (carte et panneaux). */
+  shortcut?: PanelShortcut;
   width: PanelWidth;
   mode: PanelMode;
   /** Rôles qui voient ce panneau. */
@@ -108,6 +110,22 @@ export const panelRegistry = [
     roles: ALL_ROLES,
     activity: ['note.created'],
     component: lazy(() => import('../onglets/notes').then((m) => ({ default: m.OngletNotes }))),
+  },
+  {
+    id: 'documents',
+    label: 'Documents',
+    description: 'Images et vidéos montrées à la table : projetées ou envoyées par le MJ',
+    icon: Images,
+    // Toutes les lettres sont prises (carte et panneaux) : ouvert depuis le rail
+    width: 'medium',
+    mode: 'side',
+    roles: ALL_ROLES,
+    activity: ['handout.shared'],
+    component: lazy(() =>
+      import('@/components/handouts/documents-panel').then((m) => ({
+        default: m.DocumentsPanel,
+      })),
+    ),
   },
   {
     id: 'joueurs',

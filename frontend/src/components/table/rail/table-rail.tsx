@@ -92,7 +92,7 @@ function RailButton({ panel, variante }: { panel: TablePanel; variante: 'rail' |
       onClick={() => toggle(panel.id)}
       aria-expanded={actif}
       aria-controls={monte ? panelDomId(panel.id) : undefined}
-      aria-keyshortcuts={panel.shortcut.label}
+      aria-keyshortcuts={panel.shortcut?.label}
       aria-label={`${panel.label}${nouveautes}`}
       className={cn(
         'relative isolate flex shrink-0 items-center justify-center transition-[color,background-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 active:scale-95',
@@ -122,7 +122,7 @@ function RailButton({ panel, variante }: { panel: TablePanel; variante: 'rail' |
       texte={
         <span className="flex items-center gap-2">
           {panel.label}
-          <Kbd>{panel.shortcut.label}</Kbd>
+          {panel.shortcut && <Kbd>{panel.shortcut.label}</Kbd>}
         </span>
       }
     >
@@ -231,7 +231,7 @@ function LigneCustomizer({
       <span className={cn('min-w-0 flex-1 truncate text-sm', hidden && 'text-subtle line-through')}>
         {panel.label}
       </span>
-      <Kbd aria-hidden>{panel.shortcut.label}</Kbd>
+      {panel.shortcut && <Kbd aria-hidden>{panel.shortcut.label}</Kbd>}
       <Button
         variant="ghost"
         size="icon-xs"

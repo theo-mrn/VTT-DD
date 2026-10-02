@@ -5,7 +5,7 @@ describe('registre des panneaux', () => {
   it('plus de panneau Combat : le MJ mène le combat depuis sa barre', () => {
     expect(panelsFor('gm').some((p) => (p.id as string) === 'combat')).toBe(false);
     // La touche M ouvre désormais les Rencontres
-    expect(panelsFor('gm').find((p) => p.shortcut.code === 'KeyM')?.id).toBe('rencontres');
+    expect(panelsFor('gm').find((p) => p.shortcut?.code === 'KeyM')?.id).toBe('rencontres');
     expect(panelsFor('player').some((p) => p.id === 'rencontres')).toBe(false);
   });
 

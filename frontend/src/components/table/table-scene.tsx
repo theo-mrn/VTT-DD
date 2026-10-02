@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { memo, useEffect, useMemo, type ReactNode } from 'react';
 import { EtatVide } from '@/components/commun/page';
 import { TableAudio } from '@/components/audio/table-audio';
+import { Projection } from '@/components/handouts/projection';
 import { EcranChargement } from '@/components/shell/ecran-chargement';
 import { Button } from '@/components/ui/button';
 import { ApiError, messageErreur } from '@/lib/api';
@@ -179,6 +180,8 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
       <PanelHost panels={panels} />
       {/* Son de la campagne : canaux synchronisés, effets, mixeur, bandeau d'activation */}
       <TableAudio campaignId={table.campagne.id} gm={table.gm} />
+      {/* Document projeté par le MJ : plein écran au-dessus de tout (docs/projection.md) */}
+      <Projection campaignId={table.campagne.id} gm={table.gm} />
     </div>
   );
 });

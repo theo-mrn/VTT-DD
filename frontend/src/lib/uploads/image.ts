@@ -13,6 +13,8 @@ export const MAX_SIDE: Record<UploadUsageId, number> = {
   'note-image': 2400,
   'map-background': 4096,
   'map-object': 2048,
+  // Document projeté en plein écran : net sur un écran 4K
+  handout: 3840,
   'npc-image': 1024,
   portrait: 1200,
   token: 512,

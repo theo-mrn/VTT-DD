@@ -53,7 +53,7 @@ export function useTableShortcuts(panels: TablePanel[]) {
         return;
       }
 
-      const panneau = liste.current.find((p) => p.shortcut.code === code);
+      const panneau = liste.current.find((p) => p.shortcut?.code === code);
       if (!panneau) return;
       e.preventDefault();
       etat.toggle(panneau.id);
