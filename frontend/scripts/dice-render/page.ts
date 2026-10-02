@@ -12,12 +12,17 @@ import {
   inkUniforms,
 } from '@/components/dice/three/engraving';
 import { DIE_TYPES, dieShape } from '@/components/dice/three/polyhedra';
+import { DICE_SKINS } from '@/components/dice/three/dice-definitions';
+import { bakeResin, injectResin } from '@/components/dice/three/materials/resin-material';
 
 declare global {
   interface Window {
-    diceBench: { render(o: { width: number; height: number }): void };
+    diceBench: { render(o: { width: number; height: number; resin?: boolean }): void };
   }
 }
+
+/** Série résine : quatre skins de test, une rangée chacun. */
+const RESIN = ['resine_marbre', 'resine_nuit', 'resine_fumee', 'resine_jade'];
 
 const SKINS = [
   { body: '#f2ead8', ink: '#1d1a17', metal: 0, rough: 0.35, glow: 0.12 },
@@ -28,7 +33,7 @@ const SKINS = [
 ];
 
 window.diceBench = {
-  render({ width, height }) {
+  render({ width, height, resin = false }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -45,6 +50,42 @@ window.diceBench = {
     const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 200);
     camera.position.set(0, 26, 16);
     camera.lookAt(0, 0, 0);
+
+    if (resin) {
+      RESIN.forEach((id, row) => {
+        const skin = DICE_SKINS[id]!;
+        const texture = bakeResin(renderer, id, skin.resin!);
+        DIE_TYPES.forEach((type, col) => {
+          const shape = dieShape(type);
+          const ink = inkUniforms(skin.textColor, 0.12, skin.shadowColor);
+          if (col === 5) {
+            ink.uHiRects.value = highlightRects(type, shape.faces[0]!.value);
+            ink.uHiAmount.value = 1;
+          }
+          const mat = new THREE.MeshPhysicalMaterial({
+            metalness: skin.metalness,
+            roughness: skin.roughness,
+            clearcoat: 1,
+            clearcoatRoughness: 0.06,
+            normalMap: engravingTexture(type),
+            normalScale: ENGRAVING_NORMAL_SCALE,
+          });
+          mat.onBeforeCompile = (shader) => {
+            injectInk(shader, ink);
+            injectResin(shader, texture);
+          };
+          const mesh = new THREE.Mesh(shape.geometry, mat);
+          mesh.position.set((col - 2.5) * 4.6, 0, (row - 1.5) * 4.6);
+          const top = shape.corners ? shape.corners[0]!.dir : shape.faces[0]!.norm;
+          mesh.quaternion.setFromUnitVectors(top, new THREE.Vector3(0, 1, 0));
+          mesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), 0.55);
+          mesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), 0.4 * (col - 2) + row);
+          scene.add(mesh);
+        });
+      });
+      renderer.render(scene, camera);
+      return;
+    }
 
     SKINS.forEach((skin, row) => {
       DIE_TYPES.forEach((type, col) => {

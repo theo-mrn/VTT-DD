@@ -33,6 +33,21 @@ export type ParticleType =
   | 'blood';
 export type CriticalType = 'success' | 'fail' | null;
 
+/**
+ * Skin « résine » (matériau de test, `materials/resin-material.tsx`) : motif cuit une fois dans
+ * une cubemap, sous un vernis. `colors` : fond, nuance, veines (ou paillettes).
+ */
+export interface ResinLook {
+  pattern: 'marble' | 'nebula' | 'smoke' | 'jade';
+  colors: [string, string, string];
+  /** Densité des paillettes (motif nebula), 0 à 1. */
+  flakes?: number;
+  /** Échelle du motif (plus grand : motif plus serré). */
+  scale?: number;
+  clearcoat?: number;
+  clearcoatRoughness?: number;
+}
+
 export interface DiceSkin {
   id: string;
   name: string;
@@ -101,9 +116,125 @@ export interface DiceSkin {
   price: number;
   description?: string;
   rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  /** Matériau résine (série de test) : remplace le matériau procédural. */
+  resin?: ResinLook;
 }
 
 export const DICE_SKINS: Record<string, DiceSkin> = {
+  // ── Série « Résine » (test) : motif cuit + vernis (materials/resin-material.tsx) ──
+  resine_marbre: {
+    id: 'resine_marbre',
+    name: 'Résine Marbre',
+    bodyColor: '#f1ece2',
+    edgeColor: '#c8a24a',
+    borderColor: '#c8a24a',
+    textColor: '#1b1712',
+    shadowColor: '#c9c2b4',
+    metalness: 0,
+    roughness: 0.42,
+    envMapIntensity: 1,
+    effectType: 'stone',
+    emissive: '#000000',
+    emissiveIntensity: 0,
+    opacity: 1,
+    innerGlow: false,
+    innerGlowColor: '#ffffff',
+    innerGlowIntensity: 0,
+    rimLight: false,
+    rimLightColor: '#ffffff',
+    particleType: 'none',
+    particleColor: '#ffffff',
+    price: 0,
+    description: "Résine ivoire veinée d'or, sous un vernis brillant.",
+    rarity: 'rare',
+    resin: { pattern: 'marble', colors: ['#d8d2c6', '#f6f2ea', '#c49a3a'], scale: 1.4 },
+  },
+  resine_nuit: {
+    id: 'resine_nuit',
+    name: 'Résine Nuit',
+    bodyColor: '#0d1430',
+    edgeColor: '#e6ecff',
+    borderColor: '#e6ecff',
+    textColor: '#ffffff',
+    shadowColor: '#02040c',
+    metalness: 0,
+    roughness: 0.38,
+    envMapIntensity: 1,
+    effectType: 'stone',
+    emissive: '#000000',
+    emissiveIntensity: 0,
+    opacity: 1,
+    innerGlow: false,
+    innerGlowColor: '#ffffff',
+    innerGlowIntensity: 0,
+    rimLight: false,
+    rimLightColor: '#ffffff',
+    particleType: 'none',
+    particleColor: '#ffffff',
+    price: 0,
+    description: "Bleu nuit profond, nuages d'encre et paillettes d'argent.",
+    rarity: 'rare',
+    resin: {
+      pattern: 'nebula',
+      colors: ['#060b22', '#22306e', '#e8eeff'],
+      flakes: 0.9,
+      scale: 1.8,
+    },
+  },
+  resine_fumee: {
+    id: 'resine_fumee',
+    name: 'Résine Fumée',
+    bodyColor: '#3a2414',
+    edgeColor: '#e8c9a0',
+    borderColor: '#e8c9a0',
+    textColor: '#f4e2c4',
+    shadowColor: '#120a04',
+    metalness: 0,
+    roughness: 0.36,
+    envMapIntensity: 1,
+    effectType: 'stone',
+    emissive: '#000000',
+    emissiveIntensity: 0,
+    opacity: 1,
+    innerGlow: false,
+    innerGlowColor: '#ffffff',
+    innerGlowIntensity: 0,
+    rimLight: false,
+    rimLightColor: '#ffffff',
+    particleType: 'none',
+    particleColor: '#ffffff',
+    price: 0,
+    description: 'Ambre fumé traversé de volutes laiteuses.',
+    rarity: 'rare',
+    resin: { pattern: 'smoke', colors: ['#2a160a', '#7a4a22', '#e9d2b0'], scale: 2.3 },
+  },
+  resine_jade: {
+    id: 'resine_jade',
+    name: 'Résine Jade',
+    bodyColor: '#2f6b4f',
+    edgeColor: '#d9f0e2',
+    borderColor: '#d9f0e2',
+    textColor: '#f2fbf5',
+    shadowColor: '#06180f',
+    metalness: 0,
+    roughness: 0.4,
+    envMapIntensity: 1,
+    effectType: 'stone',
+    emissive: '#000000',
+    emissiveIntensity: 0,
+    opacity: 1,
+    innerGlow: false,
+    innerGlowColor: '#ffffff',
+    innerGlowIntensity: 0,
+    rimLight: false,
+    rimLightColor: '#ffffff',
+    particleType: 'none',
+    particleColor: '#ffffff',
+    price: 0,
+    description: 'Jade marbré aux inclusions claires.',
+    rarity: 'rare',
+    resin: { pattern: 'jade', colors: ['#1d4a35', '#4f9a74', '#d6f0e0'], scale: 1.7 },
+  },
   // ── STAR WARS (dedicated signature shaders) ─────────────────
   kyber_bleu: {
     id: 'kyber_bleu',

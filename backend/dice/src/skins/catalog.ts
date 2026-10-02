@@ -13,9 +13,23 @@ export interface Skin {
   free: boolean;
 }
 
-const FREE = new Set(['gold', 'silver', 'pierre_donjon', 'steampunk_copper']);
+const FREE = new Set([
+  'gold',
+  'silver',
+  'pierre_donjon',
+  'steampunk_copper',
+  // Série « Résine » : matériau à l'essai, offerte à tous le temps du test
+  'resine_marbre',
+  'resine_nuit',
+  'resine_fumee',
+  'resine_jade',
+]);
 
 const IDS = [
+  'resine_marbre',
+  'resine_nuit',
+  'resine_fumee',
+  'resine_jade',
   'kyber_bleu',
   'kyber_vert',
   'kyber_violet',

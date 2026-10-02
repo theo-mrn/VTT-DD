@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
-import { DiceSkin } from '../dice-definitions';
+import { DiceSkin, type ResinLook } from '../dice-definitions';
 import { ENGRAVING_NORMAL_SCALE, injectInk } from '../engraving';
 import { ProceduralMaterial, type EngravingProps } from './procedural-material';
+import { ResinMaterial } from './resin-material';
 
 // Loads a texture if specified in the skin, otherwise falls back to the
 // procedural material driven by the skin's effect type.
@@ -15,6 +16,15 @@ export const TexturedMaterial = ({
   engraving?: EngravingProps;
 }) => {
   const hasTexture = Boolean(skin.textureMap);
+
+  // Série résine (test) : motif cuit, vernis
+  if (skin.resin)
+    return (
+      <ResinMaterial
+        skin={skin as DiceSkin & { resin: ResinLook }}
+        {...(engraving ? { engraving } : {})}
+      />
+    );
 
   // No texture → procedural matter based on the skin's effect type.
   if (!hasTexture) {

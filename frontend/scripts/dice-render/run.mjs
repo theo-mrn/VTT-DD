@@ -2,7 +2,7 @@
  * Banc visuel des dés : rend les six formes sous trois matières en vrai WebGL (Chromium sans
  * interface) et enregistre l'image.
  *
- *   node scripts/dice-render/run.mjs [sortie.png]      (depuis frontend/)
+ *   node scripts/dice-render/run.mjs [sortie.png] [--resin]      (depuis frontend/)
  */
 import { build } from 'esbuild';
 import { createServer } from 'node:http';
@@ -14,7 +14,8 @@ import { chromium } from 'playwright';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const front = join(here, '..', '..');
-const out = process.argv[2] ?? join(tmpdir(), 'dice-render.png');
+const out =
+  process.argv.slice(2).find((a) => !a.startsWith('--')) ?? join(tmpdir(), 'dice-render.png');
 
 const dir = await mkdtemp(join(tmpdir(), 'dice-render-'));
 await build({
@@ -43,7 +44,11 @@ const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 page.on('pageerror', (e) => console.log('erreur de la page :', e.message));
 page.on('console', (m) => m.type() === 'error' && console.log('console :', m.text()));
 await page.goto(`http://127.0.0.1:${server.address().port}/`);
-await page.evaluate(() => window.diceBench.render({ width: 1600, height: 1000 }));
+const resin = process.argv.includes('--resin');
+await page.evaluate(
+  (resin) => window.diceBench.render({ width: 1600, height: 1000, resin }),
+  resin,
+);
 await page.screenshot({ path: out });
 await browser.close();
 server.close();
