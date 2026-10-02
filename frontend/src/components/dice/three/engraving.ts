@@ -20,13 +20,13 @@ import { dieShape, type AtlasFace, type DieShape } from './polyhedra';
 /** Côté d'une cellule de l'atlas, en pixels. */
 const CELL_PX = 192;
 /** Largeur des bords de la gravure, en pixels (flou du relief). */
-const BEVEL_PX = 3;
+const BEVEL_PX = 2;
 /** Pente de la gravure (plus fort : plus creusé). */
 const DEPTH = 3.2;
 /** Intensité de la carte de normales dans le matériau. */
 export const ENGRAVING_NORMAL_SCALE = new THREE.Vector2(1, 1);
 
-const FONT = (px: number) => `800 ${px}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+const FONT = (px: number) => `500 ${px}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
 
 /** Hauteur des chiffres selon la forme (part de la cellule). */
 const TEXT_SIZE: Record<string, number> = {
