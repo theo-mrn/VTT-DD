@@ -3,6 +3,7 @@ import {
   addChain,
   addDoorInWall,
   addRoom,
+  convertSegment,
   deleteSegment,
   deleteVertex,
   dropDuplicateSegments,
@@ -214,5 +215,39 @@ describe('pièce depuis une boucle', () => {
       wall('b', [P(50, 100), P(0, 100), P(0, 0)]),
     ]);
     expect(loop).toHaveLength(5);
+  });
+});
+
+describe('convertir un seul segment', () => {
+  it('le segment cliqué seulement : la ligne se scinde, les voisins restent des murs', () => {
+    const p = plan([wall('m', [P(0, 0), P(100, 0), P(100, 100), P(0, 100)])]);
+    const id = convertSegment(p, 'm', 1, 'window');
+    const all = [...p.obstacles()];
+    const converted = all.find((o) => o.id === id)!;
+    expect(converted).toMatchObject({ kind: 'window', points: [P(100, 0), P(100, 100)] });
+    const walls = all.filter((o) => o.id !== id);
+    expect(walls.every((o) => o.kind === 'wall')).toBe(true);
+    expect(walls.map((o) => o.points)).toEqual(
+      expect.arrayContaining([
+        [P(0, 0), P(100, 0)],
+        [P(100, 100), P(0, 100)],
+      ]),
+    );
+  });
+
+  it('salle fermée : elle s’ouvre au segment converti, le reste reste un seul mur', () => {
+    const ring = [P(0, 0), P(100, 0), P(100, 100), P(0, 100), P(0, 0)];
+    const p = plan([wall('m', ring)]);
+    const id = convertSegment(p, 'm', 0, 'door');
+    const all = [...p.obstacles()];
+    expect(all).toHaveLength(2);
+    expect(all.find((o) => o.id === id)).toMatchObject({ kind: 'door', isOpen: false });
+    expect(all.find((o) => o.id !== id)!.points).toHaveLength(4);
+  });
+
+  it('un mur d’un seul segment est converti en entier', () => {
+    const p = plan([wall('m', [P(0, 0), P(100, 0)])]);
+    expect(convertSegment(p, 'm', 0, 'window')).toBe('m');
+    expect(p.obstacle('m')).toMatchObject({ kind: 'window' });
   });
 });

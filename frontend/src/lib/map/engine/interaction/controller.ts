@@ -87,6 +87,7 @@ export class InteractionController {
     this.pointers.set(e.id, e);
     this.lastPointer = e;
     const engine = this.engine;
+    engine.lastPress = { world: e.world, time: e.time };
 
     // Deuxième doigt : le geste de l'outil s'efface devant le pincement
     const touches = [...this.pointers.values()].filter((p) => p.type === 'touch');

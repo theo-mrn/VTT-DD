@@ -42,6 +42,7 @@ import { executePlan, patchObstacles, type ObstaclePersistences } from './comman
 import {
   addChain,
   convertedProps,
+  convertSegment,
   EditPlan,
   loopOf,
   replaceByWall,
@@ -248,6 +249,34 @@ export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
   };
 }
 
+/**
+ * Segment d'un mur de plusieurs segments touché au dernier appui sur la carte (clic, clic droit),
+ * à 12 px d'écran près ; null : un seul segment, ou appui ailleurs.
+ */
+function pressedSegment(ctx: ObstacleContext, e: MapEntity): number | null {
+  const press = ctx.engine.lastPress?.world;
+  if (!press || e.kind.id !== OBSTACLE_KIND) return null;
+  const pts = ctx.view.pointsOf(e);
+  if (pts.length < 3) return null;
+  const tol = 12 / ctx.engine.camera.zoom;
+  let best: number | null = null;
+  let bestD = tol;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i]!;
+    const b = pts[i + 1]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((press.x - a.x) * dx + (press.y - a.y) * dy) / len2));
+    const d = Math.hypot(a.x + dx * t - press.x, a.y + dy * t - press.y);
+    if (d <= bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
 /** Entrées du menu des obstacles (MJ : portes, sens, conversion, pièce ; joueur : porte). */
 export function obstacleActions(ctx: ObstacleContext, entities: readonly MapEntity[]): MenuItem[] {
   const { engine } = ctx;
@@ -304,22 +333,33 @@ export function obstacleActions(ctx: ObstacleContext, entities: readonly MapEnti
 
   const kinds: ObstacleKindId[] = ['wall', 'door', 'window', 'one_way_wall'];
   const same = data.every((o) => o.kind === data[0]!.kind) ? data[0]!.kind : null;
+  // Un mur de plusieurs segments : la conversion ne vise que le segment touché (dernier appui)
+  const segment = entities.length === 1 ? pressedSegment(ctx, entities[0]!) : null;
   items.push({
     id: 'obstacle:convert',
-    label: 'Convertir en',
+    label: segment === null ? 'Convertir en' : 'Convertir le segment en',
     icon: Repeat,
     children: kinds.map((k) => ({
       id: `obstacle:convert:${k}`,
       label: OBSTACLE_LABELS[k],
       checked: same === k,
-      run: () =>
-        void patchObstacles(
-          engine,
-          entities,
-          (o) => convertedProps(o, k),
-          `Convertir en ${OBSTACLE_LABELS[k].toLowerCase()}`,
-          ctx.persistences.obstacles,
-        ),
+      run: () => {
+        const label = `Convertir en ${OBSTACLE_LABELS[k].toLowerCase()}`;
+        if (segment === null) {
+          void patchObstacles(
+            engine,
+            entities,
+            (o) => convertedProps(o, k),
+            label,
+            ctx.persistences.obstacles,
+          );
+          return;
+        }
+        const plan = newPlan(engine);
+        const converted = convertSegment(plan, entities[0]!.id, segment, k);
+        void executePlan(engine, label, plan, ctx.persistences);
+        engine.selection.replace([converted]);
+      },
     })),
   });
 

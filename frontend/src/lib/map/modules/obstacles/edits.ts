@@ -483,6 +483,36 @@ export function convertedProps(o: ObstacleData, kind: ObstacleKindId): Partial<O
 }
 
 /**
+ * Convertit un seul segment d'un mur (un tronçon entre deux points) : la ligne se scinde, les
+ * autres segments gardent leur sorte. Renvoie l'identifiant de l'obstacle converti.
+ */
+export function convertSegment(
+  plan: EditPlan,
+  id: string,
+  index: number,
+  kind: ObstacleKindId,
+): string {
+  const o = plan.obstacle(id);
+  if (!o) return id;
+  const segs = polylineSegments(o.points);
+  const seg = segs[index];
+  if (!seg || segs.length < 2) {
+    plan.patchObstacle(id, convertedProps(o, kind));
+    return id;
+  }
+  const pieces = removeSegment(o.points, index);
+  if (pieces.length) {
+    plan.patchObstacle(id, { points: pieces[0]! });
+    for (const piece of pieces.slice(1)) plan.createObstacle(propsOf(o), piece);
+  } else plan.removeObstacle(id);
+  const [a, b] = seg;
+  return plan.createObstacle({ ...propsOf(o), ...convertedProps(o, kind) }, [
+    { x: a.x, y: a.y },
+    { x: b.x, y: b.y },
+  ]).id;
+}
+
+/**
  * « Remplacer par un mur » : la porte (fenêtre, sens unique) devient un mur, fondu avec les murs
  * simples qu'elle prolonge bout à bout (même couleur et transparence), comme avant la porte.
  */

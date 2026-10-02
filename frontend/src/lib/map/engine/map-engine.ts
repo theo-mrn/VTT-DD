@@ -1760,6 +1760,12 @@ export class MapEngine {
   }
 
   /** Signale un clic simple (outil sélection). */
+  /**
+   * Dernier appui sur la carte (clic, clic droit, appui long, tout outil) : un menu s'en sert
+   * pour viser la partie touchée d'un élément (le segment d'un mur).
+   */
+  lastPress: { world: Point; time: number } | null = null;
+
   emitMapClick(click: MapClick) {
     for (const listener of this.clickListeners) listener(click);
   }
