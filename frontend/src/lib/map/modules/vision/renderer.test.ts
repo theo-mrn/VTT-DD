@@ -212,15 +212,20 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     });
     h.draw();
     const nodes = h.inner.visRoot.children;
-    expect(nodes).toHaveLength(1);
+    // L'observateur, puis l'effacement des salles fermées où il n'est pas
+    expect(nodes.map((n) => n.label)).toEqual(['vision:viewer', 'vision:hidden-erase']);
     const root = nodes[0]!;
     expect(root.mask).toBeInstanceOf(PIXI.Mesh);
     const clipBox = root.children[1]!;
     expect(clipBox.mask).toBeInstanceOf(PIXI.Graphics);
+    // Pas de masque inversé imbriqué (il cassait celui de la ligne de vue dans Pixi)
     const subBox = clipBox.children[1]!;
-    expect(subBox.mask).toBeInstanceOf(PIXI.Graphics);
+    expect(subBox.mask ?? null).toBeNull();
+    const erase = nodes[1] as PIXI.Graphics;
+    expect(erase.blendMode).toBe('erase');
+    expect(erase.bounds).toMatchObject({ minX: 600, minY: 600, maxX: 700, maxY: 700 });
     // Contenu : la portée et le disque, en `max`
-    const body = subBox.children[1]!;
+    const body = subBox.children[0]!;
     const content = body.children[0]!;
     expect(content.children.map((c) => c.blendMode)).toEqual(['max', 'max']);
     const disc = content.getChildByLabel('disc') as PIXI.Sprite;
@@ -231,7 +236,7 @@ describe('rendu de la visibilité (sans WebGL)', () => {
   it('mur translucide : la portée atténuée derrière lui, masquée par son ombre', () => {
     const h = harness({ obstacles: [wall('verre', 200, 0, 1000, { opacity: 0.4 })] });
     h.draw();
-    const body = h.inner.visRoot.children[0]!.children[1]!.children[1]!.children[1]!;
+    const body = h.inner.visRoot.children[0]!.children[1]!.children[1]!.children[0]!;
     // Hors ombre (masque inverse) + une ombre à 60 %
     expect(body.children).toHaveLength(2);
     expect(body.children[1]!.alpha).toBeCloseTo(0.6);
@@ -241,7 +246,10 @@ describe('rendu de la visibilité (sans WebGL)', () => {
   it('sans observateur : vue d’en haut ; composition bornée à la carte ; voile du MJ', () => {
     const s = harness({ viewer: { userId: 'bob', role: 'spectator', characterIds: [] } });
     s.draw();
-    expect(s.inner.visRoot.children.map((c) => c.label)).toEqual(['vision:top-down']);
+    expect(s.inner.visRoot.children.map((c) => c.label)).toEqual([
+      'vision:top-down',
+      'vision:hidden-erase',
+    ]);
     // Caméra qui déborde de la carte : le quadrilatère s'arrête à ses bords
     s.draw({ x: 0, y: 0 });
     const pos = s.inner.composite.geometry.positions;
