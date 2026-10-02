@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 
-export const BAKE_SIZE = 512;
+export const BAKE_SIZE = 256;
 
 export const BAKE_VERTEX = /* glsl */ `
 varying vec3 vDir;

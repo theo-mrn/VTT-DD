@@ -765,7 +765,9 @@ export const DiceThrower = () => {
         // Same fill-cost cap as the fun thrower: procedural die
         // shaders are expensive per pixel, 1.25 dpr is invisible on
         // dice in motion (1 on economy machines).
-        dpr={glSettings.economy ? 1 : [1, 1.25]}
+        // En mouvement, densité 1 (la différence ne se voit pas) ; arrêtés, 1,25 pour les
+        // chiffres et le doré
+        dpr={glSettings.economy || rolling ? 1 : [1, 1.25]}
         frameloop={animating ? 'always' : 'demand'}
         onCreated={({ gl }) => {
           // Dés orbes (verre à transmission) : la passe de transmission
