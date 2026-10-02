@@ -890,3 +890,25 @@ export const notePins = campaignSchema.table(
   },
   (t) => [primaryKey({ columns: [t.userId, t.noteId] }), index('note_pins_note').on(t.noteId)],
 );
+
+// ─── Stockage (docs/stockage.md) ─────────────────────────────────────────────
+
+export type StorageFileState = 'pending' | 'stored';
+
+/** Fichiers d'une campagne sur le stockage : réservés à l'envoi, puis vus par l'inventaire. */
+export const campaignStorageFiles = campaignSchema.table('campaign_storage_files', {
+  key: text('key').primaryKey(),
+  campaignId: uuid('campaign_id').notNull(),
+  size: bigint('size', { mode: 'number' }).notNull(),
+  contentType: text('content_type'),
+  usage: text('usage'),
+  state: text('state').$type<StorageFileState>().notNull().default('pending'),
+  usedBy: text('used_by').array().notNull().default([]),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+  seenAt: timestampTz('seen_at'),
+});
+
+export const campaignStorageInventories = campaignSchema.table('campaign_storage_inventories', {
+  campaignId: uuid('campaign_id').primaryKey(),
+  inventoriedAt: timestampTz('inventoried_at').notNull(),
+});

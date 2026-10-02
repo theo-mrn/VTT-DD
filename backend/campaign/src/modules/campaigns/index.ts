@@ -34,6 +34,7 @@ import type { Module } from '../../deps.js';
 import { isAcceptedImageUrl, publicBase } from '../../storage/images.js';
 import { removeFromCombat } from '../combat/repository.js';
 import { campaignReader, requireWriter } from '../notes/common.js';
+import { reserveFor } from '../storage/index.js';
 import {
   Accent,
   CampaignId,
@@ -459,7 +460,14 @@ export const register: Module = async (app, deps) => {
       if (req.body.usage === 'note-image')
         requireWriter(await campaignReader(db, id, currentUser(req)), id);
       else await gmAccess(db, id, currentUser(req));
-      return deps.uploads.ticket(req.body, id, CAMPAIGN_UPLOAD_USAGES, req.log);
+      // Place réservée sur le quota de la campagne avant la signature (docs/stockage.md)
+      return deps.uploads.ticket(
+        req.body,
+        id,
+        CAMPAIGN_UPLOAD_USAGES,
+        req.log,
+        reserveFor(deps, id),
+      );
     },
   );
 

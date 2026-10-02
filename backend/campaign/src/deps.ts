@@ -1,4 +1,4 @@
-import type { Uploads } from '@vtt/platform';
+import type { ObjectStore, PlacesChecker, Uploads } from '@vtt/platform';
 /**
  * Dépendances partagées par les modules du service. Chaque module
  * (src/modules/<nom>/index.ts) reçoit l'instance Fastify et ces dépendances.
@@ -29,6 +29,10 @@ export interface Deps {
   signer: UploadSigner | undefined;
   /** Envoi de fichiers, brique commune (`POST …/uploads`, docs/uploads.md). */
   uploads: Uploads;
+  /** Stockage des campagnes (docs/stockage.md) : listage, suppression ; absent sans S3. */
+  store: ObjectStore | undefined;
+  /** Où sert chaque fichier : tables qui le citent, ce service et les autres. */
+  places: PlacesChecker;
 }
 
 export type Module = (app: ServiceApp, deps: Deps) => Promise<void>;

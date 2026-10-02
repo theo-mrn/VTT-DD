@@ -1,3 +1,4 @@
+import { DEFAULT_CAMPAIGN_STORAGE_QUOTA } from '@vtt/contracts';
 import { BaseConfig, OrphanSweepSettings } from '@vtt/platform';
 import { z } from 'zod';
 
@@ -64,5 +65,14 @@ export const CampaignConfig = BaseConfig.extend({
 
   /** Fichiers orphelins de ses dossiers du stockage (docs/nettoyage.md § Fichiers). */
   ...OrphanSweepSettings,
+
+  /** Place d'une campagne sur le stockage, sons compris (docs/stockage.md) : 5 Gio par défaut. */
+  CAMPAIGN_STORAGE_QUOTA_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_CAMPAIGN_STORAGE_QUOTA),
+  /** Inventaire du stockage de toutes les campagnes, toutes les N minutes. */
+  STORAGE_INVENTORY_EVERY_MINUTES: z.coerce.number().int().positive().default(60),
 });
 export type CampaignConfig = z.infer<typeof CampaignConfig>;

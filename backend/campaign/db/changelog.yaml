@@ -50,5 +50,7 @@ databaseChangeLog:
   - include: { file: changes/0026-combat-dice-steps.sql, relativeToChangelogFile: true }
   # Zones sonores : son de la bibliothèque audio, marche et arrêt (docs/carte.md § 10)
   - include: { file: changes/0027-map-sound-zones.sql, relativeToChangelogFile: true }
+  # Stockage d'une campagne : inventaire des fichiers, réservations, quota (docs/stockage.md)
+  - include: { file: changes/0028-storage.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

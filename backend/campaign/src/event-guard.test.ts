@@ -17,6 +17,9 @@ const EXCEPTIONS: Record<string, string> = {
     'Signe une URL d’envoi vers le stockage (docs/uploads.md), rien n’est écrit en base. Le ' +
     'fichier entre ensuite dans la campagne par une écriture tracée (campaign.updated, ' +
     'map.updated, note.created/updated…).',
+  'DELETE /v1/campaigns/:id/storage/files':
+    'Supprime du stockage un fichier que plus rien ne cite (docs/stockage.md) et sa ligne ' +
+    'd’inventaire : aucune donnée de la campagne ne change, personne d’autre ne le voit.',
 };
 
 describe('garde-fou : chaque route d’écriture émet un événement', () => {

@@ -6,7 +6,7 @@
  * utilisateurs neufs et supprime ensuite leurs campagnes : les tests peuvent
  * tourner en même temps sur la même base.
  */
-import { loadConfig } from '@vtt/platform';
+import { loadConfig, type ObjectStore, type PlacesChecker } from '@vtt/platform';
 import { inArray, sql } from 'drizzle-orm';
 import { generateKeyPair, SignJWT } from 'jose';
 import { buildCampaign } from '../app.js';
@@ -28,7 +28,7 @@ const AUDIENCE = 'vtt-api';
 export async function testApp(
   overrides: Record<string, string> = {},
   /** Catalogue de systèmes à la place des systèmes de référence (règles optionnelles…). */
-  extra: { catalog?: Catalog } = {},
+  extra: { catalog?: Catalog; store?: ObjectStore; places?: PlacesChecker } = {},
 ) {
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
   const connection = TEST_DATABASE_URL ? createDb(TEST_DATABASE_URL) : undefined;
@@ -65,6 +65,9 @@ export async function testApp(
       profiles,
       signer,
       ...(extra.catalog ? { catalog: extra.catalog } : {}),
+      // Stockage (docs/stockage.md) : magasin en mémoire et références choisies par le test
+      ...(extra.store ? { store: extra.store } : {}),
+      ...(extra.places ? { places: extra.places } : {}),
       ...(connection ? { db: connection.db } : {}),
     },
   );

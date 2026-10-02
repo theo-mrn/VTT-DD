@@ -3,6 +3,7 @@ import {
   registerStorageReferences,
   type ServiceOptions,
   Uploads,
+  createObjectStore,
 } from '@vtt/platform';
 import type pg from 'pg';
 import { sql } from 'drizzle-orm';
@@ -21,6 +22,8 @@ import { register as maps } from './modules/maps/index.js';
 import { register as messages } from './modules/messages/index.js';
 import { register as notes } from './modules/notes/index.js';
 import { register as sessions } from './modules/sessions/index.js';
+import { register as storage } from './modules/storage/index.js';
+import { placesChecker } from './modules/storage/runtime.js';
 import { register as settings } from './modules/settings/index.js';
 import { createS3Signer } from './storage/images.js';
 import { referenceCatalog, type Catalog } from './systems/catalog.js';
@@ -28,12 +31,22 @@ import { referenceCatalog, type Catalog } from './systems/catalog.js';
 export async function buildCampaign(
   config: CampaignConfig,
   extra: Omit<ServiceOptions, 'config'> &
-    Partial<Pick<Deps, 'now' | 'character' | 'profiles' | 'signer'>> & {
+    Partial<Pick<Deps, 'now' | 'character' | 'profiles' | 'signer' | 'store' | 'places'>> & {
       db?: Db;
       catalog?: Catalog;
     } = {},
 ) {
-  const { db: providedDb, catalog, now, character, profiles, signer, ...options } = extra;
+  const {
+    db: providedDb,
+    catalog,
+    now,
+    character,
+    profiles,
+    signer,
+    store,
+    places,
+    ...options
+  } = extra;
   if (!config.JWKS_URL && !options.authKeyResolver) {
     throw new Error('Configuration invalide : JWKS_URL est requis pour vérifier les jetons');
   }
@@ -72,6 +85,8 @@ export async function buildCampaign(
     signer: s3Signer,
     // Même signataire pour la route commune `POST …/uploads`
     uploads: new Uploads(s3Signer, config.S3_PUBLIC_URL),
+    store: store ?? createObjectStore(config),
+    places: places ?? placesChecker(config, (db as Db & { $client: pg.Pool }).$client),
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
@@ -86,6 +101,7 @@ export async function buildCampaign(
     sessions,
     messages,
     notes,
+    storage,
     internal,
   ]) {
     await module(app, deps);
