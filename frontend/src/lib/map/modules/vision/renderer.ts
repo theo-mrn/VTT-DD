@@ -164,18 +164,19 @@ void main() {
   // un joueur) ; ailleurs hors de vue : l'ombre réglée par le MJ
   float los = texture(uLos, vUV).a;
   float dark = mix(uObstacleDark, uDarkness * (1.0 - vis), los);
-  vec3 rgb = uShadowColor * dark;
-  float a = dark;
+  // Brouillard d'abord, l'ombre par-dessus (alpha prémultiplié)
+  vec3 rgb = vec3(0.0);
+  float a = 0.0;
   if (uFogOn > 0.5) {
     float fog = texture(uFog, vUV).a * (1.0 - vis);
     if (fog > 0.001) {
       float density = texture(uMist, vUV).r;
-      float fa = fog * uFogAlpha * mix(0.72, 1.0, density);
-      vec3 fc = mix(uFogDark, uFogLight, density);
-      rgb = fc * fa + rgb * (1.0 - fa);
-      a = fa + a * (1.0 - fa);
+      a = fog * uFogAlpha * mix(0.72, 1.0, density);
+      rgb = mix(uFogDark, uFogLight, density) * a;
     }
   }
+  rgb = uShadowColor * dark + rgb * (1.0 - dark);
+  a = dark + a * (1.0 - dark);
   if (uGlowOn > 0.5) {
     vec3 glow = texture(uGlow, vUV).rgb;
     rgb += glow * mix(uGlowFloor, 1.0, vis);
