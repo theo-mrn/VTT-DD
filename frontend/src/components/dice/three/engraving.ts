@@ -179,12 +179,8 @@ export function engravingTexture(type: string): THREE.DataTexture {
 
 /** Doré du chiffre retenu, et sa lueur. */
 export const HIGHLIGHT_COLOR = '#ffbf33';
-/**
- * Chiffre retenu : plus gras (niveau flou lu pour l'épaissir) et cerclé d'or (niveau plus flou :
- * bordure plus large), lumineuse sur un dé foncé.
- */
-const BOLD_LOD = 1.0;
-const RING_LOD = 2.2;
+/** Chiffre retenu : cerclé d'une fine bordure d'or (niveau flou lu), lumineuse sur un dé foncé. */
+const RING_LOD = 1.6;
 const RING_GLOW_LIGHT = 0.25;
 const RING_GLOW_DARK = 1.3;
 /** Bordure des chiffres : niveau flou lu (largeur) et opacité. */
@@ -292,12 +288,10 @@ float inkRing = 0.0;
     vec4 r = uHiRects[ i ];
     if ( vNormalMapUv.x >= r.x && vNormalMapUv.x <= r.z && vNormalMapUv.y >= r.y && vNormalMapUv.y <= r.w ) inkHi = uHiAmount;
   }
-  // … plus gras (masque un peu dilaté) …
-  if ( inkHi > 0.0 ) inkMask = max( inkMask, inkHi * smoothstep( 0.3, 0.55, textureLod( normalMap, vNormalMapUv, ${BOLD_LOD.toFixed(2)} ).a ) );
   // Bordure : le masque dilaté (niveau flou fixe : même largeur à toute distance), hors du chiffre
   inkEdge = smoothstep( 0.03, 0.25, textureLod( normalMap, vNormalMapUv, ${EDGE_LOD.toFixed(2)} ).a ) * ( 1.0 - inkMask );
-  // … et cerclé d'une bordure dorée
-  if ( inkHi > 0.0 ) inkRing = smoothstep( 0.03, 0.2, textureLod( normalMap, vNormalMapUv, ${RING_LOD.toFixed(2)} ).a ) * ( 1.0 - inkMask ) * inkHi;
+  // … cerclé d'une fine bordure dorée
+  if ( inkHi > 0.0 ) inkRing = smoothstep( 0.06, 0.3, textureLod( normalMap, vNormalMapUv, ${RING_LOD.toFixed(2)} ).a ) * ( 1.0 - inkMask ) * inkHi;
 #endif
 // Or selon la clarté du dé : profond sur un dé clair, vif et lumineux sur un dé foncé
 float inkDark = 1.0 - smoothstep( 0.2, 0.55, dot( diffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) ) );
