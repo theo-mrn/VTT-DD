@@ -120,11 +120,8 @@ describe.skipIf(!TEST_DATABASE_URL)('bibliothèque', () => {
     expect(forged.json().code).toBe('invalid_upload');
   });
 
-  it('quota de la campagne', async () => {
-    await t.close();
-    t = await testApp({ AUDIO_CAMPAIGN_QUOTA_BYTES: '3000' });
-    h = helpers(t);
-    c = await t.table();
+  it('quota de la campagne : place réservée chez campaign, refus transmis', async () => {
+    t.campaign.setQuota(3000);
     expect((await upload()).res.statusCode).toBe(201);
     const res = await h.request(c.gm, 'POST', `${base()}/uploads`, {
       fileName: 'x',
@@ -132,7 +129,8 @@ describe.skipIf(!TEST_DATABASE_URL)('bibliothèque', () => {
       size: 2000,
       kind: 'music',
     });
-    expect(res.json().code).toBe('quota_exceeded');
+    expect(res.statusCode).toBe(422);
+    expect(res.json().code).toBe('storage_quota_exceeded');
   });
 
   it('YouTube : lien nettoyé, prêt tout de suite, doublon fusionné, id invalide refusé', async () => {

@@ -55,11 +55,6 @@ export const AudioConfig = BaseConfig.extend({
     .int()
     .positive()
     .default(20 * MIB),
-  AUDIO_CAMPAIGN_QUOTA_BYTES: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(2 * 1024 * MIB),
   AUDIO_LOUDNESS_TARGET_LUFS: z.coerce.number().min(-40).max(-5).default(-16),
 
   /** Période du planificateur des enchaînements (ms). */

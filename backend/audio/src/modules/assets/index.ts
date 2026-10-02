@@ -58,16 +58,6 @@ const AssetParams = CampaignParams.extend({ assetId: Uuid('Identifiant de son in
 export const maxBytes = (deps: Pick<Deps, 'config'>, kind: AssetKind) =>
   kind === 'sfx' ? deps.config.AUDIO_MAX_BYTES_SFX : deps.config.AUDIO_MAX_BYTES_LONG;
 
-async function usedBytes(tx: Pick<Tx, 'select'>, campaignId: string): Promise<number> {
-  const [r] = await tx
-    .select({ total: sql<string>`coalesce(sum(${assets.sizeBytes}), 0)` })
-    .from(assets)
-    .where(
-      and(eq(assets.campaignId, campaignId), isNull(assets.deletedAt), eq(assets.source, 'upload')),
-    );
-  return Number(r?.total ?? 0);
-}
-
 function assetEvent(
   tx: Tx,
   ctx: EventContext,
@@ -323,16 +313,16 @@ export const register: Module = async (app, deps) => {
           'file_too_large',
           `${Math.round(maxBytes(deps, kind) / 1024 / 1024)} Mo au plus`,
         );
-      if ((await usedBytes(db, campaignId)) + size > deps.config.AUDIO_CAMPAIGN_QUOTA_BYTES)
-        throw new HttpError(
-          422,
-          'Quota atteint',
-          'quota_exceeded',
-          'L’espace de la campagne est plein',
-        );
-
       const assetId = uuidv7();
       const key = incomingKey(campaignId, assetId);
+      // Place réservée sur le quota de la campagne, sons et images ensemble (docs/stockage.md)
+      await deps.campaigns.reserve?.({
+        campaignId,
+        key,
+        size,
+        usage: 'sound',
+        contentType: type,
+      });
       const uploadUrl = await deps.storage.signUpload({
         key,
         contentType: type,
@@ -412,16 +402,6 @@ export const register: Module = async (app, deps) => {
             'Le contenu du fichier n’est pas un son accepté',
           );
         const row = await db.transaction(async (tx) => {
-          if (
-            (await usedBytes(tx, campaignId)) + claims.size >
-            deps.config.AUDIO_CAMPAIGN_QUOTA_BYTES
-          )
-            throw new HttpError(
-              422,
-              'Quota atteint',
-              'quota_exceeded',
-              'L’espace de la campagne est plein',
-            );
           const [created] = await tx
             .insert(assets)
             .values({
