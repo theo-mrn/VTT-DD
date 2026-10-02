@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch';
 import { Info } from '@/components/ui/tooltip';
 import { SNAP_STEPS, type SnapStep } from '@/lib/map/engine/map-engine';
+import { SELECT_TOOL_ID } from '@/lib/map/engine/tools/tool-manager';
 import { DISPLAY_TOGGLES, displayOf, isDisplayed } from '@/lib/map/engine/planes';
 import { cn } from '@/lib/utils';
 import { BubbleToolbarButton } from './bubbles/bubble-picker';
@@ -134,7 +135,10 @@ export function MapToolbar() {
               shortcut={def.shortcut?.label}
               active={def.id === activeId}
               onClick={() => {
-                engine.tools.activate(def.id);
+                // Recliquer sur l'outil actif le referme (son menu avec) : retour à la sélection
+                engine.tools.activate(
+                  def.id === activeId && def.id !== SELECT_TOOL_ID ? SELECT_TOOL_ID : def.id,
+                );
                 focusMap();
               }}
             >
