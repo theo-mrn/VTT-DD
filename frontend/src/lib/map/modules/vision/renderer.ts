@@ -281,14 +281,12 @@ class ViewerNode {
   private readonly los: Fan;
   private readonly clipGfx: Pixi.Graphics;
   private readonly clipBox: Pixi.Container;
-  private readonly subGfx: Pixi.Graphics;
   private readonly subBox: Pixi.Container;
   private readonly body: Pixi.Container;
   /** Contenus (portée ∪ disque) : un sans ombre partielle, un par ombre. */
   private contents: Pixi.Container[] = [];
   /** Contours dessinés (mêmes objets que la scène préparée : une scène neuve les refait). */
   private clipRef: Polygon | null = null;
-  private subRefs: readonly Polygon[] = [];
   private shadowsRef: ViewerLayer['translucent'] | null = null;
 
   constructor(
@@ -302,9 +300,7 @@ class ViewerNode {
     this.clipGfx = new pixi.Graphics();
     this.clipBox = new pixi.Container();
     this.clipBox.addChild(this.clipGfx);
-    this.subGfx = new pixi.Graphics();
     this.subBox = new pixi.Container();
-    this.subBox.addChild(this.subGfx);
     this.body = new pixi.Container();
     this.subBox.addChild(this.body);
     this.clipBox.addChild(this.subBox);
@@ -324,15 +320,9 @@ class ViewerNode {
         this.clipBox.mask = this.clipGfx;
       } else this.clipBox.mask = null;
     }
-    // Pièces fermées qui ne le contiennent pas : retirées
-    const subs = t.subtractRooms.map((r) => r.polygon);
-    if (subs.length !== this.subRefs.length || subs.some((p, i) => p !== this.subRefs[i])) {
-      this.subRefs = subs;
-      this.subGfx.clear();
-      for (const r of t.subtractRooms) this.subGfx.poly(Array.from(r.polygon), true).fill(0xffffff);
-      if (t.subtractRooms.length) this.subBox.setMask({ mask: this.subGfx, inverse: true });
-      else this.subBox.mask = null;
-    }
+    // Pièces fermées qui ne le contiennent pas : retirées après coup, pour tous les observateurs
+    // (`buildVis`, effacement). Un masque inversé imbriqué dans celui de la ligne de vue cassait
+    // ce dernier dans Pixi : la vue débordait partout autour de la pièce.
     if (layer.translucent !== this.shadowsRef || !this.body.children.length) {
       this.shadowsRef = layer.translucent;
       this.rebuildBody(layer);
@@ -462,6 +452,9 @@ export class VisionRenderer {
     this.fogRoot.addChild(this.fogBody);
     this.glowRoot = new pixi.Container({ label: 'vision:glow' });
     this.visRoot = new pixi.Container({ label: 'vision:vis' });
+    this.hiddenErase = new pixi.Graphics({ label: 'vision:hidden-erase' });
+    this.hiddenErase.blendMode = 'erase';
+    this.visRoot.addChild(this.hiddenErase);
     this.discTexture = this.makeDiscTexture();
 
     // Composition : un quadrilatère sur le rectangle visible de la carte
@@ -839,6 +832,7 @@ export class VisionRenderer {
       node.root.removeFromParent();
       node.destroy();
     }
+    this.eraseHiddenRooms(p);
     // Sans observateur : la portée, moins les pièces fermées
     const key = p.topDown ? p.topDown.map((r) => r.join(',')).join('|') : null;
     if (key === null) {
@@ -861,6 +855,18 @@ export class VisionRenderer {
       this.visRoot.addChild(root);
       this.topDownNode = { root, key, body };
     }
+    // L'effacement passe après tout le reste
+    this.visRoot.addChild(this.hiddenErase);
+  }
+
+  private readonly hiddenErase: Pixi.Graphics;
+
+  /** Salles fermées où aucun observateur ne se trouve : effacées de la vue (mode `erase`). */
+  private eraseHiddenRooms(p: VisionPicture) {
+    const g = this.hiddenErase;
+    g.clear();
+    for (const poly of p.hiddenRooms.polygons) g.poly(Array.from(poly), true);
+    if (p.hiddenRooms.polygons.length) g.fill(0xffffff);
   }
 
   /** Densité de la brume : refaite si elle a dérivé, ou si la vue ou le brouillard ont changé. */
