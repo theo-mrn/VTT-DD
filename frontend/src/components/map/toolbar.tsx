@@ -18,11 +18,13 @@ import {
   Undo2,
 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
+import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Info } from '@/components/ui/tooltip';
+import { attackMenuStore } from '@/lib/combat/attack-menu-store';
 import { SNAP_STEPS, type SnapStep } from '@/lib/map/engine/map-engine';
 import { SELECT_TOOL_ID } from '@/lib/map/engine/tools/tool-manager';
 import { DISPLAY_TOGGLES, displayOf, isDisplayed } from '@/lib/map/engine/planes';
@@ -113,9 +115,23 @@ export function MapToolbar() {
     toolbarItems.filter((i) => i.slot === slot && (i.available ? i.available(viewer) : true));
 
   const focusMap = () => engine.canvas?.parentElement?.focus({ preventScroll: true });
+  // Attaque en cours (menu ouvert, visée, dés) : la barre s'efface, elle revient à la fin
+  const campaignId = engine.store.getState().campaignId;
+  const attacking = useStore(
+    attackMenuStore,
+    (s) => s.flow.phase !== 'closed' && s.flow.campaignId === campaignId,
+  );
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex flex-col items-center gap-2 px-3">
+    <div
+      inert={attacking}
+      aria-hidden={attacking || undefined}
+      className={cn(
+        'pointer-events-none absolute inset-x-0 bottom-3 z-10 flex flex-col items-center gap-2 px-3',
+        'transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none',
+        attacking && 'translate-y-6 opacity-0',
+      )}
+    >
       {Options && (
         <div className="pointer-events-auto max-w-full rounded-xl border border-border-strong bg-background/95 px-2 py-1.5 shadow-elevated">
           <Options engine={engine} />
