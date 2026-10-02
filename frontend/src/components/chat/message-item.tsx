@@ -79,6 +79,8 @@ function MessageItemView({ item, first, ctx, editing: enCorrection }: MessageIte
     <li
       className={cn(
         'group relative flex gap-3 border-l-2 py-0.5 pl-[14px] pr-4 transition-colors',
+        // Arrivée : fondu et léger glissé vers le haut
+        'duration-200 ease-out animate-in fade-in-0 slide-in-from-bottom-1',
         first && 'mt-3',
         forMe
           ? 'border-primary bg-primary/[0.07]'

@@ -39,7 +39,7 @@ export function CarteChoix({
       disabled={desactivee}
       onClick={onChoisir}
       className={cn(
-        'group relative flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition-all duration-200',
+        'group relative flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition-all duration-200 active:scale-[0.99]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50',
         choisie
           ? 'border-primary/60 bg-primary/[0.07] shadow-glow'
@@ -57,12 +57,16 @@ export function CarteChoix({
             : 'border-border-strong bg-surface-2 text-transparent group-hover:border-subtle',
         )}
       >
-        <Check className="size-3" strokeWidth={3} />
+        {/* Coché : la coche apparaît d'un léger rebond */}
+        <Check
+          className={cn('size-3', choisie && 'duration-200 ease-out animate-in zoom-in-50')}
+          strokeWidth={3}
+        />
       </span>
       {Icone && (
         <span
           className={cn(
-            'flex size-10 items-center justify-center rounded-xl border transition-colors',
+            'flex size-10 items-center justify-center rounded-xl border transition-[color,background-color,border-color,transform] duration-200 group-hover:scale-105 group-active:scale-95',
             choisie
               ? 'border-primary/40 bg-primary/15 text-primary'
               : 'border-border-strong bg-surface-2 text-muted-foreground group-hover:text-foreground',

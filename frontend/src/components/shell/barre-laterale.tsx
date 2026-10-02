@@ -26,6 +26,7 @@ import { Info } from '@/components/ui/tooltip';
 import { useDemandesAmis } from '@/lib/amis';
 import { useCampagnes } from '@/lib/campagnes';
 import { useSession } from '@/lib/session';
+import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { cn } from '@/lib/utils';
 import { estActif, LIENS_COMPTE, NAV_PRINCIPALE, NAV_SOCIALE, type LienNav } from './navigation';
 
@@ -107,70 +108,72 @@ export function BarreLaterale({
         </Info>
       </div>
 
-      <nav
-        aria-label="Navigation principale"
-        className={cn(
-          'mt-3 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto no-scrollbar',
-          repliee ? 'px-2' : 'px-3',
-        )}
-      >
-        <GroupeNav>
-          {NAV_PRINCIPALE.map((l) => (
-            <ElementNav
-              key={l.href}
-              lien={l}
-              actif={estActif(l, chemin)}
-              repliee={repliee}
-              onClick={onNavigue}
-            />
-          ))}
-        </GroupeNav>
-
-        {!repliee && (campagnes.data?.length ?? 0) > 0 && (
-          <GroupeNav titre="Mes campagnes">
-            {campagnes.data!.slice(0, 5).map((c) => {
-              const href = `/campagnes/${c.id}`;
-              const actif = chemin === href || chemin.startsWith(`${href}/`);
-              return (
-                <Link
-                  key={c.id}
-                  href={href}
-                  onClick={onNavigue}
-                  aria-current={actif ? 'page' : undefined}
-                  className={cn(
-                    'group flex h-8 items-center gap-2.5 rounded-lg px-2 text-[13px] transition-colors',
-                    actif
-                      ? 'bg-surface-3 text-foreground'
-                      : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground',
-                  )}
-                >
-                  <Illustration
-                    largeur={40}
-                    src={c.coverUrl}
-                    graine={c.name}
-                    initiale={false}
-                    className="size-5 shrink-0 rounded-md ring-1 ring-white/10"
-                  />
-                  <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                </Link>
-              );
-            })}
+      <PillGroup>
+        <nav
+          aria-label="Navigation principale"
+          className={cn(
+            'mt-3 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto no-scrollbar',
+            repliee ? 'px-2' : 'px-3',
+          )}
+        >
+          <GroupeNav>
+            {NAV_PRINCIPALE.map((l) => (
+              <ElementNav
+                key={l.href}
+                lien={l}
+                actif={estActif(l, chemin)}
+                repliee={repliee}
+                onClick={onNavigue}
+              />
+            ))}
           </GroupeNav>
-        )}
 
-        <GroupeNav titre={repliee ? undefined : 'Social'}>
-          {NAV_SOCIALE.map((l) => (
-            <ElementNav
-              key={l.href}
-              lien={l}
-              actif={estActif(l, chemin)}
-              repliee={repliee}
-              onClick={onNavigue}
-              pastille={recues}
-            />
-          ))}
-        </GroupeNav>
-      </nav>
+          {!repliee && (campagnes.data?.length ?? 0) > 0 && (
+            <GroupeNav titre="Mes campagnes">
+              {campagnes.data!.slice(0, 5).map((c) => {
+                const href = `/campagnes/${c.id}`;
+                const actif = chemin === href || chemin.startsWith(`${href}/`);
+                return (
+                  <Link
+                    key={c.id}
+                    href={href}
+                    onClick={onNavigue}
+                    aria-current={actif ? 'page' : undefined}
+                    className={cn(
+                      'group flex h-8 items-center gap-2.5 rounded-lg px-2 text-[13px] transition-colors',
+                      actif
+                        ? 'bg-surface-3 text-foreground'
+                        : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground',
+                    )}
+                  >
+                    <Illustration
+                      largeur={40}
+                      src={c.coverUrl}
+                      graine={c.name}
+                      initiale={false}
+                      className="size-5 shrink-0 rounded-md ring-1 ring-white/10"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                  </Link>
+                );
+              })}
+            </GroupeNav>
+          )}
+
+          <GroupeNav titre={repliee ? undefined : 'Social'}>
+            {NAV_SOCIALE.map((l) => (
+              <ElementNav
+                key={l.href}
+                lien={l}
+                actif={estActif(l, chemin)}
+                repliee={repliee}
+                onClick={onNavigue}
+                pastille={recues}
+              />
+            ))}
+          </GroupeNav>
+        </nav>
+      </PillGroup>
 
       <div className={cn('shrink-0 border-t border-border py-2', repliee ? 'px-2' : 'px-3')}>
         <MenuUtilisateur repliee={repliee} onNavigue={onNavigue} />
@@ -238,22 +241,23 @@ function ElementNav({
         onClick={onClick}
         aria-current={actif ? 'page' : undefined}
         className={cn(
-          'group relative flex h-9 items-center gap-2.5 rounded-lg text-[13px] font-medium transition-colors',
+          'group relative isolate flex h-9 items-center gap-2.5 rounded-lg text-[13px] font-medium transition-colors',
           repliee ? 'justify-center' : 'px-2.5',
           actif
-            ? 'bg-surface-3 text-foreground shadow-surface'
+            ? 'text-foreground'
             : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground',
         )}
       >
+        {actif && <ActivePill id="nav-bg" className="bg-surface-3 shadow-surface" />}
         {actif && (
-          <span
-            aria-hidden
-            className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary"
+          <ActivePill
+            id="nav-marker"
+            className="inset-auto -left-3 top-2 z-0 h-5 w-1 rounded-l-none rounded-r-full bg-primary"
           />
         )}
         <Icone
           className={cn(
-            'size-[18px] shrink-0 transition-colors',
+            'size-[18px] shrink-0 transition-[color,transform] duration-200 group-hover:scale-110 group-active:scale-95',
             actif ? 'text-primary' : 'text-subtle group-hover:text-muted-foreground',
           )}
         />
