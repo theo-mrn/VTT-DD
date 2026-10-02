@@ -58,7 +58,8 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
       // Token du Studio : sa forme et son cadre sont déjà dans l'image
       baked: tokenImage(d, c).baked,
       side: c?.side ?? d.draft?.side ?? null,
-      name: nameOf(d),
+      // Pas de nom sous les personnages des joueurs (survol et menus le gardent)
+      name: c && !isNpc(c) ? null : nameOf(d),
       resource: c?.resource ?? null,
       pending: !!d.draft || d.id.startsWith('tmp-'),
       badge:
