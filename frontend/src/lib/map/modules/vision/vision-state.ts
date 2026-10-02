@@ -24,6 +24,7 @@ import {
   type LightArea,
   type Polygon,
   type PreparedScene,
+  type Segment as VisionSegment,
   type Vec,
   type View,
   type Viewer,
@@ -94,8 +95,27 @@ export interface VisionPicture {
   readonly glowFloor: number;
   readonly showFog: boolean;
   readonly showGlow: boolean;
+  /**
+   * Murs qui bloquent la vue (murs, portes fermées, sens unique), `[ax, ay, bx, by, …]`, tracés
+   * en sombre pour les joueurs : les limites des salles restent lisibles dans l'ombre. Null pour
+   * le MJ (il a son propre tracé).
+   */
+  readonly walls: Float64Array | null;
+  /** Épaisseur de ce tracé, en pixels du monde (un dixième de case). */
+  readonly wallWidth: number;
   /** Versions : un terme qui change fait refaire ce qui en dépend. */
   readonly versions: { readonly fog: number; readonly lights: number; readonly viewers: number };
+}
+
+/** Segments opaques d'une scène (murs, portes fermées, sens unique, translucides compris). */
+export function blockingWalls(scene: { segments: readonly VisionSegment[] }): Float64Array {
+  const out: number[] = [];
+  for (const s of scene.segments) {
+    if (s.kind === 'window' || (s.kind === 'door' && s.open === true)) continue;
+    if (!((s.opacity ?? 1) > 0)) continue;
+    out.push(s.a.x, s.a.y, s.b.x, s.b.y);
+  }
+  return Float64Array.from(out);
 }
 
 /** Décision d'affichage d'une entité (PNJ, objet, personnage joueur). */
@@ -198,6 +218,7 @@ export class VisionState {
   private geoKey: readonly unknown[] | null = null;
   private geoPrep: PreparedScene | null = null;
   private geoScene: ReturnType<typeof geometryScene> | null = null;
+  private wallCache: { scene: unknown; walls: Float64Array } | null = null;
   private foggedGeo: PreparedScene | null = null;
   private fogVersion = 0;
 
@@ -479,7 +500,10 @@ export class VisionState {
       typeof state.settings?.shadowOpacity === 'number' ? state.settings.shadowOpacity : 1;
     const gm = this.mode === 'gm';
     const scene = this.geoScene!;
+    if (this.wallCache?.scene !== scene) this.wallCache = { scene, walls: blockingWalls(scene) };
     this.pictureCache = {
+      walls: gm ? null : this.wallCache.walls,
+      wallWidth: Math.max(2, scaleOf(state).pixelsPerUnit * 0.1),
       bounds: scene.bounds,
       viewers: layers,
       topDown,

@@ -513,6 +513,35 @@ export class VisionRenderer {
     this.composite.label = 'vision:composite';
     this.composite.visible = false;
     plane.addChild(this.composite);
+    // Tracé sombre des murs pour les joueurs, au-dessus de l'ombre (comme l'ancienne carte)
+    this.wallLines = new pixi.Graphics({ label: 'vision:walls' });
+    this.wallColor = mixColor(theme.background, 0x000000, 0.65);
+    plane.addChild(this.wallLines);
+  }
+
+  private readonly wallLines: Pixi.Graphics;
+  private readonly wallColor: number;
+  private wallKey: { walls: Float64Array | null; width: number; darkness: number } | null = null;
+
+  /** Murs qui bloquent la vue, en trait sombre (joueur) ; refait seulement s'ils changent. */
+  private drawWalls(p: VisionPicture) {
+    this.wallLines.visible = true;
+    const k = this.wallKey;
+    if (k && k.walls === p.walls && k.width === p.wallWidth && k.darkness === p.darkness) return;
+    this.wallKey = { walls: p.walls, width: p.wallWidth, darkness: p.darkness };
+    const g = this.wallLines;
+    g.clear();
+    const w = p.walls;
+    if (!w || !w.length || p.darkness <= 0) return;
+    for (let i = 0; i + 3 < w.length; i += 4)
+      g.moveTo(w[i]!, w[i + 1]!).lineTo(w[i + 2]!, w[i + 3]!);
+    g.stroke({
+      width: p.wallWidth,
+      color: this.wallColor,
+      alpha: Math.min(1, p.darkness),
+      cap: 'round',
+      join: 'round',
+    });
   }
 
   private blur(strength: number) {
@@ -574,6 +603,7 @@ export class VisionRenderer {
     if (this.destroyed) return false;
     if (!picture || cam.width < 1 || cam.height < 1) {
       this.composite.visible = false;
+      this.wallLines.visible = false;
       this.shown = false;
       return false;
     }
@@ -666,6 +696,7 @@ export class VisionRenderer {
 
     if (this.hasFog) this.renderMist(tc, time, left, top, fogStale);
     this.updateComposite(picture, cam, tc);
+    this.drawWalls(picture);
     this.shown = true;
     this.onRender?.(performance.now() - started);
     return deferred || this.redrawNext;
@@ -912,6 +943,7 @@ export class VisionRenderer {
     this.composite.removeFromParent();
     this.composite.destroy();
     shader?.destroy();
+    this.wallLines.destroy();
     this.compositeGeometry.destroy();
     const mistMesh = this.mistRoot.children[0] as Pixi.Mesh<Pixi.MeshGeometry, Pixi.Shader>;
     const mistShader = mistMesh.shader;

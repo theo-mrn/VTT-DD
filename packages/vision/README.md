@@ -69,8 +69,14 @@ isEntityVisible(view: View, samples: Float64Array | Vec[]): boolean
   l'écran a sa gauche à l'est. De l'autre côté, on voit à travers.
 - **Opacité** : 1 (défaut) bloque ; entre 0 et 1, ombre partielle (`translucentShadows`) sans
   jamais masquer une entité ; 0 : sans effet. Fenêtres et portes ouvertes ne bloquent pas.
-- **Pièce fermée** : aucune porte ouverte sur son contour. Une porte est sur le contour si ses
-  extrémités et son milieu sont à `doorTolerance` (3 px) du contour ; une fenêtre n'ouvre pas.
+- **Salles détectées des murs** (`wallRooms`, vrai par défaut) : toute boucle fermée de
+  segments est une pièce (`detectWallRooms` : sommets soudés à `snap`, jonctions en T
+  découpées, bouts pendants ignorés, faces de moins de 16 px² écartées), en plus des pièces de
+  `scene.rooms`. Fermée si ni fenêtre, ni porte ouverte, ni sens unique, ni mur translucide sur
+  son contour.
+- **Pièce posée fermée** : ni porte ouverte ni fenêtre sur son contour. Une porte (ou une
+  fenêtre) est sur le contour si ses extrémités et son milieu sont à `doorTolerance` (3 px) du
+  contour.
 - **Brouillard** : zones appliquées dans l'ordre du tableau (trier par `order`), à partir de
   `fogFull` ; la dernière zone qui contient le point décide.
 - **Soudure** : extrémités à moins de `snap` (0,5 px) fusionnées, extrémité à moins de `snap`

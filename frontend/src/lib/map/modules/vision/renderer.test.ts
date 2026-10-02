@@ -3,6 +3,7 @@
  * est refait à chaque image, avec un faux renderer qui note ses rendus dans les textures.
  * Seuls les shaders ne s'exécutent pas ici ; leur rendu se vérifie dans le navigateur.
  */
+import { blockingWalls } from './vision-state';
 import * as PIXI from 'pixi.js';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { MapTheme } from '../../engine/entities/entity-kind';
@@ -254,9 +255,24 @@ describe('rendu de la visibilité (sans WebGL)', () => {
   it('se détruit sans rien laisser dans le plan', () => {
     const h = harness({ objects: [object('coffre', 300, 90)] });
     h.draw();
-    expect(h.plane.children).toHaveLength(1);
+    // L'ombre et le tracé des murs
+    expect(h.plane.children).toHaveLength(2);
     h.r.destroy();
     expect(h.plane.children).toHaveLength(0);
     h.r.draw(h.state.picture(), { x: 0, y: 0, zoom: 1, width: 10, height: 10 }, 0);
+  });
+
+  it('murs tracés pour le joueur : opaques et portes fermées, ni fenêtres ni portes ouvertes', () => {
+    const P = (x: number, y: number) => ({ x, y });
+    const walls = blockingWalls({
+      segments: [
+        { id: 'm', a: P(0, 0), b: P(10, 0), kind: 'wall' },
+        { id: 'f', a: P(10, 0), b: P(20, 0), kind: 'window' },
+        { id: 'po', a: P(20, 0), b: P(30, 0), kind: 'door', open: true },
+        { id: 'pf', a: P(30, 0), b: P(40, 0), kind: 'door', open: false },
+        { id: 'z', a: P(40, 0), b: P(50, 0), kind: 'wall', opacity: 0 },
+      ],
+    });
+    expect([...walls]).toEqual([0, 0, 10, 0, 30, 0, 40, 0]);
   });
 });
