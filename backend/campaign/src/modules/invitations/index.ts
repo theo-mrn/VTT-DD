@@ -30,6 +30,7 @@ import {
   campaignMembers,
   campaigns,
 } from '../../db/schema.js';
+import type { Tx } from '../../db/outbox.js';
 import type { Module } from '../../deps.js';
 import { CAMPAIGN_CODE_FORMAT, normalizeCampaignCode } from '../campaigns/code.js';
 import {
@@ -72,6 +73,37 @@ const notFound = () =>
     'campaign_not_found',
     'Aucune campagne ni invitation ne correspond à ce code',
   );
+
+type InvitationRow = typeof campaignInvitations.$inferSelect;
+
+/** Ce que désigne un code : une invitation (et sa campagne), ou une campagne par son code. */
+async function joinTarget(
+  tx: Tx,
+  code: string,
+  campaignCode: string,
+  byInvitation: boolean,
+): Promise<{ invitation?: InvitationRow; campaignId?: string }> {
+  if (byInvitation) {
+    const [invitation] = await tx
+      .select()
+      .from(campaignInvitations)
+      .where(eq(campaignInvitations.codeHash, hashCode(code)));
+    return { invitation, campaignId: invitation?.campaignId };
+  }
+  const [{ id: campaignId } = { id: undefined }] = await tx
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(eq(campaigns.code, campaignCode));
+  return { campaignId };
+}
+
+/** Invitation encore valable : ni expirée, ni épuisée. */
+function checkInvitation(invitation: InvitationRow, now: Date): void {
+  if (invitation.expiresAt.getTime() <= now.getTime())
+    throw expired('Cette invitation a expiré', 'invitation_expired');
+  if (invitation.uses >= invitation.maxUses)
+    throw expired('Cette invitation a atteint son nombre d’utilisations', 'invitation_exhausted');
+}
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -165,20 +197,9 @@ export const register: Module = async (app, deps) => {
       if (!byInvitation && !CAMPAIGN_CODE_FORMAT.test(campaignCode)) throw notFound();
 
       const joined = await db.transaction(async (tx) => {
-        let invitation: typeof campaignInvitations.$inferSelect | undefined;
-        let campaignId: string | undefined;
-        if (byInvitation) {
-          [invitation] = await tx
-            .select()
-            .from(campaignInvitations)
-            .where(eq(campaignInvitations.codeHash, hashCode(code)));
-          campaignId = invitation?.campaignId;
-        } else {
-          [{ id: campaignId } = { id: undefined }] = await tx
-            .select({ id: campaigns.id })
-            .from(campaigns)
-            .where(eq(campaigns.code, campaignCode));
-        }
+        const target = await joinTarget(tx, code, campaignCode, byInvitation);
+        let invitation = target.invitation;
+        const campaignId = target.campaignId;
         if (!campaignId) throw notFound();
 
         // Campagne verrouillée (toujours avant l'invitation, comme les autres routes) : deux
@@ -212,15 +233,7 @@ export const register: Module = async (app, deps) => {
           .where(and(eq(campaignBans.campaignId, campaignId), eq(campaignBans.userId, userId)));
         if (isBanned) throw banned();
 
-        if (invitation) {
-          if (invitation.expiresAt.getTime() <= deps.now().getTime())
-            throw expired('Cette invitation a expiré', 'invitation_expired');
-          if (invitation.uses >= invitation.maxUses)
-            throw expired(
-              'Cette invitation a atteint son nombre d’utilisations',
-              'invitation_exhausted',
-            );
-        }
+        if (invitation) checkInvitation(invitation, deps.now());
         if (invitation)
           await tx
             .update(campaignInvitations)
