@@ -100,37 +100,53 @@ export function dashedPolyline(
 ) {
   const n = closed ? pts.length : pts.length - 1;
   let phase = 0;
-  const period = dash + gap;
   // Pas plus de 4 000 tirets : au-delà (très grand zoom arrière), un trait plein
+  if (polylineLength(pts, n) / (dash + gap) > 4_000) {
+    g.moveTo(pts[0]!.x, pts[0]!.y);
+    for (let i = 1; i <= n; i++) g.lineTo(pts[i % pts.length]!.x, pts[i % pts.length]!.y);
+    return;
+  }
+  for (let i = 0; i < n; i++)
+    phase = dashedSegment(g, pts[i]!, pts[(i + 1) % pts.length]!, dash, gap, phase);
+}
+
+/** Longueur des `n` premiers segments (le dernier rejoint le premier point). */
+function polylineLength(pts: readonly Point[], n: number): number {
   let total = 0;
   for (let i = 0; i < n; i++) {
     const a = pts[i]!;
     const b = pts[(i + 1) % pts.length]!;
     total += Math.hypot(b.x - a.x, b.y - a.y);
   }
-  if (total / period > 4_000) {
-    g.moveTo(pts[0]!.x, pts[0]!.y);
-    for (let i = 1; i <= n; i++) g.lineTo(pts[i % pts.length]!.x, pts[i % pts.length]!.y);
-    return;
-  }
-  for (let i = 0; i < n; i++) {
-    const a = pts[i]!;
-    const b = pts[(i + 1) % pts.length]!;
-    const len = Math.hypot(b.x - a.x, b.y - a.y);
-    if (!len) continue;
-    const ux = (b.x - a.x) / len;
-    const uy = (b.y - a.y) / len;
-    let s = 0;
-    while (s < len) {
-      const inDash = phase < dash;
-      const step = Math.min(len - s, inDash ? dash - phase : period - phase);
-      if (inDash) {
-        g.moveTo(a.x + ux * s, a.y + uy * s).lineTo(a.x + ux * (s + step), a.y + uy * (s + step));
-      }
-      s += step;
-      phase = (phase + step) % period;
+  return total;
+}
+
+/** Tirets d'un segment, le motif repris à `phase` ; renvoie la phase à la fin du segment. */
+function dashedSegment(
+  g: Pixi.Graphics,
+  a: Point,
+  b: Point,
+  dash: number,
+  gap: number,
+  phase: number,
+): number {
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  if (!len) return phase;
+  const period = dash + gap;
+  const ux = (b.x - a.x) / len;
+  const uy = (b.y - a.y) / len;
+  let s = 0;
+  let at = phase;
+  while (s < len) {
+    const inDash = at < dash;
+    const step = Math.min(len - s, inDash ? dash - at : period - at);
+    if (inDash) {
+      g.moveTo(a.x + ux * s, a.y + uy * s).lineTo(a.x + ux * (s + step), a.y + uy * (s + step));
     }
+    s += step;
+    at = (at + step) % period;
   }
+  return at;
 }
 
 /** Cercle en tirets (arcs), à suivre d'un `stroke`. */

@@ -48,6 +48,16 @@ interface Segment {
   b: Point;
 }
 
+/** Le point est hors de la boîte du segment élargie de `margin`. */
+function outsideBox(p: Point, s: SegmentHit, margin: number): boolean {
+  return (
+    p.x < Math.min(s.a.x, s.b.x) - margin ||
+    p.x > Math.max(s.a.x, s.b.x) + margin ||
+    p.y < Math.min(s.a.y, s.b.y) - margin ||
+    p.y > Math.max(s.a.y, s.b.y) + margin
+  );
+}
+
 export class ObstacleSnapper {
   private obstacles: ReadonlyMap<string, unknown> | null = null;
   private rooms: ReadonlyMap<string, unknown> | null = null;
@@ -90,7 +100,17 @@ export class ObstacleSnapper {
 
   /** Aimante un point ; le résultat est arrondi au centième (soudure exacte). */
   snap(p: Point, q: SnapQuery): SnapTarget {
-    // 1. Sommets
+    // 1. Sommets, 2. segments de murs
+    const target = this.snapToVertex(p, q) ?? this.snapToSegment(p, q);
+    if (target) return target;
+    // 3. Grille
+    if (q.grid && q.grid.size > 0)
+      return { point: roundPoint(snapToGridLines(p, q.grid)), kind: 'grid' };
+    return { point: roundPoint(p), kind: 'none' };
+  }
+
+  /** Sommet le plus proche (connu ou en plus), à la tolérance près. */
+  private snapToVertex(p: Point, q: SnapQuery): SnapTarget | null {
     let best: Point | null = null;
     let bestD = q.tolerance;
     const consider = (v: Point) => {
@@ -105,21 +125,18 @@ export class ObstacleSnapper {
       consider(v);
     }
     for (const v of q.extraPoints ?? []) consider(v);
-    if (best) return { point: { x: (best as Point).x, y: (best as Point).y }, kind: 'point' };
+    if (!best) return null;
+    return { point: { x: (best as Point).x, y: (best as Point).y }, kind: 'point' };
+  }
 
-    // 2. Segments de murs
+  /** Point le plus proche sur un segment de mur, à la tolérance près. */
+  private snapToSegment(p: Point, q: SnapQuery): SnapTarget | null {
     let hit: SegmentHit | null = null;
     let hitPoint: Point | null = null;
-    bestD = q.tolerance;
+    let bestD = q.tolerance;
     for (const s of this.segments) {
       // Boîte grossière d'abord
-      if (
-        p.x < Math.min(s.a.x, s.b.x) - bestD ||
-        p.x > Math.max(s.a.x, s.b.x) + bestD ||
-        p.y < Math.min(s.a.y, s.b.y) - bestD ||
-        p.y > Math.max(s.a.y, s.b.y) + bestD
-      )
-        continue;
+      if (outsideBox(p, s, bestD)) continue;
       if (q.skipSegment?.(s)) continue;
       const proj = projectOnSegment(p, s.a, s.b);
       const d = Math.hypot(proj.point.x - p.x, proj.point.y - p.y);
@@ -130,11 +147,7 @@ export class ObstacleSnapper {
       }
     }
     if (hit && hitPoint) return { point: roundPoint(hitPoint), kind: 'segment', segment: hit };
-
-    // 3. Grille
-    if (q.grid && q.grid.size > 0)
-      return { point: roundPoint(snapToGridLines(p, q.grid)), kind: 'grid' };
-    return { point: roundPoint(p), kind: 'none' };
+    return null;
   }
 
   /** Segment de mur le plus proche du point (porte à insérer, double clic), à `tolerance` près. */
