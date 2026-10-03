@@ -153,6 +153,17 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
     expect(created!.payload).not.toHaveProperty('title');
   });
 
+  it('compte + personnage : qui reprend mon personnage ne lit pas mes notes privées', async () => {
+    const note = await create(alice, { title: 'Carnet d’Aria', content: `<p>${SECRET}</p>` });
+    expect(note).toMatchObject({ owner: { id: alice.id }, characterId: aliceHero });
+    // Bob reprend Aria (celui qui incarne un personnage en lit les notes partagées avec lui)
+    await h.ok(bob, 'PUT', `/v1/campaigns/${campaignId}/me/character`, { characterId: aliceHero });
+    expect((await list(bob)).map((n) => n.id)).not.toContain(note.id);
+    expect((await h.request(bob, 'GET', url(`/${note.id}`))).statusCode).toBe(404);
+    // L'autrice la garde, même sans incarner Aria
+    expect((await list(alice)).map((n) => n.id)).toContain(note.id);
+  });
+
   it('le MJ garde ses notes privées (sans personnage) et lit les notes partagées avec tous', async () => {
     const own = await create(gm, { title: 'Scénario', content: 'Le traître est Brom' });
     expect(own).toMatchObject({ characterId: null, shared: false });
@@ -330,7 +341,11 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
       ['POST', url(), { title: 'X' }],
       ['PATCH', url(`/${note.id}`), { title: 'X' }],
       ['DELETE', url(`/${note.id}`), undefined],
-      ['POST', url('/upload'), { contentType: 'image/png', size: 10 }],
+      [
+        'POST',
+        `/v1/campaigns/${campaignId}/uploads`,
+        { usage: 'note-image', contentType: 'image/png', size: 10 },
+      ],
       ['PATCH', `/v1/notes/${note.id}`, { title: 'X' }],
     ] as const) {
       const res = await h.request(carol, method, path, payload);
@@ -341,7 +356,10 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
   });
 
   it('URL d’envoi d’une image de note pour les membres ; non-membre : 404', async () => {
-    const res = await h.ok<{ uploadUrl: string; publicUrl: string }>(bob, 'POST', url('/upload'), {
+    // Route commune d'envoi (docs/uploads.md), usage des images de notes
+    const uploads = `/v1/campaigns/${campaignId}/uploads`;
+    const res = await h.ok<{ url: string; publicUrl: string }>(bob, 'POST', uploads, {
+      usage: 'note-image',
       contentType: 'image/webp',
       size: 1024,
     });
@@ -355,8 +373,13 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
     const stranger = await t.user();
     expect((await h.request(stranger, 'GET', url())).statusCode).toBe(404);
     expect(
-      (await h.request(stranger, 'POST', url('/upload'), { contentType: 'image/png', size: 1 }))
-        .statusCode,
+      (
+        await h.request(stranger, 'POST', uploads, {
+          usage: 'note-image',
+          contentType: 'image/png',
+          size: 1,
+        })
+      ).statusCode,
     ).toBe(404);
     const elsewhere = await h.request(stranger, 'GET', `/v1/notes/${withImage.id}`);
     expect(elsewhere.json()).toMatchObject({ code: 'note_not_found' });
