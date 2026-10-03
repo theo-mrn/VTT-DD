@@ -76,11 +76,9 @@ function Crossings({ ctx }: { ctx: PortalModule }) {
         void qc.invalidateQueries({ queryKey: [...mapKeys.scope(campaignId), 'where'] });
         if (ctx.engine.viewer.role !== 'gm') return;
         const scene = ctx.scenes().find((s) => s.id === result.mapId)?.name;
-        const who = party
-          ? 'Le groupe'
-          : result.items.length > 1
-            ? `${result.items.length} personnages`
-            : characterName(ctx, result.items[0]?.characterId);
+        let who = characterName(ctx, result.items[0]?.characterId);
+        if (party) who = 'Le groupe';
+        else if (result.items.length > 1) who = `${result.items.length} personnages`;
         toast(`${who} a franchi « ${portalLabel(portal)} »${scene ? ` vers « ${scene} »` : ''}.`, {
           action: { label: 'Y aller', onClick: () => openScene(result.mapId) },
         });

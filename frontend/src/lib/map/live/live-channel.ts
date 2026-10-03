@@ -678,11 +678,11 @@ export function interpolate(samples: readonly Sample[], t: number): Sample | nul
       t,
       x: a.x + (b.x - a.x) * k,
       y: a.y + (b.y - a.y) * k,
-      ...(a.rotation !== undefined && b.rotation !== undefined
-        ? { rotation: lerpAngle(a.rotation, b.rotation, k) }
-        : b.rotation !== undefined
-          ? { rotation: b.rotation }
-          : {}),
+      ...(b.rotation === undefined
+        ? {}
+        : {
+            rotation: a.rotation === undefined ? b.rotation : lerpAngle(a.rotation, b.rotation, k),
+          }),
       ...(b.width !== undefined ? { width: lerp(a.width, b.width) } : {}),
       ...(b.height !== undefined ? { height: lerp(a.height, b.height) } : {}),
     };

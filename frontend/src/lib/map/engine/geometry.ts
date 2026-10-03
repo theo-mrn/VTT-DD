@@ -45,7 +45,8 @@ export const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y)
 /** Normalise un angle en degrés dans [0, 360). */
 export function normalizeDegrees(deg: number): number {
   const r = deg % 360;
-  return r < 0 ? r + 360 : r === 0 ? 0 : r;
+  if (r < 0) return r + 360;
+  return r === 0 ? 0 : r;
 }
 
 /** Arrondit au pas donné (15° pour la rotation avec ⇧). */

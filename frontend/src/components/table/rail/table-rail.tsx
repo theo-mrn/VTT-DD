@@ -87,7 +87,9 @@ function RailButton({
   const badge = usePanelStore((s) => s.badges[panel.id] ?? 0);
   const toggle = usePanelStore((s) => s.toggle);
   const Icone = panel.icon;
-  const nouveautes = badge > 0 ? ` (${badge} nouveauté${badge > 1 ? 's' : ''})` : '';
+  let nouveautes = '';
+  if (badge === 1) nouveautes = ' (1 nouveauté)';
+  else if (badge > 1) nouveautes = ` (${badge} nouveautés)`;
 
   const bouton = (
     <button

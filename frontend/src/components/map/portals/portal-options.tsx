@@ -34,8 +34,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalToo
   const state = useStore(tool.ui, (u) => u.state);
   const set = tool.settings.setState;
   const unit = engine.kindContext().unitName;
-  const hint =
-    state === 'destination' ? HINTS.destination : state === 'pick' ? HINTS.pick : HINTS.idle;
+  const hint = state === 'destination' || state === 'pick' ? HINTS[state] : HINTS.idle;
 
   return (
     <div className="flex max-w-full flex-col items-center gap-1">

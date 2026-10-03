@@ -141,9 +141,9 @@ export function PanneauJoueurs() {
                         {p.name}
                       </span>
                       <span className="block max-w-40 truncate text-[11px] text-muted-foreground">
-                        {!j
-                          ? 'Non incarné'
-                          : `${j.userId === moi ? 'Vous' : j.name}${horsLigne(enLigne.has(j.userId))}`}
+                        {j
+                          ? `${nomJoueur(j, moi)}${horsLigne(enLigne.has(j.userId))}`
+                          : 'Non incarné'}
                       </span>
                     </span>
                   </PanelLink>
@@ -173,3 +173,7 @@ export function PanneauJoueurs() {
 }
 
 const horsLigne = (enLigne: boolean) => (enLigne ? '' : ' · hors ligne');
+
+function nomJoueur(j: { userId: string; name: string }, moi: string): string {
+  return j.userId === moi ? 'Vous' : j.name;
+}

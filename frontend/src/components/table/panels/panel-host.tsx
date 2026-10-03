@@ -147,11 +147,12 @@ function PanelFrame({ panel, visible }: Readonly<{ panel: TablePanel; visible: b
       transition={reduit ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
         'flex flex-col bg-background text-foreground shadow-elevated outline-none',
-        centered
-          ? 'pointer-events-auto relative size-full lg:h-auto lg:max-h-full lg:rounded-2xl lg:border lg:border-border-strong'
-          : panel.mode === 'floating'
+        centered &&
+          'pointer-events-auto relative size-full lg:h-auto lg:max-h-full lg:rounded-2xl lg:border lg:border-border-strong',
+        !centered &&
+          (panel.mode === 'floating'
             ? 'fixed inset-x-0 top-0 bottom-[var(--table-dock-h)] z-40 lg:inset-x-auto lg:bottom-auto lg:left-[5.75rem] lg:top-3 lg:max-h-[calc(100dvh-1.5rem)] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-border-strong'
-            : 'fixed inset-x-0 top-0 bottom-[var(--table-dock-h)] z-40 lg:inset-x-auto lg:bottom-0 lg:left-20 lg:border-x lg:border-border',
+            : 'fixed inset-x-0 top-0 bottom-[var(--table-dock-h)] z-40 lg:inset-x-auto lg:bottom-0 lg:left-20 lg:border-x lg:border-border'),
         WIDTH[panel.width],
       )}
     >

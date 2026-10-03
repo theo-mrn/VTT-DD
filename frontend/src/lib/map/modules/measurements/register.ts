@@ -141,8 +141,7 @@ export function registerMeasurements(engine: MapEngine, ui: MeasureUi = {}): () 
       engine.live.onMeasure((e) => {
         ctx.remote.handle(e, engine.now());
         const r = ctx.remote.get(e.userId);
-        if (r)
-          wakeIn(e.userId, !r.ended ? IDLE_MS : r.measure.pinned ? PIN_SETTLE_MS : EPHEMERAL_MS);
+        if (r) wakeIn(e.userId, wakeDelay(r.ended, r.measure.pinned === true));
         engine.invalidate();
       }),
       () => {
@@ -183,4 +182,10 @@ export function registerMeasurements(engine: MapEngine, ui: MeasureUi = {}): () 
     ctx.remote.clear();
     modules.delete(engine);
   };
+}
+
+/** Délai avant de relire une mesure distante : en cours, épinglée, ou éphémère. */
+function wakeDelay(ended: boolean, pinned: boolean): number {
+  if (!ended) return IDLE_MS;
+  return pinned ? PIN_SETTLE_MS : EPHEMERAL_MS;
 }

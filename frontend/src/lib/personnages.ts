@@ -505,10 +505,7 @@ function ecrire(
 ): Promise<{ fiche: FichePersonnage; brut: CharacterApi }> {
   const cle = clesPersonnages.un(id);
   const generation = generations.get(id) ?? 0;
-  if (apercu)
-    client.setQueryData<FichePersonnage>(cle, (p) =>
-      p ? (typeof apercu === 'function' ? apercu(p) : { ...p, state: apercu }) : p,
-    );
+  if (apercu) client.setQueryData<FichePersonnage>(cle, (p) => p && appliquerApercu(p, apercu));
   enAttente.set(id, (enAttente.get(id) ?? 0) + 1);
 
   const recharger = async () => {
@@ -961,4 +958,12 @@ export function useSupprimerPersonnage() {
       void client.invalidateQueries({ queryKey: clesCampagnes.racine });
     },
   });
+}
+
+/** Aperçu optimiste d'une écriture : un nouvel état, ou une transformation de la fiche. */
+function appliquerApercu(
+  p: FichePersonnage,
+  apercu: EtatEntite | ((p: FichePersonnage) => FichePersonnage),
+): FichePersonnage {
+  return typeof apercu === 'function' ? apercu(p) : { ...p, state: apercu };
 }

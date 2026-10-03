@@ -244,9 +244,11 @@ export class Camera {
  * pincement du pavé tactile arrive en molette avec `ctrlKey` et de petits deltas, plus
  * sensibles.
  */
+const WHEEL_UNITS: Partial<Record<number, number>> = { 1: 16, 2: 400 };
+
 export function wheelZoomFactor(deltaY: number, deltaMode: number, ctrlKey: boolean): number {
   // deltaMode : 0 pixels, 1 lignes, 2 pages
-  const pixels = deltaMode === 1 ? deltaY * 16 : deltaMode === 2 ? deltaY * 400 : deltaY;
+  const pixels = deltaY * (WHEEL_UNITS[deltaMode] ?? 1);
   const sensitivity = ctrlKey ? 0.01 : 0.0015;
   const clamped = Math.max(-100, Math.min(100, pixels));
   return Math.exp(-clamped * sensitivity);

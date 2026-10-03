@@ -85,11 +85,12 @@ export function TravelDialog({
           ]}
         />
 
-        {mode === 'all' ? (
+        {mode === 'all' && (
           <p className="rounded-xl border border-border bg-surface-2/50 p-4 text-sm text-muted-foreground">
             Tous les personnages des joueurs, et la scène devient celle du groupe.
           </p>
-        ) : characters.length ? (
+        )}
+        {mode !== 'all' && characters.length > 0 && (
           <ul className="max-h-64 space-y-1 overflow-y-auto">
             {characters.map((c) => {
               const on = picked.has(c.id);
@@ -123,7 +124,8 @@ export function TravelDialog({
               );
             })}
           </ul>
-        ) : (
+        )}
+        {mode !== 'all' && characters.length === 0 && (
           <p className="text-sm text-muted-foreground">Aucun personnage de joueur engagé.</p>
         )}
 

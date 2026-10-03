@@ -137,7 +137,9 @@ export class FogView {
     const u = this.redraw.unit;
     const clear = z.mode === 'clear';
     const accent = clear ? theme.primary : theme.foreground;
-    const strong = e.state.selected ? 1 : e.state.hovered ? 0.9 : 0.7;
+    let strong = 0.7;
+    if (e.state.selected) strong = 1;
+    else if (e.state.hovered) strong = 0.9;
     const outline: Point[] =
       z.shape === 'circle' ? circlePolygon(z.center ?? { x: 0, y: 0 }, z.radius ?? 0) : z.points;
 

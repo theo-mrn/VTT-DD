@@ -214,8 +214,7 @@ export function parseColor(value: string | null | undefined): ParsedColor | null
       Math.round(Math.min(255, Math.max(0, Number(n))))
         .toString(16)
         .padStart(2, '0');
-    const a =
-      m[4] === undefined ? 1 : m[4].endsWith('%') ? Number(m[4].slice(0, -1)) / 100 : Number(m[4]);
+    const a = alphaOf(m[4]);
     return { hex: `#${to2(m[1]!)}${to2(m[2]!)}${to2(m[3]!)}`, alpha: clamp01(a) };
   }
   return null;
@@ -236,3 +235,9 @@ export const fillFor = (color: string) => {
   const c = parseColor(color);
   return withAlpha(c?.hex ?? DEFAULT_DRAWING_COLOR, (c?.alpha ?? 1) * FILL_ALPHA);
 };
+
+/** Opacité CSS : absente (1), en pourcentage, ou en fraction. */
+function alphaOf(v: string | undefined): number {
+  if (v === undefined) return 1;
+  return v.endsWith('%') ? Number(v.slice(0, -1)) / 100 : Number(v);
+}

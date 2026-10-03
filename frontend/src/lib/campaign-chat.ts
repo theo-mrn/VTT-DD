@@ -21,6 +21,7 @@ import {
   type InfiniteData,
   type QueryClient,
 } from '@tanstack/react-query';
+import { compareCodeUnits } from '@vtt/contracts';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { api, ApiError } from './api';
 import { useCampaignEvents, type RealtimeEnvelope } from './realtime';
@@ -137,7 +138,7 @@ interface ChatPage {
 type ChatData = InfiniteData<ChatPage, string | null>;
 
 /** Identifiants UUIDv7 : l'ordre des chaînes est l'ordre d'envoi. */
-const byId = (a: ChatMessage, b: ChatMessage) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const byId = (a: ChatMessage, b: ChatMessage) => compareCodeUnits(a.id, b.id);
 
 function lastMessageId(data: ChatData | undefined): string | null {
   for (let p = (data?.pages.length ?? 0) - 1; p >= 0; p--) {

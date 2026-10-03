@@ -28,16 +28,14 @@ export function PlayerSearchSection({ engine, entities }: Readonly<InspectorSect
   const inRange = reach.filter((r) => r.inRange);
   const names = inRange.map((r) => nameOf(engine, r.characterId));
   const controller = searchControllerOf(engine);
+  let reachMessage = 'Aucun de vos personnages n’est sur cette carte.';
+  if (inRange.length) reachMessage = `À portée : ${names.join(', ')}.`;
+  else if (reach.length)
+    reachMessage = `Trop loin : approchez-vous à ${(o.searchRadius ?? 0).toLocaleString('fr-FR')} ${unit} de l’objet.`;
 
   return (
     <div className="space-y-3">
-      <p className="text-[13px] text-muted-foreground">
-        {inRange.length
-          ? `À portée : ${names.join(', ')}.`
-          : reach.length
-            ? `Trop loin : approchez-vous à ${(o.searchRadius ?? 0).toLocaleString('fr-FR')} ${unit} de l’objet.`
-            : 'Aucun de vos personnages n’est sur cette carte.'}
-      </p>
+      <p className="text-[13px] text-muted-foreground">{reachMessage}</p>
       <Button
         className="w-full"
         disabled={!inRange.length || !controller}

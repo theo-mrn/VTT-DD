@@ -53,7 +53,8 @@ import {
 export const objectHidden: Field<ObjectData, boolean> = {
   get: (o) => o.visibility === 'hidden',
   set: (o, hidden) => {
-    const next = hidden ? 'hidden' : o.visibleTo?.length ? 'custom' : 'visible';
+    let next: ObjectData['visibility'] = o.visibleTo?.length ? 'custom' : 'visible';
+    if (hidden) next = 'hidden';
     return o.visibility === next ? o : { ...o, visibility: next };
   },
 };

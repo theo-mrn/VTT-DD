@@ -335,24 +335,28 @@ export function CatalogueText({
   const debut = skipTitle && liste[0]?.t === 'titre' ? 1 : 0;
   return (
     <div className={cn('space-y-2 text-[13px] leading-relaxed text-foreground/85', className)}>
-      {liste.slice(debut).map((b, i) =>
-        b.t === 'titre' ? (
-          <p
-            key={i}
-            className={cn(
-              'font-semibold text-foreground',
-              b.niveau <= 2 ? 'pt-2 text-sm' : 'pt-1 text-[13px]',
-            )}
-          >
-            {inline(b.texte)}
-          </p>
-        ) : b.t === 'liste' ? (
-          <ul key={i} className="ml-4 list-disc space-y-1 marker:text-subtle">
-            {b.items.map((it, j) => (
-              <li key={j}>{inline(it)}</li>
-            ))}
-          </ul>
-        ) : (
+      {liste.slice(debut).map((b, i) => {
+        if (b.t === 'titre')
+          return (
+            <p
+              key={i}
+              className={cn(
+                'font-semibold text-foreground',
+                b.niveau <= 2 ? 'pt-2 text-sm' : 'pt-1 text-[13px]',
+              )}
+            >
+              {inline(b.texte)}
+            </p>
+          );
+        if (b.t === 'liste')
+          return (
+            <ul key={i} className="ml-4 list-disc space-y-1 marker:text-subtle">
+              {b.items.map((it, j) => (
+                <li key={j}>{inline(it)}</li>
+              ))}
+            </ul>
+          );
+        return (
           <p key={i}>
             {b.lignes.map((l, j) => (
               <Fragment key={j}>
@@ -361,8 +365,8 @@ export function CatalogueText({
               </Fragment>
             ))}
           </p>
-        ),
-      )}
+        );
+      })}
     </div>
   );
 }

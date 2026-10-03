@@ -224,11 +224,12 @@ function EntryRow({
   selected: boolean;
   onSelect(): void;
 }>) {
+  const suite = via.length > 3 ? '…' : '';
   const texte = via.length
     ? `Correspond : ${via
         .slice(0, 3)
         .map((v) => v.nom)
-        .join(', ')}${via.length > 3 ? '…' : ''}`
+        .join(', ')}${suite}`
     : extrait(entry.description);
   return (
     <button

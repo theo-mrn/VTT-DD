@@ -178,7 +178,9 @@ export class PortalView {
         g.circle(x, y, r).fill({ color, alpha: masked ? 0.05 : 0.09 });
         g.circle(x, y, r * 0.62).fill({ color, alpha: masked ? 0.04 : 0.08 });
         g.circle(x, y, r * 0.3).fill({ color, alpha: masked ? 0.04 : 0.1 });
-        const width = (selected ? 2.5 : hovered ? 2 : 1.5) * u;
+        let width = 1.5 * u;
+        if (selected) width = 2.5 * u;
+        else if (hovered) width = 2 * u;
         const alpha = selected || hovered ? 0.95 : 0.7;
         if (masked) {
           dashedCircle(g, x, y, r, 6 * u, 5 * u);

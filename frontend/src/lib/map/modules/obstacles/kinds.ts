@@ -196,7 +196,8 @@ export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
     name: (o) => {
       const d = o as ObstacleData;
       if (d.kind !== 'door') return OBSTACLE_LABELS[d.kind];
-      return d.isLocked ? 'Porte verrouillée' : d.isOpen ? 'Porte ouverte' : 'Porte fermée';
+      if (d.isLocked) return 'Porte verrouillée';
+      return d.isOpen ? 'Porte ouverte' : 'Porte fermée';
     },
     can: obstacleRights(engine),
     hitTest(e, p, tol) {

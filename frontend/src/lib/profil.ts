@@ -131,7 +131,7 @@ export function texteCondition(c: ConditionTitre | null, description?: string | 
   if (!c) return description ?? 'Attribué par un maître du jeu';
   if (c.type === 'time' && typeof c.minutes === 'number') {
     const m = c.minutes;
-    return `Jouer ${m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`}`;
+    return `Jouer ${duree(m)}`;
   }
   if (c.type === 'event' && typeof c.description === 'string') return c.description;
   if (c.type === 'premium') return 'Réservé aux membres premium';
@@ -166,4 +166,11 @@ export function choisirTitre(slug: string | null) {
     method: 'PUT',
     body: JSON.stringify({ slug }),
   });
+}
+
+/** « 45 min », « 2 h » ou « 1 h 30 min ». */
+function duree(m: number): string {
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return m % 60 ? `${h} h ${m % 60} min` : `${h} h`;
 }

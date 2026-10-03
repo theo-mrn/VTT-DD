@@ -216,11 +216,10 @@ function Destination({
       {mode === 'here' ? (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
-            {portal.kind === 'same_map' && portal.target
-              ? portal.linkedPortalId
-                ? 'Les tokens arrivent à son retour, sur cette scène.'
-                : 'Les tokens arrivent au repère d’arrivée (glissez-le avec l’outil Portails).'
-              : 'Pas encore d’arrivée sur cette scène.'}
+            {arrivalHint(
+              portal.kind === 'same_map' && Boolean(portal.target),
+              Boolean(portal.linkedPortalId),
+            )}
           </p>
           <Button variant="secondary" size="sm" onClick={pick}>
             <Crosshair />
@@ -297,4 +296,11 @@ function Destination({
       </div>
     </div>
   );
+}
+
+function arrivalHint(hasArrival: boolean, linked: boolean): string {
+  if (!hasArrival) return 'Pas encore d’arrivée sur cette scène.';
+  return linked
+    ? 'Les tokens arrivent à son retour, sur cette scène.'
+    : 'Les tokens arrivent au repère d’arrivée (glissez-le avec l’outil Portails).';
 }

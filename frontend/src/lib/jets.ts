@@ -173,7 +173,7 @@ function versJet(r: RollApi): Jet {
       dice: g.values,
       total: g.values.reduce((s, d) => s + (d.kept ? d.value : 0), 0),
     })),
-    critical: r.outcome?.critical ? 'success' : r.outcome?.fumble ? 'failure' : null,
+    critical: criticalOf(r.outcome),
     visibility: r.visibility,
     hidden: r.hidden,
     symbolResult: r.symbolResult,
@@ -561,4 +561,9 @@ export function useSynchroJets(roomId: string | null): { live: boolean } {
   }, [client, roomId, generation]);
 
   return { live };
+}
+
+function criticalOf(outcome: { critical: boolean; fumble: boolean } | null) {
+  if (outcome?.critical) return 'success' as const;
+  return outcome?.fumble ? ('failure' as const) : null;
 }

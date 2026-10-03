@@ -2029,12 +2029,9 @@ export class MapEngine {
       const zs = below ? zAtBottom(stack, list.length) : zOnTop(stack, list.length);
       list.forEach((e, i) => moves.push({ entity: e, layerId: dest, z: zs[i]! }));
     }
-    const label =
-      target === 'above'
-        ? 'Calque au-dessus'
-        : target === 'below'
-          ? 'Calque en dessous'
-          : 'Changer de calque';
+    let label = 'Changer de calque';
+    if (target === 'above') label = 'Calque au-dessus';
+    else if (target === 'below') label = 'Calque en dessous';
     return this.runArrange(label, moves);
   }
 

@@ -24,9 +24,8 @@ export function OngletResources() {
 
   return (
     <div className="px-4 py-5 sm:px-6">
-      {systeme.isPending ? (
-        <ListSkeleton />
-      ) : systeme.isError || !systeme.data ? (
+      {systeme.isPending && <ListSkeleton />}
+      {!systeme.isPending && (systeme.isError || !systeme.data) && (
         <Notice
           tone="error"
           icon={AlertTriangle}
@@ -38,7 +37,8 @@ export function OngletResources() {
             </Button>
           }
         />
-      ) : (
+      )}
+      {!systeme.isPending && !systeme.isError && systeme.data && (
         <ResourcesBrowser
           systemId={campagne.system}
           systeme={systeme.data.systeme}

@@ -42,7 +42,8 @@ export function VisionViewMenu({ engine }: Readonly<{ engine: MapEngine }>) {
   const clickDistance = useStore(measurePrefs(engine), (s) => s.clickDistance);
   const players = gm ? (engine.directory.players?.() ?? []) : [];
   const current = players.find((p) => p.userId === viewAs);
-  const label = current ? `Vue de ${current.name}` : gm ? 'Vue du MJ' : 'Vue';
+  let label = gm ? 'Vue du MJ' : 'Vue';
+  if (current) label = `Vue de ${current.name}`;
   const Icon = current ? ScanEye : Eye;
 
   return (

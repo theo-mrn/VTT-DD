@@ -215,7 +215,9 @@ export class MeasureVisual {
     const color = dataColor(this.pixi, look.color, this.theme.primary);
     const { background, primary } = this.theme;
     const { length } = reach(spec);
-    const width = (emphasis === 'selected' ? 3 : emphasis === 'hover' ? 2.5 : 2) * u;
+    let width = 2 * u;
+    if (emphasis === 'selected') width = 3 * u;
+    else if (emphasis === 'hover') width = 2.5 * u;
     const flat = outline(spec, look.pixelsPerUnit);
 
     const path = () => {

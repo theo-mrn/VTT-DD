@@ -544,11 +544,9 @@ export class PortalTool implements Tool {
     const p = this.pointer;
     const d = this.drawn;
     // Redessiné seulement si ce qu'il montre a changé
-    const arrivalAt = single
-      ? this.arrivalDrag?.entity === single
-        ? this.arrivalDrag.target
-        : portalOf(single).target
-      : null;
+    let arrivalAt = null;
+    if (single && this.arrivalDrag?.entity === single) arrivalAt = this.arrivalDrag.target;
+    else if (single) arrivalAt = portalOf(single).target;
     const px = tracking && p ? p.x : Number.NaN;
     const py = tracking && p ? p.y : Number.NaN;
     const x = single?.current.x ?? Number.NaN;

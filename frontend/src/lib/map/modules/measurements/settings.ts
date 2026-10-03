@@ -81,4 +81,4 @@ export const optionsFor = (s: MeasureSettings, shape: MeasureShape): Record<stri
 
 /** Effet animé de la forme (cercle et cône seulement). */
 export const skinFor = (s: MeasureSettings, shape: MeasureShape): string | null =>
-  shape === 'circle' ? s.skins.circle : shape === 'cone' ? s.skins.cone : null;
+  shape === 'circle' || shape === 'cone' ? s.skins[shape] : null;

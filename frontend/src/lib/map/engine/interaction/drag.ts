@@ -139,11 +139,9 @@ export class TransformSession {
       n.width !== g.width ||
       n.height !== g.height ||
       n.rotation !== g.rotation;
+    const label = this.handle === 'rotate' ? 'Pivoter' : 'Redimensionner';
     const result = changed
-      ? this.engine.transformEntities(
-          [{ entity: this.entity, next: n }],
-          this.handle === 'rotate' ? 'Pivoter' : 'Redimensionner',
-        )
+      ? this.engine.transformEntities([{ entity: this.entity, next: n }], label)
       : null;
     this.finish();
     return result;

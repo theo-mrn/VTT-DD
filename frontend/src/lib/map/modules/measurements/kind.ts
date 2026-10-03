@@ -129,7 +129,7 @@ export class TemplateView {
       zoom: 1 / this.redraw.unit,
       fill: !skinned,
       label: shown ? measureLabel(spec, unitContext(engine, this.ctx.prefs.getState())) : null,
-      emphasis: e.state.selected ? 'selected' : e.state.hovered ? 'hover' : null,
+      emphasis: emphasisOf(e.state),
     });
   }
 
@@ -225,4 +225,10 @@ export function measurementKind(ctx: MeasureModule, view: TemplateView): EntityK
     liveAudience: () => 'public',
     persistence: ctx.persistence as unknown as Persistence<MapDto>,
   };
+}
+
+/** Mise en avant d'une entité : sélectionnée, survolée, ou rien. */
+function emphasisOf(state: { selected?: boolean; hovered?: boolean }) {
+  if (state.selected) return 'selected' as const;
+  return state.hovered ? ('hover' as const) : null;
 }

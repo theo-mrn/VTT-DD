@@ -658,13 +658,12 @@ export function EditeurNote({
           )}
 
           <div className="group/entete">
-            {lecture ? (
-              icone && (
-                <span className="-ml-1.5 mb-3 flex size-[72px] items-center justify-center text-[52px] leading-none">
-                  {icone}
-                </span>
-              )
-            ) : icone ? (
+            {lecture && icone && (
+              <span className="-ml-1.5 mb-3 flex size-[72px] items-center justify-center text-[52px] leading-none">
+                {icone}
+              </span>
+            )}
+            {!lecture && icone && (
               <SelecteurIcone valeur={icone} onChoix={(i) => changer({ icon: i })}>
                 <button
                   type="button"
@@ -674,7 +673,8 @@ export function EditeurNote({
                   {icone}
                 </button>
               </SelecteurIcone>
-            ) : (
+            )}
+            {!lecture && !icone && (
               <SelecteurIcone valeur={null} onChoix={(i) => changer({ icon: i })}>
                 <BoutonAjoutIcone className="-ml-2 mb-2 lg:opacity-0 lg:group-hover/entete:opacity-100" />
               </SelecteurIcone>

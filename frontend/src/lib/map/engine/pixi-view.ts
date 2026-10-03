@@ -426,8 +426,10 @@ class PixiView implements EngineView {
     const d = e.display;
     if (!d) return;
     const hidden = e.state.hiddenForPlayers && this.engine.viewer.role === 'gm';
-    d.alpha =
-      (hidden ? 0.5 : e.state.remote ? 0.85 : 1) * (e.state.sidelined ? SIDELINED_ALPHA : 1);
+    let alpha = 1;
+    if (hidden) alpha = 0.5;
+    else if (e.state.remote) alpha = 0.85;
+    d.alpha = alpha * (e.state.sidelined ? SIDELINED_ALPHA : 1);
   }
 
   // ─── Calques ───────────────────────────────────────────────────────────────

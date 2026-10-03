@@ -24,6 +24,7 @@ import {
   type InfiniteData,
   type QueryClient,
 } from '@tanstack/react-query';
+import { compareCodeUnits } from '@vtt/contracts';
 import { useCallback, useEffect, useRef } from 'react';
 import { api } from './api';
 import { useCampaignEvents, type RealtimeEvent } from './realtime';
@@ -161,9 +162,7 @@ export function mergeHistory(list: readonly HistoryEvent[], incoming: readonly H
   const byId = new Map(list.map((e) => [e.id, e]));
   for (const e of incoming) byId.set(e.id, e);
   return [...byId.values()].sort(
-    (a, b) =>
-      (b.seq ?? 0) - (a.seq ?? 0) ||
-      (a.occurredAt < b.occurredAt ? 1 : a.occurredAt > b.occurredAt ? -1 : 0),
+    (a, b) => (b.seq ?? 0) - (a.seq ?? 0) || compareCodeUnits(b.occurredAt, a.occurredAt),
   );
 }
 

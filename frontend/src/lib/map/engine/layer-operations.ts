@@ -144,7 +144,7 @@ export async function deleteLayer(engine: MapEngine, id: string): Promise<boolea
   const ok = await engine.confirm({
     title: `Supprimer le calque « ${layer.name} » ?`,
     message: content.length
-      ? `Son contenu (${content.length} élément${content.length > 1 ? 's' : ''}) descend dans « ${target.name} ».`
+      ? `Son contenu (${elements(content.length)}) descend dans « ${target.name} ».`
       : 'Il est vide.',
     confirmLabel: 'Supprimer',
     danger: true,
@@ -230,4 +230,8 @@ function groupSequential(label: string, commands: readonly Command[]): Command {
         [...commands].reverse().map((c) => c.inverse()),
       ),
   };
+}
+
+function elements(n: number): string {
+  return n > 1 ? `${n} éléments` : `${n} élément`;
 }

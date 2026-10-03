@@ -198,7 +198,7 @@ export function updateToken(entity: MapEntity<TokenData>, ctx: RenderContext) {
   const r = look.resource;
   const labelKey = [
     look.name ?? '',
-    r ? `${r.value}/${r.max}/${r.color ?? ''}/${r.rising ? 1 : 0}` : '',
+    r ? `${r.value}/${r.max}/${r.color ?? ''}/${Number(Boolean(r.rising))}` : '',
   ].join('|');
   if (labelKey !== v.keys.label) {
     v.keys.label = labelKey;

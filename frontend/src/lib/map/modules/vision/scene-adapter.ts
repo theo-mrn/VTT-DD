@@ -46,7 +46,7 @@ export function obstacleInput(o: MapDto): ObstacleInput {
     id: o.id,
     kind,
     points: points(o.points),
-    blocksFrom: o.blocksFrom === 'right' ? 'right' : o.blocksFrom === 'left' ? 'left' : null,
+    blocksFrom: o.blocksFrom === 'right' || o.blocksFrom === 'left' ? o.blocksFrom : null,
     isOpen: o.isOpen === true,
     opacity: num(o.opacity, 1),
   };

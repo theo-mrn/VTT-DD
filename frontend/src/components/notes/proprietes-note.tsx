@@ -246,9 +246,7 @@ function SelecteurVisibilite({
     onChange(
       sharedWith.length
         ? { visibility: 'characters', sharedWith, sharedWithGm }
-        : sharedWithGm
-          ? { visibility: 'gm', sharedWith: [], sharedWithGm: true }
-          : { visibility: 'private', sharedWith: [], sharedWithGm: false },
+        : nonPartagee(sharedWithGm),
     );
 
   const styleBouton = (actif: boolean) =>
@@ -380,4 +378,11 @@ function SelecteurVisibilite({
 
   if (!desactive) return groupe;
   return <Info texte="Seul l’auteur de la note change sa visibilité.">{groupe}</Info>;
+}
+
+/** Partage sans personnage : aux MJ seuls, ou privé. */
+function nonPartagee(sharedWithGm: boolean) {
+  return sharedWithGm
+    ? { visibility: 'gm' as const, sharedWith: [], sharedWithGm: true }
+    : { visibility: 'private' as const, sharedWith: [], sharedWithGm: false };
 }

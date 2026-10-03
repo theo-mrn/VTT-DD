@@ -262,12 +262,11 @@ export function insertDoor(pts: Pts, index: number, at: Point, width: number): D
   }
   if (s0 < MIN_SEGMENT) s0 = 0;
   if (length - s1 < MIN_SEGMENT) s1 = length;
-  const along = (s: number): Point =>
-    s <= 0
-      ? a
-      : s >= length
-        ? b
-        : roundPoint({ x: a.x + ((b.x - a.x) * s) / length, y: a.y + ((b.y - a.y) * s) / length });
+  const along = (s: number): Point => {
+    if (s <= 0) return a;
+    if (s >= length) return b;
+    return roundPoint({ x: a.x + ((b.x - a.x) * s) / length, y: a.y + ((b.y - a.y) * s) / length });
+  };
   const A = along(s0);
   const B = along(s1);
 

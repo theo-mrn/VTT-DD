@@ -24,12 +24,9 @@ export function drawVisibilityBadge(
   u = 1,
 ) {
   const R = BADGE_RADIUS * u;
-  const fill =
-    badge === 'custom'
-      ? theme.primary
-      : badge === 'invisible'
-        ? theme.foreground
-        : theme.background;
+  let fill = theme.background;
+  if (badge === 'custom') fill = theme.primary;
+  else if (badge === 'invisible') fill = theme.foreground;
   const ink = badge === 'hidden' ? theme.foreground : theme.background;
   // Ombre douce, puis la pastille
   g.circle(x + 0.6 * u, y + u, R + 0.5 * u).fill({ color: 0x000000, alpha: 0.3 });
