@@ -8,6 +8,9 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTVerifyG
 import { defiPkce } from './etat.js';
 import { DISCORD, GOOGLE } from './fournisseurs.js';
 
+/** Clé privée de signature (type de jose : le global CryptoKey manque selon les types Node). */
+type ClePrivee = Awaited<ReturnType<typeof generateKeyPair>>['privateKey'];
+
 export interface IdentiteGoogle {
   sub: string;
   email?: string;
@@ -59,7 +62,7 @@ export async function fauxFournisseurs(google: Identifiants, discord: Identifian
     });
 
   async function idToken(
-    cle: CryptoKey,
+    cle: ClePrivee,
     identite: IdentiteGoogle,
     nonce: string | undefined,
     surcharges: Record<string, unknown> = {},
