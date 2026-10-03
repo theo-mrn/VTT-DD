@@ -188,6 +188,80 @@ export interface ChampsVerifies {
  * type de valeur, option d'un `choix`, attribut ou entrée existants, formule compilable
  * (clés nues comprises, gardée telle que saisie). Chaîne vide : retour à la valeur de l'entrée.
  */
+type ValeurChamp = number | string | boolean;
+type ChampSorte = Sorte['champs'][number];
+
+/** Valeur retenue d'un champ d'exemplaire, ou ses erreurs. */
+function lireChampExemplaire(
+  systeme: SystemeCharge,
+  sorte: Sorte,
+  c: ChampSorte,
+  v: ValeurChamp,
+  entite: string | undefined,
+): { valeur: ValeurChamp } | { erreurs: string[] } {
+  if (c.type === 'formule') return lireFormuleExemplaire(systeme, sorte, c, v, entite);
+  const erreur = refusChampExemplaire(systeme, c, v);
+  return erreur ? { erreurs: [erreur] } : { valeur: v };
+}
+
+/** Formule propre d'un exemplaire : vide (celle de l'entrée), ou compilée et normalisée. */
+function lireFormuleExemplaire(
+  systeme: SystemeCharge,
+  sorte: Sorte,
+  c: Extract<ChampSorte, { type: 'formule' }>,
+  v: ValeurChamp,
+  entite: string | undefined,
+): { valeur: ValeurChamp } | { erreurs: string[] } {
+  if (typeof v !== 'string' && typeof v !== 'number')
+    return { erreurs: [`${c.nom} : formule attendu`] };
+  const texte = String(v);
+  if (!texte.trim()) return { valeur: '' };
+  const f = compilerFormuleChamp(systeme, sorte, c, texte, entite);
+  return f.ok ? { valeur: f.texte } : { erreurs: f.erreurs };
+}
+
+/** Message si la condition n'est pas remplie, sinon null. */
+const sauf = (ok: boolean, message: string): string | null => (ok ? null : message);
+
+/** Refus d'une valeur de champ d'exemplaire (hors formule), ou null. */
+function refusChampExemplaire(
+  systeme: SystemeCharge,
+  c: ChampSorte,
+  v: ValeurChamp,
+): string | null {
+  switch (c.type) {
+    case 'nombre':
+      return sauf(typeof v === 'number' && Number.isFinite(v), `${c.nom} : nombre attendu`);
+    case 'booleen':
+      return sauf(typeof v === 'boolean', `${c.nom} : oui ou non attendu`);
+    case 'texte':
+      if (typeof v !== 'string') return `${c.nom} : texte attendu`;
+      return sauf(
+        v.length <= LONGUEUR_TEXTE_EXEMPLAIRE,
+        `${c.nom} : ${LONGUEUR_TEXTE_EXEMPLAIRE} caractères au plus`,
+      );
+    case 'choix':
+      return sauf(
+        typeof v === 'string' && c.options.some((o) => o.valeur === v),
+        `${c.nom} : option inconnue « ${String(v)} » (${c.options.map((o) => o.valeur).join(', ')})`,
+      );
+    case 'attribut':
+      return sauf(
+        typeof v === 'string' && systeme.entites.get(c.entite)?.attributs.has(v) === true,
+        `${c.nom} : attribut inconnu « ${String(v)} »`,
+      );
+    case 'entree':
+      return sauf(
+        typeof v === 'string' && systeme.entrees.get(v)?.sorte === c.sorte,
+        `${c.nom} : entrée de sorte ${c.sorte} attendue`,
+      );
+    case 'entrees':
+      return `${c.nom} : liste non modifiable sur un exemplaire`;
+    default:
+      return null;
+  }
+}
+
 export function verifierChampsExemplaire(
   systeme: SystemeCharge,
   entree: Entree,
@@ -205,58 +279,9 @@ export function verifierChampsExemplaire(
       erreurs.push(`Champ inconnu de ${sorte.nom} : ${id}`);
       continue;
     }
-    const attendu = (type: string) => erreurs.push(`${c.nom} : ${type} attendu`);
-    switch (c.type) {
-      case 'nombre':
-        if (typeof v !== 'number' || !Number.isFinite(v)) attendu('nombre');
-        else r[id] = v;
-        break;
-      case 'booleen':
-        if (typeof v !== 'boolean') attendu('oui ou non');
-        else r[id] = v;
-        break;
-      case 'texte':
-        if (typeof v !== 'string') attendu('texte');
-        else if (v.length > LONGUEUR_TEXTE_EXEMPLAIRE)
-          erreurs.push(`${c.nom} : ${LONGUEUR_TEXTE_EXEMPLAIRE} caractères au plus`);
-        else r[id] = v;
-        break;
-      case 'choix':
-        if (typeof v !== 'string' || !c.options.some((o) => o.valeur === v))
-          erreurs.push(
-            `${c.nom} : option inconnue « ${String(v)} » (${c.options.map((o) => o.valeur).join(', ')})`,
-          );
-        else r[id] = v;
-        break;
-      case 'attribut':
-        if (typeof v !== 'string' || !systeme.entites.get(c.entite)?.attributs.has(v))
-          erreurs.push(`${c.nom} : attribut inconnu « ${String(v)} »`);
-        else r[id] = v;
-        break;
-      case 'entree':
-        if (typeof v !== 'string' || systeme.entrees.get(v)?.sorte !== c.sorte)
-          erreurs.push(`${c.nom} : entrée de sorte ${c.sorte} attendue`);
-        else r[id] = v;
-        break;
-      case 'entrees':
-        erreurs.push(`${c.nom} : liste non modifiable sur un exemplaire`);
-        break;
-      case 'formule': {
-        if (typeof v !== 'string' && typeof v !== 'number') {
-          attendu('formule');
-          break;
-        }
-        const texte = String(v);
-        if (!texte.trim()) {
-          r[id] = '';
-          break;
-        }
-        const f = compilerFormuleChamp(systeme, sorte, c, texte, entite);
-        if (f.ok) r[id] = f.texte;
-        else erreurs.push(...f.erreurs);
-        break;
-      }
-    }
+    const lu = lireChampExemplaire(systeme, sorte, c, v, entite);
+    if ('erreurs' in lu) erreurs.push(...lu.erreurs);
+    else r[id] = lu.valeur;
   }
   return { champs: r, erreurs };
 }
