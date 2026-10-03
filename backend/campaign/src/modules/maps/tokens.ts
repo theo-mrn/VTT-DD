@@ -252,6 +252,56 @@ export async function lockToken(tx: Tx, v: Viewer, mapId: string, tokenId: strin
   return t;
 }
 
+/** Un joueur ne déplace que ses personnages, et seulement par les champs qui lui sont ouverts. */
+function checkPlayerPatch(v: Viewer, before: TokenRow, patch: Record<string, unknown>): void {
+  if (v.isGm) return;
+  requireWriter(v);
+  if (!v.characterIds.includes(before.characterId))
+    throw HttpError.forbidden('Seul le MJ déplace les personnages des autres');
+  const extra = Object.keys(patch).filter((k) => !PLAYER_FIELDS.has(k));
+  if (extra.length) throw HttpError.forbidden(`Réservé au MJ : ${extra.join(', ')}`);
+}
+
+/** Vision renforcée activée ou coupée : le rayon suit, sauf s'il est donné avec. */
+function applyVisionBoost(before: TokenRow, changes: Record<string, unknown>): void {
+  if (
+    typeof changes.visionBoost !== 'boolean' ||
+    changes.visionBoost === before.visionBoost ||
+    changes.visionRadius !== undefined
+  )
+    return;
+  changes.visionRadius = Math.min(
+    100_000,
+    changes.visionBoost ? before.visionRadius * BOOST : before.visionRadius / BOOST,
+  );
+}
+
+/** Événements d'un token modifié : déplacement, changements, puis vue des observateurs. */
+async function tokenUpdateEvents(
+  tx: Tx,
+  ctx: EventContext,
+  v: Viewer,
+  update: {
+    map: { id: string; campaignId: string };
+    before: TokenRow;
+    after: TokenRow;
+    seenBefore: Audience | null;
+    moved: boolean;
+    changed: boolean;
+    changes: Record<string, unknown>;
+  },
+): Promise<void> {
+  const { map, before, after, seenBefore, moved, changed, changes } = update;
+  let seenAfter: Audience | undefined;
+  if (moved)
+    seenAfter = await movedEvent(tx, ctx, v, { token: before, audience: seenBefore! }, after);
+  if (changed)
+    await tokenEvent(tx, ctx, v, after, 'token.updated', moved ? null : seenBefore, seenAfter);
+  // Observateur ou torche qui bouge, rayon ou visibilité changés : ses joueurs relisent
+  if (moved || VISION_FIELDS.some((f) => f in changes))
+    await notifyObservers(tx, ctx, v, map, [before, after]);
+}
+
 export async function updateToken(
   tx: Tx,
   ctx: EventContext,
@@ -261,23 +311,9 @@ export async function updateToken(
   patch: Record<string, unknown> & { pos?: MapPoint; version?: number },
 ) {
   const before = await lockToken(tx, v, mapId, tokenId);
-  if (!v.isGm) {
-    requireWriter(v);
-    if (!v.characterIds.includes(before.characterId))
-      throw HttpError.forbidden('Seul le MJ déplace les personnages des autres');
-    const extra = Object.keys(patch).filter((k) => !PLAYER_FIELDS.has(k));
-    if (extra.length) throw HttpError.forbidden(`Réservé au MJ : ${extra.join(', ')}`);
-  }
+  checkPlayerPatch(v, before, patch);
   const { version, pos, ...changes } = patch;
-  if (
-    typeof changes.visionBoost === 'boolean' &&
-    changes.visionBoost !== before.visionBoost &&
-    changes.visionRadius === undefined
-  )
-    changes.visionRadius = Math.min(
-      100_000,
-      changes.visionBoost ? before.visionRadius * BOOST : before.visionRadius / BOOST,
-    );
+  applyVisionBoost(before, changes);
   if (version !== undefined && version !== before.version) throw versionConflict();
   if (changes.layerId !== undefined) await checkLayer(tx, v, mapId, changes.layerId);
   const moved = !!pos && (pos.x !== before.pos.x || pos.y !== before.pos.y);
@@ -295,14 +331,15 @@ export async function updateToken(
     })
     .where(eq(mapTokens.id, tokenId))
     .returning();
-  let seenAfter: Audience | undefined;
-  if (moved)
-    seenAfter = await movedEvent(tx, ctx, v, { token: before, audience: seenBefore! }, after!);
-  if (changed)
-    await tokenEvent(tx, ctx, v, after!, 'token.updated', moved ? null : seenBefore, seenAfter);
-  // Observateur ou torche qui bouge, rayon ou visibilité changés : ses joueurs relisent
-  if (moved || VISION_FIELDS.some((f) => f in changes))
-    await notifyObservers(tx, ctx, v, map, [before, after!]);
+  await tokenUpdateEvents(tx, ctx, v, {
+    map,
+    before,
+    after: after!,
+    seenBefore,
+    moved,
+    changed,
+    changes,
+  });
   return after!;
 }
 
@@ -328,6 +365,76 @@ export async function engaged(tx: Tx, campaignId: string, ids: string[]) {
       `Personnages non engagés dans la campagne : ${missing.join(', ')}`,
     );
   return rows;
+}
+
+/**
+ * Point d'arrivée : `pos`, sinon le point d'apparition, sinon la dernière position connue ici ;
+ * sans rien de tout cela, le centre de la carte, jamais son coin.
+ */
+function arrivalOf(
+  map: MapRow,
+  remembered: TokenRow | undefined,
+  pos: MapPoint | undefined,
+): MapPoint {
+  return (
+    pos ??
+    map.spawn ??
+    remembered?.pos ??
+    (map.width && map.height ? { x: map.width / 2, y: map.height / 2 } : { x: 0, y: 0 })
+  );
+}
+
+/** Apparence reprise du token actuel d'un personnage (aucune s'il n'en a pas). */
+function lookOf(current: TokenRow | undefined): Partial<TokenRow> {
+  if (!current) return {};
+  return {
+    scale: current.scale,
+    shape: current.shape,
+    imageUrl: current.imageUrl,
+    visibility: current.visibility,
+    visibleTo: current.visibleTo,
+    visionRadius: current.visionRadius,
+    visionBoost: current.visionBoost,
+    notes: current.notes,
+    audio: current.audio,
+    interactions: current.interactions,
+  };
+}
+
+/** Token du voyageur sur la carte d'arrivée : celui mémorisé, remis en place, ou un nouveau. */
+async function placeTraveller(
+  tx: Tx,
+  map: MapRow,
+  characterId: string,
+  current: TokenRow | undefined,
+  remembered: TokenRow | undefined,
+  to: MapPoint,
+): Promise<TokenRow> {
+  if (remembered) {
+    const [after] = (await tx
+      .update(mapTokens)
+      .set({
+        present: true,
+        pos: to,
+        version: sql`${mapTokens.version} + 1`,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(mapTokens.id, remembered.id))
+      .returning()) as [TokenRow];
+    return after;
+  }
+  const [after] = (await tx
+    .insert(mapTokens)
+    .values({
+      ...lookOf(current),
+      id: uuidv7(),
+      campaignId: map.campaignId,
+      mapId: map.id,
+      characterId,
+      pos: to,
+    })
+    .returning()) as [TokenRow];
+  return after;
 }
 
 /**
@@ -360,12 +467,7 @@ export async function travel(
     .from(mapTokens)
     .where(and(eq(mapTokens.mapId, map.id), eq(mapTokens.characterId, characterId)))
     .for('update');
-  // Sans point d'arrivée ni position mémorisée : le centre de la carte, jamais son coin
-  const to =
-    pos ??
-    map.spawn ??
-    remembered?.pos ??
-    (map.width && map.height ? { x: map.width / 2, y: map.height / 2 } : { x: 0, y: 0 });
+  const to = arrivalOf(map, remembered, pos);
   // Qui voyait le personnage là où il était
   const seenBefore = current
     ? await tokenAudience(tx, { id: current.mapId, campaignId: current.campaignId }, current.id)
@@ -375,45 +477,7 @@ export async function travel(
       .update(mapTokens)
       .set({ present: false, version: sql`${mapTokens.version} + 1`, updatedAt: sql`now()` })
       .where(eq(mapTokens.id, current.id));
-  let after: TokenRow;
-  if (remembered) {
-    [after] = (await tx
-      .update(mapTokens)
-      .set({
-        present: true,
-        pos: to,
-        version: sql`${mapTokens.version} + 1`,
-        updatedAt: sql`now()`,
-      })
-      .where(eq(mapTokens.id, remembered.id))
-      .returning()) as [TokenRow];
-  } else {
-    const look = current
-      ? {
-          scale: current.scale,
-          shape: current.shape,
-          imageUrl: current.imageUrl,
-          visibility: current.visibility,
-          visibleTo: current.visibleTo,
-          visionRadius: current.visionRadius,
-          visionBoost: current.visionBoost,
-          notes: current.notes,
-          audio: current.audio,
-          interactions: current.interactions,
-        }
-      : {};
-    [after] = (await tx
-      .insert(mapTokens)
-      .values({
-        ...look,
-        id: uuidv7(),
-        campaignId: map.campaignId,
-        mapId: map.id,
-        characterId,
-        pos: to,
-      })
-      .returning()) as [TokenRow];
-  }
+  const after = await placeTraveller(tx, map, characterId, current, remembered, to);
   if (
     !current ||
     current.mapId !== after.mapId ||
@@ -430,6 +494,13 @@ export async function travel(
 
 // ─── Groupe sur la carte ─────────────────────────────────────────────────────
 
+/** Cases d'un anneau de la spirale (à `ring` cases du centre), ligne par ligne. */
+function* ringOffsets(ring: number): Generator<[number, number]> {
+  for (let dy = -ring; dy <= ring; dy++)
+    for (let dx = -ring; dx <= ring; dx++)
+      if (Math.max(Math.abs(dx), Math.abs(dy)) === ring) yield [dx, dy];
+}
+
 /**
  * Places libres autour d'un point, en spirale carrée d'une case d'écart (le centre d'abord),
  * sans empiéter sur les places prises (moins de ¾ de case). Carte saturée : au centre.
@@ -444,14 +515,13 @@ export function spreadAround(
   const busy = [...taken];
   const free = (p: MapPoint) => busy.every((q) => Math.hypot(q.x - p.x, q.y - p.y) >= cell * 0.75);
   for (let ring = 0; out.length < count && ring <= 50; ring++)
-    for (let dy = -ring; dy <= ring && out.length < count; dy++)
-      for (let dx = -ring; dx <= ring && out.length < count; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
-        const p = { x: center.x + dx * cell, y: center.y + dy * cell };
-        if (!free(p)) continue;
-        out.push(p);
-        busy.push(p);
-      }
+    for (const [dx, dy] of ringOffsets(ring)) {
+      if (out.length >= count) break;
+      const p = { x: center.x + dx * cell, y: center.y + dy * cell };
+      if (!free(p)) continue;
+      out.push(p);
+      busy.push(p);
+    }
   while (out.length < count) out.push({ ...center });
   return out;
 }
