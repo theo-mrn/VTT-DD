@@ -492,13 +492,18 @@ export async function lineOfSight(db: Conn, mapId: string, from: Vec, to: Vec) {
     .where(eq(mapObstacles.mapId, mapId))
     .orderBy(mapObstacles.id);
   for (const o of obstacles)
-    for (const s of obstacleSegments(o)) {
-      if (s.kind === 'window' || (s.kind === 'door' && s.open) || (s.opacity ?? 1) < 1) continue;
-      if (s.kind === 'one_way_wall' && sideOf(s.a, s.b, from) !== (s.blocksFrom ?? 'left'))
-        continue;
-      if (segmentsCross(s.a, s.b, from, to)) ids.add(o.id);
-    }
+    for (const s of obstacleSegments(o))
+      if (blocksSightFrom(s, from) && segmentsCross(s.a, s.b, from, to)) ids.add(o.id);
   return { blocked, obstacleIds: [...ids] };
+}
+
+/**
+ * Ce segment d'obstacle arrête-t-il la vue depuis `from` ? Fenêtre, porte ouverte et obstacle
+ * translucide laissent voir ; un mur à sens unique ne bloque que depuis son côté.
+ */
+function blocksSightFrom(s: ReturnType<typeof obstacleSegments>[number], from: Vec): boolean {
+  if (s.kind === 'window' || (s.kind === 'door' && s.open) || (s.opacity ?? 1) < 1) return false;
+  return !(s.kind === 'one_way_wall' && sideOf(s.a, s.b, from) !== (s.blocksFrom ?? 'left'));
 }
 
 async function displayOf(db: Conn, mapId: string) {
