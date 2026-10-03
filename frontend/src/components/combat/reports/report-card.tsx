@@ -230,50 +230,22 @@ export function ReportCard({
   const [confirmDismiss, setConfirmDismiss] = useState(false);
   const attacker = cast.get(attack.attackerId);
   const member = cast.get(t.characterId);
-  const nameOf = (id: string) => cast.get(id)?.name ?? 'Personnage';
   const attackerName = attacker?.name ?? 'Personnage';
   const name = member?.name ?? 'Personnage';
-  const action = systeme?.actions.get(attack.action.id) ?? null;
-  const result = t.result ?? null;
-  const outcome = outcomeLabel(result?.outcome ?? t.view?.outcome ?? null, hasSuccessRule(action));
-  const roll = result?.roll ?? t.view?.roll ?? null;
+  const view = targetView(systeme, attack, t);
+  const { outcome } = view;
   const params = keyParams(systeme, attack.action.id, attack.params);
-  const situation = situationText(systeme, attack.action.id, attack.params);
-  const amounts = targetAmounts(t);
-  const others = targetOthers(t);
-  const applied = t.applied ?? null;
-  const decidable = isPending(attack) && isDecidable(t);
-  const decided = t.decision === 'applied' || t.decision === 'skipped';
-  const closed = attack.status === 'cancelled' || attack.status === 'failed';
+  const { decidable, decided, closed } = targetState(attack, t);
   const awaiting = awaitingMyReaction(attack, 'all');
-  const selfTarget = t.characterId === attack.attackerId;
-  const explanations = result?.explanations ?? t.view?.explanations ?? [];
-
-  let status: ReactNode = null;
-  if (closed) status = <Badge ton="danger">{ATTACK_STATUS_LABELS[attack.status]}</Badge>;
-  else if (t.status === 'awaiting_reaction') status = <Badge ton="alerte">Défense attendue</Badge>;
-  else if (t.status === 'awaiting_dice') status = <Badge ton="alerte">Dés attendus</Badge>;
-  else if (t.status === 'failed') status = <Badge ton="danger">Refusé</Badge>;
-  else if (outcome) status = <Badge ton={TONES[outcome.tone]}>{outcome.label}</Badge>;
 
   // Actions de la cible : une seule famille selon l'état de l'attaque
-  let mode: 'decider' | 'reagir' | 'serveur' | 'annuler' | 'statut' = 'statut';
-  let bordure = 'border-border';
-  if (decidable)
-    bordure =
-      outcome?.tone === 'success' || outcome?.tone === 'critical'
-        ? 'border-primary/35'
-        : 'border-border-strong';
-  if (decidable) mode = 'decider';
-  else if (t.status === 'awaiting_reaction' && !closed) mode = 'reagir';
-  else if (isOpen(attack) && attack.pendingSteps.length > 0) mode = 'serveur';
-  else if (t.decision === 'applied' && canRevert(attack) && !conflict) mode = 'annuler';
+  const mode = cardMode(attack, t, decidable, closed, conflict !== null);
 
   return (
     <article
       className={cn(
         'relative flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-surface transition-opacity',
-        bordure,
+        cardBorder(decidable, outcome),
         (decided || closed) && 'opacity-60 hover:opacity-100 focus-within:opacity-100',
       )}
       aria-label={`${attack.action.name} : ${attackerName} contre ${name}`}
@@ -296,7 +268,7 @@ export function ReportCard({
           )}
         </div>
         <span className="flex shrink-0 items-center gap-1">
-          {status}
+          <StatusBadge attack={attack} target={t} outcome={outcome} closed={closed} />
           <CardMenu
             attack={attack}
             target={t}
@@ -314,164 +286,35 @@ export function ReportCard({
         </span>
       </header>
 
-      <div className="flex items-center gap-1.5 pl-4 pr-3 pt-1.5 text-xs">
-        <PersonChip
-          name={attackerName}
-          portrait={attacker?.portraitUrl ?? null}
-          onClick={() => onOpenCharacter(attack.attackerId)}
-        />
-        <ArrowRight className="size-3.5 shrink-0 text-subtle" aria-label="attaque" />
-        <PersonChip
-          name={name}
-          portrait={member?.portraitUrl ?? null}
-          onClick={() => onOpenCharacter(t.characterId)}
-          strong
-        />
-        {count > 1 && (
-          <span className="shrink-0 text-[11px] text-subtle">
-            cible {index + 1}/{count}
-          </span>
-        )}
-        <span className="ml-auto flex shrink-0 items-center gap-1 text-[11px] text-subtle">
-          <Clock className="size-3" aria-hidden />
-          {attack.round !== null ? `R${attack.round} · ` : ''}
-          {HOUR.format(new Date(attack.createdAt))}
-        </span>
-      </div>
+      <PeopleRow
+        attack={attack}
+        target={t}
+        attacker={attacker}
+        member={member}
+        index={index}
+        count={count}
+        onOpenCharacter={onOpenCharacter}
+      />
 
-      {(selfTarget || attack.outOfTurn || attack.adjustments || attack.visibility !== 'public') && (
-        <div className="flex flex-wrap gap-1 pl-4 pr-3 pt-2">
-          {selfTarget && (
-            <Badge ton="danger" className="font-bold uppercase tracking-wide">
-              <Skull />
-              Auto-attaque
-            </Badge>
-          )}
-          {attack.outOfTurn && <Badge ton="alerte">Hors tour</Badge>}
-          {attack.adjustments && <Badge ton="info">Ajusté à la main</Badge>}
-          {attack.visibility !== 'public' && (
-            <Badge>
-              <EyeOff />
-              {attack.visibility === 'gm' ? 'Caché' : 'Privé'}
-            </Badge>
-          )}
-        </div>
-      )}
+      <MarkBadges attack={attack} selfTarget={t.characterId === attack.attackerId} />
 
-      {/* Cases en gros chiffres : le jet, puis chaque valeur proposée */}
-      {roll && (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))] gap-2 pl-4 pr-3 pt-3">
-          <NumberBox label={jetLabel(systeme, roll)} value={jetValue(systeme, roll)} />
-          {amounts.map((m, i) => (
-            <NumberBox
-              key={i}
-              label={attributeLabel(systeme, m.attribute, member?.type)}
-              value={`${m.operation === 'add' ? '+' : '−'}${m.value}`}
-              sub={m.damageType ? damageTypeName(systeme, m.damageType) : undefined}
-              tone={harmful(m, presentation) ? 'danger' : 'success'}
-            />
-          ))}
-        </div>
-      )}
+      <RollBoxes
+        systeme={systeme}
+        presentation={presentation}
+        roll={view.roll}
+        amounts={targetAmounts(t)}
+        memberType={member?.type}
+      />
 
-      <div className="space-y-1.5 pl-4 pr-3 pt-2 text-xs">
-        {roll?.kind === 'symbols' && systeme && (
-          <ResultatsSymboles
-            systeme={systeme}
-            presentation={presentation}
-            resultats={roll.results}
-          />
-        )}
-
-        {!applied &&
-          amounts.map((m, i) => {
-            const r = reductionDetail(m);
-            if (!r) return null;
-            return (
-              <p
-                key={i}
-                className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground"
-              >
-                <span className="font-medium text-foreground">Réductions</span>
-                <span className="font-mono tabular-nums">
-                  {r.raw}
-                  {r.damageType ? ` ${damageTypeName(systeme, r.damageType)}` : ''} brut
-                </span>
-                {r.lines.map((l, j) => (
-                  <span
-                    key={j}
-                    className={cn(l.ignored && 'line-through opacity-60')}
-                    title={l.ignored ? 'Écartée : une réduction plus forte s’applique' : undefined}
-                  >
-                    · {l.name} <span className="font-mono">{l.effect}</span>
-                  </span>
-                ))}
-                <span className="font-mono font-semibold tabular-nums text-foreground">
-                  = {r.result}
-                </span>
-              </p>
-            );
-          })}
-
-        {!applied && others.length > 0 && (
-          <p className="flex flex-wrap gap-1">
-            {others.map((m, i) => (
-              <span key={i} className="rounded-md border border-border bg-surface px-1.5 py-0.5">
-                {modificationText(systeme, toInput(m), member?.type)}
-              </span>
-            ))}
-          </p>
-        )}
-
-        {t.status === 'resolved' &&
-          !applied &&
-          !amounts.length &&
-          !others.length &&
-          !result?.tables.length && <p className="text-subtle">Aucune valeur à appliquer.</p>}
-
-        {situation.length > 0 && (
-          <p className="text-muted-foreground">
-            <span className="font-medium text-foreground">Situation</span> : {situation.join(' · ')}
-          </p>
-        )}
-
-        {(result?.tables ?? []).map((d, i) => (
-          <p key={i}>
-            <span className="font-medium">{d.name ?? tableName(systeme, d.table)}</span>
-            <span className="text-muted-foreground">
-              {' '}
-              : {d.value} → {d.line?.name ?? 'aucune ligne'}
-              {d.line?.description ? ` (${d.line.description})` : ''}
-            </span>
-          </p>
-        ))}
-
-        {t.error && <p className="text-destructive">{t.error}</p>}
-
-        {applied && (
-          <p className="rounded-lg border border-success/25 bg-success/5 px-2 py-1.5 text-muted-foreground">
-            <Check className="mr-1 inline size-3.5 text-success" aria-hidden />
-            Appliqué
-            {applied.redirectedTo ? ` à ${nameOf(applied.redirectedTo)} (réattribué)` : ''} :{' '}
-            {applied.modifications.length
-              ? applied.modifications
-                  .map((m) => modificationText(systeme, toInput(m), member?.type))
-                  .join(', ')
-              : 'rien'}
-            {applied.tables
-              .filter((x) => x.entry)
-              .map((x) => ` · ${tableName(systeme, x.table)} : ${x.entry}`)
-              .join('')}
-            {applied.defeated ? ' · hors de combat' : ''}
-          </p>
-        )}
-        {t.decision === 'skipped' && <p className="text-subtle">Non appliqué.</p>}
-        {t.decision === 'reverted' && <p className="text-info">Application annulée : à décider.</p>}
-
-        {index === 0 && attack.note && (
-          <p className="italic text-muted-foreground">« {attack.note} »</p>
-        )}
-      </div>
+      <CardDetails
+        attack={attack}
+        target={t}
+        index={index}
+        systeme={systeme}
+        presentation={presentation}
+        cast={cast}
+        roll={view.roll}
+      />
 
       {reacting && t.status === 'awaiting_reaction' && (
         <div className="mx-3 ml-4 mt-2 rounded-xl border border-border bg-surface p-3">
@@ -492,47 +335,19 @@ export function ReportCard({
           target={t}
           systeme={systeme}
           presentation={presentation}
-          explanations={explanations}
+          explanations={view.explanations}
         />
       )}
 
       {conflict && (
-        <div
-          role="alert"
-          className="mx-3 ml-4 mt-2 space-y-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-[13px]"
-        >
-          <p>
-            La fiche a changé depuis l’application : l’annuler rendrait des valeurs qui ont bougé
-            entre-temps.
-          </p>
-          {conflict.length > 0 && (
-            <ul className="text-[11px] text-muted-foreground">
-              {conflict.map((c, i) => (
-                <li key={i}>
-                  {c.characterId ? `${nameOf(c.characterId)} : ` : ''}
-                  {c.paths
-                    .map((p) =>
-                      pathLabel(systeme, p, c.characterId ? cast.get(c.characterId)?.type : null),
-                    )
-                    .join(', ')}
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button size="xs" variant="ghost" onClick={actions.clearConflict}>
-              Laisser
-            </Button>
-            <Button
-              size="xs"
-              variant="destructive"
-              onClick={() => actions.revert(true)}
-              loading={busy === 'revert'}
-            >
-              Annuler quand même
-            </Button>
-          </div>
-        </div>
+        <ConflictAlert
+          conflict={conflict}
+          systeme={systeme}
+          cast={cast}
+          busy={busy}
+          onLeave={actions.clearConflict}
+          onForce={() => actions.revert(true)}
+        />
       )}
 
       <footer className="mt-auto flex flex-wrap items-center gap-1.5 pb-3 pl-4 pr-3 pt-3">
@@ -545,101 +360,492 @@ export function ReportCard({
         >
           <ChevronDown className={cn('transition-transform', details && 'rotate-180')} />
         </Button>
-        {mode === 'decider' && (
-          <>
+        <CardActions
+          mode={mode}
+          attack={attack}
+          target={t}
+          name={name}
+          count={count}
+          actions={actions}
+          onDecide={() => onDecide(attack)}
+          onToggleReaction={() => setReacting((r) => !r)}
+        />
+      </footer>
+    </article>
+  );
+}
+
+type AttackActions = ReturnType<typeof useAttackActions>;
+type Outcome = ReturnType<typeof outcomeLabel>;
+type CardMode = 'decider' | 'reagir' | 'serveur' | 'annuler' | 'statut';
+
+/** Issue, jet et explications d'une cible : le résultat, sinon la vue partielle. */
+function targetView(systeme: SystemeCharge | null, attack: Attack, t: AttackTarget) {
+  const action = systeme?.actions.get(attack.action.id) ?? null;
+  const result = t.result ?? null;
+  return {
+    outcome: outcomeLabel(result?.outcome ?? t.view?.outcome ?? null, hasSuccessRule(action)),
+    roll: result?.roll ?? t.view?.roll ?? null,
+    explanations: result?.explanations ?? t.view?.explanations ?? [],
+  };
+}
+
+/** Cible à décider, déjà décidée, ou attaque close (abandonnée, échouée). */
+function targetState(attack: Attack, t: AttackTarget) {
+  return {
+    decidable: isPending(attack) && isDecidable(t),
+    decided: t.decision === 'applied' || t.decision === 'skipped',
+    closed: attack.status === 'cancelled' || attack.status === 'failed',
+  };
+}
+
+/** Famille d'actions de la carte, selon l'état de l'attaque et de la cible. */
+function cardMode(
+  attack: Attack,
+  t: AttackTarget,
+  decidable: boolean,
+  closed: boolean,
+  conflict: boolean,
+): CardMode {
+  if (decidable) return 'decider';
+  if (t.status === 'awaiting_reaction' && !closed) return 'reagir';
+  if (isOpen(attack) && attack.pendingSteps.length > 0) return 'serveur';
+  if (t.decision === 'applied' && canRevert(attack) && !conflict) return 'annuler';
+  return 'statut';
+}
+
+/** Bordure : appuyée quand la cible attend une décision, colorée si elle est touchée. */
+function cardBorder(decidable: boolean, outcome: Outcome): string {
+  if (!decidable) return 'border-border';
+  return outcome?.tone === 'success' || outcome?.tone === 'critical'
+    ? 'border-primary/35'
+    : 'border-border-strong';
+}
+
+/** Pastille d'état : attaque close, attente, refus, sinon l'issue du jet. */
+function StatusBadge({
+  attack,
+  target: t,
+  outcome,
+  closed,
+}: Readonly<{ attack: Attack; target: AttackTarget; outcome: Outcome; closed: boolean }>) {
+  if (closed) return <Badge ton="danger">{ATTACK_STATUS_LABELS[attack.status]}</Badge>;
+  if (t.status === 'awaiting_reaction') return <Badge ton="alerte">Défense attendue</Badge>;
+  if (t.status === 'awaiting_dice') return <Badge ton="alerte">Dés attendus</Badge>;
+  if (t.status === 'failed') return <Badge ton="danger">Refusé</Badge>;
+  if (outcome) return <Badge ton={TONES[outcome.tone]}>{outcome.label}</Badge>;
+  return null;
+}
+
+/** Attaquant → cible, rang de la cible, round et heure. */
+function PeopleRow({
+  attack,
+  target: t,
+  attacker,
+  member,
+  index,
+  count,
+  onOpenCharacter,
+}: Readonly<{
+  attack: Attack;
+  target: AttackTarget;
+  attacker: CastMember | undefined;
+  member: CastMember | undefined;
+  index: number;
+  count: number;
+  onOpenCharacter(characterId: string): void;
+}>) {
+  return (
+    <div className="flex items-center gap-1.5 pl-4 pr-3 pt-1.5 text-xs">
+      <PersonChip
+        name={attacker?.name ?? 'Personnage'}
+        portrait={attacker?.portraitUrl ?? null}
+        onClick={() => onOpenCharacter(attack.attackerId)}
+      />
+      <ArrowRight className="size-3.5 shrink-0 text-subtle" aria-label="attaque" />
+      <PersonChip
+        name={member?.name ?? 'Personnage'}
+        portrait={member?.portraitUrl ?? null}
+        onClick={() => onOpenCharacter(t.characterId)}
+        strong
+      />
+      {count > 1 && (
+        <span className="shrink-0 text-[11px] text-subtle">
+          cible {index + 1}/{count}
+        </span>
+      )}
+      <span className="ml-auto flex shrink-0 items-center gap-1 text-[11px] text-subtle">
+        <Clock className="size-3" aria-hidden />
+        {attack.round !== null ? `R${attack.round} · ` : ''}
+        {HOUR.format(new Date(attack.createdAt))}
+      </span>
+    </div>
+  );
+}
+
+/** Marques : auto-attaque, hors tour, ajusté à la main, caché ou privé. */
+function MarkBadges({ attack, selfTarget }: Readonly<{ attack: Attack; selfTarget: boolean }>) {
+  if (!(selfTarget || attack.outOfTurn || attack.adjustments || attack.visibility !== 'public'))
+    return null;
+  return (
+    <div className="flex flex-wrap gap-1 pl-4 pr-3 pt-2">
+      {selfTarget && (
+        <Badge ton="danger" className="font-bold uppercase tracking-wide">
+          <Skull />
+          Auto-attaque
+        </Badge>
+      )}
+      {attack.outOfTurn && <Badge ton="alerte">Hors tour</Badge>}
+      {attack.adjustments && <Badge ton="info">Ajusté à la main</Badge>}
+      {attack.visibility !== 'public' && (
+        <Badge>
+          <EyeOff />
+          {attack.visibility === 'gm' ? 'Caché' : 'Privé'}
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+/** Cases en gros chiffres : le jet, puis chaque valeur proposée. */
+function RollBoxes({
+  systeme,
+  presentation,
+  roll,
+  amounts,
+  memberType,
+}: Readonly<{
+  systeme: SystemeCharge | null;
+  presentation: Presentation | null;
+  roll: Roll | null;
+  amounts: ReturnType<typeof targetAmounts>;
+  memberType: string | null | undefined;
+}>) {
+  if (!roll) return null;
+  return (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))] gap-2 pl-4 pr-3 pt-3">
+      <NumberBox label={jetLabel(systeme, roll)} value={jetValue(systeme, roll)} />
+      {amounts.map((m, i) => (
+        <NumberBox
+          key={i}
+          label={attributeLabel(systeme, m.attribute, memberType)}
+          value={`${m.operation === 'add' ? '+' : '−'}${m.value}`}
+          sub={m.damageType ? damageTypeName(systeme, m.damageType) : undefined}
+          tone={harmful(m, presentation) ? 'danger' : 'success'}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Réductions d'une valeur : brut, type, chaque réduction, résultat. */
+function ReductionLine({
+  systeme,
+  amount,
+}: Readonly<{ systeme: SystemeCharge | null; amount: ReturnType<typeof targetAmounts>[number] }>) {
+  const r = reductionDetail(amount);
+  if (!r) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground">
+      <span className="font-medium text-foreground">Réductions</span>
+      <span className="font-mono tabular-nums">
+        {r.raw}
+        {r.damageType ? ` ${damageTypeName(systeme, r.damageType)}` : ''} brut
+      </span>
+      {r.lines.map((l, j) => (
+        <span
+          key={j}
+          className={cn(l.ignored && 'line-through opacity-60')}
+          title={l.ignored ? 'Écartée : une réduction plus forte s’applique' : undefined}
+        >
+          · {l.name} <span className="font-mono">{l.effect}</span>
+        </span>
+      ))}
+      <span className="font-mono font-semibold tabular-nums text-foreground">= {r.result}</span>
+    </p>
+  );
+}
+
+/** Ce qui a été appliqué (réattribution, valeurs, tables, hors de combat). */
+function AppliedLine({
+  applied,
+  systeme,
+  cast,
+  memberType,
+}: Readonly<{
+  applied: NonNullable<AttackTarget['applied']>;
+  systeme: SystemeCharge | null;
+  cast: ReadonlyMap<string, CastMember>;
+  memberType: string | null | undefined;
+}>) {
+  const redirected = applied.redirectedTo
+    ? ` à ${cast.get(applied.redirectedTo)?.name ?? 'Personnage'} (réattribué)`
+    : '';
+  return (
+    <p className="rounded-lg border border-success/25 bg-success/5 px-2 py-1.5 text-muted-foreground">
+      <Check className="mr-1 inline size-3.5 text-success" aria-hidden />
+      Appliqué
+      {redirected} :{' '}
+      {applied.modifications.length
+        ? applied.modifications
+            .map((m) => modificationText(systeme, toInput(m), memberType))
+            .join(', ')
+        : 'rien'}
+      {applied.tables
+        .filter((x) => x.entry)
+        .map((x) => ` · ${tableName(systeme, x.table)} : ${x.entry}`)
+        .join('')}
+      {applied.defeated ? ' · hors de combat' : ''}
+    </p>
+  );
+}
+
+/** Corps de la carte : symboles, réductions, situation, tables, application, note. */
+function CardDetails({
+  attack,
+  target: t,
+  index,
+  systeme,
+  presentation,
+  cast,
+  roll,
+}: Readonly<{
+  attack: Attack;
+  target: AttackTarget;
+  index: number;
+  systeme: SystemeCharge | null;
+  presentation: Presentation | null;
+  cast: ReadonlyMap<string, CastMember>;
+  roll: Roll | null;
+}>) {
+  const memberType = cast.get(t.characterId)?.type;
+  const result = t.result ?? null;
+  const applied = t.applied ?? null;
+  const amounts = targetAmounts(t);
+  const others = targetOthers(t);
+  const situation = situationText(systeme, attack.action.id, attack.params);
+  const nothing =
+    t.status === 'resolved' &&
+    !applied &&
+    !amounts.length &&
+    !others.length &&
+    !result?.tables.length;
+  return (
+    <div className="space-y-1.5 pl-4 pr-3 pt-2 text-xs">
+      {roll?.kind === 'symbols' && systeme && (
+        <ResultatsSymboles systeme={systeme} presentation={presentation} resultats={roll.results} />
+      )}
+
+      {!applied && amounts.map((m, i) => <ReductionLine key={i} systeme={systeme} amount={m} />)}
+
+      {!applied && others.length > 0 && (
+        <p className="flex flex-wrap gap-1">
+          {others.map((m, i) => (
+            <span key={i} className="rounded-md border border-border bg-surface px-1.5 py-0.5">
+              {modificationText(systeme, toInput(m), memberType)}
+            </span>
+          ))}
+        </p>
+      )}
+
+      {nothing && <p className="text-subtle">Aucune valeur à appliquer.</p>}
+
+      {situation.length > 0 && (
+        <p className="text-muted-foreground">
+          <span className="font-medium text-foreground">Situation</span> : {situation.join(' · ')}
+        </p>
+      )}
+
+      {(result?.tables ?? []).map((d, i) => (
+        <p key={i}>
+          <span className="font-medium">{d.name ?? tableName(systeme, d.table)}</span>
+          <span className="text-muted-foreground">
+            {' '}
+            : {d.value} → {d.line?.name ?? 'aucune ligne'}
+            {d.line?.description ? ` (${d.line.description})` : ''}
+          </span>
+        </p>
+      ))}
+
+      {t.error && <p className="text-destructive">{t.error}</p>}
+
+      {applied && (
+        <AppliedLine applied={applied} systeme={systeme} cast={cast} memberType={memberType} />
+      )}
+      {t.decision === 'skipped' && <p className="text-subtle">Non appliqué.</p>}
+      {t.decision === 'reverted' && <p className="text-info">Application annulée : à décider.</p>}
+
+      {index === 0 && attack.note && (
+        <p className="italic text-muted-foreground">« {attack.note} »</p>
+      )}
+    </div>
+  );
+}
+
+/** Annulation refusée : la fiche a bougé depuis ; laisser ou annuler quand même. */
+function ConflictAlert({
+  conflict,
+  systeme,
+  cast,
+  busy,
+  onLeave,
+  onForce,
+}: Readonly<{
+  conflict: RevertConflict[];
+  systeme: SystemeCharge | null;
+  cast: ReadonlyMap<string, CastMember>;
+  busy: string | null;
+  onLeave(): void;
+  onForce(): void;
+}>) {
+  const nameOf = (id: string) => cast.get(id)?.name ?? 'Personnage';
+  return (
+    <div
+      role="alert"
+      className="mx-3 ml-4 mt-2 space-y-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-[13px]"
+    >
+      <p>
+        La fiche a changé depuis l’application : l’annuler rendrait des valeurs qui ont bougé
+        entre-temps.
+      </p>
+      {conflict.length > 0 && (
+        <ul className="text-[11px] text-muted-foreground">
+          {conflict.map((c, i) => (
+            <li key={i}>
+              {c.characterId ? `${nameOf(c.characterId)} : ` : ''}
+              {c.paths
+                .map((p) =>
+                  pathLabel(systeme, p, c.characterId ? cast.get(c.characterId)?.type : null),
+                )
+                .join(', ')}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button size="xs" variant="ghost" onClick={onLeave}>
+          Laisser
+        </Button>
+        <Button size="xs" variant="destructive" onClick={onForce} loading={busy === 'revert'}>
+          Annuler quand même
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Actions du pied de carte : décider, répondre, tirer par le serveur, annuler, ou l'état. */
+function CardActions({
+  mode,
+  attack,
+  target: t,
+  name,
+  count,
+  actions,
+  onDecide,
+  onToggleReaction,
+}: Readonly<{
+  mode: CardMode;
+  attack: Attack;
+  target: AttackTarget;
+  name: string;
+  count: number;
+  actions: AttackActions;
+  onDecide(): void;
+  onToggleReaction(): void;
+}>) {
+  const { busy } = actions;
+  return (
+    <>
+      {mode === 'decider' && (
+        <>
+          <Button
+            size="sm"
+            className="flex-1"
+            onClick={() => actions.decideOne(t, true)}
+            loading={busy === `${t.characterId}:true`}
+            disabled={busy !== null}
+          >
+            <Check />
+            Appliquer
+          </Button>
+          <Info texte="Modifier avant d’appliquer">
             <Button
-              size="sm"
-              className="flex-1"
-              onClick={() => actions.decideOne(t, true)}
-              loading={busy === `${t.characterId}:true`}
-              disabled={busy !== null}
-            >
-              <Check />
-              Appliquer
-            </Button>
-            <Info texte="Modifier avant d’appliquer">
-              <Button
-                size="icon-sm"
-                variant="secondary"
-                onClick={() => onDecide(attack)}
-                disabled={busy !== null}
-                aria-label={`Modifier avant d’appliquer à ${name}`}
-              >
-                <Pencil />
-              </Button>
-            </Info>
-            <Info texte="Ne pas appliquer">
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => actions.decideOne(t, false)}
-                loading={busy === `${t.characterId}:false`}
-                disabled={busy !== null}
-                aria-label={`Ne pas appliquer à ${name}`}
-              >
-                <X />
-              </Button>
-            </Info>
-          </>
-        )}
-        {mode === 'reagir' && (
-          <>
-            <Button
-              size="sm"
+              size="icon-sm"
               variant="secondary"
-              className="flex-1"
-              onClick={() => setReacting((r) => !r)}
-            >
-              <ShieldQuestion />
-              Répondre
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => actions.skipReactions([t])}
-              loading={busy === 'skip'}
+              onClick={onDecide}
               disabled={busy !== null}
+              aria-label={`Modifier avant d’appliquer à ${name}`}
             >
-              <ShieldOff />
-              Passer
-            </Button>
-          </>
-        )}
-        {mode === 'serveur' && (
-          <Info texte="L’auteur ne lance pas ses dés : le serveur tire la suite">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="flex-1"
-              onClick={actions.serverDice}
-              loading={busy === 'dice'}
-              disabled={busy !== null}
-            >
-              <Dices />
-              Tirer par le serveur
+              <Pencil />
             </Button>
           </Info>
-        )}
-        {mode === 'annuler' && (
+          <Info texte="Ne pas appliquer">
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => actions.decideOne(t, false)}
+              loading={busy === `${t.characterId}:false`}
+              disabled={busy !== null}
+              aria-label={`Ne pas appliquer à ${name}`}
+            >
+              <X />
+            </Button>
+          </Info>
+        </>
+      )}
+      {mode === 'reagir' && (
+        <>
+          <Button size="sm" variant="secondary" className="flex-1" onClick={onToggleReaction}>
+            <ShieldQuestion />
+            Répondre
+          </Button>
           <Button
             size="sm"
             variant="ghost"
-            className="ml-auto"
-            onClick={() => actions.revert(false)}
-            loading={busy === 'revert'}
+            onClick={() => actions.skipReactions([t])}
+            loading={busy === 'skip'}
             disabled={busy !== null}
           >
-            <Undo2 />
-            Annuler l’application{count > 1 ? ` (${count} cibles)` : ''}
+            <ShieldOff />
+            Passer
           </Button>
-        )}
-        {mode === 'statut' && (
-          <span className="ml-auto text-[11px] text-subtle">
-            {decisionLabel(t.decision) ?? ATTACK_STATUS_LABELS[attack.status]}
-          </span>
-        )}
-      </footer>
-    </article>
+        </>
+      )}
+      {mode === 'serveur' && (
+        <Info texte="L’auteur ne lance pas ses dés : le serveur tire la suite">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="flex-1"
+            onClick={actions.serverDice}
+            loading={busy === 'dice'}
+            disabled={busy !== null}
+          >
+            <Dices />
+            Tirer par le serveur
+          </Button>
+        </Info>
+      )}
+      {mode === 'annuler' && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="ml-auto"
+          onClick={() => actions.revert(false)}
+          loading={busy === 'revert'}
+          disabled={busy !== null}
+        >
+          <Undo2 />
+          Annuler l’application{count > 1 ? ` (${count} cibles)` : ''}
+        </Button>
+      )}
+      {mode === 'statut' && (
+        <span className="ml-auto text-[11px] text-subtle">
+          {decisionLabel(t.decision) ?? ATTACK_STATUS_LABELS[attack.status]}
+        </span>
+      )}
+    </>
   );
 }
 
