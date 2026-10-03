@@ -71,11 +71,7 @@ function toItem(a: Asset): BackgroundItem {
     animated,
     illustration: /illustration/i.test(a.category) || /illustration/i.test(a.name),
     grid: /(^|_)grid(_|$)/i.test(base) && !/nogrid/i.test(base),
-    poster: animated
-      ? variant
-        ? vignette(variant.replace(/\.mp4$/, '.webp'), 480)
-        : null
-      : vignette(a.path, 480),
+    poster: posterOf(animated, variant, a.path),
     preview: variant,
   };
 }
@@ -272,15 +268,17 @@ function Body({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-width:thin] sm:p-5">
-            {assets.isLoading ? (
+            {assets.isLoading && (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-3">
                 {Array.from({ length: 12 }, (_, i) => (
                   <Skeleton key={i} className="aspect-[4/3] rounded-xl" />
                 ))}
               </div>
-            ) : shown.length === 0 ? (
+            )}
+            {!assets.isLoading && shown.length === 0 && (
               <p className="py-16 text-center text-sm text-muted-foreground">Aucune carte</p>
-            ) : (
+            )}
+            {!assets.isLoading && shown.length > 0 && (
               <>
                 <ul className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-3">
                   {shown.slice(0, page * PAGE).map((i) => (
@@ -408,4 +406,10 @@ function Tile({
       </span>
     </button>
   );
+}
+
+/** Vignette d'un fond : l'aperçu webp d'une animation, sinon l'image elle-même. */
+function posterOf(animated: boolean, variant: string | null | undefined, path: string) {
+  if (!animated) return vignette(path, 480);
+  return variant ? vignette(variant.replace(/\.mp4$/, '.webp'), 480) : null;
 }

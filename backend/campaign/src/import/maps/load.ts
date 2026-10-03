@@ -46,20 +46,21 @@ export const TABLES = [
 export type TableName = (typeof TABLES)[number][0];
 export type Counts = Record<TableName, number>;
 
-const rowsOf = (m: MigratedMaps, name: TableName): Record<string, unknown>[] =>
-  name === 'settings' ? (m.settings ? [m.settings] : []) : (m[name] as Record<string, unknown>[]);
+const rowsOf = (m: MigratedMaps, name: TableName): Record<string, unknown>[] => {
+  if (name !== 'settings') return m[name] as Record<string, unknown>[];
+  return m.settings ? [m.settings] : [];
+};
 
 /** Clé primaire d'une ligne (map_fog : la carte ; map_settings : la campagne). */
+const KEY_COLUMN: Partial<Record<TableName, string>> = { fog: 'mapId', settings: 'campaignId' };
 const keyOf = (name: TableName, row: Record<string, unknown>) =>
-  (name === 'fog' ? row.mapId : name === 'settings' ? row.campaignId : row.id) as string;
+  row[KEY_COLUMN[name] ?? 'id'] as string;
 
 const pkOf = (name: TableName) => {
   const table = TABLES.find(([n]) => n === name)![1];
-  return name === 'fog'
-    ? (table as typeof mapFog).mapId
-    : name === 'settings'
-      ? (table as typeof mapSettings).campaignId
-      : (table as typeof maps).id;
+  if (name === 'fog') return (table as typeof mapFog).mapId;
+  if (name === 'settings') return (table as typeof mapSettings).campaignId;
+  return (table as typeof maps).id;
 };
 
 export const emptyCounts = (): Counts => Object.fromEntries(TABLES.map(([n]) => [n, 0])) as Counts;

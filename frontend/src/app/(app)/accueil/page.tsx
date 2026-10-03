@@ -38,7 +38,9 @@ import { cn } from '@/lib/utils';
 
 function salutation() {
   const h = new Date().getHours();
-  return h < 5 ? 'Bonne nuit' : h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
+  if (h < 5) return 'Bonne nuit';
+  if (h < 12) return 'Bonjour';
+  return h < 18 ? 'Bon après-midi' : 'Bonsoir';
 }
 
 /** Tableau de bord : reprendre la dernière campagne, sessions à venir, héros, jets et notes. */
@@ -96,13 +98,9 @@ export default function PageAccueil() {
           >
             Reprendre l&apos;aventure
           </TitreSection>
-          {campagnes.isLoading ? (
-            <CarteCampagneSquelette />
-          ) : recente ? (
-            <Reprendre campagne={recente} />
-          ) : (
-            <InviteCampagne />
-          )}
+          {campagnes.isLoading && <CarteCampagneSquelette />}
+          {!campagnes.isLoading && recente && <Reprendre campagne={recente} />}
+          {!campagnes.isLoading && !recente && <InviteCampagne />}
         </section>
         <aside className="space-y-6">
           <AVenir campagnes={campagnes.data ?? []} />

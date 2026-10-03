@@ -68,6 +68,60 @@ export function EtapeSaisir({
     } else setErreurs((x) => ({ ...x, [a.cle]: r.erreur }));
   }
 
+  function champ(a: Attribut, id: string, actuel: Valeur | undefined) {
+    const texte = typeof actuel === 'string' ? actuel : '';
+    if (a.nature === 'texte' && a.multiligne)
+      return (
+        <Textarea
+          id={id}
+          defaultValue={texte}
+          onBlur={(e) => enregistrer(a, e.target.value)}
+          className="min-h-[120px]"
+        />
+      );
+    if (a.nature === 'texte')
+      return <Input id={id} defaultValue={texte} onBlur={(e) => enregistrer(a, e.target.value)} />;
+    if (a.nature === 'choix')
+      return (
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={a.nom}>
+          {a.options.map((o) => (
+            <button
+              key={o.valeur}
+              type="button"
+              role="radio"
+              aria-checked={actuel === o.valeur}
+              onClick={() => enregistrer(a, o.valeur)}
+              className={cn(
+                'h-9 rounded-lg border px-3.5 text-[13px] transition-colors',
+                actuel === o.valeur
+                  ? 'border-primary/60 bg-primary/15 text-primary-strong'
+                  : 'border-border-strong text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {o.nom}
+            </button>
+          ))}
+        </div>
+      );
+    if (a.nature === 'booleen')
+      return (
+        <Switch id={id} checked={actuel === true} onCheckedChange={(v) => enregistrer(a, v)} />
+      );
+    return (
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        value={local[a.cle] ?? (typeof actuel === 'number' ? String(actuel) : '')}
+        onChange={(e) => setLocal((x) => ({ ...x, [a.cle]: e.target.value }))}
+        onBlur={(e) => {
+          if (e.target.value !== '') enregistrer(a, Number(e.target.value));
+        }}
+        className="font-mono"
+      />
+    );
+  }
+
   return (
     <div className="grid gap-5 sm:grid-cols-2">
       {attributs.map((a) => {
@@ -77,60 +131,7 @@ export function EtapeSaisir({
         return (
           <div key={a.cle} className={cn('space-y-2', large && 'sm:col-span-2')}>
             <Label htmlFor={id}>{a.nom}</Label>
-            {a.nature === 'texte' ? (
-              a.multiligne ? (
-                <Textarea
-                  id={id}
-                  defaultValue={typeof actuel === 'string' ? actuel : ''}
-                  onBlur={(e) => enregistrer(a, e.target.value)}
-                  className="min-h-[120px]"
-                />
-              ) : (
-                <Input
-                  id={id}
-                  defaultValue={typeof actuel === 'string' ? actuel : ''}
-                  onBlur={(e) => enregistrer(a, e.target.value)}
-                />
-              )
-            ) : a.nature === 'choix' ? (
-              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={a.nom}>
-                {a.options.map((o) => (
-                  <button
-                    key={o.valeur}
-                    type="button"
-                    role="radio"
-                    aria-checked={actuel === o.valeur}
-                    onClick={() => enregistrer(a, o.valeur)}
-                    className={cn(
-                      'h-9 rounded-lg border px-3.5 text-[13px] transition-colors',
-                      actuel === o.valeur
-                        ? 'border-primary/60 bg-primary/15 text-primary-strong'
-                        : 'border-border-strong text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {o.nom}
-                  </button>
-                ))}
-              </div>
-            ) : a.nature === 'booleen' ? (
-              <Switch
-                id={id}
-                checked={actuel === true}
-                onCheckedChange={(v) => enregistrer(a, v)}
-              />
-            ) : (
-              <Input
-                id={id}
-                type="number"
-                inputMode="numeric"
-                value={local[a.cle] ?? (typeof actuel === 'number' ? String(actuel) : '')}
-                onChange={(e) => setLocal((x) => ({ ...x, [a.cle]: e.target.value }))}
-                onBlur={(e) => {
-                  if (e.target.value !== '') enregistrer(a, Number(e.target.value));
-                }}
-                className="font-mono"
-              />
-            )}
+            {champ(a, id, actuel)}
             {a.description && <p className="text-xs text-subtle">{a.description}</p>}
             {erreurs[a.cle] && <p className="text-xs text-destructive">{erreurs[a.cle]}</p>}
           </div>

@@ -272,14 +272,10 @@ interface PropsEtape {
 // ─── 1. L'histoire ───────────────────────────────────────────────────────────
 
 function EtapeHistoire({ b, maj }: Readonly<PropsEtape>) {
-  const basculer = (t: string) =>
-    maj({
-      tags: b.tags.includes(t)
-        ? b.tags.filter((x) => x !== t)
-        : b.tags.length < ETIQUETTES_MAX
-          ? [...b.tags, t]
-          : b.tags,
-    });
+  const basculer = (t: string) => {
+    if (b.tags.includes(t)) maj({ tags: b.tags.filter((x) => x !== t) });
+    else if (b.tags.length < ETIQUETTES_MAX) maj({ tags: [...b.tags, t] });
+  };
   return (
     <>
       <TitreEtape
@@ -569,6 +565,10 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
 function EtapeTable({ b, maj }: Readonly<PropsEtape>) {
   const amis = useAmis();
   const invite = (id: string) => b.invite.some((i) => i.id === id);
+  let etatAmis: 'chargement' | 'erreur' | 'aucun' | 'liste' = 'liste';
+  if (amis.isLoading) etatAmis = 'chargement';
+  else if (amis.isError) etatAmis = 'erreur';
+  else if ((amis.data?.length ?? 0) === 0) etatAmis = 'aucun';
 
   return (
     <>
@@ -611,14 +611,14 @@ function EtapeTable({ b, maj }: Readonly<PropsEtape>) {
               <span className="text-xs text-primary">{b.invite.length} invité(s)</span>
             )}
           </div>
-          {amis.isLoading ? null : amis.isError ? (
-            <Message>Impossible de charger vos amis.</Message>
-          ) : (amis.data?.length ?? 0) === 0 ? (
+          {etatAmis === 'erreur' && <Message>Impossible de charger vos amis.</Message>}
+          {etatAmis === 'aucun' && (
             <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-sm text-subtle">
               Pas encore d&apos;amis sur Yner : partagez simplement le code de la campagne une fois
               créée.
             </p>
-          ) : (
+          )}
+          {etatAmis === 'liste' && (
             <ul className="grid gap-2 sm:grid-cols-2">
               {amis.data!.map((a) => {
                 const coche = invite(a.id);

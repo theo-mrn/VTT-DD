@@ -82,11 +82,8 @@ export function StatsJets({
                 ecart < -0.05 && 'text-destructive',
               )}
             >
-              {ecart > 0.05 ? (
-                <TrendingUp className="size-3" aria-hidden />
-              ) : ecart < -0.05 ? (
-                <TrendingDown className="size-3" aria-hidden />
-              ) : null}
+              {ecart > 0.05 && <TrendingUp className="size-3" aria-hidden />}
+              {ecart < -0.05 && <TrendingDown className="size-3" aria-hidden />}
               {ecart >= 0 ? '+' : '−'}
               {nombre(Math.abs(ecart))} vs 10,5
             </span>
@@ -262,14 +259,10 @@ function JaugeChance({ moyenne, total }: Readonly<{ moyenne: number; total: numb
   const position = (v: number) => `${((v - 1) / 19) * 100}%`;
   const ecart = moyenne - MOYENNE_ATTENDUE;
   // Sous une vingtaine de dés, l'écart n'a pas de sens : on le dit plutôt que d'en tirer un verdict
-  const verdict =
-    total < 20
-      ? 'Encore trop peu de d20 pour juger.'
-      : ecart > 1
-        ? 'Les dés vous sourient.'
-        : ecart < -1
-          ? 'Les dés vous boudent.'
-          : 'Des dés parfaitement honnêtes.';
+  let verdict = 'Des dés parfaitement honnêtes.';
+  if (total < 20) verdict = 'Encore trop peu de d20 pour juger.';
+  else if (ecart > 1) verdict = 'Les dés vous sourient.';
+  else if (ecart < -1) verdict = 'Les dés vous boudent.';
 
   return (
     <div className="space-y-2.5 rounded-xl border border-border bg-surface-2/40 p-3">

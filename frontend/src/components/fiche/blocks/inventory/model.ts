@@ -119,10 +119,16 @@ function variablesEffet(
       }
       const v = def ? champDe(entree, def, ex) : entree.champs[id];
       if (Array.isArray(v)) return v.join(',');
-      return v ?? (def?.type === 'booleen' ? false : def?.type === 'nombre' ? 0 : '');
+      return v ?? valeurVide(def?.type);
     }
     throw new Error(`Variable inconnue : ${nom}`);
   };
+}
+
+/** Valeur d'un champ absent, selon son type. */
+function valeurVide(type: string | undefined): boolean | number | string {
+  if (type === 'booleen') return false;
+  return type === 'nombre' ? 0 : '';
 }
 
 function nomAttribut(fiche: Fiche, cle: string): string {
@@ -182,13 +188,10 @@ export function libelleEffet(
         texte = `${typeof v === 'number' ? signe(v) : `+ ${v}`} au jet`;
       }
       if (!texte) return 'Modifie certains jets';
-      const cible = e.implique?.entree
-        ? fiche.systeme.entrees.get(e.implique.entree)?.nom
-        : e.implique?.attribut
-          ? nomAttribut(fiche, e.implique.attribut)
-          : e.actions?.length === 1
-            ? fiche.systeme.actions.get(e.actions[0]!)?.nom
-            : undefined;
+      let cible: string | undefined;
+      if (e.implique?.entree) cible = fiche.systeme.entrees.get(e.implique.entree)?.nom;
+      else if (e.implique?.attribut) cible = nomAttribut(fiche, e.implique.attribut);
+      else if (e.actions?.length === 1) cible = fiche.systeme.actions.get(e.actions[0]!)?.nom;
       const cote = e.cote === 'cible' ? ' (en défense)' : '';
       return cible ? `${texte} · ${cible}${cote}` : `${texte}${cote}`;
     }
