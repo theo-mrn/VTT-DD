@@ -259,6 +259,171 @@ interface Plan {
   etat: EtatEntite;
 }
 
+type ApplicationDemandee = CorpsAppliquer['applications'][number];
+type SystemeDe = (id: string, l: Ligne) => SystemeCharge;
+
+/**
+ * En-têtes d'abord : une reprise concurrente attend la fin de cette transaction. Renvoie
+ * les applications insérées ici (les autres sont traitées par une requête concurrente).
+ */
+async function insererEntetes(
+  tx: Tx,
+  nouvelles: ApplicationDemandee[],
+): Promise<ApplicationDemandee[]> {
+  const inserees = new Set<string>();
+  for (const a of nouvelles) {
+    const r = await tx
+      .insert(applications)
+      .values({
+        applicationId: a.applicationId,
+        kind: 'application',
+        campaignId: a.campaignId,
+        userId: a.userId ?? null,
+      })
+      .onConflictDoNothing()
+      .returning({ id: applications.applicationId });
+    if (r.length) inserees.add(a.applicationId);
+  }
+  return nouvelles.filter((a) => inserees.has(a.applicationId));
+}
+
+/** Items d'une application regroupés par fiche touchée. */
+function itemsParPerso(a: ApplicationDemandee): Map<string, ApplicationDemandee['items']> {
+  const parPerso = new Map<string, ApplicationDemandee['items']>();
+  for (const i of a.items) parPerso.set(i.characterId, [...(parPerso.get(i.characterId) ?? []), i]);
+  return parPerso;
+}
+
+/** Nouvel état d'une fiche après des modifications, borné et vérifié ; message d'erreur sinon. */
+function etatApres(
+  s: SystemeCharge,
+  ligne: Ligne,
+  modifications: Modification[],
+): { etat: EtatEntite } | { erreur: string } {
+  try {
+    const fiche = verifierEtat(s, ligne.etat).fiche;
+    let etat = appliquerModifications(fiche, modifications);
+    const attributs = modifications.flatMap((m) => ('attribut' in m ? [m.attribut] : []));
+    etat = borner(s, etat, new Set(attributs));
+    etat = verifierEtat(s, etat).etat;
+    return { etat };
+  } catch (e) {
+    return { erreur: (e as Error).message };
+  }
+}
+
+/** 1. Calcul de tous les nouveaux états, sans rien écrire : toutes les erreurs d'un coup. */
+function simuler(
+  aTraiter: ApplicationDemandee[],
+  verrouillees: Map<string, Ligne>,
+  systeme: SystemeDe,
+): Plan[] {
+  const simulees = new Map(verrouillees);
+  const plans: Plan[] = [];
+  const erreurs: { characterId: string; message: string }[] = [];
+  for (const a of aTraiter) {
+    for (const [id, items] of itemsParPerso(a)) {
+      const ligne = simulees.get(id)!;
+      const s = systeme(id, ligne);
+      const d = modificationsDecidees(
+        s,
+        ligne.type,
+        items.flatMap((i) => i.modifications),
+        items.flatMap((i) => i.tables ?? []),
+      );
+      if (d.erreurs.length) {
+        erreurs.push(...d.erreurs.map((message) => ({ characterId: id, message })));
+        continue;
+      }
+      const r = etatApres(s, ligne, d.modifications as Modification[]);
+      if ('erreur' in r) {
+        erreurs.push({ characterId: id, message: r.erreur });
+        continue;
+      }
+      plans.push({ applicationId: a.applicationId, characterId: id, etat: r.etat });
+      simulees.set(id, { ...ligne, etat: r.etat });
+    }
+  }
+  if (erreurs.length)
+    throw new Refus(
+      422,
+      'Refusé par les règles du système',
+      'modification_invalide',
+      erreurs.map((e) => e.message).join(' ; '),
+      { errors: erreurs },
+    );
+  return plans;
+}
+
+/** Écrit un plan sur la fiche telle que l'a laissée le plan précédent ; renvoie son item. */
+async function ecrirePlan(
+  c: Contexte,
+  tx: Tx,
+  a: ApplicationDemandee,
+  p: Plan,
+  courantes: Map<string, Ligne>,
+  systeme: SystemeDe,
+): Promise<ItemApplique> {
+  const { catalogue } = c.deps;
+  const ligne = courantes.get(p.characterId)!;
+  const s = systeme(p.characterId, ligne);
+  const change = !deepEqual(etatNormalise(ligne.etat), etatNormalise(p.etat));
+  const suivante = change
+    ? await enregistrer(
+        tx,
+        c.ctx,
+        catalogue,
+        appelant(c, p.characterId, a.userId ?? null, a.campaignId),
+        ligne,
+        { etat: p.etat },
+        { operation: 'combat.application', details: { applicationId: p.applicationId } },
+        c.options.get(p.characterId),
+      )
+    : ligne;
+  courantes.set(p.characterId, suivante);
+  const changes = change ? diff(ligne, suivante) : { changes: [] };
+  const item: ItemApplique = {
+    characterId: p.characterId,
+    version: suivante.version,
+    ...changes,
+    defeated: horsCombat(s, suivante.etat),
+  };
+  const delta: DeltaEtat = deltaEtat(
+    etatNormalise(ligne.etat) as EtatEntite,
+    etatNormalise(suivante.etat) as EtatEntite,
+  );
+  await tx.insert(applicationItems).values({
+    applicationId: p.applicationId,
+    characterId: p.characterId,
+    delta,
+    result: item,
+  });
+  return item;
+}
+
+/** 2. Écriture, dans l'ordre : chaque fiche part de l'état écrit juste avant. */
+async function ecrirePlans(
+  c: Contexte,
+  tx: Tx,
+  aTraiter: ApplicationDemandee[],
+  plans: Plan[],
+  verrouillees: Map<string, Ligne>,
+  systeme: SystemeDe,
+): Promise<void> {
+  const courantes = new Map(verrouillees);
+  const reponses = new Map<string, ItemApplique[]>();
+  for (const p of plans) {
+    const a = aTraiter.find((x) => x.applicationId === p.applicationId)!;
+    const item = await ecrirePlan(c, tx, a, p, courantes, systeme);
+    reponses.set(p.applicationId, [...(reponses.get(p.applicationId) ?? []), item]);
+  }
+  for (const a of aTraiter)
+    await tx
+      .update(applications)
+      .set({ response: { items: reponses.get(a.applicationId) ?? [] } })
+      .where(eq(applications.applicationId, a.applicationId));
+}
+
 async function appliquerTout(
   c: Contexte,
   corps: CorpsAppliquer,
@@ -278,118 +443,14 @@ async function appliquerTout(
 
   if (nouvelles.length)
     await db.transaction(async (tx) => {
-      // En-têtes d'abord : une reprise concurrente attend la fin de cette transaction
-      const inserees = new Set<string>();
-      for (const a of nouvelles) {
-        const r = await tx
-          .insert(applications)
-          .values({
-            applicationId: a.applicationId,
-            kind: 'application',
-            campaignId: a.campaignId,
-            userId: a.userId ?? null,
-          })
-          .onConflictDoNothing()
-          .returning({ id: applications.applicationId });
-        if (r.length) inserees.add(a.applicationId);
-      }
-      const aTraiter = nouvelles.filter((a) => inserees.has(a.applicationId));
+      const aTraiter = await insererEntetes(tx, nouvelles);
       if (!aTraiter.length) return;
 
       const touches = aTraiter.flatMap((a) => a.items.map((i) => i.characterId));
       const verrouillees = await verrouillerTous(tx, touches);
       const systeme = (id: string, l: Ligne) => systemeDe(catalogue, l, c.options.get(id));
-
-      // 1. Calcul de tous les nouveaux états, sans rien écrire : toutes les erreurs d'un coup
-      const simulees = new Map(verrouillees);
-      const plans: Plan[] = [];
-      const erreurs: { characterId: string; message: string }[] = [];
-      for (const a of aTraiter) {
-        const parPerso = new Map<string, CorpsAppliquer['applications'][number]['items']>();
-        for (const i of a.items)
-          parPerso.set(i.characterId, [...(parPerso.get(i.characterId) ?? []), i]);
-        for (const [id, items] of parPerso) {
-          const ligne = simulees.get(id)!;
-          const s = systeme(id, ligne);
-          const d = modificationsDecidees(
-            s,
-            ligne.type,
-            items.flatMap((i) => i.modifications),
-            items.flatMap((i) => i.tables ?? []),
-          );
-          if (d.erreurs.length) {
-            for (const message of d.erreurs) erreurs.push({ characterId: id, message });
-            continue;
-          }
-          let etat: EtatEntite;
-          try {
-            const fiche = verifierEtat(s, ligne.etat).fiche;
-            etat = appliquerModifications(fiche, d.modifications as Modification[]);
-            const attributs = d.modifications.flatMap((m) => ('attribut' in m ? [m.attribut] : []));
-            etat = borner(s, etat, new Set(attributs));
-            etat = verifierEtat(s, etat).etat;
-          } catch (e) {
-            erreurs.push({ characterId: id, message: (e as Error).message });
-            continue;
-          }
-          plans.push({ applicationId: a.applicationId, characterId: id, etat });
-          simulees.set(id, { ...ligne, etat });
-        }
-      }
-      if (erreurs.length)
-        throw new Refus(
-          422,
-          'Refusé par les règles du système',
-          'modification_invalide',
-          erreurs.map((e) => e.message).join(' ; '),
-          { errors: erreurs },
-        );
-
-      // 2. Écriture, dans l'ordre : chaque fiche part de l'état écrit juste avant
-      const courantes = new Map(verrouillees);
-      const reponses = new Map<string, ItemApplique[]>();
-      for (const p of plans) {
-        const a = aTraiter.find((x) => x.applicationId === p.applicationId)!;
-        const ligne = courantes.get(p.characterId)!;
-        const s = systeme(p.characterId, ligne);
-        const change = !deepEqual(etatNormalise(ligne.etat), etatNormalise(p.etat));
-        const suivante = change
-          ? await enregistrer(
-              tx,
-              c.ctx,
-              catalogue,
-              appelant(c, p.characterId, a.userId ?? null, a.campaignId),
-              ligne,
-              { etat: p.etat },
-              { operation: 'combat.application', details: { applicationId: p.applicationId } },
-              c.options.get(p.characterId),
-            )
-          : ligne;
-        courantes.set(p.characterId, suivante);
-        const changes = change ? diff(ligne, suivante) : { changes: [] };
-        const item: ItemApplique = {
-          characterId: p.characterId,
-          version: suivante.version,
-          ...changes,
-          defeated: horsCombat(s, suivante.etat),
-        };
-        const delta: DeltaEtat = deltaEtat(
-          etatNormalise(ligne.etat) as EtatEntite,
-          etatNormalise(suivante.etat) as EtatEntite,
-        );
-        await tx.insert(applicationItems).values({
-          applicationId: p.applicationId,
-          characterId: p.characterId,
-          delta,
-          result: item,
-        });
-        reponses.set(p.applicationId, [...(reponses.get(p.applicationId) ?? []), item]);
-      }
-      for (const a of aTraiter)
-        await tx
-          .update(applications)
-          .set({ response: { items: reponses.get(a.applicationId) ?? [] } })
-          .where(eq(applications.applicationId, a.applicationId));
+      const plans = simuler(aTraiter, verrouillees, systeme);
+      await ecrirePlans(c, tx, aTraiter, plans, verrouillees, systeme);
     });
 
   // Réponse : les nouvelles comme les reprises, depuis ce qui est enregistré
@@ -404,6 +465,104 @@ async function appliquerTout(
 }
 
 // ─── Annuler ───────────────────────────────────────────────────────────────────
+
+type ItemEnregistre = typeof applicationItems.$inferSelect;
+
+/**
+ * États rendus, fiche par fiche. Conflits d'abord : rien n'est écrit si une fiche a changé
+ * depuis (sauf `force`).
+ */
+function etatsRendus(
+  items: ItemEnregistre[],
+  parId: Map<string, Ligne>,
+  corps: z.output<typeof CorpsAnnuler>,
+): Map<string, EtatEntite> {
+  const conflits: { characterId: string; paths: string[] }[] = [];
+  const rendus = new Map<string, EtatEntite>();
+  for (const i of items) {
+    const ligne = parId.get(i.characterId);
+    if (!ligne || i.revertedAt) continue;
+    const r = annuler(
+      etatNormalise(ligne.etat) as EtatEntite,
+      i.delta as DeltaEtat,
+      corps.force === true,
+    );
+    if (r.conflits.length) conflits.push({ characterId: i.characterId, paths: r.conflits });
+    rendus.set(i.characterId, r.etat);
+  }
+  if (conflits.length && !corps.force)
+    throw new Refus(
+      409,
+      'Conflit',
+      'revert_conflict',
+      'La fiche a changé depuis l’application : relisez-la, ou forcez l’annulation',
+      { conflicts: conflits },
+    );
+  return rendus;
+}
+
+/** Annulation en cours d'une application. */
+interface Annulation {
+  c: Contexte;
+  tx: Tx;
+  corps: z.output<typeof CorpsAnnuler>;
+  entete: typeof applications.$inferSelect;
+  userId: string | null;
+  /** Fiches verrouillées, à jour des annulations déjà écrites. */
+  parId: Map<string, Ligne>;
+  rendus: Map<string, EtatEntite>;
+}
+
+/** Rend une fiche à son état d'avant l'application ; renvoie son item de réponse. */
+async function annulerItem(n: Annulation, i: ItemEnregistre): Promise<ItemAnnule> {
+  const { c, tx, corps, entete, userId, parId, rendus } = n;
+  const { catalogue } = c.deps;
+  const ligne = parId.get(i.characterId);
+  if (!ligne) return { characterId: i.characterId, status: 'missing', version: null, changes: [] };
+  const s = systemeDe(catalogue, ligne, c.options.get(i.characterId));
+  if (i.revertedAt)
+    return {
+      characterId: i.characterId,
+      status: 'already_reverted',
+      version: ligne.version,
+      changes: [],
+      defeated: horsCombat(s, ligne.etat),
+    };
+  const etat = rendus.get(i.characterId)!;
+  const change = !deltaVide(i.delta as DeltaEtat) && !deepEqual(etatNormalise(ligne.etat), etat);
+  const suivante = change
+    ? await enregistrer(
+        tx,
+        c.ctx,
+        catalogue,
+        appelant(c, i.characterId, userId, entete.campaignId),
+        ligne,
+        { etat },
+        {
+          operation: 'combat.annulation',
+          details: { applicationId: corps.applicationId, forced: corps.force === true },
+        },
+        c.options.get(i.characterId),
+      )
+    : ligne;
+  parId.set(i.characterId, suivante);
+  await tx
+    .update(applicationItems)
+    .set({ revertedAt: new Date() })
+    .where(
+      and(
+        eq(applicationItems.applicationId, i.applicationId),
+        eq(applicationItems.characterId, i.characterId),
+      ),
+    );
+  return {
+    characterId: i.characterId,
+    status: 'reverted',
+    version: suivante.version,
+    ...(change ? diff(ligne, suivante) : { changes: [] }),
+    defeated: horsCombat(s, suivante.etat),
+  };
+}
 
 async function annulerApplication(
   c: Contexte,
@@ -436,83 +595,10 @@ async function annulerApplication(
     const parId = new Map(lignes.map((l) => [l.id, l] as const));
     const userId = corps.userId ?? entete.userId ?? null;
 
-    // Conflits d'abord : rien n'est écrit si une fiche a changé depuis (sauf `force`)
-    const conflits: { characterId: string; paths: string[] }[] = [];
-    const rendus = new Map<string, EtatEntite>();
-    for (const i of items) {
-      const ligne = parId.get(i.characterId);
-      if (!ligne || i.revertedAt) continue;
-      const r = annuler(
-        etatNormalise(ligne.etat) as EtatEntite,
-        i.delta as DeltaEtat,
-        corps.force === true,
-      );
-      if (r.conflits.length) conflits.push({ characterId: i.characterId, paths: r.conflits });
-      rendus.set(i.characterId, r.etat);
-    }
-    if (conflits.length && !corps.force)
-      throw new Refus(
-        409,
-        'Conflit',
-        'revert_conflict',
-        'La fiche a changé depuis l’application : relisez-la, ou forcez l’annulation',
-        { conflicts: conflits },
-      );
-
+    const rendus = etatsRendus(items, parId, corps);
+    const annulation: Annulation = { c, tx, corps, entete, userId, parId, rendus };
     const sortie: ItemAnnule[] = [];
-    for (const i of items) {
-      const ligne = parId.get(i.characterId);
-      if (!ligne) {
-        sortie.push({ characterId: i.characterId, status: 'missing', version: null, changes: [] });
-        continue;
-      }
-      const s = systemeDe(catalogue, ligne, c.options.get(i.characterId));
-      if (i.revertedAt) {
-        sortie.push({
-          characterId: i.characterId,
-          status: 'already_reverted',
-          version: ligne.version,
-          changes: [],
-          defeated: horsCombat(s, ligne.etat),
-        });
-        continue;
-      }
-      const etat = rendus.get(i.characterId)!;
-      const change =
-        !deltaVide(i.delta as DeltaEtat) && !deepEqual(etatNormalise(ligne.etat), etat);
-      const suivante = change
-        ? await enregistrer(
-            tx,
-            c.ctx,
-            catalogue,
-            appelant(c, i.characterId, userId, entete.campaignId),
-            ligne,
-            { etat },
-            {
-              operation: 'combat.annulation',
-              details: { applicationId: corps.applicationId, forced: corps.force === true },
-            },
-            c.options.get(i.characterId),
-          )
-        : ligne;
-      parId.set(i.characterId, suivante);
-      await tx
-        .update(applicationItems)
-        .set({ revertedAt: new Date() })
-        .where(
-          and(
-            eq(applicationItems.applicationId, i.applicationId),
-            eq(applicationItems.characterId, i.characterId),
-          ),
-        );
-      sortie.push({
-        characterId: i.characterId,
-        status: 'reverted',
-        version: suivante.version,
-        ...(change ? diff(ligne, suivante) : { changes: [] }),
-        defeated: horsCombat(s, suivante.etat),
-      });
-    }
+    for (const i of items) sortie.push(await annulerItem(annulation, i));
     return { applicationId: corps.applicationId, items: sortie };
   });
 }
