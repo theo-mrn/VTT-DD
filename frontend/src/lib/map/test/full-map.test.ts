@@ -84,7 +84,7 @@ describe('carte complète, vue du MJ', () => {
     expect(h.persistence('tokens').update).toHaveBeenCalled();
     // Changements venus du serveur : redessin de chaque sorte
     const s = h.store.getState();
-    const data = (c: string, id: string) => h!.get<Record<string, unknown>>(c, id)!;
+    const data = (c: string, id: string) => h!.get(c, id)!;
     s.upsert('lights', [{ ...data('lights', 'l-torche'), color: '#00ff00', version: 9 }] as never);
     s.upsert('objects', [{ ...data('objects', 'o-coffre'), width: 80, version: 9 }] as never);
     s.upsert('tokens', [
@@ -241,7 +241,7 @@ describe('carte complète, vue d’un joueur et d’un spectateur', () => {
     const from = center(h, 't-heros');
     h.drag(from, { x: from.x + 200, y: from.y });
     await h.commands.idle();
-    expect(h.get<{ pos: Point }>('tokens', 't-heros')!.pos).toEqual({ x: 300, y: 300 });
+    expect(h.get('tokens', 't-heros')!.pos).toEqual({ x: 300, y: 300 });
     expect(h.engine.tools.availableFor(SPECTATOR).map((t) => t.id)).toEqual(['select']);
   });
 

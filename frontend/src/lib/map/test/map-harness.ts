@@ -565,8 +565,8 @@ export async function mountMap(opts: MapHarnessOptions = {}) {
     renderer,
     destroy,
     /** Donnée d'une collection. */
-    get: <T extends object = Record<string, unknown>>(collection: string, id: string) =>
-      store.getState().collections[collection]?.get(id) as T | undefined,
+    get: (collection: string, id: string) =>
+      store.getState().collections[collection]?.get(id) as Record<string, unknown> | undefined,
   };
 }
 
