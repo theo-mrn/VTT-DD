@@ -533,7 +533,7 @@ describe('dnd-classic : voies et création', () => {
     const couts = [1, 2, 3, 4, 5].map((cible) =>
       Number(
         f.evaluer(cout, {
-          variable: (n): Valeur => (n === 'cible' ? cible : n === 'actuel' ? cible - 1 : 0),
+          variable: (n): Valeur => ({ cible, actuel: cible - 1 })[n] ?? 0,
         }),
       ),
     );

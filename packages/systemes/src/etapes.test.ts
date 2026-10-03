@@ -99,7 +99,10 @@ describe('dnd-classic : le toucher, puis les dégâts', () => {
         { id: 'a', fiche: cible },
         { id: 'b', fiche: autre },
       ]),
-      (d) => (d.phase === 'jet' ? (d.cible === 'a' ? 19 : 1) : 5),
+      (d) => {
+        if (d.phase !== 'jet') return 5;
+        return d.cible === 'a' ? 19 : 1;
+      },
     );
     expect(etapes.map((e) => e.des.map((d) => [d.phase, d.cible ?? null]))).toEqual([
       [
@@ -164,9 +167,10 @@ describe('dnd-classic : le toucher, puis les dégâts', () => {
       { id: 'a', fiche: cible },
       { id: 'b', fiche: autre },
     ];
-    const { final, faces } = parEtapes(systeme, epee(cibles), (d) =>
-      d.phase === 'jet' ? (d.cible === 'a' ? 18 : 2) : 6,
-    );
+    const { final, faces } = parEtapes(systeme, epee(cibles), (d) => {
+      if (d.phase !== 'jet') return 6;
+      return d.cible === 'a' ? 18 : 2;
+    });
     const ordre = [
       '0:jet:d20:0',
       ...Object.keys(faces).filter((k) => k.startsWith('0:apres')),

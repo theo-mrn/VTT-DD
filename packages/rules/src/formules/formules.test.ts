@@ -14,14 +14,13 @@ import {
 const ATTRIBUTS: Record<string, number> = { FOR: 14, DEX: 17, niveau: 3, PV: 12 };
 
 const env: EnvironnementTypes = {
-  attribut: (cle, entite) =>
-    entite === 'cible'
-      ? cle === 'ENC'
-        ? { type: 'nombre', modificateur: false }
-        : undefined
-      : cle in ATTRIBUTS
-        ? { type: 'nombre', modificateur: cle !== 'PV' && cle !== 'niveau' }
-        : undefined,
+  attribut: (cle, entite) => {
+    if (entite === 'cible')
+      return cle === 'ENC' ? { type: 'nombre', modificateur: false } : undefined;
+    return cle in ATTRIBUTS
+      ? { type: 'nombre', modificateur: cle !== 'PV' && cle !== 'niveau' }
+      : undefined;
+  },
   variable: (nom) => ({ rang: 'nombre', carriere: 'booleen', 'arme.nom': 'texte' })[nom] as never,
   entree: (id) => id === 'athletisme',
   des: true,

@@ -690,11 +690,8 @@ describe('briques génériques (5)', () => {
       parametres,
       aleatoire: aleatoireImpose([10]),
     });
-    return r.ok && r.resultat.jet.type === 'numerique'
-      ? r.resultat.jet.total
-      : r.ok
-        ? null
-        : r.erreurs[0]!.message;
+    if (!r.ok) return r.erreurs[0]!.message;
+    return r.resultat.jet.type === 'numerique' ? r.resultat.jet.total : null;
   };
 
   it('un effet de jet lit un paramètre nombre', () => {

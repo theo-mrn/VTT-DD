@@ -35,8 +35,10 @@ function bench(opts: { walls?: ObstacleData[]; rooms?: RoomData[]; mode?: Obstac
   const kit = setup();
   const obstacles = batchPersistence();
   const rooms = batchPersistence();
-  kit.backend.collection = (key: string) =>
-    (key === OBSTACLES ? obstacles : key === ROOMS ? rooms : spyPersistence()) as never;
+  kit.backend.collection = (key: string) => {
+    if (key === OBSTACLES) return obstacles as never;
+    return (key === ROOMS ? rooms : spyPersistence()) as never;
+  };
   kit.store.getState().replaceCollection(OBSTACLES, opts.walls ?? []);
   kit.store.getState().replaceCollection(ROOMS, opts.rooms ?? []);
   registerObstacles(kit.engine);

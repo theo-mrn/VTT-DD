@@ -446,8 +446,9 @@ export async function fakeCharacter(secret: string) {
               const key = m.attribute as string;
               const before = c.values[key]!;
               const v = Number(m.value);
-              const after =
-                m.operation === 'set' ? v : m.operation === 'add' ? before + v : before - v;
+              let after = before - v;
+              if (m.operation === 'set') after = v;
+              else if (m.operation === 'add') after = before + v;
               c.values[key] = after;
               changes.push({ path: valuePath(key), before, after });
             } else if (m.operation === 'give') {

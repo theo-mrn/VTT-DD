@@ -39,8 +39,10 @@ vi.mock('../../engine/pixi-view', async () => {
       };
       // Rendu factice : toute autre méthode ne fait rien
       return new Proxy(fields, {
-        get: (t, key) =>
-          key in t ? t[key as string] : key === 'then' ? undefined : () => undefined,
+        get: (t, key) => {
+          if (key in t) return t[key as string];
+          return key === 'then' ? undefined : () => undefined;
+        },
       });
     },
   };

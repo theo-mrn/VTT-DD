@@ -795,7 +795,7 @@ describe('étapes de dés : une phase qui demande des dés est une étape', () =
     const { etapes, final, faces } = parEtapes(
       s,
       { action: 'epee', acteur: mage, cibles: [{ id: 'g', fiche: gobelin }] },
-      (d) => (d.phase === 'jet' ? 20 : d.phase === 'apres' ? 6 : 7),
+      (d) => ({ jet: 20, apres: 6 })[d.phase as string] ?? 7,
     );
     expect(etapes.map((e) => e.des.map((d) => [d.id, d.phase]))).toEqual([
       [['0:jet:d20:0', 'jet']],
@@ -827,7 +827,10 @@ describe('étapes de dés : une phase qui demande des dés est une étape', () =
     const { etapes, final } = parEtapes(
       s,
       { action: 'frappe-explosive', acteur: mage, cibles: [{ id: 'g', fiche: gobelin }] },
-      (d) => (d.phase === 'jet' ? 18 : d.id === '0:apres:d6:0' ? 6 : 2),
+      (d) => {
+        if (d.phase === 'jet') return 18;
+        return d.id === '0:apres:d6:0' ? 6 : 2;
+      },
     );
     expect(etapes.map((e) => e.des.map((d) => d.id))).toEqual([
       ['0:jet:d20:0'],

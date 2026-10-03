@@ -263,12 +263,10 @@ describe('formule de jet d’une arme', () => {
   it('aperçu lisible : attributs et champs calculés, dés écrits', () => {
     const f = fiche(deuxEpees);
     const [premier, second] = f.possessions.get('epee')!.exemplaires;
-    const vars = (ex: typeof premier) => (nom: string) =>
-      nom === 'source.nbDes'
-        ? Number(ex?.champs.nbDes ?? 1)
-        : nom === 'source.faces'
-          ? 8
-          : undefined;
+    const vars = (ex: typeof premier) => (nom: string) => {
+      if (nom === 'source.nbDes') return Number(ex?.champs.nbDes ?? 1);
+      return nom === 'source.faces' ? 8 : undefined;
+    };
     expect(apercuFormule(f, formuleChamp(sys, epee, champ('degats'), second)!, vars(second))).toBe(
       '1d6 − 2 + 8',
     );
