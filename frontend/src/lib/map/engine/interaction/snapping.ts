@@ -82,36 +82,45 @@ export function constrainAngle(origin: Point, p: Point, stepDeg = 15): Point {
  * sinon le point tel quel.
  */
 export function snapPoint(p: Point, opts: SnapOptions): SnapResult {
-  if (opts.points?.length) {
-    let best = -1;
-    let bestD = opts.tolerance;
-    for (let i = 0; i < opts.points.length; i++) {
-      const d = distance(p, opts.points[i]!);
-      if (d <= bestD) {
-        bestD = d;
-        best = i;
-      }
-    }
-    if (best >= 0) {
-      const q = opts.points[best]!;
-      return { point: { x: q.x, y: q.y }, kind: 'point', pointIndex: best };
-    }
-  }
-  if (opts.segments?.length) {
-    let best: SnapResult | null = null;
-    let bestD = opts.tolerance;
-    for (let index = 0; index < opts.segments.length; index++) {
-      const [a, b] = opts.segments[index]!;
-      const proj = projectOnSegment(p, a, b);
-      const d = distance(p, proj.point);
-      if (d <= bestD) {
-        bestD = d;
-        best = { point: proj.point, kind: 'segment', segment: { index, t: proj.t } };
-      }
-    }
-    if (best) return best;
-  }
+  const target = snapToPoints(p, opts) ?? snapToSegments(p, opts);
+  if (target) return target;
   if (opts.grid && opts.grid.size > 0)
     return { point: snapToGridLines(p, opts.grid), kind: 'grid' };
   return { point: { x: p.x, y: p.y }, kind: 'none' };
+}
+
+/** Extrémité la plus proche, à la tolérance près. */
+function snapToPoints(p: Point, opts: SnapOptions): SnapResult | null {
+  const points = opts.points;
+  if (!points?.length) return null;
+  let best = -1;
+  let bestD = opts.tolerance;
+  for (let i = 0; i < points.length; i++) {
+    const d = distance(p, points[i]!);
+    if (d <= bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  if (best < 0) return null;
+  const q = points[best]!;
+  return { point: { x: q.x, y: q.y }, kind: 'point', pointIndex: best };
+}
+
+/** Point le plus proche sur un segment, à la tolérance près. */
+function snapToSegments(p: Point, opts: SnapOptions): SnapResult | null {
+  const segments = opts.segments;
+  if (!segments?.length) return null;
+  let best: SnapResult | null = null;
+  let bestD = opts.tolerance;
+  for (let index = 0; index < segments.length; index++) {
+    const [a, b] = segments[index]!;
+    const proj = projectOnSegment(p, a, b);
+    const d = distance(p, proj.point);
+    if (d <= bestD) {
+      bestD = d;
+      best = { point: proj.point, kind: 'segment', segment: { index, t: proj.t } };
+    }
+  }
+  return best;
 }
