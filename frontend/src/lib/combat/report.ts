@@ -36,6 +36,14 @@ const POOL_OPERATIONS = {
   retrograder: 'downgrade',
   retirer: 'remove',
 } as const;
+const OPERATIONS: Partial<Record<string, 'add' | 'subtract'>> = {
+  ajouter: 'add',
+  retirer: 'subtract',
+};
+const RESISTANCE_OPERATIONS: Partial<Record<string, 'cancel' | 'multiply'>> = {
+  annuler: 'cancel',
+  multiplier: 'multiply',
+};
 
 /** Dés numériques (source `server`, comme les rapports calculés par character). */
 function groups(jets: readonly JetDes[]): RolledDiceGroup[] {
@@ -112,7 +120,7 @@ export function toModification(m: Modification): AttackModification {
     kind: 'attribute',
     entity,
     attribute: m.attribut,
-    operation: m.operation === 'ajouter' ? 'add' : m.operation === 'retirer' ? 'subtract' : 'set',
+    operation: OPERATIONS[m.operation] ?? 'set',
     value: m.valeur,
     ...(m.type !== undefined ? { damageType: m.type } : {}),
     ...(m.brut !== undefined ? { raw: m.brut } : {}),
@@ -122,12 +130,7 @@ export function toModification(m: Modification): AttackModification {
           resistances: m.resistances.map((l) => ({
             source: l.source,
             name: l.nom,
-            operation:
-              l.operation === 'annuler'
-                ? ('cancel' as const)
-                : l.operation === 'multiplier'
-                  ? ('multiply' as const)
-                  : ('reduce' as const),
+            operation: RESISTANCE_OPERATIONS[l.operation] ?? 'reduce',
             value: l.valeur,
             ignored: l.ignore === true,
           })),

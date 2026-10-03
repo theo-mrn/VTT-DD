@@ -279,11 +279,7 @@ function DialogBody({
               }
               className={cn(
                 'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60',
-                t.on
-                  ? t.danger
-                    ? 'border-destructive/40 bg-destructive/15 text-destructive'
-                    : 'border-primary/40 bg-primary/15 text-primary-strong'
-                  : 'border-border bg-surface/60 text-muted-foreground hover:text-foreground',
+                toggleTone(t.on, t.danger),
               )}
             >
               {busy === t.key ? (
@@ -299,18 +295,18 @@ function DialogBody({
       )}
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto border-t border-border px-5 py-4">
-        {perso.isError ? (
+        {perso.isError && (
           <p className="text-sm text-destructive">{combatErrorMessage(perso.error)}</p>
-        ) : !ctx ? (
-          <Skeleton className="h-16 w-full rounded-xl" />
-        ) : (
+        )}
+        {!perso.isError && !ctx && <Skeleton className="h-16 w-full rounded-xl" />}
+        {!perso.isError &&
+          ctx &&
           ressources?.type === 'ressources' &&
           ressources.attributs.length > 0 && (
             <div className="-mx-3 [&>section]:rounded-none [&>section]:border-0 [&>section]:bg-transparent [&>section]:p-0 [&>section]:shadow-none">
               <BlocRessources ctx={ctx} widget={ressources} />
             </div>
-          )
-        )}
+          )}
 
         <Section title="États">
           {perso.data && systeme ? (
@@ -554,4 +550,12 @@ function InitiativeBlock({
       )}
     </div>
   );
+}
+
+/** Teinte d'un interrupteur d'état : actif (danger ou non) ou inactif. */
+function toggleTone(on: boolean, danger: boolean | undefined): string {
+  if (!on) return 'border-border bg-surface/60 text-muted-foreground hover:text-foreground';
+  return danger
+    ? 'border-destructive/40 bg-destructive/15 text-destructive'
+    : 'border-primary/40 bg-primary/15 text-primary-strong';
 }

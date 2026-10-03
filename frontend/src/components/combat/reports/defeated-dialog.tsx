@@ -33,7 +33,7 @@ import { deleteNpcsCommand } from '@/lib/map/modules/tokens/commands';
 import { tokensStateOf } from '@/lib/map/modules/tokens/state';
 import { useCampaignEvents } from '@/lib/realtime';
 import { cn } from '@/lib/utils';
-import { useCast } from '../turns/use-cast';
+import { useCast, type CastMember } from '../turns/use-cast';
 import { tokensOf, useSceneTokens } from '../turns/use-scene-tokens';
 
 // ─── File des personnages tombés ─────────────────────────────────────────────
@@ -121,7 +121,7 @@ export function DefeatedDialog({
   );
   const rows = ids.map((id) => {
     const m = cast.byId.get(id);
-    const npc = m ? (m.kind ? m.kind === 'npc' : m.side !== 'players') : false;
+    const npc = m ? isNpc(m) : false;
     const canDelete = npc && onMap.has(id);
     const canRemove = inCombat.has(id);
     const fallback: Choice = canDelete ? 'delete' : 'keep';
@@ -228,11 +228,7 @@ export function DefeatedDialog({
                         onClick={() => setChoices((s) => ({ ...s, [r.id]: c.value }))}
                         className={cn(
                           'px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60 disabled:opacity-40',
-                          r.choice === c.value
-                            ? c.value === 'delete'
-                              ? 'bg-destructive/15 text-destructive'
-                              : 'bg-primary/15 text-primary-strong'
-                            : 'text-muted-foreground hover:bg-surface-3',
+                          choiceTone(r.choice === c.value, c.value === 'delete'),
                         )}
                       >
                         {c.label}
@@ -255,4 +251,15 @@ export function DefeatedDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Teinte d'un choix : retenu (suppression ou non) ou non retenu. */
+function choiceTone(selected: boolean, destructive: boolean): string {
+  if (!selected) return 'text-muted-foreground hover:bg-surface-3';
+  return destructive ? 'bg-destructive/15 text-destructive' : 'bg-primary/15 text-primary-strong';
+}
+
+/** PNJ : selon sa nature quand on la connaît, sinon selon son camp. */
+function isNpc(m: CastMember): boolean {
+  return m.kind ? m.kind === 'npc' : m.side !== 'players';
 }

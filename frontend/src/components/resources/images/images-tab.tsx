@@ -52,6 +52,10 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
   const pages = Math.max(1, Math.ceil(filtrees.length / PAGE));
   const visibles = filtrees.slice(page * PAGE, (page + 1) * PAGE);
   const courante = ouverte !== null ? filtrees[ouverte] : undefined;
+  let etat: 'chargement' | 'erreur' | 'vide' | 'liste' = 'liste';
+  if (assets.isPending) etat = 'chargement';
+  else if (assets.isError) etat = 'erreur';
+  else if (filtrees.length === 0) etat = 'vide';
 
   useEffect(() => {
     if (page >= pages) setPage(pages - 1);
@@ -117,13 +121,14 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
         )}
       </Toolbar>
 
-      {assets.isPending ? (
+      {etat === 'chargement' && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-busy="true">
           {Array.from({ length: 10 }, (_, i) => (
             <Skeleton key={i} className="aspect-square rounded-xl" />
           ))}
         </div>
-      ) : assets.isError ? (
+      )}
+      {etat === 'erreur' && (
         <Notice
           tone="error"
           icon={AlertTriangle}
@@ -135,9 +140,9 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
             </Button>
           }
         />
-      ) : filtrees.length === 0 ? (
-        <Notice icon={ImageIcon} title="Aucune image" />
-      ) : (
+      )}
+      {etat === 'vide' && <Notice icon={ImageIcon} title="Aucune image" />}
+      {etat === 'liste' && (
         <>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {visibles.map((img, i) => (

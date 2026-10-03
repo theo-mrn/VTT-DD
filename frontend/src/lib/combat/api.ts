@@ -236,14 +236,14 @@ const MESSAGES: Record<string, string> = {
 export function refusalMessages(err: unknown): string[] {
   if (!(err instanceof ApiError)) return [];
   const p = err.problem as unknown as { errors?: unknown; messages?: unknown };
-  const list = Array.isArray(p.errors) ? p.errors : Array.isArray(p.messages) ? p.messages : [];
-  return list.flatMap((e) =>
-    typeof e === 'string'
-      ? [e]
-      : e && typeof e === 'object' && typeof (e as { message?: unknown }).message === 'string'
-        ? [(e as { message: string }).message]
-        : [],
-  );
+  let list: unknown[] = [];
+  if (Array.isArray(p.errors)) list = p.errors;
+  else if (Array.isArray(p.messages)) list = p.messages;
+  return list.flatMap((e) => {
+    if (typeof e === 'string') return [e];
+    const message = (e as { message?: unknown } | null | undefined)?.message;
+    return typeof message === 'string' ? [message] : [];
+  });
 }
 
 /** Message lisible d'une erreur du combat. */

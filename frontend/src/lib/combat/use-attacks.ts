@@ -88,14 +88,11 @@ export function keepAttack(client: QueryClient, campaignId: string, attack: Atta
 /** Applique un événement d'attaque au cache : relit l'attaque concernée et les listes. */
 export function applyAttackEvent(client: QueryClient, campaignId: string, e: RealtimeEvent) {
   const payload = e.event.payload as { attackId?: unknown; version?: unknown; attack?: unknown };
-  const attackId =
-    typeof payload?.attackId === 'string'
-      ? payload.attackId
-      : payload?.attack && typeof (payload.attack as Attack).id === 'string'
-        ? (payload.attack as Attack).id
-        : e.event.aggregate.type === 'attack'
-          ? e.event.aggregate.id
-          : null;
+  let attackId: string | null = null;
+  if (typeof payload?.attackId === 'string') attackId = payload.attackId;
+  else if (payload?.attack && typeof (payload.attack as Attack).id === 'string')
+    attackId = (payload.attack as Attack).id;
+  else if (e.event.aggregate.type === 'attack') attackId = e.event.aggregate.id;
   const version = typeof payload?.version === 'number' ? payload.version : null;
   if (attackId) {
     const key = combatKeys.attack(campaignId, attackId);

@@ -590,7 +590,7 @@ export function SheetGrid({
       )}
 
       <div ref={conteneur} className="min-w-0">
-        {largeur === 0 ? (
+        {largeur === 0 && (
           <div
             className="grid gap-4 md:grid-cols-2"
             aria-busy
@@ -599,13 +599,15 @@ export function SheetGrid({
             <Skeleton className="h-48 rounded-2xl" />
             <Skeleton className="h-48 rounded-2xl" />
           </div>
-        ) : visibles.length === 0 ? (
+        )}
+        {largeur > 0 && visibles.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border-strong px-6 py-12 text-center text-sm text-muted-foreground">
             {editing
               ? 'Aucun bloc sur cette fiche. Ajoutez-en un pour commencer.'
               : 'Rien à afficher sur cette fiche pour l’instant.'}
           </div>
-        ) : (
+        )}
+        {largeur > 0 && visibles.length > 0 && (
           <Responsive
             className={cn('sheet-grid', editing && 'sheet-grid-editing')}
             width={largeur}
@@ -697,21 +699,24 @@ export function SheetGrid({
 
 function StatutEnregistrement({ statut }: Readonly<{ statut: Statut }>) {
   if (statut === 'idle') return null;
-  const contenu =
-    statut === 'error' ? (
+  let contenu = (
+    <>
+      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+      Enregistrement…
+    </>
+  );
+  if (statut === 'error')
+    contenu = (
       <>
         <CloudOff className="size-3.5 text-destructive" aria-hidden />
         Non enregistré
       </>
-    ) : statut === 'saved' ? (
+    );
+  else if (statut === 'saved')
+    contenu = (
       <>
         <Check className="size-3.5 text-success" aria-hidden />
         Enregistré
-      </>
-    ) : (
-      <>
-        <Loader2 className="size-3.5 animate-spin" aria-hidden />
-        Enregistrement…
       </>
     );
   return (

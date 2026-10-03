@@ -71,7 +71,8 @@ export function modificationText(
   if (m.kind === 'entry') {
     const name = entryName(systeme, m.entry);
     if (m.operation === 'remove') return `sans ${name}`;
-    return m.duration ? `${name}, ${m.duration} round${m.duration > 1 ? 's' : ''}` : name;
+    if (!m.duration) return name;
+    return m.duration > 1 ? `${name}, ${m.duration} rounds` : `${name}, 1 round`;
   }
   const type = m.damageType ? ` (${damageTypeName(systeme, m.damageType)})` : '';
   return `${SIGN[m.operation]}${m.value} ${attributeLabel(systeme, m.attribute, entityType)}${type}`;
@@ -133,13 +134,7 @@ export function situationParams(systeme: SystemeCharge | null, actionId: string)
     combat?: { situation?: unknown };
   };
   const shared = source.situation ?? source.combat?.situation;
-  const sharedList = Array.isArray(shared)
-    ? shared
-    : shared &&
-        typeof shared === 'object' &&
-        Array.isArray((shared as { parametres?: unknown }).parametres)
-      ? (shared as { parametres: unknown[] }).parametres
-      : [];
+  const sharedList = sharedParams(shared);
   const out: LooseParam[] = [];
   const seen = new Set<string>();
   for (const p of own)
@@ -186,4 +181,11 @@ export function situationText(
     if (p.type === 'attribut') return [`${name} : ${attributeLabel(systeme, v)}`];
     return [`${name} : ${optionName(p, v)}`];
   });
+}
+
+/** Paramètres de situation partagés : une liste, ou un objet qui en porte une. */
+function sharedParams(shared: unknown): unknown[] {
+  if (Array.isArray(shared)) return shared;
+  const parametres = (shared as { parametres?: unknown } | null | undefined)?.parametres;
+  return typeof shared === 'object' && Array.isArray(parametres) ? parametres : [];
 }
