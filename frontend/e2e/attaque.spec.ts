@@ -1,6 +1,6 @@
 /**
  * Attaque complète : le joueur vise d'un clic un PNJ posé près de son héros, attaque au Contact
- * (dés tirés par le serveur), choisit « Mains nues » si l'attaque touche ; le rapport arrive
+ * (dés tirés par le serveur), lance des dégâts libres si l'attaque touche ; le rapport arrive
  * chez le MJ, qui l'applique (touché) ou le classe (raté).
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -77,11 +77,12 @@ test('le joueur attaque un PNJ, le MJ décide du rapport', async ({ browser }) =
     // La carte du type d'attaque (« d20 Contact 1d20 + 3 »), pas la description de l'action
     await menu.getByRole('button', { name: /Contact 1d20/ }).click();
 
-    // Touché : l'arme vient ensuite ; raté : le rapport part directement
-    const mainsNues = menu.getByRole('button', { name: /Mains nues/ });
+    // Touché : les dégâts viennent ensuite ; raté : le rapport part directement
+    // (le héros n'a pas d'arme : dégâts libres, 1d6 par défaut)
+    const degats = menu.getByRole('region', { name: 'Dégâts libres' });
     const envoye = menu.getByText('Rapport envoyé au MJ');
-    await expect(mainsNues.or(envoye)).toBeVisible({ timeout: 20_000 });
-    if (await mainsNues.isVisible()) await mainsNues.click();
+    await expect(degats.or(envoye)).toBeVisible({ timeout: 20_000 });
+    if (await degats.isVisible()) await degats.getByRole('button', { name: 'Lancer' }).click();
     await expect(envoye).toBeVisible({ timeout: 20_000 });
 
     const declaree = async () =>
