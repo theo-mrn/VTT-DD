@@ -21,9 +21,13 @@ Loki, Tempo, Prometheus, Grafana) relèvent de l'infra, branchée plus tard **sa
 - Chaque service écrit du JSON pino sur la sortie standard. Chaque ligne porte `service`,
   `version`, `env`, `trace_id` et `span_id`.
 - Une ligne par requête HTTP, écrite par Fastify, avec `x-request-id` et `x-correlation-id`.
-- **Logs métier** : une ligne `info` par action qui change l'état (jet, attaque, rapport appliqué,
-  envoi refusé, tâche planifiée). Elle reprend le même nom que le span (§ 3.3). Les erreurs
-  inattendues sont en `error`, avec leur pile. Les refus normaux (droits, quota) sont en `warn`.
+- **Logs métier** : une ligne `info` par changement d'état, écrite par le relais d'outbox après
+  le COMMIT de la donnée. Son message est le type de l'événement (`dice.rolled`,
+  `combat.attack_reported`…). Elle porte les identifiants (événement, agrégat, campagne, acteur,
+  corrélation) et le `trace_id` de l'action d'origine, jamais le contenu (payload).
+- **Refus** : une ligne `info` `request rejected` avec le statut et le code métier
+  (`storage_quota_exceeded`, `upload_too_large`, `forbidden`…). Les erreurs inattendues sont en
+  `error`, avec leur pile.
 - **Navigateur** : les erreurs du front (exceptions, promesses rejetées, écrans plantés) partent
   en logs OTLP (§ 4).
 
@@ -49,9 +53,12 @@ Loki, Tempo, Prometheus, Grafana) relèvent de l'infra, branchée plus tard **sa
 
 ### 3.3 Spans métier
 
-Ils sont nommés `<domaine>.<action>`. Exemples : `dice.roll`, `combat.attack.report`,
-`combat.report.apply`, `uploads.ticket`, `storage.reserve`, `audio.job`, `history.append`.
-Chacun est ouvert par `withSpan` et porte les identifiants utiles sous le préfixe `vtt.*`.
+- Chaque route a son span (Fastify, automatique). Chaque événement écrit dans l'outbox y ajoute
+  un événement de span `vtt.event` (`noteEvent`) : la trace d'une requête montre ce qu'elle a
+  changé (type, agrégat). Le code métier d'un refus devient l'attribut `vtt.error.code`.
+- Hors requête : `audio.job` (un job du worker), `task <nom>` (§ 3.2).
+- Un nouveau traitement hors HTTP s'ouvre avec `withSpan('<domaine>.<action>', …)` et porte ses
+  identifiants sous le préfixe `vtt.*`.
 
 ### 3.4 Échantillonnage
 
@@ -82,20 +89,21 @@ Chacun est ouvert par `withSpan` et porte les identifiants utiles sous le préfi
 
 Exportées par le SDK de chaque service, toutes les 15 s, en OTLP (`telemetry.ts`).
 
-| Métrique                     | Type                 | Attributs                | Service  |
-| ---------------------------- | -------------------- | ------------------------ | -------- |
-| `vtt.dice.rolls`             | compteur             | `mode` (serveur, client) | dice     |
-| `vtt.combat.attacks`         | compteur             | `outcome`                | campaign |
-| `vtt.combat.reports.applied` | compteur             | `decision`               | campaign |
-| `vtt.uploads.refused`        | compteur             | `reason` (quota, taille) | campaign |
-| `vtt.storage.bytes`          | jauge observée       | —                        | campaign |
-| `vtt.realtime.connections`   | jauge montante/desc. | —                        | realtime |
-| `vtt.bus.processed`          | compteur             | `consumer`, `outcome`    | tous     |
-| `vtt.bus.process.duration`   | histogramme (ms)     | `consumer`               | tous     |
-| `vtt.outbox.pending`         | jauge observée       | `schema`                 | relais   |
-| `vtt.audio.jobs`             | compteur             | `outcome`                | audio    |
-| `vtt.tasks.duration`         | histogramme (ms)     | `task`, `outcome`        | tous     |
+| Métrique                    | Type                   | Attributs                 | Service  |
+| --------------------------- | ---------------------- | ------------------------- | -------- |
+| `vtt.events.published`      | compteur               | `type` (`dice.rolled`…)   | relais   |
+| `vtt.http.rejected`         | compteur               | `status`, `code`, `route` | tous     |
+| `vtt.bus.processed`         | compteur               | `consumer`, `outcome`     | tous     |
+| `vtt.bus.process.duration`  | histogramme (ms)       | `consumer`                | tous     |
+| `vtt.outbox.pending`        | jauge observée         | `schema`                  | relais   |
+| `vtt.tasks.duration`        | histogramme (ms)       | `task`, `outcome`         | tous     |
+| `vtt.audio.jobs`            | compteur               | `kind`, `outcome`         | audio    |
+| `vtt.audio.job.duration`    | histogramme (ms)       | `kind`                    | audio    |
+| `vtt.realtime.connections`  | compteur montant/desc. | —                         | realtime |
+| `vtt.realtime.rate_limited` | compteur               | —                         | realtime |
 
+Les métriques métier se lisent par type d'événement : jets (`dice.rolled`), attaques, rapports
+appliqués… Les envois refusés se lisent par code (`storage_quota_exceeded`, `upload_too_large`).
 Les métriques HTTP, Postgres et du runtime Node viennent de l'instrumentation automatique.
 
 ## 6. Variables d'environnement

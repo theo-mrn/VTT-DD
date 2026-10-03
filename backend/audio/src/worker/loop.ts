@@ -4,11 +4,23 @@
  * périodique en filet de sécurité. Entretien toutes les heures : envois
  * abandonnés (audio/incoming/ de plus de 24 h) et effets de plus de 24 h.
  */
+import { lazyInstruments, withSpan } from '@vtt/platform';
 import { lt } from 'drizzle-orm';
 import pg from 'pg';
 import { cues } from '../db/schema.js';
 import { INCOMING_PREFIX } from '../storage/s3.js';
 import { claimJob, runJob, type WorkerDeps } from './jobs.js';
+
+const jobMetrics = lazyInstruments(
+  (m) => ({
+    jobs: m.createCounter('vtt.audio.jobs', { description: 'Jobs du worker audio, par issue' }),
+    duration: m.createHistogram('vtt.audio.job.duration', {
+      description: 'Durée d’un job du worker audio',
+      unit: 'ms',
+    }),
+  }),
+  'audio',
+);
 
 const POLL_MS = 5_000;
 const MAINTENANCE_MS = 3_600_000;
@@ -31,7 +43,23 @@ export async function drain(
   while (n < max) {
     const job = await claimJob(deps.db, onlyCampaign);
     if (!job) break;
-    await runJob(deps, job);
+    const started = performance.now();
+    const outcome = await withSpan(
+      'audio.job',
+      async (span) => {
+        const r = await runJob(deps, job);
+        span.setAttribute('vtt.audio.job.outcome', r);
+        return r;
+      },
+      {
+        'vtt.audio.job.id': job.id,
+        'vtt.audio.job.kind': job.kind,
+        ...(job.assetId ? { 'vtt.audio.asset.id': job.assetId } : {}),
+      },
+    );
+    const m = jobMetrics();
+    m.jobs.add(1, { kind: job.kind, outcome });
+    m.duration.record(performance.now() - started, { kind: job.kind });
     n += 1;
   }
   return n;

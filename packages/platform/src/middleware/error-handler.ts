@@ -5,7 +5,16 @@ import {
   hasZodFastifySchemaValidationErrors,
   isResponseSerializationError,
 } from 'fastify-type-provider-zod';
+import { trace } from '@opentelemetry/api';
+import { lazyInstruments } from '../metrics.js';
 import { currentTraceId } from '../tracing.js';
+
+const errorMetrics = lazyInstruments((m) => ({
+  rejected: m.createCounter('vtt.http.rejected', {
+    description:
+      'Requêtes refusées (4xx) par code métier : quota plein, fichier trop lourd, droits…',
+  }),
+}));
 
 /**
  * Erreur prête à journaliser, sans données de la requête SQL : les erreurs de
@@ -118,8 +127,16 @@ export const errorHandler = fp(
       body.requestId = req.id;
       if (traceId) body.traceId = traceId;
 
+      if (body.code) trace.getActiveSpan()?.setAttribute('vtt.error.code', body.code);
       if (body.status >= 500) req.log.error({ error: erreurJournalisable(err) }, 'request failed');
-      else req.log.info({ status: body.status, code: body.code }, 'request rejected');
+      else {
+        req.log.info({ status: body.status, code: body.code }, 'request rejected');
+        errorMetrics().rejected.add(1, {
+          status: body.status,
+          code: body.code ?? 'unknown',
+          route: req.routeOptions.url ?? 'unknown',
+        });
+      }
 
       reply.code(body.status).type(PROBLEM_CONTENT_TYPE).send(body);
     });

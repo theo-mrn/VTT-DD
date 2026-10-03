@@ -19,7 +19,7 @@
  * client ignore.
  */
 import type { EventEnvelope } from '@vtt/contracts';
-import { replayEvents, streamLastSeq, type Bus } from '@vtt/platform';
+import { lazyInstruments, replayEvents, streamLastSeq, type Bus } from '@vtt/platform';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Server, Socket } from 'socket.io';
 import { handshakeToken } from './auth.js';
@@ -38,6 +38,18 @@ import {
   type SubscribeAck,
 } from './protocol.js';
 import { TokenBucket } from './rate-limit.js';
+
+const socketMetrics = lazyInstruments(
+  (m) => ({
+    connections: m.createUpDownCounter('vtt.realtime.connections', {
+      description: 'Connexions WebSocket ouvertes sur ce réplica',
+    }),
+    rateLimited: m.createCounter('vtt.realtime.rate_limited', {
+      description: 'Messages éphémères refusés pour débit excessif',
+    }),
+  }),
+  'realtime',
+);
 import {
   deliveryFor,
   packet,
@@ -392,6 +404,8 @@ export function createHub(o: HubOptions): Hub {
   });
 
   io.on('connection', (socket) => {
+    socketMetrics().connections.add(1);
+    socket.once('disconnect', () => socketMetrics().connections.add(-1));
     void socket.join(rooms.user(socket.data.userId));
     const subscribeBucket = new TokenBucket(SUBSCRIBE_RATE, SUBSCRIBE_BURST);
     const ephemeralBucket = new TokenBucket(limits.ephemeralRatePerSecond, limits.ephemeralBurst);
@@ -426,6 +440,7 @@ export function createHub(o: HubOptions): Hub {
     // Canal éphémère : relayé aux autres abonnés, jamais stocké ; perdu si le lien sature
     socket.on('ephemeral', (input) => {
       if (!ephemeralBucket.take()) {
+        socketMetrics().rateLimited.add(1);
         const now = Date.now();
         if (now - rateLimitedAt > 1000) {
           rateLimitedAt = now;

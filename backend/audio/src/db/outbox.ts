@@ -4,6 +4,7 @@
  * Le relais publie ensuite ces lignes sur NATS JetStream.
  */
 import { EventEnvelope, subjectFor, uuidv7, type Actor, type Visibility } from '@vtt/contracts';
+import { noteEvent } from '@vtt/platform';
 import type { Db } from './client.js';
 import { outbox } from './schema.js';
 
@@ -43,5 +44,6 @@ export async function appendEvent(
     traceparent: ctx.traceparent ?? null,
   });
   await tx.insert(outbox).values({ id: envelope.id, subject: subjectFor(envelope), envelope });
+  noteEvent(envelope);
   return envelope;
 }

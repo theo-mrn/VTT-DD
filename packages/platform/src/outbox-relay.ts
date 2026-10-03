@@ -18,6 +18,7 @@ import pg from 'pg';
 import type { Logger } from 'pino';
 import { connectBus, publishEvent, type Bus } from './bus.js';
 import { lazyInstruments } from './metrics.js';
+import { traceIdOf } from './tracing.js';
 
 /** Identifiant SQL non quoté : seul ce format est interpolé dans les requêtes. */
 const SQL_IDENTIFIER = /^[a-z_][a-z0-9_]{0,54}$/;
@@ -63,6 +64,23 @@ interface OutboxRow {
   id: string;
   subject: string;
   envelope: EventEnvelope;
+}
+
+/** Ligne de journal d'un événement publié : identifiants seulement, jamais le contenu. */
+function logEvent(logger: RelayLogger | undefined, e: EventEnvelope): void {
+  const traceId = traceIdOf(e.traceparent);
+  logger?.info(
+    {
+      eventId: e.id,
+      type: e.type,
+      aggregate: e.aggregate,
+      campaignId: e.roomId,
+      actor: { userId: e.actor.userId, role: e.actor.role },
+      correlationId: e.correlationId,
+      ...(traceId ? { trace_id: traceId } : {}),
+    },
+    e.type,
+  );
 }
 
 /**
@@ -131,8 +149,11 @@ export async function startOutboxRelay(opts: OutboxRelayOptions): Promise<() => 
       const started = Date.now();
       for (const row of rows) {
         try {
-          await publishEvent(bus, row.envelope, row.subject);
+          const { duplicate } = await publishEvent(bus, row.envelope, row.subject);
           published.push(row.id);
+          // Journal métier : une ligne par changement d'état, après le COMMIT de la donnée, dans
+          // la trace de l'action qui l'a produit
+          if (!duplicate) logEvent(logger, row.envelope);
         } catch (err) {
           failure = { id: row.id, error: errorMessage(err) };
           break;

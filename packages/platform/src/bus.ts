@@ -128,6 +128,9 @@ export async function ensureEventStream(jsm: JetStreamManager, replicas = 1): Pr
 const tracer = () => trace.getTracer('@vtt/platform');
 
 const busMetrics = lazyInstruments((m) => ({
+  published: m.createCounter('vtt.events.published', {
+    description: 'Événements de domaine publiés (un par changement d’état), par type',
+  }),
   processed: m.createCounter('vtt.bus.processed', {
     description: 'Événements traités par un consommateur du bus',
   }),
@@ -166,6 +169,7 @@ export async function publishEvent(
       try {
         const ack = await bus.js.publish(subject, JSON.stringify(event), { msgID: event.id });
         span.setAttribute('vtt.bus.duplicate', ack.duplicate);
+        if (!ack.duplicate) busMetrics().published.add(1, { type: event.type });
         return { seq: ack.seq, duplicate: ack.duplicate };
       } catch (err) {
         span.recordException(err as Error);
