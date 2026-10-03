@@ -1192,15 +1192,19 @@ export class MapEngine {
     if (tool.targets ? !tool.targets(e) : !!e.kind.editTool && !e.kind.pickOutsideTool)
       return false;
     if (!hasCapability(e.kind, 'select') || !e.kind.can('select', e, this.viewer)) return false;
-    if (e.layerId) {
-      const ui = this.ui.getState();
-      if (ui.hiddenLayers.has(e.layerId)) return false;
-      if (ui.isolatedLayer && ui.isolatedLayer !== e.layerId) return false;
-      const layer = this.layer(e.layerId);
-      if (layer?.locked && !(this.viewer.role !== 'gm' && e.kind.isOwn?.(e.data, this.viewer)))
-        return false;
-    }
-    return true;
+    return !e.layerId || this.layerAllows(e, e.layerId);
+  }
+
+  /**
+   * Le calque de l'entité la laisse toucher : ni caché localement, ni hors du calque isolé, ni
+   * verrouillé (sauf ses propres tokens pour un joueur).
+   */
+  private layerAllows(e: MapEntity, layerId: string): boolean {
+    const ui = this.ui.getState();
+    if (ui.hiddenLayers.has(layerId)) return false;
+    if (ui.isolatedLayer && ui.isolatedLayer !== layerId) return false;
+    const layer = this.layer(layerId);
+    return !(layer?.locked && !(this.viewer.role !== 'gm' && e.kind.isOwn?.(e.data, this.viewer)));
   }
 
   /**
@@ -1300,15 +1304,25 @@ export class MapEngine {
     // L'index ne fait que dégrossir : une sorte peut toucher un peu au-delà de sa boîte (trait)
     for (const id of this.index.queryPoint(world, tol * 2)) {
       const e = this.entityMap.get(id);
-      // Une sorte à action de clic (porte) reste touchable pour ce clic, même hors de son outil
-      if (!e || !(this.isInteractive(e) || this.isClickable(e))) continue;
-      if (opts.filter && !opts.filter(e)) continue;
-      if (!e.hitTest(world, tol)) continue;
+      if (!e || !this.hitAccepts(e, world, tol, opts.filter)) continue;
       if (this.isFallbackPick(e)) {
         if (!fallback || this.compareStack(e, fallback) > 0) fallback = e;
       } else if (!best || this.compareStack(e, best) > 0) best = e;
     }
     return best ?? fallback;
+  }
+
+  /** L'entité est sous le point, touchable et retenue par le filtre. */
+  private hitAccepts(
+    e: MapEntity,
+    world: Point,
+    tol: number,
+    filter: ((e: MapEntity) => boolean) | undefined,
+  ): boolean {
+    // Une sorte à action de clic (porte) reste touchable pour ce clic, même hors de son outil
+    if (!this.isInteractive(e) && !this.isClickable(e)) return false;
+    if (filter && !filter(e)) return false;
+    return e.hitTest(world, tol);
   }
 
   /**
@@ -2013,12 +2027,7 @@ export class MapEngine {
     const moves: { entity: MapEntity; layerId: string; z: number }[] = [];
     const byDestination = new Map<string, MapEntity[]>();
     for (const e of targets) {
-      let dest: string | undefined;
-      if (target === 'above' || target === 'below') {
-        const i = this.layerIndex(e.layerId);
-        dest = this.layerList[i + (target === 'above' ? 1 : -1)]?.id;
-        if (i < 0) dest = undefined;
-      } else dest = target;
+      const dest = this.destinationLayer(e, target);
       if (!dest || dest === e.layerId || !this.layerRank.has(dest)) continue;
       byDestination.set(dest, [...(byDestination.get(dest) ?? []), e]);
     }
@@ -2029,10 +2038,16 @@ export class MapEngine {
       const zs = below ? zAtBottom(stack, list.length) : zOnTop(stack, list.length);
       list.forEach((e, i) => moves.push({ entity: e, layerId: dest, z: zs[i]! }));
     }
-    let label = 'Changer de calque';
-    if (target === 'above') label = 'Calque au-dessus';
-    else if (target === 'below') label = 'Calque en dessous';
-    return this.runArrange(label, moves);
+    return this.runArrange(layerMoveLabel(target), moves);
+  }
+
+  /** Calque visé par une entité : celui donné, ou le voisin du sien (au-dessus, en dessous). */
+  private destinationLayer(e: MapEntity, target: string | 'above' | 'below'): string | undefined {
+    if (target !== 'above' && target !== 'below') return target;
+    const i = this.layerIndex(e.layerId);
+    if (i < 0) return undefined;
+    const step = target === 'above' ? 1 : -1;
+    return this.layerList[i + step]?.id;
   }
 
   // ─── Menus, inspecteur, confirmation ───────────────────────────────────────
@@ -2211,4 +2226,11 @@ function trimSeparators(items: MenuItem[]): MenuItem[] {
   }
   while (out.length && out.at(-1)!.id.startsWith('sep:')) out.pop();
   return out;
+}
+
+/** Libellé d'un changement de calque. */
+function layerMoveLabel(target: string | 'above' | 'below'): string {
+  if (target === 'above') return 'Calque au-dessus';
+  if (target === 'below') return 'Calque en dessous';
+  return 'Changer de calque';
 }
