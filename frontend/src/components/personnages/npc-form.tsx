@@ -179,28 +179,13 @@ export function NpcForm({
         });
       }}
     >
-      <div className="space-y-1.5">
-        <Label htmlFor={ids.name} className="text-xs text-muted-foreground">
-          Nom <span aria-hidden>*</span>
-        </Label>
-        <Input
-          id={ids.name}
-          value={name}
-          maxLength={100}
-          required
-          placeholder="Garde du pont"
-          aria-invalid={nameError ? true : undefined}
-          aria-describedby={nameError ? `${ids.name}-erreur` : undefined}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => setTouched(true)}
-          className="h-9 text-[13px]"
-        />
-        {nameError && (
-          <p id={`${ids.name}-erreur`} role="alert" className="text-xs text-destructive">
-            {nameError}
-          </p>
-        )}
-      </div>
+      <NameField
+        id={ids.name}
+        value={name}
+        error={nameError}
+        onChange={setName}
+        onBlur={() => setTouched(true)}
+      />
 
       <div className={cn('grid gap-3', categories.length > 0 && types.length > 1 && 'grid-cols-2')}>
         {categories.length > 0 && (
@@ -257,26 +242,12 @@ export function NpcForm({
         )}
       </div>
 
-      {attributs.length > 0 && (
-        <fieldset className="space-y-2">
-          <legend className="mb-1.5 text-xs font-medium uppercase tracking-[0.12em] text-subtle">
-            Valeurs clés
-          </legend>
-          <div className={cn('grid gap-2', columns === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
-            {attributs.map((a) => (
-              <AttributeInput
-                key={a.cle}
-                attribut={a}
-                value={saisies[a.cle] ?? depart(a)}
-                onChange={(v) => setSaisies((s) => ({ ...s, [a.cle]: v }))}
-              />
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Les valeurs calculées (défense, maximums…) suivent les règles du système.
-          </p>
-        </fieldset>
-      )}
+      <KeyValues
+        attributs={attributs}
+        columns={columns}
+        value={(a) => saisies[a.cle] ?? depart(a)}
+        onChange={(cle, v) => setSaisies((s) => ({ ...s, [cle]: v }))}
+      />
 
       <div className="flex justify-end gap-2 pt-1">
         {onCancel && (
@@ -290,6 +261,81 @@ export function NpcForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/** Nom du PNJ, obligatoire ; l'erreur s'affiche une fois le champ quitté. */
+function NameField({
+  id,
+  value,
+  error,
+  onChange,
+  onBlur,
+}: Readonly<{
+  id: string;
+  value: string;
+  error: string | null;
+  onChange(name: string): void;
+  onBlur(): void;
+}>) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs text-muted-foreground">
+        Nom <span aria-hidden>*</span>
+      </Label>
+      <Input
+        id={id}
+        value={value}
+        maxLength={100}
+        required
+        placeholder="Garde du pont"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-erreur` : undefined}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        className="h-9 text-[13px]"
+      />
+      {error && (
+        <p id={`${id}-erreur`} role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Valeurs clés du type d'entité, saisies en grille. */
+function KeyValues({
+  attributs,
+  columns,
+  value,
+  onChange,
+}: Readonly<{
+  attributs: Attribut[];
+  columns: 2 | 3;
+  value(a: Attribut): Saisie;
+  onChange(cle: string, v: Saisie): void;
+}>) {
+  if (attributs.length === 0) return null;
+  return (
+    <fieldset className="space-y-2">
+      <legend className="mb-1.5 text-xs font-medium uppercase tracking-[0.12em] text-subtle">
+        Valeurs clés
+      </legend>
+      <div className={cn('grid gap-2', columns === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
+        {attributs.map((a) => (
+          <AttributeInput
+            key={a.cle}
+            attribut={a}
+            value={value(a)}
+            onChange={(v) => onChange(a.cle, v)}
+          />
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Les valeurs calculées (défense, maximums…) suivent les règles du système.
+      </p>
+    </fieldset>
   );
 }
 
