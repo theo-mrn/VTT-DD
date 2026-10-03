@@ -3,19 +3,16 @@
  * La source de vérité est le changelog Liquibase (backend/campaign/db) ; ce
  * fichier doit lui correspondre colonne pour colonne.
  */
-import type {
-  AttackActor,
-  AttackAppliedTarget,
-  AttackTargetResult,
-  AttackTargetView,
-  CombatInitiative,
-  CombatSettings,
-  MapGrid,
-  MapWeather,
-  RollStep,
-} from '@vtt/contracts';
-import { sql } from 'drizzle-orm';
 import {
+  type AttackActor,
+  type AttackAppliedTarget,
+  type AttackTargetResult,
+  type AttackTargetView,
+  type CombatInitiative,
+  type CombatSettings,
+  type MapGrid,
+  type MapWeather,
+  type RollStep,
   MapBlocksFrom,
   MapDrawingTool,
   MapFogMode,
@@ -32,6 +29,7 @@ import {
   type MapObjectItem,
   type MapToken,
 } from '@vtt/contracts';
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,

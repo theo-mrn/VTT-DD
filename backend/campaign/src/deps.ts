@@ -1,9 +1,8 @@
-import type { ObjectStore, PlacesChecker, Uploads } from '@vtt/platform';
+import type { ObjectStore, PlacesChecker, Uploads, createService } from '@vtt/platform';
 /**
  * Dépendances partagées par les modules du service. Chaque module
  * (src/modules/<nom>/index.ts) reçoit l'instance Fastify et ces dépendances.
  */
-import type { createService } from '@vtt/platform';
 import type { CharacterClient } from './clients/character.js';
 import type { ProfilesClient } from './clients/profiles.js';
 import type { CampaignConfig } from './config.js';

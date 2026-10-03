@@ -7,7 +7,6 @@
  * Redessiné seulement quand les observateurs, le zoom ou la préférence changent.
  */
 import type * as Pixi from 'pixi.js';
-import type { Container, Graphics } from 'pixi.js';
 import type { MapTheme } from '../../engine/entities/entity-kind';
 import type { VisionPicture } from './vision-state';
 
@@ -28,7 +27,7 @@ export function featherRings(): { insetPx: number; alpha: number }[] {
 }
 
 export class VisionRings {
-  private readonly gfx: Graphics;
+  private readonly gfx: Pixi.Graphics;
   private drawn: { picture: VisionPicture | null; viewers: number; zoom: number; show: boolean } = {
     picture: null,
     viewers: -1,
@@ -38,7 +37,7 @@ export class VisionRings {
 
   constructor(
     pixi: typeof Pixi,
-    plane: Container,
+    plane: Pixi.Container,
     private readonly theme: MapTheme,
   ) {
     this.gfx = new pixi.Graphics({ label: 'vision-rings' });

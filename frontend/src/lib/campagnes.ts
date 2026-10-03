@@ -7,7 +7,7 @@
 'use client';
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError } from './api';
+import { api } from './api';
 import { MAX_SIDE, prepareImage } from './uploads/image';
 import { uploadFile, type UploadProgress } from './uploads/uploader';
 

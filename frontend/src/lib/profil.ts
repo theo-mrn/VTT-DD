@@ -3,7 +3,7 @@
  * Les composants passent par ces fonctions typées, jamais par fetch directement.
  */
 import { checkUpload, UPLOAD_USAGES } from '@vtt/contracts';
-import { api, ApiError } from './api';
+import { api } from './api';
 import { MAX_SIDE, prepareImage } from './uploads/image';
 import { uploadFile, type UploadProgress } from './uploads/uploader';
 

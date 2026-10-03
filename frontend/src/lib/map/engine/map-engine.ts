@@ -29,7 +29,6 @@ import { playGridOf, scenePixelsPerUnit, type MapGrid } from '@vtt/contracts';
 import { Crosshair, Focus, MousePointer2, Radio } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type * as Pixi from 'pixi.js';
-import type { Container } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { CURSOR_KEEPALIVE_MS, LIVE_EXPIRE_MS, type LiveChannel } from '../live/live-channel';
 import {
@@ -266,7 +265,7 @@ export interface EngineView {
   setBackground(url: string | null): void;
   showPing(p: Point, color: 'mine' | 'other'): void;
   setCursor(css: string): void;
-  plane(id: PlaneId): Container;
+  plane(id: PlaneId): Pixi.Container;
   render(now: number): void;
   destroy(): void;
 }
@@ -726,7 +725,7 @@ export class MapEngine {
   }
 
   /** Conteneur d'un plan (null avant le montage). */
-  plane(id: PlaneId): Container | null {
+  plane(id: PlaneId): Pixi.Container | null {
     return this.view?.plane(id) ?? null;
   }
 

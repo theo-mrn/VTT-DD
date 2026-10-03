@@ -17,7 +17,6 @@
  *   (`WEBGL_lose_context`).
  */
 import type * as Pixi from 'pixi.js';
-import type { Container, Renderer } from 'pixi.js';
 
 export interface WeatherOverlayOptions {
   /** Résolution du canvas de la carte (pixels physiques par pixel CSS). */
@@ -28,7 +27,7 @@ export interface WeatherOverlayOptions {
 
 export class WeatherOverlay {
   /** Racine de la scène de la météo, en pixels d'écran (aucune caméra). */
-  readonly stage: Container;
+  readonly stage: Pixi.Container;
   readonly canvas: HTMLCanvasElement;
   private width: number;
   private height: number;
@@ -39,7 +38,7 @@ export class WeatherOverlay {
 
   private constructor(
     pixi: typeof Pixi,
-    private readonly renderer: Renderer,
+    private readonly renderer: Pixi.Renderer,
     above: HTMLCanvasElement,
     width: number,
     height: number,
@@ -84,7 +83,7 @@ export class WeatherOverlay {
       eventMode: 'none',
       eventFeatures: { move: false, globalMove: false, click: false, wheel: false },
     });
-    return new WeatherOverlay(pixi, renderer as unknown as Renderer, above, width, height);
+    return new WeatherOverlay(pixi, renderer as unknown as Pixi.Renderer, above, width, height);
   }
 
   /** Contexte WebGL restauré par Pixi : textures de canevas à renvoyer, image à refaire. */

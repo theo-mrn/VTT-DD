@@ -11,7 +11,6 @@
  * neuve sont renvoyées au GPU. Pixi est pris sur le moteur.
  */
 import type * as Pixi from 'pixi.js';
-import type { Container, Graphics, Sprite, Texture, VideoSource } from 'pixi.js';
 import { prefersEconomy } from '@/lib/perf/device';
 import type { MapEngine } from '../../engine/map-engine';
 import { WHITE } from '../../engine/visibility-badge';
@@ -114,7 +113,7 @@ interface Entry {
   refs: number;
   /** Adresse chargée (libérée à la fin). */
   url: string | null;
-  texture: Texture | null;
+  texture: Pixi.Texture | null;
   failed: boolean;
   video: HTMLVideoElement | null;
   /** En lecture : arrête le suivi de ses images (null : en pause). */
@@ -170,7 +169,7 @@ export class SkinTextures {
       playing = true;
       if (!e.fresh) continue;
       e.fresh = e.polled;
-      (e.texture?.source as VideoSource | undefined)?.update();
+      (e.texture?.source as Pixi.VideoSource | undefined)?.update();
       updated = true;
     }
     if (updated) this.engine.invalidate();
@@ -184,7 +183,7 @@ export class SkinTextures {
   }
 
   /** Prend une référence sur l'effet ; la texture, si elle est prête. */
-  acquire(value: string): Texture | null {
+  acquire(value: string): Pixi.Texture | null {
     let e = this.entries.get(value);
     if (!e) {
       e = {
@@ -206,7 +205,7 @@ export class SkinTextures {
   }
 
   /** Texture prête d'un effet déjà pris (sans prendre de référence). */
-  peek(value: string): Texture | null {
+  peek(value: string): Pixi.Texture | null {
     return this.entries.get(value)?.texture ?? null;
   }
 
@@ -232,7 +231,7 @@ export class SkinTextures {
       return;
     }
     const video = (src: string) =>
-      pixi.Assets.load<Texture>({
+      pixi.Assets.load<Pixi.Texture>({
         src,
         parser: 'video',
         data: {
@@ -247,7 +246,7 @@ export class SkinTextures {
     try {
       // Variante 512 px (VP9 avec transparence) d'abord ; absente ou illisible : l'original
       let src = effectVariant(url) ?? url;
-      let texture: Texture;
+      let texture: Pixi.Texture;
       try {
         texture = await video(src);
       } catch (err) {
@@ -259,7 +258,7 @@ export class SkinTextures {
         void pixi.Assets.unload(src).catch(() => undefined);
         return;
       }
-      const source = texture.source as VideoSource;
+      const source = texture.source as Pixi.VideoSource;
       source.autoUpdate = false;
       e.video = source.resource as HTMLVideoElement;
       e.video.muted = true;
@@ -277,7 +276,7 @@ export class SkinTextures {
   /** Lecture ou pause selon le besoin : montrée, animée et onglet visible, elle joue. */
   private drive(e: Entry) {
     const video = e.video;
-    const source = e.texture?.source as VideoSource | undefined;
+    const source = e.texture?.source as Pixi.VideoSource | undefined;
     if (!video || !source) return;
     const play = e.refs > 0 && this.animate && !this.hidden;
     if (!play) {
@@ -336,13 +335,13 @@ export class SkinTextures {
  */
 export class SkinSlot {
   private value: string | null = null;
-  private sprite: Sprite | null = null;
-  private mask: Graphics | null = null;
+  private sprite: Pixi.Sprite | null = null;
+  private mask: Pixi.Graphics | null = null;
   private placed: MeasureSpec | null = null;
 
   constructor(
     private readonly pixi: typeof Pixi,
-    private readonly slot: Container,
+    private readonly slot: Pixi.Container,
     private readonly textures: SkinTextures,
   ) {}
 

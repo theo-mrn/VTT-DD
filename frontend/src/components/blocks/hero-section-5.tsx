@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
 import { cn } from '@/lib/utils';
 import { LogoYner } from '@/components/commun/logo-yner';
-import { Menu, X, Mail, Send } from 'lucide-react';
+import { Menu, X, Mail, Send, LogOut, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FormulaireConnexion } from '@/components/auth/formulaire-connexion';
 import { useRouter } from 'next/navigation';
@@ -25,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User } from 'lucide-react';
 import {
   Dialog,
   DialogContent,

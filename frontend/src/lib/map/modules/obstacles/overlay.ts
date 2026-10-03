@@ -8,7 +8,6 @@
  * entités dans la vue sont redessinées à l'image suivante, les autres quand elles y entrent
  * (`OverlayRedraw`). Aucun `Graphics` n'est recréé : on vide et on redessine le même.
  */
-import type { Graphics } from 'pixi.js';
 import type * as Pixi from 'pixi.js';
 import type { MapEntity } from '../../engine/entities/entity';
 import { inflateRect, rectsIntersect, type Point } from '../../engine/geometry';
@@ -93,7 +92,7 @@ export class OverlayRedraw {
  * segment à l'autre. À suivre d'un `stroke`.
  */
 export function dashedPolyline(
-  g: Graphics,
+  g: Pixi.Graphics,
   pts: readonly Point[],
   dash: number,
   gap: number,
@@ -136,7 +135,7 @@ export function dashedPolyline(
 
 /** Cercle en tirets (arcs), à suivre d'un `stroke`. */
 export function dashedCircle(
-  g: Graphics,
+  g: Pixi.Graphics,
   cx: number,
   cy: number,
   r: number,

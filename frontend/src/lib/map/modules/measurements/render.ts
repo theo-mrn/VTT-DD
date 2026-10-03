@@ -10,7 +10,6 @@
  * Pixi est pris sur le moteur (`engine.pixi`) : ce fichier ne l'importe qu'en types.
  */
 import type * as Pixi from 'pixi.js';
-import type { BitmapText, Container, Graphics } from 'pixi.js';
 import type { MapTheme } from '../../engine/entities/entity-kind';
 import type { Point } from '../../engine/geometry';
 import { destroyDisplay } from '../../engine/destroy-display';
@@ -23,10 +22,10 @@ const LABEL_GAP = 12;
 
 /** Étiquette à taille constante sur son fond, en coordonnées du monde. */
 export class MeasureLabel {
-  readonly back: Graphics;
-  readonly text: BitmapText;
+  readonly back: Pixi.Graphics;
+  readonly text: Pixi.BitmapText;
 
-  constructor(pixi: typeof Pixi, theme: MapTheme, parent: Container) {
+  constructor(pixi: typeof Pixi, theme: MapTheme, parent: Pixi.Container) {
     this.back = new pixi.Graphics({ label: 'measure-label-back' });
     this.text = new pixi.BitmapText({
       text: '',
@@ -64,8 +63,8 @@ export class MeasureLabel {
  * liseré sombre, point visé marqué, étiquette près de lui.
  */
 export class ClickDistanceView {
-  readonly root: Container;
-  private readonly line: Graphics;
+  readonly root: Pixi.Container;
+  private readonly line: Pixi.Graphics;
   private readonly label: MeasureLabel;
   private drawn = {
     fx: Number.NaN,
@@ -79,7 +78,7 @@ export class ClickDistanceView {
   constructor(
     pixi: typeof Pixi,
     private readonly theme: MapTheme,
-    plane: Container,
+    plane: Pixi.Container,
   ) {
     this.root = new pixi.Container({ label: 'click-distance' });
     this.line = new pixi.Graphics();
@@ -157,10 +156,10 @@ const sameSpec = (a: MeasureSpec | null, b: MeasureSpec) =>
  * rayon ou axe en tirets, origine, étiquette. En coordonnées du monde.
  */
 export class MeasureVisual {
-  readonly root: Container;
+  readonly root: Pixi.Container;
   /** Place d'un effet animé (sous la forme). */
-  readonly skinSlot: Container;
-  private readonly shape: Graphics;
+  readonly skinSlot: Pixi.Container;
+  private readonly shape: Pixi.Graphics;
   private readonly label: MeasureLabel;
   private last: {
     spec: MeasureSpec | null;
@@ -175,7 +174,7 @@ export class MeasureVisual {
   constructor(
     private readonly pixi: typeof Pixi,
     private readonly theme: MapTheme,
-    parent: Container,
+    parent: Pixi.Container,
   ) {
     this.root = new pixi.Container({ label: 'measure' });
     this.skinSlot = new pixi.Container({ label: 'measure-skin' });

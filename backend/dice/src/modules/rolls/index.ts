@@ -28,7 +28,7 @@
  */
 import { HttpError } from '@vtt/platform';
 import { and, asc, desc, eq, gt, lt } from 'drizzle-orm';
-import type { FastifyContextConfig, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyContextConfig, FastifyReply } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { CampaignRole } from '../../clients/campaign.js';

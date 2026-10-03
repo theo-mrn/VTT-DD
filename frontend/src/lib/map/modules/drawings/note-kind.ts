@@ -9,7 +9,6 @@
  * zoom par paliers (net de près, léger de loin), sans re-rendu à chaque image.
  */
 import type * as Pixi from 'pixi.js';
-import type { Text } from 'pixi.js';
 import { authorOrGm, field, type EntityKind } from '../../engine/entities/entity-kind';
 import type { MapEntity } from '../../engine/entities/entity';
 import { normalizeDegrees, type EntityGeometry, type Point } from '../../engine/geometry';
@@ -92,7 +91,7 @@ export function noteResolution(zoom: number, box: { width: number; height: numbe
 }
 
 interface NoteRender {
-  text: Text;
+  text: Pixi.Text;
   /** Donnée dessinée (pour ne refaire le texte que si ce qui se voit a changé). */
   drawn: NoteData;
   /** Génération des polices au dessin (une police arrivée depuis : le texte se refait). */
@@ -101,7 +100,7 @@ interface NoteRender {
 
 function paint(
   entity: MapEntity<NoteData>,
-  text: Text,
+  text: Pixi.Text,
   zoom: number,
   background: number,
   pixi: typeof Pixi,

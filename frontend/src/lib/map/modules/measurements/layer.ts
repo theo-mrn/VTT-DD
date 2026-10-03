@@ -5,7 +5,6 @@
  * l'effacement ne touche que l'opacité.
  */
 import type * as Pixi from 'pixi.js';
-import type { Container } from 'pixi.js';
 import type { MapTheme } from '../../engine/entities/entity-kind';
 import { unitContext } from './click-distance';
 import type { MeasureModule } from './context';
@@ -36,7 +35,7 @@ export class MeasureLayer {
     private readonly ctx: MeasureModule,
     private readonly pixi: typeof Pixi,
     private readonly theme: MapTheme,
-    private readonly plane: Container,
+    private readonly plane: Pixi.Container,
     private readonly skins: SkinTextures,
   ) {}
 

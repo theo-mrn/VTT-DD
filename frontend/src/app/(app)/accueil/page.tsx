@@ -15,11 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
-import {
-  CarteCampagne,
-  CarteCampagneSquelette,
-  useNomSysteme,
-} from '@/components/campagnes/carte-campagne';
+import { CarteCampagneSquelette, useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { formaterDans, formaterSession } from '@/components/campagnes/elements';
 import { Illustration } from '@/components/commun/illustration';
 import { Page, Panneau, TitreSection } from '@/components/commun/page';

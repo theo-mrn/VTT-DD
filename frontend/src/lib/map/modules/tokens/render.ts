@@ -13,7 +13,6 @@
  * - Aucune recréation : chaque partie n'est redessinée que si ce qui la décrit a changé.
  */
 import type * as Pixi from 'pixi.js';
-import type { BitmapText, Container, Graphics, Texture } from 'pixi.js';
 import type { MapTheme, RenderContext } from '../../engine/entities/entity-kind';
 import type { MapEntity } from '../../engine/entities/entity';
 import {
@@ -88,17 +87,17 @@ export interface TokenLook {
 interface TokenVisual {
   /** Apparence courante (donnée, annuaire, état), relue à chaque mise à jour. */
   lookOf: (e: MapEntity<TokenData>) => TokenLook;
-  body: Graphics;
-  outline: Graphics;
-  badge: Graphics;
-  badgeRoot: Container;
+  body: Pixi.Graphics;
+  outline: Pixi.Graphics;
+  badge: Pixi.Graphics;
+  badgeRoot: Pixi.Container;
   releaseBadge: () => void;
-  label: Container;
-  bar: Graphics;
-  plate: Graphics;
-  name: BitmapText;
+  label: Pixi.Container;
+  bar: Pixi.Graphics;
+  plate: Pixi.Graphics;
+  name: Pixi.BitmapText;
   releaseLabel: () => void;
-  texture: Texture | null;
+  texture: Pixi.Texture | null;
   textureUrl: string | null;
   loading: string | null;
   keys: Record<'body' | 'outline' | 'badge' | 'label', string>;
@@ -263,12 +262,17 @@ function loadTexture(
 
 // ─── Dessin ──────────────────────────────────────────────────────────────────
 
-function shapePath(g: Graphics, shape: TokenData['shape'], r: number) {
+function shapePath(g: Pixi.Graphics, shape: TokenData['shape'], r: number) {
   if (shape === 'square') g.roundRect(-r, -r, r * 2, r * 2, r * 0.18);
   else g.circle(0, 0, r);
 }
 
-function drawBody(ctx: RenderContext, g: Graphics, look: TokenLook, texture: Texture | null) {
+function drawBody(
+  ctx: RenderContext,
+  g: Pixi.Graphics,
+  look: TokenLook,
+  texture: Pixi.Texture | null,
+) {
   const { theme, pixi } = ctx;
   const r = look.size / 2;
   const ring = Math.max(look.size * 0.055, 0.5);
@@ -313,7 +317,7 @@ function drawBody(ctx: RenderContext, g: Graphics, look: TokenLook, texture: Tex
   g.alpha = look.pending ? 0.55 : 1;
 }
 
-function drawOutline(ctx: RenderContext, g: Graphics, look: TokenLook) {
+function drawOutline(ctx: RenderContext, g: Pixi.Graphics, look: TokenLook) {
   g.clear();
   if (!look.hovered && !look.selected) return;
   const px = 1 / Math.max(ctx.zoom, 1e-6);
@@ -327,7 +331,7 @@ function drawOutline(ctx: RenderContext, g: Graphics, look: TokenLook) {
 }
 
 /** Badge de visibilité (pixels d'écran, conteneur à taille constante). */
-function drawBadge(theme: MapTheme, g: Graphics, badge: TokenBadge | null) {
+function drawBadge(theme: MapTheme, g: Pixi.Graphics, badge: TokenBadge | null) {
   g.clear();
   if (badge) drawVisibilityBadge(g, theme, badge);
 }

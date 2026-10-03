@@ -4,7 +4,6 @@
  * le module `pixi.js` est passé par le moteur (un fichier de module reste testable sans WebGL).
  */
 import type * as Pixi from 'pixi.js';
-import type { Graphics } from 'pixi.js';
 import { DEFAULT_DRAWING_COLOR } from './palette';
 import { catmullRom, isClosedShape, shapeOf, type DrawingLike, type DrawingShape } from './shapes';
 
@@ -59,7 +58,7 @@ function isDot(points: readonly { x: number; y: number }[]): boolean {
 
 /** Dessine une forme dans `g` (sans le vider). */
 export function drawShape(
-  g: Graphics,
+  g: Pixi.Graphics,
   shape: DrawingShape,
   stroke: StrokeParams,
   fill: ColorValue | null,
@@ -110,7 +109,11 @@ export function drawShape(
 }
 
 /** Dessine un dessin enregistré (vide `g` d'abord). */
-export function drawDrawing(g: Graphics, pixi: typeof Pixi, d: DrawingLike & { color: string }) {
+export function drawDrawing(
+  g: Pixi.Graphics,
+  pixi: typeof Pixi,
+  d: DrawingLike & { color: string },
+) {
   g.clear();
   const c = pixiColor(pixi, d.color);
   const fill = typeof d.fill === 'string' && d.fill ? pixiColor(pixi, d.fill) : null;
@@ -122,7 +125,7 @@ export function drawDrawing(g: Graphics, pixi: typeof Pixi, d: DrawingLike & { c
  * au lâcher, sur les points simplifiés).
  */
 export function drawFlatPolyline(
-  g: Graphics,
+  g: Pixi.Graphics,
   flat: readonly number[],
   count: number,
   stroke: StrokeParams,

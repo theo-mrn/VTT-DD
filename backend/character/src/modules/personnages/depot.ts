@@ -11,8 +11,8 @@
  * Pour tout autre utilisateur, un personnage, ou un personnage supprimé, est
  * introuvable (404) : on ne révèle pas son existence.
  */
-import type { PortraitStudio } from '@vtt/contracts';
 import {
+  type PortraitStudio,
   changesPayload,
   TRASH_DAYS,
   uuidv7,

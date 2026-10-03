@@ -31,6 +31,7 @@ import {
   valeurCombat,
   type ContexteCombatSaisi,
   type Parametre,
+  type Effet,
 } from '../schema/index.js';
 import {
   ErreurEvaluation,
@@ -46,7 +47,6 @@ import {
   type TypeValeur,
   type Valeur,
 } from '../formules/index.js';
-import type { Effet } from '../schema/index.js';
 import type { Modification } from './modifications.js';
 import {
   ameliorer,

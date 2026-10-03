@@ -7,8 +7,12 @@
  * `library` : la bibliothèque d'objets du système de la campagne
  * (`starwars` pour star-wars-eote), sinon `default`.
  */
-import { normalizeSourceUrl, type AssetKind } from '@vtt/contracts';
-import type { CatalogCategory, CatalogEntry } from '@vtt/contracts';
+import {
+  normalizeSourceUrl,
+  type AssetKind,
+  type CatalogCategory,
+  type CatalogEntry,
+} from '@vtt/contracts';
 import { DEFAULT_MUSICS, DEFAULT_SOUNDS, STARWARS_SOUNDS, type RawEntry } from './data.js';
 import { withoutTrailingSlashes } from '@vtt/platform';
 

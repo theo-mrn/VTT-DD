@@ -15,7 +15,6 @@ import { ReactionPrompts } from '@/components/combat/player/reaction-prompt';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { useCombat } from '@/lib/combat/use-combat';
 import type { DetailCampagne } from '@/lib/campagnes';
-import { cn } from '@/lib/utils';
 import type { Table } from './contexte';
 import { useHudPrefs, useHudPrefsHydration } from './hud-prefs';
 

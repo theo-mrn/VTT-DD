@@ -32,7 +32,6 @@ import {
   type CleApiCreee,
 } from '@/lib/cles-api';
 import { useRessource } from '@/lib/ressource';
-import { cn } from '@/lib/utils';
 
 export default function PageClesApi() {
   const cles = useRessource('cles-api', lireClesApi);

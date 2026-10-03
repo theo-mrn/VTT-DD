@@ -2,8 +2,13 @@
  * Environnements de typage : ce qu'une formule a le droit de lire selon
  * l'endroit où elle est écrite (attribut, effet, achat, action…).
  */
-import type { EnvironnementTypes, InfoAttribut, SignatureFonction } from '../formules/index.js';
-import type { Noeud, TypeValeur } from '../formules/index.js';
+import type {
+  EnvironnementTypes,
+  InfoAttribut,
+  SignatureFonction,
+  Noeud,
+  TypeValeur,
+} from '../formules/index.js';
 import { ENTITE_COMBAT, VALEURS_COMBAT, type Attribut, type Champ } from '../schema/index.js';
 
 export function typeAttribut(a: Attribut): TypeValeur {

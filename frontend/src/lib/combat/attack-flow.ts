@@ -33,8 +33,8 @@ import {
   type DeclareAttack,
   type RollAdjustments,
   type RollDiceMode,
+  type CampaignSide,
 } from '@vtt/contracts';
-import type { CampaignSide } from '@vtt/contracts';
 
 // ─── État ────────────────────────────────────────────────────────────────────
 

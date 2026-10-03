@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
-import { fetchImage, isProcessable, MAX_SIDE, type CropArea } from '@/lib/uploads/image';
+import { fetchImage, isProcessable, type CropArea } from '@/lib/uploads/image';
 import { prepareUpload } from '@/lib/uploads/prepare';
 import { uploadFile, type UploadProgress, type UploadTarget } from '@/lib/uploads/uploader';
 import { cn } from '@/lib/utils';
