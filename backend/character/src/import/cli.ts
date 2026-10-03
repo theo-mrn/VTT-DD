@@ -171,7 +171,8 @@ for (const a of aImporter) {
     }
     for (const a of migre.avertissements) {
       const m =
-        /^Objet « .* » (?:\(×\d+\) )?non migré : (.*)$/.exec(a) ?? /^Objet « .* » : (.*)$/.exec(a);
+        /^Objet « [^»]* » (?:\(×\d+\) )?non migré : (.*)$/.exec(a) ??
+        /^Objet « [^»]* » : (.*)$/.exec(a);
       if (!m) continue;
       objetsLegacy.perdus++;
       const raison = m[1]!.replace(/[^:]+ déjà possédé/, 'déjà possédé');

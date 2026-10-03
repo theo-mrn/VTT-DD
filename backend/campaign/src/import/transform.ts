@@ -125,7 +125,18 @@ export function campaignSystem(
 
 // ─── Campagne ────────────────────────────────────────────────────────────────
 
-const FIREBASE_HOSTING = /firebasestorage\.googleapis\.com|\.appspot\.com|storage\.googleapis\.com/;
+/** Hôtes de Firebase Storage (domaine exact ou sous-domaine de appspot.com). */
+const FIREBASE_HOSTS = ['firebasestorage.googleapis.com', 'storage.googleapis.com'];
+
+function surFirebase(url: string): boolean {
+  let hote: string;
+  try {
+    hote = new URL(url).hostname;
+  } catch {
+    return false;
+  }
+  return FIREBASE_HOSTS.includes(hote) || hote.endsWith('.appspot.com');
+}
 
 function truncate(v: string, max: number, what: string, warn: (m: string) => void): string {
   const chars = [...v];
@@ -173,7 +184,7 @@ function imageOf(s: LegacyCampaign, warn: Warn): string | null {
     warn(`Image ignorée : URL de plus de ${LIMITS.imageUrl} caractères`);
     return null;
   }
-  if (imageUrl && FIREBASE_HOSTING.test(imageUrl))
+  if (imageUrl && surFirebase(imageUrl))
     warn('Image sur Firebase Storage : recopiée dans le stockage à l’import');
   return imageUrl;
 }

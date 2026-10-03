@@ -393,7 +393,7 @@ function piedOf(phase: Phase, urlMode: boolean): 'erreur' | 'adresse' | 'bouton'
 
 /** Fond de la zone : points tant qu'elle est vide, sinon l'image ou la vidéo choisie. */
 function Fond({ value }: Readonly<{ value: string | null }>) {
-  if (!value) return <DotsBackdrop />;
+  if (!value || !urlMedia(value)) return <DotsBackdrop />;
   if (/\.(webm|mp4)(\?|$)/i.test(value))
     return (
       <video
@@ -581,3 +581,8 @@ function CropDialog({
 
 /** Avant l'envoi : conversion de l'image en cours, ou préparation. */
 const attente = (encoding: unknown) => (encoding === null ? 'Préparation…' : 'Conversion…');
+
+/** Adresse affichable comme média : http(s), blob (aperçu local) ou image en data. */
+function urlMedia(value: string): boolean {
+  return /^(https?:|blob:|data:image\/)/i.test(value) || value.startsWith('/');
+}
