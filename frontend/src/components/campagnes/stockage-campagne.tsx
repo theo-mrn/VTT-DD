@@ -122,9 +122,7 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
   const s = q.data;
   const fichiers = useMemo(() => {
     if (!s) return [];
-    const out = s.files.filter((f) =>
-      filtre === 'all' ? true : filtre === UNUSED ? f.deletable : f.category === filtre,
-    );
+    const out = s.files.filter((f) => correspondAuFiltre(f, filtre));
     return tri === 'taille' ? out : [...out].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [s, filtre, tri]);
 
@@ -201,11 +199,7 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
           <div
             className={cn(
               'h-full rounded-full transition-[width] duration-500 ease-out',
-              ratio >= 1
-                ? 'bg-destructive'
-                : ratio >= STORAGE_WARNING_RATIO
-                  ? 'bg-warning'
-                  : 'bg-primary',
+              couleurJauge(ratio),
             )}
             style={{ width: `${Math.min(100, Math.max(ratio > 0 ? 1 : 0, ratio * 100))}%` }}
           />
@@ -290,39 +284,10 @@ function Fichier({
     const t = setTimeout(() => setConfirmer(false), 3_000);
     return () => clearTimeout(t);
   }, [confirmer]);
-  const type = f.contentType ?? '';
-  const image = type.startsWith('image/');
-  const video = type.startsWith('video/');
-
   return (
     <li className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-surface duration-200 ease-out animate-in fade-in-0">
       <div className="relative grid aspect-video place-items-center overflow-hidden bg-surface-2">
-        {image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={f.url}
-            alt={nom ?? ''}
-            loading="lazy"
-            className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : video ? (
-          <>
-            <video src={f.url} muted preload="metadata" className="size-full object-cover" />
-            <Film className="absolute left-2 top-2 size-4 text-white drop-shadow" aria-hidden />
-          </>
-        ) : f.category === 'sounds' ? (
-          <Button
-            variant="secondary"
-            size="icon"
-            aria-label={ecoute ? 'Arrêter l’écoute' : 'Écouter'}
-            onClick={onEcoute}
-            disabled={f.pending}
-          >
-            {ecoute ? <Square /> : <Headphones />}
-          </Button>
-        ) : (
-          <AudioLines className="size-6 text-muted-foreground" aria-hidden />
-        )}
+        <Apercu fichier={f} nom={nom} ecoute={ecoute} onEcoute={onEcoute} />
         <span className="absolute bottom-1.5 right-1.5 rounded-md bg-background/85 px-1.5 py-0.5 font-mono text-[11px] tabular-nums">
           {formatBytes(f.size)}
         </span>
@@ -389,4 +354,55 @@ export function OngletsReglages({
       </TabsList>
     </Tabs>
   );
+}
+
+/** Aperçu d'un fichier : image, vidéo, bouton d'écoute d'un son, ou icône. */
+function Apercu({
+  fichier: f,
+  nom,
+  ecoute,
+  onEcoute,
+}: Readonly<{ fichier: StorageFile; nom: string | null; ecoute: boolean; onEcoute: () => void }>) {
+  const type = f.contentType ?? '';
+  if (type.startsWith('image/'))
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={f.url}
+        alt={nom ?? ''}
+        loading="lazy"
+        className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+      />
+    );
+  if (type.startsWith('video/'))
+    return (
+      <>
+        <video src={f.url} muted preload="metadata" className="size-full object-cover" />
+        <Film className="absolute left-2 top-2 size-4 text-white drop-shadow" aria-hidden />
+      </>
+    );
+  if (f.category === 'sounds')
+    return (
+      <Button
+        variant="secondary"
+        size="icon"
+        aria-label={ecoute ? 'Arrêter l’écoute' : 'Écouter'}
+        onClick={onEcoute}
+        disabled={f.pending}
+      >
+        {ecoute ? <Square /> : <Headphones />}
+      </Button>
+    );
+  return <AudioLines className="size-6 text-muted-foreground" aria-hidden />;
+}
+
+/** Jauge du stockage : rouge plein, orange au seuil d'alerte, sinon couleur primaire. */
+function couleurJauge(ratio: number): string {
+  if (ratio >= 1) return 'bg-destructive';
+  return ratio >= STORAGE_WARNING_RATIO ? 'bg-warning' : 'bg-primary';
+}
+
+function correspondAuFiltre(f: StorageFile, filtre: string): boolean {
+  if (filtre === 'all') return true;
+  return filtre === UNUSED ? f.deletable : f.category === filtre;
 }

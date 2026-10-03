@@ -65,6 +65,11 @@ export function ReportsSection({
     ...new Set([...data.characters, ...(view.characterId ? [view.characterId] : [])]),
   ];
 
+  let etat: 'chargement' | 'erreur' | 'vide' | 'liste' = 'liste';
+  if (data.loading) etat = 'chargement';
+  else if (data.error) etat = 'erreur';
+  else if (data.items.length === 0) etat = 'vide';
+
   return (
     <section
       aria-label="Rapports d’attaque"
@@ -83,7 +88,7 @@ export function ReportsSection({
             <Info
               texte={
                 progress.skipped
-                  ? `${progress.skipped} non appliqué${progress.skipped > 1 ? 's' : ''}, ${progress.pending} en attente`
+                  ? `${nonAppliques(progress.skipped)}, ${progress.pending} en attente`
                   : `${progress.pending} en attente`
               }
             >
@@ -165,28 +170,27 @@ export function ReportsSection({
         layoutScroll
         className={cn('p-3', fill && 'min-h-0 flex-1 overflow-y-auto overscroll-contain')}
       >
-        {data.loading ? (
-          <ListSkeleton rows={3} />
-        ) : data.error ? (
+        {etat === 'chargement' && <ListSkeleton rows={3} />}
+        {etat === 'erreur' && (
           <Notice
             tone="error"
             icon={ScrollText}
             title="Rapports indisponibles"
             description={combatErrorMessage(data.error)}
           />
-        ) : data.items.length === 0 ? (
+        )}
+        {etat === 'vide' && (
           <Notice
             icon={ScrollText}
             title={view.filter === 'pending' ? 'Aucune attaque enregistrée' : 'Aucun rapport'}
             description={
               view.characterId
                 ? `Rien pour ${nameOf(view.characterId)} avec ces filtres.`
-                : view.filter === 'pending'
-                  ? 'Chaque attaque résolue arrive ici : rien n’est appliqué sans votre décision.'
-                  : 'Les attaques décidées apparaîtront ici, avec ce qui a été appliqué.'
+                : VIDE_PAR_FILTRE(view.filter)
             }
           />
-        ) : (
+        )}
+        {etat === 'liste' && (
           <ul
             className={cn('grid items-start gap-2.5', columns === 2 && 'grid-cols-2')}
             aria-label="Cartes des rapports, une par cible"
@@ -239,3 +243,10 @@ export function ReportsSection({
     </section>
   );
 }
+
+const nonAppliques = (n: number) => (n > 1 ? `${n} non appliqués` : `${n} non appliqué`);
+
+const VIDE_PAR_FILTRE = (filter: string) =>
+  filter === 'pending'
+    ? 'Chaque attaque résolue arrive ici : rien n’est appliqué sans votre décision.'
+    : 'Les attaques décidées apparaîtront ici, avec ce qui a été appliqué.';

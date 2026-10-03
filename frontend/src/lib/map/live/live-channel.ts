@@ -147,14 +147,13 @@ interface Track {
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 const audienceKey = (a: LiveAudience) =>
-  a === 'public'
-    ? 'public'
-    : a === 'gm'
-      ? 'gm'
-      : `u:${[...a.users].sort(compareCodeUnits).join(',')}`;
+  a === 'public' || a === 'gm' ? a : `u:${[...a.users].sort(compareCodeUnits).join(',')}`;
 
-const sendOptions = (a: LiveAudience): LiveSendOptions =>
-  a === 'public' ? {} : a === 'gm' ? { gmOnly: true } : { toUsers: a.users };
+function sendOptions(a: LiveAudience): LiveSendOptions {
+  if (a === 'public') return {};
+  if (a === 'gm') return { gmOnly: true };
+  return { toUsers: a.users };
+}
 
 /** Le serveur ignore un `toUsers` de plus de 50 noms : on découpe. Liste vide : MJ seulement. */
 function expandAudience(a: LiveAudience): LiveAudience[] {

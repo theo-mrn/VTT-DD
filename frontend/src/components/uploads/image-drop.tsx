@@ -181,6 +181,18 @@ export function ImageDrop({
 
   const ratio = aspect ?? (value ? undefined : 16 / 9);
 
+  // Ce que montre la zone : envoi en cours, invitation à déposer, ou l'image choisie
+  let vue: 'upload' | 'empty' | 'value' = 'empty';
+  if (busy) vue = 'upload';
+  else if (value) vue = 'value';
+  let cadre = 'border-border-strong bg-surface/40 hover:border-primary/60 hover:bg-surface/70';
+  if (dragging) cadre = 'border-primary bg-primary/10 shadow-glow';
+  else if (value) cadre = 'border-transparent';
+  // Sous la zone : l'erreur, le champ d'adresse, ou le bouton qui l'ouvre
+  let pied: 'erreur' | 'adresse' | 'bouton' = 'bouton';
+  if (phase.kind === 'error') pied = 'erreur';
+  else if (urlMode) pied = 'adresse';
+
   return (
     <div className={cn('space-y-2', className)}>
       <div
@@ -208,11 +220,7 @@ export function ImageDrop({
         style={ratio ? { aspectRatio: String(ratio) } : undefined}
         className={cn(
           'group relative isolate grid min-h-32 w-full cursor-pointer place-items-center overflow-hidden rounded-2xl border border-dashed text-center transition-[border-color,box-shadow,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-          dragging
-            ? 'border-primary bg-primary/10 shadow-glow'
-            : value
-              ? 'border-transparent'
-              : 'border-border-strong bg-surface/40 hover:border-primary/60 hover:bg-surface/70',
+          cadre,
           disabled && 'pointer-events-none opacity-60',
         )}
       >
@@ -233,7 +241,7 @@ export function ImageDrop({
           ))}
 
         <AnimatePresence mode="wait" initial={false}>
-          {busy ? (
+          {vue === 'upload' && phase.kind === 'upload' && (
             <motion.div
               key="upload"
               initial={{ opacity: 0 }}
@@ -255,7 +263,8 @@ export function ImageDrop({
                 onCancel={() => abort.current?.abort()}
               />
             </motion.div>
-          ) : !value ? (
+          )}
+          {vue === 'empty' && (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 4 }}
@@ -275,7 +284,8 @@ export function ImageDrop({
                 {fmtSize(u.maxBytes)}
               </span>
             </motion.div>
-          ) : (
+          )}
+          {vue === 'value' && (
             <motion.div
               key="value"
               initial={{ opacity: 0 }}
@@ -319,7 +329,7 @@ export function ImageDrop({
 
       {/* Adresse web, ou erreur de l'envoi */}
       <div className="flex min-h-8 items-center gap-2">
-        {phase.kind === 'error' ? (
+        {pied === 'erreur' && phase.kind === 'error' && (
           <p
             role="alert"
             className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-destructive"
@@ -346,7 +356,8 @@ export function ImageDrop({
               <X />
             </Button>
           </p>
-        ) : urlMode ? (
+        )}
+        {pied === 'adresse' && (
           <form
             className="flex flex-1 items-center gap-1.5"
             onSubmit={(e) => {
@@ -375,7 +386,8 @@ export function ImageDrop({
               <X />
             </Button>
           </form>
-        ) : (
+        )}
+        {pied === 'bouton' && (
           <Button
             type="button"
             size="xs"
@@ -442,9 +454,7 @@ function UploadMeter({
       <span className="font-mono text-[11px] text-muted-foreground tabular-nums" aria-live="polite">
         {progress
           ? `${fmtSize(progress.bytesUploaded)} / ${fmtSize(progress.bytesTotal)}`
-          : encoding !== null
-            ? 'Conversion…'
-            : 'Préparation…'}
+          : attente(encoding)}
       </span>
       <Button
         type="button"
@@ -544,3 +554,6 @@ function CropDialog({
     </Dialog>
   );
 }
+
+/** Avant l'envoi : conversion de l'image en cours, ou préparation. */
+const attente = (encoding: unknown) => (encoding === null ? 'Préparation…' : 'Conversion…');
