@@ -25,6 +25,20 @@ const racine = (nom: string) => nom.split('.', 1)[0]!;
  * Phases des formules d'une action. `formule` rend la formule compilée d'un chemin (absente :
  * rien à lire), `situation` les effets de situation reçus par l'action.
  */
+/** Formules du jet lui-même : formule et issues, ou pool et améliorations. */
+function formulesDuJet(jet: Action['jet'], ch: (x: string) => string): string[] {
+  if (jet.type !== 'numerique') {
+    const lues = [
+      ...jet.pool.map((_, i) => ch(`jet/pool/${i}`)),
+      ...jet.ameliorations.map((_, i) => ch(`jet/ameliorations/${i}`)),
+    ];
+    if (jet.reussite !== undefined) lues.push(ch('jet/reussite'));
+    return lues;
+  }
+  const issues = (['reussite', 'critique', 'fumble'] as const).filter((k) => jet[k] !== undefined);
+  return [ch('jet/formule'), ...issues.map((k) => ch(`jet/${k}`))];
+}
+
 export function etapesAction(
   action: Action,
   formule: (chemin: string) => FormuleVerifiee | undefined,
@@ -36,17 +50,10 @@ export function etapesAction(
   const jet = action.jet;
 
   // Formules lues pendant le jet
-  const lues: string[] = [];
-  if (jet.type === 'numerique') {
-    lues.push(ch('jet/formule'));
-    for (const k of ['reussite', 'critique', 'fumble'] as const)
-      if (jet[k] !== undefined) lues.push(ch(`jet/${k}`));
-  } else {
-    jet.pool.forEach((_, i) => lues.push(ch(`jet/pool/${i}`)));
-    jet.ameliorations.forEach((_, i) => lues.push(ch(`jet/ameliorations/${i}`)));
-    if (jet.reussite !== undefined) lues.push(ch('jet/reussite'));
-  }
-  action.verifications.forEach((_, i) => lues.push(ch(`verifications/${i}`)));
+  const lues = [
+    ...formulesDuJet(jet, ch),
+    ...action.verifications.map((_, i) => ch(`verifications/${i}`)),
+  ];
 
   // Variables de l'action que le jet lit, de proche en proche (effets de situation compris)
   const variables = new Map(action.variables.map((v) => [v.cle, ch(`variables/${v.cle}`)]));

@@ -3,7 +3,7 @@
  * (`sur: degats`) des sources d'effets actives de l'entité qui les reçoit
  * (entrées, exemplaires, bonus libres).
  */
-import type { Fiche } from '../calcul/index.js';
+import type { Fiche, SourceEffets } from '../calcul/index.js';
 import type { EffetDegats } from '../schema/index.js';
 
 export interface LigneResistance {
@@ -30,43 +30,42 @@ export interface DegatsRecus {
  * (facultatif) sur `attribut`. Une résistance sans `types` vaut pour tous les
  * dégâts ; une résistance typée ne vaut que pour ses types.
  */
-export function reduireDegats(
+type LigneFamille = LigneResistance & { famille?: string };
+
+/** Résistances d'une source qui s'appliquent à ces dégâts (type, attribut, condition). */
+function resistancesDe(
   fiche: Fiche,
-  montant: number,
+  s: SourceEffets,
   type: string | undefined,
   attribut: string,
-  minimum = 0,
-): DegatsRecus {
-  const candidates: LigneResistance[] = [];
-  // Entrées du catalogue, exemplaires et bonus libres, par le même chemin
-  for (const s of fiche.sources) {
-    const variable = s.variable;
-    s.effets.forEach((f, i) => {
-      if (f.sur !== 'degats' || s.desactive(i)) return;
-      if (f.types && (type === undefined || !f.types.includes(type))) return;
-      if (f.attributs && !f.attributs.includes(attribut)) return;
-      const cond = s.formule(i, 'condition');
-      if (f.condition !== undefined && (!cond || fiche.evaluer(cond, { variable }, false) !== true))
-        return;
-      const f2 = s.formule(i, 'valeur');
-      const valeur = f2 ? Number(fiche.evaluer(f2, { variable }, 0)) : 0;
-      const ligne: LigneResistance = {
-        source: s.id,
-        nom: f.description ?? s.nom,
-        operation: f.operation,
-        valeur,
-      };
-      if (f.famille) (ligne as LigneResistance & { famille?: string }).famille = f.famille;
-      candidates.push(ligne);
-    });
-  }
+): LigneFamille[] {
+  const variable = s.variable;
+  return s.effets.flatMap((f, i): LigneFamille[] => {
+    if (f.sur !== 'degats' || s.desactive(i)) return [];
+    if (f.types && (type === undefined || !f.types.includes(type))) return [];
+    if (f.attributs && !f.attributs.includes(attribut)) return [];
+    const cond = s.formule(i, 'condition');
+    if (f.condition !== undefined && (!cond || fiche.evaluer(cond, { variable }, false) !== true))
+      return [];
+    const f2 = s.formule(i, 'valeur');
+    const valeur = f2 ? Number(fiche.evaluer(f2, { variable }, 0)) : 0;
+    const ligne: LigneFamille = {
+      source: s.id,
+      nom: f.description ?? s.nom,
+      operation: f.operation,
+      valeur,
+    };
+    if (f.famille) ligne.famille = f.famille;
+    return [ligne];
+  });
+}
 
-  // Familles : une seule résistance par famille et par opération, la plus forte
+/** Familles : une seule résistance par famille et par opération, la plus forte. */
+function ignorerPlusFaibles(candidates: LigneFamille[]): void {
   const meilleures = new Map<string, LigneResistance>();
   for (const l of candidates) {
-    const famille = (l as LigneResistance & { famille?: string }).famille;
-    if (!famille) continue;
-    const k = `${l.operation}/${famille}`;
+    if (!l.famille) continue;
+    const k = `${l.operation}/${l.famille}`;
     const m = meilleures.get(k);
     const plusForte =
       l.operation === 'multiplier'
@@ -75,10 +74,21 @@ export function reduireDegats(
     if (!m || plusForte) meilleures.set(k, l);
   }
   for (const l of candidates) {
-    const famille = (l as LigneResistance & { famille?: string }).famille;
-    if (famille && meilleures.get(`${l.operation}/${famille}`) !== l) l.ignore = true;
-    delete (l as LigneResistance & { famille?: string }).famille;
+    if (l.famille && meilleures.get(`${l.operation}/${l.famille}`) !== l) l.ignore = true;
+    delete l.famille;
   }
+}
+
+export function reduireDegats(
+  fiche: Fiche,
+  montant: number,
+  type: string | undefined,
+  attribut: string,
+  minimum = 0,
+): DegatsRecus {
+  // Entrées du catalogue, exemplaires et bonus libres, par le même chemin
+  const candidates = fiche.sources.flatMap((s) => resistancesDe(fiche, s, type, attribut));
+  ignorerPlusFaibles(candidates);
 
   let v = montant;
   const actives = candidates.filter((l) => !l.ignore);

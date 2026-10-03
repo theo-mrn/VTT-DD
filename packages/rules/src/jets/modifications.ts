@@ -5,9 +5,11 @@
  * `appliquerModifications`.
  */
 import type { Fiche } from '../calcul/index.js';
+import type { Valeur } from '../formules/index.js';
 import type { SystemeCharge } from '../chargement/index.js';
 import type { LigneResistance } from './degats.js';
 import {
+  type Attribut,
   estExemplaire,
   nouvellePossession,
   nouvelExemplaire,
@@ -62,6 +64,19 @@ export type Modification = ModificationAttribut | ModificationEntree;
  * `entite` restreint l'application aux modifications de cette entité ; sans
  * lui, toutes les modifications données sont appliquées.
  */
+/** Valeur avant modification : la stockée, sinon la courante (ressource) ou la base. */
+function valeurDeDepart(
+  fiche: Fiche,
+  a: Extract<Attribut, { nature: 'base' | 'ressource' }>,
+  stocke: Valeur | undefined,
+): number {
+  if (typeof stocke === 'number') return stocke;
+  if (a.nature === 'ressource') return Number(fiche.valeur(a.cle));
+  return Number(
+    fiche.valeurs.get(a.cle)?.detail.find((l) => l.source === 'base')?.valeur ?? a.defaut,
+  );
+}
+
 export function appliquerModifications(
   fiche: Fiche,
   modifications: Modification[],
@@ -82,14 +97,7 @@ export function appliquerModifications(
         `Attribut de base ou ressource attendu sur ${fiche.entite.type.nom} : ${m.attribut}`,
       );
     }
-    const stocke = valeurs[m.attribut];
-    let depart: number;
-    if (typeof stocke === 'number') depart = stocke;
-    else if (a.nature === 'ressource') depart = Number(fiche.valeur(m.attribut));
-    else
-      depart = Number(
-        fiche.valeurs.get(m.attribut)?.detail.find((l) => l.source === 'base')?.valeur ?? a.defaut,
-      );
+    const depart = valeurDeDepart(fiche, a, valeurs[m.attribut]);
     if (m.operation === 'fixer') valeurs[m.attribut] = m.valeur;
     else if (m.operation === 'ajouter') valeurs[m.attribut] = depart + m.valeur;
     else valeurs[m.attribut] = depart - m.valeur;
