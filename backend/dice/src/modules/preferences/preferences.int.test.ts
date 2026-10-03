@@ -26,7 +26,17 @@ describe.skipIf(!TEST_DATABASE_URL)('préférences', () => {
   });
 
   const url = '/v1/dice/me/preferences';
-  const FREE = ['gold', 'silver', 'steampunk_copper', 'pierre_donjon'];
+  // Skins offerts, dans l'ordre du catalogue (série « Résine » en attendant ses prix)
+  const FREE = [
+    'resine_marbre',
+    'resine_nuit',
+    'resine_fumee',
+    'resine_jade',
+    'gold',
+    'silver',
+    'steampunk_copper',
+    'pierre_donjon',
+  ];
 
   it('valeurs par défaut : skin gold, 3D et son actifs, skins gratuits', async () => {
     expect(await h.ok(alice, 'GET', url)).toEqual({

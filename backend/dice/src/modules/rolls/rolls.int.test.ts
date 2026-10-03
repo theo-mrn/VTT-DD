@@ -530,7 +530,7 @@ describe.skipIf(!TEST_DATABASE_URL)('jets', () => {
 
   it('catalogue des skins', async () => {
     const skins = await h.ok<{ id: string; free: boolean }[]>(alice, 'GET', '/v1/dice/skins');
-    expect(skins).toHaveLength(71);
+    expect(skins).toHaveLength(75);
     expect(skins.filter((s) => s.free).map((s) => s.id)).toContain('gold');
   });
 
