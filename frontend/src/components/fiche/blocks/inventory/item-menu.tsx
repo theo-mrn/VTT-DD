@@ -58,28 +58,122 @@ export interface ItemHandlers {
 
 export type SectionDetail = 'formules' | 'bonus';
 
+/** La poignée si la condition tient, sinon rien. */
+const si = <T,>(condition: unknown, poignee: T | undefined): T | undefined =>
+  condition ? poignee : undefined;
+
 /** Actions réellement proposées pour cet objet. */
 export function actionsDe(item: InventoryItem, h: ItemHandlers) {
   const possede = Boolean(item.possession);
+  const { activable, quantites, exemplaires } = item.sorte;
+  // Détail ouvert sur une section : objet possédé, sur une fiche modifiable
+  const detail = si(possede && h.supprimer !== undefined, h.detailSur);
   return {
-    equiper: item.sorte.activable && h.equiper ? h.equiper : undefined,
-    consommer: item.sorte.quantites && possede && h.consommer ? h.consommer : undefined,
-    renommer: renommable(item) && h.renommer ? h.renommer : undefined,
-    quantite: item.sorte.quantites && possede && h.quantite ? h.quantite : undefined,
-    donner: possede && h.donner ? h.donner : undefined,
-    cacher: possede && h.cacher ? h.cacher : undefined,
-    ranger: possede && h.ranger ? h.ranger : undefined,
-    exemplaire: item.sorte.exemplaires && possede && h.exemplaire ? h.exemplaire : undefined,
-    supprimer: possede && h.supprimer ? h.supprimer : undefined,
-    formules:
-      possede &&
-      h.detailSur &&
-      h.supprimer !== undefined &&
-      item.sorte.champs.some((c) => c.type === 'formule')
-        ? h.detailSur
-        : undefined,
-    bonus: possede && h.detailSur && h.supprimer !== undefined ? h.detailSur : undefined,
+    equiper: si(activable, h.equiper),
+    consommer: si(quantites && possede, h.consommer),
+    renommer: si(renommable(item), h.renommer),
+    quantite: si(quantites && possede, h.quantite),
+    donner: si(possede, h.donner),
+    cacher: si(possede, h.cacher),
+    ranger: si(possede, h.ranger),
+    exemplaire: si(exemplaires && possede, h.exemplaire),
+    supprimer: si(possede, h.supprimer),
+    formules: si(
+      item.sorte.champs.some((c) => c.type === 'formule'),
+      detail,
+    ),
+    bonus: detail,
   };
+}
+
+/** Sous-menu « Déplacer vers » : hors dossier, chaque dossier, ou un nouveau. */
+function SousMenuRanger({
+  item,
+  folders,
+  ranger,
+  nouveauDossierPour,
+}: Readonly<{
+  item: InventoryItem;
+  folders: InventoryFolder[];
+  ranger(item: InventoryItem, folder: string | null): void;
+  nouveauDossierPour: ItemHandlers['nouveauDossierPour'];
+}>) {
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <FolderInput /> Déplacer vers
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-52">
+        <DropdownMenuItem disabled={!item.folder} onSelect={() => ranger(item, null)}>
+          <Folder className="opacity-40" /> Sans dossier
+        </DropdownMenuItem>
+        {folders.map((f) => (
+          <DropdownMenuItem
+            key={f.id}
+            disabled={item.folder?.id === f.id}
+            onSelect={() => ranger(item, f.id)}
+          >
+            <Folder /> <span className="truncate">{f.name}</span>
+          </DropdownMenuItem>
+        ))}
+        {nouveauDossierPour && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => nouveauDossierPour(item)}>
+              <FolderPlus /> Nouveau dossier…
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+}
+
+/** Entrées « organiser » : renommer, quantité, visibilité, dossier, nouvel exemplaire. */
+function EntreesOrganiser({
+  item,
+  a,
+  folders,
+  nouveauDossierPour,
+}: Readonly<{
+  item: InventoryItem;
+  a: ReturnType<typeof actionsDe>;
+  folders: InventoryFolder[];
+  nouveauDossierPour: ItemHandlers['nouveauDossierPour'];
+}>) {
+  return (
+    <>
+      {a.renommer && (
+        <DropdownMenuItem onSelect={() => a.renommer!(item)}>
+          <Pencil /> Renommer…
+        </DropdownMenuItem>
+      )}
+      {a.quantite && (
+        <DropdownMenuItem onSelect={() => a.quantite!(item)}>
+          <Hash /> Modifier la quantité…
+        </DropdownMenuItem>
+      )}
+      {a.cacher && (
+        <DropdownMenuItem onSelect={() => a.cacher!(item, !item.hidden)}>
+          {item.hidden ? <Eye /> : <EyeOff />}
+          {item.hidden ? 'Montrer aux autres joueurs' : 'Cacher aux autres joueurs'}
+        </DropdownMenuItem>
+      )}
+      {a.ranger && (
+        <SousMenuRanger
+          item={item}
+          folders={folders}
+          ranger={a.ranger}
+          nouveauDossierPour={nouveauDossierPour}
+        />
+      )}
+      {a.exemplaire && (
+        <DropdownMenuItem onSelect={() => a.exemplaire!(item)}>
+          <Copy /> Nouvel exemplaire distinct
+        </DropdownMenuItem>
+      )}
+    </>
+  );
 }
 
 /** Entrées du menu d'un objet (contenu d'un DropdownMenuContent). */
@@ -131,56 +225,12 @@ export function ItemMenuItems({
         </DropdownMenuItem>
       )}
       {organiser && <DropdownMenuSeparator />}
-      {a.renommer && (
-        <DropdownMenuItem onSelect={() => a.renommer!(item)}>
-          <Pencil /> Renommer…
-        </DropdownMenuItem>
-      )}
-      {a.quantite && (
-        <DropdownMenuItem onSelect={() => a.quantite!(item)}>
-          <Hash /> Modifier la quantité…
-        </DropdownMenuItem>
-      )}
-      {a.cacher && (
-        <DropdownMenuItem onSelect={() => a.cacher!(item, !item.hidden)}>
-          {item.hidden ? <Eye /> : <EyeOff />}
-          {item.hidden ? 'Montrer aux autres joueurs' : 'Cacher aux autres joueurs'}
-        </DropdownMenuItem>
-      )}
-      {a.ranger && (
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <FolderInput /> Déplacer vers
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-52">
-            <DropdownMenuItem disabled={!item.folder} onSelect={() => a.ranger!(item, null)}>
-              <Folder className="opacity-40" /> Sans dossier
-            </DropdownMenuItem>
-            {folders.map((f) => (
-              <DropdownMenuItem
-                key={f.id}
-                disabled={item.folder?.id === f.id}
-                onSelect={() => a.ranger!(item, f.id)}
-              >
-                <Folder /> <span className="truncate">{f.name}</span>
-              </DropdownMenuItem>
-            ))}
-            {handlers.nouveauDossierPour && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => handlers.nouveauDossierPour!(item)}>
-                  <FolderPlus /> Nouveau dossier…
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-      )}
-      {a.exemplaire && (
-        <DropdownMenuItem onSelect={() => a.exemplaire!(item)}>
-          <Copy /> Nouvel exemplaire distinct
-        </DropdownMenuItem>
-      )}
+      <EntreesOrganiser
+        item={item}
+        a={a}
+        folders={folders}
+        nouveauDossierPour={handlers.nouveauDossierPour}
+      />
       {a.supprimer && (
         <>
           <DropdownMenuSeparator />

@@ -198,34 +198,44 @@ function Contenu({
         <Bonus fiche={fiche} item={item} mj={mj} writes={w} />
       </div>
 
-      {(a.exemplaire || a.donner || a.supprimer) && (
-        <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-popover px-5 py-3">
-          {a.exemplaire && (
-            <Button variant="ghost" size="sm" onClick={() => a.exemplaire!(item)}>
-              <Copy /> Nouvel exemplaire
-            </Button>
-          )}
-          {a.donner && (
-            <Button variant="secondary" size="sm" onClick={() => a.donner!(item)}>
-              <Gift /> Donner…
-            </Button>
-          )}
-          {a.supprimer && (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="ml-auto"
-              onClick={() => {
-                a.supprimer!(item);
-                onClose();
-              }}
-            >
-              <Trash2 /> Supprimer…
-            </Button>
-          )}
-        </footer>
-      )}
+      <PiedActions item={item} a={a} onClose={onClose} />
     </>
+  );
+}
+
+/** Pied du détail : nouvel exemplaire, donner, supprimer (rien si aucune n'est permise). */
+function PiedActions({
+  item,
+  a,
+  onClose,
+}: Readonly<{ item: InventoryItem; a: Actions; onClose(): void }>) {
+  if (!(a.exemplaire || a.donner || a.supprimer)) return null;
+  return (
+    <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-popover px-5 py-3">
+      {a.exemplaire && (
+        <Button variant="ghost" size="sm" onClick={() => a.exemplaire!(item)}>
+          <Copy /> Nouvel exemplaire
+        </Button>
+      )}
+      {a.donner && (
+        <Button variant="secondary" size="sm" onClick={() => a.donner!(item)}>
+          <Gift /> Donner…
+        </Button>
+      )}
+      {a.supprimer && (
+        <Button
+          variant="destructive"
+          size="sm"
+          className="ml-auto"
+          onClick={() => {
+            a.supprimer!(item);
+            onClose();
+          }}
+        >
+          <Trash2 /> Supprimer…
+        </Button>
+      )}
+    </footer>
   );
 }
 
@@ -287,6 +297,75 @@ function Nom({
   );
 }
 
+type Actions = ReturnType<typeof actionsDe>;
+
+/** Équipé ou rangé, avec son interrupteur. */
+function CaseEquipe({ id, item, a }: Readonly<{ id: string; item: InventoryItem; a: Actions }>) {
+  return (
+    <Case titre={item.actif ? 'Équipé' : 'Rangé'} htmlFor={id}>
+      <span className="flex items-center gap-2">
+        <ShieldCheck
+          aria-hidden
+          className={cn('size-4', item.actif ? 'text-success' : 'text-subtle')}
+        />
+        <Switch
+          id={id}
+          checked={item.actif}
+          disabled={!a.equiper}
+          onCheckedChange={(v) => a.equiper?.(item, v)}
+        />
+      </span>
+    </Case>
+  );
+}
+
+/** Visible ou caché aux autres joueurs, avec son interrupteur. */
+function CaseVisibilite({
+  id,
+  item,
+  a,
+}: Readonly<{ id: string; item: InventoryItem; a: Actions }>) {
+  return (
+    <Case
+      titre={item.hidden ? 'Caché aux autres joueurs' : 'Visible des autres joueurs'}
+      htmlFor={id}
+    >
+      <span className="flex items-center gap-2">
+        {item.hidden ? (
+          <EyeOff aria-hidden className="size-4 text-subtle" />
+        ) : (
+          <Eye aria-hidden className="size-4 text-subtle" />
+        )}
+        <Switch
+          id={id}
+          checked={!item.hidden}
+          disabled={!a.cacher}
+          onCheckedChange={(v) => a.cacher?.(item, !v)}
+        />
+      </span>
+    </Case>
+  );
+}
+
+/** Poids de l'objet : total, et le détail par unité s'il y en a plusieurs. */
+function CasePoids({
+  item,
+  poids,
+}: Readonly<{ item: InventoryItem; poids: NonNullable<InventoryItem['poids']> }>) {
+  return (
+    <Case titre={poids.champ.nom}>
+      <span className="font-mono text-sm tabular-nums">
+        {poids.unitaire * item.quantite}
+        {item.quantite > 1 && (
+          <span className="ml-1 text-xs text-subtle">
+            ({poids.unitaire} × {item.quantite})
+          </span>
+        )}
+      </span>
+    </Case>
+  );
+}
+
 /** Quantité, équipé, visibilité, dossier, poids : réglages rapides. */
 function Reglages({
   item,
@@ -312,52 +391,17 @@ function Reglages({
         )}
       </Case>,
     );
-  if (item.sorte.activable)
-    cases.push(
-      <Case key="a" titre={item.actif ? 'Équipé' : 'Rangé'} htmlFor={`${id}-a`}>
-        <span className="flex items-center gap-2">
-          <ShieldCheck
-            aria-hidden
-            className={cn('size-4', item.actif ? 'text-success' : 'text-subtle')}
-          />
-          <Switch
-            id={`${id}-a`}
-            checked={item.actif}
-            disabled={!a.equiper}
-            onCheckedChange={(v) => a.equiper?.(item, v)}
-          />
-        </span>
-      </Case>,
-    );
+  if (item.sorte.activable) cases.push(<CaseEquipe key="a" id={`${id}-a`} item={item} a={a} />);
   if (a.cacher || item.hidden)
-    cases.push(
-      <Case
-        key="h"
-        titre={item.hidden ? 'Caché aux autres joueurs' : 'Visible des autres joueurs'}
-        htmlFor={`${id}-h`}
-      >
-        <span className="flex items-center gap-2">
-          {item.hidden ? (
-            <EyeOff aria-hidden className="size-4 text-subtle" />
-          ) : (
-            <Eye aria-hidden className="size-4 text-subtle" />
-          )}
-          <Switch
-            id={`${id}-h`}
-            checked={!item.hidden}
-            disabled={!a.cacher}
-            onCheckedChange={(v) => a.cacher?.(item, !v)}
-          />
-        </span>
-      </Case>,
-    );
-  if (a.ranger && (folders.length > 0 || item.folder))
+    cases.push(<CaseVisibilite key="h" id={`${id}-h`} item={item} a={a} />);
+  const ranger = a.ranger;
+  if (ranger && (folders.length > 0 || item.folder))
     cases.push(
       <Case key="d" titre="Dossier" htmlFor={`${id}-d`}>
         <SelectField
           id={`${id}-d`}
           value={item.folder?.id ?? ''}
-          onValueChange={(v) => a.ranger!(item, v || null)}
+          onValueChange={(v) => ranger(item, v || null)}
           className="h-8 max-w-40 px-2 text-xs"
           options={[
             { valeur: '', nom: 'Sans dossier' },
@@ -366,19 +410,7 @@ function Reglages({
         />
       </Case>,
     );
-  if (item.poids)
-    cases.push(
-      <Case key="p" titre={item.poids.champ.nom}>
-        <span className="font-mono text-sm tabular-nums">
-          {item.poids.unitaire * item.quantite}
-          {item.quantite > 1 && (
-            <span className="ml-1 text-xs text-subtle">
-              ({item.poids.unitaire} × {item.quantite})
-            </span>
-          )}
-        </span>
-      </Case>,
-    );
+  if (item.poids) cases.push(<CasePoids key="p" item={item} poids={item.poids} />);
   if (!cases.length) return null;
   return (
     <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border sm:grid-cols-2 [&>*]:border-b [&>*]:border-border sm:[&>*:nth-child(odd)]:border-r">

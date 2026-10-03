@@ -67,6 +67,33 @@ export function libelleObjet(item: InventoryItem, meta: string | null): string {
     .join(', ');
 }
 
+/** Infobulle d'une tuile : nom et exemplaire, quantité et état, bonus appliqués. */
+function InfoObjet({ item, meta }: Readonly<{ item: InventoryItem; meta: string | null }>) {
+  const bonus = item.bonus.filter((b) => !b.ignore);
+  const details = [
+    item.sorte.quantites || item.quantite > 1 ? `×${item.quantite}` : null,
+    meta,
+    etatRangement(item),
+    item.hidden ? 'Caché aux autres joueurs' : null,
+  ].filter(Boolean);
+  return (
+    <span className="block max-w-56 space-y-0.5 text-left">
+      <span className="block font-medium">
+        {item.nom}
+        {item.exemplaireLabel && (
+          <span className="ml-1 font-normal opacity-70">{item.exemplaireLabel}</span>
+        )}
+      </span>
+      {details.length > 0 && (
+        <span className="block text-xs opacity-80">{details.join(' · ')}</span>
+      )}
+      {bonus.length > 0 && (
+        <span className="block text-xs text-primary">{bonus.map((b) => b.texte).join(' · ')}</span>
+      )}
+    </span>
+  );
+}
+
 export function ItemTile({
   item,
   icone: Icone,
@@ -91,13 +118,6 @@ export function ItemTile({
 }>) {
   const equipe = item.sorte.activable && item.actif;
   const range = item.sorte.activable && !item.actif;
-  const bonus = item.bonus.filter((b) => !b.ignore);
-  const details = [
-    item.sorte.quantites || item.quantite > 1 ? `×${item.quantite}` : null,
-    meta,
-    etatRangement(item),
-    item.hidden ? 'Caché aux autres joueurs' : null,
-  ].filter(Boolean);
 
   function menu(e: MouseEvent) {
     e.preventDefault();
@@ -116,26 +136,7 @@ export function ItemTile({
   }
 
   return (
-    <Info
-      texte={
-        <span className="block max-w-56 space-y-0.5 text-left">
-          <span className="block font-medium">
-            {item.nom}
-            {item.exemplaireLabel && (
-              <span className="ml-1 font-normal opacity-70">{item.exemplaireLabel}</span>
-            )}
-          </span>
-          {details.length > 0 && (
-            <span className="block text-xs opacity-80">{details.join(' · ')}</span>
-          )}
-          {bonus.length > 0 && (
-            <span className="block text-xs text-primary">
-              {bonus.map((b) => b.texte).join(' · ')}
-            </span>
-          )}
-        </span>
-      }
-    >
+    <Info texte={<InfoObjet item={item} meta={meta} />}>
       <button
         type="button"
         data-tile={item.cle}
