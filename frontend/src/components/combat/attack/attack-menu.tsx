@@ -108,12 +108,9 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
 
   const draft = flow.draft;
   const composing = flow.phase === 'compose';
-  const loading = ctx.loading || !ctx.systeme || (Boolean(draft.attackerId) && model.sheet.loading);
+  const loading = menuLoading(ctx, model, draft.attackerId);
   // Le rapport d'une attaque calculée ici remplace l'attaque locale : déjà dévoilée
-  const revealed =
-    flow.phase === 'declared' &&
-    revealedId !== null &&
-    (revealedId === flow.attack.id || revealedId === flow.previousId);
+  const revealed = isRevealed(flow, revealedId);
   const stage =
     menuStage(flow, { actionCount: loading ? 2 : model.actions.length, revealed }) ?? 'action';
   const minimized = isMinimized(flow);
@@ -121,10 +118,7 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
   const instant = reduced || !attack || model.liveAttackId !== attack.id;
 
   const nextStep = attack ? stepToLaunch(attack) : null;
-  const damageStep =
-    stage === 'roll' && nextStep?.params?.length && (revealed || instant) ? nextStep : null;
-  let screen: Screen = damageStep ? 'damage' : 'roll';
-  if (stage === 'action' || stage === 'prepare') screen = 'compose';
+  const { screen, damageStep } = screenOf(stage, nextStep, revealed || instant);
   // Écran des dégâts affichable : l'étape, la fiche et le système sont là
   const degatsPrets = Boolean(
     screen === 'damage' && attack && damageStep && ctx.systeme && model.fiche,
@@ -163,36 +157,27 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
     }
   };
 
-  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    if (e.defaultPrevented || e.altKey || e.repeat) return;
-    const target = e.target as HTMLElement;
-    const typing = Boolean(target.closest(TYPING));
-    const mods = e.metaKey || e.ctrlKey || e.shiftKey;
-    if (typing) {
-      if (screen === 'compose' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        void model.submit();
-      }
-      return;
-    }
-    if (!mods && shortcutCode(e) === 'KeyV' && canAimNow && screen === 'compose') {
+  /** Dans un champ : ⌘/Ctrl+Entrée lance l'attaque en composition, le reste est à la saisie. */
+  function onTypingKey(e: KeyboardEvent<HTMLDivElement>) {
+    if (screen === 'compose' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      aim();
-      return;
+      void model.submit();
     }
-    // 1 à 9 : les cartes numérotées de l'écran (types d'attaque, armes, actions)
-    const digit = !mods ? /^(?:Digit|Numpad)([1-9])$/.exec(e.code) : null;
-    if (digit && (screen === 'compose' || screen === 'damage')) {
-      const card = contentRef.current?.querySelector<HTMLButtonElement>(
-        `main [data-shortcut="${digit[1]}"]:not(:disabled)`,
-      );
-      if (card) {
-        e.preventDefault();
-        card.click();
-      }
-      return;
+  }
+
+  /** 1 à 9 : les cartes numérotées de l'écran (types d'attaque, armes, actions). */
+  function onDigitKey(e: KeyboardEvent<HTMLDivElement>, digit: string) {
+    const card = contentRef.current?.querySelector<HTMLButtonElement>(
+      `main [data-shortcut="${digit}"]:not(:disabled)`,
+    );
+    if (card) {
+      e.preventDefault();
+      card.click();
     }
-    if (e.key !== 'Enter') return;
+  }
+
+  /** Entrée : lance l'attaque, ou l'étape suivante qui n'attend pas de paramètres. */
+  function onEnterKey(e: KeyboardEvent<HTMLDivElement>, target: HTMLElement) {
     const forced = e.metaKey || e.ctrlKey;
     if (!forced && target.closest(PRESSABLE)) return;
     if (screen === 'compose' && composing) {
@@ -204,21 +189,28 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
     }
   }
 
-  const fc: ContexteFiche | null =
-    model.fiche && ctx.systeme && draft.attackerId
-      ? {
-          systeme: ctx.systeme,
-          presentation: ctx.presentation,
-          fiche: model.fiche,
-          personnage: {
-            id: draft.attackerId,
-            name: model.sheet.name ?? ctx.known.get(draft.attackerId)?.name ?? 'Personnage',
-            roomId: ctx.campagne?.id ?? null,
-          },
-          mj: ctx.gm,
-        }
-      : null;
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.defaultPrevented || e.altKey || e.repeat) return;
+    const target = e.target as HTMLElement;
+    const mods = e.metaKey || e.ctrlKey || e.shiftKey;
+    if (target.closest(TYPING)) {
+      onTypingKey(e);
+      return;
+    }
+    if (!mods && shortcutCode(e) === 'KeyV' && canAimNow && screen === 'compose') {
+      e.preventDefault();
+      aim();
+      return;
+    }
+    const digit = !mods ? /^(?:Digit|Numpad)([1-9])$/.exec(e.code) : null;
+    if (digit && (screen === 'compose' || screen === 'damage')) {
+      onDigitKey(e, digit[1]!);
+      return;
+    }
+    if (e.key === 'Enter') onEnterKey(e, target);
+  }
 
+  const fc = ficheContext(ctx, model, draft.attackerId);
   return (
     <>
       <DialogPrimitive.Root
@@ -299,42 +291,24 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
                     }
                     className="px-4 py-5 sm:px-10 sm:py-8"
                   >
-                    {screen === 'compose' && (
-                      <ComposeBody
-                        ctx={ctx}
-                        flow={flow}
-                        model={model}
-                        loading={loading}
-                        canAim={canAimNow}
-                        onAim={aim}
-                      />
-                    )}
-                    {degatsPrets && attack && damageStep && ctx.systeme && model.fiche && (
-                      <StepDamage
-                        key={damageStep.id}
-                        attack={attack}
-                        stepParams={damageStep.params ?? []}
-                        ctx={ctx}
-                        systeme={ctx.systeme}
-                        presentation={ctx.presentation}
-                        fiche={model.fiche}
-                        launching={launching}
-                        onLaunch={(params) => void launchNext(params)}
-                      />
-                    )}
-                    {screen !== 'compose' && !degatsPrets && ctx.systeme && (
-                      <StepRoll
-                        attack={flow.phase === 'submitting' ? null : attack}
-                        ctx={ctx}
-                        systeme={ctx.systeme}
-                        presentation={ctx.presentation}
-                        instant={instant}
-                        revealed={revealed}
-                        onRevealed={() => {
-                          if (flow.phase === 'declared') setRevealedId(flow.attack.id);
-                        }}
-                      />
-                    )}
+                    <ScreenContent
+                      screen={screen}
+                      ctx={ctx}
+                      flow={flow}
+                      model={model}
+                      loading={loading}
+                      canAim={canAimNow}
+                      onAim={aim}
+                      damage={degatsPrets ? damageStep : null}
+                      attack={attack}
+                      launching={launching}
+                      onLaunch={(params) => void launchNext(params)}
+                      instant={instant}
+                      revealed={revealed}
+                      onRevealed={() => {
+                        if (flow.phase === 'declared') setRevealedId(flow.attack.id);
+                      }}
+                    />
                   </motion.div>
                 </AnimatePresence>
               </main>
@@ -364,6 +338,127 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
           quick={isQuickAim(flow)}
           onDone={() => attackMenu.dispatch({ type: 'aim', on: false })}
           onCancel={() => attackMenu.dispatch({ type: 'aimCancel' })}
+        />
+      )}
+    </>
+  );
+}
+
+type LaunchStep = ReturnType<typeof stepToLaunch>;
+type Stage = NonNullable<ReturnType<typeof menuStage>>;
+
+/** Contexte, système ou fiche de l'attaquant encore en chargement. */
+function menuLoading(ctx: AttackContext, model: AttackModel, attackerId: string | null): boolean {
+  return ctx.loading || !ctx.systeme || (Boolean(attackerId) && model.sheet.loading);
+}
+
+/** Résultat déjà dévoilé : celui de l'attaque, ou de l'attaque locale qu'elle remplace. */
+function isRevealed(flow: OpenFlow, revealedId: string | null): boolean {
+  return (
+    flow.phase === 'declared' &&
+    revealedId !== null &&
+    (revealedId === flow.attack.id || revealedId === flow.previousId)
+  );
+}
+
+/** Écran à montrer, et l'étape des dégâts à paramétrer une fois le jet montré. */
+function screenOf(
+  stage: Stage,
+  nextStep: LaunchStep,
+  shown: boolean,
+): { screen: Screen; damageStep: LaunchStep } {
+  const damageStep = stage === 'roll' && nextStep?.params?.length && shown ? nextStep : null;
+  if (stage === 'action' || stage === 'prepare') return { screen: 'compose', damageStep };
+  return { screen: damageStep ? 'damage' : 'roll', damageStep };
+}
+
+/** Contexte de fiche de l'attaquant (en-tête), dès que sa fiche et le système sont là. */
+function ficheContext(
+  ctx: AttackContext,
+  model: AttackModel,
+  attackerId: string | null,
+): ContexteFiche | null {
+  if (!model.fiche || !ctx.systeme || !attackerId) return null;
+  return {
+    systeme: ctx.systeme,
+    presentation: ctx.presentation,
+    fiche: model.fiche,
+    personnage: {
+      id: attackerId,
+      name: model.sheet.name ?? ctx.known.get(attackerId)?.name ?? 'Personnage',
+      roomId: ctx.campagne?.id ?? null,
+    },
+    mj: ctx.gm,
+  };
+}
+
+/** Contenu de l'écran : composition, dégâts à paramétrer, ou le jet et son résultat. */
+function ScreenContent({
+  screen,
+  ctx,
+  flow,
+  model,
+  loading,
+  canAim,
+  onAim,
+  damage,
+  attack,
+  launching,
+  onLaunch,
+  instant,
+  revealed,
+  onRevealed,
+}: Readonly<{
+  screen: Screen;
+  ctx: AttackContext;
+  flow: OpenFlow;
+  model: AttackModel;
+  loading: boolean;
+  canAim: boolean;
+  onAim(): void;
+  /** Étape des dégâts, quand son écran est affichable. */
+  damage: LaunchStep;
+  attack: ReturnType<typeof useDeclaredAttack>;
+  launching: boolean;
+  onLaunch(params: Record<string, Valeur>): void;
+  instant: boolean;
+  revealed: boolean;
+  onRevealed(): void;
+}>) {
+  return (
+    <>
+      {screen === 'compose' && (
+        <ComposeBody
+          ctx={ctx}
+          flow={flow}
+          model={model}
+          loading={loading}
+          canAim={canAim}
+          onAim={onAim}
+        />
+      )}
+      {damage && attack && ctx.systeme && model.fiche && (
+        <StepDamage
+          key={damage.id}
+          attack={attack}
+          stepParams={damage.params ?? []}
+          ctx={ctx}
+          systeme={ctx.systeme}
+          presentation={ctx.presentation}
+          fiche={model.fiche}
+          launching={launching}
+          onLaunch={onLaunch}
+        />
+      )}
+      {screen !== 'compose' && !damage && ctx.systeme && (
+        <StepRoll
+          attack={flow.phase === 'submitting' ? null : attack}
+          ctx={ctx}
+          systeme={ctx.systeme}
+          presentation={ctx.presentation}
+          instant={instant}
+          revealed={revealed}
+          onRevealed={onRevealed}
         />
       )}
     </>
@@ -560,36 +655,7 @@ function Footer({
     }
   }
 
-  if (screen === 'compose') {
-    // Cartes du type d'attaque : chacune lance, pas de bouton en plus
-    const cards =
-      model.action && model.systeme && model.fiche
-        ? typeCardParam(model.systeme, model.action, model.fiche)
-        : null;
-    if (!model.action || cards || !flow.draft.attackerId) return null;
-    const retry = flow.phase === 'compose' && flow.retryKey;
-    const n = flow.draft.targetIds.length;
-    return (
-      <Bar className="justify-end">
-        <LaunchButton
-          size="lg"
-          enter
-          busy={model.busy}
-          disabled={Boolean(model.disabledReason)}
-          onClick={() => void model.submit()}
-          className="w-full sm:w-auto sm:min-w-[16rem]"
-        >
-          {retry ? 'Réessayer' : 'Lancer l’attaque'}
-          {n > 1 && <span className="normal-case tracking-normal opacity-80">· {n} cibles</span>}
-          {model.preview && (
-            <span className="max-w-[12rem] truncate normal-case tracking-normal opacity-90">
-              <PreviewText preview={model.preview} presentation={ctx.presentation} compact />
-            </span>
-          )}
-        </LaunchButton>
-      </Bar>
-    );
-  }
+  if (screen === 'compose') return <ComposeBar ctx={ctx} flow={flow} model={model} />;
 
   if (!attack) return null;
   const s = declaredStage(attack);
@@ -611,33 +677,15 @@ function Footer({
     </Button>
   );
 
-  if (stage === 'roll' && (s === 'reactions' || s === 'dice')) {
-    const waiting = awaitingReaction(attack);
+  if (stage === 'roll' && (s === 'reactions' || s === 'dice'))
     return (
       <Bar>
         {abandon}
-        {ctx.gm && s === 'reactions' && waiting.length > 0 && (
-          <Button
-            variant="secondary"
-            loading={busy === 'skip'}
-            onClick={() =>
-              void run('skip', async () => {
-                let last = attack;
-                for (const t of waiting)
-                  last = await model.commands.react(attack.id, {
-                    characterId: t.characterId,
-                    skip: true,
-                  });
-                return { type: 'attackUpdated', attack: last };
-              })
-            }
-          >
-            <Shield /> Passer les défenses
-          </Button>
+        {ctx.gm && s === 'reactions' && (
+          <SkipDefences attack={attack} model={model} busy={busy} run={run} />
         )}
       </Bar>
     );
-  }
 
   const next = stepToLaunch(attack);
   // Écran des dégâts : chaque carte lance ; il ne reste qu'à abandonner
@@ -660,6 +708,97 @@ function Footer({
   if (stage !== 'end') return null;
 
   // Fin : statut du rapport, puis la suite
+  return <EndBar ctx={ctx} flow={flow} attack={attack} onClose={onClose} />;
+}
+
+type Run = (
+  label: string,
+  fn: () => Promise<Parameters<typeof attackMenu.dispatch>[0]>,
+) => Promise<void>;
+
+/** Composition : « Lancer l'attaque », sauf quand les cartes du type d'attaque lancent seules. */
+function ComposeBar({
+  ctx,
+  flow,
+  model,
+}: Readonly<{ ctx: AttackContext; flow: OpenFlow; model: AttackModel }>) {
+  // Cartes du type d'attaque : chacune lance, pas de bouton en plus
+  const cards =
+    model.action && model.systeme && model.fiche
+      ? typeCardParam(model.systeme, model.action, model.fiche)
+      : null;
+  if (!model.action || cards || !flow.draft.attackerId) return null;
+  const retry = flow.phase === 'compose' && flow.retryKey;
+  const n = flow.draft.targetIds.length;
+  return (
+    <Bar className="justify-end">
+      <LaunchButton
+        size="lg"
+        enter
+        busy={model.busy}
+        disabled={Boolean(model.disabledReason)}
+        onClick={() => void model.submit()}
+        className="w-full sm:w-auto sm:min-w-[16rem]"
+      >
+        {retry ? 'Réessayer' : 'Lancer l’attaque'}
+        {n > 1 && <span className="normal-case tracking-normal opacity-80">· {n} cibles</span>}
+        {model.preview && (
+          <span className="max-w-[12rem] truncate normal-case tracking-normal opacity-90">
+            <PreviewText preview={model.preview} presentation={ctx.presentation} compact />
+          </span>
+        )}
+      </LaunchButton>
+    </Bar>
+  );
+}
+
+/** Le MJ passe la défense des cibles qui n'ont pas encore répondu. */
+function SkipDefences({
+  attack,
+  model,
+  busy,
+  run,
+}: Readonly<{
+  attack: NonNullable<ReturnType<typeof useDeclaredAttack>>;
+  model: AttackModel;
+  busy: string | null;
+  run: Run;
+}>) {
+  const waiting = awaitingReaction(attack);
+  if (waiting.length === 0) return null;
+  return (
+    <Button
+      variant="secondary"
+      loading={busy === 'skip'}
+      onClick={() =>
+        void run('skip', async () => {
+          let last = attack;
+          for (const t of waiting)
+            last = await model.commands.react(attack.id, {
+              characterId: t.characterId,
+              skip: true,
+            });
+          return { type: 'attackUpdated', attack: last };
+        })
+      }
+    >
+      <Shield /> Passer les défenses
+    </Button>
+  );
+}
+
+/** Fin : statut du rapport, puis terminer, nouvelle attaque, mêmes cibles ou attaquant suivant. */
+function EndBar({
+  ctx,
+  flow,
+  attack,
+  onClose,
+}: Readonly<{
+  ctx: AttackContext;
+  flow: OpenFlow;
+  attack: NonNullable<ReturnType<typeof useDeclaredAttack>>;
+  onClose: () => void;
+}>) {
   return (
     <Bar className="flex-col items-stretch gap-3 lg:flex-row lg:items-center">
       <div className="lg:mr-auto">
