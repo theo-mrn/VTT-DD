@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { DiceSkin, CriticalType } from './dice-definitions';
@@ -50,6 +50,47 @@ const inkGlow = (skin: DiceSkin) => {
   if (skin.effectType === 'orb') return 1;
   return isVoidSkin(skin) ? 0.9 : 0.12;
 };
+
+/** Liseré dans le shader : dés éclairés à liseré, hors aperçu simple et orbes. */
+const rimFor = (skin: DiceSkin, simple: boolean, orb: boolean) =>
+  skin.rimLight && !simple && !orb ? rimShaderColor(skin) : undefined;
+
+/** Symboles posés sur les faces d'un dé à symboles (ni aperçu simple, ni dé brisé) ; sinon null. */
+function faceSymbolNodes({
+  faces,
+  faceSymbols,
+  labels,
+  type,
+  skin,
+  simple,
+  isShattered,
+}: {
+  faces: ReturnType<typeof dieShape>['faces'];
+  faceSymbols: Die3DSymbol[][] | undefined;
+  labels: FadingLabels;
+  type: string;
+  skin: DiceSkin;
+  simple: boolean;
+  isShattered: boolean;
+}): ReactNode[] | null {
+  if (!faceSymbols || simple || isShattered) return null;
+  return faces.map((face, index) =>
+    faceSymbols[index]?.length ? (
+      <FaceSymbol
+        key={index}
+        face={face}
+        index={index}
+        labels={labels}
+        symbols={faceSymbols[index]!}
+        scale={type === 'd20' ? 0.45 : 0.7}
+        color={skin.effectType === 'orb' ? '#ffffff' : skin.textColor}
+        outlineColor={skin.shadowColor}
+        radius={skin.effectType === 'orb' ? 0.92 : 1.01}
+        maxOpacity={skin.effectType === 'orb' ? 0.85 : 1}
+      />
+    ) : null,
+  );
+}
 
 // Visual Die Component (Pure Rendering). The parent handles positioning /
 // rotation via a Group, so this just renders the mesh + effects at 0,0,0.
@@ -106,7 +147,7 @@ export const VisualDie = React.forwardRef(
     const glow = inkGlow(skin);
     const ink = skin.effectType === 'orb' ? '#ffffff' : skin.textColor;
     const orb = skin.effectType === 'orb';
-    const rim = skin.rimLight && !simple && !orb ? rimShaderColor(skin) : undefined;
+    const rim = rimFor(skin, simple, orb);
     const engraving = useMemo<EngravingProps | undefined>(
       () =>
         faceSymbols
@@ -143,25 +184,18 @@ export const VisualDie = React.forwardRef(
       amount.value = Math.min(hiTarget.current, amount.value + dt * 4);
     });
 
-    const symbols =
-      faceSymbols && !simple && !isShattered
-        ? faces.map((face, index) =>
-            faceSymbols[index]?.length ? (
-              <FaceSymbol
-                key={index}
-                face={face}
-                index={index}
-                labels={labels}
-                symbols={faceSymbols[index]!}
-                scale={type === 'd20' ? 0.45 : 0.7}
-                color={skin.effectType === 'orb' ? '#ffffff' : skin.textColor}
-                outlineColor={skin.shadowColor}
-                radius={skin.effectType === 'orb' ? 0.92 : 1.01}
-                maxOpacity={skin.effectType === 'orb' ? 0.85 : 1}
-              />
-            ) : null,
-          )
-        : null;
+    const symbols = faceSymbolNodes({
+      faces,
+      faceSymbols,
+      labels,
+      type,
+      skin,
+      simple,
+      isShattered,
+    });
+    const critDone = onCritComplete ?? (() => {});
+    const engravingProps = engraving ? { engraving } : {};
+    const rigProps = rig ? { rig } : {};
 
     const fadeDriver = symbols && !labelsFrozen && (
       <FaceFadeDriver
@@ -178,18 +212,14 @@ export const VisualDie = React.forwardRef(
       return (
         <group ref={rootRef}>
           {critType && (
-            <CriticalEffect
-              type={critType}
-              onComplete={onCritComplete ?? (() => {})}
-              flashTarget={flashRef}
-            />
+            <CriticalEffect type={critType} onComplete={critDone} flashTarget={flashRef} />
           )}
           {fadeDriver}
 
           {/* Core renders FIRST (low renderOrder) so the transmissive shell,
                     drawn last, can sample it and refract correctly. */}
           <group renderOrder={0}>
-            <DiceCore skin={skin} {...(rig ? { rig } : {})} />
+            <DiceCore skin={skin} {...rigProps} />
           </group>
 
           {symbols}
@@ -197,12 +227,7 @@ export const VisualDie = React.forwardRef(
           {/* Transparent glass shell (rolls with the die body), drawn LAST; its
                     numbers are engraved in the glass */}
           <group ref={flashRef}>
-            <OrbShell
-              skin={skin}
-              geometry={geometry}
-              {...(engraving ? { engraving } : {})}
-              {...(rig ? { rig } : {})}
-            />
+            <OrbShell skin={skin} geometry={geometry} {...engravingProps} {...rigProps} />
           </group>
         </group>
       );
@@ -212,11 +237,7 @@ export const VisualDie = React.forwardRef(
       <group ref={rootRef}>
         {/* Critical hit/fail effect */}
         {critType && (
-          <CriticalEffect
-            type={critType}
-            onComplete={onCritComplete ?? (() => {})}
-            flashTarget={flashRef}
-          />
+          <CriticalEffect type={critType} onComplete={critDone} flashTarget={flashRef} />
         )}
         {fadeDriver}
 
@@ -229,7 +250,7 @@ export const VisualDie = React.forwardRef(
           <group ref={flashRef}>
             {/* Main die body, numbers engraved */}
             <mesh geometry={geometry}>
-              <TexturedMaterial skin={skin} {...(engraving ? { engraving } : {})} />
+              <TexturedMaterial skin={skin} {...engravingProps} />
             </mesh>
 
             {/* Halo des dés à symboles (sans gravure) : second dé transparent autour ; les
