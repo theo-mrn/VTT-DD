@@ -355,6 +355,33 @@ export function calculer(
     }
   };
 
+  /** Champ `source.x` d'un effet : valeur de l'objet, ou sa formule évaluée sur lui. */
+  const champSource = (p: PossessionEffective, ex: Possession | undefined, c: string): Valeur => {
+    const v = champ(p, c, ex ?? p.possession);
+    const def = p.sorte.champs.find((x) => x.id === c);
+    if (def?.type !== 'formule') return v ?? valeurNeutre(def?.type);
+    // Formule propre de l'exemplaire, sinon celle de l'entrée ; elle lit les champs de l'objet
+    const objet = ex ?? p.possession;
+    const f = formuleChamp(systeme, p.entree, def, objet, etat.type);
+    if (!f) return Number(v) || 0;
+    const lire = variablesObjet(
+      p.entree,
+      p.sorte,
+      {
+        rang: p.rang,
+        actif: ex ? !p.sorte.activable || ex.actif : p.actif,
+        quantite: ex ? quantiteDe(ex) : p.quantite,
+      },
+      objet,
+    );
+    const variable = (n: string): Valeur => {
+      const x = lire(n);
+      if (x === undefined) throw new ErreurEvaluation(`Variable inconnue : ${n}`, 0);
+      return x;
+    };
+    return evaluerSur(f, { variable }, 0, `${p.entree.id}/${c}`);
+  };
+
   /**
    * Variables d'un effet : rang, état et quantité de sa source, champs de la
    * source (ceux de l'exemplaire pour des effets propres à un exemplaire).
@@ -365,33 +392,7 @@ export function calculer(
       if (nom === 'rang') return p.rang;
       if (nom === 'actif') return ex ? !p.sorte.activable || ex.actif : p.actif;
       if (nom === 'quantite') return ex ? quantiteDe(ex) : p.quantite;
-      if (nom.startsWith('source.')) {
-        const c = nom.slice('source.'.length);
-        const v = champ(p, c, ex ?? p.possession);
-        const def = p.sorte.champs.find((x) => x.id === c);
-        if (def?.type === 'formule') {
-          // Formule propre de l'exemplaire, sinon celle de l'entrée ; elle lit les champs de l'objet
-          const objet = ex ?? p.possession;
-          const f = formuleChamp(systeme, p.entree, def, objet, etat.type);
-          const lire = variablesObjet(
-            p.entree,
-            p.sorte,
-            {
-              rang: p.rang,
-              actif: ex ? !p.sorte.activable || ex.actif : p.actif,
-              quantite: ex ? quantiteDe(ex) : p.quantite,
-            },
-            objet,
-          );
-          const variable = (n: string): Valeur => {
-            const x = lire(n);
-            if (x === undefined) throw new ErreurEvaluation(`Variable inconnue : ${n}`, 0);
-            return x;
-          };
-          return f ? evaluerSur(f, { variable }, 0, `${p.entree.id}/${c}`) : Number(v) || 0;
-        }
-        return v ?? valeurNeutre(def?.type);
-      }
+      if (nom.startsWith('source.')) return champSource(p, ex, nom.slice('source.'.length));
       throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
     };
 
@@ -518,22 +519,7 @@ export function calculer(
       return;
     }
     const existante = possessions.get(id);
-    if (existante) {
-      existante.rang += rangs + (possession?.rang ?? 0);
-      if (possession) {
-        // Le premier exemplaire explicite remplace l'état par défaut ; les suivants s'y ajoutent
-        const actif = sorte.activable ? possession.actif : true;
-        existante.actif = existante.exemplaires.length ? existante.actif || actif : actif;
-        existante.quantite = existante.exemplaires.length
-          ? existante.quantite + quantiteDe(possession)
-          : quantiteDe(possession);
-        existante.possession ??= possession;
-        existante.exemplaires.push(possession);
-        existante.achete += possession.rang;
-      }
-      if (!existante.sources.includes(source)) existante.sources.push(source);
-      return;
-    }
+    if (existante) return fusionnerPossession(existante, rangs, source, possession);
     possessions.set(id, {
       entree,
       sorte,
@@ -547,90 +533,97 @@ export function calculer(
     });
   };
 
+  const ajouterNoeuds = (arbreId: string, ids: readonly string[]) => {
+    const arbre = systeme.arbres.get(arbreId);
+    if (!arbre) {
+      erreurs.push({ ou: `noeuds/${arbreId}`, message: `Arbre inconnu : ${arbreId}` });
+      return;
+    }
+    for (const nid of ids) {
+      const n = arbre.noeuds.find((x) => x.id === nid);
+      if (!n) erreurs.push({ ou: `noeuds/${arbreId}`, message: `Nœud inconnu : ${nid}` });
+      else ajouterPossession(n.entree, `${arbreId}/${nid}`, 1);
+    }
+  };
+
   const construirePossessions = (): void => {
     possessions.clear();
     marques.clear();
     for (const p of etat.possessions) ajouterPossession(p.entree, 'etat', 0, p);
 
     // Nœuds d'arbre acquis : un rang par nœud
-    for (const [arbreId, ids] of Object.entries(etat.noeuds)) {
-      const arbre = systeme.arbres.get(arbreId);
-      if (!arbre) {
-        erreurs.push({ ou: `noeuds/${arbreId}`, message: `Arbre inconnu : ${arbreId}` });
-        continue;
-      }
-      for (const nid of ids) {
-        const n = arbre.noeuds.find((x) => x.id === nid);
-        if (!n) erreurs.push({ ou: `noeuds/${arbreId}`, message: `Nœud inconnu : ${nid}` });
-        else ajouterPossession(n.entree, `${arbreId}/${nid}`, 1);
-      }
-    }
+    for (const [arbreId, ids] of Object.entries(etat.noeuds)) ajouterNoeuds(arbreId, ids);
 
     // Choix « possession » des entrées possédées
-    for (const p of [...possessions.values()]) {
-      for (const c of p.entree.choix) {
-        if (c.donne.type !== 'possession') continue;
-        for (const id of p.possession?.choix[c.id] ?? []) ajouterPossession(id, p.entree.id, 0);
-      }
-    }
+    for (const p of [...possessions.values()])
+      for (const c of p.entree.choix)
+        if (c.donne.type === 'possession')
+          for (const id of p.possession?.choix[c.id] ?? []) ajouterPossession(id, p.entree.id, 0);
   };
 
   // Rangs gratuits et marques : peuvent donner de nouvelles possessions, qui ont
   // elles-mêmes des effets. On itère jusqu'à stabilité (borné).
   erreurs.push(...erreursPossessions(systeme, etat));
-  let bonus = new Map<string, { rangs: number; sources: string[] }>();
-  for (let tour = 0; tour < 10; tour++) {
+  type RangsDonnes = Map<string, { rangs: number; sources: string[] }>;
+  const marquer = (id: string, m: string) => {
+    const s = marques.get(id) ?? new Set<string>();
+    s.add(m);
+    marques.set(id, s);
+  };
+  /** Rangs et marques donnés par les effets `rang` et `marque` d'une source active. */
+  const rangsEtMarquesDe = (s: SourceEffets, donner: Donner) => {
+    const vars = { variable: s.variable };
+    s.effets.forEach((f, i) => {
+      if ((f.sur !== 'rang' && f.sur !== 'marque') || s.desactive(i)) return;
+      const cond = s.formule(i, 'condition');
+      if (f.condition !== undefined && !cond) return;
+      if (cond && evaluerSur(cond, vars, false) !== true) return;
+      if (f.sur === 'marque') return f.entrees.forEach((id) => marquer(id, f.marque));
+      const valeurF = s.formule(i, 'valeur');
+      if (valeurF) donner(f.entree, Number(evaluerSur(valeurF, vars)), s.id);
+    });
+  };
+  /** Marques et rangs donnés par les choix d'une possession active. */
+  const choixDonnesPar = (p: PossessionEffective, donner: Donner) => {
+    const vars = { variable: variablesSource(p) };
+    for (const c of p.entree.choix) {
+      const choisis = p.possession?.choix[c.id] ?? [];
+      if (c.donne.type === 'marque') {
+        const m = c.donne.marque;
+        choisis.forEach((id) => marquer(id, m));
+      }
+      if (c.donne.type !== 'rang') continue;
+      const v = Number(evaluerSur(systeme.formule(chemins.choix(p.entree.id, c.id)), vars));
+      choisis.forEach((id) => donner(id, v, `${p.entree.id}/${c.id}`));
+    }
+  };
+  /** Un tour : possessions avec les rangs donnés au tour précédent, puis les rangs qu'elles donnent. */
+  const tourDePossessions = (bonus: RangsDonnes): RangsDonnes => {
     construirePossessions();
     for (const [id, b] of bonus) ajouterPossession(id, b.sources.join(', '), b.rangs);
-
-    const suivant = new Map<string, { rangs: number; sources: string[] }>();
-    const donner = (id: string, rangs: number, source: string) => {
+    const suivant: RangsDonnes = new Map();
+    const donner: Donner = (id, rangs, source) => {
       const b = suivant.get(id) ?? { rangs: 0, sources: [] };
       b.rangs += rangs;
       if (!b.sources.includes(source)) b.sources.push(source);
       suivant.set(id, b);
     };
-    const marquer = (id: string, m: string) => {
-      const s = marques.get(id) ?? new Set<string>();
-      s.add(m);
-      marques.set(id, s);
-    };
-
-    for (const s of sourcesActives()) {
-      const vars = { variable: s.variable };
-      s.effets.forEach((f, i) => {
-        if ((f.sur !== 'rang' && f.sur !== 'marque') || s.desactive(i)) return;
-        const cond = s.formule(i, 'condition');
-        if (f.condition !== undefined && !cond) return;
-        if (cond && evaluerSur(cond, vars, false) !== true) return;
-        if (f.sur === 'marque') return f.entrees.forEach((id) => marquer(id, f.marque));
-        const valeurF = s.formule(i, 'valeur');
-        if (!valeurF) return;
-        donner(f.entree, Number(evaluerSur(valeurF, vars)), s.id);
-      });
+    for (const s of sourcesActives()) rangsEtMarquesDe(s, donner);
+    for (const p of possessions.values()) if (p.actif && estEffective(p)) choixDonnesPar(p, donner);
+    return suivant;
+  };
+  const stabiliserPossessions = () => {
+    let bonus: RangsDonnes = new Map();
+    for (let tour = 0; tour < 10; tour++) {
+      const suivant = tourDePossessions(bonus);
+      const stable =
+        suivant.size === bonus.size &&
+        [...suivant].every(([id, b]) => bonus.get(id)?.rangs === b.rangs);
+      bonus = suivant;
+      if (stable) return;
     }
-    for (const p of possessions.values()) {
-      if (!p.actif || !estEffective(p)) continue;
-      const vars = { variable: variablesSource(p) };
-      for (const c of p.entree.choix) {
-        const choisis = p.possession?.choix[c.id] ?? [];
-        if (c.donne.type === 'marque') {
-          const m = c.donne.marque;
-          choisis.forEach((id) => marquer(id, m));
-        }
-        if (c.donne.type === 'rang') {
-          const v = Number(evaluerSur(systeme.formule(chemins.choix(p.entree.id, c.id)), vars));
-          choisis.forEach((id) => donner(id, v, `${p.entree.id}/${c.id}`));
-        }
-      }
-    }
-
-    const stable =
-      suivant.size === bonus.size &&
-      [...suivant].every(([id, b]) => bonus.get(id)?.rangs === b.rangs);
-    bonus = suivant;
-    if (stable) break;
-  }
+  };
+  stabiliserPossessions();
 
   // ─── 2. Effets sur les attributs ──────────────────────────────────────────
 
@@ -653,7 +646,7 @@ export function calculer(
   };
   const sources = sourcesActives();
   const rangDans = (cle: string) => entite.ordre.indexOf(cle);
-  for (const s of sources) {
+  const effetsAttributsDe = (s: SourceEffets) =>
     s.effets.forEach((f, i) => {
       if (f.sur !== 'attribut') return;
       const valeurF = s.formule(i, 'valeur');
@@ -683,10 +676,9 @@ export function calculer(
         ...(s.desactive(i) ? { desactive: true } : {}),
       });
     });
-  }
-  for (const p of possessions.values()) {
-    if (!p.actif || !estEffective(p)) continue;
-    // Choix d'attributs : un effet par attribut retenu
+  for (const s of sources) effetsAttributsDe(s);
+  /** Choix d'attributs d'une possession : un effet par attribut retenu. */
+  const effetsChoixAttributs = (p: PossessionEffective) => {
     for (const c of p.entree.choixAttributs) {
       const retenus = p.possession?.choix[c.id] ?? [];
       const proposes = (cle: string) => {
@@ -729,10 +721,12 @@ export function calculer(
         });
       }
     }
-  }
+  };
+  for (const p of possessions.values()) if (p.actif && estEffective(p)) effetsChoixAttributs(p);
 
-  const appliquerEffets = (cle: string, depart: Valeur, detail: LigneExplication[]): Valeur => {
-    const actifs: { op: Operation; v: Valeur; famille?: string; ligne: LigneExplication }[] = [];
+  /** Effets d'un attribut dont la condition est remplie : comptés, ou coupés à la main. */
+  const lireEffets = (cle: string) => {
+    const actifs: EffetLu[] = [];
     const coupees: LigneExplication[] = [];
     for (const e of effetsPar.get(cle) ?? []) {
       const vars = { variable: e.variable };
@@ -751,32 +745,12 @@ export function calculer(
       }
       actifs.push({ op: e.operation, v, ...(e.famille ? { famille: e.famille } : {}), ligne });
     }
-
-    // Familles : dans une même famille et une même opération, seul le plus fort compte
-    const meilleurs = new Map<string, (typeof actifs)[number]>();
-    for (const a of actifs) {
-      if (!a.famille) continue;
-      const k = `${a.op}/${a.famille}`;
-      const m = meilleurs.get(k);
-      const plusFort = a.op === 'maximum' ? Number(a.v) < Number(m?.v) : Number(a.v) > Number(m?.v);
-      if (!m || plusFort) meilleurs.set(k, a);
-    }
-    for (const a of actifs) {
-      if (a.famille && meilleurs.get(`${a.op}/${a.famille}`) !== a) a.ligne.ignore = true;
-    }
-
-    let v = depart;
-    for (const phase of PHASES) {
-      for (const a of actifs) {
-        if (a.op !== phase || a.ligne.ignore) continue;
-        detail.push(a.ligne);
-        if (phase === 'fixer') v = a.v;
-        else if (phase === 'ajouter') v = Number(v) + Number(a.v);
-        else if (phase === 'multiplier') v = Number(v) * Number(a.v);
-        else if (phase === 'minimum') v = Math.max(Number(v), Number(a.v));
-        else v = Math.min(Number(v), Number(a.v));
-      }
-    }
+    return { actifs, coupees };
+  };
+  const appliquerEffets = (cle: string, depart: Valeur, detail: LigneExplication[]): Valeur => {
+    const { actifs, coupees } = lireEffets(cle);
+    ignorerPlusFaibles(actifs);
+    const v = combiner(depart, actifs, detail);
     detail.push(...actifs.filter((a) => a.ligne.ignore).map((a) => a.ligne), ...coupees);
     return v;
   };
@@ -805,14 +779,43 @@ export function calculer(
     return r;
   };
 
-  for (const cle of entite.ordre) {
-    const a = entite.attributs.get(cle)!;
-    // Option éteinte : l'attribut n'est pas sur la fiche (sa valeur saisie reste dans l'état)
-    if (!optionPermet(a, options)) continue;
-    const detail: LigneExplication[] = [];
-    const stocke = etat.valeurs[cle];
-    const calcule: ValeurCalculee = { cle, valeur: 0, detail };
+  /** Ressource : maximum (effets compris), minimum, valeur courante ou initiale, bornée. */
+  const calculerRessource = (
+    a: Extract<Attribut, { nature: 'ressource' }>,
+    stocke: Valeur | undefined,
+    calcule: ValeurCalculee,
+  ) => {
+    const cle = a.cle;
+    // Les effets sur une ressource modifient son maximum
+    const lignesMax: LigneExplication[] = [];
+    const max0 = Number(evaluerSur(formuleDe(a, 'max')!, {}, 0, cle));
+    lignesMax.push({
+      source: 'formule',
+      nom: `Maximum : ${a.max}`,
+      operation: 'formule',
+      valeur: max0,
+    });
+    const max = Number(appliquerEffets(cle, max0, lignesMax));
+    const min = Number(evaluerSur(formuleDe(a, 'min')!, {}, 0, cle));
+    calcule.max = max;
+    calcule.min = min;
+    let initiale: number;
+    if (a.initiale === 'max') initiale = max;
+    else if (a.initiale === 'min') initiale = min;
+    else initiale = Number(evaluerSur(formuleDe(a, 'initiale')!, {}, 0, cle));
+    const courante = typeof stocke === 'number' ? stocke : initiale;
+    calcule.detail.push(...lignesMax);
+    calcule.valeur = borner(
+      courante,
+      min,
+      a.plafonnee ? Math.max(min, max) : undefined,
+      calcule.detail,
+    );
+  };
 
+  /** Valeur d'un attribut selon sa nature : saisie, formule ou ressource, effets compris. */
+  const calculerNature = (a: Attribut, stocke: Valeur | undefined, calcule: ValeurCalculee) => {
+    const { cle, detail } = calcule;
     switch (a.nature) {
       case 'base': {
         const min = formuleDe(a, 'min');
@@ -823,56 +826,27 @@ export function calculer(
         const base = borner(brut, calcule.min, calcule.max, []);
         detail.push({ source: 'base', nom: a.nom, operation: 'base', valeur: base });
         calcule.valeur = appliquerEffets(cle, base, detail);
-        break;
+        return;
       }
       case 'derivee': {
         const v = evaluerSur(formuleDe(a, 'formule')!, {}, valeurNeutre(a.type), cle);
         detail.push({ source: 'formule', nom: a.formule, operation: 'formule', valeur: v });
         calcule.valeur = appliquerEffets(cle, v, detail);
-        break;
+        return;
       }
-      case 'ressource': {
-        // Les effets sur une ressource modifient son maximum
-        const lignesMax: LigneExplication[] = [];
-        const max0 = Number(evaluerSur(formuleDe(a, 'max')!, {}, 0, cle));
-        lignesMax.push({
-          source: 'formule',
-          nom: `Maximum : ${a.max}`,
-          operation: 'formule',
-          valeur: max0,
-        });
-        const max = Number(appliquerEffets(cle, max0, lignesMax));
-        const min = Number(evaluerSur(formuleDe(a, 'min')!, {}, 0, cle));
-        calcule.max = max;
-        calcule.min = min;
-        let initiale: number;
-        if (a.initiale === 'max') initiale = max;
-        else if (a.initiale === 'min') initiale = min;
-        else initiale = Number(evaluerSur(formuleDe(a, 'initiale')!, {}, 0, cle));
-        const courante = typeof stocke === 'number' ? stocke : initiale;
-        detail.push(...lignesMax);
-        calcule.valeur = borner(
-          courante,
-          min,
-          a.plafonnee ? Math.max(min, max) : undefined,
-          detail,
-        );
-        break;
-      }
+      case 'ressource':
+        return calculerRessource(a, stocke, calcule);
       case 'texte':
         calcule.valeur = appliquerEffets(
           cle,
           typeof stocke === 'string' ? stocke : a.defaut,
           detail,
         );
-        break;
+        return;
       case 'choix': {
-        const v =
-          typeof stocke === 'string' && a.options.some((o) => o.valeur === stocke)
-            ? stocke
-            : (a.defaut ?? '');
-        calcule.valeur = appliquerEffets(cle, v, detail);
-        break;
+        const connue = typeof stocke === 'string' && a.options.some((o) => o.valeur === stocke);
+        calcule.valeur = appliquerEffets(cle, connue ? stocke : (a.defaut ?? ''), detail);
+        return;
       }
       case 'booleen':
         calcule.valeur = appliquerEffets(
@@ -880,50 +854,49 @@ export function calculer(
           typeof stocke === 'boolean' ? stocke : a.defaut,
           detail,
         );
-        break;
     }
+  };
 
-    if (
-      (a.nature === 'base' || a.nature === 'derivee') &&
-      a.modificateur !== undefined &&
-      a.modificateur !== false
-    ) {
-      const f =
-        a.modificateur === true
-          ? systeme.formules.get(chemins.modificateurSysteme())
-          : formuleDe(a, 'modificateur');
-      const v = calcule.valeur;
-      if (f)
-        calcule.modificateur = Number(
-          evaluerSur(f, { variable: (nom) => (nom === 'valeur' ? v : 0) }, 0, cle),
-        );
-    }
+  /** Modificateur d'un attribut numérique : formule du système (`true`) ou la sienne. */
+  const modificateurDe = (a: Attribut, v: Valeur): number | undefined => {
+    if (a.nature !== 'base' && a.nature !== 'derivee') return undefined;
+    if (a.modificateur === undefined || a.modificateur === false) return undefined;
+    const f =
+      a.modificateur === true
+        ? systeme.formules.get(chemins.modificateurSysteme())
+        : formuleDe(a, 'modificateur');
+    if (!f) return undefined;
+    return Number(evaluerSur(f, { variable: (nom) => (nom === 'valeur' ? v : 0) }, 0, a.cle));
+  };
 
-    valeurs.set(cle, calcule);
+  const calculerAttribut = (a: Attribut) => {
+    const calcule: ValeurCalculee = { cle: a.cle, valeur: 0, detail: [] };
+    calculerNature(a, etat.valeurs[a.cle], calcule);
+    const modificateur = modificateurDe(a, calcule.valeur);
+    if (modificateur !== undefined) calcule.modificateur = modificateur;
+    valeurs.set(a.cle, calcule);
+  };
+  // Option éteinte : l'attribut n'est pas sur la fiche (sa valeur saisie reste dans l'état)
+  for (const cle of entite.ordre) {
+    const a = entite.attributs.get(cle)!;
+    if (optionPermet(a, options)) calculerAttribut(a);
   }
 
   // ─── 4. Apport aux jets libres, une fois tous les attributs connus ────────
 
+  const apportAuJet = (a: Attribut, v: ValeurCalculee, apport: string): number => {
+    if (apport === 'modificateur') return v.modificateur ?? 0;
+    if (apport === 'valeur') return typeof v.valeur === 'number' ? v.valeur : 0;
+    const f = formuleDe(a, 'jet');
+    return f ? Number(evaluerSur(f, {}, 0, a.cle)) : 0;
+  };
   for (const a of entite.attributs.values()) {
-    if (!('jet' in a) || !a.jet) continue;
     const v = valeurs.get(a.cle);
-    if (!v) continue;
-    const apport = a.jet.apport;
-    if (apport === 'modificateur') v.jet = v.modificateur ?? 0;
-    else if (apport === 'valeur') v.jet = typeof v.valeur === 'number' ? v.valeur : 0;
-    else {
-      const f = formuleDe(a, 'jet');
-      v.jet = f ? Number(evaluerSur(f, {}, 0, a.cle)) : 0;
-    }
+    if ('jet' in a && a.jet && v) v.jet = apportAuJet(a, v, a.jet.apport);
   }
 
   // La construction des possessions est itérée : on ne garde chaque erreur qu'une fois
-  const vues = new Set<string>();
-  const uniques = erreurs.filter((e) => {
-    const k = `${e.ou}\n${e.message}`;
-    return !vues.has(k) && vues.add(k);
-  });
-  erreurs.splice(0, erreurs.length, ...uniques);
+  erreurs.splice(0, erreurs.length, ...sansDoublons(erreurs));
 
   return {
     systeme,
@@ -955,6 +928,92 @@ export function calculer(
   };
 }
 
+/** Possession déjà présente : ses rangs, son exemplaire et sa source s'ajoutent. */
+function fusionnerPossession(
+  existante: PossessionEffective,
+  rangs: number,
+  source: string,
+  possession: Possession | undefined,
+): void {
+  existante.rang += rangs + (possession?.rang ?? 0);
+  if (possession) {
+    // Le premier exemplaire explicite remplace l'état par défaut ; les suivants s'y ajoutent
+    const actif = existante.sorte.activable ? possession.actif : true;
+    const premier = !existante.exemplaires.length;
+    existante.actif = premier ? actif : existante.actif || actif;
+    existante.quantite = premier
+      ? quantiteDe(possession)
+      : existante.quantite + quantiteDe(possession);
+    existante.possession ??= possession;
+    existante.exemplaires.push(possession);
+    existante.achete += possession.rang;
+  }
+  if (!existante.sources.includes(source)) existante.sources.push(source);
+}
+
+/** Effet lu sur un attribut : son opération, sa valeur, sa famille et sa ligne d'explication. */
+interface EffetLu {
+  op: Operation;
+  v: Valeur;
+  famille?: string;
+  ligne: LigneExplication;
+}
+
+/** Familles : dans une même famille et une même opération, seul le plus fort compte. */
+function ignorerPlusFaibles(actifs: readonly EffetLu[]): void {
+  const meilleurs = new Map<string, EffetLu>();
+  for (const a of actifs) {
+    if (!a.famille) continue;
+    const k = `${a.op}/${a.famille}`;
+    const m = meilleurs.get(k);
+    const plusFort = a.op === 'maximum' ? Number(a.v) < Number(m?.v) : Number(a.v) > Number(m?.v);
+    if (!m || plusFort) meilleurs.set(k, a);
+  }
+  for (const a of actifs) {
+    if (a.famille && meilleurs.get(`${a.op}/${a.famille}`) !== a) a.ligne.ignore = true;
+  }
+}
+
+/** Effets retenus appliqués phase par phase (fixer, ajouter, multiplier, bornes). */
+function combiner(depart: Valeur, actifs: readonly EffetLu[], detail: LigneExplication[]): Valeur {
+  let v = depart;
+  for (const phase of PHASES) {
+    for (const a of actifs) {
+      if (a.op !== phase || a.ligne.ignore) continue;
+      detail.push(a.ligne);
+      v = operer(phase, v, a.v);
+    }
+  }
+  return v;
+}
+
+function operer(op: Operation, v: Valeur, x: Valeur): Valeur {
+  switch (op) {
+    case 'fixer':
+      return x;
+    case 'ajouter':
+      return Number(v) + Number(x);
+    case 'multiplier':
+      return Number(v) * Number(x);
+    case 'minimum':
+      return Math.max(Number(v), Number(x));
+    default:
+      return Math.min(Number(v), Number(x));
+  }
+}
+
+/** Rangs donnés à une entrée par une source (rangs gratuits). */
+type Donner = (id: string, rangs: number, source: string) => void;
+
+/** Erreurs sans doublon (même endroit, même message), dans leur ordre. */
+function sansDoublons(erreurs: readonly ErreurCalcul[]): ErreurCalcul[] {
+  const vues = new Set<string>();
+  return erreurs.filter((e) => {
+    const k = `${e.ou}\n${e.message}`;
+    return !vues.has(k) && vues.add(k);
+  });
+}
+
 /** Nom affiché d'une source d'effets propres : nom propre de l'exemplaire, sinon son identifiant. */
 export function nomSourceExemplaire(p: PossessionEffective, ex: Possession): string {
   const propre = nomPossession(p.entree, p.sorte, ex);
@@ -978,6 +1037,18 @@ export function prefixeExemplaire(p: Pick<Possession, 'entree' | 'exemplaire'>):
  * Le calcul les liste dans `fiche.erreurs` sans s'arrêter ; le service
  * character refuse d'enregistrer un état qui en ajoute.
  */
+function exemplaireEnDouble(entree: Entree, p: Possession): string {
+  return p.exemplaire
+    ? `${entree.nom} : exemplaire « ${p.exemplaire} » en double`
+    : `${entree.nom} : deux exemplaires sans identifiant`;
+}
+
+function possedeeUneFois(entree: Entree, sorte: Sorte): string {
+  return sorte.rangs
+    ? `${entree.nom} se possède une seule fois : ses rangs s’additionnent`
+    : `${entree.nom} se possède une seule fois (${sorte.nom} sans exemplaires multiples)`;
+}
+
 export function erreursPossessions(systeme: SystemeCharge, etat: EtatEntite): ErreurCalcul[] {
   const erreurs: ErreurCalcul[] = [];
   const vus = new Set<string>();
@@ -990,22 +1061,12 @@ export function erreursPossessions(systeme: SystemeCharge, etat: EtatEntite): Er
     const ou = `possessions/${p.entree}${p.exemplaire ? `#${p.exemplaire}` : ''}`;
     const cle = `${p.entree}#${p.exemplaire ?? ''}`;
     if (sorte.exemplaires && vus.has(cle))
-      erreurs.push({
-        ou,
-        message: p.exemplaire
-          ? `${entree.nom} : exemplaire « ${p.exemplaire} » en double`
-          : `${entree.nom} : deux exemplaires sans identifiant`,
-      });
+      erreurs.push({ ou, message: exemplaireEnDouble(entree, p) });
     vus.add(cle);
     const n = (parEntree.get(p.entree) ?? 0) + 1;
     parEntree.set(p.entree, n);
     if (n === 2 && !sorte.exemplaires)
-      erreurs.push({
-        ou,
-        message: sorte.rangs
-          ? `${entree.nom} se possède une seule fois : ses rangs s’additionnent`
-          : `${entree.nom} se possède une seule fois (${sorte.nom} sans exemplaires multiples)`,
-      });
+      erreurs.push({ ou, message: possedeeUneFois(entree, sorte) });
     if (p.quantite !== undefined && !sorte.quantites)
       erreurs.push({ ou, message: `${entree.nom} : pas de quantité pour la sorte ${sorte.nom}` });
     const m = (parSorte.get(sorte.id) ?? 0) + 1;
