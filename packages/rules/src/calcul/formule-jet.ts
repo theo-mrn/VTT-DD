@@ -14,7 +14,13 @@
  * `CON`, `d20` est un dé. Fonctions pures : aucune clé de jeu n'est connue ici.
  */
 import type { SystemeCharge } from '../chargement/index.js';
-import { decouperFormule, type ErreurFormule, type Noeud, type Valeur } from '../formules/index.js';
+import {
+  decouperFormule,
+  type ErreurFormule,
+  type JetonFormule,
+  type Noeud,
+  type Valeur,
+} from '../formules/index.js';
 import { declarationsJetables } from './jetables.js';
 
 export type ResultatFormuleJet =
@@ -68,31 +74,17 @@ export function normaliserFormuleJet(
   const remplacements: { debut: number; fin: number; texte: string }[] = [];
   const { jetons } = d;
   for (let i = 0; i < jetons.length; i++) {
-    const j = jetons[i]!;
-    if (j.k !== 'ident' || MOTS.has(j.v) || variables.has(j.v)) continue;
-    const suivant = jetons[i + 1];
-    if (suivant?.k === 'op' && suivant.v === '(') continue; // appel : mod(…), max(…)
+    const j = cleNue(jetons, i, variables);
+    if (!j) continue;
     const cle = j.v.includes('.') ? undefined : resoudre(j.v);
     if (!cle) {
-      return {
-        ok: false,
-        erreur: {
-          message: attributs
-            ? `« ${j.v} » n’est pas un attribut du personnage`
-            : `Type d’entité inconnu : ${entite}`,
-          position: j.pos,
-        },
-      };
+      const message = attributs
+        ? `« ${j.v} » n’est pas un attribut du personnage`
+        : `Type d’entité inconnu : ${entite}`;
+      return { ok: false, erreur: { message, position: j.pos } };
     }
     // Argument de mod(…) : la valeur de l'attribut (mod(CON) → mod(@CON))
-    const precedents = [jetons[i - 2], jetons[i - 1]];
-    const dansMod =
-      precedents[0]?.k === 'ident' &&
-      precedents[0].v === 'mod' &&
-      precedents[1]?.k === 'op' &&
-      precedents[1].v === '(' &&
-      suivant?.k === 'op' &&
-      suivant.v === ')';
+    const dansMod = argumentDeMod(jetons, i);
     remplacements.push({
       debut: j.pos,
       fin: j.pos + j.v.length,
@@ -104,6 +96,26 @@ export function normaliserFormuleJet(
   for (const r of remplacements.toReversed())
     sortie = sortie.slice(0, r.debut) + r.texte + sortie.slice(r.fin);
   return { ok: true, formule: sortie };
+}
+
+/** Identifiant à réécrire : ni mot réservé, ni variable, ni nom de fonction appelée. */
+function cleNue(
+  jetons: readonly JetonFormule[],
+  i: number,
+  variables: ReadonlySet<string>,
+): Extract<JetonFormule, { k: 'ident' }> | null {
+  const j = jetons[i]!;
+  if (j.k !== 'ident' || MOTS.has(j.v) || variables.has(j.v)) return null;
+  const suivant = jetons[i + 1];
+  // Appel : mod(…), max(…)
+  return suivant?.k === 'op' && suivant.v === '(' ? null : j;
+}
+
+/** Le jeton `i` est l'unique argument d'un `mod(…)`. */
+function argumentDeMod(jetons: readonly JetonFormule[], i: number): boolean {
+  const [avant, ouvrante, fermante] = [jetons[i - 2], jetons[i - 1], jetons[i + 1]];
+  if (avant?.k !== 'ident' || avant.v !== 'mod') return false;
+  return ouvrante?.k === 'op' && ouvrante.v === '(' && fermante?.k === 'op' && fermante.v === ')';
 }
 
 /** Référence à un attribut dans une formule : `@CLE` ou `mod(@CLE)`, avec son étendue. */
@@ -191,33 +203,39 @@ function plier(n: Noeud, variable: (nom: string) => Valeur | undefined): Noeud {
       };
     case 'appel':
       return { ...n, args: n.args.map(p) };
-    case 'unaire': {
-      const arg = p(n.arg);
-      if (n.op === '-' && arg.t === 'nombre') return { t: 'nombre', v: -arg.v, pos: n.pos };
-      if (n.op === 'non' && arg.t === 'booleen') return { t: 'booleen', v: !arg.v, pos: n.pos };
-      return { ...n, arg };
-    }
+    case 'unaire':
+      return plierUnaire(n, p(n.arg));
     case 'si': {
       const condition = p(n.condition);
       if (condition.t === 'booleen') return p(condition.v ? n.alors : n.sinon);
       return { ...n, condition, alors: p(n.alors), sinon: p(n.sinon) };
     }
-    case 'binaire': {
-      const g = p(n.g);
-      const d = p(n.d);
-      if (g.t === 'nombre' && d.t === 'nombre') {
-        const r = calculer(n.op, g.v, d.v);
-        if (r !== undefined) return feuille(r, n.pos);
-      }
-      // « x + 0 », « x − 0 », « 0 + x », « x × 1 » : sans effet
-      if ((n.op === '+' || n.op === '-') && d.t === 'nombre' && d.v === 0) return g;
-      if (n.op === '+' && g.t === 'nombre' && g.v === 0) return d;
-      if ((n.op === '*' || n.op === '/') && d.t === 'nombre' && d.v === 1) return g;
-      return { ...n, g, d };
-    }
+    case 'binaire':
+      return plierBinaire(n, p(n.g), p(n.d));
     default:
       return n;
   }
+}
+
+/** Négation d'une constante calculée ; sinon le nœud avec son argument plié. */
+function plierUnaire(n: Extract<Noeud, { t: 'unaire' }>, arg: Noeud): Noeud {
+  if (n.op === '-' && arg.t === 'nombre') return { t: 'nombre', v: -arg.v, pos: n.pos };
+  if (n.op === 'non' && arg.t === 'booleen') return { t: 'booleen', v: !arg.v, pos: n.pos };
+  return { ...n, arg };
+}
+
+/** Opération entre constantes calculée ; opérations neutres retirées. */
+function plierBinaire(n: Extract<Noeud, { t: 'binaire' }>, g: Noeud, d: Noeud): Noeud {
+  if (g.t === 'nombre' && d.t === 'nombre') {
+    const r = calculer(n.op, g.v, d.v);
+    if (r !== undefined) return feuille(r, n.pos);
+  }
+  // « x + 0 », « x − 0 », « 0 + x », « x × 1 » : sans effet
+  const dNombre = d.t === 'nombre' ? d.v : undefined;
+  if ((n.op === '+' || n.op === '-') && dNombre === 0) return g;
+  if (n.op === '+' && g.t === 'nombre' && g.v === 0) return d;
+  if ((n.op === '*' || n.op === '/') && dNombre === 1) return g;
+  return { ...n, g, d };
 }
 
 function calculer(op: string, a: number, b: number): Valeur | undefined {
@@ -247,6 +265,26 @@ function calculer(op: string, a: number, b: number): Valeur | undefined {
     default:
       return undefined;
   }
+}
+
+type NoeudDes = Extract<Noeud, { t: 'des' }>;
+
+/** `2d6k1!` quand nombre, faces et garde sont des constantes ; sinon null. */
+function notationDes(n: NoeudDes, nombre: (v: number) => string): string | null {
+  const nb = n.nombre.t === 'nombre' ? nombre(n.nombre.v) : null;
+  const fa = n.faces.t === 'nombre' ? nombre(n.faces.v) : null;
+  const gk = n.garder && n.garder.n.t === 'nombre' ? nombre(n.garder.n.v) : null;
+  if (nb === null || fa === null || (n.garder && gk === null)) return null;
+  const sens = n.garder?.sens === 'bas' ? 'kl' : 'k';
+  const garder = n.garder ? `${sens}${gk}` : '';
+  return `${nb}d${fa}${garder}${n.explose ? '!' : ''}`;
+}
+
+/** `des(…)` ou `des_explosifs(…)` avec ses arguments écrits. */
+function ecrireDes(n: NoeudDes, ecrire: (x: Noeud) => string): string {
+  const args = [ecrire(n.nombre), ecrire(n.faces)];
+  if (n.garder) args.push(ecrire(n.garder.n), JSON.stringify(n.garder.sens));
+  return `${n.explose ? 'des_explosifs' : 'des'}(${args.join(', ')})`;
 }
 
 /**
@@ -287,42 +325,36 @@ export function formuleLisible(
         return nue(n.cle, `@${n.cle}`) ? n.cle : `@${n.cle}`;
       case 'variable':
         return n.nom;
-      case 'appel': {
-        const [a] = n.args;
-        if (n.fn === 'mod' && n.args.length === 1 && a?.t === 'attribut' && !a.entite)
-          if (nue(a.cle, `mod(@${a.cle})`)) return a.cle;
-        return `${n.fn}(${n.args.map(ecrire).join(', ')})`;
-      }
+      case 'appel':
+        return ecrireAppel(n);
       case 'unaire': {
         const arg = entourer(n.arg, PRIORITE_UNAIRE, false);
         return n.op === '-' ? `-${arg}` : `non ${arg}`;
       }
       case 'si':
         return `si(${ecrire(n.condition)}, ${ecrire(n.alors)}, ${ecrire(n.sinon)})`;
-      case 'des': {
-        const nb = n.nombre.t === 'nombre' ? nombre(n.nombre.v) : null;
-        const fa = n.faces.t === 'nombre' ? nombre(n.faces.v) : null;
-        const gk = n.garder && n.garder.n.t === 'nombre' ? nombre(n.garder.n.v) : null;
-        if (nb !== null && fa !== null && (!n.garder || gk !== null)) {
-          const sens = n.garder?.sens === 'bas' ? 'kl' : 'k';
-          const garder = n.garder ? `${sens}${gk}` : '';
-          return `${nb}d${fa}${garder}${n.explose ? '!' : ''}`;
-        }
-        const args = [ecrire(n.nombre), ecrire(n.faces)];
-        if (n.garder) args.push(ecrire(n.garder.n), JSON.stringify(n.garder.sens));
-        return `${n.explose ? 'des_explosifs' : 'des'}(${args.join(', ')})`;
-      }
-      case 'binaire': {
-        const p = PRIORITES[n.op] ?? 0;
-        const g = entourer(n.g, p, false);
-        // « x + −2 » s'écrit « x-2 », « x − −2 » s'écrit « x+2 »
-        if ((n.op === '+' || n.op === '-') && n.d.t === 'nombre' && n.d.v < 0)
-          return `${g}${n.op === '+' ? '-' : '+'}${nombre(-n.d.v)}`;
-        const d = entourer(n.d, p, n.op !== '+' && n.op !== '*');
-        const compact = p >= PRIORITES['+']!;
-        return compact ? `${g}${n.op}${d}` : `${g} ${n.op} ${d}`;
-      }
+      case 'des':
+        return notationDes(n, nombre) ?? ecrireDes(n, ecrire);
+      case 'binaire':
+        return ecrireBinaire(n);
     }
+  };
+  /** `mod(@CON)` s'écrit `CON` quand la clé nue redonne le modificateur. */
+  const ecrireAppel = (n: Extract<Noeud, { t: 'appel' }>): string => {
+    const [a] = n.args;
+    const modNu = n.fn === 'mod' && n.args.length === 1 && a?.t === 'attribut' && !a.entite;
+    if (modNu && nue(a.cle, `mod(@${a.cle})`)) return a.cle;
+    return `${n.fn}(${n.args.map(ecrire).join(', ')})`;
+  };
+  const ecrireBinaire = (n: Extract<Noeud, { t: 'binaire' }>): string => {
+    const p = PRIORITES[n.op] ?? 0;
+    const g = entourer(n.g, p, false);
+    // « x + −2 » s'écrit « x-2 », « x − −2 » s'écrit « x+2 »
+    if ((n.op === '+' || n.op === '-') && n.d.t === 'nombre' && n.d.v < 0)
+      return `${g}${n.op === '+' ? '-' : '+'}${nombre(-n.d.v)}`;
+    const d = entourer(n.d, p, n.op !== '+' && n.op !== '*');
+    const compact = p >= PRIORITES['+']!;
+    return compact ? `${g}${n.op}${d}` : `${g} ${n.op} ${d}`;
   };
   const entourer = (n: Noeud, p: number, strict: boolean) => {
     const q = priorite(n);
