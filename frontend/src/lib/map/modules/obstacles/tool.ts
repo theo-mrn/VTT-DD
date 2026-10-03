@@ -955,17 +955,9 @@ export class ObstacleTool implements Tool {
       else engine.selection.replace([hit.id]);
     }
     const ids = this.selectedIds(engine);
-    const keys = new Set<string>();
-    for (const id of ids.obstacles)
-      for (const p of (engine.entity(id)?.data as ObstacleData | undefined)?.points ?? [])
-        keys.add(pointKey(p));
-    for (const id of ids.rooms)
-      for (const p of (engine.entity(id)?.data as RoomData | undefined)?.points ?? [])
-        keys.add(pointKey(p));
+    const keys = vertexKeysOf(engine, ids);
     const start = this.press?.pointer.world ?? e.world;
-    const pts = this.ctx.view.pointsOf(hit);
-    let anchor = pts[0]!;
-    for (const p of pts) if (distance(p, start) < distance(anchor, start)) anchor = p;
+    const anchor = nearestPoint(this.ctx.view.pointsOf(hit), start);
     const stretch = !(e.alt || this.press?.pointer.alt);
     const affected = stretch
       ? this.entitiesWith(engine, keys)
@@ -1306,6 +1298,28 @@ export class ObstacleTool implements Tool {
     const text = formatLength(distance(a, b), rc.pixelsPerUnit, rc.unitName);
     this.showLabel(g, text, dh.at, u, background);
   }
+}
+
+/** Sommets (clés) des murs et des pièces donnés. */
+function vertexKeysOf(
+  engine: MapEngine,
+  ids: { obstacles: Set<string>; rooms: Set<string> },
+): Set<string> {
+  const keys = new Set<string>();
+  for (const id of ids.obstacles)
+    for (const p of (engine.entity(id)?.data as ObstacleData | undefined)?.points ?? [])
+      keys.add(pointKey(p));
+  for (const id of ids.rooms)
+    for (const p of (engine.entity(id)?.data as RoomData | undefined)?.points ?? [])
+      keys.add(pointKey(p));
+  return keys;
+}
+
+/** Point de la liste le plus proche de `to` (le premier à égalité). */
+function nearestPoint(pts: readonly Point[], to: Point): Point {
+  let best = pts[0]!;
+  for (const p of pts) if (distance(p, to) < distance(best, to)) best = p;
+  return best;
 }
 
 /** Coin opposé d'un carré depuis `a`, du côté de `b`. */

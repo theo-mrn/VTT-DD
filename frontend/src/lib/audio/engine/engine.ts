@@ -531,6 +531,29 @@ export class AudioEngine implements EngineHost {
 const holder = globalThis as unknown as { __vttAudioEngine?: unknown };
 
 /**
+ * Moteur trop ancien pour ce code : le nouveau reprend sa campagne et son état, puis l'ancien
+ * est coupé (jamais deux moteurs qui jouent, jamais un moteur détaché de la campagne).
+ */
+function takeOver(next: AudioEngine, current: Partial<AudioEngine>) {
+  const campaignId = current.campaignId ?? null;
+  const states = {
+    music: current.channelState?.('music') ?? null,
+    ambience: current.channelState?.('ambience') ?? null,
+  };
+  next.onYoutubeEnded = current.onYoutubeEnded ?? null;
+  next.onError = current.onError ?? null;
+  try {
+    current.detachCampaign?.();
+  } catch {
+    // Ancien moteur déjà hors d'usage
+  }
+  disposeAllVoices();
+  if (!campaignId) return;
+  next.attachCampaign(campaignId);
+  for (const s of [states.music, states.ambience]) if (s) next.applyChannel(s);
+}
+
+/**
  * Le moteur de l'onglet (créé au premier usage, jamais côté serveur). Unique même après un
  * rechargement à chaud du code : il vit sur `globalThis`. Si le rechargement a remplacé sa
  * classe, l'ancien moteur est détaché et toutes ses voix coupées avant d'en créer un neuf :
@@ -542,27 +565,7 @@ export function getAudioEngine(): AudioEngine {
   if (current instanceof AudioEngine || (current && typeof current.scan === 'function'))
     return current as AudioEngine;
   const next = new AudioEngine();
-  if (current) {
-    // Moteur trop ancien pour ce code : le nouveau reprend sa campagne et son état, puis l'ancien
-    // est coupé (jamais deux moteurs qui jouent, jamais un moteur détaché de la campagne)
-    const campaignId = current.campaignId ?? null;
-    const states = {
-      music: current.channelState?.('music') ?? null,
-      ambience: current.channelState?.('ambience') ?? null,
-    };
-    next.onYoutubeEnded = current.onYoutubeEnded ?? null;
-    next.onError = current.onError ?? null;
-    try {
-      current.detachCampaign?.();
-    } catch {
-      // Ancien moteur déjà hors d'usage
-    }
-    disposeAllVoices();
-    if (campaignId) {
-      next.attachCampaign(campaignId);
-      for (const s of [states.music, states.ambience]) if (s) next.applyChannel(s);
-    }
-  }
+  if (current) takeOver(next, current);
   holder.__vttAudioEngine = next;
   return next;
 }
