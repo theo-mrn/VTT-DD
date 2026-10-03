@@ -160,28 +160,13 @@ export function updateToken(entity: MapEntity<TokenData>, ctx: RenderContext) {
   loadTexture(entity, v, ctx, look.imageUrl);
 
   const texture = v.textureUrl === look.imageUrl ? v.texture : null;
-  const bodyKey = [
-    look.size,
-    look.shape,
-    texture ? look.imageUrl : '',
-    look.baked ? 1 : 0,
-    look.side ?? '',
-    look.pending ? 1 : 0,
-    look.badge ?? '',
-  ].join('|');
+  const bodyKey = bodyKeyOf(look, Boolean(texture));
   if (bodyKey !== v.keys.body) {
     v.keys.body = bodyKey;
     drawBody(ctx, v.body, look, texture);
   }
 
-  const outlineKey = [
-    look.size,
-    look.shape,
-    look.hovered ? 1 : 0,
-    look.selected ? 1 : 0,
-    look.locked ? 1 : 0,
-    look.hovered || look.selected ? ctx.zoom.toFixed(3) : '',
-  ].join('|');
+  const outlineKey = outlineKeyOf(look, ctx.zoom);
   if (outlineKey !== v.keys.outline) {
     v.keys.outline = outlineKey;
     drawOutline(ctx, v.outline, look);
@@ -195,11 +180,7 @@ export function updateToken(entity: MapEntity<TokenData>, ctx: RenderContext) {
   const k = (look.size / 2) * (look.shape === 'circle' ? Math.SQRT1_2 : 0.9);
   v.badgeRoot.position.set(k, -k);
 
-  const r = look.resource;
-  const labelKey = [
-    look.name ?? '',
-    r ? `${r.value}/${r.max}/${r.color ?? ''}/${Number(Boolean(r.rising))}` : '',
-  ].join('|');
+  const labelKey = labelKeyOf(look);
   if (labelKey !== v.keys.label) {
     v.keys.label = labelKey;
     drawLabel(ctx.theme, v, look);
@@ -207,6 +188,40 @@ export function updateToken(entity: MapEntity<TokenData>, ctx: RenderContext) {
   // Le nom suit le bas du token (sa taille peut changer sans que le texte change)
   v.label.position.set(0, look.size / 2);
   v.label.alpha = look.pending ? 0.6 : 1;
+}
+
+/** Clé du corps (portrait, forme, camp, attente, badge) : redessiné seulement s'il change. */
+function bodyKeyOf(look: TokenLook, textured: boolean): string {
+  return [
+    look.size,
+    look.shape,
+    textured ? look.imageUrl : '',
+    look.baked ? 1 : 0,
+    look.side ?? '',
+    look.pending ? 1 : 0,
+    look.badge ?? '',
+  ].join('|');
+}
+
+/** Clé du contour (survol, sélection, verrou ; le zoom compte pour un contour montré). */
+function outlineKeyOf(look: TokenLook, zoom: number): string {
+  return [
+    look.size,
+    look.shape,
+    look.hovered ? 1 : 0,
+    look.selected ? 1 : 0,
+    look.locked ? 1 : 0,
+    look.hovered || look.selected ? zoom.toFixed(3) : '',
+  ].join('|');
+}
+
+/** Clé de l'étiquette (nom et ressource). */
+function labelKeyOf(look: TokenLook): string {
+  const r = look.resource;
+  return [
+    look.name ?? '',
+    r ? `${r.value}/${r.max}/${r.color ?? ''}/${Number(Boolean(r.rising))}` : '',
+  ].join('|');
 }
 
 export function disposeToken(entity: MapEntity<TokenData>) {
