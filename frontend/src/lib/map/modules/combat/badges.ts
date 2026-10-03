@@ -153,53 +153,64 @@ export function mountStateBadges(engine: MapEngine, source: BadgeSource): () => 
       }
     };
 
-    const index = () => {
-      const keep = new Set<string>();
-      if (snap.size)
-        for (const e of engine.entitiesOfKind(TOKEN_KIND_ID)) {
-          const c = characterOf(e);
-          const states = c ? snap.get(c) : undefined;
-          if (!states?.length) continue;
-          keep.add(e.id);
-          const key = keyOf(states);
-          let g = groups.get(e.id);
-          if (g && g.entity !== e) {
-            g.release();
-            g.box.destroy({ children: true });
-            groups.delete(e.id);
-            g = undefined;
-          }
-          if (!g) {
-            const box = new pixi.Container({ label: 'combat-states-token' });
-            box.visible = false;
-            root.addChild(box);
-            g = {
-              entity: e,
-              states,
-              key: '',
-              box,
-              release: engine.screenSpace.add(box, 1),
-              label: null,
-            };
-            groups.set(e.id, g);
-          }
-          g.states = states;
-          if (g.key !== key) {
-            g.key = key;
-            draw(g);
-          }
-        }
-      for (const [id, g] of groups)
-        if (!keep.has(id)) {
-          g.release();
-          g.box.destroy({ children: true });
-          groups.delete(id);
-        }
+    const dropGroup = (id: string, g: Group) => {
+      g.release();
+      g.box.destroy({ children: true });
+      groups.delete(id);
+    };
+
+    /** Groupe de badges du token (refait si l'entité a été remplacée). */
+    const groupOf = (e: MapEntity, states: readonly MapStateBadge[]): Group => {
+      let g = groups.get(e.id);
+      if (g && g.entity !== e) {
+        dropGroup(e.id, g);
+        g = undefined;
+      }
+      if (g) return g;
+      const box = new pixi.Container({ label: 'combat-states-token' });
+      box.visible = false;
+      root.addChild(box);
+      g = {
+        entity: e,
+        states,
+        key: '',
+        box,
+        release: engine.screenSpace.add(box, 1),
+        label: null,
+      };
+      groups.set(e.id, g);
+      return g;
+    };
+
+    /** Badges d'un token, redessinés si ses états ont changé. */
+    const indexToken = (e: MapEntity, keep: Set<string>) => {
+      const c = characterOf(e);
+      const states = c ? snap.get(c) : undefined;
+      if (!states?.length) return;
+      keep.add(e.id);
+      const key = keyOf(states);
+      const g = groupOf(e, states);
+      g.states = states;
+      if (g.key !== key) {
+        g.key = key;
+        draw(g);
+      }
+    };
+
+    /** La boucle d'images ne tourne que s'il y a des badges. */
+    const syncFrames = () => {
       if (groups.size && !stopFrames) stopFrames = engine.onFrame(() => void frame());
       if (!groups.size && stopFrames) {
         stopFrames();
         stopFrames = null;
       }
+    };
+
+    const index = () => {
+      const keep = new Set<string>();
+      if (snap.size) for (const e of engine.entitiesOfKind(TOKEN_KIND_ID)) indexToken(e, keep);
+      for (const [id, g] of groups) if (!keep.has(id)) dropGroup(id, g);
+      syncFrames();
       frame();
       engine.invalidate();
     };
