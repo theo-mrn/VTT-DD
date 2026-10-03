@@ -40,17 +40,16 @@ jamais au service. Le secret interne du bot est lu dans le Secret d'identity.
 
 ## Lien compte Discord ↔ compte Yner
 
-Le lien est `identity.oauth_accounts` (fournisseur `discord`, sujet = identifiant Discord). Il
-est posé de deux façons :
+Le lien du bot est **distinct de la connexion** : délier le bot ne retire jamais un moyen de
+connexion. Table `identity.discord_bot_links (discord_user_id, user_id)` :
 
-- par la connexion Discord du site (ou de l'activité) ;
-- par `/link`, **sans changer de compte** : le bot demande à identity un jeton signé (10 min,
-  `POST /internal/discord/link-token`) et l'envoie au seul joueur, en bouton vers
-  `/discord/lier?jeton=…` ; connecté à son compte (mot de passe, Google, peu importe), il clique
-  « Lier » (`POST /v1/auth/discord/link`). Une identité Discord déjà liée à un autre compte est
-  refusée (409), comme un compte qui en a déjà une autre.
+- `/link` : le bot demande à identity un jeton signé (10 min) et l'envoie au seul joueur, en bouton
+  vers `/discord/lier?jeton=…` ; connecté à n'importe quel compte (mot de passe, Google,
+  Discord), il clique « Lier » et le bot agit désormais pour ce compte ;
+- `/unlink` : le bot n'agit plus pour cet identifiant (`user_id` vide), toujours accepté ;
+- sans ligne : le bot suit le compte connecté avec Discord (`identity.oauth_accounts`).
 
-Le bot comme l'activité retrouvent le compte par ce lien.
+L'activité, elle, connecte le compte lié à Discord (`oauth_accounts`).
 
 ## Salle active
 
@@ -145,7 +144,7 @@ pas de salle active → message éphémère qui propose `/room`.
 | `/stats [player]`           | Statistiques de la salle active (`GET /v1/dice/stats`)                                                                                                         |
 | `/me`                       | Compte Yner lié et salle active, message éphémère                                                                                                              |
 | `/link`                     | Bouton « Lier mon compte » vers `/discord/lier` (jeton de 10 min), message éphémère                                                                            |
-| `/unlink`                   | Retire le lien Discord du compte (`DELETE /v1/auth/discord/link`) (refusé s'il n'a pas d'autre moyen de connexion)                                             |
+| `/unlink`                   | Le bot n'agit plus pour toi ; ta connexion au site ne change pas (refusé s'il n'a pas d'autre moyen de connexion)                                              |
 
 ### Dés adaptés au système
 

@@ -173,16 +173,17 @@ describe('client des services Yner', () => {
     expect(err).toMatchObject({ status: 429, code: 'too_many_rolls', detail: 'Trop de jets' });
   });
 
-  it('délier : délié, déjà délié, dernier moyen de connexion', async () => {
-    let next = 204;
-    const { yner } = client(() =>
-      next === 409 ? { status: 409, body: { code: 'last_login_method' } } : { status: next },
-    );
-    expect(await yner.unlink('t')).toBe('unlinked');
-    next = 404;
-    expect(await yner.unlink('t')).toBe('not_linked');
-    next = 409;
-    expect(await yner.unlink('t')).toBe('last_login_method');
+  it('délier : route interne, délié ou aucun compte', async () => {
+    let unlinked = true;
+    const { yner, calls } = client(() => ({ status: 200, body: { unlinked } }));
+    expect(await yner.unlink('1')).toBe('unlinked');
+    unlinked = false;
+    expect(await yner.unlink('1')).toBe('not_linked');
+    expect(calls[0]).toMatchObject({
+      method: 'POST',
+      url: 'http://identity.test/internal/discord/unlink',
+      body: { discordUserId: '1' },
+    });
   });
 
   it('système de jeu : public, mis en cache, null s’il est inconnu', async () => {

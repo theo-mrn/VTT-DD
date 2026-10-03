@@ -7,7 +7,7 @@ import { and, eq } from 'drizzle-orm';
 import { decodeJwt } from 'jose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { IdentityConfig } from '../../config.js';
-import { credentials, oauthAccounts, users } from '../../db/schema.js';
+import { oauthAccounts } from '../../db/schema.js';
 import { pgSessionStore } from '../../db/session-store.js';
 import type { Deps, ServiceApp } from '../../deps.js';
 import { mailerDeTest } from '../../mail/mailer.js';
@@ -120,88 +120,88 @@ describe.skipIf(!TEST_DATABASE_URL)('module discord', () => {
     expect((await delegue(identite.id, 'mauvais-secret')).statusCode).toBe(401);
   });
 
-  it('délier : retire le lien s’il reste un mot de passe, sinon 409', async () => {
-    const joueur = await base.inscrire();
-    const discordId = String(Math.floor(Math.random() * 1e17));
-    await base.db
-      .insert(oauthAccounts)
-      .values({ provider: 'discord', providerAccountId: discordId, userId: joueur.id });
+  it('lien du bot : /link vers un autre compte, /unlink, sans jamais toucher à la connexion', async () => {
+    // Compte créé par la connexion Discord (seul moyen de connexion)
+    const identite = identiteDiscord();
+    const discordSeul = (await connexionActivite(faux.autoriserActivite(identite))).json();
+    base.suivre(discordSeul.user.id);
 
-    const delier = () =>
-      base.app.inject({ method: 'DELETE', url: '/v1/auth/discord/link', headers: joueur.auth });
-
-    // Sans mot de passe ni autre fournisseur : refusé
-    const [mdp] = await base.db.select().from(credentials).where(eq(credentials.userId, joueur.id));
-    await base.db.delete(credentials).where(eq(credentials.userId, joueur.id));
-    expect((await delier()).statusCode).toBe(409);
-
-    await base.db.insert(credentials).values(mdp!);
-    expect((await delier()).statusCode).toBe(204);
-    const restants = await base.db
-      .select()
-      .from(oauthAccounts)
-      .where(and(eq(oauthAccounts.userId, joueur.id), eq(oauthAccounts.provider, 'discord')));
-    expect(restants).toEqual([]);
-    expect((await delier()).statusCode).toBe(404);
-    // Le compte, lui, reste
-    expect(await base.db.select().from(users).where(eq(users.id, joueur.id))).toHaveLength(1);
-  });
-
-  it('liaison depuis le bot : un compte e-mail lie son identité Discord, sans nouveau compte', async () => {
-    const discordId = String(Math.floor(Math.random() * 1e17));
-    const jeton = async () =>
-      (
-        await base.app.inject({
-          method: 'POST',
-          url: '/internal/discord/link-token',
-          headers: { 'x-internal-secret': SECRET },
-          payload: { discordUserId: discordId, discordName: 'theo' },
-        })
-      ).json().token as string;
-    const lier = (auth: Record<string, string>, token: string) =>
+    const interne = (url: string, payload: unknown) =>
       base.app.inject({
+        method: 'POST',
+        url,
+        headers: { 'x-internal-secret': SECRET },
+        payload: payload as object,
+      });
+    const compteDuBot = async () => {
+      const res = await interne('/internal/discord/delegate', { discordUserId: identite.id });
+      return res.statusCode === 200 ? (decodeJwt(res.json().accessToken).sub as string) : null;
+    };
+    const lier = async (auth: Record<string, string>) => {
+      const { token } = (
+        await interne('/internal/discord/link-token', {
+          discordUserId: identite.id,
+          discordName: 'theo',
+        })
+      ).json();
+      return base.app.inject({
         method: 'POST',
         url: '/v1/auth/discord/link',
         headers: auth,
         payload: { token },
       });
+    };
+    const connexionDiscordIntacte = async () =>
+      (
+        await base.db
+          .select()
+          .from(oauthAccounts)
+          .where(
+            and(
+              eq(oauthAccounts.provider, 'discord'),
+              eq(oauthAccounts.providerAccountId, identite.id),
+            ),
+          )
+      ).map((l) => l.userId);
 
-    const joueur = await base.inscrire();
-    const res = await lier(joueur.auth, await jeton());
+    // Sans lien explicite : le compte connecté avec Discord
+    expect(await compteDuBot()).toBe(discordSeul.user.id);
+
+    // /link depuis un compte e-mail : le bot le suit, la connexion Discord reste à l'autre
+    const principal = await base.inscrire();
+    const res = await lier(principal.auth);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ discordName: 'theo', linked: true });
-    const liens = await base.db
-      .select()
-      .from(oauthAccounts)
-      .where(
-        and(eq(oauthAccounts.provider, 'discord'), eq(oauthAccounts.providerAccountId, discordId)),
-      );
-    expect(liens.map((l) => l.userId)).toEqual([joueur.id]);
+    expect(await compteDuBot()).toBe(principal.id);
+    expect(await connexionDiscordIntacte()).toEqual([discordSeul.user.id]);
 
-    // Le bot retrouve ce compte
-    const delegue = await base.app.inject({
+    // /unlink : toujours accepté, plus aucun compte pour le bot, connexion intacte
+    const delier = await interne('/internal/discord/unlink', { discordUserId: identite.id });
+    expect(delier.json()).toEqual({ unlinked: true });
+    expect(await compteDuBot()).toBeNull();
+    expect(await connexionDiscordIntacte()).toEqual([discordSeul.user.id]);
+    expect((await connexionActivite(faux.autoriserActivite(identite))).json().user.id).toBe(
+      discordSeul.user.id,
+    );
+
+    // Puis de nouveau /link, vers n'importe quel compte
+    expect((await lier(principal.auth)).statusCode).toBe(200);
+    expect(await compteDuBot()).toBe(principal.id);
+
+    // Jeton invalide, ou sans être connecté
+    const invalide = await base.app.inject({
       method: 'POST',
-      url: '/internal/discord/delegate',
-      headers: { 'x-internal-secret': SECRET },
-      payload: { discordUserId: discordId },
+      url: '/v1/auth/discord/link',
+      headers: principal.auth,
+      payload: { token: 'abc.def.ghi' },
     });
-    expect(decodeJwt(delegue.json().accessToken).sub).toBe(joueur.id);
-
-    // Même compte : sans effet ; autre compte : refusé
-    expect((await lier(joueur.auth, await jeton())).statusCode).toBe(200);
-    const autre = await base.inscrire();
-    const refus = await lier(autre.auth, await jeton());
-    expect(refus.statusCode).toBe(409);
-    expect(refus.json().code).toBe('discord_linked_elsewhere');
-
-    // Jeton invalide ou absent de connexion
-    expect((await lier(autre.auth, 'abc.def.ghi')).json().code).toBe('discord_link_invalid');
+    expect(invalide.json().code).toBe('discord_link_invalid');
     expect(
       (
         await base.app.inject({
           method: 'POST',
           url: '/v1/auth/discord/link',
-          payload: { token: await jeton() },
+          payload: { token: 'abc.def.ghi' },
         })
       ).statusCode,
     ).toBe(401);

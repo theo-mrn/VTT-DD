@@ -77,6 +77,16 @@ export const oauthAccounts = identity.table(
   (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })],
 );
 
+/**
+ * Lien du bot de dés Discord, distinct de la connexion (docs/discord.md) : user_id NULL = délié
+ * par /unlink. Sans ligne, le bot suit le compte connecté avec Discord (oauth_accounts).
+ */
+export const discordBotLinks = identity.table('discord_bot_links', {
+  discordUserId: text('discord_user_id').primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  updatedAt: horodatage('updated_at').notNull().defaultNow(),
+});
+
 export const legacyIds = identity.table(
   'legacy_ids',
   {

@@ -98,7 +98,8 @@ export interface YnerClient {
   roll(token: string, input: RollInput): Promise<Roll>;
   rolls(token: string, campaignId: string, limit: number): Promise<Roll[]>;
   stats(token: string, campaignId: string): Promise<Stats>;
-  unlink(token: string): Promise<'unlinked' | 'not_linked' | 'last_login_method'>;
+  /** /unlink : le bot n'agit plus pour cet identifiant ; la connexion du site reste intacte. */
+  unlink(discordUserId: string): Promise<'unlinked' | 'not_linked'>;
   /** Système de jeu, public (mis en cache). */
   gameSystem(systemId: string): Promise<GameSystem | null>;
 }
@@ -218,13 +219,14 @@ export function ynerClient(o: YnerUrls): YnerClient {
       return json(await call(o.dice, `/v1/dice/stats?${query}`, { token }), Stats);
     },
 
-    async unlink(token) {
-      const res = await call(o.identity, '/v1/auth/discord/link', { method: 'DELETE', token });
-      if (res.status === 204) return 'unlinked';
-      if (res.status === 404) return 'not_linked';
-      const err = await failure(res);
-      if (err.code === 'last_login_method') return 'last_login_method';
-      throw err;
+    async unlink(discordUserId) {
+      const res = await call(o.identity, '/internal/discord/unlink', {
+        method: 'POST',
+        body: { discordUserId },
+        headers: { 'x-internal-secret': o.internalSecret },
+      });
+      const { unlinked } = await json(res, z.object({ unlinked: z.boolean() }));
+      return unlinked ? 'unlinked' : 'not_linked';
     },
 
     async gameSystem(systemId) {

@@ -232,14 +232,9 @@ export function bot(deps: BotDeps) {
     );
   }
 
-  async function unlink(token: string): Promise<Message> {
-    const result = await yner.unlink(token);
-    if (result === 'unlinked') return ephemeral('Compte délié.');
-    if (result === 'last_login_method')
-      return ephemeral(
-        'Discord est ton seul moyen de connexion : ajoute un mot de passe sur Yner avant de délier.',
-      );
-    return ephemeral('Compte déjà délié.');
+  async function unlink(discordUserId: string): Promise<Message> {
+    const result = await yner.unlink(discordUserId);
+    return ephemeral(result === 'unlinked' ? 'Compte délié.' : 'Aucun compte lié.');
   }
 
   /** Traite une commande après la réponse différée (éphémère). */
@@ -252,6 +247,8 @@ export function bot(deps: BotDeps) {
           i.token,
           token ? ephemeral('Compte déjà lié.') : await linkButton(i, discordUserId),
         );
+      if (name === 'unlink')
+        return await discord.editOriginal(i.token, await unlink(discordUserId));
       if (!token) return await discord.editOriginal(i.token, await linkButton(i, discordUserId));
       switch (name) {
         case 'room':
@@ -264,8 +261,7 @@ export function bot(deps: BotDeps) {
           return await discord.editOriginal(i.token, await stats(i, token));
         case 'me':
           return await discord.editOriginal(i.token, await me(token));
-        case 'unlink':
-          return await discord.editOriginal(i.token, await unlink(token));
+
         default:
           return await discord.editOriginal(i.token, ephemeral('Commande inconnue.'));
       }

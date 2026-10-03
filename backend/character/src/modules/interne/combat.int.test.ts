@@ -480,7 +480,8 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     expect(item).toMatchObject({
       characterId: gobelin.id,
       version: gobelin.version + 1,
-      defeated: false,
+      // PV de départ tirés au hasard : 2 PV ou moins, le gobelin tombe
+      defeated: avant - 2 <= 0,
     });
     expect(item.changes.map((c) => c.path)).toEqual(['etat.valeurs.PV']);
     expect(await pv(gobelin.id)).toBe(avant - 2);
