@@ -46,21 +46,26 @@ export function situationChips(
       hint: `Visé ${times(tally.targetedRound)} ce round (${times(tally.targeted)} depuis le début du combat).`,
       tone: 'danger',
     });
-  if (opts.detailed && tally && p.defeated !== true) {
-    if (tally.attacksMade === 0)
-      out.push({
-        kind: 'firstAttack',
-        label: '1re attaque à venir',
-        hint: 'N’a encore attaqué personne dans ce combat.',
-        tone: 'info',
-      });
-    else if (tally.attacksMadeRound > 0)
-      out.push({
-        kind: 'attacked',
-        label: `${tally.attacksMadeRound} attaque${tally.attacksMadeRound > 1 ? 's' : ''} ce round`,
-        hint: `${tally.attacksMade} attaque${tally.attacksMade > 1 ? 's' : ''} depuis le début du combat.`,
-        tone: 'neutre',
-      });
-  }
+  const attack = opts.detailed && tally && p.defeated !== true ? attackChip(tally) : null;
+  if (attack) out.push(attack);
   return out;
+}
+
+/** Attaques du participant : la première à venir, ou celles du round. */
+function attackChip(tally: NonNullable<CombatParticipant['tally']>): SituationChip | null {
+  if (tally.attacksMade === 0)
+    return {
+      kind: 'firstAttack',
+      label: '1re attaque à venir',
+      hint: 'N’a encore attaqué personne dans ce combat.',
+      tone: 'info',
+    };
+  if (tally.attacksMadeRound > 0)
+    return {
+      kind: 'attacked',
+      label: `${tally.attacksMadeRound} attaque${tally.attacksMadeRound > 1 ? 's' : ''} ce round`,
+      hint: `${tally.attacksMade} attaque${tally.attacksMade > 1 ? 's' : ''} depuis le début du combat.`,
+      tone: 'neutre',
+    };
+  return null;
 }

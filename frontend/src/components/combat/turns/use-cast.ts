@@ -179,7 +179,7 @@ export interface KeyStat {
 
 /** Valeurs clés d'une fiche calculée (trois au plus), visibles de ce viewer. */
 export function keyStatsOf(ctx: ContexteFiche, max = 3): KeyStat[] {
-  const { fiche, presentation } = ctx;
+  const { fiche } = ctx;
   const bloc = widgetsDe(ctx).find((w) => w.type === 'ressources');
   const keys =
     bloc?.type === 'ressources'
@@ -190,28 +190,36 @@ export function keyStatsOf(ctx: ContexteFiche, max = 3): KeyStat[] {
   const out: KeyStat[] = [];
   for (const key of keys) {
     if (out.length >= max) break;
-    const a = fiche.entite.attributs.get(key);
-    const v = fiche.valeurs.get(key);
-    if (!a || !v || !visiblePour(ctx, key)) continue;
-    const label = a.abrege ?? a.nom;
-    if (estRessource(ctx, key) && typeof v.valeur === 'number') {
-      const top = typeof v.max === 'number' ? v.max : v.valeur;
-      const look = presentation?.ressources[key];
-      out.push({
-        key,
-        label,
-        value: `${v.valeur} / ${top}`,
-        gauge: {
-          ratio: top > 0 ? Math.max(0, Math.min(1, v.valeur / top)) : 0,
-          color: look?.couleur ?? null,
-          rising: look?.sens === 'montant',
-        },
-      });
-    } else if (v.valeur !== undefined && v.valeur !== '') {
-      out.push({ key, label, value: String(v.valeur), gauge: null });
-    }
+    const stat = keyStatOf(ctx, key);
+    if (stat) out.push(stat);
   }
   return out;
+}
+
+/** Valeur clé d'un attribut visible : jauge pour une ressource, valeur sinon ; vide : null. */
+function keyStatOf(ctx: ContexteFiche, key: string): KeyStat | null {
+  const { fiche, presentation } = ctx;
+  const a = fiche.entite.attributs.get(key);
+  const v = fiche.valeurs.get(key);
+  if (!a || !v || !visiblePour(ctx, key)) return null;
+  const label = a.abrege ?? a.nom;
+  if (estRessource(ctx, key) && typeof v.valeur === 'number') {
+    const top = typeof v.max === 'number' ? v.max : v.valeur;
+    const look = presentation?.ressources[key];
+    return {
+      key,
+      label,
+      value: `${v.valeur} / ${top}`,
+      gauge: {
+        ratio: top > 0 ? Math.max(0, Math.min(1, v.valeur / top)) : 0,
+        color: look?.couleur ?? null,
+        rising: look?.sens === 'montant',
+      },
+    };
+  }
+  if (v.valeur !== undefined && v.valeur !== '')
+    return { key, label, value: String(v.valeur), gauge: null };
+  return null;
 }
 
 export interface ParticipantSheet {

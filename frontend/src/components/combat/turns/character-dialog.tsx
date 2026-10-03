@@ -201,39 +201,7 @@ function DialogBody({
   const chips = p ? situationChips(p, { current, detailed: true }) : [];
   const Icon = origin.icon;
 
-  const toggles: {
-    key: string;
-    label: string;
-    icon: LucideIcon;
-    on: boolean;
-    danger?: boolean;
-    set: (on: boolean) => Promise<unknown>;
-  }[] = p
-    ? [
-        {
-          key: 'visible',
-          label: 'Caché',
-          icon: EyeOff,
-          on: p.visibleToPlayers === false,
-          set: (on) => commands.updateParticipant(p.characterId, { visibleToPlayers: !on }),
-        },
-        {
-          key: 'surprised',
-          label: 'Surpris',
-          icon: Zap,
-          on: p.surprised === true,
-          set: (on) => commands.updateParticipant(p.characterId, { surprised: on }),
-        },
-        {
-          key: 'defeated',
-          label: 'Hors de combat',
-          icon: Skull,
-          on: p.defeated === true,
-          danger: true,
-          set: (on) => commands.updateParticipant(p.characterId, { defeated: on }),
-        },
-      ]
-    : [];
+  const toggles = p ? participantToggles(p, commands) : [];
 
   return (
     <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
@@ -266,47 +234,22 @@ function DialogBody({
         </div>
       </header>
 
-      {(chips.length > 0 || toggles.length > 0) && (
-        <div className="flex flex-wrap items-center gap-1.5 px-5 pb-4">
-          {toggles.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              aria-pressed={t.on}
-              disabled={busy !== null}
-              onClick={() =>
-                void run(t.key, 'Le changement n’a pas pu être enregistré', () => t.set(!t.on))
-              }
-              className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60',
-                toggleTone(t.on, t.danger),
-              )}
-            >
-              {busy === t.key ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
-              ) : (
-                <t.icon className="size-3.5" aria-hidden />
-              )}
-              {t.label}
-            </button>
-          ))}
-          <SituationChips chips={chips} />
-        </div>
-      )}
+      <ToggleRow
+        chips={chips}
+        toggles={toggles}
+        busy={busy}
+        onToggle={(t) =>
+          void run(t.key, 'Le changement n’a pas pu être enregistré', () => t.set(!t.on))
+        }
+      />
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto border-t border-border px-5 py-4">
-        {perso.isError && (
-          <p className="text-sm text-destructive">{combatErrorMessage(perso.error)}</p>
-        )}
-        {!perso.isError && !ctx && <Skeleton className="h-16 w-full rounded-xl" />}
-        {!perso.isError &&
-          ctx &&
-          ressources?.type === 'ressources' &&
-          ressources.attributs.length > 0 && (
-            <div className="-mx-3 [&>section]:rounded-none [&>section]:border-0 [&>section]:bg-transparent [&>section]:p-0 [&>section]:shadow-none">
-              <BlocRessources ctx={ctx} widget={ressources} />
-            </div>
-          )}
+        <CombatResources
+          isError={perso.isError}
+          error={perso.error}
+          ctx={ctx}
+          ressources={ressources}
+        />
 
         <Section title="États">
           {perso.data && systeme ? (
@@ -368,69 +311,217 @@ function DialogBody({
           </Button>
         </Info>
         {p && (
-          <Info texte={confirmRemove ? 'Cliquer encore pour confirmer' : 'Retirer du combat'}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className={cn(
-                'hover:text-destructive',
-                confirmRemove && 'bg-destructive/15 text-destructive',
-              )}
-              aria-label={confirmRemove ? 'Confirmer le retrait' : 'Retirer du combat'}
-              disabled={busy !== null && busy !== 'remove'}
-              onClick={() => {
-                if (!confirmRemove) return setConfirmRemove(true);
-                void run('remove', 'Le participant n’a pas pu être retiré', () =>
-                  commands.removeParticipant(p.characterId),
-                ).then((ok) => ok && onClose());
-              }}
-              onBlur={() => setConfirmRemove(false)}
-            >
-              {busy === 'remove' ? <Loader2 className="animate-spin" /> : <UserMinus />}
-            </Button>
-          </Info>
+          <RemoveButton
+            confirm={confirmRemove}
+            busy={busy}
+            onClick={() => {
+              if (!confirmRemove) return setConfirmRemove(true);
+              void run('remove', 'Le participant n’a pas pu être retiré', () =>
+                commands.removeParticipant(p.characterId),
+              ).then((ok) => ok && onClose());
+            }}
+            onBlur={() => setConfirmRemove(false)}
+          />
         )}
         <span className="flex-1" />
-        {p && !current && !p.defeated && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              actions.giveTurn(characterId);
-              onClose();
-            }}
-          >
-            <Hand />
-            Donner le tour
-          </Button>
-        )}
-        {canAttack && actions.aimAt && actions.aimAt.actorId !== characterId && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              actions.aimAt!.run(characterId);
-              onClose();
-            }}
-          >
-            <Crosshair />
-            Viser avec {actions.aimAt.actorName}
-          </Button>
-        )}
-        {canAttack && !p?.defeated && (
-          <Button
-            size="sm"
-            onClick={() => {
-              actions.attackWith(characterId);
-              onClose();
-            }}
-          >
-            <Swords />
-            Attaquer
-          </Button>
-        )}
+        <TurnActions
+          characterId={characterId}
+          participant={p}
+          current={current}
+          canAttack={canAttack}
+          actions={actions}
+          onClose={onClose}
+        />
       </footer>
     </div>
+  );
+}
+
+/** Bascule d'un participant (caché, surpris, hors de combat). */
+interface ParticipantToggle {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  on: boolean;
+  danger?: boolean;
+  set: (on: boolean) => Promise<unknown>;
+}
+
+/** Bascules d'un participant : caché aux joueurs, surpris, hors de combat. */
+function participantToggles(
+  p: CombatParticipant,
+  commands: ReturnType<typeof useCombatCommands>,
+): ParticipantToggle[] {
+  return [
+    {
+      key: 'visible',
+      label: 'Caché',
+      icon: EyeOff,
+      on: p.visibleToPlayers === false,
+      set: (on) => commands.updateParticipant(p.characterId, { visibleToPlayers: !on }),
+    },
+    {
+      key: 'surprised',
+      label: 'Surpris',
+      icon: Zap,
+      on: p.surprised === true,
+      set: (on) => commands.updateParticipant(p.characterId, { surprised: on }),
+    },
+    {
+      key: 'defeated',
+      label: 'Hors de combat',
+      icon: Skull,
+      on: p.defeated === true,
+      danger: true,
+      set: (on) => commands.updateParticipant(p.characterId, { defeated: on }),
+    },
+  ];
+}
+
+/** Bascules du participant, puis sa situation (tour, réactions, effets…). */
+function ToggleRow({
+  chips,
+  toggles,
+  busy,
+  onToggle,
+}: Readonly<{
+  chips: ReturnType<typeof situationChips>;
+  toggles: ParticipantToggle[];
+  busy: string | null;
+  onToggle(t: ParticipantToggle): void;
+}>) {
+  if (!(chips.length > 0 || toggles.length > 0)) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 px-5 pb-4">
+      {toggles.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          aria-pressed={t.on}
+          disabled={busy !== null}
+          onClick={() => onToggle(t)}
+          className={cn(
+            'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60',
+            toggleTone(t.on, t.danger),
+          )}
+        >
+          {busy === t.key ? (
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          ) : (
+            <t.icon className="size-3.5" aria-hidden />
+          )}
+          {t.label}
+        </button>
+      ))}
+      <SituationChips chips={chips} />
+    </div>
+  );
+}
+
+/** Ressources du personnage (PV…), ou l'erreur et le chargement de sa fiche. */
+function CombatResources({
+  isError,
+  error,
+  ctx,
+  ressources,
+}: Readonly<{
+  isError: boolean;
+  error: unknown;
+  ctx: ReturnType<typeof useFicheCalculee>['ctx'];
+  ressources: ReturnType<typeof widgetsDe>[number] | undefined;
+}>) {
+  if (isError) return <p className="text-sm text-destructive">{combatErrorMessage(error)}</p>;
+  if (!ctx) return <Skeleton className="h-16 w-full rounded-xl" />;
+  if (ressources?.type !== 'ressources' || ressources.attributs.length === 0) return null;
+  return (
+    <div className="-mx-3 [&>section]:rounded-none [&>section]:border-0 [&>section]:bg-transparent [&>section]:p-0 [&>section]:shadow-none">
+      <BlocRessources ctx={ctx} widget={ressources} />
+    </div>
+  );
+}
+
+/** Retirer du combat, en deux clics (le second confirme). */
+function RemoveButton({
+  confirm,
+  busy,
+  onClick,
+  onBlur,
+}: Readonly<{ confirm: boolean; busy: string | null; onClick(): void; onBlur(): void }>) {
+  return (
+    <Info texte={confirm ? 'Cliquer encore pour confirmer' : 'Retirer du combat'}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className={cn('hover:text-destructive', confirm && 'bg-destructive/15 text-destructive')}
+        aria-label={confirm ? 'Confirmer le retrait' : 'Retirer du combat'}
+        disabled={busy !== null && busy !== 'remove'}
+        onClick={onClick}
+        onBlur={onBlur}
+      >
+        {busy === 'remove' ? <Loader2 className="animate-spin" /> : <UserMinus />}
+      </Button>
+    </Info>
+  );
+}
+
+/** Donner le tour, viser avec l'acteur du tour, ou attaquer avec ce personnage. */
+function TurnActions({
+  characterId,
+  participant: p,
+  current,
+  canAttack,
+  actions,
+  onClose,
+}: Readonly<{
+  characterId: string;
+  participant: CombatParticipant | null;
+  current: boolean;
+  canAttack: boolean;
+  actions: CharacterDialogActions;
+  onClose(): void;
+}>) {
+  const aimAt = actions.aimAt;
+  return (
+    <>
+      {p && !current && !p.defeated && (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            actions.giveTurn(characterId);
+            onClose();
+          }}
+        >
+          <Hand />
+          Donner le tour
+        </Button>
+      )}
+      {canAttack && aimAt && aimAt.actorId !== characterId && (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            aimAt.run(characterId);
+            onClose();
+          }}
+        >
+          <Crosshair />
+          Viser avec {aimAt.actorName}
+        </Button>
+      )}
+      {canAttack && !p?.defeated && (
+        <Button
+          size="sm"
+          onClick={() => {
+            actions.attackWith(characterId);
+            onClose();
+          }}
+        >
+          <Swords />
+          Attaquer
+        </Button>
+      )}
+    </>
   );
 }
 

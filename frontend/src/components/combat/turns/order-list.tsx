@@ -173,6 +173,135 @@ export function OrderList({
   );
 }
 
+/** États et situation sous le nom, les premiers en pastilles, le reste en info-bulle. */
+function RowBadges({
+  states,
+  chips,
+}: Readonly<{
+  states: NonNullable<ParticipantSheet['states']>;
+  chips: ReturnType<typeof situationChips>;
+}>) {
+  if (!(states.length > 0 || chips.length > 0)) return null;
+  return (
+    <span className="relative z-10 mt-1 flex flex-wrap items-center gap-1">
+      <SituationChips chips={chips} />
+      {states.slice(0, MAX_BADGES).map((s) => (
+        <StateBadge key={s.key} state={s} />
+      ))}
+      {states.length > MAX_BADGES && (
+        <Info
+          texte={states
+            .slice(MAX_BADGES)
+            .map((s) => s.name)
+            .join(', ')}
+        >
+          <span className="cursor-help text-[11px] text-subtle">+{states.length - MAX_BADGES}</span>
+        </Info>
+      )}
+    </span>
+  );
+}
+
+/** Menu d'une ligne : fiche, tour, attaque, initiative, visibilité, état, ordre, retrait. */
+function RowMenuItems({
+  row,
+  count,
+  canAttack,
+  actions,
+  confirm,
+  onConfirm,
+}: Readonly<{
+  row: TurnRow;
+  count: number;
+  canAttack: boolean;
+  actions: OrderActions;
+  /** Retrait demandé une fois : le prochain choix le confirme. */
+  confirm: boolean;
+  onConfirm(): void;
+}>) {
+  const id = row.characterId;
+  const p = row.participant;
+  return (
+    <>
+      <DropdownMenuItem onSelect={() => actions.open(id)}>
+        <IdCard />
+        Fiche de combat
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={row.current || row.defeated}
+        onSelect={() => actions.giveTurn(id)}
+      >
+        <Hand />
+        Donner le tour
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={row.defeated || !canAttack}
+        onSelect={() => actions.attackWith(id)}
+      >
+        <Swords />
+        Attaquer avec
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => actions.reroll(id)}>
+        <Dices />
+        {row.initiative ? 'Relancer l’initiative' : 'Lancer l’initiative'}
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => actions.open(id)}>
+        <PencilLine />
+        Saisir l’initiative…
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => actions.setHidden(id, !row.hidden)}>
+        {row.hidden ? <Eye /> : <EyeOff />}
+        {row.hidden ? 'Montrer aux joueurs' : 'Cacher aux joueurs'}
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => actions.setSurprised(id, p.surprised !== true)}>
+        <Zap />
+        {p.surprised ? 'N’est plus surpris' : 'Surpris'}
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => actions.setDefeated(id, !row.defeated)}>
+        <Skull />
+        {row.defeated ? 'Remettre en jeu' : 'Hors de combat'}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={row.position === 1}
+        onSelect={() => actions.move(id, row.position - 2)}
+      >
+        <ArrowUp />
+        Monter
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={row.position === count}
+        onSelect={() => actions.move(id, row.position)}
+      >
+        <ArrowDown />
+        Descendre
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem asChild>
+        <PanelLink panel="joueurs" params={{ [TABLE_PARAMS.character]: id }}>
+          <ExternalLink />
+          Ouvrir la fiche
+        </PanelLink>
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        className="text-destructive focus:text-destructive"
+        onSelect={(e) => {
+          if (!confirm) {
+            e.preventDefault();
+            onConfirm();
+            return;
+          }
+          actions.remove(id);
+        }}
+      >
+        <UserMinus />
+        {confirm ? 'Confirmer le retrait' : 'Retirer du combat'}
+      </DropdownMenuItem>
+    </>
+  );
+}
+
 function OrderRow({
   row,
   member,
@@ -286,26 +415,7 @@ function OrderRow({
             </>
           )}
         </span>
-        {(states.length > 0 || chips.length > 0) && (
-          <span className="relative z-10 mt-1 flex flex-wrap items-center gap-1">
-            <SituationChips chips={chips} />
-            {states.slice(0, MAX_BADGES).map((s) => (
-              <StateBadge key={s.key} state={s} />
-            ))}
-            {states.length > MAX_BADGES && (
-              <Info
-                texte={states
-                  .slice(MAX_BADGES)
-                  .map((s) => s.name)
-                  .join(', ')}
-              >
-                <span className="cursor-help text-[11px] text-subtle">
-                  +{states.length - MAX_BADGES}
-                </span>
-              </Info>
-            )}
-          </span>
-        )}
+        <RowBadges states={states} chips={chips} />
       </span>
       {sheet?.gauge && <Gauge gauge={sheet.gauge} />}
       <ResourcesPopover
@@ -326,81 +436,14 @@ function OrderRow({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
-          <DropdownMenuItem onSelect={() => actions.open(id)}>
-            <IdCard />
-            Fiche de combat
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={row.current || row.defeated}
-            onSelect={() => actions.giveTurn(id)}
-          >
-            <Hand />
-            Donner le tour
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={row.defeated || !canAttack}
-            onSelect={() => actions.attackWith(id)}
-          >
-            <Swords />
-            Attaquer avec
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => actions.reroll(id)}>
-            <Dices />
-            {row.initiative ? 'Relancer l’initiative' : 'Lancer l’initiative'}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => actions.open(id)}>
-            <PencilLine />
-            Saisir l’initiative…
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => actions.setHidden(id, !row.hidden)}>
-            {row.hidden ? <Eye /> : <EyeOff />}
-            {row.hidden ? 'Montrer aux joueurs' : 'Cacher aux joueurs'}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => actions.setSurprised(id, p.surprised !== true)}>
-            <Zap />
-            {p.surprised ? 'N’est plus surpris' : 'Surpris'}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => actions.setDefeated(id, !row.defeated)}>
-            <Skull />
-            {row.defeated ? 'Remettre en jeu' : 'Hors de combat'}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={row.position === 1}
-            onSelect={() => actions.move(id, row.position - 2)}
-          >
-            <ArrowUp />
-            Monter
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={row.position === count}
-            onSelect={() => actions.move(id, row.position)}
-          >
-            <ArrowDown />
-            Descendre
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <PanelLink panel="joueurs" params={{ [TABLE_PARAMS.character]: id }}>
-              <ExternalLink />
-              Ouvrir la fiche
-            </PanelLink>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onSelect={(e) => {
-              if (!confirm) {
-                e.preventDefault();
-                setConfirm(true);
-                return;
-              }
-              actions.remove(id);
-            }}
-          >
-            <UserMinus />
-            {confirm ? 'Confirmer le retrait' : 'Retirer du combat'}
-          </DropdownMenuItem>
+          <RowMenuItems
+            row={row}
+            count={count}
+            canAttack={canAttack}
+            actions={actions}
+            confirm={confirm}
+            onConfirm={() => setConfirm(true)}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
