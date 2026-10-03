@@ -506,14 +506,7 @@ export function executer(
   };
   impliquer();
 
-  type AjoutJet = NonNullable<Extract<Effet, { sur: 'jet' }>['ajout']>;
-  let effets: {
-    source: string;
-    ajout: AjoutJet;
-    valeur: number;
-    nom: string;
-    cote: CoteJet;
-  }[] = [];
+  let effets: EffetJet[] = [];
   /** Effets de jet de l'acteur, de la cible et de la situation, lus avec les paramètres courants. */
   const calculerEffets = () => {
     effets = [];
@@ -632,199 +625,13 @@ export function executer(
   // ─── Jet ──────────────────────────────────────────────────────────────────
 
   const jet = action.jet;
-  let resultatJet: JetNumeriqueResultat | JetSymbolesResultat;
-  let reussi: boolean;
-
-  if (jet.type === 'numerique') {
-    const r = calculerFormule(ch('jet/formule'), 0, ctx);
-    const valeur = Number(r.valeur);
-    const bonus: BonusJet[] = [];
-    for (const e of effets) {
-      if ('bonus' in e.ajout)
-        bonus.push({ source: e.source, nom: e.nom, valeur: e.valeur, cote: e.cote });
-      else if (!('variable' in e.ajout))
-        explications.push(`${e.nom} : ignoré (dés à symboles sur un jet numérique)`);
-    }
-    if (bonusLibre) bonus.push(bonusAjustement(bonusLibre));
-    if (demande.ajustements?.des?.length)
-      explications.push('Ajustement des dés : ignoré (jet numérique)');
-    const total = valeur + bonus.reduce((s, b) => s + b.valeur, 0);
-    const naturel = r.jets.reduce((s, j) => s + j.total, 0);
-    variables.set('total', total);
-    variables.set('naturel', naturel);
-
-    const lire = (k: 'critique' | 'fumble' | 'reussite', defaut: boolean): boolean =>
-      jet[k] === undefined ? defaut : ev(ch(`jet/${k}`), false) === true;
-    reussi = lire('reussite', true);
-    let critique = lire('critique', false);
-    const fumble = lire('fumble', false);
-    if (demande.forcer?.critique !== undefined) critique = demande.forcer.critique;
-    if (jet.critique !== undefined || demande.forcer?.critique !== undefined)
-      variables.set('critique', critique);
-    if (jet.fumble !== undefined) variables.set('fumble', fumble);
-
-    const des = r.jets.length ? ` [${r.jets.map(decrireJet).join(' ; ')}]` : '';
-    explications.push(`Jet ${jet.formule} = ${valeur}${des}`);
-    for (const b of bonus) explications.push(`${b.nom} : ${signe(b.valeur)}`);
-    if (bonus.length) explications.push(`Total : ${total}`);
-    if (critique) explications.push('Critique');
-    if (fumble) explications.push('Échec critique');
-
-    resultatJet = {
-      type: 'numerique',
-      formule: jet.formule,
-      jets: r.jets,
-      valeur,
-      bonus,
-      total,
-      naturel,
-      critique,
-      fumble,
-    };
-  } else {
-    const construction: EtapePool[] = [];
-    let pool: Pool = [];
-    const ajouter = (source: string, nom: string, de: string, nombre: number, cote: CoteJet) => {
-      construction.push({ source, nom, operation: 'ajouter', de, nombre, cote });
-      pool.push({ de, nombre });
-    };
-    const ameliorerPool = (
-      source: string,
-      nom: string,
-      de: string,
-      vers: string,
-      n: number,
-      cote: CoteJet,
-    ) => {
-      construction.push({ source, nom, operation: 'ameliorer', de, vers, nombre: n, cote });
-      pool = ameliorer(pool, de, vers, n);
-    };
-
-    jet.pool.forEach((p, i) =>
-      ajouter('action', action.nom, p.de, nombreDes(ev(ch(`jet/pool/${i}`), 0)), 'action'),
-    );
-    for (const e of effets)
-      if ('de' in e.ajout) ajouter(e.source, e.nom, e.ajout.de, nombreDes(e.valeur), e.cote);
-    jet.ameliorations.forEach((a, i) =>
-      ameliorerPool(
-        'action',
-        action.nom,
-        a.de,
-        a.vers,
-        nombreDes(ev(ch(`jet/ameliorations/${i}`), 0)),
-        'action',
-      ),
-    );
-    for (const e of effets) {
-      if ('ameliorer' in e.ajout)
-        ameliorerPool(
-          e.source,
-          e.nom,
-          e.ajout.ameliorer,
-          e.ajout.vers,
-          nombreDes(e.valeur),
-          e.cote,
-        );
-      else if ('bonus' in e.ajout)
-        explications.push(`${e.nom} : ignoré (bonus sur un jet à symboles)`);
-    }
-    for (const e of effets) {
-      if (!('retrograder' in e.ajout)) continue;
-      const { retrograder: de, vers } = e.ajout;
-      const n = nombreDes(e.valeur);
-      construction.push({
-        source: e.source,
-        nom: e.nom,
-        operation: 'retrograder',
-        de,
-        vers,
-        nombre: n,
-        cote: e.cote,
-      });
-      pool = retrograder(pool, de, vers, n);
-    }
-    for (const e of effets) {
-      if (!('retirer' in e.ajout)) continue;
-      const de = e.ajout.retirer;
-      const n = nombreDes(e.valeur);
-      construction.push({
-        source: e.source,
-        nom: e.nom,
-        operation: 'retirer',
-        de,
-        nombre: n,
-        cote: e.cote,
-      });
-      pool = retirer(pool, de, n);
-    }
-    // Ajustements libres, après les effets : dés ajoutés ou retirés à la main
-    for (const a of demande.ajustements?.des ?? []) {
-      if (!a.nombre) continue;
-      const nombre = Math.abs(a.nombre);
-      const operation = a.nombre > 0 ? 'ajouter' : 'retirer';
-      construction.push({
-        source: SOURCE_AJUSTEMENT,
-        nom: NOM_AJUSTEMENT,
-        operation,
-        de: a.de,
-        nombre,
-        cote: 'acteur',
-      });
-      pool = a.nombre > 0 ? [...pool, { de: a.de, nombre }] : retirer(pool, a.de, nombre);
-    }
-    if (bonusLibre) explications.push(`${NOM_AJUSTEMENT} : bonus ignoré (jet à symboles)`);
-
-    // Pool final, dans l'ordre des sortes du système, borné au nombre maximal de dés
-    const sortes = systeme.source.des?.sortes ?? [];
-    const nomDe = (id: string) => sortes.find((s) => s.id === id)?.nom ?? id;
-    const rang = (id: string) => sortes.findIndex((s) => s.id === id);
-    pool = regrouperPool(pool)
-      .filter((p) => p.nombre > 0)
-      .sort((a, b) => rang(a.de) - rang(b.de));
-    let reste: number = LIMITES.desParJet;
-    if (pool.reduce((s, p) => s + p.nombre, 0) > reste) {
-      erreurs.push({
-        ou: ch('jet/pool'),
-        message: `Trop de dés (${reste} au plus) : pool tronqué`,
-      });
-      pool = pool.map((p) => {
-        const nombre = Math.min(p.nombre, reste);
-        reste -= nombre;
-        return { de: p.de, nombre };
-      });
-      pool = pool.filter((p) => p.nombre > 0);
-    }
-
-    const l = lancerSymboles(systeme, pool, aleatoire);
-    erreurs.push(...l.erreurs);
-    for (const [cle, v] of Object.entries(l.resultats)) variables.set(cle, v);
-    reussi = jet.reussite === undefined ? true : ev(ch('jet/reussite'), false) === true;
-
-    for (const e of construction) {
-      if (e.source === 'action' && e.operation === 'ajouter') continue;
-      explications.push(decrireEtape(e, nomDe));
-    }
-    explications.push(
-      `Pool : ${pool.map((p) => `${p.nombre} × ${nomDe(p.de)}`).join(', ') || 'aucun dé'}`,
-    );
-    const symboles = systeme.source.des?.symboles ?? [];
-    const sortis = symboles.filter((s) => (l.symboles[s.id] ?? 0) > 0);
-    explications.push(
-      `Symboles : ${sortis.map((s) => `${s.nom} ${l.symboles[s.id]}`).join(', ') || 'aucun'}`,
-    );
-    const lus = systeme.source.des?.resultats.filter((r) => r.visible) ?? [];
-    if (lus.length)
-      explications.push(lus.map((r) => `${r.nom} : ${l.resultats[r.cle] ?? 0}`).join(', '));
-
-    resultatJet = {
-      type: 'symboles',
-      construction,
-      pool,
-      des: l.des,
-      symboles: l.symboles,
-      resultats: l.resultats,
-    };
-  }
+  const deroule: Deroule = { systeme, action, demande, erreurs, explications, variables, ev, ch };
+  const lance =
+    jet.type === 'numerique'
+      ? jetNumerique(deroule, jet, calculerFormule(ch('jet/formule'), 0, ctx), effets)
+      : jetSymboles(deroule, jet, effets);
+  let resultatJet: JetNumeriqueResultat | JetSymbolesResultat = lance.resultat;
+  let reussi = lance.reussi;
 
   if (demande.forcer?.reussi !== undefined) reussi = demande.forcer.reussi;
   const force = demande.forcer?.reussi !== undefined || demande.forcer?.critique !== undefined;
@@ -901,89 +708,9 @@ export function executer(
     variables.set(v.cle, valeur);
   }
 
-  action.consequences.forEach((c, i) => {
-    const ou = ch(`consequences/${i}`);
-    if (c.condition !== undefined && ev(`${ou}/condition`, false) !== true) return;
-    const fiche = c.entite === 'cible' ? cible! : acteur;
-    const qui = c.entite === 'cible' ? 'Cible' : 'Acteur';
-
-    if (!('attribut' in c)) {
-      const id = c.entree ?? String(ev(`${ou}/entree`, ''));
-      if (!id) return;
-      const cible = systeme.entrees.get(id);
-      const sorte = cible && systeme.sortes.get(cible.sorte);
-      if (!cible || !sorte?.pour.includes(fiche.etat.type)) {
-        erreurs.push({ ou: `${ou}/entree`, message: `Entrée impossible à donner : ${id}` });
-        return;
-      }
-      const rangs = Number(ev(`${ou}/rangs`, 1));
-      const duree = c.duree === undefined ? undefined : Number(ev(`${ou}/duree`, 0));
-      modifications.push({
-        entite: c.entite,
-        entree: id,
-        operation: c.operation,
-        rangs,
-        ...(duree !== undefined ? { duree } : {}),
-      });
-      const nomEntree = cible.nom;
-      const pendant = duree !== undefined ? ` pendant ${duree} round(s)` : '';
-      explications.push(
-        `${qui} : ${c.operation === 'donner' ? 'reçoit' : 'perd'} ${nomEntree}${pendant}`,
-      );
-      return;
-    }
-
-    let valeur = Number(ev(`${ou}/valeur`, 0));
-    const nom = fiche.entite.attributs.get(c.attribut)?.nom ?? c.attribut;
-    // Type de dégâts fixe ou calculé ; un type calculé vide : dégâts non typés
-    let typeDegats: string | undefined = c.type;
-    // `degats: true` : le type déclaré par l'action, fixe ou calculé
-    let cheminType: string | undefined;
-    if (c.typeCalcule !== undefined) cheminType = `${ou}/type`;
-    else if (c.degats && action.typeDegatsCalcule !== undefined) cheminType = ch('typeDegats');
-    if (c.degats && c.type === undefined && c.typeCalcule === undefined)
-      typeDegats = action.typeDegats;
-    if (cheminType) {
-      const t = String(ev(cheminType, ''));
-      if (t && !systeme.source.typesDegats.some((x) => x.id === t)) {
-        erreurs.push({ ou: cheminType, message: `Type de dégâts inconnu : ${t}` });
-      } else if (t) typeDegats = t;
-    }
-    if (c.type !== undefined || c.typeCalcule !== undefined || c.degats) {
-      // Dégâts : résistances, immunités et vulnérabilités de l'entité touchée
-      const minimum = c.minimum === undefined ? 0 : Number(ev(`${ou}/minimum`, 0));
-      const recus = reduireDegats(fiche, valeur, typeDegats, c.attribut, minimum);
-      const typeNom =
-        systeme.source.typesDegats.find((t) => t.id === typeDegats)?.nom ?? 'non typés';
-      for (const l of recus.lignes) {
-        const effet = effetLimite(l.operation, l.valeur);
-        explications.push(`${l.nom} : ${effet}${l.ignore ? ' (ignoré)' : ''}`);
-      }
-      const auMoins = recus.minimum !== undefined ? ` (au moins ${recus.minimum})` : '';
-      explications.push(`Dégâts (${typeNom}) : ${recus.brut} → ${recus.valeur}${auMoins}`);
-      modifications.push({
-        entite: c.entite,
-        attribut: c.attribut,
-        operation: c.operation,
-        valeur: recus.valeur,
-        ...(typeDegats ? { type: typeDegats } : {}),
-        brut: recus.brut,
-        ...(recus.lignes.length ? { resistances: recus.lignes } : {}),
-        ...(recus.minimum !== undefined ? { minimum: recus.minimum } : {}),
-      });
-      valeur = recus.valeur;
-    } else {
-      modifications.push({
-        entite: c.entite,
-        attribut: c.attribut,
-        operation: c.operation,
-        valeur,
-      });
-    }
-    const delta = c.operation === 'ajouter' ? valeur : -valeur;
-    const op = c.operation === 'fixer' ? `fixé à ${valeur}` : signe(delta);
-    explications.push(`${qui} : ${nom} ${op}`);
-  });
+  action.consequences.forEach((c, i) =>
+    appliquerConsequence(deroule, c, ch(`consequences/${i}`), { acteur, cible }, modifications),
+  );
 
   // Dés d'après le jet manquants (dégâts) : le jet et son issue sont exacts
   passer('tables', apresJet);
@@ -1238,6 +965,354 @@ function refusEntree(
   if (!possession && p.possedee) return `${p.nom} : ${entree.nom} n’est pas possédée par l’acteur`;
   if (possession && !possession.actif) return `${p.nom} : ${entree.nom} n’est pas active`;
   return null;
+}
+
+type AjoutJet = NonNullable<Extract<Effet, { sur: 'jet' }>['ajout']>;
+
+/** Effet de jet retenu (acteur, cible ou situation), avec son montant calculé. */
+interface EffetJet {
+  source: string;
+  ajout: AjoutJet;
+  valeur: number;
+  nom: string;
+  cote: CoteJet;
+}
+
+/** Ce que les étapes de l'exécution lisent et complètent. */
+interface Deroule {
+  systeme: SystemeCharge;
+  action: Action;
+  demande: DemandeAction;
+  erreurs: ErreurJet[];
+  explications: string[];
+  variables: Map<string, Valeur>;
+  /** Évalue une formule de l'action avec les variables courantes. */
+  ev(chemin: string, defaut: Valeur): Valeur;
+  /** Chemin d'une formule de l'action. */
+  ch(x: string): string;
+}
+
+type JetNumerique = Extract<Action['jet'], { type: 'numerique' }>;
+type JetSymboles = Extract<Action['jet'], { type: 'symboles' }>;
+
+/** Jet numérique : formule, bonus des effets et ajustement, critique, échec critique, réussite. */
+function jetNumerique(
+  d: Deroule,
+  jet: JetNumerique,
+  r: ResultatEvaluation,
+  effets: readonly EffetJet[],
+): { resultat: JetNumeriqueResultat; reussi: boolean } {
+  const { demande, explications, variables } = d;
+  const valeur = Number(r.valeur);
+  const bonus: BonusJet[] = [];
+  for (const e of effets) {
+    if ('bonus' in e.ajout)
+      bonus.push({ source: e.source, nom: e.nom, valeur: e.valeur, cote: e.cote });
+    else if (!('variable' in e.ajout))
+      explications.push(`${e.nom} : ignoré (dés à symboles sur un jet numérique)`);
+  }
+  const bonusLibre = demande.ajustements?.bonus;
+  if (bonusLibre) bonus.push(bonusAjustement(bonusLibre));
+  if (demande.ajustements?.des?.length)
+    explications.push('Ajustement des dés : ignoré (jet numérique)');
+  const total = valeur + bonus.reduce((s, b) => s + b.valeur, 0);
+  const naturel = r.jets.reduce((s, j) => s + j.total, 0);
+  variables.set('total', total);
+  variables.set('naturel', naturel);
+
+  const lire = (k: 'critique' | 'fumble' | 'reussite', defaut: boolean): boolean =>
+    jet[k] === undefined ? defaut : d.ev(d.ch(`jet/${k}`), false) === true;
+  const reussi = lire('reussite', true);
+  let critique = lire('critique', false);
+  const fumble = lire('fumble', false);
+  if (demande.forcer?.critique !== undefined) critique = demande.forcer.critique;
+  if (jet.critique !== undefined || demande.forcer?.critique !== undefined)
+    variables.set('critique', critique);
+  if (jet.fumble !== undefined) variables.set('fumble', fumble);
+
+  const des = r.jets.length ? ` [${r.jets.map(decrireJet).join(' ; ')}]` : '';
+  explications.push(`Jet ${jet.formule} = ${valeur}${des}`);
+  for (const b of bonus) explications.push(`${b.nom} : ${signe(b.valeur)}`);
+  if (bonus.length) explications.push(`Total : ${total}`);
+  if (critique) explications.push('Critique');
+  if (fumble) explications.push('Échec critique');
+
+  return {
+    resultat: {
+      type: 'numerique',
+      formule: jet.formule,
+      jets: r.jets,
+      valeur,
+      bonus,
+      total,
+      naturel,
+      critique,
+      fumble,
+    },
+    reussi,
+  };
+}
+
+/** Pool d'un jet à symboles : celui de l'action, puis les effets, puis l'ajustement libre. */
+function construirePool(
+  d: Deroule,
+  jet: JetSymboles,
+  effets: readonly EffetJet[],
+): { construction: EtapePool[]; pool: Pool } {
+  const { action, explications } = d;
+  const construction: EtapePool[] = [];
+  let pool: Pool = [];
+  const etape = (e: EtapePool, suivant: Pool) => {
+    construction.push(e);
+    pool = suivant;
+  };
+  const ajouter = (source: string, nom: string, de: string, nombre: number, cote: CoteJet) =>
+    etape({ source, nom, operation: 'ajouter', de, nombre, cote }, [...pool, { de, nombre }]);
+  const monter = (e: Omit<EtapePool, 'operation'>) =>
+    etape({ ...e, operation: 'ameliorer' }, ameliorer(pool, e.de, e.vers!, e.nombre));
+
+  jet.pool.forEach((p, i) =>
+    ajouter('action', action.nom, p.de, nombreDes(d.ev(d.ch(`jet/pool/${i}`), 0)), 'action'),
+  );
+  for (const e of effets)
+    if ('de' in e.ajout) ajouter(e.source, e.nom, e.ajout.de, nombreDes(e.valeur), e.cote);
+  jet.ameliorations.forEach((a, i) =>
+    monter({
+      source: 'action',
+      nom: action.nom,
+      de: a.de,
+      vers: a.vers,
+      nombre: nombreDes(d.ev(d.ch(`jet/ameliorations/${i}`), 0)),
+      cote: 'action',
+    }),
+  );
+  for (const e of effets) {
+    const { source, nom, cote } = e;
+    const nombre = nombreDes(e.valeur);
+    if ('ameliorer' in e.ajout)
+      monter({ source, nom, de: e.ajout.ameliorer, vers: e.ajout.vers, nombre, cote });
+    else if ('bonus' in e.ajout) explications.push(`${nom} : ignoré (bonus sur un jet à symboles)`);
+  }
+  for (const e of effets) {
+    if (!('retrograder' in e.ajout)) continue;
+    const { retrograder: de, vers } = e.ajout;
+    const nombre = nombreDes(e.valeur);
+    const { source, nom, cote } = e;
+    etape(
+      { source, nom, operation: 'retrograder', de, vers, nombre, cote },
+      retrograder(pool, de, vers, nombre),
+    );
+  }
+  for (const e of effets) {
+    if (!('retirer' in e.ajout)) continue;
+    const de = e.ajout.retirer;
+    const nombre = nombreDes(e.valeur);
+    const { source, nom, cote } = e;
+    etape({ source, nom, operation: 'retirer', de, nombre, cote }, retirer(pool, de, nombre));
+  }
+  // Ajustements libres, après les effets : dés ajoutés ou retirés à la main
+  for (const a of d.demande.ajustements?.des ?? []) {
+    if (!a.nombre) continue;
+    const nombre = Math.abs(a.nombre);
+    const ajout = a.nombre > 0;
+    etape(
+      {
+        source: SOURCE_AJUSTEMENT,
+        nom: NOM_AJUSTEMENT,
+        operation: ajout ? 'ajouter' : 'retirer',
+        de: a.de,
+        nombre,
+        cote: 'acteur',
+      },
+      ajout ? [...pool, { de: a.de, nombre }] : retirer(pool, a.de, nombre),
+    );
+  }
+  return { construction, pool };
+}
+
+/** Pool final, dans l'ordre des sortes du système, borné au nombre maximal de dés. */
+function poolFinal(d: Deroule, brut: Pool): Pool {
+  const sortes = d.systeme.source.des?.sortes ?? [];
+  const rang = (id: string) => sortes.findIndex((s) => s.id === id);
+  const pool = regrouperPool(brut)
+    .filter((p) => p.nombre > 0)
+    .sort((a, b) => rang(a.de) - rang(b.de));
+  let reste: number = LIMITES.desParJet;
+  if (pool.reduce((s, p) => s + p.nombre, 0) <= reste) return pool;
+  d.erreurs.push({
+    ou: d.ch('jet/pool'),
+    message: `Trop de dés (${reste} au plus) : pool tronqué`,
+  });
+  return pool
+    .map((p) => {
+      const nombre = Math.min(p.nombre, reste);
+      reste -= nombre;
+      return { de: p.de, nombre };
+    })
+    .filter((p) => p.nombre > 0);
+}
+
+/** Jet à symboles : construction du pool, lancer, résultats et réussite. */
+function jetSymboles(
+  d: Deroule,
+  jet: JetSymboles,
+  effets: readonly EffetJet[],
+): { resultat: JetSymbolesResultat; reussi: boolean } {
+  const { systeme, explications, variables } = d;
+  const { construction, pool: brut } = construirePool(d, jet, effets);
+  if (d.demande.ajustements?.bonus)
+    explications.push(`${NOM_AJUSTEMENT} : bonus ignoré (jet à symboles)`);
+  const pool = poolFinal(d, brut);
+
+  const l = lancerSymboles(systeme, pool, d.demande.aleatoire);
+  d.erreurs.push(...l.erreurs);
+  for (const [cle, v] of Object.entries(l.resultats)) variables.set(cle, v);
+  const reussi = jet.reussite === undefined ? true : d.ev(d.ch('jet/reussite'), false) === true;
+
+  const sortes = systeme.source.des?.sortes ?? [];
+  const nomDe = (id: string) => sortes.find((s) => s.id === id)?.nom ?? id;
+  for (const e of construction) {
+    if (e.source === 'action' && e.operation === 'ajouter') continue;
+    explications.push(decrireEtape(e, nomDe));
+  }
+  explications.push(
+    `Pool : ${pool.map((p) => `${p.nombre} × ${nomDe(p.de)}`).join(', ') || 'aucun dé'}`,
+  );
+  const symboles = systeme.source.des?.symboles ?? [];
+  const sortis = symboles.filter((s) => (l.symboles[s.id] ?? 0) > 0);
+  explications.push(
+    `Symboles : ${sortis.map((s) => `${s.nom} ${l.symboles[s.id]}`).join(', ') || 'aucun'}`,
+  );
+  const lus = systeme.source.des?.resultats.filter((r) => r.visible) ?? [];
+  if (lus.length)
+    explications.push(lus.map((r) => `${r.nom} : ${l.resultats[r.cle] ?? 0}`).join(', '));
+
+  return {
+    resultat: {
+      type: 'symboles',
+      construction,
+      pool,
+      des: l.des,
+      symboles: l.symboles,
+      resultats: l.resultats,
+    },
+    reussi,
+  };
+}
+
+type Consequence = Action['consequences'][number];
+
+/** Conséquence d'une action : entrée donnée ou retirée, ou attribut modifié (dégâts compris). */
+function appliquerConsequence(
+  d: Deroule,
+  c: Consequence,
+  ou: string,
+  entites: Entites,
+  modifications: Modification[],
+): void {
+  if (c.condition !== undefined && d.ev(`${ou}/condition`, false) !== true) return;
+  const fiche = c.entite === 'cible' ? entites.cible! : entites.acteur;
+  const qui = c.entite === 'cible' ? 'Cible' : 'Acteur';
+  if (!('attribut' in c)) {
+    consequenceEntree(d, c, ou, fiche, qui, modifications);
+    return;
+  }
+  const valeur = Number(d.ev(`${ou}/valeur`, 0));
+  const nom = fiche.entite.attributs.get(c.attribut)?.nom ?? c.attribut;
+  let recue = valeur;
+  if (c.type !== undefined || c.typeCalcule !== undefined || c.degats)
+    recue = degatsRecus(d, c, ou, fiche, valeur, modifications);
+  else
+    modifications.push({ entite: c.entite, attribut: c.attribut, operation: c.operation, valeur });
+  const delta = c.operation === 'ajouter' ? recue : -recue;
+  const op = c.operation === 'fixer' ? `fixé à ${recue}` : signe(delta);
+  d.explications.push(`${qui} : ${nom} ${op}`);
+}
+
+function consequenceEntree(
+  d: Deroule,
+  c: Exclude<Consequence, { attribut: string }>,
+  ou: string,
+  fiche: Fiche,
+  qui: string,
+  modifications: Modification[],
+): void {
+  const { systeme } = d;
+  const id = c.entree ?? String(d.ev(`${ou}/entree`, ''));
+  if (!id) return;
+  const donnee = systeme.entrees.get(id);
+  const sorte = donnee && systeme.sortes.get(donnee.sorte);
+  if (!donnee || !sorte?.pour.includes(fiche.etat.type)) {
+    d.erreurs.push({ ou: `${ou}/entree`, message: `Entrée impossible à donner : ${id}` });
+    return;
+  }
+  const rangs = Number(d.ev(`${ou}/rangs`, 1));
+  const duree = c.duree === undefined ? undefined : Number(d.ev(`${ou}/duree`, 0));
+  modifications.push({
+    entite: c.entite,
+    entree: id,
+    operation: c.operation,
+    rangs,
+    ...(duree !== undefined ? { duree } : {}),
+  });
+  const pendant = duree !== undefined ? ` pendant ${duree} round(s)` : '';
+  d.explications.push(
+    `${qui} : ${c.operation === 'donner' ? 'reçoit' : 'perd'} ${donnee.nom}${pendant}`,
+  );
+}
+
+/** Type de dégâts d'une conséquence : fixe, calculé, ou celui de l'action (`degats: true`). */
+function typeDegatsDe(
+  d: Deroule,
+  c: Extract<Consequence, { attribut: string }>,
+  ou: string,
+): string | undefined {
+  // Type de dégâts fixe ou calculé ; un type calculé vide : dégâts non typés
+  let typeDegats: string | undefined = c.type;
+  let cheminType: string | undefined;
+  if (c.typeCalcule !== undefined) cheminType = `${ou}/type`;
+  else if (c.degats && d.action.typeDegatsCalcule !== undefined) cheminType = d.ch('typeDegats');
+  if (c.degats && c.type === undefined && c.typeCalcule === undefined)
+    typeDegats = d.action.typeDegats;
+  if (!cheminType) return typeDegats;
+  const t = String(d.ev(cheminType, ''));
+  if (t && !d.systeme.source.typesDegats.some((x) => x.id === t)) {
+    d.erreurs.push({ ou: cheminType, message: `Type de dégâts inconnu : ${t}` });
+    return typeDegats;
+  }
+  return t || typeDegats;
+}
+
+/** Dégâts : résistances, immunités et vulnérabilités de l'entité touchée ; renvoie le reçu. */
+function degatsRecus(
+  d: Deroule,
+  c: Extract<Consequence, { attribut: string }>,
+  ou: string,
+  fiche: Fiche,
+  valeur: number,
+  modifications: Modification[],
+): number {
+  const typeDegats = typeDegatsDe(d, c, ou);
+  const minimum = c.minimum === undefined ? 0 : Number(d.ev(`${ou}/minimum`, 0));
+  const recus = reduireDegats(fiche, valeur, typeDegats, c.attribut, minimum);
+  const typeNom = d.systeme.source.typesDegats.find((t) => t.id === typeDegats)?.nom ?? 'non typés';
+  for (const l of recus.lignes) {
+    const effet = effetLimite(l.operation, l.valeur);
+    d.explications.push(`${l.nom} : ${effet}${l.ignore ? ' (ignoré)' : ''}`);
+  }
+  const auMoins = recus.minimum !== undefined ? ` (au moins ${recus.minimum})` : '';
+  d.explications.push(`Dégâts (${typeNom}) : ${recus.brut} → ${recus.valeur}${auMoins}`);
+  modifications.push({
+    entite: c.entite,
+    attribut: c.attribut,
+    operation: c.operation,
+    valeur: recus.valeur,
+    ...(typeDegats ? { type: typeDegats } : {}),
+    brut: recus.brut,
+    ...(recus.lignes.length ? { resistances: recus.lignes } : {}),
+    ...(recus.minimum !== undefined ? { minimum: recus.minimum } : {}),
+  });
+  return recus.valeur;
 }
 
 /** Libellé des lignes d'un ajustement libre. */
