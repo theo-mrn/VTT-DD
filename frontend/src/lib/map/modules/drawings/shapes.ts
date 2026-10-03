@@ -209,6 +209,33 @@ export const translatePoints = (points: readonly Point[], dx: number, dy: number
 // ─── Tracé à main levée ──────────────────────────────────────────────────────
 
 /**
+ * Point entre `first` et `last` le plus éloigné de leur corde, s'il s'en écarte de plus de
+ * `epsilon` ; sinon -1.
+ */
+function splitIndex(points: readonly Point[], first: number, last: number, epsilon: number) {
+  const a = points[first]!;
+  const b = points[last]!;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy);
+  let maxD = -1;
+  let index = -1;
+  for (let i = first + 1; i < last; i++) {
+    const p = points[i]!;
+    // Distance à la droite (a, b), ou au point a si la corde est nulle
+    const d =
+      len < 1e-9
+        ? Math.hypot(p.x - a.x, p.y - a.y)
+        : Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / len;
+    if (d > maxD) {
+      maxD = d;
+      index = i;
+    }
+  }
+  return index >= 0 && maxD > epsilon ? index : -1;
+}
+
+/**
  * Simplification de Ramer-Douglas-Peucker : garde les extrémités et les points qui s'écartent
  * de plus de `epsilon` de la corde. Itérative (pile), sans récursion profonde sur un long tracé.
  */
@@ -222,26 +249,8 @@ export function simplify(points: readonly Point[], epsilon: number): Point[] {
   while (stack.length) {
     const last = stack.pop()!;
     const first = stack.pop()!;
-    const a = points[first]!;
-    const b = points[last]!;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy);
-    let maxD = -1;
-    let index = -1;
-    for (let i = first + 1; i < last; i++) {
-      const p = points[i]!;
-      // Distance à la droite (a, b), ou au point a si la corde est nulle
-      const d =
-        len < 1e-9
-          ? Math.hypot(p.x - a.x, p.y - a.y)
-          : Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / len;
-      if (d > maxD) {
-        maxD = d;
-        index = i;
-      }
-    }
-    if (index >= 0 && maxD > epsilon) {
+    const index = splitIndex(points, first, last, epsilon);
+    if (index >= 0) {
       keep[index] = 1;
       stack.push(first, index, index, last);
     }

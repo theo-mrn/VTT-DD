@@ -35,7 +35,7 @@ import {
   type Placement,
 } from './operations';
 import { fillFor, withAlpha } from './palette';
-import { drawFlatPolyline, drawShape, pixiColor } from './render';
+import { drawFlatPolyline, drawShape, pixiColor, type StrokeParams } from './render';
 import type { DrawingsRuntime } from './runtime';
 import { DRAW_SHAPES, type DrawShape } from './settings';
 import { constrainEnd, round2, shapeOf, shapePoints, simplify } from './shapes';
@@ -390,27 +390,35 @@ export class DrawTool implements Tool {
       case 'drawing':
         drawFlatPolyline(g, this.flat, this.flat.length / 2, stroke);
         return;
-      case 'shaping': {
-        if (!this.start || !this.end) return;
-        const closed = this.shape !== 'line';
-        const shape = shapeOf({
-          tool: this.shape,
-          points: [this.start, this.end],
-          width: this.style.width,
-          closed,
-        });
-        const fill = closed && this.style.fill ? pixiColor(ctx.pixi, this.style.fill) : null;
-        drawShape(g, shape, stroke, fill);
+      case 'shaping':
+        this.previewShape(g, ctx, stroke);
         return;
-      }
-      default: {
-        const eraser = this.state === 'erasing' || this.rt.settings.getState().shape === 'eraser';
-        if (!eraser || !this.hover) return;
-        const r = ERASER_PX * px;
-        g.circle(this.hover.x, this.hover.y, r)
-          .fill({ color: ctx.theme.foreground, alpha: 0.08 })
-          .stroke({ width: 1.5 * px, color: ctx.theme.foreground, alpha: 0.9 });
-      }
+      default:
+        this.previewEraser(g, ctx, px);
     }
+  }
+
+  /** Forme en cours, de l'origine à l'extrémité (remplie si elle est fermée). */
+  private previewShape(g: Graphics, ctx: RenderContext, stroke: StrokeParams) {
+    if (!this.start || !this.end) return;
+    const closed = this.shape !== 'line';
+    const shape = shapeOf({
+      tool: this.shape,
+      points: [this.start, this.end],
+      width: this.style.width,
+      closed,
+    });
+    const fill = closed && this.style.fill ? pixiColor(ctx.pixi, this.style.fill) : null;
+    drawShape(g, shape, stroke, fill);
+  }
+
+  /** Cercle de la gomme sous le pointeur. */
+  private previewEraser(g: Graphics, ctx: RenderContext, px: number) {
+    const eraser = this.state === 'erasing' || this.rt.settings.getState().shape === 'eraser';
+    if (!eraser || !this.hover) return;
+    const r = ERASER_PX * px;
+    g.circle(this.hover.x, this.hover.y, r)
+      .fill({ color: ctx.theme.foreground, alpha: 0.08 })
+      .stroke({ width: 1.5 * px, color: ctx.theme.foreground, alpha: 0.9 });
   }
 }
