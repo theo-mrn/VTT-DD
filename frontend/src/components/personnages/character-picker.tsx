@@ -138,7 +138,7 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
     );
 
   const role = c.role;
-  const canCreate = role === 'gm' || (role === 'player' && c.freeCreation);
+  const canCreate = canCreateIn(role, c.freeCreation);
   const createHref = `/personnages/nouveau?${new URLSearchParams({ campagne: campaignId })}`;
   const heading = (actions?: ReactNode) => (
     <EnTetePage
@@ -195,14 +195,6 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
   if (!options) return shell(<PickerSkeleton />);
 
   const all = [...options.pcs, ...options.bring];
-  const createButton = (primary: boolean) => (
-    <Button asChild variant={primary ? 'default' : 'secondary'}>
-      <Link href={createHref}>
-        <Plus />
-        Créer mon personnage
-      </Link>
-    </Button>
-  );
 
   // Aucun personnage joueur : seule l'invitation à créer le sien (le MJ garde son entrée)
   if (all.length === 0 && role !== 'gm')
@@ -217,20 +209,16 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
               ? 'Créez votre personnage pour rejoindre la table.'
               : "Le maître du jeu n'autorise pas la création de personnages ici : demandez-lui de vous en préparer un."
           }
-          action={canCreate ? createButton(true) : undefined}
+          action={canCreate ? <CreateButton href={createHref} primary /> : undefined}
         />
       </div>,
     );
 
   // Sélection par défaut : ce que j'incarne déjà (le MJ sans personnage : maître du jeu)
-  const current = me?.characterId ?? (role === 'gm' ? GM_OPTION : null);
+  const current = currentValue(me, role);
   const played = options.pcs.find((o) => o.character.id === me?.characterId) ?? null;
   const showBring = bringOpen ?? options.pcs.length === 0;
-  const selectedValue = picked ?? current;
-  const selected =
-    selectedValue === GM_OPTION && role === 'gm'
-      ? GM_OPTION
-      : (all.find((o) => o.character.id === selectedValue && o.selectable) ?? null);
+  const selected = selectedOption(picked ?? current, role, all);
 
   async function enter(target: CharacterOption | typeof GM_OPTION) {
     const p = target === GM_OPTION ? null : target.character;
@@ -262,8 +250,8 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
     }
   };
   const choose = (value: string) => setPicked(value);
-  const optionProps = {
-    selectedValue: selected === GM_OPTION ? GM_OPTION : (selected?.character.id ?? null),
+  const optionProps: OptionChoice = {
+    selectedValue: selectionValue(selected),
     onChoose: choose,
     onEnter: (o: CharacterOption) => void enter(o),
     disabled: sending,
@@ -271,7 +259,7 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
 
   return shell(
     <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-8 sm:px-6 lg:pb-12">
-      {heading(options.pcs.length > 0 && canCreate ? createButton(false) : undefined)}
+      {heading(headerCreate(options.pcs.length > 0 && canCreate, createHref))}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <fieldset className="min-w-0 space-y-8" onKeyDown={onKeyDown}>
@@ -290,38 +278,19 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
             </section>
           )}
 
-          {options.pcs.length > 0 ? (
-            <section>
-              <TitreSection compte={options.pcs.length}>Personnages joueurs</TitreSection>
-              <OptionGrid options={options.pcs} {...optionProps} />
-            </section>
-          ) : (
-            <EtatVide
-              icone={UserRound}
-              titre="Aucun personnage joueur pour l'instant"
-              description={
-                role === 'gm'
-                  ? "Les personnages de vos joueurs apparaîtront ici dès qu'ils les auront créés."
-                  : 'Créez votre personnage, ou amenez-en un que vous avez déjà.'
-              }
-              action={canCreate ? createButton(true) : undefined}
-            />
-          )}
+          <PlayerCharacters
+            pcs={options.pcs}
+            gm={role === 'gm'}
+            createHref={canCreate ? createHref : null}
+            optionProps={optionProps}
+          />
 
-          {options.bring.length > 0 && (
-            <section>
-              <BringToggle
-                count={options.bring.length}
-                open={showBring}
-                onToggle={() => setBringOpen(!showBring)}
-              />
-              {showBring && (
-                <div className="mt-2.5">
-                  <OptionGrid options={options.bring} {...optionProps} />
-                </div>
-              )}
-            </section>
-          )}
+          <BringSection
+            options={options.bring}
+            open={showBring}
+            onToggle={() => setBringOpen(!showBring)}
+            optionProps={optionProps}
+          />
         </fieldset>
 
         <aside className="hidden lg:block">
@@ -343,6 +312,115 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
         onEnter={() => selected && void enter(selected)}
       />
     </div>,
+  );
+}
+
+// ─── Sélection ───────────────────────────────────────────────────────────────
+
+type Choice = CharacterOption | typeof GM_OPTION;
+
+/** Ce que j'incarne déjà ; le MJ sans personnage : maître du jeu. */
+function currentValue(me: Membre | null, role: string): string | null {
+  return me?.characterId ?? (role === 'gm' ? GM_OPTION : null);
+}
+
+/** Option choisie : maître du jeu (MJ seulement), ou un personnage sélectionnable. */
+function selectedOption(value: string | null, role: string, all: CharacterOption[]): Choice | null {
+  if (value === GM_OPTION && role === 'gm') return GM_OPTION;
+  return all.find((o) => o.character.id === value && o.selectable) ?? null;
+}
+
+/** Valeur cochée dans les grilles d'options. */
+function selectionValue(selected: Choice | null): string | null {
+  return selected === GM_OPTION ? GM_OPTION : (selected?.character.id ?? null);
+}
+
+/** Création permise : au MJ, et aux joueurs si la campagne la laisse libre. */
+function canCreateIn(role: string, freeCreation: boolean): boolean {
+  return role === 'gm' || (role === 'player' && freeCreation);
+}
+
+/** Lien vers l'assistant de création d'un personnage. */
+function CreateButton({ href, primary }: Readonly<{ href: string; primary: boolean }>) {
+  return (
+    <Button asChild variant={primary ? 'default' : 'secondary'}>
+      <Link href={href}>
+        <Plus />
+        Créer mon personnage
+      </Link>
+    </Button>
+  );
+}
+
+/** Création en en-tête, quand la liste des personnages joueurs n'est pas vide. */
+function headerCreate(show: boolean, href: string): ReactNode {
+  return show ? <CreateButton href={href} primary={false} /> : undefined;
+}
+
+/** Choix commun aux grilles d'options. */
+interface OptionChoice {
+  selectedValue: string | null;
+  onChoose: (id: string) => void;
+  onEnter: (o: CharacterOption) => void;
+  disabled: boolean;
+}
+
+/** Personnages joueurs de la campagne, ou l'invitation à en créer un. */
+function PlayerCharacters({
+  pcs,
+  gm,
+  createHref,
+  optionProps,
+}: Readonly<{
+  pcs: CharacterOption[];
+  gm: boolean;
+  /** Création permise : lien de l'assistant ; sinon null. */
+  createHref: string | null;
+  optionProps: OptionChoice;
+}>) {
+  if (pcs.length > 0)
+    return (
+      <section>
+        <TitreSection compte={pcs.length}>Personnages joueurs</TitreSection>
+        <OptionGrid options={pcs} {...optionProps} />
+      </section>
+    );
+  return (
+    <EtatVide
+      icone={UserRound}
+      titre="Aucun personnage joueur pour l'instant"
+      description={
+        gm
+          ? "Les personnages de vos joueurs apparaîtront ici dès qu'ils les auront créés."
+          : 'Créez votre personnage, ou amenez-en un que vous avez déjà.'
+      }
+      action={createHref ? <CreateButton href={createHref} primary /> : undefined}
+    />
+  );
+}
+
+/** Mes personnages hors campagne du même système, à amener (repliés). */
+function BringSection({
+  options,
+  open,
+  onToggle,
+  optionProps,
+}: Readonly<{
+  options: CharacterOption[];
+  open: boolean;
+  onToggle: () => void;
+  optionProps: OptionChoice;
+}>) {
+  if (options.length === 0) return null;
+  return (
+    <section>
+      <BringToggle count={options.length} open={open} onToggle={onToggle} />
+      {open && (
+        <div className="mt-2.5">
+          <OptionGrid options={options} {...optionProps} />
+        </div>
+      )}
+    </section>
   );
 }
 
