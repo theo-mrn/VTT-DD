@@ -72,6 +72,9 @@ export const PlayerStats = z.object({
 const Stats = z.object({ rollCount: z.number(), players: z.array(PlayerStats) });
 export type Stats = z.infer<typeof Stats>;
 
+export const Me = z.object({ name: z.string(), email: z.string().nullable() });
+export type Me = z.infer<typeof Me>;
+
 export interface RollInput {
   campaignId: string;
   systemId: string;
@@ -85,6 +88,8 @@ export interface RollInput {
 export interface YnerClient {
   /** Jeton délégué ; null si aucun compte n'est lié à cet identifiant Discord. */
   delegate(discordUserId: string): Promise<string | null>;
+  /** Compte Yner lié (nom, e-mail). */
+  me(token: string): Promise<Me>;
   myCampaigns(token: string): Promise<Campaign[]>;
   activeCampaign(token: string): Promise<Campaign | null>;
   setActiveCampaign(token: string, campaignId: string): Promise<Campaign | null>;
@@ -149,6 +154,10 @@ export function ynerClient(o: YnerUrls): YnerClient {
       });
       if (res.status === 404) return null;
       return (await json(res, z.object({ accessToken: z.string() }))).accessToken;
+    },
+
+    async me(token) {
+      return json(await call(o.identity, '/v1/users/me', { token }), Me);
     },
 
     async myCampaigns(token) {

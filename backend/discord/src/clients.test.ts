@@ -83,6 +83,15 @@ describe('client des services Yner', () => {
     });
   });
 
+  it('compte lié : nom et e-mail du profil', async () => {
+    const { yner, calls } = client(() => ({
+      status: 200,
+      body: { id: 'u1', name: 'Théo', email: 'theo@exemple.fr', emailVerified: true },
+    }));
+    expect(await yner.me('t')).toEqual({ name: 'Théo', email: 'theo@exemple.fr' });
+    expect(calls[0]).toMatchObject({ url: 'http://identity.test/v1/users/me' });
+  });
+
   it('salle active : lue, choisie, absente ; campagnes du joueur', async () => {
     const { yner, calls } = client((c) => {
       if (c.url.endsWith('/v1/campaigns')) return { status: 200, body: [CAMPAIGN] };
@@ -217,6 +226,7 @@ describe('API Discord', () => {
       'roll',
       'history',
       'stats',
+      'me',
       'link',
       'unlink',
     ]);

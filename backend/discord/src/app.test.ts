@@ -46,6 +46,7 @@ function fakes() {
   let active: Campaign | null = CAMPAIGN;
   const yner: YnerClient = {
     delegate: async (id) => (id === DISCORD_ID ? 'jeton' : null),
+    me: async () => ({ name: 'Théo', email: 'theo@exemple.fr' }),
     myCampaigns: async () => [CAMPAIGN],
     activeCampaign: async () => active,
     setActiveCampaign: async (_t, id) => (id === CAMPAIGN.id ? (active = CAMPAIGN) : null),
@@ -306,5 +307,19 @@ describe('POST /v1/discord/interactions', () => {
       }),
     );
     expect(res.json()).toEqual({ type: 8, data: { choices: [{ name: '1d20', value: '1d20' }] } });
+  });
+
+  it('/me : compte lié et salle active ; sans lien, bouton « Lier mon compte »', async () => {
+    await post(interaction(2, { name: 'me' }));
+    await settle();
+    expect(f.sent[0]!.message!.content).toBe(
+      'Compte Yner : **Théo** · theo@exemple.fr\nSalle active : **La Table** · Joueur',
+    );
+    expect(f.sent[0]!.message!.flags).toBe(64);
+
+    f.sent.length = 0;
+    await post(interaction(2, { name: 'me' }, '999'));
+    await settle();
+    expect(f.sent[0]!.message!.components![0]!.components[0]!.label).toBe('Lier mon compte');
   });
 });

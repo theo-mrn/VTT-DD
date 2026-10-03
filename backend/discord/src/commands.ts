@@ -53,6 +53,7 @@ export const COMMANDS = [
     options: [{ type: STRING, name: 'player', description: 'Nom du joueur ou du personnage' }],
     ...contexts,
   },
+  { name: 'me', description: 'Ton compte Yner lié et ta salle active', ...contexts },
   { name: 'link', description: 'Lier ton compte Yner à Discord', ...contexts },
   { name: 'unlink', description: 'Délier ton compte Yner de Discord', ...contexts },
 ];

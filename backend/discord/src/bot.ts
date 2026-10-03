@@ -213,6 +213,18 @@ export function bot(deps: BotDeps) {
     });
   }
 
+  async function me(token: string): Promise<Message> {
+    const [account, active] = await Promise.all([yner.me(token), yner.activeCampaign(token)]);
+    return ephemeral(
+      [
+        `Compte Yner : **${account.name}**${account.email ? ` · ${account.email}` : ''}`,
+        active
+          ? `Salle active : **${active.name}** · ${ROLE_LABEL[active.role] ?? active.role}`
+          : 'Aucune salle active : `/room` pour en choisir une.',
+      ].join('\n'),
+    );
+  }
+
   async function unlink(token: string): Promise<Message> {
     const result = await yner.unlink(token);
     if (result === 'unlinked') return ephemeral('Compte délié.');
@@ -243,6 +255,8 @@ export function bot(deps: BotDeps) {
           return await history(i, token);
         case 'stats':
           return await discord.editOriginal(i.token, await stats(i, token));
+        case 'me':
+          return await discord.editOriginal(i.token, await me(token));
         case 'unlink':
           return await discord.editOriginal(i.token, await unlink(token));
         default:
