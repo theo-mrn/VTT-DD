@@ -57,13 +57,12 @@ function estViolationUnicite(err: unknown): boolean {
 
 const acteur = (userId: string) => ({ userId, role: 'user' as const, characterId: null });
 
-async function tenter(
+/** 1. Identité déjà rattachée à un compte, s'il y en a un. */
+async function identiteRattachee(
   tx: Tx,
-  ctx: EventContext,
   fournisseur: Fournisseur,
   profil: ProfilFournisseur,
-): Promise<CompteResolu> {
-  // 1. Identité déjà rattachée
+): Promise<CompteResolu | null> {
   const [lien] = await tx
     .select({ userId: users.id, disabledAt: users.disabledAt })
     .from(oauthAccounts)
@@ -75,73 +74,91 @@ async function tenter(
       ),
     )
     .limit(1);
-  if (lien) return { userId: lien.userId, disabled: lien.disabledAt !== null, issue: 'existant' };
+  if (!lien) return null;
+  return { userId: lien.userId, disabled: lien.disabledAt !== null, issue: 'existant' };
+}
 
-  const email = emailValide(profil.email);
-
-  // 2. Rattachement par e-mail, seulement si le fournisseur a vérifié l'adresse
-  if (email && profil.emailVerified) {
-    const [existant] = await tx
-      .select({
-        userId: users.id,
-        disabledAt: users.disabledAt,
-        emailVerified: users.emailVerified,
-      })
-      .from(users)
-      .where(sql`lower(${users.email}) = lower(${email})`)
-      .limit(1)
-      .for('update');
-    if (existant) {
-      // Compte désactivé : on ne rattache rien, la connexion sera refusée
-      if (existant.disabledAt)
-        return { userId: existant.userId, disabled: true, issue: 'existant' };
-
-      await tx.insert(oauthAccounts).values({
-        provider: fournisseur,
-        providerAccountId: profil.providerAccountId,
-        userId: existant.userId,
-        email,
-      });
-
-      // Adresse jamais prouvée sur ce compte : quelqu'un a pu l'inscrire avec
-      // l'adresse d'autrui et un mot de passe à lui (pré-appropriation). Le
-      // fournisseur vient de prouver l'adresse : on retire ce mot de passe et
-      // les sessions ouvertes avec lui. Le vrai titulaire peut en redéfinir un
-      // par « mot de passe oublié ».
-      let motDePasseRetire = false;
-      if (!existant.emailVerified) {
-        const retires = await tx
-          .delete(credentials)
-          .where(eq(credentials.userId, existant.userId))
-          .returning({ userId: credentials.userId });
-        motDePasseRetire = retires.length > 0;
-        if (motDePasseRetire) {
-          await tx
-            .update(sessions)
-            .set({ revokedAt: new Date() })
-            .where(and(eq(sessions.userId, existant.userId), isNull(sessions.revokedAt)));
-        }
-        await tx
-          .update(users)
-          .set({ emailVerified: true, updatedAt: new Date() })
-          .where(eq(users.id, existant.userId));
-      }
-
-      await appendEvent(tx, ctx, {
-        type: 'identity.oauth_linked',
-        actor: acteur(existant.userId),
-        aggregate: { type: 'user', id: existant.userId },
-        payload: {
-          provider: fournisseur,
-          emailVerified: true,
-          ...(motDePasseRetire ? { passwordRemoved: true } : {}),
-        },
-      });
-      return { userId: existant.userId, disabled: false, issue: 'rattache' };
-    }
+/**
+ * Adresse jamais prouvée sur ce compte : quelqu'un a pu l'inscrire avec l'adresse d'autrui
+ * et un mot de passe à lui (pré-appropriation). Le fournisseur vient de prouver l'adresse :
+ * on retire ce mot de passe et les sessions ouvertes avec lui. Le vrai titulaire peut en
+ * redéfinir un par « mot de passe oublié ». Vrai si un mot de passe a été retiré.
+ */
+async function prouverAdresse(tx: Tx, userId: string): Promise<boolean> {
+  const retires = await tx
+    .delete(credentials)
+    .where(eq(credentials.userId, userId))
+    .returning({ userId: credentials.userId });
+  const motDePasseRetire = retires.length > 0;
+  if (motDePasseRetire) {
+    await tx
+      .update(sessions)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
   }
+  await tx
+    .update(users)
+    .set({ emailVerified: true, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+  return motDePasseRetire;
+}
 
-  // 3. Nouveau compte ; l'adresse n'est gardée que si personne ne l'utilise
+/**
+ * 2. Rattachement à un compte de même adresse (vérifiée par le fournisseur) ; null si aucun
+ * compte n'a cette adresse.
+ */
+async function rattacherParEmail(
+  tx: Tx,
+  ctx: EventContext,
+  fournisseur: Fournisseur,
+  profil: ProfilFournisseur,
+  email: string,
+): Promise<CompteResolu | null> {
+  const [existant] = await tx
+    .select({
+      userId: users.id,
+      disabledAt: users.disabledAt,
+      emailVerified: users.emailVerified,
+    })
+    .from(users)
+    .where(sql`lower(${users.email}) = lower(${email})`)
+    .limit(1)
+    .for('update');
+  if (!existant) return null;
+  // Compte désactivé : on ne rattache rien, la connexion sera refusée
+  if (existant.disabledAt) return { userId: existant.userId, disabled: true, issue: 'existant' };
+
+  await tx.insert(oauthAccounts).values({
+    provider: fournisseur,
+    providerAccountId: profil.providerAccountId,
+    userId: existant.userId,
+    email,
+  });
+  const motDePasseRetire = existant.emailVerified
+    ? false
+    : await prouverAdresse(tx, existant.userId);
+
+  await appendEvent(tx, ctx, {
+    type: 'identity.oauth_linked',
+    actor: acteur(existant.userId),
+    aggregate: { type: 'user', id: existant.userId },
+    payload: {
+      provider: fournisseur,
+      emailVerified: true,
+      ...(motDePasseRetire ? { passwordRemoved: true } : {}),
+    },
+  });
+  return { userId: existant.userId, disabled: false, issue: 'rattache' };
+}
+
+/** 3. Nouveau compte ; l'adresse n'est gardée que si personne ne l'utilise. */
+async function creerCompte(
+  tx: Tx,
+  ctx: EventContext,
+  fournisseur: Fournisseur,
+  profil: ProfilFournisseur,
+  email: string | null,
+): Promise<CompteResolu> {
   let emailCompte: string | null = null;
   if (email) {
     const [pris] = await tx
@@ -176,6 +193,24 @@ async function tenter(
     payload: { method: fournisseur },
   });
   return { userId, disabled: false, issue: 'cree' };
+}
+
+async function tenter(
+  tx: Tx,
+  ctx: EventContext,
+  fournisseur: Fournisseur,
+  profil: ProfilFournisseur,
+): Promise<CompteResolu> {
+  const lien = await identiteRattachee(tx, fournisseur, profil);
+  if (lien) return lien;
+
+  const email = emailValide(profil.email);
+  // Rattachement par e-mail, seulement si le fournisseur a vérifié l'adresse
+  if (email && profil.emailVerified) {
+    const rattache = await rattacherParEmail(tx, ctx, fournisseur, profil, email);
+    if (rattache) return rattache;
+  }
+  return creerCompte(tx, ctx, fournisseur, profil, email);
 }
 
 /**
