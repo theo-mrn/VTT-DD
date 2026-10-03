@@ -175,7 +175,7 @@ for (const a of aImporter) {
         /^Objet « [^»]* » : (.*)$/.exec(a);
       if (!m) continue;
       objetsLegacy.perdus++;
-      const raison = m[1]!.replace(/[^:]+ déjà possédé/, 'déjà possédé');
+      const raison = sansNomPossede(m[1]!);
       perdus[raison] = (perdus[raison] ?? 0) + 1;
     }
 
@@ -271,3 +271,10 @@ console.log(
 );
 console.log(`Rapport : ${values.rapport}`);
 if (bilan.erreurs) process.exitCode = 1;
+
+/** « Épée longue déjà possédé, … » → « déjà possédé, … » : la raison, sans le nom de l'objet. */
+function sansNomPossede(raison: string): string {
+  const i = raison.indexOf(' déjà possédé');
+  const debut = raison.lastIndexOf(':', i) + 1;
+  return i > debut ? raison.slice(0, debut) + raison.slice(i + 1) : raison;
+}
