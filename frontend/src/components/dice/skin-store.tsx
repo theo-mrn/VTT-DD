@@ -98,6 +98,20 @@ const prix = (s: DiceSkin) =>
 /** Tout le catalogue, du plus rare au plus commun. */
 const CATALOGUE = Object.values(DICE_SKINS).sort((a, b) => rarete(b).ordre - rarete(a).ordre);
 
+/** Contenu : chargement, échec, onglet premium, fiche d'un dé, rien à montrer, ou la grille. */
+function vueBoutique(
+  prefs: { isPending: boolean; isError: boolean; data: unknown },
+  onglet: Onglet,
+  detail: boolean,
+  visibles: number,
+): 'chargement' | 'erreur' | 'premium' | 'detail' | 'vide' | 'grille' {
+  if (prefs.isPending) return 'chargement';
+  if (prefs.isError || !prefs.data) return 'erreur';
+  if (onglet === 'premium') return 'premium';
+  if (detail) return 'detail';
+  return visibles === 0 ? 'vide' : 'grille';
+}
+
 export default function SkinStore({
   open,
   onOpenChange,
@@ -148,12 +162,7 @@ export default function SkinStore({
   const acheter = () => toast.info(`Achat : ${BIENTOT.toLowerCase()}`);
 
   // Contenu : chargement, échec, onglet premium, fiche d'un dé, rien à montrer, ou la grille
-  let vue: 'chargement' | 'erreur' | 'premium' | 'detail' | 'vide' | 'grille' = 'grille';
-  if (prefs.isPending) vue = 'chargement';
-  else if (prefs.isError || !p) vue = 'erreur';
-  else if (onglet === 'premium') vue = 'premium';
-  else if (detail) vue = 'detail';
-  else if (visibles.length === 0) vue = 'vide';
+  const vue = vueBoutique(prefs, onglet, detail !== null, visibles.length);
 
   return (
     <Dialog
