@@ -75,8 +75,14 @@ Loki, Tempo, Prometheus, Grafana) relèvent de l'infra, branchée plus tard **sa
 - **Traces** :
   - chargement de la page (`document-load`) ;
   - chaque `fetch` vers `/v1/*`, qui envoie le `traceparent` ;
-  - spans métier du front : lancer de dés 3D, de la demande à la lecture des faces ; attaque.
-- **Logs** : `window.onerror`, `unhandledrejection` et les limites d'erreur React. Ils sont
+  - spans métier du front : `dice.throw3d`, du clic aux faces lues (issue `faces` ou `fallback`) ;
+    `combat.attack`, du clic sur « Lancer » à l'attaque déclarée (issue `browser`, `server`,
+    `refused` ou erreur).
+  - Limite : sans zone.js, le contexte ne survit pas à un `await`. Un span métier mesure une durée
+    et une issue ; les requêtes lancées pendant ont leur propre trace, reliée au back.
+- **Logs** : `window.onerror`, `unhandledrejection` et les frontières d'erreur React
+  (`reportClientError`). La capture commence au montage, même sans SDK : les erreurs attendent
+  dans un tampon (50 au plus). Ils sont
   regroupés par lots et dédoublonnés (une même erreur au plus une fois par minute).
 - **Export** : `/v1/telemetry/traces` et `/v1/telemetry/logs` sur la gateway. Ses limites :
   - même origine que l'app, donc aucun collecteur exposé sur Internet ;

@@ -1,6 +1,7 @@
 'use client';
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { reportClientError } from '@/lib/telemetry/errors';
 
 /**
  * Isole un composant non essentiel (scène 3D, widget décoratif) : s'il lève
@@ -19,6 +20,7 @@ export class FrontiereErreur extends Component<
 
   componentDidCatch(erreur: Error, info: ErrorInfo) {
     console.warn('Composant isolé après une erreur :', erreur.message, info.componentStack);
+    reportClientError(erreur, 'frontiere-erreur', { componentStack: info.componentStack });
   }
 
   render() {

@@ -27,6 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ArrangementPopover } from './arrangement-popover';
 import { MARGIN, type GridBlock, type HeightMode } from './model';
+import { reportClientError } from '@/lib/telemetry/errors';
 
 class BlockBoundary extends Component<
   { children: ReactNode; title: string; resetKey: string },
@@ -44,6 +45,7 @@ class BlockBoundary extends Component<
       error.message,
       info.componentStack,
     );
+    reportClientError(error, 'sheet-block', { componentStack: info.componentStack });
   }
 
   componentDidUpdate(prev: { resetKey: string }) {

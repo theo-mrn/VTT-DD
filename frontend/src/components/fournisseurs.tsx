@@ -7,6 +7,7 @@ import { useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { DiceThrowerHost } from '@/components/dice/thrower-host';
 import { PerfOverlay } from '@/components/perf/perf-overlay';
+import { Telemetry } from '@/components/telemetry';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SessionProvider } from '@/lib/session';
 
@@ -34,6 +35,7 @@ export function Fournisseurs({ children }: { children: ReactNode }) {
                 physique gardés entre l'app et la table), chargés au premier lancer */}
             <DiceThrowerHost />
             <PerfOverlay />
+            <Telemetry />
           </LegacyMotionConfig>
         </MotionConfig>
       </SessionProvider>

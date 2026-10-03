@@ -18,6 +18,7 @@
  * forme 3D (d100, d7…) sont laissés au serveur.
  */
 import { create } from 'zustand';
+import { startBusinessSpan } from './telemetry/tracer';
 
 /** Formes du rendu 3D ; les autres dés (d100…) sont tirés par le serveur. */
 export const SHAPES_3D = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'] as const;
@@ -199,7 +200,12 @@ export function roll3D(
     return Promise.resolve(null);
 
   const rollId = newId();
-  return new Promise((resolve) => {
+  // Du clic aux faces lues : chargement, préchauffage et roulement compris
+  const traced = startBusinessSpan('dice.throw3d', {
+    'vtt.dice.count': total3D,
+    'vtt.dice.types': requests3D.map((r) => `${r.count}${r.type}`).join('+'),
+  });
+  return new Promise<ThrowResult[] | null>((resolve) => {
     // Deux délais : le chargement de la 3D (téléchargement, préchauffage des
     // shaders) peut être long au premier jet, puis 10 s une fois les dés
     // réellement lancés. Le repli ne doit jamais remplacer un lancer qui a
@@ -209,17 +215,20 @@ export function roll3D(
       console.warn('Dés 3D sans résultat à temps : le serveur tire les dés');
       // Lancer pas encore pris par le lanceur : il ne partira plus
       useDiceThrowStore.setState((s) => ({ queue: s.queue.filter((q) => q.rollId !== rollId) }));
+      traced.end('fallback');
       resolve(null);
     };
     let timer = window.setTimeout(fallback, LOAD_TIMEOUT_MS);
     waiters.set(rollId, {
       onStarted() {
+        traced.span.addEvent('started');
         window.clearTimeout(timer);
         timer = window.setTimeout(fallback, SETTLE_TIMEOUT_MS);
       },
       onComplete(results) {
         window.clearTimeout(timer);
         waiters.delete(rollId);
+        traced.end('faces');
         resolve(results);
       },
     });

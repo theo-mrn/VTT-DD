@@ -56,6 +56,7 @@ import { combatSettings, currentActorId } from '@/lib/combat/use-combat';
 import { clesPersonnages, personnages } from '@/lib/personnages';
 import { calculerMemo } from '@/lib/rules-cache';
 import { useComputedSheet, type AttackContext } from './use-attack-context';
+import { startBusinessSpan } from '@/lib/telemetry/tracer';
 
 /** Faces tirées dans le navigateur, étape par étape. */
 const browserDice: DiceRoller = async (step) => (await clientRunner.run(step)).results;
@@ -192,6 +193,12 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
       }),
     });
     attackMenu.dispatch({ type: 'submit', key });
+    // Du clic sur « Lancer » à l'attaque déclarée (jet compris quand il se fait ici)
+    const traced = startBusinessSpan('combat.attack', {
+      'vtt.campaign.id': flow.campaignId,
+      'vtt.action.id': action.id,
+      'vtt.targets': body.targets.length,
+    });
     try {
       // Calcul dans le navigateur (Théo, 2026-09-30) ; défense active : le serveur, comme avant
       const session = await startInBrowser(body);
@@ -219,11 +226,14 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
       }
       setLiveAttackId(attack.id);
       attackMenu.dispatch({ type: 'declared', attack });
+      traced.end(session ? 'browser' : 'server', { 'vtt.attack.status': attack.status });
       rememberAttack(browserMemory(), flow.campaignId, body.attackerId, {
         actionId: action.id,
         params,
       });
     } catch (err) {
+      if (err instanceof LocalRefusal) traced.end('refused');
+      else traced.fail(err);
       attackMenu.dispatch({
         type: 'rejected',
         message: err instanceof LocalRefusal ? err.message : combatErrorMessage(err),
