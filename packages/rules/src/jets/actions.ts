@@ -30,8 +30,10 @@ import {
   recoitSituation,
   valeurCombat,
   type ContexteCombatSaisi,
-  type Parametre,
+  type Action,
   type Effet,
+  type Entree,
+  type Parametre,
 } from '../schema/index.js';
 import {
   ErreurEvaluation,
@@ -238,168 +240,16 @@ export function executer(
 
   // ─── Validation des entités et des paramètres ─────────────────────────────
 
-  const refus: ErreurAction[] = [];
-  // Même système d'origine ; les réglages d'options de chaque fiche sont les siens
-  if (systemeRacine(acteur.systeme) !== systemeRacine(systeme))
-    refus.push({ message: 'La fiche de l’acteur a été calculée avec un autre système' });
-  if (!action.pour.includes(acteur.etat.type))
-    refus.push({ message: `${action.nom} n’est pas permise à ${acteur.entite.type.nom}` });
-  if (action.cible) {
-    // Aperçu : l'acteur seul, ce qui dépend de la cible reste inconnu
-    if (!cible) {
-      if (!options.apercu) refus.push({ message: `${action.nom} demande une cible` });
-    } else if (systemeRacine(cible.systeme) !== systemeRacine(systeme))
-      refus.push({ message: 'La fiche de la cible a été calculée avec un autre système' });
-    else if (!action.cible.includes(cible.etat.type)) {
-      const attendu = action.cible.map((t) => systeme.entites.get(t)?.type.nom ?? t).join(' ou ');
-      refus.push({ message: `Cible invalide : ${attendu} attendu, ${cible.entite.type.nom} reçu` });
-    }
-  } else if (cible) refus.push({ message: `${action.nom} ne prend pas de cible` });
-
   const fournis = demande.parametres ?? {};
-  const parametres: Record<string, Valeur> = {};
-  /**
-   * Paramètres choisis après le jet et pas encore fournis (l'arme, avant de savoir si on touche).
-   * Dès que l'un d'eux est fourni (l'étape des dégâts, ou d'avance), les autres prennent leur
-   * défaut comme à la déclaration.
-   */
-  const absents: string[] = [];
-  const apresFournis = action.parametres.some(
-    (p) => p.etape === 'apres' && fournis[p.id] !== undefined,
+  const { parametres, absents, choisies, refus } = lireParametres(
+    systeme,
+    action,
+    { acteur, cible },
+    fournis,
   );
-  const choisies = new Map<string, PossessionEffective>();
-  for (const cle of Object.keys(fournis)) {
-    if (!action.parametres.some((p) => p.id === cle))
-      refus.push({ parametre: cle, message: `Paramètre inconnu : ${cle}` });
-  }
-  for (const p of action.parametres) {
-    let v = fournis[p.id];
-    const refuser = (message: string) => refus.push({ parametre: p.id, message });
-    // Paramètre réservé (option d'un talent) : ignoré s'il n'est pas proposé à l'acteur
-    const exige = systeme.formules.get(chemins.action(action.id, `parametres/${p.id}/exige`));
-    const decideur = p.par === 'cible' ? cible : acteur;
-    if (exige && decideur?.evaluer(exige, {}, false) !== true) {
-      if (v !== undefined && v !== defautParametre(p))
-        refuser(`${p.nom} : option non disponible (${exige.texte})`);
-      v = undefined;
-      if (p.type === 'nombre' || p.type === 'booleen' || p.type === 'choix') {
-        parametres[p.id] = defautParametre(p);
-        continue;
-      }
-      if (p.type === 'entree') {
-        parametres[p.id] = '';
-        continue;
-      }
-    }
-    if (p.etape === 'apres' && !apresFournis && v === undefined) {
-      absents.push(p.id);
-      parametres[p.id] = defautParametre(p);
-      continue;
-    }
-    if (p.type === 'entree' && p.facultatif && (v === undefined || v === '')) {
-      parametres[p.id] = '';
-      continue;
-    }
-    switch (p.type) {
-      case 'nombre':
-        if (v === undefined) parametres[p.id] = p.defaut;
-        else if (typeof v !== 'number' || !Number.isFinite(v)) refuser(`${p.nom} : nombre attendu`);
-        else parametres[p.id] = v;
-        break;
-      case 'booleen':
-        if (v === undefined) parametres[p.id] = p.defaut;
-        else if (typeof v !== 'boolean') refuser(`${p.nom} : booléen attendu`);
-        else parametres[p.id] = v;
-        break;
-      case 'choix':
-        if (v === undefined) parametres[p.id] = defautChoix(p);
-        else if (typeof v !== 'string' || !p.options.some((o) => o.valeur === v))
-          refuser(`${p.nom} : option attendue (${p.options.map((o) => o.valeur).join(', ')})`);
-        else parametres[p.id] = v;
-        break;
-      case 'attribut': {
-        const proposes = [...acteur.entite.attributs.values()].filter(
-          (x) => p.attributs?.includes(x.cle) || (p.groupe !== undefined && x.groupe === p.groupe),
-        );
-        if (typeof v !== 'string') refuser(`${p.nom} : attribut attendu`);
-        else if (!proposes.some((x) => x.cle === v))
-          refuser(
-            `${p.nom} : « ${v} » n’est pas proposé (${proposes.map((x) => x.cle).join(', ')})`,
-          );
-        else parametres[p.id] = v;
-        break;
-      }
-      case 'entree': {
-        const sorte = systeme.sortes.get(p.sorte)?.nom ?? p.sorte;
-        if (v === undefined) {
-          refuser(`${p.nom} : ${sorte} requise`);
-          break;
-        }
-        if (typeof v !== 'string') {
-          refuser(`${p.nom} : identifiant d’entrée attendu`);
-          break;
-        }
-        // `entree#exemplaire` : un exemplaire précis (ses champs et sa formule propres)
-        const [id, exemplaire] = v.split('#', 2) as [string, string | undefined];
-        v = id;
-        const entree = systeme.entrees.get(v);
-        const effective = acteur.possessions.get(v);
-        const ex =
-          exemplaire === undefined
-            ? undefined
-            : effective?.exemplaires.find((x) => (x.exemplaire ?? '') === exemplaire);
-        if (exemplaire !== undefined && !ex) {
-          refuser(`${p.nom} : exemplaire « ${exemplaire} » de ${entree?.nom ?? id} introuvable`);
-          break;
-        }
-        const possession =
-          effective && ex
-            ? {
-                ...effective,
-                possession: ex,
-                actif: effective.sorte.activable ? ex.actif : true,
-                quantite: quantiteDe(ex),
-              }
-            : effective;
-        if (!entree) refuser(`${p.nom} : entrée inconnue « ${v} »`);
-        else if (entree.sorte !== p.sorte) refuser(`${p.nom} : ${entree.nom} n’est pas ${sorte}`);
-        else if (p.etiquette && !entree.etiquettes.includes(p.etiquette))
-          refuser(`${p.nom} : ${entree.nom} n’a pas l’étiquette « ${p.etiquette} »`);
-        else if (!possession && p.possedee)
-          refuser(`${p.nom} : ${entree.nom} n’est pas possédée par l’acteur`);
-        else if (possession && !possession.actif)
-          refuser(`${p.nom} : ${entree.nom} n’est pas active`);
-        else {
-          parametres[p.id] = v;
-          // Entrée non possédée mais acceptée : rang 0 (compétence jamais apprise)
-          choisies.set(
-            p.id,
-            possession ?? {
-              entree,
-              sorte: systeme.sortes.get(entree.sorte)!,
-              rang: 0,
-              achete: 0,
-              actif: true,
-              exemplaires: [],
-              quantite: 1,
-              sources: [],
-            },
-          );
-        }
-        break;
-      }
-    }
-  }
-  const sortesDes = systeme.source.des?.sortes ?? [];
-  for (const a of demande.ajustements?.des ?? []) {
-    if (action.jet.type === 'symboles' && !sortesDes.some((x) => x.id === a.de))
-      refus.push({ message: `Ajustement : dé inconnu (${a.de})` });
-    if (!Number.isInteger(a.nombre))
-      refus.push({ message: `Ajustement : nombre de dés entier attendu` });
-  }
+  refus.unshift(...refusEntites(systeme, action, acteur, cible, options.apercu === true));
   const bonusLibre = demande.ajustements?.bonus;
-  if (bonusLibre !== undefined && !Number.isFinite(bonusLibre))
-    refus.push({ message: 'Ajustement : bonus numérique attendu' });
+  refus.push(...refusAjustements(systeme, action, demande.ajustements));
   const lu = demande.combat === undefined ? undefined : ContexteCombat.safeParse(demande.combat);
   if (lu && !lu.success)
     refus.push({
@@ -1169,6 +1019,225 @@ export function executer(
     },
     evaluer: ev,
   };
+}
+
+type Entites = { acteur: Fiche; cible: Fiche | undefined };
+
+/** Refus liés aux fiches : autre système, type d'entité non permis, cible absente ou en trop. */
+function refusEntites(
+  systeme: SystemeCharge,
+  action: Action,
+  acteur: Fiche,
+  cible: Fiche | undefined,
+  apercu: boolean,
+): ErreurAction[] {
+  const refus: ErreurAction[] = [];
+  // Même système d'origine ; les réglages d'options de chaque fiche sont les siens
+  if (systemeRacine(acteur.systeme) !== systemeRacine(systeme))
+    refus.push({ message: 'La fiche de l’acteur a été calculée avec un autre système' });
+  if (!action.pour.includes(acteur.etat.type))
+    refus.push({ message: `${action.nom} n’est pas permise à ${acteur.entite.type.nom}` });
+  if (!action.cible) {
+    if (cible) refus.push({ message: `${action.nom} ne prend pas de cible` });
+    return refus;
+  }
+  // Aperçu : l'acteur seul, ce qui dépend de la cible reste inconnu
+  if (!cible) {
+    if (!apercu) refus.push({ message: `${action.nom} demande une cible` });
+  } else if (systemeRacine(cible.systeme) !== systemeRacine(systeme))
+    refus.push({ message: 'La fiche de la cible a été calculée avec un autre système' });
+  else if (!action.cible.includes(cible.etat.type)) {
+    const attendu = action.cible.map((t) => systeme.entites.get(t)?.type.nom ?? t).join(' ou ');
+    refus.push({ message: `Cible invalide : ${attendu} attendu, ${cible.entite.type.nom} reçu` });
+  }
+  return refus;
+}
+
+/** Refus des ajustements libres : dé inconnu, nombre de dés non entier, bonus non numérique. */
+function refusAjustements(
+  systeme: SystemeCharge,
+  action: Action,
+  ajustements: Ajustements | undefined,
+): ErreurAction[] {
+  const refus: ErreurAction[] = [];
+  const sortesDes = systeme.source.des?.sortes ?? [];
+  for (const a of ajustements?.des ?? []) {
+    if (action.jet.type === 'symboles' && !sortesDes.some((x) => x.id === a.de))
+      refus.push({ message: `Ajustement : dé inconnu (${a.de})` });
+    if (!Number.isInteger(a.nombre))
+      refus.push({ message: `Ajustement : nombre de dés entier attendu` });
+  }
+  const bonus = ajustements?.bonus;
+  if (bonus !== undefined && !Number.isFinite(bonus))
+    refus.push({ message: 'Ajustement : bonus numérique attendu' });
+  return refus;
+}
+
+interface ParametresLus {
+  parametres: Record<string, Valeur>;
+  /**
+   * Paramètres choisis après le jet et pas encore fournis (l'arme, avant de savoir si on touche).
+   * Dès que l'un d'eux est fourni (l'étape des dégâts, ou d'avance), les autres prennent leur
+   * défaut comme à la déclaration.
+   */
+  absents: string[];
+  /** Possessions désignées par les paramètres entrée. */
+  choisies: Map<string, PossessionEffective>;
+  refus: ErreurAction[];
+}
+
+/** Paramètres retenus (défauts compris) et refus des valeurs fournies. */
+function lireParametres(
+  systeme: SystemeCharge,
+  action: Action,
+  entites: Entites,
+  fournis: Record<string, Valeur>,
+): ParametresLus {
+  const lus: ParametresLus = { parametres: {}, absents: [], choisies: new Map(), refus: [] };
+  for (const cle of Object.keys(fournis)) {
+    if (!action.parametres.some((p) => p.id === cle))
+      lus.refus.push({ parametre: cle, message: `Paramètre inconnu : ${cle}` });
+  }
+  const apresFournis = action.parametres.some(
+    (p) => p.etape === 'apres' && fournis[p.id] !== undefined,
+  );
+  for (const p of action.parametres)
+    lireParametre(systeme, action, p, fournis[p.id], entites, apresFournis, lus);
+  return lus;
+}
+
+function lireParametre(
+  systeme: SystemeCharge,
+  action: Action,
+  p: Parametre,
+  fourni: Valeur | undefined,
+  entites: Entites,
+  apresFournis: boolean,
+  lus: ParametresLus,
+): void {
+  const refuser = (message: string) => {
+    lus.refus.push({ parametre: p.id, message });
+  };
+  let v = fourni;
+  // Paramètre réservé (option d'un talent) : ignoré s'il n'est pas proposé à l'acteur
+  const exige = systeme.formules.get(chemins.action(action.id, `parametres/${p.id}/exige`));
+  const decideur = p.par === 'cible' ? entites.cible : entites.acteur;
+  if (exige && decideur?.evaluer(exige, {}, false) !== true) {
+    if (v !== undefined && v !== defautParametre(p))
+      refuser(`${p.nom} : option non disponible (${exige.texte})`);
+    v = undefined;
+    if (p.type !== 'attribut') {
+      lus.parametres[p.id] = defautParametre(p);
+      return;
+    }
+  }
+  if (p.etape === 'apres' && !apresFournis && v === undefined) {
+    lus.absents.push(p.id);
+    lus.parametres[p.id] = defautParametre(p);
+    return;
+  }
+  if (p.type === 'entree') {
+    lireEntree(systeme, p, v, entites.acteur, lus, refuser);
+    return;
+  }
+  const erreur = p.type === 'attribut' ? refusAttribut(p, v, entites.acteur) : refusValeur(p, v);
+  if (erreur) refuser(erreur);
+  else lus.parametres[p.id] = v ?? defautParametre(p);
+}
+
+/** Refus d'une valeur de paramètre nombre, booléen ou choix (absente : son défaut). */
+function refusValeur(p: Parametre, v: Valeur | undefined): string | null {
+  if (v === undefined) return null;
+  if (p.type === 'nombre' && (typeof v !== 'number' || !Number.isFinite(v)))
+    return `${p.nom} : nombre attendu`;
+  if (p.type === 'booleen' && typeof v !== 'boolean') return `${p.nom} : booléen attendu`;
+  if (p.type === 'choix' && (typeof v !== 'string' || !p.options.some((o) => o.valeur === v)))
+    return `${p.nom} : option attendue (${p.options.map((o) => o.valeur).join(', ')})`;
+  return null;
+}
+
+/** Refus d'un attribut choisi : il doit être proposé par le paramètre (liste ou groupe). */
+function refusAttribut(
+  p: Extract<Parametre, { type: 'attribut' }>,
+  v: Valeur | undefined,
+  acteur: Fiche,
+): string | null {
+  const proposes = [...acteur.entite.attributs.values()].filter(
+    (x) => p.attributs?.includes(x.cle) || (p.groupe !== undefined && x.groupe === p.groupe),
+  );
+  if (typeof v !== 'string') return `${p.nom} : attribut attendu`;
+  if (!proposes.some((x) => x.cle === v))
+    return `${p.nom} : « ${v} » n’est pas proposé (${proposes.map((x) => x.cle).join(', ')})`;
+  return null;
+}
+
+/** Paramètre entrée : l'entrée (ou `entree#exemplaire`) et la possession qu'il désigne. */
+function lireEntree(
+  systeme: SystemeCharge,
+  p: Extract<Parametre, { type: 'entree' }>,
+  v: Valeur | undefined,
+  acteur: Fiche,
+  lus: ParametresLus,
+  refuser: (message: string) => void,
+): void {
+  if (p.facultatif && (v === undefined || v === '')) {
+    lus.parametres[p.id] = '';
+    return;
+  }
+  const sorte = systeme.sortes.get(p.sorte)?.nom ?? p.sorte;
+  if (v === undefined) return refuser(`${p.nom} : ${sorte} requise`);
+  if (typeof v !== 'string') return refuser(`${p.nom} : identifiant d’entrée attendu`);
+  // `entree#exemplaire` : un exemplaire précis (ses champs et sa formule propres)
+  const [id, exemplaire] = v.split('#', 2) as [string, string | undefined];
+  const entree = systeme.entrees.get(id);
+  const effective = acteur.possessions.get(id);
+  const ex =
+    exemplaire === undefined
+      ? undefined
+      : effective?.exemplaires.find((x) => (x.exemplaire ?? '') === exemplaire);
+  if (exemplaire !== undefined && !ex)
+    return refuser(`${p.nom} : exemplaire « ${exemplaire} » de ${entree?.nom ?? id} introuvable`);
+  const possession =
+    effective && ex
+      ? {
+          ...effective,
+          possession: ex,
+          actif: effective.sorte.activable ? ex.actif : true,
+          quantite: quantiteDe(ex),
+        }
+      : effective;
+  if (!entree) return refuser(`${p.nom} : entrée inconnue « ${id} »`);
+  const erreur = refusEntree(p, entree, possession, sorte);
+  if (erreur) return refuser(erreur);
+  lus.parametres[p.id] = id;
+  // Entrée non possédée mais acceptée : rang 0 (compétence jamais apprise)
+  lus.choisies.set(
+    p.id,
+    possession ?? {
+      entree,
+      sorte: systeme.sortes.get(entree.sorte)!,
+      rang: 0,
+      achete: 0,
+      actif: true,
+      exemplaires: [],
+      quantite: 1,
+      sources: [],
+    },
+  );
+}
+
+function refusEntree(
+  p: Extract<Parametre, { type: 'entree' }>,
+  entree: Entree,
+  possession: PossessionEffective | undefined,
+  sorte: string,
+): string | null {
+  if (entree.sorte !== p.sorte) return `${p.nom} : ${entree.nom} n’est pas ${sorte}`;
+  if (p.etiquette && !entree.etiquettes.includes(p.etiquette))
+    return `${p.nom} : ${entree.nom} n’a pas l’étiquette « ${p.etiquette} »`;
+  if (!possession && p.possedee) return `${p.nom} : ${entree.nom} n’est pas possédée par l’acteur`;
+  if (possession && !possession.actif) return `${p.nom} : ${entree.nom} n’est pas active`;
+  return null;
 }
 
 /** Libellé des lignes d'un ajustement libre. */
