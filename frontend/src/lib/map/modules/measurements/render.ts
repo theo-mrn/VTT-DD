@@ -218,48 +218,10 @@ export class MeasureVisual {
     let width = 2 * u;
     if (emphasis === 'selected') width = 3 * u;
     else if (emphasis === 'hover') width = 2.5 * u;
-    const flat = outline(spec, look.pixelsPerUnit);
-
-    const path = () => {
-      if (spec.shape === 'circle') g.circle(spec.start.x, spec.start.y, length);
-      else g.poly(flatten(flat), spec.shape !== 'line');
-    };
-
-    if (spec.shape === 'line') {
-      // Règle : liseré sombre, tirets de sa couleur, extrémités marquées
-      if (emphasis) {
-        g.moveTo(spec.start.x, spec.start.y).lineTo(spec.end.x, spec.end.y);
-        g.stroke({ width: 7 * u, color: primary, alpha: 0.35, cap: 'round' });
-      }
-      g.moveTo(spec.start.x, spec.start.y).lineTo(spec.end.x, spec.end.y);
-      g.stroke({ width: width + 2.5 * u, color: background, alpha: 0.45, cap: 'round' });
-      dashedPolyline(g, [spec.start, spec.end], 10 * u, 6 * u);
-      g.stroke({ width, color, cap: 'round' });
-      for (const p of [spec.start, spec.end])
-        g.circle(p.x, p.y, 4 * u)
-          .fill({ color })
-          .stroke({ width: u, color: background });
-    } else if (length > 0) {
-      if (fill) {
-        path();
-        g.fill({ color, alpha: spec.shape === 'cone' ? 0.2 : 0.16 });
-      }
-      if (emphasis) {
-        path();
-        g.stroke({ width: 7 * u, color: primary, alpha: 0.35, join: 'round' });
-      }
-      path();
-      g.stroke({ width: width + 2 * u, color: background, alpha: 0.35, join: 'round' });
-      path();
-      g.stroke({ width, color, join: 'round' });
-      // Rayon (cercle, carré) ou axe (cône), en tirets
-      dashedPolyline(g, [spec.start, spec.end], 8 * u, 5 * u);
-      g.stroke({ width: 1.5 * u, color, alpha: 0.85 });
-      g.circle(spec.start.x, spec.start.y, 4 * u)
-        .fill({ color })
-        .stroke({ width: u, color: background });
-      g.circle(spec.end.x, spec.end.y, 2.5 * u).fill({ color, alpha: 0.9 });
-    }
+    const style: MeasureStroke = { u, width, color, background, primary, emphasis: !!emphasis };
+    if (spec.shape === 'line') drawRuler(g, spec, style);
+    else if (length > 0)
+      drawTemplate(g, spec, outline(spec, look.pixelsPerUnit), length, style, fill);
     this.label.draw(look.label, labelAnchor(spec), look.zoom, this.theme);
     return true;
   }
@@ -275,6 +237,68 @@ export class MeasureVisual {
 }
 
 const flatten = (pts: readonly Point[]) => pts.flatMap((p) => [p.x, p.y]);
+
+/** Traits d'une mesure : épaisseur, couleurs, appui (survol ou sélection). */
+interface MeasureStroke {
+  u: number;
+  width: number;
+  color: number;
+  background: number;
+  primary: number;
+  emphasis: boolean;
+}
+
+/** Règle : liseré sombre, tirets de sa couleur, extrémités marquées. */
+function drawRuler(g: Pixi.Graphics, spec: MeasureSpec, s: MeasureStroke) {
+  const { u, width, color, background } = s;
+  if (s.emphasis) {
+    g.moveTo(spec.start.x, spec.start.y).lineTo(spec.end.x, spec.end.y);
+    g.stroke({ width: 7 * u, color: s.primary, alpha: 0.35, cap: 'round' });
+  }
+  g.moveTo(spec.start.x, spec.start.y).lineTo(spec.end.x, spec.end.y);
+  g.stroke({ width: width + 2.5 * u, color: background, alpha: 0.45, cap: 'round' });
+  dashedPolyline(g, [spec.start, spec.end], 10 * u, 6 * u);
+  g.stroke({ width, color, cap: 'round' });
+  for (const p of [spec.start, spec.end])
+    g.circle(p.x, p.y, 4 * u)
+      .fill({ color })
+      .stroke({ width: u, color: background });
+}
+
+/** Gabarit (cercle, carré, cône) : fond, halo, liseré, trait, puis rayon ou axe en tirets. */
+function drawTemplate(
+  g: Pixi.Graphics,
+  spec: MeasureSpec,
+  flat: readonly Point[],
+  length: number,
+  s: MeasureStroke,
+  fill: boolean,
+) {
+  const { u, width, color, background } = s;
+  const path = () => {
+    if (spec.shape === 'circle') g.circle(spec.start.x, spec.start.y, length);
+    else g.poly(flatten(flat), spec.shape !== 'line');
+  };
+  if (fill) {
+    path();
+    g.fill({ color, alpha: spec.shape === 'cone' ? 0.2 : 0.16 });
+  }
+  if (s.emphasis) {
+    path();
+    g.stroke({ width: 7 * u, color: s.primary, alpha: 0.35, join: 'round' });
+  }
+  path();
+  g.stroke({ width: width + 2 * u, color: background, alpha: 0.35, join: 'round' });
+  path();
+  g.stroke({ width, color, join: 'round' });
+  // Rayon (cercle, carré) ou axe (cône), en tirets
+  dashedPolyline(g, [spec.start, spec.end], 8 * u, 5 * u);
+  g.stroke({ width: 1.5 * u, color, alpha: 0.85 });
+  g.circle(spec.start.x, spec.start.y, 4 * u)
+    .fill({ color })
+    .stroke({ width: u, color: background });
+  g.circle(spec.end.x, spec.end.y, 2.5 * u).fill({ color, alpha: 0.9 });
+}
 
 /** Où poser l'étiquette : au bout de la mesure (au milieu pour une règle). */
 export function labelAnchor(spec: MeasureSpec): Point {
