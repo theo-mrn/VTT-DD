@@ -73,12 +73,7 @@ export function StepDamage({
   /** Tous les paramètres de l'étape : la source choisie, les autres entrées vides. */
   const launch = (patch: Record<string, Valeur>) =>
     onLaunch(
-      Object.fromEntries(
-        params.map((p: ActionParam) => [
-          p.id,
-          p.id in patch ? patch[p.id]! : p.type === 'entree' ? '' : values[p.id]!,
-        ]),
-      ),
+      Object.fromEntries(params.map((p: ActionParam) => [p.id, launchValue(p, patch, values)])),
     );
 
   // Type d'attaque choisi au jet : les armes qui s'en servent d'abord
@@ -195,4 +190,14 @@ function RecapLine({ summary: s, name }: Readonly<{ summary: TargetSummary; name
       <span className="text-[13px] text-muted-foreground">{name}</span>
     </li>
   );
+}
+
+/** Valeur lancée d'un paramètre : celle choisie, vide pour une autre entrée, sinon l'actuelle. */
+function launchValue(
+  p: ActionParam,
+  patch: Record<string, Valeur>,
+  values: Readonly<Record<string, Valeur>>,
+): Valeur {
+  if (p.id in patch) return patch[p.id]!;
+  return p.type === 'entree' ? '' : values[p.id]!;
 }

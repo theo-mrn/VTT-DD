@@ -396,11 +396,9 @@ function resoudre(
     faces.set(id, { id, value, source: 'server' });
 
   // Des paramètres à choisir (l'arme, une cible touchée) passent avant les dés qu'ils impliquent
-  const step = r.parametres.length
-    ? etapeParametres(systeme, inst.action, r.parametres, faces.size)
-    : r.requis.length
-      ? etape(systeme, inst.action, r.requis, faces.size)
-      : null;
+  let step = null;
+  if (r.parametres.length) step = etapeParametres(systeme, inst.action, r.parametres, faces.size);
+  else if (r.requis.length) step = etape(systeme, inst.action, r.requis, faces.size);
   const parCible = new Map(r.cibles.map((c) => [c.id, c]));
   const enAttente = new Map(r.enAttente.map((c) => [c.id, c]));
   const refusees = new Map(inst.refused.map((x) => [x.id, x.error]));

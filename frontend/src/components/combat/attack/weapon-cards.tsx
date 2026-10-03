@@ -181,8 +181,8 @@ export function EntryPicker({
   const free = options.filter((o) => !o.owned && isWaived(fiche, waivers, o.id));
   const catalogue = options.filter((o) => !o.owned && !free.includes(o));
   const selectedOther = catalogue.find((o) => o.id === value);
-  const shownOthers =
-    catalogue.length <= CATALOGUE_CARDS ? catalogue : selectedOther ? [selectedOther] : [];
+  let shownOthers = catalogue;
+  if (catalogue.length > CATALOGUE_CARDS) shownOthers = selectedOther ? [selectedOther] : [];
   const shown: { o: EntryOption; note: string | null }[] = [
     ...owned.map((o) => ({ o, note: null })),
     ...free.map((o) => ({ o, note: 'Toujours disponible' })),

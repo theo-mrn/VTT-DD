@@ -65,7 +65,9 @@ export function etapesAction(
   situation.forEach((f, i) => {
     if (!f.ajout || (f.actions && !f.actions.includes(action.id))) return;
     if ('variable' in f.ajout && !duJet.has(f.ajout.variable)) return;
-    const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
+    let cle = 'nombre';
+    if ('bonus' in f.ajout) cle = 'bonus';
+    else if ('variable' in f.ajout) cle = 'ajouter';
     for (const x of ['condition', 'si', cle]) {
       const c = chemins.situation(action.id, i, x);
       if (formule(c)) {

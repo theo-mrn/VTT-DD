@@ -145,7 +145,7 @@ export function SituationBlock({
                 }
                 name={p.nom}
                 value={n}
-                display={n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0'}
+                display={signedCount(n)}
                 marked={n !== 0}
                 onChange={(x) => onParam(p.id, x)}
                 disabled={disabled}
@@ -266,4 +266,10 @@ function valueOf(fiche: Fiche, key: string): { key: string; label: string; value
       ? `${v.valeur} / ${v.max}`
       : String(v.valeur);
   return [{ key, label: a.nom, value }];
+}
+
+/** « +2 », « −1 » (vrai signe moins) ou « 0 ». */
+function signedCount(n: number): string {
+  if (n > 0) return `+${n}`;
+  return n < 0 ? `−${Math.abs(n)}` : '0';
 }

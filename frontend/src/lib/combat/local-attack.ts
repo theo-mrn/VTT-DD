@@ -257,11 +257,9 @@ export function runLocal(
   if (!r.ok) throw new LocalRefusal(messages(r.erreurs));
 
   const known = Object.keys(faces).length;
-  const step = r.parametres.length
-    ? paramsStep(systeme, input.actionId, r.parametres, known)
-    : r.requis.length
-      ? diceStep(systeme, input.actionId, r.requis, known)
-      : null;
+  let step = null;
+  if (r.parametres.length) step = paramsStep(systeme, input.actionId, r.parametres, known);
+  else if (r.requis.length) step = diceStep(systeme, input.actionId, r.requis, known);
   const done = new Map(r.cibles.map((c) => [c.id, c]));
   const waiting = new Map(r.enAttente.map((c) => [c.id, c]));
   const targets = input.targets.map(({ id }): LocalTarget => {

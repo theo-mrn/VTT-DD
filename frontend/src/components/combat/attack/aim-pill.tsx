@@ -122,11 +122,7 @@ export function AimPill({
         )}
         <span className="min-w-0 text-[13px] leading-tight" aria-live="polite">
           <span className="block font-medium">
-            {n === 0
-              ? 'Aucune cible'
-              : n === 1
-                ? targetName(targetIds[0]!, ctx.known)
-                : `${n} cibles`}
+            {n === 1 ? targetName(targetIds[0]!, ctx.known) : countTargets(n)}
           </span>
           {distance && (
             <span className="flex items-center gap-1 font-mono text-[11.5px] tabular-nums text-muted-foreground">
@@ -163,4 +159,8 @@ export function AimPill({
     </motion.div>,
     document.body,
   );
+}
+
+function countTargets(n: number): string {
+  return n === 0 ? 'Aucune cible' : `${n} cibles`;
 }

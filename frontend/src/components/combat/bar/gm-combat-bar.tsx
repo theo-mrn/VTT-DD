@@ -126,11 +126,9 @@ export function GmCombatBar({
   );
   const reports = <ReportsToggle live={live} />;
 
-  const origin: DialogOrigin = detail?.target
-    ? ORIGINS.target
-    : detail && detail.id === actor
-      ? ORIGINS.active
-      : ORIGINS.sheet;
+  let origin: DialogOrigin = ORIGINS.sheet;
+  if (detail?.target) origin = ORIGINS.target;
+  else if (detail && detail.id === actor) origin = ORIGINS.active;
 
   return (
     <>
