@@ -74,38 +74,57 @@ export function drawShape(
       g.stroke(strokeStyle(stroke));
       return;
     case 'ellipse':
-      if (shape.rx < 1e-3 || shape.ry < 1e-3) {
-        g.moveTo(shape.cx - shape.rx, shape.cy - shape.ry)
-          .lineTo(shape.cx + shape.rx, shape.cy + shape.ry)
-          .stroke(strokeStyle(stroke));
-        return;
-      }
-      g.ellipse(shape.cx, shape.cy, shape.rx, shape.ry);
-      if (fillIt) g.fill({ color: fill.color, alpha: fill.alpha });
-      g.stroke(strokeStyle(stroke));
+      drawEllipse(g, shape, stroke, fillIt ? fill : null);
       return;
-    case 'path': {
-      const pts = shape.points;
-      if (!pts.length) return;
-      if (isDot(pts)) {
-        g.circle(pts[0]!.x, pts[0]!.y, Math.max(0.5, stroke.width / 2)).fill({
-          color: stroke.color,
-          alpha: stroke.alpha,
-        });
-        return;
-      }
-      g.moveTo(pts[0]!.x, pts[0]!.y);
-      if (shape.smooth && pts.length >= 3)
-        catmullRom(pts, shape.closed, (c1x, c1y, c2x, c2y, x, y) =>
-          g.bezierCurveTo(c1x, c1y, c2x, c2y, x, y),
-        );
-      else for (let i = 1; i < pts.length; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
-      if (shape.closed) g.closePath();
-      if (fillIt) g.fill({ color: fill.color, alpha: fill.alpha });
-      g.stroke(strokeStyle(stroke));
+    case 'path':
+      drawPath(g, shape, stroke, fillIt ? fill : null);
       return;
-    }
   }
+}
+
+/** Ellipse ; aplatie, un simple trait. */
+function drawEllipse(
+  g: Pixi.Graphics,
+  shape: Extract<DrawingShape, { type: 'ellipse' }>,
+  stroke: StrokeParams,
+  fill: ColorValue | null,
+) {
+  if (shape.rx < 1e-3 || shape.ry < 1e-3) {
+    g.moveTo(shape.cx - shape.rx, shape.cy - shape.ry)
+      .lineTo(shape.cx + shape.rx, shape.cy + shape.ry)
+      .stroke(strokeStyle(stroke));
+    return;
+  }
+  g.ellipse(shape.cx, shape.cy, shape.rx, shape.ry);
+  if (fill) g.fill({ color: fill.color, alpha: fill.alpha });
+  g.stroke(strokeStyle(stroke));
+}
+
+/** Tracé (lissé ou non) ; réduit à un point, un disque. */
+function drawPath(
+  g: Pixi.Graphics,
+  shape: Extract<DrawingShape, { type: 'path' }>,
+  stroke: StrokeParams,
+  fill: ColorValue | null,
+) {
+  const pts = shape.points;
+  if (!pts.length) return;
+  if (isDot(pts)) {
+    g.circle(pts[0]!.x, pts[0]!.y, Math.max(0.5, stroke.width / 2)).fill({
+      color: stroke.color,
+      alpha: stroke.alpha,
+    });
+    return;
+  }
+  g.moveTo(pts[0]!.x, pts[0]!.y);
+  if (shape.smooth && pts.length >= 3)
+    catmullRom(pts, shape.closed, (c1x, c1y, c2x, c2y, x, y) =>
+      g.bezierCurveTo(c1x, c1y, c2x, c2y, x, y),
+    );
+  else for (let i = 1; i < pts.length; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
+  if (shape.closed) g.closePath();
+  if (fill) g.fill({ color: fill.color, alpha: fill.alpha });
+  g.stroke(strokeStyle(stroke));
 }
 
 /** Dessine un dessin enregistré (vide `g` d'abord). */
