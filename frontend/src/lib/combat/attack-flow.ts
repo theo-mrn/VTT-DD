@@ -217,103 +217,151 @@ function setTargets(s: ComposeState, ids: readonly string[]): ComposeState {
 
 // ─── Transitions ─────────────────────────────────────────────────────────────
 
-export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent): AttackFlowState {
-  switch (event.type) {
-    case 'open': {
-      const r = event.request;
-      const queue = unique(r.attackers ?? []);
-      const first = r.attackerId ?? queue[0] ?? null;
-      const rest = queue.filter((id) => id !== first);
-      return compose(
-        {
-          campaignId: r.campaignId,
-          origin: r.origin,
-          draft: emptyDraft(r, first),
-          queue: rest,
-          // Action demandée (fiche, attaque enregistrée) : on la prépare directement
-          step: r.actionId ? 'prepare' : 'action',
-        },
-        {
-          autoAttacker: r.attackerId === undefined && !queue.length,
-          ...(r.aim ? { aiming: true, aimMode: 'quick' as const } : {}),
-        },
-      );
-    }
-    case 'close':
-      return CLOSED;
+type OpenState = Exclude<AttackFlowState, { phase: 'closed' }>;
+
+/** Événements qui suivent la vie de l'attaque (déclaration, suivi, attaque suivante). */
+type LifecycleEvent = Extract<
+  AttackFlowEvent,
+  {
+    type:
+      'declared' | 'rejected' | 'reported' | 'attackUpdated' | 'show' | 'again' | 'nextAttacker';
   }
+>;
 
+/** Événements qui modifient le brouillon (composition seulement). */
+type DraftEvent = Exclude<AttackFlowEvent, LifecycleEvent | { type: 'open' } | { type: 'close' }>;
+
+const LIFECYCLE_EVENTS: ReadonlySet<AttackFlowEvent['type']> = new Set<LifecycleEvent['type']>([
+  'declared',
+  'rejected',
+  'reported',
+  'attackUpdated',
+  'show',
+  'again',
+  'nextAttacker',
+]);
+
+const isLifecycleEvent = (e: AttackFlowEvent): e is LifecycleEvent => LIFECYCLE_EVENTS.has(e.type);
+
+export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent): AttackFlowState {
+  if (event.type === 'open') return openFlow(event.request);
+  if (event.type === 'close') return CLOSED;
   if (state.phase === 'closed') return state;
+  if (isLifecycleEvent(event)) return reduceLifecycle(state, event);
+  // Tout le reste modifie le brouillon : seulement pendant la composition
+  if (state.phase !== 'compose') return state;
+  return reduceDraft(state, event);
+}
 
+/** Ouverture du menu : premier attaquant, PNJ suivants, visée rapide éventuelle. */
+function openFlow(r: AttackMenuRequest): ComposeState {
+  const queue = unique(r.attackers ?? []);
+  const first = r.attackerId ?? queue[0] ?? null;
+  const rest = queue.filter((id) => id !== first);
+  return compose(
+    {
+      campaignId: r.campaignId,
+      origin: r.origin,
+      draft: emptyDraft(r, first),
+      queue: rest,
+      // Action demandée (fiche, attaque enregistrée) : on la prépare directement
+      step: r.actionId ? 'prepare' : 'action',
+    },
+    {
+      autoAttacker: r.attackerId === undefined && !queue.length,
+      ...(r.aim ? { aiming: true, aimMode: 'quick' as const } : {}),
+    },
+  );
+}
+
+/** Déclaration, suivi de l'attaque déclarée, puis attaque suivante. */
+function reduceLifecycle(state: OpenState, event: LifecycleEvent): AttackFlowState {
   switch (event.type) {
     case 'declared':
       return state.phase === 'submitting'
         ? { ...opened(state), phase: 'declared', attack: event.attack }
         : state;
     case 'rejected':
-      return state.phase === 'submitting'
-        ? compose(opened(state), {
-            error: event.message,
-            retryKey: event.retryable ? state.key : null,
-          })
-        : state;
+      return state.phase === 'submitting' ? rejected(state, event) : state;
     case 'reported':
       if (state.phase !== 'declared' || state.attack.id !== event.localId) return state;
       return { ...state, attack: event.attack, previousId: event.localId };
     case 'attackUpdated':
-      if (state.phase !== 'declared' || state.attack.id !== event.attack.id) return state;
-      return event.attack.version >= state.attack.version
-        ? { ...state, attack: event.attack }
-        : state;
-    case 'show': {
-      if (state.phase === 'submitting') return state;
-      const a = event.attack;
-      return {
-        ...opened(state),
-        phase: 'declared',
-        attack: a,
-        step: 'prepare',
-        draft: {
-          ...state.draft,
-          attackerId: a.attackerId,
-          actionId: a.action.id,
-          presetId: a.presetId ?? null,
-          params: a.params,
-          targetIds: a.targets.map((t) => t.characterId),
-        },
-      };
-    }
+      return attackUpdated(state, event.attack);
+    case 'show':
+      return state.phase === 'submitting' ? state : showAttack(state, event.attack);
     case 'again':
-      if (state.phase === 'submitting') return state;
-      // « Mêmes cibles » : même action, on la prépare ; « Nouvelle attaque » : on la rechoisit
-      return compose({
-        ...opened(state),
-        step: event.keepTargets ? 'prepare' : 'action',
-        draft: {
-          ...state.draft,
-          targetIds: event.keepTargets ? state.draft.targetIds : [],
-          adjustments: NO_ADJUSTMENTS,
-        },
-      });
-    case 'nextAttacker': {
-      if (state.phase === 'submitting' || !state.queue.length) return state;
-      const [next, ...rest] = state.queue;
-      return compose({
-        ...opened(state),
-        draft: { ...state.draft, attackerId: next!, adjustments: NO_ADJUSTMENTS },
-        queue: rest,
-        step: 'prepare',
-      });
-    }
+      return state.phase === 'submitting' ? state : again(state, event.keepTargets);
+    case 'nextAttacker':
+      return nextAttacker(state);
   }
+}
 
-  // Tout le reste modifie le brouillon : seulement pendant la composition
-  if (state.phase !== 'compose') return state;
-  const s = state;
+/** Déclaration refusée : retour à la composition, avec la clé si l'essai peut reprendre. */
+function rejected(
+  state: Extract<AttackFlowState, { phase: 'submitting' }>,
+  event: Extract<AttackFlowEvent, { type: 'rejected' }>,
+): ComposeState {
+  return compose(opened(state), {
+    error: event.message,
+    retryKey: event.retryable ? state.key : null,
+  });
+}
+
+/** Nouvelle version de l'attaque suivie (jamais une plus ancienne). */
+function attackUpdated(state: OpenState, attack: Attack): AttackFlowState {
+  if (state.phase !== 'declared' || state.attack.id !== attack.id) return state;
+  return attack.version >= state.attack.version ? { ...state, attack } : state;
+}
+
+/** Attaque déjà déclarée montrée en direct, son brouillon reconstitué. */
+function showAttack(state: OpenState, a: Attack): DeclaredState {
+  return {
+    ...opened(state),
+    phase: 'declared',
+    attack: a,
+    step: 'prepare',
+    draft: {
+      ...state.draft,
+      attackerId: a.attackerId,
+      actionId: a.action.id,
+      presetId: a.presetId ?? null,
+      params: a.params,
+      targetIds: a.targets.map((t) => t.characterId),
+    },
+  };
+}
+
+/** « Mêmes cibles » : même action, on la prépare ; « Nouvelle attaque » : on la rechoisit. */
+function again(state: OpenState, keepTargets: boolean): ComposeState {
+  return compose({
+    ...opened(state),
+    step: keepTargets ? 'prepare' : 'action',
+    draft: {
+      ...state.draft,
+      targetIds: keepTargets ? state.draft.targetIds : [],
+      adjustments: NO_ADJUSTMENTS,
+    },
+  });
+}
+
+/** PNJ suivant d'une attaque à la suite : même action, mêmes cibles. */
+function nextAttacker(state: OpenState): AttackFlowState {
+  if (state.phase === 'submitting' || !state.queue.length) return state;
+  const [next, ...rest] = state.queue;
+  return compose({
+    ...opened(state),
+    draft: { ...state.draft, attackerId: next!, adjustments: NO_ADJUSTMENTS },
+    queue: rest,
+    step: 'prepare',
+  });
+}
+
+/** Modifications du brouillon pendant la composition. */
+function reduceDraft(s: ComposeState, event: DraftEvent): AttackFlowState {
   switch (event.type) {
     case 'setAttacker':
-      if (event.attackerId === s.draft.attackerId && !s.autoAttacker) return s;
-      return { ...editDraft(s, { attackerId: event.attackerId }), autoAttacker: false };
+      return setAttacker(s, event.attackerId);
     case 'setAction':
       return editDraft(s, {
         actionId: event.actionId,
@@ -336,12 +384,7 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
     case 'setParam':
       return editDraft(s, { params: { ...s.draft.params, [event.id]: event.value } });
     case 'toggleTarget':
-      return setTargets(
-        s,
-        s.draft.targetIds.includes(event.characterId)
-          ? s.draft.targetIds.filter((id) => id !== event.characterId)
-          : [...s.draft.targetIds, event.characterId],
-      );
+      return setTargets(s, toggled(s.draft.targetIds, event.characterId));
     case 'addTargets':
       return setTargets(s, [...s.draft.targetIds, ...event.characterIds]);
     case 'setTargets':
@@ -352,38 +395,19 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
         s.draft.targetIds.filter((id) => id !== event.characterId),
       );
     case 'aim':
-      if (event.on === s.aiming) return s;
-      return event.on ? { ...s, aiming: true, aimMode: 'menu' } : { ...s, aiming: false };
-    case 'aimPick': {
-      if (!s.aiming) return s;
-      const has = s.draft.targetIds.includes(event.characterId);
-      if (s.aimMode === 'quick' && !event.shift)
-        return has && s.draft.targetIds.length === 1 ? s : setTargets(s, [event.characterId]);
-      return setTargets(
-        s,
-        has
-          ? s.draft.targetIds.filter((id) => id !== event.characterId)
-          : [...s.draft.targetIds, event.characterId],
-      );
-    }
+      return setAiming(s, event.on);
+    case 'aimPick':
+      return aimPick(s, event.characterId, event.shift);
     case 'aimCancel':
-      if (!s.aiming) return s;
-      return s.aimMode === 'quick' ? CLOSED : { ...s, aiming: false };
+      return aimCancel(s);
     case 'setRollMode':
       return editDraft(s, { rollMode: event.rollMode });
     case 'setDice':
       return editDraft(s, { dice: event.dice });
     case 'setVisibility':
       return editDraft(s, { visibility: event.visibility });
-    case 'setAdjustment': {
-      const value = Math.trunc(event.value) || 0;
-      const a = s.draft.adjustments;
-      if (event.die === null) return editDraft(s, { adjustments: { ...a, bonus: value } });
-      const { [event.die]: _old, ...dice } = a.dice;
-      return editDraft(s, {
-        adjustments: { ...a, dice: value ? { ...dice, [event.die]: value } : dice },
-      });
-    }
+    case 'setAdjustment':
+      return setAdjustment(s, event.die, event.value);
     case 'resetAdjustments':
       return editDraft(s, { adjustments: NO_ADJUSTMENTS });
     case 'submit':
@@ -391,6 +415,51 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
       return { ...opened(s), phase: 'submitting', key: event.key };
   }
   return s;
+}
+
+/** Cibles avec `id` ajouté s'il manquait, retiré s'il y était. */
+function toggled(ids: readonly string[], id: string): readonly string[] {
+  return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+}
+
+/** Attaquant choisi : il n'est plus celui posé par défaut. */
+function setAttacker(s: ComposeState, attackerId: string | null): ComposeState {
+  if (attackerId === s.draft.attackerId && !s.autoAttacker) return s;
+  return { ...editDraft(s, { attackerId }), autoAttacker: false };
+}
+
+/** « Viser sur la carte » (visée depuis le menu), ou « Valider » la visée. */
+function setAiming(s: ComposeState, on: boolean): ComposeState {
+  if (on === s.aiming) return s;
+  return on ? { ...s, aiming: true, aimMode: 'menu' } : { ...s, aiming: false };
+}
+
+/** Clic sur un token pendant la visée (visée rapide sans ⇧ : il devient la seule cible). */
+function aimPick(s: ComposeState, characterId: string, shift: boolean): ComposeState {
+  if (!s.aiming) return s;
+  const targetIds = s.draft.targetIds;
+  if (s.aimMode === 'quick' && !shift) {
+    const alone = targetIds.length === 1 && targetIds.includes(characterId);
+    return alone ? s : setTargets(s, [characterId]);
+  }
+  return setTargets(s, toggled(targetIds, characterId));
+}
+
+/** Échap pendant la visée : retour au menu, ou attaque annulée (visée rapide). */
+function aimCancel(s: ComposeState): AttackFlowState {
+  if (!s.aiming) return s;
+  return s.aimMode === 'quick' ? CLOSED : { ...s, aiming: false };
+}
+
+/** Ajustement libre : `die` null, le bonus au total ; sinon les dés ajoutés (0 : retirés). */
+function setAdjustment(s: ComposeState, die: string | null, raw: number): ComposeState {
+  const value = Math.trunc(raw) || 0;
+  const a = s.draft.adjustments;
+  if (die === null) return editDraft(s, { adjustments: { ...a, bonus: value } });
+  const { [die]: _old, ...dice } = a.dice;
+  return editDraft(s, {
+    adjustments: { ...a, dice: value ? { ...dice, [die]: value } : dice },
+  });
 }
 
 // ─── Lectures ────────────────────────────────────────────────────────────────
