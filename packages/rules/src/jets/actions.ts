@@ -46,7 +46,6 @@ import {
   type ModeDes,
   type PhaseDes,
   type ResultatEvaluation,
-  type TypeValeur,
   type Valeur,
 } from '../formules/index.js';
 import type { Modification } from './modifications.js';
