@@ -695,13 +695,7 @@ export function appliquerEvenementNote(client: QueryClient, e: RealtimeEvent): v
   }
 
   const connue = client.getQueryData<Note>(clesNotes.une(id));
-  if (type === 'note.pinned' || type === 'note.unpinned') {
-    // Déjà à jour : l'épingle vient de cet onglet
-    if (connue && connue.pinned === (type === 'note.pinned')) return;
-  } else if (type === 'note.created' || type === 'note.updated') {
-    const version = typeof payload.version === 'number' ? payload.version : null;
-    if (connue && version !== null && connue.version >= version) return;
-  }
+  if (connue && dejaAJour(type, connue, payload)) return;
   if (type === 'note.updated') {
     noteChangeeAilleurs(client, id, typeof payload.version === 'number' ? payload.version : null);
     return;
@@ -709,6 +703,22 @@ export function appliquerEvenementNote(client: QueryClient, e: RealtimeEvent): v
   void client.invalidateQueries({ queryKey: clesNotes.une(id) });
   void client.invalidateQueries({ queryKey: clesNotes.listes });
   void client.invalidateQueries({ queryKey: clesNotes.facettes });
+}
+
+/** Le cache a déjà ce que l'événement annonce (c'est notre propre écriture). */
+function dejaAJour(
+  type: string,
+  connue: Note,
+  payload: RealtimeEvent['event']['payload'],
+): boolean {
+  // L'épingle vient de cet onglet
+  if (type === 'note.pinned' || type === 'note.unpinned')
+    return connue.pinned === (type === 'note.pinned');
+  if (type === 'note.created' || type === 'note.updated') {
+    const version = typeof payload.version === 'number' ? payload.version : null;
+    return version !== null && connue.version >= version;
+  }
+  return false;
 }
 
 /** Relectures regroupées, par cache : une seule part au bout du délai, quel que soit le flot. */

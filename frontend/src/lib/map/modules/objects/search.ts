@@ -189,25 +189,27 @@ export class SearchController {
       for (const l of this.takenListeners) l(characterId);
       return true;
     } catch (err) {
-      if (seq !== this.seq) return false;
-      const stale =
-        err instanceof ApiError && (err.status === 404 || err.problem.code === 'quantity_exceeded');
-      this.state.setState({
-        taking: null,
-        error: searchErrorMessage(err, {
-          characterName: this.characterName(characterId),
-          reach: this.reachText(this.object(objectId)),
-          action: 'take',
-        }),
-      });
-      // Le contenu a changé : on le relit (le message reste affiché)
-      if (stale) {
-        const error = this.s.error;
-        await this.search();
-        if (seq + 1 === this.seq && this.s.status === 'ready') this.state.setState({ error });
-      }
+      if (seq === this.seq) await this.takeFailed(err, seq, objectId, characterId);
       return false;
     }
+  }
+
+  /** Prise refusée : le message s'affiche ; contenu changé, il est relu (message gardé). */
+  private async takeFailed(err: unknown, seq: number, objectId: string, characterId: string) {
+    const stale =
+      err instanceof ApiError && (err.status === 404 || err.problem.code === 'quantity_exceeded');
+    this.state.setState({
+      taking: null,
+      error: searchErrorMessage(err, {
+        characterName: this.characterName(characterId),
+        reach: this.reachText(this.object(objectId)),
+        action: 'take',
+      }),
+    });
+    if (!stale) return;
+    const error = this.s.error;
+    await this.search();
+    if (seq + 1 === this.seq && this.s.status === 'ready') this.state.setState({ error });
   }
 }
 
