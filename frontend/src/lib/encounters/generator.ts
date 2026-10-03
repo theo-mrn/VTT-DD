@@ -145,17 +145,16 @@ export function filterPool(
     if (f.categories?.length && !f.categories.includes(c.category)) return false;
     if (f.minPower !== undefined && c.power < f.minPower) return false;
     if (f.maxPower !== undefined && c.power > f.maxPower) return false;
-    for (const [key, r] of Object.entries(f.ranges ?? {})) {
-      const v = num(c.values[key]);
-      if (!Number.isFinite(v)) {
-        if (r.min !== undefined || r.max !== undefined) return false;
-        continue;
-      }
-      if (r.min !== undefined && v < r.min) return false;
-      if (r.max !== undefined && v > r.max) return false;
-    }
-    return true;
+    return Object.entries(f.ranges ?? {}).every(([key, r]) => inRange(num(c.values[key]), r));
   });
+}
+
+/** La valeur tient dans l'intervalle ; une valeur non numérique, seulement s'il est ouvert. */
+function inRange(v: number, r: { min?: number; max?: number }): boolean {
+  if (!Number.isFinite(v)) return r.min === undefined && r.max === undefined;
+  if (r.min !== undefined && v < r.min) return false;
+  if (r.max !== undefined && v > r.max) return false;
+  return true;
 }
 
 // ─── Génération ──────────────────────────────────────────────────────────────
