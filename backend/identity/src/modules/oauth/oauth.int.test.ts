@@ -126,7 +126,9 @@ describe.skipIf(!TEST_DATABASE_URL)('connexion OAuth par HTTP', () => {
     const lignes = await base.db
       .select({ envelope: outbox.envelope })
       .from(outbox)
-      .where(sql`${outbox.envelope}->'aggregate'->>'id' = ${userId}`);
+      .where(sql`${outbox.envelope}->'aggregate'->>'id' = ${userId}`)
+      // Ordre d'écriture : les identifiants (UUIDv7) croissent même dans une milliseconde
+      .orderBy(outbox.createdAt, outbox.id);
     return lignes.map(
       (l) => l.envelope as { type: string; payload: Record<string, unknown>; visibility: string },
     );

@@ -16,6 +16,12 @@ describe('uuidv7', () => {
     expect([...ids].sort()).toEqual(ids);
   });
 
+  it('sur l’heure courante, strictement croissant même dans une milliseconde', () => {
+    const ids = Array.from({ length: 5_000 }, () => uuidv7());
+    for (let i = 1; i < ids.length; i++) expect(ids[i]! > ids[i - 1]!).toBe(true);
+    expect(ids.every(isUuidv7)).toBe(true);
+  });
+
   it('est unique', () => {
     const t = Date.now();
     const ids = new Set(Array.from({ length: 10_000 }, () => uuidv7(t)));
