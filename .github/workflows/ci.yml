@@ -47,7 +47,17 @@ jobs:
           pnpm turbo run lint typecheck build --output-logs=errors-only $affected 2>&1 | tee /tmp/turbo.log
           # Tests deux paquets à la fois : tous ensemble, les tests de propriétés (vision, systemes)
           # et les garde-fous d'événements dépassent leurs délais sur les 4 cœurs du runner
-          pnpm turbo run test --concurrency=2 --output-logs=errors-only $affected 2>&1 | tee -a /tmp/turbo.log
+          pnpm turbo run test --concurrency=2 --output-logs=errors-only $affected \
+            -- --coverage.enabled --coverage.reporter=lcov 2>&1 | tee -a /tmp/turbo.log
+      - name: Couverture des tests unitaires (pour SonarQube)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-unit
+          path: |
+            **/coverage/lcov.info
+            !**/node_modules/**
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Résumé de l'échec
         if: failure()
         run: |
@@ -119,10 +129,8 @@ jobs:
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with: { node-version-file: .nvmrc, cache: pnpm }
-      - run: >-
-          pnpm install --frozen-lockfile --filter '@vtt/identity...' --filter '@vtt/character...'
-          --filter '@vtt/campaign...' --filter '@vtt/dice...' --filter '@vtt/billing...'
-          --filter '@vtt/history...' --filter '@vtt/realtime...' --filter '@vtt/audio...'
+      # Installation complète : le fournisseur de couverture (@vitest/coverage-v8) est à la racine
+      - run: pnpm install --frozen-lockfile
       # Relais d'outbox sur une table temporaire (rôle quelconque) et publication sur JetStream
       - name: Tests d'intégration platform (Postgres et NATS réels)
         env:
@@ -130,45 +138,45 @@ jobs:
           NATS_URL: nats://localhost:4222
         run: |
           pnpm turbo run build --filter '@vtt/platform^...'
-          pnpm --filter @vtt/platform test
+          pnpm --filter @vtt/platform exec vitest run --coverage.enabled --coverage.reporter=lcov
       - name: Tests d'intégration identity (Postgres et NATS réels, titres)
         env:
           TEST_DATABASE_URL: postgres://identity_svc:identity-dev@localhost:5432/vtt
           NATS_URL: nats://localhost:4222
         run: |
           pnpm turbo run build --filter '@vtt/identity^...'
-          pnpm --filter @vtt/identity test
+          pnpm --filter @vtt/identity exec vitest run --coverage.enabled --coverage.reporter=lcov
       - name: Tests d'intégration character (Postgres réel)
         env:
           TEST_DATABASE_URL: postgres://characters_svc:characters-dev@localhost:5432/vtt
         run: |
           pnpm turbo run build --filter '@vtt/character^...'
-          pnpm --filter @vtt/character test
+          pnpm --filter @vtt/character exec vitest run --coverage.enabled --coverage.reporter=lcov
       - name: Tests d'intégration campaign (Postgres réel)
         env:
           TEST_DATABASE_URL: postgres://campaign_svc:campaign-dev@localhost:5432/vtt
         run: |
           pnpm turbo run build --filter '@vtt/campaign^...'
-          pnpm --filter @vtt/campaign test
+          pnpm --filter @vtt/campaign exec vitest run --coverage.enabled --coverage.reporter=lcov
       - name: Tests d'intégration dice (Postgres réel)
         env:
           TEST_DATABASE_URL: postgres://dice_svc:dice-dev@localhost:5432/vtt
         run: |
           pnpm turbo run build --filter '@vtt/dice^...'
-          pnpm --filter @vtt/dice test
+          pnpm --filter @vtt/dice exec vitest run --coverage.enabled --coverage.reporter=lcov
       - name: Tests d'intégration billing (Postgres réel, Stripe simulé)
         env:
           TEST_DATABASE_URL: postgres://billing_svc:billing-dev@localhost:5432/vtt
         run: |
           pnpm turbo run build --filter '@vtt/billing^...'
-          pnpm --filter @vtt/billing test
+          pnpm --filter @vtt/billing exec vitest run --coverage.enabled --coverage.reporter=lcov
       - name: Tests d'intégration history (Postgres et NATS réels)
         env:
           TEST_DATABASE_URL: postgres://history_svc:history-dev@localhost:5432/vtt
           TEST_NATS_URL: nats://localhost:4222
         run: |
           pnpm turbo run build --filter '@vtt/history^...'
-          pnpm --filter @vtt/history test
+          pnpm --filter @vtt/history exec vitest run --coverage.enabled --coverage.reporter=lcov
       # ffmpeg du runner pour le worker ; SeaweedFS absent en CI : stockage en mémoire
       - name: Tests d'intégration audio (Postgres, NATS et ffmpeg réels)
         env:
@@ -177,7 +185,7 @@ jobs:
         run: |
           command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
           pnpm turbo run build --filter '@vtt/audio^...'
-          pnpm --filter @vtt/audio test
+          pnpm --filter @vtt/audio exec vitest run --coverage.enabled --coverage.reporter=lcov
       # Pas de base : canal durable sur JetStream, plusieurs réplicas reliés par Valkey
       - name: Tests d'intégration realtime (NATS et Valkey réels)
         env:
@@ -185,7 +193,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
         run: |
           pnpm turbo run build --filter '@vtt/realtime^...'
-          pnpm --filter @vtt/realtime test
+          pnpm --filter @vtt/realtime exec vitest run --coverage.enabled --coverage.reporter=lcov
 
   e2e:
     name: Bout en bout (Playwright)
@@ -218,6 +226,54 @@ jobs:
             frontend/e2e/resultats
             e2e-logs
           retention-days: 7
+
+      - name: Couverture des tests d'intégration (pour SonarQube)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-integration
+          path: |
+            backend/*/coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 3
+
+  sonar:
+    name: SonarQube (Quality Gate)
+    needs: [quality, sql]
+    if: ${{ !cancelled() && needs.quality.result == 'success' && needs.sql.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with: { fetch-depth: 0 } # blame : nouveau code et auteur des problèmes
+      # Unitaires puis intégration : pour un service, la couverture des tests d'intégration
+      # (base réelle) remplace celle des seuls tests unitaires
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with: { name: coverage-unit }
+        continue-on-error: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with: { name: coverage-integration }
+        continue-on-error: true
+      - name: Chemins de la couverture relatifs à la racine
+        run: |
+          # vitest écrit « SF:src/… » relatif au paquet ; SonarQube lit depuis la racine
+          for f in $(find . -path ./node_modules -prune -o -name lcov.info -print); do
+            dir=$(dirname "$(dirname "${f#./}")")
+            sed -i "s#^SF:\([^/]\)#SF:$dir/\1#" "$f"
+          done
+      - name: SonarQube non configuré
+        if: env.SONAR_TOKEN == '' || env.SONAR_HOST_URL == ''
+        run: echo "::warning title=SonarQube::secret SONAR_TOKEN ou variable SONAR_HOST_URL absents (docs/ci.md)"
+      # Échoue si le Quality Gate échoue : nouveau code couvert, sans bug ni faille ajoutés
+      - name: Analyse et Quality Gate
+        if: env.SONAR_TOKEN != '' && env.SONAR_HOST_URL != ''
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=600
 
   security:
     name: Secrets et dépendances
