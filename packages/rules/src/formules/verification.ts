@@ -140,15 +140,8 @@ export function verifier(
         return 'booleen';
       case 'texte':
         return 'texte';
-      case 'attribut': {
-        const info = env.attribut(n.cle, n.entite);
-        if (!info) {
-          erreur(`Attribut inconnu : @${n.entite ? `${n.entite}.` : ''}${n.cle}`, n.pos);
-          return null;
-        }
-        noterAttribut(n.cle, n.entite);
-        return info.type;
-      }
+      case 'attribut':
+        return typerAttribut(n);
       case 'variable': {
         const t = env.variable(n.nom);
         variables.add(n.nom);
@@ -162,22 +155,8 @@ export function verifier(
         }
         attendre(n.arg, 'booleen', '« non »');
         return 'booleen';
-      case 'binaire': {
-        if (n.op === 'et' || n.op === 'ou') {
-          attendre(n.g, 'booleen', `« ${n.op} »`);
-          attendre(n.d, 'booleen', `« ${n.op} »`);
-          return 'booleen';
-        }
-        if (n.op === '==' || n.op === '!=') {
-          const g = typer(n.g);
-          const d = typer(n.d);
-          if (g && d && g !== d) erreur(`Comparaison entre ${g} et ${d}`, n.pos);
-          return 'booleen';
-        }
-        attendre(n.g, 'nombre', `« ${n.op} »`);
-        attendre(n.d, 'nombre', `« ${n.op} »`);
-        return ['<', '<=', '>', '>='].includes(n.op) ? 'booleen' : 'nombre';
-      }
+      case 'binaire':
+        return typerBinaire(n);
       case 'si': {
         attendre(n.condition, 'booleen', 'Condition de si()');
         const a = typer(n.alors);
@@ -187,78 +166,131 @@ export function verifier(
         return a ?? s;
       }
       case 'des':
-        if (!env.des) erreur('Les dés ne sont pas permis ici', n.pos);
-        aleatoire = true;
-        attendre(n.nombre, 'nombre', 'Nombre de dés');
-        attendre(n.faces, 'nombre', 'Faces');
-        if (n.garder) attendre(n.garder.n, 'nombre', 'Dés gardés');
-        if (n.nombre.t === 'nombre' && n.faces.t === 'nombre' && n.faces.v < 1) {
-          erreur('Un dé a au moins une face', n.pos);
-        }
-        return 'nombre';
+        return typerDes(n);
       case 'appel':
         return typerAppel(n);
     }
   }
 
-  function typerAppel(n: Extract<Noeud, { t: 'appel' }>): TypeValeur | null {
-    const litteral = (quoi: string): string | null => {
-      const a = n.args[0];
-      if (n.args.length !== 1 || a?.t !== 'texte') {
-        erreur(`${n.fn}() attend ${quoi} entre guillemets`, n.pos);
-        return null;
-      }
-      return a.v;
-    };
-
-    switch (n.fn) {
-      case 'mod': {
-        const a = n.args[0];
-        if (n.args.length !== 1 || a?.t !== 'attribut') {
-          erreur('mod() attend un attribut : mod(@DEX)', n.pos);
-          return 'nombre';
-        }
-        const info = env.attribut(a.cle, a.entite);
-        if (!info) erreur(`Attribut inconnu : @${a.entite ? `${a.entite}.` : ''}${a.cle}`, a.pos);
-        else if (!info.modificateur) erreur(`@${a.cle} n’a pas de modificateur`, a.pos);
-        else noterAttribut(a.cle, a.entite);
-        return 'nombre';
-      }
-      case 'rang':
-      case 'possede': {
-        const retour = n.fn === 'rang' ? 'nombre' : 'booleen';
-        const a = n.args[0];
-        // Entrée désignée à l'exécution (`rang(arme.competence)`) : permis là où `valeur()` l'est
-        if (n.args.length === 1 && a && a.t !== 'texte' && env.dynamique) {
-          dynamique = true;
-          attendre(a, 'texte', `${n.fn}()`);
-          return retour;
-        }
-        const id = litteral('un identifiant d’entrée');
-        if (id !== null) {
-          if (env.entree && !env.entree(id)) erreur(`Entrée inconnue : ${id}`, n.pos);
-          entrees.add(id);
-        }
-        return retour;
-      }
-      case 'option': {
-        // Toujours un identifiant littéral : l'option lue se connaît au chargement
-        const id = litteral('un identifiant d’option');
-        if (!env.option) erreur('option() n’est pas permis ici', n.pos);
-        else if (id !== null && !env.option(id)) erreur(`Option inconnue : ${id}`, n.pos);
-        if (id !== null) options.add(id);
-        return 'booleen';
-      }
-      case 'valeur':
-      case 'modificateur': {
-        if (!env.dynamique) erreur(`${n.fn}() n’est pas permis ici`, n.pos);
-        dynamique = true;
-        if (n.args.length !== 1) erreur(`${n.fn}() attend un argument`, n.pos);
-        else attendre(n.args[0]!, 'texte', `${n.fn}()`);
-        return 'nombre';
-      }
+  function typerAttribut(n: Extract<Noeud, { t: 'attribut' }>): TypeValeur | null {
+    const info = env.attribut(n.cle, n.entite);
+    if (!info) {
+      erreur(`Attribut inconnu : ${nomAttribut(n)}`, n.pos);
+      return null;
     }
+    noterAttribut(n.cle, n.entite);
+    return info.type;
+  }
 
+  function typerBinaire(n: Extract<Noeud, { t: 'binaire' }>): TypeValeur {
+    if (n.op === 'et' || n.op === 'ou') {
+      attendre(n.g, 'booleen', `« ${n.op} »`);
+      attendre(n.d, 'booleen', `« ${n.op} »`);
+      return 'booleen';
+    }
+    if (n.op === '==' || n.op === '!=') {
+      const g = typer(n.g);
+      const d = typer(n.d);
+      if (g && d && g !== d) erreur(`Comparaison entre ${g} et ${d}`, n.pos);
+      return 'booleen';
+    }
+    attendre(n.g, 'nombre', `« ${n.op} »`);
+    attendre(n.d, 'nombre', `« ${n.op} »`);
+    return ['<', '<=', '>', '>='].includes(n.op) ? 'booleen' : 'nombre';
+  }
+
+  function typerDes(n: Extract<Noeud, { t: 'des' }>): TypeValeur {
+    if (!env.des) erreur('Les dés ne sont pas permis ici', n.pos);
+    aleatoire = true;
+    attendre(n.nombre, 'nombre', 'Nombre de dés');
+    attendre(n.faces, 'nombre', 'Faces');
+    if (n.garder) attendre(n.garder.n, 'nombre', 'Dés gardés');
+    if (n.nombre.t === 'nombre' && n.faces.t === 'nombre' && n.faces.v < 1) {
+      erreur('Un dé a au moins une face', n.pos);
+    }
+    return 'nombre';
+  }
+
+  type Appel = Extract<Noeud, { t: 'appel' }>;
+
+  /** Unique argument littéral d'un appel (identifiant entre guillemets), ou null. */
+  function litteral(n: Appel, quoi: string): string | null {
+    const a = n.args[0];
+    if (n.args.length !== 1 || a?.t !== 'texte') {
+      erreur(`${n.fn}() attend ${quoi} entre guillemets`, n.pos);
+      return null;
+    }
+    return a.v;
+  }
+
+  /** `mod(@DEX)` : un attribut connu qui a un modificateur. */
+  function typerMod(n: Appel): TypeValeur {
+    const a = n.args[0];
+    if (n.args.length !== 1 || a?.t !== 'attribut') {
+      erreur('mod() attend un attribut : mod(@DEX)', n.pos);
+      return 'nombre';
+    }
+    const info = env.attribut(a.cle, a.entite);
+    if (!info) erreur(`Attribut inconnu : ${nomAttribut(a)}`, a.pos);
+    else if (!info.modificateur) erreur(`@${a.cle} n’a pas de modificateur`, a.pos);
+    else noterAttribut(a.cle, a.entite);
+    return 'nombre';
+  }
+
+  /** `rang("x")`, `possede("x")` ; entrée désignée à l'exécution là où `valeur()` est permis. */
+  function typerEntree(n: Appel): TypeValeur {
+    const retour = n.fn === 'rang' ? 'nombre' : 'booleen';
+    const a = n.args[0];
+    // Entrée désignée à l'exécution (`rang(arme.competence)`) : permis là où `valeur()` l'est
+    if (n.args.length === 1 && a && a.t !== 'texte' && env.dynamique) {
+      dynamique = true;
+      attendre(a, 'texte', `${n.fn}()`);
+      return retour;
+    }
+    const id = litteral(n, 'un identifiant d’entrée');
+    if (id === null) return retour;
+    if (env.entree && !env.entree(id)) erreur(`Entrée inconnue : ${id}`, n.pos);
+    entrees.add(id);
+    return retour;
+  }
+
+  /** `option("x")` : toujours un identifiant littéral, l'option lue se connaît au chargement. */
+  function typerOption(n: Appel): TypeValeur {
+    const id = litteral(n, 'un identifiant d’option');
+    if (!env.option) erreur('option() n’est pas permis ici', n.pos);
+    else if (id !== null && !env.option(id)) erreur(`Option inconnue : ${id}`, n.pos);
+    if (id !== null) options.add(id);
+    return 'booleen';
+  }
+
+  /** `valeur(x)`, `modificateur(x)` : attribut désigné à l'exécution. */
+  function typerDynamique(n: Appel): TypeValeur {
+    if (!env.dynamique) erreur(`${n.fn}() n’est pas permis ici`, n.pos);
+    dynamique = true;
+    if (n.args.length !== 1) erreur(`${n.fn}() attend un argument`, n.pos);
+    else attendre(n.args[0]!, 'texte', `${n.fn}()`);
+    return 'nombre';
+  }
+
+  function typerAppel(n: Appel): TypeValeur | null {
+    switch (n.fn) {
+      case 'mod':
+        return typerMod(n);
+      case 'rang':
+      case 'possede':
+        return typerEntree(n);
+      case 'option':
+        return typerOption(n);
+      case 'valeur':
+      case 'modificateur':
+        return typerDynamique(n);
+      default:
+        return typerSignature(n);
+    }
+  }
+
+  /** Fonction déclarée (système ou environnement) : nombre et types des arguments. */
+  function typerSignature(n: Appel): TypeValeur | null {
     const sig = FONCTIONS[n.fn] ?? env.fonctions?.[n.fn];
     if (!sig) {
       erreur(`Fonction inconnue : ${n.fn}()`, n.pos);
@@ -301,6 +333,11 @@ export function verifier(
 }
 
 /** Analyse puis vérifie, en contrôlant éventuellement le type du résultat. */
+/** `@cle` ou `@entite.cle`, tel qu'écrit. */
+function nomAttribut(n: { cle: string; entite?: string }): string {
+  return n.entite ? `@${n.entite}.${n.cle}` : `@${n.cle}`;
+}
+
 export function compiler(
   texte: string,
   env: EnvironnementTypes,
