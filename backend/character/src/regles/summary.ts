@@ -32,30 +32,43 @@ function display(v: ValeurCalculee | undefined): string {
   return v.valeur || '—';
 }
 
-/** Résumé d'une fiche calculée, selon la présentation de son système (facultative). */
-export function summarize(fiche: Fiche, presentation: Presentation | null): CharacterSummary {
+type Widget = NonNullable<Presentation['fiches'][string]>['widgets'][number];
+type DetailsWidget = Extract<Widget, { type: 'details' }>;
+
+/** Bloc « details » de la fiche dans la présentation, s'il y en a un. */
+function detailsWidget(fiche: Fiche, presentation: Presentation | null): DetailsWidget | undefined {
   const details = presentation?.fiches[fiche.etat.type]?.widgets.find((w) => w.type === 'details');
-  const kinds =
-    details?.type === 'details'
-      ? details.sortes
-      : [...fiche.systeme.sortes.values()]
-          .filter((s) => s.maximum === 1 && s.pour.includes(fiche.etat.type))
-          .map((s) => s.id);
+  return details?.type === 'details' ? details : undefined;
+}
+
+/** Un objet caché aux autres joueurs n'apparaît pas dans le résumé (listes de la table). */
+const hiddenFromOthers = (p: { exemplaires: { hidden?: boolean }[] }) =>
+  p.exemplaires.length > 0 && p.exemplaires.every((x) => x.hidden === true);
+
+/** Entrées uniques : celles des sortes du bloc « details », sinon des sortes possédées une fois. */
+function taglineOf(fiche: Fiche, details: DetailsWidget | undefined): string {
+  const kinds = details
+    ? details.sortes
+    : [...fiche.systeme.sortes.values()]
+        .filter((s) => s.maximum === 1 && s.pour.includes(fiche.etat.type))
+        .map((s) => s.id);
   const names: string[] = [];
-  // Un objet caché aux autres joueurs n'apparaît pas dans le résumé (listes de la table)
-  const cache = (p: { exemplaires: { hidden?: boolean }[] }) =>
-    p.exemplaires.length > 0 && p.exemplaires.every((x) => x.hidden === true);
   for (const kind of kinds)
     for (const p of fiche.possessions.values())
-      if (p.sorte.id === kind && !cache(p)) names.push(p.entree.nom);
+      if (p.sorte.id === kind && !hiddenFromOthers(p)) names.push(p.entree.nom);
+  return names.join(' · ');
+}
 
+/** Valeurs clés : celles du bloc « details », puis les ressources visibles de tous. */
+function highlightsOf(
+  fiche: Fiche,
+  details: DetailsWidget | undefined,
+): CharacterSummary['highlights'] {
   const highlights: CharacterSummary['highlights'] = [];
-  if (details?.type === 'details') {
-    for (const key of details.attributs) {
-      const a = fiche.entite.attributs.get(key);
-      const v = fiche.valeurs.get(key);
-      if (a && v && a.nature !== 'texte') highlights.push({ label: a.nom, value: display(v) });
-    }
+  for (const key of details?.attributs ?? []) {
+    const a = fiche.entite.attributs.get(key);
+    const v = fiche.valeurs.get(key);
+    if (a && v && a.nature !== 'texte') highlights.push({ label: a.nom, value: display(v) });
   }
   for (const a of fiche.entite.attributs.values()) {
     if (a.nature !== 'ressource' || a.visibilite === 'mj' || highlights.length >= HIGHLIGHTS_MAX)
@@ -63,7 +76,13 @@ export function summarize(fiche: Fiche, presentation: Presentation | null): Char
     const v = fiche.valeurs.get(a.cle);
     if (v) highlights.push({ label: a.abrege ?? a.nom, value: `${display(v)}/${v.max ?? '—'}` });
   }
-  return { tagline: names.join(' · '), highlights };
+  return highlights;
+}
+
+/** Résumé d'une fiche calculée, selon la présentation de son système (facultative). */
+export function summarize(fiche: Fiche, presentation: Presentation | null): CharacterSummary {
+  const details = detailsWidget(fiche, presentation);
+  return { tagline: taglineOf(fiche, details), highlights: highlightsOf(fiche, details) };
 }
 
 const presentations = new WeakMap<object, Presentation | null>();
