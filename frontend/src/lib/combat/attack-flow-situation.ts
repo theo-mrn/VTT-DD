@@ -114,24 +114,25 @@ export function targetChips(
       tone: 'info',
       hint: `Pas encore joué au round ${combat.round}.`,
     });
-  const t = p.tally;
-  if (t) {
-    if (t.targetedRound > 0)
-      chips.push({
-        id: 'targeted-round',
-        label: `Déjà visé ${times(t.targetedRound)} ce round`,
-        tone: 'warning',
-        hint: `Visé ${times(t.targeted)} depuis le début du combat.`,
-      });
-    else
-      chips.push({
-        id: 'not-targeted',
-        label: t.targeted > 0 ? 'Pas encore visé ce round' : 'Jamais visé',
-        tone: 'neutral',
-        ...(t.targeted > 0 ? { hint: `Visé ${times(t.targeted)} depuis le début du combat.` } : {}),
-      });
-  }
+  if (p.tally) chips.push(targetedChip(p.tally));
   return chips;
+}
+
+/** Déjà visée ce round, sinon pas encore (ou jamais). */
+function targetedChip(t: NonNullable<CombatParticipant['tally']>): SituationChip {
+  if (t.targetedRound > 0)
+    return {
+      id: 'targeted-round',
+      label: `Déjà visé ${times(t.targetedRound)} ce round`,
+      tone: 'warning',
+      hint: `Visé ${times(t.targeted)} depuis le début du combat.`,
+    };
+  return {
+    id: 'not-targeted',
+    label: t.targeted > 0 ? 'Pas encore visé ce round' : 'Jamais visé',
+    tone: 'neutral',
+    ...(t.targeted > 0 ? { hint: `Visé ${times(t.targeted)} depuis le début du combat.` } : {}),
+  };
 }
 
 /** Situation complète : l'attaquant, puis chaque cible dans l'ordre choisi. */
