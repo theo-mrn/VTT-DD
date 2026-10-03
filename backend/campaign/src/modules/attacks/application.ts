@@ -402,7 +402,7 @@ async function recoverStale(
     await db.transaction(async (tx) => {
       await lockCampaign(tx, a.campaign.id);
       const l = await loadAttack(tx, a.campaign.id, row.attackId, true);
-      const [current] = (await applicationsOf(tx, [row.attackId])).filter((x) => x.id === row.id);
+      const current = (await applicationsOf(tx, [row.attackId])).find((x) => x.id === row.id);
       if (!l || current?.status !== 'applying') return;
       await finishApplication(tx, eventContext(req), actor, l, row, response);
     });

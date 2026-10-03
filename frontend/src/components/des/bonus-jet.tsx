@@ -32,7 +32,7 @@ export interface BonusJet {
 /** Clés nues de la formule qui sont des attributs de la fiche (`1d20 + DEX` → DEX). */
 function clesDeLaFormule(fiche: Fiche, formule: string): Set<string> {
   const r = new Set<string>();
-  for (const m of formule.matchAll(/@?([A-Za-z_][\w]*)/g))
+  for (const m of formule.matchAll(/@?([A-Za-z_]\w*)/g))
     if (fiche.entite.attributs.has(m[1]!)) r.add(m[1]!);
   return r;
 }

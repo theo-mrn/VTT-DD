@@ -366,7 +366,7 @@ export function inFog(prep: PreparedScene, p: Vec): boolean {
 
 /** Aire de vue d'une lumière préparée, calculée à la première demande. */
 export function lightStar(prep: PreparedScene, l: PreparedLight): StarPolygon {
-  if (l.star === null) l.star = computeStar(prep.core.walls, l.x, l.y, l.radius);
+  l.star ??= computeStar(prep.core.walls, l.x, l.y, l.radius);
   return l.star;
 }
 

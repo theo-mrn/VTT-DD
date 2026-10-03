@@ -425,7 +425,7 @@ export function choisirEtape(
   for (const s of selection) {
     const exemplaire =
       s.exemplaire ??
-      (retenus.some((r) => estExemplaire(r, s.entree, undefined))
+      (retenus.some((r) => estExemplaire(r, s.entree))
         ? nouvelExemplaire([...retenus, ...selection], s.entree)
         : undefined);
     if (retenus.some((r) => estExemplaire(r, s.entree, exemplaire)))

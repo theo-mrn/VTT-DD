@@ -98,10 +98,12 @@ function diceRolled(event: EventEnvelope): TitleEffects | null {
   if (main === 1) increments.critical_fails = 1;
 
   // handleRoll : n'importe quel d20 physique du jet
-  const d20 = groups.filter((g) => g.faces === 20).flatMap((g) => g.values.map((v) => v.value));
+  const d20 = new Set(
+    groups.filter((g) => g.faces === 20).flatMap((g) => g.values.map((v) => v.value)),
+  );
   const unlocks: string[] = [];
-  if (d20.includes(1)) unlocks.push(CURSED_SLUG);
-  if (d20.includes(20)) unlocks.push(BLESSED_SLUG);
+  if (d20.has(1)) unlocks.push(CURSED_SLUG);
+  if (d20.has(20)) unlocks.push(BLESSED_SLUG);
 
   return { userId, increments, unlocks };
 }

@@ -92,7 +92,7 @@ const PUBLIC_PREFIXES = ['/v1/auth'];
  * vérifiée par le service sur le corps brut (relayé octet pour octet, jamais
  * re-sérialisé par la gateway). Chemin exact, POST seulement.
  */
-const PUBLIC_WEBHOOKS = ['/v1/billing/webhook'];
+const PUBLIC_WEBHOOKS = new Set(['/v1/billing/webhook']);
 
 /** Routes publiques en lecture seule : la liste des systèmes de jeu et leurs documents. */
 const PUBLIC_LECTURE = ['/v1/systems'];
@@ -101,7 +101,7 @@ const PUBLIC_LECTURE = ['/v1/systems'];
 export function estPublique(methode: string, url: string): boolean {
   if (PUBLIC_PREFIXES.some((p) => url.startsWith(p))) return true;
   const chemin = url.split('?')[0] ?? '';
-  if (methode === 'POST' && PUBLIC_WEBHOOKS.includes(chemin)) return true;
+  if (methode === 'POST' && PUBLIC_WEBHOOKS.has(chemin)) return true;
   return (
     (methode === 'GET' || methode === 'HEAD') &&
     PUBLIC_LECTURE.some((p) => chemin === p || chemin.startsWith(`${p}/`))

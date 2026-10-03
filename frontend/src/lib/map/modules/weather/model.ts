@@ -46,7 +46,7 @@ export interface WeatherWind {
 }
 
 const isType = (t: unknown): t is WeatherType =>
-  typeof t === 'string' && Object.prototype.hasOwnProperty.call(WEATHER_EFFECTS, t);
+  typeof t === 'string' && Object.hasOwn(WEATHER_EFFECTS, t);
 
 /** Effet d'une météo enregistrée, null s'il n'y en a pas ou s'il est inconnu. */
 export function effectOf(raw: unknown): WeatherEffect | null {

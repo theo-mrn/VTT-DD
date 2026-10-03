@@ -145,7 +145,7 @@ export function RangeSetting({
   step,
   unit,
   presets,
-  format = (v) => String(v),
+  format = String,
   disabled,
   onChange,
   onCommit,

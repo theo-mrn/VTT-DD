@@ -76,6 +76,6 @@ describe('contains', () => {
   bench('10 000 requêtes, joueur à 3 observateurs (budget 5 ms)', () => {
     let seen = 0;
     for (let k = 0; k < 20_000; k += 2) if (view.containsXY(points[k]!, points[k + 1]!)) seen++;
-    if (seen < 0) throw new Error();
+    if (seen < 0) throw new Error('scène vide : aucun point vu');
   });
 });

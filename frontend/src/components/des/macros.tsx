@@ -119,112 +119,110 @@ export function PucesMacros({
   const aCharger = useRef<Macro | null>(null);
 
   return (
-    <>
-      <ul className="flex flex-wrap items-center gap-1.5" aria-label="Macros">
-        {macros.map((m, i) => (
-          <li key={m.id} className="shrink-0">
-            <button
-              type="button"
-              onClick={() => onLancer(m)}
-              title={m.formula}
-              aria-label={`Lancer la macro ${m.name} (${m.formula})`}
-              aria-keyshortcuts={i < 9 ? String(i + 1) : undefined}
-              className={cn(
-                PUCE,
-                'max-w-[12rem] pl-1.5 hover:border-primary/40 hover:bg-primary/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-              )}
-            >
-              {i < 9 ? (
-                <Kbd aria-hidden className="shrink-0 rounded-full">
-                  {i + 1}
-                </Kbd>
-              ) : (
-                <Play className="size-3 shrink-0 text-subtle" aria-hidden />
-              )}
-              <span className="truncate font-medium text-foreground">{m.name}</span>
-            </button>
-          </li>
-        ))}
-        <li className="shrink-0">
+    <ul className="flex flex-wrap items-center gap-1.5" aria-label="Macros">
+      {macros.map((m, i) => (
+        <li key={m.id} className="shrink-0">
           <button
             type="button"
-            disabled={!formuleValide || plein}
-            onClick={() => onEditer({ mode: 'creer' })}
-            title={plein ? `${MACROS_MAX} macros au plus` : 'Enregistrer la formule comme macro'}
+            onClick={() => onLancer(m)}
+            title={m.formula}
+            aria-label={`Lancer la macro ${m.name} (${m.formula})`}
+            aria-keyshortcuts={i < 9 ? String(i + 1) : undefined}
             className={cn(
               PUCE,
-              'border-dashed text-muted-foreground hover:text-foreground disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+              'max-w-[12rem] pl-1.5 hover:border-primary/40 hover:bg-primary/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
             )}
           >
-            <BookmarkPlus className="size-3.5" aria-hidden />
-            {macros.length ? 'Enregistrer' : 'Enregistrer comme macro'}
+            {i < 9 ? (
+              <Kbd aria-hidden className="shrink-0 rounded-full">
+                {i + 1}
+              </Kbd>
+            ) : (
+              <Play className="size-3 shrink-0 text-subtle" aria-hidden />
+            )}
+            <span className="truncate font-medium text-foreground">{m.name}</span>
           </button>
         </li>
-        {macros.length > 0 && (
-          <li className="shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Gérer les macros"
-                title="Gérer les macros"
-                className={cn(
-                  PUCE,
-                  'w-8 justify-center px-0 text-muted-foreground hover:text-foreground data-[state=open]:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 [@media(pointer:coarse)]:w-11',
-                )}
-              >
-                <MoreHorizontal className="size-4" aria-hidden />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-56"
-                onCloseAutoFocus={(e) => {
-                  const m = aCharger.current;
-                  if (!m) return;
-                  aCharger.current = null;
-                  e.preventDefault();
-                  onCharger(m);
-                }}
-              >
-                <DropdownMenuLabel>Macros</DropdownMenuLabel>
-                {macros.map((m) => (
-                  <DropdownMenuSub key={m.id}>
-                    <DropdownMenuSubTrigger>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate">{m.name}</span>
-                        <span className="block truncate font-mono text-[11px] text-subtle">
-                          {m.formula}
-                        </span>
+      ))}
+      <li className="shrink-0">
+        <button
+          type="button"
+          disabled={!formuleValide || plein}
+          onClick={() => onEditer({ mode: 'creer' })}
+          title={plein ? `${MACROS_MAX} macros au plus` : 'Enregistrer la formule comme macro'}
+          className={cn(
+            PUCE,
+            'border-dashed text-muted-foreground hover:text-foreground disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+          )}
+        >
+          <BookmarkPlus className="size-3.5" aria-hidden />
+          {macros.length ? 'Enregistrer' : 'Enregistrer comme macro'}
+        </button>
+      </li>
+      {macros.length > 0 && (
+        <li className="shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Gérer les macros"
+              title="Gérer les macros"
+              className={cn(
+                PUCE,
+                'w-8 justify-center px-0 text-muted-foreground hover:text-foreground data-[state=open]:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 [@media(pointer:coarse)]:w-11',
+              )}
+            >
+              <MoreHorizontal className="size-4" aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56"
+              onCloseAutoFocus={(e) => {
+                const m = aCharger.current;
+                if (!m) return;
+                aCharger.current = null;
+                e.preventDefault();
+                onCharger(m);
+              }}
+            >
+              <DropdownMenuLabel>Macros</DropdownMenuLabel>
+              {macros.map((m) => (
+                <DropdownMenuSub key={m.id}>
+                  <DropdownMenuSubTrigger>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{m.name}</span>
+                      <span className="block truncate font-mono text-[11px] text-subtle">
+                        {m.formula}
                       </span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-48">
-                      <DropdownMenuItem
-                        onSelect={() => {
-                          aCharger.current = m;
-                        }}
-                      >
-                        <Upload aria-hidden />
-                        Charger dans le lanceur
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => onEditer({ mode: 'renommer', macro: m })}>
-                        <PencilLine aria-hidden />
-                        Renommer…
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onSelect={() => void supprimer(m.id)}
-                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                      >
-                        <Trash2 aria-hidden />
-                        Supprimer
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </li>
-        )}
-      </ul>
-    </>
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-48">
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        aCharger.current = m;
+                      }}
+                    >
+                      <Upload aria-hidden />
+                      Charger dans le lanceur
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onEditer({ mode: 'renommer', macro: m })}>
+                      <PencilLine aria-hidden />
+                      Renommer…
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => void supprimer(m.id)}
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
+                      <Trash2 aria-hidden />
+                      Supprimer
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </li>
+      )}
+    </ul>
   );
 }
 

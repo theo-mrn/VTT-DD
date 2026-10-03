@@ -33,7 +33,7 @@ export const ImageNote = Node.create({
   },
 });
 
-const ALIGNEMENTS = ['left', 'center', 'right', 'justify'];
+const ALIGNEMENTS = new Set(['left', 'center', 'right', 'justify']);
 
 /** Alignement des paragraphes et intertitres (attribut `style`). */
 export const AlignementTexte = Extension.create({
@@ -46,7 +46,7 @@ export const AlignementTexte = Extension.create({
           textAlign: {
             default: null,
             parseHTML: (el: HTMLElement) =>
-              ALIGNEMENTS.includes(el.style.textAlign) ? el.style.textAlign : null,
+              ALIGNEMENTS.has(el.style.textAlign) ? el.style.textAlign : null,
             renderHTML: (attrs: Record<string, unknown>) =>
               attrs.textAlign ? { style: `text-align: ${String(attrs.textAlign)}` } : {},
           },

@@ -82,7 +82,7 @@ interface Term {
 
 function lightAreaOf(prep: PreparedScene, l: PreparedLight): LightArea {
   const star = lightStar(prep, l);
-  if (l.polygon === null) l.polygon = clipStarToDisc(star, l.radius);
+  l.polygon ??= clipStarToDisc(star, l.radius);
   return {
     id: l.light.id,
     center: l.light.pos,

@@ -5,12 +5,8 @@
  */
 import { spawn } from 'node:child_process';
 
-export class RejectError extends Error {
-  /** Fichier refusé définitivement (pas de nouvelle tentative). */
-  constructor(reason: string) {
-    super(reason);
-  }
-}
+/** Fichier refusé définitivement (pas de nouvelle tentative). */
+export class RejectError extends Error {}
 
 const TIMEOUT_MS = 5 * 60_000;
 const MAX_OUTPUT = 4 * 1024 * 1024;

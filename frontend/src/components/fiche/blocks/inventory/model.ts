@@ -869,7 +869,7 @@ export function modesAjout(
 
 /** Dernier exemplaire possédé d'une entrée, auquel s'ajoutent des unités. */
 export function pileDe(etat: EtatEntite, entree: string): Possession | undefined {
-  return etat.possessions.filter((p) => p.entree === entree).at(-1);
+  return etat.possessions.findLast((p) => p.entree === entree);
 }
 
 /**

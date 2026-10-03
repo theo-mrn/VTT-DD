@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 
 /** Nombre lu dans une saisie (virgule décimale, unité ou % ignorés) ; null si aucun. */
 export function parseTyped(text: string): number | null {
-  const m = text.replace(',', '.').match(/-?\d+(\.\d+)?|-?\.\d+/);
+  const m = /-?\d+(\.\d+)?|-?\.\d+/.exec(text.replace(',', '.'));
   const n = m ? Number(m[0]) : Number.NaN;
   return Number.isFinite(n) ? n : null;
 }

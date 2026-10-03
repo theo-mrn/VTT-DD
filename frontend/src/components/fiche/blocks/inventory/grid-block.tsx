@@ -406,7 +406,7 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
 
   function clavier(e: KeyboardEvent<HTMLDivElement>) {
     const tuiles = [...(grille.current?.querySelectorAll<HTMLElement>('[data-tile]') ?? [])];
-    const i = tuiles.findIndex((t) => t === document.activeElement);
+    const i = tuiles.indexOf(document.activeElement as HTMLElement);
     if (e.key === 'Escape' && dossier && i >= 0) {
       e.preventDefault();
       sortirDuDossier();

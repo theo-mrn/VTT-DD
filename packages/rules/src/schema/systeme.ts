@@ -16,9 +16,7 @@ export const Id = z
   .string()
   .regex(/^[\p{L}\p{N}_][\p{L}\p{N}_-]*$/u, 'Lettres, chiffres, « _ » et « - » uniquement');
 /** Formule textuelle, analysée et typée au chargement. */
-export const Formule = z
-  .union([z.string().min(1), z.number(), z.boolean()])
-  .transform((v) => String(v));
+export const Formule = z.union([z.string().min(1), z.number(), z.boolean()]).transform(String);
 export type Formule = z.input<typeof Formule>;
 
 const Libelle = z.string().min(1).max(200);

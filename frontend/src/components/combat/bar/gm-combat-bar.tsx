@@ -60,7 +60,12 @@ import { useTurnActions } from './use-turn-actions';
 type BarDialog = 'start' | 'add' | 'initiative' | 'settings' | 'end' | 'reports' | 'targets';
 
 /** Fenêtres qui n'ont de sens qu'en combat : refermées quand le combat change. */
-const IN_COMBAT: readonly BarDialog[] = ['add', 'initiative', 'settings', 'end'];
+const IN_COMBAT: ReadonlySet<BarDialog> = new Set<BarDialog>([
+  'add',
+  'initiative',
+  'settings',
+  'end',
+]);
 
 const ORIGINS = {
   sheet: { label: 'Fiche de combat', icon: IdCard, tone: 'info' },
@@ -89,7 +94,7 @@ export function GmCombatBar({
   // Un autre écran termine ou démarre le combat : ses fenêtres se referment
   const combatId = combat?.id ?? null;
   useEffect(() => {
-    setDialog((d) => (d && IN_COMBAT.includes(d) ? null : d));
+    setDialog((d) => (d && IN_COMBAT.has(d) ? null : d));
     setOrderOpen(false);
   }, [combatId]);
 

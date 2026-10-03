@@ -68,7 +68,7 @@ export const STATE_ICONS: Record<IconeEtat, LucideIcon> = {
 };
 
 const isStateIcon = (v: unknown): v is IconeEtat =>
-  typeof v === 'string' && Object.prototype.hasOwnProperty.call(STATE_ICONS, v);
+  typeof v === 'string' && Object.hasOwn(STATE_ICONS, v);
 
 /** Icônes déclarées par la présentation, par entrée du catalogue (vide sans `combat.etats`). */
 export function stateIconsOf(

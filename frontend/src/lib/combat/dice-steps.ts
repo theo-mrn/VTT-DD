@@ -34,7 +34,7 @@ export const serverRunner: DiceStepRunner = {
 /** Face tirée dans le navigateur (aléa cryptographique, sans biais de modulo). */
 function rollFace(faces: number): number {
   const n = Math.max(1, Math.floor(faces));
-  const max = Math.floor(0x1_0000_0000 / n) * n;
+  const max = Math.floor(2 ** 32 / n) * n;
   const buf = new Uint32Array(1);
   do crypto.getRandomValues(buf);
   while (buf[0]! >= max);

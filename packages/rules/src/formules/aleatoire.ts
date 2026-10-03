@@ -94,7 +94,7 @@ export function aleatoireImpose(resultats: number[]): Generateur {
 /** Rejet des valeurs de la zone biaisée pour garder une distribution uniforme. */
 function tirerSansBiais(max: number, u32: () => number): number {
   if (!Number.isInteger(max) || max < 1) throw new Error(`Nombre de faces invalide : ${max}`);
-  const plafond = Math.floor(0x1_0000_0000 / max) * max;
+  const plafond = Math.floor(2 ** 32 / max) * max;
   let x = u32();
   while (x >= plafond) x = u32();
   return (x % max) + 1;

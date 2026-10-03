@@ -49,7 +49,7 @@ export const PatchProfil = z
       .trim()
       .max(2000)
       .nullable()
-      .transform((v) => (v ? v : null)),
+      .transform((v) => v || null),
     avatarUrl: UrlImage,
     bannerUrl: UrlImage,
     borderType: z.enum(BORDER_TYPES),
