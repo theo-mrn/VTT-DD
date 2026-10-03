@@ -34,7 +34,7 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
 import { DesSymboles, ResultatsSymboles } from '@/components/fiche/symboles';
