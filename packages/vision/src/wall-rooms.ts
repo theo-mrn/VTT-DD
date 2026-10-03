@@ -37,45 +37,98 @@ interface Edge {
   open: boolean;
 }
 
-/**
- * Boucles fermées des segments. `snap` : sommets plus proches fusionnés, et sommet posé à cette
- * distance de l'intérieur d'un segment inséré dedans (jonction en T).
- */
-export function detectWallRooms(segments: readonly Segment[], snap = 0.5): WallRoom[] {
-  if (!segments.length || segments.length > MAX_EDGES) return [];
-  const cell = Math.max(snap, 1e-9);
+/** Sommets soudés et arêtes brutes (avant découpe aux jonctions). */
+interface Welded {
+  xs: number[];
+  ys: number[];
+  raw: Edge[];
+}
 
-  // Sommets soudés (grille de pas `snap`, voisins compris)
+/** Grille des sommets (cases de ~ 1/64 de la scène) pour les jonctions en T. */
+interface VertexGrid {
+  minX: number;
+  minY: number;
+  cell: number;
+  cols: number;
+  rows: number;
+  buckets: Map<number, number[]>;
+}
+
+/** Arête en cours de découpe : extrémités, longueur² et boîte élargie de `snap`. */
+interface EdgeProbe {
+  a: number;
+  b: number;
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  len2: number;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+/** Sommet posé sur l'intérieur d'une arête, à son paramètre t. */
+interface Junction {
+  t: number;
+  v: number;
+}
+
+/** Clé numérique de case (coordonnées de case < 2²⁶ en valeur absolue : exact en double). */
+function cellKey(cx: number, cy: number): number {
+  return (cx + 67_108_864) * 134_217_728 + (cy + 67_108_864);
+}
+
+/** Indice du sommet soudé à `p` (grille de pas `cell`, voisins compris), créé au besoin. */
+function weldVertex(
+  p: Vec,
+  cell: number,
+  snap: number,
+  xs: number[],
+  ys: number[],
+  index: Map<number, number>,
+): number {
+  const cx = Math.round(p.x / cell);
+  const cy = Math.round(p.y / cell);
+  for (let dx = -1; dx <= 1; dx++)
+    for (let dy = -1; dy <= 1; dy++) {
+      const hit = index.get(cellKey(cx + dx, cy + dy));
+      if (hit !== undefined && Math.hypot(xs[hit]! - p.x, ys[hit]! - p.y) <= snap) return hit;
+    }
+  const id = xs.length;
+  xs.push(p.x);
+  ys.push(p.y);
+  index.set(cellKey(cx, cy), id);
+  return id;
+}
+
+/** Sommets soudés et arêtes non dégénérées des segments finis. */
+function weldSegments(segments: readonly Segment[], snap: number): Welded {
+  const cell = Math.max(snap, 1e-9);
   const xs: number[] = [];
   const ys: number[] = [];
-  // Clé numérique de case (coordonnées de case < 2²⁶ en valeur absolue : exact en double)
   const index = new Map<number, number>();
-  const key = (cx: number, cy: number) => (cx + 67_108_864) * 134_217_728 + (cy + 67_108_864);
-  const vertex = (p: Vec): number => {
-    const cx = Math.round(p.x / cell);
-    const cy = Math.round(p.y / cell);
-    for (let dx = -1; dx <= 1; dx++)
-      for (let dy = -1; dy <= 1; dy++) {
-        const hit = index.get(key(cx + dx, cy + dy));
-        if (hit !== undefined && Math.hypot(xs[hit]! - p.x, ys[hit]! - p.y) <= snap) return hit;
-      }
-    const id = xs.length;
-    xs.push(p.x);
-    ys.push(p.y);
-    index.set(key(cx, cy), id);
-    return id;
-  };
-
   const raw: Edge[] = [];
   for (const s of segments) {
     if (!Number.isFinite(s.a.x + s.a.y + s.b.x + s.b.y)) continue;
-    const a = vertex(s.a);
-    const b = vertex(s.b);
+    const a = weldVertex(s.a, cell, snap, xs, ys, index);
+    const b = weldVertex(s.b, cell, snap, xs, ys, index);
     if (a !== b) raw.push({ a, b, open: opens(s) });
   }
+  return { xs, ys, raw };
+}
 
-  // Jonctions en T : un sommet sur l'intérieur d'un segment le découpe. Sommets rangés dans une
-  // grille (cases de ~ 1/64 de la scène) : chaque segment ne regarde que ceux de sa boîte
+/** Case de la grille contenant (x, y), bornée à la grille. */
+function cellOf(grid: VertexGrid, x: number, y: number): number {
+  return (
+    Math.min(grid.cols - 1, Math.max(0, Math.floor((x - grid.minX) / grid.cell))) +
+    Math.min(grid.rows - 1, Math.max(0, Math.floor((y - grid.minY) / grid.cell))) * grid.cols
+  );
+}
+
+/** Sommets rangés dans une grille couvrant leur boîte englobante. */
+function buildVertexGrid(xs: readonly number[], ys: readonly number[], snap: number): VertexGrid {
   let minVX = Infinity;
   let minVY = Infinity;
   let maxVX = -Infinity;
@@ -86,76 +139,157 @@ export function detectWallRooms(segments: readonly Segment[], snap = 0.5): WallR
     minVY = Math.min(minVY, ys[v]!);
     maxVY = Math.max(maxVY, ys[v]!);
   }
-  const gcell = Math.max((maxVX - minVX) / 64, (maxVY - minVY) / 64, snap * 4, 1);
-  const gcols = Math.floor((maxVX - minVX) / gcell) + 1;
-  const grows = Math.floor((maxVY - minVY) / gcell) + 1;
-  const buckets = new Map<number, number[]>();
-  const cellOf = (x: number, y: number) =>
-    Math.min(gcols - 1, Math.max(0, Math.floor((x - minVX) / gcell))) +
-    Math.min(grows - 1, Math.max(0, Math.floor((y - minVY) / gcell))) * gcols;
+  const cell = Math.max((maxVX - minVX) / 64, (maxVY - minVY) / 64, snap * 4, 1);
+  const grid: VertexGrid = {
+    minX: minVX,
+    minY: minVY,
+    cell,
+    cols: Math.floor((maxVX - minVX) / cell) + 1,
+    rows: Math.floor((maxVY - minVY) / cell) + 1,
+    buckets: new Map<number, number[]>(),
+  };
   for (let v = 0; v < xs.length; v++) {
-    const c = cellOf(xs[v]!, ys[v]!);
-    const list = buckets.get(c);
+    const c = cellOf(grid, xs[v]!, ys[v]!);
+    const list = grid.buckets.get(c);
     if (list) list.push(v);
-    else buckets.set(c, [v]);
+    else grid.buckets.set(c, [v]);
   }
+  return grid;
+}
+
+/** Remplit la sonde avec l'arête `e`. */
+function fillProbe(
+  probe: EdgeProbe,
+  e: Edge,
+  xs: readonly number[],
+  ys: readonly number[],
+  snap: number,
+): void {
+  const ax = xs[e.a]!;
+  const ay = ys[e.a]!;
+  const bx = xs[e.b]!;
+  const by = ys[e.b]!;
+  probe.a = e.a;
+  probe.b = e.b;
+  probe.ax = ax;
+  probe.ay = ay;
+  probe.bx = bx;
+  probe.by = by;
+  probe.len2 = (bx - ax) ** 2 + (by - ay) ** 2;
+  probe.minX = Math.min(ax, bx) - snap;
+  probe.maxX = Math.max(ax, bx) + snap;
+  probe.minY = Math.min(ay, by) - snap;
+  probe.maxY = Math.max(ay, by) + snap;
+}
+
+/** Paramètre t ∈ ]0, 1[ du sommet `v` posé sur l'intérieur de l'arête sondée, -1 sinon. */
+function junctionT(
+  probe: EdgeProbe,
+  v: number,
+  xs: readonly number[],
+  ys: readonly number[],
+  snap: number,
+): number {
+  if (v === probe.a || v === probe.b) return -1;
+  const px = xs[v]!;
+  const py = ys[v]!;
+  if (px < probe.minX || px > probe.maxX || py < probe.minY || py > probe.maxY) return -1;
+  const ax = probe.ax;
+  const ay = probe.ay;
+  const dx = probe.bx - ax;
+  const dy = probe.by - ay;
+  const t = ((px - ax) * dx + (py - ay) * dy) / probe.len2;
+  if (t <= 0 || t >= 1) return -1;
+  const qx = ax + t * dx;
+  const qy = ay + t * dy;
+  return Math.hypot(px - qx, py - qy) <= snap ? t : -1;
+}
+
+/** Sommets posés sur l'intérieur de l'arête sondée (cases de sa boîte seulement). */
+function collectJunctions(
+  probe: EdgeProbe,
+  grid: VertexGrid,
+  xs: readonly number[],
+  ys: readonly number[],
+  snap: number,
+  onIt: Junction[],
+): void {
+  const c0 = Math.max(0, Math.floor((probe.minX - grid.minX) / grid.cell));
+  const c1 = Math.min(grid.cols - 1, Math.floor((probe.maxX - grid.minX) / grid.cell));
+  const r0 = Math.max(0, Math.floor((probe.minY - grid.minY) / grid.cell));
+  const r1 = Math.min(grid.rows - 1, Math.floor((probe.maxY - grid.minY) / grid.cell));
+  for (let r = r0; r <= r1; r++)
+    for (let c = c0; c <= c1; c++) {
+      const list = grid.buckets.get(c + r * grid.cols);
+      if (!list) continue;
+      for (const v of list) {
+        const t = junctionT(probe, v, xs, ys, snap);
+        if (t > 0) onIt.push({ t, v });
+      }
+    }
+}
+
+/** Morceaux de l'arête `e` entre ses jonctions triées. */
+function pushPieces(e: Edge, onIt: readonly Junction[], split: Edge[]): void {
+  let from = e.a;
+  for (const { v } of onIt) {
+    if (v !== from) split.push({ a: from, b: v, open: e.open });
+    from = v;
+  }
+  if (from !== e.b) split.push({ a: from, b: e.b, open: e.open });
+}
+
+/** Jonctions en T : un sommet sur l'intérieur d'un segment le découpe. */
+function splitAtJunctions(
+  raw: readonly Edge[],
+  xs: readonly number[],
+  ys: readonly number[],
+  snap: number,
+): Edge[] {
+  const grid = buildVertexGrid(xs, ys, snap);
+  const probe: EdgeProbe = {
+    a: 0,
+    b: 0,
+    ax: 0,
+    ay: 0,
+    bx: 0,
+    by: 0,
+    len2: 0,
+    minX: 0,
+    maxX: 0,
+    minY: 0,
+    maxY: 0,
+  };
   const split: Edge[] = [];
   for (const e of raw) {
-    const ax = xs[e.a]!;
-    const ay = ys[e.a]!;
-    const bx = xs[e.b]!;
-    const by = ys[e.b]!;
-    const len2 = (bx - ax) ** 2 + (by - ay) ** 2;
-    const onIt: { t: number; v: number }[] = [];
-    const minX = Math.min(ax, bx) - snap;
-    const maxX = Math.max(ax, bx) + snap;
-    const minY = Math.min(ay, by) - snap;
-    const maxY = Math.max(ay, by) + snap;
-    const c0 = Math.max(0, Math.floor((minX - minVX) / gcell));
-    const c1 = Math.min(gcols - 1, Math.floor((maxX - minVX) / gcell));
-    const r0 = Math.max(0, Math.floor((minY - minVY) / gcell));
-    const r1 = Math.min(grows - 1, Math.floor((maxY - minVY) / gcell));
-    for (let r = r0; r <= r1; r++)
-      for (let c = c0; c <= c1; c++) {
-        const list = buckets.get(c + r * gcols);
-        if (!list) continue;
-        for (const v of list) {
-          if (v === e.a || v === e.b) continue;
-          const px = xs[v]!;
-          const py = ys[v]!;
-          if (px < minX || px > maxX || py < minY || py > maxY) continue;
-          const t = ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / len2;
-          if (t <= 0 || t >= 1) continue;
-          const qx = ax + t * (bx - ax);
-          const qy = ay + t * (by - ay);
-          if (Math.hypot(px - qx, py - qy) <= snap) onIt.push({ t, v });
-        }
-      }
+    fillProbe(probe, e, xs, ys, snap);
+    const onIt: Junction[] = [];
+    collectJunctions(probe, grid, xs, ys, snap, onIt);
     if (!onIt.length) {
       split.push(e);
       continue;
     }
     onIt.sort((p, q) => p.t - q.t);
-    let from = e.a;
-    for (const { v } of onIt) {
-      if (v !== from) split.push({ a: from, b: v, open: e.open });
-      from = v;
-    }
-    if (from !== e.b) split.push({ a: from, b: e.b, open: e.open });
+    pushPieces(e, onIt, split);
   }
+  return split;
+}
 
-  // Arêtes uniques (deux segments confondus : ouverte si l'un l'est)
+/** Arêtes uniques (deux segments confondus : ouverte si l'un l'est). */
+function uniqueEdges(split: readonly Edge[], nv: number): Edge[] {
   const unique = new Map<number, Edge>();
-  const nv = xs.length;
   for (const e of split) {
     const k = e.a < e.b ? e.a * nv + e.b : e.b * nv + e.a;
     const prev = unique.get(k);
     if (!prev) unique.set(k, e);
     else if (e.open) prev.open = true;
   }
-  let edges = [...unique.values()];
+  return [...unique.values()];
+}
 
-  // Bouts pendants retirés jusqu'à ce qu'il n'en reste plus
+/** Bouts pendants retirés jusqu'à ce qu'il n'en reste plus. */
+function pruneDangling(all: Edge[], nv: number): Edge[] {
+  let edges = all;
   const degree = new Int32Array(nv);
   for (const e of edges) {
     degree[e.a]! += 1;
@@ -174,9 +308,22 @@ export function detectWallRooms(segments: readonly Segment[], snap = 0.5): WallR
     }
     edges = kept;
   }
-  if (edges.length < 3) return [];
+  return edges;
+}
 
-  // Demi-arêtes : 2i (a→b) et 2i+1 (b→a), triées par angle autour de leur origine
+/** Demi-arêtes 2i (a→b) et 2i+1 (b→a), et leur rang angulaire autour de leur origine. */
+interface HalfEdges {
+  origin: Int32Array;
+  around: Map<number, number[]>;
+  pos: Int32Array;
+}
+
+/** Demi-arêtes triées par angle autour de leur origine. */
+function buildHalfEdges(
+  edges: readonly Edge[],
+  xs: readonly number[],
+  ys: readonly number[],
+): HalfEdges {
   const h = edges.length * 2;
   const origin = new Int32Array(h);
   const angle = new Float64Array(h);
@@ -198,9 +345,31 @@ export function detectWallRooms(segments: readonly Segment[], snap = 0.5): WallR
     list.sort((p, q) => angle[p]! - angle[q]!);
     list.forEach((he, k) => (pos[he] = k));
   }
-  const target = (he: number) => origin[he ^ 1]!;
+  return { origin, around, pos };
+}
 
-  // Parcours des faces : à chaque sommet, on tourne au plus serré (face à gauche du parcours)
+/** Aire signée (y vers le bas) du cycle de sommets. */
+function cycleArea(cycle: readonly number[], xs: readonly number[], ys: readonly number[]): number {
+  let area = 0;
+  for (let i = 0; i < cycle.length; i++) {
+    const p = cycle[i]!;
+    const q = cycle[(i + 1) % cycle.length]!;
+    area += xs[p]! * ys[q]! - xs[q]! * ys[p]!;
+  }
+  return area / 2;
+}
+
+/** Parcours des faces : à chaque sommet, on tourne au plus serré (face à gauche du parcours). */
+function traceFaces(
+  edges: readonly Edge[],
+  half: HalfEdges,
+  xs: readonly number[],
+  ys: readonly number[],
+): WallRoom[] {
+  const origin = half.origin;
+  const around = half.around;
+  const pos = half.pos;
+  const h = origin.length;
   const visited = new Uint8Array(h);
   const rooms: WallRoom[] = [];
   for (let first = 0; first < h; first++) {
@@ -213,20 +382,13 @@ export function detectWallRooms(segments: readonly Segment[], snap = 0.5): WallR
       cycle.push(origin[he]!);
       if (edges[he >> 1]!.open) open = true;
       // Demi-arête inverse, puis la précédente dans l'ordre des angles autour de son origine
-      const list = around.get(target(he))!;
+      const list = around.get(origin[he ^ 1]!)!;
       const back = pos[he ^ 1]!;
       he = list[(back - 1 + list.length) % list.length]!;
     }
     if (he !== first || cycle.length < 3) continue;
-    // Aire signée (y vers le bas) : les faces bornées sortent positives avec ce parcours
-    let area = 0;
-    for (let i = 0; i < cycle.length; i++) {
-      const p = cycle[i]!;
-      const q = cycle[(i + 1) % cycle.length]!;
-      area += xs[p]! * ys[q]! - xs[q]! * ys[p]!;
-    }
-    area /= 2;
-    if (area < MIN_AREA) continue;
+    // Les faces bornées sortent positives avec ce parcours
+    if (cycleArea(cycle, xs, ys) < MIN_AREA) continue;
     rooms.push({
       id: `walls:${rooms.length}`,
       points: cycle.map((v) => ({ x: xs[v]!, y: ys[v]! })),
@@ -234,4 +396,17 @@ export function detectWallRooms(segments: readonly Segment[], snap = 0.5): WallR
     });
   }
   return rooms;
+}
+
+/**
+ * Boucles fermées des segments. `snap` : sommets plus proches fusionnés, et sommet posé à cette
+ * distance de l'intérieur d'un segment inséré dedans (jonction en T).
+ */
+export function detectWallRooms(segments: readonly Segment[], snap = 0.5): WallRoom[] {
+  if (!segments.length || segments.length > MAX_EDGES) return [];
+  const { xs, ys, raw } = weldSegments(segments, snap);
+  const split = splitAtJunctions(raw, xs, ys, snap);
+  const edges = pruneDangling(uniqueEdges(split, xs.length), xs.length);
+  if (edges.length < 3) return [];
+  return traceFaces(edges, buildHalfEdges(edges, xs, ys), xs, ys);
 }
