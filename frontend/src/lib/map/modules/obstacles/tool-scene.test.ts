@@ -49,7 +49,7 @@ describe('tracer', () => {
     h.frame();
     c.pointerUp(h.pointer({ x: 1200, y: 1050 }, { buttons: 0, shift: true }));
     await h.commands.idle();
-    const created = h.persistence('obstacles').create.mock.calls[0]![0] as {
+    const created = h.persistence('obstacles').create.mock.calls[0]![0] as unknown as {
       points: Point[];
     }[];
     const xs = created.flatMap((w) => w.points.map((p) => p.x));
