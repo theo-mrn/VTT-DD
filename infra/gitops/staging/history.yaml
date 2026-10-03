@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-history
-  digest: 'sha256:488ca7cea7519c7d9e1885da66f0eabe4964bc4935451fc0d7f83ad0aa5b4d4f'
+  digest: 'sha256:644c7d1443ba61a5293f52ebb75effde60b822a4c9c654e8a1971e3698f59272'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -49,7 +49,7 @@ migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-history-migrations
-    digest: 'sha256:f2051bc4715870baf69745289d835ec6883b896c704e50a417715fbd21c7c47b'
+    digest: 'sha256:25283821b1d63a8bb5e38ee2f1956c4eb8c51317c52e5a9d5ac7516cd2bc723a'
     tag: 'main'
   schema: history
   # Secret généré par CloudNativePG pour le rôle history_owner
