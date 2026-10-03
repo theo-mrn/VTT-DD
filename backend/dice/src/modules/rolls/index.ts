@@ -148,6 +148,150 @@ export function visibilityOf(b: {
 const hasNames = (notation: string) =>
   /[A-Za-z_@]/.test(notation.replace(/[dD]\d+(?:k[hl]?\d+)?!?/g, ''));
 
+type RollBody = z.output<typeof RollRequest>;
+
+/** Notation demandée : notation ou pool, exactement l'un des deux, de longueur bornée. */
+function requestedNotation(body: RollBody): string | undefined {
+  const notation = body.notation || undefined;
+  if (!notation && !body.pool)
+    throw HttpError.badRequest('Notation requise (notation ou pool)', 'notation_required');
+  if (notation && body.pool)
+    throw HttpError.badRequest('notation ou pool, pas les deux', 'notation_and_pool');
+  if (notation && notation.length > MAX_NOTATION)
+    throw HttpError.badRequest(
+      `Notation trop longue (${MAX_NOTATION} caractères au plus)`,
+      'notation_too_long',
+    );
+  return notation;
+}
+
+/** Clé d'idempotence de l'en-tête, si elle a la bonne forme. */
+function idempotencyKeyOf(raw: string | string[] | undefined): string | null {
+  return typeof raw === 'string' && IDEMPOTENCY_KEY.test(raw) ? raw : null;
+}
+
+/** Rôle du lanceur dans la campagne (null hors campagne) ; un spectateur ne lance pas de dés. */
+async function rollerRole(
+  deps: Deps,
+  campaignId: string | undefined,
+  userId: string,
+): Promise<CampaignRole | null> {
+  if (!campaignId) return null;
+  const role = await memberRole(deps, campaignId, userId);
+  if (role === 'spectator')
+    throw new HttpError(
+      403,
+      'Accès refusé',
+      'spectator_cannot_roll',
+      'Un spectateur ne lance pas de dés dans la campagne',
+    );
+  return role;
+}
+
+/** Fiche du personnage ; celle du personnage incarné, illisible, est ignorée. */
+async function readSheet(
+  deps: Deps,
+  body: RollBody,
+  characterId: string | undefined,
+  userId: string,
+): Promise<CharacterSheet | undefined> {
+  if (!characterId) return undefined;
+  try {
+    return await deps.characters.sheet(characterId, userId);
+  } catch (e) {
+    // Personnage incarné illisible : jet sans variables, comme l'ancienne app
+    if (body.characterId || body.persoId) throw e;
+    return undefined;
+  }
+}
+
+/**
+ * Personnage : celui demandé, sinon (comme l'ancienne app) celui que l'appelant
+ * incarne dans la campagne, lu seulement si la notation a des noms à résoudre.
+ */
+async function rollContext(
+  deps: Deps,
+  body: RollBody,
+  notation: string | undefined,
+  campaignId: string | undefined,
+  userId: string,
+  authorization: string | undefined,
+): Promise<{ sheet: CharacterSheet | undefined; campaignSystem: string | undefined }> {
+  let characterId = body.characterId ?? body.persoId;
+  let campaignSystem: string | undefined;
+  const needsContext = notation ? hasNames(notation) : !body.systemId;
+  if (campaignId && needsContext && (!characterId || !body.systemId)) {
+    const details = await deps.campaigns.details(campaignId, authorization);
+    campaignSystem = details?.systemId;
+    if (!characterId && !body.variables) characterId = details?.playedCharacterId ?? undefined;
+  }
+  const sheet = await readSheet(deps, body, characterId, userId);
+  return { sheet, campaignSystem };
+}
+
+/** Tirages du serveur ; avec des faces lues sur les dés 3D, seulement pour les manquantes. */
+function rollDice(
+  deps: Deps,
+  body: RollBody,
+  notation: string | undefined,
+  sheet: CharacterSheet | undefined,
+  campaignSystem: string | undefined,
+): { rolled: Rolled; usedSystem: string | null; replayed: PhysicalGenerator | undefined } {
+  const random = deps.random();
+  const physical = body.physicalResults?.length ? body.physicalResults : undefined;
+  let replayed: PhysicalGenerator | undefined;
+  const systemId = body.systemId ?? sheet?.systemId ?? campaignSystem;
+  const system = systemId ? deps.catalog.system(systemId) : undefined;
+  if (body.systemId && !system)
+    throw new HttpError(422, 'Système inconnu', 'unknown_system', `Système ${body.systemId}`);
+  let rolled: Rolled;
+  let usedSystem: string | null = null;
+  const pool = body.pool ?? symbolPool(notation!, system);
+  if (pool) {
+    if (!system)
+      throw HttpError.badRequest('systemId requis pour des dés à symboles', 'system_required');
+    // Sans dés à symboles dans le système, rollPool répond invalid_pool
+    if (physical && system.source.des) replayed = poolGenerator(system, pool, physical, random);
+    rolled = rollPool(system, pool, replayed ?? random);
+    usedSystem = system.source.id;
+  } else {
+    if (physical) replayed = notationGenerator(physical, random);
+    rolled = rollNotation(
+      notation!,
+      { variables: body.variables, sheet: sheet?.values, system },
+      replayed ?? random,
+    );
+  }
+  // Faces fournies pour des dés absents du jet : 400
+  replayed?.finish();
+  return { rolled, usedSystem, replayed };
+}
+
+/** Nom affiché (ancien userName) : personnage, « MJ », ou profil du compte. */
+async function authorOf(
+  deps: Deps,
+  sheet: CharacterSheet | undefined,
+  role: CampaignRole | null,
+  userId: string,
+  authorization: string | undefined,
+): Promise<{ name: string; avatarUrl: string | null }> {
+  let userName = sheet?.name;
+  let userAvatar = sheet?.avatarUrl ?? null;
+  if (!userName && role === 'gm') userName = 'MJ';
+  if (!userName) {
+    const p = (await deps.profiles.profiles([userId], authorization)).get(userId);
+    userName = p?.name ?? 'Aventurier';
+    userAvatar = p?.avatarUrl ?? null;
+  }
+  return { name: userName, avatarUrl: userAvatar };
+}
+
+/** Source du jet : dés 3D (complétés ou non par le serveur), clé d'API ou tirage libre. */
+function sourceOf(isApi: boolean, replayed: PhysicalGenerator | undefined): Source {
+  if (replayed) return replayed.completed > 0 ? 'mixed' : '3d';
+  return isApi ? 'api' : 'free';
+}
+
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db } = deps;
@@ -189,31 +333,10 @@ export const register: Module = async (app, deps) => {
     async (req, reply) => {
       const userId = currentUser(req);
       const body = req.body;
-      const notation = body.notation || undefined;
-      if (!notation && !body.pool)
-        throw HttpError.badRequest('Notation requise (notation ou pool)', 'notation_required');
-      if (notation && body.pool)
-        throw HttpError.badRequest('notation ou pool, pas les deux', 'notation_and_pool');
-      if (notation && notation.length > MAX_NOTATION)
-        throw HttpError.badRequest(
-          `Notation trop longue (${MAX_NOTATION} caractères au plus)`,
-          'notation_too_long',
-        );
+      const notation = requestedNotation(body);
       const campaignId = body.campaignId ?? body.roomId;
-      const rawKey = req.headers['idempotency-key'];
-      const key = typeof rawKey === 'string' && IDEMPOTENCY_KEY.test(rawKey) ? rawKey : null;
-
-      let role: CampaignRole | null = null;
-      if (campaignId) {
-        role = await memberRole(deps, campaignId, userId);
-        if (role === 'spectator')
-          throw new HttpError(
-            403,
-            'Accès refusé',
-            'spectator_cannot_roll',
-            'Un spectateur ne lance pas de dés dans la campagne',
-          );
-      }
+      const key = idempotencyKeyOf(req.headers['idempotency-key']);
+      const role = await rollerRole(deps, campaignId, userId);
       const viewer: Viewer = { userId, role };
 
       // Requête rejouée (même auteur, même clé) : le jet d'origine, jamais une relance
@@ -231,67 +354,23 @@ export const register: Module = async (app, deps) => {
         );
       }
 
-      // Personnage : celui demandé, sinon (comme l'ancienne app) celui que l'appelant
-      // incarne dans la campagne, lu seulement si la notation a des noms à résoudre
-      let characterId = body.characterId ?? body.persoId;
-      let campaignSystem: string | undefined;
-      const needsContext = notation ? hasNames(notation) : !body.systemId;
-      if (campaignId && needsContext && (!characterId || !body.systemId)) {
-        const details = await deps.campaigns.details(campaignId, req.headers.authorization);
-        campaignSystem = details?.systemId;
-        if (!characterId && !body.variables) characterId = details?.playedCharacterId ?? undefined;
-      }
-      let sheet: CharacterSheet | undefined;
-      if (characterId) {
-        try {
-          sheet = await deps.characters.sheet(characterId, userId);
-        } catch (e) {
-          // Personnage incarné illisible : jet sans variables, comme l'ancienne app
-          if (body.characterId || body.persoId) throw e;
-        }
-      }
-
-      // Tirages du serveur ; avec des faces lues sur les dés 3D, seulement pour les manquantes
-      const random = deps.random();
-      const physical = body.physicalResults?.length ? body.physicalResults : undefined;
-      let replayed: PhysicalGenerator | undefined;
-      const systemId = body.systemId ?? sheet?.systemId ?? campaignSystem;
-      const system = systemId ? deps.catalog.system(systemId) : undefined;
-      if (body.systemId && !system)
-        throw new HttpError(422, 'Système inconnu', 'unknown_system', `Système ${body.systemId}`);
-      let rolled: Rolled;
-      let usedSystem: string | null = null;
-      const pool = body.pool ?? symbolPool(notation!, system);
-      if (pool) {
-        if (!system)
-          throw HttpError.badRequest('systemId requis pour des dés à symboles', 'system_required');
-        // Sans dés à symboles dans le système, rollPool répond invalid_pool
-        if (physical && system.source.des) replayed = poolGenerator(system, pool, physical, random);
-        rolled = rollPool(system, pool, replayed ?? random);
-        usedSystem = system.source.id;
-      } else {
-        if (physical) replayed = notationGenerator(physical, random);
-        rolled = rollNotation(
-          notation!,
-          { variables: body.variables, sheet: sheet?.values, system },
-          replayed ?? random,
-        );
-      }
-      // Faces fournies pour des dés absents du jet : 400
-      replayed?.finish();
-
-      // Nom affiché (ancien userName) : personnage, « MJ », ou profil du compte
-      let userName = sheet?.name;
-      let userAvatar = sheet?.avatarUrl ?? null;
-      if (!userName && role === 'gm') userName = 'MJ';
-      if (!userName) {
-        const p = (await deps.profiles.profiles([userId], req.headers.authorization)).get(userId);
-        userName = p?.name ?? 'Aventurier';
-        userAvatar = p?.avatarUrl ?? null;
-      }
-
-      let source: Source = req.user!.roles.includes('api') ? 'api' : 'free';
-      if (replayed) source = replayed.completed > 0 ? 'mixed' : '3d';
+      const { sheet, campaignSystem } = await rollContext(
+        deps,
+        body,
+        notation,
+        campaignId,
+        userId,
+        req.headers.authorization,
+      );
+      const { rolled, usedSystem, replayed } = rollDice(
+        deps,
+        body,
+        notation,
+        sheet,
+        campaignSystem,
+      );
+      const author = await authorOf(deps, sheet, role, userId, req.headers.authorization);
+      const source = sourceOf(req.user!.roles.includes('api'), replayed);
       let row: RollRow;
       try {
         row = await db.transaction((tx) =>
@@ -301,8 +380,8 @@ export const register: Module = async (app, deps) => {
             {
               campaignId: campaignId ?? null,
               authorId: userId,
-              authorName: userName.slice(0, 200),
-              authorAvatarUrl: userAvatar,
+              authorName: author.name.slice(0, 200),
+              authorAvatarUrl: author.avatarUrl,
               characterId: sheet?.id ?? null,
               source,
               label: body.label ?? null,
