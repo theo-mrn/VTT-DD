@@ -84,6 +84,29 @@ interface IconContexts {
   link: GraphicsContext;
 }
 
+/** Lumière allumée : disque, anneau et, s'il se voit, le début de l'atténuation en tirets. */
+function drawLitArea(
+  g: Graphics,
+  l: LightData,
+  r: number,
+  u: number,
+  color: number,
+  state: { selected: boolean; hovered: boolean },
+) {
+  const c = l.pos;
+  g.circle(c.x, c.y, r).fill({ color, alpha: 0.05 + 0.08 * l.intensity });
+  g.circle(c.x, c.y, r).stroke({
+    width: (state.selected ? 2.5 : 1.5) * u,
+    color,
+    alpha: state.selected || state.hovered ? 0.95 : 0.7,
+  });
+  const inner = r * (1 - Math.max(0, Math.min(1, l.falloff)));
+  if (inner > 4 * u && inner < r - 4 * u) {
+    dashedCircle(g, c.x, c.y, inner, 5 * u, 5 * u);
+    g.stroke({ width: u, color, alpha: 0.6 });
+  }
+}
+
 /** Dessin des lumières (MJ) : icône partagée et teintée, cercle du rayon. */
 export class LightView {
   private readonly redraw: OverlayRedraw;
@@ -165,19 +188,8 @@ export class LightView {
     const color = dataColor(pixi, l.color, theme.primary);
     const g = v.area;
     g.clear();
-    if (l.visible) {
-      g.circle(c.x, c.y, r).fill({ color, alpha: 0.05 + 0.08 * l.intensity });
-      g.circle(c.x, c.y, r).stroke({
-        width: (e.state.selected ? 2.5 : 1.5) * u,
-        color,
-        alpha: e.state.selected || e.state.hovered ? 0.95 : 0.7,
-      });
-      const inner = r * (1 - Math.max(0, Math.min(1, l.falloff)));
-      if (inner > 4 * u && inner < r - 4 * u) {
-        dashedCircle(g, c.x, c.y, inner, 5 * u, 5 * u);
-        g.stroke({ width: u, color, alpha: 0.6 });
-      }
-    } else {
+    if (l.visible) drawLitArea(g, l, r, u, color, e.state);
+    else {
       dashedCircle(g, c.x, c.y, r, 6 * u, 6 * u);
       g.stroke({ width: 1.25 * u, color: theme.muted, alpha: 0.8 });
     }
@@ -431,6 +443,42 @@ export function lightKind(ctx: LightContext, view: LightView): EntityKind<MapDto
   };
 }
 
+/** Lumières attachées de la couche ; une lumière détachée ou supprimée revient à sa place. */
+function collectAttached(
+  engine: MapEngine,
+  lights: ReadonlyMap<string, MapDto> | undefined,
+  attached: MapEntity[],
+  followed: Set<MapEntity>,
+) {
+  attached.length = 0;
+  for (const [id, l] of lights ?? []) {
+    if (!(l as LightData).attachedTokenId) continue;
+    const e = engine.entity(id);
+    if (e) attached.push(e);
+  }
+  // Détachée ou supprimée : elle revient à sa propre position
+  for (const e of followed)
+    if (!attached.includes(e)) {
+      followed.delete(e);
+      if (engine.entity(e.id) === e) engine.setPreview(e, null);
+    }
+}
+
+/** Lumière placée sur son token (aperçu), ou rendue à sa position s'il a disparu. */
+function followToken(engine: MapEngine, e: MapEntity, followed: Set<MapEntity>) {
+  const token = engine.entity(lightOf(e).attachedTokenId!);
+  if (!token) {
+    if (followed.delete(e)) engine.setPreview(e, null);
+    return;
+  }
+  const { x, y } = token.current;
+  if (e.current.x === x && e.current.y === y) return;
+  const home = x === e.geometry.x && y === e.geometry.y;
+  engine.setPreview(e, home ? null : { ...e.geometry, x, y });
+  if (home) followed.delete(e);
+  else followed.add(e);
+}
+
 /**
  * Lumières attachées : à chaque image, elles se placent sur leur token (géométrie affichée :
  * glisser local et direct compris). La liste des lumières attachées n'est refaite que quand la
@@ -445,32 +493,9 @@ export function followTokens(engine: MapEngine): () => void {
     const lights = engine.store.getState().collections[LIGHTS];
     if (lights !== source) {
       source = lights;
-      attached.length = 0;
-      for (const [id, l] of lights ?? []) {
-        if (!(l as LightData).attachedTokenId) continue;
-        const e = engine.entity(id);
-        if (e) attached.push(e);
-      }
-      // Détachée ou supprimée : elle revient à sa propre position
-      for (const e of followed)
-        if (!attached.includes(e)) {
-          followed.delete(e);
-          if (engine.entity(e.id) === e) engine.setPreview(e, null);
-        }
+      collectAttached(engine, lights, attached, followed);
     }
-    for (const e of attached) {
-      const token = engine.entity(lightOf(e).attachedTokenId!);
-      if (!token) {
-        if (followed.delete(e)) engine.setPreview(e, null);
-        continue;
-      }
-      const { x, y } = token.current;
-      if (e.current.x === x && e.current.y === y) continue;
-      const home = x === e.geometry.x && y === e.geometry.y;
-      engine.setPreview(e, home ? null : { ...e.geometry, x, y });
-      if (home) followed.delete(e);
-      else followed.add(e);
-    }
+    for (const e of attached) followToken(engine, e, followed);
     return false;
   });
 }
