@@ -16,6 +16,17 @@ export function degradeDe(graine: string) {
   return `radial-gradient(120% 90% at 20% 0%, hsl(${h} 55% 30% / 0.9), transparent 60%), radial-gradient(100% 80% at 100% 100%, hsl(${(h + 50) % 360} 60% 22% / 0.9), transparent 55%), linear-gradient(160deg, hsl(${h} 30% 12%), hsl(${(h + 30) % 360} 25% 6%))`;
 }
 
+/** Adresse demandée : la vignette au double de la largeur affichée, sinon l'image entière. */
+const sourceImage = (image: string, largeur: number | undefined) =>
+  largeur ? vignette(image, largeur * 2) : image;
+
+/** Vignettes 1x et 2x du CDN pour une largeur connue (pas pour un fond flouté). */
+function jeuImages(image: string, largeur: number | undefined, floute: boolean) {
+  return largeur && !floute && surCdn(image)
+    ? `${vignette(image, largeur)} 1x, ${vignette(image, largeur * 2)} 2x`
+    : undefined;
+}
+
 /**
  * Image de couverture (campagne, portrait, race…) avec repli élégant : un
  * dégradé propre à `graine` et une initiale, si l'image manque ou échoue.
@@ -65,12 +76,8 @@ export function Illustration({
     <div className={cn('relative isolate overflow-hidden bg-surface-2', className)}>
       {image ? (
         <img
-          src={fond ?? (largeur ? vignette(image, largeur * 2) : image)}
-          srcSet={
-            largeur && !floute && surCdn(image)
-              ? `${vignette(image, largeur)} 1x, ${vignette(image, largeur * 2)} 2x`
-              : undefined
-          }
+          src={fond ?? sourceImage(image, largeur)}
+          srcSet={jeuImages(image, largeur, floute)}
           alt={alt}
           loading="lazy"
           decoding="async"
