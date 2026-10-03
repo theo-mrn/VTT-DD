@@ -226,11 +226,7 @@ function ActionRow({
   const sub = !!item.children?.length;
   const row = cn(
     'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:pointer-events-none disabled:opacity-50',
-    item.danger
-      ? 'text-destructive hover:bg-destructive/10'
-      : emphasis
-        ? 'font-medium text-foreground hover:bg-primary/10'
-        : 'text-foreground hover:bg-surface-2',
+    rowTone(item.danger, emphasis),
   );
   return (
     <li>
@@ -246,16 +242,13 @@ function ActionRow({
         <span
           className={cn(
             'grid size-4 shrink-0 place-items-center [&_svg]:size-4',
-            item.danger ? 'text-destructive' : emphasis ? 'text-primary' : 'text-muted-foreground',
+            iconTone(item.danger, emphasis),
           )}
         >
-          {item.checked !== undefined && !Icon ? (
-            item.checked ? (
-              <Check className="text-primary" />
-            ) : null
-          ) : (
-            Icon && <Icon />
+          {item.checked !== undefined && !Icon && item.checked && (
+            <Check className="text-primary" />
           )}
+          {Icon && <Icon />}
         </span>
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
         {item.checked && Icon && <Check className="size-3.5 shrink-0 text-primary" />}
@@ -357,4 +350,16 @@ function selectionBox(
     y1 = Math.max(y1, b.y + b.height);
   }
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+}
+
+function rowTone(danger: boolean | undefined, emphasis: boolean | undefined): string {
+  if (danger) return 'text-destructive hover:bg-destructive/10';
+  return emphasis
+    ? 'font-medium text-foreground hover:bg-primary/10'
+    : 'text-foreground hover:bg-surface-2';
+}
+
+function iconTone(danger: boolean | undefined, emphasis: boolean | undefined): string {
+  if (danger) return 'text-destructive';
+  return emphasis ? 'text-primary' : 'text-muted-foreground';
 }

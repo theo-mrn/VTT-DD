@@ -182,23 +182,20 @@ export function SceneDialog({
 function BackgroundField({ url, onOpen }: Readonly<{ url: string | null; onOpen(): void }>) {
   const video = url ? isVideoUrl(url) : false;
   const variant = url && video ? videoVariant(url) : null;
-  const poster = url
-    ? video
-      ? variant
-        ? vignette(variant.replace(/\.mp4$/, '.webp'), 640)
-        : null
-      : vignette(url, 640)
-    : null;
+  let poster: string | null = null;
+  if (url && !video) poster = vignette(url, 640);
+  else if (variant) poster = vignette(variant.replace(/\.mp4$/, '.webp'), 640);
   return (
     <button
       type="button"
       onClick={onOpen}
       className="group relative grid aspect-video w-full place-items-center overflow-hidden rounded-xl border border-border bg-surface-2 transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      {poster ? (
+      {poster && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={poster} alt="" className="absolute inset-0 size-full object-cover" />
-      ) : url && video ? (
+      )}
+      {!poster && url && video && (
         <video
           src={`${url}#t=0.5`}
           muted
@@ -206,7 +203,7 @@ function BackgroundField({ url, onOpen }: Readonly<{ url: string | null; onOpen(
           preload="metadata"
           className="absolute inset-0 size-full object-cover"
         />
-      ) : null}
+      )}
       <span
         className={cn(
           'relative flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium',

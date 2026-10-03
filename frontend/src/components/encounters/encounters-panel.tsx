@@ -103,14 +103,7 @@ export function EncountersPanel() {
       const cur = p[activeScenario] ?? [];
       const e = cur[i];
       if (!e) return p;
-      const next =
-        a.type === 'count'
-          ? setCount(e, a.key, a.count)
-          : a.type === 'lock'
-            ? toggleLock(e, a.key)
-            : a.type === 'replace'
-              ? replaceCreature(e, a.key, a.by)
-              : addCreature(e, a.creature);
+      const next = applyEdit(e, a);
       return { ...p, [activeScenario]: cur.map((x, j) => (j === i ? next : x)) };
     });
 
@@ -329,7 +322,7 @@ export function EncountersPanel() {
           </TabsList>
         </Tabs>
 
-        {!generated ? (
+        {!generated && (
           <div className="relative isolate grid min-h-[20rem] place-items-center overflow-hidden rounded-2xl border border-dashed border-border">
             <DotsBackdrop />
             <div className="text-center">
@@ -342,7 +335,8 @@ export function EncountersPanel() {
               </p>
             </div>
           </div>
-        ) : list.length ? (
+        )}
+        {generated && list.length > 0 && (
           <div className="grid gap-3 xl:grid-cols-2">
             {list.map((e, i) => (
               <ProposalCard
@@ -359,7 +353,8 @@ export function EncountersPanel() {
               />
             ))}
           </div>
-        ) : (
+        )}
+        {generated && list.length === 0 && (
           <EtatVide
             icone={Swords}
             titre="Aucune proposition"
@@ -464,4 +459,18 @@ function Range({
       />
     </div>
   );
+}
+
+/** Modification d'une proposition depuis sa carte. */
+function applyEdit(e: Encounter, a: EncounterEdit): Encounter {
+  switch (a.type) {
+    case 'count':
+      return setCount(e, a.key, a.count);
+    case 'lock':
+      return toggleLock(e, a.key);
+    case 'replace':
+      return replaceCreature(e, a.key, a.by);
+    case 'add':
+      return addCreature(e, a.creature);
+  }
 }

@@ -241,9 +241,8 @@ export function ListeNotes({
         onKeyDown={clavier}
         className="group/liste relative flex-1 px-2 pb-4 outline-none lg:min-h-0 lg:overflow-y-auto"
       >
-        {chargement ? (
-          <SqueletteListe />
-        ) : nbVisibles === 0 ? (
+        {chargement && <SqueletteListe />}
+        {!chargement && nbVisibles === 0 && (
           <AucunResultat
             recherche={recherche}
             filtre={filtre}
@@ -252,7 +251,8 @@ export function ListeNotes({
               onFiltre(FILTRE_VIDE);
             }}
           />
-        ) : (
+        )}
+        {!chargement && nbVisibles > 0 && (
           <LayoutGroup id="liste-notes">
             {groupes.map((g) => (
               <div key={g.id} role="group" aria-labelledby={`groupe-${g.id}`}>
@@ -304,9 +304,7 @@ export function ListeNotes({
 
       <div className="hidden h-9 shrink-0 items-center justify-between gap-2 border-t border-border/70 px-4 text-[11px] text-subtle lg:flex">
         <span className="tabular">
-          {filtree
-            ? `${totalFiltre ?? nbVisibles} sur ${total}`
-            : `${total} note${total > 1 ? 's' : ''}`}
+          {filtree ? `${totalFiltre ?? nbVisibles} sur ${total}` : nbNotes(total)}
         </span>
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
@@ -674,7 +672,7 @@ function AucunResultat({
       <p className="text-sm font-medium">Aucune note trouvée</p>
       <p className="mt-1 max-w-[240px] text-[13px] text-muted-foreground">
         {recherche
-          ? `Rien ne correspond à « ${recherche.trim()} »${filtreActif(filtre) ? ' avec ces filtres' : ''}.`
+          ? `Rien ne correspond à « ${recherche.trim()} »${avecFiltres(filtre)}.`
           : 'Aucune note ne correspond à ces filtres.'}
       </p>
       <Button variant="secondary" size="xs" className="mt-4" onClick={onEffacer}>
@@ -683,3 +681,7 @@ function AucunResultat({
     </div>
   );
 }
+
+const nbNotes = (n: number) => (n > 1 ? `${n} notes` : `${n} note`);
+
+const avecFiltres = (filtre: FiltreNotes) => (filtreActif(filtre) ? ' avec ces filtres' : '');

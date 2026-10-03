@@ -144,13 +144,15 @@ function Recus({ campaignId }: Readonly<{ campaignId: string }>) {
   }, [docs.data?.items]);
   return (
     <div className="px-5 py-4">
-      {docs.isPending ? (
+      {docs.isPending && (
         <p className="py-8 text-center text-[13px] text-muted-foreground">Chargement…</p>
-      ) : items.length === 0 ? (
+      )}
+      {!docs.isPending && items.length === 0 && (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-[13px] text-muted-foreground">
           Aucun document reçu.
         </p>
-      ) : (
+      )}
+      {!docs.isPending && items.length > 0 && (
         <ul className="grid grid-cols-2 gap-3">
           {items.map((d) => (
             <li
@@ -274,9 +276,10 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
 
       <Destinataires joueurs={joueurs} value={destinataires} onChange={setDestinataires} />
 
-      {library.loading ? (
+      {library.loading && (
         <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
-      ) : library.items.length === 0 ? null : (
+      )}
+      {!library.loading && library.items.length > 0 && (
         <ul className="grid grid-cols-2 gap-3">
           {library.items.map((h) => (
             <Document
@@ -305,11 +308,8 @@ function Destinataires({
   onChange: (v: string[] | null) => void;
 }>) {
   const nom = (id: string) => joueurs.find((j) => j.userId === id)?.name ?? 'Joueur';
-  const libelle = !value
-    ? 'Toute la table'
-    : value.length === 1
-      ? nom(value[0]!)
-      : `${value.length} joueurs`;
+  let libelle = 'Toute la table';
+  if (value) libelle = value.length === 1 ? nom(value[0]!) : `${value.length} joueurs`;
   const basculer = (id: string) => {
     const set = new Set(value ?? []);
     if (set.has(id)) set.delete(id);

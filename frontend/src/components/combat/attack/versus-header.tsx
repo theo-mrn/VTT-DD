@@ -176,7 +176,7 @@ function AttackerSide({
 
   return (
     <div className="flex min-w-0 items-center gap-2.5 sm:gap-5">
-      {attackerId && fc ? (
+      {attackerId && fc && (
         <Popover>
           <Info texte="Statistiques">
             <PopoverTrigger asChild>
@@ -215,7 +215,8 @@ function AttackerSide({
             <AttackerStats ctx={fc} name={label} />
           </PopoverContent>
         </Popover>
-      ) : attackerId ? (
+      )}
+      {attackerId && !fc && (
         <Illustration
           largeur={128}
           src={portraitUrl}
@@ -224,7 +225,8 @@ function AttackerSide({
           position="top"
           className={cn(PORTRAIT, 'ring-1 ring-primary/50')}
         />
-      ) : (
+      )}
+      {!attackerId && (
         <span
           aria-hidden
           className={cn(
@@ -359,7 +361,9 @@ function TargetsSide({
   const shown = targetIds.slice(0, n > MAX_PORTRAITS ? MAX_PORTRAITS - 1 : MAX_PORTRAITS);
   const rest = n - shown.length;
   const names = targetIds.map((id) => targetName(id, ctx.known));
-  const title = n === 0 ? 'Aucune cible' : n === 1 ? names[0]! : `${n} cibles`;
+  let title = `${n} cibles`;
+  if (n === 0) title = 'Aucune cible';
+  else if (n === 1) title = names[0]!;
   const self = n === 1 && targetIds[0] === attackerId;
 
   return (
@@ -412,7 +416,7 @@ function TargetsSide({
       <div className="min-w-0 space-y-2 text-right">
         <div className="min-w-0">
           <Kicker className={self ? 'text-warning' : 'text-destructive'}>
-            {self ? 'Lui-même' : n > 1 ? 'Cibles' : 'Cible'}
+            {self ? 'Lui-même' : pluralCible(n)}
           </Kicker>
           <div className="flex min-w-0 items-center justify-end gap-1.5">
             {editable && (
@@ -622,3 +626,5 @@ function TargetPicker({
     </Popover>
   );
 }
+
+const pluralCible = (n: number) => (n > 1 ? 'Cibles' : 'Cible');
