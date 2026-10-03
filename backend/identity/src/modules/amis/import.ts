@@ -51,6 +51,138 @@ function dateDuDocument(data: Record<string, unknown>): Date | null {
 
 const cle = (a: string, b: string) => `${a}|${b}`;
 
+type RapportAmis = {
+  amities: number;
+  amitiesDejaPresentes: number;
+  demandes: number;
+  demandesDejaPresentes: number;
+  demandesEntreAmis: number;
+  comptesAbsents: number;
+  cheminsInvalides: number;
+  erreurs: number;
+};
+
+type EntreesAmis = Parameters<typeof importerAmis>[2];
+type Amitie = { userA: string; userB: string; createdAt: Date | null };
+type Demande = { fromUser: string; toUser: string; createdAt: Date | null };
+
+const SYSTEME = { userId: null, role: 'system' as const, characterId: null };
+
+/** Ajoute un lien, ou garde la date la plus ancienne s'il est déjà vu. */
+function garderPlusAncien<T extends { createdAt: Date | null }>(
+  liens: Map<string, T>,
+  k: string,
+  lien: T,
+): void {
+  const deja = liens.get(k);
+  const date = lien.createdAt;
+  if (!deja) liens.set(k, lien);
+  else if (date && (!deja.createdAt || date < deja.createdAt)) deja.createdAt = date;
+}
+
+/** Amitiés dédupliquées en mémoire : A->B et B->A sont la même amitié. */
+function amitiesUniques(entrees: EntreesAmis, rapport: RapportAmis): Map<string, Amitie> {
+  const amities = new Map<string, Amitie>();
+  for (const doc of entrees.amities) {
+    const lien = lienDepuisChemin(doc.path);
+    if (lien?.type !== 'amitie' || lien.uid === lien.autreUid) {
+      rapport.cheminsInvalides++;
+      continue;
+    }
+    const x = entrees.uuidParUid.get(lien.uid);
+    const y = entrees.uuidParUid.get(lien.autreUid);
+    if (!x || !y) {
+      rapport.comptesAbsents++;
+      continue;
+    }
+    const p = paire(x, y);
+    garderPlusAncien(amities, cle(p.userA, p.userB), { ...p, createdAt: dateDuDocument(doc.data) });
+  }
+  return amities;
+}
+
+/** Demandes en attente, sans celles entre amis (reste d'une demande acceptée). */
+function demandesEnAttente(
+  entrees: EntreesAmis,
+  amities: Map<string, Amitie>,
+  rapport: RapportAmis,
+): Map<string, Demande> {
+  const demandes = new Map<string, Demande>();
+  for (const doc of entrees.demandes) {
+    const lien = lienDepuisChemin(doc.path);
+    if (lien?.type !== 'demande' || lien.deUid === lien.versUid) {
+      rapport.cheminsInvalides++;
+      continue;
+    }
+    const de = entrees.uuidParUid.get(lien.deUid);
+    const vers = entrees.uuidParUid.get(lien.versUid);
+    if (!de || !vers) {
+      rapport.comptesAbsents++;
+      continue;
+    }
+    const p = paire(de, vers);
+    if (amities.has(cle(p.userA, p.userB))) {
+      // Reste d'une demande acceptée : l'amitié suffit
+      rapport.demandesEntreAmis++;
+      continue;
+    }
+    garderPlusAncien(demandes, cle(de, vers), {
+      fromUser: de,
+      toUser: vers,
+      createdAt: dateDuDocument(doc.data),
+    });
+  }
+  return demandes;
+}
+
+/** Insère une amitié et son événement ; faux si elle existait déjà. */
+async function insererAmitie(db: Db, ctx: EventContext, a: Amitie): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const inseres = await tx
+      .insert(friendships)
+      .values({
+        userA: a.userA,
+        userB: a.userB,
+        ...(a.createdAt && { createdAt: a.createdAt }),
+      })
+      .onConflictDoNothing()
+      .returning({ a: friendships.userA });
+    if (!inseres.length) return false;
+    await appendEvent(tx, ctx, {
+      type: 'identity.friendship_imported',
+      actor: SYSTEME,
+      aggregate: { type: 'user', id: a.userA },
+      visibility: 'owner',
+      payload: { source: 'firebase', friendId: a.userB },
+    });
+    return true;
+  });
+}
+
+/** Insère une demande et son événement ; faux si elle existait déjà. */
+async function insererDemande(db: Db, ctx: EventContext, d: Demande): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const inseres = await tx
+      .insert(friendRequests)
+      .values({
+        fromUser: d.fromUser,
+        toUser: d.toUser,
+        ...(d.createdAt && { createdAt: d.createdAt }),
+      })
+      .onConflictDoNothing()
+      .returning({ from: friendRequests.fromUser });
+    if (!inseres.length) return false;
+    await appendEvent(tx, ctx, {
+      type: 'identity.friend_request_imported',
+      actor: SYSTEME,
+      aggregate: { type: 'user', id: d.fromUser },
+      visibility: 'owner',
+      payload: { source: 'firebase', toUserId: d.toUser },
+    });
+    return true;
+  });
+}
+
 /**
  * Importe les amitiés (friendships/{uid}/friends/{amiUid}) et les demandes en
  * attente (requests/{uid}/received/{deUid}, requests/{uid}/sent/{versUid}). Rejouable.
@@ -65,7 +197,7 @@ export async function importerAmis(
     uuidParUid: ReadonlyMap<string, string>;
   },
 ): Promise<Record<string, number>> {
-  const rapport = {
+  const rapport: RapportAmis = {
     amities: 0,
     amitiesDejaPresentes: 0,
     demandes: 0,
@@ -76,81 +208,12 @@ export async function importerAmis(
     erreurs: 0,
   };
 
-  const uuid = (uid: string) => entrees.uuidParUid.get(uid);
-
-  // Déduplication en mémoire : A->B et B->A sont la même amitié
-  const amities = new Map<string, { userA: string; userB: string; createdAt: Date | null }>();
-  for (const doc of entrees.amities) {
-    const lien = lienDepuisChemin(doc.path);
-    if (lien?.type !== 'amitie' || lien.uid === lien.autreUid) {
-      rapport.cheminsInvalides++;
-      continue;
-    }
-    const x = uuid(lien.uid);
-    const y = uuid(lien.autreUid);
-    if (!x || !y) {
-      rapport.comptesAbsents++;
-      continue;
-    }
-    const p = paire(x, y);
-    const k = cle(p.userA, p.userB);
-    const date = dateDuDocument(doc.data);
-    const deja = amities.get(k);
-    if (!deja) amities.set(k, { ...p, createdAt: date });
-    else if (date && (!deja.createdAt || date < deja.createdAt)) deja.createdAt = date;
-  }
-
-  const demandes = new Map<string, { fromUser: string; toUser: string; createdAt: Date | null }>();
-  for (const doc of entrees.demandes) {
-    const lien = lienDepuisChemin(doc.path);
-    if (lien?.type !== 'demande' || lien.deUid === lien.versUid) {
-      rapport.cheminsInvalides++;
-      continue;
-    }
-    const de = uuid(lien.deUid);
-    const vers = uuid(lien.versUid);
-    if (!de || !vers) {
-      rapport.comptesAbsents++;
-      continue;
-    }
-    const p = paire(de, vers);
-    if (amities.has(cle(p.userA, p.userB))) {
-      // Reste d'une demande acceptée : l'amitié suffit
-      rapport.demandesEntreAmis++;
-      continue;
-    }
-    const k = cle(de, vers);
-    const date = dateDuDocument(doc.data);
-    const deja = demandes.get(k);
-    if (!deja) demandes.set(k, { fromUser: de, toUser: vers, createdAt: date });
-    else if (date && (!deja.createdAt || date < deja.createdAt)) deja.createdAt = date;
-  }
-
-  const systeme = { userId: null, role: 'system' as const, characterId: null };
+  const amities = amitiesUniques(entrees, rapport);
+  const demandes = demandesEnAttente(entrees, amities, rapport);
 
   for (const a of amities.values()) {
     try {
-      const cree = await db.transaction(async (tx) => {
-        const inseres = await tx
-          .insert(friendships)
-          .values({
-            userA: a.userA,
-            userB: a.userB,
-            ...(a.createdAt && { createdAt: a.createdAt }),
-          })
-          .onConflictDoNothing()
-          .returning({ a: friendships.userA });
-        if (!inseres.length) return false;
-        await appendEvent(tx, ctx, {
-          type: 'identity.friendship_imported',
-          actor: systeme,
-          aggregate: { type: 'user', id: a.userA },
-          visibility: 'owner',
-          payload: { source: 'firebase', friendId: a.userB },
-        });
-        return true;
-      });
-      if (cree) rapport.amities++;
+      if (await insererAmitie(db, ctx, a)) rapport.amities++;
       else rapport.amitiesDejaPresentes++;
     } catch {
       rapport.erreurs++;
@@ -159,27 +222,7 @@ export async function importerAmis(
 
   for (const d of demandes.values()) {
     try {
-      const cree = await db.transaction(async (tx) => {
-        const inseres = await tx
-          .insert(friendRequests)
-          .values({
-            fromUser: d.fromUser,
-            toUser: d.toUser,
-            ...(d.createdAt && { createdAt: d.createdAt }),
-          })
-          .onConflictDoNothing()
-          .returning({ from: friendRequests.fromUser });
-        if (!inseres.length) return false;
-        await appendEvent(tx, ctx, {
-          type: 'identity.friend_request_imported',
-          actor: systeme,
-          aggregate: { type: 'user', id: d.fromUser },
-          visibility: 'owner',
-          payload: { source: 'firebase', toUserId: d.toUser },
-        });
-        return true;
-      });
-      if (cree) rapport.demandes++;
+      if (await insererDemande(db, ctx, d)) rapport.demandes++;
       else rapport.demandesDejaPresentes++;
     } catch {
       rapport.erreurs++;
