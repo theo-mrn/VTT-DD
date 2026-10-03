@@ -8,6 +8,7 @@ import {
   type Bus,
   type ServiceOptions,
 } from '@vtt/platform';
+import type { FastifyBaseLogger } from 'fastify';
 import { Redis } from 'ioredis';
 import { Server } from 'socket.io';
 import { z } from 'zod';
@@ -24,6 +25,47 @@ declare module 'fastify' {
     /** Diffusion des événements du bus (injectable en test sans NATS). */
     realtime: Hub;
   }
+}
+
+type ServiceApp = Awaited<ReturnType<typeof createService>>;
+
+/** Connexion au bus ; en cas d'échec, le service est fermé avant de propager l'erreur. */
+async function connectOrClose(
+  app: Pick<ServiceApp, 'close' | 'log'>,
+  config: RealtimeConfig,
+): Promise<Bus> {
+  try {
+    return await connectBus({
+      url: config.NATS_URL!,
+      name: `realtime-${hostname()}`,
+      logger: app.log,
+    });
+  } catch (err) {
+    await app.close();
+    throw err;
+  }
+}
+
+/** Clients Redis de l'adaptateur (pub/sub dédiés), erreurs journalisées. */
+function redisPair(url: string, log: FastifyBaseLogger): [Redis, Redis] {
+  const pub = new Redis(url, { maxRetriesPerRequest: 2 });
+  const sub = pub.duplicate();
+  for (const c of [pub, sub])
+    c.on('error', (err) => log.warn({ error: err }, 'adaptateur redis en erreur'));
+  return [pub, sub];
+}
+
+/** Droits lus chez campaign ; sans URL ou secret, aucun abonnement possible. */
+function rightsOf(app: Pick<ServiceApp, 'cache' | 'log'>, config: RealtimeConfig): CampaignRights {
+  const secret = config.INTERNAL_API_SECRET;
+  if (!secret || !config.CAMPAIGN_URL) return noCampaigns;
+  return campaignRights({
+    url: config.CAMPAIGN_URL,
+    secret,
+    cache: app.cache,
+    ttlSeconds: config.RIGHTS_CACHE_SECONDS,
+    onError: (e) => app.log.warn({ error: (e as Error).message }, 'campaign injoignable'),
+  });
 }
 
 export async function buildRealtime(
@@ -75,18 +117,7 @@ export async function buildRealtime(
     ],
   });
 
-  if (withBus && !bus) {
-    try {
-      bus = await connectBus({
-        url: config.NATS_URL!,
-        name: `realtime-${hostname()}`,
-        logger: app.log,
-      });
-    } catch (err) {
-      await app.close();
-      throw err;
-    }
-  }
+  if (withBus && !bus) bus = await connectOrClose(app, config);
   if (!bus) app.log.warn('NATS_URL absent : canal durable (événements du bus) désactivé');
   const secret = config.INTERNAL_API_SECRET;
   if (!secret || !config.CAMPAIGN_URL)
@@ -102,11 +133,8 @@ export async function buildRealtime(
     cors: { origin: config.CORS_ORIGINS, credentials: true },
   });
   if (config.REDIS_URL) {
-    // Adaptateur Redis : canal éphémère et présence entre réplicas (pub/sub dédiés)
-    const pub = new Redis(config.REDIS_URL, { maxRetriesPerRequest: 2 });
-    const sub = pub.duplicate();
-    for (const c of [pub, sub])
-      c.on('error', (err) => app.log.warn({ error: err }, 'adaptateur redis en erreur'));
+    // Adaptateur Redis : canal éphémère et présence entre réplicas
+    const [pub, sub] = redisPair(config.REDIS_URL, app.log);
     adapterClients = [pub, sub];
     io.adapter(createAdapter(pub, sub, { key: 'vtt-realtime' }));
   }
@@ -115,17 +143,7 @@ export async function buildRealtime(
   const hub = createHub({
     io,
     bus,
-    rights:
-      campaigns ??
-      (secret && config.CAMPAIGN_URL
-        ? campaignRights({
-            url: config.CAMPAIGN_URL,
-            secret,
-            cache: app.cache,
-            ttlSeconds: config.RIGHTS_CACHE_SECONDS,
-            onError: (e) => app.log.warn({ error: (e as Error).message }, 'campaign injoignable'),
-          })
-        : noCampaigns),
+    rights: campaigns ?? rightsOf(app, config),
     verify: async (token) => {
       const user = await verifyToken(app, token);
       return { userId: user.userId, exp: user.claims.exp };
