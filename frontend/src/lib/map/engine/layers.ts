@@ -108,7 +108,7 @@ export function assignZ(
     const run: string[] = [];
     while (i < order.length && movable.has(order[i]!)) run.push(order[i++]!);
     const nextId = order[i];
-    const nextFixed = nextId !== undefined ? (zOf.get(nextId) ?? 0) : null;
+    const nextFixed = fixedZ(zOf, nextId);
     const lo = prevFixed;
     const hi = nextFixed;
 
@@ -126,6 +126,12 @@ export function assignZ(
     if (nextId !== undefined) prevFixed = nextFixed;
   }
   return out;
+}
+
+/** `z` d'un voisin fixe (0 s'il n'en a pas) ; null en fin de pile. */
+function fixedZ(zOf: ReadonlyMap<string, number>, id: string | undefined): number | null {
+  if (id === undefined) return null;
+  return zOf.get(id) ?? 0;
 }
 
 /** Les `z` d'une suite déplacée sont déjà croissants et entre ses voisins fixes. */

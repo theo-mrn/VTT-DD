@@ -89,6 +89,34 @@ function wantedCharacters(snap: RingSnapshot): Set<string> {
   ]);
 }
 
+/**
+ * Trait de visée en tirets, du bord de l'attaquant à la cible (à plat dans `pts` à partir de
+ * `i` : x, y, rayon de chacun) ; rien s'ils se touchent.
+ */
+function traceAimLine(g: Graphics, pts: readonly number[], i: number, unit: number) {
+  const ax = pts[i]!;
+  const ay = pts[i + 1]!;
+  const ar = pts[i + 2]!;
+  const bx = pts[i + 3]!;
+  const by = pts[i + 4]!;
+  const br = pts[i + 5]!;
+  const len = Math.hypot(bx - ax, by - ay);
+  const start = ar + 4 * unit;
+  const end = len - br - 10 * unit;
+  if (end <= start) return;
+  const ux = (bx - ax) / len;
+  const uy = (by - ay) / len;
+  dashedPolyline(
+    g,
+    [
+      { x: ax + ux * start, y: ay + uy * start },
+      { x: ax + ux * end, y: ay + uy * end },
+    ],
+    8 * unit,
+    6 * unit,
+  );
+}
+
 const radiusOf = (e: MapEntity) => Math.max(e.current.width, e.current.height) / 2;
 const shown = (e: MapEntity) => e.masks.size === 0 && e.display?.visible === true;
 
@@ -234,29 +262,7 @@ export function mountCombatRings(engine: MapEngine, source: RingSource): () => v
       if (!changed) return;
       linesUnit = unit;
       lines.clear();
-      for (let i = 0; i < n; i += 6) {
-        const ax = pts[i]!;
-        const ay = pts[i + 1]!;
-        const ar = pts[i + 2]!;
-        const bx = pts[i + 3]!;
-        const by = pts[i + 4]!;
-        const br = pts[i + 5]!;
-        const len = Math.hypot(bx - ax, by - ay);
-        const start = ar + 4 * unit;
-        const end = len - br - 10 * unit;
-        if (end <= start) continue;
-        const ux = (bx - ax) / len;
-        const uy = (by - ay) / len;
-        dashedPolyline(
-          lines,
-          [
-            { x: ax + ux * start, y: ay + uy * start },
-            { x: ax + ux * end, y: ay + uy * end },
-          ],
-          8 * unit,
-          6 * unit,
-        );
-      }
+      for (let i = 0; i < n; i += 6) traceAimLine(lines, pts, i, unit);
       lines.stroke({ width: 2 * unit, color: theme.destructive, alpha: 0.75, cap: 'round' });
     };
 
