@@ -213,14 +213,12 @@ export function createHub(o: HubOptions): Hub {
     return true;
   }
 
-  async function subscribe(
+  /** Refus d'un abonnement avant la lecture des droits ; null s'il est recevable. */
+  function admission(
     socket: IoSocket,
-    input: unknown,
+    campaignId: string,
     bucket: TokenBucket,
-  ): Promise<SubscribeAck> {
-    const parsed = SubscribeInput.safeParse(input);
-    if (!parsed.success) return { ok: false, error: 'invalid' };
-    const { campaignId, afterSeq } = parsed.data;
+  ): SubscribeAck | null {
     const data = socket.data;
     if (!bucket.take()) return { ok: false, error: 'rate_limited' };
     if (
@@ -229,45 +227,56 @@ export function createHub(o: HubOptions): Hub {
     )
       return { ok: false, error: 'too_many_subscriptions' };
     if (bufferOf(socket, campaignId)) return { ok: false, error: 'busy' };
+    return null;
+  }
 
+  /** Rôle de l'abonné lu chez campaign, ou le refus à rendre. */
+  async function readRole(
+    socket: IoSocket,
+    campaignId: string,
+  ): Promise<{ role: CampaignRole } | { refusal: SubscribeAck }> {
     let role: CampaignRole | null;
     try {
-      role = await o.rights.role(campaignId, data.userId);
+      role = await o.rights.role(campaignId, socket.data.userId);
     } catch {
-      return { ok: false, error: 'unavailable' };
+      return { refusal: { ok: false, error: 'unavailable' } };
     }
-    if (!role) return { ok: false, error: 'forbidden' };
-    if (socket.disconnected) return { ok: false, error: 'unavailable' };
-    if (bufferOf(socket, campaignId)) return { ok: false, error: 'busy' };
+    if (!role) return { refusal: { ok: false, error: 'forbidden' } };
+    if (socket.disconnected) return { refusal: { ok: false, error: 'unavailable' } };
+    if (bufferOf(socket, campaignId)) return { refusal: { ok: false, error: 'busy' } };
+    return { role };
+  }
 
-    data.campaigns[campaignId] = role;
-    const joined = [rooms.campaign(campaignId), rooms.member(campaignId, data.userId)];
-    if (role === 'gm') joined.push(rooms.gm(campaignId));
-    else void socket.leave(rooms.gm(campaignId));
-    schedulePresence(campaignId);
-
-    // Sans bus : pas de curseur ; un client qui demandait un rejeu recharge son état
-    if (!o.bus) {
-      void socket.join(joined);
-      return { ok: true, campaignId, role, seq: null, replayed: 0, resync: afterSeq !== undefined };
+  /** Premier abonnement : le curseur est la fin actuelle du flux (le client charge son état en REST). */
+  async function firstCursor(
+    bus: NonNullable<HubOptions['bus']>,
+    socket: IoSocket,
+    campaignId: string,
+    role: CampaignRole,
+    joined: string[],
+  ): Promise<SubscribeAck> {
+    void socket.join(joined);
+    let seq: number | null = null;
+    try {
+      seq = await streamLastSeq(bus);
+    } catch (err) {
+      log.warn({ err }, 'bus injoignable : abonnement sans curseur');
     }
+    return { ok: true, campaignId, role, seq, replayed: 0, resync: seq === null };
+  }
 
-    // Premier abonnement : le curseur est la fin actuelle du flux (le client charge son état en REST)
-    if (afterSeq === undefined) {
-      void socket.join(joined);
-      let seq: number | null = null;
-      try {
-        seq = await streamLastSeq(o.bus);
-      } catch (err) {
-        log.warn({ err }, 'bus injoignable : abonnement sans curseur');
-      }
-      return { ok: true, campaignId, role, seq, replayed: 0, resync: seq === null };
-    }
-
-    // Reprise : rejeu depuis afterSeq, direct mis en tampon pendant la lecture du flux
+  /** Reprise : rejeu depuis afterSeq, direct mis en tampon pendant la lecture du flux. */
+  async function resume(
+    bus: NonNullable<HubOptions['bus']>,
+    socket: IoSocket,
+    campaignId: string,
+    role: CampaignRole,
+    afterSeq: number,
+    joined: string[],
+  ): Promise<SubscribeAck> {
     const buffer: ReplayBuffer = {
       socket,
-      viewer: { userId: data.userId, role },
+      viewer: { userId: socket.data.userId, role },
       items: [],
       cancelled: false,
     };
@@ -280,7 +289,7 @@ export function createHub(o: HubOptions): Hub {
     let replayed = 0;
     let resync = false;
     try {
-      const r = await replayEvents(o.bus, {
+      const r = await replayEvents(bus, {
         subjects: [`vtt.${campaignId}.>`],
         startSeq: afterSeq + 1,
         max: limits.replayMax,
@@ -317,7 +326,68 @@ export function createHub(o: HubOptions): Hub {
     return { ok: true, campaignId, role, seq: last, replayed, resync };
   }
 
+  async function subscribe(
+    socket: IoSocket,
+    input: unknown,
+    bucket: TokenBucket,
+  ): Promise<SubscribeAck> {
+    const parsed = SubscribeInput.safeParse(input);
+    if (!parsed.success) return { ok: false, error: 'invalid' };
+    const { campaignId, afterSeq } = parsed.data;
+    const data = socket.data;
+    const refused = admission(socket, campaignId, bucket);
+    if (refused) return refused;
+    const read = await readRole(socket, campaignId);
+    if ('refusal' in read) return read.refusal;
+    const { role } = read;
+
+    data.campaigns[campaignId] = role;
+    const joined = [rooms.campaign(campaignId), rooms.member(campaignId, data.userId)];
+    if (role === 'gm') joined.push(rooms.gm(campaignId));
+    else void socket.leave(rooms.gm(campaignId));
+    schedulePresence(campaignId);
+
+    // Sans bus : pas de curseur ; un client qui demandait un rejeu recharge son état
+    if (!o.bus) {
+      void socket.join(joined);
+      return { ok: true, campaignId, role, seq: null, replayed: 0, resync: afterSeq !== undefined };
+    }
+    if (afterSeq === undefined) return firstCursor(o.bus, socket, campaignId, role, joined);
+    return resume(o.bus, socket, campaignId, role, afterSeq, joined);
+  }
+
   // ─── Changements de membres (événements de campaign) ─────────────────────────
+
+  /** Départ ou exclusion d'un membre : ses connexions quittent la campagne. */
+  function memberLeft(campaignId: string, target: string, kicked: boolean) {
+    void o.rights.forget(campaignId, target);
+    const reason = kicked ? 'removed' : 'left';
+    for (const s of localSockets(rooms.user(target))) {
+      if (unsubscribe(s, campaignId)) s.emit('unsubscribed', { campaignId, reason });
+    }
+  }
+
+  /** Rôle changé : ses connexions abonnées suivent (room du MJ, rejeu en cours). */
+  function memberRoleChanged(campaignId: string, target: string, role: unknown) {
+    void o.rights.forget(campaignId, target);
+    if (role !== 'gm' && role !== 'player' && role !== 'spectator') return;
+    for (const s of localSockets(rooms.user(target))) {
+      if (!(campaignId in s.data.campaigns)) continue;
+      s.data.campaigns[campaignId] = role;
+      if (role === 'gm') void s.join(rooms.gm(campaignId));
+      else void s.leave(rooms.gm(campaignId));
+      const buffer = bufferOf(s, campaignId);
+      if (buffer) buffer.viewer.role = role;
+    }
+    schedulePresence(campaignId);
+  }
+
+  /** Campagne supprimée : toutes ses connexions sont désabonnées. */
+  function campaignDeleted(campaignId: string) {
+    for (const s of localSockets(rooms.campaign(campaignId))) {
+      if (unsubscribe(s, campaignId)) s.emit('unsubscribed', { campaignId, reason: 'deleted' });
+    }
+  }
 
   function applyMembership(event: EventEnvelope) {
     const campaignId = event.roomId;
@@ -328,35 +398,14 @@ export function createHub(o: HubOptions): Hub {
       case 'campaign.member_joined':
         if (target) void o.rights.forget(campaignId, target);
         return;
-      case 'campaign.member_left': {
-        if (!target) return;
-        void o.rights.forget(campaignId, target);
-        const reason = payload.kicked === true ? 'removed' : 'left';
-        for (const s of localSockets(rooms.user(target))) {
-          if (unsubscribe(s, campaignId)) s.emit('unsubscribed', { campaignId, reason });
-        }
+      case 'campaign.member_left':
+        if (target) memberLeft(campaignId, target, payload.kicked === true);
         return;
-      }
-      case 'campaign.member_role_changed': {
-        if (!target) return;
-        void o.rights.forget(campaignId, target);
-        const role = payload.role;
-        if (role !== 'gm' && role !== 'player' && role !== 'spectator') return;
-        for (const s of localSockets(rooms.user(target))) {
-          if (!(campaignId in s.data.campaigns)) continue;
-          s.data.campaigns[campaignId] = role;
-          if (role === 'gm') void s.join(rooms.gm(campaignId));
-          else void s.leave(rooms.gm(campaignId));
-          const buffer = bufferOf(s, campaignId);
-          if (buffer) buffer.viewer.role = role;
-        }
-        schedulePresence(campaignId);
+      case 'campaign.member_role_changed':
+        if (target) memberRoleChanged(campaignId, target, payload.role);
         return;
-      }
       case 'campaign.deleted':
-        for (const s of localSockets(rooms.campaign(campaignId))) {
-          if (unsubscribe(s, campaignId)) s.emit('unsubscribed', { campaignId, reason: 'deleted' });
-        }
+        campaignDeleted(campaignId);
         return;
     }
   }
