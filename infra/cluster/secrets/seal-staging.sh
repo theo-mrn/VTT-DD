@@ -50,6 +50,9 @@ secret() {
   shift 3
   {
     printf 'apiVersion: v1\nkind: Secret\nmetadata:\n  name: %s\n  namespace: %s\n' "$nom" "$namespace"
+    # CloudNativePG ne relit un mot de passe de rôle géré que si son Secret porte ce label :
+    # sans lui, un rôle créé avant son Secret reste sans mot de passe
+    [ "$namespace" != data ] || printf '  labels:\n    cnpg.io/reload: "true"\n'
     printf 'type: %s\nstringData:\n' "$type"
     for kv in "$@"; do
       [ -n "${kv#*=}" ] || continue # valeur facultative absente
