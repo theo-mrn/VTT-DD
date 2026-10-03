@@ -59,11 +59,9 @@ export function useDeclaredAttack(flow: OpenFlow, commands: Commands): Attack | 
     flow.campaignId,
     declared && !isLocalAttack(declared) ? declared.id : null,
   );
-  const attack = !declared
-    ? null
-    : live.attack && live.attack.id === declared.id && live.attack.version >= declared.version
-      ? live.attack
-      : declared;
+  const plusRecente =
+    declared && live.attack?.id === declared.id && live.attack.version >= declared.version;
+  const attack = plusRecente ? live.attack : declared;
 
   useEffect(() => {
     if (declared && live.attack?.id === declared.id && live.attack.version > declared.version)
@@ -535,11 +533,7 @@ function TargetRow({
       {...fade(Math.max(0, delay - 0.3), !quick)}
       className={cn(
         'flex flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border bg-surface-2/50 p-3',
-        o?.tone === 'success' || o?.tone === 'critical'
-          ? 'border-success/25'
-          : o?.tone === 'failure' || o?.tone === 'fumble'
-            ? 'border-destructive/25'
-            : 'border-border',
+        BORD_ISSUE[o?.tone ?? ''] ?? 'border-border',
       )}
     >
       <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
@@ -658,12 +652,9 @@ function Details({
 /** « Rapport envoyé au MJ » et son statut en direct (§ 12.1, 4). */
 export function ReportStatus({ attack, gm }: Readonly<{ attack: Attack; gm: boolean }>) {
   const decided = attack.targets.filter((t) => t.decision !== 'pending').length;
-  const label =
-    attack.status === 'pending'
-      ? gm
-        ? 'Rapport en attente : décidez dans le panneau Combat'
-        : 'Rapport envoyé au MJ'
-      : ATTACK_STATUS_LABELS[attack.status];
+  let label = ATTACK_STATUS_LABELS[attack.status];
+  if (attack.status === 'pending')
+    label = gm ? 'Rapport en attente : décidez dans le panneau Combat' : 'Rapport envoyé au MJ';
   return (
     <div
       role="status"
@@ -683,3 +674,10 @@ export function ReportStatus({ attack, gm }: Readonly<{ attack: Attack; gm: bool
     </div>
   );
 }
+
+const BORD_ISSUE: Partial<Record<string, string>> = {
+  success: 'border-success/25',
+  critical: 'border-success/25',
+  failure: 'border-destructive/25',
+  fumble: 'border-destructive/25',
+};

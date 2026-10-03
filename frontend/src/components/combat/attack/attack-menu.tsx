@@ -123,8 +123,12 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
   const nextStep = attack ? stepToLaunch(attack) : null;
   const damageStep =
     stage === 'roll' && nextStep?.params?.length && (revealed || instant) ? nextStep : null;
-  const screen: Screen =
-    stage === 'action' || stage === 'prepare' ? 'compose' : damageStep ? 'damage' : 'roll';
+  let screen: Screen = damageStep ? 'damage' : 'roll';
+  if (stage === 'action' || stage === 'prepare') screen = 'compose';
+  // Écran des dégâts affichable : l'étape, la fiche et le système sont là
+  const degatsPrets = Boolean(
+    screen === 'damage' && attack && damageStep && ctx.systeme && model.fiche,
+  );
 
   const close = () => attackMenu.dispatch({ type: 'close' });
   const aim = () => {
@@ -295,7 +299,7 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
                     }
                     className="px-4 py-5 sm:px-10 sm:py-8"
                   >
-                    {screen === 'compose' ? (
+                    {screen === 'compose' && (
                       <ComposeBody
                         ctx={ctx}
                         flow={flow}
@@ -304,11 +308,8 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
                         canAim={canAimNow}
                         onAim={aim}
                       />
-                    ) : screen === 'damage' &&
-                      attack &&
-                      damageStep &&
-                      ctx.systeme &&
-                      model.fiche ? (
+                    )}
+                    {degatsPrets && attack && damageStep && ctx.systeme && model.fiche && (
                       <StepDamage
                         key={damageStep.id}
                         attack={attack}
@@ -320,7 +321,8 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
                         launching={launching}
                         onLaunch={(params) => void launchNext(params)}
                       />
-                    ) : ctx.systeme ? (
+                    )}
+                    {screen !== 'compose' && !degatsPrets && ctx.systeme && (
                       <StepRoll
                         attack={flow.phase === 'submitting' ? null : attack}
                         ctx={ctx}
@@ -332,7 +334,7 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
                           if (flow.phase === 'declared') setRevealedId(flow.attack.id);
                         }}
                       />
-                    ) : null}
+                    )}
                   </motion.div>
                 </AnimatePresence>
               </main>

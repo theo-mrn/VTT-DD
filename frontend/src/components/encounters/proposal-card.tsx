@@ -40,13 +40,9 @@ const power = (p: number) =>
 function tone(index: number, total: number) {
   if (index < 0) return 'text-muted-foreground';
   const r = total > 1 ? index / (total - 1) : 1;
-  return r >= 0.99
-    ? 'text-destructive'
-    : r >= 0.6
-      ? 'text-warning'
-      : r >= 0.3
-        ? 'text-primary-strong'
-        : 'text-success';
+  if (r >= 0.99) return 'text-destructive';
+  if (r >= 0.6) return 'text-warning';
+  return r >= 0.3 ? 'text-primary-strong' : 'text-success';
 }
 
 export function ProposalCard({
@@ -111,11 +107,7 @@ export function ProposalCard({
         <motion.span
           className={cn(
             'absolute inset-y-0 left-0 rounded-full',
-            reachedIndex >= reading.thresholds.length - 1
-              ? 'bg-destructive'
-              : reachedIndex >= 0
-                ? 'bg-primary'
-                : 'bg-muted-foreground/60',
+            barTone(reachedIndex, reading.thresholds.length),
           )}
           animate={{ width: `${Math.min(100, (reading.adjusted / max) * 100)}%` }}
           transition={SPRING}
@@ -302,4 +294,10 @@ function CreaturePicker({
       </PopoverContent>
     </Popover>
   );
+}
+
+/** Jauge de difficulté : au maximum, atteinte, ou sous le premier seuil. */
+function barTone(reached: number, thresholds: number): string {
+  if (reached >= thresholds - 1) return 'bg-destructive';
+  return reached >= 0 ? 'bg-primary' : 'bg-muted-foreground/60';
 }

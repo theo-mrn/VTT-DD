@@ -47,7 +47,10 @@ export function PanneauJoueurs() {
     const joueurDe = new Map(
       campagne.members.filter((m) => m.characterId).map((m) => [m.characterId!, m]),
     );
-    const rang = (x: Present) => (x.joueur?.userId === moi ? 0 : x.joueur ? 1 : 2);
+    const rang = (x: Present) => {
+      if (x.joueur?.userId === moi) return 0;
+      return x.joueur ? 1 : 2;
+    };
     return (personnages.data ?? [])
       .map((p) => ({ personnage: p, joueur: joueurDe.get(p.id) ?? null }))
       .sort(
@@ -140,7 +143,7 @@ export function PanneauJoueurs() {
                       <span className="block max-w-40 truncate text-[11px] text-muted-foreground">
                         {!j
                           ? 'Non incarné'
-                          : `${j.userId === moi ? 'Vous' : j.name}${enLigne.has(j.userId) ? '' : ' · hors ligne'}`}
+                          : `${j.userId === moi ? 'Vous' : j.name}${horsLigne(enLigne.has(j.userId))}`}
                       </span>
                     </span>
                   </PanelLink>
@@ -168,3 +171,5 @@ export function PanneauJoueurs() {
     </div>
   );
 }
+
+const horsLigne = (enLigne: boolean) => (enLigne ? '' : ' · hors ligne');
