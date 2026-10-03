@@ -184,6 +184,37 @@ function engineNotation(
 }
 
 /**
+ * Détail : chaque notation de dés remplacée par ses valeurs et, pour une notation réécrite
+ * par le moteur (`sheet` fourni), chaque attribut par sa valeur sur la fiche ; de la fin vers
+ * le début.
+ */
+function rollDetail(
+  processed: string,
+  jets: JetDes[],
+  dice: DiceGroup[],
+  sheet: SheetValues | undefined,
+): string {
+  const spans: { start: number; end: number; text: string }[] = [];
+  jets.forEach((j, i) => {
+    DICE_TOKEN.lastIndex = j.position;
+    const m = DICE_TOKEN.exec(processed);
+    if (m)
+      spans.push({ start: j.position, end: j.position + m[0].length, text: formatGroup(dice[i]!) });
+  });
+  if (sheet) {
+    for (const t of termesAttributs(processed)) {
+      const v = sheet[t.cle];
+      const n = t.modificateur ? v?.modifier : v?.value;
+      if (typeof n === 'number') spans.push({ start: t.debut, end: t.fin, text: detailNumber(n) });
+    }
+  }
+  let detail = processed;
+  for (const sp of spans.toSorted((a, b) => b.start - a.start))
+    detail = detail.slice(0, sp.start) + sp.text + detail.slice(sp.end);
+  return detail;
+}
+
+/**
  * Lance une notation numérique. `variables` : noms nus de l'ancienne API ;
  * `sheet` : valeurs de la fiche ; `system` : système du personnage, pour les
  * clés nues (`1d20+CON`) réécrites comme dans le front.
@@ -228,26 +259,7 @@ export function rollNotation(
     throw e;
   }
   const dice = diceGroups(jets);
-
-  // Détail : chaque notation de dés remplacée par ses valeurs et, pour une notation
-  // réécrite par le moteur, chaque attribut par sa valeur sur la fiche ; de la fin vers le début
-  const spans: { start: number; end: number; text: string }[] = [];
-  jets.forEach((j, i) => {
-    DICE_TOKEN.lastIndex = j.position;
-    const m = DICE_TOKEN.exec(processed);
-    if (m)
-      spans.push({ start: j.position, end: j.position + m[0].length, text: formatGroup(dice[i]!) });
-  });
-  if (rules && sheet) {
-    for (const t of termesAttributs(processed)) {
-      const v = sheet[t.cle];
-      const n = t.modificateur ? v?.modifier : v?.value;
-      if (typeof n === 'number') spans.push({ start: t.debut, end: t.fin, text: detailNumber(n) });
-    }
-  }
-  let detail = processed;
-  for (const sp of spans.toSorted((a, b) => b.start - a.start))
-    detail = detail.slice(0, sp.start) + sp.text + detail.slice(sp.end);
+  const detail = rollDetail(processed, jets, dice, rules ? sheet : undefined);
 
   // Formule affichée : telle que saisie (`1d20+CON`) quand le moteur l'a réécrite
   const shown = rules ? normalizeDice(notation) : processed;
