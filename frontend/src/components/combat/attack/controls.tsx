@@ -6,7 +6,7 @@
  * mobile, état porté par `aria-*`, jamais par la couleur seule.
  */
 import { Check, Info as InfoIcon, Minus, Plus } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Info } from '@/components/ui/tooltip';
 import type { SituationChip, SituationTone } from '@/lib/combat/attack-flow-situation';
@@ -210,12 +210,13 @@ export function TogglePill({
   hint?: string | null;
   icon?: ReactNode;
 }) {
+  const hintId = useId();
   const pill = (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
-      aria-description={hint ?? undefined}
+      aria-describedby={hint ? hintId : undefined}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
@@ -231,7 +232,16 @@ export function TogglePill({
       {label}
     </button>
   );
-  return hint ? <Info texte={hint}>{pill}</Info> : pill;
+  if (!hint) return pill;
+  return (
+    <>
+      <Info texte={hint}>{pill}</Info>
+      {/* Description lue par les lecteurs d'écran (aria-description n'est pas permis sur un switch) */}
+      <span id={hintId} hidden>
+        {hint}
+      </span>
+    </>
+  );
 }
 
 export interface SegmentOption {

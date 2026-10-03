@@ -4,6 +4,13 @@
  */
 export const CACHE_BYTES = 64 * 1024 * 1024;
 
+/** Téléchargement d'un son (CORS, sans cookies). */
+async function telecharger(url: string): Promise<ArrayBuffer> {
+  const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+  if (!res.ok) throw new Error(`son indisponible (${res.status})`);
+  return res.arrayBuffer();
+}
+
 export class BufferCache {
   private readonly entries = new Map<string, { buffer: AudioBuffer; bytes: number }>();
   private readonly pending = new Map<string, Promise<AudioBuffer>>();
@@ -11,11 +18,7 @@ export class BufferCache {
 
   constructor(
     private readonly ctx: BaseAudioContext,
-    private readonly load: (url: string) => Promise<ArrayBuffer> = async (url) => {
-      const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
-      if (!res.ok) throw new Error(`son indisponible (${res.status})`);
-      return res.arrayBuffer();
-    },
+    private readonly load: (url: string) => Promise<ArrayBuffer> = telecharger,
     readonly maxBytes = CACHE_BYTES,
   ) {}
 

@@ -78,7 +78,7 @@ export class CuePlayer {
     if (!entry) return;
     const gain = cue.volume * asset.volume;
     if (asset.source === 'youtube' && asset.youtubeId) {
-      const voice = new YoutubeVoice(asset.youtubeId);
+      const voice = YoutubeVoice.create(asset.youtubeId);
       this.tag(voice, cue.cueId, asset.name);
       voice.setVolume(gain * this.host.externalGain('sfx'));
       voice.onEnded = () => this.finish(cue.cueId);

@@ -248,6 +248,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           <div className="flex items-end gap-1.5 p-1.5 pl-3">
             <textarea
               ref={ref}
+              role="combobox"
               value={draft}
               rows={1}
               onChange={(e) => {

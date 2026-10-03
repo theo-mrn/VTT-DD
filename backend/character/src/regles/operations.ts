@@ -162,6 +162,9 @@ function erreurValeur(fiche: Fiche, a: Attribut, v: Valeur): string | undefined 
   }
 }
 
+/** Saisie par défaut : le propriétaire, hors MJ. */
+const PROPRIETAIRE: Saisisseur = { proprietaire: true, mj: false };
+
 /**
  * Saisie libre de valeurs : texte, choix, booléen et ressource à tout moment
  * (propriétaire ou MJ). Un attribut de base se saisit pendant la création,
@@ -173,7 +176,7 @@ export function modifierValeurs(
   systeme: SystemeCharge,
   etat: EtatEntite,
   valeurs: Record<string, Valeur>,
-  qui: Saisisseur = { proprietaire: true, mj: false },
+  qui: Saisisseur = PROPRIETAIRE,
 ): EtatEntite {
   const entite = systeme.entites.get(etat.type)!;
   const erreurs: string[] = [];

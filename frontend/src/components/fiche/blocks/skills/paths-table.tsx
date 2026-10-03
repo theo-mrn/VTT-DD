@@ -270,6 +270,8 @@ function PathsGrid({
                       </button>
                     ) : (
                       <span
+                        role="button"
+                        aria-disabled="true"
                         data-cell={`${row}:${col}`}
                         tabIndex={row === fr && col === fc ? 0 : -1}
                         onKeyDown={(e) => onKey(e, row, col)}

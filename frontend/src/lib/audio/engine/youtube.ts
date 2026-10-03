@@ -107,7 +107,7 @@ export class YoutubeVoice implements Registered {
   onError: ((code: number) => void) | null = null;
   onPlaying: (() => void) | null = null;
 
-  constructor(readonly videoId: string) {
+  private constructor(readonly videoId: string) {
     // Une boîte par voix : l'API YouTube remplace `el` par son iframe, la boîte reste et sert
     // à reconnaître les lecteurs suivis (les autres sont balayés, voir sweepYoutubeHost)
     this.box = document.createElement('div');
@@ -116,6 +116,18 @@ export class YoutubeVoice implements Registered {
     hiddenHost().appendChild(this.box);
     trackYoutubeBox(this.box);
     registerVoice(this);
+  }
+
+  /** Voix prête à jouer : boîte cachée créée, lecteur YouTube chargé en arrière-plan. */
+  static create(videoId: string): YoutubeVoice {
+    const voice = new YoutubeVoice(videoId);
+    voice.connect();
+    return voice;
+  }
+
+  /** Charge l'API YouTube puis crée le lecteur dans la boîte de la voix. */
+  private connect() {
+    const videoId = this.videoId;
     loadApi()
       .then((YT) => {
         if (this.disposed) return;

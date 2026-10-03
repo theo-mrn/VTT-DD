@@ -121,13 +121,16 @@ export function useMixer() {
 
 // ─── Campagne ───────────────────────────────────────────────────────────────
 
+/** Options par défaut de useCampaignAudio : un joueur, pas le MJ. */
+const JOUEUR = { gm: false };
+
 /**
  * À monter une fois dans la table : attache la campagne au moteur, lit l'état
  * des canaux, suit `audio.*` et le mixeur des autres appareils.
  */
 export function useCampaignAudio(
   campaignId: string | null,
-  options: { gm: boolean } = { gm: false },
+  options: { gm: boolean } = JOUEUR,
 ): { ready: boolean; error: Error | null } {
   const client = useQueryClient();
   const [ready, setReady] = useState(false);
@@ -670,7 +673,7 @@ export function usePreview() {
       void engine.unlock();
       const youtubeId = 'youtubeId' in src ? src.youtubeId : null;
       if (youtubeId) {
-        const v = new YoutubeVoice(youtubeId);
+        const v = YoutubeVoice.create(youtubeId);
         v.label = src.name ?? 'Écoute';
         v.kind = 'preview';
         v.owned = () => voice.current === v;

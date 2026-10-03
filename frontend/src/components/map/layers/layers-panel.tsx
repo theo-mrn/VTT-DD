@@ -365,7 +365,12 @@ function LayerRow({
           >
             Masqué aux joueurs
           </DropdownMenuCheckboxItem>
-          <div className="px-2.5 py-2" onKeyDown={(e) => e.stopPropagation()}>
+          <div
+            role="group"
+            aria-label={`Opacité de ${layer.name}`}
+            className="px-2.5 py-2"
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             <p className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
               Opacité
               <EditableValue

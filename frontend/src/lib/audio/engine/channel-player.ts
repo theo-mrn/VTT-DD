@@ -171,7 +171,7 @@ export class ChannelPlayer {
         clearTimeout(kept.timer);
       }
       const voice =
-        kept && !kept.voice.disposed ? kept.voice : new YoutubeVoice(planned.asset.youtubeId);
+        kept && !kept.voice.disposed ? kept.voice : YoutubeVoice.create(planned.asset.youtubeId);
       this.tag(voice, key, planned);
       const live: Live = { kind: 'youtube', key, plan: planned, voice };
       voice.onEnded = () => {
