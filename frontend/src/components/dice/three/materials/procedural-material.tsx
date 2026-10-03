@@ -1153,13 +1153,94 @@ export function bakedCompile(texture: THREE.CubeTexture, engraving?: EngravingPr
   };
 }
 
+/** Événement planifié d'un style animé : début, et heure du suivant. */
+interface EnvelopeEvent {
+  t0: number;
+  next: number;
+}
+
+/** Poussée d'un style : délai avant la suivante (base + aléa) et forme de l'enveloppe. */
+interface SurgeStyle {
+  base: number;
+  spread: number;
+  envelope(dts: number): number;
+}
+
+// Light-side serenity (21) and the Force-spirit balance pulse (22)
+// share the same gentle rhythm: a slow symmetric swell (ease in AND
+// out) spaced generously, so it reads as a calm breath — never a jolt.
+const SERENITY: SurgeStyle = {
+  base: 5.0,
+  spread: 5.0,
+  // bell-shaped envelope centred ~1.1s after onset: rises softly,
+  // peaks, falls softly — never a spike.
+  envelope: (dts) => (dts < 0 ? 0 : Math.exp(-Math.pow((dts - 1.1) * 1.3, 2.0))),
+};
+
+/** Poussées des styles animés hors éclairs, par numéro de style. */
+const SURGES: Partial<Record<number, SurgeStyle>> = {
+  // magma: slow swelling surges
+  11: { base: 3.5, spread: 4, envelope: (dts) => (dts < 0 ? 0 : Math.exp(-dts * 2.5)) },
+  // kyber: quick saber ignite/clash flare — sharp rise, fast decay.
+  17: { base: 2.5, spread: 3.5, envelope: (dts) => (dts < 0 ? 0 : Math.exp(-dts * 6.0)) },
+  // death star: long superlaser charge, then a fast beam
+  // discharge. Envelope swells over ~1.6s then snaps to a
+  // bright peak at fire time before collapsing.
+  18: {
+    base: 4.5,
+    spread: 4,
+    envelope: (dts) => {
+      // rise 0->1 over 1.6s (charge), hold the peak briefly (fire),
+      // then decay back to dark.
+      const charge = Math.min(Math.max(dts, 0) / 1.6, 1);
+      const fire = dts > 1.6 ? Math.exp(-(dts - 1.6) * 3.0) : 0;
+      return Math.max(charge * charge * 0.7, fire);
+    },
+  },
+  // hyperspace: mostly steady flow, with an occasional bright
+  // "jump" bloom that stretches the starlines.
+  20: { base: 3.0, spread: 4, envelope: (dts) => (dts < 0 ? 0 : Math.exp(-dts * 3.5)) },
+  21: SERENITY,
+  22: SERENITY,
+};
+
+/** Éclairs ramifiés sur deux canaux : attaque franche, déclin rapide et réplique plus faible. */
+function driveStrikes(
+  uniforms: LiveUniforms,
+  strikes: (EnvelopeEvent & { seed: number })[],
+  t: number,
+  isSith: boolean,
+) {
+  const base = isSith ? 1.4 : 0.9;
+  const spread = isSith ? 3.2 : 2.6;
+  for (let ch = 0; ch < 2; ch++) {
+    const c = strikes[ch];
+    if (t >= c.next) {
+      c.t0 = t;
+      c.seed = Math.random();
+      c.next = t + base + Math.random() * spread;
+    }
+    // sharp attack, fast decay + weaker restrike
+    const dts = t - c.t0;
+    const restrike = dts > 0.13 ? Math.exp(-(dts - 0.13) * 20) * 0.6 : 0;
+    const env = dts < 0 ? 0 : Math.exp(-dts * 15) + restrike;
+    if (ch === 0) {
+      uniforms.uFlash1.value = env;
+      uniforms.uSeed1.value = c.seed;
+    } else {
+      uniforms.uFlash2.value = env;
+      uniforms.uSeed2.value = c.seed;
+    }
+  }
+}
+
 /** Enveloppes des événements des styles animés (éclairs, poussées…), à chaque image. */
 function driveEnvelopes(
   styleId: number,
   uniforms: LiveUniforms,
   sched: {
-    strikes: { t0: number; seed: number; next: number }[];
-    surge: { t0: number; next: number };
+    strikes: (EnvelopeEvent & { seed: number })[];
+    surge: EnvelopeEvent;
   },
   t: number,
 ) {
@@ -1168,84 +1249,17 @@ function driveEnvelopes(
   // each crackle lands with weight. (The Light-side die is style 21 and
   // deliberately has NO lightning — it uses the gentle surge below.)
   if (styleId === 10 || styleId === 19) {
-    const s = sched.strikes;
-    const isSith = styleId === 19;
-    for (let ch = 0; ch < 2; ch++) {
-      const c = s[ch];
-      if (t >= c.next) {
-        c.t0 = t;
-        c.seed = Math.random();
-        c.next = t + (isSith ? 1.4 : 0.9) + Math.random() * (isSith ? 3.2 : 2.6);
-      }
-      // sharp attack, fast decay + weaker restrike
-      const dts = t - c.t0;
-      const restrike = dts > 0.13 ? Math.exp(-(dts - 0.13) * 20) * 0.6 : 0;
-      const env = dts < 0 ? 0 : Math.exp(-dts * 15) + restrike;
-      if (ch === 0) {
-        uniforms.uFlash1.value = env;
-        uniforms.uSeed1.value = c.seed;
-      } else {
-        uniforms.uFlash2.value = env;
-        uniforms.uSeed2.value = c.seed;
-      }
-    }
-  } else if (styleId === 11) {
-    // magma: slow swelling surges
-    const c = sched.surge;
-    if (t >= c.next) {
-      c.t0 = t;
-      c.next = t + 3.5 + Math.random() * 4;
-    }
-    const dts = t - c.t0;
-    uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 2.5);
-  } else if (styleId === 17) {
-    // kyber: quick saber ignite/clash flare — sharp rise, fast decay.
-    const c = sched.surge;
-    if (t >= c.next) {
-      c.t0 = t;
-      c.next = t + 2.5 + Math.random() * 3.5;
-    }
-    const dts = t - c.t0;
-    uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 6.0);
-  } else if (styleId === 18) {
-    // death star: long superlaser charge, then a fast beam
-    // discharge. Envelope swells over ~1.6s then snaps to a
-    // bright peak at fire time before collapsing.
-    const c = sched.surge;
-    if (t >= c.next) {
-      c.t0 = t;
-      c.next = t + 4.5 + Math.random() * 4;
-    }
-    const dts = t - c.t0;
-    // rise 0->1 over 1.6s (charge), hold the peak briefly (fire),
-    // then decay back to dark.
-    const charge = Math.min(Math.max(dts, 0) / 1.6, 1);
-    const fire = dts > 1.6 ? Math.exp(-(dts - 1.6) * 3.0) : 0;
-    uniforms.uSurge.value = Math.max(charge * charge * 0.7, fire);
-  } else if (styleId === 20) {
-    // hyperspace: mostly steady flow, with an occasional bright
-    // "jump" bloom that stretches the starlines.
-    const c = sched.surge;
-    if (t >= c.next) {
-      c.t0 = t;
-      c.next = t + 3.0 + Math.random() * 4;
-    }
-    const dts = t - c.t0;
-    uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 3.5);
-  } else if (styleId === 21 || styleId === 22) {
-    // Light-side serenity (21) and the Force-spirit balance pulse (22)
-    // share the same gentle rhythm: a slow symmetric swell (ease in AND
-    // out) spaced generously, so it reads as a calm breath — never a jolt.
-    const c = sched.surge;
-    if (t >= c.next) {
-      c.t0 = t;
-      c.next = t + 5.0 + Math.random() * 5.0;
-    }
-    const dts = t - c.t0;
-    // bell-shaped envelope centred ~1.1s after onset: rises softly,
-    // peaks, falls softly — never a spike.
-    uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-Math.pow((dts - 1.1) * 1.3, 2.0));
+    driveStrikes(uniforms, sched.strikes, t, styleId === 19);
+    return;
   }
+  const surge = SURGES[styleId];
+  if (!surge) return;
+  const c = sched.surge;
+  if (t >= c.next) {
+    c.t0 = t;
+    c.next = t + surge.base + Math.random() * surge.spread;
+  }
+  uniforms.uSurge.value = surge.envelope(t - c.t0);
 }
 
 /**
