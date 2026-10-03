@@ -69,7 +69,7 @@ curl -s 'http://127.0.0.1:8222/jsz?streams=true'
 ```js
 // check-bus.mjs, à la racine du dépôt (après pnpm --filter @vtt/platform build) :
 // affiche les événements dice déjà sur le flux, puis s'arrête
-import { connectBus, consumeEvents } from './packages/platform/dist/index.js';
+import { connectBus, consumeEvents } from './backend/platform/dist/index.js';
 const bus = await connectBus({ url: 'nats://127.0.0.1:4222', name: 'check-bus' });
 const stop = await consumeEvents(bus, {
   subjects: ['vtt.*.dice.>'],

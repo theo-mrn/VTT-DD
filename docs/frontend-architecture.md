@@ -272,7 +272,7 @@ openapi-fetch à l'exécution. Pour les **événements** du bus, les schémas Zo
 Vérifié dans le code :
 
 - chaque service expose `/openapi.json`, généré par `@vtt/platform` depuis ses schémas Zod
-  (`packages/platform/src/server.ts:122-126`) ;
+  (`backend/platform/src/server.ts:122-126`) ;
 - la gateway **n'agrège pas** l'OpenAPI, contrairement à ce qu'annonce [refacto.md](refacto.md) :
   `backend/gateway/src/app.ts` ne fait que relayer ;
 - toutes les routes n'ont pas encore de schéma de réponse (mesure grossière par grep : identity

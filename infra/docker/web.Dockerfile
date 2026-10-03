@@ -21,7 +21,7 @@ COPY backend/billing/package.json ./backend/billing/
 COPY backend/history/package.json ./backend/history/
 COPY backend/realtime/package.json ./backend/realtime/
 COPY packages/contracts/package.json ./packages/contracts/
-COPY packages/platform/package.json ./packages/platform/
+COPY backend/platform/package.json ./backend/platform/
 COPY packages/rules/package.json ./packages/rules/
 COPY packages/systemes/package.json ./packages/systemes/
 COPY tools/firebase-export/package.json ./tools/firebase-export/

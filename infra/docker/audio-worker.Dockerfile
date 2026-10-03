@@ -24,13 +24,14 @@ COPY backend/history/package.json ./backend/history/
 COPY backend/realtime/package.json ./backend/realtime/
 COPY backend/audio/package.json ./backend/audio/
 COPY packages/contracts/package.json ./packages/contracts/
-COPY packages/platform/package.json ./packages/platform/
+COPY backend/platform/package.json ./backend/platform/
 COPY packages/rules/package.json ./packages/rules/
 COPY packages/systemes/package.json ./packages/systemes/
 COPY tools/firebase-export/package.json ./tools/firebase-export/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@vtt/audio..." --ignore-scripts
 COPY packages ./packages
+COPY backend/platform ./backend/platform
 COPY backend/audio ./backend/audio
 RUN pnpm --filter "@vtt/audio..." run build
 RUN pnpm --filter "@vtt/audio" deploy --prod --legacy /out
