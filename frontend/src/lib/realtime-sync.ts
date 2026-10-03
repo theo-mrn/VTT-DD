@@ -57,79 +57,100 @@ function relireFicheChangee(client: QueryClient, id: string, version: number | n
   });
 }
 
+type Charge = RealtimeEvent['event']['payload'];
+
 /** Applique un événement au cache : invalide (ou retire) les requêtes qu'il rend périmées. */
 export function appliquerEvenement(client: QueryClient, moi: string, e: RealtimeEvent): void {
   const { type, aggregate, payload, roomId } = e.event;
+  if (type.startsWith('campaign.'))
+    appliquerCampagne(client, moi, type, roomId ?? aggregate.id, payload);
+  else if (type.startsWith('character.')) appliquerPersonnage(client, type, aggregate.id, payload);
+}
 
-  if (type.startsWith('campaign.')) {
-    const id = roomId ?? aggregate.id;
-    // Campagne supprimée, ou j'en suis parti (exclu) : elle disparaît du cache
-    if (
-      type === 'campaign.deleted' ||
-      (type === 'campaign.member_left' && payload.userId === moi)
-    ) {
-      client.removeQueries({ queryKey: clesCampagnes.une(id) });
-      client.removeQueries({ queryKey: clePersonnagesCampagne(id) });
-      void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
-      void client.invalidateQueries({ queryKey: clesCampagnes.toutesPubliques });
-      invaliderListesPersonnages(client);
-      return;
-    }
-    // La discussion se tient à jour elle-même (lib/campaign-chat.ts)
-    if (type.startsWith('campaign.message_')) return;
-    // Réglages de table (lanceur de dés) : seule leur requête change
-    if (type === 'campaign.settings_updated') {
-      void client.invalidateQueries({ queryKey: campaignSettingsKey(id) });
-      return;
-    }
-    if (type === 'campaign.session_scheduled' || type === 'campaign.session_cancelled') {
-      void client.invalidateQueries({ queryKey: clesCampagnes.sessions(id) });
-      void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
-      return;
-    }
-    void client.invalidateQueries({ queryKey: clesCampagnes.une(id), exact: true });
-    void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
-    // Engagements, personnage incarné, départs : la table et mes héros changent
-    if (
-      type.startsWith('campaign.character_') ||
-      type === 'campaign.member_left' ||
-      type === 'campaign.member_role_changed'
-    ) {
-      void client.invalidateQueries({ queryKey: clePersonnagesCampagne(id) });
-      invaliderListesPersonnages(client);
-      // Qui incarne un personnage a la main sur sa fiche : ses droits (`permissions`) changent
-      for (const cle of ['characterId', 'previousCharacterId'] as const) {
-        const perso = payload[cle];
-        if (typeof perso === 'string')
-          void client.invalidateQueries({ queryKey: clesPersonnages.un(perso) });
-      }
-    }
+/** Événement `campaign.*` : la campagne, ses sessions, ses réglages, ses personnages. */
+function appliquerCampagne(
+  client: QueryClient,
+  moi: string,
+  type: string,
+  id: string,
+  payload: Charge,
+) {
+  // Campagne supprimée, ou j'en suis parti (exclu) : elle disparaît du cache
+  if (type === 'campaign.deleted' || (type === 'campaign.member_left' && payload.userId === moi)) {
+    retirerCampagne(client, id);
     return;
   }
-
-  if (type.startsWith('character.')) {
-    const id = aggregate.id;
-    if (type === 'character.deleted') {
-      client.removeQueries({ queryKey: clesPersonnages.un(id) });
-      invaliderListesPersonnages(client);
-      return;
-    }
-    // Mise en page de la fiche changée par son propriétaire ou le MJ : toute la table la relit
-    if (type === 'character.updated' || type === 'character.layout_changed') {
-      const connue = client.getQueryData<FichePersonnage>(clesPersonnages.un(id));
-      const version = typeof payload.version === 'number' ? payload.version : null;
-      // Déjà à jour : c'est mon écriture, appliquée par sa réponse
-      if (connue && version !== null && connue.version >= version) return;
-      // La mise en page ne change rien aux listes (nom, portrait, résumé)
-      if (type === 'character.layout_changed') {
-        void client.invalidateQueries({ queryKey: clesPersonnages.un(id) });
-        return;
-      }
-      relireFicheChangee(client, id, version);
-      return;
-    }
-    if (type === 'character.created') invaliderListesPersonnages(client);
+  // La discussion se tient à jour elle-même (lib/campaign-chat.ts)
+  if (type.startsWith('campaign.message_')) return;
+  // Réglages de table (lanceur de dés) : seule leur requête change
+  if (type === 'campaign.settings_updated') {
+    void client.invalidateQueries({ queryKey: campaignSettingsKey(id) });
+    return;
   }
+  if (type === 'campaign.session_scheduled' || type === 'campaign.session_cancelled') {
+    void client.invalidateQueries({ queryKey: clesCampagnes.sessions(id) });
+    void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+    return;
+  }
+  void client.invalidateQueries({ queryKey: clesCampagnes.une(id), exact: true });
+  void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+  // Engagements, personnage incarné, départs : la table et mes héros changent
+  if (
+    type.startsWith('campaign.character_') ||
+    type === 'campaign.member_left' ||
+    type === 'campaign.member_role_changed'
+  )
+    relireEngagements(client, id, payload);
+}
+
+/** Campagne supprimée ou quittée : retirée du cache, les listes relues. */
+function retirerCampagne(client: QueryClient, id: string) {
+  client.removeQueries({ queryKey: clesCampagnes.une(id) });
+  client.removeQueries({ queryKey: clePersonnagesCampagne(id) });
+  void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+  void client.invalidateQueries({ queryKey: clesCampagnes.toutesPubliques });
+  invaliderListesPersonnages(client);
+}
+
+/** Engagements ou incarnation changés : personnages de la table et fiches concernées relus. */
+function relireEngagements(client: QueryClient, id: string, payload: Charge) {
+  void client.invalidateQueries({ queryKey: clePersonnagesCampagne(id) });
+  invaliderListesPersonnages(client);
+  // Qui incarne un personnage a la main sur sa fiche : ses droits (`permissions`) changent
+  for (const cle of ['characterId', 'previousCharacterId'] as const) {
+    const perso = payload[cle];
+    if (typeof perso === 'string')
+      void client.invalidateQueries({ queryKey: clesPersonnages.un(perso) });
+  }
+}
+
+/** Événement `character.*` : la fiche et les listes qui la montrent. */
+function appliquerPersonnage(client: QueryClient, type: string, id: string, payload: Charge) {
+  if (type === 'character.deleted') {
+    client.removeQueries({ queryKey: clesPersonnages.un(id) });
+    invaliderListesPersonnages(client);
+    return;
+  }
+  // Mise en page de la fiche changée par son propriétaire ou le MJ : toute la table la relit
+  if (type === 'character.updated' || type === 'character.layout_changed') {
+    ficheChangee(client, type, id, payload);
+    return;
+  }
+  if (type === 'character.created') invaliderListesPersonnages(client);
+}
+
+/** Fiche ou mise en page changée : relue, sauf si la version connue est déjà à jour. */
+function ficheChangee(client: QueryClient, type: string, id: string, payload: Charge) {
+  const connue = client.getQueryData<FichePersonnage>(clesPersonnages.un(id));
+  const version = typeof payload.version === 'number' ? payload.version : null;
+  // Déjà à jour : c'est mon écriture, appliquée par sa réponse
+  if (connue && version !== null && connue.version >= version) return;
+  // La mise en page ne change rien aux listes (nom, portrait, résumé)
+  if (type === 'character.layout_changed') {
+    void client.invalidateQueries({ queryKey: clesPersonnages.un(id) });
+    return;
+  }
+  relireFicheChangee(client, id, version);
 }
 
 /**
