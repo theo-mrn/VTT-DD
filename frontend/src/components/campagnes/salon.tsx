@@ -239,7 +239,7 @@ function Banniere({
             <Button size="lg" variant="secondary" asChild>
               <Link href={`/campagnes/${c.id}/personnage`}>
                 {role === 'gm' ? <Crown /> : <UserRound />}
-                {monPerso ? `Changer de héros` : role === 'gm' ? 'Jouer un héros' : 'Mon héros'}
+                {libelleHeros(Boolean(monPerso), role === 'gm')}
               </Link>
             </Button>
           )}
@@ -496,7 +496,7 @@ function SiegeMembre({
           <span className="truncate">{m.name}</span>
         </p>
         <p className="truncate text-xs text-muted-foreground">
-          {m.role === 'gm' ? 'Maître du jeu' : m.role === 'spectator' ? 'Spectateur' : 'Joueur'}
+          {ROLES[m.role] ?? 'Joueur'}
           {estMoi && ' · vous'}
         </p>
       </div>
@@ -766,4 +766,11 @@ function SalonSquelette() {
       </div>
     </div>
   );
+}
+
+const ROLES: Partial<Record<string, string>> = { gm: 'Maître du jeu', spectator: 'Spectateur' };
+
+function libelleHeros(aUnHeros: boolean, mj: boolean): string {
+  if (aUnHeros) return 'Changer de héros';
+  return mj ? 'Jouer un héros' : 'Mon héros';
 }

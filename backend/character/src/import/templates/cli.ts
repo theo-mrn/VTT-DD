@@ -284,13 +284,9 @@ for (const [code, docs] of byRoom) {
     ['object_template', m.objectTemplates],
   ] as const) {
     for (const x of list) {
-      const status = inserted.has(x.id)
-        ? 'importe'
-        : existing.has(x.id)
-          ? 'deja-importe'
-          : write
-            ? 'deja-importe'
-            : 'a-importer';
+      let status: 'importe' | 'deja-importe' | 'a-importer' = 'a-importer';
+      if (inserted.has(x.id)) status = 'importe';
+      else if (existing.has(x.id) || write) status = 'deja-importe';
       const key = bucket[kind];
       if (status === 'importe') counts.imported[key]++;
       else if (status === 'deja-importe') counts.already[key]++;

@@ -42,8 +42,7 @@ export function suggestions(systeme: SystemeCharge, etat: EtatEntite, sorte: str
     for (const c of systeme.sortes.get(e.sorte)?.champs ?? []) {
       if ((c.type !== 'entree' && c.type !== 'entrees') || c.sorte !== sorte) continue;
       const v = e.champs[c.id];
-      for (const id of Array.isArray(v) ? v : typeof v === 'string' ? [v] : [])
-        if (systeme.entrees.has(id)) ids.add(id);
+      for (const id of idsDe(v)) if (systeme.entrees.has(id)) ids.add(id);
     }
   }
   return [...ids];
@@ -104,11 +103,9 @@ export function texteEffet(fiche: Fiche, e: Effet): string | null {
     case 'jet':
       return 'Modifie certains jets';
     case 'degats':
-      return e.operation === 'annuler'
-        ? 'Immunité à certains dégâts'
-        : e.operation === 'multiplier'
-          ? 'Résistance à certains dégâts'
-          : `Réduction des dégâts ${e.valeur}`;
+      if (e.operation === 'annuler') return 'Immunité à certains dégâts';
+      if (e.operation === 'multiplier') return 'Résistance à certains dégâts';
+      return `Réduction des dégâts ${e.valeur}`;
   }
 }
 
@@ -242,4 +239,10 @@ export function motsClesPortrait(fiche: Fiche): string[] {
   return [...fiche.possessions.values()]
     .filter((p) => p.sorte.maximum === 1)
     .flatMap((p) => [norm(p.entree.nom), ...norm(p.entree.nom).split(/\s+/)]);
+}
+
+/** Identifiants d'une valeur de champ : liste, identifiant seul, ou aucun. */
+function idsDe(v: unknown): readonly string[] {
+  if (Array.isArray(v)) return v as string[];
+  return typeof v === 'string' ? [v] : [];
 }

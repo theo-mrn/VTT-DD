@@ -39,6 +39,10 @@ function ListeCampagnes() {
 
   const nombre = (f: Filtre) =>
     (campagnes.data ?? []).filter((c) => f === 'toutes' || c.role === f).length;
+  let etat: 'chargement' | 'aucune' | 'filtree' | 'liste' = 'liste';
+  if (campagnes.isLoading) etat = 'chargement';
+  else if (campagnes.data?.length === 0) etat = 'aucune';
+  else if (liste.length === 0) etat = 'filtree';
 
   function ouvrirRejoindre(v: boolean) {
     router.replace(v ? '/campagnes?rejoindre=1' : '/campagnes', { scroll: false });
@@ -92,13 +96,14 @@ function ListeCampagnes() {
 
       {campagnes.isError && <Message>{messageErreur(campagnes.error)}</Message>}
 
-      {campagnes.isLoading ? (
+      {etat === 'chargement' && (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }, (_, i) => (
             <CarteCampagneSquelette key={i} />
           ))}
         </div>
-      ) : campagnes.data?.length === 0 ? (
+      )}
+      {etat === 'aucune' && (
         <EtatVide
           icone={Swords}
           titre="Aucune campagne pour l'instant"
@@ -118,9 +123,11 @@ function ListeCampagnes() {
             </>
           }
         />
-      ) : liste.length === 0 ? (
+      )}
+      {etat === 'filtree' && (
         <p className="py-16 text-center text-sm text-subtle">Aucune campagne ne correspond.</p>
-      ) : (
+      )}
+      {etat === 'liste' && (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {liste.map((c, i) => (
             <div key={c.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>

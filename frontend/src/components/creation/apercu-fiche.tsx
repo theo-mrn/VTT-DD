@@ -139,26 +139,25 @@ export function ApercuFiche({
   const widgets = widgetsFiche(presentation, fiche.etat.type).filter(
     (w) => w.type === 'attributs' || w.type === 'ressources',
   );
+  const limite = complet ? undefined : 3;
+  const parGroupe = () =>
+    groupesAttributs(fiche)
+      .slice(0, limite)
+      .map((g) => ({
+        titre: g.nom,
+        type: 'attributs' as const,
+        cles: g.attributs.map((a) => a.cle),
+      }));
+  const clesDuGroupe = (groupe: string | undefined) =>
+    [...fiche.entite.attributs.values()].filter((a) => a.groupe === groupe).map((a) => a.cle);
   const blocs =
     widgets.length > 0
-      ? widgets.slice(0, complet ? undefined : 3).map((w) => ({
+      ? widgets.slice(0, limite).map((w) => ({
           titre: w.titre,
           type: w.type,
-          cles:
-            w.type === 'ressources'
-              ? w.attributs
-              : (w.attributs ??
-                [...fiche.entite.attributs.values()]
-                  .filter((a) => a.groupe === w.groupe)
-                  .map((a) => a.cle)),
+          cles: w.type === 'ressources' ? w.attributs : (w.attributs ?? clesDuGroupe(w.groupe)),
         }))
-      : groupesAttributs(fiche)
-          .slice(0, complet ? undefined : 3)
-          .map((g) => ({
-            titre: g.nom,
-            type: 'attributs' as const,
-            cles: g.attributs.map((a) => a.cle),
-          }));
+      : parGroupe();
   const monnaies = soldes(fiche);
 
   return (

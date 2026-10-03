@@ -41,8 +41,17 @@ const STATUTS: { id: QuestStatus; label: string; icone: typeof Circle }[] = [
   { id: 'completed', label: 'Terminée', icone: CircleCheck },
 ];
 
-const statutSuivant = (s: QuestStatus): QuestStatus =>
-  s === 'not_started' ? 'in_progress' : s === 'in_progress' ? 'completed' : 'not_started';
+const SUIVANT: Record<QuestStatus, QuestStatus> = {
+  not_started: 'in_progress',
+  in_progress: 'completed',
+  completed: 'not_started',
+};
+const statutSuivant = (s: QuestStatus): QuestStatus => SUIVANT[s];
+const TEINTES_STATUT: Record<QuestStatus, string> = {
+  not_started: 'text-subtle',
+  in_progress: 'text-primary',
+  completed: 'text-success',
+};
 
 const nouvelId = () => randomId();
 
@@ -132,11 +141,7 @@ function Etapes({
               aria-label={`Étape ${statut.label.toLowerCase()} : changer le statut`}
               className={cn(
                 '-ml-1 mt-1 flex size-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-surface-2 disabled:pointer-events-none',
-                e.status === 'completed'
-                  ? 'text-success'
-                  : e.status === 'in_progress'
-                    ? 'text-primary'
-                    : 'text-subtle',
+                TEINTES_STATUT[e.status],
               )}
             >
               <statut.icone className="size-4" />

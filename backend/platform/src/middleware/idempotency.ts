@@ -68,14 +68,7 @@ export const idempotency = fp<IdempotencyOptions>(
       // seulement un corps sérialisable. Un flux (réponse relayée par la gateway) ne peut pas
       // être rejoué : il passe sans cache, et le service en aval, qui reçoit la même clé,
       // dédoublonne lui-même.
-      const text =
-        payload == null
-          ? ''
-          : typeof payload === 'string'
-            ? payload
-            : Buffer.isBuffer(payload)
-              ? payload.toString('utf8')
-              : null;
+      const text = replayableText(payload);
       if (reply.statusCode < 500 && text !== null) {
         let body: unknown = text;
         try {
@@ -100,3 +93,10 @@ export const idempotency = fp<IdempotencyOptions>(
   },
   { name: 'vtt-idempotency' },
 );
+
+/** Corps rejouable : texte ou tampon ; null pour un flux, qui ne peut pas être relu. */
+function replayableText(payload: unknown): string | null {
+  if (payload == null) return '';
+  if (typeof payload === 'string') return payload;
+  return Buffer.isBuffer(payload) ? payload.toString('utf8') : null;
+}

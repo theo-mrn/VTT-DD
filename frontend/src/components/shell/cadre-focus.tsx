@@ -44,23 +44,21 @@ export function EnTeteFocus({
         <span className="hidden font-logo text-base tracking-[0.18em] sm:inline">YNER</span>
       </Link>
       <div className="flex min-w-0 flex-1 justify-center">{centre}</div>
-      {quitter ? (
-        'href' in quitter ? (
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={quitter.href}>
-              <X />
-              <span className="hidden sm:inline">{libelleQuitter}</span>
-            </Link>
-          </Button>
-        ) : (
-          <Button variant="ghost" size="sm" onClick={quitter.onClick}>
+      {quitter && 'href' in quitter && (
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={quitter.href}>
             <X />
             <span className="hidden sm:inline">{libelleQuitter}</span>
-          </Button>
-        )
-      ) : (
-        <span className="w-20" />
+          </Link>
+        </Button>
       )}
+      {quitter && !('href' in quitter) && (
+        <Button variant="ghost" size="sm" onClick={quitter.onClick}>
+          <X />
+          <span className="hidden sm:inline">{libelleQuitter}</span>
+        </Button>
+      )}
+      {!quitter && <span className="w-20" />}
     </header>
   );
 }
@@ -94,11 +92,7 @@ export function ProgressionEtapes({
               <span
                 className={cn(
                   'block h-1 w-full rounded-full transition-colors duration-300',
-                  i < courante || (e.faite && i !== courante)
-                    ? 'bg-primary/70 group-enabled:group-hover:bg-primary'
-                    : i === courante
-                      ? 'bg-primary'
-                      : 'bg-surface-3',
+                  teinteSegment(i, courante, e.faite),
                 )}
               />
             </button>
@@ -111,4 +105,11 @@ export function ProgressionEtapes({
       </p>
     </div>
   );
+}
+
+/** Segment de progression : franchi (ou fait), courant, ou à venir. */
+function teinteSegment(i: number, courante: number, faite: boolean | undefined): string {
+  if (i < courante || (faite && i !== courante))
+    return 'bg-primary/70 group-enabled:group-hover:bg-primary';
+  return i === courante ? 'bg-primary' : 'bg-surface-3';
 }

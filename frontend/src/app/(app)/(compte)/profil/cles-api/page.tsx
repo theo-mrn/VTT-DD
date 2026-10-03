@@ -5,10 +5,10 @@ import { useState, type FormEvent } from 'react';
 import {
   Bouton,
   Carte,
-  Chargement,
   formaterDate,
   formaterDepuis,
   Message,
+  ParEtat,
   TitrePage,
   Vide,
 } from '@/components/compte/elements';
@@ -54,34 +54,35 @@ export default function PageClesApi() {
           </Bouton>
         }
       >
-        {cles.chargement && !cles.donnees ? (
-          <Chargement />
-        ) : cles.erreur ? (
-          <Message>{cles.erreur}</Message>
-        ) : !cles.donnees?.length ? (
-          <Vide>Aucune clé d&apos;API pour l&apos;instant.</Vide>
-        ) : (
-          <ul className="divide-y divide-border">
-            {cles.donnees.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center gap-3 py-3">
-                <KeyRound className="h-5 w-5 shrink-0 text-primary" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-foreground">{c.name}</p>
-                  <p className="text-xs text-subtle">
-                    <code className="rounded bg-surface-3 px-1.5 py-0.5 text-foreground/85">
-                      {c.prefix}…
-                    </code>{' '}
-                    · créée le {formaterDate(c.createdAt)} · utilisée{' '}
-                    {c.lastUsedAt ? formaterDepuis(c.lastUsedAt) : 'jamais'}
-                  </p>
-                </div>
-                <Bouton ton="danger" size="sm" onClick={() => setARevoquer(c)}>
-                  Révoquer
-                </Bouton>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ParEtat
+          chargement={cles.chargement && !cles.donnees}
+          erreur={cles.erreur}
+          vide={!cles.donnees?.length}
+          siVide={<Vide>Aucune clé d&apos;API pour l&apos;instant.</Vide>}
+        >
+          {() => (
+            <ul className="divide-y divide-border">
+              {(cles.donnees ?? []).map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center gap-3 py-3">
+                  <KeyRound className="h-5 w-5 shrink-0 text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-foreground">{c.name}</p>
+                    <p className="text-xs text-subtle">
+                      <code className="rounded bg-surface-3 px-1.5 py-0.5 text-foreground/85">
+                        {c.prefix}…
+                      </code>{' '}
+                      · créée le {formaterDate(c.createdAt)} · utilisée{' '}
+                      {c.lastUsedAt ? formaterDepuis(c.lastUsedAt) : 'jamais'}
+                    </p>
+                  </div>
+                  <Bouton ton="danger" size="sm" onClick={() => setARevoquer(c)}>
+                    Révoquer
+                  </Bouton>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ParEtat>
       </Carte>
 
       <DialogueCreation
