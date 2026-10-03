@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-history
-  digest: ''
+  digest: 'sha256:deb3e64b0ba0cd6abd1f904b32a4a4f7d659c3f3e92b1405f092fbd7c06e583c'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -27,8 +27,8 @@ env:
 # Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret history-secrets (SOPS) : DATABASE_URL (rôle history_svc), INTERNAL_API_SECRET (même
 # valeur que campaign)
 envFromSecrets:
@@ -44,12 +44,12 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-history-migrations
-    digest: ''
+    digest: 'sha256:1c0966330c1edf27cb1e0f5a75ee2ae7ce8011c342d656de06ffe1d0b3ca2063'
     tag: 'main'
   schema: history
   # Secret généré par CloudNativePG pour le rôle history_owner

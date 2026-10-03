@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/theo-mrn/vtt-web
-  digest: ''
+  digest: 'sha256:aac20ca331e3009a43dbbaa09722f34ec2d4439df97046aa6be1b99cd0c039a6'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -8,8 +8,8 @@ replicaCount: 1
 pdb:
   enabled: false
 resources:
-  requests: { cpu: 100m, memory: 256Mi }
-  limits: { memory: 768Mi }
+  requests: {cpu: 100m, memory: 256Mi}
+  limits: {memory: 768Mi}
 env:
   NODE_ENV: production
 # Pas de secret : le front ne parle qu'à la gateway (/v1, même origine)
@@ -24,4 +24,4 @@ ingress:
   # API et temps réel sur le même hôte, envoyés par Traefik à la gateway : le serveur Next ne
   # relaie pas l'upgrade WebSocket de ses réécritures, et les cookies restent sur la même origine
   extraPaths:
-    - { path: /v1, service: gateway }
+    - {path: /v1, service: gateway}

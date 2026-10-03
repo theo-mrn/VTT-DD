@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-billing
-  digest: ''
+  digest: 'sha256:f3b78c827be009c854a46a4ec9454b92b42ca4d5110275c35874c9fa9db5f283'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -24,7 +24,7 @@ env:
 # Mot de passe de valkey-staging (secret messaging-credentials), substitué dans REDIS_URL :
 # voir « Déploiement » dans docs/bus.md
 secretEnv:
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret billing-secrets (SOPS) :
 #   DATABASE_URL             rôle billing_svc
 #   INTERNAL_API_SECRET      même valeur que dice et identity
@@ -42,14 +42,14 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
-  # Sortie HTTPS (443) vers api.stripe.com : déjà ouverte par le chart (Internet
-  # public hors plages privées ; une NetworkPolicy ne filtre pas par nom de domaine)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+      # Sortie HTTPS (443) vers api.stripe.com : déjà ouverte par le chart (Internet
+      # public hors plages privées ; une NetworkPolicy ne filtre pas par nom de domaine)
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-billing-migrations
-    digest: ''
+    digest: 'sha256:c84334a02d34f735911586b15964afe316bfbf69ad182145c07217c04cf53065'
     tag: 'main'
   schema: billing
   # Secret généré par CloudNativePG pour le rôle billing_owner

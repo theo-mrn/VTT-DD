@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-realtime
-  digest: ''
+  digest: 'sha256:2636338aa36bd6eb5e0a5c7dee4b3ec119f58b5c1f9fc9b8683f5e7a96d8a879'
   tag: 'main'
 # Chaque réplica lit tout le flux NATS et n'émet qu'à ses propres connexions : on peut en
 # ajouter sans qu'un client reçoive un événement deux fois. Pas de sessions collantes
@@ -39,8 +39,8 @@ env:
 # Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret realtime-secrets (SOPS) : INTERNAL_API_SECRET (même valeur que campaign). Pas de base :
 # ni DATABASE_URL ni migrations.
 envFromSecrets:
@@ -57,4 +57,4 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}

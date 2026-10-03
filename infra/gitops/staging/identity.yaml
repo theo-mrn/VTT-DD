@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-identity
-  digest: ''
+  digest: 'sha256:a383308035cc55b0bda1e5aad018c99e83f2d51fd7190b2000c4349ac5636f26'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -27,8 +27,8 @@ env:
 # Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret identity-secrets (SOPS) : DATABASE_URL (rôle identity_svc), JWT_PRIVATE_JWKS,
 # INTERNAL_API_SECRET, SMTP_URL, S3_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
 # + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
@@ -45,23 +45,23 @@ networkPolicy:
   enabled: true
   allowFrom:
     # audio : JWKS
-    - podSelector: { matchLabels: { app.kubernetes.io/name: audio } }
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: audio}}
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
     # character et campaign vérifient les jetons avec le JWKS d'identity
-    - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: character}}
     # campaign lit aussi les profils publics des membres (noms, avatars)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: campaign}}
     # dice : JWKS et profils publics des lanceurs
-    - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: dice}}
     # billing : JWKS et statut premium du profil (/internal/users/:id/premium)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: billing } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: billing}}
   # SMTP (Resend) en plus du HTTPS
   extraEgressPorts: [587]
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-identity-migrations
-    digest: ''
+    digest: 'sha256:cb77e6f2878acfe788e195edf45caea10d4a588d06321c7a1732dcfef87f4e8c'
     tag: 'main'
   schema: identity
   # Secret généré par CloudNativePG pour le rôle identity_owner

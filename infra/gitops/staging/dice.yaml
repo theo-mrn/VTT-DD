@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-dice
-  digest: ''
+  digest: 'sha256:fc4a1b96f364766351942ebc51671dd3c8c6b57cce9631883fea81246745ca2c'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -29,8 +29,8 @@ env:
 # Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret dice-secrets (SOPS) : DATABASE_URL (rôle dice_svc), INTERNAL_API_SECRET (même valeur
 # que campaign et character)
 # + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
@@ -46,19 +46,19 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
     # character transmet les jets d'action (/internal/rolls, secret partagé)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: character}}
     # billing livre les achats et le premium (/internal/users/…, secret partagé)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: billing } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: billing}}
     # campaign et identity demandent quels fichiers ses tables référencent
-    - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
-    - podSelector: { matchLabels: { app.kubernetes.io/name: identity } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: campaign}}
+    - podSelector: {matchLabels: {app.kubernetes.io/name: identity}}
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-dice-migrations
-    digest: ''
+    digest: 'sha256:4614ce858c73548219ad1249bb2c201be32ad3c2e9b082ae6cec90f751968652'
     tag: 'main'
   schema: dice
   # Secret généré par CloudNativePG pour le rôle dice_owner
