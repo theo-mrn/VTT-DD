@@ -33,6 +33,57 @@ function premiumEnd(v: unknown): Date | null | undefined {
   return toDate(v);
 }
 
+/** Client Stripe, s'il a la bonne forme. */
+function customerIdOf(d: LegacyUser, warnings: string[]): string | null {
+  const rawCustomer = toText(d.stripeCustomerId);
+  const stripeCustomerId = rawCustomer && CUSTOMER.test(rawCustomer) ? rawCustomer : null;
+  if (rawCustomer && !stripeCustomerId) warnings.push('Client Stripe illisible : ignoré');
+  return stripeCustomerId;
+}
+
+/** Premium en cours : `premium: true` avec une échéance absente, nulle ou future. */
+function activePremium(
+  d: LegacyUser,
+  now: number,
+  warnings: string[],
+): { premium: boolean; end: Date | null } {
+  if (d.premium !== true) return { premium: false, end: null };
+  const e = premiumEnd(d.premiumEndDate);
+  if (e === undefined) {
+    warnings.push('Échéance du premium illisible : premium ignoré');
+    return { premium: false, end: null };
+  }
+  if (e !== null && e.getTime() <= now) {
+    warnings.push(`Premium échu le ${e.toISOString()} : premium ignoré`);
+    return { premium: false, end: null };
+  }
+  return { premium: true, end: e };
+}
+
+/** Abonnement Stripe d'un premium en cours, s'il a la bonne forme. */
+function subscriptionIdOf(d: LegacyUser, premium: boolean, warnings: string[]): string | null {
+  const rawSub = toText(d.stripeSubscriptionId);
+  if (!premium || !rawSub) return null;
+  if (SUBSCRIPTION.test(rawSub)) return rawSub;
+  warnings.push('Abonnement Stripe illisible : ignoré');
+  return null;
+}
+
+/** Résiliation programmée : seulement avec sa date de fin (contrainte de la table). */
+function cancelsAtPeriodEnd(
+  d: LegacyUser,
+  premium: boolean,
+  end: Date | null,
+  warnings: string[],
+): boolean {
+  const cancelAtPeriodEnd = premium && d.cancelAtPeriodEnd === true;
+  if (cancelAtPeriodEnd && !end) {
+    warnings.push('Résiliation sans date de fin : ignorée');
+    return false;
+  }
+  return cancelAtPeriodEnd;
+}
+
 /**
  * Client billing d'un utilisateur de l'ancienne app ; `null` s'il n'a jamais
  * eu ni premium ni client Stripe.
@@ -44,37 +95,11 @@ export function transformCustomer(
   const d = doc.data ?? {};
   const warnings: string[] = [];
 
-  const rawCustomer = toText(d.stripeCustomerId);
-  const stripeCustomerId = rawCustomer && CUSTOMER.test(rawCustomer) ? rawCustomer : null;
-  if (rawCustomer && !stripeCustomerId) warnings.push('Client Stripe illisible : ignoré');
-
-  let premium = false;
-  let end: Date | null = null;
-  if (d.premium === true) {
-    const e = premiumEnd(d.premiumEndDate);
-    if (e === undefined) warnings.push('Échéance du premium illisible : premium ignoré');
-    else if (e !== null && e.getTime() <= now)
-      warnings.push(`Premium échu le ${e.toISOString()} : premium ignoré`);
-    else {
-      premium = true;
-      end = e;
-    }
-  }
+  const stripeCustomerId = customerIdOf(d, warnings);
+  const { premium, end } = activePremium(d, now, warnings);
   if (!premium && !stripeCustomerId) return null;
-
-  const rawSub = toText(d.stripeSubscriptionId);
-  let subscriptionId: string | null = null;
-  if (premium && rawSub) {
-    if (SUBSCRIPTION.test(rawSub)) subscriptionId = rawSub;
-    else warnings.push('Abonnement Stripe illisible : ignoré');
-  }
-
-  // Résiliation programmée : seulement avec sa date de fin (contrainte de la table)
-  let cancelAtPeriodEnd = premium && d.cancelAtPeriodEnd === true;
-  if (cancelAtPeriodEnd && !end) {
-    warnings.push('Résiliation sans date de fin : ignorée');
-    cancelAtPeriodEnd = false;
-  }
+  const subscriptionId = subscriptionIdOf(d, premium, warnings);
+  const cancelAtPeriodEnd = cancelsAtPeriodEnd(d, premium, end, warnings);
 
   return {
     uid: doc.id,
