@@ -2,7 +2,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-audio-worker
-  digest: 'sha256:4d83851ebe235f289e4ac121acab0d172a62f82bfa9a514794bd6267d34c6f1c'
+  digest: 'sha256:76210181eee775c7257b47ca011d296711c4c47c80923c941f3cb939de4c0b3e'
   tag: 'main'
 # Un réplica, deux jobs à la fois (WORKER_CONCURRENCY) ; plusieurs réplicas resteraient sûrs
 # (SKIP LOCKED), mais ffmpeg est gourmand : on scale la concurrence avant les pods
@@ -26,16 +26,16 @@ env:
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Même secret que le service : DATABASE_URL, DATABASE_DIRECT_URL (LISTEN audio_jobs), S3_*
 envFromSecrets:
   - name: audio-secrets
 # /tmp : fichiers en cours de traitement (original, transcodage)
 tmpSizeLimit: 1Gi
 resources:
-  requests: { cpu: 250m, memory: 256Mi }
-  limits: { cpu: '2', memory: 1Gi }
+  requests: {cpu: 250m, memory: 256Mi}
+  limits: {cpu: '2', memory: 1Gi}
 probes:
   liveness: /healthz
   readiness: /readyz

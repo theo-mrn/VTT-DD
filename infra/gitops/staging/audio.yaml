@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-audio
-  digest: 'sha256:ef7d233cf27ab4af138d745f275e12a5a47988249265a872b5d9019d3827ebaf'
+  digest: 'sha256:7ad2edfb0fbea24d5b6c6c2ef9c5a392f30dbf5f1c3a4d5203bdf987d7de33bf'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -28,8 +28,8 @@ env:
 # Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret audio-secrets (SOPS) : DATABASE_URL (rôle audio_svc), DATABASE_DIRECT_URL (même rôle,
 # vtt-pg-rw.data.svc en direct pour le LISTEN du relais), INTERNAL_API_SECRET (même valeur que
 # campaign), R2_ENDPOINT, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL (mêmes
@@ -45,12 +45,12 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-audio-migrations
-    digest: 'sha256:85616b3c9f71c6caa1ce75da138361d6ec3cb50491e8a737298fb08c9796aaa1'
+    digest: 'sha256:869d8bb46706daf96964d8b648d6294f77cd4f7959a30a7963466798974257f9'
     tag: 'main'
   schema: audio
   # Secret généré par CloudNativePG pour le rôle audio_owner
