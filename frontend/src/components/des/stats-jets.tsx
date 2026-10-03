@@ -13,6 +13,24 @@ const nombre = (n: number, decimales = 1) =>
 const pourcent = (part: number, total: number) =>
   total ? `${nombre((part / total) * 100, 0)} %` : '—';
 
+/** Écart de la moyenne des d20 à celle attendue, en vert au-dessus, en rouge en dessous. */
+function EcartMoyenne({ ecart }: Readonly<{ ecart: number }>) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1',
+        ecart > 0.05 && 'text-success',
+        ecart < -0.05 && 'text-destructive',
+      )}
+    >
+      {ecart > 0.05 && <TrendingUp className="size-3" aria-hidden />}
+      {ecart < -0.05 && <TrendingDown className="size-3" aria-hidden />}
+      {ecart >= 0 ? '+' : '−'}
+      {nombre(Math.abs(ecart))} vs 10,5
+    </span>
+  );
+}
+
 /**
  * Statistiques du contexte, calculées par le service dice sur tout
  * l'historique visible : volume, critiques, et honnêteté des d20.
@@ -72,22 +90,7 @@ export function StatsJets({
           libelle="Moyenne d20"
           valeur={stats.moyenneD20 !== null ? nombre(stats.moyenneD20) : '—'}
         >
-          {ecart === null ? (
-            'attendue : 10,5'
-          ) : (
-            <span
-              className={cn(
-                'inline-flex items-center gap-1',
-                ecart > 0.05 && 'text-success',
-                ecart < -0.05 && 'text-destructive',
-              )}
-            >
-              {ecart > 0.05 && <TrendingUp className="size-3" aria-hidden />}
-              {ecart < -0.05 && <TrendingDown className="size-3" aria-hidden />}
-              {ecart >= 0 ? '+' : '−'}
-              {nombre(Math.abs(ecart))} vs 10,5
-            </span>
-          )}
+          {ecart === null ? 'attendue : 10,5' : <EcartMoyenne ecart={ecart} />}
         </TuileStat>
         <TuileStat
           libelle="Critiques"

@@ -48,6 +48,21 @@ export interface ContexteTableDes {
   personnage: Personnage | null;
 }
 
+/** Campagne, personnage et salle du jet : ceux de la table d'une campagne, sinon les choix gardés. */
+function choixActifs(
+  contexte: ContexteTableDes | undefined,
+  etat: EtatPlateau,
+  campagnes: ReturnType<typeof useCampagnes>['data'],
+  personnages: ReturnType<typeof usePersonnages>['data'],
+) {
+  const campagne = campagnes?.find((c) => c.id === etat.campagneId) ?? null;
+  const personnage = contexte
+    ? contexte.personnage
+    : (personnages?.find((p) => p.id === etat.personnageId) ?? null);
+  const roomId = contexte ? contexte.campagneId : (campagne?.id ?? null);
+  return { campagne, personnage, roomId };
+}
+
 /**
  * Table de dés : lanceur compact (dernier résultat, formule, dés, macros),
  * historique dense et statistiques. Les jets passent par le service dice : les dés
@@ -90,11 +105,12 @@ export function TableDes({
   const campagnes = useCampagnes();
   const personnages = usePersonnages();
   // Un choix mémorisé peut viser une campagne quittée ou un personnage supprimé
-  const campagne = campagnes.data?.find((c) => c.id === etat.campagneId) ?? null;
-  const personnage = contexte
-    ? contexte.personnage
-    : (personnages.data?.find((p) => p.id === etat.personnageId) ?? null);
-  const roomId = contexte ? contexte.campagneId : (campagne?.id ?? null);
+  const { campagne, personnage, roomId } = choixActifs(
+    contexte,
+    etat,
+    campagnes.data,
+    personnages.data,
+  );
   const fiche = useFichePersonnage(personnage);
 
   const jets = useJets(roomId);

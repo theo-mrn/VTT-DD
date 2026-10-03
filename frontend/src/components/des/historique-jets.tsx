@@ -180,6 +180,35 @@ function Avatar({ nom, url }: Readonly<{ nom: string; url: string | null }>) {
   );
 }
 
+/** Résultat d'un jet de l'historique : total ou symboles, mention critique ; ou masqué. */
+function ResultatCarte({ jet, cache }: Readonly<{ jet: Jet; cache: boolean }>) {
+  if (cache)
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-subtle">
+        <EyeOff className="size-3.5" aria-hidden />
+        Résultat masqué
+      </span>
+    );
+  return (
+    <span
+      className={cn(
+        'text-sm font-bold',
+        jet.symbolResult && 'text-primary-strong',
+        !jet.symbolResult && jet.critical === 'success' && 'text-primary-strong',
+        !jet.symbolResult && jet.critical === 'failure' && 'text-destructive',
+        !jet.symbolResult && !jet.critical && 'text-foreground',
+      )}
+    >
+      {jet.symbolResult ?? `Total : ${jet.total}`}
+      {jet.critical && (
+        <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wider">
+          {jet.critical === 'success' ? 'critique' : 'échec critique'}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function CarteJet({
   jet,
   quand,
@@ -217,29 +246,7 @@ function CarteJet({
           <p className="truncate font-mono text-[10px] text-subtle/80">{jet.output}</p>
         )}
         <div className="mt-0.5 flex items-center justify-between gap-2">
-          {cache ? (
-            <span className="flex items-center gap-1.5 text-xs text-subtle">
-              <EyeOff className="size-3.5" aria-hidden />
-              Résultat masqué
-            </span>
-          ) : (
-            <span
-              className={cn(
-                'text-sm font-bold',
-                jet.symbolResult && 'text-primary-strong',
-                !jet.symbolResult && jet.critical === 'success' && 'text-primary-strong',
-                !jet.symbolResult && jet.critical === 'failure' && 'text-destructive',
-                !jet.symbolResult && !jet.critical && 'text-foreground',
-              )}
-            >
-              {jet.symbolResult ?? `Total : ${jet.total}`}
-              {jet.critical && (
-                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wider">
-                  {jet.critical === 'success' ? 'critique' : 'échec critique'}
-                </span>
-              )}
-            </span>
-          )}
+          <ResultatCarte jet={jet} cache={cache} />
           <button
             type="button"
             onClick={onRelancer}

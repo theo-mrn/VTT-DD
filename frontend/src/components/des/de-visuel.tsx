@@ -39,6 +39,24 @@ function forme(faces: number) {
 
 export type EtatDe = 'normal' | 'ecarte' | 'critique' | 'fumble' | 'explose';
 
+/** Remplissage et contour du dé selon son état. */
+const FORME_ETAT: Record<EtatDe, string> = {
+  critique: 'fill-primary/20 stroke-primary',
+  fumble: 'fill-destructive/15 stroke-destructive',
+  explose: 'fill-arcane/15 stroke-arcane',
+  ecarte: 'fill-surface-2 stroke-border-strong',
+  normal: 'fill-surface-3 stroke-white/25',
+};
+
+/** Couleur (et barré) de la valeur selon l'état du dé. */
+const TEXTE_ETAT: Record<EtatDe, string> = {
+  ecarte: 'text-subtle line-through decoration-1',
+  critique: 'text-primary-strong',
+  fumble: 'text-destructive',
+  explose: 'text-arcane',
+  normal: 'text-foreground',
+};
+
 /**
  * Dé en SVG avec sa valeur. `roulement` fait défiler des valeurs au hasard
  * avant de se poser sur la vraie (le résultat est déjà tiré : jets d'action de
@@ -118,14 +136,7 @@ export function DeVisuel({
       <svg viewBox="0 0 40 40" className="absolute inset-0 size-full overflow-visible" aria-hidden>
         <path
           d={d}
-          className={cn(
-            'transition-colors duration-300',
-            etat === 'critique' && 'fill-primary/20 stroke-primary',
-            etat === 'fumble' && 'fill-destructive/15 stroke-destructive',
-            etat === 'explose' && 'fill-arcane/15 stroke-arcane',
-            etat === 'ecarte' && 'fill-surface-2 stroke-border-strong',
-            etat === 'normal' && 'fill-surface-3 stroke-white/25',
-          )}
+          className={cn('transition-colors duration-300', FORME_ETAT[etat])}
           strokeWidth={1.6}
           strokeLinejoin="round"
         />
@@ -152,11 +163,7 @@ export function DeVisuel({
         className={cn(
           'relative',
           faces === 4 && 'translate-y-[18%]',
-          etat === 'ecarte' && 'text-subtle line-through decoration-1',
-          etat === 'critique' && 'text-primary-strong',
-          etat === 'fumble' && 'text-destructive',
-          etat === 'explose' && 'text-arcane',
-          etat === 'normal' && 'text-foreground',
+          TEXTE_ETAT[etat],
           !pose && 'text-muted-foreground',
         )}
       >

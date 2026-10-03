@@ -23,6 +23,34 @@ export function detailJet(jet: Jet): string {
   return parties.length >= 3 ? parties.slice(1, -1).join(' = ') : '';
 }
 
+/** Total du jet (ou son résultat à symboles), coloré s'il est critique ; masqué s'il est caché. */
+function TotalAffiche({ jet, anime }: Readonly<{ jet: Jet; anime: boolean }>) {
+  if (jet.hidden || jet.total === null)
+    return (
+      <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-subtle">
+        <EyeOff className="size-3.5" aria-hidden />
+        Résultat masqué
+      </span>
+    );
+  return (
+    <motion.span
+      key={jet.id}
+      initial={anime ? { opacity: 0, y: 6 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 360, damping: 24 }}
+      className={cn(
+        'shrink-0 font-mono leading-none tabular',
+        'text-base font-semibold',
+        jet.critical === 'success' && 'text-gradient-primary',
+        jet.critical === 'failure' && 'text-destructive',
+        !jet.critical && 'text-foreground',
+      )}
+    >
+      {jet.symbolResult ?? jet.total}
+    </motion.span>
+  );
+}
+
 /**
  * Dernier résultat, sur une petite ligne sous la formule : total en gras,
  * détail discret. Il n'arrive qu'une fois les dés 3D arrêtés ; pendant qu'ils
@@ -58,28 +86,7 @@ export function LigneResultat({
       {!enCours && jet && (
         <>
           <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
-            {jet.hidden || jet.total === null ? (
-              <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-subtle">
-                <EyeOff className="size-3.5" aria-hidden />
-                Résultat masqué
-              </span>
-            ) : (
-              <motion.span
-                key={jet.id}
-                initial={anime ? { opacity: 0, y: 6 } : false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 360, damping: 24 }}
-                className={cn(
-                  'shrink-0 font-mono leading-none tabular',
-                  'text-base font-semibold',
-                  jet.critical === 'success' && 'text-gradient-primary',
-                  jet.critical === 'failure' && 'text-destructive',
-                  !jet.critical && 'text-foreground',
-                )}
-              >
-                {jet.symbolResult ?? jet.total}
-              </motion.span>
-            )}
+            <TotalAffiche jet={jet} anime={anime} />
             {!jet.hidden && detailJet(jet) && (
               <span className="shrink-0 font-mono text-xs text-subtle">= {detailJet(jet)}</span>
             )}

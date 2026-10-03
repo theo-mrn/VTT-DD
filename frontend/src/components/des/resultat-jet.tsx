@@ -46,6 +46,21 @@ export function DesDuJet({
   );
 }
 
+/** Taille du total selon celle du bloc. */
+const TAILLE_TOTAL = { md: 'text-3xl', lg: 'text-5xl', xl: 'text-7xl' } as const;
+
+/** Jet caché au MJ, vu par son auteur : pas de total. */
+function TotalCache({ petit }: Readonly<{ petit: boolean }>) {
+  return (
+    <div className="flex items-center gap-2.5 text-muted-foreground">
+      <EyeOff className={cn(petit ? 'size-5' : 'size-7')} aria-hidden />
+      <span className={cn('font-medium', petit ? 'text-sm' : 'text-base')}>
+        Résultat caché, visible par le MJ
+      </span>
+    </div>
+  );
+}
+
 /**
  * Total d'un jet, mis en valeur (et coloré sur un critique). Un jet à
  * symboles montre son résultat (`symboles`) ; un jet caché au MJ, vu par son
@@ -68,15 +83,7 @@ export function TotalJet({
   /** Pas de pastille « Critique » : l'issue est dite ailleurs (menu d'attaque). */
   sansBadge?: boolean;
 }>) {
-  if (total === null)
-    return (
-      <div className="flex items-center gap-2.5 text-muted-foreground">
-        <EyeOff className={cn(taille === 'md' ? 'size-5' : 'size-7')} aria-hidden />
-        <span className={cn('font-medium', taille === 'md' ? 'text-sm' : 'text-base')}>
-          Résultat caché, visible par le MJ
-        </span>
-      </div>
-    );
+  if (total === null) return <TotalCache petit={taille === 'md'} />;
   return (
     <div className="flex items-center gap-3">
       <AnimatePresence mode="popLayout">
@@ -87,13 +94,7 @@ export function TotalJet({
           transition={{ type: 'spring', stiffness: 320, damping: 22 }}
           className={cn(
             'font-mono font-bold leading-none tabular',
-            symboles
-              ? 'font-sans text-2xl'
-              : [
-                  taille === 'md' && 'text-3xl',
-                  taille === 'lg' && 'text-5xl',
-                  taille === 'xl' && 'text-7xl',
-                ],
+            symboles ? 'font-sans text-2xl' : TAILLE_TOTAL[taille],
             critique === 'success' && 'text-gradient-primary',
             critique === 'failure' && 'text-destructive',
             !critique && 'text-foreground',
