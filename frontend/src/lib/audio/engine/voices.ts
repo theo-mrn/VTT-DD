@@ -91,6 +91,43 @@ const AUDIBLE = 0.001;
 /** Passe-bas grand ouvert : rien n'est coupé dans l'audible. */
 export const OPEN_CUTOFF_HZ = 20_000;
 
+/** Nœuds d'une voix branchée sur le graphe. */
+interface VoiceChain {
+  gain: GainNode;
+  panner: StereoPannerNode | null;
+  filter: BiquadFilterNode | null;
+}
+
+/** Graphe d'une voix : source → gain → [passe-bas] → [panoramique] → bus ; null sans source. */
+function buildChain(
+  ctx: BaseAudioContext,
+  source: MediaElementAudioSourceNode | null,
+  destination: AudioNode,
+  o: { pan?: boolean; muffle?: boolean; initialGain?: number },
+): VoiceChain | null {
+  if (!source) return null;
+  const gain = ctx.createGain();
+  nodeStats.live += 1;
+  gain.gain.value = o.initialGain ?? 0;
+  const panner = o.pan ? ctx.createStereoPanner() : null;
+  if (panner) nodeStats.live += 1;
+  const filter = o.muffle ? ctx.createBiquadFilter() : null;
+  if (filter) {
+    nodeStats.live += 1;
+    filter.type = 'lowpass';
+    filter.frequency.value = OPEN_CUTOFF_HZ;
+  }
+  source.connect(gain);
+  let tail: AudioNode = gain;
+  for (const node of [filter, panner]) {
+    if (!node) continue;
+    tail.connect(node);
+    tail = node;
+  }
+  tail.connect(destination);
+  return { gain, panner, filter };
+}
+
 export class MediaVoice implements Voice, Registered {
   readonly id = nextId('media');
   disposed = false;
@@ -125,34 +162,18 @@ export class MediaVoice implements Voice, Registered {
     this.item = pool.acquire(this);
     this.destination = destination;
     const el = this.item.el;
-    if (pool.direct || !this.item.source) {
+    const chain = pool.direct ? null : buildChain(ctx, this.item.source, destination, o);
+    if (chain) {
+      this.gain = chain.gain;
+      this.panner = chain.panner;
+      this.filter = chain.filter;
+    } else {
       // Lecture directe : ni nœud ni panoramique, le volume de l'élément fait tout
       this.gain = null;
       this.panner = null;
       this.filter = null;
       this.directGain = o.initialGain ?? 0;
       this.applyDirect();
-    } else {
-      this.gain = ctx.createGain();
-      nodeStats.live += 1;
-      this.gain.gain.value = o.initialGain ?? 0;
-      this.panner = o.pan ? ctx.createStereoPanner() : null;
-      if (this.panner) nodeStats.live += 1;
-      this.filter = o.muffle ? ctx.createBiquadFilter() : null;
-      if (this.filter) {
-        nodeStats.live += 1;
-        this.filter.type = 'lowpass';
-        this.filter.frequency.value = OPEN_CUTOFF_HZ;
-      }
-      // source → gain → [passe-bas] → [panoramique] → bus
-      this.item.source.connect(this.gain);
-      let tail: AudioNode = this.gain;
-      for (const node of [this.filter, this.panner]) {
-        if (!node) continue;
-        tail.connect(node);
-        tail = node;
-      }
-      tail.connect(destination);
     }
     el.loop = !!o.loop;
     el.playbackRate = 1;
