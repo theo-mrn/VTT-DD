@@ -11,7 +11,7 @@ import { destroyDisplay } from '../../engine/destroy-display';
 import type { InspectorSectionProps, MapEngine } from '../../engine/map-engine';
 import { drawingKind } from './drawing-kind';
 import { DrawTool } from './draw-tool';
-import { LiveStrokes } from './live-strokes';
+import { LiveStrokes, type Ghost } from './live-strokes';
 import { NoteEditor } from './note-editor';
 import { noteKind, refreshNoteResolutions } from './note-kind';
 import { drawFlatPolyline, drawShape, pixiColor } from './render';
@@ -182,24 +182,7 @@ export function mountLiveStrokes(engine: MapEngine): () => void {
         }
         if (entry.version === ghost.version) continue;
         entry.version = ghost.version;
-        const g = entry.g;
-        g.clear();
-        const c = pixiColor(pixi, ghost.color);
-        const stroke = { width: Math.max(0.5, ghost.width), color: c.color, alpha: c.alpha };
-        const f = ghost.flat;
-        if (ghost.tool === 'line' || ghost.tool === 'rectangle' || ghost.tool === 'circle') {
-          if (f.length < 4) continue;
-          const shape = shapeOf({
-            tool: ghost.tool,
-            points: [
-              { x: f[0]!, y: f[1]! },
-              { x: f[2]!, y: f[3]! },
-            ],
-            width: ghost.width,
-            closed: ghost.tool !== 'line',
-          });
-          drawShape(g, shape, stroke, ghost.fill ? pixiColor(pixi, ghost.fill) : null);
-        } else drawFlatPolyline(g, f, Math.floor(f.length / 2), stroke);
+        drawGhost(entry.g, ghost, pixi);
       }
       for (const [key, entry] of drawn) {
         if (alive.has(key)) continue;
@@ -225,6 +208,29 @@ export function mountLiveStrokes(engine: MapEngine): () => void {
     unMount();
     ghosts.clear();
   };
+}
+
+/** Tracé en cours d'un autre : forme (origine, extrémité) ou main levée. */
+function drawGhost(g: Graphics, ghost: Ghost, pixi: NonNullable<MapEngine['pixi']>) {
+  g.clear();
+  const c = pixiColor(pixi, ghost.color);
+  const stroke = { width: Math.max(0.5, ghost.width), color: c.color, alpha: c.alpha };
+  const f = ghost.flat;
+  if (ghost.tool !== 'line' && ghost.tool !== 'rectangle' && ghost.tool !== 'circle') {
+    drawFlatPolyline(g, f, Math.floor(f.length / 2), stroke);
+    return;
+  }
+  if (f.length < 4) return;
+  const shape = shapeOf({
+    tool: ghost.tool,
+    points: [
+      { x: f[0]!, y: f[1]! },
+      { x: f[2]!, y: f[3]! },
+    ],
+    width: ghost.width,
+    closed: ghost.tool !== 'line',
+  });
+  drawShape(g, shape, stroke, ghost.fill ? pixiColor(pixi, ghost.fill) : null);
 }
 
 // ─── Netteté des textes ──────────────────────────────────────────────────────
