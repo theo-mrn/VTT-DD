@@ -331,6 +331,44 @@ export function updateParticipant(
   };
 }
 
+/** Retrait en cours : ordre, créneaux et tour courant mis à jour participant par participant. */
+interface Removal {
+  order: CombatState['order'];
+  slots: NonNullable<CombatState['slots']> | null;
+  currentIndex: number;
+  /** Le créneau courant a disparu. */
+  slotChanged: boolean;
+}
+
+/** Créneau du camp qui disparaît avec un participant : un passé s'il avait agi, sinon un à venir. */
+function slotToRemove(
+  slots: NonNullable<CombatState['slots']>,
+  p: CombatState['order'][number],
+  currentIndex: number,
+): number | undefined {
+  const indices = slots.flatMap((s, i) => (s === p.side ? [i] : []));
+  const past = indices.filter((i) => i < currentIndex);
+  const upcoming = indices.filter((i) => i >= currentIndex);
+  return p.hasActed ? (past.at(-1) ?? upcoming.at(-1)) : (upcoming.at(-1) ?? past.at(-1));
+}
+
+/** Retire un participant (absent : rien ne change). */
+function removeOne(r: Removal, id: string): void {
+  const index = r.order.findIndex((p) => p.characterId === id);
+  if (index < 0) return;
+  const p = r.order[index]!;
+  r.order = r.order.filter((_, i) => i !== index);
+  if (!r.slots) {
+    if (index < r.currentIndex) r.currentIndex--;
+    return;
+  }
+  const removed = slotToRemove(r.slots, p, r.currentIndex);
+  if (removed === undefined) return;
+  r.slots.splice(removed, 1);
+  if (removed < r.currentIndex) r.currentIndex--;
+  else if (removed === r.currentIndex) r.slotChanged = true;
+}
+
 /**
  * Retire des participants (personnage retiré de la campagne ou du combat). En mode slots,
  * un créneau de son camp disparaît aussi : un créneau passé s'il avait déjà agi, sinon un
@@ -338,30 +376,17 @@ export function updateParticipant(
  * des durées).
  */
 export function remove(state: CombatState, characterIds: string[]): CombatState {
-  let { currentIndex, round } = state;
-  let order = state.order;
-  let slotChanged = false;
-  const slots = state.slots ? [...state.slots] : null;
-  for (const id of characterIds) {
-    const index = order.findIndex((p) => p.characterId === id);
-    if (index < 0) continue;
-    const p = order[index]!;
-    order = order.filter((_, i) => i !== index);
-    if (!slots) {
-      if (index < currentIndex) currentIndex--;
-      continue;
-    }
-    const indices = slots.flatMap((s, i) => (s === p.side ? [i] : []));
-    const past = indices.filter((i) => i < currentIndex);
-    const upcoming = indices.filter((i) => i >= currentIndex);
-    const removed = p.hasActed
-      ? (past.at(-1) ?? upcoming.at(-1))
-      : (upcoming.at(-1) ?? past.at(-1));
-    if (removed === undefined) continue;
-    slots.splice(removed, 1);
-    if (removed < currentIndex) currentIndex--;
-    else if (removed === currentIndex) slotChanged = true;
-  }
+  const r: Removal = {
+    order: state.order,
+    slots: state.slots ? [...state.slots] : null,
+    currentIndex: state.currentIndex,
+    slotChanged: false,
+  };
+  for (const id of characterIds) removeOne(r, id);
+  let currentIndex = r.currentIndex;
+  let round = state.round;
+  let order = r.order;
+  const slots = r.slots;
   const size = slots ? slots.length : order.length;
   if (currentIndex >= size && size > 0) {
     currentIndex = 0;
@@ -376,7 +401,8 @@ export function remove(state: CombatState, characterIds: string[]): CombatState 
     currentIndex,
     order,
     slots,
-    currentActorId: actorGone || slotChanged || round !== state.round ? null : state.currentActorId,
+    currentActorId:
+      actorGone || r.slotChanged || round !== state.round ? null : state.currentActorId,
   };
 }
 
