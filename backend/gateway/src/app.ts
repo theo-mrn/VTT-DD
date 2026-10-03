@@ -3,6 +3,7 @@ import { BaseConfig, createService, type ServiceOptions } from '@vtt/platform';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { creerEchangeurCles, EN_TETE_SECRET_INTERNE } from './cles-api.js';
+import { telemetryRoutes } from './telemetry.js';
 
 export const GatewayConfig = BaseConfig.extend({
   SERVICE_NAME: z.string().default('gateway'),
@@ -156,9 +157,11 @@ export async function buildGateway(
   extra: Omit<ServiceOptions, 'config'> & {
     /** fetch utilisé pour les appels à identity (tests). */
     fetch?: typeof globalThis.fetch;
+    /** fetch utilisé pour relayer la télémétrie du navigateur (tests). */
+    fetchTelemetry?: typeof globalThis.fetch;
   } = {},
 ) {
-  const { fetch: fetchIdentity, ...options } = extra;
+  const { fetch: fetchIdentity, fetchTelemetry, ...options } = extra;
   const app = await createService({ config, ...options });
 
   app.addHook('onRequest', async (req, reply) => {
@@ -200,6 +203,12 @@ export async function buildGateway(
     },
     async (req) => ({ userId: req.user!.userId, roles: req.user!.roles }),
   );
+
+  // Traces et logs du navigateur, relayés au collecteur
+  await telemetryRoutes(app, {
+    endpoint: config.OTEL_EXPORTER_OTLP_ENDPOINT,
+    ...(fetchTelemetry ? { fetch: fetchTelemetry } : {}),
+  });
 
   for (const [prefix, key] of [...Object.entries(ROUTES), ...Object.entries(SUB_ROUTES)]) {
     const upstream = config[key as keyof GatewayConfig] as string | undefined;
