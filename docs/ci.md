@@ -28,6 +28,11 @@ l'analyse et la couverture, puis attend le Quality Gate (`sonar.qualitygate.wait
 si le nouveau code n'est pas couvert ou ajoute un bug ou une faille. Projet : `vtt`
 (`sonar-project.properties`).
 
+La couverture exigée porte sur la logique (`lib/`, services, paquets partagés) : l'interface
+React (`components/`, `app/`) en est exclue, elle est vérifiée par les tests de bout en bout.
+Les écarts aux règles (conventions du projet, faux positifs) sont listés, chacun avec sa
+raison, dans `sonar-project.properties`.
+
 ### Mise en place (une fois)
 
 1. **Accès depuis GitHub Actions** : l'instance est derrière la SSO `auth.cluster.afflair.app`,
