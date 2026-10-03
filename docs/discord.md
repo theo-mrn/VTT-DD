@@ -12,18 +12,23 @@ Abandonné volontairement : `/login email mot de passe` (le mot de passe tapé d
 Discord transite et reste dans les journaux de Discord). Il est remplacé par `/link`, qui envoie
 un bouton « Lier mon compte » (connexion Discord sur le site).
 
-## Application Discord
+## Applications Discord
 
-Une seule application, celle de prod (`1495752182837018764`), pour tous les environnements.
-Elle n'a qu'une adresse d'activité et qu'une adresse d'interactions : elles visent
-l'environnement en test (staging pendant la refonte, testé sur le serveur perso de Théo ; le
-legacy perd alors son activité et son bot), puis `yner.fr` à la bascule de la prod.
+Les deux applications du legacy, partagées par tous les environnements :
 
-| Réglage du portail         | Pendant la refonte                                | Après la bascule                          |
-| -------------------------- | ------------------------------------------------- | ----------------------------------------- |
-| Activités, URL mapping `/` | `staging.yner.fr`                                 | `yner.fr`                                 |
-| Interactions Endpoint URL  | `https://staging.yner.fr/v1/discord/interactions` | `https://yner.fr/v1/discord/interactions` |
-| Redirects OAuth2           | staging et `yner.fr` (déjà en place)              | idem                                      |
+- **Yner bot** (`1486015721740959794`) : le bot de dés, ses commandes et son jeton
+  (`DISCORD_TOKEN` du legacy) ;
+- **Yner** (`1495752182837018764`) : l'activité et la connexion Discord du site.
+
+Chacune n'a qu'une adresse d'activité ou d'interactions : elles visent l'environnement en test
+(staging pendant la refonte, testé sur le serveur perso de Théo ; le legacy perd alors son
+activité et son bot), puis `yner.fr` à la bascule de la prod.
+
+| Réglage du portail                  | Pendant la refonte                                | Après la bascule                          |
+| ----------------------------------- | ------------------------------------------------- | ----------------------------------------- |
+| Yner, activités, URL mapping `/`    | `staging.yner.fr`                                 | `yner.fr`                                 |
+| Yner bot, Interactions Endpoint URL | `https://staging.yner.fr/v1/discord/interactions` | `https://yner.fr/v1/discord/interactions` |
+| Yner, Redirects OAuth2              | staging et `yner.fr` (déjà en place)              | idem                                      |
 
 Autres URL mappings, identiques partout : `/r2` → `assets.yner.fr`, `/firebase` →
 `firebasestorage.googleapis.com`, `/discord-cdn` → `cdn.discordapp.com`.

@@ -63,5 +63,12 @@ export async function registerCommands(o: {
     body: JSON.stringify(o.commands),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!res.ok) throw new DiscordError(res.status, 'enregistrement des commandes');
+  if (!res.ok) {
+    // Raison donnée par Discord (ex. « Missing Access ») : jamais le jeton
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new DiscordError(
+      res.status,
+      `enregistrement des commandes${body.message ? ` (${body.message})` : ''}`,
+    );
+  }
 }

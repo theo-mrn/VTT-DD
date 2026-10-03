@@ -12,8 +12,8 @@ autoscaling:
 env:
   NODE_ENV: production
   LOG_LEVEL: info
-  # Application Discord unique (prod) : identifiant et clé publique, publics par nature
-  DISCORD_APPLICATION_ID: '1495752182837018764'
+  # Application « Yner bot » (celle du bot du legacy) : identifiant et clé publique, publics
+  DISCORD_APPLICATION_ID: '1486015721740959794'
   DISCORD_PUBLIC_KEY: '4e7fb334e3b59898121095be750326b6fb7ca87335ce3f69e41aa1a34660babd'
   # Jetons délégués (identity), puis appels au nom du joueur
   IDENTITY_URL: http://identity.vtt-staging.svc
