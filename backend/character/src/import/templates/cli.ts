@@ -156,9 +156,20 @@ async function rehost(url: string | null, what: string, warn: (w: string) => voi
     );
     return embedded ? null : url;
   }
+  return copyImage(send, url, embedded, what, warn);
+}
+
+/** Copie d'une image dans notre stockage, une seule fois par adresse ; disparue : retirée. */
+async function copyImage(
+  store: NonNullable<typeof send>,
+  url: string,
+  embedded: boolean,
+  what: string,
+  warn: (w: string) => void,
+) {
   try {
     if (!rehosted.has(url))
-      rehosted.set(url, embedded ? send(url) : telechargerImage(url).then((d) => send(d)));
+      rehosted.set(url, embedded ? store(url) : telechargerImage(url).then((d) => store(d)));
     return await rehosted.get(url)!;
   } catch (err) {
     rehosted.delete(url);
