@@ -126,7 +126,7 @@ export function campaignSystem(
 // ─── Campagne ────────────────────────────────────────────────────────────────
 
 /** Hôtes de Firebase Storage (domaine exact ou sous-domaine de appspot.com). */
-const FIREBASE_HOSTS = ['firebasestorage.googleapis.com', 'storage.googleapis.com'];
+const FIREBASE_HOSTS = new Set(['firebasestorage.googleapis.com', 'storage.googleapis.com']);
 
 function surFirebase(url: string): boolean {
   let hote: string;
@@ -135,7 +135,7 @@ function surFirebase(url: string): boolean {
   } catch {
     return false;
   }
-  return FIREBASE_HOSTS.includes(hote) || hote.endsWith('.appspot.com');
+  return FIREBASE_HOSTS.has(hote) || hote.endsWith('.appspot.com');
 }
 
 function truncate(v: string, max: number, what: string, warn: (m: string) => void): string {
