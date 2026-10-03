@@ -22,11 +22,15 @@ import {
   type Entree,
   type Monnaie,
   type OptionRegle,
+  type Parametre,
   type Sorte,
   type Table,
   type TypeEntite,
 } from '../schema/index.js';
 import { etapesAction } from '../jets/etapes.js';
+
+/** Déclare une variable d'action ; un nom réservé ou déjà pris est une erreur. */
+type Declarer = (nom: string, type: TypeValeur, ou: string) => void;
 import { variablesFormuleChamp } from './champs.js';
 import { verifierEffets, variablesSource, type ContexteEffets } from './effets.js';
 import {
@@ -898,232 +902,293 @@ class Chargeur {
 
   /** Variables d'une action, dans l'ordre où elles deviennent disponibles. */
   private verifierActions(): void {
-    const resultats = this.s.des?.resultats ?? [];
-
-    for (const a of this.actions.values()) {
-      const chemin = `actions/${a.id}`;
-      const ch = (x: string) => chemins.action(a.id, x);
-      this.verifierTypes(chemin, a.pour);
-      if (a.cible) this.verifierTypes(chemin, a.cible);
-      if (a.multicible && !a.cible)
-        this.erreur(`${chemin}/multicible`, 'Plusieurs cibles pour une action sans cible');
-
-      const variables: Record<string, TypeValeur> = {};
-      /** Options des paramètres `choix` : un texte comparé à l'un d'eux doit en être une. */
-      const choix = new Map<string, string[]>();
-      const declarer = (nom: string, type: TypeValeur, ou: string) => {
-        if (nomReserve(nom)) this.erreur(ou, `Nom réservé : ${nom}`);
-        else if (variables[nom]) this.erreur(ou, `Nom déjà utilisé : ${nom}`);
-        variables[nom] = type;
-      };
-
-      for (const p of a.parametres) {
-        const ou = `${chemin}/parametres/${p.id}`;
-        if (p.type === 'attribut') {
-          declarer(p.id, 'texte', ou);
-          if (!p.attributs && !p.groupe)
-            this.erreur(ou, 'Préciser les attributs ou le groupe proposés');
-          for (const t of a.pour) {
-            const e = this.entites.get(t);
-            if (!e) continue;
-            if (p.groupe && !e.type.groupes.some((g) => g.id === p.groupe)) {
-              this.erreur(ou, `Groupe inconnu de ${t} : ${p.groupe}`);
-            }
-            for (const cle of p.attributs ?? []) {
-              const attr = e.attributs.get(cle);
-              if (!attr || typeAttribut(attr) !== 'nombre')
-                this.erreur(ou, `Attribut numérique inconnu de ${t} : ${cle}`);
-            }
-          }
-          continue;
-        }
-        if (p.type === 'choix') {
-          declarer(p.id, 'texte', ou);
-          this.unique(p.options, (o) => o.valeur, ou, 'Option');
-          if (p.defaut !== undefined && !p.options.some((o) => o.valeur === p.defaut))
-            this.erreur(ou, `Option par défaut inconnue : ${p.defaut}`);
-          choix.set(
-            p.id,
-            p.options.map((o) => o.valeur),
-          );
-          for (const o of p.options)
-            for (const id of o.parametres ?? [])
-              if (!a.parametres.some((x) => x.id === id))
-                this.erreur(ou, `Option ${o.valeur} : paramètre inconnu ${id}`);
-          continue;
-        }
-        if (p.type !== 'entree') {
-          declarer(p.id, p.type, ou);
-          continue;
-        }
-        const sorte = this.sortes.get(p.sorte);
-        if (!sorte) {
-          this.erreur(ou, `Sorte inconnue : ${p.sorte}`);
-          continue;
-        }
-        declarer(p.id, 'texte', ou);
-        variables[`${p.id}.rang`] = 'nombre';
-        for (const c of sorte.champs) {
-          const t = typeChamp(c);
-          if (t) variables[`${p.id}.${c.id}`] = t;
-        }
-      }
-
-      const opts = (): OptionsEnv => ({
-        entite: this.attributsDe(a.pour),
-        externes: a.cible ? { cible: this.attributsDe(a.cible) } : {},
-        variables: { ...variables },
-        choix,
-        combat: true,
-        dynamique: true,
-        // Possessions de la cible : `cible_possede("mort-vivant")`, `cible_rang("esquive")`
-        fonctions: a.cible
-          ? {
-              cible_possede: { args: ['texte'], retour: 'booleen' },
-              cible_rang: { args: ['texte'], retour: 'nombre' },
-            }
-          : {},
-      });
-
-      for (const p of a.parametres) {
-        if (p.par === 'cible' && !a.cible) {
-          this.erreur(ch(`parametres/${p.id}`), 'Paramètre de la cible dans une action sans cible');
-        }
-        if (p.exige !== undefined) {
-          this.compiler(
-            ch(`parametres/${p.id}/exige`),
-            p.exige,
-            { entite: this.attributsDe(p.par === 'cible' ? (a.cible ?? []) : a.pour) },
-            'booleen',
-          );
-        }
-      }
-
-      if (a.exige !== undefined) {
-        this.compiler(ch('exige'), a.exige, { entite: this.attributsDe(a.pour) }, 'booleen');
-      }
-
-      if (recoitSituation(a)) this.verifierSituation(a, opts());
-
-      for (const v of a.variables) {
-        const f = this.compiler(ch(`variables/${v.cle}`), v.formule, opts());
-        declarer(v.cle, f?.type ?? 'nombre', `${chemin}/variables/${v.cle}`);
-      }
-
-      a.verifications.forEach((v, i) =>
-        this.compiler(ch(`verifications/${i}`), v.condition, opts(), 'booleen'),
-      );
-
-      const jet = a.jet;
-      if (jet.type === 'numerique') {
-        this.compiler(ch('jet/formule'), jet.formule, { ...opts(), des: true }, 'nombre');
-        declarer('total', 'nombre', ch('jet'));
-        declarer('naturel', 'nombre', ch('jet'));
-        for (const k of ['reussite', 'critique', 'fumble'] as const) {
-          if (jet[k] !== undefined) this.compiler(ch(`jet/${k}`), jet[k], opts(), 'booleen');
-        }
-        if (jet.critique !== undefined) declarer('critique', 'booleen', ch('jet'));
-        if (jet.fumble !== undefined) declarer('fumble', 'booleen', ch('jet'));
-      } else {
-        if (!this.s.des)
-          this.erreur(ch('jet'), 'Jet à symboles sans dés à symboles dans le système');
-        jet.pool.forEach((p, i) => {
-          this.verifierDe(ch(`jet/pool/${i}`), p.de);
-          this.compiler(ch(`jet/pool/${i}`), p.nombre, opts(), 'nombre');
-        });
-        jet.ameliorations.forEach((p, i) => {
-          this.verifierDe(ch(`jet/ameliorations/${i}`), p.de);
-          this.verifierDe(ch(`jet/ameliorations/${i}`), p.vers);
-          this.compiler(ch(`jet/ameliorations/${i}`), p.nombre, opts(), 'nombre');
-        });
-        for (const r of resultats) declarer(r.cle, 'nombre', ch('jet'));
-        if (jet.reussite !== undefined)
-          this.compiler(ch('jet/reussite'), jet.reussite, opts(), 'booleen');
-      }
-      declarer('reussi', 'booleen', ch('jet'));
-
-      for (const v of a.apres) {
-        const f = this.compiler(ch(`apres/${v.cle}`), v.formule, { ...opts(), des: true });
-        declarer(v.cle, f?.type ?? 'nombre', `${chemin}/apres/${v.cle}`);
-      }
-
-      if (a.typeDegats !== undefined && !this.typesDegats.has(a.typeDegats))
-        this.erreur(ch('typeDegats'), `Type de dégâts inconnu : ${a.typeDegats}`);
-      if (a.typeDegats !== undefined && a.typeDegatsCalcule !== undefined)
-        this.erreur(ch('typeDegats'), 'typeDegats et typeDegatsCalcule sont exclusifs');
-      if (a.typeDegatsCalcule !== undefined)
-        this.compiler(ch('typeDegats'), a.typeDegatsCalcule, opts(), 'texte');
-
-      a.consequences.forEach((c, i) => {
-        const ou = ch(`consequences/${i}`);
-        const types = c.entite === 'acteur' ? a.pour : (a.cible ?? []);
-        if (c.entite === 'cible' && !a.cible)
-          this.erreur(ou, 'Conséquence sur la cible d’une action sans cible');
-        if (c.condition !== undefined)
-          this.compiler(`${ou}/condition`, c.condition, opts(), 'booleen');
-        if (!('attribut' in c)) {
-          if ((c.entree === undefined) === (c.entreeCalculee === undefined))
-            this.erreur(ou, 'Préciser entree ou entreeCalculee (un seul des deux)');
-          if (c.entreeCalculee !== undefined)
-            this.compiler(`${ou}/entree`, c.entreeCalculee, opts(), 'texte');
-          const entree = c.entree === undefined ? undefined : this.entrees.get(c.entree);
-          const sorte = entree && this.sortes.get(entree.sorte);
-          if (c.entree !== undefined && !entree) this.erreur(ou, `Entrée inconnue : ${c.entree}`);
-          else if (sorte && types.some((t) => !sorte.pour.includes(t)))
-            this.erreur(ou, `${sorte.nom} non possédable par ${types.join(', ')}`);
-          this.compiler(`${ou}/rangs`, c.rangs, opts(), 'nombre');
-          if (c.duree !== undefined) this.compiler(`${ou}/duree`, c.duree, opts(), 'nombre');
-          return;
-        }
-        if (c.type !== undefined && !this.typesDegats.has(c.type))
-          this.erreur(ou, `Type de dégâts inconnu : ${c.type}`);
-        for (const t of this.attributsDe(types)) {
-          const attr = t.get(c.attribut);
-          if (!attr || (attr.nature !== 'base' && attr.nature !== 'ressource')) {
-            this.erreur(ou, `Attribut de base ou ressource attendu : ${c.attribut}`);
-          }
-        }
-        this.compiler(`${ou}/valeur`, c.valeur, opts(), 'nombre');
-        if (c.type !== undefined && c.typeCalcule !== undefined)
-          this.erreur(ou, 'type et typeCalcule sont exclusifs');
-        if (c.typeCalcule !== undefined)
-          this.compiler(`${ou}/type`, c.typeCalcule, opts(), 'texte');
-        if (c.minimum !== undefined) {
-          if (c.type === undefined && c.typeCalcule === undefined && !c.degats)
-            this.erreur(ou, 'Un minimum de dégâts demande un type de dégâts');
-          this.compiler(`${ou}/minimum`, c.minimum, opts(), 'nombre');
-        }
-      });
-
-      a.tables.forEach((t, i) => {
-        const ou = ch(`tables/${i}`);
-        if (!this.tables.has(t.table)) this.erreur(ou, `Table inconnue : ${t.table}`);
-        this.compiler(`${ou}/condition`, t.condition, opts(), 'booleen');
-        if (t.modificateur !== undefined)
-          this.compiler(`${ou}/modificateur`, t.modificateur, opts(), 'nombre');
-      });
-
-      // Paramètres choisis après le jet : le jet ne les lit jamais (docs/regles.md)
-      for (const p of a.parametres)
-        if (p.etape === 'apres' && p.par === 'cible')
-          this.erreur(ch(`parametres/${p.id}`), 'Une réaction de la cible se choisit avant le jet');
-      const situation = recoitSituation(a) ? (this.s.situation?.effets ?? []) : [];
-      for (const c of etapesAction(a, (x) => this.formules.get(x), situation).conflits)
-        this.erreur(c.chemin, `Le jet ne peut pas lire « ${c.variable} », choisi après le jet`);
-      if (a.jet.type === 'numerique' && a.jet.confirmerCritique !== undefined) {
-        if (a.jet.critique === undefined)
-          this.erreur(ch('jet/confirmerCritique'), 'Critique confirmé sans critique au jet');
-        this.compiler(ch('jet/confirmerCritique'), a.jet.confirmerCritique, opts(), 'booleen');
-      }
-
-      if (this.s.initiative?.action === a.id) {
-        this.s.initiative.tri.forEach((t, i) => this.compiler(chemins.tri(i), t, opts(), 'nombre'));
-      }
-    }
-
+    for (const a of this.actions.values()) this.verifierAction(a);
     const ini = this.s.initiative;
     if (ini && !this.actions.has(ini.action))
       this.erreur('initiative', `Action inconnue : ${ini.action}`);
+  }
+
+  private verifierAction(a: Action): void {
+    const chemin = `actions/${a.id}`;
+    const ch = (x: string) => chemins.action(a.id, x);
+    this.verifierTypes(chemin, a.pour);
+    if (a.cible) this.verifierTypes(chemin, a.cible);
+    if (a.multicible && !a.cible)
+      this.erreur(`${chemin}/multicible`, 'Plusieurs cibles pour une action sans cible');
+
+    const variables: Record<string, TypeValeur> = {};
+    /** Options des paramètres `choix` : un texte comparé à l'un d'eux doit en être une. */
+    const choix = new Map<string, string[]>();
+    const declarer: Declarer = (nom, type, ou) => {
+      if (nomReserve(nom)) this.erreur(ou, `Nom réservé : ${nom}`);
+      else if (variables[nom]) this.erreur(ou, `Nom déjà utilisé : ${nom}`);
+      variables[nom] = type;
+    };
+    for (const p of a.parametres)
+      this.declarerParametre(a, p, `${chemin}/parametres/${p.id}`, declarer, variables, choix);
+
+    const opts = (): OptionsEnv => ({
+      entite: this.attributsDe(a.pour),
+      externes: a.cible ? { cible: this.attributsDe(a.cible) } : {},
+      variables: { ...variables },
+      choix,
+      combat: true,
+      dynamique: true,
+      // Possessions de la cible : `cible_possede("mort-vivant")`, `cible_rang("esquive")`
+      fonctions: a.cible
+        ? {
+            cible_possede: { args: ['texte'], retour: 'booleen' },
+            cible_rang: { args: ['texte'], retour: 'nombre' },
+          }
+        : {},
+    });
+
+    this.verifierExigences(a);
+    if (recoitSituation(a)) this.verifierSituation(a, opts());
+
+    for (const v of a.variables) {
+      const f = this.compiler(ch(`variables/${v.cle}`), v.formule, opts());
+      declarer(v.cle, f?.type ?? 'nombre', `${chemin}/variables/${v.cle}`);
+    }
+    a.verifications.forEach((v, i) =>
+      this.compiler(ch(`verifications/${i}`), v.condition, opts(), 'booleen'),
+    );
+
+    this.verifierJetAction(a, opts, declarer);
+    declarer('reussi', 'booleen', ch('jet'));
+
+    for (const v of a.apres) {
+      const f = this.compiler(ch(`apres/${v.cle}`), v.formule, { ...opts(), des: true });
+      declarer(v.cle, f?.type ?? 'nombre', `${chemin}/apres/${v.cle}`);
+    }
+
+    this.verifierTypeDegats(a, opts);
+    a.consequences.forEach((c, i) => this.verifierConsequence(a, c, ch(`consequences/${i}`), opts));
+    a.tables.forEach((t, i) => {
+      const ou = ch(`tables/${i}`);
+      if (!this.tables.has(t.table)) this.erreur(ou, `Table inconnue : ${t.table}`);
+      this.compiler(`${ou}/condition`, t.condition, opts(), 'booleen');
+      if (t.modificateur !== undefined)
+        this.compiler(`${ou}/modificateur`, t.modificateur, opts(), 'nombre');
+    });
+    this.verifierApresJet(a, opts);
+
+    if (this.s.initiative?.action === a.id) {
+      this.s.initiative.tri.forEach((t, i) => this.compiler(chemins.tri(i), t, opts(), 'nombre'));
+    }
+  }
+
+  /** Variables d'un paramètre : sa valeur, et le rang et les champs d'une entrée. */
+  private declarerParametre(
+    a: Action,
+    p: Parametre,
+    ou: string,
+    declarer: Declarer,
+    variables: Record<string, TypeValeur>,
+    choix: Map<string, string[]>,
+  ): void {
+    if (p.type === 'attribut') {
+      declarer(p.id, 'texte', ou);
+      this.verifierParametreAttribut(a, p, ou);
+      return;
+    }
+    if (p.type === 'choix') {
+      declarer(p.id, 'texte', ou);
+      this.verifierParametreChoix(a, p, ou);
+      choix.set(
+        p.id,
+        p.options.map((o) => o.valeur),
+      );
+      return;
+    }
+    if (p.type !== 'entree') {
+      declarer(p.id, p.type, ou);
+      return;
+    }
+    const sorte = this.sortes.get(p.sorte);
+    if (!sorte) {
+      this.erreur(ou, `Sorte inconnue : ${p.sorte}`);
+      return;
+    }
+    declarer(p.id, 'texte', ou);
+    variables[`${p.id}.rang`] = 'nombre';
+    for (const c of sorte.champs) {
+      const t = typeChamp(c);
+      if (t) variables[`${p.id}.${c.id}`] = t;
+    }
+  }
+
+  /** Attributs proposés : un groupe ou des attributs numériques connus de chaque type d'acteur. */
+  private verifierParametreAttribut(
+    a: Action,
+    p: Extract<Parametre, { type: 'attribut' }>,
+    ou: string,
+  ): void {
+    if (!p.attributs && !p.groupe) this.erreur(ou, 'Préciser les attributs ou le groupe proposés');
+    for (const t of a.pour) {
+      const e = this.entites.get(t);
+      if (!e) continue;
+      if (p.groupe && !e.type.groupes.some((g) => g.id === p.groupe)) {
+        this.erreur(ou, `Groupe inconnu de ${t} : ${p.groupe}`);
+      }
+      for (const cle of p.attributs ?? []) {
+        const attr = e.attributs.get(cle);
+        if (!attr || typeAttribut(attr) !== 'nombre')
+          this.erreur(ou, `Attribut numérique inconnu de ${t} : ${cle}`);
+      }
+    }
+  }
+
+  /** Options uniques, défaut parmi elles, paramètres qu'elles révèlent déclarés par l'action. */
+  private verifierParametreChoix(
+    a: Action,
+    p: Extract<Parametre, { type: 'choix' }>,
+    ou: string,
+  ): void {
+    this.unique(p.options, (o) => o.valeur, ou, 'Option');
+    if (p.defaut !== undefined && !p.options.some((o) => o.valeur === p.defaut))
+      this.erreur(ou, `Option par défaut inconnue : ${p.defaut}`);
+    for (const o of p.options)
+      for (const id of o.parametres ?? [])
+        if (!a.parametres.some((x) => x.id === id))
+          this.erreur(ou, `Option ${o.valeur} : paramètre inconnu ${id}`);
+  }
+
+  /** Conditions d'accès : à l'action entière, et à chaque paramètre réservé. */
+  private verifierExigences(a: Action): void {
+    const ch = (x: string) => chemins.action(a.id, x);
+    for (const p of a.parametres) {
+      if (p.par === 'cible' && !a.cible) {
+        this.erreur(ch(`parametres/${p.id}`), 'Paramètre de la cible dans une action sans cible');
+      }
+      if (p.exige !== undefined) {
+        this.compiler(
+          ch(`parametres/${p.id}/exige`),
+          p.exige,
+          { entite: this.attributsDe(p.par === 'cible' ? (a.cible ?? []) : a.pour) },
+          'booleen',
+        );
+      }
+    }
+    if (a.exige !== undefined) {
+      this.compiler(ch('exige'), a.exige, { entite: this.attributsDe(a.pour) }, 'booleen');
+    }
+  }
+
+  /** Jet numérique (formule, réussite, critique, échec critique) ou à symboles (pool, dés). */
+  private verifierJetAction(a: Action, opts: () => OptionsEnv, declarer: Declarer): void {
+    const ch = (x: string) => chemins.action(a.id, x);
+    const jet = a.jet;
+    if (jet.type === 'numerique') {
+      this.compiler(ch('jet/formule'), jet.formule, { ...opts(), des: true }, 'nombre');
+      declarer('total', 'nombre', ch('jet'));
+      declarer('naturel', 'nombre', ch('jet'));
+      for (const k of ['reussite', 'critique', 'fumble'] as const) {
+        if (jet[k] !== undefined) this.compiler(ch(`jet/${k}`), jet[k], opts(), 'booleen');
+      }
+      if (jet.critique !== undefined) declarer('critique', 'booleen', ch('jet'));
+      if (jet.fumble !== undefined) declarer('fumble', 'booleen', ch('jet'));
+      return;
+    }
+    if (!this.s.des) this.erreur(ch('jet'), 'Jet à symboles sans dés à symboles dans le système');
+    jet.pool.forEach((p, i) => {
+      this.verifierDe(ch(`jet/pool/${i}`), p.de);
+      this.compiler(ch(`jet/pool/${i}`), p.nombre, opts(), 'nombre');
+    });
+    jet.ameliorations.forEach((p, i) => {
+      this.verifierDe(ch(`jet/ameliorations/${i}`), p.de);
+      this.verifierDe(ch(`jet/ameliorations/${i}`), p.vers);
+      this.compiler(ch(`jet/ameliorations/${i}`), p.nombre, opts(), 'nombre');
+    });
+    for (const r of this.s.des?.resultats ?? []) declarer(r.cle, 'nombre', ch('jet'));
+    if (jet.reussite !== undefined)
+      this.compiler(ch('jet/reussite'), jet.reussite, opts(), 'booleen');
+  }
+
+  /** Type de dégâts de l'action : connu, fixe ou calculé (pas les deux). */
+  private verifierTypeDegats(a: Action, opts: () => OptionsEnv): void {
+    const ou = chemins.action(a.id, 'typeDegats');
+    if (a.typeDegats !== undefined && !this.typesDegats.has(a.typeDegats))
+      this.erreur(ou, `Type de dégâts inconnu : ${a.typeDegats}`);
+    if (a.typeDegats !== undefined && a.typeDegatsCalcule !== undefined)
+      this.erreur(ou, 'typeDegats et typeDegatsCalcule sont exclusifs');
+    if (a.typeDegatsCalcule !== undefined) this.compiler(ou, a.typeDegatsCalcule, opts(), 'texte');
+  }
+
+  private verifierConsequence(
+    a: Action,
+    c: Action['consequences'][number],
+    ou: string,
+    opts: () => OptionsEnv,
+  ): void {
+    const types = c.entite === 'acteur' ? a.pour : (a.cible ?? []);
+    if (c.entite === 'cible' && !a.cible)
+      this.erreur(ou, 'Conséquence sur la cible d’une action sans cible');
+    if (c.condition !== undefined) this.compiler(`${ou}/condition`, c.condition, opts(), 'booleen');
+    if ('attribut' in c) this.verifierConsequenceAttribut(c, ou, types, opts);
+    else this.verifierConsequenceEntree(c, ou, types, opts);
+  }
+
+  /** Entrée donnée ou retirée : fixe ou calculée (une seule), possédable par les entités visées. */
+  private verifierConsequenceEntree(
+    c: Exclude<Action['consequences'][number], { attribut: string }>,
+    ou: string,
+    types: string[],
+    opts: () => OptionsEnv,
+  ): void {
+    if ((c.entree === undefined) === (c.entreeCalculee === undefined))
+      this.erreur(ou, 'Préciser entree ou entreeCalculee (un seul des deux)');
+    if (c.entreeCalculee !== undefined)
+      this.compiler(`${ou}/entree`, c.entreeCalculee, opts(), 'texte');
+    const entree = c.entree === undefined ? undefined : this.entrees.get(c.entree);
+    const sorte = entree && this.sortes.get(entree.sorte);
+    if (c.entree !== undefined && !entree) this.erreur(ou, `Entrée inconnue : ${c.entree}`);
+    else if (sorte && types.some((t) => !sorte.pour.includes(t)))
+      this.erreur(ou, `${sorte.nom} non possédable par ${types.join(', ')}`);
+    this.compiler(`${ou}/rangs`, c.rangs, opts(), 'nombre');
+    if (c.duree !== undefined) this.compiler(`${ou}/duree`, c.duree, opts(), 'nombre');
+  }
+
+  /** Attribut modifié : de base ou ressource, valeur, type de dégâts et minimum cohérents. */
+  private verifierConsequenceAttribut(
+    c: Extract<Action['consequences'][number], { attribut: string }>,
+    ou: string,
+    types: string[],
+    opts: () => OptionsEnv,
+  ): void {
+    if (c.type !== undefined && !this.typesDegats.has(c.type))
+      this.erreur(ou, `Type de dégâts inconnu : ${c.type}`);
+    for (const t of this.attributsDe(types)) {
+      const attr = t.get(c.attribut);
+      if (!attr || (attr.nature !== 'base' && attr.nature !== 'ressource')) {
+        this.erreur(ou, `Attribut de base ou ressource attendu : ${c.attribut}`);
+      }
+    }
+    this.compiler(`${ou}/valeur`, c.valeur, opts(), 'nombre');
+    if (c.type !== undefined && c.typeCalcule !== undefined)
+      this.erreur(ou, 'type et typeCalcule sont exclusifs');
+    if (c.typeCalcule !== undefined) this.compiler(`${ou}/type`, c.typeCalcule, opts(), 'texte');
+    if (c.minimum !== undefined) {
+      if (c.type === undefined && c.typeCalcule === undefined && !c.degats)
+        this.erreur(ou, 'Un minimum de dégâts demande un type de dégâts');
+      this.compiler(`${ou}/minimum`, c.minimum, opts(), 'nombre');
+    }
+  }
+
+  /** Paramètres choisis après le jet : le jet ne les lit jamais (docs/regles.md). */
+  private verifierApresJet(a: Action, opts: () => OptionsEnv): void {
+    const ch = (x: string) => chemins.action(a.id, x);
+    for (const p of a.parametres)
+      if (p.etape === 'apres' && p.par === 'cible')
+        this.erreur(ch(`parametres/${p.id}`), 'Une réaction de la cible se choisit avant le jet');
+    const situation = recoitSituation(a) ? (this.s.situation?.effets ?? []) : [];
+    for (const c of etapesAction(a, (x) => this.formules.get(x), situation).conflits)
+      this.erreur(c.chemin, `Le jet ne peut pas lire « ${c.variable} », choisi après le jet`);
+    if (a.jet.type === 'numerique' && a.jet.confirmerCritique !== undefined) {
+      if (a.jet.critique === undefined)
+        this.erreur(ch('jet/confirmerCritique'), 'Critique confirmé sans critique au jet');
+      this.compiler(ch('jet/confirmerCritique'), a.jet.confirmerCritique, opts(), 'booleen');
+    }
   }
 
   /**
