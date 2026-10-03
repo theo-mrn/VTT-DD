@@ -40,11 +40,15 @@ export interface ResolvedSource {
   walls: number;
 }
 
+/** Voix d'une source : muette depuis quand (null : active), et le fichier qu'elle joue. */
+interface SpatialVoice {
+  voice: MediaVoice;
+  silentSince: number | null;
+  url: string;
+}
+
 export class SpatialPlayer {
-  private readonly voices = new Map<
-    string,
-    { voice: MediaVoice; silentSince: number | null; url: string }
-  >();
+  private readonly voices = new Map<string, SpatialVoice>();
   private active = new Set<string>();
 
   constructor(private readonly host: EngineHost) {}
@@ -79,34 +83,48 @@ export class SpatialPlayer {
     const playing = this.host.running();
     this.active = new Set(chosen.map((c) => c.source.id));
     for (const { source, gain, pan } of chosen) {
-      let entry = this.voices.get(source.id);
-      if (entry && entry.url !== source.url) {
-        entry.voice.dispose(100);
-        this.voices.delete(source.id);
-        entry = undefined;
-      }
-      if (!entry && playing) {
-        const voice = new MediaVoice(ctx, this.host.pool(), source.url, this.host.bus('zones'), {
-          loop: true,
-          pan: true,
-          muffle: true,
-        });
-        voice.label = source.id;
-        voice.kind = 'zones';
-        const id = source.id;
-        voice.owned = () => this.voices.get(id)?.voice === voice;
-        const d = source.durationMs ?? voice.durationMs;
-        voice.start(d ? loopPosition(this.host.clock.now(), d) : 0);
-        entry = { voice, silentSince: null, url: source.url };
-        this.voices.set(source.id, entry);
-      }
+      const entry = this.voiceFor(ctx, source, playing);
       if (!entry) continue;
       entry.silentSince = null;
       entry.voice.glideGain(gain * dbToGain(source.gainDb), SMOOTH_S);
       entry.voice.setPan(pan);
       entry.voice.setCutoff(muffle(source.walls).cutoffHz);
     }
-    // Sources sorties du lot : silence, puis libération après 10 s
+    this.silenceInactive(nowMs);
+    return [...this.active];
+  }
+
+  /** Voix de la source (refaite si son fichier a changé, créée seulement si le son tourne). */
+  private voiceFor(
+    ctx: BaseAudioContext,
+    source: ResolvedSource,
+    playing: boolean,
+  ): SpatialVoice | undefined {
+    let entry = this.voices.get(source.id);
+    if (entry && entry.url !== source.url) {
+      entry.voice.dispose(100);
+      this.voices.delete(source.id);
+      entry = undefined;
+    }
+    if (entry || !playing) return entry;
+    const voice = new MediaVoice(ctx, this.host.pool(), source.url, this.host.bus('zones'), {
+      loop: true,
+      pan: true,
+      muffle: true,
+    });
+    voice.label = source.id;
+    voice.kind = 'zones';
+    const id = source.id;
+    voice.owned = () => this.voices.get(id)?.voice === voice;
+    const d = source.durationMs ?? voice.durationMs;
+    voice.start(d ? loopPosition(this.host.clock.now(), d) : 0);
+    entry = { voice, silentSince: null, url: source.url };
+    this.voices.set(source.id, entry);
+    return entry;
+  }
+
+  /** Sources sorties du lot : silence, puis libération après 10 s. */
+  private silenceInactive(nowMs: number) {
     for (const [id, entry] of this.voices) {
       if (this.active.has(id)) continue;
       if (entry.silentSince === null) {
@@ -117,7 +135,6 @@ export class SpatialPlayer {
         this.voices.delete(id);
       }
     }
-    return [...this.active];
   }
 
   dispose() {
