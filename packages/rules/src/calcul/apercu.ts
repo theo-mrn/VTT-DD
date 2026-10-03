@@ -67,34 +67,12 @@ export function apercuFormule(
     const v = calcule(n);
     if (v !== undefined) return nombreLisible(v);
     switch (n.t) {
-      case 'des': {
-        const nb = calcule(n.nombre);
-        const faces = calcule(n.faces);
-        const k = n.garder ? calcule(n.garder.n) : undefined;
-        const sens = n.garder?.sens === 'bas' ? 'kl' : 'k';
-        const garder = n.garder ? `${sens}${k ?? ecrire(n.garder.n)}` : '';
-        return `${nb ?? `(${ecrire(n.nombre)})`}d${faces ?? `(${ecrire(n.faces)})`}${garder}${n.explose ? '!' : ''}`;
-      }
+      case 'des':
+        return ecrireDes(n);
       case 'unaire':
         return n.op === '-' ? `−${ecrire(n.arg)}` : `non ${ecrire(n.arg)}`;
-      case 'binaire': {
-        const g = ecrire(n.g);
-        const d = calcule(n.d);
-        // Un terme nul ne s'écrit pas : « 1d20 + 4 », pas « 1d20 + 4 + 0 + 0 »
-        if (n.op === '+' || n.op === '-') {
-          const nul = (v: Valeur | undefined) => v === 0 || v === '' || v === false;
-          if (nul(d)) return g;
-          if (n.op === '+' && nul(calcule(n.g)))
-            return d !== undefined ? nombreLisible(d) : ecrire(n.d);
-        }
-        // « + −2 » s'écrit « − 2 », « − −2 » s'écrit « + 2 »
-        if (typeof d === 'number' && d < 0 && (n.op === '+' || n.op === '-'))
-          return `${g} ${n.op === '+' ? '−' : '+'} ${nombreLisible(-d)}`;
-        const droite = d !== undefined ? nombreLisible(d) : ecrire(n.d);
-        const entoure = (x: string, noeud: Noeud) =>
-          noeud.t === 'binaire' && (n.op === '*' || n.op === '/') ? `(${x})` : x;
-        return `${entoure(g, n.g)} ${OPERATEURS[n.op] ?? n.op} ${entoure(droite, n.d)}`;
-      }
+      case 'binaire':
+        return ecrireBinaire(n);
       case 'si': {
         const c = calcule(n.condition);
         if (c === true) return ecrire(n.alors);
@@ -102,14 +80,7 @@ export function apercuFormule(
         return `si(${ecrire(n.condition)}, ${ecrire(n.alors)}, ${ecrire(n.sinon)})`;
       }
       case 'appel':
-        if (n.fn === 'multiplier_des') {
-          const k = calcule(n.args[0]!);
-          return k === 1
-            ? ecrire(n.args[1]!)
-            : `${nombreLisible(k ?? '?')} × (${ecrire(n.args[1]!)})`;
-        }
-        if (n.fn === 'maximum_des') return `max(${ecrire(n.args[0]!)})`;
-        return `${n.fn}(${n.args.map(ecrire).join(', ')})`;
+        return ecrireAppel(n);
       case 'attribut':
         return n.entite ? `@${n.entite}.${n.cle}` : `@${n.cle}`;
       case 'variable':
@@ -118,5 +89,45 @@ export function apercuFormule(
         return nombreLisible(n.v);
     }
   };
+  /** Écrit ce qui se calcule, sinon le sous-terme entre parenthèses. */
+  const valeurOuTerme = (x: Noeud) => {
+    const v = calcule(x);
+    return v === undefined ? `(${ecrire(x)})` : String(v);
+  };
+  const ecrireDes = (n: Extract<Noeud, { t: 'des' }>): string => {
+    let garder = '';
+    if (n.garder) {
+      const sens = n.garder.sens === 'bas' ? 'kl' : 'k';
+      garder = `${sens}${calcule(n.garder.n) ?? ecrire(n.garder.n)}`;
+    }
+    return `${valeurOuTerme(n.nombre)}d${valeurOuTerme(n.faces)}${garder}${n.explose ? '!' : ''}`;
+  };
+  const ecrireBinaire = (n: Extract<Noeud, { t: 'binaire' }>): string => {
+    const g = ecrire(n.g);
+    const d = calcule(n.d);
+    const additif = n.op === '+' || n.op === '-';
+    // Un terme nul ne s'écrit pas : « 1d20 + 4 », pas « 1d20 + 4 + 0 + 0 »
+    if (additif && estNul(d)) return g;
+    const droite = d === undefined ? ecrire(n.d) : nombreLisible(d);
+    if (n.op === '+' && estNul(calcule(n.g))) return droite;
+    // « + −2 » s'écrit « − 2 », « − −2 » s'écrit « + 2 »
+    if (additif && typeof d === 'number' && d < 0)
+      return `${g} ${n.op === '+' ? '−' : '+'} ${nombreLisible(-d)}`;
+    const entoure = (x: string, noeud: Noeud) =>
+      noeud.t === 'binaire' && (n.op === '*' || n.op === '/') ? `(${x})` : x;
+    return `${entoure(g, n.g)} ${OPERATEURS[n.op] ?? n.op} ${entoure(droite, n.d)}`;
+  };
+  const ecrireAppel = (n: Extract<Noeud, { t: 'appel' }>): string => {
+    if (n.fn === 'maximum_des') return `max(${ecrire(n.args[0]!)})`;
+    if (n.fn !== 'multiplier_des') return `${n.fn}(${n.args.map(ecrire).join(', ')})`;
+    const k = calcule(n.args[0]!);
+    if (k === 1) return ecrire(n.args[1]!);
+    return `${nombreLisible(k ?? '?')} × (${ecrire(n.args[1]!)})`;
+  };
   return ecrire(f.noeud);
+}
+
+/** Terme nul, qui ne s'écrit pas dans une somme. */
+function estNul(v: Valeur | undefined): boolean {
+  return v === 0 || v === '' || v === false;
 }
