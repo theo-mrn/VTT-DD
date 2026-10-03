@@ -90,8 +90,8 @@ export function applyVariables(notation: string, variables: Variables): string {
   const keys = Object.keys(variables);
   if (keys.length === 0) return notation;
   const sorted = [...keys].sort((a, b) => b.length - a.length);
-  const escaped = sorted.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  const regex = new RegExp(`(?<![@\\w])(${escaped.join('|')})\\b`, 'gi');
+  const escaped = sorted.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`));
+  const regex = new RegExp(String.raw`(?<![@\w])(${escaped.join('|')})\b`, 'gi');
   return notation.replace(regex, (match) => {
     const key = sorted.find((k) => k.toLowerCase() === match.toLowerCase());
     return key !== undefined ? String(variables[key]) : match;
@@ -283,8 +283,8 @@ export function symbolPool(notation: string, system: SystemeCharge | undefined):
   }
   const names = [...byName.keys()]
     .sort((a, b) => b.length - a.length)
-    .map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  const regex = new RegExp(`(\\d+)\\s*(${names.join('|')})(?![\\w])`, 'g');
+    .map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`));
+  const regex = new RegExp(String.raw`(\d+)\s*(${names.join('|')})(?![\w])`, 'g');
   const pool: Pool = [];
   for (const m of simplify(notation).matchAll(regex)) {
     pool.push({ de: byName.get(m[2]!)!, nombre: Number(m[1]) });

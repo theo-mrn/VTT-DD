@@ -123,8 +123,8 @@ export const baseName = (name: string) => name.replace(/ \d+$/, '').trim() || na
  * déjà `existing` : la numérotation reprend après le plus grand (« Gobelin » compte pour 1).
  */
 export function npcNames(base: string, existing: string[], count: number): string[] {
-  const escaped = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`^${escaped}(?: (\\d+))?$`);
+  const escaped = base.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  const re = new RegExp(String.raw`^${escaped}(?: (\d+))?$`);
   let max = 0;
   for (const n of existing) {
     const m = re.exec(n);

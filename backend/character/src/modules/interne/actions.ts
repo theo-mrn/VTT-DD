@@ -316,7 +316,7 @@ function resoudre(
         `Paramètres attendus pour cette étape : ${attendus.join(', ') || 'aucun'}`,
         'invalid_step_params',
       );
-    params = { ...(o.params ?? {}), ...des.stepParams };
+    params = { ...o.params, ...des.stepParams };
   }
   const reaction = new Map(
     (o.reactions ?? []).map((r) => [r.characterId, r.skipped ? {} : (r.params ?? {})]),

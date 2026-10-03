@@ -306,7 +306,7 @@ export const register: Module = async (app, deps) => {
       .update(notes)
       .set({
         ...fields,
-        ...(derived ?? {}),
+        ...derived,
         ...sharing,
         campaignId,
         ...(moving ? { characterId: await playedCharacter(tx, campaignId, reader.userId) } : {}),

@@ -896,7 +896,7 @@ export function ajouterLibre(etat: EtatEntite, modele: ModeleLibre, saisie: Sais
     };
   }
 
-  const champs: Record<string, ValeurChamp> = { ...(saisie.champs ?? {}) };
+  const champs: Record<string, ValeurChamp> = { ...saisie.champs };
   const nom = saisie.nom.trim();
   if (sorte.nomExemplaire && nom && nom !== entree.nom) champs[sorte.nomExemplaire] = nom;
   const description = saisie.description?.trim() ?? '';
@@ -1030,7 +1030,7 @@ export function changerChamps(
 ): Ecriture {
   return {
     demande: { ...viser(item), champs },
-    apercu: modifier(etat, item, { champs: { ...(item.possession?.champs ?? {}), ...champs } }),
+    apercu: modifier(etat, item, { champs: { ...item.possession?.champs, ...champs } }),
   };
 }
 

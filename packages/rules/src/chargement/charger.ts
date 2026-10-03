@@ -135,9 +135,9 @@ export function charger(saisi: unknown): ResultatChargement {
 }
 
 class Chargeur {
-  private erreurs: ErreurChargement[] = [];
-  private formules = new Map<string, FormuleVerifiee>();
-  private entites = new Map<string, EntiteChargee>();
+  private readonly erreurs: ErreurChargement[] = [];
+  private readonly formules = new Map<string, FormuleVerifiee>();
+  private readonly entites = new Map<string, EntiteChargee>();
   private sortes = new Map<string, Sorte>();
   private entrees = new Map<string, Entree>();
   private achats = new Map<string, Achat>();
@@ -146,12 +146,12 @@ class Chargeur {
   private tables = new Map<string, Table>();
   private monnaies = new Map<string, Monnaie>();
   private options = new Map<string, OptionRegle>();
-  private marques = new Set<string>();
+  private readonly marques = new Set<string>();
   private symboles = new Set<string>();
   private sortesDes = new Set<string>();
   private typesDegats = new Set<string>();
 
-  constructor(private s: Systeme) {}
+  constructor(private readonly s: Systeme) {}
 
   charger(): ResultatChargement {
     this.indexer();

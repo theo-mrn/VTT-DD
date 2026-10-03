@@ -324,7 +324,7 @@ function* tokenize(html: string): Generator<Token> {
 
     // Le navigateur ignore « /> » sur ces éléments : leur contenu reste du texte brut
     if (RAW_TEXT.has(name)) {
-      const close = new RegExp(`</${name}(?=[\\s/>])`, 'gi');
+      const close = new RegExp(String.raw`</${name}(?=[\s/>])`, 'gi');
       close.lastIndex = i;
       const m = close.exec(html);
       if (!m) return;

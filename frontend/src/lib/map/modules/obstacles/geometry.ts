@@ -285,9 +285,9 @@ export function insertDoor(pts: Pts, index: number, at: Point, width: number): D
     if (!samePoint(A, loop.at(-1)!)) loop.push(A);
     if (loop.length >= 2) rest.push(loop);
   } else {
-    const before = [...pts.slice(0, index + 1)];
+    const before = pts.slice(0, index + 1);
     if (!samePoint(A, before.at(-1)!)) before.push(A);
-    const after = [...pts.slice(index + 1)];
+    const after = pts.slice(index + 1);
     if (!samePoint(B, after[0]!)) after.unshift(B);
     if (before.length >= 2) rest.push(before);
     if (after.length >= 2) rest.push(after);

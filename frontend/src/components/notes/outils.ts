@@ -44,7 +44,7 @@ export function segments(texte: string, mots: string[]): { t: string; surligne: 
   const origine: number[] = [];
   for (let i = 0; i < texte.length; i++) {
     const n = normaliser(texte[i]);
-    for (let k = 0; k < n.length; k++) origine.push(i);
+    origine.push(...Array.from(n, () => i));
     plat += n;
   }
   const marque = new Array<boolean>(texte.length).fill(false);

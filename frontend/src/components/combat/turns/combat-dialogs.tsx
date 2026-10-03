@@ -199,7 +199,7 @@ export function AddParticipantsDialog({
   const [picked, setPicked] = useState<Record<string, { checked: boolean; hidden: boolean }>>({});
   const [roll, setRoll] = useState(combat.initiativeRolled);
   const [busy, setBusy] = useState(false);
-  const rows = candidates.map((c) => ({ ...c, ...(picked[c.characterId] ?? {}) }));
+  const rows = candidates.map((c) => ({ ...c, ...picked[c.characterId] }));
   const chosen = rows.filter((r) => r.checked);
 
   const add = async () => {

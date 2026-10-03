@@ -62,7 +62,7 @@ export const register: Module = async (app, deps) => {
           return { conflict: current } as const;
         const next = normalize(
           { ...current.volumes, ...req.body.volumes },
-          { ...current.muted, ...(req.body.muted ?? {}) },
+          { ...current.muted, ...req.body.muted },
         );
         const same = AUDIO_BUSES.every(
           (b: BusName) =>

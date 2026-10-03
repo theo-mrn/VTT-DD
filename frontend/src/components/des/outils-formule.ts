@@ -74,7 +74,7 @@ export function dePrincipal(formule: string): number | null {
 /** Retire un dé : « 3d6 » devient « 2d6 », et « 1d20 + 1d6 » devient « 1d20 ». */
 export function retirerDe(formule: string, faces: number): string {
   const f = normaliserFormule(formule);
-  const motif = new RegExp(`(^|[+\\-\\s])(\\d*)d${faces}(?![\\d!k])`);
+  const motif = new RegExp(String.raw`(^|[+\-\s])(\d*)d${faces}(?![\d!k])`);
   const m = motif.exec(f);
   if (!m) return f;
   const n = Number(m[2] || 1);

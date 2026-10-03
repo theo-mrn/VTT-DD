@@ -799,8 +799,7 @@ export class MapEngine {
     const list = this.frameList;
     for (const cb of this.frameCallbacks) list.push(cb);
     try {
-      for (let i = 0; i < list.length; i++) {
-        const cb = list[i]!;
+      for (const cb of list) {
         // Retiré par un rappel précédent de cette image : plus appelé
         if (this.frameCallbacks.has(cb) && cb(now) === true) {
           again = true;

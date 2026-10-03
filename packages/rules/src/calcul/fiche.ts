@@ -780,8 +780,7 @@ export function calculer(
         else v = Math.min(Number(v), Number(a.v));
       }
     }
-    detail.push(...actifs.filter((a) => a.ligne.ignore).map((a) => a.ligne));
-    detail.push(...coupees);
+    detail.push(...actifs.filter((a) => a.ligne.ignore).map((a) => a.ligne), ...coupees);
     return v;
   };
 

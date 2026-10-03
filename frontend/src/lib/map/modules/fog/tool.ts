@@ -313,7 +313,12 @@ export class FogTool implements Tool {
   private gfx: Graphics | null = null;
   private root: Container | null = null;
   /** Ce que montre l'aperçu dessiné (redessiné seulement si cela change). */
-  private drawn: { draft: FogGeometry | null; lasso: unknown; zoom: number; mode: FogMode } = {
+  private readonly drawn: {
+    draft: FogGeometry | null;
+    lasso: unknown;
+    zoom: number;
+    mode: FogMode;
+  } = {
     draft: null,
     lasso: null,
     zoom: 0,

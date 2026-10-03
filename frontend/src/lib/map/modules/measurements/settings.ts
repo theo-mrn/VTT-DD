@@ -46,8 +46,8 @@ function load(): MeasureSettings {
     return {
       shape: MEASURE_SHAPES.some((s) => s.value === v.shape) ? v.shape! : d.shape,
       color: typeof v.color === 'string' && v.color ? v.color : d.color,
-      cone: { ...d.cone, ...(v.cone ?? {}) },
-      skins: { ...d.skins, ...(v.skins ?? {}) },
+      cone: { ...d.cone, ...v.cone },
+      skins: { ...d.skins, ...v.skins },
       pinOnRelease: v.pinOnRelease === true,
       shared: v.shared !== false,
     };

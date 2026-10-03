@@ -182,8 +182,8 @@ export class LiveChannel {
   private seq = 0;
 
   // Émission
-  private drags = new Map<string, DragEntry>();
-  private transforms = new Map<string, TransformEntry>();
+  private readonly drags = new Map<string, DragEntry>();
+  private readonly transforms = new Map<string, TransformEntry>();
   private cursorPos: [number, number] | null = null;
   private cursorDirty = false;
   private strokeMeta: Omit<LiveStroke, 'points'> | null = null;
@@ -193,7 +193,7 @@ export class LiveChannel {
   private measureAudience: LiveAudience = 'public';
   private ending = false;
   /** Audiences qui ont reçu un message pendant le geste en cours (elles recevront `end`). */
-  private gestureAudiences = new Map<string, LiveAudience>();
+  private readonly gestureAudiences = new Map<string, LiveAudience>();
   private lastFlush = -Infinity;
   private timer: unknown = null;
   private tokens = LIVE_BUDGET_PER_SECOND;

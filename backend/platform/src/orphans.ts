@@ -24,7 +24,7 @@ const EXTENSIONS = [...new Set(Object.values(UPLOAD_EXTENSIONS))];
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 
 /** Clé d'un de nos envois, en minuscules ; même motif côté JS et côté Postgres (ARE). */
-const KEY_PATTERN = `(?:${FOLDERS.join('|')})/${UUID}/${UUID}\\.(?:${EXTENSIONS.join('|')})`;
+const KEY_PATTERN = String.raw`(?:${FOLDERS.join('|')})/${UUID}/${UUID}\.(?:${EXTENSIONS.join('|')})`;
 const KEY = new RegExp(`^${KEY_PATTERN}$`);
 
 /** La clé est au format de nos envois : seule candidate à la suppression. */

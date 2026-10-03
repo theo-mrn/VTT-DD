@@ -153,9 +153,7 @@ const dodeca = () => {
   for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) v.push([x, y, z]);
   for (const a of [-1, 1])
     for (const b of [-1, 1]) {
-      v.push([0, a / PHI, b * PHI]);
-      v.push([a / PHI, b * PHI, 0]);
-      v.push([a * PHI, 0, b / PHI]);
+      v.push([0, a / PHI, b * PHI], [a / PHI, b * PHI, 0], [a * PHI, 0, b / PHI]);
     }
   return { v, f: hullFaces(v) };
 };
@@ -164,9 +162,7 @@ const icosa = () => {
   const v: V3[] = [];
   for (const a of [-1, 1])
     for (const b of [-1, 1]) {
-      v.push([0, a, b * PHI]);
-      v.push([a, b * PHI, 0]);
-      v.push([a * PHI, 0, b]);
+      v.push([0, a, b * PHI], [a, b * PHI, 0], [a * PHI, 0, b]);
     }
   return { v, f: hullFaces(v) };
 };
@@ -205,8 +201,7 @@ const trapezo = () => {
   const L = (k: number) => 7 + (k % 5);
   const f: number[][] = [];
   for (let k = 0; k < 5; k++) {
-    f.push([0, U(k + 1), L(k), U(k)]);
-    f.push([1, L(k), U(k + 1), L(k + 1)]);
+    f.push([0, U(k + 1), L(k), U(k)], [1, L(k), U(k + 1), L(k + 1)]);
   }
   return { v, f };
 };

@@ -177,9 +177,9 @@ export function possessionWaivers(systeme: SystemeCharge, action: Action, p: Ent
   if (!sorte) return [];
   const flags = new Set(sorte.champs.filter((c) => c.type === 'booleen').map((c) => c.id));
   if (!flags.size) return [];
-  const id = p.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const owns = new RegExp(`\\bpossede\\(\\s*${id}\\s*\\)`);
-  const field = new RegExp(`(?<![\\w.@])${id}\\.([A-Za-z_][\\w]*)`, 'g');
+  const id = p.id.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  const owns = new RegExp(String.raw`\bpossede\(\s*${id}\s*\)`);
+  const field = new RegExp(String.raw`(?<![\w.@])${id}\.([A-Za-z_][\w]*)`, 'g');
   const prefix = chemins.action(action.id, '');
   const out = new Set<string>();
   for (const [path, f] of systeme.formules) {

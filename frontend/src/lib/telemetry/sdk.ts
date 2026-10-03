@@ -27,7 +27,7 @@ import { setErrorSink } from './errors';
 
 let started = false;
 
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 /** Démarre le SDK une seule fois ; `ratio` : part des sessions tracées (0 à 1). */
 export function startBrowserTelemetry(o: { ratio: number; version: string }): void {

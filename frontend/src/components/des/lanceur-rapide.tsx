@@ -17,7 +17,7 @@ import { ValeursDes } from './valeurs-des';
 export function ajouterDe(formule: string, faces: number): string {
   const f = formule.trim();
   if (!f) return `1d${faces}`;
-  const motif = new RegExp(`(^|[+\\s])(\\d*)d${faces}(?![\\d!k])`);
+  const motif = new RegExp(String.raw`(^|[+\s])(\d*)d${faces}(?![\d!k])`);
   const m = motif.exec(f);
   if (m) {
     const n = Number(m[2] || 1) + 1;

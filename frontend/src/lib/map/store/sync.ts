@@ -60,7 +60,7 @@ export interface MapSyncOptions {
 
 export class MapSync {
   private loadSeq = 0;
-  private pendingKeys = new Set<string>();
+  private readonly pendingKeys = new Set<string>();
   private refetchTimer: unknown = null;
   private disposed = false;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;

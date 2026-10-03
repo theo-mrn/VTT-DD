@@ -12,7 +12,7 @@ export function hslTriplet(hex: string): string | null {
   const m = /^#([0-9a-f]{3,8})$/i.exec(hex.trim());
   if (!m) return null;
   let v = m[1]!;
-  if (v.length === 3 || v.length === 4) v = [...v.slice(0, 3)].map((c) => c + c).join('');
+  if (v.length === 3 || v.length === 4) v = Array.from(v.slice(0, 3), (c) => c + c).join('');
   if (v.length !== 6 && v.length !== 8) return null;
   const [r, g, b] = [0, 2, 4].map((i) => Number.parseInt(v.slice(i, i + 2), 16) / 255) as [
     number,

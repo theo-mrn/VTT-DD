@@ -33,8 +33,8 @@ export function paramsFor(
   input: { params?: Record<string, ActionParams>; paramsBySide?: SideParams },
 ): ActionParams {
   return {
-    ...(input.paramsBySide?.[side] ?? {}),
-    ...(input.params?.[characterId] ?? {}),
+    ...input.paramsBySide?.[side],
+    ...input.params?.[characterId],
   };
 }
 

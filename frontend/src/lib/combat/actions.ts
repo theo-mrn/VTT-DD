@@ -291,8 +291,8 @@ export const flatActions = (groups: readonly ActionGroup[]) => groups.flatMap((g
  */
 export function paramFieldRefs(systeme: SystemeCharge, action: Action, paramId: string): string[] {
   const prefix = chemins.action(action.id, '');
-  const escaped = paramId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`(?<![\\w.@])${escaped}\\.([A-Za-z_][\\w]*)`, 'g');
+  const escaped = paramId.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  const re = new RegExp(String.raw`(?<![\w.@])${escaped}\.([A-Za-z_][\w]*)`, 'g');
   const refs = new Set<string>();
   for (const [path, f] of systeme.formules) {
     if (!path.startsWith(prefix)) continue;

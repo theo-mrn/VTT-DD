@@ -76,7 +76,7 @@ export function participantOf(
 
 /** Réglages du combat, défauts compris (réponse d'avant ce contrat : les défauts). */
 export function combatSettings(combat: CombatState | null | undefined): CombatSettings {
-  return { ...DEFAULT_COMBAT_SETTINGS, ...(combat?.settings ?? {}) };
+  return { ...DEFAULT_COMBAT_SETTINGS, ...combat?.settings };
 }
 
 /** Camp du créneau courant (mode slots), ou null. */

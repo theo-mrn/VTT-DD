@@ -208,7 +208,7 @@ const COMPARAISONS = new Set(['<', '<=', '>', '>=', '==', '!=']);
 class Analyseur {
   private i = 0;
   private profondeur = 0;
-  constructor(private jetons: JetonFormule[]) {}
+  constructor(private readonly jetons: JetonFormule[]) {}
 
   private get courant(): JetonFormule {
     return this.jetons[this.i]!;

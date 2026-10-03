@@ -248,7 +248,7 @@ function SideSelects({
             <SelectField
               value={typeof current === 'string' ? current : ''}
               onValueChange={(v) => {
-                const params = { ...(value[side] ?? {}) };
+                const params = { ...value[side] };
                 if (v) params[param.id] = v;
                 else delete params[param.id];
                 onChange({ ...value, [side]: params });
