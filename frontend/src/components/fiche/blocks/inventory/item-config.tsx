@@ -256,15 +256,10 @@ function Formulaire({
 
   const options = modele.categorie?.options ?? [];
   const erreurNom = nomTouche && !nomOk ? 'Donnez un nom à l’objet.' : null;
-  const raison = !quantiteOk
-    ? 'Quantité à corriger'
-    : seulementUnites
-      ? null
-      : !nomOk
-        ? 'Nom à saisir'
-        : invalides.size || formulesInvalides
-          ? 'Valeurs à corriger'
-          : null;
+  let raison: string | null = null;
+  if (!quantiteOk) raison = 'Quantité à corriger';
+  else if (!seulementUnites && !nomOk) raison = 'Nom à saisir';
+  else if (!seulementUnites && (invalides.size || formulesInvalides)) raison = 'Valeurs à corriger';
   const erreurQuantite = quantiteOk ? null : `Un nombre entier entre 1 et ${QUANTITE_MAX}.`;
 
   return (
@@ -584,9 +579,7 @@ function Formulaire({
         </Button>
         <Button type="submit" disabled={!valide}>
           <Plus />
-          {seulementUnites
-            ? `Ajouter ${quantiteOk ? q : ''} unité${quantiteOk && q > 1 ? 's' : ''}`
-            : 'Ajouter'}
+          {seulementUnites ? libelleUnites(quantiteOk ? q : null) : 'Ajouter'}
         </Button>
       </footer>
     </form>
@@ -642,4 +635,10 @@ function Case({
       {children}
     </div>
   );
+}
+
+/** « Ajouter 3 unités » ; quantité invalide : « Ajouter  unité ». */
+function libelleUnites(q: number | null): string {
+  if (q === null) return 'Ajouter  unité';
+  return `Ajouter ${q} unité${q > 1 ? 's' : ''}`;
 }

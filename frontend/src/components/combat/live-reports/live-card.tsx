@@ -70,11 +70,7 @@ export function rowDecision(a: Attack): { applyLabel: string; skip: Scope; canSk
   return {
     applyLabel: costsOnly
       ? 'Appliquer les coûts'
-      : nothing
-        ? 'Classer'
-        : a.targets.length === 1
-          ? 'Appliquer'
-          : `Tout appliquer (${decidable.length})`,
+      : decideLabel(nothing, a.targets.length === 1, decidable.length),
     skip: costsOnly ? { targets: [], actor: true } : { targets: decidable, actor: false },
     canSkip: costsOnly || (a.targets.length === 1 && !nothing),
   };
@@ -166,8 +162,8 @@ export function ReportCard({ attack: a, live }: Readonly<{ attack: Attack; live:
               disabled={isBusy}
               aria-keyshortcuts="Enter"
             >
-              {nothing ? <Check /> : single ? <Check /> : <CheckCheck />}
-              {nothing ? 'Classer' : single ? 'Appliquer' : `Tout appliquer (${decidable.length})`}
+              {nothing || single ? <Check /> : <CheckCheck />}
+              {decideLabel(nothing, single, decidable.length)}
             </Button>
           </Info>
           <Info texte="Modifier" cote="bottom">
@@ -501,7 +497,9 @@ export function ProgressRow({
   const r = readReport(a, cast, systeme);
   const reacting = a.targets.some((t) => t.status === 'awaiting_reaction');
   const canRoll = a.status === 'awaiting_dice' && !a.resolving && a.pendingSteps.length > 0;
-  const status = reacting ? 'Défense attendue' : a.resolving ? 'Résolution' : 'Dés attendus';
+  let status = 'Dés attendus';
+  if (reacting) status = 'Défense attendue';
+  else if (a.resolving) status = 'Résolution';
   const still = useReducedMotion();
   return (
     <Row
@@ -647,4 +645,10 @@ function CheckMark({ applied }: Readonly<{ applied: boolean }>) {
       </svg>
     </motion.span>
   );
+}
+
+/** Décision d'un rapport : classer (rien à appliquer), appliquer une cible ou toutes. */
+function decideLabel(nothing: boolean, single: boolean, count: number): string {
+  if (nothing) return 'Classer';
+  return single ? 'Appliquer' : `Tout appliquer (${count})`;
 }

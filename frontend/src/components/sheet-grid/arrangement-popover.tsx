@@ -102,20 +102,7 @@ export function ArrangementPopover({
   // Groupe de boutons radio : une seule tabulation, les flèches changent le choix
   function surToucheColonnes(e: KeyboardEvent<HTMLDivElement>) {
     const i = CHOIX_COLONNES.indexOf(colonnes);
-    const delta =
-      e.key === 'ArrowRight' || e.key === 'ArrowDown'
-        ? 1
-        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
-          ? -1
-          : 0;
-    const cible =
-      e.key === 'Home'
-        ? 0
-        : e.key === 'End'
-          ? CHOIX_COLONNES.length - 1
-          : delta
-            ? (i + delta + CHOIX_COLONNES.length) % CHOIX_COLONNES.length
-            : -1;
+    const cible = choixAuClavier(e.key, i, CHOIX_COLONNES.length);
     if (cible < 0) return;
     e.preventDefault();
     e.stopPropagation();
@@ -191,7 +178,7 @@ export function ArrangementPopover({
                     type="button"
                     role="radio"
                     aria-checked={actif}
-                    aria-label={c === 'auto' ? 'Automatique' : `${c} colonne${c > 1 ? 's' : ''}`}
+                    aria-label={c === 'auto' ? 'Automatique' : pluriel(c, 'colonne')}
                     tabIndex={actif ? 0 : -1}
                     onClick={() => !actif && choisirColonnes(c)}
                     className={cn(
@@ -211,7 +198,7 @@ export function ArrangementPopover({
             <p className="text-[11px] text-subtle">
               {rangees === null
                 ? 'Auto : s’adapte à la largeur du bloc.'
-                : `${Math.min(colonnes as number, affichees.size)} par rangée, ${rangees} rangée${rangees > 1 ? 's' : ''}.`}
+                : `${Math.min(colonnes as number, affichees.size)} par rangée, ${pluriel(rangees, 'rangée')}.`}
             </p>
           </section>
 
@@ -361,4 +348,20 @@ export function ArrangementPopover({
       </PopoverContent>
     </Popover>
   );
+}
+
+/** « 3 colonnes », « 1 rangée ». */
+const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+
+/**
+ * Choix visé par une touche dans un groupe radio de `n` choix (`i` : le choix actuel) :
+ * flèches (en boucle), Début, Fin ; autre touche : -1.
+ */
+function choixAuClavier(key: string, i: number, n: number): number {
+  if (key === 'Home') return 0;
+  if (key === 'End') return n - 1;
+  let delta = 0;
+  if (key === 'ArrowRight' || key === 'ArrowDown') delta = 1;
+  else if (key === 'ArrowLeft' || key === 'ArrowUp') delta = -1;
+  return delta ? (i + delta + n) % n : -1;
 }

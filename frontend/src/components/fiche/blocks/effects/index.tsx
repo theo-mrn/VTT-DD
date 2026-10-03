@@ -83,12 +83,9 @@ function grouper(ctx: ContexteFiche, effets: EffetListe[]): GroupeSource[] {
   for (const e of effets) {
     const p = e.possession;
     // Un seul exemplaire : ses effets propres rejoignent ceux de l'entrée
-    const cle =
-      e.genre === 'bonus' || !p
-        ? e.source
-        : e.genre === 'exemplaire' && p.exemplaires.length > 1
-          ? e.source
-          : p.entree.id;
+    const propre =
+      e.genre === 'bonus' || !p || (e.genre === 'exemplaire' && p.exemplaires.length > 1);
+    const cle = propre ? e.source : p.entree.id;
     let g = groupes.get(cle);
     if (!g) {
       g = {
@@ -269,13 +266,7 @@ function EffectsBlock({ ctx, widget, mode }: Readonly<SheetBlockProps<'bonus'>>)
 
               {sources.length === 0 ? (
                 <p className="py-4 text-center text-xs text-subtle">
-                  {recherche
-                    ? 'Aucun résultat.'
-                    : o.id === 'actifs'
-                      ? 'Aucun bonus appliqué en ce moment.'
-                      : o.id === 'libres'
-                        ? 'Aucun bonus libre.'
-                        : 'Rien ici pour l’instant.'}
+                  {recherche ? 'Aucun résultat.' : (VIDE[o.id] ?? 'Rien ici pour l’instant.')}
                 </p>
               ) : (
                 // Une douzaine de lignes, puis défilement : le bloc garde une hauteur raisonnable
@@ -384,11 +375,11 @@ function Source({
             {g.nom}
           </span>
           <span className="min-w-0 flex-1 truncate text-xs text-subtle">
-            {resume || (coupes ? `${coupes} désactivé${coupes > 1 ? 's' : ''}` : '')}
+            {resume || desactives(coupes)}
           </span>
           {g.raison && <span className="shrink-0 text-[11px] text-subtle">{g.raison}</span>}
         </button>
-        {b ? (
+        {b && (
           <>
             <Switch
               className="scale-90"
@@ -408,7 +399,8 @@ function Source({
               </Button>
             )}
           </>
-        ) : act ? (
+        )}
+        {!b && act && (
           <Switch
             className="scale-90"
             checked={act.actif}
@@ -416,18 +408,17 @@ function Source({
             onCheckedChange={(v) => onActiver?.(act.entree, v)}
             aria-label={`${act.actif ? 'Désactiver' : 'Activer'} ${g.nom}`}
           />
-        ) : (
-          basculables.length > 0 && (
-            <Switch
-              className="scale-90"
-              checked={allume && !eteinte}
-              disabled={!peutBasculer || eteinte}
-              onCheckedChange={(v) => onEffets(basculables, v)}
-              aria-label={`${allume ? 'Désactiver' : 'Activer'} les bonus de ${g.nom}${
-                g.raison ? `, ${g.raison}` : ''
-              }`}
-            />
-          )
+        )}
+        {!b && !act && basculables.length > 0 && (
+          <Switch
+            className="scale-90"
+            checked={allume && !eteinte}
+            disabled={!peutBasculer || eteinte}
+            onCheckedChange={(v) => onEffets(basculables, v)}
+            aria-label={`${allume ? 'Désactiver' : 'Activer'} les bonus de ${g.nom}${
+              g.raison ? `, ${g.raison}` : ''
+            }`}
+          />
         )}
       </div>
       {ouvert && (
@@ -604,3 +595,15 @@ export const effectsBlock: SheetBlockDefinition<'bonus'> = {
   minSize: { w: 3, h: 4 },
   Component: EffectsBlock,
 };
+
+/** Onglet vide : son message. */
+const VIDE: Partial<Record<string, string>> = {
+  actifs: 'Aucun bonus appliqué en ce moment.',
+  libres: 'Aucun bonus libre.',
+};
+
+/** « 2 désactivés » ; aucun : rien. */
+function desactives(n: number): string {
+  if (!n) return '';
+  return n > 1 ? `${n} désactivés` : `${n} désactivé`;
+}

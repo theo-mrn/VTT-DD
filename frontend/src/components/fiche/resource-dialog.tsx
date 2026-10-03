@@ -56,13 +56,7 @@ export function ResourceDialog({
 
   const montant = Number(texte.replace(',', '.'));
   const lisible = texte.trim() !== '' && Number.isFinite(montant) && montant >= 0;
-  const brute = !lisible
-    ? valeur
-    : mode === 'retirer'
-      ? valeur - montant
-      : mode === 'ajouter'
-        ? valeur + montant
-        : montant;
+  const brute = lisible ? ajuster(mode, valeur, montant) : valeur;
   const suivante = Math.max(min ?? -Infinity, Math.min(max ?? Infinity, brute));
   const delta = suivante - valeur;
   const part = (n: number) => (max && max > 0 ? Math.max(0, Math.min(1, n / max)) : 0);
@@ -79,12 +73,7 @@ export function ResourceDialog({
     onAjuster(delta);
     fermer(false);
   };
-  const action =
-    mode === 'retirer'
-      ? `Retirer ${valeur - suivante}`
-      : mode === 'ajouter'
-        ? `Ajouter ${suivante - valeur}`
-        : `Fixer à ${suivante}`;
+  const action = libelleAction(mode, valeur, suivante);
 
   return (
     <Dialog open={ouvert} onOpenChange={fermer}>
@@ -170,11 +159,7 @@ export function ResourceDialog({
               className={cn(
                 'h-9 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
                 mode === m.id
-                  ? m.id === 'retirer'
-                    ? 'bg-destructive/15 text-destructive'
-                    : m.id === 'ajouter'
-                      ? 'bg-success/15 text-success'
-                      : 'bg-primary/15 text-primary'
+                  ? MODE_ACTIF[m.id]
                   : 'text-muted-foreground hover:bg-surface-3 hover:text-foreground',
               )}
             >
@@ -229,4 +214,23 @@ export function ResourceDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+const MODE_ACTIF: Record<Mode, string> = {
+  retirer: 'bg-destructive/15 text-destructive',
+  ajouter: 'bg-success/15 text-success',
+  fixer: 'bg-primary/15 text-primary',
+};
+
+/** Valeur après l'ajustement saisi (avant les bornes). */
+function ajuster(mode: Mode, valeur: number, montant: number): number {
+  if (mode === 'retirer') return valeur - montant;
+  if (mode === 'ajouter') return valeur + montant;
+  return montant;
+}
+
+function libelleAction(mode: Mode, valeur: number, suivante: number): string {
+  if (mode === 'retirer') return `Retirer ${valeur - suivante}`;
+  if (mode === 'ajouter') return `Ajouter ${suivante - valeur}`;
+  return `Fixer à ${suivante}`;
 }

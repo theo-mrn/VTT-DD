@@ -113,7 +113,7 @@ export function EspaceNotes({
   const moi = useProfil().id;
   const urlNote = useCallback(
     (id: string | null) =>
-      id ? `${base}${base.includes('?') ? '&' : '?'}note=${encodeURIComponent(id)}` : base,
+      id ? `${base}${separateurRequete(base)}note=${encodeURIComponent(id)}` : base,
     [base],
   );
 
@@ -419,6 +419,13 @@ export function EspaceNotes({
 
   // Une note s'ouvre (ou va s'ouvrir, `?nouvelle=1`) : l'éditeur prend la place sur mobile
   const ouverte = idSelection !== null || demandeNouvelle;
+  // Ce que montre l'éditeur : création en cours, accueil, chargement, la note, ou un échec
+  let vue: 'squelette' | 'accueil' | 'chargement' | 'note' | 'erreur' | 'introuvable';
+  if (!idSelection) vue = demandeNouvelle ? 'squelette' : 'accueil';
+  else if (noteQ.isPending) vue = 'chargement';
+  else if (noteQ.data) vue = 'note';
+  else if (noteQ.isError && !estIntrouvable(noteQ.error)) vue = 'erreur';
+  else vue = 'introuvable';
   const masquee = listeMasquee && ouverte;
 
   return (
@@ -476,13 +483,11 @@ export function EspaceNotes({
         aria-label="Éditeur de note"
         className={cn('min-w-0 flex-1 lg:h-full', ouverte ? 'block' : 'hidden lg:block')}
       >
-        {!idSelection && demandeNouvelle ? (
-          <SqueletteEditeur />
-        ) : !idSelection ? (
+        {(vue === 'squelette' || vue === 'chargement') && <SqueletteEditeur />}
+        {vue === 'accueil' && (
           <AccueilEditeur onNouvelle={() => creerNote()} enCours={creer.isPending} />
-        ) : noteQ.isPending ? (
-          <SqueletteEditeur />
-        ) : noteQ.data ? (
+        )}
+        {vue === 'note' && noteQ.data && (
           <motion.div
             key={noteQ.data.id}
             initial={{ opacity: 0, y: 6 }}
@@ -504,15 +509,18 @@ export function EspaceNotes({
               onSupprimer={supprimerNote}
             />
           </motion.div>
-        ) : noteQ.isError && !estIntrouvable(noteQ.error) ? (
+        )}
+        {vue === 'erreur' && (
           <ErreurNotes
             message={messageErreur(noteQ.error)}
             onReessayer={() => void noteQ.refetch()}
           />
-        ) : (
-          <NoteIntrouvable onRetour={() => naviguer(null, 'replace')} />
         )}
+        {vue === 'introuvable' && <NoteIntrouvable onRetour={() => naviguer(null, 'replace')} />}
       </section>
     </div>
   );
 }
+
+/** « ? » pour ouvrir la requête d'une adresse, « & » si elle en a déjà une. */
+const separateurRequete = (url: string) => (url.includes('?') ? '&' : '?');
