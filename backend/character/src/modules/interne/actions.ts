@@ -48,6 +48,7 @@ import {
   type ContexteCombattantSaisi,
   parametresReaction,
   vueActeur,
+  type Action,
   type Ajustements,
   type Fiche,
   type Generateur,
@@ -293,6 +294,64 @@ function libelleEtape(systeme: SystemeCharge, actionId: string, phase: PhaseDes)
   return tables.length ? tables.join(', ') : null;
 }
 
+/** Paramètres de l'étape (l'arme) : exactement ceux qu'elle demande, jamais ceux du jet. */
+function parametresEtape(
+  params: Record<string, string | number | boolean> | undefined,
+  des: DesAppel,
+): Record<string, string | number | boolean> | undefined {
+  if (!des.stepParams) return params;
+  const attendus = des.step?.params ?? [];
+  const recus = Object.keys(des.stepParams);
+  if (recus.some((k) => !attendus.includes(k)) || attendus.some((k) => !recus.includes(k)))
+    throw HttpError.badRequest(
+      `Paramètres attendus pour cette étape : ${attendus.join(', ') || 'aucun'}`,
+      'invalid_step_params',
+    );
+  return { ...params, ...des.stepParams };
+}
+
+/** Faces connues, puis celles de l'étape soumise : lues sur les dés 3D, sinon tirées ici. */
+function facesConnues(des: DesAppel, aleatoire: Generateur): Map<string, Face> {
+  const faces = new Map<string, Face>();
+  for (const f of des.faces ?? []) faces.set(f.id, f);
+  if (!des.step) return faces;
+  const lues = new Map((des.results ?? []).map((r) => [r.id, r.value]));
+  const connus = new Map(des.step.dice.map((d) => [d.id, d]));
+  for (const [id, value] of lues) {
+    const d = connus.get(id);
+    if (!d) throw invalidFace(`Dé inconnu de l’étape : ${id}`);
+    if (value > d.faces) throw invalidFace(`Face ${value} hors de 1..${d.faces} (dé ${id})`);
+  }
+  for (const d of des.step.dice) {
+    const lue = lues.get(d.id);
+    faces.set(
+      d.id,
+      lue !== undefined
+        ? { id: d.id, value: lue, source: 'physical' }
+        : {
+            id: d.id,
+            value: aleatoire.entier(d.faces, d.die ? { de: d.die } : undefined),
+            source: 'server',
+          },
+    );
+  }
+  return faces;
+}
+
+type Execution = Extract<ReturnType<typeof executerMulticible>, { ok: true }>;
+
+/** Des paramètres à choisir (l'arme, une cible touchée) passent avant les dés qu'ils impliquent. */
+function etapeSuivante(
+  systeme: SystemeCharge,
+  actionId: string,
+  r: Execution,
+  connues: number,
+): RollStep | null {
+  if (r.parametres.length) return etapeParametres(systeme, actionId, r.parametres, connues);
+  if (r.requis.length) return etape(systeme, actionId, r.requis, connues);
+  return null;
+}
+
 function resoudre(
   deps: Pick<Deps, 'catalogue' | 'aleatoire'>,
   inst: Instantane,
@@ -306,18 +365,7 @@ function resoudre(
   des: DesAppel = {},
 ): Resolue {
   const { systeme, acteur, cibles } = fichesDe(deps, inst);
-  // Paramètres de l'étape (l'arme) : exactement ceux qu'elle demande, jamais ceux du jet
-  let params = o.params;
-  if (des.stepParams) {
-    const attendus = des.step?.params ?? [];
-    const recus = Object.keys(des.stepParams);
-    if (recus.some((k) => !attendus.includes(k)) || attendus.some((k) => !recus.includes(k)))
-      throw HttpError.badRequest(
-        `Paramètres attendus pour cette étape : ${attendus.join(', ') || 'aucun'}`,
-        'invalid_step_params',
-      );
-    params = { ...o.params, ...des.stepParams };
-  }
+  const params = parametresEtape(o.params, des);
   const reaction = new Map(
     (o.reactions ?? []).map((r) => [r.characterId, r.skipped ? {} : (r.params ?? {})]),
   );
@@ -325,31 +373,7 @@ function resoudre(
   const aj = ajustements(o.adjustments);
   const aleatoire = deps.aleatoire();
 
-  // Faces connues, puis celles de l'étape soumise : lues sur les dés 3D, sinon tirées ici
-  const faces = new Map<string, Face>();
-  for (const f of des.faces ?? []) faces.set(f.id, f);
-  if (des.step) {
-    const lues = new Map((des.results ?? []).map((r) => [r.id, r.value]));
-    const connus = new Map(des.step.dice.map((d) => [d.id, d]));
-    for (const [id, value] of lues) {
-      const d = connus.get(id);
-      if (!d) throw invalidFace(`Dé inconnu de l’étape : ${id}`);
-      if (value > d.faces) throw invalidFace(`Face ${value} hors de 1..${d.faces} (dé ${id})`);
-    }
-    for (const d of des.step.dice) {
-      const lue = lues.get(d.id);
-      faces.set(
-        d.id,
-        lue !== undefined
-          ? { id: d.id, value: lue, source: 'physical' }
-          : {
-              id: d.id,
-              value: aleatoire.entier(d.faces, d.die ? { de: d.die } : undefined),
-              source: 'server',
-            },
-      );
-    }
-  }
+  const faces = facesConnues(des, aleatoire);
 
   const plan = aleatoirePlanifie({
     faces: Object.fromEntries([...faces].map(([id, f]) => [id, f.value])),
@@ -395,10 +419,22 @@ function resoudre(
   for (const [id, value] of Object.entries(plan.tires))
     faces.set(id, { id, value, source: 'server' });
 
-  // Des paramètres à choisir (l'arme, une cible touchée) passent avant les dés qu'ils impliquent
-  let step = null;
-  if (r.parametres.length) step = etapeParametres(systeme, inst.action, r.parametres, faces.size);
-  else if (r.requis.length) step = etape(systeme, inst.action, r.requis, faces.size);
+  const step = etapeSuivante(systeme, inst.action, r, faces.size);
+  const { targets, resultats } = resultatsParCible(systeme, inst, r);
+  return {
+    step,
+    resolution: { targets, actor: { modifications: r.acteur.map(versModification) } },
+    faces: [...faces.values()],
+    resultats: step ? [] : resultats,
+  };
+}
+
+/** Résultat de chaque cible, dans l'ordre de l'attaque, et ceux du moteur pour l'historique. */
+function resultatsParCible(
+  systeme: SystemeCharge,
+  inst: Instantane,
+  r: Execution,
+): { targets: Resolution['targets']; resultats: Resolue['resultats'] } {
   const parCible = new Map(r.cibles.map((c) => [c.id, c]));
   const enAttente = new Map(r.enAttente.map((c) => [c.id, c]));
   const refusees = new Map(inst.refused.map((x) => [x.id, x.error]));
@@ -431,12 +467,7 @@ function resoudre(
       view: vueCible(systeme, c.resultat),
     };
   });
-  return {
-    step,
-    resolution: { targets, actor: { modifications: r.acteur.map(versModification) } },
-    faces: [...faces.values()],
-    resultats: step ? [] : resultats,
-  };
+  return { targets, resultats };
 }
 
 /**
@@ -539,6 +570,17 @@ async function lireOu404(deps: Pick<Deps, 'db'>, id: string) {
   }
 }
 
+/** Action à préparer : connue du système, avec cible, dans sa limite de cibles. */
+function actionPreparee(systeme: SystemeCharge, b: z.output<typeof CorpsPreparer>): Action {
+  const action = systeme.actions.get(b.action);
+  if (!action) throw refus(`Action inconnue : ${b.action}`, 'action_refusee');
+  if (!action.cible) throw refus(`${action.nom} ne prend pas de cible`, 'action_refusee');
+  const max = action.multicible?.max;
+  if (max !== undefined && b.targetIds.length > max)
+    throw refus(`${action.nom} : ${max} cible(s) au plus`, 'action_refusee');
+  return action;
+}
+
 export function registerActionRoutes(
   app: ServiceApp,
   deps: Deps,
@@ -586,12 +628,7 @@ export function registerActionRoutes(
       const { ligne: acteur, options: optionsActeur } = parId.get(b.actorId)!;
 
       const systeme = systemeDe(deps.catalogue, acteur, optionsActeur);
-      const action = systeme.actions.get(b.action);
-      if (!action) throw refus(`Action inconnue : ${b.action}`, 'action_refusee');
-      if (!action.cible) throw refus(`${action.nom} ne prend pas de cible`, 'action_refusee');
-      const max = action.multicible?.max;
-      if (max !== undefined && b.targetIds.length > max)
-        throw refus(`${action.nom} : ${max} cible(s) au plus`, 'action_refusee');
+      const action = actionPreparee(systeme, b);
       const rollMode = b.rollMode ?? MODE_ROLL[modeDeJet(action)];
 
       const figer = (id: string): FicheFigee => {
