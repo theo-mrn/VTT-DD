@@ -156,13 +156,9 @@ function Card({
 }: Readonly<{ item: LiveItem; live: Live; expanded: boolean }>) {
   const a = item.attack;
   const settled = item.kind === 'settled' ? live.settled.get(a.id) : undefined;
-  const shape = settled
-    ? 'settled'
-    : item.kind === 'progress'
-      ? 'progress'
-      : expanded
-        ? 'card'
-        : 'row';
+  let shape: 'settled' | 'progress' | 'card' | 'row' = expanded ? 'card' : 'row';
+  if (settled) shape = 'settled';
+  else if (item.kind === 'progress') shape = 'progress';
   return (
     <AnimatePresence initial={false} mode="popLayout">
       <motion.div
@@ -172,25 +168,24 @@ function Card({
         exit={{ opacity: 0, transition: { duration: 0.1 } }}
         transition={{ duration: 0.18 }}
       >
-        {settled ? (
+        {settled && (
           <SettledRow
             settled={settled}
             busy={live.busy === `${a.id}:undo`}
             onUndo={() => void live.undo(settled)}
             onClose={() => live.forget(a.id)}
           />
-        ) : item.kind === 'progress' ? (
+        )}
+        {shape === 'progress' && (
           <ProgressRow
             attack={a}
             live={live}
             onRoll={() => void live.rollRest(a)}
             onCancel={() => void live.cancel(a)}
           />
-        ) : expanded ? (
-          <ReportCard attack={a} live={live} />
-        ) : (
-          <ReportRow attack={a} live={live} />
         )}
+        {shape === 'card' && <ReportCard attack={a} live={live} />}
+        {shape === 'row' && <ReportRow attack={a} live={live} />}
       </motion.div>
     </AnimatePresence>
   );

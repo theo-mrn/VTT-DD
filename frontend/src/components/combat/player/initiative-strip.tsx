@@ -127,11 +127,10 @@ export function InitiativeStrip({
   };
 
   // Qui agit : le personnage du tour, le créneau d'un camp, rien avant l'initiative
-  const headline = actor
-    ? nameOf(actor)
-    : currentSlot
-      ? `Créneau des ${SIDE_LABELS[currentSlot.side].name.toLowerCase()}`
-      : null;
+  let headline: string | null = null;
+  if (actor) headline = nameOf(actor);
+  else if (currentSlot)
+    headline = `Créneau des ${SIDE_LABELS[currentSlot.side].name.toLowerCase()}`;
 
   const toggleOrder = order ? () => order.onOpenChange(!order.open) : undefined;
 
@@ -156,11 +155,7 @@ export function InitiativeStrip({
                 title={SIDE_LABELS[s.side].name}
                 className={cn(
                   'grid size-6 place-items-center rounded-md font-mono text-[11px] font-bold transition-colors duration-200',
-                  s.current
-                    ? 'bg-primary text-primary-foreground shadow-glow'
-                    : s.past
-                      ? 'text-subtle'
-                      : 'bg-surface-3 text-muted-foreground',
+                  slotLook(s),
                 )}
               >
                 {SIDE_LABELS[s.side].short}
@@ -439,13 +434,7 @@ const Face = memo(function Face({
   big?: boolean;
   z?: number;
 }) {
-  const state = r.current
-    ? 'son tour'
-    : r.pendingInitiative
-      ? 'initiative attendue'
-      : r.acted
-        ? 'a agi'
-        : null;
+  const state = turnState(r);
   const face = (
     <>
       <Illustration
@@ -519,3 +508,16 @@ const Face = memo(function Face({
     </motion.li>
   );
 });
+
+/** Créneau du round : en cours, passé, ou à venir. */
+function slotLook(s: { current: boolean; past: boolean }): string {
+  if (s.current) return 'bg-primary text-primary-foreground shadow-glow';
+  return s.past ? 'text-subtle' : 'bg-surface-3 text-muted-foreground';
+}
+
+/** Où en est un participant dans le round (rien à dire : null). */
+function turnState(r: { current: boolean; pendingInitiative: boolean; acted: boolean }) {
+  if (r.current) return 'son tour';
+  if (r.pendingInitiative) return 'initiative attendue';
+  return r.acted ? 'a agi' : null;
+}

@@ -162,13 +162,7 @@ export function OutcomeBadge({
   size?: 'sm' | 'md';
 }>) {
   const outcome = target.result?.outcome ?? target.view?.outcome ?? null;
-  const o = hitOnly
-    ? successRule && outcome
-      ? outcome.success
-        ? { label: 'Touché', tone: 'success' as const }
-        : { label: 'Raté', tone: 'failure' as const }
-      : null
-    : outcomeOf(target, successRule);
+  const o = hitOnly ? hitOf(successRule ? outcome : null) : outcomeOf(target, successRule);
   if (!o) return null;
   const look = OUTCOME_LOOK[o.tone];
   return (
@@ -227,7 +221,9 @@ export function RollFigure({
     return systeme ? (
       <ResultatsSymboles systeme={systeme} presentation={presentation} resultats={roll.results} />
     ) : null;
-  const critique = d.outcome?.critical ? 'success' : d.outcome?.fumble ? 'failure' : null;
+  let critique: 'success' | 'failure' | null = null;
+  if (d.outcome?.critical) critique = 'success';
+  else if (d.outcome?.fumble) critique = 'failure';
   const modifier = roll.total - roll.natural;
   return (
     // Les dés du lanceur (framer-motion) suivent aussi la préférence du système
@@ -280,7 +276,7 @@ export function Amount({
   detail?: boolean;
 }>) {
   const r = reductionDetail(m);
-  const value = `${m.operation === 'add' ? '+' : m.operation === 'set' ? '=' : '−'}${m.value}`;
+  const value = `${SIGNE[m.operation] ?? '−'}${m.value}`;
   const danger = harmful(m, presentation);
   const number = (
     <motion.span
@@ -401,4 +397,14 @@ export function Marks({ attack: a, className }: Readonly<{ attack: Attack; class
       )}
     </div>
   );
+}
+
+const SIGNE: Partial<Record<string, string>> = { add: '+', set: '=' };
+
+/** Touché ou raté seulement (pas de critique) ; issue inconnue : rien. */
+function hitOf(outcome: { success?: boolean } | null) {
+  if (!outcome) return null;
+  return outcome.success
+    ? { label: 'Touché', tone: 'success' as const }
+    : { label: 'Raté', tone: 'failure' as const };
 }

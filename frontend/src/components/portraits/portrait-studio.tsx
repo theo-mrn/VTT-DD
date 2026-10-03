@@ -227,6 +227,13 @@ function Body({
     }
   }
 
+  // Zone de recadrage : bibliothèque, invitation à déposer, chargement, échec, ou l'image
+  let zone: 'library' | 'empty' | 'loading' | 'error' | 'crop' = 'crop';
+  if (library) zone = 'library';
+  else if (!source) zone = 'empty';
+  else if (loaded.status === 'loading') zone = 'loading';
+  else if (loaded.status === 'error') zone = 'error';
+
   return (
     <div
       className="relative flex min-h-0 flex-1 flex-col"
@@ -297,23 +304,27 @@ function Body({
 
           <div className="relative min-h-[18rem] flex-1 overflow-hidden rounded-2xl border border-border bg-background">
             <AnimatePresence mode="wait" initial={false}>
-              {library ? (
+              {zone === 'library' && (
                 <Fade key="library">
                   <LibraryGrid onPick={(url) => pick({ remote: url })} />
                 </Fade>
-              ) : !source ? (
+              )}
+              {zone === 'empty' && (
                 <Fade key="empty">
                   <Empty icon={<CloudUpload />} label="Déposez ou collez une image" />
                 </Fade>
-              ) : loaded.status === 'loading' ? (
+              )}
+              {zone === 'loading' && (
                 <Fade key="loading">
                   <Empty icon={<Loader2 className="animate-spin" />} label="Chargement…" />
                 </Fade>
-              ) : loaded.status === 'error' ? (
+              )}
+              {loaded.status === 'error' && zone === 'error' && (
                 <Fade key="error">
                   <Empty icon={<ImageOff />} label={loaded.message} />
                 </Fade>
-              ) : (
+              )}
+              {loaded.status === 'ready' && zone === 'crop' && (
                 <Fade key={`${tab}-${cropKey}-${loaded.image.url}`}>
                   <CropArea
                     url={loaded.image.url}
@@ -339,7 +350,7 @@ function Body({
                 value={radius}
                 max={50}
                 onChange={setRadius}
-                format={(v) => (v >= 50 ? 'Cercle' : v === 0 ? 'Carré' : `${Math.round(v)} %`)}
+                format={formatArrondi}
               />
               <SliderRow
                 label="Marge"
@@ -867,4 +878,10 @@ function LibraryGrid({ onPick }: Readonly<{ onPick(url: string): void }>) {
       </div>
     </div>
   );
+}
+
+/** Arrondi du token : cercle, carré, ou pourcentage. */
+function formatArrondi(v: number): string {
+  if (v >= 50) return 'Cercle';
+  return v === 0 ? 'Carré' : `${Math.round(v)} %`;
 }
