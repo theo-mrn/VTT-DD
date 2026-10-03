@@ -235,86 +235,87 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
     toast(f ? `${item.nom} rangé dans « ${f.name} »` : `${item.nom} sorti de son dossier`);
   }
 
+  /** Actions qui écrivent sur la fiche (lecture seule : aucune). */
+  function handlersEcriture(o: NonNullable<typeof ops>): Partial<ItemHandlers> {
+    return {
+      equiper: (item: InventoryItem, actif: boolean) =>
+        ecrire(basculerActif(fiche.etat, item, actif)),
+      consommer: (item: InventoryItem) => {
+        const c = consommer(fiche.etat, item);
+        if (c.type === 'quantite') {
+          ecrire(c.ecriture);
+          toast(`${item.nom} : une unité consommée`, {
+            description: `Il en reste ${item.quantite - 1}.`,
+            action: {
+              label: 'Annuler',
+              onClick: () => ecrire(changerQuantite(etatCourant.current, item, item.quantite)),
+            },
+          });
+        } else {
+          o.retirerPossession(c.retrait.entree, c.retrait.exemplaire, c.retrait.apercu);
+          if (ouvert?.cle === item.cle) setOuvert(null);
+          toast(`${item.nom} consommé : épuisé`, {
+            action: { label: 'Annuler', onClick: () => restaurerExemplaire(item) },
+          });
+        }
+      },
+      renommer: (item: InventoryItem) =>
+        setSaisie({
+          titre: 'Renommer',
+          label: 'Nom',
+          initial: item.nom,
+          type: 'texte',
+          maxLength: 200,
+          valider: 'Renommer',
+          onValider: (nom) => ecrire(renommer(fiche.etat, item, nom)),
+        }),
+      quantite: (item: InventoryItem) =>
+        setSaisie({
+          titre: `Quantité : ${item.nom}`,
+          label: 'Nombre d’unités',
+          initial: String(item.quantite),
+          type: 'nombre',
+          min: 1,
+          max: 1_000_000,
+          valider: 'Enregistrer',
+          onValider: (q) => ecrire(changerQuantite(fiche.etat, item, Number(q))),
+        }),
+      ...(o.donner && personnage.roomId
+        ? { donner: (item: InventoryItem) => setDon(item.cle) }
+        : {}),
+      cacher: (item: InventoryItem, hidden: boolean) => {
+        ecrire(cacher(fiche.etat, item, hidden));
+        toast(
+          hidden ? `${item.nom} est caché aux autres joueurs` : `${item.nom} est visible de tous`,
+        );
+      },
+      ...(o.dossiers
+        ? {
+            ranger: rangerObjet,
+            nouveauDossierPour: (item: InventoryItem) => creerDossier(item),
+          }
+        : {}),
+      exemplaire: (item: InventoryItem) => {
+        ecrire(
+          dansDossier(
+            nouvelExemplaireDe(
+              fiche.etat,
+              item.entree.id,
+              item.entree.libre ? item.possession?.champs : undefined,
+            ),
+            item.folder?.id ?? null,
+          ),
+        );
+        toast.success(`Nouvel exemplaire : ${item.nom}`);
+      },
+      supprimer: (item: InventoryItem) => setSuppression(item.cle),
+    };
+  }
+
   const handlers: ItemHandlers = {
     ouvrir: (item) => mode === 'read' && setOuvert({ cle: item.cle, section: null }),
     detailSur: (item, section) => mode === 'read' && setOuvert({ cle: item.cle, section }),
-    ...(ops
-      ? {
-          equiper: (item: InventoryItem, actif: boolean) =>
-            ecrire(basculerActif(fiche.etat, item, actif)),
-          consommer: (item: InventoryItem) => {
-            const c = consommer(fiche.etat, item);
-            if (c.type === 'quantite') {
-              ecrire(c.ecriture);
-              toast(`${item.nom} : une unité consommée`, {
-                description: `Il en reste ${item.quantite - 1}.`,
-                action: {
-                  label: 'Annuler',
-                  onClick: () => ecrire(changerQuantite(etatCourant.current, item, item.quantite)),
-                },
-              });
-            } else {
-              ops.retirerPossession(c.retrait.entree, c.retrait.exemplaire, c.retrait.apercu);
-              if (ouvert?.cle === item.cle) setOuvert(null);
-              toast(`${item.nom} consommé : épuisé`, {
-                action: { label: 'Annuler', onClick: () => restaurerExemplaire(item) },
-              });
-            }
-          },
-          renommer: (item: InventoryItem) =>
-            setSaisie({
-              titre: 'Renommer',
-              label: 'Nom',
-              initial: item.nom,
-              type: 'texte',
-              maxLength: 200,
-              valider: 'Renommer',
-              onValider: (nom) => ecrire(renommer(fiche.etat, item, nom)),
-            }),
-          quantite: (item: InventoryItem) =>
-            setSaisie({
-              titre: `Quantité : ${item.nom}`,
-              label: 'Nombre d’unités',
-              initial: String(item.quantite),
-              type: 'nombre',
-              min: 1,
-              max: 1_000_000,
-              valider: 'Enregistrer',
-              onValider: (q) => ecrire(changerQuantite(fiche.etat, item, Number(q))),
-            }),
-          ...(ops.donner && personnage.roomId
-            ? { donner: (item: InventoryItem) => setDon(item.cle) }
-            : {}),
-          cacher: (item: InventoryItem, hidden: boolean) => {
-            ecrire(cacher(fiche.etat, item, hidden));
-            toast(
-              hidden
-                ? `${item.nom} est caché aux autres joueurs`
-                : `${item.nom} est visible de tous`,
-            );
-          },
-          ...(ops.dossiers
-            ? {
-                ranger: rangerObjet,
-                nouveauDossierPour: (item: InventoryItem) => creerDossier(item),
-              }
-            : {}),
-          exemplaire: (item: InventoryItem) => {
-            ecrire(
-              dansDossier(
-                nouvelExemplaireDe(
-                  fiche.etat,
-                  item.entree.id,
-                  item.entree.libre ? item.possession?.champs : undefined,
-                ),
-                item.folder?.id ?? null,
-              ),
-            );
-            toast.success(`Nouvel exemplaire : ${item.nom}`);
-          },
-          supprimer: (item: InventoryItem) => setSuppression(item.cle),
-        }
-      : {}),
+    ...(ops ? handlersEcriture(ops) : {}),
   };
 
   const writes: PanelWrites | undefined = ops
@@ -472,7 +473,7 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
     ...dossiersVisibles.map((f) => `dossier:${f.id}`),
     ...visibles.map((i) => i.cle),
   ];
-  const cleFocus = focus && cles.includes(focus) ? focus : (cles[0] ?? null);
+  const cleFocus = cleFocusable(focus, cles);
 
   const tuileObjet = (item: InventoryItem) => (
     <ItemTile
@@ -607,147 +608,35 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
         className="pointer-events-none absolute inset-0 -z-10 bg-dots opacity-70 mask-radial"
       />
 
-      {sortesInconnues.length > 0 && (
-        <p className="mx-2.5 mb-1.5 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-          <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
-          Sortes inconnues du système : {sortesInconnues.join(', ')}
-        </p>
-      )}
+      <SortesInconnues sortes={sortesInconnues} />
 
-      {(inv.items.length > 0 || folders.length > 0 || editable) && (
-        <div
-          className={cn(
-            'flex shrink-0 items-center gap-1.5 px-2.5 pb-1.5 pt-2.5',
-            mode === 'edit' && 'pointer-events-none',
-          )}
-        >
-          <div className="min-w-0 flex-1 sm:max-w-64">
-            <InputGroup
-              avant={<Search />}
-              apres={
-                terme ? (
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="size-6"
-                    onClick={() => setTerme('')}
-                    aria-label="Effacer la recherche"
-                  >
-                    <X />
-                  </Button>
-                ) : undefined
-              }
-              placeholder="Rechercher…"
-              aria-label={`Rechercher dans ${widget.titre}`}
-              value={terme}
-              onChange={(e) => setTerme(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setTerme('');
-                if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  grille.current?.querySelector<HTMLElement>('[data-tile]')?.focus();
-                }
-              }}
-              className="h-8 text-[13px] [@media(pointer:coarse)]:h-11"
-            />
-          </div>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Affichage : trier, filtrer, regrouper"
-                title="Trier, filtrer, regrouper"
-                className={cn(
-                  'relative [@media(pointer:coarse)]:size-11',
-                  filtreActif !== TOUT && 'text-primary',
-                )}
-              >
-                <SlidersHorizontal />
-                {filtreActif !== TOUT && (
-                  <span
-                    aria-hidden
-                    className="absolute right-1 top-1 size-1.5 rounded-full bg-primary"
-                  />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Trier par
-              </DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={tri} onValueChange={(v) => setTri(v as Tri)}>
-                {TRIS.map((t) => (
-                  <DropdownMenuRadioItem key={t.cle} value={t.cle}>
-                    {t.nom}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={parCategorie}
-                onCheckedChange={(v) => setParCategorie(v === true)}
-              >
-                Regrouper par catégorie
-              </DropdownMenuCheckboxItem>
-              {inv.categories.length > 1 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">
-                    Catégorie
-                  </DropdownMenuLabel>
-                  <DropdownMenuRadioGroup value={filtreActif} onValueChange={setFiltre}>
-                    <DropdownMenuRadioItem value={TOUT}>Toutes</DropdownMenuRadioItem>
-                    {inv.categories.map((c) => (
-                      <DropdownMenuRadioItem key={c.cle} value={c.cle}>
-                        <span className="flex-1 truncate">{c.nom}</span>
-                        <span className="ml-2 font-mono text-[10px] text-subtle">
-                          {inv.items.filter((i) => i.categorie.cle === c.cle).length}
-                        </span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {editable && ops?.dossiers && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Nouveau dossier"
-              title="Nouveau dossier"
-              onClick={() => creerDossier()}
-              className="[@media(pointer:coarse)]:size-11"
-            >
-              <FolderPlus />
-            </Button>
-          )}
-        </div>
-      )}
+      <Barre
+        titre={widget.titre}
+        mode={mode}
+        inv={inv}
+        nbDossiers={folders.length}
+        editable={editable}
+        terme={terme}
+        onTerme={setTerme}
+        tri={tri}
+        onTri={setTri}
+        parCategorie={parCategorie}
+        onParCategorie={setParCategorie}
+        filtreActif={filtreActif}
+        onFiltre={setFiltre}
+        dossiers={deplacable}
+        onCreerDossier={() => creerDossier()}
+        onVersGrille={() => grille.current?.querySelector<HTMLElement>('[data-tile]')?.focus()}
+      />
 
       {dossier && !aplati && (
-        <nav
-          aria-label="Fil d’Ariane"
-          className="flex shrink-0 items-center gap-1 px-2.5 pb-1.5 text-xs"
-        >
-          <button
-            type="button"
-            onClick={sortirDuDossier}
-            {...deposerRacine}
-            className={cn(
-              'inline-flex min-h-7 items-center gap-1 rounded-md px-1.5 text-muted-foreground transition-colors duration-150 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none [@media(pointer:coarse)]:min-h-11',
-              racineSurvolee && 'bg-surface-3 text-foreground ring-1 ring-primary/60',
-            )}
-          >
-            <ArrowLeft aria-hidden className="size-3.5" />
-            {widget.titre}
-          </button>
-          <ChevronRight aria-hidden className="size-3.5 text-subtle" />
-          <span aria-current="page" className="truncate font-medium text-foreground">
-            {dossier.name}
-          </span>
-        </nav>
+        <FilAriane
+          titre={widget.titre}
+          dossier={dossier}
+          deposerRacine={deposerRacine}
+          survolee={racineSurvolee}
+          onSortir={sortirDuDossier}
+        />
       )}
 
       <div
@@ -777,34 +666,14 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
             className="w-52"
           >
             {menuDossier && (
-              <>
-                <DropdownMenuLabel className="truncate text-xs font-medium text-muted-foreground">
-                  {menuDossier.folder.name}
-                </DropdownMenuLabel>
-                <DropdownMenuItem onSelect={() => entrerDans(menuDossier.folder)}>
-                  <ArrowRight /> Ouvrir
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => renommerDossier(menuDossier.folder)}>
-                  <Pencil /> Renommer…
-                </DropdownMenuItem>
-                {folders[0]?.id !== menuDossier.folder.id && (
-                  <DropdownMenuItem onSelect={() => deplacerDossier(menuDossier.folder, -1)}>
-                    <ArrowLeft /> Placer avant
-                  </DropdownMenuItem>
-                )}
-                {folders[folders.length - 1]?.id !== menuDossier.folder.id && (
-                  <DropdownMenuItem onSelect={() => deplacerDossier(menuDossier.folder, 1)}>
-                    <ArrowRight /> Placer après
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => setDossierSupprime(menuDossier.folder)}
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                >
-                  <Trash2 /> Supprimer…
-                </DropdownMenuItem>
-              </>
+              <MenuDossier
+                folder={menuDossier.folder}
+                folders={folders}
+                onOuvrir={() => entrerDans(menuDossier.folder)}
+                onRenommer={() => renommerDossier(menuDossier.folder)}
+                onDeplacer={(sens) => deplacerDossier(menuDossier.folder, sens)}
+                onSupprimer={() => setDossierSupprime(menuDossier.folder)}
+              />
             )}
           </AnchoredMenu>
           <ItemPanel
@@ -827,11 +696,7 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
           <ConfirmDialog
             ouvert={aSupprimer !== null}
             titre={`Supprimer ${aSupprimer?.nom ?? ''} ?`}
-            description={
-              aSupprimer && aSupprimer.quantite > 1
-                ? `Les ${aSupprimer.quantite} unités quittent l’inventaire. Vous pourrez annuler juste après.`
-                : 'L’objet quitte l’inventaire, avec ses valeurs et bonus propres. Vous pourrez annuler juste après.'
-            }
+            description={descriptionSuppression(aSupprimer)}
             confirmer="Supprimer"
             onConfirmer={() => aSupprimer && supprimer(aSupprimer)}
             onClose={() => setSuppression(null)}
@@ -868,6 +733,271 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
       )}
     </section>
   );
+}
+
+/** Barre d'outils : recherche, affichage (tri, regroupement, catégorie), nouveau dossier. */
+function Barre({
+  titre,
+  mode,
+  inv,
+  nbDossiers,
+  editable,
+  terme,
+  onTerme,
+  tri,
+  onTri,
+  parCategorie,
+  onParCategorie,
+  filtreActif,
+  onFiltre,
+  dossiers,
+  onCreerDossier,
+  onVersGrille,
+}: Readonly<{
+  titre: string;
+  mode: SheetBlockProps<'inventaire'>['mode'];
+  inv: Inventory;
+  nbDossiers: number;
+  editable: boolean;
+  terme: string;
+  onTerme(terme: string): void;
+  tri: Tri;
+  onTri(tri: Tri): void;
+  parCategorie: boolean;
+  onParCategorie(v: boolean): void;
+  filtreActif: string;
+  onFiltre(filtre: string): void;
+  /** Dossiers modifiables : bouton « Nouveau dossier ». */
+  dossiers: boolean;
+  onCreerDossier(): void;
+  /** Flèche vers le bas : le focus passe à la première tuile. */
+  onVersGrille(): void;
+}>) {
+  // Ni objet, ni dossier, ni ajout possible : pas de barre
+  if (!(inv.items.length > 0 || nbDossiers > 0 || editable)) return null;
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 items-center gap-1.5 px-2.5 pb-1.5 pt-2.5',
+        mode === 'edit' && 'pointer-events-none',
+      )}
+    >
+      <div className="min-w-0 flex-1 sm:max-w-64">
+        <InputGroup
+          avant={<Search />}
+          apres={
+            terme ? (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="size-6"
+                onClick={() => onTerme('')}
+                aria-label="Effacer la recherche"
+              >
+                <X />
+              </Button>
+            ) : undefined
+          }
+          placeholder="Rechercher…"
+          aria-label={`Rechercher dans ${titre}`}
+          value={terme}
+          onChange={(e) => onTerme(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') onTerme('');
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              onVersGrille();
+            }
+          }}
+          className="h-8 text-[13px] [@media(pointer:coarse)]:h-11"
+        />
+      </div>
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Affichage : trier, filtrer, regrouper"
+            title="Trier, filtrer, regrouper"
+            className={cn(
+              'relative [@media(pointer:coarse)]:size-11',
+              filtreActif !== TOUT && 'text-primary',
+            )}
+          >
+            <SlidersHorizontal />
+            {filtreActif !== TOUT && (
+              <span
+                aria-hidden
+                className="absolute right-1 top-1 size-1.5 rounded-full bg-primary"
+              />
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="text-xs text-muted-foreground">Trier par</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={tri} onValueChange={(v) => onTri(v as Tri)}>
+            {TRIS.map((t) => (
+              <DropdownMenuRadioItem key={t.cle} value={t.cle}>
+                {t.nom}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuCheckboxItem
+            checked={parCategorie}
+            onCheckedChange={(v) => onParCategorie(v === true)}
+          >
+            Regrouper par catégorie
+          </DropdownMenuCheckboxItem>
+          {inv.categories.length > 1 && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                Catégorie
+              </DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={filtreActif} onValueChange={onFiltre}>
+                <DropdownMenuRadioItem value={TOUT}>Toutes</DropdownMenuRadioItem>
+                {inv.categories.map((c) => (
+                  <DropdownMenuRadioItem key={c.cle} value={c.cle}>
+                    <span className="flex-1 truncate">{c.nom}</span>
+                    <span className="ml-2 font-mono text-[10px] text-subtle">
+                      {inv.items.filter((i) => i.categorie.cle === c.cle).length}
+                    </span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {dossiers && (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Nouveau dossier"
+          title="Nouveau dossier"
+          onClick={onCreerDossier}
+          className="[@media(pointer:coarse)]:size-11"
+        >
+          <FolderPlus />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** Fil d'Ariane du dossier ouvert ; le lien vers la racine reçoit aussi les objets déposés. */
+function FilAriane({
+  titre,
+  dossier,
+  deposerRacine,
+  survolee,
+  onSortir,
+}: Readonly<{
+  titre: string;
+  dossier: InventoryFolder;
+  deposerRacine: {
+    onDragOver(e: DragEvent): void;
+    onDragLeave(): void;
+    onDrop(e: DragEvent): void;
+  };
+  survolee: boolean;
+  onSortir(): void;
+}>) {
+  return (
+    <nav
+      aria-label="Fil d’Ariane"
+      className="flex shrink-0 items-center gap-1 px-2.5 pb-1.5 text-xs"
+    >
+      <button
+        type="button"
+        onClick={onSortir}
+        {...deposerRacine}
+        className={cn(
+          'inline-flex min-h-7 items-center gap-1 rounded-md px-1.5 text-muted-foreground transition-colors duration-150 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none [@media(pointer:coarse)]:min-h-11',
+          survolee && 'bg-surface-3 text-foreground ring-1 ring-primary/60',
+        )}
+      >
+        <ArrowLeft aria-hidden className="size-3.5" />
+        {titre}
+      </button>
+      <ChevronRight aria-hidden className="size-3.5 text-subtle" />
+      <span aria-current="page" className="truncate font-medium text-foreground">
+        {dossier.name}
+      </span>
+    </nav>
+  );
+}
+
+/** Menu d'un dossier : ouvrir, renommer, déplacer avant ou après, supprimer. */
+function MenuDossier({
+  folder,
+  folders,
+  onOuvrir,
+  onRenommer,
+  onDeplacer,
+  onSupprimer,
+}: Readonly<{
+  folder: InventoryFolder;
+  folders: InventoryFolder[];
+  onOuvrir(): void;
+  onRenommer(): void;
+  onDeplacer(sens: -1 | 1): void;
+  onSupprimer(): void;
+}>) {
+  return (
+    <>
+      <DropdownMenuLabel className="truncate text-xs font-medium text-muted-foreground">
+        {folder.name}
+      </DropdownMenuLabel>
+      <DropdownMenuItem onSelect={onOuvrir}>
+        <ArrowRight /> Ouvrir
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={onRenommer}>
+        <Pencil /> Renommer…
+      </DropdownMenuItem>
+      {folders[0]?.id !== folder.id && (
+        <DropdownMenuItem onSelect={() => onDeplacer(-1)}>
+          <ArrowLeft /> Placer avant
+        </DropdownMenuItem>
+      )}
+      {folders[folders.length - 1]?.id !== folder.id && (
+        <DropdownMenuItem onSelect={() => onDeplacer(1)}>
+          <ArrowRight /> Placer après
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        onSelect={onSupprimer}
+        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+      >
+        <Trash2 /> Supprimer…
+      </DropdownMenuItem>
+    </>
+  );
+}
+
+/** Tuile qui reçoit le focus au clavier : la dernière visitée si elle est encore là, sinon la première. */
+function cleFocusable(focus: string | null, cles: string[]): string | null {
+  return focus && cles.includes(focus) ? focus : (cles[0] ?? null);
+}
+
+/** Sortes du widget absentes du système. */
+function SortesInconnues({ sortes }: Readonly<{ sortes: string[] }>) {
+  if (sortes.length === 0) return null;
+  return (
+    <p className="mx-2.5 mb-1.5 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+      <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+      Sortes inconnues du système : {sortes.join(', ')}
+    </p>
+  );
+}
+
+/** Description de la confirmation de suppression d'un objet. */
+function descriptionSuppression(item: InventoryItem | null): string {
+  return item && item.quantite > 1
+    ? `Les ${item.quantite} unités quittent l’inventaire. Vous pourrez annuler juste après.`
+    : 'L’objet quitte l’inventaire, avec ses valeurs et bonus propres. Vous pourrez annuler juste après.';
 }
 
 function nomsSortes(systeme: SheetBlockProps['ctx']['systeme'], sortes: string[]): string {
