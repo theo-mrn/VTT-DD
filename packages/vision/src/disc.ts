@@ -74,8 +74,8 @@ export function clipStarToDisc(star: StarPolygon, r: number): Float64Array {
   let anyCross = false;
   // Angle (atan2) de la dernière sortie du disque, NaN tant qu'on est dedans. Quand on commence
   // dehors, la première entrée est gardée pour l'arc de fermeture, ajouté à la fin.
-  let exitAngle = NaN;
-  let firstEntry = NaN;
+  let exitAngle = Number.NaN;
+  let firstEntry = Number.NaN;
   let pending = (p[0]! - cx) ** 2 + (p[1]! - cy) ** 2 > r2;
 
   for (let i = 0; i < n; i++) {
@@ -97,15 +97,15 @@ export function clipStarToDisc(star: StarPolygon, r: number): Float64Array {
     const b = 2 * (px * dx + py * dy);
     const c = px * px + py * py - r2;
     const disc = b * b - 4 * a * c;
-    let t1 = NaN;
-    let t2 = NaN;
+    let t1 = Number.NaN;
+    let t2 = Number.NaN;
     if (a > 0 && disc > 0) {
       const sq = Math.sqrt(disc);
       t1 = (-b - sq) / (2 * a);
       t2 = (-b + sq) / (2 * a);
     }
-    let tEnter = NaN;
-    let tExit = NaN;
+    let tEnter = Number.NaN;
+    let tExit = Number.NaN;
     if (inP && !inQ) {
       tExit = Number.isNaN(t2) ? 0 : t2;
     } else if (!inP && inQ) {
@@ -125,7 +125,7 @@ export function clipStarToDisc(star: StarPolygon, r: number): Float64Array {
         firstEntry = ang;
         pending = false;
       }
-      exitAngle = NaN;
+      exitAngle = Number.NaN;
       out.push(cx + x, cy + y);
       anyCross = true;
     }

@@ -130,7 +130,7 @@ const doorSamplesCache = new WeakMap<object, Float64Array>();
  */
 export function doorSamples(pts: Pts): Float64Array {
   const a = pts[0]!;
-  const b = pts[pts.length - 1]!;
+  const b = pts.at(-1)!;
   const m = doorCenter(pts);
   const len = Math.hypot(b.x - a.x, b.y - a.y);
   if (len === 0) return Float64Array.of(m.x, m.y);

@@ -59,7 +59,7 @@ export function segments(texte: string, mots: string[]): { t: string; surligne: 
   }
   const res: { t: string; surligne: boolean }[] = [];
   for (let i = 0; i < texte.length; i++) {
-    const dernier = res[res.length - 1];
+    const dernier = res.at(-1);
     if (dernier && dernier.surligne === marque[i]) dernier.t += texte[i];
     else res.push({ t: texte[i], surligne: marque[i] });
   }

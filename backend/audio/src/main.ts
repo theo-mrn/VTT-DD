@@ -10,7 +10,7 @@ const stops: Array<() => Promise<void>> = [];
 const app = await buildAudio(config, {
   onShutdown: [
     async () => {
-      for (const stop of stops.reverse()) await stop().catch(() => undefined);
+      for (const stop of stops.toReversed()) await stop().catch(() => undefined);
     },
   ],
 });

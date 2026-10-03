@@ -64,7 +64,7 @@ export function tirerTable(
 
   const lignes = [...table.lignes].sort((a, b) => a.min - b.min);
   const premiere = lignes[0]!;
-  const derniere = lignes[lignes.length - 1]!;
+  const derniere = lignes.at(-1)!;
   let ligne = lignes.find((l) => valeur >= l.min && valeur <= l.max) ?? null;
   let horsTable = false;
   if (!ligne && valeur < premiere.min) {

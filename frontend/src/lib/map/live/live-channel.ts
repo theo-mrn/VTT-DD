@@ -545,7 +545,7 @@ export class LiveChannel {
     if (msg.cursor) {
       const [x, y] = msg.cursor;
       const c = this.cursors.get(user) ?? { samples: [], last: t, moved: -Infinity };
-      const prev = c.samples[c.samples.length - 1];
+      const prev = c.samples.at(-1);
       if (prev && prev.x === x && prev.y === y) {
         // Rappel d'un curseur immobile : il n'expire pas, mais rien ne bouge (aucune image). Un
         // échantillon ancien est recalé, pour que le prochain déplacement parte de maintenant
@@ -666,7 +666,7 @@ export function interpolate(samples: readonly Sample[], t: number): Sample | nul
   if (!samples.length) return null;
   const first = samples[0]!;
   if (t <= first.t) return first;
-  const last = samples[samples.length - 1]!;
+  const last = samples.at(-1)!;
   if (t >= last.t) return last;
   for (let i = 0; i < samples.length - 1; i++) {
     const a = samples[i]!;

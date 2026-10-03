@@ -621,8 +621,8 @@ export class CommandManager {
     return {
       canUndo: u.length > 0,
       canRedo: r.length > 0,
-      undoLabel: u[u.length - 1]?.label ?? null,
-      redoLabel: r[r.length - 1]?.label ?? null,
+      undoLabel: u.at(-1)?.label ?? null,
+      redoLabel: r.at(-1)?.label ?? null,
       busy: this.inFlight > 0,
     };
   }

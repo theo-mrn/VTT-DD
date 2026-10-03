@@ -686,7 +686,7 @@ export function EditeurNote({
               value={brouillon.title}
               readOnly={lecture}
               maxLength={LONGUEUR_TITRE}
-              onChange={(e) => changer({ title: e.target.value.replace(/\n/g, ' ') }, false)}
+              onChange={(e) => changer({ title: e.target.value.replaceAll('\n', ' ') }, false)}
               onKeyDown={(e) => {
                 const t = e.currentTarget;
                 const auBout =

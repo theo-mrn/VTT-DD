@@ -199,7 +199,7 @@ function weighted<T>(rng: Random, items: readonly T[], weight: (t: T) => number)
     r -= Math.max(0, weight(x));
     if (r < 0) return x;
   }
-  return items[items.length - 1] ?? null;
+  return items.at(-1) ?? null;
 }
 
 /**
@@ -351,7 +351,7 @@ export function generate(input: {
     out.push({ groups: g, d: gap(t, g) });
   }
   return out
-    .sort((a, b) => a.d - b.d)
+    .toSorted((a, b) => a.d - b.d)
     .map((x) => ({ id: newId(), scenario: scenarioId, groups: x.groups }));
 }
 

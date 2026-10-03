@@ -626,7 +626,7 @@ function migrerStarWars(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
     race &&
     (b.entree(sw.ESPECES[race], 'espece') ??
       b.entree(race, 'espece') ??
-      b.entree(race.replace(/_/g, '-'), 'espece'));
+      b.entree(race.replaceAll('_', '-'), 'espece'));
   if (espece) b.posseder(espece.id);
   else b.avertir(race ? `Espèce inconnue « ${race} »` : 'Aucune espèce');
 
@@ -861,7 +861,7 @@ function migrerDnd(b: Brouillon, p: PersonnageLegacy, options: OptionsTransforma
   const r =
     race &&
     (b.entree(race, 'race') ??
-      b.entree(dnd.RACES[slug(race)] ?? slug(race).replace(/-/g, '_'), 'race'));
+      b.entree(dnd.RACES[slug(race)] ?? slug(race).replaceAll('-', '_'), 'race'));
   if (r) b.posseder(r.id);
   else b.avertir(race ? `Race « ${race} » absente du système` : 'Aucune race');
 

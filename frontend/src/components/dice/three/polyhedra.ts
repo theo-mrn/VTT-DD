@@ -427,7 +427,7 @@ function build(type: DieType): DieShape {
     if (!around.length) return;
     const ordered = [around[0]!];
     while (ordered.length < around.length) {
-      const last = ordered[ordered.length - 1]!.fc.ids;
+      const last = ordered.at(-1)!.fc.ids;
       // Face suivante : celle qui partage l'arête (vi, sommet précédent dans `last`)
       const i = last.indexOf(vi);
       const prev = last[(i - 1 + last.length) % last.length]!;

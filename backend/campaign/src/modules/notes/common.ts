@@ -215,7 +215,7 @@ export async function pinnedAmong(db: Db | Tx, userId: string, noteIds: string[]
 
 /** Échappe du texte brut en HTML (repli d'une note trop longue une fois réécrite). */
 const escapeHtml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
 /**
  * Contenu assaini et champs qui en découlent. Le HTML réécrit peut dépasser la

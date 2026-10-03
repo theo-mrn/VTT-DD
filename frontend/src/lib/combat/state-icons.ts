@@ -100,7 +100,7 @@ function iconNodeOf(icon: LucideIcon): IconNode | null {
 }
 
 const escapeAttr = (v: string | number) =>
-  String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  String(v).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
 
 /**
  * Dessin SVG (24 × 24, traits blancs de 2) d'une icône lucide, pour la carte : le moteur le

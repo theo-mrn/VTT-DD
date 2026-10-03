@@ -505,17 +505,17 @@ export class PortalTool implements Tool {
     ui: null as PortalToolUi | null,
     settings: null as PortalDefaults | null,
     lasso: null as unknown,
-    px: NaN,
-    py: NaN,
+    px: Number.NaN,
+    py: Number.NaN,
     entity: null as MapEntity | null,
-    x: NaN,
-    y: NaN,
-    radius: NaN,
+    x: Number.NaN,
+    y: Number.NaN,
+    radius: Number.NaN,
     arrival: null as Point | null,
-    pickX: NaN,
-    pickY: NaN,
+    pickX: Number.NaN,
+    pickY: Number.NaN,
     hover: null as string | null,
-    zoom: NaN,
+    zoom: Number.NaN,
   };
 
   renderPreview(layer: Container, rc: RenderContext) {
@@ -549,13 +549,13 @@ export class PortalTool implements Tool {
         ? this.arrivalDrag.target
         : portalOf(single).target
       : null;
-    const px = tracking && p ? p.x : NaN;
-    const py = tracking && p ? p.y : NaN;
-    const x = single?.current.x ?? NaN;
-    const y = single?.current.y ?? NaN;
-    const r = single ? this.ctx.view.radiusOf(single) : NaN;
-    const pickX = pick?.current.x ?? NaN;
-    const pickY = pick?.current.y ?? NaN;
+    const px = tracking && p ? p.x : Number.NaN;
+    const py = tracking && p ? p.y : Number.NaN;
+    const x = single?.current.x ?? Number.NaN;
+    const y = single?.current.y ?? Number.NaN;
+    const r = single ? this.ctx.view.radiusOf(single) : Number.NaN;
+    const pickX = pick?.current.x ?? Number.NaN;
+    const pickY = pick?.current.y ?? Number.NaN;
     if (
       d.ui === ui &&
       d.settings === settings &&

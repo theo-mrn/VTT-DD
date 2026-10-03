@@ -99,7 +99,7 @@ function PanelFrame({ panel, visible }: Readonly<{ panel: TablePanel; visible: b
       (x) => x.offsetParent !== null,
     );
     const premier = focusables[0];
-    const dernier = focusables[focusables.length - 1];
+    const dernier = focusables.at(-1);
     if (!premier || !dernier) {
       e.preventDefault();
       return;

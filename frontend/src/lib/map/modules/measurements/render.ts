@@ -67,7 +67,14 @@ export class ClickDistanceView {
   readonly root: Container;
   private readonly line: Graphics;
   private readonly label: MeasureLabel;
-  private drawn = { fx: NaN, fy: NaN, tx: NaN, ty: NaN, zoom: 0, text: '' };
+  private drawn = {
+    fx: Number.NaN,
+    fy: Number.NaN,
+    tx: Number.NaN,
+    ty: Number.NaN,
+    zoom: 0,
+    text: '',
+  };
 
   constructor(
     pixi: typeof Pixi,

@@ -26,10 +26,10 @@ export function mountReachRing(engine: MapEngine): () => void {
     let target: string | null = null;
     let stopFrames: (() => void) | null = null;
     // Ce qui est déjà dessiné (rien n'est redessiné sans changement)
-    let lw = NaN;
-    let lh = NaN;
-    let lr = NaN;
-    let lzoom = NaN;
+    let lw = Number.NaN;
+    let lh = Number.NaN;
+    let lr = Number.NaN;
+    let lzoom = Number.NaN;
 
     const hide = () => {
       if (!g.visible) return;

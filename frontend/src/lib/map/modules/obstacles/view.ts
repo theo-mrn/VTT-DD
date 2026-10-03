@@ -51,7 +51,7 @@ interface DoorContexts {
 /** Milieu d'une porte (où est son icône). */
 export function doorCenter(pts: Pts): Point {
   const a = pts[0]!;
-  const b = pts[pts.length - 1]!;
+  const b = pts.at(-1)!;
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 

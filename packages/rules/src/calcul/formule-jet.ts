@@ -101,7 +101,7 @@ export function normaliserFormuleJet(
   }
 
   let sortie = formule;
-  for (const r of remplacements.reverse())
+  for (const r of remplacements.toReversed())
     sortie = sortie.slice(0, r.debut) + r.texte + sortie.slice(r.fin);
   return { ok: true, formule: sortie };
 }

@@ -321,7 +321,7 @@ function grouper<T extends { id: string; etiquettes: string[] }>(
     }
     for (const [cle, liste] of parEtiquette)
       groupes.push({
-        titre: cle.charAt(0).toUpperCase() + cle.slice(1).replace(/-/g, ' '),
+        titre: cle.charAt(0).toUpperCase() + cle.slice(1).replaceAll('-', ' '),
         entrees: liste,
       });
   } else if (reste.length) groupes.push({ titre: sugg.length ? 'Autres' : null, entrees: reste });

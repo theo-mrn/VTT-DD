@@ -121,7 +121,7 @@ export function mentionCandidates(
 
 function listeFr(items: string[]): string {
   if (items.length <= 1) return items.join('');
-  return `${items.slice(0, -1).join(', ')} et ${items[items.length - 1]}`;
+  return `${items.slice(0, -1).join(', ')} et ${items.at(-1)}`;
 }
 
 /** « Chuchoté à vous et Bob », « Chuchoté au MJ »… du point de vue de `me`. */

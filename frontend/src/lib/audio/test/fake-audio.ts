@@ -49,7 +49,7 @@ export class FakeElement {
   loop = false;
   playbackRate = 1;
   preservesPitch = true;
-  duration = NaN;
+  duration = Number.NaN;
   crossOrigin: string | null = null;
   preload = '';
   volume = 1;

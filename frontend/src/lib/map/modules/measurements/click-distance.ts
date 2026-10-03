@@ -176,8 +176,8 @@ export class ClickDistance {
 
   /** Résultat réutilisé d'une image à l'autre (aucune allocation par image). */
   private readonly out: ClickMeasure = {
-    from: { x: NaN, y: NaN },
-    to: { x: NaN, y: NaN },
+    from: { x: Number.NaN, y: Number.NaN },
+    to: { x: Number.NaN, y: Number.NaN },
     label: '',
     alpha: 1,
     fading: false,

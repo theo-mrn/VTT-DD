@@ -338,7 +338,7 @@ export class VisionState {
     for (const t of tokens.values()) {
       const p = this.livePos(t.id);
       const pos = p ?? (t.pos as Vec | undefined);
-      positions.push(pos?.x ?? NaN, pos?.y ?? NaN);
+      positions.push(pos?.x ?? Number.NaN, pos?.y ?? Number.NaN);
     }
     const moved =
       tokens !== this.tokensRef ||

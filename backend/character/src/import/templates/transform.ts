@@ -33,7 +33,7 @@ export const TEMPLATES_NAMESPACE = '5f0c2d7e-8a41-4b6f-9e13-c2a7d4b8e901';
 
 /** UUID version 5 (RFC 9562) : SHA-1 de l'espace de noms et du nom. */
 export function uuidv5(name: string, namespace: string = TEMPLATES_NAMESPACE): string {
-  const ns = Buffer.from(namespace.replace(/-/g, ''), 'hex');
+  const ns = Buffer.from(namespace.replaceAll('-', ''), 'hex');
   const bytes = createHash('sha1')
     .update(Buffer.concat([ns, Buffer.from(name, 'utf8')]))
     .digest()

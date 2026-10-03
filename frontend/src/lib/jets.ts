@@ -196,7 +196,7 @@ export function normaliserFormule(texte: string): string {
   return texte
     .trim()
     .replace(/D(?=\d|%)/g, 'd')
-    .replace(/d%/g, 'd100')
+    .replaceAll('d%', 'd100')
     .replace(/kh(\d)/g, 'k$1');
 }
 

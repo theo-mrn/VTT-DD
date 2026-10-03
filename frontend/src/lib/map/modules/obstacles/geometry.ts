@@ -34,7 +34,7 @@ export function segmentKey(a: Point, b: Point): string {
 }
 
 /** Ligne brisée fermée : au moins 3 sommets distincts, le dernier point répète le premier. */
-export const isClosed = (pts: Pts) => pts.length >= 4 && samePoint(pts[0]!, pts[pts.length - 1]!);
+export const isClosed = (pts: Pts) => pts.length >= 4 && samePoint(pts[0]!, pts.at(-1)!);
 
 /** Sommets distincts d'une ligne brisée (sans la répétition de fermeture). */
 export const distinctVertices = (pts: Pts): Pts => (isClosed(pts) ? pts.slice(0, -1) : pts);
@@ -84,17 +84,17 @@ export function cleanPolyline(pts: Pts): Point[] | null {
   if (isClosed(pts)) {
     const ring: Point[] = [];
     for (const p of pts.slice(0, -1)) {
-      const last = ring[ring.length - 1];
+      const last = ring.at(-1);
       if (last && distance(last, p) < MIN_SEGMENT) continue;
       ring.push(p);
     }
-    while (ring.length > 1 && distance(ring[ring.length - 1]!, ring[0]!) < MIN_SEGMENT) ring.pop();
+    while (ring.length > 1 && distance(ring.at(-1)!, ring[0]!) < MIN_SEGMENT) ring.pop();
     if (ring.length >= 3) return [...ring, ring[0]!];
     return ring.length >= 2 ? ring : null;
   }
   const out: Point[] = [];
   pts.forEach((p, i) => {
-    const last = out[out.length - 1];
+    const last = out.at(-1);
     if (last && distance(last, p) < MIN_SEGMENT) {
       // Le dernier point remplace le précédent (sauf le premier : la ligne s'effondre)
       if (i === pts.length - 1 && out.length > 1) out[out.length - 1] = p;
@@ -109,11 +109,11 @@ export function cleanPolyline(pts: Pts): Point[] | null {
 export function cleanPolygon(pts: Pts): Point[] | null {
   const ring: Point[] = [];
   for (const p of pts) {
-    const last = ring[ring.length - 1];
+    const last = ring.at(-1);
     if (last && distance(last, p) < MIN_SEGMENT) continue;
     ring.push(p);
   }
-  while (ring.length > 1 && distance(ring[ring.length - 1]!, ring[0]!) < MIN_SEGMENT) ring.pop();
+  while (ring.length > 1 && distance(ring.at(-1)!, ring[0]!) < MIN_SEGMENT) ring.pop();
   return ring.length >= 3 ? ring : null;
 }
 
@@ -279,14 +279,14 @@ export function insertDoor(pts: Pts, index: number, at: Point, width: number): D
     const loop: Point[] = [B];
     for (let k = 1; k <= n; k++) {
       const p = ring[(index + k) % n]!;
-      if (!samePoint(p, loop[loop.length - 1]!)) loop.push(p);
+      if (!samePoint(p, loop.at(-1)!)) loop.push(p);
     }
     // `loop` finit sur ring[index] = a ; on termine sur A
-    if (!samePoint(A, loop[loop.length - 1]!)) loop.push(A);
+    if (!samePoint(A, loop.at(-1)!)) loop.push(A);
     if (loop.length >= 2) rest.push(loop);
   } else {
     const before = [...pts.slice(0, index + 1)];
-    if (!samePoint(A, before[before.length - 1]!)) before.push(A);
+    if (!samePoint(A, before.at(-1)!)) before.push(A);
     const after = [...pts.slice(index + 1)];
     if (!samePoint(B, after[0]!)) after.unshift(B);
     if (before.length >= 2) rest.push(before);

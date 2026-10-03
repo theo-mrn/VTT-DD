@@ -96,7 +96,7 @@ const obj = (v: unknown): Payload | null =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Payload) : null;
 const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-const bold = (s: string | number) => `**${String(s).replace(/\*\*/g, '')}**`;
+const bold = (s: string | number) => `**${String(s).replaceAll('**', '')}**`;
 const lower = (id: string | null | undefined) => (id ? id.toLowerCase() : '');
 
 /** Champ d'une opération : à plat dans le payload (character) ou sous `details`. */

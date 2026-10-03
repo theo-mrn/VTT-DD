@@ -74,9 +74,7 @@ export function ProposalCard({
   const reachedIndex = reading.reached
     ? reading.thresholds.findIndex((t) => t.id === reading.reached!.id)
     : -1;
-  const max =
-    Math.max(reading.adjusted, reading.thresholds[reading.thresholds.length - 1]?.budget ?? 1) *
-    1.1;
+  const max = Math.max(reading.adjusted, reading.thresholds.at(-1)?.budget ?? 1) * 1.1;
   const count = encounter.groups.reduce((s, g) => s + g.count, 0);
 
   return (

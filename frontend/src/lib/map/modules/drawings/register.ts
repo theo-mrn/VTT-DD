@@ -114,7 +114,7 @@ export function registerDrawings(engine: MapEngine, opts: RegisterOptions = {}):
 
   return () => {
     rt.editor.cancel();
-    for (const c of cleanups.reverse()) c();
+    for (const c of cleanups.toReversed()) c();
   };
 }
 

@@ -331,7 +331,7 @@ export class ObstacleTool implements Tool {
         return true;
       }
     }
-    const last = this.chain[this.chain.length - 1] ?? null;
+    const last = this.chain.at(-1) ?? null;
     this.addChainPoint(engine, this.snapAt(engine, e, last).point);
     if (this.state === 'chain') this.chainPress = { start: e, moved: false };
     return true;
@@ -340,7 +340,7 @@ export class ObstacleTool implements Tool {
   move(e: MapPointer, engine: MapEngine) {
     this.refresh(engine);
     this.dirty = true;
-    const last = this.chain[this.chain.length - 1] ?? null;
+    const last = this.chain.at(-1) ?? null;
     switch (this.state) {
       case 'idle':
         if (e.buttons !== 0) break;
@@ -407,7 +407,7 @@ export class ObstacleTool implements Tool {
         this.chainPress = null;
         // Glisser : le lâcher pose le point suivant (un segment)
         if (cp?.moved) {
-          const last = this.chain[this.chain.length - 1] ?? null;
+          const last = this.chain.at(-1) ?? null;
           this.addChainPoint(engine, this.snapAt(engine, e, last).point);
         }
         break;
@@ -560,7 +560,7 @@ export class ObstacleTool implements Tool {
       this.state = 'chain';
       return;
     }
-    const last = this.chain[this.chain.length - 1]!;
+    const last = this.chain.at(-1)!;
     if (samePoint(p, last) || distance(p, last) < MIN_SEGMENT) return;
     const first = this.chain[0]!;
     if (samePoint(p, first) && this.chain.length >= 3) {
@@ -1056,7 +1056,7 @@ export class ObstacleTool implements Tool {
   private readonly drawn = {
     obstacles: null as unknown,
     rooms: null as unknown,
-    step: NaN,
+    step: Number.NaN,
     area: null as Rect | null,
     hover: null as Point | null,
     sub: null as SubSelection | null,
@@ -1196,7 +1196,7 @@ export class ObstacleTool implements Tool {
         for (let i = 1; i < pts.length; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
         g.stroke({ width: 3 * u, color, join: 'round', cap: 'round' });
       }
-      const last = pts[pts.length - 1]!;
+      const last = pts.at(-1)!;
       const cursor = this.snap?.point;
       if (cursor && this.state === 'chain') {
         dashedPolyline(g, [last, cursor], 6 * u, 4 * u);

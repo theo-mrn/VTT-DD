@@ -33,10 +33,10 @@ export function mountArrival(
     // Ce qui est dessiné : rien n'est refait (ni alloué) sans changement
     const drawn = {
       data: null as PortalData | null,
-      fromX: NaN,
-      fromY: NaN,
+      fromX: Number.NaN,
+      fromY: Number.NaN,
       to: null as Point | null,
-      zoom: NaN,
+      zoom: Number.NaN,
     };
 
     const hide = () => {

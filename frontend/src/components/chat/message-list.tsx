@@ -102,7 +102,7 @@ export function MessageList({
     const el = scroller.current;
     const messages = thread.filter((i) => i.kind === 'message');
     const first = messages[0]?.key ?? null;
-    const lastItem = messages[messages.length - 1];
+    const lastItem = messages.at(-1);
     const last = lastItem?.key ?? null;
     const prev = edges.current;
     edges.current = { first, last, count: messages.length };

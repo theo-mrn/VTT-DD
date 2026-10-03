@@ -257,7 +257,7 @@ export const sceneModule: MapModule = {
       syncSpawn(engine);
     }
     return () => {
-      for (const c of cleanups.reverse()) c();
+      for (const c of cleanups.toReversed()) c();
     };
   },
 };

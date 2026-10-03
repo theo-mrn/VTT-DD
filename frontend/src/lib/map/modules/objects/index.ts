@@ -104,7 +104,7 @@ export const objectsModule: MapModule = {
       }),
     ];
     return () => {
-      for (const c of cleanups.reverse()) c();
+      for (const c of cleanups.toReversed()) c();
     };
   },
 };

@@ -327,7 +327,7 @@ export class MeasureTool implements Tool {
 
   private preview: Graphics | null = null;
   /** Ce que montre la poignée dessinée (redessinée seulement si cela change). */
-  private readonly drawn = { x: NaN, y: NaN, zoom: 0, hover: false };
+  private readonly drawn = { x: Number.NaN, y: Number.NaN, zoom: 0, hover: false };
 
   renderPreview(layer: Container, rc: RenderContext) {
     const engine = this.ctx.engine;
@@ -338,8 +338,8 @@ export class MeasureTool implements Tool {
     const e = this.state === 'reshaping' ? null : this.editableSelection(engine);
     const end = e ? specOfEntity(e).end : null;
     const d = this.drawn;
-    const x = end?.x ?? NaN;
-    const y = end?.y ?? NaN;
+    const x = end?.x ?? Number.NaN;
+    const y = end?.y ?? Number.NaN;
     // NaN ≠ NaN : sans poignée, on ne vide qu'une fois
     if (!end && Number.isNaN(d.x) && d.zoom === -1) return;
     if (end && d.x === x && d.y === y && d.zoom === rc.zoom && d.hover === this.hoverHandle) return;

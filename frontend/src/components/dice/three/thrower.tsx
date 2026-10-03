@@ -557,7 +557,7 @@ export const DiceThrower = () => {
       // même forme physique (ex Aptitude et Difficulté, tous deux d8).
       roll.results.set(dieId, {
         type: die.type,
-        value: parseInt(val),
+        value: Number.parseInt(val),
         ...(die.tag ? { tag: die.tag } : {}),
       });
       const display = displayRef.current.get(die.rollId);

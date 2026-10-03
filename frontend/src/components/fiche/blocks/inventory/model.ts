@@ -1411,7 +1411,7 @@ export function dansDossier(w: Ecriture, folder: string | null): Ecriture {
   // Dossier déjà choisi à la configuration (racine comprise) : il l'emporte
   if (!folder || !w.demande.nouveau || w.demande.folder !== undefined) return w;
   const possessions = [...w.apercu.possessions];
-  const derniere = possessions[possessions.length - 1];
+  const derniere = possessions.at(-1);
   if (derniere) possessions[possessions.length - 1] = { ...derniere, folder };
   return { demande: { ...w.demande, folder }, apercu: { ...w.apercu, possessions } };
 }

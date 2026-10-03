@@ -150,7 +150,7 @@ function mountGridRenderer(engine: MapEngine, plane: Container): () => void {
   const pool: Graphics[] = [];
   // Ce qui est dessiné : rectangle du monde couvert et entrées du dessin
   let drawn: { x0: number; y0: number; x1: number; y1: number } | null = null;
-  let drawnStep = NaN;
+  let drawnStep = Number.NaN;
   let drawnGrids: unknown = null;
   let drawnGm = false;
   let drawnShown = false;
@@ -312,7 +312,7 @@ export const gridModule: MapModule = {
       }),
     ];
     return () => {
-      for (const c of cleanups.reverse()) c();
+      for (const c of cleanups.toReversed()) c();
     };
   },
 };

@@ -59,5 +59,5 @@ export function isUuidv7(valeur: string): boolean {
 
 /** Date de création encodée dans un UUIDv7. */
 export function uuidv7Timestamp(id: string): number {
-  return parseInt(id.replace(/-/g, '').slice(0, 12), 16);
+  return Number.parseInt(id.replaceAll('-', '').slice(0, 12), 16);
 }

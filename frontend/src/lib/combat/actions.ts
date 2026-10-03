@@ -239,7 +239,7 @@ export function previewRoll(
 /** Faces du premier dé d'une formule (« 2d6 + 3 » → 6), pour dessiner son dé ; null sinon. */
 export function firstDieFaces(formula: string | null | undefined): number | null {
   const m = formula ? /(?<![a-z])d(\d+)/i.exec(formula) : null;
-  const faces = m ? Number(m[1]) : NaN;
+  const faces = m ? Number(m[1]) : Number.NaN;
   return Number.isFinite(faces) && faces > 1 ? faces : null;
 }
 

@@ -205,7 +205,7 @@ export function parseColor(value: string | null | undefined): ParsedColor | null
         .split('')
         .map((c) => c + c)
         .join('');
-    const alpha = h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1;
+    const alpha = h.length === 8 ? Number.parseInt(h.slice(6, 8), 16) / 255 : 1;
     return { hex: `#${h.slice(0, 6)}`, alpha: Math.round(alpha * 100) / 100 };
   }
   const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+%?))?\s*\)$/.exec(v);

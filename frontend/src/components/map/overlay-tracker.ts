@@ -34,11 +34,11 @@ export function trackOverlay(
   };
   measure();
   let dirty = true;
-  let cx = NaN;
-  let cy = NaN;
-  let zoom = NaN;
-  let vw = NaN;
-  let vh = NaN;
+  let cx = Number.NaN;
+  let cy = Number.NaN;
+  let zoom = Number.NaN;
+  let vw = Number.NaN;
+  let vh = Number.NaN;
   let revision = -1;
   let extra: unknown = undefined;
   const run = () => {

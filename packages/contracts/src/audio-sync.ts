@@ -294,7 +294,7 @@ export function selectActiveSources<S extends SpatialSourceLike>(
     .filter((s) => s.gain > 0);
   const score = (s: (typeof audible)[number]) => s.gain * (previous.has(s.source.id) ? 1.1 : 1);
   return audible
-    .sort((a, b) => score(b) - score(a) || a.source.id.localeCompare(b.source.id))
+    .toSorted((a, b) => score(b) - score(a) || a.source.id.localeCompare(b.source.id))
     .slice(0, Math.max(0, max));
 }
 

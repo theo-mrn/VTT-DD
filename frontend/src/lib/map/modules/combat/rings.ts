@@ -109,7 +109,7 @@ export function mountCombatRings(engine: MapEngine, source: RingSource): () => v
     let stopFrames: (() => void) | null = null;
     // Positions des traits déjà dessinés (aucune allocation par image pour comparer)
     let drawnLines: number[] = [];
-    let linesUnit = NaN;
+    let linesUnit = Number.NaN;
 
     const index = () => {
       const wanted = new Set<string>([
@@ -135,7 +135,7 @@ export function mountCombatRings(engine: MapEngine, source: RingSource): () => v
         const g = new pixi.Graphics({ label: `combat-${kind}` });
         g.visible = false;
         root.addChildAt(g, 0);
-        rings.set(id, { entity: e, kind, mine, g, r: NaN, unit: NaN });
+        rings.set(id, { entity: e, kind, mine, g, r: Number.NaN, unit: Number.NaN });
       };
       const turn = snap.turnCharacterId;
       for (const e of turn ? (byCharacter.get(turn) ?? []) : [])

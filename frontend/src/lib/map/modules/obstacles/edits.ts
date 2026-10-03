@@ -558,10 +558,10 @@ export function mergeWithNeighbours(plan: EditPlan, id: string): string {
 
 /** Joint deux lignes qui se touchent bout à bout en `at`. */
 function joinAt(a: Pts, b: Pts, at: Point): Point[] | null {
-  const aEnd = samePoint(a[a.length - 1]!, at);
+  const aEnd = samePoint(a.at(-1)!, at);
   const aStart = samePoint(a[0]!, at);
   const bStart = samePoint(b[0]!, at);
-  const bEnd = samePoint(b[b.length - 1]!, at);
+  const bEnd = samePoint(b.at(-1)!, at);
   if (!(aEnd || aStart) || !(bStart || bEnd)) return null;
   const A = aEnd ? [...a] : [...a].reverse();
   const B = bStart ? [...b] : [...b].reverse();

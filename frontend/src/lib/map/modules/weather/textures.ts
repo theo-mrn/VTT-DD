@@ -12,7 +12,7 @@ import { ATLAS, ATLAS_HEIGHT, ATLAS_WIDTH, type AtlasRect } from './atlas';
 import type { AtlasFrame } from './effects';
 import { NOISE_SIZE } from './simulation';
 
-const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const smooth = (a: number, b: number, v: number) => {
   const t = clamp01((v - a) / (b - a));
   return t * t * (3 - 2 * t);

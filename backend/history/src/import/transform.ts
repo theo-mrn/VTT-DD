@@ -65,7 +65,7 @@ export interface ImportedEvent {
 
 /** UUID version 5 (RFC 9562) : SHA-1 de l'espace de noms et du nom. */
 export function uuidv5(name: string, namespace: string = LEGACY_NAMESPACE): string {
-  const ns = Buffer.from(namespace.replace(/-/g, ''), 'hex');
+  const ns = Buffer.from(namespace.replaceAll('-', ''), 'hex');
   const bytes = createHash('sha1')
     .update(Buffer.concat([ns, Buffer.from(name, 'utf8')]))
     .digest()

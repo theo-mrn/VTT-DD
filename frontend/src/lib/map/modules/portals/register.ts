@@ -134,7 +134,7 @@ export function registerPortals(
       }),
     );
   return () => {
-    for (const u of unregister.reverse()) u();
+    for (const u of unregister.toReversed()) u();
     view.dispose();
     modules.delete(engine);
   };

@@ -92,7 +92,7 @@ export function createTokensModule(opts: { api?: (engine: MapEngine) => NpcApi }
         watchDirectory(tokens),
       ];
       return () => {
-        for (const c of cleanups.reverse()) c();
+        for (const c of cleanups.toReversed()) c();
         tool?.dispose();
         tokens.tool = null;
       };

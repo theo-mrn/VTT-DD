@@ -247,12 +247,12 @@ export function iconeNote(n: Pick<BaseNote, 'icon' | 'kind'>): string {
 /** Texte brut d'un HTML de note (aperçus, statistiques) : jamais interprété comme HTML. */
 export function texteNote(html: string): string {
   return stripTags(html.replace(/<(br|\/p|\/h\d|\/li)>/gi, ' '))
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
+    .replaceAll('&nbsp;', ' ')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&amp;', '&')
     .replace(/\s+/g, ' ')
     .trim();
 }

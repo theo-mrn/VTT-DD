@@ -203,15 +203,15 @@ function decodeEntities(s: string, strict = false): string | null {
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
 
 const escapeText = (s: string) =>
-  s.replace(CONTROL, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  s.replace(CONTROL, '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
 const escapeAttr = (s: string) =>
   s
     .replace(CONTROL, '')
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 
 // ─── Analyse tolérante ───────────────────────────────────────────────────────
 
@@ -355,7 +355,7 @@ function cleanUrl(raw: string): string | null {
   const url = trimControls(decoded.replace(/[\t\n\r]/g, ''));
   // eslint-disable-next-line no-control-regex
   if (!url || url.length > URL_MAX || /[\u0000-\u001f\u007f]/.test(url)) return null;
-  return url.replace(/ /g, '%20');
+  return url.replaceAll(' ', '%20');
 }
 
 /** Lien : http(s), mailto, tel, chemin du site ou ancre ; rien d'autre (javascript:, data:…). */
@@ -390,7 +390,7 @@ function textAlign(style: string | undefined): string | null {
 /** Largeur d'image : attribut `width`, sinon la largeur du cadre de l'ancien éditeur. */
 function imageWidth(attrs: Map<string, string>): number | null {
   const direct = attrs.get('width');
-  let n = direct && /^\s*\d{1,5}\s*$/.test(direct) ? Number.parseInt(direct, 10) : NaN;
+  let n = direct && /^\s*\d{1,5}\s*$/.test(direct) ? Number.parseInt(direct, 10) : Number.NaN;
   if (Number.isNaN(n)) {
     for (const key of ['containerstyle', 'style']) {
       const m = WIDTH.exec(decodeEntities(attrs.get(key) ?? '') ?? '');
@@ -552,9 +552,9 @@ export function searchForm(s: string): string {
     .normalize('NFD')
     .replace(/\p{M}+/gu, '')
     .toLowerCase()
-    .replace(/œ/g, 'oe')
-    .replace(/æ/g, 'ae')
-    .replace(/ß/g, 'ss');
+    .replaceAll('œ', 'oe')
+    .replaceAll('æ', 'ae')
+    .replaceAll('ß', 'ss');
 }
 
 /** Termes de la requête (lettres et chiffres), 10 au plus, 64 caractères chacun. */

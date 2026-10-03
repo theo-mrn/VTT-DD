@@ -179,7 +179,7 @@ export function registerCombat(
   syncTool();
 
   return () => {
-    for (const c of cleanups.reverse()) c();
+    for (const c of cleanups.toReversed()) c();
     listeners.clear();
     if (modules.get(engine)?.state === state) modules.delete(engine);
     // Le menu reste ouvert (autre scène, ou sans carte) : la visée, elle, s'arrête

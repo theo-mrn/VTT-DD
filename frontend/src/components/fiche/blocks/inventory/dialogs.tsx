@@ -190,7 +190,7 @@ function Don({
   const table = usePersonnagesCampagne(personnage.roomId);
   const autres = (table.data ?? []).filter((p) => p.id !== personnage.id && !p.inCreation);
   const [choisi, setChoisi] = useState<string | null>(null);
-  const [quantite, setQuantite] = useState(String(item.quantite > 1 ? 1 : item.quantite));
+  const [quantite, setQuantite] = useState(String(Math.min(1, item.quantite)));
   const q = Number(quantite);
   const destinataire = autres.find((p) => p.id === choisi) ?? null;
   const valide = destinataire && Number.isInteger(q) && q >= 1 && q <= item.quantite;

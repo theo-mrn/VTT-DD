@@ -29,7 +29,7 @@ export function createLayer(engine: MapEngine, name: string) {
   const p = persistence(engine);
   if (!p) return null;
   const layers = engine.layersBottomUp();
-  const top = layers[layers.length - 1];
+  const top = layers.at(-1);
   const draft: MapDto = {
     id: tempId(),
     version: 0,

@@ -328,10 +328,10 @@ function Settings({ children, forced }: Readonly<{ children: React.ReactNode; fo
 function tidy(items: MenuItem[]): MenuItem[] {
   const out: MenuItem[] = [];
   for (const i of items) {
-    if (isSeparator(i) && (!out.length || isSeparator(out[out.length - 1]!))) continue;
+    if (isSeparator(i) && (!out.length || isSeparator(out.at(-1)!))) continue;
     out.push(i);
   }
-  while (out.length && isSeparator(out[out.length - 1]!)) out.pop();
+  while (out.length && isSeparator(out.at(-1)!)) out.pop();
   return out;
 }
 

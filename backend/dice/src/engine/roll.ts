@@ -244,7 +244,7 @@ export function rollNotation(
     }
   }
   let detail = processed;
-  for (const sp of spans.sort((a, b) => b.start - a.start))
+  for (const sp of spans.toSorted((a, b) => b.start - a.start))
     detail = detail.slice(0, sp.start) + sp.text + detail.slice(sp.end);
 
   // Formule affichée : telle que saisie (`1d20+CON`) quand le moteur l'a réécrite

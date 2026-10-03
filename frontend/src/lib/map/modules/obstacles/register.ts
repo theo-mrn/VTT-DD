@@ -77,7 +77,7 @@ export function registerObstacles(engine: MapEngine, ui: ObstacleUi = {}): () =>
       }),
     );
   return () => {
-    for (const u of unregister.reverse()) u();
+    for (const u of unregister.toReversed()) u();
     view.dispose();
     contexts.delete(engine);
   };

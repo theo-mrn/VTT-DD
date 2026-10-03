@@ -239,7 +239,7 @@ export function importedAssetId(campaignId: string, source: string): string {
 /** URL absolue sans espaces (encodées), pour les ids déterministes et le catalogue. */
 export function normalizeSourceUrl(url: string, base = 'https://assets.yner.fr'): string {
   const trimmed = url.trim();
-  const u = new URL(trimmed.replace(/ /g, '%20'), base);
+  const u = new URL(trimmed.replaceAll(' ', '%20'), base);
   // Décodage puis ré-encodage : « a%20b » et « a b » donnent la même URL
   u.pathname = u.pathname
     .split('/')
@@ -279,7 +279,7 @@ export function parseYoutubeId(input: string): string | null {
 
 /** UUID version 5 (RFC 9562) : SHA-1 de l'espace de noms et du nom. */
 export function uuidv5(name: string, namespace: string): string {
-  const ns = hexToBytes(namespace.replace(/-/g, ''));
+  const ns = hexToBytes(namespace.replaceAll('-', ''));
   const data = new Uint8Array(ns.length + utf8(name).length);
   data.set(ns, 0);
   data.set(utf8(name), ns.length);
@@ -294,7 +294,7 @@ const utf8 = (s: string) => new TextEncoder().encode(s);
 
 function hexToBytes(hex: string): Uint8Array {
   const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  for (let i = 0; i < out.length; i++) out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   return out;
 }
 

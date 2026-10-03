@@ -1028,7 +1028,7 @@ export class MapEngine {
       const byRole = this.layerList.find((l) => l.role === role);
       if (byRole) return byRole.id;
     }
-    return this.layerList[this.layerList.length - 1]?.id ?? IMPLICIT_LAYER_ID;
+    return this.layerList.at(-1)?.id ?? IMPLICIT_LAYER_ID;
   }
 
   private applyFlags(entity: MapEntity) {
@@ -2211,9 +2211,9 @@ function trimSeparators(items: MenuItem[]): MenuItem[] {
   const out: MenuItem[] = [];
   for (const item of items) {
     const sep = item.id.startsWith('sep:');
-    if (sep && (!out.length || out[out.length - 1]!.id.startsWith('sep:'))) continue;
+    if (sep && (!out.length || out.at(-1)!.id.startsWith('sep:'))) continue;
     out.push(item);
   }
-  while (out.length && out[out.length - 1]!.id.startsWith('sep:')) out.pop();
+  while (out.length && out.at(-1)!.id.startsWith('sep:')) out.pop();
   return out;
 }

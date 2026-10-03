@@ -328,9 +328,7 @@ function audienceText(audience: ChatAudience, people: readonly ChatPerson[]): st
   const names = audience.userIds.map((id) => people.find((p) => p.id === id)?.name ?? 'un membre');
   if (audience.gm) names.push('le MJ');
   const liste =
-    names.length <= 1
-      ? names.join('')
-      : `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}`;
+    names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} et ${names.at(-1)}`;
   return `Chuchotement à ${liste}`;
 }
 

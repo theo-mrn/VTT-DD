@@ -48,7 +48,7 @@ export function lassoPolygon(
 ): Point[] | null {
   let simplified = simplifyPath(points, tolerance);
   const first = simplified[0];
-  const last = simplified[simplified.length - 1];
+  const last = simplified.at(-1);
   if (
     first &&
     last &&

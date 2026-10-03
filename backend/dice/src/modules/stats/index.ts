@@ -181,7 +181,7 @@ export function computeStats(
       const avg = values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
       return {
         roll: index + 1,
-        total: parseFloat(avg.toFixed(2)),
+        total: Number.parseFloat(avg.toFixed(2)),
         notation: roll.notation || typeOf(roll),
       };
     });
