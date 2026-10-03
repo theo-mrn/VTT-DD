@@ -3,6 +3,9 @@
 #   pnpm import:campaigns              → export + simulation (rien n'est écrit)
 #   pnpm import:campaigns --importer   → export + import réel
 #   pnpm import:campaigns --sans-export --importer   → réutilise l'export existant
+#   pnpm import:campaigns --sans-export --reattribuer-notes [--importer]
+#       → notes déjà importées : auteur, personnage et destinataires recalculés (personnage
+#         engagé depuis, compte migré depuis) ; simulation sans --importer
 # ORDRE : comptes (`pnpm import:firebase`), puis personnages
 # (`pnpm import:personnages --importer`), puis campagnes. Les membres sans compte
 # migré et les personnages non importés sont ignorés (voir le rapport).
@@ -18,11 +21,12 @@ RAPPORT="$EXPORT/rapport-campagnes.ndjson"
 RAPPORT_NOTES="$EXPORT/rapport-notes.ndjson"
 etape() { printf '\n\033[1;33m▶ %s\033[0m\n' "$1"; }
 
-IMPORTER=0; EXPORTER=1
+IMPORTER=0; EXPORTER=1; REATTRIBUER=0
 for a in "$@"; do
   case "$a" in
     --importer) IMPORTER=1 ;;
     --sans-export) EXPORTER=0 ;;
+    --reattribuer-notes) REATTRIBUER=1 ;;
     *) echo "option inconnue : $a" >&2; exit 2 ;;
   esac
 done
@@ -54,6 +58,14 @@ fi
 IDENTITY_DATABASE_URL="$(grep -E '^DATABASE_URL=' backend/identity/.env | cut -d= -f2-)"
 CHARACTER_DATABASE_URL="$(grep -E '^DATABASE_URL=' backend/character/.env | cut -d= -f2-)"
 export IDENTITY_DATABASE_URL CHARACTER_DATABASE_URL
+
+if [ "$REATTRIBUER" = 1 ]; then
+  etape "Réattribution des notes déjà importées"
+  node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js notes \
+    --export "$EXPORT" --report "$RAPPORT_NOTES" --reattribuer \
+    $([ "$IMPORTER" = 1 ] && echo --importer)
+  exit 0
+fi
 
 if [ "$IMPORTER" = 1 ]; then
   etape "Import des campagnes"

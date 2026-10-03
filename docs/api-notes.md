@@ -221,7 +221,8 @@ l'accès doit l'apprendre) :
   montrerait sinon au MJ) ; elle sert à ses autres onglets.
 
 Import : un `note.imported` par campagne (acteur système, `gm_only`), payload
-`{ counts: { private, shared } }`.
+`{ counts: { private, shared } }` ; réattribution (`--reattribuer`) : un `note.reattributed` par
+campagne où quelque chose change, payload `{ count }`.
 
 ## Import
 
@@ -249,6 +250,12 @@ node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js notes 
   `campaigns/imported/notes/` ; une image `data:` non rapatriée est retirée.
 - Sortie : compteurs seuls ; rapport par campagne (0600) sans titre ni texte de note.
 - Salle sans campagne importée : ses notes sont comptées et ignorées (`no-campaign`).
+- **Réattribution** (`--reattribuer`, ou `pnpm import:campaigns --sans-export --reattribuer-notes`
+  [`--importer`]) : les règles ci-dessus rejouées sur les notes déjà importées, avec les
+  correspondances du moment (personnage engagé depuis l'import, compte migré depuis). Seuls
+  l'auteur, le personnage et les destinataires changent, jamais le texte ; une note modifiée dans
+  l'app depuis l'import (version > 1) est laissée et comptée ; les images ne sont pas renvoyées.
+  Simulation par défaut.
 
 ## Côté front
 

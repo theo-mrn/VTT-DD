@@ -15,7 +15,7 @@ import {
 } from '../../test/test-app.js';
 import type { FirestoreDoc } from '../legacy.js';
 import { legacyUuid } from '../maps/transform.js';
-import { existingNotes, loadNotes } from './load.js';
+import { existingNotes, loadNotes, reattributeNotes } from './load.js';
 import { transformNotes } from './transform.js';
 
 const doc = (path: string, data: Record<string, unknown>): FirestoreDoc => ({
@@ -143,6 +143,83 @@ describe.skipIf(!TEST_DATABASE_URL)('import des notes', () => {
         actor: { userId: null, role: 'system', characterId: null },
         payload: { counts: { private: 2, shared: 2 } },
       }),
+    ]);
+  });
+
+  it('réattribue : personnage engagé après l’import, sans toucher aux notes modifiées depuis', async () => {
+    const campaignId = await h.campaign(gm, 'dnd-classic', [alice]);
+    const R = `T${crypto.randomUUID().slice(0, 8)}`;
+    // Cruder : personnage joueur du MJ, rangé sous son ancien nom, joué par Alice dans l'ancienne app
+    const privateDocs = [
+      doc(`Notes/${R}/Cruder/n1`, { title: 'Carnet', content: '<p>a</p>' }),
+      doc(`Notes/${R}/Cruder/n2`, { title: 'Plan', content: '<p>b</p>' }),
+    ];
+    const sharedDocs = [
+      doc(`SharedNotes/${R}/notes/s1`, { title: 'Pour tous', createdBy: 'Cruder' }),
+    ];
+    const mappings = (engaged: string | null) => ({
+      campaignId,
+      gmId: gm.id,
+      characters: new Map([
+        [
+          `cartes/${R}/characters/cruder`,
+          {
+            id: engaged ?? crypto.randomUUID(),
+            engaged: !!engaged,
+            ownerId: gm.id,
+            playedBy: null,
+          },
+        ],
+      ]),
+      legacyCharacters: new Map([['cruder', { name: 'Cruder', type: 'joueurs' }]]),
+      accounts: new Map([['uid-alice', alice.id]]),
+      users: new Map([['uid-alice', { persoId: 'cruder' }]]),
+      importedAt: new Date(),
+    });
+
+    // Premier import : Cruder pas encore engagé, notes sans personnage
+    const before = transformNotes(R, privateDocs, sharedDocs, mappings(null));
+    await loadNotes(t.db!, campaignId, before.notes, 'test');
+    // Alice modifie une de ses notes dans l'app
+    const n2 = legacyUuid(`Notes/${R}/Cruder/n2`);
+    await h.ok(alice, 'PATCH', `/v1/campaigns/${campaignId}/notes/${n2}`, { title: 'Plan revu' });
+
+    // Cruder engagé depuis : la réattribution le rattache, la note modifiée reste
+    const cruder = await h.engage(campaignId, gm);
+    const after = transformNotes(R, privateDocs, sharedDocs, mappings(cruder));
+    expect(await reattributeNotes(t.db!, campaignId, after.notes, 'test', false)).toEqual({
+      changed: 2,
+      edited: 1,
+    });
+    expect(await reattributeNotes(t.db!, campaignId, after.notes, 'test', true)).toEqual({
+      changed: 2,
+      edited: 1,
+    });
+    const n1 = await h.ok<Record<string, unknown>>(
+      alice,
+      'GET',
+      `/v1/campaigns/${campaignId}/notes/${legacyUuid(`Notes/${R}/Cruder/n1`)}`,
+    );
+    expect(n1).toMatchObject({ characterId: cruder, title: 'Carnet', owner: { id: alice.id } });
+    const revu = await h.ok<Record<string, unknown>>(
+      alice,
+      'GET',
+      `/v1/campaigns/${campaignId}/notes/${n2}`,
+    );
+    expect(revu).toMatchObject({ characterId: null, title: 'Plan revu' });
+    // Rejouée : plus rien à changer
+    expect(await reattributeNotes(t.db!, campaignId, after.notes, 'test', true)).toEqual({
+      changed: 0,
+      edited: 1,
+    });
+    const events = await t
+      .db!.select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(
+        sql`${outbox.envelope}->>'roomId' = ${campaignId} and ${outbox.envelope}->>'type' = 'note.reattributed'`,
+      );
+    expect(events.map((e) => e.envelope)).toEqual([
+      expect.objectContaining({ visibility: 'gm_only', payload: { count: 2 } }),
     ]);
   });
 });

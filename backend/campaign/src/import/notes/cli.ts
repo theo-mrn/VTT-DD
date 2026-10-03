@@ -4,11 +4,13 @@
  * d'import de campaign :
  *
  *   node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js notes \
- *     --export ~/vtt-export --report ~/vtt-export/rapport-notes.ndjson [--importer]
+ *     --export ~/vtt-export --report ~/vtt-export/rapport-notes.ndjson [--reattribuer] [--importer]
  *
  *   --export    dossier des exports NDJSON de tools/firebase-export : Notes et
  *               SharedNotes (récursifs), users et cartes (personnages)
  *   --report    rapport par campagne (compteurs, avertissements ; jamais de texte de note)
+ *   --reattribuer  notes déjà importées : auteur, personnage et destinataires recalculés (texte
+ *               intact ; une note modifiée dans l'app depuis l'import est laissée)
  *   --importer  écrit en base ; sans lui, simulation (rien n'est écrit)
  *
  * Environnement :
@@ -30,7 +32,7 @@ import { campaignCharacters, campaigns, legacyIds } from '../../db/schema.js';
 import { isDataUrl, isFirebaseStorage, mediaRehoster } from '../images.js';
 import type { FirestoreDoc } from '../legacy.js';
 import { LEGACY_SOURCE } from '../loading.js';
-import { countNotes, existingNotes, loadNotes, type NoteCounts } from './load.js';
+import { countNotes, existingNotes, loadNotes, reattributeNotes, type NoteCounts } from './load.js';
 import { transformNotes, type MigratedNotes, type NotesMappings } from './transform.js';
 
 const { values } = parseArgs({
@@ -39,10 +41,13 @@ const { values } = parseArgs({
     export: { type: 'string' },
     report: { type: 'string' },
     importer: { type: 'boolean', default: false },
+    reattribuer: { type: 'boolean', default: false },
   },
 });
 if (!values.export || !values.report) {
-  console.error('usage : cli.js notes --export <dossier> --report <fichier> [--importer]');
+  console.error(
+    'usage : cli.js notes --export <dossier> --report <fichier> [--reattribuer] [--importer]',
+  );
   process.exit(2);
 }
 const write = values.importer;
@@ -225,7 +230,16 @@ async function rehostMedia(m: MigratedNotes, warn: (w: string) => void) {
 const report = createWriteStream(values.report, { mode: 0o600 });
 const correlationId = uuidv7();
 const importedAt = new Date();
-const totals = { campaigns: 0, noCampaign: 0, skipped: 0, errors: 0, warnings: 0, media: 0 };
+const totals = {
+  campaigns: 0,
+  noCampaign: 0,
+  skipped: 0,
+  errors: 0,
+  warnings: 0,
+  media: 0,
+  reattributed: 0,
+  edited: 0,
+};
 const produced: NoteCounts = { private: 0, shared: 0 };
 const written: NoteCounts = { private: 0, shared: 0 };
 let already = 0;
@@ -282,12 +296,23 @@ for (const code of codes) {
       importedAt,
     });
     const warnings = migrated.warnings;
-    totals.media += await rehostMedia(migrated, (w) => warnings.push(w));
+    // Réattribution : les images sont déjà rapatriées, rien n'est renvoyé au stockage
+    if (!values.reattribuer) totals.media += await rehostMedia(migrated, (w) => warnings.push(w));
     const counts = countNotes(migrated.notes);
     add(produced, counts);
     totals.skipped += migrated.skipped;
     Object.assign(out, { id: campaign.id, produced: counts, skipped: migrated.skipped });
-    if (write) {
+    if (values.reattribuer) {
+      // Notes déjà importées : auteur, personnage et destinataires recalculés (texte intact)
+      const r = await reattributeNotes(base.db, campaign.id, migrated.notes, correlationId, write);
+      totals.reattributed += r.changed;
+      totals.edited += r.edited;
+      Object.assign(out, {
+        status: write ? 'reattributed' : 'dry-run-reattribution',
+        reattributed: r.changed,
+        editedSinceImport: r.edited,
+      });
+    } else if (write) {
       const w = await loadNotes(base.db, campaign.id, migrated.notes, correlationId);
       add(written, w);
       Object.assign(out, { status: 'imported', written: w });
@@ -317,11 +342,18 @@ console.log(
   `Campagnes : ${totals.campaigns}, salles sans campagne importée : ${totals.noCampaign}`,
 );
 console.log(`Notes produites : ${fmt(produced)} ; ignorées (auteur, doublon) : ${totals.skipped}`);
-console.log(
-  write
-    ? `Notes écrites : ${fmt(written)} (le reste existait déjà)`
-    : `Simulation : rien n'a été écrit, ${already} déjà importée(s) (--importer pour importer)`,
-);
+if (values.reattribuer)
+  console.log(
+    write
+      ? `Notes réattribuées : ${totals.reattributed} ; modifiées depuis l'import, laissées : ${totals.edited}`
+      : `Simulation : ${totals.reattributed} note(s) à réattribuer, ${totals.edited} modifiée(s) depuis l'import (laissées) ; --importer pour écrire`,
+  );
+else
+  console.log(
+    write
+      ? `Notes écrites : ${fmt(written)} (le reste existait déjà)`
+      : `Simulation : rien n'a été écrit, ${already} déjà importée(s) (--importer pour importer)`,
+  );
 console.log(
   `Images à rapatrier : ${totals.media}, avertissements : ${totals.warnings}, erreurs : ${totals.errors}`,
 );
