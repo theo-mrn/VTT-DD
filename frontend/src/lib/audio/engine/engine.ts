@@ -128,22 +128,23 @@ export class AudioEngine implements EngineHost {
     return this.liveSounds;
   }
 
+  private contextState(): string {
+    if (this.ctx) return this.ctx.state;
+    return this.unsupported ? 'Web Audio indisponible' : 'pas encore créé';
+  }
+
   /** Photographie lisible du moteur (panneau de diagnostic). */
   diagnostics() {
     const ch = (name: ChannelName) => {
       const s = this.states[name];
-      return s
-        ? `v${s.version} · ${s.status} · ${s.track?.name ?? 'aucun morceau'}${s.track ? ` (${s.track.source})` : ''} · volume table ${Math.round(s.volume * 100)} %`
-        : 'aucun état reçu';
+      if (!s) return 'aucun état reçu';
+      const morceau = s.track ? `${s.track.name} (${s.track.source})` : 'aucun morceau';
+      return `v${s.version} · ${s.status} · ${morceau} · volume table ${Math.round(s.volume * 100)} %`;
     };
     return {
       campagne: this.campaignId ?? 'aucune (moteur détaché)',
       lecture: this.directMedia ? 'directe (compatibilité Safari)' : 'graphe Web Audio',
-      contexte: this.ctx
-        ? this.ctx.state
-        : this.unsupported
-          ? 'Web Audio indisponible'
-          : 'pas encore créé',
+      contexte: this.contextState(),
       debloquage: this.needsUnlock ? 'requis' : 'non',
       youtubeBloque: this.blocked,
       mixeur: Object.entries(this.mixer.volumes)

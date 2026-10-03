@@ -406,12 +406,12 @@ function weldPoints(
 
 function dimsCol(dims: { cell: number; cols: number }, min: number, x: number) {
   const c = Math.floor((x - min) / dims.cell);
-  return c < 0 ? 0 : c >= dims.cols ? dims.cols - 1 : c;
+  return Math.min(Math.max(c, 0), dims.cols - 1);
 }
 
 function dimsRow(dims: { cell: number; rows: number }, min: number, y: number) {
   const r = Math.floor((y - min) / dims.cell);
-  return r < 0 ? 0 : r >= dims.rows ? dims.rows - 1 : r;
+  return Math.min(Math.max(r, 0), dims.rows - 1);
 }
 
 function segmentGrid(

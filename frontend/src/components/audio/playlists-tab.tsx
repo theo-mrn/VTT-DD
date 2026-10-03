@@ -60,16 +60,18 @@ const fail = (label: string) => (e: unknown) =>
   toast.error(label, { description: messageErreur(e) });
 
 /** « 12 morceaux · 42 min » */
+function morceaux(n: number): string {
+  return n > 1 ? `${n} morceaux` : `${n} morceau`;
+}
+
 function resume(p: Playlist, assets: Map<string, Asset>): string {
   const n = p.assetIds.length;
   const ms = p.assetIds.reduce((t, id) => t + (assets.get(id)?.durationMs ?? 0), 0);
-  const duree =
-    ms >= 3_600_000
-      ? `${Math.floor(ms / 3_600_000)} h ${Math.round((ms % 3_600_000) / 60_000)} min`
-      : ms > 0
-        ? `${Math.max(1, Math.round(ms / 60_000))} min`
-        : null;
-  return [`${n} morceau${n > 1 ? 'x' : ''}`, duree].filter(Boolean).join(' · ');
+  let duree: string | null = null;
+  if (ms >= 3_600_000)
+    duree = `${Math.floor(ms / 3_600_000)} h ${Math.round((ms % 3_600_000) / 60_000)} min`;
+  else if (ms > 0) duree = `${Math.max(1, Math.round(ms / 60_000))} min`;
+  return [morceaux(n), duree].filter(Boolean).join(' · ');
 }
 
 /** Couverture générée aux couleurs du thème, nuance stable tirée du nom (rien à charger). */
@@ -611,9 +613,7 @@ function AddTracks({
             Annuler
           </Button>
           <Button disabled={!chosen.length} loading={busy} onClick={() => void ajouter()}>
-            {chosen.length
-              ? `Ajouter ${chosen.length} morceau${chosen.length > 1 ? 'x' : ''}`
-              : 'Ajouter'}
+            {chosen.length ? `Ajouter ${morceaux(chosen.length)}` : 'Ajouter'}
           </Button>
         </DialogFooter>
       </DialogContent>

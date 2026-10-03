@@ -82,11 +82,7 @@ function MessageItemView({ item, first, ctx, editing: enCorrection }: Readonly<M
         // Arrivée : fondu et léger glissé vers le haut
         'duration-200 ease-out animate-in fade-in-0 slide-in-from-bottom-1',
         first && 'mt-3',
-        forMe
-          ? 'border-primary bg-primary/[0.07]'
-          : whisper
-            ? 'border-arcane/60 bg-arcane/[0.06]'
-            : 'border-transparent',
+        accentOf(forMe, whisper),
         !editing && 'hover:bg-surface-2/70',
         item.pending && 'opacity-70',
       )}
@@ -164,31 +160,33 @@ function MessageItemView({ item, first, ctx, editing: enCorrection }: Readonly<M
 function Rich({ segments, me }: Readonly<{ segments: readonly Segment[]; me: string }>) {
   return (
     <>
-      {segments.map((s, i) =>
-        s.kind === 'mention' ? (
-          <span
-            key={i}
-            className={cn(
-              'rounded px-0.5 font-medium',
-              s.userId === me ? 'bg-primary/20 text-primary-strong' : 'bg-info/10 text-info',
-            )}
-          >
-            {s.text}
-          </span>
-        ) : s.kind === 'link' ? (
-          <a
-            key={i}
-            href={s.href}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            className="text-info underline decoration-info/40 underline-offset-2 hover:decoration-info"
-          >
-            {s.text}
-          </a>
-        ) : (
-          <span key={i}>{s.text}</span>
-        ),
-      )}
+      {segments.map((s, i) => {
+        if (s.kind === 'mention')
+          return (
+            <span
+              key={i}
+              className={cn(
+                'rounded px-0.5 font-medium',
+                s.userId === me ? 'bg-primary/20 text-primary-strong' : 'bg-info/10 text-info',
+              )}
+            >
+              {s.text}
+            </span>
+          );
+        if (s.kind === 'link')
+          return (
+            <a
+              key={i}
+              href={s.href}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="text-info underline decoration-info/40 underline-offset-2 hover:decoration-info"
+            >
+              {s.text}
+            </a>
+          );
+        return <span key={i}>{s.text}</span>;
+      })}
     </>
   );
 }
@@ -393,4 +391,10 @@ function EditMessage({ message, ctx }: Readonly<{ message: ChatMessage; ctx: Mes
       </div>
     </div>
   );
+}
+
+/** Liseré d'un message : pour moi, chuchoté, ou aucun. */
+function accentOf(forMe: boolean, whisper: boolean): string {
+  if (forMe) return 'border-primary bg-primary/[0.07]';
+  return whisper ? 'border-arcane/60 bg-arcane/[0.06]' : 'border-transparent';
 }

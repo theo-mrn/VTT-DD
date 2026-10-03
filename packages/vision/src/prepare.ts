@@ -139,7 +139,13 @@ export class PreparedScene {
 
 function clampCell(v: number, cell: number, count: number) {
   const c = Math.floor(v / cell);
-  return c < 0 ? 0 : c >= count ? count - 1 : c;
+  return Math.min(Math.max(c, 0), count - 1);
+}
+
+/** Côté bloquant d'un mur à sens unique (0 : bloque des deux côtés). */
+function wallFlags(s: Segment) {
+  if (!isOneWay(s)) return 0;
+  return s.blocksFrom === 'right' ? FLAG_RIGHT : FLAG_LEFT;
 }
 
 /** Sens unique : `one_way` ou l'alias du contrat `one_way_wall`. */
@@ -169,7 +175,7 @@ export function prepareScene(scene: VisionScene, options: PrepareOptions = {}): 
     if (s.kind === 'door' && s.open === true) return;
     const opacity = s.opacity ?? 1;
     if (!(opacity > 0)) return;
-    const flags = isOneWay(s) ? (s.blocksFrom === 'right' ? FLAG_RIGHT : FLAG_LEFT) : 0;
+    const flags = wallFlags(s);
     if (opacity < 1) {
       if (!clipSegmentToRect(s.a.x, s.a.y, s.b.x, s.b.y, 0, 0, width, height, clip)) return;
       if (clip[0] === clip[2] && clip[1] === clip[3]) return;

@@ -37,6 +37,10 @@ export function ResourcesPage() {
     router.replace(qs ? `${chemin}?${qs}` : chemin, { scroll: false });
   };
 
+  let etat: 'chargement' | 'erreur' | 'pret' = 'pret';
+  if (systemes.isPending || (choisi && systeme.isPending)) etat = 'chargement';
+  else if (systemes.isError || systeme.isError) etat = 'erreur';
+
   return (
     <Page large>
       <EnTetePage
@@ -56,9 +60,8 @@ export function ResourcesPage() {
         }
       />
 
-      {systemes.isPending || (choisi && systeme.isPending) ? (
-        <ListSkeleton />
-      ) : systemes.isError || systeme.isError ? (
+      {etat === 'chargement' && <ListSkeleton />}
+      {etat === 'erreur' && (
         <Notice
           tone="error"
           icon={AlertTriangle}
@@ -77,9 +80,11 @@ export function ResourcesPage() {
             </Button>
           }
         />
-      ) : !choisi || !systeme.data ? (
+      )}
+      {etat === 'pret' && (!choisi || !systeme.data) && (
         <Notice icon={AlertTriangle} title="Aucun système de jeu disponible" />
-      ) : (
+      )}
+      {etat === 'pret' && choisi && systeme.data && (
         <ResourcesBrowser
           key={choisi.id}
           systemId={choisi.id}

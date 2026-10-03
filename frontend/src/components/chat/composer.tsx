@@ -299,13 +299,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             remaining > 0 && 'text-warning',
           )}
         >
-          {remaining > 0
-            ? `Trop de messages : patientez ${remaining} s`
-            : tooLong
-              ? `${trimmed.length - CHAT_MAX_BODY} caractères en trop`
-              : trimmed.length >= COUNTER_FROM
-                ? `${trimmed.length} / ${CHAT_MAX_BODY}`
-                : ''}
+          {counterText(remaining, trimmed.length)}
         </span>
       </div>
     </div>
@@ -429,4 +423,11 @@ function AudiencePicker({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/** Compteur sous la saisie : attente imposée, dépassement, ou longueur près de la limite. */
+function counterText(remaining: number, length: number): string {
+  if (remaining > 0) return `Trop de messages : patientez ${remaining} s`;
+  if (length > CHAT_MAX_BODY) return `${length - CHAT_MAX_BODY} caractères en trop`;
+  return length >= COUNTER_FROM ? `${length} / ${CHAT_MAX_BODY}` : '';
 }

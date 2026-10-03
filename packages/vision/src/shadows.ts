@@ -75,8 +75,8 @@ function project(ox: number, oy: number, px: number, py: number, W: number, H: n
   if (!Number.isFinite(t) || t < 1) t = 1;
   let x = ox + t * dx;
   let y = oy + t * dy;
-  x = x < 0 ? 0 : x > W ? W : x;
-  y = y < 0 ? 0 : y > H ? H : y;
+  x = Math.min(Math.max(x, 0), W);
+  y = Math.min(Math.max(y, 0), H);
   return [x, y] as const;
 }
 

@@ -69,7 +69,8 @@ export async function jouerAction(
       ? await verrouiller(tx, ids)
       : await Promise.all(ids.map((i) => lire(tx, i)));
     const acteur = lignes[0]!;
-    const cible = cibleId ? (memeEntite ? acteur : lignes[1]!) : undefined;
+    let cible: typeof acteur | undefined;
+    if (cibleId) cible = memeEntite ? acteur : lignes[1]!;
 
     const systeme = systemeDe(catalogue, acteur, optionsActeur);
     if (cible && cible.systemId !== acteur.systemId)
@@ -78,11 +79,11 @@ export async function jouerAction(
         'systeme_different',
       );
     const ficheActeur = verifierEtat(systeme, acteur.etat).fiche;
-    const ficheCible = cible
-      ? memeEntite
+    let ficheCible: typeof ficheActeur | undefined;
+    if (cible)
+      ficheCible = memeEntite
         ? ficheActeur
-        : verifierEtat(systemeDe(catalogue, cible, optionsDe(cible.id)), cible.etat).fiche
-      : undefined;
+        : verifierEtat(systemeDe(catalogue, cible, optionsDe(cible.id)), cible.etat).fiche;
 
     const r = resoudreAction(systeme, {
       action,
