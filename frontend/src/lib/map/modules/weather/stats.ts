@@ -25,7 +25,6 @@ export class WeatherStats {
     render: new Float64Array(WINDOW),
   };
   private readonly counts: Record<WeatherStep, number> = { step: 0, draw: 0, frame: 0, render: 0 };
-  private dirty = false;
   /** Particules vivantes à la dernière image. */
   particles = 0;
 
@@ -34,7 +33,6 @@ export class WeatherStats {
     const n = this.counts[step];
     this.samples[step][n % WINDOW] = ms;
     this.counts[step] = n + 1;
-    this.dirty = true;
   }
 
   /** Moyenne des `n` dernières mesures d'une étape (0 sans mesure). */
@@ -74,26 +72,14 @@ export class WeatherStats {
     }
     return out;
   }
-
-  /** Vrai une fois après chaque nouvelle mesure (résumé périodique). */
-  takeDirty(): boolean {
-    const d = this.dirty;
-    this.dirty = false;
-    return d;
-  }
 }
 
-/** En développement : `window.__vttWeather` et un résumé toutes les 5 s. Renvoie l'arrêt. */
+/** En développement : `window.__vttWeather` (résumé à la demande : `summary()`). Renvoie l'arrêt. */
 export function exposeWeatherStats(stats: WeatherStats): () => void {
   if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return () => {};
   const w = window as unknown as { __vttWeather?: { stats: WeatherStats; summary(): unknown } };
   w.__vttWeather = { stats, summary: () => stats.summary() };
-  const timer = setInterval(() => {
-    if (!stats.takeDirty()) return;
-    console.debug('[carte] météo (ms)', stats.summary());
-  }, 5_000);
   return () => {
-    clearInterval(timer);
     if (w.__vttWeather?.stats === stats) delete w.__vttWeather;
   };
 }

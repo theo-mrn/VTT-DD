@@ -16,7 +16,6 @@ export interface StepSummary {
 
 export class VisionStats {
   private readonly samples = new Map<VisionStep, number[]>();
-  private dirty = false;
 
   record(step: VisionStep, ms: number) {
     let list = this.samples.get(step);
@@ -26,7 +25,6 @@ export class VisionStats {
     }
     list.push(ms);
     if (list.length > WINDOW) list.shift();
-    this.dirty = true;
   }
 
   summary(): Partial<Record<VisionStep, StepSummary>> {
@@ -43,29 +41,17 @@ export class VisionStats {
     return out;
   }
 
-  /** Vrai une fois après chaque nouvelle mesure (résumé périodique). */
-  takeDirty(): boolean {
-    const d = this.dirty;
-    this.dirty = false;
-    return d;
-  }
-
   clear() {
     this.samples.clear();
   }
 }
 
-/** En développement : `window.__vttVision` et un résumé toutes les 5 s. Renvoie l'arrêt. */
+/** En développement : `window.__vttVision` (résumé à la demande : `summary()`). Renvoie l'arrêt. */
 export function exposeStats(stats: VisionStats): () => void {
   if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return () => {};
   const w = window as unknown as { __vttVision?: { stats: VisionStats; summary(): unknown } };
   w.__vttVision = { stats, summary: () => stats.summary() };
-  const timer = setInterval(() => {
-    if (!stats.takeDirty()) return;
-    console.debug('[carte] visibilité (ms)', stats.summary());
-  }, 5_000);
   return () => {
-    clearInterval(timer);
     if (w.__vttVision?.stats === stats) delete w.__vttVision;
   };
 }
