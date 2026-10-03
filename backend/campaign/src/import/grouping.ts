@@ -72,46 +72,82 @@ export interface Grouping {
 
 const segments = (path: string) => path.split('/');
 
-export function groupCampaigns(e: CampaignExports): Grouping {
-  const systems = new Map<string, Record<string, unknown>>();
-  for (const d of e.systems) if (segments(d.path).length === 2) systems.set(d.id, d.data ?? {});
+/** Campagnes trouvées, et codes cités sans document `Salle`. */
+interface Index {
+  campaigns: Map<string, CampaignToImport>;
+  orphans: Set<string>;
+}
 
+/** Documents racines d'une collection (`collection/{id}`), par id. */
+function rootDocs(docs: readonly FirestoreDoc[]): Map<string, Record<string, unknown>> {
+  const r = new Map<string, Record<string, unknown>>();
+  for (const d of docs) if (segments(d.path).length === 2) r.set(d.id, d.data ?? {});
+  return r;
+}
+
+/** Campagne à importer d'un document `Salle/{code}`, sans membres ni contenu. */
+function campaignFrom(
+  d: FirestoreDoc,
+  systems: Map<string, Record<string, unknown>>,
+): CampaignToImport {
+  const data = (d.data ?? {}) as LegacyCampaign;
+  const gameSystemId = toText(data.gameSystemId);
+  const systemName = gameSystemId ? toText(systems.get(gameSystemId)?.name) : undefined;
+  return {
+    code: d.id,
+    legacyId: d.path,
+    doc: d as FirestoreDoc<LegacyCampaign>,
+    system: {
+      ...(gameSystemId ? { gameSystemId } : {}),
+      ...(systemName ? { systemName } : {}),
+    },
+    members: [],
+    characters: [],
+    sessions: [],
+    messages: [],
+  };
+}
+
+/** Campagnes (`Salle/{code}`) et sous-documents de `Salle` à rattacher ensuite. */
+function indexCampaigns(
+  docs: readonly FirestoreDoc[],
+  systems: Map<string, Record<string, unknown>>,
+): { campaigns: Map<string, CampaignToImport>; subDocs: FirestoreDoc[] } {
   const campaigns = new Map<string, CampaignToImport>();
   const subDocs: FirestoreDoc[] = [];
-  for (const d of e.campaigns) {
+  for (const d of docs) {
     const s = segments(d.path);
     if (s[0] !== 'Salle') continue;
-    if (s.length !== 2) {
-      subDocs.push(d);
-      continue;
-    }
-    const data = (d.data ?? {}) as LegacyCampaign;
-    const gameSystemId = toText(data.gameSystemId);
-    const systemName = gameSystemId ? toText(systems.get(gameSystemId)?.name) : undefined;
-    campaigns.set(d.id, {
-      code: d.id,
-      legacyId: d.path,
-      doc: d as FirestoreDoc<LegacyCampaign>,
-      system: {
-        ...(gameSystemId ? { gameSystemId } : {}),
-        ...(systemName ? { systemName } : {}),
-      },
-      members: [],
-      characters: [],
-      sessions: [],
-      messages: [],
-    });
+    if (s.length !== 2) subDocs.push(d);
+    else campaigns.set(d.id, campaignFrom(d, systems));
   }
+  return { campaigns, subDocs };
+}
 
-  const orphans = new Set<string>();
-  const campaignOf = (code: string | undefined) => {
-    if (!code) return undefined;
-    const campaign = campaigns.get(code);
-    if (!campaign) orphans.add(code);
-    return campaign;
-  };
+/** Campagne d'un code ; un code sans campagne est noté orphelin. */
+function campaignOf(ix: Index, code: string | undefined): CampaignToImport | undefined {
+  if (!code) return undefined;
+  const campaign = ix.campaigns.get(code);
+  if (!campaign) ix.orphans.add(code);
+  return campaign;
+}
 
-  // Sessions et discussion : Salle/{code}/sessions/{id}, Salle/{code}/chat/{id}
+/** Membre d'une campagne (ajouté au besoin), avec la source qui l'a vu. */
+function member(campaign: CampaignToImport, uid: string, source: MemberSource): LegacyMember {
+  let m = campaign.members.find((x) => x.uid === uid);
+  if (!m) {
+    m = { uid, sources: [] };
+    campaign.members.push(m);
+  }
+  if (!m.sources.includes(source)) m.sources.push(source);
+  return m;
+}
+
+/** Sessions et discussion : Salle/{code}/sessions/{id}, Salle/{code}/chat/{id}. */
+function attachSubDocs(
+  campaigns: Map<string, CampaignToImport>,
+  subDocs: readonly FirestoreDoc[],
+): void {
   for (const d of subDocs) {
     const s = segments(d.path);
     if (s.length !== 4) continue;
@@ -120,54 +156,52 @@ export function groupCampaigns(e: CampaignExports): Grouping {
     if (s[2] === 'sessions') campaign.sessions.push(d as FirestoreDoc<LegacySession>);
     else if (s[2] === 'chat') campaign.messages.push(d as FirestoreDoc<LegacyMessage>);
   }
+}
 
-  const member = (campaign: CampaignToImport, uid: string, source: MemberSource): LegacyMember => {
-    let m = campaign.members.find((x) => x.uid === uid);
-    if (!m) {
-      m = { uid, sources: [] };
-      campaign.members.push(m);
-    }
-    if (!m.sources.includes(source)) m.sources.push(source);
-    return m;
-  };
-
-  // Le créateur d'abord
-  for (const campaign of campaigns.values()) {
-    const creator = toText(campaign.doc.data?.creatorId);
-    if (creator) member(campaign, creator, 'creator');
-  }
-
-  // users/{uid}/rooms/{code}, puis users/{uid}.room_id et persoId
-  for (const d of e.users) {
+/** users/{uid}/rooms/{code} : campagnes rejointes ou créées. */
+function addRoomMembers(ix: Index, users: readonly FirestoreDoc[]): void {
+  for (const d of users) {
     const s = segments(d.path);
-    if (s.length === 4 && s[2] === 'rooms') {
-      const campaign = campaignOf(s[3]);
-      if (campaign) member(campaign, s[1]!, 'rooms');
-    }
+    if (s.length !== 4 || s[2] !== 'rooms') continue;
+    const campaign = campaignOf(ix, s[3]);
+    if (campaign) member(campaign, s[1]!, 'rooms');
   }
+}
+
+/** users/{uid}.room_id et persoId ; renvoie les comptes dont la campagne active est connue. */
+function addActiveMembers(ix: Index, users: readonly FirestoreDoc[]): Map<string, LegacyUser> {
   const active = new Map<string, LegacyUser>(); // uid → document, si room_id connu
-  for (const d of e.users) {
+  for (const d of users) {
     if (segments(d.path).length !== 2) continue;
     const u = (d.data ?? {}) as LegacyUser;
-    const campaign = campaignOf(toText(u.room_id));
+    const campaign = campaignOf(ix, toText(u.room_id));
     if (!campaign) continue;
     const m = member(campaign, d.id, 'room_id');
     const persoId = toText(u.persoId);
     if (persoId) m.persoId = persoId;
     active.set(d.id, u);
   }
+  return active;
+}
 
-  // salles/{code}/Noms/{uid}
-  for (const d of e.names) {
+/** salles/{code}/Noms/{uid} : personnage choisi ou rôle de MJ. */
+function addNamedMembers(ix: Index, names: readonly FirestoreDoc[]): void {
+  for (const d of names) {
     const s = segments(d.path);
     if (s.length !== 4 || s[0] !== 'salles' || s[2] !== 'Noms') continue;
-    const campaign = campaignOf(s[1]);
+    const campaign = campaignOf(ix, s[1]);
     if (!campaign) continue;
     const m = member(campaign, s[3]!, 'names');
     const name = toText((d.data as LegacyName | undefined)?.nom);
     if (name) m.name = name;
   }
-  // À défaut de Noms, users/{uid}.perso de la campagne active dit la même chose
+}
+
+/** À défaut de Noms, users/{uid}.perso de la campagne active dit la même chose. */
+function fillNamesFromActive(
+  campaigns: Map<string, CampaignToImport>,
+  active: Map<string, LegacyUser>,
+): void {
   for (const campaign of campaigns.values()) {
     for (const m of campaign.members) {
       if (m.name) continue;
@@ -176,14 +210,39 @@ export function groupCampaigns(e: CampaignExports): Grouping {
       if (perso) m.name = perso;
     }
   }
+}
 
-  // Personnages : cartes/{code}/characters/{id}
-  for (const d of e.maps) {
+/** Personnages : cartes/{code}/characters/{id}. */
+function attachCharacters(ix: Index, maps: readonly FirestoreDoc[]): void {
+  for (const d of maps) {
     const s = segments(d.path);
     if (s.length !== 4 || s[0] !== 'cartes' || s[2] !== 'characters') continue;
-    const campaign = campaignOf(s[1]);
+    const campaign = campaignOf(ix, s[1]);
     if (campaign) campaign.characters.push(d as FirestoreDoc<LegacyCharacter>);
   }
+}
 
-  return { campaigns: [...campaigns.values()], orphans: [...orphans].sort(compareCodeUnits) };
+export function groupCampaigns(e: CampaignExports): Grouping {
+  const { campaigns, subDocs } = indexCampaigns(e.campaigns, rootDocs(e.systems));
+  const ix: Index = { campaigns, orphans: new Set<string>() };
+
+  attachSubDocs(campaigns, subDocs);
+
+  // Le créateur d'abord
+  for (const campaign of campaigns.values()) {
+    const creator = toText(campaign.doc.data?.creatorId);
+    if (creator) member(campaign, creator, 'creator');
+  }
+
+  // users/{uid}/rooms/{code}, puis users/{uid}.room_id et persoId
+  addRoomMembers(ix, e.users);
+  const active = addActiveMembers(ix, e.users);
+  addNamedMembers(ix, e.names);
+  fillNamesFromActive(campaigns, active);
+  attachCharacters(ix, e.maps);
+
+  return {
+    campaigns: [...campaigns.values()],
+    orphans: [...ix.orphans].sort(compareCodeUnits),
+  };
 }
