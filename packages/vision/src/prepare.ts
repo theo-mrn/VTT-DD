@@ -153,6 +153,48 @@ function isOneWay(s: Segment) {
   return s.kind === 'one_way' || s.kind === 'one_way_wall';
 }
 
+/** La boîte de la porte touche-t-elle celle de la pièce élargie de `tol` ? */
+function doorNearBox(d: Segment, shape: PolygonShape, tol: number): boolean {
+  return !(
+    Math.max(d.a.x, d.b.x) < shape.minX - tol ||
+    Math.min(d.a.x, d.b.x) > shape.maxX + tol ||
+    Math.max(d.a.y, d.b.y) < shape.minY - tol ||
+    Math.min(d.a.y, d.b.y) > shape.maxY + tol
+  );
+}
+
+/**
+ * Porte sur le contour : extrémités et milieu à la tolérance près (une porte en travers de la
+ * pièce, extrémités sur le contour, n'en fait pas partie).
+ */
+function doorOnContour(d: Segment, shape: PolygonShape, tol2: number): boolean {
+  const mx = (d.a.x + d.b.x) / 2;
+  const my = (d.a.y + d.b.y) / 2;
+  return (
+    shape.boundaryDistSq(d.a.x, d.a.y) <= tol2 &&
+    shape.boundaryDistSq(d.b.x, d.b.y) <= tol2 &&
+    shape.boundaryDistSq(mx, my) <= tol2
+  );
+}
+
+/** Portes du contour d'une pièce, et ouverture (fenêtre ou porte ouverte sur le contour). */
+function contourDoors(
+  shape: PolygonShape,
+  doors: readonly Segment[],
+  doorTolerance: number,
+): { doorIds: string[]; open: boolean } {
+  const doorIds: string[] = [];
+  let open = false;
+  const tol2 = doorTolerance * doorTolerance;
+  for (const d of doors) {
+    if (!doorNearBox(d, shape, doorTolerance)) continue;
+    if (!doorOnContour(d, shape, tol2)) continue;
+    if (d.kind === 'door' && !doorIds.includes(d.id)) doorIds.push(d.id);
+    if (d.kind === 'window' || d.open === true) open = true;
+  }
+  return { doorIds, open };
+}
+
 /**
  * Prépare une scène : murs soudés et découpés, index spatial, segments opaques et translucides,
  * portes du contour de chaque pièce (3 px), pièces fermées, zones de brouillard, bords de la
@@ -204,34 +246,13 @@ export function prepareScene(scene: VisionScene, options: PrepareOptions = {}): 
   const addRoom = (room: Room, closedHint?: boolean) => {
     const shape = new PolygonShape(room.points);
     if (shape.count < 3) return;
-    const doorIds: string[] = [];
-    let open = false;
-    const tol2 = doorTolerance * doorTolerance;
     // Salle détectée des murs : son ouverture est déjà connue, pas de recherche des portes
-    for (const d of closedHint === undefined ? doors : []) {
-      if (
-        Math.max(d.a.x, d.b.x) < shape.minX - doorTolerance ||
-        Math.min(d.a.x, d.b.x) > shape.maxX + doorTolerance ||
-        Math.max(d.a.y, d.b.y) < shape.minY - doorTolerance ||
-        Math.min(d.a.y, d.b.y) > shape.maxY + doorTolerance
-      ) {
-        continue;
-      }
-      // Sur le contour : extrémités et milieu à la tolérance près (une porte en travers de la
-      // pièce, extrémités sur le contour, n'en fait pas partie).
-      const mx = (d.a.x + d.b.x) / 2;
-      const my = (d.a.y + d.b.y) / 2;
-      if (
-        shape.boundaryDistSq(d.a.x, d.a.y) <= tol2 &&
-        shape.boundaryDistSq(d.b.x, d.b.y) <= tol2 &&
-        shape.boundaryDistSq(mx, my) <= tol2
-      ) {
-        if (d.kind === 'door' && !doorIds.includes(d.id)) doorIds.push(d.id);
-        if (d.kind === 'window' || d.open === true) open = true;
-      }
-    }
-    const closed = closedHint ?? !open;
-    rooms.push({ id: room.id, index: rooms.length, room, shape, doorIds, closed });
+    const found =
+      closedHint === undefined
+        ? contourDoors(shape, doors, doorTolerance)
+        : { doorIds: [], open: false };
+    const closed = closedHint ?? !found.open;
+    rooms.push({ id: room.id, index: rooms.length, room, shape, doorIds: found.doorIds, closed });
   };
   for (const room of scene.rooms ?? []) addRoom(room);
   if (options.wallRooms !== false)
