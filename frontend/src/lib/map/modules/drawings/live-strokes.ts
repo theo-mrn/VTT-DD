@@ -11,7 +11,7 @@
  * Données pures : le rendu (un `Graphics` par fantôme, plan `live`) est dans `register.ts`.
  */
 import type { MapDrawingTool } from '@vtt/contracts';
-import type { StrokeEvent } from '../../live/live-channel';
+import type { LiveStroke, StrokeEvent } from '../../live/live-channel';
 import { LIVE_EXPIRE_MS } from '../../live/live-channel';
 
 /** Après la fin du geste, le fantôme attend le dessin enregistré au plus ce temps. */
@@ -57,6 +57,19 @@ export interface ArrivedDrawing {
   points: readonly { x: number; y: number }[];
 }
 
+/** Forme : origine puis dernière extrémité ; main levée : points ajoutés (plafonnés). */
+function appendPoints(flat: number[], tool: MapDrawingTool, pts: readonly number[]) {
+  const pairs = Math.floor(pts.length / 2);
+  if (!SHAPES.has(tool)) {
+    for (let i = 0; i < pairs * 2 && flat.length < MAX_FLAT; i++) flat.push(pts[i]!);
+    return;
+  }
+  if (pairs < 1) return;
+  if (flat.length < 2) flat.push(pts[0]!, pts[1]!);
+  flat.length = 2;
+  flat.push(pts[pairs * 2 - 2]!, pts[pairs * 2 - 1]!);
+}
+
 export class LiveStrokes {
   private readonly ghosts = new Map<string, Ghost>();
   private arrivals: Arrival[] = [];
@@ -78,66 +91,59 @@ export class LiveStrokes {
   /** Message reçu ; renvoie vrai si quelque chose a changé. */
   receive(ev: StrokeEvent, now: number): boolean {
     let changed = false;
-    const s = ev.stroke;
-    if (s) {
-      const key = `${ev.userId}:${s.id}`;
-      let g = this.ghosts.get(key);
-      if (s.tool === 'eraser') {
-        // Tracé abandonné chez l'auteur
-        if (g) {
-          this.ghosts.delete(key);
-          changed = true;
-        }
-      } else {
-        if (!g) {
-          g = {
-            key,
-            userId: ev.userId,
-            id: s.id,
-            tool: s.tool,
-            color: s.color,
-            width: s.width,
-            fill: s.fill ?? null,
-            flat: [],
-            startedAt: now,
-            last: now,
-            ended: false,
-            endedAt: 0,
-            version: 0,
-          };
-          this.ghosts.set(key, g);
-        }
-        g.tool = s.tool;
-        g.color = s.color;
-        g.width = s.width;
-        g.fill = s.fill ?? null;
-        const pts = s.points;
-        const pairs = Math.floor(pts.length / 2);
-        if (SHAPES.has(s.tool)) {
-          if (pairs >= 1) {
-            if (g.flat.length < 2) g.flat.push(pts[0]!, pts[1]!);
-            g.flat.length = 2;
-            g.flat.push(pts[pairs * 2 - 2]!, pts[pairs * 2 - 1]!);
-          }
-        } else {
-          for (let i = 0; i < pairs * 2 && g.flat.length < MAX_FLAT; i++) g.flat.push(pts[i]!);
-        }
-        g.last = now;
-        g.ended = false;
-        g.version += 1;
+    if (ev.stroke) changed = this.applyStroke(ev.userId, ev.stroke, now);
+    if (ev.end && this.endGesture(ev.userId, now)) changed = true;
+    if (changed) this.version += 1;
+    return changed;
+  }
+
+  /** Morceau de tracé reçu (gomme : tracé abandonné chez l'auteur) ; vrai si changé. */
+  private applyStroke(userId: string, s: LiveStroke, now: number): boolean {
+    const key = `${userId}:${s.id}`;
+    if (s.tool === 'eraser') return this.ghosts.delete(key);
+    const g = this.ghosts.get(key) ?? this.addGhost(key, userId, s, now);
+    g.tool = s.tool;
+    g.color = s.color;
+    g.width = s.width;
+    g.fill = s.fill ?? null;
+    appendPoints(g.flat, s.tool, s.points);
+    g.last = now;
+    g.ended = false;
+    g.version += 1;
+    return true;
+  }
+
+  /** Nouveau fantôme, au premier message d'un tracé. */
+  private addGhost(key: string, userId: string, s: LiveStroke, now: number): Ghost {
+    const g: Ghost = {
+      key,
+      userId,
+      id: s.id,
+      tool: s.tool,
+      color: s.color,
+      width: s.width,
+      fill: s.fill ?? null,
+      flat: [],
+      startedAt: now,
+      last: now,
+      ended: false,
+      endedAt: 0,
+      version: 0,
+    };
+    this.ghosts.set(key, g);
+    return g;
+  }
+
+  /** Fin du geste d'un auteur : ses fantômes attendent leur dessin ; vrai si changé. */
+  private endGesture(userId: string, now: number): boolean {
+    let changed = false;
+    for (const g of this.ghosts.values())
+      if (g.userId === userId && !g.ended) {
+        g.ended = true;
+        g.endedAt = now;
         changed = true;
       }
-    }
-    if (ev.end) {
-      for (const g of this.ghosts.values())
-        if (g.userId === ev.userId && !g.ended) {
-          g.ended = true;
-          g.endedAt = now;
-          changed = true;
-        }
-      if (this.settle(now)) changed = true;
-    }
-    if (changed) this.version += 1;
+    if (this.settle(now)) changed = true;
     return changed;
   }
 
