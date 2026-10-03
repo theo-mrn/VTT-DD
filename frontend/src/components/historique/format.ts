@@ -275,6 +275,49 @@ const SIGNES: Record<string, string> = { subtract: '−', add: '+' };
 /** « 3 rounds », « 1 round ». */
 const rounds = (n: number) => `${n} round${n > 1 ? 's' : ''}`;
 
+/** Ressource qui change : chiffres pour les PJ, mort quand la jauge principale tombe à 0. */
+function resourceLine(
+  who: string,
+  character: CharacterLabel | undefined,
+  found: { attr: Extract<Attribut, { nature: 'ressource' }>; primaryVital: boolean },
+  label: string,
+  b: number | null,
+  a: number | null,
+  hasBefore: boolean,
+): Line | null {
+  if (a === null) return null;
+  if (!hasBefore || b === null) return { type: 'combat', text: `${who} : ${label} à ${bold(a)}.` };
+  const diff = a - b;
+  if (!diff) return null;
+  const recoversToMax = found.attr.recuperation === 'max';
+  if (found.primaryVital && recoversToMax && a <= 0 && b > 0)
+    return { type: 'mort', text: `${who} a succombé à ses blessures !` };
+  const harmful = recoversToMax ? diff < 0 : diff > 0;
+  if (character?.side !== 'players')
+    return { type: 'combat', text: `${who} a été ${harmful ? 'attaqué' : 'soigné'}.` };
+  const verbs = recoversToMax
+    ? { pire: 'perdu', mieux: 'récupéré' }
+    : { pire: 'subi', mieux: 'guéri de' };
+  const verb = harmful ? verbs.pire : verbs.mieux;
+  return { type: 'combat', text: `${who} a ${bold(verb)} ${Math.abs(diff)} ${label}.` };
+}
+
+/** Nombre qui passe d'une valeur à une autre ; une hausse saisie par le MJ est une progression. */
+function numberLine(
+  who: string,
+  attr: Attribut | undefined,
+  label: string,
+  b: number,
+  a: number,
+): Line | null {
+  if (a === b) return null;
+  const progression = attr?.nature === 'base' && attr.saisie === 'mj' && a > b;
+  return {
+    type: progression ? 'niveau' : 'stats',
+    text: `${who} : ${label} passe de ${b} à ${bold(a)}${progression ? ' !' : '.'}`,
+  };
+}
+
 /**
  * Une valeur qui change. Ressource (PV, Stress…) : tournures de l'ancienne
  * app, chiffres pour les PJ seulement (« a été attaqué » pour les autres),
@@ -298,32 +341,10 @@ function valueLine(
   const a = num(after);
 
   if (attr?.nature === 'ressource') {
-    if (a === null) return null;
-    if (!hasBefore || b === null)
-      return { type: 'combat', text: `${who} : ${label} à ${bold(a)}.` };
-    const diff = a - b;
-    if (!diff) return null;
-    const recoversToMax = attr.recuperation === 'max';
-    if (found?.primaryVital && recoversToMax && a <= 0 && b > 0)
-      return { type: 'mort', text: `${who} a succombé à ses blessures !` };
-    const harmful = recoversToMax ? diff < 0 : diff > 0;
-    if (character?.side !== 'players')
-      return { type: 'combat', text: `${who} a été ${harmful ? 'attaqué' : 'soigné'}.` };
-    const verbs = recoversToMax
-      ? { pire: 'perdu', mieux: 'récupéré' }
-      : { pire: 'subi', mieux: 'guéri de' };
-    const verb = harmful ? verbs.pire : verbs.mieux;
-    return { type: 'combat', text: `${who} a ${bold(verb)} ${Math.abs(diff)} ${label}.` };
+    const resource = { attr, primaryVital: found?.primaryVital === true };
+    return resourceLine(who, character, resource, label, b, a, hasBefore);
   }
-
-  if (a !== null && b !== null && hasBefore) {
-    if (a === b) return null;
-    const progression = attr?.nature === 'base' && attr.saisie === 'mj' && a > b;
-    return {
-      type: progression ? 'niveau' : 'stats',
-      text: `${who} : ${label} passe de ${b} à ${bold(a)}${progression ? ' !' : '.'}`,
-    };
-  }
+  if (a !== null && b !== null && hasBefore) return numberLine(who, attr, label, b, a);
   if (hasBefore && show(before) === show(after)) return null;
   return { type: 'stats', text: `${who} : ${label} devient ${bold(show(after))}.` };
 }
@@ -351,43 +372,45 @@ function valueLines(
   return lines.filter((l): l is Line => l !== null);
 }
 
+/** Entrée donnée (avec sa durée) ou retirée, d'après `etat.possessions[entree#exemplaire]`. */
+function entryChangeLine(ctx: FormatContext, who: string, c: Change, raw: string): Line | null {
+  const name = bold(entryName(ctx, unquote(raw).split('#')[0]));
+  if (!('before' in c) || c.before == null) {
+    const duration = num(obj(c.after)?.duree);
+    return {
+      type: 'combat',
+      text:
+        duration !== null ? `${who} est ${name} (${rounds(duration)}).` : `${who} reçoit ${name}.`,
+    };
+  }
+  if (!('after' in c) || c.after == null)
+    return { type: 'combat', text: `${who} n'est plus ${name}.` };
+  return null;
+}
+
+/** État libre donné ou retiré, d'après `etat.bonus[id]`. */
+function bonusChangeLine(who: string, c: Change): Line | null {
+  const before = obj(c.before);
+  const after = obj(c.after);
+  if (after && !before)
+    return { type: 'combat', text: `${who} est ${bold(str(after.nom) ?? 'un état')}.` };
+  if (before && !after)
+    return { type: 'combat', text: `${who} n'est plus ${bold(str(before.nom) ?? 'un état')}.` };
+  return null;
+}
+
 /**
  * États et entrées donnés ou retirés d'un coup (application du combat, annulation) : lus dans
  * le diff, chemin `etat.possessions[entree#exemplaire]` et `etat.bonus[id]` (état libre).
  */
 function possessionLines(ctx: FormatContext, who: string, changes: Change[] | null): Line[] {
-  const lines: Line[] = [];
+  const lines: (Line | null)[] = [];
   for (const c of changes ?? []) {
     const m = POSSESSION_PATH.exec(c.path);
-    if (m && m[2] === undefined) {
-      const name = bold(entryName(ctx, unquote(m[1]!).split('#')[0]));
-      if (!('before' in c) || c.before == null) {
-        const duration = num(obj(c.after)?.duree);
-        lines.push({
-          type: 'combat',
-          text:
-            duration !== null
-              ? `${who} est ${name} (${rounds(duration)}).`
-              : `${who} reçoit ${name}.`,
-        });
-      } else if (!('after' in c) || c.after == null)
-        lines.push({ type: 'combat', text: `${who} n'est plus ${name}.` });
-      continue;
-    }
-    const b = BONUS_PATH.exec(c.path);
-    if (b && c.path.endsWith(']')) {
-      const before = obj(c.before);
-      const after = obj(c.after);
-      if (after && !before)
-        lines.push({ type: 'combat', text: `${who} est ${bold(str(after.nom) ?? 'un état')}.` });
-      else if (before && !after)
-        lines.push({
-          type: 'combat',
-          text: `${who} n'est plus ${bold(str(before.nom) ?? 'un état')}.`,
-        });
-    }
+    if (m && m[2] === undefined) lines.push(entryChangeLine(ctx, who, c, m[1]!));
+    else if (BONUS_PATH.test(c.path) && c.path.endsWith(']')) lines.push(bonusChangeLine(who, c));
   }
-  return lines;
+  return lines.filter((l): l is Line => l !== null);
 }
 
 // ─── Formateurs par type ─────────────────────────────────────────────────────
@@ -395,144 +418,190 @@ function possessionLines(ctx: FormatContext, who: string, changes: Change[] | nu
 type Formatted = Omit<GameEvent, 'id' | 'seq' | 'source' | 'timestamp'>;
 type Formatter = (e: HistoryEvent, ctx: FormatContext) => Formatted | null;
 
+/** Ce que lisent les tournures d'une modification de personnage. */
+interface UpdateScope {
+  p: Payload;
+  ctx: FormatContext;
+  op: string;
+  who: string;
+  character: CharacterLabel | undefined;
+  changes: Change[] | null;
+  line: (type: EventType, message: string) => Formatted;
+}
+
+type UpdateFormatter = (s: UpdateScope) => Formatted | null;
+
+/** Lignes réunies (valeurs et états), en une seule. */
+function combinedLine(s: UpdateScope, lines: Line[]): Formatted | null {
+  const c = combine(lines);
+  return c && s.line(c.type, c.text);
+}
+
+/** Valeurs et états touchés d'un coup (application, annulation du combat). */
+const appliedLines = (s: UpdateScope): Line[] => [
+  ...valueLines(s.ctx, s.who, s.character, s.p, s.changes),
+  ...possessionLines(s.ctx, s.who, s.changes),
+];
+
+/** Changement de nom (l'avatar seul ne se dit pas). */
+function profileUpdated({ p, changes, line }: UpdateScope): Formatted | null {
+  const nameChange = changes?.find((c) => c.path === 'nom');
+  const newName = str(nameChange?.after) ?? str(detail(p, 'nom'));
+  if (!newName) return null; // avatar seul
+  const oldName = str(nameChange?.before);
+  return line(
+    'info',
+    oldName
+      ? `${bold(oldName)} s'appelle désormais ${bold(newName)}.`
+      : `${bold(newName)} change de nom.`,
+  );
+}
+
+/** Champ de possession changé (quantité, équipement), sinon null. */
+function possessionFieldLine(
+  { who, line }: UpdateScope,
+  c: Change,
+  field: string | undefined,
+  item: string,
+): Formatted | null {
+  if (field === 'quantite') {
+    const diff = (num(c.after) ?? 1) - (num(c.before) ?? 1);
+    if (diff)
+      return line(
+        'inventaire',
+        `${who} a ${bold(diff > 0 ? 'reçu' : 'perdu')} ${Math.abs(diff)}x ${item}.`,
+      );
+  }
+  if (field === 'actif' && typeof c.after === 'boolean')
+    return line('inventaire', `${who} a ${c.after ? 'équipé' : 'rangé'} ${item}.`);
+  return null;
+}
+
+/** Possession reçue, modifiée, équipée ou rangée. */
+function possessionUpdated(s: UpdateScope): Formatted | null {
+  const { p, ctx, who, line } = s;
+  const possession = obj(detail(p, 'possession'));
+  const entree = str(possession?.entree);
+  const item = bold(`[${entryName(ctx, entree)}]`);
+  // Possession à durée : état temporaire (Aveuglé, Étourdi…), comme les conditions du combat
+  if (num(possession?.duree) !== null)
+    return line('combat', `${who} est ${bold(entryName(ctx, entree))}.`);
+  if (detail(p, 'cree') === true) {
+    const qty = num(possession?.quantite) ?? 1;
+    return line(
+      'inventaire',
+      `${who} a reçu ${bold(`${qty}x [${entryName(ctx, entree)}]`)} dans son inventaire.`,
+    );
+  }
+  for (const c of s.changes ?? []) {
+    const m = POSSESSION_PATH.exec(c.path);
+    const changed = m && possessionFieldLine(s, c, m[2], item);
+    if (changed) return changed;
+  }
+  return line('inventaire', `${who} a modifié ${item}.`);
+}
+
+/** Achat ou remboursement hors création. */
+function purchaseUpdated({ p, ctx, op, who, character, line }: UpdateScope): Formatted | null {
+  const ligne = obj(detail(p, 'ligne'));
+  // Achats de la création : l'événement « a terminé sa création » les résume
+  if (!ligne || ligne.creation === true) return null;
+  const name = bold(purchaseName(ctx, character?.type ?? null, str(ligne.objet) ?? '?'));
+  return op === 'achat'
+    ? line('competence', `${who} a acquis ${name}.`)
+    : line('competence', `${who} a renoncé à ${name}.`);
+}
+
+/** Effets coupés ou réactivés un à un (bloc Bonus) ; une demande sans effet ne se dit pas. */
+function effectUpdated({ p, ctx, who, line }: UpdateScope): Formatted | null {
+  if (detail(p, 'change') === false) return null;
+  const sources = detail(p, 'sources');
+  const noms = (Array.isArray(sources) ? sources : [])
+    .filter((x): x is string => typeof x === 'string')
+    .map((x) => `[${entryName(ctx, x.split('#')[0])}]`);
+  const de = noms.length ? ` de ${bold(noms.join(', '))}` : '';
+  return line(
+    'stats',
+    `${who} a ${detail(p, 'actif') === true ? 'réactivé' : 'désactivé'} des bonus${de}.`,
+  );
+}
+
+/** États arrivés au bout de leur durée. */
+function durationsCounted({ p, ctx, who, changes, line }: UpdateScope): Formatted | null {
+  const retirees = detail(p, 'retirees');
+  const names = (Array.isArray(retirees) ? retirees : [])
+    .filter((r): r is string => typeof r === 'string')
+    .map((r) =>
+      r.startsWith('bonus:')
+        ? (bonusName(changes, r.slice(6)) ?? 'un bonus')
+        : entryName(ctx, r.split('#')[0]),
+    );
+  if (!names.length) return null;
+  return line('combat', `${who} n'est plus ${names.map(bold).join(', ')}.`);
+}
+
+/** Annulation : d'une application (MJ), ou des durées d'un round (« Précédent », `tick:…`). */
+function combatReverted(s: UpdateScope): Formatted | null {
+  const c = combine(appliedLines(s));
+  if (!c) return null;
+  const round = str(detail(s.p, 'applicationId'))?.startsWith('tick:') === true;
+  const forced = detail(s.p, 'forced') === true;
+  const annulation = forced ? 'Annulation du MJ (forcée)' : 'Annulation du MJ';
+  return s.line('combat', `${round ? 'Retour au tour précédent' : annulation} : ${c.text}`);
+}
+
+/** Tournure de chaque opération sur la fiche. */
+const UPDATE_FORMATTERS: Record<string, UpdateFormatter> = {
+  profil: profileUpdated,
+  'creation.terminer': ({ who, line }) => line('creation', `${who} a terminé sa création.`),
+  possession: possessionUpdated,
+  'possession.retrait': ({ p, ctx, who, line }) =>
+    line(
+      'inventaire',
+      `${who} a jeté/perdu ${bold(`[${entryName(ctx, str(detail(p, 'entree')))}]`)}.`,
+    ),
+  achat: purchaseUpdated,
+  remboursement: purchaseUpdated,
+  bonus: ({ p, who, line }) => {
+    const nom = str(obj(detail(p, 'bonus'))?.nom);
+    return line('stats', `${who} bénéficie de ${bold(nom ?? 'un bonus')}.`);
+  },
+  'bonus.retrait': ({ p, who, changes, line }) => {
+    const nom = bonusName(changes, str(detail(p, 'bonusId')) ?? '');
+    return line('stats', `${who} perd ${bold(nom ?? 'un bonus')}.`);
+  },
+  effet: effectUpdated,
+  'durees.decompte': durationsCounted,
+  // Décision du MJ appliquée par le combat (docs/combat.md § 7.2) : valeurs et états touchés
+  'combat.application': (s) => combinedLine(s, appliedLines(s)),
+  'combat.annulation': combatReverted,
+  repos: (s) => {
+    const rest = combine([
+      { type: 'stats', text: `${s.who} a pris du repos.` },
+      ...valueLines(s.ctx, s.who, s.character, s.p, s.changes),
+    ]);
+    return rest && s.line('stats', rest.text);
+  },
+};
+
 function characterUpdated(e: HistoryEvent, ctx: FormatContext): Formatted | null {
   const p = e.payload;
   const id = e.aggregate.id;
-  const character = characterOf(ctx, id);
-  const who = bold(characterName(ctx, id));
   const op = str(p.operation) ?? '';
-  const changes = readChanges(p);
-  const entityType = character?.type ?? null;
   const base = characterFields(ctx, id);
-  const line = (type: EventType, message: string): Formatted => ({ ...base, type, message });
-
-  switch (op) {
-    case 'profil': {
-      const nameChange = changes?.find((c) => c.path === 'nom');
-      const newName = str(nameChange?.after) ?? str(detail(p, 'nom'));
-      if (!newName) return null; // avatar seul
-      const oldName = str(nameChange?.before);
-      return line(
-        'info',
-        oldName
-          ? `${bold(oldName)} s'appelle désormais ${bold(newName)}.`
-          : `${bold(newName)} change de nom.`,
-      );
-    }
-    case 'creation.terminer':
-      return line('creation', `${who} a terminé sa création.`);
-    case 'possession': {
-      const possession = obj(detail(p, 'possession'));
-      const entree = str(possession?.entree);
-      const item = bold(`[${entryName(ctx, entree)}]`);
-      // Possession à durée : état temporaire (Aveuglé, Étourdi…), comme les conditions du combat
-      if (num(possession?.duree) !== null)
-        return line('combat', `${who} est ${bold(entryName(ctx, entree))}.`);
-      if (detail(p, 'cree') === true) {
-        const qty = num(possession?.quantite) ?? 1;
-        return line(
-          'inventaire',
-          `${who} a reçu ${bold(`${qty}x [${entryName(ctx, entree)}]`)} dans son inventaire.`,
-        );
-      }
-      for (const c of changes ?? []) {
-        const m = POSSESSION_PATH.exec(c.path);
-        if (!m) continue;
-        if (m[2] === 'quantite') {
-          const diff = (num(c.after) ?? 1) - (num(c.before) ?? 1);
-          if (diff)
-            return line(
-              'inventaire',
-              `${who} a ${bold(diff > 0 ? 'reçu' : 'perdu')} ${Math.abs(diff)}x ${item}.`,
-            );
-        }
-        if (m[2] === 'actif' && typeof c.after === 'boolean')
-          return line('inventaire', `${who} a ${c.after ? 'équipé' : 'rangé'} ${item}.`);
-      }
-      return line('inventaire', `${who} a modifié ${item}.`);
-    }
-    case 'possession.retrait':
-      return line(
-        'inventaire',
-        `${who} a jeté/perdu ${bold(`[${entryName(ctx, str(detail(p, 'entree')))}]`)}.`,
-      );
-    case 'achat':
-    case 'remboursement': {
-      const ligne = obj(detail(p, 'ligne'));
-      // Achats de la création : l'événement « a terminé sa création » les résume
-      if (!ligne || ligne.creation === true) return null;
-      const name = bold(purchaseName(ctx, entityType, str(ligne.objet) ?? '?'));
-      return op === 'achat'
-        ? line('competence', `${who} a acquis ${name}.`)
-        : line('competence', `${who} a renoncé à ${name}.`);
-    }
-    case 'bonus': {
-      const nom = str(obj(detail(p, 'bonus'))?.nom);
-      return line('stats', `${who} bénéficie de ${bold(nom ?? 'un bonus')}.`);
-    }
-    case 'bonus.retrait': {
-      const nom = bonusName(changes, str(detail(p, 'bonusId')) ?? '');
-      return line('stats', `${who} perd ${bold(nom ?? 'un bonus')}.`);
-    }
-    case 'effet': {
-      // Effets coupés ou réactivés un à un (bloc Bonus) ; une demande sans effet ne se dit pas
-      if (detail(p, 'change') === false) return null;
-      const sources = detail(p, 'sources');
-      const noms = (Array.isArray(sources) ? sources : [])
-        .filter((x): x is string => typeof x === 'string')
-        .map((x) => `[${entryName(ctx, x.split('#')[0])}]`);
-      const de = noms.length ? ` de ${bold(noms.join(', '))}` : '';
-      return line(
-        'stats',
-        `${who} a ${detail(p, 'actif') === true ? 'réactivé' : 'désactivé'} des bonus${de}.`,
-      );
-    }
-    case 'durees.decompte': {
-      const retirees = detail(p, 'retirees');
-      const names = (Array.isArray(retirees) ? retirees : [])
-        .filter((r): r is string => typeof r === 'string')
-        .map((r) =>
-          r.startsWith('bonus:')
-            ? (bonusName(changes, r.slice(6)) ?? 'un bonus')
-            : entryName(ctx, r.split('#')[0]),
-        );
-      if (!names.length) return null;
-      return line('combat', `${who} n'est plus ${names.map(bold).join(', ')}.`);
-    }
-    // Décision du MJ appliquée par le combat (docs/combat.md § 7.2) : valeurs et états touchés
-    case 'combat.application': {
-      const c = combine([
-        ...valueLines(ctx, who, character, p, changes),
-        ...possessionLines(ctx, who, changes),
-      ]);
-      return c && line(c.type, c.text);
-    }
-    // Annulation : d'une application (MJ), ou des durées d'un round (« Précédent », `tick:…`)
-    case 'combat.annulation': {
-      const c = combine([
-        ...valueLines(ctx, who, character, p, changes),
-        ...possessionLines(ctx, who, changes),
-      ]);
-      if (!c) return null;
-      const round = str(detail(p, 'applicationId'))?.startsWith('tick:') === true;
-      const forced = detail(p, 'forced') === true;
-      const annulation = forced ? 'Annulation du MJ (forcée)' : 'Annulation du MJ';
-      return line('combat', `${round ? 'Retour au tour précédent' : annulation} : ${c.text}`);
-    }
-    case 'repos': {
-      const rest = combine([
-        { type: 'stats', text: `${who} a pris du repos.` },
-        ...valueLines(ctx, who, character, p, changes),
-      ]);
-      return rest && line('stats', rest.text);
-    }
-    default: {
-      // Étapes de création, import : l'événement de fin de création les résume
-      if (op.startsWith('creation.') || op === 'ajouter') return null;
-      const c = combine(valueLines(ctx, who, character, p, changes));
-      return c && line(c.type, c.text);
-    }
-  }
+  const s: UpdateScope = {
+    p,
+    ctx,
+    op,
+    who: bold(characterName(ctx, id)),
+    character: characterOf(ctx, id),
+    changes: readChanges(p),
+    line: (type, message) => ({ ...base, type, message }),
+  };
+  if (Object.hasOwn(UPDATE_FORMATTERS, op)) return UPDATE_FORMATTERS[op]!(s);
+  // Étapes de création, import : l'événement de fin de création les résume
+  if (op.startsWith('creation.') || op === 'ajouter') return null;
+  return combinedLine(s, valueLines(ctx, s.who, s.character, p, s.changes));
 }
 
 // ─── Attaques (docs/combat.md § 7.7, § 10) ───────────────────────────────────
@@ -766,6 +835,33 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
   }),
 };
 
+/** Combattants ajoutés en cours de combat. */
+function participantsAdded(p: Payload, ctx: FormatContext): Formatted | null {
+  // `added` ne part qu'aux MJ : un joueur ne sait pas qui a rejoint (PNJ caché)
+  const added = (Array.isArray(p.added) ? p.added : []).filter(
+    (id): id is string => typeof id === 'string',
+  );
+  if (!added.length) return null;
+  return {
+    type: 'combat',
+    message: `${added.map((id) => bold(characterName(ctx, id))).join(', ')} ${
+      added.length > 1 ? 'rejoignent' : 'rejoint'
+    } le combat.`,
+  };
+}
+
+/** Ordre d'initiative tiré. */
+function initiativeRolled(p: Payload, ctx: FormatContext): Formatted {
+  const order = (Array.isArray(p.order) ? p.order : [])
+    .map((o) => str(obj(o)?.characterId))
+    .filter((id): id is string => !!id)
+    .map((id) => bold(characterName(ctx, id)));
+  return {
+    type: 'combat',
+    message: order.length ? `Initiative : ${order.join(', ')}.` : 'Initiative lancée.',
+  };
+}
+
 const FORMATTERS: Record<string, Formatter> = {
   'character.updated': characterUpdated,
 
@@ -855,29 +951,8 @@ const FORMATTERS: Record<string, Formatter> = {
           : 'Le MJ passe la main.',
       };
     }
-    if (p.reason === 'participants_added') {
-      // `added` ne part qu'aux MJ : un joueur ne sait pas qui a rejoint (PNJ caché)
-      const added = (Array.isArray(p.added) ? p.added : []).filter(
-        (id): id is string => typeof id === 'string',
-      );
-      if (!added.length) return null;
-      return {
-        type: 'combat',
-        message: `${added.map((id) => bold(characterName(ctx, id))).join(', ')} ${
-          added.length > 1 ? 'rejoignent' : 'rejoint'
-        } le combat.`,
-      };
-    }
-    if (p.reason === 'initiative') {
-      const order = (Array.isArray(p.order) ? p.order : [])
-        .map((o) => str(obj(o)?.characterId))
-        .filter((id): id is string => !!id)
-        .map((id) => bold(characterName(ctx, id)));
-      return {
-        type: 'combat',
-        message: order.length ? `Initiative : ${order.join(', ')}.` : 'Initiative lancée.',
-      };
-    }
+    if (p.reason === 'participants_added') return participantsAdded(p, ctx);
+    if (p.reason === 'initiative') return initiativeRolled(p, ctx);
     if (p.reason === 'new_round' && num(p.round) !== null)
       return { type: 'combat', message: `Début du round ${bold(num(p.round)!)}.` };
     // Tour suivant, participants retirés : trop fréquents pour le Journal
