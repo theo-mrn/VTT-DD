@@ -169,42 +169,14 @@ export function FormulaireConnexion({
             required
           />
         </div>
-        <div className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <Label htmlFor={`${ids}-mdp`}>Mot de passe</Label>
-            {!inscription && (
-              <Link
-                href="/mot-de-passe-oublie"
-                className="text-xs text-muted-foreground transition-colors hover:text-primary"
-              >
-                Mot de passe oublié ?
-              </Link>
-            )}
-          </div>
-          <InputGroup
-            id={`${ids}-mdp`}
-            avant={<Lock />}
-            type={visible ? 'text' : 'password'}
-            placeholder={inscription ? `${LONGUEUR_MIN_MDP} caractères minimum` : '••••••••'}
-            autoComplete={inscription ? 'new-password' : 'current-password'}
-            value={motDePasse}
-            onChange={(e) => setMotDePasse(e.target.value)}
-            required
-            minLength={inscription ? LONGUEUR_MIN_MDP : 1}
-            maxLength={LONGUEUR_MAX_MDP}
-            apres={
-              <button
-                type="button"
-                onClick={() => setVisible((v) => !v)}
-                className="flex size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-foreground"
-                aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-              >
-                {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            }
-          />
-          {inscription && <ForceMotDePasse motDePasse={motDePasse} />}
-        </div>
+        <ChampMotDePasse
+          id={`${ids}-mdp`}
+          inscription={inscription}
+          value={motDePasse}
+          onChange={setMotDePasse}
+          visible={visible}
+          onToggleVisible={() => setVisible((v) => !v)}
+        />
 
         {erreur && <Message>{erreur}</Message>}
 
@@ -220,6 +192,62 @@ export function FormulaireConnexion({
           </p>
         )}
       </form>
+    </div>
+  );
+}
+
+/** Mot de passe : lien d'oubli (connexion), affichage en clair, force (inscription). */
+function ChampMotDePasse({
+  id,
+  inscription,
+  value,
+  onChange,
+  visible,
+  onToggleVisible,
+}: Readonly<{
+  id: string;
+  inscription: boolean;
+  value: string;
+  onChange(v: string): void;
+  visible: boolean;
+  onToggleVisible(): void;
+}>) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between">
+        <Label htmlFor={id}>Mot de passe</Label>
+        {!inscription && (
+          <Link
+            href="/mot-de-passe-oublie"
+            className="text-xs text-muted-foreground transition-colors hover:text-primary"
+          >
+            Mot de passe oublié ?
+          </Link>
+        )}
+      </div>
+      <InputGroup
+        id={id}
+        avant={<Lock />}
+        type={visible ? 'text' : 'password'}
+        placeholder={inscription ? `${LONGUEUR_MIN_MDP} caractères minimum` : '••••••••'}
+        autoComplete={inscription ? 'new-password' : 'current-password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        minLength={inscription ? LONGUEUR_MIN_MDP : 1}
+        maxLength={LONGUEUR_MAX_MDP}
+        apres={
+          <button
+            type="button"
+            onClick={onToggleVisible}
+            className="flex size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-foreground"
+            aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+          >
+            {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+        }
+      />
+      {inscription && <ForceMotDePasse motDePasse={value} />}
     </div>
   );
 }
