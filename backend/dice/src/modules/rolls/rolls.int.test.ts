@@ -120,7 +120,7 @@ describe.skipIf(!TEST_DATABASE_URL)('jets', () => {
     t.services.setRole(campaignId, eve.id, 'spectator');
     res = await h.request(eve, 'POST', '/v1/dice/rolls', { notation: '1d20', campaignId });
     expect([res.statusCode, res.json().code]).toEqual([403, 'spectator_cannot_roll']);
-    expect((await history(eve)).length).toBe(0);
+    expect(await history(eve)).toHaveLength(0);
 
     t.services.setDown(true);
     res = await h.request(alice, 'POST', '/v1/dice/rolls', { notation: '1d20', campaignId });

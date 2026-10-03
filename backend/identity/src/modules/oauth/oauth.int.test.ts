@@ -422,7 +422,7 @@ describe.skipIf(!TEST_DATABASE_URL)('connexion OAuth par HTTP', () => {
       expect(cookieDe(res, 'vtt_refresh')).toBeUndefined();
     }
     // Aucun échange de code n'a été tenté, aucun compte créé
-    expect(faux.appels.length).toBe(appelsAvant);
+    expect(faux.appels).toHaveLength(appelsAvant);
     expect(await compteDe('google', sub)).toBeNull();
   });
 

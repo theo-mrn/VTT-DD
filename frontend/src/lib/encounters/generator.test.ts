@@ -128,7 +128,7 @@ describe('vivier', () => {
       'ogre',
       'troll',
     ]);
-    expect(filterPool(pool, { maxPower: 0.25 }).length).toBe(3);
+    expect(filterPool(pool, { maxPower: 0.25 })).toHaveLength(3);
     expect(
       filterPool(pool, { ranges: { PV_Max: { min: 10, max: 60 } } }).map((c) => c.name),
     ).toEqual(['loup', 'orque', 'ogre']);
@@ -225,9 +225,9 @@ describe('édition', () => {
   };
 
   it('nombre (0 retire), ajout, verrou', () => {
-    expect(setCount(base, 'bestiary:loup', 0).groups.length).toBe(1);
+    expect(setCount(base, 'bestiary:loup', 0).groups).toHaveLength(1);
     expect(addCreature(base, pool[1]!).groups[1]!.count).toBe(3);
-    expect(addCreature(base, pool[4]!).groups.length).toBe(3);
+    expect(addCreature(base, pool[4]!).groups).toHaveLength(3);
     expect(toggleLock(base, 'bestiary:orque').groups[0]!.locked).toBe(true);
   });
 

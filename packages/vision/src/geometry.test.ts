@@ -60,7 +60,7 @@ describe('pointInPolygon', () => {
 describe('échantillons', () => {
   it('token : centre et 8 points à 0,7 × rayon', () => {
     const s = sampleCircle({ x: 100, y: 50 }, 20);
-    expect(s.length).toBe(18);
+    expect(s).toHaveLength(18);
     expect([s[0], s[1]]).toEqual([100, 50]);
     for (let k = 1; k < 9; k++) {
       expect(Math.hypot(s[2 * k]! - 100, s[2 * k + 1]! - 50)).toBeCloseTo(14, 9);

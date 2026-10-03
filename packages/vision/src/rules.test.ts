@@ -95,7 +95,7 @@ describe('mur à sens unique', () => {
   it('convention de côté : gauche = cross(b − a, p − a) < 0, y vers le bas', () => {
     expect(sideOf(a, b, { x: 300, y: 100 })).toBe('left');
     expect(sideOf(a, b, { x: 100, y: 100 })).toBe('right');
-    expect(sideOf(a, b, { x: 200, y: 100 })).toBe(null);
+    expect(sideOf(a, b, { x: 200, y: 100 })).toBeNull();
     // Segment vers la droite de l'écran : la gauche est en haut (y plus petit).
     expect(sideOf({ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 5, y: -1 })).toBe('left');
   });
@@ -150,7 +150,7 @@ describe('pièces', () => {
     // Les termes pour le rendu.
     expect(inside.viewers[0]!.clipRoom?.id).toBe('salle');
     expect(inside.viewers[0]!.subtractRooms).toEqual([]);
-    expect(outside.viewers[0]!.clipRoom).toBe(null);
+    expect(outside.viewers[0]!.clipRoom).toBeNull();
     expect(outside.viewers[0]!.subtractRooms.map((r) => r.id)).toEqual(['salle']);
   });
 
@@ -247,7 +247,7 @@ describe('pièces', () => {
     const prep = prepareScene(scene([], { rooms: [outer, inner] }));
     expect(innermostRoom(prep, { x: 180, y: 180 })?.id).toBe('petite');
     expect(innermostRoom(prep, { x: 60, y: 60 })?.id).toBe('grande');
-    expect(innermostRoom(prep, { x: 10, y: 10 })).toBe(null);
+    expect(innermostRoom(prep, { x: 10, y: 10 })).toBeNull();
     // Dans la grande pièce, hors de la petite : on voit la grande, pas la petite, pas dehors.
     const view = viewerView(prep, viewer(100, 100));
     expect(view.contains({ x: 300, y: 300 })).toBe(true);
@@ -356,7 +356,7 @@ describe('lumières', () => {
   it('éteinte : sans effet', () => {
     const prep = prepareScene(scene([], { fogFull: true, lights: [{ ...light, on: false }] }));
     expect(viewerView(prep, viewer(300, 300, 20)).contains({ x: 120, y: 300 })).toBe(false);
-    expect(lightArea(prep, { ...light, on: false }).polygon.length).toBe(0);
+    expect(lightArea(prep, { ...light, on: false }).polygon).toHaveLength(0);
   });
 
   it('une lumière derrière un mur n’éclaire pas de l’autre côté', () => {

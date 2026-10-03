@@ -130,7 +130,7 @@ describe('observateur sur un mur ou une extrémité', () => {
     const view = viewerView(prep, { id: 'o', pos: o, visionRadius: 0 });
     const left = view.contains({ x: 100, y: 200 });
     const right = view.contains({ x: 300, y: 200 });
-    expect(left !== right).toBe(true);
+    expect(left).not.toBe(right);
     expect(Array.from(visibilityPolygon(prep, o))).toEqual(Array.from(poly));
     expect(view.viewers[0]!.origin).not.toEqual(o);
     expect(
@@ -407,7 +407,7 @@ describe('rayon maximal', () => {
         expect(pointInPolygon({ x, y }, poly)).toBe(full.contains({ x, y }));
       }
     }
-    expect(visibilityPolygon(prep, o, { maxRadius: 0 }).length).toBe(0);
+    expect(visibilityPolygon(prep, o, { maxRadius: 0 })).toHaveLength(0);
   });
 
   it('aucun mur proche : cercle complet', () => {

@@ -65,7 +65,7 @@ describe('rayons de vision', () => {
     const p = picture(150, 1);
     expect(r.draw(p, 1, true)).toBe(true);
     const circles = gfx().circles;
-    expect(circles.length).toBe(featherRings().length);
+    expect(circles).toHaveLength(featherRings().length);
     expect(circles.every(([x, y]) => x === 100 && y === 50)).toBe(true);
     // Juste à l'intérieur du rayon, jamais au-delà
     expect(circles.every(([, , rad]) => rad! < 150 && rad! > 135)).toBe(true);

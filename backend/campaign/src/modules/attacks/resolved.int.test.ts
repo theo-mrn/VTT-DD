@@ -255,6 +255,6 @@ describe.skipIf(!TEST_DATABASE_URL)('attaques calculées par le navigateur', () 
     await new Promise((r) => setTimeout(r, 50));
     const [forwarded] = s.callsTo('/internal/actions/rolls');
     expect(forwarded!.body).toMatchObject({ visibility: 'gm', rollMode: 'shared' });
-    expect((forwarded!.body.views as unknown[]).length).toBe(1);
+    expect(forwarded!.body.views as unknown[]).toHaveLength(1);
   });
 });

@@ -397,7 +397,7 @@ describe.skipIf(!TEST_DATABASE_URL)('attaques : rapports et décisions du MJ', (
     const done = await h.ok<{ attacks: Attack[] }>(s.gm, 'POST', bulk, { items });
     expect(done.attacks.map((x) => x.status)).toEqual(['applied', 'applied']);
     const calls = s.callsTo('/internal/modifications/apply');
-    expect((calls.at(-1)!.body.applications as unknown[]).length).toBe(2);
+    expect(calls.at(-1)!.body.applications as unknown[]).toHaveLength(2);
     expect(values(aria).PV).toBe(16);
     expect(values(brom).PV).toBe(14);
   });

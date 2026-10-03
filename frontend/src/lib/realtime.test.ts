@@ -234,7 +234,7 @@ describe('abonnement à une campagne', () => {
       vi.advanceTimersByTime(10_000);
       await flush();
     });
-    expect(s.emitted.filter(([e]) => e === 'subscribe').length).toBe(tries);
+    expect(s.emitted.filter(([e]) => e === 'subscribe')).toHaveLength(tries);
     // Sans réponse (délai dépassé) : traité comme un refus passager
     delete s.acks.subscribe;
     await r.unmount();

@@ -145,7 +145,7 @@ describe.skipIf(!TEST_DATABASE_URL)('carte : PNJ et fouille', () => {
     });
     expect(refused.statusCode).toBe(422);
     expect(refused.json()).toMatchObject({ code: 'unknown_layer' });
-    expect(t.character.calls.length).toBe(calls);
+    expect(t.character.calls).toHaveLength(calls);
   });
 
   it('compensation : rien ne reste si la pose échoue ; refus de character relayé', async () => {

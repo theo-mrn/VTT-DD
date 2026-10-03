@@ -281,7 +281,7 @@ describe('exemplaires multiples', () => {
       'Dague : exemplaire « x » en double',
       'Sonné : pas de quantité pour la sorte État',
     ]);
-    expect(calculer(sys, e).erreurs.length).toBe(4);
+    expect(calculer(sys, e).erreurs).toHaveLength(4);
   });
 
   it('le maximum d’une sorte compte les exemplaires', () => {

@@ -184,7 +184,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages : présentation, résumé, tira
       version: p.version,
     })) as unknown as Personnage;
     expect(res.tirage).toBeDefined();
-    expect(res.tirage!.attributs.length).toBe(6);
+    expect(res.tirage!.attributs).toHaveLength(6);
     expect(res.tirage!.retenu.valeurs).toHaveLength(6);
     expect(res.tirage!.retenu.jets).toHaveLength(6);
     // Les valeurs tirées sont celles de l'état, dans l'ordre des attributs

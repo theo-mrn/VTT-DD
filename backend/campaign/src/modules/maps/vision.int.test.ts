@@ -339,7 +339,7 @@ describe.skipIf(!TEST_DATABASE_URL)('carte : visibilité serveur (@vtt/vision)',
     const found = await h.ok<Item>(alice, 'POST', `${base}/objects/${chest.id}/search`, {
       characterId: heroId,
     });
-    expect((found.items as unknown[]).length).toBe(2);
+    expect(found.items as unknown[]).toHaveLength(2);
     await h.ok(gm, 'PATCH', `${base}/objects/${hoard.id}`, { searchable: true, searchRadius: 100 });
     const far = await h.request(alice, 'POST', `${base}/objects/${hoard.id}/search`, {
       characterId: heroId,

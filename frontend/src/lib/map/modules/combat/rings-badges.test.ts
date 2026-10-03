@@ -127,7 +127,7 @@ describe('badges d’état', () => {
     // Même états : rien n'est refait
     s.set(new Map(s.snapshot()));
     h.frame();
-    expect((root.children[0] as Container).children.length).toBe(drawn);
+    expect((root.children[0] as Container).children).toHaveLength(drawn);
     // Survol du token : le libellé de ses états, retiré à la sortie
     h.engine.setHovered('t-heros', { world: h.engine.entity('t-heros')!.current });
     h.frames(20, 100);

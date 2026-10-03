@@ -178,7 +178,7 @@ describe('météo : simulation', () => {
     const s = sim();
     s.configure(settings({ type: 'rain' }), HD.width, HD.height, {});
     const drops = s.emitters[0]!.particles;
-    expect(drops.length).toBe(particleBudget(WEATHER_EFFECTS.rain, { ...HD, intensity: 1 })[0]);
+    expect(drops).toHaveLength(particleBudget(WEATHER_EFFECTS.rain, { ...HD, intensity: 1 })[0]);
     for (const p of drops) {
       expect(p.vy).toBeGreaterThan(400);
       expect(p.vx).toBeGreaterThan(0);
@@ -268,7 +268,7 @@ describe('météo : simulation', () => {
     const structure = s.structure;
     s.configure(settings({ type: 'rain', intensity: 0.4 }), 1000, 1000, {});
     expect(s.structure).toBe(structure);
-    expect(s.emitters[0]!.particles.length).toBe(Math.floor(380 * 0.4));
+    expect(s.emitters[0]!.particles).toHaveLength(Math.floor(380 * 0.4));
     kept.forEach((p, i) => expect(s.emitters[0]!.particles[i]).toBe(p));
     s.configure(settings({ type: 'snow' }), 1000, 1000, {});
     expect(s.structure).toBe(structure + 1);
@@ -295,8 +295,8 @@ describe('météo : simulation', () => {
     const s = sim();
     s.configure(settings({ type: 'storm' }), 1000, 800, { still: true });
     const drops = s.emitters[0]!.particles;
-    expect(drops.length).toBe(Math.floor(520 * 0.8 * STILL_COUNT));
-    expect(s.emitters[1]!.particles.length).toBe(0);
+    expect(drops).toHaveLength(Math.floor(520 * 0.8 * STILL_COUNT));
+    expect(s.emitters[1]!.particles).toHaveLength(0);
     const xs = drops.map((p) => p.x);
     for (let i = 0; i < 100; i++) s.step(1 / 30);
     expect(drops.map((p) => p.x)).toEqual(xs);
