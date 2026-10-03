@@ -157,81 +157,97 @@ function modeEntree(p: PossessionEffective | undefined, sorte: Sorte): ModeAchat
 }
 
 function candidats(fiche: Fiche, achat: Achat): Candidat[] {
-  const { systeme, etat } = fiche;
   const o = achat.obtient;
   switch (o.type) {
-    case 'attribut': {
-      if (o.entite !== etat.type) return [];
-      const cles = new Set(o.attributs ?? []);
-      if (o.groupe)
-        for (const a of fiche.entite.attributs.values())
-          if (a.groupe === o.groupe && a.nature === 'base') cles.add(a.cle);
-      const r: Candidat[] = [];
-      for (const cle of cles) {
-        const a = fiche.entite.attributs.get(cle);
-        // Un attribut d'une règle optionnelle éteinte ne s'achète pas
-        if (a?.nature !== 'base' || !fiche.attributActif(cle)) continue;
-        r.push({
-          type: 'attribut',
-          objet: cle,
-          nom: a.nom,
-          actuel: valeurBase(etat, a),
-          nombre: 0,
-          deja: false,
-          attribut: a,
-        });
-      }
-      return r;
-    }
+    case 'attribut':
+      return candidatsAttributs(fiche, o);
     case 'rang':
-    case 'entree': {
-      const sorte = systeme.sortes.get(o.sorte);
-      if (!sorte?.pour.includes(etat.type)) return [];
-      const nombre = compteSorte(fiche, sorte.id);
-      return [...systeme.entrees.values()]
-        .filter((e) => e.sorte === sorte.id)
-        .map((e) => {
-          const p = fiche.possessions.get(e.id);
-          const mode = o.type === 'entree' ? modeEntree(p, sorte) : undefined;
-          return {
-            type: o.type,
-            objet: e.id,
-            nom: e.nom,
-            actuel: o.type === 'rang' ? (p?.rang ?? 0) : 0,
-            nombre,
-            deja: o.type === 'entree' && !mode,
-            ...(mode ? { mode } : {}),
-            entree: e,
-            sorte,
-          };
-        });
-    }
-    case 'noeud': {
-      const r: Candidat[] = [];
-      for (const arbre of systeme.arbres.values()) {
-        if (o.arbres && !o.arbres.includes(arbre.id)) continue;
-        const acquis = noeudsAcquis(etat, arbre.id);
-        for (const n of arbre.noeuds) {
-          const entree = systeme.entrees.get(n.entree);
-          const sorte = entree && systeme.sortes.get(entree.sorte);
-          if (!entree || !sorte) continue;
-          r.push({
-            type: 'noeud',
-            objet: `${arbre.id}/${n.id}`,
-            nom: entree.nom,
-            actuel: fiche.possessions.get(entree.id)?.rang ?? 0,
-            nombre: compteSorte(fiche, sorte.id),
-            deja: acquis.has(n.id),
-            entree,
-            sorte,
-            arbre,
-            noeud: n,
-          });
-        }
-      }
-      return r;
-    }
+    case 'entree':
+      return candidatsEntrees(fiche, o);
+    case 'noeud':
+      return candidatsNoeuds(fiche, o);
   }
+}
+
+type Obtient<T extends Achat['obtient']['type']> = Extract<Achat['obtient'], { type: T }>;
+
+/** Attributs de base achetables : listés ou du groupe, d'une règle optionnelle active. */
+function candidatsAttributs(fiche: Fiche, o: Obtient<'attribut'>): Candidat[] {
+  const { etat } = fiche;
+  if (o.entite !== etat.type) return [];
+  const cles = new Set(o.attributs ?? []);
+  if (o.groupe)
+    for (const a of fiche.entite.attributs.values())
+      if (a.groupe === o.groupe && a.nature === 'base') cles.add(a.cle);
+  const r: Candidat[] = [];
+  for (const cle of cles) {
+    const a = fiche.entite.attributs.get(cle);
+    // Un attribut d'une règle optionnelle éteinte ne s'achète pas
+    if (a?.nature !== 'base' || !fiche.attributActif(cle)) continue;
+    r.push({
+      type: 'attribut',
+      objet: cle,
+      nom: a.nom,
+      actuel: valeurBase(etat, a),
+      nombre: 0,
+      deja: false,
+      attribut: a,
+    });
+  }
+  return r;
+}
+
+/** Entrées d'une sorte possédable : un rang de plus, ou l'entrée (ou un exemplaire) à prendre. */
+function candidatsEntrees(fiche: Fiche, o: Obtient<'rang' | 'entree'>): Candidat[] {
+  const { systeme, etat } = fiche;
+  const sorte = systeme.sortes.get(o.sorte);
+  if (!sorte?.pour.includes(etat.type)) return [];
+  const nombre = compteSorte(fiche, sorte.id);
+  return [...systeme.entrees.values()]
+    .filter((e) => e.sorte === sorte.id)
+    .map((e) => {
+      const p = fiche.possessions.get(e.id);
+      const mode = o.type === 'entree' ? modeEntree(p, sorte) : undefined;
+      return {
+        type: o.type,
+        objet: e.id,
+        nom: e.nom,
+        actuel: o.type === 'rang' ? (p?.rang ?? 0) : 0,
+        nombre,
+        deja: o.type === 'entree' && !mode,
+        ...(mode ? { mode } : {}),
+        entree: e,
+        sorte,
+      };
+    });
+}
+
+/** Nœuds des arbres visés dont l'entrée existe. */
+function candidatsNoeuds(fiche: Fiche, o: Obtient<'noeud'>): Candidat[] {
+  const { systeme, etat } = fiche;
+  const arbres = [...systeme.arbres.values()].filter((a) => !o.arbres || o.arbres.includes(a.id));
+  return arbres.flatMap((arbre) => {
+    const acquis = noeudsAcquis(etat, arbre.id);
+    return arbre.noeuds.flatMap((n): Candidat[] => {
+      const entree = systeme.entrees.get(n.entree);
+      const sorte = entree && systeme.sortes.get(entree.sorte);
+      if (!entree || !sorte) return [];
+      return [
+        {
+          type: 'noeud',
+          objet: `${arbre.id}/${n.id}`,
+          nom: entree.nom,
+          actuel: fiche.possessions.get(entree.id)?.rang ?? 0,
+          nombre: compteSorte(fiche, sorte.id),
+          deja: acquis.has(n.id),
+          entree,
+          sorte,
+          arbre,
+          noeud: n,
+        },
+      ];
+    });
+  });
 }
 
 /** Valeur calculée du candidat : celle de l'attribut, 0 pour une entrée, sinon l'actuelle. */
@@ -241,6 +257,77 @@ function valeurCalculee(fiche: Fiche, c: Candidat): number {
 }
 
 const VIDE_PAR_TYPE: Partial<Record<string, number | boolean>> = { nombre: 0, booleen: false };
+
+/** Ce que les vérifications d'un candidat partagent : fiche, cible, blocages, évaluations. */
+interface Examen {
+  fiche: Fiche;
+  c: Candidat;
+  cible: number;
+  bloquer(code: CodeBlocage, message: string): void;
+  nombreDe(f: FormuleVerifiee, quoi: string): number | undefined;
+  vrai(f: FormuleVerifiee, quoi: string): boolean | undefined;
+}
+
+/** Entrée visée : prérequis, maximum de la sorte, rang maximal. */
+function examinerEntree(
+  { fiche, c, cible, bloquer, nombreDe, vrai }: Examen,
+  entree: NonNullable<Candidat['entree']>,
+  sorte: NonNullable<Candidat['sorte']>,
+): void {
+  const { systeme } = fiche;
+  const exige = systeme.formules.get(chemins.exige(entree.id));
+  if (exige && vrai(exige, 'Prérequis') === false)
+    bloquer('exige', `Prérequis non rempli pour ${entree.nom} : ${exige.texte}`);
+  const maximum = sorte.maximum;
+  const nouvelle = !fiche.possessions.has(entree.id) || c.mode === 'exemplaire';
+  if (nouvelle && maximum !== undefined && c.nombre >= maximum)
+    bloquer(
+      'maximum',
+      `Maximum de ${maximum} ${sorte.nomPluriel ?? sorte.nom} atteint (${c.nombre})`,
+    );
+  if ((c.type !== 'rang' && c.type !== 'noeud') || !sorte.rangs) return;
+  const max = nombreDe(systeme.formule(chemins.rangsMax(sorte.id)), 'Rang maximal');
+  if (max !== undefined && cible > max)
+    bloquer('rang-max', `${entree.nom} : rang maximal ${max} atteint`);
+}
+
+/** Attribut visé : la cible ne dépasse pas son maximum. */
+function examinerAttribut({ fiche, cible, bloquer }: Examen, a: Attribut): void {
+  const max = fiche.valeurs.get(a.cle)?.max;
+  if (max !== undefined && cible > max)
+    bloquer('limite-attribut', `${a.nom} ne peut pas dépasser ${max}`);
+}
+
+/** Nœud d'arbre : arbre ouvert, nœud relié à un nœud acquis ; renvoie son coût. */
+function examinerNoeud(
+  { fiche, c, bloquer }: Examen,
+  arbre: NonNullable<Candidat['arbre']>,
+  noeud: NonNullable<Candidat['noeud']>,
+): number {
+  const { systeme, etat } = fiche;
+  if (!arbreOuvert(fiche, arbre)) {
+    const par = arbre.ouvertPar && systeme.entrees.get(arbre.ouvertPar);
+    bloquer('arbre-ferme', `Arbre « ${arbre.nom} » fermé${par ? ` : ${par.nom} requis` : ''}`);
+  } else if (!c.deja && !noeudRelie(arbre, noeudsAcquis(etat, arbre.id), noeud.id)) {
+    bloquer('non-relie', `${c.nom} n’est relié à aucun nœud acquis`);
+  }
+  const r = essayer(fiche, systeme.formule(chemins.noeud(arbre.id, noeud.id)), {
+    variable: variables({ x: noeud.x, y: noeud.y }),
+  });
+  if (r.ok) return Number(r.valeur);
+  bloquer('erreur', `Coût du nœud : ${r.message}`);
+  return 0;
+}
+
+/** Plafond de l'achat, s'il en déclare un ; bloque quand la cible le dépasse. */
+function examinerPlafond({ fiche, c, cible, bloquer, nombreDe }: Examen, achat: Achat) {
+  const fp = fiche.systeme.formules.get(chemins.achat(achat.id, 'plafond'));
+  if (!fp) return undefined;
+  const plafond = nombreDe(fp, 'Plafond');
+  const borne = c.type === 'entree' ? c.nombre + 1 : cible;
+  if (plafond !== undefined && borne > plafond) bloquer('plafond', `Plafond atteint (${plafond})`);
+  return plafond;
+}
 
 function examiner(fiche: Fiche, achat: Achat, c: Candidat, disponible: number): ObjetAchetable {
   const { systeme, etat } = fiche;
@@ -272,61 +359,18 @@ function examiner(fiche: Fiche, achat: Achat, c: Candidat, disponible: number): 
     return undefined;
   };
 
+  const ex: Examen = { fiche, c, cible, bloquer, nombreDe, vrai };
   if (c.deja) bloquer('deja', c.type === 'noeud' ? 'Nœud déjà acquis' : `${c.nom} déjà possédé`);
   if (c.sorte && !c.sorte.pour.includes(etat.type))
     bloquer('non-possedable', `${c.sorte.nom} non possédable par ${fiche.entite.type.nom}`);
-
-  if (c.entree && c.sorte) {
-    const exige = systeme.formules.get(chemins.exige(c.entree.id));
-    if (exige && vrai(exige, 'Prérequis') === false)
-      bloquer('exige', `Prérequis non rempli pour ${c.entree.nom} : ${exige.texte}`);
-    const maximum = c.sorte.maximum;
-    const nouvelle = !fiche.possessions.has(c.entree.id) || c.mode === 'exemplaire';
-    if (nouvelle && maximum !== undefined && c.nombre >= maximum)
-      bloquer(
-        'maximum',
-        `Maximum de ${maximum} ${c.sorte.nomPluriel ?? c.sorte.nom} atteint (${c.nombre})`,
-      );
-    if ((c.type === 'rang' || c.type === 'noeud') && c.sorte.rangs) {
-      const max = nombreDe(systeme.formule(chemins.rangsMax(c.sorte.id)), 'Rang maximal');
-      if (max !== undefined && cible > max)
-        bloquer('rang-max', `${c.entree.nom} : rang maximal ${max} atteint`);
-    }
-  }
-
-  if (c.attribut) {
-    const max = fiche.valeurs.get(c.attribut.cle)?.max;
-    if (max !== undefined && cible > max)
-      bloquer('limite-attribut', `${c.attribut.nom} ne peut pas dépasser ${max}`);
-  }
-
-  let coutNoeud = 0;
-  if (c.arbre && c.noeud) {
-    if (!arbreOuvert(fiche, c.arbre)) {
-      const par = c.arbre.ouvertPar && systeme.entrees.get(c.arbre.ouvertPar);
-      bloquer('arbre-ferme', `Arbre « ${c.arbre.nom} » fermé${par ? ` : ${par.nom} requis` : ''}`);
-    } else if (!c.deja && !noeudRelie(c.arbre, noeudsAcquis(etat, c.arbre.id), c.noeud.id)) {
-      bloquer('non-relie', `${c.nom} n’est relié à aucun nœud acquis`);
-    }
-    const r = essayer(fiche, systeme.formule(chemins.noeud(c.arbre.id, c.noeud.id)), {
-      variable: variables({ x: c.noeud.x, y: c.noeud.y }),
-    });
-    if (r.ok) coutNoeud = Number(r.valeur);
-    else bloquer('erreur', `Coût du nœud : ${r.message}`);
-  }
+  if (c.entree && c.sorte) examinerEntree(ex, c.entree, c.sorte);
+  if (c.attribut) examinerAttribut(ex, c.attribut);
+  const coutNoeud = c.arbre && c.noeud ? examinerNoeud(ex, c.arbre, c.noeud) : 0;
 
   const condition = systeme.formules.get(chemins.achat(achat.id, 'condition'));
   if (condition && vrai(condition, 'Condition') === false)
     bloquer('condition', `Condition non remplie : ${condition.texte}`);
-
-  let plafond: number | undefined;
-  const fp = systeme.formules.get(chemins.achat(achat.id, 'plafond'));
-  if (fp) {
-    plafond = nombreDe(fp, 'Plafond');
-    const borne = c.type === 'entree' ? c.nombre + 1 : cible;
-    if (plafond !== undefined && borne > plafond)
-      bloquer('plafond', `Plafond atteint (${plafond})`);
-  }
+  const plafond = examinerPlafond(ex, achat);
 
   const coutAchat = nombreDe(systeme.formule(chemins.achat(achat.id, 'cout')), 'Coût');
   const cout = (coutAchat ?? 0) + coutNoeud;
@@ -334,18 +378,25 @@ function examiner(fiche: Fiche, achat: Achat, c: Candidat, disponible: number): 
     bloquer('solde', `Solde insuffisant : ${cout} requis, ${disponible} disponible`);
 
   return {
+    ...objetDe(c),
     achat: achat.id,
-    objet: c.objet,
-    nom: c.nom,
-    type: c.type,
-    actuel: c.actuel,
     cible,
-    nombre: c.nombre,
     cout,
     ...(plafond !== undefined ? { plafond } : {}),
     monnaie: achat.monnaie,
     possible: blocages.length === 0,
     blocages,
+  };
+}
+
+/** Ce qu'un candidat désigne : objet, rang actuel, entrée, mode, nœud d'arbre. */
+function objetDe(c: Candidat) {
+  return {
+    objet: c.objet,
+    nom: c.nom,
+    type: c.type,
+    actuel: c.actuel,
+    nombre: c.nombre,
     ...(c.entree ? { entree: c.entree.id } : {}),
     ...(c.mode ? { mode: c.mode } : {}),
     ...(c.arbre && c.noeud ? { arbre: c.arbre.id, noeud: c.noeud.id } : {}),
@@ -479,59 +530,55 @@ export function rembourser(
 
   const suivant = copier(etat);
   suivant.journal.splice(index, 1);
-  const o = achat.obtient;
-  switch (o.type) {
-    case 'attribut': {
-      const v = suivant.valeurs[ligne.objet];
-      if (typeof v !== 'number')
-        return { ok: false, erreur: `Aucune valeur enregistrée pour ${ligne.objet}` };
-      suivant.valeurs[ligne.objet] = v - 1;
-      break;
-    }
-    case 'rang': {
-      const i = suivant.possessions.findIndex((p) => p.entree === ligne.objet && p.rang > 0);
-      const p = suivant.possessions[i];
-      if (!p) return { ok: false, erreur: `Aucun rang acheté dans ${ligne.objet}` };
-      p.rang -= 1;
-      // Possession créée par cet achat : on la retire pour que `possede()` redevienne faux
-      const vide = !Object.keys(p.choix).length && !Object.keys(p.champs).length;
-      const autres = suivant.journal.some((l) => {
-        const a = systeme.achats.get(l.achat);
-        return l.objet === ligne.objet && !!a && genre(a) === 'entree';
-      });
-      if (p.rang === 0 && vide && !autres) suivant.possessions.splice(i, 1);
-      break;
-    }
-    case 'entree': {
-      if (!suivant.possessions.some((p) => p.entree === ligne.objet))
-        return { ok: false, erreur: `${ligne.objet} n’est pas possédé` };
-      // Une unité de moins, ou le dernier exemplaire retiré
-      suivant.possessions = retirerEntree(systeme, suivant.possessions, ligne.objet, { rangs: 1 });
-      if (suivant.possessions.some((p) => p.entree === ligne.objet)) break;
-      for (const arbre of systeme.arbres.values()) {
-        if (arbre.ouvertPar === ligne.objet && suivant.noeuds[arbre.id]?.length)
-          return {
-            ok: false,
-            erreur: `Des nœuds de l’arbre « ${arbre.nom} » dépendent de ${ligne.objet}`,
-          };
-      }
-      break;
-    }
-    case 'noeud': {
-      const [arbreId, noeudId] = ligne.objet.split('/') as [string, string];
-      const arbre = systeme.arbres.get(arbreId);
-      const acquis = noeudsAcquis(suivant, arbreId);
-      if (!arbre || !acquis.delete(noeudId))
-        return { ok: false, erreur: `Nœud non acquis : ${ligne.objet}` };
-      const isoles = noeudsIsoles(arbre, acquis);
-      if (isoles.length)
-        return { ok: false, erreur: `Nœuds qui ne seraient plus reliés : ${isoles.join(', ')}` };
-      suivant.noeuds[arbreId] = (suivant.noeuds[arbreId] ?? []).filter((n) => n !== noeudId);
-      break;
-    }
-  }
-  return { ok: true, etat: suivant, ligne };
+  const erreur = ANNULER[achat.obtient.type](systeme, suivant, ligne.objet);
+  return erreur ? { ok: false, erreur } : { ok: true, etat: suivant, ligne };
 }
+
+type Annuler = (systeme: SystemeCharge, suivant: EtatEntite, objet: string) => string | null;
+
+/** Annulation d'un achat sur l'état suivant, par genre d'achat ; renvoie le refus éventuel. */
+const ANNULER: Record<Achat['obtient']['type'], Annuler> = {
+  attribut: (_, suivant, objet) => {
+    const v = suivant.valeurs[objet];
+    if (typeof v !== 'number') return `Aucune valeur enregistrée pour ${objet}`;
+    suivant.valeurs[objet] = v - 1;
+    return null;
+  },
+  rang: (systeme, suivant, objet) => {
+    const i = suivant.possessions.findIndex((p) => p.entree === objet && p.rang > 0);
+    const p = suivant.possessions[i];
+    if (!p) return `Aucun rang acheté dans ${objet}`;
+    p.rang -= 1;
+    // Possession créée par cet achat : on la retire pour que `possede()` redevienne faux
+    const vide = !Object.keys(p.choix).length && !Object.keys(p.champs).length;
+    const autres = suivant.journal.some((l) => {
+      const a = systeme.achats.get(l.achat);
+      return l.objet === objet && !!a && genre(a) === 'entree';
+    });
+    if (p.rang === 0 && vide && !autres) suivant.possessions.splice(i, 1);
+    return null;
+  },
+  entree: (systeme, suivant, objet) => {
+    if (!suivant.possessions.some((p) => p.entree === objet)) return `${objet} n’est pas possédé`;
+    // Une unité de moins, ou le dernier exemplaire retiré
+    suivant.possessions = retirerEntree(systeme, suivant.possessions, objet, { rangs: 1 });
+    if (suivant.possessions.some((p) => p.entree === objet)) return null;
+    const arbre = [...systeme.arbres.values()].find(
+      (a) => a.ouvertPar === objet && suivant.noeuds[a.id]?.length,
+    );
+    return arbre ? `Des nœuds de l’arbre « ${arbre.nom} » dépendent de ${objet}` : null;
+  },
+  noeud: (systeme, suivant, objet) => {
+    const [arbreId, noeudId] = objet.split('/') as [string, string];
+    const arbre = systeme.arbres.get(arbreId);
+    const acquis = noeudsAcquis(suivant, arbreId);
+    if (!arbre || !acquis.delete(noeudId)) return `Nœud non acquis : ${objet}`;
+    const isoles = noeudsIsoles(arbre, acquis);
+    if (isoles.length) return `Nœuds qui ne seraient plus reliés : ${isoles.join(', ')}`;
+    suivant.noeuds[arbreId] = (suivant.noeuds[arbreId] ?? []).filter((n) => n !== noeudId);
+    return null;
+  },
+};
 
 /** Champs de l'entrée visée, exposés aux formules d'achat sous la forme `entree.<champ>`. */
 function champsEntree(fiche: Fiche, c: Candidat): Record<string, Valeur> {
