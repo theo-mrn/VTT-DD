@@ -204,42 +204,78 @@ export const PRELOAD_BEFORE_MS = 20_000;
  * déterministe : deux clients à la même heure serveur planifient la même chose.
  */
 export function planChannel(s: PlanState, serverNowMs: number): ChannelPlan {
-  const empty: ChannelPlan = { voices: [], preload: null, nextChangeAtMs: null };
-  if (s.status !== 'playing' || !s.track || s.track.deleted) return empty;
+  if (s.status !== 'playing' || !s.track || s.track.deleted) return emptyPlan();
   const track = s.track;
-  const loop = s.repeat === 'track';
-  const anchor = Date.parse(s.anchorAt);
-  const endsAt = s.endsAt ? Date.parse(s.endsAt) : null;
-  const current = (fadeOutAtMs: number | null): PlannedVoice => ({
+  if (!s.endsAt) return planWithoutEnd(s, track, serverNowMs);
+  const endsAt = Date.parse(s.endsAt);
+  const next = s.next && !s.next.deleted ? s.next : null;
+  if (serverNowMs < endsAt) return planBeforeEnd(s, track, next, endsAt, serverNowMs);
+  // Après endsAt : enchaînement prévu, ou fin (repeat off)
+  return next ? planAfterEnd(s, track, next, endsAt, serverNowMs) : emptyPlan();
+}
+
+/** Plan vide : rien ne sonne, rien ne change. */
+function emptyPlan(): ChannelPlan {
+  return { voices: [], preload: null, nextChangeAtMs: null };
+}
+
+/** Voix de la piste en cours, éteinte en fondu à `fadeOutAtMs` (null : jusqu'au prochain état). */
+function currentVoice(
+  s: PlanState,
+  track: PlaybackAsset,
+  serverNowMs: number,
+  fadeOutAtMs: number | null,
+): PlannedVoice {
+  return {
     asset: track,
     positionMs: positionAt(s, serverNowMs).positionMs,
-    startAtMs: anchor - s.positionMs,
+    startAtMs: Date.parse(s.anchorAt) - s.positionMs,
     fadeInMs: 0,
     fadeOutAtMs,
-    loop,
-  });
+    loop: s.repeat === 'track',
+  };
+}
 
-  if (endsAt === null) {
-    const { ended } = positionAt(s, serverNowMs);
-    return ended ? empty : { voices: [current(null)], preload: null, nextChangeAtMs: null };
-  }
+/** Sans `endsAt` : la piste joue jusqu'à sa fin réelle (ou en boucle). */
+function planWithoutEnd(s: PlanState, track: PlaybackAsset, serverNowMs: number): ChannelPlan {
+  const { ended } = positionAt(s, serverNowMs);
+  if (ended) return emptyPlan();
+  return {
+    voices: [currentVoice(s, track, serverNowMs, null)],
+    preload: null,
+    nextChangeAtMs: null,
+  };
+}
 
-  // Le fondu n'existe que s'il y a une suivante (sinon endsAt est la fin réelle)
-  const next = s.next && !s.next.deleted ? s.next : null;
-  const fade = next ? Math.max(0, s.crossfadeMs) : 0;
-  const trackEnd = endsAt + fade;
+/** Avant `endsAt` : la piste en cours, et la suivante préchargée à l'approche. */
+function planBeforeEnd(
+  s: PlanState,
+  track: PlaybackAsset,
+  next: PlaybackAsset | null,
+  endsAt: number,
+  serverNowMs: number,
+): ChannelPlan {
   const preloadAt = endsAt - PRELOAD_BEFORE_MS;
-  if (serverNowMs < endsAt) {
-    return {
-      voices: [current(next ? endsAt : null)],
-      preload: next && serverNowMs >= preloadAt ? next : null,
-      nextChangeAtMs: next && serverNowMs < preloadAt ? preloadAt : endsAt,
-    };
-  }
-  // Après endsAt : enchaînement prévu, ou fin (repeat off)
-  if (!next) return empty;
+  return {
+    voices: [currentVoice(s, track, serverNowMs, next ? endsAt : null)],
+    preload: next && serverNowMs >= preloadAt ? next : null,
+    nextChangeAtMs: next && serverNowMs < preloadAt ? preloadAt : endsAt,
+  };
+}
+
+/** Après `endsAt` : la suivante démarre avec le fondu, la piste en cours s'éteint pendant le fondu. */
+function planAfterEnd(
+  s: PlanState,
+  track: PlaybackAsset,
+  next: PlaybackAsset,
+  endsAt: number,
+  serverNowMs: number,
+): ChannelPlan {
+  // Le fondu n'existe que s'il y a une suivante (sinon endsAt est la fin réelle)
+  const fade = Math.max(0, s.crossfadeMs);
+  const trackEnd = endsAt + fade;
   const voices: PlannedVoice[] = [];
-  if (serverNowMs < trackEnd) voices.push(current(endsAt));
+  if (serverNowMs < trackEnd) voices.push(currentVoice(s, track, serverNowMs, endsAt));
   voices.push({
     asset: next,
     positionMs: serverNowMs - endsAt,
