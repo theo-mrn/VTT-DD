@@ -37,7 +37,10 @@ export interface ClientFournisseur {
   }): Promise<ProfilFournisseur>;
 }
 
-export type ClientsFournisseurs = Partial<Record<Fournisseur, ClientFournisseur>>;
+export interface ClientsFournisseurs {
+  google?: ClientFournisseur;
+  discord?: ClientDiscord;
+}
 
 /** Cause d'échec sans donnée sensible, destinée aux journaux. */
 export class ErreurFournisseur extends Error {
@@ -96,9 +99,10 @@ async function lireJson(
   }
 }
 
+/** Sans redirectUri ni codeVerifier : code obtenu par le SDK d'une activité Discord. */
 function echangeFormulaire(
   o: OptionsClient,
-  p: { code: string; codeVerifier: string; redirectUri: string },
+  p: { code: string; codeVerifier?: string; redirectUri?: string },
 ) {
   return {
     method: 'POST',
@@ -109,10 +113,10 @@ function echangeFormulaire(
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       code: p.code,
-      redirect_uri: p.redirectUri,
+      ...(p.redirectUri ? { redirect_uri: p.redirectUri } : {}),
       client_id: o.clientId,
       client_secret: o.clientSecret,
-      code_verifier: p.codeVerifier,
+      ...(p.codeVerifier ? { code_verifier: p.codeVerifier } : {}),
     }).toString(),
   } satisfies RequestInit;
 }
@@ -222,10 +226,58 @@ const UtilisateurDiscord = z.object({
   verified: z.boolean().nullish(),
 });
 
+/** Client Discord : connexion du site, et code obtenu par le SDK d'une activité (sans PKCE). */
+export interface ClientDiscord extends ClientFournisseur {
+  /** Profil et jeton Discord (rendu au SDK pour `authenticate`). */
+  echangerCodeActivite(code: string): Promise<{ profil: ProfilFournisseur; jeton: string }>;
+}
+
 /** Discord, OAuth2 : l'identité vient de GET /users/@me avec le jeton obtenu. */
-export function clientDiscord(o: OptionsClient): ClientFournisseur {
+export function clientDiscord(o: OptionsClient): ClientDiscord {
   const fetcher = o.fetch ?? fetch;
   const delaiMs = o.delaiMs ?? 10_000;
+
+  async function jetonDiscord(p: { code: string; codeVerifier?: string; redirectUri?: string }) {
+    const brutJeton = await lireJson(
+      fetcher,
+      DISCORD.jeton,
+      echangeFormulaire(o, p),
+      'jeton discord',
+      delaiMs,
+    );
+    const jeton = ReponseJetonDiscord.safeParse(brutJeton);
+    if (!jeton.success || jeton.data.token_type.toLowerCase() !== 'bearer') {
+      throw new ErreurFournisseur('jeton discord : réponse inattendue');
+    }
+    return jeton.data.access_token;
+  }
+
+  async function profilDiscord(jeton: string): Promise<ProfilFournisseur> {
+    const brutUtilisateur = await lireJson(
+      fetcher,
+      DISCORD.utilisateur,
+      { headers: { authorization: `Bearer ${jeton}`, accept: 'application/json' } },
+      'profil discord',
+      delaiMs,
+    );
+    const u = UtilisateurDiscord.safeParse(brutUtilisateur);
+    if (!u.success) throw new ErreurFournisseur('profil discord : réponse inattendue');
+
+    const { id, avatar } = u.data;
+    let avatarUrl: string | null = null;
+    if (avatar && /^(a_)?[0-9a-f]{32}$/.test(avatar)) {
+      const extension = avatar.startsWith('a_') ? 'gif' : 'png';
+      avatarUrl = `https://cdn.discordapp.com/avatars/${id}/${avatar}.${extension}`;
+    }
+
+    return {
+      providerAccountId: id,
+      email: u.data.email ?? null,
+      emailVerified: u.data.verified === true,
+      name: u.data.global_name || u.data.username || null,
+      avatarUrl,
+    };
+  }
 
   return {
     urlAutorisation({ state, codeVerifier, redirectUri }) {
@@ -243,47 +295,12 @@ export function clientDiscord(o: OptionsClient): ClientFournisseur {
     },
 
     async echangerCode({ code, codeVerifier, redirectUri }) {
-      const brutJeton = await lireJson(
-        fetcher,
-        DISCORD.jeton,
-        echangeFormulaire(o, { code, codeVerifier, redirectUri }),
-        'jeton discord',
-        delaiMs,
-      );
-      const jeton = ReponseJetonDiscord.safeParse(brutJeton);
-      if (!jeton.success || jeton.data.token_type.toLowerCase() !== 'bearer') {
-        throw new ErreurFournisseur('jeton discord : réponse inattendue');
-      }
+      return profilDiscord(await jetonDiscord({ code, codeVerifier, redirectUri }));
+    },
 
-      const brutUtilisateur = await lireJson(
-        fetcher,
-        DISCORD.utilisateur,
-        {
-          headers: {
-            authorization: `Bearer ${jeton.data.access_token}`,
-            accept: 'application/json',
-          },
-        },
-        'profil discord',
-        delaiMs,
-      );
-      const u = UtilisateurDiscord.safeParse(brutUtilisateur);
-      if (!u.success) throw new ErreurFournisseur('profil discord : réponse inattendue');
-
-      const { id, avatar } = u.data;
-      let avatarUrl: string | null = null;
-      if (avatar && /^(a_)?[0-9a-f]{32}$/.test(avatar)) {
-        const extension = avatar.startsWith('a_') ? 'gif' : 'png';
-        avatarUrl = `https://cdn.discordapp.com/avatars/${id}/${avatar}.${extension}`;
-      }
-
-      return {
-        providerAccountId: id,
-        email: u.data.email ?? null,
-        emailVerified: u.data.verified === true,
-        name: u.data.global_name || u.data.username || null,
-        avatarUrl,
-      };
+    async echangerCodeActivite(code) {
+      const jeton = await jetonDiscord({ code });
+      return { profil: await profilDiscord(jeton), jeton };
     },
   };
 }

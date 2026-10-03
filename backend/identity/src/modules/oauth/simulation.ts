@@ -92,8 +92,11 @@ export async function fauxFournisseurs(google: Identifiants, discord: Identifian
         f.get('client_secret') !== ids.clientSecret ||
         !emis ||
         emis.fournisseur !== (url === GOOGLE.jeton ? 'google' : 'discord') ||
-        f.get('redirect_uri') !== emis.redirectUri ||
-        defiPkce(f.get('code_verifier') ?? '') !== emis.defi
+        (f.get('redirect_uri') ?? '') !== emis.redirectUri ||
+        // Code d'activité (SDK Discord) : ni PKCE ni redirection
+        (emis.defi === ''
+          ? f.has('code_verifier')
+          : defiPkce(f.get('code_verifier') ?? '') !== emis.defi)
       ) {
         return json({ error: 'invalid_grant' }, 400);
       }
@@ -148,5 +151,19 @@ export async function fauxFournisseurs(google: Identifiants, discord: Identifian
     return { code, state: u.searchParams.get('state') ?? '' };
   }
 
-  return { fetch, cles, autoriser, appels, idToken: idToken.bind(null, privateKey) };
+  /** Code remis par le SDK d'une activité Discord : ni PKCE ni URI de retour. */
+  function autoriserActivite(identite: IdentiteDiscord): string {
+    const code = `code-activite-${crypto.randomUUID()}`;
+    codes.set(code, { fournisseur: 'discord', identite, defi: '', redirectUri: '' });
+    return code;
+  }
+
+  return {
+    fetch,
+    cles,
+    autoriser,
+    autoriserActivite,
+    appels,
+    idToken: idToken.bind(null, privateKey),
+  };
 }

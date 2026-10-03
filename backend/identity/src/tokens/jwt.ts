@@ -17,6 +17,10 @@ export interface AccessClaims {
   roles: string[];
   /** Rôle dans chaque salle, lu par `requireRoomRole` des services. */
   rooms: Record<string, 'gm' | 'player'>;
+  /** Durée de vie, ACCESS_TOKEN_TTL_SECONDS par défaut (jeton délégué au bot Discord : 60 s). */
+  ttlSeconds?: number;
+  /** Mode d'authentification (RFC 8176), ex. `discord-bot` pour un jeton délégué. */
+  amr?: string[];
 }
 
 interface CleSignature {
@@ -66,13 +70,14 @@ export async function createJwtSigner(opts: {
   return {
     async sign(claims, now = new Date()) {
       const iat = Math.floor(now.getTime() / 1000);
-      return new SignJWT({ roles: claims.roles, rooms: claims.rooms })
+      const extra = claims.amr ? { amr: claims.amr } : {};
+      return new SignJWT({ roles: claims.roles, rooms: claims.rooms, ...extra })
         .setProtectedHeader({ alg: 'EdDSA', kid: active.kid, typ: 'JWT' })
         .setSubject(claims.userId)
         .setIssuer(opts.issuer)
         .setAudience(opts.audience)
         .setIssuedAt(iat)
-        .setExpirationTime(iat + ACCESS_TOKEN_TTL_SECONDS)
+        .setExpirationTime(iat + (claims.ttlSeconds ?? ACCESS_TOKEN_TTL_SECONDS))
         .setJti(randomUUID())
         .sign(active.privee);
     },
