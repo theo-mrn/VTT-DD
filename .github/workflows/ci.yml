@@ -18,9 +18,24 @@ env:
 
 jobs:
   quality:
-    name: Lint, types, tests
+    # Cinq parties en parallèle, chacune sur sa machine : le job unique dépassait 10 minutes
+    name: Lint, types, tests (${{ matrix.part }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { part: vérifications, tasks: 'lint typecheck', filter: '' }
+          - { part: build, tasks: build, filter: '' }
+          - { part: tests front, tasks: test, filter: '--filter=@vtt/web' }
+          - { part: tests backend, tasks: test, filter: "--filter='./backend/*'" }
+          # Paquets partagés, outils et ancienne app
+          - {
+              part: tests paquets,
+              tasks: test,
+              filter: "--filter='./packages/*' --filter='./tools/*' --filter=@vtt/legacy",
+            }
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
         with: { egress-policy: audit }
@@ -31,28 +46,33 @@ jobs:
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - name: Format
+        if: matrix.part == 'vérifications'
         run: pnpm format:check
       - name: Commits conventionnels
-        if: github.event_name == 'pull_request'
+        if: matrix.part == 'vérifications' && github.event_name == 'pull_request'
         run: pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
       - name: Variables factices pour le build Next
         run: grep -E '^[A-Z0-9_]+=' infra/ci/build-placeholders.env >> "$GITHUB_ENV"
-      - name: Lint, typecheck, tests, build (paquets modifiés)
+      - name: ${{ matrix.part }} (paquets modifiés)
         env:
           # --affected compare à la branche de base distante (sans « origin/ », turbo ne la trouve pas)
           TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
         run: |
           set -o pipefail
           affected=${{ github.event_name == 'pull_request' && '--affected' || '' }}
-          pnpm turbo run lint typecheck build --output-logs=errors-only $affected 2>&1 | tee /tmp/turbo.log
-          # Tests deux paquets à la fois : tous ensemble, les tests de propriétés (vision, systemes)
-          # et les garde-fous d'événements dépassent leurs délais sur les 4 cœurs du runner
-          pnpm turbo run test --concurrency=2 --continue --output-logs=errors-only $affected \
-            -- --coverage.enabled --coverage.reporter=lcov 2>&1 | tee -a /tmp/turbo.log
+          if [ "${{ matrix.tasks }}" = test ]; then
+            # Deux paquets à la fois : tous ensemble, les tests de propriétés (vision, systemes)
+            # et les garde-fous d'événements dépassent leurs délais sur les 4 cœurs du runner
+            pnpm turbo run test --concurrency=2 --continue --output-logs=errors-only $affected \
+              ${{ matrix.filter }} -- --coverage.enabled --coverage.reporter=lcov 2>&1 | tee /tmp/turbo.log
+          else
+            pnpm turbo run ${{ matrix.tasks }} --output-logs=errors-only $affected 2>&1 | tee /tmp/turbo.log
+          fi
       - name: Couverture des tests unitaires (pour SonarQube)
+        if: matrix.tasks == 'test'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: coverage-unit
+          name: coverage-unit-${{ strategy.job-index }}
           path: |
             **/coverage/lcov.info
             !**/node_modules/**
@@ -63,7 +83,7 @@ jobs:
         run: |
           # Les dernières lignes utiles en annotation : lisibles sur la PR sans ouvrir les logs
           msg=$(grep -vE '^\s*$' /tmp/turbo.log | grep -vE 'warning ' | tail -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
-          echo "::error title=Échec lint/typecheck/tests/build::${msg}"
+          echo "::error title=Échec ${{ matrix.part }}::${msg}"
 
   sql:
     name: Tests SQL (PostGIS)
@@ -249,7 +269,8 @@ jobs:
       # Unitaires puis intégration : pour un service, la couverture des tests d'intégration
       # (base réelle) remplace celle des seuls tests unitaires
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with: { name: coverage-unit }
+        # Une couverture par partie de tests, réunies à leurs chemins d'origine
+        with: { pattern: coverage-unit-*, merge-multiple: true }
         continue-on-error: true
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with: { name: coverage-integration }
