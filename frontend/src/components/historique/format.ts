@@ -263,8 +263,17 @@ function combine(lines: Line[]): Line | null {
   return { type, text: lines.map((l) => l.text).join(' ') };
 }
 
-const show = (v: unknown) =>
-  typeof v === 'boolean' ? (v ? 'oui' : 'non') : v === null || v === undefined ? '—' : String(v);
+function show(v: unknown): string {
+  if (typeof v === 'boolean') return v ? 'oui' : 'non';
+  if (v === null || v === undefined) return '—';
+  return String(v);
+}
+
+/** Signe d'une modification d'attribut (sinon « = » : valeur fixée). */
+const SIGNES: Record<string, string> = { subtract: '−', add: '+' };
+
+/** « 3 rounds », « 1 round ». */
+const rounds = (n: number) => `${n} round${n > 1 ? 's' : ''}`;
 
 /**
  * Une valeur qui change. Ressource (PV, Stress…) : tournures de l'ancienne
@@ -300,7 +309,10 @@ function valueLine(
     const harmful = recoversToMax ? diff < 0 : diff > 0;
     if (character?.side !== 'players')
       return { type: 'combat', text: `${who} a été ${harmful ? 'attaqué' : 'soigné'}.` };
-    const verb = recoversToMax ? (harmful ? 'perdu' : 'récupéré') : harmful ? 'subi' : 'guéri de';
+    const verbs = recoversToMax
+      ? { pire: 'perdu', mieux: 'récupéré' }
+      : { pire: 'subi', mieux: 'guéri de' };
+    const verb = harmful ? verbs.pire : verbs.mieux;
     return { type: 'combat', text: `${who} a ${bold(verb)} ${Math.abs(diff)} ${label}.` };
   }
 
@@ -355,7 +367,7 @@ function possessionLines(ctx: FormatContext, who: string, changes: Change[] | nu
           type: 'combat',
           text:
             duration !== null
-              ? `${who} est ${name} (${duration} round${duration > 1 ? 's' : ''}).`
+              ? `${who} est ${name} (${rounds(duration)}).`
               : `${who} reçoit ${name}.`,
         });
       } else if (!('after' in c) || c.after == null)
@@ -504,10 +516,8 @@ function characterUpdated(e: HistoryEvent, ctx: FormatContext): Formatted | null
       if (!c) return null;
       const round = str(detail(p, 'applicationId'))?.startsWith('tick:') === true;
       const forced = detail(p, 'forced') === true;
-      return line(
-        'combat',
-        `${round ? 'Retour au tour précédent' : `Annulation du MJ${forced ? ' (forcée)' : ''}`} : ${c.text}`,
-      );
+      const annulation = forced ? 'Annulation du MJ (forcée)' : 'Annulation du MJ';
+      return line('combat', `${round ? 'Retour au tour précédent' : annulation} : ${c.text}`);
     }
     case 'repos': {
       const rest = combine([
@@ -568,14 +578,14 @@ function modificationText(
     const name = entryName(ctx, str(mod.entry));
     if (mod.operation === 'remove') return `sans ${name}`;
     const duration = num(mod.duration);
-    return duration ? `${name} (${duration} round${duration > 1 ? 's' : ''})` : name;
+    return duration ? `${name} (${rounds(duration)})` : name;
   }
   const key = str(mod.attribute);
   const value = num(mod.value);
   if (!key || value === null) return null;
   const attr = attributeOf(ctx, entityType, key)?.attr;
   if (attr?.visibilite === 'mj' && !ctx.viewerIsGm) return null;
-  const sign = mod.operation === 'subtract' ? '−' : mod.operation === 'add' ? '+' : '= ';
+  const sign = SIGNES[str(mod.operation) ?? ''] ?? '= ';
   const type = damageTypeName(ctx, str(mod.damageType));
   return `${sign}${value} ${attributeLabel(attr, key)}${type ? ` (${type})` : ''}`;
 }
@@ -779,7 +789,8 @@ const FORMATTERS: Record<string, Formatter> = {
     const targetId = str(p.cibleId);
     const onOther = !!targetId && lower(targetId) !== lower(actorId);
     const reussi = obj(p.resultat)?.reussi;
-    const outcome = typeof reussi === 'boolean' ? ` : ${bold(reussi ? 'réussite' : 'échec')}` : '';
+    const issue = reussi ? 'réussite' : 'échec';
+    const outcome = typeof reussi === 'boolean' ? ` : ${bold(issue)}` : '';
     return {
       ...characterFields(ctx, actorId),
       type: onOther ? 'combat' : 'competence',
@@ -799,19 +810,18 @@ const FORMATTERS: Record<string, Formatter> = {
     const total = num(p.total);
     const symbols = str(p.symbolResult);
     const outcome = obj(p.outcome);
-    const result = symbols ? bold(symbols) : total !== null ? bold(total) : null;
-    const critical =
-      outcome?.critical === true
-        ? ` ${bold('Réussite critique !')}`
-        : outcome?.fumble === true
-          ? ` ${bold('Échec critique !')}`
-          : '';
+    let result: string | null = null;
+    if (symbols) result = bold(symbols);
+    else if (total !== null) result = bold(total);
+    let critical = '';
+    if (outcome?.critical === true) critical = ` ${bold('Réussite critique !')}`;
+    else if (outcome?.fumble === true) critical = ` ${bold('Échec critique !')}`;
+    const formule = notation ? ` (${notation})` : '';
+    const quoi = label ? `${bold(label)}${formule}` : (notation ?? 'les dés');
     return {
       ...characterFields(ctx, characterId, author),
       type: 'competence',
-      message: `${bold(author)} lance ${
-        label ? `${bold(label)}${notation ? ` (${notation})` : ''}` : (notation ?? 'les dés')
-      }${result ? ` : ${result}` : ''}.${critical}`,
+      message: `${bold(author)} lance ${quoi}${result ? ` : ${result}` : ''}.${critical}`,
       // Jet d'une action : la ligne de l'action le résume dans le Journal
       hiddenFromTimeline: str(p.source) === 'action',
     };
@@ -899,12 +909,9 @@ const FORMATTERS: Record<string, Formatter> = {
     const p = e.payload;
     const id = str(p.userId) ?? e.actor.userId;
     const name = userName(ctx, id);
-    const how =
-      p.banned === true
-        ? 'a été banni de la campagne'
-        : p.kicked === true
-          ? 'a été exclu de la campagne'
-          : 'a quitté la campagne';
+    let how = 'a quitté la campagne';
+    if (p.banned === true) how = 'a été banni de la campagne';
+    else if (p.kicked === true) how = 'a été exclu de la campagne';
     return {
       characterName: name,
       characterAvatar: (id && ctx.users.get(lower(id))?.avatarUrl) || undefined,

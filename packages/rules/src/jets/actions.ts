@@ -215,7 +215,12 @@ export function executerAction(systeme: SystemeCharge, demande: DemandeAction): 
   }
 }
 
-const defautDe = (t: TypeValeur): Valeur => (t === 'nombre' ? 0 : t === 'booleen' ? false : '');
+/** Valeur neutre d'un type : 0, faux, ou texte vide. */
+function defautDe(t: string | undefined): Valeur {
+  if (t === 'nombre') return 0;
+  if (t === 'booleen') return false;
+  return '';
+}
 
 /** Nombre de dés issu d'une formule : entier inférieur, jamais négatif. */
 const nombreDes = (v: Valeur): number => Math.max(0, Math.floor(Number(v) || 0));
@@ -489,12 +494,7 @@ export function executer(
   const lireChamp = (p: PossessionEffective, c: string): Valeur | ((m?: ModeDes) => Valeur) => {
     const def = p.sorte.champs.find((x) => x.id === c);
     const brut = p.possession?.champs[c] ?? p.entree.champs[c];
-    const v =
-      brut !== undefined && !Array.isArray(brut)
-        ? brut
-        : def && 'defaut' in def
-          ? def.defaut
-          : undefined;
+    const v = brut !== undefined && !Array.isArray(brut) ? brut : defautDeclare(def);
     if (def?.type === 'formule') {
       const f = formuleChamp(systeme, p.entree, def, p.possession, acteur.etat.type);
       if (!f) return Number(v) || 0;
@@ -517,7 +517,7 @@ export function executer(
       };
       return def.des ? tirer : tirer();
     }
-    return v ?? (def?.type === 'booleen' ? false : def?.type === 'nombre' ? 0 : '');
+    return v ?? defautDe(def?.type);
   };
   /** Valeur simple d'un champ (les formules de jet sont tirées une fois). */
   const valeurChamp = (p: PossessionEffective, c: string): Valeur => {
@@ -544,12 +544,11 @@ export function executer(
   };
   const moi = acteur.contexte();
   const ctx = acteur.contexte({
-    attribut: (cle, e) =>
-      e === undefined
-        ? moi.attribut(cle)
-        : e === ENTITE_COMBAT
-          ? lireCombat(cle)
-          : entite(e).contexte().attribut(cle),
+    attribut: (cle, e) => {
+      if (e === undefined) return moi.attribut(cle);
+      if (e === ENTITE_COMBAT) return lireCombat(cle);
+      return entite(e).contexte().attribut(cle);
+    },
     modificateur: (cle, e) =>
       e === undefined ? moi.modificateur(cle) : entite(e).contexte().modificateur(cle),
     variable: lireVariable,
@@ -580,8 +579,7 @@ export function executer(
             c.type !== 'formule' && 'defaut' in c && c.defaut !== undefined ? c.defaut : undefined;
           variables.set(
             `${p.id}.${c.id}`,
-            def ??
-              (c.type === 'nombre' || c.type === 'formule' ? 0 : c.type === 'booleen' ? false : ''),
+            def ?? defautDe(c.type === 'formule' ? 'nombre' : c.type),
           );
         }
         if (!neutre) explications.push(`${p.nom} : aucun`);
@@ -611,16 +609,7 @@ export function executer(
   for (const a of systeme.actions.values())
     for (const p of a.parametres)
       if (!neutres.has(p.id))
-        neutres.set(
-          p.id,
-          p.type === 'nombre'
-            ? 0
-            : p.type === 'booleen'
-              ? false
-              : p.type === 'choix'
-                ? defautChoix(p)
-                : '',
-        );
+        neutres.set(p.id, p.type === 'choix' ? defautChoix(p) : defautDe(p.type));
 
   /** Variables d'un effet de jet : l'action et ses paramètres (neutres s'il ne les a pas). */
   const variableJet = (nom: string): Valeur => {
@@ -706,7 +695,7 @@ export function executer(
             const cond = source.formule(i, x);
             if (!cond || evaluerFormule(cond, ou(x), false, ctxEffet).valeur !== true) return;
           }
-          const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
+          const cle = cleAjout(f.ajout);
           const formule = source.formule(i, cle);
           if (!formule) return;
           const valeur = Number(evaluerFormule(formule, ou(cle), 0, ctxEffet).valeur);
@@ -745,7 +734,7 @@ export function executer(
           if (f[x] === undefined) continue;
           if (calculerFormule(ou(x), false, ctxSituation).valeur !== true) return;
         }
-        const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
+        const cle = cleAjout(f.ajout);
         const valeur = Number(calculerFormule(ou(cle), 0, ctxSituation).valeur);
         if (!valeur) return;
         effets.push({
@@ -1099,12 +1088,9 @@ export function executer(
     // Type de dégâts fixe ou calculé ; un type calculé vide : dégâts non typés
     let typeDegats: string | undefined = c.type;
     // `degats: true` : le type déclaré par l'action, fixe ou calculé
-    const cheminType =
-      c.typeCalcule !== undefined
-        ? `${ou}/type`
-        : c.degats && action.typeDegatsCalcule !== undefined
-          ? ch('typeDegats')
-          : undefined;
+    let cheminType: string | undefined;
+    if (c.typeCalcule !== undefined) cheminType = `${ou}/type`;
+    else if (c.degats && action.typeDegatsCalcule !== undefined) cheminType = ch('typeDegats');
     if (c.degats && c.type === undefined && c.typeCalcule === undefined)
       typeDegats = action.typeDegats;
     if (cheminType) {
@@ -1120,12 +1106,7 @@ export function executer(
       const typeNom =
         systeme.source.typesDegats.find((t) => t.id === typeDegats)?.nom ?? 'non typés';
       for (const l of recus.lignes) {
-        const effet =
-          l.operation === 'annuler'
-            ? 'immunité'
-            : l.operation === 'multiplier'
-              ? `×${l.valeur}`
-              : `−${l.valeur}`;
+        const effet = effetLimite(l.operation, l.valeur);
         explications.push(`${l.nom} : ${effet}${l.ignore ? ' (ignoré)' : ''}`);
       }
       const auMoins = recus.minimum !== undefined ? ` (au moins ${recus.minimum})` : '';
@@ -1152,9 +1133,7 @@ export function executer(
     const op =
       c.operation === 'fixer'
         ? `fixé à ${valeur}`
-        : c.operation === 'ajouter'
-          ? signe(valeur)
-          : signe(-valeur);
+        : signe(c.operation === 'ajouter' ? valeur : -valeur);
     explications.push(`${qui} : ${nom} ${op}`);
   });
 
@@ -1265,4 +1244,23 @@ export function decrireJet(j: JetDes): string {
     return d.garde ? v : `(${v})`;
   });
   return `d${j.faces} : ${des.join(', ')}`;
+}
+
+/** Valeur déclarée par défaut d'un champ (absente : undefined). */
+function defautDeclare(def: object | undefined): Valeur | undefined {
+  return def && 'defaut' in def ? (def as { defaut?: Valeur }).defaut : undefined;
+}
+
+/** Variable d'un effet de jet qui porte le montant de son ajout. */
+function cleAjout(ajout: object): 'bonus' | 'ajouter' | 'nombre' {
+  if ('bonus' in ajout) return 'bonus';
+  if ('variable' in ajout) return 'ajouter';
+  return 'nombre';
+}
+
+/** Effet d'une limite de dégâts, lisible : immunité, ×2, −3. */
+function effetLimite(operation: string, valeur: number): string {
+  if (operation === 'annuler') return 'immunité';
+  if (operation === 'multiplier') return `×${valeur}`;
+  return `−${valeur}`;
 }
