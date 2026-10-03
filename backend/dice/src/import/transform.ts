@@ -68,6 +68,58 @@ export function splitResults(notation: string, results: number[]): DiceGroup[] |
   return groups.length && i === results.length ? groups : null;
 }
 
+/** Dés d'un jet legacy : faces des dés à symboles, ou groupes reconstitués d'après la notation. */
+function diceOf(
+  results: number[],
+  legacy: {
+    output: string;
+    notation: string | null;
+    symbolResult: string | null;
+    legacyFaces: number | undefined;
+  },
+  warnings: string[],
+): { dice: DiceGroup[]; symbols: SymbolsResult | null } {
+  if (legacy.symbolResult)
+    // Dés à symboles : l'ancienne app n'enregistrait que les faces, sans la sorte de dé
+    return {
+      dice: [],
+      symbols: {
+        dice: results.map((face) => ({ die: '', face, symbols: {} })),
+        totals: {},
+        results: {},
+      },
+    };
+  if (!results.length) return { dice: [], symbols: null };
+  // Notation après substitution des variables : début de `output`, sinon la notation saisie
+  const processed = legacy.output.split(' = ')[0] || legacy.notation || '';
+  const groups = splitResults(processed, results);
+  if (groups) return { dice: groups, symbols: null };
+  warnings.push('Détail des dés non reconstitué : valeurs regroupées en un seul groupe');
+  return {
+    dice: [
+      {
+        faces: legacy.legacyFaces ?? Math.max(...results),
+        values: results.map((value) => ({ value, kept: true, exploded: false })),
+      },
+    ],
+    symbols: null,
+  };
+}
+
+/** Total enregistré ; absent (jet numérique) : somme des dés. */
+function totalOf(
+  raw: unknown,
+  results: number[],
+  symbolResult: string | null,
+  warnings: string[],
+): number {
+  const rawTotal = typeof raw === 'number' ? raw : Number(raw);
+  if (Number.isFinite(rawTotal)) return rawTotal;
+  if (symbolResult) return 0;
+  warnings.push('Total absent : somme des dés');
+  return results.reduce((s, v) => s + v, 0);
+}
+
 export function transformRoll(doc: FirestoreDoc<LegacyRoll>): ImportedRoll {
   const m = ROLL_PATH.exec(doc.path);
   if (!m) throw new Error(`Chemin inattendu : ${doc.path}`);
@@ -86,37 +138,12 @@ export function transformRoll(doc: FirestoreDoc<LegacyRoll>): ImportedRoll {
   const legacyCount = typeof d.diceCount === 'number' ? d.diceCount : undefined;
   const legacyFaces = typeof d.diceFaces === 'number' ? d.diceFaces : undefined;
 
-  let dice: DiceGroup[] = [];
-  let symbols: SymbolsResult | null = null;
-  if (symbolResult) {
-    // Dés à symboles : l'ancienne app n'enregistrait que les faces, sans la sorte de dé
-    symbols = {
-      dice: results.map((face) => ({ die: '', face, symbols: {} })),
-      totals: {},
-      results: {},
-    };
-  } else if (results.length) {
-    // Notation après substitution des variables : début de `output`, sinon la notation saisie
-    const processed = output.split(' = ')[0] || notation || '';
-    const groups = splitResults(processed, results);
-    if (groups) dice = groups;
-    else {
-      dice = [
-        {
-          faces: legacyFaces ?? Math.max(...results),
-          values: results.map((value) => ({ value, kept: true, exploded: false })),
-        },
-      ];
-      warnings.push('Détail des dés non reconstitué : valeurs regroupées en un seul groupe');
-    }
-  }
-
-  const rawTotal = typeof d.total === 'number' ? d.total : Number(d.total);
-  let total = Number.isFinite(rawTotal) ? rawTotal : 0;
-  if (!Number.isFinite(rawTotal) && !symbolResult) {
-    total = results.reduce((s, v) => s + v, 0);
-    warnings.push('Total absent : somme des dés');
-  }
+  const { dice, symbols } = diceOf(
+    results,
+    { output, notation, symbolResult, legacyFaces },
+    warnings,
+  );
+  const total = totalOf(d.total, results, symbolResult, warnings);
   const first = firstGroup(dice);
 
   return {
@@ -165,6 +192,52 @@ function premiumEnd(v: unknown): number | null | undefined {
   return toDate(v)?.getTime();
 }
 
+/** Premium en cours : `premium: true`, échéance absente, 0 ou future. */
+function premiumActive(d: LegacyUser, now: number, warnings: string[]): boolean {
+  if (d.premium !== true) return false;
+  const end = premiumEnd(d.premiumEndDate);
+  if (end === undefined) {
+    warnings.push('Échéance du premium illisible : premium ignoré');
+    return false;
+  }
+  if (end !== null && end <= now) {
+    warnings.push(`Premium échu le ${new Date(end).toISOString()} : premium ignoré`);
+    return false;
+  }
+  return true;
+}
+
+/** Skins payants débloqués (les gratuits sont toujours disponibles, les inconnus ignorés). */
+function paidSkins(owned: string[], warnings: string[]): Set<string> {
+  const inventory = new Set<string>();
+  for (const id of owned) {
+    const s = skin(id);
+    if (!s) warnings.push(`Skin inconnu ignoré : ${id}`);
+    else if (!s.free) inventory.add(id);
+  }
+  return inventory;
+}
+
+/**
+ * Skin choisi, s'il existe au catalogue. Payant, absent de l'inventaire et sans premium en
+ * cours : il y est ajouté (on le garde).
+ */
+function chosenSkin(
+  chosen: string | undefined,
+  allSkins: boolean,
+  inventory: Set<string>,
+  warnings: string[],
+): string | null {
+  if (!chosen) return null;
+  const s = skin(chosen);
+  if (!s) {
+    warnings.push(`Skin choisi inconnu : ${chosen} (skin par défaut)`);
+    return null;
+  }
+  if (!s.free && !allSkins) inventory.add(chosen);
+  return chosen;
+}
+
 /**
  * `users/{uid}.dice_skin`, `dice_inventory` et le premium ; `null` si
  * l'utilisateur n'a rien de tout cela. Premium en cours (`premium: true`,
@@ -182,33 +255,12 @@ export function transformPreferences(
     ? d.dice_inventory.filter((s): s is string => typeof s === 'string')
     : [];
   const warnings: string[] = [];
-  let allSkins = false;
-  if (d.premium === true) {
-    const end = premiumEnd(d.premiumEndDate);
-    if (end === undefined) warnings.push('Échéance du premium illisible : premium ignoré');
-    else if (end !== null && end <= now)
-      warnings.push(`Premium échu le ${new Date(end).toISOString()} : premium ignoré`);
-    else allSkins = true;
-  }
+  const allSkins = premiumActive(d, now, warnings);
   if (!chosen && owned.length === 0 && !allSkins && !trail) return null;
   // Pas de champ de traînée dans les préférences : les traînées sont en pause
   if (trail) warnings.push(`Traînée ignorée : ${trail} (traînées en pause)`);
-  const inventory = new Set<string>();
-  for (const id of owned) {
-    const s = skin(id);
-    if (!s) warnings.push(`Skin inconnu ignoré : ${id}`);
-    else if (!s.free) inventory.add(id);
-  }
-  let skinId: string | null = null;
-  if (chosen) {
-    const s = skin(chosen);
-    if (!s) warnings.push(`Skin choisi inconnu : ${chosen} (skin par défaut)`);
-    else {
-      skinId = chosen;
-      // Skin payant choisi, absent de l'inventaire et sans premium en cours : on le garde
-      if (!s.free && !allSkins) inventory.add(chosen);
-    }
-  }
+  const inventory = paidSkins(owned, warnings);
+  const skinId = chosenSkin(chosen, allSkins, inventory, warnings);
   return { uid: doc.id, skinId, inventory: [...inventory], allSkins, warnings };
 }
 
