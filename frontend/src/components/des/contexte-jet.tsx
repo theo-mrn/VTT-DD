@@ -44,9 +44,7 @@ export function useFichePersonnage(personnage: Personnage | null) {
   return {
     ...calcul,
     chargement: Boolean(personnage) && (systeme.isPending || complet.isPending),
-    erreur:
-      calcul.erreur ??
-      (systeme.error ? systeme.error.message : complet.error ? complet.error.message : null),
+    erreur: calcul.erreur ?? (systeme.error ?? complet.error)?.message ?? null,
   };
 }
 

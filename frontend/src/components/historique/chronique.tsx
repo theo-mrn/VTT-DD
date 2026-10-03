@@ -188,11 +188,11 @@ export function Chronique({ campagne }: Readonly<{ campagne: DetailCampagne }>) 
       </div>
 
       <div className="p-3 sm:p-5">
-        {vue === 'journal' ? (
-          <Flux campagne={campagne} characterId={null} parJour />
-        ) : personnage ? (
+        {vue === 'journal' && <Flux campagne={campagne} characterId={null} parJour />}
+        {vue !== 'journal' && personnage && (
           <Flux campagne={campagne} characterId={personnage} parJour={false} />
-        ) : (
+        )}
+        {vue !== 'journal' && !personnage && (
           <ChoixPersonnage campagneId={campagne.id} onChoix={setPersonnage} />
         )}
       </div>

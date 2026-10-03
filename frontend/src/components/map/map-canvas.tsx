@@ -224,13 +224,7 @@ function MapRuntime({
         <div className="absolute inset-0 grid place-items-center p-6">
           <EtatVide
             icone={status === 'gone' ? MapPinOff : AlertTriangle}
-            titre={
-              failure
-                ? 'La carte ne peut pas s’afficher'
-                : status === 'gone'
-                  ? 'Cette scène n’est plus disponible'
-                  : 'La scène n’a pas pu être chargée'
-            }
+            titre={titreEchec(Boolean(failure), status === 'gone')}
             description={
               failure ??
               (status === 'gone'
@@ -269,4 +263,9 @@ function MapRuntime({
       <MapConfirmDialog />
     </div>
   );
+}
+
+function titreEchec(failure: boolean, gone: boolean): string {
+  if (failure) return 'La carte ne peut pas s’afficher';
+  return gone ? 'Cette scène n’est plus disponible' : 'La scène n’a pas pu être chargée';
 }

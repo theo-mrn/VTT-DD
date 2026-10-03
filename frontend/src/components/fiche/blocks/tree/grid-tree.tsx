@@ -225,14 +225,14 @@ export function GridTree({
                     {n.entry.nom}
                   </span>
                   <span className="flex items-center justify-between gap-1 text-[10px]">
-                    {n.state === 'owned' ? (
+                    {n.state === 'owned' && (
                       <span className="flex items-center gap-1 text-primary">
                         <Check className="size-3" />
                         {n.entryRank > 1 ? `Rang ${n.entryRank}` : 'Acquis'}
                       </span>
-                    ) : n.state === 'locked' ? (
-                      <Lock className="size-3 text-subtle" />
-                    ) : (
+                    )}
+                    {n.state === 'locked' && <Lock className="size-3 text-subtle" />}
+                    {n.state !== 'owned' && n.state !== 'locked' && (
                       <span className={n.state === 'available' ? 'text-success' : 'text-warning'}>
                         {n.state === 'available' ? 'Achetable' : 'Bloqué'}
                       </span>

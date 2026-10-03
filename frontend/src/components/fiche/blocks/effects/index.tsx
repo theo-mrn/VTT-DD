@@ -345,9 +345,8 @@ function Source({
     .filter((l) => l.e.statut !== 'desactive')
     .map((l) => l.libelle)
     .join(' · ');
-  const meta = b
-    ? [b.source, b.duree !== undefined ? `${b.duree} round(s)` : null].filter(Boolean).join(' · ')
-    : null;
+  const duree = b?.duree === undefined ? null : `${b.duree} round(s)`;
+  const meta = b ? [b.source, duree].filter(Boolean).join(' · ') : null;
   const idDetail = `bonus-${g.cle.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   return (
     <li className="border-b border-border last:border-b-0">

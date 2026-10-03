@@ -168,15 +168,16 @@ export function FormulaField({
         {actions}
       </div>
       <div id={`${id}-aide`} aria-live="polite" className="min-h-4 text-xs">
-        {erreur ? (
+        {erreur && (
           <p role="alert" className="text-destructive">
             {erreur}
           </p>
-        ) : verif?.ok ? (
+        )}
+        {!erreur && verif?.ok && (
           <p className="text-muted-foreground">
             Pour ce personnage : <span className="font-mono text-foreground">{verif.apercu}</span>
           </p>
-        ) : null}
+        )}
       </div>
       <p id={`${id}-regles`} className="text-[11px] leading-relaxed text-subtle">
         {des ? 'Dés : 2d6, 4d6k3 (garder les 3 meilleurs). ' : ''}

@@ -81,14 +81,7 @@ export function VisibiliteMenu({
       <DropdownMenuTrigger
         aria-label={`Visibilité : ${vis.libelle}`}
         title={`Visibilité : ${vis.libelle}`}
-        className={cn(
-          ICONE_BARRE,
-          valeur === 'public'
-            ? REPOS
-            : valeur === 'gm'
-              ? 'border-destructive/45 bg-destructive/10 text-destructive'
-              : ACTIF,
-        )}
+        className={cn(ICONE_BARRE, teinteVisibilite(valeur))}
       >
         <Icone aria-hidden />
       </DropdownMenuTrigger>
@@ -183,4 +176,9 @@ export function BoutonBoutique() {
       {chargee && <SkinStore open={ouvert} onOpenChange={setOuvert} />}
     </>
   );
+}
+
+function teinteVisibilite(valeur: string): string {
+  if (valeur === 'public') return REPOS;
+  return valeur === 'gm' ? 'border-destructive/45 bg-destructive/10 text-destructive' : ACTIF;
 }

@@ -49,16 +49,16 @@ function PlacementInfo({
 }>) {
   const layered = entities.filter((e) => e.layerId !== null);
   const layer = layered.length === entities.length ? engine.layer(layered[0]!.layerId) : null;
+  let placement = 'Dans des calques de la carte.';
+  if (layered.length === 0) placement = 'Annotation : au-dessus de l’ombre, vue de toute la table.';
+  else if (layer && new Set(layered.map((e) => e.layerId)).size === 1)
+    placement = `Dans le calque « ${layer.name} ».`;
   const author = entities.length === 1 ? String(entities[0]!.data.createdBy ?? '') : '';
   const authorName = author ? (engine.directory.userName(author) ?? null) : null;
   return (
     <div className="space-y-2 text-xs text-muted-foreground">
       <p>
-        {layered.length === 0
-          ? 'Annotation : au-dessus de l’ombre, vue de toute la table.'
-          : layer && new Set(layered.map((e) => e.layerId)).size === 1
-            ? `Dans le calque « ${layer.name} ».`
-            : 'Dans des calques de la carte.'}
+        {placement}
         {authorName && <> Par {authorName}.</>}
       </p>
       {layered.length > 0 && editable(engine, layered) && (

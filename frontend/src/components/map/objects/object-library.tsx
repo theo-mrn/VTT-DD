@@ -211,7 +211,8 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
     }
     // Système : l'ordre déclaré ; campagne : l'ordre alphabétique
     if (current === 'campaign') names.sort((a, b) => a.localeCompare(b, 'fr'));
-    return names.length ? [...names, ...(none ? [NO_CATEGORY] : [])] : [];
+    if (!names.length) return [];
+    return none ? [...names, NO_CATEGORY] : names;
   }, [cards, current]);
 
   const visible = useMemo(() => {

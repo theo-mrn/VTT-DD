@@ -174,6 +174,7 @@ function Formulaire({
 
   const q = Number(quantite);
   const quantiteOk = Number.isInteger(q) && q >= 1 && q <= QUANTITE_MAX;
+  const quantiteSaisie = quantiteOk ? q : null;
   const nomOk = !cible.libre || nom.trim().length > 0;
   // Un ajout crée toujours un exemplaire distinct (plus de choix « à la pile ») ; seule
   // exception, imposée par la sorte : une entrée à quantités sans exemplaires, déjà possédée,
@@ -579,7 +580,7 @@ function Formulaire({
         </Button>
         <Button type="submit" disabled={!valide}>
           <Plus />
-          {seulementUnites ? libelleUnites(quantiteOk ? q : null) : 'Ajouter'}
+          {seulementUnites ? libelleUnites(quantiteSaisie) : 'Ajouter'}
         </Button>
       </footer>
     </form>

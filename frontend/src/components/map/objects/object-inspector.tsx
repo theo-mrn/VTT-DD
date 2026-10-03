@@ -55,8 +55,10 @@ const KINDS: readonly { value: MapObjectKind; label: string }[] = [
   { value: 'decor', label: 'Décor' },
 ];
 
-const tri = (values: boolean[]): boolean | 'mixed' =>
-  values.every(Boolean) ? true : values.some(Boolean) ? 'mixed' : false;
+const tri = (values: boolean[]): boolean | 'mixed' => {
+  if (values.every(Boolean)) return true;
+  return values.some(Boolean) ? 'mixed' : false;
+};
 
 export function ObjectInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   if (entities.length === 1) return <SingleObject engine={engine} entity={entities[0]!} />;

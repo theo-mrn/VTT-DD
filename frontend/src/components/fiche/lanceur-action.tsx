@@ -206,11 +206,12 @@ export function LanceurAction({
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/[0.06] p-3">
                   <p className="text-[13px]">
                     {modifs
-                      .map((m) =>
-                        'attribut' in m
-                          ? `${libelleAttribut(fiche, m.attribut)} ${SIGNE[m.operation] ?? '+'}${m.valeur}`
-                          : `${m.operation === 'donner' ? '+' : '−'} ${systeme.entrees.get(m.entree)?.nom ?? m.entree}`,
-                      )
+                      .map((m) => {
+                        if ('attribut' in m)
+                          return `${libelleAttribut(fiche, m.attribut)} ${SIGNE[m.operation] ?? '+'}${m.valeur}`;
+                        const sens = m.operation === 'donner' ? '+' : '−';
+                        return `${sens} ${systeme.entrees.get(m.entree)?.nom ?? m.entree}`;
+                      })
                       .join(' · ')}
                   </p>
                   {applique ? (

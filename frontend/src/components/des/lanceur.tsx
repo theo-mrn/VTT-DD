@@ -119,10 +119,7 @@ export const Lanceur = forwardRef<
           aria-hidden
           className="absolute inset-0 -z-10"
           style={{
-            background:
-              jet?.critical === 'failure'
-                ? 'radial-gradient(90% 110% at 0% 0%, hsl(var(--destructive) / 0.14), transparent 70%)'
-                : `radial-gradient(90% 110% at 0% 0%, hsl(var(--primary) / ${jet?.critical === 'success' ? 0.2 : 0.08}), transparent 70%)`,
+            background: halo(jet?.critical),
           }}
         />
 
@@ -234,3 +231,11 @@ export const Lanceur = forwardRef<
     </form>
   );
 });
+
+/** Halo du lanceur : rouge sur un échec critique, doré plus vif sur une réussite critique. */
+function halo(critical: string | null | undefined): string {
+  if (critical === 'failure')
+    return 'radial-gradient(90% 110% at 0% 0%, hsl(var(--destructive) / 0.14), transparent 70%)';
+  const force = critical === 'success' ? 0.2 : 0.08;
+  return `radial-gradient(90% 110% at 0% 0%, hsl(var(--primary) / ${force}), transparent 70%)`;
+}

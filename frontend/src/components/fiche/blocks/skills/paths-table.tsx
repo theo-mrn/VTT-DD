@@ -338,11 +338,7 @@ function PathsList({
                     key={r.rank}
                     className={cn(
                       'h-1.5 w-2.5 rounded-full',
-                      r.owned
-                        ? 'bg-primary'
-                        : r.offer?.possible
-                          ? 'border border-primary'
-                          : 'bg-surface-3',
+                      pipTone(r.owned, r.offer?.possible === true),
                     )}
                   />
                 ))}
@@ -402,4 +398,10 @@ function PathsList({
       })}
     </ul>
   );
+}
+
+/** Pastille d'un rang : acquis, achetable, ou hors d'atteinte. */
+function pipTone(owned: boolean, possible: boolean): string {
+  if (owned) return 'bg-primary';
+  return possible ? 'border border-primary' : 'bg-surface-3';
 }

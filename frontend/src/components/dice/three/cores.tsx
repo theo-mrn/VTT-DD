@@ -470,19 +470,21 @@ export const DiceCore = ({ skin, rig }: { skin: DiceSkin; rig?: CoreRig }) => {
     }
   });
 
+  let coeur: 'model' | 'eye' | 'glow' = 'glow';
+  if (skin.coreType === 'model' && skin.coreModelUrl && rig) coeur = 'model';
+  else if (skin.coreType === 'eye') coeur = 'eye';
+
   return (
     <group ref={groupRef} scale={scale}>
-      {skin.coreType === 'model' && skin.coreModelUrl && rig ? (
+      {coeur === 'model' && skin.coreModelUrl && rig && (
         <CoreErrorBoundary fallback={<GlowCore skin={skin} />}>
           <React.Suspense fallback={<GlowCore skin={skin} />}>
             <ModelCore skin={skin} url={skin.coreModelUrl} rig={rig} />
           </React.Suspense>
         </CoreErrorBoundary>
-      ) : skin.coreType === 'eye' ? (
-        <EyeCore skin={skin} />
-      ) : (
-        <GlowCore skin={skin} />
       )}
+      {coeur === 'eye' && <EyeCore skin={skin} />}
+      {coeur === 'glow' && <GlowCore skin={skin} />}
     </group>
   );
 };

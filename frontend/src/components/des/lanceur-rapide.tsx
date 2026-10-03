@@ -116,12 +116,13 @@ export function LanceurRapide({ onFerme }: Readonly<{ onFerme?: () => void }>) {
           !dernier && !lancer.isPending && 'opacity-60',
         )}
       >
-        {lancer.isPending ? (
+        {lancer.isPending && (
           <p className="flex items-center justify-center gap-2 py-2 text-xs text-primary">
             <Box className="size-3.5 animate-spin [animation-duration:2.4s]" aria-hidden />
             Les dés roulent…
           </p>
-        ) : dernier ? (
+        )}
+        {!lancer.isPending && dernier && (
           <div className="space-y-2.5">
             <div className="flex items-baseline justify-between gap-2">
               <TotalJet
@@ -135,7 +136,8 @@ export function LanceurRapide({ onFerme }: Readonly<{ onFerme?: () => void }>) {
             </div>
             <ValeursDes groupes={dernier.groups} />
           </div>
-        ) : (
+        )}
+        {!lancer.isPending && !dernier && (
           <p className="py-2 text-center text-xs text-subtle">
             Choisissez des dés ou écrivez une formule : <span className="font-mono">4d6k3</span>,{' '}
             <span className="font-mono">2d20k1 + 5</span>…

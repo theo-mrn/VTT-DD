@@ -482,7 +482,7 @@ function Description({ item, writes }: Readonly<{ item: InventoryItem; writes?: 
       >
         Description
       </SectionTitle>
-      {edition ? (
+      {edition && (
         <form
           className="space-y-2"
           onSubmit={(e) => {
@@ -508,11 +508,13 @@ function Description({ item, writes }: Readonly<{ item: InventoryItem; writes?: 
             </Button>
           </div>
         </form>
-      ) : item.description ? (
+      )}
+      {!edition && item.description && (
         <p className="max-h-48 overflow-y-auto whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground">
           {item.description}
         </p>
-      ) : (
+      )}
+      {!edition && !item.description && (
         <p className="text-[13px] text-subtle">Aucune description.</p>
       )}
     </section>

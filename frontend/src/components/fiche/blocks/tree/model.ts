@@ -331,8 +331,7 @@ export function buildTrees(fiche: Fiche): TreeView[] {
         if (!from || !to) continue;
         const a = from.state === 'owned';
         const b = to.state === 'owned';
-        const state: LinkState =
-          a && b ? 'owned' : (a && !b) || (b && !a && l.sens === 'double') ? 'open' : 'idle';
+        const state = linkState(a, b, l.sens === 'double');
         links.push({ from, to, oneWay: l.sens === 'simple', state });
       }
       const xs = nodes.map((n) => n.x);
@@ -376,4 +375,11 @@ function costOfOwned(
 /** Nom d'une monnaie du système (identifiant à défaut). */
 export function currencyName(systeme: SystemeCharge, id: string | undefined): string {
   return (id && systeme.monnaies.get(id)?.nom) || id || '';
+}
+
+/** Lien entre deux nœuds : acquis des deux côtés, ouvert depuis un côté acquis, ou inactif. */
+function linkState(fromOwned: boolean, toOwned: boolean, twoWay: boolean): LinkState {
+  if (fromOwned && toOwned) return 'owned';
+  if (fromOwned || (toOwned && twoWay)) return 'open';
+  return 'idle';
 }

@@ -108,14 +108,14 @@ export function TreeDetailDialog({
               <DialogTitle className="font-display text-xl">{info.title}</DialogTitle>
               <DialogDescription className="flex flex-wrap items-center gap-1.5">
                 <span>{info.subtitle}</span>
-                {info.owned ? (
+                {info.owned && (
                   <Badge ton="primaire">
                     <Check />
                     Acquis
                   </Badge>
-                ) : offer?.possible ? (
-                  <Badge ton="succes">Achetable</Badge>
-                ) : (
+                )}
+                {!info.owned && offer?.possible && <Badge ton="succes">Achetable</Badge>}
+                {!info.owned && !offer?.possible && (
                   <Badge>
                     <Lock />
                     Verrouillé

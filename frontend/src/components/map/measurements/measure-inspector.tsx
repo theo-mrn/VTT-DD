@@ -92,16 +92,7 @@ export function MeasureInspector({ engine, entities }: Readonly<InspectorSection
       </p>
       {single && r && (
         <>
-          <FieldRow
-            label={
-              single.shape === 'circle'
-                ? 'Rayon'
-                : single.shape === 'cube'
-                  ? 'Demi-côté'
-                  : 'Longueur'
-            }
-            htmlFor={`${id}-length`}
-          >
+          <FieldRow label={LENGTH_LABELS[single.shape] ?? 'Longueur'} htmlFor={`${id}-length`}>
             <NumberField
               id={`${id}-length`}
               value={r.length / ppu}
@@ -165,3 +156,5 @@ export function MeasureInspector({ engine, entities }: Readonly<InspectorSection
     </div>
   );
 }
+
+const LENGTH_LABELS: Partial<Record<string, string>> = { circle: 'Rayon', cube: 'Demi-côté' };

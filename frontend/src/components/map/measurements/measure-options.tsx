@@ -31,6 +31,7 @@ import {
   GRID_COUNTINGS,
   MEASURE_COLORS,
   MEASURE_SHAPES,
+  type ConeOptions,
   type MeasureShape,
 } from '@/lib/map/modules/measurements/model';
 import { clearTemplates } from '@/lib/map/modules/measurements/operations';
@@ -114,13 +115,7 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-1.5 px-2" aria-label="Cône">
                   <Triangle />
-                  <span className="text-xs tabular-nums">
-                    {s.cone.mode === 'angle'
-                      ? `${Math.round(s.cone.angle)}°`
-                      : s.cone.width
-                        ? `${s.cone.width.toLocaleString('fr-FR')} ${unit}`
-                        : 'Dim.'}
-                  </span>
+                  <span className="text-xs tabular-nums">{coneLabel(s.cone, unit)}</span>
                 </Button>
               </PopoverTrigger>
             </Info>
@@ -260,4 +255,10 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
       </p>
     </div>
   );
+}
+
+/** Réglage du cône affiché : son angle, sa largeur, ou « Dim. » sans largeur fixée. */
+function coneLabel(cone: ConeOptions, unit: string): string {
+  if (cone.mode === 'angle') return `${Math.round(cone.angle)}°`;
+  return cone.width ? `${cone.width.toLocaleString('fr-FR')} ${unit}` : 'Dim.';
 }
