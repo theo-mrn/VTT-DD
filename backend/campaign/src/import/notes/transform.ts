@@ -206,23 +206,15 @@ function fields(d: Data, m: NotesMappings, warn: (w: string) => void) {
   } satisfies Partial<NoteInsert>;
 }
 
-/**
- * Notes d'une salle. `privateDocs` : `Notes/{r}/…` ; `sharedDocs` :
- * `SharedNotes/{r}/…` (autres chemins ignorés).
- */
-export function transformNotes(
-  code: string,
-  privateDocs: FirestoreDoc[],
-  sharedDocs: FirestoreDoc[],
-  m: NotesMappings,
-): MigratedNotes {
-  const warnings: string[] = [];
-  const out: NoteInsert[] = [];
-  let skipped = 0;
+type Warn = (w: string) => void;
 
-  // Privées : comme loadNotes, un même id lu sous l'id du personnage et sous
-  // l'ancien chemin par nom n'apparaît qu'une fois (celui de l'id d'abord)
-  const privateNotes = privateDocs
+/**
+ * Notes privées de la salle (`Notes/{r}/{clé}/{id}`) et leur auteur. Comme loadNotes, un même
+ * id lu sous l'id du personnage et sous l'ancien chemin par nom n'apparaît qu'une fois
+ * (celui de l'id d'abord).
+ */
+function privateNotesOf(code: string, privateDocs: FirestoreDoc[], m: NotesMappings) {
+  return privateDocs
     .map((d) => ({ d, parts: d.path.split('/') }))
     .filter(({ parts }) => parts.length === 4 && parts[0] === 'Notes' && parts[1] === code)
     .map(({ d, parts }) => ({ d, key: parts[2]!, author: resolveAuthor(code, parts[2]!, m) }))
@@ -231,9 +223,20 @@ export function transformNotes(
         Number(typeof b.author !== 'string' && b.author.byId) -
         Number(typeof a.author !== 'string' && a.author.byId),
     );
+}
+
+/** Notes privées migrées ; ignorées : auteur introuvable, ou doublon d'un ancien chemin. */
+function migratePrivateNotes(
+  code: string,
+  privateDocs: FirestoreDoc[],
+  m: NotesMappings,
+  warnings: string[],
+): { notes: NoteInsert[]; skipped: number } {
+  const notes: NoteInsert[] = [];
+  let skipped = 0;
   const seen = new Set<string>();
-  for (const { d, author } of privateNotes) {
-    const warn = (w: string) => warnings.push(`${d.path} : ${w}`);
+  for (const { d, author } of privateNotesOf(code, privateDocs, m)) {
+    const warn: Warn = (w) => warnings.push(`${d.path} : ${w}`);
     if (typeof author === 'string') {
       warn(`${author}, ignorée`);
       skipped++;
@@ -246,7 +249,7 @@ export function transformNotes(
       continue;
     }
     seen.add(dedupe);
-    out.push({
+    notes.push({
       id: legacyUuid(d.path),
       campaignId: m.campaignId,
       ownerUserId: author.ownerId,
@@ -256,36 +259,57 @@ export function transformNotes(
       ...fields(d.data ?? {}, m, warn),
     });
   }
+  return { notes, skipped };
+}
+
+/** Auteur d'une note partagée ; introuvable : attribuée au MJ. */
+function sharedAuthor(code: string, data: Data, m: NotesMappings, warn: Warn): Author {
+  const createdBy = str(data.createdBy)?.trim();
+  const author = createdBy ? resolveAuthor(code, createdBy, m) : undefined;
+  if (typeof author !== 'string' && author) return author;
+  warn(`${author ?? 'sans auteur'} : attribuée au MJ`);
+  return { ownerId: m.gmId, characterId: null, byId: false };
+}
+
+/** Destinataires d'une note partagée engagés dans la campagne ; null : toute la campagne. */
+function sharedWithOf(code: string, data: Data, m: NotesMappings, warn: Warn): string[] | null {
+  if (!Array.isArray(data.sharedWith)) return null;
+  const keys = data.sharedWith.filter((x): x is string => typeof x === 'string');
+  const sharedWith = [
+    ...new Set(keys.map((k) => shareTarget(code, k, m)).filter((x) => !!x)),
+  ] as string[];
+  const lost = keys.length - sharedWith.length;
+  if (lost) warn(`${lost} destinataire(s) non engagé(s) dans la campagne : retiré(s)`);
+  if (!sharedWith.length) warn('aucun destinataire retrouvé : lisible par son auteur seul');
+  return sharedWith.slice(0, LIMITS.sharedWith);
+}
+
+/**
+ * Notes d'une salle. `privateDocs` : `Notes/{r}/…` ; `sharedDocs` :
+ * `SharedNotes/{r}/…` (autres chemins ignorés).
+ */
+export function transformNotes(
+  code: string,
+  privateDocs: FirestoreDoc[],
+  sharedDocs: FirestoreDoc[],
+  m: NotesMappings,
+): MigratedNotes {
+  const warnings: string[] = [];
+  const { notes: out, skipped } = migratePrivateNotes(code, privateDocs, m, warnings);
 
   for (const d of sharedDocs) {
     const parts = d.path.split('/');
     if (parts.length !== 4 || parts[0] !== 'SharedNotes' || parts[1] !== code) continue;
-    const warn = (w: string) => warnings.push(`${d.path} : ${w}`);
+    const warn: Warn = (w) => warnings.push(`${d.path} : ${w}`);
     const data = d.data ?? {};
-    const createdBy = str(data.createdBy)?.trim();
-    let author = createdBy ? resolveAuthor(code, createdBy, m) : undefined;
-    if (typeof author === 'string' || !author) {
-      warn(`${author ?? 'sans auteur'} : attribuée au MJ`);
-      author = { ownerId: m.gmId, characterId: null, byId: false };
-    }
-    let sharedWith: string[] | null = null;
-    if (Array.isArray(data.sharedWith)) {
-      const keys = data.sharedWith.filter((x): x is string => typeof x === 'string');
-      sharedWith = [
-        ...new Set(keys.map((k) => shareTarget(code, k, m)).filter((x) => !!x)),
-      ] as string[];
-      const lost = keys.length - sharedWith.length;
-      if (lost) warn(`${lost} destinataire(s) non engagé(s) dans la campagne : retiré(s)`);
-      if (!sharedWith.length) warn('aucun destinataire retrouvé : lisible par son auteur seul');
-      sharedWith = sharedWith.slice(0, LIMITS.sharedWith);
-    }
+    const author = sharedAuthor(code, data, m, warn);
     out.push({
       id: legacyUuid(d.path),
       campaignId: m.campaignId,
       ownerUserId: author.ownerId,
       characterId: author.characterId,
       shared: true,
-      sharedWith,
+      sharedWith: sharedWithOf(code, data, m, warn),
       ...fields(data, m, warn),
     });
   }
