@@ -165,6 +165,25 @@ function buildTerm(prep: PreparedScene, viewer: Viewer): { term: Term; terms: Vi
   };
 }
 
+/** Hors du disque de vision, le point est-il à portée (hors brouillard, sinon éclairé) ? 1 ou 0. */
+function reachBeyondDisc(prep: PreparedScene, x: number, y: number): number {
+  return !inFogXY(prep, x, y) || isLitXY(prep, x, y) ? 1 : 0;
+}
+
+/**
+ * Pièce : les `nRooms` pièces fermées qui contiennent p (rangs dans `scratch`) doivent toutes
+ * contenir O, et p doit être dans la pièce de confinement de O.
+ */
+function roomAllows(term: Term, scratch: Int32Array, nRooms: number): boolean {
+  let ok = term.clip < 0;
+  for (let k = 0; k < nRooms; k++) {
+    const rank = scratch[k]!;
+    if (term.inClosed[rank] === 0) return false;
+    if (rank === term.clip) ok = true;
+  }
+  return ok;
+}
+
 class VisionView implements View {
   readonly viewers: readonly ViewerTerms[];
   readonly lights: readonly LightArea[];
@@ -197,36 +216,19 @@ class VisionView implements View {
     const hasClosed = prep.core.closed.length > 0;
     const scratch = prep.core.roomScratch;
     // Termes indépendants de l'observateur, calculés au plus une fois (−1 : pas encore).
-    let fog = -1;
-    let lit = -1;
+    let reach = -1;
     let nRooms = -1;
     for (let t = 0; t < terms.length; t++) {
       const term = terms[t]!;
       // Portée : disque de vision, sinon hors brouillard, sinon éclairé.
       const dx = x - term.px;
       const dy = y - term.py;
-      if (dx * dx + dy * dy > term.r2) {
-        if (fog < 0) fog = inFogXY(prep, x, y) ? 1 : 0;
-        if (fog === 1) {
-          if (lit < 0) lit = isLitXY(prep, x, y) ? 1 : 0;
-          if (lit === 0) continue;
-        }
-      }
-      // Pièce : les pièces fermées qui contiennent p doivent toutes contenir O, et p doit être
-      // dans la pièce de confinement de O.
-      if (hasClosed) {
-        if (nRooms < 0) nRooms = closedRoomsAt(prep, x, y);
-        let ok = term.clip < 0;
-        for (let k = 0; k < nRooms; k++) {
-          const rank = scratch[k]!;
-          if (term.inClosed[rank] === 0) {
-            ok = false;
-            break;
-          }
-          if (rank === term.clip) ok = true;
-        }
-        if (!ok) continue;
-      }
+      const far = dx * dx + dy * dy > term.r2;
+      if (far && reach < 0) reach = reachBeyondDisc(prep, x, y);
+      if (far && reach === 0) continue;
+      // Pièce.
+      if (hasClosed && nRooms < 0) nRooms = closedRoomsAt(prep, x, y);
+      if (hasClosed && !roomAllows(term, scratch, nRooms)) continue;
       // Ligne de vue.
       if (starContains(term.star, x, y)) return true;
     }
