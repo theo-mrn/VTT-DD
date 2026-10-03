@@ -9,11 +9,12 @@
  * anonymisées : « Défense de la cible ».
  */
 import type { SystemeCharge } from '../chargement/index.js';
+import type { Action, Parametre } from '../schema/index.js';
 import type { Valeur } from '../formules/index.js';
 import {
-  decrireEtape,
-  decrireJet,
   defautParametre,
+  expliquerNumerique,
+  expliquerSymboles,
   type BonusJet,
   type EtapePool,
   type JetNumeriqueResultat,
@@ -44,8 +45,6 @@ export interface VueActeur {
   ajuste: boolean;
 }
 
-const signe = (n: number) => (n < 0 ? `− ${-n}` : `+ ${n}`);
-
 const anonymiserBonus = (b: BonusJet): BonusJet =>
   b.cote === 'cible' ? { ...b, ...LIGNE_CIBLE } : b;
 const anonymiserEtape = (e: EtapePool): EtapePool =>
@@ -55,62 +54,47 @@ const anonymiserEtape = (e: EtapePool): EtapePool =>
  * Projection du résultat pour l'acteur. `resultat` vient d'une exécution de l'action `systeme`
  * (le système qui l'a résolue, pour les noms et la visibilité des valeurs).
  */
+/** Ligne d'une situation déclarée par l'acteur, sauf la neutre. */
+function situationDeclaree(p: Parametre, v: Valeur | undefined): string[] {
+  if (p.section !== 'situation' || p.par === 'cible' || v === undefined) return [];
+  if (v === defautParametre(p)) return [];
+  const option = p.type === 'choix' ? p.options.find((o) => o.valeur === v)?.nom : undefined;
+  return [`${p.nom} : ${option ?? String(v)}`];
+}
+
+/** Variables `visibilite: acteur` de l'action, avec leur valeur. */
+function valeursVisibles(action: Action | undefined, resultat: ResultatAction): ValeurVisible[] {
+  return [...(action?.variables ?? []), ...(action?.apres ?? [])].flatMap((v) => {
+    const valeur = resultat.variables[v.cle];
+    if (v.visibilite !== 'acteur' || valeur === undefined) return [];
+    return [{ cle: v.cle, ...(v.nom ? { nom: v.nom } : {}), valeur }];
+  });
+}
+
 export function vueActeur(systeme: SystemeCharge, resultat: ResultatAction): VueActeur {
   const action = systeme.actions.get(resultat.action);
-  const explications: string[] = [];
   // Situation déclarée par qui agit (couvert, avantage…) : il la connaît, elle éclaire le jet
-  for (const p of action?.parametres ?? []) {
-    const v = resultat.parametres[p.id];
-    if (p.section !== 'situation' || p.par === 'cible' || v === undefined) continue;
-    if (v === defautParametre(p)) continue;
-    const option = p.type === 'choix' ? p.options.find((o) => o.valeur === v)?.nom : undefined;
-    explications.push(`${p.nom} : ${option ?? String(v)}`);
-  }
+  const explications = (action?.parametres ?? []).flatMap((p) =>
+    situationDeclaree(p, resultat.parametres[p.id]),
+  );
   const src = resultat.jet;
   let jet: JetNumeriqueResultat | JetSymbolesResultat;
 
   if (src.type === 'numerique') {
     const bonus = src.bonus.map(anonymiserBonus);
     jet = { ...src, bonus };
-    const des = src.jets.length ? ` [${src.jets.map(decrireJet).join(' ; ')}]` : '';
-    explications.push(`Jet ${src.formule} = ${src.valeur}${des}`);
-    for (const b of bonus) explications.push(`${b.nom} : ${signe(b.valeur)}`);
-    if (bonus.length) explications.push(`Total : ${src.total}`);
-    if (src.critique) explications.push('Critique');
-    if (src.fumble) explications.push('Échec critique');
+    explications.push(...expliquerNumerique({ ...src, bonus }));
   } else {
     const construction = src.construction.map(anonymiserEtape);
     jet = { ...src, construction };
-    const sortes = systeme.source.des?.sortes ?? [];
-    const nomDe = (id: string) => sortes.find((s) => s.id === id)?.nom ?? id;
-    for (const e of construction) {
-      if (e.source === 'action' && e.operation === 'ajouter') continue;
-      explications.push(decrireEtape(e, nomDe));
-    }
-    explications.push(
-      `Pool : ${src.pool.map((p) => `${p.nombre} × ${nomDe(p.de)}`).join(', ') || 'aucun dé'}`,
-    );
-    const symboles = systeme.source.des?.symboles ?? [];
-    const sortis = symboles.filter((s) => (src.symboles[s.id] ?? 0) > 0);
-    explications.push(
-      `Symboles : ${sortis.map((s) => `${s.nom} ${src.symboles[s.id]}`).join(', ') || 'aucun'}`,
-    );
-    const lus = systeme.source.des?.resultats.filter((r) => r.visible) ?? [];
-    if (lus.length)
-      explications.push(lus.map((r) => `${r.nom} : ${src.resultats[r.cle] ?? 0}`).join(', '));
+    explications.push(...expliquerSymboles(systeme, { ...src, construction }));
   }
   if (resultat.force) explications.push('Issue corrigée par le MJ');
   explications.push(resultat.reussi ? 'Réussite' : 'Échec');
 
   // Valeurs montrées à l'acteur : `visibilite: acteur`, dans l'ordre de calcul
-  const valeurs: ValeurVisible[] = [];
-  for (const v of [...(action?.variables ?? []), ...(action?.apres ?? [])]) {
-    if (v.visibilite !== 'acteur') continue;
-    const valeur = resultat.variables[v.cle];
-    if (valeur === undefined) continue;
-    valeurs.push({ cle: v.cle, ...(v.nom ? { nom: v.nom } : {}), valeur });
-    explications.push(`${v.nom ?? v.cle} : ${String(valeur)}`);
-  }
+  const valeurs = valeursVisibles(action, resultat);
+  for (const v of valeurs) explications.push(`${v.nom ?? v.cle} : ${String(v.valeur)}`);
 
   return {
     action: resultat.action,

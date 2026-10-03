@@ -924,12 +924,17 @@ function jetNumerique(
     variables.set('critique', critique);
   if (jet.fumble !== undefined) variables.set('fumble', fumble);
 
-  const des = r.jets.length ? ` [${r.jets.map(decrireJet).join(' ; ')}]` : '';
-  explications.push(`Jet ${jet.formule} = ${valeur}${des}`);
-  for (const b of bonus) explications.push(`${b.nom} : ${signe(b.valeur)}`);
-  if (bonus.length) explications.push(`Total : ${total}`);
-  if (critique) explications.push('Critique');
-  if (fumble) explications.push('Échec critique');
+  explications.push(
+    ...expliquerNumerique({
+      formule: jet.formule,
+      jets: r.jets,
+      valeur,
+      bonus,
+      total,
+      critique,
+      fumble,
+    }),
+  );
 
   return {
     resultat: {
@@ -1071,23 +1076,7 @@ function jetSymboles(
   for (const [cle, v] of Object.entries(l.resultats)) variables.set(cle, v);
   const reussi = jet.reussite === undefined ? true : d.ev(d.ch('jet/reussite'), false) === true;
 
-  const sortes = systeme.source.des?.sortes ?? [];
-  const nomDe = (id: string) => sortes.find((s) => s.id === id)?.nom ?? id;
-  for (const e of construction) {
-    if (e.source === 'action' && e.operation === 'ajouter') continue;
-    explications.push(decrireEtape(e, nomDe));
-  }
-  explications.push(
-    `Pool : ${pool.map((p) => `${p.nombre} × ${nomDe(p.de)}`).join(', ') || 'aucun dé'}`,
-  );
-  const symboles = systeme.source.des?.symboles ?? [];
-  const sortis = symboles.filter((s) => (l.symboles[s.id] ?? 0) > 0);
-  explications.push(
-    `Symboles : ${sortis.map((s) => `${s.nom} ${l.symboles[s.id]}`).join(', ') || 'aucun'}`,
-  );
-  const lus = systeme.source.des?.resultats.filter((r) => r.visible) ?? [];
-  if (lus.length)
-    explications.push(lus.map((r) => `${r.nom} : ${l.resultats[r.cle] ?? 0}`).join(', '));
+  explications.push(...expliquerSymboles(systeme, { construction, pool, ...l }));
 
   return {
     resultat: {
@@ -1440,6 +1429,44 @@ function ligneParametre(p: Parametre, v: Valeur): string | null {
 /** Issue imposée par le MJ (réussite ou critique). */
 function estForcee(forcer: IssueForcee | undefined): boolean {
   return forcer?.reussi !== undefined || forcer?.critique !== undefined;
+}
+
+/** Déroulé d'un jet numérique : dés lancés, bonus, total, critique et échec critique. */
+export function expliquerNumerique(
+  j: Pick<
+    JetNumeriqueResultat,
+    'formule' | 'jets' | 'valeur' | 'bonus' | 'total' | 'critique' | 'fumble'
+  >,
+): string[] {
+  const des = j.jets.length ? ` [${j.jets.map(decrireJet).join(' ; ')}]` : '';
+  const lignes = [`Jet ${j.formule} = ${j.valeur}${des}`];
+  for (const b of j.bonus) lignes.push(`${b.nom} : ${signe(b.valeur)}`);
+  if (j.bonus.length) lignes.push(`Total : ${j.total}`);
+  if (j.critique) lignes.push('Critique');
+  if (j.fumble) lignes.push('Échec critique');
+  return lignes;
+}
+
+/** Déroulé d'un jet à symboles : construction du pool, pool, symboles et résultats visibles. */
+export function expliquerSymboles(
+  systeme: SystemeCharge,
+  j: Pick<JetSymbolesResultat, 'construction' | 'pool' | 'symboles' | 'resultats'>,
+): string[] {
+  const des = systeme.source.des;
+  const nomDe = (id: string) => des?.sortes.find((s) => s.id === id)?.nom ?? id;
+  const lignes = j.construction
+    .filter((e) => e.source !== 'action' || e.operation !== 'ajouter')
+    .map((e) => decrireEtape(e, nomDe));
+  lignes.push(
+    `Pool : ${j.pool.map((p) => `${p.nombre} × ${nomDe(p.de)}`).join(', ') || 'aucun dé'}`,
+  );
+  const sortis = (des?.symboles ?? []).filter((s) => (j.symboles[s.id] ?? 0) > 0);
+  lignes.push(
+    `Symboles : ${sortis.map((s) => `${s.nom} ${j.symboles[s.id]}`).join(', ') || 'aucun'}`,
+  );
+  const lus = des?.resultats.filter((r) => r.visible) ?? [];
+  if (lus.length) lignes.push(lus.map((r) => `${r.nom} : ${j.resultats[r.cle] ?? 0}`).join(', '));
+  return lignes;
 }
 
 /** Libellé des lignes d'un ajustement libre. */
