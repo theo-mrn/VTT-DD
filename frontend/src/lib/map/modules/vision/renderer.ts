@@ -655,86 +655,35 @@ export class VisionRenderer {
     // Geste de caméra : déjà changée à l'image précédente, textures récentes, même taille de
     // vue, zoom proche ; rien d'autre n'a changé
     const moving = this.drawKey !== '' && cameraKey !== this.drawKey;
-    const rt = this.rtCam;
     const deferred =
       moving &&
       this.wasMoving &&
-      this.shown &&
-      rt !== null &&
-      cameraKey !== this.cameraKey &&
-      started - this.rtAt < CAMERA_REFRESH_MS &&
+      this.canDefer(cam, cameraKey, res, started) &&
       !fogChanged &&
       !lightsChanged &&
-      !viewersChanged &&
-      rt.width === cam.width &&
-      rt.height === cam.height &&
-      res === this.rtRes &&
-      cam.zoom / rt.zoom > 0.5 &&
-      cam.zoom / rt.zoom < 2;
+      !viewersChanged;
     this.drawKey = cameraKey;
     this.wasMoving = moving;
     // Geste de caméra en cours : la reprise attend l'image où les textures sont refaites
-    const retry = this.redrawNext && !deferred;
-    if (retry) this.redrawNext = false;
+    const retry = this.takeRetry(deferred);
     const cameraChanged = !deferred && (retry || cameraKey !== this.cameraKey || !this.shown);
-    if (cameraChanged) {
-      this.cameraKey = cameraKey;
-      this.rtCam = { ...cam };
-      this.rtAt = started;
-      this.rtRes = res;
-      for (const t of Object.values(this.targets)) {
-        const w = Math.ceil(cam.width);
-        const h = Math.ceil(cam.height);
-        if (t.rt.width !== w || t.rt.height !== h || t.rt.source.resolution !== res * t.scale) {
-          t.rt.resize(w, h, res * t.scale);
-          this.redrawNext = true;
-        }
-      }
-      for (const root of [this.rangeRoot, this.fogRoot, this.glowRoot, this.visRoot]) {
-        root.scale.set(cam.zoom);
-        root.position.set(cam.width / 2 - cam.x * cam.zoom, cam.height / 2 - cam.y * cam.zoom);
-      }
-    }
-    if (fogChanged) this.buildZones(picture);
-    if (lightsChanged) this.buildLights(picture.lights);
-    if (fogChanged) this.buildFog(picture);
-    if (lightsChanged) this.buildGlow(picture.lights);
-    if (viewersChanged || fogChanged || retry) {
-      const nodes = this.viewerNodes.length;
-      this.buildVis(picture);
-      if (this.viewerNodes.length > nodes) this.redrawNext = true;
-    }
+    if (cameraChanged) this.applyCamera(cam, cameraKey, started, res);
+    this.rebuild(picture, fogChanged, lightsChanged, viewersChanged || fogChanged || retry);
 
     // Sprites de portée : le rectangle de la vue des textures, dans le repère du monde
     const tc = this.rtCam!;
     const left = tc.x - tc.width / 2 / tc.zoom;
     const top = tc.y - tc.height / 2 / tc.zoom;
     if (cameraChanged || viewersChanged || fogChanged || retry)
-      for (const s of this.contentSprites) {
-        s.position.set(left, top);
-        s.width = tc.width / tc.zoom;
-        s.height = tc.height / tc.zoom;
-      }
+      this.placeContentSprites(tc, left, top);
 
-    const renderRange = cameraChanged || fogChanged || lightsChanged;
-    const render = (container: Pixi.Container, target: Target, clear = true) =>
-      this.renderer.render({ container, target: target.rt, clear, clearColor: [0, 0, 0, 0] });
-    if (renderRange) render(this.rangeRoot, this.targets.range);
-    const hadFog = this.hasFog;
-    this.hasFog =
-      picture.showFog && (picture.fogFull || picture.fogZones.some((z) => z.mode === 'fog'));
-    // Brouillard remontré (affichage de la scène) : sa texture date d'avant, on la refait
-    const fogStale = cameraChanged || fogChanged || !hadFog;
-    if (this.hasFog && fogStale) render(this.fogRoot, this.targets.fog);
-    this.hasGlow = picture.showGlow && picture.lights.length > 0;
-    if (this.hasGlow && (cameraChanged || lightsChanged)) render(this.glowRoot, this.targets.glow);
-    if (renderRange || viewersChanged || retry) {
-      render(this.visRoot, this.targets.vis);
-      // Même montage, contenu plein : la ligne de vue seule (où les obstacles cachent)
-      this.losPass(true);
-      render(this.visRoot, this.targets.los);
-      this.losPass(false);
-    }
+    const fogStale = this.renderTargets(
+      picture,
+      cameraChanged,
+      fogChanged,
+      lightsChanged,
+      viewersChanged || retry,
+    );
     this.fogVersion = picture.versions.fog;
     this.lightVersion = picture.versions.lights;
     this.viewerVersion = picture.versions.viewers;
@@ -745,6 +694,113 @@ export class VisionRenderer {
     this.shown = true;
     this.onRender?.(performance.now() - started);
     return deferred || this.redrawNext;
+  }
+
+  /** Reprise demandée par une image précédente, consommée hors geste de caméra. */
+  private takeRetry(deferred: boolean): boolean {
+    const retry = this.redrawNext && !deferred;
+    if (retry) this.redrawNext = false;
+    return retry;
+  }
+
+  /** Textures récentes, même taille de vue et zoom proche : la composition peut les relire. */
+  private canDefer(cam: CameraView, cameraKey: string, res: number, started: number): boolean {
+    const rt = this.rtCam;
+    return (
+      this.shown &&
+      rt !== null &&
+      cameraKey !== this.cameraKey &&
+      started - this.rtAt < CAMERA_REFRESH_MS &&
+      rt.width === cam.width &&
+      rt.height === cam.height &&
+      res === this.rtRes &&
+      cam.zoom / rt.zoom > 0.5 &&
+      cam.zoom / rt.zoom < 2
+    );
+  }
+
+  /** Caméra des textures : leur taille et la place des montages suivent la vue. */
+  private applyCamera(cam: CameraView, cameraKey: string, started: number, res: number) {
+    this.cameraKey = cameraKey;
+    this.rtCam = { ...cam };
+    this.rtAt = started;
+    this.rtRes = res;
+    for (const t of Object.values(this.targets)) this.resizeTarget(t, cam, res);
+    for (const root of [this.rangeRoot, this.fogRoot, this.glowRoot, this.visRoot]) {
+      root.scale.set(cam.zoom);
+      root.position.set(cam.width / 2 - cam.x * cam.zoom, cam.height / 2 - cam.y * cam.zoom);
+    }
+  }
+
+  /** Texture à la taille de la vue ; redimensionnée, elle est refaite à l'image suivante. */
+  private resizeTarget(t: Target, cam: CameraView, res: number) {
+    const w = Math.ceil(cam.width);
+    const h = Math.ceil(cam.height);
+    if (t.rt.width !== w || t.rt.height !== h || t.rt.source.resolution !== res * t.scale) {
+      t.rt.resize(w, h, res * t.scale);
+      this.redrawNext = true;
+    }
+  }
+
+  /** Montages refaits selon ce qui a changé (zones, lumières, observateurs). */
+  private rebuild(
+    picture: VisionPicture,
+    fogChanged: boolean,
+    lightsChanged: boolean,
+    visChanged: boolean,
+  ) {
+    if (fogChanged) this.buildZones(picture);
+    if (lightsChanged) this.buildLights(picture.lights);
+    if (fogChanged) this.buildFog(picture);
+    if (lightsChanged) this.buildGlow(picture.lights);
+    if (visChanged) {
+      const nodes = this.viewerNodes.length;
+      this.buildVis(picture);
+      if (this.viewerNodes.length > nodes) this.redrawNext = true;
+    }
+  }
+
+  /** Sprites de portée posés sur le rectangle de la vue des textures. */
+  private placeContentSprites(tc: CameraView, left: number, top: number) {
+    for (const s of this.contentSprites) {
+      s.position.set(left, top);
+      s.width = tc.width / tc.zoom;
+      s.height = tc.height / tc.zoom;
+    }
+  }
+
+  /** Rendu d'un montage dans sa texture. */
+  private renderTo(container: Pixi.Container, target: Target) {
+    this.renderer.render({ container, target: target.rt, clear: true, clearColor: [0, 0, 0, 0] });
+  }
+
+  /** Refait les textures dont un terme a changé ; renvoie vrai si le brouillard l'a été. */
+  private renderTargets(
+    picture: VisionPicture,
+    cameraChanged: boolean,
+    fogChanged: boolean,
+    lightsChanged: boolean,
+    visChanged: boolean,
+  ): boolean {
+    const renderRange = cameraChanged || fogChanged || lightsChanged;
+    if (renderRange) this.renderTo(this.rangeRoot, this.targets.range);
+    const hadFog = this.hasFog;
+    this.hasFog =
+      picture.showFog && (picture.fogFull || picture.fogZones.some((z) => z.mode === 'fog'));
+    // Brouillard remontré (affichage de la scène) : sa texture date d'avant, on la refait
+    const fogStale = cameraChanged || fogChanged || !hadFog;
+    if (this.hasFog && fogStale) this.renderTo(this.fogRoot, this.targets.fog);
+    this.hasGlow = picture.showGlow && picture.lights.length > 0;
+    if (this.hasGlow && (cameraChanged || lightsChanged))
+      this.renderTo(this.glowRoot, this.targets.glow);
+    if (renderRange || visChanged) {
+      this.renderTo(this.visRoot, this.targets.vis);
+      // Même montage, contenu plein : la ligne de vue seule (où les obstacles cachent)
+      this.losPass(true);
+      this.renderTo(this.visRoot, this.targets.los);
+      this.losPass(false);
+    }
+    return fogStale;
   }
 
   /** Portée hors observateur : hors brouillard (zones dans l'ordre), refaite avec les zones. */
