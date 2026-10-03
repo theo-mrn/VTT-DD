@@ -27,6 +27,19 @@ const DND: GameSystem = {
   presentation: { des: { sortes: { d20: { couleur: '#d0ad8b' } } } },
 };
 
+const publicRoll = {
+  id: 'r',
+  userName: '',
+  total: 0,
+  output: '',
+  symbolResult: null,
+  notation: null,
+  visibility: 'public',
+  label: null,
+  outcome: null,
+  timestamp: 0,
+};
+
 function fakes() {
   const sent: { kind: string; message?: Message }[] = [];
   const rolls: RollInput[] = [];
@@ -51,8 +64,25 @@ function fakes() {
         timestamp: 0,
       };
     },
-    rolls: async () => [],
-    stats: async () => ({ rollCount: 0, players: [] }),
+    rolls: async () => [
+      { ...publicRoll, userName: 'Aldo', total: 15, notation: '1d20' },
+      { ...publicRoll, userName: 'Bria', total: 3, notation: '1d6' },
+      { ...publicRoll, userName: 'MJ', total: 20, visibility: 'gm' },
+    ],
+    stats: async () => ({
+      rollCount: 2,
+      players: [
+        {
+          userName: 'Aldo',
+          totalRolls: 2,
+          averageRoll: 9.5,
+          highestRoll: 15,
+          lowestRoll: 4,
+          criticalSuccesses: 1,
+          criticalFailures: 0,
+        },
+      ],
+    }),
     unlink: async () => 'unlinked',
     gameSystem: async (id) => (id === 'dnd-classic' ? DND : null),
   };
@@ -223,5 +253,58 @@ describe('POST /v1/discord/interactions', () => {
     );
     await settle();
     expect(f.sent[0]!.message!.content).toBe('Salle active : **La Table** · Joueur');
+  });
+
+  it('/history : seulement les jets publics, filtrés par joueur, publiés dans le salon', async () => {
+    await post(
+      interaction(2, { name: 'history', options: [{ name: 'player', type: 3, value: 'ald' }] }),
+    );
+    await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['followUp', 'delete']));
+    const description = f.sent[0]!.message!.embeds![0]!.description!;
+    expect(description).toContain('**Aldo** · **15** · `1d20`');
+    expect(description).not.toContain('Bria');
+    expect(description).not.toContain('MJ');
+  });
+
+  it('/stats : réponse éphémère par joueur', async () => {
+    await post(interaction(2, { name: 'stats' }));
+    await settle();
+    const embed = f.sent[0]!.message!.embeds![0]!;
+    expect(f.sent[0]!.message!.flags).toBe(64);
+    expect(embed.fields![0]).toMatchObject({ name: 'Aldo' });
+    expect(embed.fields![0]!.value).toContain('2 jets · moyenne 9.5');
+    expect(embed.fields![0]!.value).toContain('1 critiques');
+  });
+
+  it('/link et /unlink', async () => {
+    await post(interaction(2, { name: 'link' }));
+    await settle();
+    expect(f.sent[0]!.message!.content).toBe('Compte déjà lié.');
+
+    f.sent.length = 0;
+    await post(interaction(2, { name: 'link' }, '999'));
+    await settle();
+    expect(f.sent[0]!.message!.components![0]!.components[0]!.label).toBe('Lier mon compte');
+
+    f.sent.length = 0;
+    await post(interaction(2, { name: 'unlink' }));
+    await settle();
+    expect(f.sent[0]!.message!.content).toBe('Compte délié.');
+  });
+
+  it('/room sans argument : affiche la salle active', async () => {
+    await post(interaction(2, { name: 'room' }));
+    await settle();
+    expect(f.sent[0]!.message!.content).toBe('Salle active : **La Table** · Joueur');
+  });
+
+  it('autocomplétion de /roll : dés du système de la salle active', async () => {
+    const res = await post(
+      interaction(4, {
+        name: 'roll',
+        options: [{ name: 'dice', type: 3, value: '', focused: true }],
+      }),
+    );
+    expect(res.json()).toEqual({ type: 8, data: { choices: [{ name: '1d20', value: '1d20' }] } });
   });
 });

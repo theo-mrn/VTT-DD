@@ -273,7 +273,9 @@ jobs:
         with: { pattern: coverage-unit-*, merge-multiple: true }
         continue-on-error: true
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with: { name: coverage-integration }
+        # Envoyé depuis backend/*/coverage : l'envoi retire le dossier commun « backend/ », on
+        # le remet ici, sinon les chemins ne correspondent à aucun fichier et Sonar les ignore
+        with: { name: coverage-integration, path: backend }
         continue-on-error: true
       - name: Chemins de la couverture relatifs à la racine
         run: |

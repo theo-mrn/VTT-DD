@@ -119,7 +119,9 @@ export function rollRequestOf(
  * d'un dé de chaque sorte du système (25 au plus, limite de Discord).
  */
 export function suggestions(set: DiceSet, typed: string): string[] {
-  const base = typed.trim().replace(/[+\s]+$/, '');
+  // « 2 Aptitude + » → « 2 Aptitude » (boucle plutôt qu'une regex à retour arrière)
+  let base = typed.trim();
+  while (base.endsWith('+')) base = base.slice(0, -1).trimEnd();
   const token = (d: Die) => (set.kind === 'numeric' ? `1${d.name}` : `1 ${d.name}`);
   const out = base ? [base] : [];
   for (const d of set.dice) out.push(base ? `${base} + ${token(d)}` : token(d));
