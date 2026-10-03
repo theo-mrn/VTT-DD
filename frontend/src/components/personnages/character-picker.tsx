@@ -598,6 +598,13 @@ function OptionStatus({ option: o }: Readonly<{ option: CharacterOption }>) {
 
 // ─── Sélection ───────────────────────────────────────────────────────────────
 
+function selectionStatus(selected: CharacterOption | typeof GM_OPTION | null) {
+  if (!selected) return 'Sélectionnez un personnage';
+  if (selected !== GM_OPTION && selected.takenFrom)
+    return `Joué par ${selected.takenFrom.name} : vous le lui reprenez`;
+  return 'Prêt à jouer';
+}
+
 function enterLabel(selected: CharacterOption | typeof GM_OPTION) {
   if (selected === GM_OPTION) return 'Entrer en maître du jeu';
   return selected.character.inCreation ? 'Reprendre la création' : 'Entrer à la table';
@@ -717,15 +724,12 @@ function CharacterPanel({
   const widgets = widgetsFiche(sys.data?.presentation, p.type);
   const attributes = widgets.find((w) => w.type === 'attributs');
   const resources = widgets.find((w) => w.type === 'ressources');
-  const keys =
-    attributes?.type === 'attributs'
-      ? (attributes.attributs ??
-        (sheet
-          ? [...sheet.entite.attributs.values()]
-              .filter((a) => a.groupe === attributes.groupe)
-              .map((a) => a.cle)
-          : []))
-      : [];
+  let keys: readonly string[] = [];
+  if (attributes?.type === 'attributs' && attributes.attributs) keys = attributes.attributs;
+  else if (attributes?.type === 'attributs' && sheet)
+    keys = [...sheet.entite.attributs.values()]
+      .filter((a) => a.groupe === attributes.groupe)
+      .map((a) => a.cle);
   const concept = full.data?.details.concept || p.concept;
 
   return (
@@ -820,13 +824,7 @@ function MobileBar({
         )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{name}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {!selected
-              ? 'Sélectionnez un personnage'
-              : selected !== GM_OPTION && selected.takenFrom
-                ? `Joué par ${selected.takenFrom.name} : vous le lui reprenez`
-                : 'Prêt à jouer'}
-          </p>
+          <p className="truncate text-xs text-muted-foreground">{selectionStatus(selected)}</p>
         </div>
         <Button onClick={onEnter} disabled={!selected} loading={sending}>
           {selected ? enterLabel(selected) : 'Entrer à la table'}

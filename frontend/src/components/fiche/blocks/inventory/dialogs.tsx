@@ -189,6 +189,10 @@ function Don({
   const id = useId();
   const table = usePersonnagesCampagne(personnage.roomId);
   const autres = (table.data ?? []).filter((p) => p.id !== personnage.id && !p.inCreation);
+  let destinataires: keyof typeof MESSAGES_DON | 'liste' = 'liste';
+  if (!personnage.roomId) destinataires = 'horsCampagne';
+  else if (table.isLoading) destinataires = 'chargement';
+  else if (autres.length === 0) destinataires = 'personne';
   const [choisi, setChoisi] = useState<string | null>(null);
   const [quantite, setQuantite] = useState(String(Math.min(1, item.quantite)));
   const q = Number(quantite);
@@ -212,17 +216,10 @@ function Don({
         </DialogDescription>
       </DialogHeader>
 
-      {!personnage.roomId ? (
-        <p className="text-sm text-muted-foreground">
-          Ce personnage n’est engagé dans aucune campagne : il n’a personne à qui donner.
-        </p>
-      ) : table.isLoading ? (
-        <p className="text-sm text-muted-foreground">Chargement de la table…</p>
-      ) : autres.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Aucun autre personnage joueur dans la campagne.
-        </p>
-      ) : (
+      {destinataires !== 'liste' && (
+        <p className="text-sm text-muted-foreground">{MESSAGES_DON[destinataires]}</p>
+      )}
+      {destinataires === 'liste' && (
         <fieldset className="space-y-1.5">
           <legend className="mb-1.5 text-sm font-medium">Destinataire</legend>
           <div role="radiogroup" className="grid max-h-56 gap-1 overflow-y-auto">
@@ -296,3 +293,9 @@ function Don({
     </form>
   );
 }
+
+const MESSAGES_DON = {
+  horsCampagne: 'Ce personnage n’est engagé dans aucune campagne : il n’a personne à qui donner.',
+  chargement: 'Chargement de la table…',
+  personne: 'Aucun autre personnage joueur dans la campagne.',
+} as const;

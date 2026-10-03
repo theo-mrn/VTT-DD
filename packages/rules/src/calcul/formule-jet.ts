@@ -268,12 +268,10 @@ export function formuleLisible(
   );
   const nue = (cle: string, terme: string) =>
     attributs?.has(cle) === true && (termes.get(cle) ?? `@${cle}`) === terme;
-  const priorite = (n: Noeud) =>
-    n.t === 'binaire'
-      ? (PRIORITES[n.op] ?? 0)
-      : n.t === 'unaire' || (n.t === 'nombre' && n.v < 0)
-        ? PRIORITE_UNAIRE
-        : PRIORITE_ATOME;
+  const priorite = (n: Noeud) => {
+    if (n.t === 'binaire') return PRIORITES[n.op] ?? 0;
+    return n.t === 'unaire' || (n.t === 'nombre' && n.v < 0) ? PRIORITE_UNAIRE : PRIORITE_ATOME;
+  };
   const nombre = (v: number) => String(Number.isInteger(v) ? v : Math.round(v * 100) / 100);
 
   const ecrire = (n: Noeud): string => {
@@ -306,7 +304,8 @@ export function formuleLisible(
         const fa = n.faces.t === 'nombre' ? nombre(n.faces.v) : null;
         const gk = n.garder && n.garder.n.t === 'nombre' ? nombre(n.garder.n.v) : null;
         if (nb !== null && fa !== null && (!n.garder || gk !== null)) {
-          const garder = n.garder ? `k${n.garder.sens === 'bas' ? 'l' : ''}${gk}` : '';
+          const sens = n.garder?.sens === 'bas' ? 'kl' : 'k';
+          const garder = n.garder ? `${sens}${gk}` : '';
           return `${nb}d${fa}${garder}${n.explose ? '!' : ''}`;
         }
         const args = [ecrire(n.nombre), ecrire(n.faces)];

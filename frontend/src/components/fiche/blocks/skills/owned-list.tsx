@@ -31,10 +31,7 @@ export function OwnedList({
         const { card } = item;
         const on = card.activable && card.active;
         const { total, active } = card.bonusCount;
-        const bonusText =
-          total === 0
-            ? ''
-            : `${total} bonus${active < total ? `, ${active} actif${active > 1 ? 's' : ''}` : ''}`;
+        const bonusText = bonusSummary(total, active);
         const meta = item.path ? `${item.path.name} · rang ${item.path.rank}` : null;
         return (
           <li key={card.entry.id} className="flex min-h-11 items-center gap-2 py-0.5 sm:min-h-10">
@@ -90,4 +87,11 @@ export function OwnedList({
       })}
     </ul>
   );
+}
+
+/** « 3 bonus, 1 actif » : le nombre d'actifs seulement quand ils ne le sont pas tous. */
+function bonusSummary(total: number, active: number): string {
+  if (total === 0) return '';
+  if (active >= total) return `${total} bonus`;
+  return `${total} bonus, ${active} ${active > 1 ? 'actifs' : 'actif'}`;
 }

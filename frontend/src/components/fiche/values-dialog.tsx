@@ -118,6 +118,13 @@ export function ValuesDialog({
     return typeof v === 'number' ? v : a.defaut;
   };
 
+  /** Ligne d'aide sous une saisie : refus, ou valeur finale quand les bonus la changent. */
+  const aide = (a: Base, refusee: boolean) => {
+    if (refusee) return qui.mj ? 'Non modifiable' : 'MJ seul';
+    const finale = fiche.valeurs.get(a.cle);
+    return finale && finale.valeur !== actuelle(a) ? `Avec bonus : ${afficherValeur(finale)}` : '';
+  };
+
   // Valeurs changées et lisibles ; erreurs de saisie par clé
   const { changes, erreurs } = useMemo(() => {
     const changes: Record<string, number> = {};
@@ -213,19 +220,8 @@ export function ValuesDialog({
                         <p id={`${id}-aide`} className="min-h-4 text-[11px] text-subtle">
                           {erreur ? (
                             <span className="text-destructive">{erreur}</span>
-                          ) : refus ? (
-                            qui.mj ? (
-                              'Non modifiable'
-                            ) : (
-                              'MJ seul'
-                            )
                           ) : (
-                            (() => {
-                              const finale = fiche.valeurs.get(a.cle);
-                              return finale && finale.valeur !== actuelle(a)
-                                ? `Avec bonus : ${afficherValeur(finale)}`
-                                : '';
-                            })()
+                            aide(a, Boolean(refus))
                           )}
                         </p>
                       </div>

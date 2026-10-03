@@ -8,12 +8,9 @@ import { FOCUS, TACTILE } from './tactile';
 
 /** Phrase lue par les lecteurs d'écran à chaque nouveau jet. */
 function annonce(jet: Jet): string {
-  const crit =
-    jet.critical === 'success'
-      ? ', réussite critique'
-      : jet.critical === 'failure'
-        ? ', échec critique'
-        : '';
+  let crit = '';
+  if (jet.critical === 'success') crit = ', réussite critique';
+  else if (jet.critical === 'failure') crit = ', échec critique';
   const resultat = jet.hidden
     ? 'résultat caché, visible par le MJ'
     : (jet.symbolResult ?? String(jet.total));
@@ -53,11 +50,12 @@ export function LigneResultat({
           Dernier jet
         </span>
       )}
-      {enCours ? (
+      {enCours && (
         <p className="animate-pulse font-mono text-xs text-subtle motion-reduce:animate-none">
           Lancement…
         </p>
-      ) : jet ? (
+      )}
+      {!enCours && jet && (
         <>
           <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
             {jet.hidden || jet.total === null ? (
@@ -115,7 +113,7 @@ export function LigneResultat({
             <RotateCcw className="size-3.5" aria-hidden />
           </button>
         </>
-      ) : null}
+      )}
     </div>
   );
 }

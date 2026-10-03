@@ -170,7 +170,7 @@ export function buildSkillsBlock(fiche: Fiche, widget: SkillsWidget): SkillsBloc
         sorte,
         groups: [...byTag].map(([key, cards]) => ({
           key,
-          label: byTag.size > 1 ? (key ? tagLabel(key) : 'Autres') : null,
+          label: groupLabel(key, byTag.size),
           cards,
         })),
       });
@@ -179,11 +179,10 @@ export function buildSkillsBlock(fiche: Fiche, widget: SkillsWidget): SkillsBloc
     for (const card of data.cards) {
       const path = grantedBy.get(card.entry.id);
       // Par la valeur du champ de filtre quand la sorte le déclare, sinon par la sorte
-      const [filterKey, filterLabel] = card.filter
-        ? card.filter.key
-          ? [`champ:${card.filter.key}`, card.filter.label]
-          : ['champ:', 'Autres']
-        : [`sorte:${sorte.id}`, sorte.nomPluriel ?? sorte.nom];
+      let [filterKey, filterLabel] = [`sorte:${sorte.id}`, sorte.nomPluriel ?? sorte.nom];
+      if (card.filter?.key)
+        [filterKey, filterLabel] = [`champ:${card.filter.key}`, card.filter.label];
+      else if (card.filter) [filterKey, filterLabel] = ['champ:', 'Autres'];
       owned.push({ card, sorte, ...(path ? { path } : {}), filterKey, filterLabel });
     }
   }
@@ -225,4 +224,10 @@ export function buildSkillsBlock(fiche: Fiche, widget: SkillsWidget): SkillsBloc
     })),
     views,
   };
+}
+
+/** Libellé d'un groupe d'étiquette : aucun s'il est seul, « Autres » sans étiquette. */
+function groupLabel(key: string, groups: number): string | null {
+  if (groups <= 1) return null;
+  return key ? tagLabel(key) : 'Autres';
 }

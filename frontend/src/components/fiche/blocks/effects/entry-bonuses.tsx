@@ -120,13 +120,9 @@ export function EntryBonuses({
   if (!liste.length && !marques.length && !own) return null;
 
   const propres = possession?.effets ?? [];
-  const bloque = !own
-    ? null
-    : !own.cible.ok
-      ? own.cible.raison
-      : !peutAjouter
-        ? 'Aucun attribut du personnage ne peut recevoir de bonus.'
-        : null;
+  let bloque: string | null = null;
+  if (own && !own.cible.ok) bloque = own.cible.raison;
+  else if (own && !peutAjouter) bloque = 'Aucun attribut du personnage ne peut recevoir de bonus.';
   const retirer = (index: number) => own?.set(propres.filter((_, i) => i !== index));
   const fermerAjout = () => {
     setAjout(false);

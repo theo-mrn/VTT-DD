@@ -45,6 +45,11 @@ export function ReglagesLanceur({
   const basculer = (key: string, visible: boolean) =>
     onChange(visible ? hidden.filter((k) => k !== key) : [...hidden, key]);
 
+  let etat: 'chargement' | 'erreur' | 'aucun' | 'liste' = 'liste';
+  if (systeme.isPending || loading) etat = 'chargement';
+  else if (systeme.error) etat = 'erreur';
+  else if (!groups.length) etat = 'aucun';
+
   return (
     <div className="space-y-3">
       <div className="space-y-1">
@@ -54,20 +59,23 @@ export function ReglagesLanceur({
           ne voulez pas.
         </p>
       </div>
-      {systeme.isPending || loading ? (
+      {etat === 'chargement' && (
         <div className="space-y-2" aria-label="Chargement des attributs">
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-9 w-full rounded-lg" />
           ))}
         </div>
-      ) : systeme.error ? (
+      )}
+      {etat === 'erreur' && systeme.error && (
         <p className="text-xs text-destructive">Système indisponible : {systeme.error.message}</p>
-      ) : !groups.length ? (
+      )}
+      {etat === 'aucun' && (
         <p className="rounded-lg border border-dashed border-border px-3 py-2.5 text-xs text-subtle">
           Ce système ne propose aucun attribut au lanceur : ses jets passent par les actions de la
           fiche.
         </p>
-      ) : (
+      )}
+      {etat === 'liste' && (
         <div className="space-y-4">
           {groups.map((g) => (
             <section key={g.id ?? ''} className="space-y-2.5">
