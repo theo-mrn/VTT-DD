@@ -5,7 +5,7 @@
  * l'opacité du mur, dans la ligne de vue. Ces murs ne masquent jamais d'entité.
  */
 import { orient, pseudoAngle } from './geometry.js';
-import { translucentBlocks, type PreparedScene } from './prepare.js';
+import { translucentBlocks, type PreparedScene, type TranslucentWall } from './prepare.js';
 import { resolveOrigin } from './sweep.js';
 import type { Polygon, Vec } from './types.js';
 
@@ -16,51 +16,92 @@ export interface TranslucentShadow {
   readonly opacity: number;
 }
 
+/** Origine effective et carte d'une requête d'ombres. */
+interface ShadowFrame {
+  readonly ox: number;
+  readonly oy: number;
+  readonly W: number;
+  readonly H: number;
+  readonly eps: number;
+  /** Coins de la carte, à plat. */
+  readonly corners: readonly number[];
+}
+
 /** Ombres projetées depuis `origin` par les murs translucides. */
 export function translucentShadows(prep: PreparedScene, origin: Vec): TranslucentShadow[] {
   const walls = prep.core.walls;
   const { x: ox, y: oy } = resolveOrigin(walls, origin.x, origin.y);
   const W = prep.width;
   const H = prep.height;
-  const corners = [0, 0, W, 0, W, H, 0, H];
+  const frame: ShadowFrame = { ox, oy, W, H, eps: walls.eps, corners: [0, 0, W, 0, W, H, 0, H] };
   const out: TranslucentShadow[] = [];
   for (const t of prep.core.translucent) {
     if (!translucentBlocks(t, ox, oy)) continue;
-    const len = Math.hypot(t.bx - t.ax, t.by - t.ay);
-    // De profil (ou origine sur la droite du mur) : aucune ombre.
-    if (Math.abs(orient(t.ax, t.ay, t.bx, t.by, ox, oy)) <= walls.eps * len) continue;
-    const pa = pseudoAngle(t.ax - ox, t.ay - oy);
-    const pb = pseudoAngle(t.bx - ox, t.by - oy);
-    let d = pb - pa;
-    if (d > 2) d -= 4;
-    else if (d < -2) d += 4;
-    if (d === 0 || d >= 2 || d <= -2) continue;
-    // Début et fin du cône, dans le sens des angles croissants.
-    const sx = d > 0 ? t.ax : t.bx;
-    const sy = d > 0 ? t.ay : t.by;
-    const ex = d > 0 ? t.bx : t.ax;
-    const ey = d > 0 ? t.by : t.ay;
-    const start = d > 0 ? pa : pb;
-    const span = Math.abs(d);
-    const pts: number[] = [sx, sy, ex, ey];
-    const pe = project(ox, oy, ex, ey, W, H);
-    pts.push(pe[0], pe[1]);
-    // Coins de la carte strictement dans le cône, de la fin vers le début.
-    const inside: { x: number; y: number; rel: number }[] = [];
-    for (let k = 0; k < 4; k++) {
-      const cx = corners[2 * k]!;
-      const cy = corners[2 * k + 1]!;
-      let rel = pseudoAngle(cx - ox, cy - oy) - start;
-      if (rel < 0) rel += 4;
-      if (rel > 0 && rel < span) inside.push({ x: cx, y: cy, rel });
-    }
-    inside.sort((a, b) => b.rel - a.rel);
-    for (const c of inside) pts.push(c.x, c.y);
-    const ps = project(ox, oy, sx, sy, W, H);
-    pts.push(ps[0], ps[1]);
-    out.push({ id: t.id, polygon: dedupeRing(pts), opacity: t.opacity });
+    const polygon = wallShadow(frame, t);
+    if (polygon) out.push({ id: t.id, polygon, opacity: t.opacity });
   }
   return out;
+}
+
+/** Écart de pseudo-angles ramené dans [−2, 2]. */
+function wrapDelta(d: number): number {
+  if (d > 2) return d - 4;
+  if (d < -2) return d + 4;
+  return d;
+}
+
+/** Ombre d'un mur translucide qui bloque depuis l'origine, null s'il n'en projette aucune. */
+function wallShadow(f: ShadowFrame, t: TranslucentWall): Polygon | null {
+  const len = Math.hypot(t.bx - t.ax, t.by - t.ay);
+  // De profil (ou origine sur la droite du mur) : aucune ombre.
+  if (Math.abs(orient(t.ax, t.ay, t.bx, t.by, f.ox, f.oy)) <= f.eps * len) return null;
+  const pa = pseudoAngle(t.ax - f.ox, t.ay - f.oy);
+  const pb = pseudoAngle(t.bx - f.ox, t.by - f.oy);
+  const d = wrapDelta(pb - pa);
+  if (d === 0 || d >= 2 || d <= -2) return null;
+  // Début et fin du cône, dans le sens des angles croissants.
+  return d > 0
+    ? coneShadow(f, t.ax, t.ay, t.bx, t.by, pa, d)
+    : coneShadow(f, t.bx, t.by, t.ax, t.ay, pb, -d);
+}
+
+/** Ombre du cône d'angles [start, start + span] qui va du point S au point E. */
+function coneShadow(
+  f: ShadowFrame,
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number,
+  start: number,
+  span: number,
+): Polygon {
+  const pts: number[] = [sx, sy, ex, ey];
+  const pe = project(f.ox, f.oy, ex, ey, f.W, f.H);
+  pts.push(pe[0], pe[1]);
+  // Coins de la carte strictement dans le cône, de la fin vers le début.
+  const inside = cornersInCone(f, start, span);
+  inside.sort((a, b) => b.rel - a.rel);
+  for (const c of inside) pts.push(c.x, c.y);
+  const ps = project(f.ox, f.oy, sx, sy, f.W, f.H);
+  pts.push(ps[0], ps[1]);
+  return dedupeRing(pts);
+}
+
+/** Coins de la carte strictement dans le cône, avec leur angle relatif au début du cône. */
+function cornersInCone(
+  f: ShadowFrame,
+  start: number,
+  span: number,
+): { x: number; y: number; rel: number }[] {
+  const inside: { x: number; y: number; rel: number }[] = [];
+  for (let k = 0; k < 4; k++) {
+    const cx = f.corners[2 * k]!;
+    const cy = f.corners[2 * k + 1]!;
+    let rel = pseudoAngle(cx - f.ox, cy - f.oy) - start;
+    if (rel < 0) rel += 4;
+    if (rel > 0 && rel < span) inside.push({ x: cx, y: cy, rel });
+  }
+  return inside;
 }
 
 /** Point où le rayon de O à travers P sort du rectangle [0, W] × [0, H]. */
