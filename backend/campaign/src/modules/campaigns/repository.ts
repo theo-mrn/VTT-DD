@@ -71,8 +71,10 @@ export async function lockCampaign(tx: Tx, campaignId: string) {
 }
 
 /** Rôle de l'auteur d'un événement de campagne. */
-export const actorRole = (role: Role | null): ActorRole =>
-  role === 'gm' ? 'gm' : role ? 'player' : 'user';
+export const actorRole = (role: Role | null): ActorRole => {
+  if (role === 'gm') return 'gm';
+  return role ? 'player' : 'user';
+};
 
 /** Événement de campagne (sujet vtt.<campaignId>.campaign.<action>), visible des membres. */
 export function campaignEvent(

@@ -127,7 +127,7 @@ function filters(r: NoteReader, q: ListQuery, terms: string[]): SQL {
     readableBy(r),
     q.campaignId ? eq(notes.campaignId, q.campaignId) : undefined,
     q.type ? eq(notes.type, q.type) : undefined,
-    q.pinned === undefined ? undefined : sql`${pinnedFlag} = ${q.pinned ? 1 : 0}`,
+    q.pinned === undefined ? undefined : sql`${pinnedFlag} = ${Number(q.pinned)}`,
     searchCondition(terms),
   )!;
 }

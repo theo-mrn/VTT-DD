@@ -172,8 +172,9 @@ export const register: Module = async (app, deps) => {
       const m = session.metadata ?? {};
       if (typeof m.userId !== 'string' || m.userId.toLowerCase() !== userId) throw notFound();
       const type = m.type;
-      const kind: 'premium' | 'dice' | 'token' | null =
-        type === PREMIUM_TYPE ? 'premium' : type === 'dice' || type === 'token' ? type : null;
+      let kind: 'premium' | 'dice' | 'token' | null = null;
+      if (type === PREMIUM_TYPE) kind = 'premium';
+      else if (type === 'dice' || type === 'token') kind = type;
       if (!kind) throw notFound();
       const itemId = kind === 'premium' ? null : (m.skinId ?? null);
 

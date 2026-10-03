@@ -161,11 +161,7 @@ export function next(state: CombatState, characterId?: string): Advance {
     actor = candidates.find((p) => p.characterId === characterId);
     if (!actor)
       throw notTheirTurn(
-        state.mode === 'individual'
-          ? 'Ce n’est pas le tour de ce personnage'
-          : state.currentActorId
-            ? 'Un autre participant a été désigné pour ce créneau'
-            : 'Ce personnage ne peut pas agir pendant ce créneau (autre camp, ou il a déjà agi)',
+        notTheirTurnReason(state.mode === 'individual', Boolean(state.currentActorId)),
       );
   }
   const order = state.order.map((p) => (p === actor ? { ...p, hasActed: true } : p));
@@ -382,4 +378,11 @@ export function remove(state: CombatState, characterIds: string[]): CombatState 
     slots,
     currentActorId: actorGone || slotChanged || round !== state.round ? null : state.currentActorId,
   };
+}
+
+function notTheirTurnReason(individual: boolean, designated: boolean): string {
+  if (individual) return 'Ce n’est pas le tour de ce personnage';
+  return designated
+    ? 'Un autre participant a été désigné pour ce créneau'
+    : 'Ce personnage ne peut pas agir pendant ce créneau (autre camp, ou il a déjà agi)';
 }

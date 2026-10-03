@@ -61,8 +61,10 @@ export interface Rolled {
   outcome: Outcome;
 }
 
-const typeOf = (v: Valeur): TypeValeur =>
-  typeof v === 'number' ? 'nombre' : typeof v === 'boolean' ? 'booleen' : 'texte';
+const typeOf = (v: Valeur): TypeValeur => {
+  if (typeof v === 'number') return 'nombre';
+  return typeof v === 'boolean' ? 'booleen' : 'texte';
+};
 
 export function invalidNotation(detail: string): HttpError {
   return new HttpError(400, 'Requête invalide', 'invalid_notation', detail);

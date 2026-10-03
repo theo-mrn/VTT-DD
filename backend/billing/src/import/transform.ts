@@ -28,8 +28,8 @@ const SUBSCRIPTION = /^sub_[A-Za-z0-9]{1,250}$/;
  */
 function premiumEnd(v: unknown): Date | null | undefined {
   if (v === undefined || v === null || v === 0) return null;
-  if (typeof v === 'number')
-    return Number.isFinite(v) ? new Date(v < 1e12 ? v * 1000 : v) : undefined;
+  if (typeof v === 'number' && !Number.isFinite(v)) return undefined;
+  if (typeof v === 'number') return new Date(v < 1e12 ? v * 1000 : v);
   return toDate(v);
 }
 

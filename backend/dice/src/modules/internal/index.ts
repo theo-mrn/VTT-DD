@@ -106,13 +106,12 @@ export const register: Module = async (app, deps) => {
         first.diceFaces = sorte?.faces.length ?? 0;
       }
       // Détail lisible : le déroulé de l'action, sinon les dés tirés
-      const output = (
-        b.explanations.length
-          ? b.explanations.join(' ; ')
-          : symbols
-            ? `${symbols.dice.map((d) => `${d.die} [${d.face}]`).join(', ')} = ${symbolResult}`
-            : formatDice(b.dice, total)
-      ).slice(0, 5000);
+      let output: string;
+      if (b.explanations.length) output = b.explanations.join(' ; ');
+      else if (symbols)
+        output = `${symbols.dice.map((d) => `${d.die} [${d.face}]`).join(', ')} = ${symbolResult}`;
+      else output = formatDice(b.dice, total);
+      output = output.slice(0, 5000);
 
       const row = await db.transaction((tx) =>
         insertRoll(

@@ -42,12 +42,7 @@ export async function buildBilling(
   const deps: Deps = {
     config,
     db,
-    stripe:
-      stripe !== undefined
-        ? stripe
-        : config.STRIPE_SECRET_KEY
-          ? stripeApi(config.STRIPE_SECRET_KEY)
-          : null,
+    stripe: stripe === undefined ? defaultStripe(config.STRIPE_SECRET_KEY) : stripe,
     effects:
       effects ??
       httpEffects({
@@ -71,4 +66,9 @@ export async function buildBilling(
   }
 
   return app;
+}
+
+/** Client Stripe de la configuration ; null sans clé (paiements dormants). */
+function defaultStripe(key: string | undefined) {
+  return key ? stripeApi(key) : null;
 }

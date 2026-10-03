@@ -275,12 +275,10 @@ export const register: Module = async (app, deps) => {
     });
 
     // Contenu réécrit : le nouveau, ou l'ancien s'il date d'un assainisseur antérieur
-    const derived =
-      fields.content !== undefined
-        ? contentFields(fields.content, opts)
-        : stored.sanitizerVersion < SANITIZER_VERSION
-          ? contentFields(stored.content, opts, true)
-          : null;
+    let derived = null;
+    if (fields.content !== undefined) derived = contentFields(fields.content, opts);
+    else if (stored.sanitizerVersion < SANITIZER_VERSION)
+      derived = contentFields(stored.content, opts, true);
     let plainText = derived?.plainText;
     if (plainText === undefined) {
       const [p] = await tx

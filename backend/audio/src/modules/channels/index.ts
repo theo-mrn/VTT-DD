@@ -120,12 +120,11 @@ export const register: Module = async (app, deps) => {
         .transaction(async (tx) => {
           const now = deps.now();
           const row = await lockChannel(tx, campaignId, channel, now);
-          const playlist =
-            command.type === 'play' && command.playlistId
-              ? { id: command.playlistId, assetIds: await playlistOrder(tx, command.playlistId) }
-              : row.playlistId
-                ? { id: row.playlistId, assetIds: await playlistOrder(tx, row.playlistId) }
-                : null;
+          const playlistId =
+            command.type === 'play' && command.playlistId ? command.playlistId : row.playlistId;
+          const playlist = playlistId
+            ? { id: playlistId, assetIds: await playlistOrder(tx, playlistId) }
+            : null;
           const { rows, infos } = await loadAssets(tx, [
             ...row.queue,
             ...(row.assetId ? [row.assetId] : []),

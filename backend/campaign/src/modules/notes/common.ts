@@ -361,8 +361,10 @@ export const changedFields = (before: NoteRow, after: NoteRow): string[] =>
 
 /** Qui lit la note : l'auteur seul, des personnages ou les MJ choisis, ou toute la campagne. */
 type Audience = 'owner' | 'targeted' | 'all';
-const audienceOf = (n: NoteRow): Audience =>
-  !n.shared ? 'owner' : n.sharedWith === null ? 'all' : 'targeted';
+const audienceOf = (n: NoteRow): Audience => {
+  if (!n.shared) return 'owner';
+  return n.sharedWith === null ? 'all' : 'targeted';
+};
 
 /** Utilisateurs (propriétaires ou incarnateurs) des personnages donnés : même règle que `readableBy`. */
 async function usersOfCharacters(tx: Tx, campaignId: string, characterIds: string[]) {

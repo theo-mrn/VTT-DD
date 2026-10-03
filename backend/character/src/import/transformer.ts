@@ -573,12 +573,7 @@ function migrerBonus(
     let n = 2;
     while (ids.has(id)) id = `${slug(nom).slice(0, 36) || 'bonus'}-${n++}`;
     ids.add(id);
-    const source =
-      d.category === 'Competence'
-        ? 'Capacité'
-        : d.category === 'Inventaire'
-          ? 'Inventaire'
-          : undefined;
+    const source = BONUS_SOURCES[String(d.category)];
     b.bonus.push({ id, nom, ...(source ? { source } : {}), effets, actif });
   }
 }
@@ -1072,3 +1067,8 @@ export function transformerPersonnage(
     avertissements,
   };
 }
+
+const BONUS_SOURCES: Partial<Record<string, string>> = {
+  Competence: 'Capacité',
+  Inventaire: 'Inventaire',
+};

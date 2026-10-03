@@ -135,8 +135,10 @@ function eventPayload(row: RollRow) {
 }
 
 /** Rôle de l'auteur d'un événement : gm ou player dans une campagne, user hors campagne. */
-export const actorRole = (v: Viewer): ActorRole =>
-  v.role === 'gm' ? 'gm' : v.role ? 'player' : 'user';
+export const actorRole = (v: Viewer): ActorRole => {
+  if (v.role === 'gm') return 'gm';
+  return v.role ? 'player' : 'user';
+};
 
 export type NewRoll = Omit<typeof rolls.$inferInsert, 'id' | 'createdAt'>;
 

@@ -305,7 +305,8 @@ export function applyCommand(
           const order = ctx.playlist?.id === s.playlistId ? ctx.playlist.assetIds : s.queue;
           next.queue = [...order];
           const i = current ? next.queue.indexOf(current) : -1;
-          next.queueIndex = i >= 0 ? i : next.queue.length ? 0 : null;
+          if (i >= 0) next.queueIndex = i;
+          else next.queueIndex = next.queue.length ? 0 : null;
         }
       }
       const unchanged =
