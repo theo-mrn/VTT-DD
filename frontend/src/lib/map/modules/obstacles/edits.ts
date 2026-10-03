@@ -387,21 +387,30 @@ export function translate(
 export function dropDuplicateSegments(plan: EditPlan, ids: Iterable<string>) {
   for (const id of ids) {
     const o = plan.obstacle(id);
-    if (!o) continue;
-    const others = new Set<string>();
-    for (const x of plan.obstacles())
-      if (x.id !== id)
-        for (const [a, b] of polylineSegments(x.points)) others.add(segmentKey(a, b));
-    const keep = polylineSegments(o.points).map(([a, b]) => !others.has(segmentKey(a, b)));
-    if (keep.every(Boolean)) continue;
-    const pieces = splitPolyline(o.points, (i) => keep[i]!);
-    if (!pieces.length) {
-      plan.removeObstacle(id);
-      continue;
-    }
-    plan.patchObstacle(id, { points: pieces[0]! });
-    for (const piece of pieces.slice(1)) plan.createObstacle(propsOf(o), piece);
+    if (o) dropDuplicatesOf(plan, o);
   }
+}
+
+/** Segments de tous les autres murs (clés). */
+function otherSegments(plan: EditPlan, id: string): Set<string> {
+  const others = new Set<string>();
+  for (const x of plan.obstacles())
+    if (x.id !== id) for (const [a, b] of polylineSegments(x.points)) others.add(segmentKey(a, b));
+  return others;
+}
+
+/** Retire de ce mur les segments posés sur un autre (il se scinde, ou disparaît). */
+function dropDuplicatesOf(plan: EditPlan, o: ObstacleData) {
+  const others = otherSegments(plan, o.id);
+  const keep = polylineSegments(o.points).map(([a, b]) => !others.has(segmentKey(a, b)));
+  if (keep.every(Boolean)) return;
+  const pieces = splitPolyline(o.points, (i) => keep[i]!);
+  if (!pieces.length) {
+    plan.removeObstacle(o.id);
+    return;
+  }
+  plan.patchObstacle(o.id, { points: pieces[0]! });
+  for (const piece of pieces.slice(1)) plan.createObstacle(propsOf(o), piece);
 }
 
 // ─── Sommets et segments ─────────────────────────────────────────────────────
@@ -529,31 +538,39 @@ export function mergeWithNeighbours(plan: EditPlan, id: string): string {
   for (let guard = 0; guard < 8; guard++) {
     const o = plan.obstacle(current);
     if (o?.kind !== 'wall' || isClosed(o.points)) return current;
-    let merged = false;
-    for (const end of [o.points[0]!, o.points[o.points.length - 1]!]) {
-      const touching = [...plan.obstacles()].filter(
-        (x) => x.id !== o.id && x.points.some((p) => samePoint(p, end)),
-      );
-      if (touching.length !== 1) continue;
-      const other = touching[0]!;
-      if (
-        other.kind !== 'wall' ||
-        isClosed(other.points) ||
-        other.color !== o.color ||
-        other.opacity !== o.opacity
-      )
-        continue;
-      const joined = joinAt(o.points, other.points, end);
-      if (!joined) continue;
-      plan.patchObstacle(o.id, { points: joined });
-      plan.removeObstacle(other.id);
-      merged = true;
-      break;
-    }
-    if (!merged) return current;
+    if (!mergeOnce(plan, o)) return current;
     current = o.id;
   }
   return current;
+}
+
+/** Fond le mur avec un mur simple qu'il prolonge à l'un de ses bouts ; vrai si c'est fait. */
+function mergeOnce(plan: EditPlan, o: ObstacleData): boolean {
+  for (const end of [o.points[0]!, o.points[o.points.length - 1]!]) {
+    const other = mergeableAt(plan, o, end);
+    if (!other) continue;
+    const joined = joinAt(o.points, other.points, end);
+    if (!joined) continue;
+    plan.patchObstacle(o.id, { points: joined });
+    plan.removeObstacle(other.id);
+    return true;
+  }
+  return false;
+}
+
+/** Seul autre mur qui touche `end`, s'il est simple et de même allure ; sinon null. */
+function mergeableAt(plan: EditPlan, o: ObstacleData, end: Point): ObstacleData | null {
+  const touching = [...plan.obstacles()].filter(
+    (x) => x.id !== o.id && x.points.some((p) => samePoint(p, end)),
+  );
+  if (touching.length !== 1) return null;
+  const other = touching[0]!;
+  const alike =
+    other.kind === 'wall' &&
+    !isClosed(other.points) &&
+    other.color === o.color &&
+    other.opacity === o.opacity;
+  return alike ? other : null;
 }
 
 /** Joint deux lignes qui se touchent bout à bout en `at`. */
