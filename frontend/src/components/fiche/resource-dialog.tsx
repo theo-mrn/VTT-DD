@@ -59,7 +59,6 @@ export function ResourceDialog({
   const brute = lisible ? ajuster(mode, valeur, montant) : valeur;
   const suivante = Math.max(min ?? -Infinity, Math.min(max ?? Infinity, brute));
   const delta = suivante - valeur;
-  const part = (n: number) => (max && max > 0 ? Math.max(0, Math.min(1, n / max)) : 0);
 
   const fermer = (o: boolean) => {
     setOuvert(o);
@@ -94,54 +93,7 @@ export function ResourceDialog({
         </DialogHeader>
 
         {/* Valeur actuelle et aperçu */}
-        <div className="space-y-2">
-          <p className="flex items-baseline gap-3 font-mono tabular-nums">
-            <span className={cn('text-4xl font-semibold', delta !== 0 && 'text-subtle')}>
-              {valeur}
-            </span>
-            {delta !== 0 && (
-              <>
-                <span aria-hidden className="text-xl text-subtle">
-                  →
-                </span>
-                <span className="text-4xl font-semibold">{suivante}</span>
-                <span
-                  className={cn(
-                    'text-sm font-medium',
-                    delta < 0 ? 'text-destructive' : 'text-success',
-                  )}
-                >
-                  {delta > 0 ? `+${delta}` : `−${-delta}`}
-                </span>
-              </>
-            )}
-            {max !== undefined && <span className="ml-auto text-base text-subtle">/ {max}</span>}
-          </p>
-          {max !== undefined && (
-            <div className="relative h-2 overflow-hidden rounded-full bg-surface-3" aria-hidden>
-              <div
-                className={cn(
-                  'absolute inset-y-0 left-0 rounded-full opacity-35',
-                  !couleur && 'bg-success',
-                )}
-                style={{
-                  width: `${part(valeur) * 100}%`,
-                  ...(couleur ? { background: couleur } : {}),
-                }}
-              />
-              <div
-                className={cn(
-                  'absolute inset-y-0 left-0 rounded-full transition-[width] duration-200',
-                  !couleur && 'bg-success',
-                )}
-                style={{
-                  width: `${part(suivante) * 100}%`,
-                  ...(couleur ? { background: couleur } : {}),
-                }}
-              />
-            </div>
-          )}
-        </div>
+        <Apercu valeur={valeur} suivante={suivante} max={max} couleur={couleur} />
 
         {/* Dégâts, soins ou valeur fixée */}
         <div
@@ -223,6 +175,62 @@ const MODE_ACTIF: Record<Mode, string> = {
 };
 
 /** Valeur après l'ajustement saisi (avant les bornes). */
+/** Valeur actuelle, valeur après ajustement et écart ; jauge avant et après (avec un maximum). */
+function Apercu({
+  valeur,
+  suivante,
+  max,
+  couleur,
+}: Readonly<{ valeur: number; suivante: number; max?: number; couleur?: string }>) {
+  const delta = suivante - valeur;
+  const part = (n: number) => (max && max > 0 ? Math.max(0, Math.min(1, n / max)) : 0);
+  return (
+    <div className="space-y-2">
+      <p className="flex items-baseline gap-3 font-mono tabular-nums">
+        <span className={cn('text-4xl font-semibold', delta !== 0 && 'text-subtle')}>{valeur}</span>
+        {delta !== 0 && (
+          <>
+            <span aria-hidden className="text-xl text-subtle">
+              →
+            </span>
+            <span className="text-4xl font-semibold">{suivante}</span>
+            <span
+              className={cn('text-sm font-medium', delta < 0 ? 'text-destructive' : 'text-success')}
+            >
+              {delta > 0 ? `+${delta}` : `−${-delta}`}
+            </span>
+          </>
+        )}
+        {max !== undefined && <span className="ml-auto text-base text-subtle">/ {max}</span>}
+      </p>
+      {max !== undefined && (
+        <div className="relative h-2 overflow-hidden rounded-full bg-surface-3" aria-hidden>
+          <div
+            className={cn(
+              'absolute inset-y-0 left-0 rounded-full opacity-35',
+              !couleur && 'bg-success',
+            )}
+            style={{
+              width: `${part(valeur) * 100}%`,
+              ...(couleur ? { background: couleur } : {}),
+            }}
+          />
+          <div
+            className={cn(
+              'absolute inset-y-0 left-0 rounded-full transition-[width] duration-200',
+              !couleur && 'bg-success',
+            )}
+            style={{
+              width: `${part(suivante) * 100}%`,
+              ...(couleur ? { background: couleur } : {}),
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ajuster(mode: Mode, valeur: number, montant: number): number {
   if (mode === 'retirer') return valeur - montant;
   if (mode === 'ajouter') return valeur + montant;

@@ -95,6 +95,18 @@ export function differences(ctx: ContexteFiche, avant: Fiche, apres: Fiche): Dif
   return r;
 }
 
+/** Saisie d'une valeur : le nombre, s'il est lisible et dans ses bornes ; sinon l'erreur à montrer. */
+function lireSaisie(
+  t: string,
+  bornes: { min?: number; max?: number } | undefined,
+): { n: number } | { erreur: string } {
+  const n = Number(t.replace(',', '.'));
+  if (t.trim() === '' || !Number.isFinite(n)) return { erreur: 'Nombre attendu' };
+  if (bornes?.min !== undefined && n < bornes.min) return { erreur: `Au moins ${bornes.min}` };
+  if (bornes?.max !== undefined && n > bornes.max) return { erreur: `Au plus ${bornes.max}` };
+  return { n };
+}
+
 export function ValuesDialog({
   ctx,
   proprietaire,
@@ -133,16 +145,9 @@ export function ValuesDialog({
       for (const a of g.base) {
         const t = saisies[a.cle];
         if (t === undefined) continue;
-        const n = Number(t.replace(',', '.'));
-        if (t.trim() === '' || !Number.isFinite(n)) {
-          erreurs[a.cle] = 'Nombre attendu';
-          continue;
-        }
-        const bornes = fiche.valeurs.get(a.cle);
-        if (bornes?.min !== undefined && n < bornes.min) erreurs[a.cle] = `Au moins ${bornes.min}`;
-        else if (bornes?.max !== undefined && n > bornes.max)
-          erreurs[a.cle] = `Au plus ${bornes.max}`;
-        else if (n !== actuelle(a)) changes[a.cle] = n;
+        const lue = lireSaisie(t, fiche.valeurs.get(a.cle));
+        if ('erreur' in lue) erreurs[a.cle] = lue.erreur;
+        else if (lue.n !== actuelle(a)) changes[a.cle] = lue.n;
       }
     return { changes, erreurs };
     // eslint-disable-next-line react-hooks/exhaustive-deps
