@@ -59,32 +59,51 @@ export const GLYPHS: Readonly<Record<MapPortalIcon, readonly GlyphPart[]>> = {
   ],
 };
 
+interface GlyphStroke {
+  width: number;
+  color: number;
+  cap: 'round';
+  join: 'round';
+}
+
 /** Dessine le glyphe en blanc (teinté ensuite), à l'échelle `scale`. */
 export function drawGlyph(ctx: GraphicsContext, icon: MapPortalIcon, scale = 1) {
-  const stroke = {
+  const stroke: GlyphStroke = {
     width: GLYPH_STROKE * scale,
     color: 0xffffff,
-    cap: 'round' as const,
-    join: 'round' as const,
+    cap: 'round',
+    join: 'round',
   };
-  for (const part of GLYPHS[icon] ?? GLYPHS.portal) {
-    if (part.type === 'circle') {
-      ctx.circle(part.x * scale, part.y * scale, part.r * scale);
-      if (part.fill) ctx.fill({ color: 0xffffff });
-      else ctx.stroke(stroke);
-    } else if (part.type === 'rect') {
-      ctx
-        .roundRect(part.x * scale, part.y * scale, part.w * scale, part.h * scale, part.r * scale)
-        .stroke(stroke);
-    } else {
-      const pts = part.points.map((v) => v * scale);
-      if (part.fill) ctx.poly(pts, true).fill({ color: 0xffffff });
-      else {
-        ctx.moveTo(pts[0]!, pts[1]!);
-        for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i]!, pts[i + 1]!);
-        if (part.closed) ctx.closePath();
-        ctx.stroke(stroke);
-      }
-    }
+  for (const part of GLYPHS[icon] ?? GLYPHS.portal) drawPart(ctx, part, scale, stroke);
+}
+
+/** Une partie du glyphe : cercle, rectangle arrondi ou ligne brisée. */
+function drawPart(ctx: GraphicsContext, part: GlyphPart, scale: number, stroke: GlyphStroke) {
+  if (part.type === 'circle') {
+    ctx.circle(part.x * scale, part.y * scale, part.r * scale);
+    if (part.fill) ctx.fill({ color: 0xffffff });
+    else ctx.stroke(stroke);
+  } else if (part.type === 'rect') {
+    ctx
+      .roundRect(part.x * scale, part.y * scale, part.w * scale, part.h * scale, part.r * scale)
+      .stroke(stroke);
+  } else drawPoly(ctx, part, scale, stroke);
+}
+
+/** Ligne brisée du glyphe : pleine (remplie) ou au trait. */
+function drawPoly(
+  ctx: GraphicsContext,
+  part: Extract<GlyphPart, { type: 'poly' }>,
+  scale: number,
+  stroke: GlyphStroke,
+) {
+  const pts = part.points.map((v) => v * scale);
+  if (part.fill) {
+    ctx.poly(pts, true).fill({ color: 0xffffff });
+    return;
   }
+  ctx.moveTo(pts[0]!, pts[1]!);
+  for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i]!, pts[i + 1]!);
+  if (part.closed) ctx.closePath();
+  ctx.stroke(stroke);
 }
