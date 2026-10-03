@@ -83,6 +83,20 @@ describe('client des services Yner', () => {
     });
   });
 
+  it('jeton de liaison : demandé à identity avec le secret interne', async () => {
+    const { yner, calls } = client(() => ({
+      status: 200,
+      body: { token: 'liaison', expiresIn: 600 },
+    }));
+    expect(await yner.linkToken('1', 'Théo')).toBe('liaison');
+    expect(calls[0]).toMatchObject({
+      method: 'POST',
+      url: 'http://identity.test/internal/discord/link-token',
+      body: { discordUserId: '1', discordName: 'Théo' },
+      headers: { 'x-internal-secret': 'secret-interne-de-test-0123456789abcdef' },
+    });
+  });
+
   it('compte lié : nom et e-mail du profil', async () => {
     const { yner, calls } = client(() => ({
       status: 200,

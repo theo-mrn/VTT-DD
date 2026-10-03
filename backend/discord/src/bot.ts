@@ -15,6 +15,7 @@ import {
 } from './dice-set.js';
 import type { DiscordApi } from './discord/api.js';
 import {
+  authorNameOf,
   ButtonStyle,
   EPHEMERAL,
   option,
@@ -47,8 +48,13 @@ export type Immediate = { type: number; data?: unknown };
 export function bot(deps: BotDeps) {
   const { yner, discord, appUrl, log } = deps;
 
-  const linkButton = (): Message =>
-    ephemeral('Compte Discord non lié à Yner.', {
+  /**
+   * Bouton « Lier mon compte » : page du site qui lie cette identité Discord au compte connecté,
+   * quel que soit son moyen de connexion (jeton signé par identity, 10 minutes).
+   */
+  const linkButton = async (i: Interaction, discordUserId: string): Promise<Message> => {
+    const token = await yner.linkToken(discordUserId, authorNameOf(i));
+    return ephemeral('Compte Discord non lié à Yner.', {
       components: [
         {
           type: 1,
@@ -57,12 +63,13 @@ export function bot(deps: BotDeps) {
               type: 2,
               style: ButtonStyle.Link,
               label: 'Lier mon compte',
-              url: `${appUrl}/v1/auth/oauth/discord/start?redirect=/`,
+              url: `${appUrl}/discord/lier?jeton=${encodeURIComponent(token)}`,
             },
           ],
         },
       ],
     });
+  };
 
   const noActive = () => ephemeral('Aucune salle active : `/room` pour en choisir une.');
 
@@ -243,9 +250,9 @@ export function bot(deps: BotDeps) {
       if (name === 'link')
         return await discord.editOriginal(
           i.token,
-          token ? ephemeral('Compte déjà lié.') : linkButton(),
+          token ? ephemeral('Compte déjà lié.') : await linkButton(i, discordUserId),
         );
-      if (!token) return await discord.editOriginal(i.token, linkButton());
+      if (!token) return await discord.editOriginal(i.token, await linkButton(i, discordUserId));
       switch (name) {
         case 'room':
           return await discord.editOriginal(i.token, await room(i, token));
@@ -328,7 +335,7 @@ export function bot(deps: BotDeps) {
     if (!state || state.action.kind !== 'roll') return;
     try {
       const token = await yner.delegate(discordUserId);
-      if (!token) return await discord.followUp(i.token, linkButton());
+      if (!token) return await discord.followUp(i.token, await linkButton(i, discordUserId));
       const active = await yner.activeCampaign(token);
       if (!active) return await discord.followUp(i.token, noActive());
       const set = await diceSetFor(active);

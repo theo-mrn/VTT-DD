@@ -24,7 +24,11 @@ export const EPHEMERAL = 1 << 6;
 
 export const ButtonStyle = { Primary: 1, Secondary: 2, Success: 3, Danger: 4, Link: 5 } as const;
 
-const DiscordUser = z.object({ id: z.string().regex(/^\d{1,32}$/) });
+const DiscordUser = z.object({
+  id: z.string().regex(/^\d{1,32}$/),
+  username: z.string().optional(),
+  global_name: z.string().nullish(),
+});
 
 const CommandOption = z.object({
   name: z.string(),
@@ -86,6 +90,12 @@ export interface Message {
 /** Auteur de l'interaction (serveur ou message privé). */
 export function authorOf(i: Interaction): string | undefined {
   return i.member?.user.id ?? i.user?.id;
+}
+
+/** Nom affiché de l'auteur (nom global, sinon nom d'utilisateur). */
+export function authorNameOf(i: Interaction): string | null {
+  const u = i.member?.user ?? i.user;
+  return u?.global_name || u?.username || null;
 }
 
 /** Valeur d'une option de commande. */

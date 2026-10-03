@@ -46,6 +46,7 @@ function fakes() {
   let active: Campaign | null = CAMPAIGN;
   const yner: YnerClient = {
     delegate: async (id) => (id === DISCORD_ID ? 'jeton' : null),
+    linkToken: async (id, name) => `liaison-${id}-${name}`,
     me: async () => ({ name: 'Théo', email: 'theo@exemple.fr' }),
     myCampaigns: async () => [CAMPAIGN],
     activeCampaign: async () => active,
@@ -147,7 +148,7 @@ describe('POST /v1/discord/interactions', () => {
     application_id: '1495752182837018764',
     type,
     token: 'jeton-interaction',
-    member: { user: { id: user } },
+    member: { user: { id: user, username: 'theo', global_name: 'Théo' } },
     data,
   });
 
@@ -222,7 +223,7 @@ describe('POST /v1/discord/interactions', () => {
     );
     await settle();
     const button = f.sent[0]!.message!.components![0]!.components[0]!;
-    expect(button.url).toBe('https://staging.yner.fr/v1/auth/oauth/discord/start?redirect=/');
+    expect(button.url).toBe('https://staging.yner.fr/discord/lier?jeton=liaison-999-Th%C3%A9o');
     expect(f.rolls).toEqual([]);
   });
 

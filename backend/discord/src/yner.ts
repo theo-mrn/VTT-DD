@@ -86,6 +86,8 @@ export interface RollInput {
 
 /** Ce que le bot demande aux services, pour un joueur donné (par son jeton délégué). */
 export interface YnerClient {
+  /** Jeton de liaison (10 min) : la page du site lie cette identité Discord au compte connecté. */
+  linkToken(discordUserId: string, discordName: string | null): Promise<string>;
   /** Jeton délégué ; null si aucun compte n'est lié à cet identifiant Discord. */
   delegate(discordUserId: string): Promise<string | null>;
   /** Compte Yner lié (nom, e-mail). */
@@ -158,6 +160,15 @@ export function ynerClient(o: YnerUrls): YnerClient {
 
     async me(token) {
       return json(await call(o.identity, '/v1/users/me', { token }), Me);
+    },
+
+    async linkToken(discordUserId, discordName) {
+      const res = await call(o.identity, '/internal/discord/link-token', {
+        method: 'POST',
+        body: { discordUserId, discordName },
+        headers: { 'x-internal-secret': o.internalSecret },
+      });
+      return (await json(res, z.object({ token: z.string() }))).token;
     },
 
     async myCampaigns(token) {
