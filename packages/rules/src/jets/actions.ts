@@ -508,87 +508,31 @@ export function executer(
 
   let effets: EffetJet[] = [];
   /** Effets de jet de l'acteur, de la cible et de la situation, lus avec les paramètres courants. */
+  /** Contexte des effets d'une fiche : variables de leur source, attributs et `@combat.*`. */
+  const contexteEffets = (fiche: Fiche) => {
+    const attribut = attributsAvecCombat(fiche);
+    return (source: SourceEffets) => fiche.contexte({ variable: variablesEffet(source), attribut });
+  };
+  /** Effets de jet de l'acteur, de la cible et de la situation, lus avec les paramètres courants. */
   const calculerEffets = () => {
-    effets = [];
     // Effets de l'acteur, puis effets défensifs de la cible (`cote: cible`) :
     // entrées du catalogue, exemplaires et bonus libres, par le même chemin
-    const porteurs: [Fiche, 'acteur' | 'cible'][] = [[acteur, 'acteur']];
-    if (cible) porteurs.push([cible, 'cible']);
-    for (const [fiche, cote] of porteurs) {
-      const attribut = attributsAvecCombat(fiche);
-      for (const source of fiche.sources) {
-        const ctxEffet = fiche.contexte({ variable: variablesEffet(source), attribut });
-        source.effets.forEach((f, i) => {
-          if (f.sur !== 'jet' || !f.ajout || source.desactive(i)) return;
-          if (f.cote !== cote) return;
-          if (f.actions && !f.actions.includes(action.id)) return;
-          if (f.implique?.entree !== undefined && !impliques.has(`entree:${f.implique.entree}`))
-            return;
-          if (
-            f.implique?.attribut !== undefined &&
-            !impliques.has(`attribut:${f.implique.attribut}`)
-          )
-            return;
-          const ou = (x: string) => `${source.id}/effets/${i}/${x}`;
-          for (const [x, declaree] of [
-            ['condition', f.condition],
-            ['si', f.si],
-          ] as const) {
-            if (declaree === undefined) continue;
-            const cond = source.formule(i, x);
-            if (!cond || evaluerFormule(cond, ou(x), false, ctxEffet).valeur !== true) return;
-          }
-          const cle = cleAjout(f.ajout);
-          const formule = source.formule(i, cle);
-          if (!formule) return;
-          const valeur = Number(evaluerFormule(formule, ou(cle), 0, ctxEffet).valeur);
-          effets.push({
-            source: source.id,
-            ajout: f.ajout,
-            valeur,
-            nom: f.description ?? source.nom,
-            cote,
-          });
-        });
-      }
-    }
-
+    const lecture: LectureEffets = { action, impliques, evaluerFormule };
+    effets = effetsDe(acteur, 'acteur', lecture, contexteEffets(acteur));
+    if (cible) effets.push(...effetsDe(cible, 'cible', lecture, contexteEffets(cible)));
     // Situation du système (couvert, avantage de situation…) : effets de l'action elle-même,
     // lus avec ses paramètres, la cible et le combat ; sans effet, ils ne disent rien
-    if (recoitSituation(action)) {
-      // Paramètres de situation écartés par l'action (`situation.sauf`) : leur valeur neutre,
-      // même si l'action déclare un paramètre du même nom
-      const ecartes = new Map<string, Valeur>();
-      if (typeof action.situation === 'object')
-        for (const p of systeme.source.situation?.parametres ?? [])
-          if (action.situation.sauf.includes(p.id)) ecartes.set(p.id, defautParametre(p));
-      const ctxSituation: ContexteEvaluation = {
-        ...ctx,
-        variable: (nom) => ecartes.get(nom) ?? variableJet(nom),
-      };
-      (systeme.source.situation?.effets ?? []).forEach((f, i) => {
-        if (!f.ajout || (f.actions && !f.actions.includes(action.id))) return;
-        if (f.implique?.entree !== undefined && !impliques.has(`entree:${f.implique.entree}`))
-          return;
-        if (f.implique?.attribut !== undefined && !impliques.has(`attribut:${f.implique.attribut}`))
-          return;
-        const ou = (x: string) => chemins.situation(action.id, i, x);
-        for (const x of ['condition', 'si'] as const) {
-          if (f[x] === undefined) continue;
-          if (calculerFormule(ou(x), false, ctxSituation).valeur !== true) return;
-        }
-        const cle = cleAjout(f.ajout);
-        const valeur = Number(calculerFormule(ou(cle), 0, ctxSituation).valeur);
-        if (!valeur) return;
-        effets.push({
-          source: SOURCE_SITUATION,
-          ajout: f.ajout,
-          valeur,
-          nom: f.description ?? NOM_SITUATION,
-          cote: 'action',
-        });
-      });
-    }
+    if (!recoitSituation(action)) return;
+    const ecartes = ecartesSituation(systeme, action);
+    const ctxSituation: ContexteEvaluation = {
+      ...ctx,
+      variable: (nom) => ecartes.get(nom) ?? variableJet(nom),
+    };
+    effets.push(
+      ...effetsSituation(systeme, action, impliques, (chemin, defaut) =>
+        calculerFormule(chemin, defaut, ctxSituation),
+      ),
+    );
   };
   calculerEffets();
 
@@ -1313,6 +1257,119 @@ function degatsRecus(
     ...(recus.minimum !== undefined ? { minimum: recus.minimum } : {}),
   });
   return recus.valeur;
+}
+
+/** Un effet de jet vise-t-il cette action et ce qu'elle implique (entrée, attribut) ? */
+function effetConcerne(
+  f: { actions?: string[]; implique?: { entree?: string; attribut?: string } },
+  action: string,
+  impliques: ReadonlySet<string>,
+): boolean {
+  if (f.actions && !f.actions.includes(action)) return false;
+  if (f.implique?.entree !== undefined && !impliques.has(`entree:${f.implique.entree}`))
+    return false;
+  return f.implique?.attribut === undefined || impliques.has(`attribut:${f.implique.attribut}`);
+}
+
+interface LectureEffets {
+  action: Action;
+  impliques: ReadonlySet<string>;
+  evaluerFormule(
+    f: FormuleVerifiee,
+    chemin: string,
+    defaut: Valeur,
+    ctx: ContexteEvaluation,
+  ): ResultatEvaluation;
+}
+
+/** Effets de jet portés par une fiche, du côté donné (acteur, ou défense de la cible). */
+function effetsDe(
+  fiche: Fiche,
+  cote: 'acteur' | 'cible',
+  l: LectureEffets,
+  contexteDe: (source: SourceEffets) => ContexteEvaluation,
+): EffetJet[] {
+  const retenus: EffetJet[] = [];
+  for (const source of fiche.sources) {
+    const ctxEffet = contexteDe(source);
+    source.effets.forEach((f, i) => {
+      if (f.sur !== 'jet' || !f.ajout || source.desactive(i) || f.cote !== cote) return;
+      if (!effetConcerne(f, l.action.id, l.impliques)) return;
+      const valeur = montantEffet(source, i, f, f.ajout, ctxEffet, l);
+      if (valeur === null) return;
+      retenus.push({
+        source: source.id,
+        ajout: f.ajout,
+        valeur,
+        nom: f.description ?? source.nom,
+        cote,
+      });
+    });
+  }
+  return retenus;
+}
+
+/** Montant d'un effet de jet, ou null si sa condition n'est pas remplie. */
+function montantEffet(
+  source: SourceEffets,
+  i: number,
+  f: Extract<Effet, { sur: 'jet' }>,
+  ajout: AjoutJet,
+  ctxEffet: ContexteEvaluation,
+  l: LectureEffets,
+): number | null {
+  const ou = (x: string) => `${source.id}/effets/${i}/${x}`;
+  for (const [x, declaree] of [
+    ['condition', f.condition],
+    ['si', f.si],
+  ] as const) {
+    if (declaree === undefined) continue;
+    const cond = source.formule(i, x);
+    if (!cond || l.evaluerFormule(cond, ou(x), false, ctxEffet).valeur !== true) return null;
+  }
+  const cle = cleAjout(ajout);
+  const formule = source.formule(i, cle);
+  if (!formule) return null;
+  return Number(l.evaluerFormule(formule, ou(cle), 0, ctxEffet).valeur);
+}
+
+/**
+ * Paramètres de situation écartés par l'action (`situation.sauf`) : leur valeur neutre, même si
+ * l'action déclare un paramètre du même nom.
+ */
+function ecartesSituation(systeme: SystemeCharge, action: Action): Map<string, Valeur> {
+  const ecartes = new Map<string, Valeur>();
+  if (typeof action.situation !== 'object') return ecartes;
+  for (const p of systeme.source.situation?.parametres ?? [])
+    if (action.situation.sauf.includes(p.id)) ecartes.set(p.id, defautParametre(p));
+  return ecartes;
+}
+
+/** Effets de la situation du système qui s'appliquent à l'action (montant non nul). */
+function effetsSituation(
+  systeme: SystemeCharge,
+  action: Action,
+  impliques: ReadonlySet<string>,
+  calculer: (chemin: string, defaut: Valeur) => ResultatEvaluation,
+): EffetJet[] {
+  const retenus: EffetJet[] = [];
+  (systeme.source.situation?.effets ?? []).forEach((f, i) => {
+    if (!f.ajout || !effetConcerne(f, action.id, impliques)) return;
+    const ou = (x: string) => chemins.situation(action.id, i, x);
+    for (const x of ['condition', 'si'] as const) {
+      if (f[x] !== undefined && calculer(ou(x), false).valeur !== true) return;
+    }
+    const valeur = Number(calculer(ou(cleAjout(f.ajout)), 0).valeur);
+    if (!valeur) return;
+    retenus.push({
+      source: SOURCE_SITUATION,
+      ajout: f.ajout,
+      valeur,
+      nom: f.description ?? NOM_SITUATION,
+      cote: 'action',
+    });
+  });
+  return retenus;
 }
 
 /** Libellé des lignes d'un ajustement libre. */
