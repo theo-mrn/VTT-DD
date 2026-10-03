@@ -35,7 +35,7 @@ import type { MapEntity } from '../../engine/entities/entity';
 import type { LiveAudience } from '../../engine/entities/entity-kind';
 import type { MapEngine, MapPlayer } from '../../engine/map-engine';
 import { displayOf } from '../../engine/planes';
-import { collectionOf, type MapDto } from '../../store/map-store';
+import { collectionOf, type MapDto, type MapStoreState } from '../../store/map-store';
 import {
   foggedScene,
   geometryScene,
@@ -44,6 +44,7 @@ import {
   MapVision,
   type MemberVision,
   type VisionMember,
+  type VisionToken,
 } from './rules';
 import {
   geometryInput,
@@ -312,59 +313,115 @@ export class VisionState {
   sync(): boolean {
     const t0 = performance.now();
     const state = this.engine.store.getState();
-    let changed = false;
 
     // Géométrie
     const key = geometryKey(state);
-    let wallsChanged = false;
-    if (!sameKey(this.geoKey, key)) {
-      const tp = performance.now();
-      // Les aires des lumières ne dépendent que des murs et des bornes (pas des zones ni des
-      // pièces) : sans eux, les lueurs restent telles quelles
-      wallsChanged = !this.geoKey || WALL_KEYS.some((i) => this.geoKey![i] !== key[i]);
-      this.geoKey = key;
-      this.geoScene = geometryScene(geometryInput(state));
-      this.geoPrep = prepareScene(this.geoScene);
-      this.foggedGeo = null;
-      this.litPrep = null;
-      this.fogVersion += 1;
-      this.stats.record('prepare', performance.now() - tp);
-      changed = true;
-    }
+    let changed = !sameKey(this.geoKey, key);
+    const wallsChanged = changed && this.updateGeometry(state, key);
 
     // Tokens (positions en direct)
     const tokens = collectionOf(state, TOKENS);
+    const positions = this.livePositions(tokens);
+    const moved = this.tokensMoved(tokens, positions);
+    this.tokensRef = tokens;
+    this.positions = positions;
+
+    const scale = scaleOf(state);
+    if (this.syncLights(state, tokens, scale.pixelsPerUnit, wallsChanged)) changed = true;
+    if (this.syncTable(state, scale)) changed = true;
+
+    if (changed || moved || !this.map) {
+      this.rebuildMap(tokens, positions, scale);
+      changed = true;
+    }
+
+    // Mode (joueur, MJ, « Vue de… ») et observateurs dessinés
+    if (this.syncMode()) changed = true;
+
+    // Entités décidées (une entité arrivée, partie ou remplacée compte)
+    const entities = this.decidedEntities();
+    const entitiesChanged =
+      entities.length !== this.entityRefs.length ||
+      entities.some((e, i) => e !== this.entityRefs[i]);
+    this.entityRefs = entities;
+
+    if (changed) {
+      const tv = performance.now();
+      this.refreshPicture();
+      this.stats.record('views', performance.now() - tv);
+    }
+    if (changed || entitiesChanged) {
+      const tm = performance.now();
+      this.refreshDecisions(entities);
+      this.stats.record('masking', performance.now() - tm);
+    }
+    this.views.keep([this.litPrep, this.foggedLit]);
+    if (changed) this.stats.record('sync', performance.now() - t0);
+    return changed || entitiesChanged;
+  }
+
+  /** Géométrie changée : scène refaite ; renvoie vrai si les murs ou les bornes ont changé. */
+  private updateGeometry(state: MapStoreState, key: readonly unknown[]): boolean {
+    const tp = performance.now();
+    // Les aires des lumières ne dépendent que des murs et des bornes (pas des zones ni des
+    // pièces) : sans eux, les lueurs restent telles quelles
+    const prev = this.geoKey;
+    const wallsChanged = !prev || WALL_KEYS.some((i) => prev[i] !== key[i]);
+    this.geoKey = key;
+    this.geoScene = geometryScene(geometryInput(state));
+    this.geoPrep = prepareScene(this.geoScene);
+    this.foggedGeo = null;
+    this.litPrep = null;
+    this.fogVersion += 1;
+    this.stats.record('prepare', performance.now() - tp);
+    return wallsChanged;
+  }
+
+  /** Positions affichées des tokens, à plat (NaN : sans position). */
+  private livePositions(tokens: ReadonlyMap<string, MapDto>): number[] {
     const positions: number[] = [];
     for (const t of tokens.values()) {
       const p = this.livePos(t.id);
       const pos = p ?? (t.pos as Vec | undefined);
       positions.push(pos?.x ?? Number.NaN, pos?.y ?? Number.NaN);
     }
-    const moved =
+    return positions;
+  }
+
+  /** Les tokens ou leurs positions ont changé depuis la dernière synchronisation. */
+  private tokensMoved(tokens: ReadonlyMap<string, MapDto>, positions: readonly number[]): boolean {
+    return (
       tokens !== this.tokensRef ||
       positions.length !== this.positions.length ||
-      positions.some((v, i) => !Object.is(v, this.positions[i]));
-    this.tokensRef = tokens;
-    this.positions = positions;
+      positions.some((v, i) => !Object.is(v, this.positions[i]))
+    );
+  }
 
-    // Lumières (une torche suit la position affichée de son token)
-    const scale = scaleOf(state);
+  /** Lumières (une torche suit la position affichée de son token) ; vrai si elles ont changé. */
+  private syncLights(
+    state: MapStoreState,
+    tokens: ReadonlyMap<string, MapDto>,
+    pixelsPerUnit: number,
+    wallsChanged: boolean,
+  ): boolean {
     const lights = lightsOf(
       [...collectionOf(state, 'lights').values()].map(lightInput),
       (id) => this.livePos(id) ?? (tokens.get(id)?.pos as Vec | undefined) ?? undefined,
-      scale.pixelsPerUnit,
+      pixelsPerUnit,
     );
     const lk = lightsKey(lights);
-    if (lk !== this.lightKey || !this.litPrep) {
-      if (lk !== this.lightKey || wallsChanged) this.lightVersion += 1;
-      this.lights = lights;
-      this.lightKey = lk;
-      this.litPrep = withLights(this.geoPrep!, lights);
-      this.foggedLit = null;
-      changed = true;
-    }
+    if (lk === this.lightKey && this.litPrep) return false;
+    if (lk !== this.lightKey || wallsChanged) this.lightVersion += 1;
+    this.lights = lights;
+    this.lightKey = lk;
+    this.litPrep = withLights(this.geoPrep!, lights);
+    this.foggedLit = null;
+    return true;
+  }
 
-    // Calques masqués, joueurs, échelle
+  /** Calques masqués, joueurs, échelle ; vrai si l'un a changé. */
+  private syncTable(state: MapStoreState, scale: ReturnType<typeof scaleOf>): boolean {
+    let changed = false;
     const layers = collectionOf(state, 'layers');
     if (layers !== this.layersRef) {
       this.layersRef = layers;
@@ -386,68 +443,60 @@ export class VisionState {
       this.scaleKey = sk;
       changed = true;
     }
+    return changed;
+  }
 
-    if (changed || moved || !this.map) {
-      const list = [...tokens.values()].map((t, i) => {
-        const x = positions[2 * i]!;
-        const y = positions[2 * i + 1]!;
-        const pos = Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
-        return visionToken(t, pos, this.playerCharacters);
-      });
-      const geo = this.geoScene!;
-      this.map = new MapVision({
-        prep: this.litPrep!,
-        fogged: () => {
-          this.foggedGeo ??= prepareScene(foggedScene(geo));
-          return (this.foggedLit ??= withLights(this.foggedGeo, this.lights));
-        },
-        tokens: list,
-        hiddenLayers: this.hidden,
-        pixelsPerUnit: scale.pixelsPerUnit,
-        tokenScale: scale.tokenScale,
-        view: (prep, observers) => this.views.union(prep, observers),
-      });
-      changed = true;
-    }
+  /** Visibilité de la carte refaite (tokens à leur position affichée). */
+  private rebuildMap(
+    tokens: ReadonlyMap<string, MapDto>,
+    positions: readonly number[],
+    scale: ReturnType<typeof scaleOf>,
+  ) {
+    const list = [...tokens.values()].map((t, i) => {
+      const x = positions[2 * i]!;
+      const y = positions[2 * i + 1]!;
+      const pos = Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+      return visionToken(t, pos, this.playerCharacters);
+    });
+    const geo = this.geoScene!;
+    this.map = new MapVision({
+      prep: this.litPrep!,
+      fogged: () => {
+        this.foggedGeo ??= prepareScene(foggedScene(geo));
+        return (this.foggedLit ??= withLights(this.foggedGeo, this.lights));
+      },
+      tokens: list,
+      hiddenLayers: this.hidden,
+      pixelsPerUnit: scale.pixelsPerUnit,
+      tokenScale: scale.tokenScale,
+      view: (prep, observers) => this.views.union(prep, observers),
+    });
+  }
 
-    // Mode (joueur, MJ, « Vue de… ») et observateurs dessinés
+  /** Mode et joueur montré ; vrai s'ils ont changé. */
+  private syncMode(): boolean {
     const member = this.member();
     const modeKey = `${this.mode}:${member?.userId ?? ''}:${member?.characterIds.join(',') ?? ''}`;
-    if (modeKey !== this.modeKey) {
-      this.modeKey = modeKey;
-      changed = true;
-    }
+    if (modeKey === this.modeKey) return false;
+    this.modeKey = modeKey;
+    return true;
+  }
 
-    // Entités décidées (une entité arrivée, partie ou remplacée compte)
-    // Tokens et objets ; en « Vue de… », aussi ce qui est rangé dans un calque (dessins, textes) ;
-    // pour un joueur, aussi les sortes à points d'échantillon (icônes de porte)
+  /**
+   * Entités à décider : tokens et objets ; en « Vue de… », aussi ce qui est rangé dans un
+   * calque (dessins, textes) ; pour un joueur, aussi les sortes à points d'échantillon (icônes
+   * de porte).
+   */
+  private decidedEntities(): MapEntity[] {
     const viewAs = this.mode === 'view-as';
     const player = this.mode === 'player';
-    const entities = [...this.engine.entities()].filter(
+    return [...this.engine.entities()].filter(
       (e) =>
         e.kind.collection === TOKENS ||
         e.kind.collection === OBJECTS ||
         (viewAs && e.layerId !== null) ||
         (player && e.kind.visionSamples?.(e) != null),
     );
-    const entitiesChanged =
-      entities.length !== this.entityRefs.length ||
-      entities.some((e, i) => e !== this.entityRefs[i]);
-    this.entityRefs = entities;
-
-    if (changed) {
-      const tv = performance.now();
-      this.refreshPicture();
-      this.stats.record('views', performance.now() - tv);
-    }
-    if (changed || entitiesChanged) {
-      const tm = performance.now();
-      this.refreshDecisions(entities);
-      this.stats.record('masking', performance.now() - tm);
-    }
-    this.views.keep([this.litPrep, this.foggedLit]);
-    if (changed) this.stats.record('sync', performance.now() - t0);
-    return changed || entitiesChanged;
   }
 
   // ─── Rendu ──────────────────────────────────────────────────────────────────
@@ -565,34 +614,51 @@ export class VisionState {
     if (mv) {
       const tokens = new Map(this.map!.tokens.map((t) => [t.id, t]));
       for (const e of entities) {
-        if (e.kind.collection === TOKENS) {
-          const t = tokens.get(e.id);
-          if (!t) continue;
-          const seen = mv.seesToken(t);
-          // Toujours vu (personnage joueur, allié, le mien, custom) : hors de ma vue, au-dessus
-          const always =
-            seen &&
-            (t.playerSide ||
-              t.visibility === 'ally' ||
-              t.visibility === 'custom' ||
-              member!.characterIds.includes(t.characterId));
-          const inView = always ? mv.seesSamples(this.map!.tokenSamples(t)) : seen;
-          next.set(e.id, { masked: !seen, allies: always && !inView });
-        } else if (e.kind.collection === OBJECTS) {
-          const o = visionObject(e.data, e.current);
-          next.set(e.id, { masked: !mv.seesObject(o), allies: false });
-        } else if (this.mode === 'player' && e.kind.visionSamples) {
-          // Icône de porte : montrée (et cliquable) seulement si la porte est dans ma vue. En
-          // « Vue de… », les portes restent aux surcouches du MJ, comme les murs
-          const samples = e.kind.visionSamples(e);
-          if (samples) next.set(e.id, { masked: !mv.seesSamples(samples), allies: false });
-        } else if (e.layerId && this.hidden.has(e.layerId)) {
-          // « Vue de… » : un calque masqué aux joueurs ne leur est jamais envoyé
-          next.set(e.id, { masked: true, allies: false });
-        }
+        const decision = this.decide(e, mv, member!, tokens);
+        if (decision) next.set(e.id, decision);
       }
     }
     this.decisionMap = next;
+  }
+
+  /** Décision pour une entité vue par ce joueur (null : aucune). */
+  private decide(
+    e: MapEntity,
+    mv: MemberVision,
+    member: VisionMember,
+    tokens: ReadonlyMap<string, VisionToken>,
+  ): EntityDecision | null {
+    if (e.kind.collection === TOKENS) {
+      const t = tokens.get(e.id);
+      return t ? this.tokenDecision(t, mv, member) : null;
+    }
+    if (e.kind.collection === OBJECTS) {
+      const o = visionObject(e.data, e.current);
+      return { masked: !mv.seesObject(o), allies: false };
+    }
+    if (this.mode === 'player' && e.kind.visionSamples) {
+      // Icône de porte : montrée (et cliquable) seulement si la porte est dans ma vue. En
+      // « Vue de… », les portes restent aux surcouches du MJ, comme les murs
+      const samples = e.kind.visionSamples(e);
+      return samples ? { masked: !mv.seesSamples(samples), allies: false } : null;
+    }
+    // « Vue de… » : un calque masqué aux joueurs ne leur est jamais envoyé
+    if (e.layerId && this.hidden.has(e.layerId)) return { masked: true, allies: false };
+    return null;
+  }
+
+  /** Token : masqué s'il n'est pas vu ; toujours vu hors de ma vue : au-dessus (alliés). */
+  private tokenDecision(t: VisionToken, mv: MemberVision, member: VisionMember): EntityDecision {
+    const seen = mv.seesToken(t);
+    // Toujours vu (personnage joueur, allié, le mien, custom) : hors de ma vue, au-dessus
+    const always =
+      seen &&
+      (t.playerSide ||
+        t.visibility === 'ally' ||
+        t.visibility === 'custom' ||
+        member.characterIds.includes(t.characterId));
+    const inView = always ? mv.seesSamples(this.map!.tokenSamples(t)) : seen;
+    return { masked: !seen, allies: always && !inView };
   }
 
   /** Décision pour une entité (aucune : ni masquée, ni forcée ; le MJ voit tout). */
