@@ -49,11 +49,16 @@ export function createLayer(engine: MapEngine, name: string) {
     }),
   );
   engine.setActiveLayer(draft.id);
-  // Le calque actif suit l'identifiant du serveur
+  // Le calque actif suit l'identifiant du serveur. La correspondance est annoncée avant que le
+  // calque du serveur remplace le brouillon dans le magasin : le moteur effacerait un calque
+  // actif encore inconnu, il est donc repris une fois le remplacement fait
   const off = engine.commands.onAlias((from, to) => {
     if (from !== draft.id) return;
-    if (engine.ui.getState().activeLayerId === from) engine.setActiveLayer(to);
     off();
+    if (engine.ui.getState().activeLayerId !== from) return;
+    queueMicrotask(() => {
+      if (engine.layer(to)) engine.setActiveLayer(to);
+    });
   });
   void result.finally(off);
   return result;
