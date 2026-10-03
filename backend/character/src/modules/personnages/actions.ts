@@ -8,11 +8,17 @@
  * attendre ni échouer si dice ne répond pas.
  */
 import { HttpError } from '@vtt/platform';
-import { vueActeur, type Valeur } from '@vtt/rules';
-import type { EventContext } from '../../db/outbox.js';
+import {
+  vueActeur,
+  type Fiche,
+  type ReglagesOptions,
+  type SystemeCharge,
+  type Valeur,
+} from '@vtt/rules';
+import type { EventContext, Tx } from '../../db/outbox.js';
 import type { Deps } from '../../deps.js';
 import { jetPourDes, type VisibiliteJet } from '../../des/dice.js';
-import { resoudreAction, verifierEtat } from '../../regles/operations.js';
+import { resoudreAction, verifierEtat, type ActionResolue } from '../../regles/operations.js';
 import {
   enregistrer,
   journaliserAction,
@@ -21,6 +27,7 @@ import {
   verrouiller,
   versApi,
   type Appelant,
+  type Ligne,
   type Personnage,
 } from './depot.js';
 
@@ -43,6 +50,125 @@ export interface ActionJouee {
   cible?: Personnage;
 }
 
+/** Ce que partagent les étapes d'une action jouée. */
+interface ContexteAction {
+  catalogue: Deps['catalogue'];
+  ctx: EventContext;
+  appelant: Appelant;
+  demande: DemandeAction;
+  memeEntite: boolean;
+  optionsActeur: ReglagesOptions;
+  optionsDe: (ligneId: string) => ReglagesOptions | undefined;
+}
+
+/** Système et fiches de l'acteur et de la cible, qui doit être du même système. */
+function fichesAction(
+  c: ContexteAction,
+  acteur: Ligne,
+  cible: Ligne | undefined,
+): { systeme: SystemeCharge; ficheActeur: Fiche; ficheCible: Fiche | undefined } {
+  const { catalogue } = c;
+  const systeme = systemeDe(catalogue, acteur, c.optionsActeur);
+  if (cible && cible.systemId !== acteur.systemId)
+    throw HttpError.badRequest(
+      'La cible appartient à un autre système de jeu',
+      'systeme_different',
+    );
+  const ficheActeur = verifierEtat(systeme, acteur.etat).fiche;
+  let ficheCible: Fiche | undefined;
+  if (cible)
+    ficheCible = c.memeEntite
+      ? ficheActeur
+      : verifierEtat(systemeDe(catalogue, cible, c.optionsDe(cible.id)), cible.etat).fiche;
+  return { systeme, ficheActeur, ficheCible };
+}
+
+/** Nouveaux états enregistrés, acteur puis cible, avec leurs événements. */
+async function enregistrerAction(
+  c: ContexteAction,
+  tx: Tx,
+  acteur: Ligne,
+  cible: Ligne | undefined,
+  r: ActionResolue,
+): Promise<{ acteurFinal: Ligne; cibleFinale: Ligne | undefined }> {
+  const { catalogue, ctx, appelant, demande } = c;
+  const details = { details: { action: demande.action, cibleId: demande.cibleId ?? null } };
+  const acteurFinal = r.acteur
+    ? await enregistrer(
+        tx,
+        ctx,
+        catalogue,
+        appelant,
+        acteur,
+        { etat: r.acteur },
+        { operation: 'action', ...details },
+        c.optionsActeur,
+      )
+    : acteur;
+  const cibleFinale =
+    r.cible && cible
+      ? await enregistrer(
+          tx,
+          ctx,
+          catalogue,
+          appelant,
+          cible,
+          { etat: r.cible },
+          { operation: 'action.cible', ...details },
+          c.optionsDe(cible.id),
+        )
+      : cible;
+  return { acteurFinal, cibleFinale };
+}
+
+/**
+ * Jet transmis à dice : auteur, l'utilisateur qui agit (aucun pour un appel du système).
+ * Avec une cible, seulement la vue de l'acteur : le déroulé nomme les défenses de la cible.
+ */
+function jetAction(
+  c: ContexteAction,
+  systeme: SystemeCharge,
+  acteur: Ligne,
+  cible: Ligne | undefined,
+  r: ActionResolue,
+): Parameters<typeof jetPourDes> | undefined {
+  const { appelant, demande } = c;
+  if (!appelant.userId) return undefined;
+  return [
+    systeme,
+    acteur,
+    cible ? vueActeur(systeme, r.resultat) : r.resultat,
+    {
+      authorId: appelant.userId,
+      ...(demande.campaignId ? { campaignId: demande.campaignId } : {}),
+      ...(demande.visibility ? { visibility: demande.visibility } : {}),
+    },
+  ];
+}
+
+/** Réponse : le résultat, et les personnages à jour si l'action est appliquée. */
+function reponseAction(
+  c: ContexteAction,
+  r: ActionResolue,
+  acteurFinal: Ligne,
+  cibleFinale: Ligne | undefined,
+): ActionJouee {
+  const { catalogue, memeEntite } = c;
+  const base = { resultat: r.resultat, ...(r.cles ? { cles: r.cles } : {}) };
+  if (!c.demande.appliquer) return base;
+  return {
+    ...base,
+    personnage: versApi(catalogue, acteurFinal, { options: c.optionsActeur }),
+    ...(cibleFinale
+      ? {
+          cible: versApi(catalogue, memeEntite ? acteurFinal : cibleFinale, {
+            options: c.optionsDe(cibleFinale.id),
+          }),
+        }
+      : {}),
+  };
+}
+
 export async function jouerAction(
   deps: Pick<Deps, 'db' | 'catalogue' | 'aleatoire' | 'des' | 'droits'>,
   ctx: EventContext,
@@ -60,6 +186,15 @@ export async function jouerAction(
     cibleId && !memeEntite ? deps.droits.options(cibleId) : undefined,
   ]);
   const optionsDe = (ligneId: string) => (ligneId === id ? optionsActeur : optionsCible);
+  const c: ContexteAction = {
+    catalogue,
+    ctx,
+    appelant,
+    demande,
+    memeEntite,
+    optionsActeur,
+    optionsDe,
+  };
 
   let jet: Parameters<typeof jetPourDes> | undefined;
   const joue = await db.transaction(async (tx): Promise<ActionJouee> => {
@@ -72,19 +207,7 @@ export async function jouerAction(
     let cible: typeof acteur | undefined;
     if (cibleId) cible = memeEntite ? acteur : lignes[1]!;
 
-    const systeme = systemeDe(catalogue, acteur, optionsActeur);
-    if (cible && cible.systemId !== acteur.systemId)
-      throw HttpError.badRequest(
-        'La cible appartient à un autre système de jeu',
-        'systeme_different',
-      );
-    const ficheActeur = verifierEtat(systeme, acteur.etat).fiche;
-    let ficheCible: typeof ficheActeur | undefined;
-    if (cible)
-      ficheCible = memeEntite
-        ? ficheActeur
-        : verifierEtat(systemeDe(catalogue, cible, optionsDe(cible.id)), cible.etat).fiche;
-
+    const { systeme, ficheActeur, ficheCible } = fichesAction(c, acteur, cible);
     const r = resoudreAction(systeme, {
       action,
       acteur: ficheActeur,
@@ -95,33 +218,7 @@ export async function jouerAction(
       aleatoire: deps.aleatoire(),
     });
 
-    const details = { details: { action, cibleId: cibleId ?? null } };
-    const acteurFinal = r.acteur
-      ? await enregistrer(
-          tx,
-          ctx,
-          catalogue,
-          appelant,
-          acteur,
-          { etat: r.acteur },
-          { operation: 'action', ...details },
-          optionsActeur,
-        )
-      : acteur;
-    const cibleFinale =
-      r.cible && cible
-        ? await enregistrer(
-            tx,
-            ctx,
-            catalogue,
-            appelant,
-            cible,
-            { etat: r.cible },
-            { operation: 'action.cible', ...details },
-            optionsDe(cible.id),
-          )
-        : cible;
-
+    const { acteurFinal, cibleFinale } = await enregistrerAction(c, tx, acteur, cible, r);
     await journaliserAction(tx, ctx, appelant, id, {
       action,
       cibleId: cibleId ?? null,
@@ -129,34 +226,8 @@ export async function jouerAction(
       resultat: r.resultat,
       ...(r.cles ? { cles: r.cles } : {}),
     });
-
-    // Auteur du jet : l'utilisateur qui agit (pas de jet transmis pour un appel du système).
-    // Avec une cible, seulement la vue de l'acteur : le déroulé nomme les défenses de la cible
-    if (appelant.userId)
-      jet = [
-        systeme,
-        acteur,
-        cible ? vueActeur(systeme, r.resultat) : r.resultat,
-        {
-          authorId: appelant.userId,
-          ...(demande.campaignId ? { campaignId: demande.campaignId } : {}),
-          ...(demande.visibility ? { visibility: demande.visibility } : {}),
-        },
-      ];
-
-    const base = { resultat: r.resultat, ...(r.cles ? { cles: r.cles } : {}) };
-    if (!appliquer) return base;
-    return {
-      ...base,
-      personnage: versApi(catalogue, acteurFinal, { options: optionsActeur }),
-      ...(cibleFinale
-        ? {
-            cible: versApi(catalogue, memeEntite ? acteurFinal : cibleFinale, {
-              options: optionsDe(cibleFinale.id),
-            }),
-          }
-        : {}),
-    };
+    jet = jetAction(c, systeme, acteur, cible, r);
+    return reponseAction(c, r, acteurFinal, cibleFinale);
   });
 
   // Après validation de la transaction : un jet d'une action annulée n'est jamais transmis
