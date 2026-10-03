@@ -32,6 +32,58 @@ export interface EncounterData {
   attributeName(key: string): string;
 }
 
+type BestiaryCreature = NonNullable<
+  ReturnType<typeof useSystemBestiary>['data']
+>['creatures'][number];
+type NpcTemplate = NonNullable<ReturnType<typeof useNpcTemplates>['data']>['templates'][number];
+
+/** Créature du bestiaire dans le vivier, si sa puissance se lit. */
+function bestiaryCreature(c: BestiaryCreature, rules: Rencontres): EncounterCreature | null {
+  const power = num(c.valeurs[rules.puissance]);
+  if (!Number.isFinite(power)) return null;
+  return {
+    key: `bestiary:${c.id}`,
+    name: c.nom,
+    category: c.categorie,
+    image: c.image ?? null,
+    power,
+    values: c.valeurs,
+    source: { bestiary: c.id },
+  };
+}
+
+/** Modèle « Mes PNJ » dans le vivier : sa fiche calculée donne puissance et filtres. */
+function templateCreature(
+  systeme: SystemeCharge,
+  rules: Rencontres,
+  t: NpcTemplate,
+  cats: Map<string, string>,
+): EncounterCreature | null {
+  if (!t.etat || !systeme.entites.has(t.etat.type)) return null;
+  try {
+    const fiche = calculer(systeme, t.etat);
+    const power = num(fiche.valeur(rules.puissance));
+    if (!Number.isFinite(power)) return null;
+    const values: Record<string, number> = {};
+    for (const k of rules.filtres) {
+      const v = num(fiche.valeur(k));
+      if (Number.isFinite(v)) values[k] = v;
+    }
+    return {
+      key: `template:${t.id}`,
+      name: t.name,
+      category: (t.categoryId && cats.get(t.categoryId)) || 'Mes PNJ',
+      image: t.imageUrl,
+      power,
+      values,
+      source: { template: t.id },
+    };
+  } catch {
+    // Modèle illisible : écarté du vivier
+    return null;
+  }
+}
+
 export function useEncounterData(campaignId: string, systemId: string): EncounterData {
   const sys = useCampaignSystem(systemId, campaignId);
   const systeme = sys.data?.systeme ?? null;
@@ -75,42 +127,13 @@ export function useEncounterData(campaignId: string, systemId: string): Encounte
     if (!systeme || !rules) return [];
     const out: EncounterCreature[] = [];
     for (const c of bestiary.data?.creatures ?? []) {
-      const power = num(c.valeurs[rules.puissance]);
-      if (!Number.isFinite(power)) continue;
-      out.push({
-        key: `bestiary:${c.id}`,
-        name: c.nom,
-        category: c.categorie,
-        image: c.image ?? null,
-        power,
-        values: c.valeurs,
-        source: { bestiary: c.id },
-      });
+      const creature = bestiaryCreature(c, rules);
+      if (creature) out.push(creature);
     }
     const cats = new Map((templates.data?.categories ?? []).map((c) => [c.id, c.name]));
     for (const t of templates.data?.templates ?? []) {
-      if (!t.etat || !systeme.entites.has(t.etat.type)) continue;
-      try {
-        const fiche = calculer(systeme, t.etat);
-        const power = num(fiche.valeur(rules.puissance));
-        if (!Number.isFinite(power)) continue;
-        const values: Record<string, number> = {};
-        for (const k of rules.filtres) {
-          const v = num(fiche.valeur(k));
-          if (Number.isFinite(v)) values[k] = v;
-        }
-        out.push({
-          key: `template:${t.id}`,
-          name: t.name,
-          category: (t.categoryId && cats.get(t.categoryId)) || 'Mes PNJ',
-          image: t.imageUrl,
-          power,
-          values,
-          source: { template: t.id },
-        });
-      } catch {
-        // Modèle illisible : écarté du vivier
-      }
+      const creature = templateCreature(systeme, rules, t, cats);
+      if (creature) out.push(creature);
     }
     return out;
   }, [bestiary.data, templates.data, systeme, rules]);
