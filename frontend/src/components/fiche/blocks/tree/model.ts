@@ -257,11 +257,22 @@ export interface TreeView {
 
 const LOCKING = new Set(['non-relie', 'arbre-ferme']);
 
-export function buildTrees(fiche: Fiche): TreeView[] {
-  const { systeme, etat } = fiche;
-  const arbres = [...systeme.arbres.values()];
-  if (!arbres.length) return [];
+/** Offres des arbres : par nœud (`arbre/noeud`), par entrée qui ouvre un arbre, monnaies par arbre. */
+interface TreeOffers {
+  nodeOffers: Map<string, ObjetAchetable>;
+  openerOffers: Map<string, ObjetAchetable>;
+  currenciesByTree: Map<string, Set<string>>;
+}
 
+/** Garde la meilleure offre d'un objet : une offre possible remplace une offre impossible. */
+function keepBest(target: Map<string, ObjetAchetable>, x: ObjetAchetable) {
+  const prev = target.get(x.objet);
+  if (!prev || (!prev.possible && x.possible)) target.set(x.objet, x);
+}
+
+/** Achats des nœuds et des entrées qui ouvrent un arbre, possibles avec la fiche. */
+function treeOffers(fiche: Fiche, arbres: Arbre[]): TreeOffers {
+  const { systeme } = fiche;
   const nodeAchats = [...systeme.achats.values()].filter((a) => a.obtient.type === 'noeud');
   const openers = new Set(arbres.map((a) => a.ouvertPar).filter((x): x is string => !!x));
   const openerAchats = [...systeme.achats.values()].filter((a) => {
@@ -273,88 +284,117 @@ export function buildTrees(fiche: Fiche): TreeView[] {
   const ids = [...nodeAchats, ...openerAchats].map((a) => a.id);
   const disponibles = ids.length ? achatsPossibles(fiche, ids) : [];
 
-  const nodeOffers = new Map<string, ObjetAchetable>();
-  const openerOffers = new Map<string, ObjetAchetable>();
-  const currenciesByTree = new Map<string, Set<string>>();
+  const offers: TreeOffers = {
+    nodeOffers: new Map(),
+    openerOffers: new Map(),
+    currenciesByTree: new Map(),
+  };
   for (const d of disponibles) {
-    const o = d.achat.obtient;
+    const noeud = d.achat.obtient.type === 'noeud';
     for (const x of d.objets) {
-      const target = o.type === 'noeud' ? nodeOffers : openerOffers;
-      if (o.type !== 'noeud' && !openers.has(x.objet)) continue;
-      const prev = target.get(x.objet);
-      if (!prev || (!prev.possible && x.possible)) target.set(x.objet, x);
-      if (o.type === 'noeud' && x.arbre) {
-        const s = currenciesByTree.get(x.arbre) ?? new Set<string>();
+      if (!noeud && !openers.has(x.objet)) continue;
+      keepBest(noeud ? offers.nodeOffers : offers.openerOffers, x);
+      if (noeud && x.arbre) {
+        const s = offers.currenciesByTree.get(x.arbre) ?? new Set<string>();
         s.add(d.achat.monnaie);
-        currenciesByTree.set(x.arbre, s);
+        offers.currenciesByTree.set(x.arbre, s);
       }
     }
   }
+  return offers;
+}
 
+/** État d'un nœud : acquis, achetable, bloqué (conditions), ou verrouillé (arbre, liens). */
+function nodeState(owned: boolean, offer: ObjetAchetable | undefined, open: boolean): NodeState {
+  if (owned) return 'owned';
+  if (offer?.possible) return 'available';
+  if (!open || !offer || offer.blocages.some((b) => LOCKING.has(b.code))) return 'locked';
+  return 'blocked';
+}
+
+/** Nœud affiché : position, état, offre, coût et rang de l'entrée qu'il donne. */
+function nodeView(
+  fiche: Fiche,
+  tree: Arbre,
+  n: Arbre['noeuds'][number],
+  ctx: { open: boolean; acquired: Set<string>; nodeOffers: Map<string, ObjetAchetable> },
+): NodeView | null {
+  const { systeme, etat } = fiche;
+  const entry = systeme.entrees.get(n.entree);
+  if (!entry) return null;
+  const key = `${tree.id}/${n.id}`;
+  const offer = ctx.nodeOffers.get(key);
+  const owned = ctx.acquired.has(n.id);
+  const state = nodeState(owned, offer, ctx.open);
+  const refundIndex = owned ? lastPurchaseIndex(systeme, etat, key, 'noeud') : undefined;
+  return {
+    id: n.id,
+    entry,
+    x: n.x,
+    y: n.y,
+    state,
+    entryRank: fiche.possessions.get(entry.id)?.rang ?? 0,
+    ...(offer ? { offer, cost: offer.cout, currency: offer.monnaie } : {}),
+    ...(state === 'owned' ? costOfOwned(fiche, tree, n) : {}),
+    ...(refundIndex !== undefined ? { refundIndex } : {}),
+  };
+}
+
+/** Liens entre nœuds affichés, avec leur état (acquis, ouvert, inactif). */
+function linksOf(tree: Arbre, nodes: NodeView[]): LinkView[] {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const links: LinkView[] = [];
+  for (const l of tree.liens) {
+    const from = byId.get(l.de);
+    const to = byId.get(l.vers);
+    if (!from || !to) continue;
+    const a = from.state === 'owned';
+    const b = to.state === 'owned';
+    const state = linkState(a, b, l.sens === 'double');
+    links.push({ from, to, oneWay: l.sens === 'simple', state });
+  }
+  return links;
+}
+
+/** Vue d'un arbre : nœuds, liens, cadre de la grille, ouverture et monnaies. */
+function treeView(fiche: Fiche, tree: Arbre, offers: TreeOffers): TreeView {
+  const open = arbreOuvert(fiche, tree);
+  const acquired = noeudsAcquis(fiche.etat, tree.id);
+  const ctx = { open, acquired, nodeOffers: offers.nodeOffers };
+  const nodes = tree.noeuds
+    .map((n) => nodeView(fiche, tree, n, ctx))
+    .filter((n): n is NodeView => n !== null);
+  const links = linksOf(tree, nodes);
+  const xs = nodes.map((n) => n.x);
+  const ys = nodes.map((n) => n.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const opener = tree.ouvertPar ? fiche.systeme.entrees.get(tree.ouvertPar) : undefined;
+  const openerOffer = !open && opener ? offers.openerOffers.get(opener.id) : undefined;
+  return {
+    tree,
+    open,
+    nodes,
+    links,
+    columns: Math.max(...xs) - minX + 1,
+    rows: Math.max(...ys) - minY + 1,
+    minX,
+    minY,
+    owned: acquired.size,
+    ...(opener ? { opener } : {}),
+    ...(openerOffer ? { openerOffer } : {}),
+    currencies: [...(offers.currenciesByTree.get(tree.id) ?? [])],
+  };
+}
+
+export function buildTrees(fiche: Fiche): TreeView[] {
+  const { systeme } = fiche;
+  const arbres = [...systeme.arbres.values()];
+  if (!arbres.length) return [];
+  const offers = treeOffers(fiche, arbres);
   return arbres
     .filter((a) => a.noeuds.some((n) => systeme.entrees.has(n.entree)))
-    .map((tree) => {
-      const open = arbreOuvert(fiche, tree);
-      const acquired = noeudsAcquis(etat, tree.id);
-      const nodes: NodeView[] = [];
-      for (const n of tree.noeuds) {
-        const entry = systeme.entrees.get(n.entree);
-        if (!entry) continue;
-        const key = `${tree.id}/${n.id}`;
-        const offer = nodeOffers.get(key);
-        let state: NodeState;
-        if (acquired.has(n.id)) state = 'owned';
-        else if (offer?.possible) state = 'available';
-        else if (!open || !offer || offer.blocages.some((b) => LOCKING.has(b.code)))
-          state = 'locked';
-        else state = 'blocked';
-        const refundIndex = acquired.has(n.id)
-          ? lastPurchaseIndex(systeme, etat, key, 'noeud')
-          : undefined;
-        nodes.push({
-          id: n.id,
-          entry,
-          x: n.x,
-          y: n.y,
-          state,
-          entryRank: fiche.possessions.get(entry.id)?.rang ?? 0,
-          ...(offer ? { offer, cost: offer.cout, currency: offer.monnaie } : {}),
-          ...(state === 'owned' ? costOfOwned(fiche, tree, n) : {}),
-          ...(refundIndex !== undefined ? { refundIndex } : {}),
-        });
-      }
-      const byId = new Map(nodes.map((n) => [n.id, n]));
-      const links: LinkView[] = [];
-      for (const l of tree.liens) {
-        const from = byId.get(l.de);
-        const to = byId.get(l.vers);
-        if (!from || !to) continue;
-        const a = from.state === 'owned';
-        const b = to.state === 'owned';
-        const state = linkState(a, b, l.sens === 'double');
-        links.push({ from, to, oneWay: l.sens === 'simple', state });
-      }
-      const xs = nodes.map((n) => n.x);
-      const ys = nodes.map((n) => n.y);
-      const minX = Math.min(...xs);
-      const minY = Math.min(...ys);
-      const opener = tree.ouvertPar ? systeme.entrees.get(tree.ouvertPar) : undefined;
-      const openerOffer = !open && opener ? openerOffers.get(opener.id) : undefined;
-      return {
-        tree,
-        open,
-        nodes,
-        links,
-        columns: Math.max(...xs) - minX + 1,
-        rows: Math.max(...ys) - minY + 1,
-        minX,
-        minY,
-        owned: acquired.size,
-        ...(opener ? { opener } : {}),
-        ...(openerOffer ? { openerOffer } : {}),
-        currencies: [...(currenciesByTree.get(tree.id) ?? [])],
-      };
-    });
+    .map((tree) => treeView(fiche, tree, offers));
 }
 
 /** Coût affiché d'un nœud déjà acquis : celui payé au journal, sinon la formule du nœud. */
