@@ -931,7 +931,7 @@ export function ActorCostCard({
   const actions = useAttackActions(campaignId, attack);
   const attacker = cast.get(attack.attackerId);
   const actor = attack.actor;
-  if (!actor || !actor.modifications.length) return null;
+  if (!actor?.modifications.length) return null;
   const decidable = actorDecidable(attack);
   return (
     <div

@@ -73,7 +73,7 @@ export function aimLines(
   mine: { attackerId: string; targetIds: readonly string[] } | null,
 ): { attackerId: string; targetIds: readonly string[] }[] {
   const lines = state.aims.filter((a) => a.targetIds.length);
-  return mine && mine.targetIds.length ? [...lines, mine] : lines;
+  return mine?.targetIds.length ? [...lines, mine] : lines;
 }
 
 /**

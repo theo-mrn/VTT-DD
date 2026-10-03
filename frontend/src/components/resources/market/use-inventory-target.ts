@@ -47,8 +47,7 @@ export function useInventoryTarget(
     (entry: Entree): string | null => {
       if (!calcul) return 'Fiche indisponible';
       const sorte = calcul.systeme.sortes.get(entry.sorte);
-      if (!sorte || !sorte.pour.includes(calcul.etat.type))
-        return 'Ne se range pas dans cet inventaire';
+      if (!sorte?.pour.includes(calcul.etat.type)) return 'Ne se range pas dans cet inventaire';
       const modes = modesAjout(calcul, entry, sorte);
       if (modes.empiler || modes.nouveau) return null;
       return calcul.etat.possessions.some((p) => p.entree === entry.id)

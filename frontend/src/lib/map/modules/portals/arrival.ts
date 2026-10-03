@@ -49,7 +49,7 @@ export function mountArrival(
     const draw = () => {
       const e = target ? engine.entity(target) : undefined;
       const p = e?.data as PortalData | undefined;
-      if (!e || !p || p.kind !== 'same_map' || !p.target || !e.display?.visible) {
+      if (!e || p?.kind !== 'same_map' || !p.target || !e.display?.visible) {
         hide();
         return;
       }
@@ -122,7 +122,7 @@ export function mountArrival(
     const onSelection = () => {
       const ids = engine.selection.ids;
       const e = ids.length === 1 ? engine.entity(ids[0]!) : undefined;
-      target = e && e.kind.id === PORTAL_KIND ? e.id : null;
+      target = e?.kind.id === PORTAL_KIND ? e.id : null;
       if (target && !stopFrames) stopFrames = engine.onFrame(() => void draw());
       if (!target && stopFrames) {
         stopFrames();

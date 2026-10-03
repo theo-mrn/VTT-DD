@@ -61,7 +61,7 @@ const viewOf = (entity: MapEntity): ObjectView | undefined =>
 /** Proportions naturelles de l'image affichée (largeur / hauteur), ou null. */
 export function imageAspect(entity: MapEntity): number | null {
   const view = viewOf(entity);
-  if (!view || view.status !== 'ready') return null;
+  if (view?.status !== 'ready') return null;
   const t: Texture = view.sprite.texture;
   const w = t.orig?.width ?? t.width;
   const h = t.orig?.height ?? t.height;

@@ -736,7 +736,7 @@ export function transformRoom(
     const start = point(g?.start);
     const end = point(g?.end);
     const shape = oneOf(g?.type, MEASUREMENT_SHAPES);
-    if (!g || g.permanent !== true || !start || !end || !shape) {
+    if (g?.permanent !== true || !start || !end || !shape) {
       transient++;
       continue;
     }

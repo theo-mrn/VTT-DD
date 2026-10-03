@@ -75,7 +75,7 @@ export function useDeclaredAttack(flow: OpenFlow, commands: Commands): Attack | 
   // chaque attaque s'appellent pareil (`roll-0`) : la clé porte l'attaque.
   const sent = useRef(new Set<string>());
   useEffect(() => {
-    if (!attack || attack.status !== 'awaiting_dice' || attack.resolving) return;
+    if (attack?.status !== 'awaiting_dice' || attack.resolving) return;
     for (const step of attack.pendingSteps) {
       const key = `${attack.id}:${step.id}`;
       if (step.phase !== 'roll' || sent.current.has(key)) continue;

@@ -37,7 +37,7 @@ const AssetIds = z
 /** Table d'effets lue en base, sans les sons supprimés depuis. Sans ligne : vide, version 0. */
 export async function soundboardOf(db: Reader, campaignId: string): Promise<Soundboard> {
   const [row] = await db.select().from(soundboards).where(eq(soundboards.campaignId, campaignId));
-  if (!row || !row.assetIds.length) return { assetIds: [], version: row?.version ?? 0 };
+  if (!row?.assetIds.length) return { assetIds: [], version: row?.version ?? 0 };
   const living = await db
     .select({ id: assets.id })
     .from(assets)

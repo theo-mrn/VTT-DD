@@ -528,7 +528,7 @@ export function mergeWithNeighbours(plan: EditPlan, id: string): string {
   let current = id;
   for (let guard = 0; guard < 8; guard++) {
     const o = plan.obstacle(current);
-    if (!o || o.kind !== 'wall' || isClosed(o.points)) return current;
+    if (o?.kind !== 'wall' || isClosed(o.points)) return current;
     let merged = false;
     for (const end of [o.points[0]!, o.points[o.points.length - 1]!]) {
       const touching = [...plan.obstacles()].filter(

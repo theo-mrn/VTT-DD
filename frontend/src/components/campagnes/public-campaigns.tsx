@@ -110,7 +110,7 @@ export function CampagnesOuvertes({
         ))}
       </div>
 
-      {donnees && donnees.total === 0 && (
+      {donnees?.total === 0 && (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-sm text-subtle">
           {recherche.trim()
             ? 'Aucune campagne ouverte ne correspond à cette recherche.'

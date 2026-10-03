@@ -102,7 +102,7 @@ export class MeasureTool implements Tool {
   private editableSelection(engine: MapEngine): MapEntity | null {
     if (engine.selection.size !== 1) return null;
     const e = engine.entity(engine.selection.ids[0]!);
-    if (!e || e.kind.id !== MEASUREMENT_KIND || e.masks.size) return null;
+    if (e?.kind.id !== MEASUREMENT_KIND || e.masks.size) return null;
     return e.kind.can('move', e, engine.viewer) ? e : null;
   }
 

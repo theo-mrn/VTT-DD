@@ -249,7 +249,7 @@ export function firstDieFaces(formula: string | null | undefined): number | null
  * pool (§ 12.1, 2). `null` : dépend de la cible, inconnu avant le jet.
  */
 export function poolCounts(preview: RollPreview | null): Readonly<Record<string, number | null>> {
-  if (!preview || preview.kind !== 'symbols') return {};
+  if (preview?.kind !== 'symbols') return {};
   const counts: Record<string, number | null> = {};
   for (const d of preview.dice)
     counts[d.die] =

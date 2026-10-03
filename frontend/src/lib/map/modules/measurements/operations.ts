@@ -55,7 +55,7 @@ export function toLive(m: LocalMeasure, pinned = false): LiveMeasure {
 /** Ma mesure change : elle part au direct (15 Hz au plus, le canal regroupe). */
 export function setLocal(ctx: MeasureModule, m: LocalMeasure | null, send = true) {
   ctx.local.setState({ measure: m });
-  if (send && m && m.phase === 'drawing') ctx.engine.live?.measure(toLive(m), liveAudience(ctx));
+  if (send && m?.phase === 'drawing') ctx.engine.live?.measure(toLive(m), liveAudience(ctx));
   ctx.engine.invalidate();
 }
 

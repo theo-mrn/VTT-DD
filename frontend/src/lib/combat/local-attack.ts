@@ -275,7 +275,7 @@ export function runLocal(
         view: w.partiel ? targetView(systeme, w.partiel) : null,
       };
     const c = done.get(id);
-    if (!c || !c.ok)
+    if (!c?.ok)
       return {
         characterId: id,
         status: 'failed',
@@ -326,7 +326,7 @@ async function advance(
   for (let i = 0; i < MAX_ROUNDS; i++) {
     const run = runLocal(input, faces, start.params);
     const step = run.step;
-    if (!step || !step.dice.length || step.params?.length || step.phase !== phase)
+    if (!step?.dice.length || step.params?.length || step.phase !== phase)
       return { input, faces, params: start.params, last: run };
     const wanted = new Map(step.dice.map((d) => [d.id, d.faces]));
     for (const r of await roll(step)) {

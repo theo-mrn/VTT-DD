@@ -101,7 +101,7 @@ export const register: Module = async (app, deps) => {
       const total = b.total ?? (symbols ? 0 : null);
       const symbolResult = symbols ? formatSymbolResult(system, symbols.results) : null;
       const first = symbols ? { diceCount: symbols.dice.length, diceFaces: 0 } : firstGroup(b.dice);
-      if (symbols && symbols.dice[0] && system?.source.des) {
+      if (symbols?.dice[0] && system?.source.des) {
         const sorte = system.source.des.sortes.find((s) => s.id === symbols.dice[0]!.die);
         first.diceFaces = sorte?.faces.length ?? 0;
       }

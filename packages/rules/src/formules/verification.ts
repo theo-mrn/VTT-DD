@@ -204,7 +204,7 @@ export function verifier(
   function typerAppel(n: Extract<Noeud, { t: 'appel' }>): TypeValeur | null {
     const litteral = (quoi: string): string | null => {
       const a = n.args[0];
-      if (n.args.length !== 1 || !a || a.t !== 'texte') {
+      if (n.args.length !== 1 || a?.t !== 'texte') {
         erreur(`${n.fn}() attend ${quoi} entre guillemets`, n.pos);
         return null;
       }
@@ -214,7 +214,7 @@ export function verifier(
     switch (n.fn) {
       case 'mod': {
         const a = n.args[0];
-        if (n.args.length !== 1 || !a || a.t !== 'attribut') {
+        if (n.args.length !== 1 || a?.t !== 'attribut') {
           erreur('mod() attend un attribut : mod(@DEX)', n.pos);
           return 'nombre';
         }

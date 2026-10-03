@@ -210,7 +210,7 @@ async function reject(deps: WorkerDeps, job: JobRow, row: AssetRow, reason: stri
 
 async function purge(deps: WorkerDeps, job: JobRow, row: AssetRow | undefined) {
   // Ranimé entre-temps : rien à effacer
-  if (row && row.deletedAt) {
+  if (row?.deletedAt) {
     const keys = [row.originalKey, row.playbackKey].filter((k): k is string => !!k);
     await deps.storage.remove([...new Set(keys)]);
   }
@@ -233,7 +233,7 @@ export async function runJob(
       await purge(deps, job, row);
       return 'done';
     }
-    if (!row || row.status !== 'processing') {
+    if (row?.status !== 'processing') {
       await deps.db
         .update(jobs)
         .set({ status: 'done', lockedUntil: null, updatedAt: sql`now()` })

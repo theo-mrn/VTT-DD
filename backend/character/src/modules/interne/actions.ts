@@ -416,7 +416,7 @@ function resoudre(
         view: attente.partiel ? vueCible(systeme, attente.partiel) : null,
       };
     const c = parCible.get(id);
-    if (!c || !c.ok)
+    if (!c?.ok)
       return {
         characterId: id,
         status: 'failed',

@@ -229,7 +229,7 @@ export class MapSync {
       case 'moved': {
         const to = payload.to as { mapId: string; x: number; y: number } | undefined;
         const from = payload.from as { mapId: string } | null | undefined;
-        const tokenId = String(payload.tokenId ?? id);
+        const tokenId = idOf(payload.tokenId, id);
         if (to?.mapId === this.mapId) {
           const known = store.collections.tokens?.get(tokenId);
           if (known) {
@@ -256,10 +256,10 @@ export class MapSync {
       case 'hidden':
         // Le MJ voit tout : `hidden` ne concerne que les joueurs qui le voyaient
         if (this.opts.viewer().role === 'gm') return;
-        store.remove('tokens', [String(payload.id ?? id)]);
+        store.remove('tokens', [idOf(payload.id, id)]);
         return;
       case 'deleted':
-        store.remove('tokens', [String(payload.id ?? id)]);
+        store.remove('tokens', [idOf(payload.id, id)]);
         return;
     }
   }
@@ -294,12 +294,12 @@ export class MapSync {
         return;
       }
       case 'deleted':
-        store.remove(key, [String(payload.id ?? id)]);
+        store.remove(key, [idOf(payload.id, id)]);
         return;
       case 'hidden': {
         // Le MJ voit tout : `hidden` ne concerne que les joueurs qui le voyaient
         if (gm) return;
-        const hiddenId = String(payload.id ?? id);
+        const hiddenId = idOf(payload.id, id);
         store.remove(key, [hiddenId]);
         // Calque masqué aux joueurs : tout son contenu disparaît
         if (key === 'layers')
@@ -381,4 +381,9 @@ export function useMapSync(opts: {
   }, [live, sync]);
 
   return { sync, live };
+}
+
+/** Identifiant lu dans un événement : la chaîne reçue, sinon celui de l'agrégat. */
+function idOf(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback;
 }

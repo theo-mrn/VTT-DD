@@ -309,7 +309,7 @@ function best(
   let score = Infinity;
   for (let i = 0; i < tries; i++) {
     const g = draw(rng, t, pool, fixed);
-    if (!g || !g.length || avoid.has(signature(g))) continue;
+    if (!g?.length || avoid.has(signature(g))) continue;
     const d = gap(t, g);
     if (d < score) {
       found = g;

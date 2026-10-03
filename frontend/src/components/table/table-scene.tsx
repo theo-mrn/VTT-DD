@@ -61,7 +61,7 @@ export function TableScene({ id, children }: Readonly<{ id: string; children: Re
   useSystemTypography(c?.system ?? null, systeme.data?.presentation ?? null);
 
   const refuse = campagne.error instanceof ApiError && [403, 404].includes(campagne.error.status);
-  const sansHeros = Boolean(c && moi && moi.role === 'player' && !herosId);
+  const sansHeros = Boolean(c && moi?.role === 'player' && !herosId);
   const horsTable = Boolean(c && !moi);
 
   useEffect(() => {

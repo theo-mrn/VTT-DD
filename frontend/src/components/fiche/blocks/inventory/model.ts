@@ -717,7 +717,7 @@ export function buildCatalogue(fiche: Fiche, widget: InventoryWidget): Catalogue
     // Entrée générique d'objets hors catalogue : proposée par l'ajout d'un objet personnalisé
     if (!widget.sortes.includes(entree.sorte) || entree.libre) continue;
     const sorte = systeme.sortes.get(entree.sorte);
-    if (!sorte || !sorte.pour.includes(etat.type)) continue;
+    if (!sorte?.pour.includes(etat.type)) continue;
     const siens = etat.possessions.filter((p) => p.entree === entree.id);
     const possede = siens.reduce((n, p) => n + quantiteDe(p), 0);
     let bloque: string | undefined;

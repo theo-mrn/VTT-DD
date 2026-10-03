@@ -497,9 +497,13 @@ export async function mountMap(opts: MapHarnessOptions = {}) {
         transport: { send: (kind, data, options) => sent.push({ kind, data, options }) },
         audienceOf: (id) => engineRef.current?.liveAudience(id) ?? 'gm',
       });
+  // Horloge du moteur = temps des images (`frame`) : une animation lancée par un événement
+  // (vue centrée sur un ping…) part du même temps que les images qui la font avancer
+  let time = 10_000;
   const engine = new MapEngine({
     store,
     live,
+    now: () => time,
     viewer: opts.viewer ?? GM,
     commands,
     backend,
@@ -521,7 +525,6 @@ export async function mountMap(opts: MapHarnessOptions = {}) {
   engine.resize(1000, 800);
   if (!opts.headless) await engine.mount(host);
 
-  let time = 10_000;
   /** Une image : étape du moteur puis rendu (le faux GPU compte les rendus). */
   const frame = (dt = 16) => {
     time += dt;

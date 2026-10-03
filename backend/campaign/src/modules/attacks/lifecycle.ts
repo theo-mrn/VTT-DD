@@ -87,7 +87,7 @@ export function outOfTurnOf(state: CombatState | null, attackerId: string): bool
  * encore agi, le désigne acteur du créneau (docs/combat.md § 4.3).
  */
 export function implicitSlotActor(state: CombatState | null, attackerId: string): boolean {
-  if (!state || state.mode !== 'slots' || state.currentActorId) return false;
+  if (state?.mode !== 'slots' || state.currentActorId) return false;
   const p = state.order.find((x) => x.characterId === attackerId);
   return !!p && !p.hasActed && p.side === currentSlotSide(state);
 }

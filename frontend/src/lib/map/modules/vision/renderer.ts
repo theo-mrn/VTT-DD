@@ -544,7 +544,7 @@ export class VisionRenderer {
     const g = this.wallLines;
     g.clear();
     const w = p.walls;
-    if (!w || !w.length || p.darkness <= 0) return;
+    if (!w?.length || p.darkness <= 0) return;
     for (let i = 0; i + 3 < w.length; i += 4)
       g.moveTo(w[i]!, w[i + 1]!).lineTo(w[i + 2]!, w[i + 3]!);
     g.stroke({

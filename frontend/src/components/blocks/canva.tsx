@@ -136,7 +136,7 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: Readonly<CanvaS
 
   const handleVideoLoadedMetadata = () => {
     const video = videoRef.current;
-    if (video && video.videoWidth && video.videoHeight) {
+    if (video?.videoWidth && video.videoHeight) {
       videoAspectRef.current = video.videoWidth / video.videoHeight;
       recomputeCoverRect();
     }

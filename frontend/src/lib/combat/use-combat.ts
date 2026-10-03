@@ -81,7 +81,7 @@ export function combatSettings(combat: CombatState | null | undefined): CombatSe
 
 /** Camp du créneau courant (mode slots), ou null. */
 export function currentSlotSide(combat: CombatState | null | undefined) {
-  if (!combat || combat.mode !== 'slots') return null;
+  if (combat?.mode !== 'slots') return null;
   return combat.slots?.[combat.currentIndex]?.side ?? null;
 }
 

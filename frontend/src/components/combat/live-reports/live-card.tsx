@@ -116,7 +116,7 @@ export function ReportCard({ attack: a, live }: Readonly<{ attack: Attack; live:
   const t0 = a.targets[0];
   const all = wholeScope(a);
   const nothing = nothingToApply(a);
-  const isBusy = busy !== null && busy.startsWith(`${a.id}:`);
+  const isBusy = busy?.startsWith(`${a.id}:`) === true;
   const skip: Scope = { targets: decidable, actor: false };
   const numeric = t0 ? (t0.result?.roll ?? t0.view?.roll)?.kind === 'numeric' : false;
 
@@ -258,7 +258,7 @@ function TargetRow({
   const name = m?.name ?? 'Personnage';
   const decidable = isDecidable(t);
   const scope: Scope = { targets: [t], actor: false };
-  const isBusy = busy !== null && busy.startsWith(`${a.id}:`);
+  const isBusy = busy?.startsWith(`${a.id}:`) === true;
   return (
     <motion.li
       // L'ordre des cibles ne change qu'avec leur nombre
@@ -412,7 +412,7 @@ export function ReportRow({ attack: a, live }: Readonly<{ attack: Attack; live: 
   const t0 = a.targets[0];
   const all = wholeScope(a);
   const nothing = nothingToApply(a);
-  const isBusy = busy !== null && busy.startsWith(`${a.id}:`);
+  const isBusy = busy?.startsWith(`${a.id}:`) === true;
   const main = single && t0 ? targetAmounts(t0)[0] : undefined;
   const { applyLabel, skip, canSkip } = rowDecision(a);
   return (

@@ -115,7 +115,7 @@ export function SelectionPanel() {
         // Un clic dans le panneau ne part pas à la carte (pas de désélection, pas de pan)
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {single && single.kind.id === TOKEN_KIND_ID && (
+        {single?.kind.id === TOKEN_KIND_ID && (
           <CharacterQuick engine={engine} characterId={(single.data as TokenData).characterId} />
         )}
 
