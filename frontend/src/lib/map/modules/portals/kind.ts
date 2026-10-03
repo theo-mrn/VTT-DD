@@ -94,7 +94,7 @@ export const sceneName = (ctx: Pick<PortalContext, 'scenes'>, id: string | null)
 /** Entrées du menu d'un portail (MJ) et « Emprunter » (joueur). */
 export function portalActions(ctx: PortalContext, entities: readonly MapEntity[]): MenuItem[] {
   const single = entities.length === 1 ? entities[0]! : null;
-  if (!isGm(ctx.engine.viewer)) return single ? [useItem(ctx, single)] : [];
+  if (!isGm(ctx.engine.viewer)) return single ? [borrowItem(ctx, single)] : [];
   const items: MenuItem[] = single ? singlePortalItems(ctx, single) : [];
   const allAuto = entities.every((e) => portalOf(e).auto);
   items.push({
@@ -114,7 +114,7 @@ export function portalActions(ctx: PortalContext, entities: readonly MapEntity[]
 }
 
 /** « Emprunter » (joueur) : ses personnages dans la zone passent. */
-function useItem(ctx: PortalContext, single: MapEntity): MenuItem {
+function borrowItem(ctx: PortalContext, single: MapEntity): MenuItem {
   const p = portalOf(single);
   const mine = ctx.travel.charactersInside(p);
   return {

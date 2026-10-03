@@ -208,7 +208,7 @@ async function createUploaded(
       'Envoi de fichiers indisponible',
     );
   const claims = verifyUploadToken(secret, body.uploadToken, deps.now());
-  if (!claims || claims.campaignId !== campaignId || claims.kind !== body.kind)
+  if (claims?.campaignId !== campaignId || claims.kind !== body.kind)
     throw new HttpError(
       422,
       'Envoi invalide',

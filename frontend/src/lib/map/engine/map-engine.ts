@@ -2030,7 +2030,7 @@ export class MapEngine {
    * gardent leur ordre relatif et restent au plus près de leur place à l'écran : en bas du
    * calque du dessus quand ils montent, en haut du calque visé sinon.
    */
-  moveToLayer(entities: readonly MapEntity[], target: string | 'above' | 'below') {
+  moveToLayer(entities: readonly MapEntity[], target: LayerTarget) {
     const targets = this.allowed(entities, 'order')
       .filter((e) => e.kind.stacking)
       .sort((a, b) => this.compareStack(a, b));
@@ -2053,7 +2053,7 @@ export class MapEngine {
   }
 
   /** Calque visé par une entité : celui donné, ou le voisin du sien (au-dessus, en dessous). */
-  private destinationLayer(e: MapEntity, target: string | 'above' | 'below'): string | undefined {
+  private destinationLayer(e: MapEntity, target: LayerTarget): string | undefined {
     if (target !== 'above' && target !== 'below') return target;
     const i = this.layerIndex(e.layerId);
     if (i < 0) return undefined;
@@ -2239,8 +2239,14 @@ function trimSeparators(items: MenuItem[]): MenuItem[] {
   return out;
 }
 
+/**
+ * Calque visé : son identifiant, ou `above` / `below` pour le voisin de celui de chaque entité.
+ * Les identifiants de calque sont des UUID : jamais confondus avec ces deux mots.
+ */
+type LayerTarget = string;
+
 /** Libellé d'un changement de calque. */
-function layerMoveLabel(target: string | 'above' | 'below'): string {
+function layerMoveLabel(target: LayerTarget): string {
   if (target === 'above') return 'Calque au-dessus';
   if (target === 'below') return 'Calque en dessous';
   return 'Changer de calque';

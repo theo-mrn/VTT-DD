@@ -266,7 +266,8 @@ function combine(lines: Line[]): Line | null {
 function show(v: unknown): string {
   if (typeof v === 'boolean') return v ? 'oui' : 'non';
   if (v === null || v === undefined) return '—';
-  return String(v);
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v as string | number | bigint);
 }
 
 /** Signe d'une modification d'attribut (sinon « = » : valeur fixée). */

@@ -584,7 +584,7 @@ export class LiveChannel {
     const c = this.cursors.get(user) ?? { samples: [], last: t, moved: -Infinity };
     const prev = c.samples.at(-1);
     let moved = false;
-    if (prev && prev.x === x && prev.y === y) {
+    if (prev?.x === x && prev.y === y) {
       // Rappel d'un curseur immobile : il n'expire pas, mais rien ne bouge (aucune image). Un
       // échantillon ancien est recalé, pour que le prochain déplacement parte de maintenant
       if (t - prev.t > LIVE_BUFFER_MS) c.samples = [{ t, x, y }];

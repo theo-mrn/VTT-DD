@@ -961,7 +961,7 @@ function MenuDossier({
           <ArrowLeft /> Placer avant
         </DropdownMenuItem>
       )}
-      {folders[folders.length - 1]?.id !== folder.id && (
+      {folders.at(-1)?.id !== folder.id && (
         <DropdownMenuItem onSelect={() => onDeplacer(1)}>
           <ArrowRight /> Placer après
         </DropdownMenuItem>

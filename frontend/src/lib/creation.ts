@@ -144,8 +144,14 @@ function valeurLisible(systeme: SystemeCharge, c: Champ, v: unknown): string | n
     return cible ? cible.nom : null;
   }
   if (typeof v === 'boolean') return v ? 'oui' : null;
-  if (c.type === 'choix') return c.options.find((o) => o.valeur === v)?.nom ?? String(v);
-  return String(v);
+  if (c.type === 'choix') return c.options.find((o) => o.valeur === v)?.nom ?? texte(v);
+  return texte(v);
+}
+
+/** Texte d'une valeur de champ : primitive telle quelle, structure en JSON. */
+function texte(v: unknown): string {
+  if (typeof v === 'object' && v !== null) return JSON.stringify(v);
+  return String(v as string | number | boolean | bigint);
 }
 
 /** Valeur calculée affichable (« 14 », « oui », texte). */

@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import {
   Bouton,
   Carte,
-  Chargement,
   formaterDate,
   formaterDepuis,
   Message,

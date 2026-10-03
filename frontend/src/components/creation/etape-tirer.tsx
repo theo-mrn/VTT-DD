@@ -232,7 +232,7 @@ export function EtapeTirer({
 }
 
 /** Valeur affichée d'un attribut tiré : la finale, sinon la base, sinon un tiret. */
-function valeurTiree(base: unknown, finale: unknown): string {
+function valeurTiree(base: unknown, finale: number | string | boolean | undefined): string {
   if (typeof base !== 'number') return '—';
   return finale === undefined ? String(base) : String(finale);
 }

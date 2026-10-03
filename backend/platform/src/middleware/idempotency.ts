@@ -98,5 +98,5 @@ export const idempotency = fp<IdempotencyOptions>(
 function replayableText(payload: unknown): string | null {
   if (payload == null) return '';
   if (typeof payload === 'string') return payload;
-  return Buffer.isBuffer(payload) ? payload.toString('utf8') : null;
+  return Buffer.isBuffer(payload) ? new TextDecoder().decode(payload) : null;
 }

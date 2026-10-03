@@ -144,7 +144,7 @@ function verifierFormules(
   const verifs = new Map<string, FormuleVerifiee>();
   for (const f of parDefaut) {
     const texte = formules[f.champ.id];
-    if (texte === undefined || !texte.trim()) continue;
+    if (!texte?.trim()) continue;
     verifs.set(f.champ.id, verifierFormuleObjet(fiche, objet, f.champ as ChampFormule, texte));
   }
   return verifs;

@@ -220,7 +220,7 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
   const showBring = bringOpen ?? options.pcs.length === 0;
   const selected = selectedOption(picked ?? current, role, all);
 
-  async function enter(target: CharacterOption | typeof GM_OPTION) {
+  async function enter(target: Choice) {
     const p = target === GM_OPTION ? null : target.character;
     // Création pas terminée : on la reprend là où elle s'est arrêtée
     if (p?.inCreation) {
@@ -676,14 +676,14 @@ function OptionStatus({ option: o }: Readonly<{ option: CharacterOption }>) {
 
 // ─── Sélection ───────────────────────────────────────────────────────────────
 
-function selectionStatus(selected: CharacterOption | typeof GM_OPTION | null) {
+function selectionStatus(selected: Choice | null) {
   if (!selected) return 'Sélectionnez un personnage';
   if (selected !== GM_OPTION && selected.takenFrom)
     return `Joué par ${selected.takenFrom.name} : vous le lui reprenez`;
   return 'Prêt à jouer';
 }
 
-function enterLabel(selected: CharacterOption | typeof GM_OPTION) {
+function enterLabel(selected: Choice) {
   if (selected === GM_OPTION) return 'Entrer en maître du jeu';
   return selected.character.inCreation ? 'Reprendre la création' : 'Entrer à la table';
 }
@@ -732,7 +732,7 @@ function SelectionPanel({
   sending,
   onEnter,
 }: Readonly<{
-  selected: CharacterOption | typeof GM_OPTION | null;
+  selected: Choice | null;
   played: CharacterOption | null;
   systemId: string;
   sending: boolean;
@@ -874,7 +874,7 @@ function MobileBar({
   sending,
   onEnter,
 }: Readonly<{
-  selected: CharacterOption | typeof GM_OPTION | null;
+  selected: Choice | null;
   sending: boolean;
   onEnter: () => void;
 }>) {

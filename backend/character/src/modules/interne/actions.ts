@@ -261,11 +261,14 @@ interface Resolue {
   resultats: { id: string; resultat: ResultatAction }[];
 }
 
+/** Valeur d'un paramètre d'action reçu de campaign. */
+type ValeurParametre = string | number | boolean;
+
 /** Dés de l'appel : faces connues, étape soumise et ses faces lues, repli du serveur. */
 interface DesAppel {
   faces?: Face[];
   step?: RollStep;
-  stepParams?: Record<string, string | number | boolean>;
+  stepParams?: Record<string, ValeurParametre>;
   results?: { id: string; value: number }[];
   serverFallback?: boolean;
 }
@@ -296,9 +299,9 @@ function libelleEtape(systeme: SystemeCharge, actionId: string, phase: PhaseDes)
 
 /** Paramètres de l'étape (l'arme) : exactement ceux qu'elle demande, jamais ceux du jet. */
 function parametresEtape(
-  params: Record<string, string | number | boolean> | undefined,
+  params: Record<string, ValeurParametre> | undefined,
   des: DesAppel,
-): Record<string, string | number | boolean> | undefined {
+): Record<string, ValeurParametre> | undefined {
   if (!des.stepParams) return params;
   const attendus = des.step?.params ?? [];
   const recus = Object.keys(des.stepParams);
@@ -356,7 +359,7 @@ function resoudre(
   deps: Pick<Deps, 'catalogue' | 'aleatoire'>,
   inst: Instantane,
   o: {
-    params?: Record<string, string | number | boolean>;
+    params?: Record<string, ValeurParametre>;
     rollMode: AttackRollMode;
     adjustments?: z.output<typeof RollAdjustments>;
     reactions?: z.output<typeof CorpsResoudre>['reactions'];

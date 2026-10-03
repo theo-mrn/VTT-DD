@@ -569,7 +569,7 @@ async function annulerApplication(
   corps: z.output<typeof CorpsAnnuler>,
   entete: typeof applications.$inferSelect,
 ): Promise<z.infer<typeof ReponseAnnuler>> {
-  const { db, catalogue } = c.deps;
+  const { db } = c.deps;
   return db.transaction(async (tx) => {
     const items = await tx
       .select()
