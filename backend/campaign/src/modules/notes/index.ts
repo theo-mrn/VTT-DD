@@ -134,6 +134,52 @@ async function resolveSharing(
   return { shared, sharedWith, sharedWithGm };
 }
 
+/**
+ * Campagne de la note après modification : l'auteur seul la déplace, vers une campagne dont
+ * il est membre et où il écrit.
+ */
+function destinationOf(
+  reader: NoteReader,
+  before: NoteRow,
+  target: string | undefined,
+): { moving: boolean; campaignId: string } {
+  const moving = target !== undefined && target !== before.campaignId;
+  const campaignId = moving ? target : before.campaignId;
+  if (moving) {
+    if (before.ownerUserId !== reader.userId)
+      throw notNoteOwner('Seul l’auteur change la note de campagne');
+    if (!reader.campaigns.has(campaignId)) throw campaignNotFound();
+    requireWriter(reader, campaignId);
+  }
+  return { moving, campaignId };
+}
+
+/** Contenu réécrit : le nouveau, ou l'ancien s'il date d'un assainisseur antérieur ; null sinon. */
+function rewrittenContent(
+  stored: NoteRow,
+  content: string | undefined,
+  opts: SanitizeOptions,
+): ReturnType<typeof contentFields> | null {
+  if (content !== undefined) return contentFields(content, opts);
+  if (stored.sanitizerVersion < SANITIZER_VERSION) return contentFields(stored.content, opts, true);
+  return null;
+}
+
+/** Texte brut de la note : celui du contenu réécrit, sinon celui enregistré. */
+async function plainTextOf(
+  tx: Tx,
+  derived: ReturnType<typeof contentFields> | null,
+  noteId: string,
+): Promise<string> {
+  const plainText = derived?.plainText;
+  if (plainText !== undefined) return plainText;
+  const [p] = await tx
+    .select({ plainText: notes.plainText })
+    .from(notes)
+    .where(eq(notes.id, noteId));
+  return p?.plainText ?? '';
+}
+
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db } = deps;
@@ -258,13 +304,7 @@ export const register: Module = async (app, deps) => {
     const before = { ...stored, content: servedContent(stored, opts) };
     const mine = before.ownerUserId === reader.userId;
 
-    const moving = target !== undefined && target !== before.campaignId;
-    const campaignId = moving ? target : before.campaignId;
-    if (moving) {
-      if (!mine) throw notNoteOwner('Seul l’auteur change la note de campagne');
-      if (!reader.campaigns.has(campaignId)) throw campaignNotFound();
-      requireWriter(reader, campaignId);
-    }
+    const { moving, campaignId } = destinationOf(reader, before, target);
     // Une note privée n'est lisible que par son auteur : seul lui la partage
     if (before.shared && shared === false && !mine)
       throw notNoteOwner('Seul l’auteur rend privée une note partagée : créez-en une copie');
@@ -274,19 +314,8 @@ export const register: Module = async (app, deps) => {
       sharedWithGm,
     });
 
-    // Contenu réécrit : le nouveau, ou l'ancien s'il date d'un assainisseur antérieur
-    let derived = null;
-    if (fields.content !== undefined) derived = contentFields(fields.content, opts);
-    else if (stored.sanitizerVersion < SANITIZER_VERSION)
-      derived = contentFields(stored.content, opts, true);
-    let plainText = derived?.plainText;
-    if (plainText === undefined) {
-      const [p] = await tx
-        .select({ plainText: notes.plainText })
-        .from(notes)
-        .where(eq(notes.id, before.id));
-      plainText = p?.plainText ?? '';
-    }
+    const derived = rewrittenContent(stored, fields.content, opts);
+    const plainText = await plainTextOf(tx, derived, before.id);
 
     const next = {
       ...before,
