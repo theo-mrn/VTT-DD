@@ -226,33 +226,30 @@ function LigneConnexion({ label, actif }: Readonly<{ label: string; actif: boole
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
+/** Navigateurs reconnus, dans l'ordre (Edge et Opera s'annoncent aussi comme Chrome). */
+const NAVIGATEURS: readonly [RegExp, string][] = [
+  [/Edg\//, 'Edge'],
+  [/OPR\//, 'Opera'],
+  [/Firefox\//, 'Firefox'],
+  [/Chrome\//, 'Chrome'],
+  [/Safari\//, 'Safari'],
+];
+
+/** Systèmes reconnus, dans l'ordre (l'iPhone s'annonce aussi comme Mac OS X). */
+const SYSTEMES: readonly [RegExp, string][] = [
+  [/iPhone/, 'iPhone'],
+  [/iPad/, 'iPad'],
+  [/Android/, 'Android'],
+  [/Windows/, 'Windows'],
+  [/Mac OS X|Macintosh/, 'macOS'],
+  [/Linux/, 'Linux'],
+];
+
 /** « Chrome sur macOS » à partir de l'user-agent. */
 function decrireAppareil(ua: string | null) {
   if (!ua) return { nom: 'Appareil inconnu', mobile: false };
-  const navigateur = /Edg\//.test(ua)
-    ? 'Edge'
-    : /OPR\//.test(ua)
-      ? 'Opera'
-      : /Firefox\//.test(ua)
-        ? 'Firefox'
-        : /Chrome\//.test(ua)
-          ? 'Chrome'
-          : /Safari\//.test(ua)
-            ? 'Safari'
-            : null;
-  const systeme = /iPhone/.test(ua)
-    ? 'iPhone'
-    : /iPad/.test(ua)
-      ? 'iPad'
-      : /Android/.test(ua)
-        ? 'Android'
-        : /Windows/.test(ua)
-          ? 'Windows'
-          : /Mac OS X|Macintosh/.test(ua)
-            ? 'macOS'
-            : /Linux/.test(ua)
-              ? 'Linux'
-              : null;
+  const navigateur = NAVIGATEURS.find(([motif]) => motif.test(ua))?.[1] ?? null;
+  const systeme = SYSTEMES.find(([motif]) => motif.test(ua))?.[1] ?? null;
   const nom =
     navigateur && systeme
       ? `${navigateur} sur ${systeme}`
@@ -304,6 +301,11 @@ function CarteSessions() {
       (b.lastUsedAt ?? '').localeCompare(a.lastUsedAt ?? ''),
   );
 
+  let etat: 'chargement' | 'erreur' | 'vide' | 'liste' = 'liste';
+  if (sessions.chargement && !sessions.donnees) etat = 'chargement';
+  else if (sessions.erreur) etat = 'erreur';
+  else if (liste.length === 0) etat = 'vide';
+
   return (
     <Carte
       titre="Appareils connectés"
@@ -315,13 +317,10 @@ function CarteSessions() {
         </Bouton>
       }
     >
-      {sessions.chargement && !sessions.donnees ? (
-        <Chargement />
-      ) : sessions.erreur ? (
-        <Message>{sessions.erreur}</Message>
-      ) : liste.length === 0 ? (
-        <Vide>Aucune session active.</Vide>
-      ) : (
+      {etat === 'chargement' && <Chargement />}
+      {etat === 'erreur' && <Message>{sessions.erreur}</Message>}
+      {etat === 'vide' && <Vide>Aucune session active.</Vide>}
+      {etat === 'liste' && (
         <ul className="divide-y divide-border">
           {liste.map((s) => {
             const appareil = decrireAppareil(s.userAgent);
