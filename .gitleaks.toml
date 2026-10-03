@@ -9,3 +9,8 @@ condition = "AND"
 paths = ['''\.test\.tsx?$''', '''(^|/)src/test/''']
 regexTarget = "line"
 regexes = ['''=\s*['"]secret[-_a-zA-Z0-9]*['"]''']
+
+# Gitleaks 8.24 (celui de la CI) ne lit que la forme [allowlist] ; les [[allowlists]] sont plus récentes
+[allowlist]
+description = "Secrets scellés (Sealed Secrets) : valeurs chiffrées, lisibles par le seul cluster"
+paths = ['''infra/cluster/secrets/staging/[^/]+\.yaml$''']

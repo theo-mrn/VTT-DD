@@ -2,6 +2,8 @@
 legacy/
 pnpm-lock.yaml
 infra/helm/**/templates/
+# Réécrits par yq à chaque release (digests des images) : le format de yq fait foi
+infra/gitops/
 README.md
 .claude/
 

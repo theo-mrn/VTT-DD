@@ -58,7 +58,8 @@ describe.skipIf(!TEST_DATABASE_URL)('premium (route interne de billing)', () => 
           sql`${outbox.envelope}->'aggregate'->>'id' = ${u.id}`,
           eq(sql`${outbox.envelope}->>'type'`, 'identity.premium_changed'),
         ),
-      );
+      )
+      .orderBy(outbox.createdAt, outbox.id);
     expect(events.map((e) => (e.envelope as { payload: unknown }).payload)).toEqual([
       { premium: true },
       { premium: false },
