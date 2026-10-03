@@ -147,6 +147,14 @@ export default function SkinStore({
 
   const acheter = () => toast.info(`Achat : ${BIENTOT.toLowerCase()}`);
 
+  // Contenu : chargement, échec, onglet premium, fiche d'un dé, rien à montrer, ou la grille
+  let vue: 'chargement' | 'erreur' | 'premium' | 'detail' | 'vide' | 'grille' = 'grille';
+  if (prefs.isPending) vue = 'chargement';
+  else if (prefs.isError || !p) vue = 'erreur';
+  else if (onglet === 'premium') vue = 'premium';
+  else if (detail) vue = 'detail';
+  else if (visibles.length === 0) vue = 'vide';
+
   return (
     <Dialog
       open={open}
@@ -253,15 +261,14 @@ export default function SkinStore({
         )}
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-          {prefs.isPending ? (
-            <GrilleChargement />
-          ) : prefs.isError || !p ? (
+          {vue === 'chargement' && <GrilleChargement />}
+          {vue === 'erreur' && (
             <p className="py-16 text-center text-sm text-destructive">
               Préférences de dés indisponibles : {messageErreur(prefs.error)}
             </p>
-          ) : onglet === 'premium' ? (
-            <Premium tousLesDes={p.allSkins} />
-          ) : detail ? (
+          )}
+          {vue === 'premium' && p && <Premium tousLesDes={p.allSkins} />}
+          {vue === 'detail' && p && detail && (
             <Detail
               skin={detail}
               prefs={p}
@@ -270,7 +277,8 @@ export default function SkinStore({
               onEquiper={() => void equiper(detail)}
               onAcheter={acheter}
             />
-          ) : visibles.length === 0 ? (
+          )}
+          {vue === 'vide' && (
             <div className="flex flex-col items-center gap-3 py-20 text-center">
               <Package className="size-10 text-subtle" aria-hidden />
               <p className="max-w-xs text-sm text-muted-foreground">
@@ -279,7 +287,8 @@ export default function SkinStore({
                   : 'Aucun dé ne correspond à ces filtres.'}
               </p>
             </div>
-          ) : (
+          )}
+          {vue === 'grille' && p && (
             <>
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                 {visibles.map((s) => (

@@ -158,9 +158,7 @@ export function LanceurAction({
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <TotalJet
                       total={resultat.jet.total}
-                      critique={
-                        resultat.jet.critique ? 'success' : resultat.jet.fumble ? 'failure' : null
-                      }
+                      critique={issueCritique(resultat.jet.critique, resultat.jet.fumble)}
                       cle={String(numero)}
                     />
                     <BadgeReussite action={action} reussi={resultat.reussi} />
@@ -210,7 +208,7 @@ export function LanceurAction({
                     {modifs
                       .map((m) =>
                         'attribut' in m
-                          ? `${libelleAttribut(fiche, m.attribut)} ${m.operation === 'retirer' ? '−' : m.operation === 'fixer' ? '=' : '+'}${m.valeur}`
+                          ? `${libelleAttribut(fiche, m.attribut)} ${SIGNE[m.operation] ?? '+'}${m.valeur}`
                           : `${m.operation === 'donner' ? '+' : '−'} ${systeme.entrees.get(m.entree)?.nom ?? m.entree}`,
                       )
                       .join(' · ')}
@@ -271,4 +269,11 @@ function BadgeReussite({ action, reussi }: { action: Action; reussi: boolean }) 
       <X /> Échec
     </Badge>
   );
+}
+
+const SIGNE: Partial<Record<string, string>> = { retirer: '−', fixer: '=' };
+
+function issueCritique(critique: boolean, fumble: boolean): 'success' | 'failure' | null {
+  if (critique) return 'success';
+  return fumble ? 'failure' : null;
 }

@@ -1179,8 +1179,8 @@ function driveEnvelopes(
       }
       // sharp attack, fast decay + weaker restrike
       const dts = t - c.t0;
-      const env =
-        dts < 0 ? 0 : Math.exp(-dts * 15) + (dts > 0.13 ? Math.exp(-(dts - 0.13) * 20) * 0.6 : 0);
+      const restrike = dts > 0.13 ? Math.exp(-(dts - 0.13) * 20) * 0.6 : 0;
+      const env = dts < 0 ? 0 : Math.exp(-dts * 15) + restrike;
       if (ch === 0) {
         uniforms.uFlash1.value = env;
         uniforms.uSeed1.value = c.seed;
@@ -1277,15 +1277,16 @@ export function materialSettings(skin: DiceSkin) {
     clearcoatRoughness: skin.varnish ? 0.07 : 0.15,
     props: {
       color: skin.bodyColor,
-      metalness: isVoid ? 0 : isEclipse ? 0.15 : skin.metalness,
+      metalness: sombre(isVoid, isEclipse, [0, 0.15], skin.metalness),
       // Higher floors kill the face-wide specular sheen that flat facets catch
       // from scene spotlights (the "one face blown out" effect).
-      roughness: isVoid
-        ? 1
-        : isEclipse
-          ? Math.max(skin.roughness, 0.5)
-          : Math.max(skin.roughness, 0.25),
-      envMapIntensity: isVoid ? 0 : isEclipse ? 0.2 : Math.min(skin.envMapIntensity, 0.9),
+      roughness: sombre(
+        isVoid,
+        isEclipse,
+        [1, Math.max(skin.roughness, 0.5)],
+        Math.max(skin.roughness, 0.25),
+      ),
+      envMapIntensity: sombre(isVoid, isEclipse, [0, 0.2], Math.min(skin.envMapIntensity, 0.9)),
       emissive: isVoid || isEclipse ? '#000000' : skin.emissive,
       emissiveIntensity: isVoid || isEclipse ? 1 : skin.emissiveIntensity,
       transparent: skin.opacity < 1,
@@ -1356,3 +1357,14 @@ export const ProceduralMaterial = ({
     );
   return <meshStandardMaterial {...common} />;
 };
+
+/** Réglage d'un skin « vide » ou « éclipse » (valeurs propres), sinon celui du skin. */
+function sombre(
+  isVoid: boolean,
+  isEclipse: boolean,
+  [vide, eclipse]: [number, number],
+  normal: number,
+): number {
+  if (isVoid) return vide;
+  return isEclipse ? eclipse : normal;
+}

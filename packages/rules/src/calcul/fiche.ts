@@ -269,11 +269,8 @@ export function calculer(
     const v = valeurs.get(cle);
     if (v) return v.valeur;
     const a = entite.attributs.get(cle);
-    return a && (a.nature === 'texte' || a.nature === 'choix')
-      ? ''
-      : a?.nature === 'booleen'
-        ? false
-        : 0;
+    if (a && (a.nature === 'texte' || a.nature === 'choix')) return '';
+    return a?.nature === 'booleen' ? false : 0;
   };
 
   // Une entrée à rangs n'est réellement possédée qu'à partir du rang 1
@@ -393,7 +390,7 @@ export function calculer(
           };
           return f ? evaluerSur(f, { variable }, 0, `${p.entree.id}/${c}`) : Number(v) || 0;
         }
-        return v ?? (def?.type === 'booleen' ? false : def?.type === 'nombre' ? 0 : '');
+        return v ?? valeurNeutre(def?.type);
       }
       throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
     };
@@ -829,12 +826,7 @@ export function calculer(
         break;
       }
       case 'derivee': {
-        const v = evaluerSur(
-          formuleDe(a, 'formule')!,
-          {},
-          a.type === 'nombre' ? 0 : a.type === 'booleen' ? false : '',
-          cle,
-        );
+        const v = evaluerSur(formuleDe(a, 'formule')!, {}, valeurNeutre(a.type), cle);
         detail.push({ source: 'formule', nom: a.formule, operation: 'formule', valeur: v });
         calcule.valeur = appliquerEffets(cle, v, detail);
         break;
@@ -853,12 +845,10 @@ export function calculer(
         const min = Number(evaluerSur(formuleDe(a, 'min')!, {}, 0, cle));
         calcule.max = max;
         calcule.min = min;
-        const initiale =
-          a.initiale === 'max'
-            ? max
-            : a.initiale === 'min'
-              ? min
-              : Number(evaluerSur(formuleDe(a, 'initiale')!, {}, 0, cle));
+        let initiale: number;
+        if (a.initiale === 'max') initiale = max;
+        else if (a.initiale === 'min') initiale = min;
+        else initiale = Number(evaluerSur(formuleDe(a, 'initiale')!, {}, 0, cle));
         const courante = typeof stocke === 'number' ? stocke : initiale;
         detail.push(...lignesMax);
         calcule.valeur = borner(
@@ -1032,4 +1022,10 @@ export function erreursPossessions(systeme: SystemeCharge, etat: EtatEntite): Er
 /** Possession qui compte : entrée sans rangs, ou entrée à rangs au rang 1 au moins. */
 export function estEffective(p: PossessionEffective): boolean {
   return !p.sorte.rangs || p.rang > 0;
+}
+
+/** Valeur neutre d'un type : 0, faux, ou texte vide. */
+function valeurNeutre(type: string | undefined): Valeur {
+  if (type === 'nombre') return 0;
+  return type === 'booleen' ? false : '';
 }
