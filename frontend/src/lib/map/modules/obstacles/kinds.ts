@@ -286,10 +286,39 @@ export function obstacleActions(ctx: ObstacleContext, entities: readonly MapEnti
   const doors = entities.filter((e) => obstacleOf(e).kind === 'door');
   const gm = isGm(engine.viewer);
 
-  if (doors.length === entities.length && engine.viewer.role !== 'spectator') {
-    const allOpen = doors.every((e) => obstacleOf(e).isOpen);
-    const lockedForMe = !gm && doors.every((e) => obstacleOf(e).isLocked);
-    items.push({
+  if (doors.length === entities.length && engine.viewer.role !== 'spectator')
+    items.push(...doorItems(ctx, doors, gm));
+  if (!gm) return items;
+
+  if (data.every((o) => o.kind === 'one_way_wall')) items.push(flipItem(ctx, entities));
+  items.push(convertItem(ctx, entities, data));
+  if (entities.length === 1 && data[0]!.kind !== 'wall') items.push(toWallItem(ctx, entities[0]!));
+
+  items.push({
+    id: 'obstacle:connected',
+    label: 'Sélectionner les murs reliés',
+    icon: Waypoints,
+    run: () =>
+      engine.selection.replace(
+        connectedObstacles(
+          engine,
+          entities.map((e) => e.id),
+        ),
+      ),
+  });
+
+  const loop = loopOf(data);
+  if (loop) items.push(roomItem(ctx, loop));
+  return items;
+}
+
+/** Ouvrir ou fermer les portes ; MJ : aussi les verrouiller. */
+function doorItems(ctx: ObstacleContext, doors: readonly MapEntity[], gm: boolean): MenuItem[] {
+  const { engine } = ctx;
+  const allOpen = doors.every((e) => obstacleOf(e).isOpen);
+  const lockedForMe = !gm && doors.every((e) => obstacleOf(e).isLocked);
+  const items: MenuItem[] = [
+    {
       id: 'door:toggle',
       label: allOpen ? 'Fermer la porte' : 'Ouvrir la porte',
       icon: allOpen ? DoorClosed : DoorOpen,
@@ -297,46 +326,55 @@ export function obstacleActions(ctx: ObstacleContext, entities: readonly MapEnti
       ...(gm ? { primary: true } : { shortcut: 'Clic' }),
       disabled: lockedForMe,
       run: () => void toggleDoors(ctx, doors, !allOpen),
-    });
-    if (gm) {
-      const allLocked = doors.every((e) => obstacleOf(e).isLocked);
-      items.push({
-        id: 'door:lock',
-        label: allLocked ? 'Déverrouiller la porte' : 'Verrouiller la porte',
-        icon: allLocked ? LockOpen : Lock,
-        run: () =>
-          void patchObstacles(
-            engine,
-            doors,
-            () => ({ isLocked: !allLocked }),
-            allLocked ? 'Déverrouiller la porte' : 'Verrouiller la porte',
-            ctx.persistences.obstacles,
-          ),
-      });
-    }
-  }
+    },
+  ];
   if (!gm) return items;
+  const allLocked = doors.every((e) => obstacleOf(e).isLocked);
+  items.push({
+    id: 'door:lock',
+    label: allLocked ? 'Déverrouiller la porte' : 'Verrouiller la porte',
+    icon: allLocked ? LockOpen : Lock,
+    run: () =>
+      void patchObstacles(
+        engine,
+        doors,
+        () => ({ isLocked: !allLocked }),
+        allLocked ? 'Déverrouiller la porte' : 'Verrouiller la porte',
+        ctx.persistences.obstacles,
+      ),
+  });
+  return items;
+}
 
-  if (data.every((o) => o.kind === 'one_way_wall'))
-    items.push({
-      id: 'oneway:flip',
-      label: 'Inverser le sens',
-      icon: ArrowLeftRight,
-      run: () =>
-        void patchObstacles(
-          engine,
-          entities,
-          (o) => ({ blocksFrom: (o.blocksFrom ?? 'left') === 'left' ? 'right' : 'left' }),
-          'Inverser le sens',
-          ctx.persistences.obstacles,
-        ),
-    });
+/** Inverser le sens des murs à sens unique. */
+function flipItem(ctx: ObstacleContext, entities: readonly MapEntity[]): MenuItem {
+  return {
+    id: 'oneway:flip',
+    label: 'Inverser le sens',
+    icon: ArrowLeftRight,
+    run: () =>
+      void patchObstacles(
+        ctx.engine,
+        entities,
+        (o) => ({ blocksFrom: (o.blocksFrom ?? 'left') === 'left' ? 'right' : 'left' }),
+        'Inverser le sens',
+        ctx.persistences.obstacles,
+      ),
+  };
+}
 
+/** Convertir en ▸ (un mur de plusieurs segments : seulement le segment touché). */
+function convertItem(
+  ctx: ObstacleContext,
+  entities: readonly MapEntity[],
+  data: readonly ObstacleData[],
+): MenuItem {
+  const { engine } = ctx;
   const kinds: ObstacleKindId[] = ['wall', 'door', 'window', 'one_way_wall'];
   const same = data.every((o) => o.kind === data[0]!.kind) ? data[0]!.kind : null;
   // Un mur de plusieurs segments : la conversion ne vise que le segment touché (dernier appui)
   const segment = entities.length === 1 ? pressedSegment(ctx, entities[0]!) : null;
-  items.push({
+  return {
     id: 'obstacle:convert',
     label: segment === null ? 'Convertir en' : 'Convertir le segment en',
     icon: Repeat,
@@ -362,53 +400,43 @@ export function obstacleActions(ctx: ObstacleContext, entities: readonly MapEnti
         engine.selection.replace([converted]);
       },
     })),
-  });
-
-  if (entities.length === 1 && data[0]!.kind !== 'wall')
-    items.push({
-      id: 'obstacle:to-wall',
-      label: 'Remplacer par un mur',
-      icon: BrickWall,
-      run: () => {
-        const plan = newPlan(engine);
-        const kept = replaceByWall(plan, entities[0]!.id);
-        void executePlan(engine, 'Remplacer par un mur', plan, ctx.persistences);
-        engine.selection.replace([kept]);
-      },
-    });
-
-  items.push({
-    id: 'obstacle:connected',
-    label: 'Sélectionner les murs reliés',
-    icon: Waypoints,
-    run: () =>
-      engine.selection.replace(
-        connectedObstacles(
-          engine,
-          entities.map((e) => e.id),
-        ),
-      ),
-  });
-
-  const loop = loopOf(data);
-  if (loop)
-    items.push({
-      id: 'obstacle:room',
-      label: 'Créer une pièce',
-      icon: Scan,
-      run: () => {
-        const plan = newPlan(engine);
-        const room = plan.createRoom(nextRoomName(plan.rooms()), loop);
-        weldRoomToWalls(plan, room.id);
-        void executePlan(engine, 'Créer une pièce', plan, ctx.persistences);
-      },
-    });
-  return items;
+  };
 }
 
-/** Murs reliés (par des sommets soudés) à ces murs, eux compris. */
-export function connectedObstacles(engine: MapEngine, ids: readonly string[]): string[] {
-  const all = [...engine.entitiesOfKind(OBSTACLE_KIND)].map((e) => obstacleOf(e));
+/** Remplacer par un mur. */
+function toWallItem(ctx: ObstacleContext, entity: MapEntity): MenuItem {
+  const { engine } = ctx;
+  return {
+    id: 'obstacle:to-wall',
+    label: 'Remplacer par un mur',
+    icon: BrickWall,
+    run: () => {
+      const plan = newPlan(engine);
+      const kept = replaceByWall(plan, entity.id);
+      void executePlan(engine, 'Remplacer par un mur', plan, ctx.persistences);
+      engine.selection.replace([kept]);
+    },
+  };
+}
+
+/** Créer une pièce du contour fermé que forment les murs. */
+function roomItem(ctx: ObstacleContext, loop: Point[]): MenuItem {
+  const { engine } = ctx;
+  return {
+    id: 'obstacle:room',
+    label: 'Créer une pièce',
+    icon: Scan,
+    run: () => {
+      const plan = newPlan(engine);
+      const room = plan.createRoom(nextRoomName(plan.rooms()), loop);
+      weldRoomToWalls(plan, room.id);
+      void executePlan(engine, 'Créer une pièce', plan, ctx.persistences);
+    },
+  };
+}
+
+/** Murs qui passent par chaque sommet. */
+function obstaclesByVertex(all: readonly ObstacleData[]): Map<string, string[]> {
   const byVertex = new Map<string, string[]>();
   for (const o of all)
     for (const p of o.points) {
@@ -417,6 +445,13 @@ export function connectedObstacles(engine: MapEngine, ids: readonly string[]): s
       if (!list.includes(o.id)) list.push(o.id);
       byVertex.set(k, list);
     }
+  return byVertex;
+}
+
+/** Murs reliés (par des sommets soudés) à ces murs, eux compris. */
+export function connectedObstacles(engine: MapEngine, ids: readonly string[]): string[] {
+  const all = [...engine.entitiesOfKind(OBSTACLE_KIND)].map((e) => obstacleOf(e));
+  const byVertex = obstaclesByVertex(all);
   const byId = new Map(all.map((o) => [o.id, o]));
   const seen = new Set<string>(ids);
   const queue = [...ids];
