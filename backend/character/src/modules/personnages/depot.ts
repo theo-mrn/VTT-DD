@@ -177,6 +177,44 @@ export async function acces(
   };
 }
 
+/** Sans droit de lecture : 404 (503 si campaign, injoignable, devait décider). */
+function verifierLecture(a: Acces): void {
+  if (a.lecture) return;
+  if (a.droits?.indisponible) throw campaignIndisponible();
+  throw HttpError.notFound('Personnage introuvable');
+}
+
+/** Suppression : le propriétaire seul, et pas tant qu'un autre membre incarne le personnage. */
+async function verifierSuppression(
+  droits: DroitsCampagnes,
+  userId: string,
+  ligne: { id: string; ownerId: string },
+  a: Acces,
+): Promise<void> {
+  if (ligne.ownerId !== userId)
+    throw HttpError.forbidden('Seul le propriétaire peut supprimer ce personnage');
+  const dr = a.droits ?? (await droits.de(ligne.id, userId));
+  if (dr.indisponible) throw campaignIndisponible();
+  if (dr.autreIncarnateur)
+    throw HttpError.conflict(
+      'Un autre membre incarne ce personnage : retirez-le d’abord de sa campagne',
+      'character_played',
+    );
+}
+
+/** Écriture permise (403 sinon) ; renvoie le rôle sous lequel elle se fait. */
+function verifierEcriture(userId: string, ligne: { ownerId: string }, a: Acces): ActorRole {
+  if (!a.ecriture) {
+    if (a.droits?.indisponible) throw campaignIndisponible();
+    throw HttpError.forbidden(
+      ligne.ownerId === userId
+        ? 'Vous ne l’incarnez pas : sa fiche se modifie par le joueur qui l’incarne et le MJ'
+        : 'Réservé au joueur qui incarne ce personnage et au MJ',
+    );
+  }
+  return a.role;
+}
+
 /**
  * Vérifie les droits de `userId` sur des personnages actifs (voir `acces`). Renvoie
  * le rôle de l'appelant pour les événements : `gm` si une écriture ne lui est permise
@@ -205,31 +243,9 @@ export async function autoriser(
     const ligne = lignes.find((l) => l.id === d.id);
     if (!ligne) throw HttpError.notFound('Personnage introuvable');
     const a = await acces(droits, userId, ligne);
-    if (!a.lecture) {
-      if (a.droits?.indisponible) throw campaignIndisponible();
-      throw HttpError.notFound('Personnage introuvable');
-    }
-    if (d.mode === 'proprietaire') {
-      if (ligne.ownerId !== userId)
-        throw HttpError.forbidden('Seul le propriétaire peut supprimer ce personnage');
-      const dr = a.droits ?? (await droits.de(ligne.id, userId));
-      if (dr.indisponible) throw campaignIndisponible();
-      if (dr.autreIncarnateur)
-        throw HttpError.conflict(
-          'Un autre membre incarne ce personnage : retirez-le d’abord de sa campagne',
-          'character_played',
-        );
-    } else if (d.mode === 'ecriture') {
-      if (!a.ecriture) {
-        if (a.droits?.indisponible) throw campaignIndisponible();
-        throw HttpError.forbidden(
-          ligne.ownerId === userId
-            ? 'Vous ne l’incarnez pas : sa fiche se modifie par le joueur qui l’incarne et le MJ'
-            : 'Réservé au joueur qui incarne ce personnage et au MJ',
-        );
-      }
-      if (a.role === 'gm') role = 'gm';
-    }
+    verifierLecture(a);
+    if (d.mode === 'proprietaire') await verifierSuppression(droits, userId, ligne, a);
+    else if (d.mode === 'ecriture' && verifierEcriture(userId, ligne, a) === 'gm') role = 'gm';
   }
   return role;
 }
