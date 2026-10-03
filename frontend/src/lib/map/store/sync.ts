@@ -216,43 +216,12 @@ export class MapSync {
     }
     switch (action) {
       case 'created':
-      case 'updated': {
-        if (payload.mapId !== this.mapId) {
-          // Le token a quitté cette carte
-          if (store.collections.tokens?.has(String(payload.id)))
-            store.remove('tokens', [String(payload.id)]);
-          return;
-        }
-        store.upsert('tokens', [payload as MapDto]);
+      case 'updated':
+        this.tokenSaved(payload);
         return;
-      }
-      case 'moved': {
-        const to = payload.to as { mapId: string; x: number; y: number } | undefined;
-        const from = payload.from as { mapId: string } | null | undefined;
-        const tokenId = idOf(payload.tokenId, id);
-        if (to?.mapId === this.mapId) {
-          const known = store.collections.tokens?.get(tokenId);
-          if (known) {
-            const version = typeof payload.version === 'number' ? payload.version : undefined;
-            if (version !== undefined)
-              store.upsert('tokens', [{ ...known, pos: { x: to.x, y: to.y }, version }]);
-            else store.patchItem('tokens', tokenId, { pos: { x: to.x, y: to.y } });
-          } else this.refetch(['tokens']);
-        } else if (from?.mapId === this.mapId) {
-          // Voyage (`travel`) : le token d'arrivée n'a pas l'identifiant de celui d'ici (sa place
-          // gardée sur l'autre carte, ou un token neuf) ; un personnage n'est présent que sur
-          // une carte à la fois : tous ses tokens d'ici partent
-          const here = store.collections.tokens;
-          const gone = here
-            ? [...here.values()]
-                .filter((t) => t.id === tokenId || t.characterId === payload.characterId)
-                .map((t) => t.id)
-            : [];
-          if (gone.length) store.remove('tokens', gone);
-        }
-        if (this.isMine(payload.characterId)) this.visionChanged();
+      case 'moved':
+        this.tokenMoved(payload, id);
         return;
-      }
       case 'hidden':
         // Le MJ voit tout : `hidden` ne concerne que les joueurs qui le voyaient
         if (this.opts.viewer().role === 'gm') return;
@@ -262,6 +231,57 @@ export class MapSync {
         store.remove('tokens', [idOf(payload.id, id)]);
         return;
     }
+  }
+
+  /** Token créé ou modifié : gardé s'il est sur cette carte, retiré s'il l'a quittée. */
+  private tokenSaved(payload: Record<string, unknown>) {
+    const store = this.store;
+    if (payload.mapId === this.mapId) {
+      store.upsert('tokens', [payload as MapDto]);
+      return;
+    }
+    // Le token a quitté cette carte
+    if (store.collections.tokens?.has(String(payload.id)))
+      store.remove('tokens', [String(payload.id)]);
+  }
+
+  /** Token déplacé : sur cette carte, ou parti d'elle (voyage). */
+  private tokenMoved(payload: Record<string, unknown>, id: string) {
+    const to = payload.to as { mapId: string; x: number; y: number } | undefined;
+    const from = payload.from as { mapId: string } | null | undefined;
+    const tokenId = idOf(payload.tokenId, id);
+    if (to?.mapId === this.mapId) this.tokenMovedHere(tokenId, to, payload.version);
+    else if (from?.mapId === this.mapId) this.tokensLeft(tokenId, payload.characterId);
+    if (this.isMine(payload.characterId)) this.visionChanged();
+  }
+
+  /** Déplacement sur cette carte : position (et version) reportées, inconnu : relecture. */
+  private tokenMovedHere(tokenId: string, to: { x: number; y: number }, version: unknown) {
+    const store = this.store;
+    const known = store.collections.tokens?.get(tokenId);
+    if (!known) {
+      this.refetch(['tokens']);
+      return;
+    }
+    if (typeof version === 'number')
+      store.upsert('tokens', [{ ...known, pos: { x: to.x, y: to.y }, version }]);
+    else store.patchItem('tokens', tokenId, { pos: { x: to.x, y: to.y } });
+  }
+
+  /**
+   * Voyage (`travel`) : le token d'arrivée n'a pas l'identifiant de celui d'ici (sa place gardée
+   * sur l'autre carte, ou un token neuf) ; un personnage n'est présent que sur une carte à la
+   * fois : tous ses tokens d'ici partent.
+   */
+  private tokensLeft(tokenId: string, characterId: unknown) {
+    const store = this.store;
+    const here = store.collections.tokens;
+    const gone = here
+      ? [...here.values()]
+          .filter((t) => t.id === tokenId || t.characterId === characterId)
+          .map((t) => t.id)
+      : [];
+    if (gone.length) store.remove('tokens', gone);
   }
 
   private handleLayer(
@@ -280,40 +300,46 @@ export class MapSync {
     if (payload.mapId !== undefined && payload.mapId !== this.mapId) return;
     switch (action) {
       case 'created':
-      case 'updated': {
-        const item = payload as MapDto;
-        const before = store.collections[key]?.get(item.id);
-        // Calque redevenu visible pour un joueur : son contenu n'est pas chez lui, relecture
-        if (key === 'layers' && !gm && !before) {
-          void this.load();
-          return;
-        }
-        store.upsert(key, [item]);
-        // Porte ouverte ou fermée : la vue d'un joueur change
-        if (key === 'obstacles' && before && before.isOpen !== item.isOpen) this.visionChanged();
+      case 'updated':
+        this.layerItemSaved(key, payload as MapDto, gm);
         return;
-      }
       case 'deleted':
         store.remove(key, [idOf(payload.id, id)]);
         return;
-      case 'hidden': {
+      case 'hidden':
         // Le MJ voit tout : `hidden` ne concerne que les joueurs qui le voyaient
-        if (gm) return;
-        const hiddenId = idOf(payload.id, id);
-        store.remove(key, [hiddenId]);
-        // Calque masqué aux joueurs : tout son contenu disparaît
-        if (key === 'layers')
-          for (const k of STACKED_COLLECTIONS) {
-            const items = store.collections[k];
-            if (!items) continue;
-            const ids = [...items.values()].filter((i) => i.layerId === hiddenId).map((i) => i.id);
-            if (ids.length) store.remove(k, ids);
-          }
+        if (!gm) this.layerItemHidden(key, idOf(payload.id, id));
         return;
-      }
       case 'cleared':
         if (Array.isArray(payload.ids)) store.remove(key, payload.ids.map(String));
         return;
+    }
+  }
+
+  /** Élément créé ou modifié dans une couche. */
+  private layerItemSaved(key: string, item: MapDto, gm: boolean) {
+    const store = this.store;
+    const before = store.collections[key]?.get(item.id);
+    // Calque redevenu visible pour un joueur : son contenu n'est pas chez lui, relecture
+    if (key === 'layers' && !gm && !before) {
+      void this.load();
+      return;
+    }
+    store.upsert(key, [item]);
+    // Porte ouverte ou fermée : la vue d'un joueur change
+    if (key === 'obstacles' && before && before.isOpen !== item.isOpen) this.visionChanged();
+  }
+
+  /** Élément masqué au joueur ; un calque masqué emporte tout son contenu. */
+  private layerItemHidden(key: string, hiddenId: string) {
+    const store = this.store;
+    store.remove(key, [hiddenId]);
+    if (key !== 'layers') return;
+    for (const k of STACKED_COLLECTIONS) {
+      const items = store.collections[k];
+      if (!items) continue;
+      const ids = [...items.values()].filter((i) => i.layerId === hiddenId).map((i) => i.id);
+      if (ids.length) store.remove(k, ids);
     }
   }
 
