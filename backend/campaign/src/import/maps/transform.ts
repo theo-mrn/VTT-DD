@@ -206,28 +206,84 @@ export function transformRoom(
   m: RoomMappings,
 ): MigratedMaps {
   const warnings: string[] = [];
-  const warn = (w: string) => warnings.push(w);
+  const r = roomContext(code, docs, rtdb, m, warnings);
+  // ─── Dossiers et scènes ────────────────────────────────────────────────
+  const groups = migrateGroups(r);
+  migrateScenes(r);
+  // Fond global : créé à la demande (fond, éléments ou joueurs sans scène)
+  if (r.hasBackground) r.ensureDefault();
+  const settings = migrateSettings(r);
+  const fog = migrateFog(r);
+  const tokens = migrateTokens(r);
+  const objects = migrateObjects(r);
+  const lights = migrateLights(r);
+  const musicZones = migrateMusicZones(r);
+  const portals = migratePortals(r);
+  const obstacles = migrateObstacles(r);
+  const drawings = migrateDrawings(r);
+  const notes = migrateNotes(r);
+  const measurements = migrateMeasurements(r);
+  return {
+    groups,
+    maps: r.mapsOut,
+    settings,
+    fog,
+    tokens,
+    objects,
+    lights,
+    obstacles,
+    drawings,
+    notes,
+    musicZones,
+    portals,
+    measurements,
+    warnings,
+  };
+}
+
+/** Ce que les sections de l'import d'une salle partagent : documents, correspondances, cartes. */
+interface Room {
+  code: string;
+  prefix: string;
+  campaignId: string;
+  m: RoomMappings;
+  rtdb: RtdbRoom | undefined;
+  warn(w: string): void;
+  collection(name: string): FirestoreDoc[];
+  layersOf(id: string): Record<string, boolean>;
+  general: Data;
+  groupIds: Map<string, string>;
+  /** cityId legacy → carte. */
+  cityIds: Map<string, string>;
+  mapsOut: MigratedMaps['maps'];
+  /** La salle a un fond global : sa carte principale existe d'emblée. */
+  hasBackground: boolean;
+  /** Carte principale, créée à la demande ; renvoie son identifiant. */
+  ensureDefault(): string;
+  /** Carte d'un `cityId` legacy ; undefined (avec avertissement) si la scène n'existe plus. */
+  mapOf(cityId: unknown, what: string): string | undefined;
+  partyCity: string | undefined;
+  /** Personnages visés (identifiants legacy) → personnages importés. */
+  translateIds(v: unknown, what: string): string[];
+  /** RTDB d'abord, puis les copies Firestore d'une salle jamais rouverte depuis la bascule. */
+  merged(rt: unknown, fsName: string): Map<string, Data>;
+}
+
+function roomContext(
+  code: string,
+  docs: readonly FirestoreDoc[],
+  rtdb: RtdbRoom | undefined,
+  m: RoomMappings,
+  warnings: string[],
+): Room {
+  const warn = (w: string) => {
+    warnings.push(w);
+  };
   const prefix = `cartes/${code}`;
   const campaignId = m.campaignId;
 
   // Documents par sous-collection directe : cartes/{r}/<collection>/{id}
-  const byCollection = new Map<string, FirestoreDoc[]>();
-  const ignored = new Map<string, number>();
-  for (const d of docs) {
-    const s = d.path.split('/');
-    if (s[0] !== 'cartes' || s[1] !== code) continue;
-    if (s.length === 4) {
-      const list = byCollection.get(s[2]!) ?? [];
-      list.push(d);
-      byCollection.set(s[2]!, list);
-    } else if (s.length > 4) {
-      const key = s
-        .slice(2)
-        .filter((_, i) => i % 2 === 0)
-        .join('/');
-      if (key !== 'characters/customCompetences') ignored.set(key, (ignored.get(key) ?? 0) + 1);
-    }
-  }
+  const { byCollection, ignored } = collectionsOf(code, docs);
   const collection = (name: string) => byCollection.get(name) ?? [];
   for (const name of ['games', 'scenario', 'combat'])
     if (collection(name).length) ignored.set(name, collection(name).length);
@@ -247,55 +303,9 @@ export function transformRoom(
     return out;
   };
 
-  // ─── Dossiers et scènes ────────────────────────────────────────────────
-  const groups: MigratedMaps['groups'] = [];
   const groupIds = new Map<string, string>();
-  for (const d of collection('groups')) {
-    const name = toText(d.data?.name)?.slice(0, 100);
-    if (!name) {
-      warn(`Dossier ${d.path} sans nom : ignoré`);
-      continue;
-    }
-    const id = legacyUuid(d.path);
-    groupIds.set(d.id, id);
-    const order = num(d.data?.order);
-    groups.push({
-      id,
-      campaignId,
-      name,
-      sortOrder: order !== undefined && order >= 0 ? Math.floor(order) : 0,
-    });
-  }
-
   const mapsOut: MigratedMaps['maps'] = [];
-  const cityIds = new Map<string, string>(); // cityId legacy → carte
-  const weather = (v: unknown) => {
-    const o = obj(v);
-    const type = toText(o?.type)?.slice(0, 50);
-    return type ? { type, intensity: bounded(o?.intensity, 0, 10, 1) } : null;
-  };
-  for (const d of collection('cities')) {
-    const c = d.data ?? {};
-    const id = legacyUuid(d.path);
-    cityIds.set(d.id, id);
-    const spawnX = coord(c.spawnX);
-    const spawnY = coord(c.spawnY);
-    const groupId = toText(c.groupId);
-    if (groupId && !groupIds.has(groupId)) warn(`Scène ${d.path} : dossier ${groupId} introuvable`);
-    mapsOut.push({
-      id,
-      campaignId,
-      groupId: groupId ? (groupIds.get(groupId) ?? null) : null,
-      name: toText(c.name)?.slice(0, 100) ?? 'Scène sans nom',
-      description: (text(c.description, 2000) ?? '').trim(),
-      backgroundUrl: toText(c.backgroundUrl) ?? null,
-      visibleToPlayers: bool(c.visibleToPlayers, true),
-      spawn: spawnX !== undefined && spawnY !== undefined ? { x: spawnX, y: spawnY } : null,
-      weather: weather(c.weather),
-      layers: layersOf(`layers_${d.id}`),
-    });
-  }
-
+  const cityIds = new Map<string, string>();
   // Fond global : créé à la demande (fond, éléments ou joueurs sans scène)
   const fond = collection('fond').find((d) => d.id === 'fond1')?.data;
   const defaultId = legacyUuid(`${prefix}/fond/fond1`);
@@ -326,7 +336,6 @@ export function transformRoom(
     }
     return defaultId;
   };
-  if (toText(fond?.url)) ensureDefault();
 
   /** Carte d'un `cityId` legacy ; undefined (avec avertissement) si la scène n'existe plus. */
   const mapOf = (cityId: unknown, what: string): string | undefined => {
@@ -336,9 +345,135 @@ export function transformRoom(
     if (!id) warn(`${what} : scène ${c} supprimée, élément ignoré`);
     return id;
   };
-
-  // ─── Réglages ──────────────────────────────────────────────────────────
   const partyCity = toText(general.currentCityId);
+  const translateIds = (v: unknown, what: string) => {
+    if (!Array.isArray(v)) return [];
+    const out: string[] = [];
+    for (const legacyId of v) {
+      const c = m.characters.get(`${prefix}/characters/${String(legacyId)}`);
+      if (c) out.push(c.id);
+      else warn(`${what} : personnage visé ${String(legacyId)} non importé`);
+    }
+    return [...new Set(out)];
+  };
+
+  // ─── RTDB (et anciennes collections Firestore recopiées) ───────────────
+  /**
+   * RTDB d'abord. Une fois la salle migrée (drapeau `_migrations`), les
+   * documents Firestore sont des copies périmées (effacées depuis dans la RTDB) :
+   * ils ne comptent que pour une salle jamais ouverte depuis la bascule.
+   */
+  const copied = obj(rtdb?._migrations)?.drawings_obstacles_notes === true;
+  const merged = (rt: unknown, fsName: string) => {
+    const out = new Map<string, Data>();
+    if (!copied) for (const d of collection(fsName)) out.set(d.id, d.data ?? {});
+    for (const [id, v] of Object.entries(obj(rt) ?? {})) {
+      const o = obj(v);
+      if (o) out.set(id, o);
+    }
+    return out;
+  };
+
+  return {
+    code,
+    prefix,
+    campaignId,
+    m,
+    rtdb,
+    warn,
+    collection,
+    layersOf,
+    general,
+    groupIds,
+    cityIds,
+    mapsOut,
+    hasBackground: Boolean(toText(fond?.url)),
+    ensureDefault,
+    mapOf,
+    partyCity,
+    translateIds,
+    merged,
+  };
+}
+
+/** Documents par sous-collection directe, et sous-collections plus profondes ignorées. */
+function collectionsOf(code: string, docs: readonly FirestoreDoc[]) {
+  const byCollection = new Map<string, FirestoreDoc[]>();
+  const ignored = new Map<string, number>();
+  for (const d of docs) {
+    const s = d.path.split('/');
+    if (s[0] !== 'cartes' || s[1] !== code) continue;
+    if (s.length === 4) {
+      const list = byCollection.get(s[2]!) ?? [];
+      list.push(d);
+      byCollection.set(s[2]!, list);
+    } else if (s.length > 4) {
+      const key = s
+        .slice(2)
+        .filter((_, i) => i % 2 === 0)
+        .join('/');
+      if (key !== 'characters/customCompetences') ignored.set(key, (ignored.get(key) ?? 0) + 1);
+    }
+  }
+  return { byCollection, ignored };
+}
+
+/** Météo d'une scène (type et intensité), ou aucune. */
+function weather(v: unknown) {
+  const o = obj(v);
+  const type = toText(o?.type)?.slice(0, 50);
+  return type ? { type, intensity: bounded(o?.intensity, 0, 10, 1) } : null;
+}
+
+function migrateGroups(r: Room): MigratedMaps['groups'] {
+  const { campaignId, warn, collection, groupIds } = r;
+  const groups: MigratedMaps['groups'] = [];
+  for (const d of collection('groups')) {
+    const name = toText(d.data?.name)?.slice(0, 100);
+    if (!name) {
+      warn(`Dossier ${d.path} sans nom : ignoré`);
+      continue;
+    }
+    const id = legacyUuid(d.path);
+    groupIds.set(d.id, id);
+    const order = num(d.data?.order);
+    groups.push({
+      id,
+      campaignId,
+      name,
+      sortOrder: order !== undefined && order >= 0 ? Math.floor(order) : 0,
+    });
+  }
+  return groups;
+}
+
+function migrateScenes(r: Room): void {
+  const { campaignId, warn, collection, groupIds, cityIds, mapsOut, layersOf } = r;
+  for (const d of collection('cities')) {
+    const c = d.data ?? {};
+    const id = legacyUuid(d.path);
+    cityIds.set(d.id, id);
+    const spawnX = coord(c.spawnX);
+    const spawnY = coord(c.spawnY);
+    const groupId = toText(c.groupId);
+    if (groupId && !groupIds.has(groupId)) warn(`Scène ${d.path} : dossier ${groupId} introuvable`);
+    mapsOut.push({
+      id,
+      campaignId,
+      groupId: groupId ? (groupIds.get(groupId) ?? null) : null,
+      name: toText(c.name)?.slice(0, 100) ?? 'Scène sans nom',
+      description: (text(c.description, 2000) ?? '').trim(),
+      backgroundUrl: toText(c.backgroundUrl) ?? null,
+      visibleToPlayers: bool(c.visibleToPlayers, true),
+      spawn: spawnX !== undefined && spawnY !== undefined ? { x: spawnX, y: spawnY } : null,
+      weather: weather(c.weather),
+      layers: layersOf(`layers_${d.id}`),
+    });
+  }
+}
+
+function migrateSettings(r: Room): MigratedMaps['settings'] {
+  const { campaignId, general, rtdb, cityIds, partyCity } = r;
   const music = obj(rtdb?.music);
   const settings: MigratedMaps['settings'] =
     Object.keys(general).length || music
@@ -367,8 +502,11 @@ export function transformRoom(
             : null,
         }
       : null;
+  return settings;
+}
 
-  // ─── Brouillard ────────────────────────────────────────────────────────
+function migrateFog(r: Room): MigratedMaps['fog'] {
+  const { campaignId, collection, ensureDefault, mapOf } = r;
   const fog: MigratedMaps['fog'] = [];
   for (const d of collection('fog')) {
     const f = d.data ?? {};
@@ -387,23 +525,15 @@ export function transformRoom(
     if (!mapId) continue;
     fog.push({ mapId, campaignId, fullMap, cells });
   }
+  return fog;
+}
 
-  // ─── Tokens (champs de carte des personnages) ──────────────────────────
+function migrateTokens(r: Room): MigratedMaps['tokens'] {
+  const { warn, collection, m, rtdb } = r;
   const tokens: MigratedMaps['tokens'] = [];
   const positions = obj(rtdb?.positions) ?? {};
-  const translateIds = (v: unknown, what: string) => {
-    if (!Array.isArray(v)) return [];
-    const out: string[] = [];
-    for (const legacyId of v) {
-      const c = m.characters.get(`${prefix}/characters/${String(legacyId)}`);
-      if (c) out.push(c.id);
-      else warn(`${what} : personnage visé ${String(legacyId)} non importé`);
-    }
-    return [...new Set(out)];
-  };
   let skippedPositions = 0;
   for (const d of collection('characters')) {
-    const c = d.data ?? {};
     const character = m.characters.get(d.path);
     if (!character) {
       warn(`Token ${d.path} : personnage non importé`);
@@ -413,93 +543,122 @@ export function transformRoom(
       warn(`Token ${d.path} : personnage non engagé dans la campagne`);
       continue;
     }
-    const player = c.type === 'joueurs';
-    const rt = obj(positions[d.id]);
-    const rtCities = obj(rt?.positions) ?? {};
-    const fsCities = obj(c.positions) ?? {};
-    /** Position sur une scène, avec la priorité de l'ancienne carte (RTDB d'abord). */
-    const posOn = (city: string | undefined): MapPoint => {
-      const rtCity = city ? point(rtCities[city]) : undefined;
-      if (rtCity) return rtCity;
-      const rtBase = point(rt);
-      if (rtBase) return rtBase;
-      const fsCity = city ? point(fsCities[city]) : undefined;
-      return fsCity ?? { x: coord(c.x) ?? 0, y: coord(c.y) ?? 0 };
-    };
-    const image = toText(player ? (c.imageURLFinal ?? c.imageURL2) : c.imageURL2);
-    const audio = obj(c.audio);
-    const look = {
-      campaignId,
-      characterId: character.id,
-      scale: positive(c.scale, 100, 1),
-      shape: c.shape === 'square' ? ('square' as const) : ('circle' as const),
-      imageUrl: image && image !== toText(c.imageURL) ? image : null,
-      visibility: tokenVisibility(c.visibility, player),
-      visibleTo: translateIds(c.visibleToPlayerIds, `Token ${d.path}`),
-      visionRadius: Math.min(2000, Math.max(0, num(c.visibilityRadius) ?? 100)),
-      visionBoost: c.visionBoostActive === true,
-      notes: text(c.notes, 10_000) ?? null,
-      audio:
-        audio && toText(audio.url)
-          ? {
-              url: toText(audio.url)!,
-              radius: bounded(audio.radius, 0, 100_000, 100),
-              volume: bounded(audio.volume, 0, 1, 0.5),
-              ...(typeof audio.loop === 'boolean' ? { loop: audio.loop } : {}),
-              ...(toText(audio.name) ? { name: toText(audio.name)!.slice(0, 200) } : {}),
-            }
-          : null,
-      interactions: Array.isArray(c.interactions)
-        ? (c.interactions.filter((x) => obj(x)) as Record<string, unknown>[])
-        : null,
-    };
-    if (!player) {
-      const mapId = mapOf(c.cityId, `Token ${d.path}`);
-      if (mapId)
-        tokens.push({
-          ...look,
-          id: legacyUuid(`${d.path}#${toText(c.cityId) ?? 'fond'}`),
-          mapId,
-          pos: posOn(toText(c.cityId)),
-          present: true,
-        });
-      continue;
-    }
-    // Joueur : sa scène courante, et sa dernière position sur les autres scènes
-    const current = toText(c.currentSceneId) ?? partyCity;
-    const currentMap = mapOf(current, `Token ${d.path}`);
-    const seen = new Set<string>();
-    if (currentMap) {
-      seen.add(currentMap);
-      tokens.push({
-        ...look,
-        id: legacyUuid(`${d.path}#${current ?? 'fond'}`),
-        mapId: currentMap,
-        pos: posOn(current),
-        present: true,
-      });
-    }
-    for (const city of new Set([...Object.keys(rtCities), ...Object.keys(fsCities)])) {
-      const mapId = cityIds.get(city);
-      if (!mapId) {
-        skippedPositions++;
-        continue;
-      }
-      if (seen.has(mapId)) continue;
-      seen.add(mapId);
-      tokens.push({
-        ...look,
-        id: legacyUuid(`${d.path}#${city}`),
-        mapId,
-        pos: posOn(city),
-        present: false,
-      });
-    }
+    const placed = tokensOf(r, d, character.id, obj(positions[d.id]));
+    tokens.push(...placed.tokens);
+    skippedPositions += placed.skipped;
   }
   if (skippedPositions)
     warn(`${skippedPositions} position(s) mémorisée(s) sur des scènes supprimées : ignorée(s)`);
+  return tokens;
+}
 
-  // ─── Objets, lumières, zones sonores, portails ─────────────────────────
+/**
+ * Tokens d'un personnage : un PNJ sur sa scène ; un joueur sur sa scène courante, et à sa
+ * dernière position sur les autres scènes. `skipped` : positions sur des scènes supprimées.
+ */
+function tokensOf(
+  r: Room,
+  d: FirestoreDoc,
+  characterId: string,
+  rt: Data | undefined,
+): { tokens: MigratedMaps['tokens']; skipped: number } {
+  const { mapOf, cityIds, partyCity } = r;
+  const c = d.data ?? {};
+  const player = c.type === 'joueurs';
+  const rtCities = obj(rt?.positions) ?? {};
+  const fsCities = obj(c.positions) ?? {};
+  /** Position sur une scène, avec la priorité de l'ancienne carte (RTDB d'abord). */
+  const posOn = (city: string | undefined): MapPoint => {
+    const rtCity = city ? point(rtCities[city]) : undefined;
+    if (rtCity) return rtCity;
+    const rtBase = point(rt);
+    if (rtBase) return rtBase;
+    const fsCity = city ? point(fsCities[city]) : undefined;
+    return fsCity ?? { x: coord(c.x) ?? 0, y: coord(c.y) ?? 0 };
+  };
+  const look = tokenLook(r, d, characterId, player);
+  const tokens: MigratedMaps['tokens'] = [];
+  if (!player) {
+    const mapId = mapOf(c.cityId, `Token ${d.path}`);
+    if (mapId)
+      tokens.push({
+        ...look,
+        id: legacyUuid(`${d.path}#${toText(c.cityId) ?? 'fond'}`),
+        mapId,
+        pos: posOn(toText(c.cityId)),
+        present: true,
+      });
+    return { tokens, skipped: 0 };
+  }
+  // Joueur : sa scène courante, et sa dernière position sur les autres scènes
+  const current = toText(c.currentSceneId) ?? partyCity;
+  const currentMap = mapOf(current, `Token ${d.path}`);
+  const seen = new Set<string>();
+  if (currentMap) {
+    seen.add(currentMap);
+    tokens.push({
+      ...look,
+      id: legacyUuid(`${d.path}#${current ?? 'fond'}`),
+      mapId: currentMap,
+      pos: posOn(current),
+      present: true,
+    });
+  }
+  let skipped = 0;
+  for (const city of new Set([...Object.keys(rtCities), ...Object.keys(fsCities)])) {
+    const mapId = cityIds.get(city);
+    if (!mapId) skipped++;
+    if (!mapId || seen.has(mapId)) continue;
+    seen.add(mapId);
+    tokens.push({
+      ...look,
+      id: legacyUuid(`${d.path}#${city}`),
+      mapId,
+      pos: posOn(city),
+      present: false,
+    });
+  }
+  return { tokens, skipped };
+}
+
+/** Apparence d'un token, commune à toutes ses scènes. */
+function tokenLook(r: Room, d: FirestoreDoc, characterId: string, player: boolean) {
+  const c = d.data ?? {};
+  const image = toText(player ? (c.imageURLFinal ?? c.imageURL2) : c.imageURL2);
+  return {
+    campaignId: r.campaignId,
+    characterId,
+    scale: positive(c.scale, 100, 1),
+    shape: c.shape === 'square' ? ('square' as const) : ('circle' as const),
+    imageUrl: image && image !== toText(c.imageURL) ? image : null,
+    visibility: tokenVisibility(c.visibility, player),
+    visibleTo: r.translateIds(c.visibleToPlayerIds, `Token ${d.path}`),
+    visionRadius: Math.min(2000, Math.max(0, num(c.visibilityRadius) ?? 100)),
+    visionBoost: c.visionBoostActive === true,
+    notes: text(c.notes, 10_000) ?? null,
+    audio: tokenAudio(obj(c.audio)),
+    interactions: Array.isArray(c.interactions)
+      ? (c.interactions.filter((x) => obj(x)) as Record<string, unknown>[])
+      : null,
+  };
+}
+
+/** Son attaché à un token, s'il a une adresse. */
+function tokenAudio(audio: Data | undefined) {
+  const url = toText(audio?.url);
+  if (!audio || !url) return null;
+  const name = toText(audio.name);
+  return {
+    url,
+    radius: bounded(audio.radius, 0, 100_000, 100),
+    volume: bounded(audio.volume, 0, 1, 0.5),
+    ...(typeof audio.loop === 'boolean' ? { loop: audio.loop } : {}),
+    ...(name ? { name: name.slice(0, 200) } : {}),
+  };
+}
+
+function migrateObjects(r: Room): MigratedMaps['objects'] {
+  const { campaignId, warn, collection, mapOf, translateIds } = r;
   const objects: MigratedMaps['objects'] = [];
   for (const d of collection('objects')) {
     const o = d.data ?? {};
@@ -533,7 +692,11 @@ export function transformRoom(
       groupEntityId: toText(o.groupEntityId) ?? null,
     });
   }
+  return objects;
+}
 
+function migrateLights(r: Room): MigratedMaps['lights'] {
+  const { campaignId, collection, mapOf } = r;
   const lights: MigratedMaps['lights'] = [];
   for (const d of collection('lights')) {
     const l = d.data ?? {};
@@ -550,7 +713,11 @@ export function transformRoom(
       visible: bool(l.visible, true),
     });
   }
+  return lights;
+}
 
+function migrateMusicZones(r: Room): MigratedMaps['musicZones'] {
+  const { campaignId, collection, mapOf } = r;
   const musicZones: MigratedMaps['musicZones'] = [];
   for (const d of collection('musicZones')) {
     const z = d.data ?? {};
@@ -569,7 +736,11 @@ export function transformRoom(
       color: toText(z.color)?.slice(0, 50) ?? null,
     });
   }
+  return musicZones;
+}
 
+function migratePortals(r: Room): MigratedMaps['portals'] {
+  const { campaignId, warn, collection, mapOf, cityIds } = r;
   const portals: MigratedMaps['portals'] = [];
   for (const d of collection('portals')) {
     const p = d.data ?? {};
@@ -599,26 +770,42 @@ export function transformRoom(
       visible: bool(p.visible, true),
     });
   }
+  return portals;
+}
 
-  // ─── RTDB (et anciennes collections Firestore recopiées) ───────────────
-  /**
-   * RTDB d'abord. Une fois la salle migrée (drapeau `_migrations`), les
-   * documents Firestore sont des copies périmées (effacées depuis dans la RTDB) :
-   * ils ne comptent que pour une salle jamais ouverte depuis la bascule.
-   */
-  const copied = obj(rtdb?._migrations)?.drawings_obstacles_notes === true;
-  const merged = (rt: unknown, fsName: string) => {
-    const out = new Map<string, Data>();
-    if (!copied) for (const d of collection(fsName)) out.set(d.id, d.data ?? {});
-    for (const [id, v] of Object.entries(obj(rt) ?? {})) {
-      const o = obj(v);
-      if (o) out.set(id, o);
-    }
-    return out;
-  };
+const obstacleKind = (t: unknown): ObstacleKind | undefined => OBSTACLE_KINDS[String(t)];
 
+/** Murs d'un polygone ou d'un rectangle legacy, un par côté (type et sens par côté). */
+function ringWalls(
+  key: string,
+  o: Data,
+  pts: MapPoint[],
+  base: Omit<MigratedMaps['obstacles'][number], 'id' | 'kind' | 'geom'>,
+): MigratedMaps['obstacles'] {
+  const [a, b] = pts;
+  const ring = o.type === 'rectangle' ? [a!, { x: b!.x, y: a!.y }, b!, { x: a!.x, y: b!.y }] : pts;
+  if (ring.length < 3) return [];
+  const edges = Array.isArray(o.edges) ? o.edges : [];
+  return ring.map((p, i) => {
+    const edge = obj(edges[i]);
+    const kind = (o.type === 'polygon' && obstacleKind(edge?.type)) || 'wall';
+    const geom = [p, ring[(i + 1) % ring.length]!];
+    const direction = oneOf(edge?.direction, DIRECTIONS) ?? null;
+    return {
+      ...base,
+      id: legacyUuid(`${key}_e${i}`),
+      kind,
+      geom,
+      direction,
+      blocksFrom: kind === 'one_way_wall' ? blocksFromDirection(geom, direction) : null,
+      isOpen: bool(edge?.isOpen, false),
+    };
+  });
+}
+
+function migrateObstacles(r: Room): MigratedMaps['obstacles'] {
+  const { campaignId, warn, code, rtdb, mapOf, merged } = r;
   const obstacles: MigratedMaps['obstacles'] = [];
-  const obstacleKind = (t: unknown): ObstacleKind | undefined => OBSTACLE_KINDS[String(t)];
   for (const [id, o] of merged(rtdb?.obstacles, 'obstacles')) {
     const key = `rooms/${code}/obstacles/${id}`;
     const mapId = mapOf(o.cityId, `Obstacle ${key}`);
@@ -636,27 +823,7 @@ export function transformRoom(
     };
     // Polygones et rectangles : éclatés en murs, comme la migration de l'ancienne carte
     if (o.type === 'polygon' || o.type === 'rectangle') {
-      const [a, b] = pts;
-      const ring =
-        o.type === 'rectangle' ? [a!, { x: b!.x, y: a!.y }, b!, { x: a!.x, y: b!.y }] : pts;
-      if (ring.length < 3) continue;
-      const edges = Array.isArray(o.edges) ? o.edges : [];
-      ring.forEach((p, i) => {
-        const edge = obj(edges[i]);
-        const kind = (o.type === 'polygon' && obstacleKind(edge?.type)) || 'wall';
-        const geom = [p, ring[(i + 1) % ring.length]!];
-        const direction = oneOf(edge?.direction, DIRECTIONS) ?? null;
-        obstacles.push({
-          ...common,
-          ...extra,
-          id: legacyUuid(`${key}_e${i}`),
-          kind,
-          geom,
-          direction,
-          blocksFrom: kind === 'one_way_wall' ? blocksFromDirection(geom, direction) : null,
-          isOpen: bool(edge?.isOpen, false),
-        });
-      });
+      obstacles.push(...ringWalls(key, o, pts, { ...common, ...extra }));
       continue;
     }
     const kind = obstacleKind(o.type);
@@ -677,7 +844,11 @@ export function transformRoom(
       isLocked: bool(o.isLocked, false),
     });
   }
+  return obstacles;
+}
 
+function migrateDrawings(r: Room): MigratedMaps['drawings'] {
+  const { campaignId, warn, code, m, rtdb, mapOf, merged } = r;
   const drawings: MigratedMaps['drawings'] = [];
   for (const [id, o] of merged(rtdb?.drawings, 'drawings')) {
     const key = `rooms/${code}/drawings/${id}`;
@@ -702,7 +873,11 @@ export function transformRoom(
       smooth: bool(o.smooth, false),
     });
   }
+  return drawings;
+}
 
+function migrateNotes(r: Room): MigratedMaps['notes'] {
+  const { campaignId, code, m, rtdb, mapOf, merged } = r;
   const notes: MigratedMaps['notes'] = [];
   for (const [id, o] of merged(rtdb?.notes, 'text')) {
     const key = `rooms/${code}/notes/${id}`;
@@ -721,7 +896,11 @@ export function transformRoom(
       fontFamily: toText(o.fontFamily)?.slice(0, 100) ?? null,
     });
   }
+  return notes;
+}
 
+function migrateMeasurements(r: Room): MigratedMaps['measurements'] {
+  const { campaignId, warn, code, m, rtdb, mapOf } = r;
   const measurements: MigratedMaps['measurements'] = [];
   let transient = 0;
   for (const [id, o] of Object.entries(obj(rtdb?.measurements) ?? {})) {
@@ -762,23 +941,7 @@ export function transformRoom(
     });
   }
   if (transient) warn(`${transient} mesure(s) éphémère(s) ou incomplète(s) non migrée(s)`);
-
-  return {
-    groups,
-    maps: mapsOut,
-    settings,
-    fog,
-    tokens,
-    objects,
-    lights,
-    obstacles,
-    drawings,
-    notes,
-    musicZones,
-    portals,
-    measurements,
-    warnings,
-  };
+  return measurements;
 }
 
 /** Genre d'obstacle de l'ancienne app → genre actuel (inconnu : undefined). */
