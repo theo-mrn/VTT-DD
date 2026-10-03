@@ -244,53 +244,31 @@ export class FogTool implements Tool {
     const start = this.start;
     if (!start) return null;
     const minPx = engine.camera.screenToWorldLength(4);
-    const round = (v: number) => Math.round(v * 100) / 100;
     switch (this.shape) {
-      case 'rect': {
-        // Aimantation commune (Alt inverse ici le mode, pas l'aimantation)
-        const grid = engine.snapGrid();
-        const a = grid ? snapToGridLines(start.world, grid) : start.world;
-        const b = grid ? snapToGridLines(e.world, grid) : e.world;
-        const r = rectFromPoints(a, b);
-        if (r.width < minPx || r.height < minPx) return null;
-        const x0 = round(r.x);
-        const y0 = round(r.y);
-        const x1 = round(r.x + r.width);
-        const y1 = round(r.y + r.height);
-        return {
-          shape: 'rect',
-          points: [
-            { x: x0, y: y0 },
-            { x: x1, y: y0 },
-            { x: x1, y: y1 },
-            { x: x0, y: y1 },
-          ],
-        };
-      }
-      case 'circle': {
-        const c = start.world;
-        let radius = Math.hypot(e.world.x - c.x, e.world.y - c.y);
-        const cell = engine.grid()?.size ?? 0;
-        if (e.shift && cell) radius = Math.max(cell, Math.round(radius / cell) * cell);
-        if (radius < minPx) return null;
-        return { shape: 'circle', center: { x: round(c.x), y: round(c.y) }, radius: round(radius) };
-      }
-      case 'lasso': {
-        const last = this.lastScreen;
-        if (!last || exceedsThreshold(last, e.screen, LASSO_STEP_PX)) {
-          this.lasso.push(e.world);
-          this.lastScreen = e.screen;
-        }
-        const polygon = lassoPolygon(
-          this.lasso,
-          engine.camera.screenToWorldLength(LASSO_TOLERANCE_PX),
-          minPx * minPx,
-        );
-        return polygon ? { shape: 'polygon', points: polygon } : null;
-      }
+      case 'rect':
+        return rectGeometry(start.world, e.world, engine, minPx);
+      case 'circle':
+        return circleGeometry(start.world, e, engine, minPx);
+      case 'lasso':
+        return this.lassoGeometry(e, engine, minPx);
       default:
         return null;
     }
+  }
+
+  /** Lasso : un point de plus tous les quelques pixels, puis le polygone simplifié. */
+  private lassoGeometry(e: MapPointer, engine: MapEngine, minPx: number): FogGeometry | null {
+    const last = this.lastScreen;
+    if (!last || exceedsThreshold(last, e.screen, LASSO_STEP_PX)) {
+      this.lasso.push(e.world);
+      this.lastScreen = e.screen;
+    }
+    const polygon = lassoPolygon(
+      this.lasso,
+      engine.camera.screenToWorldLength(LASSO_TOLERANCE_PX),
+      minPx * minPx,
+    );
+    return polygon ? { shape: 'polygon', points: polygon } : null;
   }
 
   /** Pose la zone : une commande (annulable). */
@@ -372,4 +350,48 @@ export class FogTool implements Tool {
         .stroke({ width: 2 * u, color });
     }
   }
+}
+
+/** Arrondi au centième. */
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+/** Rectangle aimanté (Alt inverse ici le mode, pas l'aimantation). */
+function rectGeometry(
+  from: Point,
+  to: Point,
+  engine: MapEngine,
+  minPx: number,
+): FogGeometry | null {
+  const grid = engine.snapGrid();
+  const a = grid ? snapToGridLines(from, grid) : from;
+  const b = grid ? snapToGridLines(to, grid) : to;
+  const r = rectFromPoints(a, b);
+  if (r.width < minPx || r.height < minPx) return null;
+  const x0 = round2(r.x);
+  const y0 = round2(r.y);
+  const x1 = round2(r.x + r.width);
+  const y1 = round2(r.y + r.height);
+  return {
+    shape: 'rect',
+    points: [
+      { x: x0, y: y0 },
+      { x: x1, y: y0 },
+      { x: x1, y: y1 },
+      { x: x0, y: y1 },
+    ],
+  };
+}
+
+/** Cercle depuis son centre (⇧ : rayon en cases entières). */
+function circleGeometry(
+  c: Point,
+  e: MapPointer,
+  engine: MapEngine,
+  minPx: number,
+): FogGeometry | null {
+  let radius = Math.hypot(e.world.x - c.x, e.world.y - c.y);
+  const cell = engine.grid()?.size ?? 0;
+  if (e.shift && cell) radius = Math.max(cell, Math.round(radius / cell) * cell);
+  if (radius < minPx) return null;
+  return { shape: 'circle', center: { x: round2(c.x), y: round2(c.y) }, radius: round2(radius) };
 }
