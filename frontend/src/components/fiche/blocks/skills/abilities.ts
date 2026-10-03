@@ -95,6 +95,18 @@ export function skillSortes(fiche: Fiche, widget: SkillsWidget): string[] {
   return declared.filter((id) => !paths.has(id));
 }
 
+type Possession = Fiche['possessions'] extends ReadonlyMap<string, infer P> ? P : never;
+
+/** L'entrée possédée référence la voie par un de ses champs (entrée ou entrées de sa sorte). */
+function referencesPath(p: Possession, path: PathView): boolean {
+  return p.sorte.champs.some((c) => {
+    if ((c.type !== 'entree' && c.type !== 'entrees') || c.sorte !== path.entry.sorte) return false;
+    const v = p.entree.champs[c.id];
+    const refs = Array.isArray(v) ? v : [v];
+    return refs.includes(path.entry.id);
+  });
+}
+
 /**
  * Provenance d'une voie : la sorte de l'entrée possédée qui la référence par un champ (profil,
  * race…), hors entrées qu'elle accorde elle-même ; sinon sa première étiquette.
@@ -104,12 +116,7 @@ function pathSource(fiche: Fiche, path: PathView): { label?: string; order: numb
   const granted = new Set(path.ranks.flatMap((r) => r.entries.map((e) => e.id)));
   for (const p of fiche.possessions.values()) {
     if (p.sorte.id === path.entry.sorte || granted.has(p.entree.id)) continue;
-    for (const c of p.sorte.champs) {
-      if ((c.type !== 'entree' && c.type !== 'entrees') || c.sorte !== path.entry.sorte) continue;
-      const v = p.entree.champs[c.id];
-      const refs = Array.isArray(v) ? v : [v];
-      if (refs.includes(path.entry.id)) return { label: p.sorte.nom, order: 0 };
-    }
+    if (referencesPath(p, path)) return { label: p.sorte.nom, order: 0 };
   }
   const tag = path.entry.etiquettes[0];
   return tag && !systeme.sortes.has(tag) ? { label: tagLabel(tag), order: 1 } : { order: 2 };
@@ -128,19 +135,92 @@ function pathRows(fiche: Fiche, groups: PathGroup[]): PathRow[] {
     .map(({ path, src }) => ({ ...path, ...(src.label ? { source: src.label } : {}) }));
 }
 
-export function buildSkillsBlock(fiche: Fiche, widget: SkillsWidget): SkillsBlockData {
-  const { systeme } = fiche;
-  const pathGroups = buildPaths(fiche);
-  const paths = pathRows(fiche, pathGroups);
-  const trees = buildTrees(fiche);
+type PathRef = { name: string; rank: number; order: number };
 
-  // Voie et rang qui accordent chaque entrée (ordre des lignes du tableau)
-  const grantedBy = new Map<string, { name: string; rank: number; order: number }>();
+/** Voie et rang qui accordent chaque entrée (ordre des lignes du tableau). */
+function grantedByOf(fiche: Fiche, paths: PathRow[]): Map<string, PathRef> {
+  const grantedBy = new Map<string, PathRef>();
   paths.forEach((p, order) => {
     for (const g of grantsOf(fiche, p.entry, p.maxRank))
       if (!grantedBy.has(g.entry.id))
         grantedBy.set(g.entry.id, { name: p.entry.nom, rank: g.rank, order });
   });
+  return grantedBy;
+}
+
+/** Champ de filtre du bloc, s'il appartient à la sorte. */
+function filterFieldOf(widget: SkillsWidget, sorte: Sorte): string | undefined {
+  return widget.filtreChamp && sorte.champs.some((c) => c.id === widget.filtreChamp)
+    ? widget.filtreChamp
+    : undefined;
+}
+
+/** Sorte à rangs achetables : son catalogue par ordre alphabétique, groupé par première étiquette. */
+function rankedGroupOf(sorte: Sorte, cards: SkillCard[]): RankedGroup {
+  const byTag = new Map<string, SkillCard[]>();
+  for (const c of [...cards].sort((a, b) => a.entry.nom.localeCompare(b.entry.nom, 'fr'))) {
+    const tag = c.entry.etiquettes[0] ?? '';
+    byTag.set(tag, [...(byTag.get(tag) ?? []), c]);
+  }
+  return {
+    sorte,
+    groups: [...byTag].map(([key, cards]) => ({
+      key,
+      label: groupLabel(key, byTag.size),
+      cards,
+    })),
+  };
+}
+
+/** Par la valeur du champ de filtre quand la sorte le déclare, sinon par la sorte. */
+function ownedFilter(card: SkillCard, sorte: Sorte): [key: string, label: string] {
+  if (card.filter?.key) return [`champ:${card.filter.key}`, card.filter.label];
+  if (card.filter) return ['champ:', 'Autres'];
+  return [`sorte:${sorte.id}`, sorte.nomPluriel ?? sorte.nom];
+}
+
+/** Entrées acquises : d'abord dans l'ordre des voies et des rangs, puis par nom. */
+function compareOwned(a: OwnedItem, b: OwnedItem): number {
+  return (
+    (a.path?.order ?? Infinity) - (b.path?.order ?? Infinity) ||
+    (a.path?.rank ?? 0) - (b.path?.rank ?? 0) ||
+    a.card.entry.nom.localeCompare(b.card.entry.nom, 'fr')
+  );
+}
+
+/** Filtres de la vue Capacités, comptés ; aucun s'il n'y en a qu'un. */
+function ownedFilters(owned: OwnedItem[]): SkillsBlockData['filters'] {
+  const counts = new Map<string, { key: string; label: string; count: number }>();
+  for (const o of owned) {
+    const c = counts.get(o.filterKey) ?? { key: o.filterKey, label: o.filterLabel, count: 0 };
+    c.count++;
+    counts.set(o.filterKey, c);
+  }
+  return counts.size > 1
+    ? [...counts.values()].sort((a, b) => a.label.localeCompare(b.label, 'fr'))
+    : [];
+}
+
+/** Vues proposées : celles qui ont du contenu, Capacités à défaut de toute autre. */
+function viewsOf(
+  paths: PathRow[],
+  trees: TreeView[],
+  ranked: RankedGroup[],
+  owned: OwnedItem[],
+): SkillsViewId[] {
+  const views: SkillsViewId[] = [];
+  if (paths.length || trees.length) views.push('progression');
+  if (ranked.some((r) => r.groups.length)) views.push('rangs');
+  if (owned.length || !views.length) views.push('capacites');
+  return views;
+}
+
+export function buildSkillsBlock(fiche: Fiche, widget: SkillsWidget): SkillsBlockData {
+  const { systeme } = fiche;
+  const pathGroups = buildPaths(fiche);
+  const paths = pathRows(fiche, pathGroups);
+  const trees = buildTrees(fiche);
+  const grantedBy = grantedByOf(fiche, paths);
 
   const ranked: RankedGroup[] = [];
   const owned: OwnedItem[] = [];
@@ -150,64 +230,20 @@ export function buildSkillsBlock(fiche: Fiche, widget: SkillsWidget): SkillsBloc
   ]);
   for (const id of skillSortes(fiche, widget)) {
     const sorte = systeme.sortes.get(id);
-    if (!sorte) continue;
-    const field =
-      widget.filtreChamp && sorte.champs.some((c) => c.id === widget.filtreChamp)
-        ? widget.filtreChamp
-        : undefined;
-    const data = buildSkills(fiche, id, field);
-    if (!data) continue;
+    const data = sorte ? buildSkills(fiche, id, filterFieldOf(widget, sorte)) : null;
+    if (!sorte || !data) continue;
     for (const p of data.progress) currencies.add(p.currency);
     if (data.rankPurchase) {
-      const byTag = new Map<string, SkillCard[]>();
-      for (const c of [...data.cards].sort((a, b) =>
-        a.entry.nom.localeCompare(b.entry.nom, 'fr'),
-      )) {
-        const tag = c.entry.etiquettes[0] ?? '';
-        byTag.set(tag, [...(byTag.get(tag) ?? []), c]);
-      }
-      ranked.push({
-        sorte,
-        groups: [...byTag].map(([key, cards]) => ({
-          key,
-          label: groupLabel(key, byTag.size),
-          cards,
-        })),
-      });
+      ranked.push(rankedGroupOf(sorte, data.cards));
       continue;
     }
     for (const card of data.cards) {
       const path = grantedBy.get(card.entry.id);
-      // Par la valeur du champ de filtre quand la sorte le déclare, sinon par la sorte
-      let [filterKey, filterLabel] = [`sorte:${sorte.id}`, sorte.nomPluriel ?? sorte.nom];
-      if (card.filter?.key)
-        [filterKey, filterLabel] = [`champ:${card.filter.key}`, card.filter.label];
-      else if (card.filter) [filterKey, filterLabel] = ['champ:', 'Autres'];
+      const [filterKey, filterLabel] = ownedFilter(card, sorte);
       owned.push({ card, sorte, ...(path ? { path } : {}), filterKey, filterLabel });
     }
   }
-  owned.sort(
-    (a, b) =>
-      (a.path?.order ?? Infinity) - (b.path?.order ?? Infinity) ||
-      (a.path?.rank ?? 0) - (b.path?.rank ?? 0) ||
-      a.card.entry.nom.localeCompare(b.card.entry.nom, 'fr'),
-  );
-
-  const counts = new Map<string, { key: string; label: string; count: number }>();
-  for (const o of owned) {
-    const c = counts.get(o.filterKey) ?? { key: o.filterKey, label: o.filterLabel, count: 0 };
-    c.count++;
-    counts.set(o.filterKey, c);
-  }
-  const filters =
-    counts.size > 1
-      ? [...counts.values()].sort((a, b) => a.label.localeCompare(b.label, 'fr'))
-      : [];
-
-  const views: SkillsViewId[] = [];
-  if (paths.length || trees.length) views.push('progression');
-  if (ranked.some((r) => r.groups.length)) views.push('rangs');
-  if (owned.length || !views.length) views.push('capacites');
+  owned.sort(compareOwned);
 
   return {
     paths,
@@ -216,13 +252,13 @@ export function buildSkillsBlock(fiche: Fiche, widget: SkillsWidget): SkillsBloc
     trees,
     ranked,
     owned,
-    filters,
+    filters: ownedFilters(owned),
     balances: [...currencies].map((currency) => ({
       currency,
       name: systeme.monnaies.get(currency)?.nom ?? currency,
       balance: solde(fiche, currency),
     })),
-    views,
+    views: viewsOf(paths, trees, ranked, owned),
   };
 }
 

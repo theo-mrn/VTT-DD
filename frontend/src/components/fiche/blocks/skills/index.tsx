@@ -19,7 +19,13 @@ import { TreeExplorer } from '../tree/explorer';
 import { currencyName } from '../tree/model';
 import { sheetWrites } from '../tree/writes';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
-import { buildSkillsBlock, VIEW_ORDER, type OwnedItem, type SkillsViewId } from './abilities';
+import {
+  buildSkillsBlock,
+  VIEW_ORDER,
+  type OwnedItem,
+  type SkillsBlockData,
+  type SkillsViewId,
+} from './abilities';
 import { BlockShell } from './block-shell';
 import type { SkillCard } from './model';
 import { OwnedList } from './owned-list';
@@ -108,6 +114,139 @@ function SearchField({
   );
 }
 
+/** Recherche des vues en liste (Capacités, rangs), au-delà de 5 entrées. */
+function withSearch(view: SkillsViewId, ownedCount: number, rankedCount: number): boolean {
+  if (view !== 'capacites' && view !== 'rangs') return false;
+  return (view === 'capacites' ? ownedCount : rankedCount) > 5;
+}
+
+type Ctx = SheetBlockProps<'competences'>['ctx'];
+type Writes = ReturnType<typeof sheetWrites>;
+
+/** Pastilles de filtre de la vue Capacités (« Toutes », puis chaque type, avec leur nombre). */
+function FilterChips({
+  total,
+  filters,
+  filter,
+  onFilter,
+}: Readonly<{
+  total: number;
+  filters: SkillsBlockData['filters'];
+  filter: string | null;
+  onFilter(key: string | null): void;
+}>) {
+  return (
+    <div
+      className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:thin]"
+      role="group"
+      aria-label="Filtrer par type"
+    >
+      {[{ key: null, label: 'Toutes', count: total }, ...filters].map((f) => {
+        const on = filter === f.key;
+        return (
+          <button
+            key={f.key ?? '*'}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onFilter(on && f.key !== null ? null : f.key)}
+            className={cn(
+              'relative flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium sm:h-6',
+              "after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] sm:after:hidden",
+              'transition-colors duration-150 motion-reduce:transition-none',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              on
+                ? 'border-primary/40 bg-primary/10 text-primary-strong'
+                : 'border-border-strong text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {f.label}
+            <span className="font-mono tabular opacity-60">{f.count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Vue Progression : voies en tableau, puis arbres de talents. */
+function ProgressionView({
+  ctx,
+  data,
+  writes,
+  height,
+  narrow,
+  title,
+  onSelect,
+}: Readonly<{
+  ctx: Ctx;
+  data: SkillsBlockData;
+  writes: Writes;
+  height: SheetBlockProps<'competences'>['height'];
+  narrow: boolean;
+  title: string;
+  onSelect(selection: TreeSelection): void;
+}>) {
+  return (
+    <>
+      {data.paths.length > 0 && (
+        <PathsTable
+          paths={data.paths}
+          columns={data.pathColumns}
+          caption={data.pathSorteNames.join(', ') || title}
+          narrow={narrow}
+          currencyName={(id: string | undefined) => currencyName(ctx.systeme, id)}
+          onSelect={(path, rank) => onSelect({ kind: 'rank', path, rank })}
+        />
+      )}
+      {data.trees.length > 0 && (
+        <div
+          className={cn(
+            height === 'fixed' ? 'min-h-0 flex-1' : 'h-[min(70vh,34rem)]',
+            data.paths.length > 0 && 'mt-3',
+          )}
+        >
+          <TreeExplorer ctx={ctx} trees={data.trees} writes={writes} />
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Vue Capacités : entrées acquises filtrées, ou ce qui explique leur absence. */
+function CapacitesView({
+  data,
+  owned,
+  writes,
+  onOpen,
+}: Readonly<{
+  data: SkillsBlockData;
+  owned: OwnedItem[];
+  writes: Writes;
+  onOpen(card: SkillCard): void;
+}>) {
+  return (
+    <>
+      {data.owned.length === 0 && (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Aucune capacité acquise pour l’instant.
+          {data.views.includes('progression') && ' Elles s’obtiennent par la progression.'}
+        </p>
+      )}
+      {data.owned.length > 0 && owned.length === 0 && (
+        <p className="py-6 text-center text-sm text-muted-foreground">Aucun résultat.</p>
+      )}
+      {owned.length > 0 && (
+        <OwnedList
+          items={owned}
+          showFilterLabel={(o: OwnedItem) => o.filterKey.startsWith('champ:')}
+          writes={writes}
+          onOpen={(o) => onOpen(o.card)}
+        />
+      )}
+    </>
+  );
+}
+
 function SkillsBlock({
   ctx,
   widget,
@@ -129,7 +268,6 @@ function SkillsBlock({
   const [rankSel, setRankSel] = useState<TreeSelection | null>(null);
   const [cardId, setCardId] = useState<string | null>(null);
 
-  const cur = (id: string | undefined) => currencyName(ctx.systeme, id);
   const q = plain(deferred.trim());
   const matches = (c: SkillCard) =>
     !q || plain([c.entry.nom, c.entry.description ?? ''].join(' ')).includes(q);
@@ -155,10 +293,9 @@ function SkillsBlock({
     id,
     ...libellesVues[id],
   }));
-  const searchable = view === 'capacites' || view === 'rangs';
-  const volume = view === 'capacites' ? data.owned.length : allCards.length - data.owned.length;
-  const avecRecherche = searchable && volume > 5;
-  const trees = view === 'progression' && data.trees.length > 0;
+  const tabs = options.length > 1;
+  const avecRecherche = withSearch(view, data.owned.length, allCards.length - data.owned.length);
+  const fixedTrees = view === 'progression' && data.trees.length > 0 && height === 'fixed';
 
   return (
     <>
@@ -166,7 +303,7 @@ function SkillsBlock({
         title={widget.titre}
         actions={
           <>
-            {options.length > 1 && (
+            {tabs && (
               <ViewSwitch
                 options={options}
                 value={view}
@@ -199,73 +336,35 @@ function SkillsBlock({
                 label={`Rechercher dans ${widget.titre}`}
               />
               {view === 'capacites' && data.filters.length > 0 && (
-                <div
-                  className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:thin]"
-                  role="group"
-                  aria-label="Filtrer par type"
-                >
-                  {[{ key: null, label: 'Toutes', count: data.owned.length }, ...data.filters].map(
-                    (f) => {
-                      const on = filter === f.key;
-                      return (
-                        <button
-                          key={f.key ?? '*'}
-                          type="button"
-                          aria-pressed={on}
-                          onClick={() => setFilter(on && f.key !== null ? null : f.key)}
-                          className={cn(
-                            'relative flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium sm:h-6',
-                            "after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] sm:after:hidden",
-                            'transition-colors duration-150 motion-reduce:transition-none',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                            on
-                              ? 'border-primary/40 bg-primary/10 text-primary-strong'
-                              : 'border-border-strong text-muted-foreground hover:text-foreground',
-                          )}
-                        >
-                          {f.label}
-                          <span className="font-mono tabular opacity-60">{f.count}</span>
-                        </button>
-                      );
-                    },
-                  )}
-                </div>
+                <FilterChips
+                  total={data.owned.length}
+                  filters={data.filters}
+                  filter={filter}
+                  onFilter={setFilter}
+                />
               )}
             </>
           ) : undefined
         }
-        bodyClassName={cn(trees && height === 'fixed' && 'overflow-hidden')}
+        bodyClassName={cn(fixedTrees && 'overflow-hidden')}
       >
         <div
           ref={bodyRef}
           id={panelId}
-          role={options.length > 1 ? 'tabpanel' : undefined}
-          aria-labelledby={options.length > 1 ? `${panelId}-tab-${view}` : undefined}
-          className={cn(trees && height === 'fixed' && 'flex h-full min-h-0 flex-col gap-3')}
+          role={tabs ? 'tabpanel' : undefined}
+          aria-labelledby={tabs ? `${panelId}-tab-${view}` : undefined}
+          className={cn(fixedTrees && 'flex h-full min-h-0 flex-col gap-3')}
         >
           {view === 'progression' && (
-            <>
-              {data.paths.length > 0 && (
-                <PathsTable
-                  paths={data.paths}
-                  columns={data.pathColumns}
-                  caption={data.pathSorteNames.join(', ') || widget.titre}
-                  narrow={narrow}
-                  currencyName={cur}
-                  onSelect={(path, rank) => setRankSel({ kind: 'rank', path, rank })}
-                />
-              )}
-              {data.trees.length > 0 && (
-                <div
-                  className={cn(
-                    height === 'fixed' ? 'min-h-0 flex-1' : 'h-[min(70vh,34rem)]',
-                    data.paths.length > 0 && 'mt-3',
-                  )}
-                >
-                  <TreeExplorer ctx={ctx} trees={data.trees} writes={writes} />
-                </div>
-              )}
-            </>
+            <ProgressionView
+              ctx={ctx}
+              data={data}
+              writes={writes}
+              height={height}
+              narrow={narrow}
+              title={widget.titre}
+              onSelect={setRankSel}
+            />
           )}
           {view === 'rangs' && (
             <RankedList
@@ -276,21 +375,12 @@ function SkillsBlock({
               onOpen={(c) => setCardId(c.entry.id)}
             />
           )}
-          {view === 'capacites' && data.owned.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              Aucune capacité acquise pour l’instant.
-              {data.views.includes('progression') && ' Elles s’obtiennent par la progression.'}
-            </p>
-          )}
-          {view === 'capacites' && data.owned.length > 0 && owned.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">Aucun résultat.</p>
-          )}
-          {view === 'capacites' && owned.length > 0 && (
-            <OwnedList
-              items={owned}
-              showFilterLabel={(o: OwnedItem) => o.filterKey.startsWith('champ:')}
+          {view === 'capacites' && (
+            <CapacitesView
+              data={data}
+              owned={owned}
               writes={writes}
-              onOpen={(o) => setCardId(o.card.entry.id)}
+              onOpen={(c) => setCardId(c.entry.id)}
             />
           )}
         </div>
