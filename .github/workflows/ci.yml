@@ -47,7 +47,7 @@ jobs:
           pnpm turbo run lint typecheck build --output-logs=errors-only $affected 2>&1 | tee /tmp/turbo.log
           # Tests deux paquets à la fois : tous ensemble, les tests de propriétés (vision, systemes)
           # et les garde-fous d'événements dépassent leurs délais sur les 4 cœurs du runner
-          pnpm turbo run test --concurrency=2 --output-logs=errors-only $affected \
+          pnpm turbo run test --concurrency=2 --continue --output-logs=errors-only $affected \
             -- --coverage.enabled --coverage.reporter=lcov 2>&1 | tee -a /tmp/turbo.log
       - name: Couverture des tests unitaires (pour SonarQube)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -207,9 +207,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: ffmpeg (worker audio)
         run: command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
-      - name: Variables factices pour le build Next
-        run: grep -E '^[A-Z0-9_]+=' infra/ci/build-placeholders.env >> "$GITHUB_ENV"
-      # Infra, migrations, services compilés et front servi : la stack de `pnpm dev`
+      # Infra, migrations, services compilés et front servi : la stack de `pnpm dev`. Sans les
+      # variables factices du build Next : billing les lirait comme de vraies clés Stripe
       - name: Stack complète
         run: bash infra/ci/e2e-stack.sh
       - name: Chromium

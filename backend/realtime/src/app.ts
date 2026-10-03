@@ -44,6 +44,7 @@ export async function buildRealtime(
   const withBus = providedBus !== undefined ? providedBus !== null : !!config.NATS_URL;
   let bus: Bus | null = providedBus ?? null;
   let stopLive: (() => Promise<void>) | undefined;
+  let closeHub: (() => void) | undefined;
   let adapterClients: Redis[] = [];
 
   const app = await createService({
@@ -65,6 +66,7 @@ export async function buildRealtime(
       ...(options.onShutdown ?? []),
       async () => {
         await stopLive?.();
+        closeHub?.();
         // Le bus fourni par un test reste à sa charge
         if (bus && providedBus === undefined) await bus.close();
         await app.io?.close().catch(() => undefined);
@@ -139,6 +141,7 @@ export async function buildRealtime(
     ...(presenceDelayMs !== undefined ? { presenceDelayMs } : {}),
   });
   app.decorate('realtime', hub);
+  closeHub = () => hub.close();
 
   // Arrêt : connexions fermées avant le serveur HTTP (sinon il attend les WebSockets ouverts) ;
   // les clients se reconnectent sur un autre réplica et rattrapent avec leur dernier seq

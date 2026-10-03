@@ -96,6 +96,11 @@ export interface HubOptions {
 export interface Hub {
   /** Diffuse un événement du bus (séquence `seq` du flux) aux connexions de ce réplica. */
   dispatch(event: EventEnvelope, seq: number): void;
+  /**
+   * Arrêt : annule les annonces de présence en attente. À appeler avant de fermer Redis, sinon
+   * une annonce publie sur une connexion fermée (rejet que l'adaptateur ne gère pas).
+   */
+  close(): void;
 }
 
 /** Connexion en cours de rejeu d'une campagne : événements directs mis de côté. */
@@ -128,6 +133,7 @@ export function createHub(o: HubOptions): Hub {
   /** campagne → connexions de ce réplica en cours de rejeu */
   const replays = new Map<string, Set<ReplayBuffer>>();
   const presenceTimers = new Map<string, NodeJS.Timeout>();
+  let closed = false;
 
   /** Connexions de CE réplica dans une room (lecture synchrone de l'adaptateur local). */
   function localSockets(room: string): IoSocket[] {
@@ -173,11 +179,13 @@ export function createHub(o: HubOptions): Hub {
 
   /** Annonce la présence à toute la campagne (tous réplicas), regroupée sur quelques ms. */
   function schedulePresence(campaignId: string) {
-    if (presenceTimers.has(campaignId)) return;
+    if (closed || presenceTimers.has(campaignId)) return;
     const timer = setTimeout(() => {
       presenceTimers.delete(campaignId);
       presence(campaignId)
-        .then((p) => io.to(rooms.campaign(campaignId)).emit('presence', p))
+        .then((p) => {
+          if (!closed) io.to(rooms.campaign(campaignId)).emit('presence', p);
+        })
         .catch((err) => log.warn({ err, campaignId }, 'présence non diffusée'));
     }, o.presenceDelayMs ?? 150);
     timer.unref();
@@ -481,5 +489,11 @@ export function createHub(o: HubOptions): Hub {
     });
   });
 
-  return { dispatch };
+  function close() {
+    closed = true;
+    for (const timer of presenceTimers.values()) clearTimeout(timer);
+    presenceTimers.clear();
+  }
+
+  return { dispatch, close };
 }

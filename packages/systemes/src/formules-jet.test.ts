@@ -7,7 +7,8 @@ const norm = (id: string, f: string) => {
   return r.ok ? r.formule : `ERREUR ${r.erreur.message} @${r.erreur.position}`;
 };
 
-describe('formules du lanceur en clés nues (systèmes de référence)', () => {
+// Charge et calcule les systèmes de référence complets : lent sur un runner de CI partagé
+describe('formules du lanceur en clés nues (systèmes de référence)', { timeout: 60_000 }, () => {
   for (const id of ['dnd-classic', 'nooblies']) {
     it(`${id} : caractéristiques au modificateur, attaques et initiative à la valeur`, () => {
       expect(norm(id, '1d20+CON')).toBe('1d20+mod(@CON)');

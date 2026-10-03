@@ -155,7 +155,9 @@ function report(mismatches: Mismatch[]) {
     .join('\n');
 }
 
-describe('comparaison au lancer de rayons naïf', () => {
+// Milliers de scènes par test : quelques secondes seul, bien plus sur un runner de CI
+// partagé avec la couverture v8
+describe('comparaison au lancer de rayons naïf', { timeout: 60_000 }, () => {
   it('1 500 scènes de segments réels (sans soudure)', () => {
     const rng = new Prng(1);
     const mismatches: Mismatch[] = [];
@@ -357,7 +359,7 @@ function ringProbes(rng: Prng, o: Vec, pts: readonly Vec[], n: number): Vec[] {
   return out;
 }
 
-describe('aucune fuite entre murs soudés', () => {
+describe('aucune fuite entre murs soudés', { timeout: 60_000 }, () => {
   for (const [label, jitter, seed] of [
     ['soudés exactement', 0, 5],
     ['presque soudés (écarts < 0,2 px)', 0.2, 6],
@@ -449,7 +451,7 @@ describe('aucune fuite entre murs soudés', () => {
   });
 });
 
-describe('portée et pièces composées', () => {
+describe('portée et pièces composées', { timeout: 60_000 }, () => {
   it('300 scènes : brouillard, lumières, rayon de vision et pièces', () => {
     const rng = new Prng(8);
     const size = 600;

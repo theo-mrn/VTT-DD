@@ -9,7 +9,8 @@ function lanceur(id: string, entite: string) {
   }).map((d) => [d.cle, d.groupe.titre, d.terme]);
 }
 
-describe('attributs proposés au lanceur de dés', () => {
+// Charge et calcule les systèmes de référence complets : lent sur un runner de CI partagé
+describe('attributs proposés au lanceur de dés', { timeout: 60_000 }, () => {
   for (const id of ['dnd-classic', 'nooblies']) {
     it(`${id} : caractéristiques au modificateur, attaques et initiative à la valeur`, () => {
       expect(lanceur(id, 'personnage')).toEqual([
