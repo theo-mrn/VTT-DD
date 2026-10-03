@@ -79,7 +79,7 @@ type NoeudDes = Extract<Noeud, { t: 'des' }>;
 export function notationDes(n: NoeudDes, nombre: (v: number) => string): string | null {
   const nb = n.nombre.t === 'nombre' ? nombre(n.nombre.v) : null;
   const fa = n.faces.t === 'nombre' ? nombre(n.faces.v) : null;
-  const gk = n.garder && n.garder.n.t === 'nombre' ? nombre(n.garder.n.v) : null;
+  const gk = n.garder?.n.t === 'nombre' ? nombre(n.garder.n.v) : null;
   if (nb === null || fa === null || (n.garder && gk === null)) return null;
   const sens = n.garder?.sens === 'bas' ? 'kl' : 'k';
   const garder = n.garder ? `${sens}${gk}` : '';

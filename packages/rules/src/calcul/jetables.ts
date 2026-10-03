@@ -144,7 +144,7 @@ export function grouperJetables<T extends { groupe: GroupeJetable }>(
   const sortie: { groupe: GroupeJetable; attributs: T[] }[] = [];
   for (const x of liste) {
     const dernier = sortie.at(-1);
-    if (dernier && dernier.groupe.id === x.groupe.id) dernier.attributs.push(x);
+    if (dernier?.groupe.id === x.groupe.id) dernier.attributs.push(x);
     else sortie.push({ groupe: x.groupe, attributs: [x] });
   }
   return sortie;

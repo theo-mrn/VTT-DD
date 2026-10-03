@@ -51,7 +51,7 @@ class Echec extends Error {
 
 const LETTRE = /[\p{L}_]/u;
 const LETTRE_OU_CHIFFRE = /[\p{L}\p{N}_]/u;
-const CHIFFRE = /[0-9]/;
+const CHIFFRE = /\d/;
 const OPERATEURS = [
   '<=',
   '>=',

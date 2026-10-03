@@ -565,7 +565,7 @@ export function tirerEtape(
   const tirageComplet = (relances: number): Tirage | string => {
     const valeurs: number[] = [];
     const jets: JetDes[][] = [];
-    for (let i = 0; i < cibles.length; i++) {
+    for (const _ of cibles) {
       const r = essayer(fiche, formule, { aleatoire });
       if (!r.ok) return r.message;
       valeurs.push(Number(r.valeur));

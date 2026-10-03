@@ -985,7 +985,10 @@ function construirePool(
   ];
   for (const e of effets)
     if ('bonus' in e.ajout) d.explications.push(`${e.nom} : ignoré (bonus sur un jet à symboles)`);
-  return { construction, pool: construction.reduce(appliquerEtape, []) };
+  return {
+    construction,
+    pool: construction.reduce<Pool>((pool, e) => appliquerEtape(pool, e), []),
+  };
 }
 
 /** Étapes d'une opération venues des effets de jet (dés ajoutés, améliorés, rétrogradés, retirés). */

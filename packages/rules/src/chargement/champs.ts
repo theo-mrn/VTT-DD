@@ -177,9 +177,12 @@ export function variablesObjet(
   };
 }
 
+/** Valeur d'un champ d'exemplaire saisie. */
+type ValeurChamp = number | string | boolean;
+
 export interface ChampsVerifies {
   /** Valeurs à enregistrer (formules telles que saisies, espaces de bord retirés). */
-  champs: Record<string, number | string | boolean>;
+  champs: Record<string, ValeurChamp>;
   erreurs: string[];
 }
 
@@ -188,7 +191,6 @@ export interface ChampsVerifies {
  * type de valeur, option d'un `choix`, attribut ou entrée existants, formule compilable
  * (clés nues comprises, gardée telle que saisie). Chaîne vide : retour à la valeur de l'entrée.
  */
-type ValeurChamp = number | string | boolean;
 type ChampSorte = Sorte['champs'][number];
 
 /** Valeur retenue d'un champ d'exemplaire, ou ses erreurs. */
@@ -265,13 +267,13 @@ function refusChampExemplaire(
 export function verifierChampsExemplaire(
   systeme: SystemeCharge,
   entree: Entree,
-  champs: Record<string, number | string | boolean>,
+  champs: Record<string, ValeurChamp>,
   /** Type d'entité du porteur, pour les clés nues des formules (défaut : le premier de la sorte). */
   entite?: string,
 ): ChampsVerifies {
   const sorte = systeme.sortes.get(entree.sorte);
   const erreurs: string[] = [];
-  const r: Record<string, number | string | boolean> = {};
+  const r: Record<string, ValeurChamp> = {};
   if (!sorte) return { champs: r, erreurs: [`Sorte inconnue : ${entree.sorte}`] };
   for (const [id, v] of Object.entries(champs)) {
     const c = sorte.champs.find((x) => x.id === id);

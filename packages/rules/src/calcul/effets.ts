@@ -257,7 +257,7 @@ export function reporterEffetsDesactives(
   const r: string[] = [];
   for (const cle of effetsDesactives) {
     const k = lireCleEffet(cle);
-    if (!k || k.source !== source) {
+    if (k?.source !== source) {
       r.push(cle);
       continue;
     }
