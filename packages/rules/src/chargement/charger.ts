@@ -7,6 +7,7 @@
 import {
   compiler,
   nomReserve,
+  sousNoeuds,
   type FormuleVerifiee,
   type Noeud,
   type TypeValeur,
@@ -28,24 +29,6 @@ import {
   type TypeEntite,
 } from '../schema/index.js';
 import { etapesAction } from '../jets/etapes.js';
-
-/** Sous-expressions d'un nœud de formule. */
-function enfants(x: Noeud): Noeud[] {
-  switch (x.t) {
-    case 'appel':
-      return x.args;
-    case 'unaire':
-      return [x.arg];
-    case 'binaire':
-      return [x.g, x.d];
-    case 'si':
-      return [x.condition, x.alors, x.sinon];
-    case 'des':
-      return x.garder ? [x.nombre, x.faces, x.garder.n] : [x.nombre, x.faces];
-    default:
-      return [];
-  }
-}
 
 /** Type JavaScript attendu d'un champ simple. */
 const TYPES_JS = { nombre: 'number', texte: 'string', booleen: 'boolean' } as const;
@@ -262,7 +245,7 @@ class Chargeur {
   /** Vérifie les arguments littéraux des fonctions d'agrégat (sorte, champ, marque existants). */
   private verifierLitteraux(chemin: string, n: Noeud): void {
     if (n.t === 'appel') this.verifierAppel(chemin, n);
-    for (const x of enfants(n)) this.verifierLitteraux(chemin, x);
+    for (const x of sousNoeuds(n)) this.verifierLitteraux(chemin, x);
   }
 
   private verifierAppel(chemin: string, x: Extract<Noeud, { t: 'appel' }>): void {

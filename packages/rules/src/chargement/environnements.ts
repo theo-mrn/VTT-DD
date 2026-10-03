@@ -2,12 +2,13 @@
  * Environnements de typage : ce qu'une formule a le droit de lire selon
  * l'endroit où elle est écrite (attribut, effet, achat, action…).
  */
-import type {
-  EnvironnementTypes,
-  InfoAttribut,
-  SignatureFonction,
-  Noeud,
-  TypeValeur,
+import {
+  sousNoeuds,
+  type EnvironnementTypes,
+  type InfoAttribut,
+  type SignatureFonction,
+  type Noeud,
+  type TypeValeur,
 } from '../formules/index.js';
 import { ENTITE_COMBAT, VALEURS_COMBAT, type Attribut, type Champ } from '../schema/index.js';
 
@@ -141,42 +142,30 @@ export function comparaisonsChoixInvalides(
 ): { message: string; position: number }[] {
   const erreurs: { message: string; position: number }[] = [];
   const visiter = (x: Noeud): void => {
-    switch (x.t) {
-      case 'binaire':
-        if (x.op === '==' || x.op === '!=')
-          for (const [v, t] of [
-            [x.g, x.d],
-            [x.d, x.g],
-          ] as const) {
-            if (v.t !== 'variable' || t.t !== 'texte') continue;
-            const options = choix.get(v.nom);
-            if (options && !options.includes(t.v))
-              erreurs.push({
-                message: `« ${t.v} » n’est pas une option de ${v.nom} (${options.join(', ')})`,
-                position: t.pos,
-              });
-          }
-        visiter(x.g);
-        return visiter(x.d);
-      case 'appel':
-        return x.args.forEach(visiter);
-      case 'unaire':
-        return visiter(x.arg);
-      case 'si':
-        visiter(x.condition);
-        visiter(x.alors);
-        return visiter(x.sinon);
-      case 'des':
-        visiter(x.nombre);
-        visiter(x.faces);
-        if (x.garder) visiter(x.garder.n);
-        return;
-      default:
-        return;
+    if (x.t === 'binaire' && (x.op === '==' || x.op === '!=')) {
+      erreurs.push(...optionInconnue(x.g, x.d, choix), ...optionInconnue(x.d, x.g, choix));
     }
+    sousNoeuds(x).forEach(visiter);
   };
   visiter(n);
   return erreurs;
+}
+
+/** `variable == "texte"` dont le texte n'est pas une option du paramètre `choix`. */
+function optionInconnue(
+  v: Noeud,
+  t: Noeud,
+  choix: ReadonlyMap<string, readonly string[]>,
+): { message: string; position: number }[] {
+  if (v.t !== 'variable' || t.t !== 'texte') return [];
+  const options = choix.get(v.nom);
+  if (!options || options.includes(t.v)) return [];
+  return [
+    {
+      message: `« ${t.v} » n’est pas une option de ${v.nom} (${options.join(', ')})`,
+      position: t.pos,
+    },
+  ];
 }
 
 export function env(o: OptionsEnv): EnvironnementTypes {

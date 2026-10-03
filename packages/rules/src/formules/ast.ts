@@ -92,3 +92,21 @@ export function ecrireDes(n: NoeudDes, ecrire: (x: Noeud) => string): string {
   if (n.garder) args.push(ecrire(n.garder.n), JSON.stringify(n.garder.sens));
   return `${n.explose ? 'des_explosifs' : 'des'}(${args.join(', ')})`;
 }
+
+/** Sous-expressions d'un nœud de formule. */
+export function sousNoeuds(x: Noeud): Noeud[] {
+  switch (x.t) {
+    case 'appel':
+      return x.args;
+    case 'unaire':
+      return [x.arg];
+    case 'binaire':
+      return [x.g, x.d];
+    case 'si':
+      return [x.condition, x.alors, x.sinon];
+    case 'des':
+      return x.garder ? [x.nombre, x.faces, x.garder.n] : [x.nombre, x.faces];
+    default:
+      return [];
+  }
+}

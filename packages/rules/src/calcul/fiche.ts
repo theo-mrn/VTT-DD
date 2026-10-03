@@ -1051,32 +1051,45 @@ function possedeeUneFois(entree: Entree, sorte: Sorte): string {
 
 export function erreursPossessions(systeme: SystemeCharge, etat: EtatEntite): ErreurCalcul[] {
   const erreurs: ErreurCalcul[] = [];
-  const vus = new Set<string>();
-  const parEntree = new Map<string, number>();
-  const parSorte = new Map<string, number>();
+  const compte: ComptePossessions = { vus: new Set(), parEntree: new Map(), parSorte: new Map() };
   for (const p of etat.possessions) {
     const entree = systeme.entrees.get(p.entree);
     const sorte = entree && systeme.sortes.get(entree.sorte);
     if (!entree || !sorte) continue;
     const ou = `possessions/${p.entree}${p.exemplaire ? `#${p.exemplaire}` : ''}`;
-    const cle = `${p.entree}#${p.exemplaire ?? ''}`;
-    if (sorte.exemplaires && vus.has(cle))
-      erreurs.push({ ou, message: exemplaireEnDouble(entree, p) });
-    vus.add(cle);
-    const n = (parEntree.get(p.entree) ?? 0) + 1;
-    parEntree.set(p.entree, n);
-    if (n === 2 && !sorte.exemplaires)
-      erreurs.push({ ou, message: possedeeUneFois(entree, sorte) });
-    if (p.quantite !== undefined && !sorte.quantites)
-      erreurs.push({ ou, message: `${entree.nom} : pas de quantité pour la sorte ${sorte.nom}` });
-    const m = (parSorte.get(sorte.id) ?? 0) + 1;
-    parSorte.set(sorte.id, m);
-    if (sorte.maximum !== undefined && m === sorte.maximum + 1)
-      erreurs.push({
-        ou,
-        message: `Maximum de ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom} dépassé`,
-      });
+    for (const message of erreursPossession(compte, p, entree, sorte))
+      erreurs.push({ ou, message });
   }
+  return erreurs;
+}
+
+/** Ce que les possessions déjà vues ont compté : exemplaires, par entrée, par sorte. */
+interface ComptePossessions {
+  vus: Set<string>;
+  parEntree: Map<string, number>;
+  parSorte: Map<string, number>;
+}
+
+/** Erreurs d'une possession, comptée avec les précédentes. */
+function erreursPossession(
+  compte: ComptePossessions,
+  p: Possession,
+  entree: Entree,
+  sorte: Sorte,
+): string[] {
+  const erreurs: string[] = [];
+  const cle = `${p.entree}#${p.exemplaire ?? ''}`;
+  if (sorte.exemplaires && compte.vus.has(cle)) erreurs.push(exemplaireEnDouble(entree, p));
+  compte.vus.add(cle);
+  const n = (compte.parEntree.get(p.entree) ?? 0) + 1;
+  compte.parEntree.set(p.entree, n);
+  if (n === 2 && !sorte.exemplaires) erreurs.push(possedeeUneFois(entree, sorte));
+  if (p.quantite !== undefined && !sorte.quantites)
+    erreurs.push(`${entree.nom} : pas de quantité pour la sorte ${sorte.nom}`);
+  const m = (compte.parSorte.get(sorte.id) ?? 0) + 1;
+  compte.parSorte.set(sorte.id, m);
+  if (sorte.maximum !== undefined && m === sorte.maximum + 1)
+    erreurs.push(`Maximum de ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom} dépassé`);
   return erreurs;
 }
 
