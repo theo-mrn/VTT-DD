@@ -126,3 +126,6 @@ spec:
     parameters:
       max_client_conn: '1000'
       default_pool_size: '20'
+      # Les clients fixent statement_timeout à la connexion : PgBouncer le refuse en mode
+      # transaction sauf s'il le suit, et le réapplique alors sur chaque connexion serveur
+      track_extra_parameters: 'IntervalStyle, statement_timeout'
