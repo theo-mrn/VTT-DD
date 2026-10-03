@@ -29,6 +29,20 @@ import {
 } from '../schema/index.js';
 import { etapesAction } from '../jets/etapes.js';
 
+/** Type JavaScript attendu d'un champ simple. */
+const TYPES_JS = { nombre: 'number', texte: 'string', booleen: 'boolean' } as const;
+
+/** Variables d'une contrainte de tirage (« au moins un 15 », « total au plus 80 »). */
+const VARIABLES_CONTRAINTE: Record<string, TypeValeur> = {
+  total: 'nombre',
+  min: 'nombre',
+  max: 'nombre',
+  nombre: 'nombre',
+  pairs: 'nombre',
+  impairs: 'nombre',
+  somme_modificateurs: 'nombre',
+};
+
 /** Déclare une variable d'action ; un nom réservé ou déjà pris est une erreur. */
 type Declarer = (nom: string, type: TypeValeur, ou: string) => void;
 import { variablesFormuleChamp } from './champs.js';
@@ -540,6 +554,104 @@ class Chargeur {
       );
   }
 
+  /** Attributs proposés (liste ou groupe) : numériques et connus de chaque type d'entité. */
+  private verifierAttributsProposes(
+    ou: string,
+    types: readonly string[],
+    parmi: { attributs?: string[]; groupe?: string },
+  ): void {
+    if (!parmi.attributs && !parmi.groupe)
+      this.erreur(ou, 'Préciser les attributs ou le groupe proposés');
+    for (const t of types) {
+      const e = this.entites.get(t);
+      if (!e) continue;
+      if (parmi.groupe && !e.type.groupes.some((g) => g.id === parmi.groupe)) {
+        this.erreur(ou, `Groupe inconnu de ${t} : ${parmi.groupe}`);
+      }
+      for (const cle of parmi.attributs ?? []) {
+        const attr = e.attributs.get(cle);
+        if (!attr || typeAttribut(attr) !== 'nombre')
+          this.erreur(ou, `Attribut numérique inconnu de ${t} : ${cle}`);
+      }
+    }
+  }
+
+  /** Valeur d'un champ d'une entrée : champ déclaré par la sorte, valeur de son type. */
+  private verifierChampEntree(
+    e: Entree,
+    sorte: Sorte,
+    porteurs: Attributs[],
+    cle: string,
+    v: unknown,
+  ): void {
+    const c = sorte.champs.find((x) => x.id === cle);
+    const ch = `catalogue/${e.id}/champs/${cle}`;
+    if (!c) return this.erreur(ch, `Champ inconnu pour la sorte ${sorte.id}`);
+    if (c.type === 'formule') {
+      if (typeof v !== 'string' && typeof v !== 'number')
+        return this.erreur(ch, 'Formule attendue');
+      this.compiler(
+        chemins.champ(e.id, cle),
+        String(v),
+        { entite: porteurs, variables: variablesFormuleChamp(sorte), des: c.des === true },
+        'nombre',
+      );
+      return;
+    }
+    if (c.type === 'entrees') {
+      if (!Array.isArray(v)) return this.erreur(ch, 'Liste d’entrées attendue');
+      for (const x of v)
+        if (this.entrees.get(x)?.sorte !== c.sorte)
+          this.erreur(ch, `Entrée de sorte ${c.sorte} attendue : ${x}`);
+      return;
+    }
+    const erreur = this.refusValeurChamp(c, v);
+    if (erreur) this.erreur(ch, erreur);
+  }
+
+  /** Refus d'une valeur de champ non formule (type, attribut, entrée, option ou liste). */
+  private refusValeurChamp(c: Sorte['champs'][number], v: unknown): string | null {
+    switch (c.type) {
+      case 'nombre':
+      case 'texte':
+      case 'booleen':
+        return typeof v === TYPES_JS[c.type] ? null : `${c.type} attendu`;
+      case 'attribut':
+        return typeof v === 'string' && this.entites.get(c.entite)?.attributs.has(v)
+          ? null
+          : `Attribut inconnu de ${c.entite} : ${String(v)}`;
+      case 'entree':
+        return typeof v === 'string' && this.entrees.get(v)?.sorte === c.sorte
+          ? null
+          : `Entrée de sorte ${c.sorte} attendue : ${String(v)}`;
+      case 'choix':
+        return typeof v === 'string' && c.options.some((o) => o.valeur === v)
+          ? null
+          : `Option attendue (${c.options.map((o) => o.valeur).join(', ')}) : ${String(v)}`;
+      default:
+        return null;
+    }
+  }
+
+  /** Choix d'entrées d'une entrée : sorte connue, entrées proposées de cette sorte, rangs. */
+  private verifierChoixEntree(
+    e: Entree,
+    c: Entree['choix'][number],
+    ch: string,
+    porteurs: Attributs[],
+  ): void {
+    if (!this.sortes.has(c.parmi.sorte)) this.erreur(ch, `Sorte inconnue : ${c.parmi.sorte}`);
+    this.compiler(chemins.choixNombre(e.id, c.id), c.nombre, { entite: porteurs }, 'nombre');
+    for (const x of c.parmi.entrees ?? []) {
+      if (this.entrees.get(x)?.sorte !== c.parmi.sorte)
+        this.erreur(ch, `Entrée de sorte ${c.parmi.sorte} attendue : ${x}`);
+    }
+    if (c.donne.type !== 'rang') return;
+    if (!this.sortes.get(c.parmi.sorte)?.rangs)
+      this.erreur(ch, `${c.parmi.sorte} ne se possède pas par rangs`);
+    this.compiler(chemins.choix(e.id, c.id), c.donne.valeur, {}, 'nombre');
+  }
+
   private verifierEntree(e: Entree): void {
     const chemin = `catalogue/${e.id}`;
     const sorte = this.sortes.get(e.sorte);
@@ -547,75 +659,24 @@ class Chargeur {
     const porteurs = this.attributsDe(sorte.pour);
 
     // Champs : existence et type des valeurs
-    for (const [cle, v] of Object.entries(e.champs)) {
-      const c = sorte.champs.find((x) => x.id === cle);
-      const ch = `${chemin}/champs/${cle}`;
-      if (!c) {
-        this.erreur(ch, `Champ inconnu pour la sorte ${sorte.id}`);
-        continue;
-      }
-      const attendu = { nombre: 'number', texte: 'string', booleen: 'boolean' } as const;
-      switch (c.type) {
-        case 'nombre':
-        case 'texte':
-        case 'booleen':
-          if (typeof v !== attendu[c.type]) this.erreur(ch, `${c.type} attendu`);
-          break;
-        case 'formule':
-          if (typeof v === 'string' || typeof v === 'number') {
-            this.compiler(
-              chemins.champ(e.id, cle),
-              String(v),
-              { entite: porteurs, variables: variablesFormuleChamp(sorte), des: c.des === true },
-              'nombre',
-            );
-          } else this.erreur(ch, 'Formule attendue');
-          break;
-        case 'attribut':
-          if (typeof v !== 'string' || !this.entites.get(c.entite)?.attributs.has(v)) {
-            this.erreur(ch, `Attribut inconnu de ${c.entite} : ${String(v)}`);
-          }
-          break;
-        case 'entree':
-          if (typeof v !== 'string' || this.entrees.get(v)?.sorte !== c.sorte) {
-            this.erreur(ch, `Entrée de sorte ${c.sorte} attendue : ${String(v)}`);
-          }
-          break;
-        case 'choix':
-          if (typeof v !== 'string' || !c.options.some((o) => o.valeur === v))
-            this.erreur(
-              ch,
-              `Option attendue (${c.options.map((o) => o.valeur).join(', ')}) : ${String(v)}`,
-            );
-          break;
-        case 'entrees':
-          if (!Array.isArray(v)) this.erreur(ch, 'Liste d’entrées attendue');
-          else
-            for (const x of v)
-              if (this.entrees.get(x)?.sorte !== c.sorte)
-                this.erreur(ch, `Entrée de sorte ${c.sorte} attendue : ${x}`);
-          break;
-      }
-    }
+    for (const [cle, v] of Object.entries(e.champs))
+      this.verifierChampEntree(e, sorte, porteurs, cle, v);
 
     // Entrée générique d'objets hors catalogue : chaque exemplaire se nomme lui-même
-    if (e.libre) {
-      if (!sorte.exemplaires)
-        this.erreur(`${chemin}/libre`, `La sorte ${sorte.id} n’admet pas d’exemplaires`);
-      if (!sorte.nomExemplaire)
-        this.erreur(`${chemin}/libre`, `La sorte ${sorte.id} ne déclare pas nomExemplaire`);
-    }
+    if (e.libre && !sorte.exemplaires)
+      this.erreur(`${chemin}/libre`, `La sorte ${sorte.id} n’admet pas d’exemplaires`);
+    if (e.libre && !sorte.nomExemplaire)
+      this.erreur(`${chemin}/libre`, `La sorte ${sorte.id} ne déclare pas nomExemplaire`);
 
     // Défaut d'un champ formule de la sorte : compilé pour chaque entrée qui ne le redéfinit pas
     for (const c of sorte.champs) {
-      if (c.type === 'formule' && c.defaut !== undefined && !(c.id in e.champs)) {
-        this.compiler(
-          chemins.champ(e.id, c.id),
-          c.defaut,
-          { entite: porteurs, variables: variablesFormuleChamp(sorte), des: c.des === true },
-          'nombre',
-        );
-      }
+      if (c.type !== 'formule' || c.defaut === undefined || c.id in e.champs) continue;
+      this.compiler(
+        chemins.champ(e.id, c.id),
+        c.defaut,
+        { entite: porteurs, variables: variablesFormuleChamp(sorte), des: c.des === true },
+        'nombre',
+      );
     }
 
     // Effets de l'entrée : même vérification que les effets posés sur un personnage
@@ -631,20 +692,7 @@ class Chargeur {
     this.unique([...e.choix, ...e.choixAttributs], (c) => c.id, `${chemin}/choix`, 'Choix');
     for (const c of e.choixAttributs) {
       const ch = `${chemin}/choixAttributs/${c.id}`;
-      if (!c.parmi.attributs && !c.parmi.groupe)
-        this.erreur(ch, 'Préciser les attributs ou le groupe proposés');
-      for (const t of sorte.pour) {
-        const ent = this.entites.get(t);
-        if (!ent) continue;
-        if (c.parmi.groupe && !ent.type.groupes.some((g) => g.id === c.parmi.groupe)) {
-          this.erreur(ch, `Groupe inconnu de ${t} : ${c.parmi.groupe}`);
-        }
-        for (const cle of c.parmi.attributs ?? []) {
-          const a = ent.attributs.get(cle);
-          if (!a || typeAttribut(a) !== 'nombre')
-            this.erreur(ch, `Attribut numérique inconnu de ${t} : ${cle}`);
-        }
-      }
+      this.verifierAttributsProposes(ch, sorte.pour, c.parmi);
       this.compiler(
         chemins.choixAttributNombre(e.id, c.id),
         c.nombre,
@@ -658,20 +706,7 @@ class Chargeur {
         'nombre',
       );
     }
-    for (const c of e.choix) {
-      const ch = `${chemin}/choix/${c.id}`;
-      if (!this.sortes.has(c.parmi.sorte)) this.erreur(ch, `Sorte inconnue : ${c.parmi.sorte}`);
-      this.compiler(chemins.choixNombre(e.id, c.id), c.nombre, { entite: porteurs }, 'nombre');
-      for (const x of c.parmi.entrees ?? []) {
-        if (this.entrees.get(x)?.sorte !== c.parmi.sorte)
-          this.erreur(ch, `Entrée de sorte ${c.parmi.sorte} attendue : ${x}`);
-      }
-      if (c.donne.type === 'rang') {
-        if (!this.sortes.get(c.parmi.sorte)?.rangs)
-          this.erreur(ch, `${c.parmi.sorte} ne se possède pas par rangs`);
-        this.compiler(chemins.choix(e.id, c.id), c.donne.valeur, {}, 'nombre');
-      }
-    }
+    for (const c of e.choix) this.verifierChoixEntree(e, c, `${chemin}/choix/${c.id}`, porteurs);
 
     if (e.exige !== undefined)
       this.compiler(chemins.exige(e.id), e.exige, { entite: porteurs }, 'booleen');
@@ -750,125 +785,136 @@ class Chargeur {
       this.verifierTypes(`monnaies/${m.id}`, m.pour);
       this.compiler(chemins.monnaie(m.id), m.total, { entite: this.attributsDe(m.pour) }, 'nombre');
     }
+    for (const a of this.achats.values()) this.verifierAchat(a);
+    for (const c of this.s.creation) this.verifierCreation(c);
+  }
 
-    for (const a of this.achats.values()) {
-      const chemin = `achats/${a.id}`;
-      const monnaie = this.monnaies.get(a.monnaie);
-      if (!monnaie) this.erreur(chemin, `Monnaie inconnue : ${a.monnaie}`);
-      const o = a.obtient;
-      if (o.type === 'attribut') {
-        const e = this.entites.get(o.entite);
-        if (!e) this.erreur(chemin, `Type d’entité inconnu : ${o.entite}`);
-        for (const cle of o.attributs ?? []) {
-          if (e && e.attributs.get(cle)?.nature !== 'base')
-            this.erreur(chemin, `Attribut de base attendu : ${cle}`);
-        }
-        if (o.groupe && e && !e.type.groupes.some((g) => g.id === o.groupe))
-          this.erreur(chemin, `Groupe inconnu : ${o.groupe}`);
-        if (!o.attributs && !o.groupe)
-          this.erreur(chemin, 'Préciser les attributs ou le groupe achetables');
-      }
-      if (o.type === 'rang' && !this.sortes.get(o.sorte)?.rangs)
-        this.erreur(chemin, `Sorte à rangs attendue : ${o.sorte}`);
-      if (o.type === 'entree' && !this.sortes.has(o.sorte))
-        this.erreur(chemin, `Sorte inconnue : ${o.sorte}`);
-      if (o.type === 'noeud')
-        for (const x of o.arbres ?? [])
-          if (!this.arbres.has(x)) this.erreur(chemin, `Arbre inconnu : ${x}`);
+  private verifierAchat(a: Achat): void {
+    const chemin = `achats/${a.id}`;
+    if (!this.monnaies.has(a.monnaie)) this.erreur(chemin, `Monnaie inconnue : ${a.monnaie}`);
+    const o = a.obtient;
+    this.verifierObtention(chemin, o);
 
-      const variables: Record<string, TypeValeur> = {
-        actuel: 'nombre',
-        /** Valeur calculée (avec les effets) de l'attribut, ou rang total de l'entrée visée. */
-        calcule: 'nombre',
-        cible: 'nombre',
-        nombre: 'nombre',
-        creation: 'booleen',
-      };
-      // Champs de l'entrée visée (`entree.prix`) pour les achats de rangs ou d'entrées
-      if (o.type === 'rang' || o.type === 'entree') {
-        for (const c of this.sortes.get(o.sorte)?.champs ?? []) {
-          const t = typeChamp(c);
-          if (t) variables[`entree.${c.id}`] = t;
-        }
-      }
-      const opts: OptionsEnv = {
-        entite: this.attributsDe(this.typesAchat(a)),
-        variables,
-        fonctions: { marque: { args: ['texte'], retour: 'booleen' } },
-      };
-      this.compiler(chemins.achat(a.id, 'cout'), a.cout, opts, 'nombre');
-      if (a.plafond !== undefined)
-        this.compiler(chemins.achat(a.id, 'plafond'), a.plafond, opts, 'nombre');
-      if (a.condition !== undefined)
-        this.compiler(chemins.achat(a.id, 'condition'), a.condition, opts, 'booleen');
+    const variables: Record<string, TypeValeur> = {
+      actuel: 'nombre',
+      /** Valeur calculée (avec les effets) de l'attribut, ou rang total de l'entrée visée. */
+      calcule: 'nombre',
+      cible: 'nombre',
+      nombre: 'nombre',
+      creation: 'booleen',
+    };
+    // Champs de l'entrée visée (`entree.prix`) pour les achats de rangs ou d'entrées
+    const sorte = o.type === 'rang' || o.type === 'entree' ? this.sortes.get(o.sorte) : undefined;
+    for (const c of sorte?.champs ?? []) {
+      const t = typeChamp(c);
+      if (t) variables[`entree.${c.id}`] = t;
     }
+    const opts: OptionsEnv = {
+      entite: this.attributsDe(this.typesAchat(a)),
+      variables,
+      fonctions: { marque: { args: ['texte'], retour: 'booleen' } },
+    };
+    this.compiler(chemins.achat(a.id, 'cout'), a.cout, opts, 'nombre');
+    if (a.plafond !== undefined)
+      this.compiler(chemins.achat(a.id, 'plafond'), a.plafond, opts, 'nombre');
+    if (a.condition !== undefined)
+      this.compiler(chemins.achat(a.id, 'condition'), a.condition, opts, 'booleen');
+  }
 
-    for (const c of this.s.creation) {
-      const e = this.entites.get(c.entite);
-      const chemin = `creation/${c.entite}`;
-      if (!e) {
-        this.erreur(chemin, `Type d’entité inconnu : ${c.entite}`);
-        continue;
+  /** Ce que l'achat obtient : attributs, rangs d'une sorte à rangs, entrée, nœud d'arbre connu. */
+  private verifierObtention(chemin: string, o: Achat['obtient']): void {
+    if (o.type === 'attribut') this.verifierAchatAttribut(chemin, o);
+    if (o.type === 'rang' && !this.sortes.get(o.sorte)?.rangs)
+      this.erreur(chemin, `Sorte à rangs attendue : ${o.sorte}`);
+    if (o.type === 'entree' && !this.sortes.has(o.sorte))
+      this.erreur(chemin, `Sorte inconnue : ${o.sorte}`);
+    if (o.type !== 'noeud') return;
+    for (const x of o.arbres ?? [])
+      if (!this.arbres.has(x)) this.erreur(chemin, `Arbre inconnu : ${x}`);
+  }
+
+  /** Achat d'attributs : entité connue, attributs de base, groupe connu, l'un ou l'autre précisé. */
+  private verifierAchatAttribut(
+    chemin: string,
+    o: Extract<Achat['obtient'], { type: 'attribut' }>,
+  ): void {
+    const e = this.entites.get(o.entite);
+    if (!e) this.erreur(chemin, `Type d’entité inconnu : ${o.entite}`);
+    for (const cle of o.attributs ?? []) {
+      if (e && e.attributs.get(cle)?.nature !== 'base')
+        this.erreur(chemin, `Attribut de base attendu : ${cle}`);
+    }
+    if (o.groupe && e && !e.type.groupes.some((g) => g.id === o.groupe))
+      this.erreur(chemin, `Groupe inconnu : ${o.groupe}`);
+    if (!o.attributs && !o.groupe)
+      this.erreur(chemin, 'Préciser les attributs ou le groupe achetables');
+  }
+
+  private verifierCreation(c: Systeme['creation'][number]): void {
+    const e = this.entites.get(c.entite);
+    const chemin = `creation/${c.entite}`;
+    if (!e) {
+      this.erreur(chemin, `Type d’entité inconnu : ${c.entite}`);
+      return;
+    }
+    this.unique(c.etapes, (x) => x.id, chemin, 'Étape');
+    for (const et of c.etapes) this.verifierEtape(c.entite, e, et);
+  }
+
+  /** Attributs et groupe visés par une étape de création : connus de l'entité. */
+  private verifierCiblesEtape(
+    chemin: string,
+    e: EntiteChargee,
+    attributs: readonly string[] | undefined,
+    groupe: string | undefined,
+  ): void {
+    for (const cle of attributs ?? []) {
+      if (!e.attributs.has(cle)) this.erreur(chemin, `Attribut inconnu : ${cle}`);
+    }
+    if (groupe && !e.type.groupes.some((g) => g.id === groupe)) {
+      this.erreur(chemin, `Groupe inconnu : ${groupe}`);
+    }
+  }
+
+  private verifierEtape(
+    entite: string,
+    e: EntiteChargee,
+    et: Systeme['creation'][number]['etapes'][number],
+  ): void {
+    const chemin = `creation/${entite}/${et.id}`;
+    const ch = (x: string) => chemins.etape(entite, et.id, x);
+    const moi = { entite: [e.attributs] };
+    if (et.type === 'repartir' || et.type === 'tirer' || et.type === 'saisir')
+      this.verifierCiblesEtape(chemin, e, et.attributs, et.groupe);
+    switch (et.type) {
+      case 'choisir': {
+        const sorte = this.sortes.get(et.sorte);
+        if (!sorte) this.erreur(chemin, `Sorte inconnue : ${et.sorte}`);
+        else if (!sorte.pour.includes(entite))
+          this.erreur(chemin, `${et.sorte} n’est pas possédable par ${entite}`);
+        if (et.min > et.max) this.erreur(chemin, 'min supérieur à max');
+        break;
       }
-      this.unique(c.etapes, (x) => x.id, chemin, 'Étape');
-      const moi = { entite: [e.attributs] };
-      for (const et of c.etapes) {
-        const ch = (x: string) => chemins.etape(c.entite, et.id, x);
-        if ('attributs' in et || 'groupe' in et) {
-          const cibles =
-            et.type === 'repartir' || et.type === 'tirer' || et.type === 'saisir' ? et : null;
-          if (cibles) {
-            for (const cle of cibles.attributs ?? []) {
-              if (!e.attributs.has(cle))
-                this.erreur(`${chemin}/${et.id}`, `Attribut inconnu : ${cle}`);
-            }
-            if (cibles.groupe && !e.type.groupes.some((g) => g.id === cibles.groupe)) {
-              this.erreur(`${chemin}/${et.id}`, `Groupe inconnu : ${cibles.groupe}`);
-            }
-          }
-        }
-        switch (et.type) {
-          case 'choisir': {
-            const sorte = this.sortes.get(et.sorte);
-            if (!sorte) this.erreur(`${chemin}/${et.id}`, `Sorte inconnue : ${et.sorte}`);
-            else if (!sorte.pour.includes(c.entite))
-              this.erreur(`${chemin}/${et.id}`, `${et.sorte} n’est pas possédable par ${c.entite}`);
-            if (et.min > et.max) this.erreur(`${chemin}/${et.id}`, 'min supérieur à max');
-            break;
-          }
-          case 'repartir':
-            this.compiler(ch('budget'), et.budget, moi, 'nombre');
-            this.compiler(ch('cout'), et.cout, { variables: { valeur: 'nombre' } }, 'nombre');
-            this.compiler(ch('min'), et.min, moi, 'nombre');
-            this.compiler(ch('max'), et.max, moi, 'nombre');
-            break;
-          case 'tirer':
-            this.compiler(ch('formule'), et.formule, { ...moi, des: true }, 'nombre');
-            if (et.contrainte !== undefined) {
-              this.compiler(
-                ch('contrainte'),
-                et.contrainte,
-                {
-                  variables: {
-                    total: 'nombre',
-                    min: 'nombre',
-                    max: 'nombre',
-                    nombre: 'nombre',
-                    pairs: 'nombre',
-                    impairs: 'nombre',
-                    somme_modificateurs: 'nombre',
-                  },
-                },
-                'booleen',
-              );
-            }
-            break;
-          case 'acheter':
-            for (const x of et.achats)
-              if (!this.achats.has(x)) this.erreur(`${chemin}/${et.id}`, `Achat inconnu : ${x}`);
-            break;
-        }
-      }
+      case 'repartir':
+        this.compiler(ch('budget'), et.budget, moi, 'nombre');
+        this.compiler(ch('cout'), et.cout, { variables: { valeur: 'nombre' } }, 'nombre');
+        this.compiler(ch('min'), et.min, moi, 'nombre');
+        this.compiler(ch('max'), et.max, moi, 'nombre');
+        break;
+      case 'tirer':
+        this.compiler(ch('formule'), et.formule, { ...moi, des: true }, 'nombre');
+        if (et.contrainte !== undefined)
+          this.compiler(
+            ch('contrainte'),
+            et.contrainte,
+            { variables: VARIABLES_CONTRAINTE },
+            'booleen',
+          );
+        break;
+      case 'acheter':
+        for (const x of et.achats)
+          if (!this.achats.has(x)) this.erreur(chemin, `Achat inconnu : ${x}`);
+        break;
     }
   }
 
@@ -1024,19 +1070,7 @@ class Chargeur {
     p: Extract<Parametre, { type: 'attribut' }>,
     ou: string,
   ): void {
-    if (!p.attributs && !p.groupe) this.erreur(ou, 'Préciser les attributs ou le groupe proposés');
-    for (const t of a.pour) {
-      const e = this.entites.get(t);
-      if (!e) continue;
-      if (p.groupe && !e.type.groupes.some((g) => g.id === p.groupe)) {
-        this.erreur(ou, `Groupe inconnu de ${t} : ${p.groupe}`);
-      }
-      for (const cle of p.attributs ?? []) {
-        const attr = e.attributs.get(cle);
-        if (!attr || typeAttribut(attr) !== 'nombre')
-          this.erreur(ou, `Attribut numérique inconnu de ${t} : ${cle}`);
-      }
-    }
+    this.verifierAttributsProposes(ou, a.pour, p);
   }
 
   /** Options uniques, défaut parmi elles, paramètres qu'elles révèlent déclarés par l'action. */
