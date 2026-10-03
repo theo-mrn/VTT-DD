@@ -168,6 +168,16 @@ function expandAudience(a: LiveAudience): LiveAudience[] {
 
 const MAX_SAMPLES = 8;
 
+/** Message d'un envoi et son audience. */
+interface AudienceMessage {
+  audience: LiveAudience;
+  msg: LiveMessage;
+}
+
+/** Le message porte un geste (glisser, poignées, tracé, mesure). */
+const carriesGesture = (msg: LiveMessage) =>
+  !!(msg.drag || msg.transform || msg.stroke || msg.measure !== undefined);
+
 function lerpAngle(a: number, b: number, t: number) {
   const d = ((((b - a) % 360) + 540) % 360) - 180;
   return a + d * t;
@@ -350,35 +360,52 @@ export class LiveChannel {
   }
 
   /** Construit les messages de cet envoi, un par audience. */
-  private build(): { audience: LiveAudience; msg: LiveMessage }[] {
-    const groups = new Map<string, { audience: LiveAudience; msg: LiveMessage }>();
-    /** Messages d'une audience (plusieurs si `toUsers` dépasse 50 destinataires). */
-    const group = (a: LiveAudience): LiveMessage[] =>
-      expandAudience(a).map((part) => {
-        const key = audienceKey(part);
-        let g = groups.get(key);
-        if (!g) {
-          g = { audience: part, msg: { m: this.opts.mapId, s: 0 } };
-          groups.set(key, g);
-        }
-        return g.msg;
-      });
-    for (const entry of this.drags.values())
-      for (const msg of group(this.opts.audienceOf(entry[0]))) (msg.drag ??= []).push(entry);
-    for (const entry of this.transforms.values())
-      for (const msg of group(this.opts.audienceOf(entry[0]))) (msg.transform ??= []).push(entry);
-    if (this.cursorDirty && this.cursorPos) group('public')[0]!.cursor = this.cursorPos;
-    if (this.strokeMeta && this.strokePoints.length)
-      group('public')[0]!.stroke = { ...this.strokeMeta, points: this.strokePoints };
-    if (this.measureState !== undefined)
-      for (const msg of group(this.measureAudience)) msg.measure = this.measureState;
-    if (this.ending) {
-      for (const a of this.gestureAudiences.values()) for (const msg of group(a)) msg.end = true;
-      for (const g of groups.values())
-        if (g.msg.drag || g.msg.transform || g.msg.stroke || g.msg.measure !== undefined)
-          g.msg.end = true;
-    }
+  private build(): AudienceMessage[] {
+    const groups = new Map<string, AudienceMessage>();
+    this.groupEntries(groups);
+    this.groupShared(groups);
+    if (this.ending) this.groupEnd(groups);
     return [...groups.values()];
+  }
+
+  /** Messages d'une audience (plusieurs si `toUsers` dépasse 50 destinataires). */
+  private group(groups: Map<string, AudienceMessage>, a: LiveAudience): LiveMessage[] {
+    return expandAudience(a).map((part) => {
+      const key = audienceKey(part);
+      let g = groups.get(key);
+      if (!g) {
+        g = { audience: part, msg: { m: this.opts.mapId, s: 0 } };
+        groups.set(key, g);
+      }
+      return g.msg;
+    });
+  }
+
+  /** Glissers et poignées, chacun vers l'audience de son élément. */
+  private groupEntries(groups: Map<string, AudienceMessage>) {
+    for (const entry of this.drags.values())
+      for (const msg of this.group(groups, this.opts.audienceOf(entry[0])))
+        (msg.drag ??= []).push(entry);
+    for (const entry of this.transforms.values())
+      for (const msg of this.group(groups, this.opts.audienceOf(entry[0])))
+        (msg.transform ??= []).push(entry);
+  }
+
+  /** Curseur et tracé (publics), mesure (son audience). */
+  private groupShared(groups: Map<string, AudienceMessage>) {
+    if (this.cursorDirty && this.cursorPos)
+      this.group(groups, 'public')[0]!.cursor = this.cursorPos;
+    if (this.strokeMeta && this.strokePoints.length)
+      this.group(groups, 'public')[0]!.stroke = { ...this.strokeMeta, points: this.strokePoints };
+    if (this.measureState !== undefined)
+      for (const msg of this.group(groups, this.measureAudience)) msg.measure = this.measureState;
+  }
+
+  /** Fin du geste : chaque audience du geste la reçoit, et tout message qui en porte un. */
+  private groupEnd(groups: Map<string, AudienceMessage>) {
+    for (const a of this.gestureAudiences.values())
+      for (const msg of this.group(groups, a)) msg.end = true;
+    for (const g of groups.values()) if (carriesGesture(g.msg)) g.msg.end = true;
   }
 
   /** Découpe un tracé trop long : les points en trop partent au message suivant. */
@@ -432,13 +459,7 @@ export class LiveChannel {
       this.tokens -= 1;
       this.sent += 1;
       this.transport.send(LIVE_KIND, fitted.msg, sendOptions(audience));
-      if (
-        fitted.msg.drag ||
-        fitted.msg.transform ||
-        fitted.msg.stroke ||
-        fitted.msg.measure !== undefined
-      )
-        this.gestureAudiences.set(audienceKey(audience), audience);
+      if (carriesGesture(fitted.msg)) this.gestureAudiences.set(audienceKey(audience), audience);
       if (fitted.msg.cursor) this.lastCursorSent = this.now();
     }
     this.lastFlush = this.now();
@@ -498,32 +519,53 @@ export class LiveChannel {
   /** Message du canal éphémère (déjà filtré sur la campagne). */
   receive(m: LiveIncoming) {
     if (m.from.userId === this.opts.selfId) return;
-    if (m.kind === PING_KIND) {
-      const parsed = MapPingMessage.safeParse(m.data);
-      if (!parsed.success || parsed.data.m !== this.opts.mapId) return;
-      const p = parsed.data;
-      for (const l of this.pingListeners)
-        l({
-          userId: m.from.userId,
-          role: m.from.role,
-          x: p.x,
-          y: p.y,
-          focus: p.focus === true && m.from.role === 'gm',
-        });
-      return;
-    }
-    if (m.kind !== LIVE_KIND) return;
+    if (m.kind === PING_KIND) this.receivePing(m);
+    else if (m.kind === LIVE_KIND) this.receiveLive(m);
+  }
+
+  /** Onde d'un autre ; `focus` n'est suivi que venant du MJ. */
+  private receivePing(m: LiveIncoming) {
+    const parsed = MapPingMessage.safeParse(m.data);
+    if (!parsed.success || parsed.data.m !== this.opts.mapId) return;
+    const p = parsed.data;
+    for (const l of this.pingListeners)
+      l({
+        userId: m.from.userId,
+        role: m.from.role,
+        x: p.x,
+        y: p.y,
+        focus: p.focus === true && m.from.role === 'gm',
+      });
+  }
+
+  /** Message du direct : fantômes, curseur, tracé, mesure, fin du geste. */
+  private receiveLive(m: LiveIncoming) {
     // Relayé tel quel depuis un autre client : on vérifie la forme
     const parsed = MapLiveMessage.safeParse(m.data);
     if (!parsed.success || parsed.data.m !== this.opts.mapId) return;
     const msg = parsed.data;
     const t = this.now();
     const user = m.from.userId;
-    // Message plus ancien que le dernier reçu de cet émetteur : ignoré (sauf après un silence :
-    // l'émetteur a rechargé la page et repart de 1)
-    const last = this.lastSeq.get(user);
-    if (last && msg.s <= last.s && t - last.t < LIVE_EXPIRE_MS) return;
+    if (this.isStale(user, msg.s, t)) return;
     this.lastSeq.set(user, { s: msg.s, t });
+    this.receiveEntries(msg, user, t);
+    let visible = carriesGesture(msg) || msg.end === true;
+    if (msg.cursor && this.receiveCursor(user, msg.cursor, t)) visible = true;
+    this.notifyGesture(msg, user, t);
+    for (const l of this.activityListeners) l(visible);
+  }
+
+  /**
+   * Message plus ancien que le dernier reçu de cet émetteur (sauf après un silence : l'émetteur
+   * a rechargé la page et repart de 1).
+   */
+  private isStale(user: string, seq: number, t: number): boolean {
+    const last = this.lastSeq.get(user);
+    return !!last && seq <= last.s && t - last.t < LIVE_EXPIRE_MS;
+  }
+
+  /** Glissers et poignées reçus : un échantillon par élément. */
+  private receiveEntries(msg: LiveMessage, user: string, t: number) {
     for (const e of msg.drag ?? []) {
       this.push(e[0], user, {
         t,
@@ -535,42 +577,45 @@ export class LiveChannel {
     for (const e of msg.transform ?? []) {
       this.push(e[0], user, { t, x: e[1], y: e[2], width: e[3], height: e[4], rotation: e[5] });
     }
-    let visible =
-      msg.drag !== undefined ||
-      msg.transform !== undefined ||
-      msg.stroke !== undefined ||
-      msg.measure !== undefined ||
-      msg.end === true;
-    if (msg.cursor) {
-      const [x, y] = msg.cursor;
-      const c = this.cursors.get(user) ?? { samples: [], last: t, moved: -Infinity };
-      const prev = c.samples.at(-1);
-      if (prev && prev.x === x && prev.y === y) {
-        // Rappel d'un curseur immobile : il n'expire pas, mais rien ne bouge (aucune image). Un
-        // échantillon ancien est recalé, pour que le prochain déplacement parte de maintenant
-        if (t - prev.t > LIVE_BUFFER_MS) c.samples = [{ t, x, y }];
-      } else {
-        c.samples.push({ t, x, y });
-        if (c.samples.length > MAX_SAMPLES) c.samples.shift();
-        c.moved = t;
-        visible = true;
-      }
-      c.last = t;
-      this.cursors.set(user, c);
+  }
+
+  /** Curseur reçu ; renvoie vrai s'il a bougé. */
+  private receiveCursor(user: string, [x, y]: [number, number], t: number): boolean {
+    const c = this.cursors.get(user) ?? { samples: [], last: t, moved: -Infinity };
+    const prev = c.samples.at(-1);
+    let moved = false;
+    if (prev && prev.x === x && prev.y === y) {
+      // Rappel d'un curseur immobile : il n'expire pas, mais rien ne bouge (aucune image). Un
+      // échantillon ancien est recalé, pour que le prochain déplacement parte de maintenant
+      if (t - prev.t > LIVE_BUFFER_MS) c.samples = [{ t, x, y }];
+    } else {
+      c.samples.push({ t, x, y });
+      if (c.samples.length > MAX_SAMPLES) c.samples.shift();
+      c.moved = t;
+      moved = true;
     }
+    c.last = t;
+    this.cursors.set(user, c);
+    return moved;
+  }
+
+  /** Tracé, mesure et fin du geste : aux modules qui les dessinent, fantômes posés. */
+  private notifyGesture(msg: LiveMessage, user: string, t: number) {
+    const end = msg.end === true;
     if (msg.stroke || msg.end)
-      for (const l of this.strokeListeners)
-        l({ userId: user, stroke: msg.stroke ?? null, end: msg.end === true });
+      for (const l of this.strokeListeners) l({ userId: user, stroke: msg.stroke ?? null, end });
     if (msg.measure !== undefined || msg.end)
-      for (const l of this.measureListeners)
-        l({ userId: user, measure: msg.measure, end: msg.end === true });
-    if (msg.end)
-      for (const track of this.tracks.values())
-        if (track.userId === user) {
-          track.ended = true;
-          track.last = t;
-        }
-    for (const l of this.activityListeners) l(visible);
+      for (const l of this.measureListeners) l({ userId: user, measure: msg.measure, end });
+    if (msg.end) this.endTracks(user, t);
+  }
+
+  /** Fin du geste d'un émetteur : ses fantômes attendent l'événement durable. */
+  private endTracks(user: string, t: number) {
+    for (const track of this.tracks.values())
+      if (track.userId === user) {
+        track.ended = true;
+        track.last = t;
+      }
   }
 
   private push(entityId: string, userId: string, s: Sample) {
@@ -672,20 +717,28 @@ export function interpolate(samples: readonly Sample[], t: number): Sample | nul
     const b = samples[i + 1]!;
     if (t < a.t || t > b.t) continue;
     const k = b.t === a.t ? 1 : (t - a.t) / (b.t - a.t);
-    const lerp = (u?: number, v?: number) =>
-      u === undefined || v === undefined ? (v ?? u) : u + (v - u) * k;
-    return {
-      t,
-      x: a.x + (b.x - a.x) * k,
-      y: a.y + (b.y - a.y) * k,
-      ...(b.rotation === undefined
-        ? {}
-        : {
-            rotation: a.rotation === undefined ? b.rotation : lerpAngle(a.rotation, b.rotation, k),
-          }),
-      ...(b.width !== undefined ? { width: lerp(a.width, b.width) } : {}),
-      ...(b.height !== undefined ? { height: lerp(a.height, b.height) } : {}),
-    };
+    return between(a, b, t, k);
   }
   return last;
+}
+
+/** Valeur facultative interpolée (tenue si l'un des bouts manque). */
+const lerpOptional = (u: number | undefined, v: number | undefined, k: number) =>
+  u === undefined || v === undefined ? (v ?? u) : u + (v - u) * k;
+
+/** Échantillon entre `a` et `b` à la fraction `k`. */
+function between(a: Sample, b: Sample, t: number, k: number): Sample {
+  return {
+    t,
+    x: a.x + (b.x - a.x) * k,
+    y: a.y + (b.y - a.y) * k,
+    ...(b.rotation === undefined ? {} : { rotation: lerpRotation(a.rotation, b.rotation, k) }),
+    ...(b.width !== undefined ? { width: lerpOptional(a.width, b.width, k) } : {}),
+    ...(b.height !== undefined ? { height: lerpOptional(a.height, b.height, k) } : {}),
+  };
+}
+
+/** Rotation interpolée par le plus court chemin (celle de `b` si `a` n'en a pas). */
+function lerpRotation(a: number | undefined, b: number, k: number): number {
+  return a === undefined ? b : lerpAngle(a, b, k);
 }
