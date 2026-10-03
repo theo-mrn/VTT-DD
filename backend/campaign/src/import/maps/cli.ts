@@ -171,27 +171,39 @@ const rehosted = new Map<string, Promise<string>>();
 const needsRehost = (u: unknown): u is string =>
   typeof u === 'string' && (isFirebaseStorage(u) || isDataUrl(u));
 
+/** Sans stockage : un média `data:` est retiré, un fichier Firebase reste où il est. */
+function keptWithoutStorage(url: string, what: string, warn: (w: string) => void): string | null {
+  if (write)
+    warn(
+      `${what} : stockage S3 non configuré, média ${isDataUrl(url) ? 'retiré' : 'laissé sur Firebase'}`,
+    );
+  return isDataUrl(url) ? null : url;
+}
+
+/** Média copié dans notre stockage, une seule fois par adresse ; en échec, `data:` retiré. */
+async function copyMedia(
+  url: string,
+  what: string,
+  warn: (w: string) => void,
+): Promise<string | null> {
+  if (!rehost) return keptWithoutStorage(url, what, warn);
+  try {
+    if (!rehosted.has(url)) rehosted.set(url, rehost(url));
+    return await rehosted.get(url)!;
+  } catch (err) {
+    rehosted.delete(url);
+    warn(`${what} : média non rapatrié (${err instanceof Error ? err.message : String(err)})`);
+    return isDataUrl(url) ? null : url;
+  }
+}
+
 /** Copie les médias Firebase Storage et `data:` dans notre stockage (simulation : compte seulement). */
 async function rehostMedia(m: MigratedMaps, warn: (w: string) => void) {
   let count = 0;
   const one = async (url: string | null | undefined, what: string) => {
     if (!needsRehost(url)) return url ?? null;
     count++;
-    if (!rehost) {
-      if (!write) return isDataUrl(url) ? null : url;
-      warn(
-        `${what} : stockage S3 non configuré, média ${isDataUrl(url) ? 'retiré' : 'laissé sur Firebase'}`,
-      );
-      return isDataUrl(url) ? null : url;
-    }
-    try {
-      if (!rehosted.has(url)) rehosted.set(url, rehost(url));
-      return await rehosted.get(url)!;
-    } catch (err) {
-      rehosted.delete(url);
-      warn(`${what} : média non rapatrié (${err instanceof Error ? err.message : String(err)})`);
-      return isDataUrl(url) ? null : url;
-    }
+    return copyMedia(url, what, warn);
   };
   for (const x of m.maps) x.backgroundUrl = await one(x.backgroundUrl, `Carte ${x.id}`);
   for (const t of m.tokens) {
