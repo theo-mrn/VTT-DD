@@ -42,16 +42,24 @@ function Quantite({ children }: Readonly<{ children: ReactNode }>) {
   );
 }
 
+function unites(n: number): string {
+  return n > 1 ? `${n} unités` : `${n} unité`;
+}
+
+/** « Équipé » ou « Rangé » pour un objet activable. */
+function etatRangement(item: InventoryItem): string | null {
+  if (!item.sorte.activable) return null;
+  return item.actif ? 'Équipé' : 'Rangé';
+}
+
 /** Libellé accessible d'un objet : nom, quantité, info clé, états. */
 export function libelleObjet(item: InventoryItem, meta: string | null): string {
   return [
     item.nom + (item.exemplaireLabel ? ` ${item.exemplaireLabel}` : ''),
-    item.sorte.quantites || item.quantite > 1
-      ? `${item.quantite} unité${item.quantite > 1 ? 's' : ''}`
-      : null,
+    item.sorte.quantites || item.quantite > 1 ? unites(item.quantite) : null,
     meta,
     ...item.bonus.filter((b) => !b.ignore).map((b) => b.texte),
-    item.sorte.activable ? (item.actif ? 'équipé' : 'rangé') : null,
+    etatRangement(item)?.toLowerCase(),
     item.hidden ? 'caché aux autres joueurs' : null,
     item.folder ? `dans ${item.folder.name}` : null,
   ]
@@ -87,7 +95,7 @@ export function ItemTile({
   const details = [
     item.sorte.quantites || item.quantite > 1 ? `×${item.quantite}` : null,
     meta,
-    item.sorte.activable ? (item.actif ? 'Équipé' : 'Rangé') : null,
+    etatRangement(item),
     item.hidden ? 'Caché aux autres joueurs' : null,
   ].filter(Boolean);
 

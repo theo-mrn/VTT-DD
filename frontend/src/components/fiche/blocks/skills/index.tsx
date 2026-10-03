@@ -143,18 +143,21 @@ function SkillsBlock({
   const selectedCard = allCards.find((c) => c.entry.id === cardId) ?? null;
 
   const narrow = width > 0 && width < 560;
-  const options: ViewOption<SkillsViewId>[] = data.views.map((id) =>
-    id === 'progression'
-      ? { id, label: 'Progression', icon: TableProperties }
-      : id === 'rangs'
-        ? {
-            id,
-            label: data.ranked.map((r) => r.sorte.nomPluriel ?? r.sorte.nom).join(', '),
-            icon: TrendingUp,
-          }
-        : { id, label: 'Capacités', icon: ListChecks },
-  );
+  const libellesVues: Record<SkillsViewId, Omit<ViewOption<SkillsViewId>, 'id'>> = {
+    progression: { label: 'Progression', icon: TableProperties },
+    rangs: {
+      label: data.ranked.map((r) => r.sorte.nomPluriel ?? r.sorte.nom).join(', '),
+      icon: TrendingUp,
+    },
+    capacites: { label: 'Capacités', icon: ListChecks },
+  };
+  const options: ViewOption<SkillsViewId>[] = data.views.map((id) => ({
+    id,
+    ...libellesVues[id],
+  }));
   const searchable = view === 'capacites' || view === 'rangs';
+  const volume = view === 'capacites' ? data.owned.length : allCards.length - data.owned.length;
+  const avecRecherche = searchable && volume > 5;
   const trees = view === 'progression' && data.trees.length > 0;
 
   return (
@@ -188,8 +191,7 @@ function SkillsBlock({
           </>
         }
         toolbar={
-          searchable &&
-          (view === 'capacites' ? data.owned.length : allCards.length - data.owned.length) > 5 ? (
+          avecRecherche ? (
             <>
               <SearchField
                 value={query}
@@ -274,22 +276,23 @@ function SkillsBlock({
               onOpen={(c) => setCardId(c.entry.id)}
             />
           )}
-          {view === 'capacites' &&
-            (data.owned.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                Aucune capacité acquise pour l’instant.
-                {data.views.includes('progression') && ' Elles s’obtiennent par la progression.'}
-              </p>
-            ) : owned.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Aucun résultat.</p>
-            ) : (
-              <OwnedList
-                items={owned}
-                showFilterLabel={(o: OwnedItem) => o.filterKey.startsWith('champ:')}
-                writes={writes}
-                onOpen={(o) => setCardId(o.card.entry.id)}
-              />
-            ))}
+          {view === 'capacites' && data.owned.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Aucune capacité acquise pour l’instant.
+              {data.views.includes('progression') && ' Elles s’obtiennent par la progression.'}
+            </p>
+          )}
+          {view === 'capacites' && data.owned.length > 0 && owned.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">Aucun résultat.</p>
+          )}
+          {view === 'capacites' && owned.length > 0 && (
+            <OwnedList
+              items={owned}
+              showFilterLabel={(o: OwnedItem) => o.filterKey.startsWith('champ:')}
+              writes={writes}
+              onOpen={(o) => setCardId(o.card.entry.id)}
+            />
+          )}
         </div>
       </BlockShell>
 

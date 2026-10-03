@@ -541,13 +541,9 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
                 Effacer la recherche
               </Button>
             </>
-          ) : filtreActif !== TOUT ? (
-            'Rien dans cette catégorie.'
-          ) : dossier ? (
-            'Dossier vide : déposez-y un objet, ou rangez-le depuis son menu.'
-          ) : inv.items.length === 0 ? (
-            'Inventaire vide.'
-          ) : null}
+          ) : (
+            raisonVide(filtreActif !== TOUT, dossier !== null, inv.items.length === 0)
+          )}
         </p>
       ) : null;
 
@@ -931,4 +927,11 @@ function Pied({ inv }: Readonly<{ inv: Inventory }>) {
       })}
     </footer>
   );
+}
+
+/** Pourquoi la grille est vide, hors recherche. */
+function raisonVide(filtre: boolean, dansDossier: boolean, inventaireVide: boolean): string | null {
+  if (filtre) return 'Rien dans cette catégorie.';
+  if (dansDossier) return 'Dossier vide : déposez-y un objet, ou rangez-le depuis son menu.';
+  return inventaireVide ? 'Inventaire vide.' : null;
 }

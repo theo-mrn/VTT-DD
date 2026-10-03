@@ -138,7 +138,9 @@ export function scaleWidth(wLg: number, bp: SheetBreakpoint, minLg: number): num
 /** Minimum d'un bloc dans une disposition. */
 export function scaleMin(min: BlockSize, bp: SheetBreakpoint): BlockSize {
   const cols = COLUMNS[bp];
-  const w = bp === 'lg' ? min.w : bp === 'md' ? Math.ceil((min.w * cols) / 12) : 1;
+  let w = 1;
+  if (bp === 'lg') w = min.w;
+  else if (bp === 'md') w = Math.ceil((min.w * cols) / 12);
   return { w: Math.min(cols, Math.max(1, w)), h: min.h };
 }
 
@@ -346,7 +348,10 @@ export function migrateBlocks(blocks: ApiBlock[]): ApiBlock[] {
       ...(filtre !== undefined ? { filtreChamp: filtre } : {}),
     },
   };
-  return blocks.flatMap((b) => (b === first ? [merged] : legacy(b) ? [] : [b]));
+  return blocks.flatMap((b) => {
+    if (b === first) return [merged];
+    return legacy(b) ? [] : [b];
+  });
 }
 
 /** État de travail d'une mise en page enregistrée (ou par défaut, si `stored` est null). */
@@ -365,11 +370,10 @@ export function stateFrom(
   const blocks = lisible
     ? migrateBlocks(lisible.blocks).map((b) => fromApiBlock(b, disponible))
     : defaults();
-  const layouts = !lisible
-    ? {}
-    : lisible.format === 1
-      ? fromLegacy(lisible.layouts ?? {})
-      : (lisible.layouts ?? {});
+  let layouts: SheetLayout['layouts'] = {};
+  if (lisible) {
+    layouts = lisible.format === 1 ? fromLegacy(lisible.layouts ?? {}) : (lisible.layouts ?? {});
+  }
   return {
     blocks,
     layouts: completeLayouts(blocks, layouts, sizeOf, minOf),

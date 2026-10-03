@@ -33,17 +33,14 @@ export function ViewSwitch<T extends string>({
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const onKey = (e: KeyboardEvent, i: number) => {
     const last = options.length - 1;
-    const next =
-      e.key === 'ArrowRight'
-        ? (i + 1) % options.length
-        : e.key === 'ArrowLeft'
-          ? (i - 1 + options.length) % options.length
-          : e.key === 'Home'
-            ? 0
-            : e.key === 'End'
-              ? last
-              : null;
-    if (next === null) return;
+    const cibles: Partial<Record<string, number>> = {
+      ArrowRight: (i + 1) % options.length,
+      ArrowLeft: (i - 1 + options.length) % options.length,
+      Home: 0,
+      End: last,
+    };
+    const next = cibles[e.key];
+    if (next === undefined) return;
     e.preventDefault();
     onChange(options[next]!.id);
     refs.current[next]?.focus();
