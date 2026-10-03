@@ -143,6 +143,11 @@ export function MessageList({
     return () => observer.disconnect();
   }, [isPending, messages]);
 
+  let etat: 'chargement' | 'erreur' | 'vide' | 'fil' = 'fil';
+  if (isPending) etat = 'chargement';
+  else if (isError) etat = 'erreur';
+  else if (!messages) etat = 'vide';
+
   return (
     <div className="relative min-h-0 flex-1">
       <div
@@ -156,9 +161,8 @@ export function MessageList({
         tabIndex={0}
         className="h-full overflow-y-auto overscroll-contain pb-2 pt-3 outline-none [overflow-anchor:none] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40"
       >
-        {isPending ? (
-          <ChatSkeleton />
-        ) : isError ? (
+        {etat === 'chargement' && <ChatSkeleton />}
+        {etat === 'erreur' && (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <p className="text-sm font-medium">Discussion indisponible</p>
             <p className="text-xs text-muted-foreground">{messageErreur(error)}</p>
@@ -167,52 +171,21 @@ export function MessageList({
               Réessayer
             </Button>
           </div>
-        ) : !messages ? (
-          <EmptyChat />
-        ) : (
+        )}
+        {etat === 'vide' && <EmptyChat />}
+        {etat === 'fil' && (
           <>
             <div className="flex justify-center px-4 pb-1">
-              {hasOlder ? (
-                olderError ? (
-                  <Button variant="ghost" size="xs" onClick={requestOlder}>
-                    <RotateCw />
-                    Messages précédents indisponibles, réessayer
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={requestOlder}
-                    disabled={isLoadingOlder}
-                  >
-                    {isLoadingOlder && <Loader2 className="animate-spin" />}
-                    {isLoadingOlder ? 'Chargement…' : 'Messages précédents'}
-                  </Button>
-                )
-              ) : (
-                <p className="py-1 text-[11px] text-subtle">Début de la discussion</p>
-              )}
+              <OlderMessages
+                hasOlder={hasOlder}
+                failed={olderError}
+                loading={isLoadingOlder}
+                onLoad={requestOlder}
+              />
             </div>
             <ol ref={content} className="flex flex-col">
               {thread.map((i) =>
-                i.kind === 'day' ? (
-                  <li
-                    key={i.key}
-                    className="flex items-center gap-3 px-4 pb-1 pt-4"
-                    role="separator"
-                  >
-                    <span className="h-px flex-1 bg-border" aria-hidden />
-                    <span className="text-[11px] font-medium text-subtle">{i.label}</span>
-                    <span className="h-px flex-1 bg-border" aria-hidden />
-                  </li>
-                ) : i.kind === 'unread' ? (
-                  <li key={i.key} className="flex items-center gap-2 px-4 pt-3" role="separator">
-                    <span className="h-px flex-1 bg-destructive/50" aria-hidden />
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-destructive">
-                      Nouveaux messages
-                    </span>
-                  </li>
-                ) : (
+                i.kind === 'message' ? (
                   <MessageItem
                     key={i.key}
                     item={i.item}
@@ -220,6 +193,8 @@ export function MessageList({
                     ctx={ctx}
                     editing={editingId === i.item.message.id}
                   />
+                ) : (
+                  <ThreadSeparator key={i.key} line={i} />
                 ),
               )}
             </ol>
@@ -236,9 +211,7 @@ export function MessageList({
             className="pointer-events-auto rounded-full shadow-elevated"
           >
             <ArrowDown />
-            {unseen > 0
-              ? `${unseen} nouveau${unseen > 1 ? 'x' : ''} message${unseen > 1 ? 's' : ''}`
-              : 'Revenir en bas'}
+            {unseen > 0 ? nouveauxMessages(unseen) : 'Revenir en bas'}
           </Button>
         </div>
       )}
@@ -275,5 +248,51 @@ function EmptyChat() {
         choix des destinataires.
       </p>
     </div>
+  );
+}
+
+/** « 3 nouveaux messages », « 1 nouveau message ». */
+const nouveauxMessages = (n: number) => (n > 1 ? `${n} nouveaux messages` : `${n} nouveau message`);
+
+/** Haut du fil : charger les messages précédents, ou le début de la discussion. */
+function OlderMessages({
+  hasOlder,
+  failed,
+  loading,
+  onLoad,
+}: Readonly<{ hasOlder: boolean; failed: boolean; loading: boolean; onLoad: () => void }>) {
+  if (!hasOlder) return <p className="py-1 text-[11px] text-subtle">Début de la discussion</p>;
+  if (failed)
+    return (
+      <Button variant="ghost" size="xs" onClick={onLoad}>
+        <RotateCw />
+        Messages précédents indisponibles, réessayer
+      </Button>
+    );
+  return (
+    <Button variant="ghost" size="xs" onClick={onLoad} disabled={loading}>
+      {loading && <Loader2 className="animate-spin" />}
+      {loading ? 'Chargement…' : 'Messages précédents'}
+    </Button>
+  );
+}
+
+/** Séparateur du fil : changement de jour, ou début des messages non lus. */
+function ThreadSeparator({ line }: Readonly<{ line: Exclude<ThreadItem, { kind: 'message' }> }>) {
+  if (line.kind === 'day')
+    return (
+      <li className="flex items-center gap-3 px-4 pb-1 pt-4" role="separator">
+        <span className="h-px flex-1 bg-border" aria-hidden />
+        <span className="text-[11px] font-medium text-subtle">{line.label}</span>
+        <span className="h-px flex-1 bg-border" aria-hidden />
+      </li>
+    );
+  return (
+    <li className="flex items-center gap-2 px-4 pt-3" role="separator">
+      <span className="h-px flex-1 bg-destructive/50" aria-hidden />
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-destructive">
+        Nouveaux messages
+      </span>
+    </li>
   );
 }

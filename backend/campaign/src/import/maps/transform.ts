@@ -117,14 +117,20 @@ export function point(v: unknown): MapPoint | undefined {
 }
 
 const points = (v: unknown): MapPoint[] | undefined => {
-  const list = Array.isArray(v) ? v : obj(v) ? Object.values(v as Data) : undefined;
+  let list: unknown[] | undefined;
+  if (Array.isArray(v)) list = v;
+  else if (obj(v)) list = Object.values(v as Data);
   if (!list) return undefined;
   const out = list.map(point);
   return out.every(Boolean) ? (out as MapPoint[]) : undefined;
 };
 
-const bool = (v: unknown, fallback: boolean) =>
-  typeof v === 'boolean' ? v : v === 'true' ? true : v === 'false' ? false : fallback;
+function bool(v: unknown, fallback: boolean): boolean {
+  if (typeof v === 'boolean') return v;
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  return fallback;
+}
 
 const text = (v: unknown, max: number) => {
   const t = typeof v === 'string' ? v : undefined;
@@ -377,12 +383,7 @@ export function transformRoom(
     ].sort(compareCodeUnits);
     const fullMap = bool(f.fullMapFog, false);
     if (!cells.length && !fullMap) continue;
-    const mapId =
-      d.id === 'fogData'
-        ? ensureDefault()
-        : d.id.startsWith('fog_')
-          ? mapOf(d.id.slice(4), `Brouillard ${d.path}`)
-          : undefined;
+    const mapId = d.id === 'fogData' ? ensureDefault() : fogMap(d.id, d.path, mapOf);
     if (!mapId) continue;
     fog.push({ mapId, campaignId, fullMap, cells });
   }
@@ -516,7 +517,7 @@ export function transformRoom(
       campaignId,
       mapId,
       name: text(o.name, 200) ?? '',
-      kind: o.type === 'weapon' ? 'weapon' : o.type === 'item' ? 'item' : 'decor',
+      kind: o.type === 'weapon' || o.type === 'item' ? o.type : 'decor',
       imageUrl: toText(o.imageUrl) ?? '',
       pos,
       width: positive(o.width, 100_000, 100),
@@ -617,14 +618,7 @@ export function transformRoom(
   };
 
   const obstacles: MigratedMaps['obstacles'] = [];
-  const obstacleKind = (t: unknown): ObstacleKind | undefined =>
-    t === 'wall'
-      ? 'wall'
-      : t === 'one-way-wall'
-        ? 'one_way_wall'
-        : t === 'door' || t === 'window'
-          ? t
-          : undefined;
+  const obstacleKind = (t: unknown): ObstacleKind | undefined => OBSTACLE_KINDS[String(t)];
   for (const [id, o] of merged(rtdb?.obstacles, 'obstacles')) {
     const key = `rooms/${code}/obstacles/${id}`;
     const mapId = mapOf(o.cityId, `Obstacle ${key}`);
@@ -785,4 +779,21 @@ export function transformRoom(
     measurements,
     warnings,
   };
+}
+
+/** Genre d'obstacle de l'ancienne app → genre actuel (inconnu : undefined). */
+const OBSTACLE_KINDS: Partial<Record<string, 'wall' | 'one_way_wall' | 'door' | 'window'>> = {
+  wall: 'wall',
+  'one-way-wall': 'one_way_wall',
+  door: 'door',
+  window: 'window',
+};
+
+/** Brouillard d'une carte nommée (`fog_<id>`) ; autre document : undefined. */
+function fogMap<T>(
+  id: string,
+  path: string,
+  mapOf: (legacyId: string, name: string) => T,
+): T | undefined {
+  return id.startsWith('fog_') ? mapOf(id.slice(4), `Brouillard ${path}`) : undefined;
 }
