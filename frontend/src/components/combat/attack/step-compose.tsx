@@ -120,7 +120,7 @@ export function StepCompose({
       )}
       {error && <Message>{error}</Message>}
 
-      {!action ? null : card ? (
+      {action && card && (
         <TypeCards
           systeme={systeme}
           fiche={fiche}
@@ -130,7 +130,8 @@ export function StepCompose({
           onLaunch={(patch) => void model.submit(patch)}
           disabled={disabled || Boolean(model.disabledReason)}
         />
-      ) : (
+      )}
+      {action && !card && (
         <GenericBody
           systeme={systeme}
           presentation={presentation}
@@ -454,7 +455,7 @@ function ChoiceField({
                 return {
                   value: cle,
                   label: fiche.entite.attributs.get(cle)?.nom ?? cle,
-                  meta: m === undefined ? undefined : `${m >= 0 ? '+' : ''}${m}`,
+                  meta: m === undefined ? undefined : signe(m),
                 };
               })
             : choiceOptions(p).map((o) => ({ value: o.valeur, label: o.nom, hint: o.description }))
@@ -786,11 +787,9 @@ function DicePool({
           const delta = adjustments.dice[d.id] ?? 0;
           const known = auto !== null;
           const value = known ? Math.max(0, auto + delta) : delta;
-          const display = known
-            ? String(value)
-            : delta
-              ? `?${delta > 0 ? '+' : '−'}${Math.abs(delta)}`
-              : '?';
+          const display = known ? String(value) : inconnu(delta);
+          let hint: string | null = 'Dépend de la cible';
+          if (known) hint = delta ? `${auto} d’après la fiche, ${signe(delta)} à la main` : null;
           return (
             <Stepper
               key={d.id}
@@ -801,13 +800,7 @@ function DicePool({
               min={known ? 0 : -20}
               max={20}
               marked={delta !== 0}
-              hint={
-                known
-                  ? delta
-                    ? `${auto} d’après la fiche, ${delta > 0 ? '+' : ''}${delta} à la main`
-                    : null
-                  : 'Dépend de la cible'
-              }
+              hint={hint}
               onChange={(v) => set(d.id, known ? v - auto : v)}
               disabled={disabled}
             />
@@ -816,4 +809,12 @@ function DicePool({
       </div>
     </section>
   );
+}
+
+const signe = (n: number) => `${n >= 0 ? '+' : ''}${n}`;
+
+/** Compteur qui dépend de la cible : « ? », ou l'ajustement à la main (« ?+2 », « ?−1 »). */
+function inconnu(delta: number): string {
+  if (!delta) return '?';
+  return `?${delta > 0 ? '+' : '−'}${Math.abs(delta)}`;
 }

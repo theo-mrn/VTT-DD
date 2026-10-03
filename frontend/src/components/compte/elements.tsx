@@ -267,3 +267,28 @@ export function formaterDepuis(iso: string | null | undefined) {
     if (Math.abs(secondes) >= duree) return rtf.format(Math.round(secondes / duree), unite);
   return rtf.format(secondes, 'second');
 }
+
+/**
+ * Contenu d'une carte selon l'état de sa requête : chargement, erreur, vide, puis la liste.
+ * La liste est une fonction : elle n'est construite qu'une fois les données là.
+ */
+export function ParEtat({
+  chargement = false,
+  chargementTexte,
+  erreur,
+  vide = false,
+  siVide,
+  children,
+}: Readonly<{
+  chargement?: boolean;
+  chargementTexte?: string;
+  erreur?: string | null;
+  vide?: boolean;
+  siVide?: ReactNode;
+  children: () => ReactNode;
+}>) {
+  if (chargement) return <Chargement texte={chargementTexte} />;
+  if (erreur) return <Message>{erreur}</Message>;
+  if (vide) return siVide ?? null;
+  return children();
+}

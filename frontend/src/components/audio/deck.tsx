@@ -77,17 +77,19 @@ export function Deck({
   const hasTrack = !!s?.track && !s.track.deleted;
   const isMusic = channel === 'music';
   const repeat = s?.repeat ?? 'all';
-  const status = !hasTrack
-    ? 'Rien en cours'
-    : playing
-      ? heard
-        ? 'En lecture'
-        : needsUnlock
-          ? 'Son bloqué par le navigateur'
-          : 'Démarrage…'
-      : s?.status === 'paused'
-        ? 'En pause'
-        : 'Arrêté';
+  const status = statusLabel({
+    hasTrack,
+    playing,
+    heard,
+    needsUnlock,
+    paused: s?.status === 'paused',
+  });
+  let trackLabel = `${LABELS[channel]} : rien en cours`;
+  if (s?.track?.deleted) trackLabel = 'Son supprimé';
+  else if (hasTrack) trackLabel = s!.track!.name;
+  let statusTone = 'text-subtle';
+  if (heard) statusTone = 'text-primary-strong';
+  else if (playing && needsUnlock) statusTone = 'text-warning';
 
   return (
     <section
@@ -113,26 +115,9 @@ export function Deck({
               className={cn('min-w-0 truncate', hasTrack ? 'font-medium' : 'text-muted-foreground')}
               title={s?.track?.name}
             >
-              {s?.track?.deleted
-                ? 'Son supprimé'
-                : hasTrack
-                  ? s!.track!.name
-                  : `${LABELS[channel]} : rien en cours`}
+              {trackLabel}
             </span>
-            {hasTrack && (
-              <span
-                className={cn(
-                  'shrink-0 text-[11px]',
-                  heard
-                    ? 'text-primary-strong'
-                    : playing && needsUnlock
-                      ? 'text-warning'
-                      : 'text-subtle',
-                )}
-              >
-                {status}
-              </span>
-            )}
+            {hasTrack && <span className={cn('shrink-0 text-[11px]', statusTone)}>{status}</span>}
           </p>
           {hasTrack && (
             <p className="flex items-center gap-1.5 text-[11px] tabular-nums text-subtle">
@@ -346,4 +331,18 @@ function DeckProgress({ channel, active }: Readonly<{ channel: ChannelName; acti
       />
     </div>
   );
+}
+
+/** État lisible d'un canal : ce qui s'entend vraiment, pas seulement ce que dit le serveur. */
+function statusLabel(o: {
+  hasTrack: boolean;
+  playing: boolean;
+  heard: boolean;
+  needsUnlock: boolean;
+  paused: boolean;
+}): string {
+  if (!o.hasTrack) return 'Rien en cours';
+  if (!o.playing) return o.paused ? 'En pause' : 'Arrêté';
+  if (o.heard) return 'En lecture';
+  return o.needsUnlock ? 'Son bloqué par le navigateur' : 'Démarrage…';
 }

@@ -9,6 +9,7 @@ import {
   formaterDate,
   formaterDepuis,
   Message,
+  ParEtat,
   TitrePage,
   Vide,
 } from '@/components/compte/elements';
@@ -85,80 +86,82 @@ export default function PageAmis() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_minmax(0,22rem)]">
         <Carte titre={`Mes amis${amis.donnees ? ` (${amis.donnees.length})` : ''}`}>
-          {amis.chargement && !amis.donnees ? (
-            <Chargement />
-          ) : amis.erreur ? (
-            <Message>{amis.erreur}</Message>
-          ) : !amis.donnees?.length ? (
-            <Vide>Pas encore d&apos;amis : cherchez des joueurs ci-dessus.</Vide>
-          ) : (
-            <ul className="divide-y divide-border">
-              {amis.donnees.map((a) => (
-                <LigneJoueur
-                  key={a.id}
-                  id={a.id}
-                  nom={a.name}
-                  avatarUrl={a.avatarUrl}
-                  detail={[a.title, `ami depuis le ${formaterDate(a.since)}`]
-                    .filter(Boolean)
-                    .join(' · ')}
-                  actions={
-                    aRetirer === a.id ? (
-                      <>
-                        <Bouton
-                          size="sm"
-                          ton="danger"
-                          chargement={enCours === a.id}
-                          onClick={() => agir(a.id, retirerAmi).then(() => setARetirer(null))}
-                        >
-                          Confirmer
+          <ParEtat
+            chargement={amis.chargement && !amis.donnees}
+            erreur={amis.erreur}
+            vide={!amis.donnees?.length}
+            siVide={<Vide>Pas encore d&apos;amis : cherchez des joueurs ci-dessus.</Vide>}
+          >
+            {() => (
+              <ul className="divide-y divide-border">
+                {(amis.donnees ?? []).map((a) => (
+                  <LigneJoueur
+                    key={a.id}
+                    id={a.id}
+                    nom={a.name}
+                    avatarUrl={a.avatarUrl}
+                    detail={[a.title, `ami depuis le ${formaterDate(a.since)}`]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    actions={
+                      aRetirer === a.id ? (
+                        <>
+                          <Bouton
+                            size="sm"
+                            ton="danger"
+                            chargement={enCours === a.id}
+                            onClick={() => agir(a.id, retirerAmi).then(() => setARetirer(null))}
+                          >
+                            Confirmer
+                          </Bouton>
+                          <Bouton size="sm" ton="discret" onClick={() => setARetirer(null)}>
+                            Annuler
+                          </Bouton>
+                        </>
+                      ) : (
+                        <Bouton size="sm" ton="discret" onClick={() => setARetirer(a.id)}>
+                          Retirer
                         </Bouton>
-                        <Bouton size="sm" ton="discret" onClick={() => setARetirer(null)}>
-                          Annuler
-                        </Bouton>
-                      </>
-                    ) : (
-                      <Bouton size="sm" ton="discret" onClick={() => setARetirer(a.id)}>
-                        Retirer
-                      </Bouton>
-                    )
-                  }
-                />
-              ))}
-            </ul>
-          )}
+                      )
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </ParEtat>
         </Carte>
 
         <Carte titre="Demandes envoyées">
-          {demandes.chargement && !demandes.donnees ? (
-            <Chargement />
-          ) : demandes.erreur ? (
-            <Message>{demandes.erreur}</Message>
-          ) : envoyees.length === 0 ? (
-            <Vide>Aucune demande en attente.</Vide>
-          ) : (
-            <ul className="divide-y divide-border">
-              {envoyees.map((d) => (
-                <LigneJoueur
-                  key={d.id}
-                  id={d.id}
-                  nom={d.name}
-                  avatarUrl={d.avatarUrl}
-                  detail={`Envoyée ${formaterDepuis(d.createdAt)}`}
-                  actions={
-                    <Bouton
-                      size="sm"
-                      ton="discret"
-                      chargement={enCours === d.id}
-                      onClick={() => agir(d.id, supprimerDemande)}
-                    >
-                      Annuler
-                    </Bouton>
-                  }
-                />
-              ))}
-            </ul>
-          )}
+          <ParEtat
+            chargement={demandes.chargement && !demandes.donnees}
+            erreur={demandes.erreur}
+            vide={envoyees.length === 0}
+            siVide={<Vide>Aucune demande en attente.</Vide>}
+          >
+            {() => (
+              <ul className="divide-y divide-border">
+                {envoyees.map((d) => (
+                  <LigneJoueur
+                    key={d.id}
+                    id={d.id}
+                    nom={d.name}
+                    avatarUrl={d.avatarUrl}
+                    detail={`Envoyée ${formaterDepuis(d.createdAt)}`}
+                    actions={
+                      <Bouton
+                        size="sm"
+                        ton="discret"
+                        chargement={enCours === d.id}
+                        onClick={() => agir(d.id, supprimerDemande)}
+                      >
+                        Annuler
+                      </Bouton>
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </ParEtat>
         </Carte>
       </div>
     </div>
@@ -226,33 +229,35 @@ function Recherche({
 
       {texte.trim().length >= 2 && (
         <div className="mt-3">
-          {erreur ? (
-            <Message>{erreur}</Message>
-          ) : recherche && !resultats ? (
-            <Chargement texte="Recherche…" />
-          ) : visibles.length === 0 ? (
-            !recherche && <Vide>Aucun joueur trouvé pour « {texte.trim()} ».</Vide>
-          ) : (
-            <ul className={cn('divide-y divide-border', recherche && 'opacity-60')}>
-              {visibles.map((j) => (
-                <LigneJoueur
-                  key={j.id}
-                  id={j.id}
-                  nom={j.name}
-                  avatarUrl={j.avatarUrl}
-                  detail={j.title}
-                  actions={
-                    <ActionRelation
-                      relation={relation(j.id)}
-                      chargement={enCours === j.id}
-                      onAjouter={() => agir(j.id, demanderEnAmi)}
-                      onAccepter={() => agir(j.id, accepterDemande)}
-                    />
-                  }
-                />
-              ))}
-            </ul>
-          )}
+          <ParEtat
+            erreur={erreur}
+            chargement={!erreur && recherche && !resultats}
+            chargementTexte="Recherche…"
+            vide={visibles.length === 0}
+            siVide={!recherche && <Vide>Aucun joueur trouvé pour « {texte.trim()} ».</Vide>}
+          >
+            {() => (
+              <ul className={cn('divide-y divide-border', recherche && 'opacity-60')}>
+                {visibles.map((j) => (
+                  <LigneJoueur
+                    key={j.id}
+                    id={j.id}
+                    nom={j.name}
+                    avatarUrl={j.avatarUrl}
+                    detail={j.title}
+                    actions={
+                      <ActionRelation
+                        relation={relation(j.id)}
+                        chargement={enCours === j.id}
+                        onAjouter={() => agir(j.id, demanderEnAmi)}
+                        onAccepter={() => agir(j.id, accepterDemande)}
+                      />
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </ParEtat>
         </div>
       )}
     </Carte>
