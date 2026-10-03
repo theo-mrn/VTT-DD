@@ -814,14 +814,14 @@ carte), `soundAssetId` des armes (portage du combat), retrait de `map_settings.m
 
 ## 8. Décisions à valider par l'utilisateur
 
-| #   | Question                                                                                                                                                                         | Recommandation                                                                                                                                                              |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1  | YouTube : garder un **lecteur externe visible** (≥ 200×200, canal musique seulement, synchro à 2 s près) ou **l'abandonner** ?                                                   | **Garder en lecteur externe** : 22 des 25 musiques importées sont sur YouTube. Les lecteurs cachés du legacy sont interdits par YouTube et disparaissent dans les deux cas. |
-| Q2  | Fichiers : **worker ffmpeg** (analyse de la loudness, transcodage des formats non web) ou **pas de worker** (sonde en JS, wav et flac servis tels quels, pas de normalisation) ? | **Worker** : un déploiement et une table de jobs suffisent, et c'est le seul moyen d'avoir des volumes homogènes et des fichiers lisibles partout.                          |
-| Q3  | Mixeur personnel : **en base, par utilisateur** (synchronisé entre appareils, cache local) ou **localStorage seul** (par appareil, comme le legacy) ?                            | **En base par utilisateur**, avec reprise automatique des anciens réglages du navigateur.                                                                                   |
-| Q4  | Effets lancés par les **joueurs** (sons d'armes) : autorisés pour les sons `sfx` de la campagne avec limite de débit, ou **MJ seul** ?                                           | **Autorisés** : c'est le comportement du combat legacy ; le serveur borne le débit et ne joue que des sons de la bibliothèque de la campagne.                               |
-| Q5  | Calque « musique » masqué par le MJ : **coupe les zones pour tout le monde** sur cette carte, ou **affichage seulement** ?                                                       | **Coupe les zones** : c'était l'intention du code (commentaire `page.tsx:975`), le `true` forcé était un bug.                                                               |
-| Q6  | Ajouter un **canal ambiance** persistant (boucle, à côté de la musique), ou s'en tenir à **musique + effets** comme le legacy ?                                                  | **Ajouter** : même machine à états que la musique, coût marginal ; évite de lancer un son d'ambiance de 10 min comme un effet ponctuel.                                     |
+| #   | Question | Recommandation |
+| --- | -------- | -------------- |
+
+| Q2 | Fichiers : **worker ffmpeg** (analyse de la loudness, transcodage des formats non web) ou **pas de worker** (sonde en JS, wav et flac servis tels quels, pas de normalisation) ? | **Worker** : un déploiement et une table de jobs suffisent, et c'est le seul moyen d'avoir des volumes homogènes et des fichiers lisibles partout. |
+| Q3 | Mixeur personnel : **en base, par utilisateur** (synchronisé entre appareils, cache local) ou **localStorage seul** (par appareil, comme le legacy) ? | **En base par utilisateur**, avec reprise automatique des anciens réglages du navigateur. |
+| Q4 | Effets lancés par les **joueurs** (sons d'armes) : autorisés pour les sons `sfx` de la campagne avec limite de débit, ou **MJ seul** ? | **Autorisés** : c'est le comportement du combat legacy ; le serveur borne le débit et ne joue que des sons de la bibliothèque de la campagne. |
+| Q5 | Calque « musique » masqué par le MJ : **coupe les zones pour tout le monde** sur cette carte, ou **affichage seulement** ? | **Coupe les zones** : c'était l'intention du code (commentaire `page.tsx:975`), le `true` forcé était un bug. |
+| Q6 | Ajouter un **canal ambiance** persistant (boucle, à côté de la musique), ou s'en tenir à **musique + effets** comme le legacy ? | **Ajouter** : même machine à états que la musique, coût marginal ; évite de lancer un son d'ambiance de 10 min comme un effet ponctuel. |
 
 ## 9. Décisions prises (2026-09-28)
 
