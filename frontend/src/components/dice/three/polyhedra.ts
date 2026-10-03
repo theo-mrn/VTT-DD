@@ -110,30 +110,48 @@ const octa = (): { v: V3[]; f: number[][] } => ({
   ],
 });
 
+interface HullPlane {
+  n: THREE.Vector3;
+  d: number;
+  ids: number[];
+}
+
+/**
+ * Plan porté par trois sommets, s'il borde l'enveloppe (aucun sommet au-delà) et n'est pas déjà
+ * connu ; sinon null.
+ */
+function hullPlane(
+  P: THREE.Vector3[],
+  planes: HullPlane[],
+  i: number,
+  j: number,
+  k: number,
+): HullPlane | null {
+  const n = new THREE.Vector3()
+    .subVectors(P[j]!, P[i]!)
+    .cross(new THREE.Vector3().subVectors(P[k]!, P[i]!));
+  if (n.lengthSq() < 1e-6) return null;
+  n.normalize();
+  let d = n.dot(P[i]!);
+  if (d < 0) {
+    n.negate();
+    d = -d;
+  }
+  if (P.some((p) => n.dot(p) > d + 1e-5)) return null;
+  if (planes.some((pl) => pl.n.dot(n) > 1 - 1e-6)) return null;
+  const ids = P.map((p, idx) => (Math.abs(n.dot(p) - d) < 1e-5 ? idx : -1)).filter((x) => x >= 0);
+  return { n, d, ids };
+}
+
 /** Faces d'un polyèdre convexe dont on ne connaît que les sommets (enveloppe, petits cas). */
 function hullFaces(v: V3[]): number[][] {
   const P = v.map((p) => new THREE.Vector3(...p));
-  const planes: { n: THREE.Vector3; d: number; ids: number[] }[] = [];
-  const eps = 1e-6;
+  const planes: HullPlane[] = [];
   for (let i = 0; i < P.length; i++)
     for (let j = i + 1; j < P.length; j++)
       for (let k = j + 1; k < P.length; k++) {
-        const n = new THREE.Vector3()
-          .subVectors(P[j]!, P[i]!)
-          .cross(new THREE.Vector3().subVectors(P[k]!, P[i]!));
-        if (n.lengthSq() < eps) continue;
-        n.normalize();
-        let d = n.dot(P[i]!);
-        if (d < 0) {
-          n.negate();
-          d = -d;
-        }
-        if (P.some((p) => n.dot(p) > d + 1e-5)) continue;
-        if (planes.some((pl) => pl.n.dot(n) > 1 - 1e-6)) continue;
-        const ids = P.map((p, idx) => (Math.abs(n.dot(p) - d) < 1e-5 ? idx : -1)).filter(
-          (x) => x >= 0,
-        );
-        planes.push({ n, d, ids });
+        const plane = hullPlane(P, planes, i, j, k);
+        if (plane) planes.push(plane);
       }
   // Sommets de chaque face rangés dans le sens direct vu de l'extérieur
   return planes.map(({ n, ids }) => {
@@ -271,6 +289,137 @@ function faceValues(normals: THREE.Vector3[]): string[] {
   return values;
 }
 
+/** Face du polyèdre orientée vers l'extérieur : sommets, normale, centre, distance au centre. */
+interface OrientedFace {
+  ids: number[];
+  n: THREE.Vector3;
+  c: THREE.Vector3;
+  d: number;
+}
+
+/** Arêtes arrondies : quart de cylindre entre les normales des deux faces, en `SEGMENTS` pas. */
+function pushEdges(
+  edgeFaces: Map<string, { a: number; b: number; faces: number[] }>,
+  faces: OrientedFace[],
+  Q: THREE.Vector3[],
+  r: number,
+  push: (p: THREE.Vector3, n: THREE.Vector3) => void,
+) {
+  for (const e of edgeFaces.values()) {
+    const [f1, f2] = e.faces as [number, number];
+    // Sens : l'arête parcourue a → b dans la face f1 (sens direct)
+    const ids1 = faces[f1]!.ids;
+    const ia = ids1.indexOf(e.a);
+    const forward = ids1[(ia + 1) % ids1.length] === e.b;
+    const [a, b] = forward ? [e.a, e.b] : [e.b, e.a];
+    const n1 = faces[f1]!.n;
+    const n2 = faces[f2]!.n;
+    for (let s = 0; s < SEGMENTS; s++) {
+      const m0 = slerp(n1, n2, s / SEGMENTS);
+      const m1 = slerp(n1, n2, (s + 1) / SEGMENTS);
+      const A0 = Q[a]!.clone().addScaledVector(m0, r);
+      const B0 = Q[b]!.clone().addScaledVector(m0, r);
+      const A1 = Q[a]!.clone().addScaledVector(m1, r);
+      const B1 = Q[b]!.clone().addScaledVector(m1, r);
+      // Quad (B0, A0, A1, B1) vu de l'extérieur
+      push(B0, m0);
+      push(A0, m0);
+      push(A1, m1);
+      push(B0, m0);
+      push(A1, m1);
+      push(B1, m1);
+    }
+  }
+}
+
+/** Échange les sommets b et c d'un triangle (positions, normales, uv1). */
+function swapTriangle(positions: number[], normals: number[], uv1: number[], i: number) {
+  for (const [arr, w] of [
+    [positions, 3],
+    [normals, 3],
+  ] as const)
+    for (let j = 0; j < w; j++) {
+      const bi = i + w + j;
+      const ci = i + 2 * w + j;
+      [arr[bi], arr[ci]] = [arr[ci]!, arr[bi]!];
+    }
+  const t = (i / 9) * 6;
+  for (let j = 0; j < 2; j++) [uv1[t + 2 + j], uv1[t + 4 + j]] = [uv1[t + 4 + j]!, uv1[t + 2 + j]!];
+}
+
+/** Triangles retournés quand leur normale géométrique ne suit pas celle des sommets. */
+function orientTriangles(positions: number[], normals: number[], uv1: number[]) {
+  for (let i = 0; i < positions.length; i += 9) {
+    const a = new THREE.Vector3(positions[i], positions[i + 1], positions[i + 2]);
+    const b = new THREE.Vector3(positions[i + 3], positions[i + 4], positions[i + 5]);
+    const c = new THREE.Vector3(positions[i + 6], positions[i + 7], positions[i + 8]);
+    const g = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a));
+    const n = new THREE.Vector3(normals[i], normals[i + 1], normals[i + 2]);
+    if (g.dot(n) < 0) swapTriangle(positions, normals, uv1, i);
+  }
+}
+
+/** Faces du polyèdre découpées en triangles (en éventail depuis leur premier sommet). */
+function triangulate(faces: OrientedFace[]): number[][] {
+  const out: number[][] = [];
+  for (const fc of faces)
+    for (let i = 1; i < fc.ids.length - 1; i++) out.push([fc.ids[0]!, fc.ids[i]!, fc.ids[i + 1]!]);
+  return out;
+}
+
+/** Normales des faces autour d'un sommet, dans l'ordre (par leurs arêtes communes). */
+function normalsAround(faces: OrientedFace[], vi: number): THREE.Vector3[] {
+  const around = faces.map((fc, fi) => ({ fc, fi })).filter(({ fc }) => fc.ids.includes(vi));
+  if (!around.length) return [];
+  const ordered = [around[0]!];
+  while (ordered.length < around.length) {
+    const last = ordered.at(-1)!.fc.ids;
+    // Face suivante : celle qui partage l'arête (vi, sommet précédent dans `last`)
+    const i = last.indexOf(vi);
+    const prev = last[(i - 1 + last.length) % last.length]!;
+    const nextFace = around.find(
+      ({ fc }) => !ordered.some((o) => o.fc === fc) && fc.ids.includes(prev),
+    );
+    if (!nextFace) break;
+    ordered.push(nextFace);
+  }
+  return ordered.map((o) => o.fc.n);
+}
+
+/** Coin arrondi : morceau de sphère entre les normales des faces qui s'y touchent. */
+function pushCorner(
+  ns: THREE.Vector3[],
+  origin: THREE.Vector3,
+  r: number,
+  push: (p: THREE.Vector3, n: THREE.Vector3) => void,
+) {
+  const c = ns.reduce((s, n) => s.add(n), new THREE.Vector3()).normalize();
+  const tri = (x: THREE.Vector3, y: THREE.Vector3, z: THREE.Vector3) => {
+    for (const m of [x, y, z]) push(origin.clone().addScaledVector(m, r), m);
+  };
+  for (let i = 0; i < ns.length; i++) {
+    const na = ns[i]!;
+    const nb = ns[(i + 1) % ns.length]!;
+    for (let s = 0; s < SEGMENTS; s++) {
+      const e0 = slerp(na, nb, s / SEGMENTS);
+      const e1 = slerp(na, nb, (s + 1) / SEGMENTS);
+      for (let ring = 0; ring < SEGMENTS; ring++) {
+        const t0 = ring / SEGMENTS;
+        const t1 = (ring + 1) / SEGMENTS;
+        const p00 = slerp(c, e0, t1);
+        const p01 = slerp(c, e1, t1);
+        const p10 = slerp(c, e0, t0);
+        const p11 = slerp(c, e1, t0);
+        if (ring === 0) tri(c, p00, p01);
+        else {
+          tri(p10, p00, p01);
+          tri(p10, p01, p11);
+        }
+      }
+    }
+  }
+}
+
 function build(type: DieType): DieShape {
   const spec = SPECS[type];
   const { v, f } = spec.base();
@@ -388,103 +537,19 @@ function build(type: DieType): DieShape {
       edgeFaces.set(key, e);
     }),
   );
-  for (const e of edgeFaces.values()) {
-    const [f1, f2] = e.faces as [number, number];
-    // Sens : l'arête parcourue a → b dans la face f1 (sens direct)
-    const ids1 = faces[f1]!.ids;
-    const ia = ids1.indexOf(e.a);
-    const forward = ids1[(ia + 1) % ids1.length] === e.b;
-    const [a, b] = forward ? [e.a, e.b] : [e.b, e.a];
-    const n1 = faces[f1]!.n;
-    const n2 = faces[f2]!.n;
-    for (let s = 0; s < SEGMENTS; s++) {
-      const m0 = slerp(n1, n2, s / SEGMENTS);
-      const m1 = slerp(n1, n2, (s + 1) / SEGMENTS);
-      const A0 = Q[a]!.clone().addScaledVector(m0, r);
-      const B0 = Q[b]!.clone().addScaledVector(m0, r);
-      const A1 = Q[a]!.clone().addScaledVector(m1, r);
-      const B1 = Q[b]!.clone().addScaledVector(m1, r);
-      // Quad (B0, A0, A1, B1) vu de l'extérieur
-      push(B0, m0, BLANK);
-      push(A0, m0, BLANK);
-      push(A1, m1, BLANK);
-      push(B0, m0, BLANK);
-      push(A1, m1, BLANK);
-      push(B1, m1, BLANK);
-    }
-  }
+  pushEdges(edgeFaces, faces, Q, r, (p, n) => push(p, n, BLANK));
 
   // ── Coins : morceau de sphère entre les normales des faces qui s'y touchent ──
   const corners: { dir: THREE.Vector3; value: string }[] = [];
   P.forEach((_, vi) => {
-    // Faces autour du sommet, dans l'ordre (par leurs arêtes communes)
-    const around = faces.map((fc, fi) => ({ fc, fi })).filter(({ fc }) => fc.ids.includes(vi));
-    if (!around.length) return;
-    const ordered = [around[0]!];
-    while (ordered.length < around.length) {
-      const last = ordered.at(-1)!.fc.ids;
-      // Face suivante : celle qui partage l'arête (vi, sommet précédent dans `last`)
-      const i = last.indexOf(vi);
-      const prev = last[(i - 1 + last.length) % last.length]!;
-      const nextFace = around.find(
-        ({ fc }) => !ordered.some((o) => o.fc === fc) && fc.ids.includes(prev),
-      );
-      if (!nextFace) break;
-      ordered.push(nextFace);
-    }
-    const ns = ordered.map((o) => o.fc.n);
-    const c = ns.reduce((s, n) => s.add(n), new THREE.Vector3()).normalize();
-    const origin = Q[vi]!;
-    for (let i = 0; i < ns.length; i++) {
-      const na = ns[i]!;
-      const nb = ns[(i + 1) % ns.length]!;
-      for (let s = 0; s < SEGMENTS; s++) {
-        const e0 = slerp(na, nb, s / SEGMENTS);
-        const e1 = slerp(na, nb, (s + 1) / SEGMENTS);
-        for (let ring = 0; ring < SEGMENTS; ring++) {
-          const t0 = ring / SEGMENTS;
-          const t1 = (ring + 1) / SEGMENTS;
-          const p00 = slerp(c, e0, t1);
-          const p01 = slerp(c, e1, t1);
-          const p10 = slerp(c, e0, t0);
-          const p11 = slerp(c, e1, t0);
-          const tri = (x: THREE.Vector3, y: THREE.Vector3, z: THREE.Vector3) => {
-            for (const m of [x, y, z]) push(origin.clone().addScaledVector(m, r), m, BLANK);
-          };
-          if (ring === 0) tri(c, p00, p01);
-          else {
-            tri(p10, p00, p01);
-            tri(p10, p01, p11);
-          }
-        }
-      }
-    }
+    const ns = normalsAround(faces, vi);
+    if (!ns.length) return;
+    pushCorner(ns, Q[vi]!, r, (p, n) => push(p, n, BLANK));
     if (type === 'd4') corners.push({ dir: P[vi]!.clone().normalize(), value: cornerValue(vi) });
   });
 
   // Triangles des coins et arêtes : orientation vérifiée (normale géométrique vers l'extérieur)
-  for (let i = 0; i < positions.length; i += 9) {
-    const a = new THREE.Vector3(positions[i], positions[i + 1], positions[i + 2]);
-    const b = new THREE.Vector3(positions[i + 3], positions[i + 4], positions[i + 5]);
-    const c = new THREE.Vector3(positions[i + 6], positions[i + 7], positions[i + 8]);
-    const g = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a));
-    const n = new THREE.Vector3(normals[i], normals[i + 1], normals[i + 2]);
-    if (g.dot(n) < 0) {
-      // Échange b et c (positions, normales, uv1)
-      for (const [arr, w] of [
-        [positions, 3],
-        [normals, 3],
-      ] as const)
-        for (let j = 0; j < w; j++) {
-          const bi = i + w + j;
-          const ci = i + 2 * w + j;
-          [arr[bi], arr[ci]] = [arr[ci]!, arr[bi]!];
-        }
-      const t = (i / 9) * 6;
-      for (let j = 0; j < 2; j++)
-        [uv1[t + 2 + j], uv1[t + 4 + j]] = [uv1[t + 4 + j]!, uv1[t + 2 + j]!];
-    }
-  }
+  orientTriangles(positions, normals, uv1);
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -494,10 +559,7 @@ function build(type: DieType): DieShape {
   geometry.computeBoundingSphere();
 
   // Physique : polyèdre non arrondi, triangulé
-  const hullFacesOut: number[][] = [];
-  for (const fc of faces)
-    for (let i = 1; i < fc.ids.length - 1; i++)
-      hullFacesOut.push([fc.ids[0]!, fc.ids[i]!, fc.ids[i + 1]!]);
+  const hullFacesOut = triangulate(faces);
 
   return {
     type,
