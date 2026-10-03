@@ -25,6 +25,7 @@ import type { Action, ContexteCombatSaisi } from '../schema/index.js';
 import {
   executer,
   type Ajustements,
+  type DemandeAction,
   type ErreurAction,
   type IssueForcee,
   type ResultatAction,
@@ -175,56 +176,35 @@ export function executerMulticible(
     );
     try {
       const r = executer(systeme, {
+        ...demandeCible(demande, c),
         action: action.id,
-        acteur: demande.acteur,
-        cible: c.fiche,
         parametres: { ...communs, ...reaction },
         aleatoire: source.pour(c.id, index),
-        ...(demande.ajustements ? { ajustements: demande.ajustements } : {}),
-        ...(c.forcer ? { forcer: c.forcer } : {}),
-        ...((c.combat ?? demande.combat) ? { combat: c.combat ?? demande.combat } : {}),
       });
       if (!r.ok) {
         cibles.push({ id: c.id, ok: false, erreurs: r.erreurs });
         return;
       }
-      const resultat = r.resultat;
-      acteur ??= resultat.modifications.filter((m) => m.entite === 'acteur');
-      cibles.push({
-        id: c.id,
-        ok: true,
-        resultat: {
-          ...resultat,
-          modifications: resultat.modifications.filter((m) => m.entite === 'cible'),
-        },
-      });
+      acteur ??= r.resultat.modifications.filter((m) => m.entite === 'acteur');
+      cibles.push({ id: c.id, ok: true, resultat: pourLaCible(r.resultat) });
     } catch (e) {
       if (e instanceof ParametresRequis) {
         for (const p of e.parametres) aChoisir.add(p);
         enAttente.push({
           id: c.id,
           phase: e.phase,
-          partiel: {
-            ...e.partiel,
-            modifications: e.partiel.modifications.filter((m) => m.entite === 'cible'),
-          },
+          partiel: pourLaCible(e.partiel),
           parametres: e.parametres,
         });
         return;
       }
       if (!(e instanceof DesRequis)) throw e;
-      const partiel = e.partiel
-        ? {
-            ...e.partiel,
-            modifications: e.partiel.modifications.filter((m) => m.entite === 'cible'),
-          }
-        : null;
-      enAttente.push({ id: c.id, phase: e.phase, partiel });
-      for (const d of e.des) {
-        const deja = requis.get(d.id);
-        if (deja) deja.demandes++;
-        else requis.set(d.id, { ...d, ...(jet === 'commun' ? { cible: c.id } : {}), demandes: 1 });
-      }
+      enAttente.push({
+        id: c.id,
+        phase: e.phase,
+        partiel: e.partiel ? pourLaCible(e.partiel) : null,
+      });
+      noterRequis(requis, e.des, jet === 'commun' ? c.id : undefined);
     }
   });
 
@@ -244,4 +224,37 @@ export function executerMulticible(
     requis: aLancer,
     parametres,
   };
+}
+
+/** Résultat vu depuis une cible : seules ses modifications (celles de l'acteur à part). */
+function pourLaCible<T extends { modifications: Modification[] }>(r: T): T {
+  return { ...r, modifications: r.modifications.filter((m) => m.entite === 'cible') };
+}
+
+/** Ce qu'une cible ajoute à la demande : sa fiche, l'issue imposée, le combat, les ajustements. */
+function demandeCible(
+  demande: DemandeMulticible,
+  c: CibleAction,
+): Pick<DemandeAction, 'acteur' | 'cible' | 'ajustements' | 'forcer' | 'combat'> {
+  const combat = c.combat ?? demande.combat;
+  return {
+    acteur: demande.acteur,
+    cible: c.fiche,
+    ...(demande.ajustements ? { ajustements: demande.ajustements } : {}),
+    ...(c.forcer ? { forcer: c.forcer } : {}),
+    ...(combat ? { combat } : {}),
+  };
+}
+
+/** Dés demandés par une cible ; un dé demandé plusieurs fois est compté (jet commun). */
+function noterRequis(
+  requis: Map<string, DeRequis & { demandes: number }>,
+  des: readonly DeRequis[],
+  cible: string | undefined,
+): void {
+  for (const d of des) {
+    const deja = requis.get(d.id);
+    if (deja) deja.demandes++;
+    else requis.set(d.id, { ...d, ...(cible === undefined ? {} : { cible }), demandes: 1 });
+  }
 }

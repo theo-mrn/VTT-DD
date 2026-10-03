@@ -92,14 +92,10 @@ export function retirer(pool: Pool, de: string, nombre: number): Pool {
  * déclarées par le système (et non dans l'ordre du pool), pour qu'un même pool
  * consomme toujours le générateur de la même façon.
  */
-export function lancerSymboles(
-  systeme: SystemeCharge,
-  pool: Pool,
-  generateur: Generateur,
-): LancerSymboles {
-  const des = systeme.source.des;
-  if (!des) throw new Error(`Le système ${systeme.source.id} ne déclare pas de dés à symboles`);
+type DesSymboles = NonNullable<SystemeCharge['source']['des']>;
 
+/** Nombre de dés par sorte d'un pool ; sorte inconnue, nombre invalide ou trop de dés : erreur. */
+function nombresParSorte(des: DesSymboles, pool: Pool): Map<string, number> {
   const nombres = new Map<string, number>();
   let totalDes = 0;
   for (const p of regrouperPool(pool)) {
@@ -111,7 +107,49 @@ export function lancerSymboles(
   }
   if (totalDes > LIMITES.desParJet)
     throw new Error(`Trop de dés : ${totalDes} (${LIMITES.desParJet} au plus)`);
+  return nombres;
+}
 
+/** Résultat déclaré (succès, avantages…) calculé sur les symboles sortis ; 0 si la formule échoue. */
+function resultatSymboles(
+  systeme: SystemeCharge,
+  cle: string,
+  symboles: Record<string, number>,
+  erreurs: ErreurJet[],
+): number {
+  const chemin = chemins.resultat(cle);
+  const f = systeme.formule(chemin);
+  try {
+    const v = evaluer(f.noeud, {
+      attribut: (c) => {
+        throw new ErreurEvaluation(`Attribut illisible ici : ${c}`, 0);
+      },
+      modificateur: (c) => {
+        throw new ErreurEvaluation(`Modificateur illisible ici : ${c}`, 0);
+      },
+      variable: (nom): Valeur => {
+        const s = symboles[nom];
+        if (s === undefined) throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
+        return s;
+      },
+    }).valeur;
+    return Number(v);
+  } catch (e) {
+    if (!(e instanceof ErreurEvaluation)) throw e;
+    erreurs.push({ ou: chemin, message: `${e.message} (« ${f.texte} »)` });
+    return 0;
+  }
+}
+
+export function lancerSymboles(
+  systeme: SystemeCharge,
+  pool: Pool,
+  generateur: Generateur,
+): LancerSymboles {
+  const des = systeme.source.des;
+  if (!des) throw new Error(`Le système ${systeme.source.id} ne déclare pas de dés à symboles`);
+
+  const nombres = nombresParSorte(des, pool);
   const symboles: Record<string, number> = {};
   for (const s of des.symboles) symboles[s.id] = 0;
 
@@ -131,30 +169,7 @@ export function lancerSymboles(
 
   const erreurs: ErreurJet[] = [];
   const resultats: Record<string, number> = {};
-  for (const r of des.resultats) {
-    const chemin = chemins.resultat(r.cle);
-    const f = systeme.formule(chemin);
-    try {
-      const v = evaluer(f.noeud, {
-        attribut: (cle) => {
-          throw new ErreurEvaluation(`Attribut illisible ici : ${cle}`, 0);
-        },
-        modificateur: (cle) => {
-          throw new ErreurEvaluation(`Modificateur illisible ici : ${cle}`, 0);
-        },
-        variable: (nom): Valeur => {
-          const s = symboles[nom];
-          if (s === undefined) throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
-          return s;
-        },
-      }).valeur;
-      resultats[r.cle] = Number(v);
-    } catch (e) {
-      if (!(e instanceof ErreurEvaluation)) throw e;
-      erreurs.push({ ou: chemin, message: `${e.message} (« ${f.texte} »)` });
-      resultats[r.cle] = 0;
-    }
-  }
-
+  for (const r of des.resultats)
+    resultats[r.cle] = resultatSymboles(systeme, r.cle, symboles, erreurs);
   return { des: lances, symboles, resultats, erreurs };
 }
