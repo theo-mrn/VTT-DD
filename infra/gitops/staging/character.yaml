@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-character
-  digest: 'sha256:9cd9e58f8a21de51ddc314d81981299a99021798ef4189c6b4ff381e3100a6fb'
+  digest: 'sha256:9e12aa853570aa48e29369f1eef5b5537134e9c279caf98a5b70bebd3ee3db7d'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -57,7 +57,7 @@ migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-character-migrations
-    digest: 'sha256:4dc9fec460948010d3ff8cd3b42c557846c515280d543555eae72b07edde81a8'
+    digest: 'sha256:89e41c33842067ad5f9fe1ef4bd57f0b2f6e0667c8b7cffc207c79203166ba3a'
     tag: 'main'
   # Schéma « characters » : CHARACTER est un mot réservé SQL
   schema: characters
