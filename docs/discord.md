@@ -51,6 +51,9 @@ joueur quitte la campagne ou si elle est supprimée :
 - `GET /v1/campaigns/active` : `{ campaign }` (titre, système, rôle) ou 404
 - `PUT /v1/campaigns/active { campaignId }` : membre seulement (joueur ou MJ)
 
+À reprendre plus tard : l'import legacy pourrait poser `users/{uid}.room_id` comme salle active
+(il est déjà lu par le regroupement des membres, `import/grouping.ts`).
+
 ## Activité
 
 ### Connexion

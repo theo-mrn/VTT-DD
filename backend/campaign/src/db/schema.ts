@@ -100,6 +100,13 @@ export const campaignMembers = campaignSchema.table(
   (t) => [primaryKey({ columns: [t.campaignId, t.userId] })],
 );
 
+/** Salle active d'un joueur (docs/discord.md), effacée avec son appartenance. */
+export const activeCampaigns = campaignSchema.table('active_campaigns', {
+  userId: uuid('user_id').primaryKey(),
+  campaignId: uuid('campaign_id').notNull(),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+
 export const campaignInvitations = campaignSchema.table('campaign_invitations', {
   id: uuid('id').primaryKey(),
   campaignId: uuid('campaign_id')

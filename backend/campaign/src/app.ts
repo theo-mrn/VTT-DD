@@ -12,6 +12,7 @@ import { noProfiles, profilesClient } from './clients/profiles.js';
 import type { CampaignConfig } from './config.js';
 import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
+import { register as active } from './modules/active/index.js';
 import { register as attacks } from './modules/attacks/index.js';
 import { register as campaigns } from './modules/campaigns/index.js';
 import { register as characters } from './modules/characters/index.js';
@@ -93,6 +94,7 @@ export async function buildCampaign(
   // Un module par domaine fonctionnel (src/modules/<nom>)
   for (const module of [
     campaigns,
+    active,
     settings,
     invitations,
     characters,
