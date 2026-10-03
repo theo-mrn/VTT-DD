@@ -9,6 +9,8 @@ import type { Redis } from 'ioredis';
 export interface SecurityOptions {
   corsOrigins: string[];
   rateLimit: { max: number; timeWindow: string };
+  /** Nom du service : ses compteurs à part dans le Redis partagé par tous les services. */
+  service: string;
   /** Compteurs partagés entre réplicas ; sans Redis, limite par instance. */
   redis?: Redis;
 }
@@ -31,7 +33,9 @@ export const security = fp<SecurityOptions>(
       max: opts.rateLimit.max,
       timeWindow: opts.rateLimit.timeWindow,
       redis: opts.redis,
-      nameSpace: 'rl:',
+      // Un compteur par service : partagé, la limite de l'un épuiserait celle de tous les autres
+      // (et la gateway compte chaque requête une seconde fois)
+      nameSpace: `rl:${opts.service}:`,
       // Par IP réelle (trustProxy derrière Traefik). Pas par jeton : il n'est pas
       // encore vérifié à ce stade et un attaquant pourrait en forger à l'infini.
       keyGenerator: (req) => req.ip,

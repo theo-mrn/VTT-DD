@@ -100,6 +100,7 @@ export async function createService(opts: ServiceOptions) {
   await app.register(security, {
     corsOrigins: c.CORS_ORIGINS,
     rateLimit: { max: c.RATE_LIMIT_MAX, timeWindow: c.RATE_LIMIT_WINDOW },
+    service: c.SERVICE_NAME,
     redis,
   });
   if (

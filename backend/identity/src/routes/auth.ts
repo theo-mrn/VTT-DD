@@ -44,6 +44,8 @@ export interface AuthDeps {
   signer: JwtSigner;
   firebase: FirebaseScryptParams | undefined;
   cookieSecure: boolean;
+  /** Inscriptions et connexions par minute et par IP. */
+  authRateLimitMax: number;
   /** Migration à la première connexion d'un compte encore dans Firebase (facultatif). */
   migrationFirebase?: ClientFirebase;
 }
@@ -61,15 +63,14 @@ const TokenResponse = z.object({
   user: z.object({ id: z.string() }),
 });
 
-/** Limite stricte sur les routes exposées au bourrage d'identifiants. */
-const LIMITE_SENSIBLE = { rateLimit: { max: 10, timeWindow: '1 minute' } };
-
 const MESSAGE_ECHEC = 'E-mail ou mot de passe incorrect';
 
 /** Instance renvoyée par createService (logger pino, fournisseur de types Zod). */
 type ServiceApp = Awaited<ReturnType<typeof createService>>;
 
 export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
+  /** Limite stricte sur les routes exposées au bourrage d'identifiants. */
+  const limiteSensible = { rateLimit: { max: deps.authRateLimitMax, timeWindow: '1 minute' } };
   const r = app.withTypeProvider<ZodTypeProvider>();
 
   // Hash factice : un e-mail inconnu coûte le même temps qu'un mauvais mot de passe
@@ -131,7 +132,7 @@ export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
   r.post(
     '/v1/auth/register',
     {
-      config: LIMITE_SENSIBLE,
+      config: limiteSensible,
       schema: {
         body: z.object({
           email: Email,
@@ -163,7 +164,7 @@ export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
   r.post(
     '/v1/auth/login',
     {
-      config: LIMITE_SENSIBLE,
+      config: limiteSensible,
       schema: {
         // Pas de longueur minimale ici : les comptes importés peuvent avoir 6 caractères
         body: z.object({ email: Email, password: z.string().min(1).max(128) }),

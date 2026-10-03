@@ -36,6 +36,9 @@ export const IdentityConfig = BaseConfig.extend({
    */
   NATS_URL: facultatif(z.string().min(1)),
 
+  /** Inscriptions et connexions par minute et par IP (bourrage d'identifiants). */
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().int().positive().default(10),
+
   JWT_ISSUER: z.string().min(1),
   JWT_AUDIENCE: z.string().min(1),
   /** Clés privées Ed25519 (JWK avec kid), la première signe. Secret k8s. */

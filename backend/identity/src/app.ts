@@ -79,6 +79,7 @@ export async function buildIdentity(
     signer,
     firebase,
     cookieSecure: config.COOKIE_SECURE,
+    authRateLimitMax: config.RATE_LIMIT_AUTH_MAX,
     migrationFirebase:
       migrationFirebase ??
       (config.FIREBASE_WEB_API_KEY && config.FIREBASE_PROJECT_ID
