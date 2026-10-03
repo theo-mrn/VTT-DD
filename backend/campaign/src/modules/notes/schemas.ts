@@ -32,7 +32,7 @@ export const NoteId = Uuid('Identifiant de note invalide');
 
 /**
  * Image d'en-tête : URL https ou chemin absolu du site (comme les médias de la
- * carte), ou fichier de notre stockage (`S3_PUBLIC_URL`, en http en dev).
+ * carte), ou fichier de notre stockage (`R2_PUBLIC_URL`, en http en dev).
  */
 const imageUrl = (base: string | null) =>
   z

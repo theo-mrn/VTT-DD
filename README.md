@@ -25,7 +25,7 @@ pnpm dev          # toute la stack : infra, migrations, services et front
 | localhost:5432         | PostgreSQL (`vtt` / `vtt`)            |
 
 Par défaut, seuls PostgreSQL, NATS et Valkey démarrent. Services optionnels :
-`pnpm dev --stockage` (S3 local sur :8333), `--mails` (Mailpit sur :8025),
+`pnpm dev --mails` (Mailpit sur :8025),
 `--observabilite` (Grafana sur :3300), ou `--tout`.
 
 Autres commandes : `pnpm dev:down` (arrête l'infra), `pnpm dev:legacy`

@@ -17,7 +17,7 @@ export interface Deps {
   db: Db;
   /** Rôle de l'appelant dans une campagne (campaign). */
   campaigns: CampaignRights;
-  /** Fichiers (R2, SeaweedFS) ; undefined : envoi et lecture des envois indisponibles. */
+  /** Fichiers (R2) ; undefined : envoi et lecture des envois indisponibles. */
   storage: AudioStorage | undefined;
   catalog: Catalog;
   /** Horloge du serveur (ms) : la seule qui fait foi. Injectable en test. */

@@ -50,7 +50,7 @@ describe('urlImageAcceptee', () => {
     );
   });
 
-  it('ignore la barre finale de S3_PUBLIC_URL', () => {
+  it('ignore la barre finale de R2_PUBLIC_URL', () => {
     expect(basePublique(`${BASE}/`)).toBe(BASE);
     expect(basePublique(undefined)).toBeNull();
   });

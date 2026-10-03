@@ -371,7 +371,7 @@ function* tokenize(html: string): Generator<Token> {
 
 export interface SanitizeOptions {
   /**
-   * Base publique de notre stockage (`S3_PUBLIC_URL`) : ses images sont
+   * Base publique de notre stockage (`R2_PUBLIC_URL`) : ses images sont
    * acceptées même en http (stockage local de dev). Sinon https ou chemin du site.
    */
   imageBase: string | null;

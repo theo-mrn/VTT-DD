@@ -1,7 +1,7 @@
 /**
  * Envoi de fichiers (docs/uploads.md) : une seule forme de route dans chaque service,
- * `POST …/uploads`, qui signe une URL PUT à durée courte vers le stockage (R2 en prod,
- * SeaweedFS en dev). Le navigateur y envoie le fichier directement (Uppy), sans passer par nos
+ * `POST …/uploads`, qui signe une URL PUT à durée courte vers R2.
+ * Le navigateur y envoie le fichier directement (Uppy), sans passer par nos
  * serveurs ; type et taille sont signés : le stockage refuse tout autre fichier.
  *
  * Chaque usage déclare ses formats, sa taille maximale et son dossier : le serveur s'en sert

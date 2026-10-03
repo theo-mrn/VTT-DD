@@ -40,11 +40,11 @@ describe('images de campagne', () => {
 
   it('signature S3 : type et taille signés, absente sans configuration', async () => {
     const config = {
-      S3_ENDPOINT: 'http://localhost:8333',
-      S3_REGION: 'auto',
-      S3_BUCKET: 'vtt-dev',
-      S3_ACCESS_KEY_ID: 'dev',
-      S3_SECRET_ACCESS_KEY: 'dev-secret',
+      R2_ENDPOINT: 'http://localhost:8333',
+      R2_REGION: 'auto',
+      R2_BUCKET_NAME: 'vtt-dev',
+      R2_ACCESS_KEY_ID: 'dev',
+      R2_SECRET_ACCESS_KEY: 'dev-secret',
     } as CampaignConfig;
     const signer = createS3Signer(config)!;
     const url = new URL(
@@ -59,6 +59,6 @@ describe('images de campagne', () => {
     expect(url.searchParams.get('X-Amz-SignedHeaders')).toContain('content-length');
     expect(url.searchParams.get('X-Amz-SignedHeaders')).toContain('content-type');
     expect(url.searchParams.get('X-Amz-Expires')).toBe('300');
-    expect(createS3Signer({ ...config, S3_BUCKET: undefined })).toBeUndefined();
+    expect(createS3Signer({ ...config, R2_BUCKET_NAME: undefined })).toBeUndefined();
   });
 });

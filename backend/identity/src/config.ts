@@ -57,14 +57,14 @@ export const IdentityConfig = BaseConfig.extend({
   SMTP_URL: facultatif(z.string().url()),
   MAIL_FROM: z.string().default('YNER <contact@yner.fr>'),
 
-  /** Stockage des avatars et bannières (R2 en prod, SeaweedFS en dev). */
-  S3_ENDPOINT: facultatif(z.string().url()),
-  S3_REGION: z.string().default('auto'),
-  S3_BUCKET: facultatif(z.string()),
-  S3_ACCESS_KEY_ID: facultatif(z.string()),
-  S3_SECRET_ACCESS_KEY: facultatif(z.string()),
-  /** URL publique des fichiers envoyés (CDN R2, ou S3_ENDPOINT/bucket en dev). */
-  S3_PUBLIC_URL: facultatif(z.string().url()),
+  /** Stockage des avatars et bannières (R2). */
+  R2_ENDPOINT: facultatif(z.string().url()),
+  R2_REGION: z.string().default('auto'),
+  R2_BUCKET_NAME: facultatif(z.string()),
+  R2_ACCESS_KEY_ID: facultatif(z.string()),
+  R2_SECRET_ACCESS_KEY: facultatif(z.string()),
+  /** URL publique des fichiers envoyés (CDN R2, ou R2_ENDPOINT/bucket en dev). */
+  R2_PUBLIC_URL: facultatif(z.string().url()),
 
   /** OAuth Google et Discord : désactivés tant que les identifiants manquent. */
   GOOGLE_CLIENT_ID: facultatif(z.string()),

@@ -22,7 +22,7 @@ env:
   WORKER_PORT: '3000'
   WORKER_CONCURRENCY: '2'
   AUDIO_LOUDNESS_TARGET_LUFS: '-16'
-  S3_REGION: auto
+  R2_REGION: auto
   # Inutilisés par le worker mais exigés par la configuration commune du paquet
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api

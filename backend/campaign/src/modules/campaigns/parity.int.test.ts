@@ -233,7 +233,7 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
   });
 
   it('image : 503 si le stockage n’est pas configuré', async () => {
-    const bare = await testApp({ S3_PUBLIC_URL: '' });
+    const bare = await testApp({ R2_PUBLIC_URL: '' });
     try {
       const bh = helpers(bare);
       const u = await bare.user();

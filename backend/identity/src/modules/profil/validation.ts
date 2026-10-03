@@ -86,7 +86,7 @@ export function basePublique(s3PublicUrl: string | undefined): string | null {
 /**
  * Une URL d'image est acceptée si elle vaut null, la valeur déjà enregistrée,
  * ou un fichier du dossier de l'utilisateur sur notre stockage
- * ({S3_PUBLIC_URL}/avatars/<userId>/<fichier>). Jamais une URL arbitraire :
+ * ({R2_PUBLIC_URL}/avatars/<userId>/<fichier>). Jamais une URL arbitraire :
  * elle serait affichée aux autres joueurs (pistage, contenu tiers).
  */
 export function urlImageAcceptee(

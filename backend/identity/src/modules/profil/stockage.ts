@@ -1,5 +1,5 @@
 /**
- * Envoi direct des images au stockage (R2 en prod, SeaweedFS en dev) :
+ * Envoi direct des images au stockage (R2) :
  * le service signe une URL PUT à durée courte, le navigateur y envoie le
  * fichier sans passer par nous. Type et taille sont signés : le stockage
  * refuse un autre fichier que celui annoncé.
@@ -41,14 +41,15 @@ export function cleFichier(
 
 /** Signataire S3, ou undefined si le stockage n'est pas configuré. */
 export function creerSignataireS3(config: IdentityConfig): Signataire | undefined {
-  const { S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = config;
-  if (!S3_ENDPOINT || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) return undefined;
+  const { R2_ENDPOINT, R2_REGION, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = config;
+  if (!R2_ENDPOINT || !R2_BUCKET_NAME || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY)
+    return undefined;
 
   const client = new S3Client({
-    endpoint: S3_ENDPOINT,
-    region: S3_REGION,
+    endpoint: R2_ENDPOINT,
+    region: R2_REGION,
     forcePathStyle: true,
-    credentials: { accessKeyId: S3_ACCESS_KEY_ID, secretAccessKey: S3_SECRET_ACCESS_KEY },
+    credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     // Sans cela, le SDK signe une somme CRC32 du corps vide : tout envoi réel serait refusé
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
@@ -58,7 +59,7 @@ export function creerSignataireS3(config: IdentityConfig): Signataire | undefine
     getSignedUrl(
       client,
       new PutObjectCommand({
-        Bucket: S3_BUCKET,
+        Bucket: R2_BUCKET_NAME,
         Key: d.cle,
         ContentType: d.contentType,
         ContentLength: d.taille,

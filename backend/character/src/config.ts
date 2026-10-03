@@ -48,16 +48,16 @@ export const CharacterConfig = BaseConfig.extend({
    */
   DICE_URL: facultatif(z.string().url()),
   /**
-   * Stockage des portraits (docs/uploads.md) : SeaweedFS en dev (`pnpm dev --stockage`), R2 en
-   * prod ; mêmes valeurs que campaign et identity. Absent : l'envoi répond 503.
+   * Stockage des portraits (docs/uploads.md) sur R2, en dev comme en prod ; mêmes valeurs que
+   * campaign et identity. Absent : l'envoi répond 503.
    */
-  S3_ENDPOINT: facultatif(z.string().url()),
-  S3_REGION: z.string().default('auto'),
-  S3_BUCKET: facultatif(z.string()),
-  S3_ACCESS_KEY_ID: facultatif(z.string()),
-  S3_SECRET_ACCESS_KEY: facultatif(z.string()),
+  R2_ENDPOINT: facultatif(z.string().url()),
+  R2_REGION: z.string().default('auto'),
+  R2_BUCKET_NAME: facultatif(z.string()),
+  R2_ACCESS_KEY_ID: facultatif(z.string()),
+  R2_SECRET_ACCESS_KEY: facultatif(z.string()),
   /** URL publique des fichiers envoyés (domaine R2 en prod). */
-  S3_PUBLIC_URL: facultatif(z.string().url()),
+  R2_PUBLIC_URL: facultatif(z.string().url()),
   /** Passe d'entretien (purge de la corbeille, docs/nettoyage.md), en minutes ; 0 : jamais. */
   CLEANUP_EVERY_MINUTES: z.coerce.number().int().nonnegative().default(60),
   /** Journalise ce que la passe supprimerait, sans rien supprimer (première mise en prod). */

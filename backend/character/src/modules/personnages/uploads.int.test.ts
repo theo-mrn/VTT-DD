@@ -7,11 +7,11 @@ import { appDeTest, TEST_DATABASE_URL } from '../../test/app-de-test.js';
 import { outils, type Utilisateur } from '../../test/outils.js';
 
 const STOCKAGE = {
-  S3_ENDPOINT: 'http://localhost:8333',
-  S3_BUCKET: 'vtt-test',
-  S3_ACCESS_KEY_ID: 'cle',
-  S3_SECRET_ACCESS_KEY: 'secret',
-  S3_PUBLIC_URL: 'https://cdn.test/vtt',
+  R2_ENDPOINT: 'http://localhost:8333',
+  R2_BUCKET_NAME: 'vtt-test',
+  R2_ACCESS_KEY_ID: 'cle',
+  R2_SECRET_ACCESS_KEY: 'secret',
+  R2_PUBLIC_URL: 'https://cdn.test/vtt',
 };
 
 describe.skipIf(!TEST_DATABASE_URL)('envoi d’un portrait', () => {

@@ -21,21 +21,21 @@ env:
   WORKER_PORT: '3000'
   WORKER_CONCURRENCY: '2'
   AUDIO_LOUDNESS_TARGET_LUFS: '-16'
-  S3_REGION: auto
+  R2_REGION: auto
   # Inutilisés par le worker mais exigés par la configuration commune du paquet
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
 secretEnv:
-  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
-  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
+  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
 # Même secret que le service : DATABASE_URL, DATABASE_DIRECT_URL (LISTEN audio_jobs), S3_*
 envFromSecrets:
   - name: audio-secrets
 # /tmp : fichiers en cours de traitement (original, transcodage)
 tmpSizeLimit: 1Gi
 resources:
-  requests: {cpu: 250m, memory: 256Mi}
-  limits: {cpu: '2', memory: 1Gi}
+  requests: { cpu: 250m, memory: 256Mi }
+  limits: { cpu: '2', memory: 1Gi }
 probes:
   liveness: /healthz
   readiness: /readyz

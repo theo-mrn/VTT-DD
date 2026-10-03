@@ -82,7 +82,7 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
   `storage_unavailable`.
 - Même signature que `POST /v1/campaigns/:id/image` (image de la campagne, 5 Mo) et
   `/notes/upload` (`signUpload`, `src/storage/images.ts`) ; fichiers sous
-  `campaigns/<campaignId>/<uuidv7>.<ext>`. En local : SeaweedFS (`S3_*` de `.env`), CORS du
+  `campaigns/<campaignId>/<uuidv7>.<ext>`. En dev comme en prod : R2 (`R2_*` de `.env`), CORS du
   front autorisé.
 
 ## Tokens

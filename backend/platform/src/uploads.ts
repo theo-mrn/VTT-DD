@@ -5,7 +5,7 @@
  * clé jamais réutilisée (`<dossier>/<propriétaire>/<uuidv7>.<ext>`), URL PUT signée avec son
  * type et sa taille (le stockage refuse tout autre fichier), adresse publique.
  *
- * Stockage : R2 en prod, SeaweedFS en dev (mêmes variables `S3_*` dans chaque service).
+ * Stockage : R2 (mêmes variables `S3_*` dans chaque service).
  */
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -35,13 +35,13 @@ import { withoutTrailingSlashes } from './strings.js';
 
 /** Variables du stockage, communes aux services. */
 export interface StorageSettings {
-  S3_ENDPOINT?: string;
-  S3_REGION?: string;
-  S3_BUCKET?: string;
-  S3_ACCESS_KEY_ID?: string;
-  S3_SECRET_ACCESS_KEY?: string;
+  R2_ENDPOINT?: string;
+  R2_REGION?: string;
+  R2_BUCKET_NAME?: string;
+  R2_ACCESS_KEY_ID?: string;
+  R2_SECRET_ACCESS_KEY?: string;
   /** Adresse publique des fichiers (domaine R2 en prod). */
-  S3_PUBLIC_URL?: string;
+  R2_PUBLIC_URL?: string;
 }
 
 export interface PutSignature {
@@ -77,21 +77,22 @@ export type RemoteFetcher = (url: string, o: FetchOptions) => Promise<RemoteImag
 
 /** Client S3 du stockage, ou undefined s'il n'est pas configuré. */
 export function s3Client(s: StorageSettings) {
-  const { S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = s;
-  if (!S3_ENDPOINT || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) return undefined;
+  const { R2_ENDPOINT, R2_REGION, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = s;
+  if (!R2_ENDPOINT || !R2_BUCKET_NAME || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY)
+    return undefined;
   const client = new S3Client({
-    endpoint: S3_ENDPOINT,
-    region: S3_REGION ?? 'auto',
+    endpoint: R2_ENDPOINT,
+    region: R2_REGION ?? 'auto',
     forcePathStyle: true,
-    credentials: { accessKeyId: S3_ACCESS_KEY_ID, secretAccessKey: S3_SECRET_ACCESS_KEY },
+    credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     // Sans cela, le SDK signe une somme CRC32 du corps vide : tout envoi réel serait refusé
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
   });
-  return { client, bucket: S3_BUCKET };
+  return { client, bucket: R2_BUCKET_NAME };
 }
 
-/** Signataire S3 (R2, SeaweedFS), ou undefined si le stockage n'est pas configuré. */
+/** Signataire S3 (R2), ou undefined si le stockage n'est pas configuré. */
 export function createPutSigner(s: StorageSettings): PutSigner | undefined {
   const s3 = s3Client(s);
   if (!s3) return undefined;
@@ -182,7 +183,7 @@ export class Uploads {
   static fromSettings(s: StorageSettings): Uploads {
     return new Uploads(
       createPutSigner(s),
-      s.S3_PUBLIC_URL,
+      s.R2_PUBLIC_URL,
       UPLOAD_EXPIRY_SECONDS,
       createObjectWriter(s),
     );

@@ -17,10 +17,10 @@ const config = (s3: Record<string, string>) =>
   });
 
 const S3 = {
-  S3_ENDPOINT: 'http://s3.test.local:8333',
-  S3_BUCKET: 'vtt',
-  S3_ACCESS_KEY_ID: 'cle-test',
-  S3_SECRET_ACCESS_KEY: 'secret-test',
+  R2_ENDPOINT: 'http://s3.test.local:8333',
+  R2_BUCKET_NAME: 'vtt',
+  R2_ACCESS_KEY_ID: 'cle-test',
+  R2_SECRET_ACCESS_KEY: 'secret-test',
 };
 
 describe('stockage des images', () => {
@@ -33,7 +33,7 @@ describe('stockage des images', () => {
 
   it('n’a pas de signataire sans configuration complète', () => {
     expect(creerSignataireS3(config({}))).toBeUndefined();
-    expect(creerSignataireS3(config({ ...S3, S3_BUCKET: '' }))).toBeUndefined();
+    expect(creerSignataireS3(config({ ...S3, R2_BUCKET_NAME: '' }))).toBeUndefined();
   });
 
   it('signe une URL PUT avec le type, la taille et 300 s de validité (sans réseau)', async () => {

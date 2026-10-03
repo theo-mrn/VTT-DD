@@ -117,7 +117,7 @@ export async function realCombatApp() {
       JWT_AUDIENCE: AUDIENCE,
       INTERNAL_API_SECRET: SECRET,
       APP_URL: 'https://jeu.test.local',
-      S3_PUBLIC_URL: 'https://cdn.test.local/vtt/',
+      R2_PUBLIC_URL: 'https://cdn.test.local/vtt/',
     }),
     {
       authKeyResolver,

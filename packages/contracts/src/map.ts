@@ -42,7 +42,7 @@ export const ExpectedVersion = z.number().int().positive().optional();
  * `POST /v1/campaigns/:id/media` (URL présignée, voir `MediaUploadRequest`).
  *
  * Exception : `http://` sur la boucle locale (`localhost`, `127.0.0.1`, `[::1]`), où le
- * stockage de développement sert les fichiers (`S3_PUBLIC_URL=http://localhost:8333/…`). Les
+ * stockage de développement sert les fichiers (`R2_PUBLIC_URL=http://localhost:8333/…`). Les
  * navigateurs tiennent cette origine pour sûre (pas de contenu mixte) ; aucun autre `http://`.
  */
 const LOOPBACK_HTTP = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?\/\S*$/;

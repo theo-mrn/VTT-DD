@@ -1,6 +1,5 @@
 /**
- * Stockage S3 du son, sans stockage réel (le test de bout en bout tourne contre SeaweedFS en
- * local) : adresses publiques, URL d'envoi signée sur le type et la taille, en-tête (objet absent :
+ * Stockage du son, sans stockage réel (le test d'intégration demande un bucket jetable) : adresses publiques, URL d'envoi signée sur le type et la taille, en-tête (objet absent :
  * null), début d'un objet, téléchargement et dépôt de fichiers, suppression par lots, liste des
  * objets anciens par pages.
  */
@@ -13,11 +12,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { assetFolder, createS3Storage, incomingKey } from './s3.js';
 
 const CONFIG = {
-  S3_ENDPOINT: 'http://s3.test/',
-  S3_REGION: 'auto',
-  S3_BUCKET: 'vtt',
-  S3_ACCESS_KEY_ID: 'id',
-  S3_SECRET_ACCESS_KEY: 'secret',
+  R2_ENDPOINT: 'http://s3.test/',
+  R2_REGION: 'auto',
+  R2_BUCKET_NAME: 'vtt',
+  R2_ACCESS_KEY_ID: 'id',
+  R2_SECRET_ACCESS_KEY: 'secret',
 };
 type Cmd = { constructor: { name: string }; input: Record<string, unknown> };
 const send = (impl: (cmd: Cmd) => unknown) =>
@@ -27,14 +26,14 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('stockage S3 du son', () => {
   it('sans configuration : indisponible ; dossiers et adresses publiques', () => {
-    expect(createS3Storage({ ...CONFIG, S3_BUCKET: undefined } as never)).toBeUndefined();
+    expect(createS3Storage({ ...CONFIG, R2_BUCKET_NAME: undefined } as never)).toBeUndefined();
     const s = createS3Storage(CONFIG as never)!;
     expect(incomingKey('c', 'a')).toBe('audio/incoming/c/a');
     expect(assetFolder('c', 'a')).toBe('audio/assets/c/a/');
     expect(s.publicUrl('audio/assets/c/a/mon son.mp3')).toBe(
       'http://s3.test/vtt/audio/assets/c/a/mon%20son.mp3',
     );
-    const cdn = createS3Storage({ ...CONFIG, S3_PUBLIC_URL: 'https://cdn.test/' } as never)!;
+    const cdn = createS3Storage({ ...CONFIG, R2_PUBLIC_URL: 'https://cdn.test/' } as never)!;
     expect(cdn.publicUrl('x')).toBe('https://cdn.test/x');
   });
 

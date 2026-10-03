@@ -16,7 +16,7 @@ env:
   JWT_AUDIENCE: vtt-api
   APP_URL: https://yner.fr
   MAIL_FROM: 'YNER <contact@yner.fr>'
-  S3_REGION: auto
+  R2_REGION: auto
   # Fichiers orphelins de ses dossiers (docs/nettoyage.md § Fichiers) : chaque autre service qui
   # garde des adresses de fichiers (même INTERNAL_API_SECRET partout) ; essai tant que les
   # journaux n'ont pas été vérifiés, puis « on »

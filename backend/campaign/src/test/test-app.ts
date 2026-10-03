@@ -56,7 +56,7 @@ export async function testApp(
       INTERNAL_API_SECRET: SECRET,
       CHARACTER_URL: character.url,
       APP_URL: 'https://jeu.test.local',
-      S3_PUBLIC_URL: 'https://cdn.test.local/vtt/',
+      R2_PUBLIC_URL: 'https://cdn.test.local/vtt/',
       ...overrides,
     }),
     {

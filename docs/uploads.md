@@ -1,7 +1,7 @@
 # Envoi de fichiers
 
 Images et vidéos (portraits, avatars, fonds de carte, objets, PNJ, couvertures, notes) partent
-**directement du navigateur au stockage** : R2 en prod, SeaweedFS en dev (`pnpm dev --stockage`).
+**directement du navigateur au stockage** : R2, en dev comme en prod.
 Nos services ne font que **signer** : ils ne voient jamais passer le fichier.
 
 ## La route, la même partout
@@ -100,6 +100,6 @@ leur usage.
 
 ## Stockage : réglages à ne pas oublier
 
-- **CORS du bucket** (R2 et SeaweedFS) : méthode `PUT` depuis l'origine du site, en-tête
+- **CORS du bucket** (R2) : méthode `PUT` depuis l'origine du site, en-tête
   `Content-Type` autorisé ; `GET` public pour l'affichage.
-- **Domaine public** : `S3_PUBLIC_URL` (domaine R2 ou CDN), le même pour tous les services.
+- **Domaine public** : `R2_PUBLIC_URL` (domaine R2 ou CDN), le même pour tous les services.

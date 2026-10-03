@@ -51,7 +51,7 @@ const inventoryDeps = (deps: Deps) => {
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db, config } = deps;
-  const publicBase = withoutTrailingSlashes(config.S3_PUBLIC_URL ?? '');
+  const publicBase = withoutTrailingSlashes(config.R2_PUBLIC_URL ?? '');
 
   r.get(
     '/v1/campaigns/:id/storage',

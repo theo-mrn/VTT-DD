@@ -90,7 +90,7 @@ export async function registerProfil(
   signataire: Signataire | undefined,
 ): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-  const base = basePublique(deps.config.S3_PUBLIC_URL);
+  const base = basePublique(deps.config.R2_PUBLIC_URL);
 
   async function monProfil(userId: string) {
     const profil = await lireMonProfil(deps.db, userId);
@@ -141,7 +141,7 @@ export async function registerProfil(
             expiresIn: s.expiresIn,
           })
       : undefined,
-    deps.config.S3_PUBLIC_URL,
+    deps.config.R2_PUBLIC_URL,
     EXPIRATION_ENVOI,
   );
   r.post(

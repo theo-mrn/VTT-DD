@@ -15,11 +15,11 @@ import type { DemandeSignature } from './stockage.js';
 
 const CDN = 'https://cdn.test.local';
 const S3 = {
-  S3_ENDPOINT: 'http://s3.test.local:8333',
-  S3_BUCKET: 'vtt',
-  S3_ACCESS_KEY_ID: 'cle-test',
-  S3_SECRET_ACCESS_KEY: 'secret-test',
-  S3_PUBLIC_URL: CDN,
+  R2_ENDPOINT: 'http://s3.test.local:8333',
+  R2_BUCKET_NAME: 'vtt',
+  R2_ACCESS_KEY_ID: 'cle-test',
+  R2_SECRET_ACCESS_KEY: 'secret-test',
+  R2_PUBLIC_URL: CDN,
 };
 
 describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
@@ -254,7 +254,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
     expect(publicUrl).toMatch(new RegExp(`^${CDN}/banners/${moi.id}/[0-9a-f-]{36}\\.webp$`));
     const cle = publicUrl.slice(CDN.length + 1);
     const signee = new URL(uploadUrl);
-    expect(signee.origin + signee.pathname).toBe(`${S3.S3_ENDPOINT}/vtt/${cle}`);
+    expect(signee.origin + signee.pathname).toBe(`${S3.R2_ENDPOINT}/vtt/${cle}`);
     expect(signee.searchParams.get('X-Amz-SignedHeaders')).toBe('content-length;content-type;host');
 
     // L'URL publique obtenue est ensuite acceptée comme bannière
@@ -315,7 +315,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       JWT_ISSUER: 'https://auth.test.local',
       JWT_AUDIENCE: 'vtt-api',
       JWT_PRIVATE_JWKS: JSON.stringify([await generateSigningJwk('inutile')]),
-      S3_PUBLIC_URL: `${CDN}/`,
+      R2_PUBLIC_URL: `${CDN}/`,
     });
     const app = await createService({
       config,

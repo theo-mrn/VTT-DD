@@ -1,5 +1,5 @@
 /**
- * Stockage objet (R2, SeaweedFS) par le client S3 : liste par pages (jeton de suite), suppression
+ * Stockage objet (R2) par le client S3 : liste par pages (jeton de suite), suppression
  * par lots de 1000 avec les refus signalés, dossier entier, et rien sans configuration.
  */
 import { S3Client } from '@aws-sdk/client-s3';
@@ -7,10 +7,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createObjectStore, memoryObjectStore, removePrefix } from './storage.js';
 
 const SETTINGS = {
-  S3_ENDPOINT: 'http://s3.test',
-  S3_BUCKET: 'vtt',
-  S3_ACCESS_KEY_ID: 'id',
-  S3_SECRET_ACCESS_KEY: 'secret',
+  R2_ENDPOINT: 'http://s3.test',
+  R2_BUCKET_NAME: 'vtt',
+  R2_ACCESS_KEY_ID: 'id',
+  R2_SECRET_ACCESS_KEY: 'secret',
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -18,7 +18,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('magasin S3', () => {
   it('sans configuration : aucun magasin', () => {
     expect(createObjectStore({})).toBeUndefined();
-    expect(createObjectStore({ ...SETTINGS, S3_BUCKET: undefined })).toBeUndefined();
+    expect(createObjectStore({ ...SETTINGS, R2_BUCKET_NAME: undefined })).toBeUndefined();
   });
 
   it('liste toutes les pages d’un préfixe (taille et date par défaut si absentes)', async () => {

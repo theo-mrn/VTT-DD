@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Démarre toute la stack de dev en une commande : `pnpm dev`
 #   1. Docker (lancé s'il est éteint), infra : Postgres, NATS, Valkey
-#      (+ optionnels : --stockage, --mails, --observabilite, --tout)
+#      (+ optionnels : --mails, --observabilite, --tout) ; fichiers sur R2, même en dev
 #   2. rôles SQL puis migrations Liquibase de chaque service ayant db/changelog.yaml
 #   3. .env de chaque service créé depuis son .env.example s'il manque
 #   4. tous les services + le nouveau front, en parallèle, avec rechargement à chaud
@@ -21,30 +21,24 @@ if ! docker info >/dev/null 2>&1; then
   docker info >/dev/null 2>&1 || { echo "Docker ne répond pas. Démarre-le puis relance pnpm dev." >&2; exit 1; }
 fi
 
-# Toujours démarrés : Postgres, NATS, Valkey, stockage S3 (avatars), Mailpit (e-mails).
+# Toujours démarrés : Postgres, NATS, Valkey, Mailpit (e-mails). Fichiers : R2 (R2_* des .env).
 # Option : --observabilite (Grafana), --tout
 # --preparer : infra, migrations et .env seulement, sans lancer les apps (CI, vérification)
-# Stockage (avatars) et mails (identity) par défaut ; Grafana à la demande
-PROFILS=(--profile stockage --profile mails)
+# Mails (identity) par défaut ; Grafana à la demande
+PROFILS=(--profile mails)
 PREPARER_SEULEMENT=0
 for arg in "$@"; do
   case "$arg" in
     --preparer) PREPARER_SEULEMENT=1 ;;
-    --stockage) PROFILS+=(--profile stockage) ;;
     --mails) PROFILS+=(--profile mails) ;;
     --observabilite) PROFILS+=(--profile observabilite) ;;
-    --tout) PROFILS+=(--profile stockage --profile mails --profile observabilite) ;;
-    *) echo "Option inconnue : $arg (--stockage, --mails, --observabilite, --tout, --preparer)" >&2; exit 2 ;;
+    --tout) PROFILS+=(--profile mails --profile observabilite) ;;
+    *) echo "Option inconnue : $arg (--mails, --observabilite, --tout, --preparer)" >&2; exit 2 ;;
   esac
 done
 
 etape "Infrastructure"
 $COMPOSE ${PROFILS[@]+"${PROFILS[@]}"} up -d --wait
-
-etape "Stockage S3 local"
-# Bucket des avatars et bannières (rejouable)
-$COMPOSE exec -T s3 sh -c "echo 's3.bucket.create -name vtt-dev' | weed shell" >/dev/null 2>&1 \
-  && echo "bucket vtt-dev prêt" || echo "bucket vtt-dev : création impossible (envoi d'images indisponible)"
 
 etape "Rôles et schémas SQL"
 for f in infra/postgres/init/*.sql; do

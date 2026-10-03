@@ -1,5 +1,5 @@
 /**
- * Fichiers audio sur le stockage objet (R2 en prod, SeaweedFS en dev) :
+ * Fichiers audio sur le stockage objet (R2) :
  * - envoi direct par le navigateur sur une URL PUT signée (type et longueur signés) ;
  * - lecture de l'en-tête et du début d'un objet (vérification du type réel) ;
  * - téléchargement, dépôt, copie et suppression pour le worker.
@@ -60,26 +60,27 @@ export interface AudioStorage {
 export function createS3Storage(
   config: Pick<
     AudioConfig,
-    | 'S3_ENDPOINT'
-    | 'S3_REGION'
-    | 'S3_BUCKET'
-    | 'S3_ACCESS_KEY_ID'
-    | 'S3_SECRET_ACCESS_KEY'
-    | 'S3_PUBLIC_URL'
+    | 'R2_ENDPOINT'
+    | 'R2_REGION'
+    | 'R2_BUCKET_NAME'
+    | 'R2_ACCESS_KEY_ID'
+    | 'R2_SECRET_ACCESS_KEY'
+    | 'R2_PUBLIC_URL'
   >,
 ): AudioStorage | undefined {
-  const { S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = config;
-  if (!S3_ENDPOINT || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) return undefined;
-  const bucket = S3_BUCKET;
+  const { R2_ENDPOINT, R2_REGION, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = config;
+  if (!R2_ENDPOINT || !R2_BUCKET_NAME || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY)
+    return undefined;
+  const bucket = R2_BUCKET_NAME;
   const base = withoutTrailingSlashes(
-    config.S3_PUBLIC_URL ?? `${withoutTrailingSlashes(S3_ENDPOINT)}/${bucket}`,
+    config.R2_PUBLIC_URL ?? `${withoutTrailingSlashes(R2_ENDPOINT)}/${bucket}`,
   );
 
   const client = new S3Client({
-    endpoint: S3_ENDPOINT,
-    region: S3_REGION,
+    endpoint: R2_ENDPOINT,
+    region: R2_REGION,
     forcePathStyle: true,
-    credentials: { accessKeyId: S3_ACCESS_KEY_ID, secretAccessKey: S3_SECRET_ACCESS_KEY },
+    credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     // Sans cela, le SDK signe une somme CRC32 du corps vide : tout envoi réel serait refusé
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',

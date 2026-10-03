@@ -6,7 +6,7 @@ Toutes les routes passent par la gateway (`/v1/audio/*`) et demandent un jeton d
 
 ## Lancer en local
 
-`pnpm dev` démarre tout, le service audio et son worker compris (`backend/audio/scripts/dev.mjs` lance `dev:service` et `dev:worker`). Il faut `ffmpeg` et `ffprobe` dans le `PATH` (`brew install ffmpeg`), le stockage S3 local (SeaweedFS, démarré par défaut) et les migrations (`pnpm dev` les applique). Seuls :
+`pnpm dev` démarre tout, le service audio et son worker compris (`backend/audio/scripts/dev.mjs` lance `dev:service` et `dev:worker`). Il faut `ffmpeg` et `ffprobe` dans le `PATH` (`brew install ffmpeg`), les clés R2 dans `.env` et les migrations (`pnpm dev` les applique). Seuls :
 
 ```bash
 pnpm --filter @vtt/audio dev:service     # :3008
@@ -14,7 +14,7 @@ pnpm --filter @vtt/audio dev:worker      # :3009 (sondes)
 pnpm --filter @vtt/audio publish:catalog --publier   # une fois : sons Star Wars dans le bucket
 ```
 
-Tests : `TEST_DATABASE_URL=postgres://audio_svc:audio-dev@localhost:5432/vtt NATS_URL=nats://127.0.0.1:4222 TEST_S3_ENDPOINT=http://localhost:8333 pnpm --filter @vtt/audio test` (sans les variables, les tests d'intégration sont ignorés ; sans ffmpeg, ceux du worker aussi).
+Tests : `TEST_DATABASE_URL=postgres://audio_svc:audio-dev@localhost:5432/vtt NATS_URL=nats://127.0.0.1:4222 pnpm --filter @vtt/audio test` (sans les variables, les tests d'intégration sont ignorés ; `TEST_S3_ENDPOINT` vise un bucket jetable, jamais celui du legacy ; sans ffmpeg, ceux du worker aussi).
 
 ## Horloge et catalogue
 
@@ -23,7 +23,7 @@ Tests : `TEST_DATABASE_URL=postgres://audio_svc:audio-dev@localhost:5432/vtt NAT
 | GET     | `/v1/audio/clock`                  | `{ serverTime }` (ms, `no-store`) : la seule horloge qui fait foi           |
 | GET     | `/v1/audio/catalog?library=&kind=` | `{ categories, items: [CatalogEntry] }` ; `library` : système ou `starwars` |
 
-Le catalogue par défaut (89 entrées) est servi par `assets.yner.fr` (CORS `*`, Range). Les 20 sons Star Wars sont publiés dans le bucket par `scripts/publish-catalog.ts` sous `audio/catalog/starwars/…` (`AUDIO_CATALOG_PUBLISHED_URL`, sinon `S3_PUBLIC_URL/audio/catalog`).
+Le catalogue par défaut (89 entrées) est servi par `assets.yner.fr` (CORS `*`, Range). Les 20 sons Star Wars sont publiés dans le bucket par `scripts/publish-catalog.ts` sous `audio/catalog/starwars/…` (`AUDIO_CATALOG_PUBLISHED_URL`, sinon `R2_PUBLIC_URL/audio/catalog`).
 
 ## Bibliothèque
 

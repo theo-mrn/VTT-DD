@@ -184,7 +184,7 @@ export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db } = deps;
   const auth = { preValidation: app.authenticate };
-  const base = publicBase(deps.config.S3_PUBLIC_URL);
+  const base = publicBase(deps.config.R2_PUBLIC_URL);
   const opts: SanitizeOptions = { imageBase: base };
   const Fields = noteFields(base);
   const FieldsBody = z.strictObject(Fields).partial();

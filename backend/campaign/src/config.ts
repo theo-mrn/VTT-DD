@@ -46,14 +46,14 @@ export const CampaignConfig = BaseConfig.extend({
   /** Messages de discussion par minute, par membre et par campagne. */
   RATE_LIMIT_MESSAGES_MAX: z.coerce.number().int().positive().default(20),
 
-  /** Stockage des images de campagne (R2 en prod, SeaweedFS en dev), comme les avatars d'identity. */
-  S3_ENDPOINT: optional(z.string().url()),
-  S3_REGION: z.string().default('auto'),
-  S3_BUCKET: optional(z.string()),
-  S3_ACCESS_KEY_ID: optional(z.string()),
-  S3_SECRET_ACCESS_KEY: optional(z.string()),
-  /** URL publique des fichiers envoyés (CDN R2, ou S3_ENDPOINT/bucket en dev). */
-  S3_PUBLIC_URL: optional(z.string().url()),
+  /** Stockage des images de campagne (R2), comme les avatars d'identity. */
+  R2_ENDPOINT: optional(z.string().url()),
+  R2_REGION: z.string().default('auto'),
+  R2_BUCKET_NAME: optional(z.string()),
+  R2_ACCESS_KEY_ID: optional(z.string()),
+  R2_SECRET_ACCESS_KEY: optional(z.string()),
+  /** URL publique des fichiers envoyés (CDN R2, ou R2_ENDPOINT/bucket en dev). */
+  R2_PUBLIC_URL: optional(z.string().url()),
   /**
    * Bibliothèque d'images du produit (couvertures proposées à la création) :
    * une image de campagne peut désigner un fichier sous cette URL sans être

@@ -46,20 +46,26 @@ export async function telechargerImage(url: string): Promise<string> {
 /** Envoyeur d'images embarquées, ou `undefined` si le stockage n'est pas configuré. */
 export function envoyeurImages(env = process.env): EnvoiImage | undefined {
   const {
-    S3_ENDPOINT,
-    S3_REGION,
-    S3_BUCKET,
-    S3_ACCESS_KEY_ID,
-    S3_SECRET_ACCESS_KEY,
-    S3_PUBLIC_URL,
+    R2_ENDPOINT,
+    R2_REGION,
+    R2_BUCKET_NAME,
+    R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY,
+    R2_PUBLIC_URL,
   } = env;
-  if (!S3_ENDPOINT || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY || !S3_PUBLIC_URL)
+  if (
+    !R2_ENDPOINT ||
+    !R2_BUCKET_NAME ||
+    !R2_ACCESS_KEY_ID ||
+    !R2_SECRET_ACCESS_KEY ||
+    !R2_PUBLIC_URL
+  )
     return undefined;
   const client = new S3Client({
-    endpoint: S3_ENDPOINT,
-    region: S3_REGION ?? 'auto',
+    endpoint: R2_ENDPOINT,
+    region: R2_REGION ?? 'auto',
     forcePathStyle: true,
-    credentials: { accessKeyId: S3_ACCESS_KEY_ID, secretAccessKey: S3_SECRET_ACCESS_KEY },
+    credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
   });
@@ -72,8 +78,8 @@ export function envoyeurImages(env = process.env): EnvoiImage | undefined {
     // Nom dérivé du contenu : un import rejoué réécrit le même objet
     const cle = `characters/imported/${createHash('sha256').update(corps).digest('hex').slice(0, 32)}.${ext}`;
     await client.send(
-      new PutObjectCommand({ Bucket: S3_BUCKET, Key: cle, Body: corps, ContentType: m[1] }),
+      new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: cle, Body: corps, ContentType: m[1] }),
     );
-    return `${S3_PUBLIC_URL.replace(/\/$/, '')}/${cle}`;
+    return `${R2_PUBLIC_URL.replace(/\/$/, '')}/${cle}`;
   };
 }

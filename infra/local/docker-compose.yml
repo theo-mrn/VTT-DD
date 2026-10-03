@@ -51,16 +51,7 @@ services:
     ports: ['127.0.0.1:6379:6379']
     volumes: [valkey-data:/data]
 
-  # ── Optionnels : `pnpm dev -- --stockage --mails --observabilite` ou `--tout` ──
-
-  s3:
-    # Remplace R2 en local (API S3 sur :8333). MinIO ne publie plus d'images
-    # communautaires ; SeaweedFS est maintenu et compatible S3.
-    profiles: [stockage]
-    image: chrislusf/seaweedfs:4.47@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882
-    command: server -dir=/data -s3 -s3.port=8333
-    ports: ['127.0.0.1:8333:8333']
-    volumes: [s3-data:/data]
+  # ── Optionnels : `pnpm dev -- --mails --observabilite` ou `--tout` ──
 
   mailpit:
     # Capture les e-mails (Resend en prod) : http://localhost:8025
@@ -79,4 +70,3 @@ volumes:
   pg-data:
   nats-data:
   valkey-data:
-  s3-data:

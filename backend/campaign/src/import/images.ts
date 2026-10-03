@@ -63,20 +63,26 @@ export function mediaRehoster(
   const maxSize = options.maxSize ?? MAX_SIZE;
   const folder = options.folder ?? 'campaigns/imported';
   const {
-    S3_ENDPOINT,
-    S3_REGION,
-    S3_BUCKET,
-    S3_ACCESS_KEY_ID,
-    S3_SECRET_ACCESS_KEY,
-    S3_PUBLIC_URL,
+    R2_ENDPOINT,
+    R2_REGION,
+    R2_BUCKET_NAME,
+    R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY,
+    R2_PUBLIC_URL,
   } = env;
-  if (!S3_ENDPOINT || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY || !S3_PUBLIC_URL)
+  if (
+    !R2_ENDPOINT ||
+    !R2_BUCKET_NAME ||
+    !R2_ACCESS_KEY_ID ||
+    !R2_SECRET_ACCESS_KEY ||
+    !R2_PUBLIC_URL
+  )
     return undefined;
   const client = new S3Client({
-    endpoint: S3_ENDPOINT,
-    region: S3_REGION ?? 'auto',
+    endpoint: R2_ENDPOINT,
+    region: R2_REGION ?? 'auto',
     forcePathStyle: true,
-    credentials: { accessKeyId: S3_ACCESS_KEY_ID, secretAccessKey: S3_SECRET_ACCESS_KEY },
+    credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
   });
@@ -99,8 +105,8 @@ export function mediaRehoster(
       throw new Error(`média de plus de ${Math.round(maxSize / 1024 / 1024)} Mo`);
     const key = `${folder}/${createHash('sha256').update(body).digest('hex').slice(0, 32)}.${ext}`;
     await client.send(
-      new PutObjectCommand({ Bucket: S3_BUCKET, Key: key, Body: body, ContentType: type }),
+      new PutObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key, Body: body, ContentType: type }),
     );
-    return `${S3_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
+    return `${R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
   };
 }

@@ -1,6 +1,6 @@
 /**
  * Médias des campagnes (images, vidéos de fond), envoyés directement au stockage
- * (R2 en prod, SeaweedFS en dev) comme les avatars d'identity : le service signe une
+ * (R2) comme les avatars d'identity : le service signe une
  * URL PUT à durée courte, le navigateur y envoie le fichier sans passer par nous.
  * Type et taille sont signés : le stockage refuse un autre fichier que celui annoncé.
  *
@@ -119,7 +119,7 @@ export function isPresetImageUrl(url: string, presetBase: string | null): boolea
  * Une URL d'image est acceptée si elle vaut null, la valeur déjà enregistrée,
  * une image de la bibliothèque du produit (PRESET_IMAGES_URL), ou un fichier
  * du dossier de la campagne sur notre stockage
- * ({S3_PUBLIC_URL}/campaigns/<campaignId>/<fichier>). Jamais une URL arbitraire :
+ * ({R2_PUBLIC_URL}/campaigns/<campaignId>/<fichier>). Jamais une URL arbitraire :
  * elle serait affichée aux autres joueurs (pistage, contenu tiers).
  */
 export function isAcceptedImageUrl(
@@ -140,14 +140,15 @@ export function isAcceptedImageUrl(
 
 /** Signataire S3, ou undefined si le stockage n'est pas configuré. */
 export function createS3Signer(config: CampaignConfig): UploadSigner | undefined {
-  const { S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = config;
-  if (!S3_ENDPOINT || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) return undefined;
+  const { R2_ENDPOINT, R2_REGION, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = config;
+  if (!R2_ENDPOINT || !R2_BUCKET_NAME || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY)
+    return undefined;
 
   const client = new S3Client({
-    endpoint: S3_ENDPOINT,
-    region: S3_REGION,
+    endpoint: R2_ENDPOINT,
+    region: R2_REGION,
     forcePathStyle: true,
-    credentials: { accessKeyId: S3_ACCESS_KEY_ID, secretAccessKey: S3_SECRET_ACCESS_KEY },
+    credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     // Sans cela, le SDK signe une somme CRC32 du corps vide : tout envoi réel serait refusé
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
@@ -157,7 +158,7 @@ export function createS3Signer(config: CampaignConfig): UploadSigner | undefined
     getSignedUrl(
       client,
       new PutObjectCommand({
-        Bucket: S3_BUCKET,
+        Bucket: R2_BUCKET_NAME,
         Key: r.key,
         ContentType: r.contentType,
         ContentLength: r.size,

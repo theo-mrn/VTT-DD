@@ -85,7 +85,7 @@ export async function buildCampaign(
     now: now ?? (() => new Date()),
     signer: s3Signer,
     // Même signataire pour la route commune `POST …/uploads`
-    uploads: new Uploads(s3Signer, config.S3_PUBLIC_URL),
+    uploads: new Uploads(s3Signer, config.R2_PUBLIC_URL),
     store: store ?? createObjectStore(config),
     places: places ?? placesChecker(config, (db as Db & { $client: pg.Pool }).$client),
   };

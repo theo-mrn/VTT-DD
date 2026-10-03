@@ -101,12 +101,12 @@ jwks=$(node -e '
   const jwk = privateKey.export({ format: "jwk" });
   process.stdout.write(JSON.stringify([{ ...jwk, kid: randomUUID(), alg: "EdDSA", use: "sig" }]));
 ')
-s3=("S3_ENDPOINT=$R2_ENDPOINT" "S3_BUCKET=$R2_BUCKET" "S3_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID"
-  "S3_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY" "S3_PUBLIC_URL=$R2_PUBLIC_URL")
+r2=("R2_ENDPOINT=$R2_ENDPOINT" "R2_BUCKET_NAME=$R2_BUCKET" "R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID"
+  "R2_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY" "R2_PUBLIC_URL=$R2_PUBLIC_URL")
 
 secret vtt-staging identity-secrets Opaque \
   "DATABASE_URL=$url_identity" "DATABASE_DIRECT_URL=$direct_identity" \
-  "INTERNAL_API_SECRET=$interne" "JWT_PRIVATE_JWKS=$jwks" "${s3[@]}" \
+  "INTERNAL_API_SECRET=$interne" "JWT_PRIVATE_JWKS=$jwks" "${r2[@]}" \
   "SMTP_URL=${SMTP_URL:-}" \
   "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}" "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}" \
   "DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}" "DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-}" \
@@ -120,10 +120,10 @@ secret vtt-staging billing-secrets Opaque \
   "STRIPE_PREMIUM_PRICE_ID=${STRIPE_PREMIUM_PRICE_ID:-}"
 secret vtt-staging campaign-secrets Opaque \
   "DATABASE_URL=$url_campaign" "DATABASE_DIRECT_URL=$direct_campaign" \
-  "INTERNAL_API_SECRET=$interne" "${s3[@]}"
+  "INTERNAL_API_SECRET=$interne" "${r2[@]}"
 secret vtt-staging character-secrets Opaque \
   "DATABASE_URL=$url_characters" "DATABASE_DIRECT_URL=$direct_characters" \
-  "INTERNAL_API_SECRET=$interne" "${s3[@]}"
+  "INTERNAL_API_SECRET=$interne" "${r2[@]}"
 secret vtt-staging dice-secrets Opaque \
   "DATABASE_URL=$url_dice" "DATABASE_DIRECT_URL=$direct_dice" \
   "INTERNAL_API_SECRET=$interne"
@@ -131,7 +131,7 @@ secret vtt-staging history-secrets Opaque \
   "DATABASE_URL=$url_history" "INTERNAL_API_SECRET=$interne"
 secret vtt-staging audio-secrets Opaque \
   "DATABASE_URL=$url_audio" "DATABASE_DIRECT_URL=$direct_audio" \
-  "INTERNAL_API_SECRET=$interne" "AUDIO_UPLOAD_SECRET=$(pw)" "${s3[@]}"
+  "INTERNAL_API_SECRET=$interne" "AUDIO_UPLOAD_SECRET=$(pw)" "${r2[@]}"
 secret vtt-staging realtime-secrets Opaque "INTERNAL_API_SECRET=$interne"
 
 # ─── Sauvegarde logique (pg_dump chiffré vers un autre bucket R2) ─────────────────────────

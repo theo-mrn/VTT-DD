@@ -1,6 +1,6 @@
 /**
  * Entretien du stockage (docs/nettoyage.md) : lister les fichiers d'un dossier et les supprimer.
- * Mêmes variables `S3_*` que les envois (R2 en prod, SeaweedFS en dev).
+ * Mêmes variables `S3_*` que les envois (R2).
  */
 import { DeleteObjectsCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { s3Client, type StorageSettings } from './uploads.js';

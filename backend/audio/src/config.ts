@@ -30,20 +30,20 @@ export const AudioConfig = BaseConfig.extend({
   /** Durée de vie en mémoire des rôles renvoyés par campaign, en millisecondes. */
   RIGHTS_CACHE_MS: z.coerce.number().int().nonnegative().default(5_000),
 
-  /** Stockage des fichiers (R2 en prod, SeaweedFS en dev), comme campaign. */
-  S3_ENDPOINT: optional(z.string().url()),
-  S3_REGION: z.string().default('auto'),
-  S3_BUCKET: optional(z.string()),
-  S3_ACCESS_KEY_ID: optional(z.string()),
-  S3_SECRET_ACCESS_KEY: optional(z.string()),
-  /** URL publique des fichiers (CDN R2, ou S3_ENDPOINT/bucket en dev). */
-  S3_PUBLIC_URL: optional(z.string().url()),
+  /** Stockage des fichiers (R2), comme campaign. */
+  R2_ENDPOINT: optional(z.string().url()),
+  R2_REGION: z.string().default('auto'),
+  R2_BUCKET_NAME: optional(z.string()),
+  R2_ACCESS_KEY_ID: optional(z.string()),
+  R2_SECRET_ACCESS_KEY: optional(z.string()),
+  /** URL publique des fichiers (CDN R2, ou R2_ENDPOINT/bucket en dev). */
+  R2_PUBLIC_URL: optional(z.string().url()),
 
   /** Signe les jetons d'envoi (HMAC), 32 caractères minimum. Absent : envoi désactivé. */
   AUDIO_UPLOAD_SECRET: optional(z.string().min(32)),
   /** Origines admises pour le catalogue intégré (séparées par des virgules). */
   AUDIO_CATALOG_ORIGINS: z.string().default('https://assets.yner.fr'),
-  /** URL publique du catalogue publié dans le bucket (sons Star Wars). Absent : S3_PUBLIC_URL/audio/catalog. */
+  /** URL publique du catalogue publié dans le bucket (sons Star Wars). Absent : R2_PUBLIC_URL/audio/catalog. */
   AUDIO_CATALOG_PUBLISHED_URL: optional(z.string().url()),
   AUDIO_MAX_BYTES_LONG: z.coerce
     .number()

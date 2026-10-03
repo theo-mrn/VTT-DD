@@ -18,8 +18,8 @@ import { createS3Storage, type AudioStorage } from './storage/s3.js';
 /** URL publique du catalogue publié dans le bucket (sons Star Wars). */
 export function publishedCatalogBase(config: AudioConfig): string | null {
   if (config.AUDIO_CATALOG_PUBLISHED_URL) return config.AUDIO_CATALOG_PUBLISHED_URL;
-  return config.S3_PUBLIC_URL
-    ? `${withoutTrailingSlashes(config.S3_PUBLIC_URL)}/audio/catalog`
+  return config.R2_PUBLIC_URL
+    ? `${withoutTrailingSlashes(config.R2_PUBLIC_URL)}/audio/catalog`
     : null;
 }
 
