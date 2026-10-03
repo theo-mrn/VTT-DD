@@ -86,40 +86,18 @@ export function BestiaryTab({
     setLimite(PAGE);
   };
 
-  let vue: 'chargement' | 'erreur' | 'vide' | 'aucun' | 'grille' = 'grille';
-  if (requete.isPending) vue = 'chargement';
-  else if (requete.isError) vue = 'erreur';
-  else if (items.length === 0) vue = 'vide';
-  else if (filtres.length === 0) vue = 'aucun';
+  const vue = vueBestiaire(requete, items.length, filtres.length);
 
   return (
     <div>
       <Toolbar>
-        {campaignId && reference ? (
-          <Chips
-            label="Source"
-            value={source}
-            onChange={changerSource}
-            options={[
-              {
-                value: 'campaign',
-                label: 'Modèles de la campagne',
-                ...(templates.data ? { count: campagne.length } : {}),
-              },
-              {
-                value: 'system',
-                label: 'Bestiaire du système',
-                ...(creatures.data ? { count: systemeItems.length } : {}),
-              },
-            ]}
-          />
-        ) : (
-          <p className="text-[13px] text-muted-foreground">
-            {source === 'campaign'
-              ? 'Les modèles de PNJ de la campagne, visibles du MJ seul.'
-              : 'Créatures de référence du système.'}
-          </p>
-        )}
+        <ChoixSource
+          choix={Boolean(campaignId) && reference}
+          source={source}
+          onSource={changerSource}
+          compteCampagne={templates.data ? campagne.length : undefined}
+          compteSysteme={creatures.data ? systemeItems.length : undefined}
+        />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {categories.length > 1 && (
             <SelectField
@@ -148,51 +126,15 @@ export function BestiaryTab({
         </div>
       </Toolbar>
 
-      {vue === 'chargement' && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-busy="true">
-          {Array.from({ length: 8 }, (_, i) => (
-            <Skeleton key={i} className="h-56 rounded-xl" />
-          ))}
-        </div>
-      )}
-      {vue === 'erreur' && (
-        <Notice
-          tone="error"
-          icon={AlertTriangle}
-          title="Bestiaire indisponible"
-          description={messageErreur(requete.error, 'Réessayez dans un instant.')}
-          action={
-            <Button variant="secondary" size="sm" onClick={() => void requete.refetch()}>
-              Réessayer
-            </Button>
-          }
-        />
-      )}
-      {vue === 'vide' && (
-        <Notice
-          icon={Skull}
-          title={source === 'campaign' ? 'Aucun modèle de PNJ' : 'Bestiaire vide'}
-          description={
-            source === 'campaign'
-              ? 'Les modèles de PNJ de la campagne apparaîtront ici.'
-              : 'Ce système n’a pas encore de créatures de référence.'
-          }
-          action={
-            source === 'campaign' && reference ? (
-              <Button variant="secondary" size="sm" onClick={() => changerSource('system')}>
-                Voir le bestiaire du système
-              </Button>
-            ) : undefined
-          }
-        />
-      )}
-      {vue === 'aucun' && (
-        <Notice
-          icon={SearchX}
-          title="Aucun résultat"
-          description={recherche ? `Aucune créature ne correspond à « ${recherche} ».` : undefined}
-        />
-      )}
+      <EtatBestiaire
+        vue={vue}
+        source={source}
+        reference={reference}
+        recherche={recherche}
+        erreur={requete.error}
+        onReessayer={() => void requete.refetch()}
+        onSysteme={() => changerSource('system')}
+      />
       {vue === 'grille' && (
         <>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
@@ -218,6 +160,148 @@ export function BestiaryTab({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+type VueBestiaire = 'chargement' | 'erreur' | 'vide' | 'aucun' | 'grille';
+
+/** Ce que montre l'onglet : chargement, erreur, bestiaire vide, aucun résultat, ou la grille. */
+function vueBestiaire(
+  requete: { isPending: boolean; isError: boolean },
+  nbItems: number,
+  nbFiltres: number,
+): VueBestiaire {
+  if (requete.isPending) return 'chargement';
+  if (requete.isError) return 'erreur';
+  if (nbItems === 0) return 'vide';
+  if (nbFiltres === 0) return 'aucun';
+  return 'grille';
+}
+
+/** Source du bestiaire : au choix (campagne et système), sinon la seule disponible, décrite. */
+function ChoixSource({
+  choix,
+  source,
+  onSource,
+  compteCampagne,
+  compteSysteme,
+}: Readonly<{
+  choix: boolean;
+  source: Source;
+  onSource(v: string): void;
+  /** Absent tant que la liste n'est pas chargée. */
+  compteCampagne: number | undefined;
+  compteSysteme: number | undefined;
+}>) {
+  if (!choix)
+    return (
+      <p className="text-[13px] text-muted-foreground">
+        {source === 'campaign'
+          ? 'Les modèles de PNJ de la campagne, visibles du MJ seul.'
+          : 'Créatures de référence du système.'}
+      </p>
+    );
+  return (
+    <Chips
+      label="Source"
+      value={source}
+      onChange={onSource}
+      options={[
+        {
+          value: 'campaign',
+          label: 'Modèles de la campagne',
+          ...(compteCampagne !== undefined ? { count: compteCampagne } : {}),
+        },
+        {
+          value: 'system',
+          label: 'Bestiaire du système',
+          ...(compteSysteme !== undefined ? { count: compteSysteme } : {}),
+        },
+      ]}
+    />
+  );
+}
+
+/** Onglet sans grille : squelette, erreur, bestiaire vide ou aucun résultat. */
+function EtatBestiaire({
+  vue,
+  source,
+  reference,
+  recherche,
+  erreur,
+  onReessayer,
+  onSysteme,
+}: Readonly<{
+  vue: VueBestiaire;
+  source: Source;
+  reference: boolean;
+  recherche: string;
+  erreur: unknown;
+  onReessayer(): void;
+  onSysteme(): void;
+}>) {
+  switch (vue) {
+    case 'chargement':
+      return (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-busy="true">
+          {Array.from({ length: 8 }, (_, i) => (
+            <Skeleton key={i} className="h-56 rounded-xl" />
+          ))}
+        </div>
+      );
+    case 'erreur':
+      return (
+        <Notice
+          tone="error"
+          icon={AlertTriangle}
+          title="Bestiaire indisponible"
+          description={messageErreur(erreur, 'Réessayez dans un instant.')}
+          action={
+            <Button variant="secondary" size="sm" onClick={onReessayer}>
+              Réessayer
+            </Button>
+          }
+        />
+      );
+    case 'vide':
+      return <BestiaireVide source={source} reference={reference} onSysteme={onSysteme} />;
+    case 'aucun':
+      return (
+        <Notice
+          icon={SearchX}
+          title="Aucun résultat"
+          description={recherche ? `Aucune créature ne correspond à « ${recherche} ».` : undefined}
+        />
+      );
+    default:
+      return null;
+  }
+}
+
+/** Bestiaire vide : celui du système est proposé depuis les modèles de la campagne. */
+function BestiaireVide({
+  source,
+  reference,
+  onSysteme,
+}: Readonly<{ source: Source; reference: boolean; onSysteme(): void }>) {
+  const campagne = source === 'campaign';
+  return (
+    <Notice
+      icon={Skull}
+      title={campagne ? 'Aucun modèle de PNJ' : 'Bestiaire vide'}
+      description={
+        campagne
+          ? 'Les modèles de PNJ de la campagne apparaîtront ici.'
+          : 'Ce système n’a pas encore de créatures de référence.'
+      }
+      action={
+        campagne && reference ? (
+          <Button variant="secondary" size="sm" onClick={onSysteme}>
+            Voir le bestiaire du système
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }
 
