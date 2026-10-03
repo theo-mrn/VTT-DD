@@ -19,7 +19,7 @@ import type { BitmapText, Container, Graphics } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEntity } from '../../engine/entities/entity';
 import type { RenderContext } from '../../engine/entities/entity-kind';
-import type { Point } from '../../engine/geometry';
+import type { Point, Rect } from '../../engine/geometry';
 import { exceedsThreshold } from '../../engine/interaction/drag';
 import { snapToCellCenter } from '../../engine/interaction/snapping';
 import type { MapEngine } from '../../engine/map-engine';
@@ -519,21 +519,7 @@ export class PortalTool implements Tool {
   };
 
   renderPreview(layer: Container, rc: RenderContext) {
-    if (!this.root) {
-      this.root = new rc.pixi.Container({ label: 'portals-tool' });
-      this.gfx = new rc.pixi.Graphics();
-      this.label = new rc.pixi.BitmapText({
-        text: '',
-        style: {
-          fontFamily: 'Inter, system-ui, sans-serif',
-          fontSize: 12,
-          fill: rc.theme.foreground,
-        },
-      });
-      this.root.addChild(this.gfx, this.label);
-    }
-    if (this.root.parent !== layer) layer.addChild(this.root);
-    this.root.visible = true;
+    this.ensureRoot(layer, rc);
     const engine = this.ctx.engine;
     const ui = this.ui.getState();
     const settings = this.settings.getState();
@@ -544,9 +530,7 @@ export class PortalTool implements Tool {
     const p = this.pointer;
     const d = this.drawn;
     // Redessiné seulement si ce qu'il montre a changé
-    let arrivalAt = null;
-    if (single && this.arrivalDrag?.entity === single) arrivalAt = this.arrivalDrag.target;
-    else if (single) arrivalAt = portalOf(single).target;
+    const arrivalAt = this.arrivalOf(single);
     const px = tracking && p ? p.x : Number.NaN;
     const py = tracking && p ? p.y : Number.NaN;
     const x = single?.current.x ?? Number.NaN;
@@ -585,14 +569,52 @@ export class PortalTool implements Tool {
     d.pickY = pickY;
     d.hover = this.hoverHandle;
     d.zoom = rc.zoom;
+    this.paint(rc, ui, settings, lasso, pick, p);
+  }
+
+  /** Conteneur de l'aperçu, créé au premier rendu, dans le plan donné. */
+  private ensureRoot(layer: Container, rc: RenderContext) {
+    if (!this.root) {
+      this.root = new rc.pixi.Container({ label: 'portals-tool' });
+      this.gfx = new rc.pixi.Graphics();
+      this.label = new rc.pixi.BitmapText({
+        text: '',
+        style: {
+          fontFamily: 'Inter, system-ui, sans-serif',
+          fontSize: 12,
+          fill: rc.theme.foreground,
+        },
+      });
+      this.root.addChild(this.gfx, this.label);
+    }
+    if (this.root.parent !== layer) layer.addChild(this.root);
+    this.root.visible = true;
+  }
+
+  /** Arrivée montrée du portail seul sélectionné (celle du glisser en cours d'abord). */
+  private arrivalOf(single: MapEntity | null): Point | null {
+    if (!single) return null;
+    if (this.arrivalDrag?.entity === single) return this.arrivalDrag.target;
+    return portalOf(single).target;
+  }
+
+  /** Dessine l'aperçu : lasso, entrée posée, choix de l'arrivée, poignées. */
+  private paint(
+    rc: RenderContext,
+    ui: PortalToolUi,
+    settings: PortalDefaults,
+    lasso: Rect | null,
+    pick: MapEntity | undefined,
+    p: Point | null,
+  ) {
+    const engine = this.ctx.engine;
     const radius = this.radiusHandle(engine);
     const arrival = this.arrivalHandle(engine);
     const g = this.gfx!;
-    const text = this.label!;
     g.clear();
-    text.visible = false;
+    this.label!.visible = false;
     const u = 1 / rc.zoom;
-    const { primary, background } = rc.theme;
+    const { primary } = rc.theme;
     const color = dataColor(rc.pixi, settings.color, primary);
 
     if (lasso)
@@ -600,64 +622,87 @@ export class PortalTool implements Tool {
         .fill({ color: primary, alpha: 0.08 })
         .stroke({ width: u, color: primary, alpha: 0.9 });
 
-    const knob = (at: Point, active: boolean) =>
-      g
-        .circle(at.x, at.y, (active ? HANDLE_PX + 1 : HANDLE_PX) * u * 0.8)
-        .fill({ color: background })
-        .stroke({ width: 1.5 * u, color: primary });
-    const cross = (at: Point, c: number) => {
-      const s = 6 * u;
-      g.moveTo(at.x - s, at.y - s)
-        .lineTo(at.x + s, at.y + s)
-        .moveTo(at.x + s, at.y - s)
-        .lineTo(at.x - s, at.y + s)
-        .stroke({ width: 2 * u, color: c, cap: 'round' });
-      g.circle(at.x, at.y, 9 * u).stroke({ width: 1.5 * u, color: c, alpha: 0.9 });
-    };
-
     // Entrée posée : sa zone, et la ligne vers l'arrivée sous le pointeur
-    if (ui.state === 'destination' && ui.entry) {
-      const r = settings.radius * rc.pixelsPerUnit;
-      g.circle(ui.entry.x, ui.entry.y, r).fill({ color, alpha: 0.12 });
-      dashedCircle(g, ui.entry.x, ui.entry.y, r, 6 * u, 5 * u);
-      g.stroke({ width: 1.5 * u, color, alpha: 0.9 });
-      g.circle(ui.entry.x, ui.entry.y, 10 * u).fill({ color, alpha: 0.9 });
-      if (p) {
-        dashedPolyline(g, [ui.entry, p], 8 * u, 6 * u);
-        g.stroke({ width: 1.5 * u, color, alpha: 0.9 });
-        cross(p, color);
-      }
-    }
+    if (ui.state === 'destination' && ui.entry)
+      drawEntry(g, ui.entry, p, settings.radius * rc.pixelsPerUnit, u, color);
     if (ui.state === 'pick' && pick && p) {
       dashedPolyline(g, [pick.current, p], 8 * u, 6 * u);
       g.stroke({ width: 1.5 * u, color: primary, alpha: 0.9 });
-      cross(p, primary);
+      drawCross(g, p, primary, u);
     }
 
-    if (ui.state === 'idle' || ui.state === 'radius' || ui.state === 'arrival') {
-      if (arrival) knob(arrival.at, this.state === 'arrival' || this.hoverHandle === 'arrival');
-      if (radius) {
-        const c = radius.entity.current;
-        g.moveTo(c.x, c.y)
-          .lineTo(radius.at.x, radius.at.y)
-          .stroke({ width: u, color: primary, alpha: 0.6 });
-        knob(radius.at, this.state === 'radius' || this.hoverHandle === 'radius');
-        // Rayon en cases
-        const units =
-          this.radiusDrag?.units ??
-          portalOf(radius.entity).radius / (engine.kindContext().pixelsPerUnit || 50);
-        text.text = `${units.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${rc.unitName}`;
-        text.visible = true;
-        text.scale.set(u);
-        text.position.set(radius.at.x + 12 * u, radius.at.y - 8 * u);
-        g.roundRect(
-          radius.at.x + 8 * u,
-          radius.at.y - 10 * u,
-          text.width + 8 * u,
-          text.height + 4 * u,
-          4 * u,
-        ).fill({ color: background, alpha: 0.85 });
-      }
-    }
+    if (ui.state !== 'idle' && ui.state !== 'radius' && ui.state !== 'arrival') return;
+    if (arrival)
+      drawKnob(g, arrival.at, this.state === 'arrival' || this.hoverHandle === 'arrival', u, rc);
+    if (radius) this.drawRadiusHandle(g, radius, u, rc);
   }
+
+  /** Poignée du rayon : trait depuis le centre, bouton, rayon en cases sur sa pastille. */
+  private drawRadiusHandle(
+    g: Graphics,
+    radius: { entity: MapEntity; at: Point },
+    u: number,
+    rc: RenderContext,
+  ) {
+    const engine = this.ctx.engine;
+    const text = this.label!;
+    const { primary, background } = rc.theme;
+    const c = radius.entity.current;
+    g.moveTo(c.x, c.y)
+      .lineTo(radius.at.x, radius.at.y)
+      .stroke({ width: u, color: primary, alpha: 0.6 });
+    drawKnob(g, radius.at, this.state === 'radius' || this.hoverHandle === 'radius', u, rc);
+    // Rayon en cases
+    const units =
+      this.radiusDrag?.units ??
+      portalOf(radius.entity).radius / (engine.kindContext().pixelsPerUnit || 50);
+    text.text = `${units.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${rc.unitName}`;
+    text.visible = true;
+    text.scale.set(u);
+    text.position.set(radius.at.x + 12 * u, radius.at.y - 8 * u);
+    g.roundRect(
+      radius.at.x + 8 * u,
+      radius.at.y - 10 * u,
+      text.width + 8 * u,
+      text.height + 4 * u,
+      4 * u,
+    ).fill({ color: background, alpha: 0.85 });
+  }
+}
+
+/** Bouton d'une poignée (agrandi quand elle est active). */
+function drawKnob(g: Graphics, at: Point, active: boolean, u: number, rc: RenderContext) {
+  g.circle(at.x, at.y, (active ? HANDLE_PX + 1 : HANDLE_PX) * u * 0.8)
+    .fill({ color: rc.theme.background })
+    .stroke({ width: 1.5 * u, color: rc.theme.primary });
+}
+
+/** Croix cerclée : l'arrivée sous le pointeur. */
+function drawCross(g: Graphics, at: Point, c: number, u: number) {
+  const s = 6 * u;
+  g.moveTo(at.x - s, at.y - s)
+    .lineTo(at.x + s, at.y + s)
+    .moveTo(at.x + s, at.y - s)
+    .lineTo(at.x - s, at.y + s)
+    .stroke({ width: 2 * u, color: c, cap: 'round' });
+  g.circle(at.x, at.y, 9 * u).stroke({ width: 1.5 * u, color: c, alpha: 0.9 });
+}
+
+/** Entrée posée : sa zone, et la ligne vers l'arrivée sous le pointeur. */
+function drawEntry(
+  g: Graphics,
+  entry: Point,
+  p: Point | null,
+  r: number,
+  u: number,
+  color: number,
+) {
+  g.circle(entry.x, entry.y, r).fill({ color, alpha: 0.12 });
+  dashedCircle(g, entry.x, entry.y, r, 6 * u, 5 * u);
+  g.stroke({ width: 1.5 * u, color, alpha: 0.9 });
+  g.circle(entry.x, entry.y, 10 * u).fill({ color, alpha: 0.9 });
+  if (!p) return;
+  dashedPolyline(g, [entry, p], 8 * u, 6 * u);
+  g.stroke({ width: 1.5 * u, color, alpha: 0.9 });
+  drawCross(g, p, color, u);
 }
