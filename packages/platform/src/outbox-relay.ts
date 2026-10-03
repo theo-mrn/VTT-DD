@@ -17,6 +17,7 @@ import type { EventEnvelope } from '@vtt/contracts';
 import pg from 'pg';
 import type { Logger } from 'pino';
 import { connectBus, publishEvent, type Bus } from './bus.js';
+import { lazyInstruments } from './metrics.js';
 
 /** Identifiant SQL non quoté : seul ce format est interpolé dans les requêtes. */
 const SQL_IDENTIFIER = /^[a-z_][a-z0-9_]{0,54}$/;
@@ -32,6 +33,12 @@ const BATCH_BUDGET_MS = 10_000;
 const MAX_RETRY_MS = 30_000;
 
 type RelayLogger = Pick<Logger, 'debug' | 'info' | 'warn' | 'error'>;
+
+const relayMetrics = lazyInstruments((m) => ({
+  pending: m.createObservableGauge('vtt.outbox.pending', {
+    description: 'Événements écrits dans l’outbox et pas encore publiés',
+  }),
+}));
 
 export interface OutboxRelayOptions {
   /** Schéma SQL du service (`dice`, `characters`…) : table `<schéma>.outbox`, canal `<schéma>_outbox`. */
@@ -289,6 +296,17 @@ export async function startOutboxRelay(opts: OutboxRelayOptions): Promise<() => 
 
   const pollTimer = setInterval(() => trigger('poll'), pollMs);
   pollTimer.unref();
+
+  // Retard de publication, lu à chaque export des métriques
+  const pending = relayMetrics().pending;
+  const observePending = async (result: { observe(v: number, a: { schema: string }): void }) => {
+    if (stopped) return;
+    const { rows } = await pool
+      .query<{ n: string }>(`SELECT count(*) AS n FROM ${table} WHERE published_at IS NULL`)
+      .catch(() => ({ rows: [] as { n: string }[] }));
+    if (rows[0]) result.observe(Number(rows[0].n), { schema });
+  };
+  pending.addCallback(observePending);
   await listen();
   // Sans LISTEN, premier passage tout de suite (sinon listen() l'a déjà lancé)
   if (!listenClient) trigger('start');
@@ -298,6 +316,7 @@ export async function startOutboxRelay(opts: OutboxRelayOptions): Promise<() => 
     stopped = true;
     clearInterval(pollTimer);
     clearTimeout(listenTimer);
+    pending.removeCallback(observePending);
     const client = listenClient;
     listenClient = undefined;
     await client?.end().catch(() => undefined);

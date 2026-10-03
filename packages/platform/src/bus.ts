@@ -20,8 +20,11 @@ import {
   type JsMsg,
 } from '@nats-io/jetstream';
 import { connect, nanos, type NatsConnection } from '@nats-io/transport-node';
+import { SpanKind, SpanStatusCode, trace, type Attributes } from '@opentelemetry/api';
 import { parseEvent, subjectFor, type EventEnvelope } from '@vtt/contracts';
 import type { Logger } from 'pino';
+import { lazyInstruments } from './metrics.js';
+import { contextFromTraceparent } from './tracing.js';
 
 export const EVENTS_STREAM = 'VTT_EVENTS';
 
@@ -122,19 +125,64 @@ export async function ensureEventStream(jsm: JetStreamManager, replicas = 1): Pr
   }
 }
 
-/** Publie un événement ; `duplicate` vaut true si JetStream l'avait déjà. */
+const tracer = () => trace.getTracer('@vtt/platform');
+
+const busMetrics = lazyInstruments((m) => ({
+  processed: m.createCounter('vtt.bus.processed', {
+    description: 'Événements traités par un consommateur du bus',
+  }),
+  duration: m.createHistogram('vtt.bus.process.duration', {
+    description: 'Durée de traitement d’un événement',
+    unit: 'ms',
+  }),
+}));
+
+/** Attributs de trace d'un événement : identifiants seulement, jamais son contenu. */
+function eventAttributes(event: EventEnvelope, subject: string): Attributes {
+  return {
+    'messaging.system': 'nats',
+    'messaging.destination.name': subject,
+    'messaging.message.id': event.id,
+    'vtt.event.type': event.type,
+    'vtt.correlation.id': event.correlationId,
+    ...(event.roomId ? { 'vtt.campaign.id': event.roomId } : {}),
+  };
+}
+
+/**
+ * Publie un événement ; `duplicate` vaut true si JetStream l'avait déjà. Le span de publication
+ * est un enfant de la trace qui a produit l'événement (son `traceparent`), pas du relais.
+ */
 export async function publishEvent(
   bus: Pick<Bus, 'js'>,
   event: EventEnvelope,
   subject = subjectFor(event),
 ): Promise<{ seq: number; duplicate: boolean }> {
-  const ack = await bus.js.publish(subject, JSON.stringify(event), { msgID: event.id });
-  return { seq: ack.seq, duplicate: ack.duplicate };
+  return tracer().startActiveSpan(
+    `publish ${subject}`,
+    { kind: SpanKind.PRODUCER, attributes: eventAttributes(event, subject) },
+    contextFromTraceparent(event.traceparent),
+    async (span) => {
+      try {
+        const ack = await bus.js.publish(subject, JSON.stringify(event), { msgID: event.id });
+        span.setAttribute('vtt.bus.duplicate', ack.duplicate);
+        return { seq: ack.seq, duplicate: ack.duplicate };
+      } catch (err) {
+        span.recordException(err as Error);
+        span.setStatus({ code: SpanStatusCode.ERROR, message: (err as Error).message });
+        throw err;
+      } finally {
+        span.end();
+      }
+    },
+  );
 }
 
 export interface ConsumeOptions {
   /** Nom du consommateur durable (history) ; absent : consommateur éphémère ordonné (realtime). */
   durable?: string;
+  /** Nom du consommateur dans les métriques ; par défaut `durable`, sinon `ephemeral`. */
+  name?: string;
   /** Sujets filtrés, ex. `vtt.>` ou `vtt.<campaignId>.>`. */
   subjects?: string[];
   /** `all` : depuis le début du flux ; `new` : seulement les prochains. */
@@ -187,6 +235,7 @@ export async function consumeEvents(bus: Bus, opts: ConsumeOptions): Promise<() 
     consumer = await bus.js.consumers.get(EVENTS_STREAM, { filter_subjects: subjects, ...start });
   }
 
+  const name = opts.name ?? opts.durable ?? 'ephemeral';
   const messages = await consumer.consume();
   const done = (async () => {
     for await (const msg of messages) {
@@ -201,16 +250,37 @@ export async function consumeEvents(bus: Bus, opts: ConsumeOptions): Promise<() 
         msg.ack();
         continue;
       }
-      try {
-        await opts.handler(event, msg);
-        if (opts.durable) msg.ack();
-      } catch (err) {
-        opts.logger?.error(
-          { err, eventId: event.id, type: event.type },
-          'échec du traitement, relivraison',
-        );
-        if (opts.durable) msg.nak(5_000);
-      }
+      // Traitement dans la trace qui a produit l'événement : ses logs portent son trace_id
+      const started = performance.now();
+      const ok = await tracer().startActiveSpan(
+        `process ${event.type}`,
+        {
+          kind: SpanKind.CONSUMER,
+          attributes: { ...eventAttributes(event, msg.subject), 'vtt.bus.consumer': name },
+        },
+        contextFromTraceparent(event.traceparent),
+        async (span) => {
+          try {
+            await opts.handler(event, msg);
+            if (opts.durable) msg.ack();
+            return true;
+          } catch (err) {
+            span.recordException(err as Error);
+            span.setStatus({ code: SpanStatusCode.ERROR, message: (err as Error).message });
+            opts.logger?.error(
+              { err, eventId: event.id, type: event.type },
+              'échec du traitement, relivraison',
+            );
+            if (opts.durable) msg.nak(5_000);
+            return false;
+          } finally {
+            span.end();
+          }
+        },
+      );
+      const m = busMetrics();
+      m.processed.add(1, { consumer: name, outcome: ok ? 'ok' : 'error' });
+      m.duration.record(performance.now() - started, { consumer: name });
     }
   })();
 

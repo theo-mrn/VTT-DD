@@ -6,6 +6,7 @@ export * from './health.js';
 export * from './logger.js';
 export * from './server.js';
 export * from './tracing.js';
+export * from './metrics.js';
 export * from './middleware/auth.js';
 export * from './middleware/error-handler.js';
 export * from './middleware/idempotency.js';

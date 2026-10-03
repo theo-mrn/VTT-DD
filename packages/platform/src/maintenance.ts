@@ -10,7 +10,9 @@ import {
   sweepOrphans,
   type ReferenceChecker,
 } from './orphans.js';
+import { lazyInstruments } from './metrics.js';
 import { createObjectStore } from './storage.js';
+import { withSpan } from './tracing.js';
 import type { StorageSettings } from './uploads.js';
 
 /**
@@ -40,6 +42,15 @@ export async function withAdvisoryLock(
   }
 }
 
+const taskMetrics = lazyInstruments((m) => ({
+  duration: m.createHistogram('vtt.tasks.duration', {
+    description: 'Durée d’une passe de tâche planifiée',
+    unit: 'ms',
+  }),
+}));
+const ok = (task: string) => ({ task, outcome: 'ok' });
+const failed = (task: string) => ({ task, outcome: 'error' });
+
 /**
  * Lance `run` tout de suite puis toutes les `everyMs` (jamais deux passes à la fois, une erreur
  * est journalisée et n'arrête pas la suivante). Renvoie l'arrêt, qui attend la passe en cours.
@@ -57,9 +68,13 @@ export function periodic(o: {
   let timer: NodeJS.Timeout | undefined;
   const tick = () => {
     if (stopped) return;
-    current = o
-      .run()
-      .catch((err: unknown) => o.logger?.error({ err, task: o.name }, 'tâche d’entretien en échec'))
+    const started = performance.now();
+    current = withSpan(`task ${o.name}`, () => o.run(), { 'vtt.task': o.name })
+      .then(() => taskMetrics().duration.record(performance.now() - started, ok(o.name)))
+      .catch((err: unknown) => {
+        taskMetrics().duration.record(performance.now() - started, failed(o.name));
+        o.logger?.error({ err, task: o.name }, 'tâche d’entretien en échec');
+      })
       .finally(() => {
         current = undefined;
         if (stopped) return;
