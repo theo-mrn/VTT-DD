@@ -82,18 +82,24 @@ const isPlainObject = (v: unknown): v is PlainObject => {
   return proto === Object.prototype || proto === null;
 };
 
+/** Deux tableaux de même longueur, égaux élément par élément (faux si l'un n'est pas un tableau). */
+function arraysEqual(a: unknown, b: unknown): boolean {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  return a.every((x, i) => deepEqual(x, b[i]));
+}
+
+/** Objets simples égaux clé par clé (union des clés des deux). */
+function objectsEqual(a: PlainObject, b: PlainObject): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) if (!deepEqual(a[k], b[k])) return false;
+  return true;
+}
+
 /** Égalité profonde de valeurs JSON ; une clé à `undefined` compte comme absente. */
 export function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
-  if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-    return a.every((x, i) => deepEqual(x, b[i]));
-  }
-  if (isPlainObject(a) && isPlainObject(b)) {
-    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-    for (const k of keys) if (!deepEqual(a[k], b[k])) return false;
-    return true;
-  }
+  if (Array.isArray(a) || Array.isArray(b)) return arraysEqual(a, b);
+  if (isPlainObject(a) && isPlainObject(b)) return objectsEqual(a, b);
   if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
   // Nombres : NaN égal à lui-même
   return typeof a === 'number' && typeof b === 'number' && Number.isNaN(a) && Number.isNaN(b);
