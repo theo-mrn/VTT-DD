@@ -379,7 +379,7 @@ export function fullMap(): Record<string, MapDto[]> {
     musicZones: [f.sound('s-feu', 1500, 600)],
     portals: [f.portal('p-escalier', 1700, 300)],
     measurements: [
-      f.measurement('m-cone', 'cone', { x: 300, y: 300 }, { x: 450, y: 450 }),
+      f.measurement('m-cone', 'cone', { x: 1100, y: 1250 }, { x: 1250, y: 1400 }),
       f.measurement('m-cercle', 'circle', { x: 900, y: 300 }, { x: 980, y: 300 }),
     ],
   };
@@ -565,7 +565,7 @@ export async function mountMap(opts: MapHarnessOptions = {}) {
     renderer,
     destroy,
     /** Donnée d'une collection. */
-    get: <T = Record<string, unknown>>(collection: string, id: string) =>
+    get: <T extends object = Record<string, unknown>>(collection: string, id: string) =>
       store.getState().collections[collection]?.get(id) as T | undefined,
   };
 }

@@ -6,18 +6,19 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MapEngine } from '../map-engine';
+import type { MapKey, MapPointer } from '../tools/tool';
 import { bindDomInput, isTyping } from './dom-input';
 
 function fakeEngine() {
   const controller = {
     busy: false,
-    pointerDown: vi.fn(() => true),
-    pointerMove: vi.fn(),
-    pointerUp: vi.fn(),
-    pointerCancel: vi.fn(),
+    pointerDown: vi.fn((_p: MapPointer) => true),
+    pointerMove: vi.fn((_p: MapPointer) => undefined),
+    pointerUp: vi.fn((_p: MapPointer) => undefined),
+    pointerCancel: vi.fn((_p: MapPointer) => undefined),
     wheel: vi.fn(),
-    keyDown: vi.fn(() => true),
-    keyUp: vi.fn(),
+    keyDown: vi.fn((_k: MapKey) => true),
+    keyUp: vi.fn((_k: MapKey) => undefined),
     blur: vi.fn(),
   };
   const engine = {
