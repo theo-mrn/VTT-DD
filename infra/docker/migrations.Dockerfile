@@ -9,6 +9,10 @@ ARG VERSION=dev
 LABEL org.opencontainers.image.source="https://github.com/theo-mrn/VTT-DD" \
       org.opencontainers.image.title="vtt-${SERVICE}-migrations" \
       org.opencontainers.image.version="${VERSION}"
+# lpm (gestionnaire d'extensions, binaire Go) ne sert jamais aux migrations ; il embarque un Go
+# vulnérable (CVE-2025-68121) que Trivy bloque
+USER root
+RUN rm -f /liquibase/bin/lpm
 COPY --chown=liquibase:liquibase backend/${SERVICE}/db /liquibase/changelog
 USER liquibase
 ENTRYPOINT ["liquibase", "--search-path=/liquibase/changelog", "--changelog-file=changelog.yaml"]
