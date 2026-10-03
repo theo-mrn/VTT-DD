@@ -32,4 +32,8 @@ cronJobs:
     secretName: web-secrets
 ingress:
   enabled: true
-  host: www.yner.fr
+  host: yner.fr
+  # API et temps réel sur le même hôte, envoyés par Traefik à la gateway : le serveur Next ne
+  # relaie pas l'upgrade WebSocket de ses réécritures, et les cookies restent sur la même origine
+  extraPaths:
+    - { path: /v1, service: gateway }
