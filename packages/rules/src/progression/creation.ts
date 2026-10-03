@@ -17,6 +17,7 @@ import type {
   Entree,
   EtapeCreation,
   EtatEntite,
+  Possession,
 } from '../schema/index.js';
 import { acheter, type DemandeAchat, type ResultatAchat } from './achats.js';
 import { estExemplaire, nouvellePossession, nouvelExemplaire } from '../schema/index.js';
@@ -164,6 +165,9 @@ function possessionsDeSorte(systeme: SystemeCharge, etat: EtatEntite, sorte: str
 }
 
 /** Erreurs d'une valeur saisie pour un attribut, bornes lues sur la fiche. */
+/** Message si la condition n'est pas remplie. */
+const saufSi = (ok: boolean, message: string): string | undefined => (ok ? undefined : message);
+
 function erreurSaisie(fiche: Fiche, a: Attribut, v: Valeur): string | undefined {
   switch (a.nature) {
     case 'base':
@@ -175,13 +179,14 @@ function erreurSaisie(fiche: Fiche, a: Attribut, v: Valeur): string | undefined 
       return undefined;
     }
     case 'texte':
-      return typeof v === 'string' ? undefined : `${a.nom} : texte attendu`;
+      return saufSi(typeof v === 'string', `${a.nom} : texte attendu`);
     case 'choix':
-      return typeof v === 'string' && a.options.some((o) => o.valeur === v)
-        ? undefined
-        : `${a.nom} : option inconnue « ${String(v)} »`;
+      return saufSi(
+        typeof v === 'string' && a.options.some((o) => o.valeur === v),
+        `${a.nom} : option inconnue « ${String(v)} »`,
+      );
     case 'booleen':
-      return typeof v === 'boolean' ? undefined : `${a.nom} : oui ou non attendu`;
+      return saufSi(typeof v === 'boolean', `${a.nom} : oui ou non attendu`);
     case 'derivee':
       return `${a.nom} est calculé, il ne se saisit pas`;
   }
@@ -233,21 +238,40 @@ export function erreursChoix(fiche: Fiche, entree: string, c: Choix, ids: string
 
 // ─── Examen des étapes ───────────────────────────────────────────────────────
 
+/** Prérequis d'une entrée, lus sans les entrées de sa sorte. */
+function refusPrerequis(sans: Fiche, entree: Entree): string[] {
+  const exige = sans.systeme.formules.get(chemins.exige(entree.id));
+  if (!exige) return [];
+  const r = essayer(sans, exige);
+  if (!r.ok) return [`${entree.nom} : ${r.message}`];
+  return r.valeur === true ? [] : [`${entree.nom} : prérequis non rempli (${exige.texte})`];
+}
+
+/** Sorte non possédable par l'entité, ou trop d'entrées prises (étape, maximum de la sorte). */
+function refusNombrePris(fiche: Fiche, et: Etape<'choisir'>, pris: number): string[] {
+  const sorte = fiche.systeme.sortes.get(et.sorte)!;
+  const refus: string[] = [];
+  if (!sorte.pour.includes(fiche.etat.type))
+    refus.push(`${sorte.nom} non possédable par ${fiche.entite.type.nom}`);
+  if (pris > et.max) refus.push(`${et.nom} : ${et.max} au plus (${pris})`);
+  if (sorte.maximum !== undefined && pris > sorte.maximum)
+    refus.push(`${sorte.nom} : ${sorte.maximum} au plus`);
+  return refus;
+}
+
+/** Ce qu'il reste à choisir à une étape : rien, tout, ou le nombre manquant. */
+function resteAChoisir(et: Etape<'choisir'>, pris: number): string[] {
+  if (pris >= et.min) return [];
+  return [pris ? `${et.nom} : encore ${et.min - pris} à choisir` : `${et.nom} à choisir`];
+}
+
 function examinerChoisir(fiche: Fiche, et: Etape<'choisir'>): Examen {
   const { systeme, etat } = fiche;
   const invalides: string[] = [];
   const aFaire: string[] = [];
-  const sorte = systeme.sortes.get(et.sorte)!;
   const pris = possessionsDeSorte(systeme, etat, et.sorte);
-  if (!sorte.pour.includes(etat.type))
-    invalides.push(`${sorte.nom} non possédable par ${fiche.entite.type.nom}`);
-  if (pris.length > et.max) invalides.push(`${et.nom} : ${et.max} au plus (${pris.length})`);
-  if (sorte.maximum !== undefined && pris.length > sorte.maximum)
-    invalides.push(`${sorte.nom} : ${sorte.maximum} au plus`);
-  if (pris.length < et.min)
-    aFaire.push(
-      pris.length ? `${et.nom} : encore ${et.min - pris.length} à choisir` : `${et.nom} à choisir`,
-    );
+  invalides.push(...refusNombrePris(fiche, et, pris.length));
+  aFaire.push(...resteAChoisir(et, pris.length));
   if (!pris.length) return { invalides, aFaire };
 
   // Prérequis lus sans les entrées de la sorte, choix vérifiés sans les choix
@@ -264,13 +288,7 @@ function examinerChoisir(fiche: Fiche, et: Etape<'choisir'>): Examen {
 
   for (const p of pris) {
     const entree = systeme.entrees.get(p.entree)!;
-    const exige = systeme.formules.get(chemins.exige(entree.id));
-    if (exige) {
-      const r = essayer(sans, exige);
-      if (!r.ok) invalides.push(`${entree.nom} : ${r.message}`);
-      else if (r.valeur !== true)
-        invalides.push(`${entree.nom} : prérequis non rempli (${exige.texte})`);
-    }
+    invalides.push(...refusPrerequis(sans, entree));
     for (const k of Object.keys(p.choix)) {
       if (!entree.choix.some((c) => c.id === k) && !entree.choixAttributs.some((c) => c.id === k))
         invalides.push(`${entree.nom} : choix inconnu ${k}`);
@@ -399,6 +417,63 @@ function valider(systeme: SystemeCharge, etat: EtatEntite, et: EtapeCreation): R
  * remplacés s'ils sont fournis. Des choix partiels sont acceptés (l'étape
  * reste alors « à faire »), des choix invalides non.
  */
+/** Une entrée retirée qui ouvre un arbre aux nœuds acquis ne peut pas partir. */
+function arbresOuvertsPar(systeme: SystemeCharge, etat: EtatEntite, entree: string): string[] {
+  return [...systeme.arbres.values()]
+    .filter((a) => a.ouvertPar === entree && etat.noeuds[a.id]?.length)
+    .map((a) => `Des nœuds de l’arbre « ${a.nom} » dépendent de ${entree}`);
+}
+
+/** Possession d'une entrée choisie : celle déjà présente (copiée), sinon une nouvelle. */
+function possessionChoisie(etat: EtatEntite, s: Selection): Possession {
+  const existante = etat.possessions.find((q) => estExemplaire(q, s.entree, s.exemplaire));
+  const exemplaire = s.exemplaire !== undefined ? { exemplaire: s.exemplaire } : {};
+  const poss = existante
+    ? copierPossession(existante)
+    : nouvellePossession(s.entree, 0, exemplaire);
+  if (s.choix)
+    poss.choix = Object.fromEntries(Object.entries(s.choix).map(([k, v]) => [k, [...v]]));
+  return poss;
+}
+
+function refusNombreChoix(et: Etape<'choisir'>, n: number): string[] {
+  if (n >= et.min && n <= et.max) return [];
+  return [
+    et.min === et.max
+      ? `${et.nom} : ${et.min} choix attendu(s)`
+      : `${et.nom} : entre ${et.min} et ${et.max} choix`,
+  ];
+}
+
+/** Sélection avec un identifiant généré pour chaque doublon qui n'en donne pas. */
+function exemplairesRetenus(
+  et: Etape<'choisir'>,
+  selection: readonly Selection[],
+  erreurs: string[],
+): Selection[] {
+  const retenus: Selection[] = [];
+  for (const s of selection) {
+    const doublon = retenus.some((r) => estExemplaire(r, s.entree));
+    const exemplaire =
+      s.exemplaire ??
+      (doublon ? nouvelExemplaire([...retenus, ...selection], s.entree) : undefined);
+    if (retenus.some((r) => estExemplaire(r, s.entree, exemplaire)))
+      erreurs.push(`${et.nom} : exemplaire « ${exemplaire} » choisi deux fois`);
+    retenus.push({ ...s, ...(exemplaire !== undefined ? { exemplaire } : {}) });
+  }
+  return retenus;
+}
+
+/** Refus d'une entrée choisie : inconnue, d'une autre sorte, ou avec des choix inconnus. */
+function refusSelection(systeme: SystemeCharge, et: Etape<'choisir'>, s: Selection): string[] {
+  const e = systeme.entrees.get(s.entree);
+  if (!e) return [`Entrée inconnue : ${s.entree}`];
+  if (e.sorte !== et.sorte) return [`${e.nom} n’est pas de la sorte ${et.sorte}`];
+  return Object.keys(s.choix ?? {})
+    .filter((k) => !e.choix.some((c) => c.id === k))
+    .map((k) => `${e.nom} : choix inconnu ${k}`);
+}
+
 export function choisirEtape(
   systeme: SystemeCharge,
   etat: EtatEntite,
@@ -408,64 +483,26 @@ export function choisirEtape(
   const p = preparer(systeme, etat, etapeId, 'choisir');
   if (!p.ok) return p;
   const et = p.etape;
-  const erreurs: string[] = [];
-  if (selection.length < et.min || selection.length > et.max) {
-    erreurs.push(
-      et.min === et.max
-        ? `${et.nom} : ${et.min} choix attendu(s)`
-        : `${et.nom} : entre ${et.min} et ${et.max} choix`,
-    );
-  }
+  const erreurs = refusNombreChoix(et, selection.length);
   const ids = selection.map((s) => s.entree);
   const multiples = systeme.sortes.get(et.sorte)?.exemplaires ?? false;
   if (!multiples && new Set(ids).size !== ids.length)
     erreurs.push(`${et.nom} : entrée choisie deux fois`);
-  // Exemplaires : un identifiant généré pour chaque doublon qui n'en donne pas
-  const retenus: Selection[] = [];
-  for (const s of selection) {
-    const exemplaire =
-      s.exemplaire ??
-      (retenus.some((r) => estExemplaire(r, s.entree))
-        ? nouvelExemplaire([...retenus, ...selection], s.entree)
-        : undefined);
-    if (retenus.some((r) => estExemplaire(r, s.entree, exemplaire)))
-      erreurs.push(`${et.nom} : exemplaire « ${exemplaire} » choisi deux fois`);
-    retenus.push({ ...s, ...(exemplaire !== undefined ? { exemplaire } : {}) });
-  }
-  for (const s of selection) {
-    const e = systeme.entrees.get(s.entree);
-    if (!e) erreurs.push(`Entrée inconnue : ${s.entree}`);
-    else if (e.sorte !== et.sorte) erreurs.push(`${e.nom} n’est pas de la sorte ${et.sorte}`);
-    else
-      for (const k of Object.keys(s.choix ?? {}))
-        if (!e.choix.some((c) => c.id === k)) erreurs.push(`${e.nom} : choix inconnu ${k}`);
-  }
+  const retenus = exemplairesRetenus(et, selection, erreurs);
+  for (const s of selection) erreurs.push(...refusSelection(systeme, et, s));
   if (erreurs.length) return echec(erreurs);
 
-  const garde = new Set(ids);
-  for (const q of possessionsDeSorte(systeme, etat, et.sorte)) {
-    if (garde.has(q.entree)) continue;
-    for (const arbre of systeme.arbres.values()) {
-      if (arbre.ouvertPar === q.entree && etat.noeuds[arbre.id]?.length)
-        erreurs.push(`Des nœuds de l’arbre « ${arbre.nom} » dépendent de ${q.entree}`);
-    }
-  }
+  const retires = possessionsDeSorte(systeme, etat, et.sorte).filter(
+    (q) => !ids.includes(q.entree),
+  );
+  erreurs.push(...retires.flatMap((q) => arbresOuvertsPar(systeme, etat, q.entree)));
   if (erreurs.length) return echec(erreurs);
 
   const suivant = copier(etat);
   suivant.possessions = suivant.possessions.filter(
     (q) => systeme.entrees.get(q.entree)?.sorte !== et.sorte,
   );
-  for (const s of retenus) {
-    const existante = etat.possessions.find((q) => estExemplaire(q, s.entree, s.exemplaire));
-    const exemplaire = s.exemplaire !== undefined ? { exemplaire: s.exemplaire } : {};
-    const poss = existante
-      ? copierPossession(existante)
-      : nouvellePossession(s.entree, 0, exemplaire);
-    if (s.choix)
-      poss.choix = Object.fromEntries(Object.entries(s.choix).map(([k, v]) => [k, [...v]]));
-    suivant.possessions.push(poss);
-  }
+  suivant.possessions.push(...retenus.map((s) => possessionChoisie(etat, s)));
   return valider(systeme, suivant, et);
 }
 
