@@ -16,6 +16,7 @@ import {
   driftAction,
   planChannel,
   YOUTUBE_SEEK_ABOVE_MS,
+  type DriftAction,
   type PlannedVoice,
 } from '@vtt/contracts/audio-sync';
 import type { EngineHost } from './host';
@@ -34,6 +35,30 @@ type Live =
   | { kind: 'youtube'; key: string; plan: PlannedVoice; voice: YoutubeVoice };
 
 const keyOf = (v: PlannedVoice) => `${v.asset.id}@${v.startAtMs}`;
+
+/** Position lue ramenée près de l'attendue, modulo la durée de la boucle. */
+function loopedPosition(expected: number, actual: number, d: number): number {
+  const diff = ((((expected - actual) % d) + 1.5 * d) % d) - d / 2;
+  return expected - diff;
+}
+
+/** Applique la correction : saut, vitesse ajustée, ou retour à la vitesse normale. */
+function applyDrift(live: Extract<Live, { kind: 'media' }>, action: DriftAction, expected: number) {
+  const voice = live.voice;
+  if (action.type === 'seek') {
+    voice.seek(action.positionMs);
+    voice.setRate(1);
+    live.correcting = false;
+    if (voice.paused) voice.start(action.positionMs);
+  } else if (action.type === 'rate') {
+    voice.setRate(action.rate);
+    live.correcting = true;
+  } else {
+    if (live.correcting) voice.setRate(1);
+    live.correcting = false;
+    if (voice.paused) voice.start(expected);
+  }
+}
 
 export class ChannelPlayer {
   private state: ChannelState | null = null;
@@ -224,27 +249,11 @@ export class ChannelPlayer {
       return;
     }
     const voice = live.voice;
-    let actual = voice.positionMs;
     const d = planned.asset.durationMs ?? voice.durationMs;
     // Boucle : l'écart se mesure modulo la durée (fin de boucle contre début)
-    if (planned.loop && d) {
-      const diff = ((((expected - actual) % d) + 1.5 * d) % d) - d / 2;
-      actual = expected - diff;
-    }
-    const action = driftAction(expected, actual, live.correcting && !hard);
-    if (action.type === 'seek') {
-      voice.seek(action.positionMs);
-      voice.setRate(1);
-      live.correcting = false;
-      if (voice.paused) voice.start(action.positionMs);
-    } else if (action.type === 'rate') {
-      voice.setRate(action.rate);
-      live.correcting = true;
-    } else {
-      if (live.correcting) voice.setRate(1);
-      live.correcting = false;
-      if (voice.paused) voice.start(expected);
-    }
+    const actual =
+      planned.loop && d ? loopedPosition(expected, voice.positionMs, d) : voice.positionMs;
+    applyDrift(live, driftAction(expected, actual, live.correcting && !hard), expected);
   }
 
   private ensureDriftLoop() {
