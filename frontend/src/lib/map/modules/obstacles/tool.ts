@@ -24,7 +24,7 @@
 import type { BitmapText, Container, Graphics } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEntity } from '../../engine/entities/entity';
-import type { RenderContext } from '../../engine/entities/entity-kind';
+import type { MapTheme, RenderContext } from '../../engine/entities/entity-kind';
 import {
   distance,
   inflateRect,
@@ -36,6 +36,7 @@ import { DRAG_THRESHOLD_PX, exceedsThreshold } from '../../engine/interaction/dr
 import { constrainAngle } from '../../engine/interaction/snapping';
 import type { MapEngine } from '../../engine/map-engine';
 import type { MapKey, MapPointer, Tool } from '../../engine/tools/tool';
+import type { Collections } from '../../store/map-store';
 import { executePlan } from './commands';
 import {
   addChain,
@@ -340,47 +341,19 @@ export class ObstacleTool implements Tool {
   move(e: MapPointer, engine: MapEngine) {
     this.refresh(engine);
     this.dirty = true;
-    const last = this.chain.at(-1) ?? null;
     switch (this.state) {
       case 'idle':
-        if (e.buttons !== 0) break;
-        if (this.mode === 'edit') this.editHover(e, engine);
-        else {
-          this.doorHover = this.mode === 'door' ? this.doorHoverAt(engine, e.world) : null;
-          this.snap = this.doorHover ? null : this.snapAt(engine, e, null);
-        }
+        if (e.buttons === 0) this.hoverIdle(e, engine);
         break;
       case 'chain':
-        this.snap = this.snapAt(engine, e, last);
-        if (
-          this.chainPress &&
-          e.buttons !== 0 &&
-          exceedsThreshold(this.chainPress.start.screen, e.screen)
-        )
-          this.chainPress.moved = true;
+        this.moveChain(e, engine);
         break;
-      case 'pressing': {
-        const press = this.press;
-        if (!press || !exceedsThreshold(press.pointer.screen, e.screen, DRAG_THRESHOLD_PX)) break;
-        this.startDrag(press, e, engine);
+      case 'pressing':
+        this.movePressing(e, engine);
         break;
-      }
-      case 'rect': {
-        if (!this.rect) break;
-        const s = this.snapAt(engine, { ...e, shift: false }, null);
-        this.snap = s;
-        let b = s.point;
-        if (e.shift) {
-          const a = this.rect.a;
-          const side = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
-          b = roundPoint({
-            x: a.x + Math.sign(b.x - a.x || 1) * side,
-            y: a.y + Math.sign(b.y - a.y || 1) * side,
-          });
-        }
-        this.rect = { a: this.rect.a, b };
+      case 'rect':
+        this.moveRect(e, engine);
         break;
-      }
       case 'vertex':
         this.updateVertexDrag(e, engine);
         break;
@@ -393,6 +366,39 @@ export class ObstacleTool implements Tool {
     }
     engine.invalidate();
     engine.refreshCursor();
+  }
+
+  /** Survol sans geste : sommet ou élément (édition), porte visée, sinon aimant. */
+  private hoverIdle(e: MapPointer, engine: MapEngine) {
+    if (this.mode === 'edit') {
+      this.editHover(e, engine);
+      return;
+    }
+    this.doorHover = this.mode === 'door' ? this.doorHoverAt(engine, e.world) : null;
+    this.snap = this.doorHover ? null : this.snapAt(engine, e, null);
+  }
+
+  /** Chaîne : aimant depuis le dernier point ; un appui qui glisse posera un segment. */
+  private moveChain(e: MapPointer, engine: MapEngine) {
+    this.snap = this.snapAt(engine, e, this.chain.at(-1) ?? null);
+    const cp = this.chainPress;
+    if (cp && e.buttons !== 0 && exceedsThreshold(cp.start.screen, e.screen)) cp.moved = true;
+  }
+
+  /** Appui qui dépasse le seuil : le glisser commence. */
+  private movePressing(e: MapPointer, engine: MapEngine) {
+    const press = this.press;
+    if (!press || !exceedsThreshold(press.pointer.screen, e.screen, DRAG_THRESHOLD_PX)) return;
+    this.startDrag(press, e, engine);
+  }
+
+  /** Rectangle de murs : coin aimanté (⇧ : carré). */
+  private moveRect(e: MapPointer, engine: MapEngine) {
+    if (!this.rect) return;
+    const s = this.snapAt(engine, { ...e, shift: false }, null);
+    this.snap = s;
+    const a = this.rect.a;
+    this.rect = { a, b: e.shift ? squareCorner(a, s.point) : s.point };
   }
 
   up(e: MapPointer, engine: MapEngine) {
@@ -467,44 +473,52 @@ export class ObstacleTool implements Tool {
       return true;
     }
     if (k.alt) return false;
-    if (k.key === 'Enter') {
-      if (this.state === 'chain' && this.chain.length) {
-        this.finishChain(engine);
-        return true;
-      }
-      return false;
-    }
-    if (k.key === 'Backspace' || k.key === 'Delete') {
-      if (this.state === 'chain') {
-        this.chain.pop();
-        if (!this.chain.length) this.state = 'idle';
-        this.dirty = true;
-        engine.invalidate();
-        return true;
-      }
-      if (this.state === 'idle' && this.sub) {
-        this.deleteSub(engine);
-        return true;
-      }
-      return false;
-    }
+    if (k.key === 'Enter') return this.enterKey(engine);
+    if (k.key === 'Backspace' || k.key === 'Delete') return this.eraseKey(engine);
     if (
       this.mode === 'edit' &&
       this.state === 'idle' &&
       ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k.key)
-    ) {
-      const ids = this.selectedIds(engine);
-      if (!ids.obstacles.size && !ids.rooms.size) return false;
-      const step = (engine.grid()?.size ?? 50) * (k.shift ? 5 : 1);
-      const [dx, dy] = (ARROWS[k.key] ?? [0, 0]).map((d) => d * step) as [number, number];
-      const plan = newPlan(engine);
-      translate(plan, ids, { x: dx, y: dy }, true);
-      dropDuplicateSegments(plan, ids.obstacles);
-      void this.execute(engine, 'Déplacer', plan);
-      this.sub = null;
+    )
+      return this.nudgeSelection(k, engine);
+    return false;
+  }
+
+  /** Entrée : la chaîne en cours est posée. */
+  private enterKey(engine: MapEngine): boolean {
+    if (this.state !== 'chain' || !this.chain.length) return false;
+    this.finishChain(engine);
+    return true;
+  }
+
+  /** Retour arrière, Suppr : dernier point de la chaîne, sinon la sous-sélection. */
+  private eraseKey(engine: MapEngine): boolean {
+    if (this.state === 'chain') {
+      this.chain.pop();
+      if (!this.chain.length) this.state = 'idle';
+      this.dirty = true;
+      engine.invalidate();
+      return true;
+    }
+    if (this.state === 'idle' && this.sub) {
+      this.deleteSub(engine);
       return true;
     }
     return false;
+  }
+
+  /** Flèches (édition) : murs et pièces sélectionnés déplacés d'une case (⇧ : 5). */
+  private nudgeSelection(k: MapKey, engine: MapEngine): boolean {
+    const ids = this.selectedIds(engine);
+    if (!ids.obstacles.size && !ids.rooms.size) return false;
+    const step = (engine.grid()?.size ?? 50) * (k.shift ? 5 : 1);
+    const [dx, dy] = (ARROWS[k.key] ?? [0, 0]).map((d) => d * step) as [number, number];
+    const plan = newPlan(engine);
+    translate(plan, ids, { x: dx, y: dy }, true);
+    dropDuplicateSegments(plan, ids.obstacles);
+    void this.execute(engine, 'Déplacer', plan);
+    this.sub = null;
+    return true;
   }
 
   /**
@@ -681,37 +695,54 @@ export class ObstacleTool implements Tool {
         // Pièce : un clic sans glisser commence un polygone
         if (this.mode === 'room') this.addChainPoint(engine, t.point);
         return;
-      case 'door-insert': {
-        const plan = newPlan(engine);
-        const width = this.settings.getState().doorWidth * engine.kindContext().pixelsPerUnit;
-        const door = addDoorInWall(plan, t.hover.id, t.hover.segment, t.hover.at, width);
-        if (door) void this.execute(engine, 'Poser une porte', plan);
-        this.doorHover = null;
+      case 'door-insert':
+        this.insertDoor(t.hover, engine);
         return;
-      }
-      case 'vertex': {
-        const ref = this.preferredRef(engine, t.point);
-        if (!ref) return;
-        if (shift) engine.selection.add([ref.id]);
-        else engine.selection.replace([ref.id]);
-        this.sub = { type: 'vertex', ref, point: t.point };
+      case 'vertex':
+        this.clickVertex(t.point, shift, engine);
         return;
-      }
       case 'entity':
-        if (shift) {
-          engine.selection.toggle(t.entity.id);
-          this.sub = null;
-        } else {
-          engine.selection.replace([t.entity.id]);
-          this.sub =
-            t.segment !== null ? { type: 'segment', id: t.entity.id, index: t.segment } : null;
-        }
+        this.clickEntity(t.entity, t.segment, shift, engine);
         return;
       case 'void':
         if (!shift) engine.selection.clear();
         this.sub = null;
         return;
     }
+  }
+
+  /** Clic sur un mur en mode Porte : porte centrée, le mur scindé. */
+  private insertDoor(hover: DoorHover, engine: MapEngine) {
+    const plan = newPlan(engine);
+    const width = this.settings.getState().doorWidth * engine.kindContext().pixelsPerUnit;
+    const door = addDoorInWall(plan, hover.id, hover.segment, hover.at, width);
+    if (door) void this.execute(engine, 'Poser une porte', plan);
+    this.doorHover = null;
+  }
+
+  /** Clic sur un sommet : son élément sélectionné (⇧ : ajouté), le sommet sous-sélectionné. */
+  private clickVertex(point: Point, shift: boolean, engine: MapEngine) {
+    const ref = this.preferredRef(engine, point);
+    if (!ref) return;
+    if (shift) engine.selection.add([ref.id]);
+    else engine.selection.replace([ref.id]);
+    this.sub = { type: 'vertex', ref, point };
+  }
+
+  /** Clic sur un élément : sélectionné seul avec son segment (⇧ : basculé). */
+  private clickEntity(
+    entity: MapEntity,
+    segment: number | null,
+    shift: boolean,
+    engine: MapEngine,
+  ) {
+    if (shift) {
+      engine.selection.toggle(entity.id);
+      this.sub = null;
+      return;
+    }
+    engine.selection.replace([entity.id]);
+    this.sub = segment !== null ? { type: 'segment', id: entity.id, index: segment } : null;
   }
 
   // ─── Édition ───────────────────────────────────────────────────────────────
@@ -1098,26 +1129,11 @@ export class ObstacleTool implements Tool {
     const engine = this.ctx.engine;
     const cam = engine.camera;
     const s = engine.store.getState();
-    const drag = this.vertexDrag;
-    const d = this.drawn;
     const step = zoomStep(cam.zoom);
     const visible = cam.visibleRect();
-    const area = d.area;
-    if (
-      d.obstacles === s.collections.obstacles &&
-      d.rooms === s.collections.rooms &&
-      d.step === step &&
-      area !== null &&
-      visible.x >= area.x &&
-      visible.y >= area.y &&
-      visible.x + visible.width <= area.x + area.width &&
-      visible.y + visible.height <= area.y + area.height &&
-      d.hover === this.hoverVertex &&
-      d.sub === this.sub &&
-      d.vertexDrag === drag &&
-      d.moveDrag === this.moveDrag
-    )
-      return;
+    if (this.handlesUpToDate(s.collections, step, visible)) return;
+    const d = this.drawn;
+    const drag = this.vertexDrag;
     d.obstacles = s.collections.obstacles;
     d.rooms = s.collections.rooms;
     d.step = step;
@@ -1130,167 +1146,225 @@ export class ObstacleTool implements Tool {
     g.clear();
     const u = unitAt(rc.zoom);
     const view = inflateRect(d.area, 20 * u);
-    const { primary, background, muted } = rc.theme;
     const moving = this.moveDrag?.skip;
     for (const v of this.snapper.allVertices()) {
       if (v.x < view.x || v.y < view.y || v.x > view.x + view.width || v.y > view.y + view.height)
         continue;
       const k = pointKey(v);
       if (drag?.key === k || moving?.has(k)) continue;
-      const degree = this.snapper.degree.get(k) ?? 0;
-      if (degree >= 2) g.circle(v.x, v.y, 3.5 * u).fill({ color: primary });
-      else if (degree === 1)
-        g.circle(v.x, v.y, 4 * u)
-          .fill({ color: background })
-          .stroke({ width: 1.5 * u, color: primary });
-      else g.rect(v.x - 3 * u, v.y - 3 * u, 6 * u, 6 * u).fill({ color: muted });
+      drawVertexHandle(g, v, this.snapper.degree.get(k) ?? 0, u, rc.theme);
     }
+    const primary = rc.theme.primary;
     const hv = this.hoverVertex;
     if (hv) g.circle(hv.x, hv.y, 8 * u).stroke({ width: 2 * u, color: primary, alpha: 0.9 });
+    this.drawSub(g, u, primary);
+  }
+
+  /** Poignées déjà dessinées pour ces données, ce palier et une zone qui couvre la vue. */
+  private handlesUpToDate(collections: Collections, step: number, visible: Rect): boolean {
+    const d = this.drawn;
+    const area = d.area;
+    return (
+      d.obstacles === collections.obstacles &&
+      d.rooms === collections.rooms &&
+      d.step === step &&
+      area !== null &&
+      visible.x >= area.x &&
+      visible.y >= area.y &&
+      visible.x + visible.width <= area.x + area.width &&
+      visible.y + visible.height <= area.y + area.height &&
+      d.hover === this.hoverVertex &&
+      d.sub === this.sub &&
+      d.vertexDrag === this.vertexDrag &&
+      d.moveDrag === this.moveDrag
+    );
+  }
+
+  /** Sous-sélection : sommet entouré ou segment surligné. */
+  private drawSub(g: Graphics, u: number, primary: number) {
     const sub = this.sub;
     if (sub?.type === 'vertex')
       g.circle(sub.point.x, sub.point.y, 8 * u)
         .fill({ color: primary, alpha: 0.3 })
         .stroke({ width: 2 * u, color: primary });
-    if (sub?.type === 'segment') {
-      const e = engine.entity(sub.id);
-      const pts = e ? this.ctx.view.pointsOf(e) : null;
-      const a = pts?.[sub.index];
-      const b = pts?.[sub.index + 1];
-      if (a && b)
-        g.moveTo(a.x, a.y)
-          .lineTo(b.x, b.y)
-          .stroke({ width: 6 * u, color: primary, alpha: 0.7, cap: 'round' });
-    }
+    if (sub?.type !== 'segment') return;
+    const e = this.ctx.engine.entity(sub.id);
+    const pts = e ? this.ctx.view.pointsOf(e) : null;
+    const a = pts?.[sub.index];
+    const b = pts?.[sub.index + 1];
+    if (a && b)
+      g.moveTo(a.x, a.y)
+        .lineTo(b.x, b.y)
+        .stroke({ width: 6 * u, color: primary, alpha: 0.7, cap: 'round' });
   }
 
   private drawOverlay(rc: RenderContext) {
     const g = this.overlay!;
-    const label = this.label!;
     g.clear();
-    label.visible = false;
+    this.label!.visible = false;
     const u = 1 / rc.zoom;
-    const { primary, background, foreground, muted, success } = rc.theme;
-    const ppu = rc.pixelsPerUnit;
-    const unit = rc.unitName;
-    const showLabel = (text: string, at: Point) => {
-      label.text = text;
-      label.visible = true;
-      label.scale.set(u);
-      label.position.set(at.x + 14 * u, at.y + 12 * u);
-      const w = label.width + 8 * u;
-      const h = label.height + 4 * u;
-      g.roundRect(at.x + 10 * u, at.y + 10 * u, w, h, 4 * u).fill({
-        color: background,
-        alpha: 0.85,
-      });
-    };
-
-    // Chaîne en cours
-    if (this.chain.length) {
-      const pts = this.chain;
-      const color = this.mode === 'door' ? success : primary;
-      if (pts.length > 1) {
-        g.moveTo(pts[0]!.x, pts[0]!.y);
-        for (let i = 1; i < pts.length; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
-        g.stroke({ width: 3 * u, color, join: 'round', cap: 'round' });
-      }
-      const last = pts.at(-1)!;
-      const cursor = this.snap?.point;
-      if (cursor && this.state === 'chain') {
-        dashedPolyline(g, [last, cursor], 6 * u, 4 * u);
-        g.stroke({ width: 2 * u, color, alpha: 0.9 });
-        showLabel(formatLength(distance(last, cursor), ppu, unit), cursor);
-      }
-      // Premier point : cible de fermeture
-      const first = pts[0]!;
-      if (pts.length >= 3)
-        g.circle(first.x, first.y, 7 * u).stroke({ width: 2 * u, color, alpha: 0.9 });
-      for (const p of pts) g.circle(p.x, p.y, 3 * u).fill({ color });
-    }
-
-    // Rectangle en cours
-    if (this.rect) {
-      const { a, b } = this.rect;
-      const pts: Pts = [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
-      g.poly(
-        pts.flatMap((p) => [p.x, p.y]),
-        true,
-      ).fill({ color: primary, alpha: 0.06 });
-      dashedPolyline(g, pts, 8 * u, 5 * u, true);
-      g.stroke({ width: 2 * u, color: primary });
-      showLabel(
-        `${formatLength(Math.abs(b.x - a.x), ppu, unit)} × ${formatLength(Math.abs(b.y - a.y), ppu, unit)}`,
-        b,
-      );
-    }
-
-    // Porte visée
+    if (this.chain.length) this.drawChain(g, u, rc);
+    if (this.rect) this.drawRect(g, this.rect, u, rc);
     const dh = this.doorHover;
-    if (dh && this.state === 'idle') {
-      const [a, b] = dh.door;
-      g.moveTo(a.x, a.y)
-        .lineTo(b.x, b.y)
-        .stroke({ width: 8 * u, color: success, alpha: 0.85, cap: 'butt' });
-      for (const p of [a, b])
-        g.circle(p.x, p.y, 3.5 * u)
-          .fill({ color: background })
-          .stroke({ width: 1.5 * u, color: success });
-      showLabel(formatLength(distance(a, b), ppu, unit), dh.at);
-    }
-
+    if (dh && this.state === 'idle') this.drawDoorHover(g, dh, u, rc);
     // Aimant sous le pointeur
     const s = this.snap;
     if (s && (this.mode !== 'edit' || this.state === 'vertex' || this.state === 'move') && !dh) {
-      const p = s.point;
-      switch (s.kind) {
-        case 'point':
-          g.circle(p.x, p.y, 7 * u)
-            .fill({ color: primary, alpha: 0.25 })
-            .stroke({ width: 2 * u, color: primary });
-          g.circle(p.x, p.y, 2.5 * u).fill({ color: primary });
-          break;
-        case 'segment': {
-          const seg = s.segment!;
-          g.moveTo(seg.a.x, seg.a.y)
-            .lineTo(seg.b.x, seg.b.y)
-            .stroke({ width: 5 * u, color: primary, alpha: 0.35 });
-          const r = 6 * u;
-          g.poly([p.x, p.y - r, p.x + r, p.y, p.x, p.y + r, p.x - r, p.y], true)
-            .fill({ color: background })
-            .stroke({ width: 2 * u, color: primary });
-          break;
-        }
-        case 'grid':
-        case 'angle': {
-          const r = 5 * u;
-          g.moveTo(p.x - r, p.y)
-            .lineTo(p.x + r, p.y)
-            .moveTo(p.x, p.y - r)
-            .lineTo(p.x, p.y + r);
-          g.stroke({
-            width: 1.5 * u,
-            color: s.kind === 'angle' ? primary : foreground,
-            alpha: 0.9,
-          });
-          break;
-        }
-        default:
-          g.circle(p.x, p.y, 2.5 * u).fill({ color: muted });
-      }
+      drawSnapMark(g, s, u, rc.theme);
       // Glisser un sommet : longueur des segments voisins
       if (this.state === 'vertex' && this.vertexDrag) {
-        showLabel(formatLength(distance(this.vertexDrag.origin, p), ppu, unit), p);
+        const text = formatLength(
+          distance(this.vertexDrag.origin, s.point),
+          rc.pixelsPerUnit,
+          rc.unitName,
+        );
+        this.showLabel(g, text, s.point, u, rc.theme.background);
       }
     }
-
     // Lasso
     if (this.lasso) {
       const r = this.lasso;
+      const primary = rc.theme.primary;
       g.rect(r.x, r.y, r.width, r.height)
         .fill({ color: primary, alpha: 0.08 })
         .stroke({ width: u, color: primary, alpha: 0.9 });
     }
+  }
+
+  /** Étiquette de longueur près du pointeur, sur un fond. */
+  private showLabel(g: Graphics, text: string, at: Point, u: number, background: number) {
+    const label = this.label!;
+    label.text = text;
+    label.visible = true;
+    label.scale.set(u);
+    label.position.set(at.x + 14 * u, at.y + 12 * u);
+    const w = label.width + 8 * u;
+    const h = label.height + 4 * u;
+    g.roundRect(at.x + 10 * u, at.y + 10 * u, w, h, 4 * u).fill({
+      color: background,
+      alpha: 0.85,
+    });
+  }
+
+  /** Chaîne en cours : segments posés, segment suivant en tirets, cible de fermeture. */
+  private drawChain(g: Graphics, u: number, rc: RenderContext) {
+    const pts = this.chain;
+    const color = this.mode === 'door' ? rc.theme.success : rc.theme.primary;
+    if (pts.length > 1) {
+      g.moveTo(pts[0]!.x, pts[0]!.y);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
+      g.stroke({ width: 3 * u, color, join: 'round', cap: 'round' });
+    }
+    const last = pts.at(-1)!;
+    const cursor = this.snap?.point;
+    if (cursor && this.state === 'chain') {
+      dashedPolyline(g, [last, cursor], 6 * u, 4 * u);
+      g.stroke({ width: 2 * u, color, alpha: 0.9 });
+      const text = formatLength(distance(last, cursor), rc.pixelsPerUnit, rc.unitName);
+      this.showLabel(g, text, cursor, u, rc.theme.background);
+    }
+    // Premier point : cible de fermeture
+    const first = pts[0]!;
+    if (pts.length >= 3)
+      g.circle(first.x, first.y, 7 * u).stroke({ width: 2 * u, color, alpha: 0.9 });
+    for (const p of pts) g.circle(p.x, p.y, 3 * u).fill({ color });
+  }
+
+  /** Rectangle de murs en cours, avec ses dimensions. */
+  private drawRect(g: Graphics, rect: { a: Point; b: Point }, u: number, rc: RenderContext) {
+    const { a, b } = rect;
+    const { primary } = rc.theme;
+    const ppu = rc.pixelsPerUnit;
+    const unit = rc.unitName;
+    const pts: Pts = [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
+    g.poly(
+      pts.flatMap((p) => [p.x, p.y]),
+      true,
+    ).fill({ color: primary, alpha: 0.06 });
+    dashedPolyline(g, pts, 8 * u, 5 * u, true);
+    g.stroke({ width: 2 * u, color: primary });
+    this.showLabel(
+      g,
+      `${formatLength(Math.abs(b.x - a.x), ppu, unit)} × ${formatLength(Math.abs(b.y - a.y), ppu, unit)}`,
+      b,
+      u,
+      rc.theme.background,
+    );
+  }
+
+  /** Porte visée sur un mur, avec sa largeur. */
+  private drawDoorHover(g: Graphics, dh: DoorHover, u: number, rc: RenderContext) {
+    const { success, background } = rc.theme;
+    const [a, b] = dh.door;
+    g.moveTo(a.x, a.y)
+      .lineTo(b.x, b.y)
+      .stroke({ width: 8 * u, color: success, alpha: 0.85, cap: 'butt' });
+    for (const p of [a, b])
+      g.circle(p.x, p.y, 3.5 * u)
+        .fill({ color: background })
+        .stroke({ width: 1.5 * u, color: success });
+    const text = formatLength(distance(a, b), rc.pixelsPerUnit, rc.unitName);
+    this.showLabel(g, text, dh.at, u, background);
+  }
+}
+
+/** Coin opposé d'un carré depuis `a`, du côté de `b`. */
+function squareCorner(a: Point, b: Point): Point {
+  const side = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+  return roundPoint({
+    x: a.x + Math.sign(b.x - a.x || 1) * side,
+    y: a.y + Math.sign(b.y - a.y || 1) * side,
+  });
+}
+
+/** Poignée d'un sommet : jonction soudée pleine, bout libre creux, isolé en carré. */
+function drawVertexHandle(g: Graphics, v: Point, degree: number, u: number, theme: MapTheme) {
+  if (degree >= 2) g.circle(v.x, v.y, 3.5 * u).fill({ color: theme.primary });
+  else if (degree === 1)
+    g.circle(v.x, v.y, 4 * u)
+      .fill({ color: theme.background })
+      .stroke({ width: 1.5 * u, color: theme.primary });
+  else g.rect(v.x - 3 * u, v.y - 3 * u, 6 * u, 6 * u).fill({ color: theme.muted });
+}
+
+/** Repère de l'aimant : sommet, point sur un segment, grille ou angle. */
+function drawSnapMark(g: Graphics, s: SnapTarget, u: number, theme: MapTheme) {
+  const { primary, background, foreground, muted } = theme;
+  const p = s.point;
+  switch (s.kind) {
+    case 'point':
+      g.circle(p.x, p.y, 7 * u)
+        .fill({ color: primary, alpha: 0.25 })
+        .stroke({ width: 2 * u, color: primary });
+      g.circle(p.x, p.y, 2.5 * u).fill({ color: primary });
+      break;
+    case 'segment': {
+      const seg = s.segment!;
+      g.moveTo(seg.a.x, seg.a.y)
+        .lineTo(seg.b.x, seg.b.y)
+        .stroke({ width: 5 * u, color: primary, alpha: 0.35 });
+      const r = 6 * u;
+      g.poly([p.x, p.y - r, p.x + r, p.y, p.x, p.y + r, p.x - r, p.y], true)
+        .fill({ color: background })
+        .stroke({ width: 2 * u, color: primary });
+      break;
+    }
+    case 'grid':
+    case 'angle': {
+      const r = 5 * u;
+      g.moveTo(p.x - r, p.y)
+        .lineTo(p.x + r, p.y)
+        .moveTo(p.x, p.y - r)
+        .lineTo(p.x, p.y + r);
+      g.stroke({
+        width: 1.5 * u,
+        color: s.kind === 'angle' ? primary : foreground,
+        alpha: 0.9,
+      });
+      break;
+    }
+    default:
+      g.circle(p.x, p.y, 2.5 * u).fill({ color: muted });
   }
 }
 
