@@ -6,7 +6,7 @@
  * front, il lit tout ici.
  */
 import { z } from 'zod';
-import type { SystemeCharge } from '../chargement/index.js';
+import type { EntiteChargee, SystemeCharge } from '../chargement/index.js';
 import { Cle, Id } from './systeme.js';
 
 const Couleur = z.string().regex(/^#[0-9a-fA-F]{3,8}$/, 'Couleur hexadécimale attendue (#rrggbb)');
@@ -455,32 +455,7 @@ export function verifierPresentation(
   const s = systeme.source;
 
   if (p.systeme !== s.id) erreur('systeme', `Présentation de ${p.systeme}, système ${s.id}`);
-
-  const sortesDes = new Set(s.des?.sortes.map((d) => d.id) ?? []);
-  for (const id of Object.keys(p.des?.sortes ?? {})) {
-    if (!sortesDes.has(id) && !/^d\d+$/.test(id)) erreur(`des/sortes/${id}`, `Dé inconnu : ${id}`);
-  }
-  const symboles = new Set([
-    ...(s.des?.symboles.map((x) => x.id) ?? []),
-    ...(s.des?.resultats.map((x) => x.cle) ?? []),
-  ]);
-  for (const id of Object.keys(p.symboles))
-    if (!symboles.has(id)) erreur(`symboles/${id}`, `Symbole ou résultat inconnu : ${id}`);
-
-  const attributDe = (entite: string, cle: string) =>
-    systeme.entites.get(entite)?.attributs.get(cle);
-  for (const m of Object.keys(p.marques)) {
-    if (!systeme.marques.has(m))
-      erreur(`marques/${m}`, `Marque jamais posée par les règles : ${m}`);
-  }
-  for (const cle of Object.keys(p.ressources)) {
-    const ok = [...systeme.entites.keys()].some((e) => attributDe(e, cle)?.nature === 'ressource');
-    if (!ok) erreur(`ressources/${cle}`, `Ressource inconnue : ${cle}`);
-  }
-  for (const cle of Object.keys(p.attributs)) {
-    const ok = [...systeme.entites.keys()].some((e) => attributDe(e, cle));
-    if (!ok) erreur(`attributs/${cle}`, `Attribut inconnu : ${cle}`);
-  }
+  erreurs.push(...erreursLibelles(systeme, p));
 
   const placesJets = new Set<string>();
   p.des?.jets?.forEach((g, i) => {
@@ -517,6 +492,40 @@ export function verifierPresentation(
   return erreurs.length ? { ok: false, erreurs } : { ok: true, presentation: p };
 }
 
+/** Libellés de la présentation : dés, symboles, marques, ressources et attributs connus. */
+function erreursLibelles(systeme: SystemeCharge, p: Presentation): ErreurPresentation[] {
+  const s = systeme.source;
+  const erreurs: ErreurPresentation[] = [];
+  const erreur = (chemin: string, message: string) => erreurs.push({ chemin, message });
+  const sortesDes = new Set(s.des?.sortes.map((d) => d.id) ?? []);
+  for (const id of Object.keys(p.des?.sortes ?? {})) {
+    if (!sortesDes.has(id) && !/^d\d+$/.test(id)) erreur(`des/sortes/${id}`, `Dé inconnu : ${id}`);
+  }
+  const symboles = new Set([
+    ...(s.des?.symboles.map((x) => x.id) ?? []),
+    ...(s.des?.resultats.map((x) => x.cle) ?? []),
+  ]);
+  for (const id of Object.keys(p.symboles))
+    if (!symboles.has(id)) erreur(`symboles/${id}`, `Symbole ou résultat inconnu : ${id}`);
+  for (const m of Object.keys(p.marques)) {
+    if (!systeme.marques.has(m))
+      erreur(`marques/${m}`, `Marque jamais posée par les règles : ${m}`);
+  }
+  return [...erreurs, ...erreursAttributsCites(systeme, p)];
+}
+
+/** Ressources et attributs présentés : connus d'au moins un type d'entité. */
+function erreursAttributsCites(systeme: SystemeCharge, p: Presentation): ErreurPresentation[] {
+  const attributs = [...systeme.entites.values()].map((e) => e.attributs);
+  const ressources = Object.keys(p.ressources)
+    .filter((cle) => !attributs.some((a) => a.get(cle)?.nature === 'ressource'))
+    .map((cle) => ({ chemin: `ressources/${cle}`, message: `Ressource inconnue : ${cle}` }));
+  const inconnus = Object.keys(p.attributs)
+    .filter((cle) => !attributs.some((a) => a.has(cle)))
+    .map((cle) => ({ chemin: `attributs/${cle}`, message: `Attribut inconnu : ${cle}` }));
+  return [...ressources, ...inconnus];
+}
+
 /**
  * Combat vérifié contre le système : actions connues, à cible, une seule fois dans les
  * groupes ; sortes d'états connues ; icônes d'entrées de ces sortes.
@@ -536,24 +545,36 @@ export function erreursCombat(systeme: SystemeCharge, c: PresentationCombat): Er
       vues.add(id);
     }
   });
-  if (c.etats) {
-    for (const so of c.etats.sortes)
-      if (!systeme.sortes.has(so)) erreur('etats/sortes', `Sorte inconnue : ${so}`);
-    for (const id of Object.keys(c.etats.icones)) {
-      const e = systeme.entrees.get(id);
-      if (!e) erreur('etats/icones', `Entrée inconnue : ${id}`);
-      else if (!c.etats.sortes.includes(e.sorte))
-        erreur('etats/icones', `${id} n’est pas un état (sorte ${e.sorte})`);
-    }
-  }
+  if (c.etats)
+    for (const [chemin, message] of erreursEtats(systeme, c.etats)) erreur(chemin, message);
   if (c.situation) {
     // Paramètres rangés en situation : ceux du système et ceux propres à une action
-    const situation = new Set<string>();
-    for (const a of systeme.actions.values())
-      for (const p of a.parametres) if (p.section === 'situation') situation.add(p.id);
+    const situation = new Set(
+      [...systeme.actions.values()]
+        .flatMap((a) => a.parametres)
+        .filter((p) => p.section === 'situation')
+        .map((p) => p.id),
+    );
     for (const id of Object.keys(c.situation.icones))
       if (!situation.has(id))
         erreur('situation/icones', `${id} n’est pas un paramètre de situation d’une action`);
+  }
+  return erreurs;
+}
+
+/** États du combat : sortes connues, icônes d'entrées de ces sortes. */
+function erreursEtats(
+  systeme: SystemeCharge,
+  etats: NonNullable<PresentationCombat['etats']>,
+): [string, string][] {
+  const erreurs: [string, string][] = [];
+  for (const so of etats.sortes)
+    if (!systeme.sortes.has(so)) erreurs.push(['etats/sortes', `Sorte inconnue : ${so}`]);
+  for (const id of Object.keys(etats.icones)) {
+    const e = systeme.entrees.get(id);
+    if (!e) erreurs.push(['etats/icones', `Entrée inconnue : ${id}`]);
+    else if (!etats.sortes.includes(e.sorte))
+      erreurs.push(['etats/icones', `${id} n’est pas un état (sorte ${e.sorte})`]);
   }
   return erreurs;
 }
@@ -624,46 +645,59 @@ export function erreursWidget(systeme: SystemeCharge, entite: string, w: Widget)
   const erreurs: string[] = [];
   if (w.option !== undefined && !systeme.options.has(w.option))
     erreurs.push(`Option inconnue : ${w.option}`);
-  const attrs = attributsDuWidget(w);
-  for (const a of attrs)
-    if (!e.attributs.has(a)) erreurs.push(`Attribut inconnu de ${entite} : ${a}`);
-  if ('groupe' in w && w.groupe && !e.type.groupes.some((g) => g.id === w.groupe))
-    erreurs.push(`Groupe inconnu : ${w.groupe}`);
-  if (w.type === 'attributs' && !w.groupe && !w.attributs?.length)
-    erreurs.push('Préciser le groupe ou les attributs');
-  if (w.type === 'ressources') {
-    for (const a of w.attributs) {
-      const nature = e.attributs.get(a)?.nature;
-      if (!nature) continue;
-      // En jauge, des ressources seulement ; en valeur, tout attribut sauf un texte
-      if ((w.affichage ?? 'jauge') === 'jauge' && nature !== 'ressource')
-        erreurs.push(`${a} n’est pas une ressource (affichage « valeur » pour une valeur simple)`);
-      else if (nature === 'texte') erreurs.push(`${a} est un texte : bloc « texte » attendu`);
-    }
-  }
-  const sortes = sortesDuWidget(w);
-  for (const so of sortes) {
+  erreurs.push(...erreursAttributsWidget(e, entite, w));
+  for (const so of sortesDuWidget(w)) {
     const sorte = systeme.sortes.get(so);
     if (!sorte) erreurs.push(`Sorte inconnue : ${so}`);
     else if (!sorte.pour.includes(entite)) erreurs.push(`${so} n’est pas possédable par ${entite}`);
   }
-  const champDe = (sorte: string, champ: string) =>
-    systeme.sortes.get(sorte)?.champs.some((c) => c.id === champ) === true;
-  if (w.type === 'possessions' && w.groupeChamp && !champDe(w.sorte, w.groupeChamp))
-    erreurs.push(`Champ inconnu sur ${w.sorte} : ${w.groupeChamp}`);
-  if (w.type === 'inventaire')
-    for (const c of champsGroupe(w))
-      if (!w.sortes.some((so) => champDe(so, c)))
-        erreurs.push(`Champ inconnu des sortes ${w.sortes.join(', ')} : ${c}`);
-  if (w.type === 'competences' && w.filtreChamp) {
-    const liste = sortesCompetences(w);
-    if (liste.length && !liste.some((so) => champDe(so, w.filtreChamp!)))
-      erreurs.push(`Champ inconnu des sortes ${liste.join(', ')} : ${w.filtreChamp}`);
-  }
+  erreurs.push(...erreursChampsWidget(systeme, w));
   if (w.type === 'actions')
     for (const a of w.actions ?? [])
       if (!systeme.actions.has(a)) erreurs.push(`Action inconnue : ${a}`);
   return erreurs;
+}
+
+/** Attributs et groupe cités par un bloc : connus de l'entité, ressources bien affichées. */
+function erreursAttributsWidget(e: EntiteChargee, entite: string, w: Widget): string[] {
+  const erreurs = attributsDuWidget(w)
+    .filter((a) => !e.attributs.has(a))
+    .map((a) => `Attribut inconnu de ${entite} : ${a}`);
+  if ('groupe' in w && w.groupe && !e.type.groupes.some((g) => g.id === w.groupe))
+    erreurs.push(`Groupe inconnu : ${w.groupe}`);
+  if (w.type === 'attributs' && !w.groupe && !w.attributs?.length)
+    erreurs.push('Préciser le groupe ou les attributs');
+  if (w.type === 'ressources') erreurs.push(...erreursRessources(e, w));
+  return erreurs;
+}
+
+/** Bloc ressources : en jauge, des ressources seulement ; en valeur, tout attribut sauf un texte. */
+function erreursRessources(e: EntiteChargee, w: Extract<Widget, { type: 'ressources' }>): string[] {
+  const jauge = (w.affichage ?? 'jauge') === 'jauge';
+  return w.attributs.flatMap((a) => {
+    const nature = e.attributs.get(a)?.nature;
+    if (!nature) return [];
+    if (jauge && nature !== 'ressource')
+      return [`${a} n’est pas une ressource (affichage « valeur » pour une valeur simple)`];
+    return nature === 'texte' ? [`${a} est un texte : bloc « texte » attendu`] : [];
+  });
+}
+
+/** Champs cités par un bloc (groupement, filtre) : déclarés par ses sortes. */
+function erreursChampsWidget(systeme: SystemeCharge, w: Widget): string[] {
+  const champDe = (sorte: string, champ: string) =>
+    systeme.sortes.get(sorte)?.champs.some((c) => c.id === champ) === true;
+  if (w.type === 'possessions' && w.groupeChamp && !champDe(w.sorte, w.groupeChamp))
+    return [`Champ inconnu sur ${w.sorte} : ${w.groupeChamp}`];
+  if (w.type === 'inventaire')
+    return champsGroupe(w)
+      .filter((c) => !w.sortes.some((so) => champDe(so, c)))
+      .map((c) => `Champ inconnu des sortes ${w.sortes.join(', ')} : ${c}`);
+  if (w.type !== 'competences' || !w.filtreChamp) return [];
+  const filtre = w.filtreChamp;
+  const liste = sortesCompetences(w);
+  if (!liste.length || liste.some((so) => champDe(so, filtre))) return [];
+  return [`Champ inconnu des sortes ${liste.join(', ')} : ${filtre}`];
 }
 
 /** Références des ressources vérifiées contre le système : sortes, champs, textes, attributs. */
