@@ -62,7 +62,7 @@ export function GaugeBar({
       <span
         className={cn(
           'block h-full rounded-full transition-[width] duration-300 ease-out motion-reduce:transition-none',
-          !color && (danger ? 'bg-destructive' : rising ? 'bg-warning' : 'bg-success'),
+          !color && gaugeTone(danger, rising),
         )}
         style={{ width: `${part * 100}%`, ...(color ? { background: color } : {}) }}
       />
@@ -177,20 +177,26 @@ function ResourcesBody({ characterId, name }: Readonly<{ characterId: string; na
   return (
     <div>
       <p className="border-b border-border px-4 py-2.5 text-[13px] font-semibold">{name}</p>
-      {perso.isError ? (
-        <p className="p-4 text-[13px] text-destructive">Fiche indisponible.</p>
-      ) : !ctx ? (
+      {perso.isError && <p className="p-4 text-[13px] text-destructive">Fiche indisponible.</p>}
+      {!perso.isError && !ctx && (
         <div className="space-y-2 p-4">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-2/3" />
         </div>
-      ) : bloc?.type === 'ressources' && bloc.attributs.length ? (
+      )}
+      {!perso.isError && ctx && bloc?.type === 'ressources' && bloc.attributs.length > 0 && (
         <div className="[&>section]:rounded-none [&>section]:border-0 [&>section]:bg-transparent [&>section]:shadow-none">
           <BlocRessources ctx={ctx} widget={bloc} />
         </div>
-      ) : (
+      )}
+      {!perso.isError && ctx && !(bloc?.type === 'ressources' && bloc.attributs.length) && (
         <p className="p-4 text-[13px] text-subtle">Aucune ressource suivie par ce système.</p>
       )}
     </div>
   );
+}
+
+function gaugeTone(danger: boolean, rising: boolean): string {
+  if (danger) return 'bg-destructive';
+  return rising ? 'bg-warning' : 'bg-success';
 }

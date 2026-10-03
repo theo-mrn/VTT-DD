@@ -67,7 +67,10 @@ export function rollFigure(roll: TargetDisplay['roll']): RollFigure | null {
   };
 }
 
-const text = (v: unknown) => (typeof v === 'boolean' ? (v ? 'oui' : 'non') : String(v));
+function text(v: unknown): string {
+  if (typeof v === 'boolean') return v ? 'oui' : 'non';
+  return String(v);
+}
 
 /**
  * Dégâts (ou soins) à mettre en avant : la première valeur numérique que le système montre à
@@ -85,7 +88,8 @@ export function damageFigure(
     (m) => m.kind === 'attribute' && m.entity === 'target' && m.operation !== 'set',
   );
   const firstMod = targetMods[0]?.kind === 'attribute' ? targetMods[0] : null;
-  const sense = firstMod ? (firstMod.operation === 'add' ? 'add' : 'subtract') : null;
+  let sense: 'add' | 'subtract' | null = null;
+  if (firstMod) sense = firstMod.operation === 'add' ? 'add' : 'subtract';
   const details: DamageFigure['details'] = [];
   let main: { value: number; name: string | null } | null = null;
   if (numeric.length) {
@@ -115,7 +119,8 @@ export function summarizeTarget(
 ): TargetSummary {
   const d = targetDisplay(attack, target);
   const outcome = outcomeLabel(d.outcome, o.successRule);
-  const hit = d.outcome ? (o.successRule || d.outcome.critical ? d.outcome.success : null) : null;
+  const tranche = d.outcome && (o.successRule || d.outcome.critical);
+  const hit = tranche ? d.outcome!.success : null;
   return {
     characterId: d.characterId,
     figure: rollFigure(d.roll),

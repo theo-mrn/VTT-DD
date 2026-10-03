@@ -182,16 +182,7 @@ export function comparaisonsChoixInvalides(
 export function env(o: OptionsEnv): EnvironnementTypes {
   const avecEntite = !!o.entite?.length && !o.sansAgregats;
   return {
-    attribut: (cle, entite) =>
-      entite === undefined
-        ? attributCommun(o.entite ?? [], cle)
-        : entite === ENTITE_COMBAT
-          ? o.combat && VALEURS_COMBAT[cle]
-            ? { type: VALEURS_COMBAT[cle], modificateur: false }
-            : undefined
-          : o.externes?.[entite]
-            ? attributCommun(o.externes[entite]!, cle)
-            : undefined,
+    attribut: (cle, entite) => attributPour(o, cle, entite),
     variable: (nom) => o.variables?.[nom],
     ...(o.entree ? { entree: o.entree } : {}),
     ...(o.option && avecEntite ? { option: o.option } : {}),
@@ -199,4 +190,15 @@ export function env(o: OptionsEnv): EnvironnementTypes {
     des: o.des ?? false,
     dynamique: o.dynamique ?? false,
   };
+}
+
+/** Attribut vu par une formule : de l'entité, du combat (`@combat.*`), ou d'une autre entité. */
+function attributPour(o: OptionsEnv, cle: string, entite: string | undefined) {
+  if (entite === undefined) return attributCommun(o.entite ?? [], cle);
+  if (entite === ENTITE_COMBAT) {
+    const type = o.combat ? VALEURS_COMBAT[cle] : undefined;
+    return type ? { type, modificateur: false } : undefined;
+  }
+  const externe = o.externes?.[entite];
+  return externe ? attributCommun(externe, cle) : undefined;
 }

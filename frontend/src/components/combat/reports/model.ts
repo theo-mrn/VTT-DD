@@ -236,11 +236,9 @@ export function buildApply(
   const body: ApplyAttack = { version: a.version, targets };
   if (actor && actorDecidable(a)) {
     const proposed = a.actor!.modifications.map(toInput);
-    body.actor = actor.apply
-      ? same(actor.modifications, proposed)
-        ? { apply: true }
-        : { apply: true, modifications: actor.modifications }
-      : { apply: false };
+    if (!actor.apply) body.actor = { apply: false };
+    else if (same(actor.modifications, proposed)) body.actor = { apply: true };
+    else body.actor = { apply: true, modifications: actor.modifications };
   }
   const trimmed = note?.trim();
   if (trimmed) body.note = trimmed;
@@ -427,12 +425,11 @@ export interface RevertConflict {
   paths: string[];
 }
 
-const pathOf = (p: unknown): string[] =>
-  typeof p === 'string'
-    ? [p]
-    : p && typeof p === 'object' && typeof (p as { path?: unknown }).path === 'string'
-      ? [(p as { path: string }).path]
-      : [];
+function pathOf(p: unknown): string[] {
+  if (typeof p === 'string') return [p];
+  const path = p && typeof p === 'object' ? (p as { path?: unknown }).path : undefined;
+  return typeof path === 'string' ? [path] : [];
+}
 
 /**
  * Conflit d'une annulation (409 `revert_conflict`) : la fiche a changé depuis, par personnage
@@ -609,12 +606,7 @@ export function reductionDetail(m: AttributeModification): ReductionDetail | nul
     damageType: m.damageType ?? null,
     lines: resistances.map((r) => ({
       name: r.name,
-      effect:
-        r.operation === 'cancel'
-          ? 'immunité'
-          : r.operation === 'multiply'
-            ? `×${NUMBER.format(r.value)}`
-            : `−${NUMBER.format(r.value)}`,
+      effect: resistanceEffect(r.operation, r.value),
       ignored: r.ignored,
     })),
     result: m.value,
@@ -635,4 +627,11 @@ export function recentlyDecided(
   cleared: ReadonlySet<string>,
 ): Attack[] {
   return decided.filter((a) => isDecided(a) && seenPending.has(a.id) && !cleared.has(a.id));
+}
+
+/** Effet d'une résistance, lisible : immunité, ×2, −3. */
+function resistanceEffect(operation: string, value: number): string {
+  if (operation === 'cancel') return 'immunité';
+  if (operation === 'multiply') return `×${NUMBER.format(value)}`;
+  return `−${NUMBER.format(value)}`;
 }

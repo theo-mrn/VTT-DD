@@ -153,15 +153,11 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
   const hidden = effectiveVisibility(draft, { gm: ctx.gm, settings }) === 'gm';
   const rollMode = effectiveRollMode(draft, multi.rollMode);
 
-  const disabledReason = !draft.attackerId
-    ? 'Choisissez qui attaque'
-    : blocked
-      ? 'Pas le tour de votre personnage'
-      : !check.ok
-        ? check.message
-        : missing.length
-          ? `${missing[0]!.nom} : aucune disponible`
-          : null;
+  let disabledReason: string | null = null;
+  if (!draft.attackerId) disabledReason = 'Choisissez qui attaque';
+  else if (blocked) disabledReason = 'Pas le tour de votre personnage';
+  else if (!check.ok) disabledReason = check.message;
+  else if (missing.length) disabledReason = `${missing[0]!.nom} : aucune disponible`;
 
   /** Carte d'action choisie : ses paramètres (ceux de sa dernière attaque d'abord). */
   function choose(a: Action) {
