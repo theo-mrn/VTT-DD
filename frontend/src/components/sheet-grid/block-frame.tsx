@@ -19,7 +19,7 @@ import {
   type ReactNode,
 } from 'react';
 import { blockDefinition } from '@/components/fiche/blocks/registry';
-import type { TileArrangement } from '@/components/fiche/blocks/tiles/model';
+import type { Tile, TileArrangement } from '@/components/fiche/blocks/tiles/model';
 import type { SheetBlockDefinition, WidgetType } from '@/components/fiche/blocks/types';
 import type { ContexteFiche } from '@/components/fiche/widgets';
 import { Button } from '@/components/ui/button';
@@ -243,16 +243,14 @@ export const BlockFrame = memo(function BlockFrame({
     ? (blockDefinition(block.widget.type as WidgetType) as SheetBlockDefinition)
     : null;
   const titre = block.widget?.titre ?? block.raw.title;
-  // Bloc de tuiles : sa disposition interne se règle en personnalisation (deux valeurs au moins)
-  const tuiles =
-    editing && !empty && definition?.tiles && block.widget
-      ? definition.tiles(ctx, block.widget as never)
-      : [];
-  // Valeurs qu'on peut ajouter au bloc, d'un autre groupe compris ; et le bloc avec d'autres clés
-  const ajoutables =
-    editing && !empty && definition?.addableTiles && block.widget
-      ? definition.addableTiles(ctx, block.widget as never)
-      : [];
+  // Bloc de tuiles : sa disposition interne se règle en personnalisation (deux valeurs au moins) ;
+  // valeurs qu'on peut ajouter au bloc, d'un autre groupe compris ; et le bloc avec d'autres clés
+  const { tuiles, ajoutables } = tuilesEnPersonnalisation(
+    definition,
+    block,
+    ctx,
+    editing && !empty,
+  );
   const avecCles =
     definition?.withTiles && block.widget
       ? (keys: string[]) =>
@@ -261,36 +259,18 @@ export const BlockFrame = memo(function BlockFrame({
   // En personnalisation, le bloc reste lisible mais sans action (droits d'écriture retirés)
   const ctxBloc = editing ? { ...ctx, operations: undefined } : ctx;
 
-  let contenu: ReactNode;
-  if (!definition || !block.widget)
-    contenu = (
-      <EmptyCard title={titre} icon>
-        Ce bloc n’est plus proposé par les règles du personnage. Retirez-le de la fiche.
-      </EmptyCard>
-    );
-  else if (empty)
-    contenu = (
-      <EmptyCard title={titre}>
-        Vide pour l’instant : ce bloc est caché hors personnalisation.
-      </EmptyCard>
-    );
-  else
-    contenu = (
-      <BlockBoundary
-        title={titre}
-        resetKey={`${ctx.personnage.id}:${block.id}:${ctx.fiche.etat.systeme.version}`}
-      >
-        <Suspense fallback={<Skeleton className="h-full min-h-24 rounded-2xl" />}>
-          <BlockContent
-            block={block}
-            definition={definition}
-            ctx={ctxBloc}
-            mode={editing ? 'edit' : 'read'}
-            height={heightMode}
-          />
-        </Suspense>
-      </BlockBoundary>
-    );
+  const contenu = (
+    <FrameContent
+      block={block}
+      definition={definition}
+      titre={titre}
+      empty={empty}
+      ctx={ctx}
+      ctxBloc={ctxBloc}
+      editing={editing}
+      heightMode={heightMode}
+    />
+  );
 
   // La case de la grille = la carte + la marge basse (espace avec le bloc du dessous). Le
   // cadre de personnalisation épouse la carte, pas la case.
@@ -345,3 +325,67 @@ export const BlockFrame = memo(function BlockFrame({
     </div>
   );
 });
+
+/** Tuiles du bloc et valeurs ajoutables, réglables en personnalisation seulement. */
+function tuilesEnPersonnalisation(
+  definition: SheetBlockDefinition | null,
+  block: GridBlock,
+  ctx: ContexteFiche,
+  actif: boolean,
+): { tuiles: Tile[]; ajoutables: Tile[] } {
+  if (!actif || !definition || !block.widget) return { tuiles: [], ajoutables: [] };
+  return {
+    tuiles: definition.tiles ? definition.tiles(ctx, block.widget as never) : [],
+    ajoutables: definition.addableTiles ? definition.addableTiles(ctx, block.widget as never) : [],
+  };
+}
+
+/** Contenu d'un bloc : le widget, ou une carte vide (bloc retiré des règles, ou vide). */
+function FrameContent({
+  block,
+  definition,
+  titre,
+  empty,
+  ctx,
+  ctxBloc,
+  editing,
+  heightMode,
+}: Readonly<{
+  block: GridBlock;
+  definition: SheetBlockDefinition | null;
+  titre: string;
+  empty: boolean;
+  ctx: ContexteFiche;
+  ctxBloc: ContexteFiche;
+  editing: boolean;
+  heightMode: HeightMode;
+}>) {
+  if (!definition || !block.widget)
+    return (
+      <EmptyCard title={titre} icon>
+        Ce bloc n’est plus proposé par les règles du personnage. Retirez-le de la fiche.
+      </EmptyCard>
+    );
+  if (empty)
+    return (
+      <EmptyCard title={titre}>
+        Vide pour l’instant : ce bloc est caché hors personnalisation.
+      </EmptyCard>
+    );
+  return (
+    <BlockBoundary
+      title={titre}
+      resetKey={`${ctx.personnage.id}:${block.id}:${ctx.fiche.etat.systeme.version}`}
+    >
+      <Suspense fallback={<Skeleton className="h-full min-h-24 rounded-2xl" />}>
+        <BlockContent
+          block={block}
+          definition={definition}
+          ctx={ctxBloc}
+          mode={editing ? 'edit' : 'read'}
+          height={heightMode}
+        />
+      </Suspense>
+    </BlockBoundary>
+  );
+}

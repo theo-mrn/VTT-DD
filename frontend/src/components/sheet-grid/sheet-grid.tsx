@@ -101,6 +101,49 @@ const PAS_CLAVIER = 6;
 
 const recouvreX = (a: SheetLayoutItem, b: SheetLayoutItem) => a.x < b.x + b.w && b.x < a.x + a.w;
 
+/** Bloc agrandi ou réduit d'un pas au clavier (largeur à droite et à gauche, hauteur en bas et en haut). */
+function redimensionne(
+  it: SheetLayoutItem,
+  touche: string,
+  cols: number,
+  min: { w: number; h: number },
+): SheetLayoutItem {
+  const suivant = { ...it };
+  if (touche === 'ArrowRight') suivant.w = Math.min(cols - it.x, it.w + 1);
+  if (touche === 'ArrowLeft') suivant.w = Math.max(min.w, it.w - 1);
+  if (touche === 'ArrowDown') suivant.h = Math.min(2400, it.h + PAS_CLAVIER);
+  if (touche === 'ArrowUp') suivant.h = Math.max(min.h, it.h - PAS_CLAVIER);
+  return suivant;
+}
+
+/** Bloc échangé avec son voisin du dessous ou du dessus dans ses colonnes ; sans voisin : null. */
+function echangeVertical(
+  it: SheetLayoutItem,
+  autres: SheetLayoutItem[],
+  bas: boolean,
+): SheetLayoutItem[] | null {
+  if (bas) {
+    // Passe sous le premier bloc qui le suit dans ses colonnes
+    const dessous = autres
+      .filter((o) => recouvreX(o, it) && o.y >= it.y + it.h)
+      .sort((a, b) => a.y - b.y)[0];
+    if (!dessous) return null;
+    return [
+      ...autres.map((o) => (o.i === dessous.i ? { ...o, y: it.y } : o)),
+      { ...it, y: dessous.y + dessous.h },
+    ];
+  }
+  // Passe au-dessus du bloc qui le précède dans ses colonnes
+  const dessus = autres
+    .filter((o) => recouvreX(o, it) && o.y + o.h <= it.y)
+    .sort((a, b) => b.y - a.y)[0];
+  if (!dessus) return null;
+  return [
+    ...autres.map((o) => (o.i === dessus.i ? { ...o, y: dessus.y + it.h } : o)),
+    { ...it, y: dessus.y },
+  ];
+}
+
 /** Déplacement ou redimensionnement d'un bloc au clavier, dans une disposition. */
 function auClavier(
   items: SheetLayoutItem[],
@@ -115,34 +158,18 @@ function auClavier(
   const it = items.find((x) => x.i === id);
   if (!it) return null;
   const autres = items.filter((x) => x.i !== id);
-  let suivant = { ...it };
-  let reste = autres;
+  const vertical = touche === 'ArrowDown' || touche === 'ArrowUp';
   if (agrandir) {
-    if (hauteurAuto && (touche === 'ArrowDown' || touche === 'ArrowUp')) return null;
-    if (touche === 'ArrowRight') suivant.w = Math.min(cols - it.x, it.w + 1);
-    if (touche === 'ArrowLeft') suivant.w = Math.max(min.w, it.w - 1);
-    if (touche === 'ArrowDown') suivant.h = Math.min(2400, it.h + PAS_CLAVIER);
-    if (touche === 'ArrowUp') suivant.h = Math.max(min.h, it.h - PAS_CLAVIER);
-  } else if (touche === 'ArrowRight' || touche === 'ArrowLeft') {
-    suivant.x = Math.max(0, Math.min(cols - it.w, it.x + (touche === 'ArrowRight' ? 1 : -1)));
-  } else if (touche === 'ArrowDown') {
-    // Passe sous le premier bloc qui le suit dans ses colonnes
-    const dessous = autres
-      .filter((o) => recouvreX(o, it) && o.y >= it.y + it.h)
-      .sort((a, b) => a.y - b.y)[0];
-    if (!dessous) return null;
-    suivant = { ...it, y: dessous.y + dessous.h };
-    reste = autres.map((o) => (o.i === dessous.i ? { ...o, y: it.y } : o));
-  } else if (touche === 'ArrowUp') {
-    // Passe au-dessus du bloc qui le précède dans ses colonnes
-    const dessus = autres
-      .filter((o) => recouvreX(o, it) && o.y + o.h <= it.y)
-      .sort((a, b) => b.y - a.y)[0];
-    if (!dessus) return null;
-    suivant = { ...it, y: dessus.y };
-    reste = autres.map((o) => (o.i === dessus.i ? { ...o, y: dessus.y + it.h } : o));
-  } else return null;
-  return compact([...reste, suivant]);
+    if (hauteurAuto && vertical) return null;
+    return compact([...autres, redimensionne(it, touche, cols, min)]);
+  }
+  if (touche === 'ArrowRight' || touche === 'ArrowLeft') {
+    const x = Math.max(0, Math.min(cols - it.w, it.x + (touche === 'ArrowRight' ? 1 : -1)));
+    return compact([...autres, { ...it, x }]);
+  }
+  if (!vertical) return null;
+  const echange = echangeVertical(it, autres, touche === 'ArrowDown');
+  return echange && compact(echange);
 }
 
 function memePositions(a: SheetLayoutItem[], b: SheetLayoutItem[]) {
