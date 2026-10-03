@@ -15,7 +15,7 @@ import {
   type EtatEntite,
   type Possession,
 } from '../schema/index.js';
-import { estEffective, type Fiche, type PossessionEffective } from './fiche.js';
+import { estEffective, type Fiche, type PossessionEffective, type SourceEffets } from './fiche.js';
 
 /** Ordre brut des chaînes (unités UTF-16), indépendant de la langue. */
 const ordreBrut = (a: string, b: string): number => (a < b ? -1 : Number(a > b));
@@ -70,7 +70,8 @@ function champValeur(e: Effet): string | undefined {
       return 'valeur';
     case 'jet':
       if (!e.ajout) return undefined;
-      return 'bonus' in e.ajout ? 'bonus' : 'variable' in e.ajout ? 'ajouter' : 'nombre';
+      if ('bonus' in e.ajout) return 'bonus';
+      return 'variable' in e.ajout ? 'ajouter' : 'nombre';
     case 'marque':
       return undefined;
   }
@@ -87,20 +88,7 @@ export function listerEffets(fiche: Fiche): EffetListe[] {
   const r: EffetListe[] = [];
   for (const s of fiche.toutesSources()) {
     const p = s.possession;
-    const raison: RaisonInactif | undefined =
-      s.genre === 'bonus'
-        ? s.bonus?.actif
-          ? undefined
-          : 'bonus-inactif'
-        : p && !estEffective(p)
-          ? 'non-effective'
-          : s.genre === 'entree'
-            ? p?.actif
-              ? undefined
-              : 'inactive'
-            : p?.sorte.activable && !s.exemplaire?.actif
-              ? 'inactive'
-              : undefined;
+    const raison = raisonInactive(s, p);
     const basculable = s.genre !== 'bonus' && s.genre !== 'regle';
     s.effets.forEach((effet, index) => {
       const cle = cleEffet(s.id, index);
@@ -130,7 +118,7 @@ export function listerEffets(fiche: Fiche): EffetListe[] {
         genre: s.genre,
         index,
         effet,
-        statut: coupe ? 'desactive' : raisonEffet ? 'inactif' : 'actif',
+        statut: statutEffet(coupe, raisonEffet),
         ...(raisonEffet ? { raison: raisonEffet } : {}),
         basculable,
         ...(valeur !== undefined ? { valeur } : {}),
@@ -286,4 +274,17 @@ export function reporterEffetsDesactives(
     r.push(cleEffet(source, j));
   }
   return r;
+}
+
+/** Pourquoi une source n'agit pas (absente : elle agit). */
+function raisonInactive(s: SourceEffets, p: SourceEffets['possession']): RaisonInactif | undefined {
+  if (s.genre === 'bonus') return s.bonus?.actif ? undefined : 'bonus-inactif';
+  if (p && !estEffective(p)) return 'non-effective';
+  if (s.genre === 'entree') return p?.actif ? undefined : 'inactive';
+  return p?.sorte.activable && !s.exemplaire?.actif ? 'inactive' : undefined;
+}
+
+function statutEffet(coupe: boolean, raison: unknown): 'desactive' | 'inactif' | 'actif' {
+  if (coupe) return 'desactive';
+  return raison ? 'inactif' : 'actif';
 }

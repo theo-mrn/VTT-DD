@@ -137,15 +137,7 @@ function appliedBonuses(fiche: Fiche, id: string): BonusTag[] {
       const label =
         l.operation === 'ajouter'
           ? `${nom} ${signed(val)}`
-          : l.operation === 'multiplier'
-            ? `${nom} ×${String(val)}`
-            : l.operation === 'fixer'
-              ? `${nom} = ${String(val)}`
-              : l.operation === 'minimum'
-                ? `${nom} ≥ ${String(val)}`
-                : l.operation === 'maximum'
-                  ? `${nom} ≤ ${String(val)}`
-                  : null;
+          : operationLisible(nom, l.operation, val);
       if (label) r.push({ label, applied: true });
     }
   }
@@ -181,13 +173,10 @@ export function rollEffectText(fiche: Fiche, e: Effet, rank: number): string | n
   const jets = vises ? `aux jets de ${vises.join(', ')}` : 'au jet';
   if (a && 'bonus' in a) base = `${/^[-−]/.test(a.bonus) ? '' : '+'}${n(a.bonus)} ${jets}`;
   if (!base) return null;
-  const cible = e.implique?.entree
-    ? s.entrees.get(e.implique.entree)?.nom
-    : e.implique?.attribut
-      ? fiche.entite.attributs.get(e.implique.attribut)?.nom
-      : vises && !(a && 'bonus' in a)
-        ? jets
-        : undefined;
+  let cible: string | undefined;
+  if (e.implique?.entree) cible = s.entrees.get(e.implique.entree)?.nom;
+  else if (e.implique?.attribut) cible = fiche.entite.attributs.get(e.implique.attribut)?.nom;
+  else if (vises && !(a && 'bonus' in a)) cible = jets;
   const cote = e.cote === 'cible' ? ' (en défense)' : '';
   return `${base}${cible ? ` · ${cible}` : ''}${cote}`;
 }
@@ -259,13 +248,11 @@ export function buildSkills(
   for (const d of available) {
     const viaTree = indirect.has(d.achat.id);
     // Par une voie : seules les voies possédées ; par un arbre : ses seuls arbres
-    const relevant = d.objets.filter((o) =>
-      !viaTree
-        ? true
-        : o.arbre
-          ? trees.some((t) => t.id === o.arbre)
-          : fiche.possessions.has(o.objet),
-    );
+    const relevant = d.objets.filter((o) => {
+      if (!viaTree) return true;
+      if (o.arbre) return trees.some((t) => t.id === o.arbre);
+      return fiche.possessions.has(o.objet);
+    });
     const cur = progress.get(d.achat.monnaie) ?? {
       currency: d.achat.monnaie,
       currencyName: systeme.monnaies.get(d.achat.monnaie)?.nom ?? d.achat.monnaie,
@@ -312,7 +299,8 @@ export function buildSkills(
   const cards: SkillCard[] = entries.map((entry) => {
     const p = fiche.possessions.get(entry.id);
     const rank = p?.rang ?? 0;
-    const active = p ? p.actif : sorte.activable ? sorte.actifParDefaut : true;
+    const actifSansPossession = sorte.activable ? sorte.actifParDefaut : true;
+    const active = p ? p.actif : actifSansPossession;
     const applied = p ? appliedBonuses(fiche, entry.id) : [];
     // Effets décrits mais non appliqués (entrée inactive, rang 0, condition fausse)
     const described = applied.length
@@ -422,3 +410,16 @@ export function describeEntry(fiche: Fiche, entry: Entree): EntryDescription {
     fields: sorte ? fieldsOf(fiche, sorte, entry) : [],
   };
 }
+
+/** Opération d'un bonus autre qu'un ajout, lisible : ×2, = 3, ≥ 1, ≤ 5 (inconnue : null). */
+function operationLisible(nom: string, operation: string, val: unknown): string | null {
+  const symbole = SYMBOLES_OPERATION[operation];
+  return symbole ? `${nom} ${symbole}${String(val)}` : null;
+}
+
+const SYMBOLES_OPERATION: Record<string, string> = {
+  multiplier: '×',
+  fixer: '= ',
+  minimum: '≥ ',
+  maximum: '≤ ',
+};
