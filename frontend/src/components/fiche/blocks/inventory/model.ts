@@ -97,6 +97,25 @@ export function champDe(
   return 'defaut' in champ ? champ.defaut : undefined;
 }
 
+/** Variable `source.<champ>` : formule évaluée, valeur de l'exemplaire ou de l'entrée. */
+function variableSource(
+  fiche: Fiche,
+  entree: Entree,
+  sorte: Sorte,
+  ex: Possession | undefined,
+  id: string,
+): Valeur {
+  const def = sorte.champs.find((c) => c.id === id);
+  if (def?.type === 'formule') {
+    const f = fiche.systeme.formules.get(chemins.champ(entree.id, id));
+    const r = f ? essayer(fiche, f) : undefined;
+    return r?.ok ? r.valeur : 0;
+  }
+  const v = def ? champDe(entree, def, ex) : entree.champs[id];
+  if (Array.isArray(v)) return v.join(',');
+  return v ?? valeurVide(def?.type);
+}
+
 /** Variables d'un effet (`rang`, `actif`, `quantite`, `source.<champ>`), comme le moteur. */
 function variablesEffet(
   fiche: Fiche,
@@ -109,18 +128,8 @@ function variablesEffet(
     if (nom === 'rang') return p?.rang ?? 0;
     if (nom === 'actif') return ex ? !sorte.activable || ex.actif : (p?.actif ?? true);
     if (nom === 'quantite') return ex ? quantiteDe(ex) : (p?.quantite ?? 1);
-    if (nom.startsWith('source.')) {
-      const id = nom.slice('source.'.length);
-      const def = sorte.champs.find((c) => c.id === id);
-      if (def?.type === 'formule') {
-        const f = fiche.systeme.formules.get(chemins.champ(entree.id, id));
-        const r = f ? essayer(fiche, f) : undefined;
-        return r?.ok ? r.valeur : 0;
-      }
-      const v = def ? champDe(entree, def, ex) : entree.champs[id];
-      if (Array.isArray(v)) return v.join(',');
-      return v ?? valeurVide(def?.type);
-    }
+    if (nom.startsWith('source.'))
+      return variableSource(fiche, entree, sorte, ex, nom.slice('source.'.length));
     throw new Error(`Variable inconnue : ${nom}`);
   };
 }
@@ -140,6 +149,68 @@ function nomDe(systeme: SystemeCharge, id: string): string {
   return systeme.source.des?.sortes.find((d) => d.id === id)?.nom ?? id;
 }
 
+type NombreEffet = (champ: string, brut: string) => Valeur | string;
+type EffetJetObjet = Extract<Effet, { sur: 'jet' }>;
+
+/** Effet sur un attribut : « FOR +2 », « DEF ×2 », « PV ≥ 1 » (opération inconnue : null). */
+function libelleAttribut(
+  fiche: Fiche,
+  e: Extract<Effet, { sur: 'attribut' }>,
+  nombre: NombreEffet,
+): string | null {
+  const nom = nomAttribut(fiche, e.attribut);
+  const v = nombre('valeur', e.valeur);
+  switch (e.operation) {
+    case 'ajouter':
+      return typeof v === 'number' ? `${nom} ${signe(v)}` : `${nom} + ${v}`;
+    case 'multiplier':
+      return `${nom} ×${v}`;
+    case 'fixer':
+      return `${nom} = ${v}`;
+    case 'minimum':
+      return `${nom} ≥ ${v}`;
+    case 'maximum':
+      return `${nom} ≤ ${v}`;
+  }
+  return null;
+}
+
+/** Valeur ajoutée, signée quand elle est connue : « +2 », sinon « + 1d4 ». */
+const ajoutSigne = (v: Valeur | string) => (typeof v === 'number' ? signe(v) : `+ ${v}`);
+
+/** Ce qu'un effet ajoute au jet : dés, amélioration, variable, bonus (sinon null). */
+function texteAjout(fiche: Fiche, e: EffetJetObjet, nombre: NombreEffet): string | null {
+  const a = e.ajout;
+  const n = (brut: string) => nombre('ajout/nombre', brut);
+  const de = (id: string) => nomDe(fiche.systeme, id);
+  if (a && 'de' in a) return `+${n(a.nombre)} ${de(a.de)}`;
+  if (a && 'ameliorer' in a) return `${de(a.ameliorer)} → ${de(a.vers)} ×${n(a.nombre)}`;
+  if (a && 'retrograder' in a) return `${de(a.retrograder)} → ${de(a.vers)} ×${n(a.nombre)}`;
+  if (a && 'retirer' in a) return `−${n(a.nombre)} ${de(a.retirer)}`;
+  if (a && 'variable' in a)
+    return `${a.variable} ${ajoutSigne(nombre('ajout/ajouter', a.ajouter))}`;
+  if (a && 'bonus' in a) return `${ajoutSigne(nombre('ajout/bonus', a.bonus))} au jet`;
+  return null;
+}
+
+/** Ce que vise un effet de jet : entrée ou attribut impliqué, ou son action unique. */
+function cibleJet(fiche: Fiche, e: EffetJetObjet): string | undefined {
+  if (e.implique?.entree) return fiche.systeme.entrees.get(e.implique.entree)?.nom;
+  if (e.implique?.attribut) return nomAttribut(fiche, e.implique.attribut);
+  if (e.actions?.length === 1) return fiche.systeme.actions.get(e.actions[0]!)?.nom;
+  return undefined;
+}
+
+/** Effet sur un jet : sa description, sinon l'ajout, ce qu'il vise et le côté. */
+function libelleJet(fiche: Fiche, e: EffetJetObjet, nombre: NombreEffet): string {
+  if (e.description) return e.description;
+  const texte = texteAjout(fiche, e, nombre);
+  if (!texte) return 'Modifie certains jets';
+  const cible = cibleJet(fiche, e);
+  const cote = e.cote === 'cible' ? ' (en défense)' : '';
+  return cible ? `${texte} · ${cible}${cote}` : `${texte}${cote}`;
+}
+
 /** Libellé d'un effet d'entrée ou d'exemplaire, valeurs évaluées quand c'est possible. */
 export function libelleEffet(
   fiche: Fiche,
@@ -151,50 +222,10 @@ export function libelleEffet(
     return v === undefined ? brut : arrondi(v);
   };
   switch (e.sur) {
-    case 'attribut': {
-      const nom = nomAttribut(fiche, e.attribut);
-      const v = nombre('valeur', e.valeur);
-      switch (e.operation) {
-        case 'ajouter':
-          return typeof v === 'number' ? `${nom} ${signe(v)}` : `${nom} + ${v}`;
-        case 'multiplier':
-          return `${nom} ×${v}`;
-        case 'fixer':
-          return `${nom} = ${v}`;
-        case 'minimum':
-          return `${nom} ≥ ${v}`;
-        case 'maximum':
-          return `${nom} ≤ ${v}`;
-      }
-      return null;
-    }
-    case 'jet': {
-      if (e.description) return e.description;
-      const a = e.ajout;
-      let texte: string | null = null;
-      if (a && 'de' in a)
-        texte = `+${nombre('ajout/nombre', a.nombre)} ${nomDe(fiche.systeme, a.de)}`;
-      else if (a && 'ameliorer' in a)
-        texte = `${nomDe(fiche.systeme, a.ameliorer)} → ${nomDe(fiche.systeme, a.vers)} ×${nombre('ajout/nombre', a.nombre)}`;
-      else if (a && 'retrograder' in a)
-        texte = `${nomDe(fiche.systeme, a.retrograder)} → ${nomDe(fiche.systeme, a.vers)} ×${nombre('ajout/nombre', a.nombre)}`;
-      else if (a && 'retirer' in a)
-        texte = `−${nombre('ajout/nombre', a.nombre)} ${nomDe(fiche.systeme, a.retirer)}`;
-      else if (a && 'variable' in a) {
-        const v = nombre('ajout/ajouter', a.ajouter);
-        texte = `${a.variable} ${typeof v === 'number' ? signe(v) : `+ ${v}`}`;
-      } else if (a && 'bonus' in a) {
-        const v = nombre('ajout/bonus', a.bonus);
-        texte = `${typeof v === 'number' ? signe(v) : `+ ${v}`} au jet`;
-      }
-      if (!texte) return 'Modifie certains jets';
-      let cible: string | undefined;
-      if (e.implique?.entree) cible = fiche.systeme.entrees.get(e.implique.entree)?.nom;
-      else if (e.implique?.attribut) cible = nomAttribut(fiche, e.implique.attribut);
-      else if (e.actions?.length === 1) cible = fiche.systeme.actions.get(e.actions[0]!)?.nom;
-      const cote = e.cote === 'cible' ? ' (en défense)' : '';
-      return cible ? `${texte} · ${cible}${cote}` : `${texte}${cote}`;
-    }
+    case 'attribut':
+      return libelleAttribut(fiche, e, nombre);
+    case 'jet':
+      return libelleJet(fiche, e, nombre);
     case 'degats': {
       if (e.operation === 'annuler') return e.description ?? 'Immunité';
       const v = nombre('valeur', e.valeur);
@@ -337,6 +368,44 @@ export interface ChargeInventaire {
   charges: Charge[];
 }
 
+type AttributFiche = Fiche['entite']['attributs'] extends ReadonlyMap<string, infer A> ? A : never;
+type FormuleAttribut = (cle: string) => ReturnType<SystemeCharge['formules']['get']>;
+
+/** Sorte et champ numérique additionnés par un agrégat de charge, sinon null. */
+function champAgrege(
+  systeme: SystemeCharge,
+  sortes: readonly string[],
+  n: Noeud,
+): { sorte: string; champ: Champ } | null {
+  if (n.t !== 'appel' || !AGREGATS_CHARGE.has(n.fn)) return null;
+  const [s, c] = n.args;
+  if (s?.t !== 'texte' || c?.t !== 'texte' || !sortes.includes(s.v)) return null;
+  const sorte = systeme.sortes.get(s.v);
+  const champ = sorte?.champs.find((x) => x.id === c.v);
+  if (!sorte || champ?.type !== 'nombre') return null;
+  if (n.fn === 'somme_actifs' && !sorte.activable) return null;
+  return { sorte: s.v, champ };
+}
+
+/** Seuil lu avec la charge par un attribut qui en dépend : même groupe, premier nombre. */
+function limiteDe(
+  fiche: Fiche,
+  a: AttributFiche,
+  dependants: AttributFiche[],
+  formule: FormuleAttribut,
+  visible: (a: AttributFiche) => boolean,
+): Charge['limite'] {
+  for (const d of dependants) {
+    for (const cle of formule(d.cle)?.dependances ?? []) {
+      const l = fiche.entite.attributs.get(cle);
+      if (!l || l.cle === a.cle || l.groupe !== a.groupe || !visible(l)) continue;
+      const v = fiche.valeur(cle);
+      if (typeof v === 'number') return { cle, nom: l.nom, valeur: arrondiCharge(v) };
+    }
+  }
+  return undefined;
+}
+
 /**
  * Charge déclarée par le système : un attribut dérivé dont la formule additionne
  * (`somme_actifs` ou `somme`) un champ numérique des objets d'une sorte de l'inventaire.
@@ -363,30 +432,16 @@ export function chargeInventaire(
     if (!f) continue;
     let lit = false;
     parcourir(f.noeud, (n) => {
-      if (n.t !== 'appel' || !AGREGATS_CHARGE.has(n.fn)) return;
-      const [s, c] = n.args;
-      if (s?.t !== 'texte' || c?.t !== 'texte' || !sortes.includes(s.v)) return;
-      const sorte = systeme.sortes.get(s.v);
-      const champ = sorte?.champs.find((x) => x.id === c.v);
-      if (!sorte || champ?.type !== 'nombre') return;
-      if (n.fn === 'somme_actifs' && !sorte.activable) return;
-      champs.set(s.v, champ);
+      const lu = champAgrege(systeme, sortes, n);
+      if (!lu) return;
+      champs.set(lu.sorte, lu.champ);
       lit = true;
     });
     if (!lit) continue;
     const dependants = [...entite.attributs.values()].filter(
       (d) => d.cle !== a.cle && visible(d) && formule(d.cle)?.dependances.has(a.cle) === true,
     );
-    let limite: Charge['limite'];
-    for (const d of dependants) {
-      for (const cle of formule(d.cle)?.dependances ?? []) {
-        const l = entite.attributs.get(cle);
-        if (!l || l.cle === a.cle || l.groupe !== a.groupe || !visible(l)) continue;
-        const v = fiche.valeur(cle);
-        if (typeof v === 'number' && !limite)
-          limite = { cle, nom: l.nom, valeur: arrondiCharge(v) };
-      }
-    }
+    const limite = limiteDe(fiche, a, dependants, formule, visible);
     const alertes = dependants
       .map((d) => ({ cle: d.cle, nom: d.nom, valeur: fiche.valeur(d.cle) }))
       .filter((d) => d.valeur === true || (typeof d.valeur === 'number' && d.valeur > 0))
@@ -630,6 +685,52 @@ export interface ChampAffiche {
   brut: ValeurChamp | undefined;
 }
 
+/** Formule lisible (« 1d8+FOR »), et son aperçu pour ce personnage s'il en diffère. */
+function valeurFormule(
+  fiche: Fiche,
+  entree: Entree,
+  sorte: Sorte,
+  c: Champ,
+  v: ValeurChamp,
+  possession: Possession | undefined,
+): string {
+  const f = formuleChamp(fiche.systeme, entree, c, possession, fiche.entite.type.id);
+  if (!f) return String(v);
+  const vars = variablesObjet(
+    entree,
+    sorte,
+    { rang: 0, actif: true, quantite: possession ? quantiteDe(possession) : 1 },
+    possession,
+  );
+  const lisible = formuleLisible(fiche.systeme, fiche.entite.type.id, f.noeud, vars);
+  const apercu = apercuFormule(fiche, f, vars);
+  return apercu !== lisible ? `${lisible} (${apercu})` : lisible;
+}
+
+/** Valeur lisible d'un champ : noms des entrées, formule et aperçu, oui ou non ; vide : null. */
+function valeurLisible(
+  fiche: Fiche,
+  entree: Entree,
+  sorte: Sorte,
+  c: Champ,
+  v: ReturnType<typeof champDe>,
+  possession: Possession | undefined,
+): string | null {
+  if (Array.isArray(v))
+    return v.map((id) => fiche.systeme.entrees.get(id)?.nom ?? id).join(', ') || null;
+  if (v === undefined || v === '') return null;
+  if (c.type === 'entree' || c.type === 'attribut' || c.type === 'choix')
+    return nomValeurChamp(fiche.systeme, c, String(v));
+  if (c.type === 'formule') return valeurFormule(fiche, entree, sorte, c, v, possession);
+  if (typeof v === 'boolean') return v ? 'oui' : 'non';
+  return String(v);
+}
+
+/** Booléen faux et nombre nul du catalogue : sans intérêt, sauf valeur propre. */
+function sansInteret(c: Champ, v: ReturnType<typeof champDe>, propre: boolean): boolean {
+  return !propre && ((c.type === 'booleen' && v === false) || (c.type === 'nombre' && v === 0));
+}
+
 /** Champs d'une entrée pour une possession : valeurs propres de l'exemplaire comprises. */
 export function champsAffiches(
   fiche: Fiche,
@@ -645,32 +746,8 @@ export function champsAffiches(
     const modifiable =
       c.type === 'nombre' || c.type === 'texte' || c.type === 'booleen' || c.type === 'choix';
     const identite = c.id === sorte.nomExemplaire || c.id === sorte.descriptionExemplaire;
-    let valeur: string | null;
-    if (Array.isArray(v))
-      valeur = v.map((id) => fiche.systeme.entrees.get(id)?.nom ?? id).join(', ') || null;
-    else if (v === undefined || v === '') valeur = null;
-    else if (c.type === 'entree' || c.type === 'attribut' || c.type === 'choix')
-      valeur = nomValeurChamp(fiche.systeme, c, String(v));
-    else if (c.type === 'formule') {
-      // Formule lisible (« 1d8+FOR »), et son aperçu pour ce personnage s'il en diffère
-      const f = formuleChamp(fiche.systeme, entree, c, possession, fiche.entite.type.id);
-      if (f) {
-        const vars = variablesObjet(
-          entree,
-          sorte,
-          { rang: 0, actif: true, quantite: possession ? quantiteDe(possession) : 1 },
-          possession,
-        );
-        const lisible = formuleLisible(fiche.systeme, fiche.entite.type.id, f.noeud, vars);
-        const apercu = apercuFormule(fiche, f, vars);
-        valeur = apercu !== lisible ? `${lisible} (${apercu})` : lisible;
-      } else valeur = String(v);
-    } else if (typeof v === 'boolean') valeur = v ? 'oui' : 'non';
-    else valeur = String(v);
-    // Booléen faux et nombre nul du catalogue : sans intérêt, sauf valeur propre
-    const vide =
-      valeur === null ||
-      (!propre && ((c.type === 'booleen' && v === false) || (c.type === 'nombre' && v === 0)));
+    const valeur = valeurLisible(fiche, entree, sorte, c, v, possession);
+    const vide = valeur === null || sansInteret(c, v, propre);
     if (vide && !modifiable) continue;
     r.push({
       champ: c,
@@ -701,20 +778,52 @@ export interface CatalogueEntry {
   achat?: ObjetAchetable;
 }
 
-/** Entrées du catalogue des sortes du widget, avec ce que donnerait leur ajout ou leur achat. */
-export function buildCatalogue(fiche: Fiche, widget: InventoryWidget): CatalogueEntry[] {
-  const { systeme, etat } = fiche;
+/** Objets achetables des sortes du widget, par entrée (le premier achat qui la donne). */
+function achatsDuWidget(fiche: Fiche, widget: InventoryWidget): Map<string, ObjetAchetable> {
   const achats = new Map<string, ObjetAchetable>();
   for (const d of achatsPossibles(fiche)) {
     if (d.achat.obtient.type !== 'entree' || !widget.sortes.includes(d.achat.obtient.sorte))
       continue;
     for (const o of d.objets) if (!achats.has(o.objet)) achats.set(o.objet, o);
   }
+  return achats;
+}
+
+/** Nombre d'exemplaires possédés par sorte. */
+function possessionsParSorte(fiche: Fiche): Map<string, number> {
   const parSorte = new Map<string, number>();
-  for (const p of etat.possessions) {
-    const s = systeme.entrees.get(p.entree)?.sorte;
+  for (const p of fiche.etat.possessions) {
+    const s = fiche.systeme.entrees.get(p.entree)?.sorte;
     if (s) parSorte.set(s, (parSorte.get(s) ?? 0) + 1);
   }
+  return parSorte;
+}
+
+/** Pourquoi l'ajout libre est impossible : entrée unique déjà possédée, maximum de la sorte. */
+function blocageAjout(
+  sorte: Sorte,
+  possedes: number,
+  parSorte: Map<string, number>,
+): string | undefined {
+  const ajouteUnite = sorte.quantites && possedes > 0;
+  if (possedes && !sorte.exemplaires && !sorte.quantites) return 'Déjà possédé';
+  if (!ajouteUnite && sorte.maximum !== undefined && (parSorte.get(sorte.id) ?? 0) >= sorte.maximum)
+    return `Maximum de ${sorte.maximum} atteint`;
+  return undefined;
+}
+
+/** Prérequis de l'entrée évalués et non remplis. */
+function exigeNonRempli(fiche: Fiche, entree: Entree): boolean {
+  const exige = fiche.systeme.formules.get(chemins.exige(entree.id));
+  const ok = exige ? essayer(fiche, exige) : undefined;
+  return Boolean(ok && !(ok.ok && ok.valeur === true));
+}
+
+/** Entrées du catalogue des sortes du widget, avec ce que donnerait leur ajout ou leur achat. */
+export function buildCatalogue(fiche: Fiche, widget: InventoryWidget): CatalogueEntry[] {
+  const { systeme, etat } = fiche;
+  const achats = achatsDuWidget(fiche, widget);
+  const parSorte = possessionsParSorte(fiche);
   const r: CatalogueEntry[] = [];
   for (const entree of systeme.entrees.values()) {
     // Entrée générique d'objets hors catalogue : proposée par l'ajout d'un objet personnalisé
@@ -722,26 +831,15 @@ export function buildCatalogue(fiche: Fiche, widget: InventoryWidget): Catalogue
     const sorte = systeme.sortes.get(entree.sorte);
     if (!sorte?.pour.includes(etat.type)) continue;
     const siens = etat.possessions.filter((p) => p.entree === entree.id);
-    const possede = siens.reduce((n, p) => n + quantiteDe(p), 0);
-    let bloque: string | undefined;
-    const ajouteUnite = sorte.quantites && siens.length > 0;
-    if (siens.length && !sorte.exemplaires && !sorte.quantites) bloque = 'Déjà possédé';
-    else if (
-      !ajouteUnite &&
-      sorte.maximum !== undefined &&
-      (parSorte.get(sorte.id) ?? 0) >= sorte.maximum
-    )
-      bloque = `Maximum de ${sorte.maximum} atteint`;
-    const exige = systeme.formules.get(chemins.exige(entree.id));
-    const ok = exige ? essayer(fiche, exige) : undefined;
+    const bloque = blocageAjout(sorte, siens.length, parSorte);
     const achat = achats.get(entree.id);
     r.push({
       entree,
       sorte,
       categorie: categorieDe(fiche, widget, entree, sorte),
-      possede,
+      possede: siens.reduce((n, p) => n + quantiteDe(p), 0),
       ...(bloque ? { bloque } : {}),
-      exigeNonRempli: Boolean(ok && !(ok.ok && ok.valeur === true)),
+      exigeNonRempli: exigeNonRempli(fiche, entree),
       ...(achat ? { achat } : {}),
     });
   }
@@ -881,24 +979,30 @@ export function pileDe(etat: EtatEntite, entree: string): Possession | undefined
  * état équipé, sa visibilité et son dossier. Seul ce qui diffère de l'entrée est envoyé.
  * `empiler` : des unités de plus sur l'exemplaire déjà possédé.
  */
-export function ajouterLibre(etat: EtatEntite, modele: ModeleLibre, saisie: SaisieLibre): Ecriture {
-  const { entree, sorte } = modele;
-  const pile = saisie.empiler && sorte.quantites ? pileDe(etat, entree.id) : undefined;
-  if (pile) {
-    const quantite = quantiteDe(pile) + Math.max(1, Math.floor(saisie.quantite));
-    return {
-      demande: {
-        entree: entree.id,
-        ...(pile.exemplaire !== undefined ? { exemplaire: pile.exemplaire } : {}),
-        quantite,
-      },
-      apercu: avecPossessions(
-        etat,
-        etat.possessions.map((p) => (p === pile ? { ...p, quantite } : p)),
-      ),
-    };
-  }
+/** Unités ajoutées au dernier exemplaire possédé (sorte en quantités). */
+function empilerUnites(
+  etat: EtatEntite,
+  entree: Entree,
+  pile: Possession,
+  saisie: SaisieLibre,
+): Ecriture {
+  const quantite = quantiteDe(pile) + Math.max(1, Math.floor(saisie.quantite));
+  return {
+    demande: {
+      entree: entree.id,
+      ...(pile.exemplaire !== undefined ? { exemplaire: pile.exemplaire } : {}),
+      quantite,
+    },
+    apercu: avecPossessions(
+      etat,
+      etat.possessions.map((p) => (p === pile ? { ...p, quantite } : p)),
+    ),
+  };
+}
 
+/** Valeurs propres saisies : champs, puis nom, description et catégorie s'ils diffèrent de l'entrée. */
+function champsSaisis(modele: ModeleLibre, saisie: SaisieLibre): Record<string, ValeurChamp> {
+  const { entree, sorte } = modele;
   const champs: Record<string, ValeurChamp> = { ...saisie.champs };
   const nom = saisie.nom.trim();
   if (sorte.nomExemplaire && nom && nom !== entree.nom) champs[sorte.nomExemplaire] = nom;
@@ -911,17 +1015,32 @@ export function ajouterLibre(etat: EtatEntite, modele: ModeleLibre, saisie: Sais
     saisie.categorie !== champDe(entree, modele.categorie.champ)
   )
     champs[modele.categorie.champ.id] = saisie.categorie;
+  return champs;
+}
+
+/** Réglages du nouvel exemplaire, seulement ceux qui diffèrent des valeurs par défaut. */
+function reglagesSaisis(modele: ModeleLibre, saisie: SaisieLibre) {
+  const { sorte } = modele;
+  const champs = champsSaisis(modele, saisie);
   const quantite = sorte.quantites && saisie.quantite > 1 ? saisie.quantite : undefined;
   const effets = saisie.effets?.length ? saisie.effets : undefined;
-  const deja = etat.possessions.some((p) => p.entree === entree.id);
-  const exemplaire = deja ? nouvelExemplaire(etat.possessions, entree.id) : undefined;
-  const reglages = {
+  return {
     ...(Object.keys(champs).length ? { champs } : {}),
     ...(quantite !== undefined ? { quantite } : {}),
     ...(effets ? { effets } : {}),
     ...(sorte.activable && saisie.actif === false ? { actif: false } : {}),
     ...(saisie.hidden ? { hidden: true } : {}),
   };
+}
+
+export function ajouterLibre(etat: EtatEntite, modele: ModeleLibre, saisie: SaisieLibre): Ecriture {
+  const { entree, sorte } = modele;
+  const pile = saisie.empiler && sorte.quantites ? pileDe(etat, entree.id) : undefined;
+  if (pile) return empilerUnites(etat, entree, pile, saisie);
+
+  const deja = etat.possessions.some((p) => p.entree === entree.id);
+  const exemplaire = deja ? nouvelExemplaire(etat.possessions, entree.id) : undefined;
+  const reglages = reglagesSaisis(modele, saisie);
   const folder =
     saisie.folder === null || etat.folders.some((f) => f.id === saisie.folder)
       ? saisie.folder
