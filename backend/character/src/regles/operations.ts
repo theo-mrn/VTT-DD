@@ -40,11 +40,13 @@ import {
   terminerCreation,
   tirerEtape,
   type Attribut,
+  type Entree,
   type Fiche,
   type Generateur,
   type Possession,
   type ResultatAction,
   type Saisisseur,
+  type Sorte,
   type SystemeCharge,
   type Valeur,
 } from '@vtt/rules';
@@ -132,17 +134,21 @@ export function verifierEtat(
 const VALEUR = z.union([z.number().finite(), z.string().max(10_000), z.boolean()]);
 export const Valeurs = z.record(z.string().min(1).max(100), VALEUR);
 
+/** Erreur d'une valeur numérique (base, ressource) : nombre dans les bornes de la fiche. */
+function erreurNombre(fiche: Fiche, a: Attribut, v: Valeur): string | undefined {
+  if (typeof v !== 'number') return `${a.nom} : nombre attendu`;
+  const c = fiche.valeurs.get(a.cle);
+  if (c?.min !== undefined && v < c.min) return `${a.nom} : ${v} inférieur au minimum ${c.min}`;
+  if (c?.max !== undefined && v > c.max) return `${a.nom} : ${v} supérieur au maximum ${c.max}`;
+  return undefined;
+}
+
 /** Erreur d'une valeur saisie pour un attribut, bornes lues sur la fiche recalculée. */
 function erreurValeur(fiche: Fiche, a: Attribut, v: Valeur): string | undefined {
   switch (a.nature) {
     case 'base':
-    case 'ressource': {
-      if (typeof v !== 'number') return `${a.nom} : nombre attendu`;
-      const c = fiche.valeurs.get(a.cle);
-      if (c?.min !== undefined && v < c.min) return `${a.nom} : ${v} inférieur au minimum ${c.min}`;
-      if (c?.max !== undefined && v > c.max) return `${a.nom} : ${v} supérieur au maximum ${c.max}`;
-      return undefined;
-    }
+    case 'ressource':
+      return erreurNombre(fiche, a, v);
     case 'texte':
       return typeof v === 'string' ? undefined : `${a.nom} : texte attendu`;
     case 'choix':
@@ -241,6 +247,42 @@ export interface EtapeAppliquee {
 }
 
 /**
+ * Étape « tirer » : tirage gardé en attente de répartition, ou attribué
+ * (tirage en attente rejoué à l'identique).
+ */
+function appliquerTirage(
+  systeme: SystemeCharge,
+  etat: EtatEntite,
+  etapeId: string,
+  corps: unknown,
+  aleatoire: Generateur,
+  enAttente: { etape: string; des: number[] } | null,
+): EtapeAppliquee {
+  const { affectation } = lireCorps(CorpsEtape.tirer, corps);
+  // Répartition d'un tirage en attente : il est rejoué à l'identique
+  const rejeu = affectation && enAttente?.etape === etapeId;
+  const r = tirerEtape(systeme, etat, etapeId, rejeu ? aleatoireImpose(enAttente.des) : aleatoire);
+  if (!r.ok) throw refus(r.erreur);
+  // Tirage complet (dés compris) : l'historique garde la preuve du jet
+  const details = {
+    attributs: r.attributs,
+    retenu: r.retenu,
+    essais: r.tirages.length,
+    ...(rejeu ? { repartition: affectation } : {}),
+  };
+  if (!affectation && r.attribution === 'libre' && r.attributs.length > 1) {
+    const des = r.retenu.jets.flatMap((j) => j.flatMap((x) => x.des.map((d) => d.valeur)));
+    return { etat, details, enAttente: { etape: etapeId, des } };
+  }
+  // Attribution libre d'une seule valeur (dé de vie…) : elle ne peut aller qu'à cet attribut
+  const seule =
+    !affectation && r.attribution === 'libre' && r.attributs.length === 1
+      ? { [r.attributs[0]!]: 0 }
+      : affectation;
+  return { etat: ouRefus(r.attribuer(seule)), details, enAttente: null };
+}
+
+/**
  * Applique une étape de création, avec le corps propre à son type.
  *
  * Étape « tirer » en attribution libre sur plusieurs attributs : sans
@@ -280,35 +322,8 @@ export function appliquerEtape(
       const { valeurs } = lireCorps(CorpsEtape.saisir, corps);
       return { etat: ouRefus(saisirEtape(systeme, etat, etape.id, valeurs)), details: {} };
     }
-    case 'tirer': {
-      const { affectation } = lireCorps(CorpsEtape.tirer, corps);
-      // Répartition d'un tirage en attente : il est rejoué à l'identique
-      const rejeu = affectation && enAttente?.etape === etape.id;
-      const r = tirerEtape(
-        systeme,
-        etat,
-        etape.id,
-        rejeu ? aleatoireImpose(enAttente.des) : aleatoire,
-      );
-      if (!r.ok) throw refus(r.erreur);
-      // Tirage complet (dés compris) : l'historique garde la preuve du jet
-      const details = {
-        attributs: r.attributs,
-        retenu: r.retenu,
-        essais: r.tirages.length,
-        ...(rejeu ? { repartition: affectation } : {}),
-      };
-      if (!affectation && r.attribution === 'libre' && r.attributs.length > 1) {
-        const des = r.retenu.jets.flatMap((j) => j.flatMap((x) => x.des.map((d) => d.valeur)));
-        return { etat, details, enAttente: { etape: etape.id, des } };
-      }
-      // Attribution libre d'une seule valeur (dé de vie…) : elle ne peut aller qu'à cet attribut
-      const seule =
-        !affectation && r.attribution === 'libre' && r.attributs.length === 1
-          ? { [r.attributs[0]!]: 0 }
-          : affectation;
-      return { etat: ouRefus(r.attribuer(seule)), details, enAttente: null };
-    }
+    case 'tirer':
+      return appliquerTirage(systeme, etat, etape.id, corps, aleatoire, enAttente);
     case 'acheter': {
       const { achat, objet } = lireCorps(CorpsEtape.acheter, corps);
       const r = acheterEtape(systeme, etat, etape.id, { achat, objet, date });
@@ -429,23 +444,12 @@ export interface PossessionPosee {
   cree: boolean;
 }
 
-/**
- * Ajoute une possession (objet, état, capacité…) ou met à jour un exemplaire
- * existant : seuls les champs fournis changent. Exemplaire visé :
- * - `nouveau: true` : un exemplaire de plus (sorte `exemplaires` si l'entrée
- *   est déjà possédée), d'identifiant `exemplaire`, ou généré
- *   (`nouvelExemplaire` : `2`, `3`…) ;
- * - sinon, l'exemplaire `exemplaire` (404 s'il n'existe pas) ou, sans
- *   `exemplaire`, celui sans identifiant, créé s'il n'existe pas.
- * `quantite` demande une sorte `quantites`, `exemplaire` une sorte
- * `exemplaires`. Les choix sont vérifiés contre ceux que l'entrée déclare ;
- * le reste (prérequis, effets) est recalculé.
- */
-export function poserPossession(
+/** Refuse une demande que l'entrée ou sa sorte ne permet pas ; renvoie l'entrée et sa sorte. */
+function verifierDemandePossession(
   systeme: SystemeCharge,
   etat: EtatEntite,
   d: DemandePossession,
-): PossessionPosee {
+): { entree: Entree; sorte: Sorte } {
   const entree = systeme.entrees.get(d.entree);
   if (!entree) throw refus(`Entrée inconnue : ${d.entree}`, 'entree_inconnue');
   const sorte = systeme.sortes.get(entree.sorte)!;
@@ -465,30 +469,56 @@ export function poserPossession(
     if (!entree.choix.some((c) => c.id === k) && !entree.choixAttributs.some((c) => c.id === k))
       throw refus(`${entree.nom} : choix inconnu ${k}`);
   }
+  return { entree, sorte };
+}
 
-  const possessions = etat.possessions.map((p) => ({ ...p }));
-  const siens = possessions.filter((p) => p.entree === d.entree);
-  let existante: Possession | undefined;
-  let exemplaire = d.exemplaire;
-  if (d.nouveau) {
-    if (siens.length && !sorte.exemplaires)
-      throw refus(
-        `${entree.nom} est déjà possédé et ne se possède qu’une fois (${sorte.nom})`,
-        'exemplaires_refuses',
-      );
-    if (exemplaire !== undefined && siens.some((p) => estExemplaire(p, d.entree, exemplaire)))
-      throw refus(`${nomExemplaire(entree.nom, exemplaire)} existe déjà`, 'exemplaire_existant');
-    if (exemplaire === undefined && siens.length)
-      exemplaire = nouvelExemplaire(possessions, d.entree);
-  } else {
-    existante = sorte.exemplaires
-      ? siens.find((p) => estExemplaire(p, d.entree, exemplaire))
-      : siens[0];
-    if (!existante && exemplaire !== undefined)
-      throw exemplaireIntrouvable(entree.nom, exemplaire, siens);
-    if (existante) exemplaire = existante.exemplaire;
-  }
+/** Identifiant d'un exemplaire ajouté (`nouveau`) : celui demandé, ou généré si l'entrée est déjà possédée. */
+function exemplaireNouveau(
+  entree: Entree,
+  sorte: Sorte,
+  d: DemandePossession,
+  possessions: readonly Possession[],
+  siens: readonly Possession[],
+): string | undefined {
+  const exemplaire = d.exemplaire;
+  if (siens.length && !sorte.exemplaires)
+    throw refus(
+      `${entree.nom} est déjà possédé et ne se possède qu’une fois (${sorte.nom})`,
+      'exemplaires_refuses',
+    );
+  if (exemplaire !== undefined && siens.some((p) => estExemplaire(p, d.entree, exemplaire)))
+    throw refus(`${nomExemplaire(entree.nom, exemplaire)} existe déjà`, 'exemplaire_existant');
+  if (exemplaire === undefined && siens.length) return nouvelExemplaire(possessions, d.entree);
+  return exemplaire;
+}
 
+/** Exemplaire existant visé ; 404 si l'identifiant demandé n'existe pas. */
+function exemplaireExistant(
+  entree: Entree,
+  sorte: Sorte,
+  d: DemandePossession,
+  siens: readonly Possession[],
+): Possession | undefined {
+  const existante = sorte.exemplaires
+    ? siens.find((p) => estExemplaire(p, d.entree, d.exemplaire))
+    : siens[0];
+  if (!existante && d.exemplaire !== undefined)
+    throw exemplaireIntrouvable(entree.nom, d.exemplaire, siens);
+  return existante;
+}
+
+/**
+ * Vérifie les effets, valeurs propres et dossier demandés ; renvoie les valeurs
+ * propres normalisées.
+ */
+function verifierContenu(
+  systeme: SystemeCharge,
+  etat: EtatEntite,
+  d: DemandePossession,
+  entree: Entree,
+  sorte: Sorte,
+  exemplaire: string | undefined,
+): DemandePossession['champs'] {
   if (d.effets !== undefined)
     verifierEffetsPoses(
       systeme,
@@ -506,46 +536,59 @@ export function poserPossession(
   }
   if (d.folder != null && !etat.folders.some((f) => f.id === d.folder))
     throw refus(`Dossier d’inventaire inconnu : ${d.folder}`, 'dossier_inconnu');
-  /** Dossier et masquage : `folder: null` range l'exemplaire à la racine. */
-  const rangement = (p: Possession) => {
-    if (d.hidden !== undefined) {
-      if (d.hidden) p.hidden = true;
-      else delete p.hidden;
-    }
-    if (d.folder !== undefined) {
-      if (d.folder === null) delete p.folder;
-      else p.folder = d.folder;
-    }
-  };
+  return champs;
+}
 
-  if (existante) {
-    // Effets propres remplacés : les effets coupés suivent leur effet (positions décalées)
-    const effetsDesactives =
-      d.effets !== undefined
-        ? reporterEffetsDesactives(
-            etat.effetsDesactives,
-            sourceExemplaire(existante),
-            existante.effets,
-            d.effets,
-          )
-        : etat.effetsDesactives;
-    if (d.effets !== undefined) existante.effets = d.effets;
-    if (d.rang !== undefined) existante.rang = d.rang;
-    if (d.actif !== undefined) existante.actif = d.actif;
-    if (d.choix !== undefined) existante.choix = d.choix;
-    if (champs !== undefined) existante.champs = { ...existante.champs, ...champs };
-    if (d.quantite !== undefined) existante.quantite = d.quantite;
-    if (d.duree === null) delete existante.duree;
-    else if (d.duree !== undefined) existante.duree = d.duree;
-    rangement(existante);
-    return {
-      etat: { ...etat, possessions, effetsDesactives },
-      ...(exemplaire !== undefined ? { exemplaire } : {}),
-      cree: false,
-    };
+/** Dossier et masquage : `folder: null` range l'exemplaire à la racine. */
+function ranger(d: DemandePossession, p: Possession): void {
+  if (d.hidden !== undefined) {
+    if (d.hidden) p.hidden = true;
+    else delete p.hidden;
   }
+  if (d.folder !== undefined) {
+    if (d.folder === null) delete p.folder;
+    else p.folder = d.folder;
+  }
+}
 
-  // Chaque exemplaire compte dans le maximum de la sorte
+/** Met à jour un exemplaire existant avec les champs fournis ; renvoie les effets coupés à jour. */
+function modifierExistante(
+  etat: EtatEntite,
+  existante: Possession,
+  d: DemandePossession,
+  champs: DemandePossession['champs'],
+): EtatEntite['effetsDesactives'] {
+  // Effets propres remplacés : les effets coupés suivent leur effet (positions décalées)
+  const effetsDesactives =
+    d.effets !== undefined
+      ? reporterEffetsDesactives(
+          etat.effetsDesactives,
+          sourceExemplaire(existante),
+          existante.effets,
+          d.effets,
+        )
+      : etat.effetsDesactives;
+  if (d.effets !== undefined) existante.effets = d.effets;
+  if (d.rang !== undefined) existante.rang = d.rang;
+  if (d.actif !== undefined) existante.actif = d.actif;
+  if (d.choix !== undefined) existante.choix = d.choix;
+  if (champs !== undefined) existante.champs = { ...existante.champs, ...champs };
+  if (d.quantite !== undefined) existante.quantite = d.quantite;
+  if (d.duree === null) delete existante.duree;
+  else if (d.duree !== undefined) existante.duree = d.duree;
+  ranger(d, existante);
+  return effetsDesactives;
+}
+
+/** Nouvel exemplaire ; chaque exemplaire compte dans le maximum de la sorte. */
+function creerExemplaire(
+  systeme: SystemeCharge,
+  sorte: Sorte,
+  possessions: readonly Possession[],
+  d: DemandePossession,
+  champs: DemandePossession['champs'],
+  exemplaire: string | undefined,
+): Possession {
   const nombre = possessions.filter(
     (p) => systeme.entrees.get(p.entree)?.sorte === sorte.id,
   ).length;
@@ -560,8 +603,51 @@ export function poserPossession(
     ...(d.quantite !== undefined ? { quantite: d.quantite } : {}),
     ...(d.duree != null ? { duree: d.duree } : {}),
   });
-  rangement(nouvelle);
-  possessions.push(nouvelle);
+  ranger(d, nouvelle);
+  return nouvelle;
+}
+
+/**
+ * Ajoute une possession (objet, état, capacité…) ou met à jour un exemplaire
+ * existant : seuls les champs fournis changent. Exemplaire visé :
+ * - `nouveau: true` : un exemplaire de plus (sorte `exemplaires` si l'entrée
+ *   est déjà possédée), d'identifiant `exemplaire`, ou généré
+ *   (`nouvelExemplaire` : `2`, `3`…) ;
+ * - sinon, l'exemplaire `exemplaire` (404 s'il n'existe pas) ou, sans
+ *   `exemplaire`, celui sans identifiant, créé s'il n'existe pas.
+ * `quantite` demande une sorte `quantites`, `exemplaire` une sorte
+ * `exemplaires`. Les choix sont vérifiés contre ceux que l'entrée déclare ;
+ * le reste (prérequis, effets) est recalculé.
+ */
+export function poserPossession(
+  systeme: SystemeCharge,
+  etat: EtatEntite,
+  d: DemandePossession,
+): PossessionPosee {
+  const { entree, sorte } = verifierDemandePossession(systeme, etat, d);
+
+  const possessions = etat.possessions.map((p) => ({ ...p }));
+  const siens = possessions.filter((p) => p.entree === d.entree);
+  let existante: Possession | undefined;
+  let exemplaire = d.exemplaire;
+  if (d.nouveau) exemplaire = exemplaireNouveau(entree, sorte, d, possessions, siens);
+  else {
+    existante = exemplaireExistant(entree, sorte, d, siens);
+    if (existante) exemplaire = existante.exemplaire;
+  }
+
+  const champs = verifierContenu(systeme, etat, d, entree, sorte, exemplaire);
+
+  if (existante) {
+    const effetsDesactives = modifierExistante(etat, existante, d, champs);
+    return {
+      etat: { ...etat, possessions, effetsDesactives },
+      ...(exemplaire !== undefined ? { exemplaire } : {}),
+      cree: false,
+    };
+  }
+
+  possessions.push(creerExemplaire(systeme, sorte, possessions, d, champs, exemplaire));
   return {
     etat: { ...etat, possessions },
     ...(exemplaire !== undefined ? { exemplaire } : {}),
@@ -909,6 +995,56 @@ export interface ActionResolue {
 const messageErreurs = (erreurs: { parametre?: string; message: string }[]) =>
   erreurs.map((e) => (e.parametre ? `${e.parametre} : ${e.message}` : e.message)).join(' ; ');
 
+/** Demande de résolution d'une action. */
+export interface DemandeAction {
+  action: string;
+  acteur: Fiche;
+  cible?: Fiche;
+  memeEntite?: boolean;
+  parametres?: Record<string, Valeur>;
+  appliquer: boolean;
+  aleatoire: Generateur;
+}
+
+/** Lance l'action : par `initiative` pour celle du système sans cible (clés de tri en plus). */
+function lancerAction(
+  systeme: SystemeCharge,
+  demande: DemandeAction,
+): { resultat: ResultatAction; cles?: number[] } {
+  const ini = systeme.source.initiative;
+  if (ini && demande.action === ini.action && !demande.cible) {
+    const r = initiative(
+      systeme,
+      [{ id: 'acteur', fiche: demande.acteur, parametres: demande.parametres ?? {} }],
+      demande.aleatoire,
+    );
+    if (!r.ok) throw refus(messageErreurs(r.erreurs), 'action_refusee');
+    return { resultat: r.ordre[0]!.resultat, cles: r.ordre[0]!.cles };
+  }
+  const r = executerAction(systeme, {
+    action: demande.action,
+    acteur: demande.acteur,
+    ...(demande.cible ? { cible: demande.cible } : {}),
+    ...(demande.parametres ? { parametres: demande.parametres } : {}),
+    aleatoire: demande.aleatoire,
+  });
+  if (!r.ok) throw refus(messageErreurs(r.erreurs), 'action_refusee');
+  return { resultat: r.resultat };
+}
+
+/** Modifications de l'action appliquées à une fiche ; un échec devient un refus 422. */
+function appliquerSurFiche(
+  fiche: Fiche,
+  mods: ResultatAction['modifications'],
+  entite?: 'acteur' | 'cible',
+): EtatEntite {
+  try {
+    return appliquerModifications(fiche, mods, entite);
+  } catch (e) {
+    throw refus(`Modification impossible : ${(e as Error).message}`, 'modification_invalide');
+  }
+}
+
 /**
  * Exécute une action (jets tirés par `aleatoire`) et, avec `appliquer`, calcule
  * les nouveaux états de l'acteur et de la cible. Une cible identique à
@@ -918,61 +1054,23 @@ const messageErreurs = (erreurs: { parametre?: string; message: string }[]) =>
  * @vtt/rules : le résultat porte en plus les clés de tri (`cles`), que le
  * service campaign utilise pour ordonner les participants d'un combat.
  */
-export function resoudreAction(
-  systeme: SystemeCharge,
-  demande: {
-    action: string;
-    acteur: Fiche;
-    cible?: Fiche;
-    memeEntite?: boolean;
-    parametres?: Record<string, Valeur>;
-    appliquer: boolean;
-    aleatoire: Generateur;
-  },
-): ActionResolue {
-  let resultat: ResultatAction;
-  let cles: number[] | undefined;
-  const ini = systeme.source.initiative;
-  if (ini && demande.action === ini.action && !demande.cible) {
-    const r = initiative(
-      systeme,
-      [{ id: 'acteur', fiche: demande.acteur, parametres: demande.parametres ?? {} }],
-      demande.aleatoire,
-    );
-    if (!r.ok) throw refus(messageErreurs(r.erreurs), 'action_refusee');
-    resultat = r.ordre[0]!.resultat;
-    cles = r.ordre[0]!.cles;
-  } else {
-    const r = executerAction(systeme, {
-      action: demande.action,
-      acteur: demande.acteur,
-      ...(demande.cible ? { cible: demande.cible } : {}),
-      ...(demande.parametres ? { parametres: demande.parametres } : {}),
-      aleatoire: demande.aleatoire,
-    });
-    if (!r.ok) throw refus(messageErreurs(r.erreurs), 'action_refusee');
-    resultat = r.resultat;
-  }
+export function resoudreAction(systeme: SystemeCharge, demande: DemandeAction): ActionResolue {
+  const { resultat, cles } = lancerAction(systeme, demande);
   const base = { resultat, ...(cles ? { cles } : {}) };
   if (!demande.appliquer) return base;
 
   const mods = resultat.modifications;
   const touche = (entite: 'acteur' | 'cible') => mods.some((m) => m.entite === entite);
-  const appliquer = (fiche: Fiche, entite?: 'acteur' | 'cible') => {
-    try {
-      return appliquerModifications(fiche, mods, entite);
-    } catch (e) {
-      throw refus(`Modification impossible : ${(e as Error).message}`, 'modification_invalide');
-    }
-  };
 
   if (demande.memeEntite) {
-    return mods.length ? { ...base, acteur: appliquer(demande.acteur) } : base;
+    return mods.length ? { ...base, acteur: appliquerSurFiche(demande.acteur, mods) } : base;
   }
   return {
     ...base,
-    ...(touche('acteur') ? { acteur: appliquer(demande.acteur, 'acteur') } : {}),
-    ...(demande.cible && touche('cible') ? { cible: appliquer(demande.cible, 'cible') } : {}),
+    ...(touche('acteur') ? { acteur: appliquerSurFiche(demande.acteur, mods, 'acteur') } : {}),
+    ...(demande.cible && touche('cible')
+      ? { cible: appliquerSurFiche(demande.cible, mods, 'cible') }
+      : {}),
   };
 }
 
