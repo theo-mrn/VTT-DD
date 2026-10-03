@@ -7,6 +7,7 @@ import {
   EtatEntite,
   essayer,
   type Attribut,
+  type Champ,
   type Effet,
   type Entree,
   type Fiche,
@@ -38,14 +39,17 @@ export function suggestions(systeme: SystemeCharge, etat: EtatEntite, sorte: str
   const ids = new Set<string>();
   for (const p of etat.possessions) {
     const e = systeme.entrees.get(p.entree);
-    if (!e || e.sorte === sorte) continue;
-    for (const c of systeme.sortes.get(e.sorte)?.champs ?? []) {
-      if ((c.type !== 'entree' && c.type !== 'entrees') || c.sorte !== sorte) continue;
-      const v = e.champs[c.id];
-      for (const id of idsDe(v)) if (systeme.entrees.has(id)) ids.add(id);
-    }
+    if (e && e.sorte !== sorte) ajouterDesignees(systeme, e, sorte, ids);
   }
   return [...ids];
+}
+
+/** Ajoute à `ids` les entrées de cette sorte que désignent les champs de `e`. */
+function ajouterDesignees(systeme: SystemeCharge, e: Entree, sorte: string, ids: Set<string>) {
+  for (const c of systeme.sortes.get(e.sorte)?.champs ?? []) {
+    if ((c.type !== 'entree' && c.type !== 'entrees') || c.sorte !== sorte) continue;
+    for (const id of idsDe(e.champs[c.id])) if (systeme.entrees.has(id)) ids.add(id);
+  }
 }
 
 /** Raison pour laquelle une entrée ne peut pas être prise (prérequis `exige`), ou null. */
@@ -71,25 +75,8 @@ export function libelleAttribut(fiche: Fiche, cle: string): string {
 export function texteEffet(fiche: Fiche, e: Effet): string | null {
   if (e.description && e.sur !== 'attribut') return e.description;
   switch (e.sur) {
-    case 'attribut': {
-      const nom = libelleAttribut(fiche, e.attribut);
-      const n = Number(e.valeur);
-      const v = Number.isFinite(n) ? n : e.valeur;
-      const cond = e.condition ? ' (sous condition)' : '';
-      switch (e.operation) {
-        case 'ajouter':
-          return `${nom} ${typeof v === 'number' ? signe(v) : `+ ${v}`}${cond}`;
-        case 'multiplier':
-          return `${nom} ×${v}${cond}`;
-        case 'fixer':
-          return `${nom} = ${v}${cond}`;
-        case 'minimum':
-          return `${nom} au moins ${v}${cond}`;
-        case 'maximum':
-          return `${nom} au plus ${v}${cond}`;
-      }
-      return null;
-    }
+    case 'attribut':
+      return texteAttribut(fiche, e);
     case 'rang': {
       const cible = fiche.systeme.entrees.get(e.entree);
       if (!cible) return null;
@@ -103,10 +90,36 @@ export function texteEffet(fiche: Fiche, e: Effet): string | null {
     case 'jet':
       return 'Modifie certains jets';
     case 'degats':
-      if (e.operation === 'annuler') return 'Immunité à certains dégâts';
-      if (e.operation === 'multiplier') return 'Résistance à certains dégâts';
-      return `Réduction des dégâts ${e.valeur}`;
+      return texteDegats(e);
   }
+}
+
+/** Effet sur un attribut : « CHA +2 », « PV ×2 (sous condition) »… */
+function texteAttribut(fiche: Fiche, e: Extract<Effet, { sur: 'attribut' }>): string | null {
+  const nom = libelleAttribut(fiche, e.attribut);
+  const n = Number(e.valeur);
+  const v = Number.isFinite(n) ? n : e.valeur;
+  const cond = e.condition ? ' (sous condition)' : '';
+  switch (e.operation) {
+    case 'ajouter':
+      return `${nom} ${typeof v === 'number' ? signe(v) : `+ ${v}`}${cond}`;
+    case 'multiplier':
+      return `${nom} ×${v}${cond}`;
+    case 'fixer':
+      return `${nom} = ${v}${cond}`;
+    case 'minimum':
+      return `${nom} au moins ${v}${cond}`;
+    case 'maximum':
+      return `${nom} au plus ${v}${cond}`;
+  }
+  return null;
+}
+
+/** Effet sur les dégâts : immunité, résistance ou réduction. */
+function texteDegats(e: Extract<Effet, { sur: 'degats' }>): string {
+  if (e.operation === 'annuler') return 'Immunité à certains dégâts';
+  if (e.operation === 'multiplier') return 'Résistance à certains dégâts';
+  return `Réduction des dégâts ${e.valeur}`;
 }
 
 /** Valeurs des champs d'une entrée, avec le nom du champ (taille moyenne, dé de vie…). */
@@ -117,18 +130,22 @@ export function champsLisibles(
   const sorte = systeme.sortes.get(e.sorte);
   const r: { nom: string; valeur: string }[] = [];
   for (const c of sorte?.champs ?? []) {
-    const v = e.champs[c.id];
-    if (v === undefined || v === '' || c.type === 'entrees') continue;
-    if (c.type === 'entree') {
-      const cible = typeof v === 'string' ? systeme.entrees.get(v) : undefined;
-      if (cible) r.push({ nom: c.nom, valeur: cible.nom });
-    } else if (typeof v === 'boolean') {
-      if (v) r.push({ nom: c.nom, valeur: 'oui' });
-    } else if (c.type === 'choix')
-      r.push({ nom: c.nom, valeur: c.options.find((o) => o.valeur === v)?.nom ?? String(v) });
-    else r.push({ nom: c.nom, valeur: String(v) });
+    const valeur = valeurLisible(systeme, c, e.champs[c.id]);
+    if (valeur !== null) r.push({ nom: c.nom, valeur });
   }
   return r;
+}
+
+/** Valeur d'un champ à montrer (nom de l'entrée visée, « oui », option…) ; null : rien. */
+function valeurLisible(systeme: SystemeCharge, c: Champ, v: unknown): string | null {
+  if (v === undefined || v === '' || c.type === 'entrees') return null;
+  if (c.type === 'entree') {
+    const cible = typeof v === 'string' ? systeme.entrees.get(v) : undefined;
+    return cible ? cible.nom : null;
+  }
+  if (typeof v === 'boolean') return v ? 'oui' : null;
+  if (c.type === 'choix') return c.options.find((o) => o.valeur === v)?.nom ?? String(v);
+  return String(v);
 }
 
 /** Valeur calculée affichable (« 14 », « oui », texte). */
@@ -216,21 +233,32 @@ export function resumer(
     for (const p of fiche.possessions.values()) if (p.sorte.id === sorte) noms.push(p.entree.nom);
 
   const highlights: ResumePersonnage['highlights'] = [];
-  if (details?.type === 'details') {
-    for (const cle of details.attributs) {
-      const a = fiche.entite.attributs.get(cle);
-      const v = fiche.valeurs.get(cle);
-      if (a && v && a.nature !== 'texte')
-        highlights.push({ label: a.nom, value: afficherValeur(v) });
-    }
+  if (details?.type === 'details') ajouterValeursDetails(fiche, details.attributs, highlights);
+  ajouterRessources(fiche, highlights);
+  return { tagline: noms.join(' · '), highlights };
+}
+
+/** Valeurs du bloc « details » (hors texte). */
+function ajouterValeursDetails(
+  fiche: Fiche,
+  cles: readonly string[],
+  highlights: ResumePersonnage['highlights'],
+) {
+  for (const cle of cles) {
+    const a = fiche.entite.attributs.get(cle);
+    const v = fiche.valeurs.get(cle);
+    if (a && v && a.nature !== 'texte') highlights.push({ label: a.nom, value: afficherValeur(v) });
   }
+}
+
+/** Ressources visibles (« PV 12/20 »), jusqu'à trois valeurs en tout. */
+function ajouterRessources(fiche: Fiche, highlights: ResumePersonnage['highlights']) {
   for (const a of fiche.entite.attributs.values()) {
     if (a.nature !== 'ressource' || a.visibilite === 'mj' || highlights.length >= 3) continue;
     const v = fiche.valeurs.get(a.cle);
     if (v)
       highlights.push({ label: a.abrege ?? a.nom, value: `${afficherValeur(v)}/${v.max ?? '—'}` });
   }
-  return { tagline: noms.join(' · '), highlights };
 }
 
 /** Mots-clés (sans accents, minuscules) des entrées uniques : pour suggérer des portraits. */
