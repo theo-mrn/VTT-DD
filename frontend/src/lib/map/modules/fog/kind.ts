@@ -14,6 +14,7 @@ import {
   isGm,
   type EntityAction,
   type EntityKind,
+  type MapTheme,
   type MapViewer,
 } from '../../engine/entities/entity-kind';
 import { geometryBounds, type EntityGeometry, type Point } from '../../engine/geometry';
@@ -143,33 +144,50 @@ export class FogView {
     const outline: Point[] =
       z.shape === 'circle' ? circlePolygon(z.center ?? { x: 0, y: 0 }, z.radius ?? 0) : z.points;
 
-    if (clear) {
-      for (const [a, b] of hatchPolygon(outline, 10 * u)) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
-      g.stroke({ width: 1.5 * u, color: theme.primary, alpha: 0.45 * strong });
-    } else if (z.shape === 'circle') {
-      g.circle(z.center?.x ?? 0, z.center?.y ?? 0, z.radius ?? 0).fill({
-        color: theme.background,
-        alpha: 0.22,
-      });
-    } else if (z.points.length >= 3) {
-      g.poly(
-        z.points.flatMap((p) => [p.x, p.y]),
-        true,
-      ).fill({ color: theme.background, alpha: 0.22 });
-    }
-
+    fillZone(g, z, outline, u, theme, strong);
+    traceZoneOutline(g, z, u);
     const width = (e.state.selected ? 2.5 : 1.75) * u;
-    if (z.shape === 'circle') {
-      if (clear) dashedCircle(g, z.center?.x ?? 0, z.center?.y ?? 0, z.radius ?? 0, 8 * u, 5 * u);
-      else g.circle(z.center?.x ?? 0, z.center?.y ?? 0, z.radius ?? 0);
-    } else if (clear) dashedPolyline(g, z.points, 8 * u, 5 * u, true);
-    else if (z.points.length >= 2)
-      g.poly(
-        z.points.flatMap((p) => [p.x, p.y]),
-        true,
-      );
     g.stroke({ width, color: accent, alpha: strong, cap: 'butt' });
   }
+}
+
+/** Intérieur d'une zone : hachures (découverte), sinon voile léger (brouillard). */
+function fillZone(
+  g: Graphics,
+  z: FogZoneData,
+  outline: readonly Point[],
+  u: number,
+  theme: MapTheme,
+  strong: number,
+) {
+  if (z.mode === 'clear') {
+    for (const [a, b] of hatchPolygon(outline, 10 * u)) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
+    g.stroke({ width: 1.5 * u, color: theme.primary, alpha: 0.45 * strong });
+  } else if (z.shape === 'circle') {
+    g.circle(z.center?.x ?? 0, z.center?.y ?? 0, z.radius ?? 0).fill({
+      color: theme.background,
+      alpha: 0.22,
+    });
+  } else if (z.points.length >= 3) {
+    g.poly(
+      z.points.flatMap((p) => [p.x, p.y]),
+      true,
+    ).fill({ color: theme.background, alpha: 0.22 });
+  }
+}
+
+/** Contour d'une zone, en tirets si elle est découverte (à suivre d'un `stroke`). */
+function traceZoneOutline(g: Graphics, z: FogZoneData, u: number) {
+  const clear = z.mode === 'clear';
+  if (z.shape === 'circle') {
+    if (clear) dashedCircle(g, z.center?.x ?? 0, z.center?.y ?? 0, z.radius ?? 0, 8 * u, 5 * u);
+    else g.circle(z.center?.x ?? 0, z.center?.y ?? 0, z.radius ?? 0);
+  } else if (clear) dashedPolyline(g, z.points, 8 * u, 5 * u, true);
+  else if (z.points.length >= 2)
+    g.poly(
+      z.points.flatMap((p) => [p.x, p.y]),
+      true,
+    );
 }
 
 export function fogZoneKind(ctx: FogContext, view: FogView): EntityKind<MapDto> {
