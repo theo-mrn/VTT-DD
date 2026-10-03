@@ -131,7 +131,7 @@ describe('POST /v1/discord/interactions', () => {
 
   it('/roll 1d20+3 : jet avec le personnage de la salle active, publié dans le salon', async () => {
     const res = await post(
-      interaction(2, { name: 'roll', options: [{ name: 'des', type: 3, value: '1d20+3' }] }),
+      interaction(2, { name: 'roll', options: [{ name: 'dice', type: 3, value: '1d20+3' }] }),
     );
     expect(res.json()).toEqual({ type: 5, data: { flags: 64 } });
     await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['followUp', 'delete']));
@@ -150,8 +150,8 @@ describe('POST /v1/discord/interactions', () => {
       interaction(2, {
         name: 'roll',
         options: [
-          { name: 'des', type: 3, value: '1d20' },
-          { name: 'cache', type: 5, value: true },
+          { name: 'dice', type: 3, value: '1d20' },
+          { name: 'hidden', type: 5, value: true },
         ],
       }),
     );
@@ -187,7 +187,7 @@ describe('POST /v1/discord/interactions', () => {
 
   it('sans compte lié : bouton « Lier mon compte », jamais de jet', async () => {
     await post(
-      interaction(2, { name: 'roll', options: [{ name: 'des', type: 3, value: '1d20' }] }, '999'),
+      interaction(2, { name: 'roll', options: [{ name: 'dice', type: 3, value: '1d20' }] }, '999'),
     );
     await settle();
     const button = f.sent[0]!.message!.components![0]!.components[0]!;
@@ -195,18 +195,18 @@ describe('POST /v1/discord/interactions', () => {
     expect(f.rolls).toEqual([]);
   });
 
-  it('sans salle active : propose /salle ; /salle choisit parmi ses campagnes', async () => {
+  it('sans salle active : propose /room ; /room choisit parmi ses campagnes', async () => {
     f.setActive(null);
     await post(
-      interaction(2, { name: 'roll', options: [{ name: 'des', type: 3, value: '1d20' }] }),
+      interaction(2, { name: 'roll', options: [{ name: 'dice', type: 3, value: '1d20' }] }),
     );
     await settle();
-    expect(f.sent[0]!.message!.content).toContain('/salle');
+    expect(f.sent[0]!.message!.content).toContain('/room');
 
     const auto = await post(
       interaction(4, {
-        name: 'salle',
-        options: [{ name: 'campagne', type: 3, value: 'tab', focused: true }],
+        name: 'room',
+        options: [{ name: 'campaign', type: 3, value: 'tab', focused: true }],
       }),
     );
     expect(auto.json()).toEqual({
@@ -217,8 +217,8 @@ describe('POST /v1/discord/interactions', () => {
     f.sent.length = 0;
     await post(
       interaction(2, {
-        name: 'salle',
-        options: [{ name: 'campagne', type: 3, value: CAMPAIGN.id }],
+        name: 'room',
+        options: [{ name: 'campaign', type: 3, value: CAMPAIGN.id }],
       }),
     );
     await settle();

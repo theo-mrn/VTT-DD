@@ -64,7 +64,7 @@ export function bot(deps: BotDeps) {
       ],
     });
 
-  const noActive = () => ephemeral('Aucune salle active : `/salle` pour en choisir une.');
+  const noActive = () => ephemeral('Aucune salle active : `/room` pour en choisir une.');
 
   async function diceSetFor(campaign: Campaign): Promise<DiceSet | null> {
     const system = await yner.gameSystem(campaign.system.id);
@@ -114,16 +114,16 @@ export function bot(deps: BotDeps) {
 
   // ─── Commandes ────────────────────────────────────────────────────────────
 
-  async function salle(i: Interaction, token: string): Promise<Message> {
-    const choix = option(i, 'campagne');
-    if (typeof choix !== 'string' || !choix.trim()) {
+  async function room(i: Interaction, token: string): Promise<Message> {
+    const choice = option(i, 'campaign');
+    if (typeof choice !== 'string' || !choice.trim()) {
       const active = await yner.activeCampaign(token);
       if (!active) return noActive();
       return ephemeral(
         `Salle active : **${active.name}** · ${ROLE_LABEL[active.role] ?? active.role}`,
       );
     }
-    let campaignId = choix.trim();
+    let campaignId = choice.trim();
     if (!UUID.test(campaignId)) {
       // Texte tapé sans choisir une suggestion : recherche par nom parmi ses campagnes
       const wanted = campaignId.toLowerCase();
@@ -144,12 +144,12 @@ export function bot(deps: BotDeps) {
     const active = await yner.activeCampaign(token);
     if (!active) return discord.editOriginal(i.token, noActive());
     const set = await diceSetFor(active);
-    const typed = option(i, 'des');
+    const typed = option(i, 'dice');
     if (typeof typed !== 'string' || !typed.trim()) {
       if (!set) return discord.editOriginal(i.token, ephemeral('Système de jeu inconnu.'));
       return discord.editOriginal(i.token, trayMessage(set, active.name));
     }
-    const hidden = option(i, 'cache') === true;
+    const hidden = option(i, 'hidden') === true;
     const result = await yner.roll(token, {
       campaignId: active.id,
       systemId: active.system.id,
@@ -163,9 +163,9 @@ export function bot(deps: BotDeps) {
   async function history(i: Interaction, token: string): Promise<void> {
     const active = await yner.activeCampaign(token);
     if (!active) return discord.editOriginal(i.token, noActive());
-    const n = typeof option(i, 'n') === 'number' ? (option(i, 'n') as number) : 10;
-    const joueur = option(i, 'joueur');
-    const filter = typeof joueur === 'string' ? joueur.trim().toLowerCase() : '';
+    const n = typeof option(i, 'count') === 'number' ? (option(i, 'count') as number) : 10;
+    const player = option(i, 'player');
+    const filter = typeof player === 'string' ? player.trim().toLowerCase() : '';
     // Seulement les jets publics : la réponse est lue par tout le salon
     const rolls = (await yner.rolls(token, active.id, 50))
       .filter((r) => r.visibility === 'public')
@@ -186,8 +186,8 @@ export function bot(deps: BotDeps) {
   async function stats(i: Interaction, token: string): Promise<Message> {
     const active = await yner.activeCampaign(token);
     if (!active) return noActive();
-    const joueur = option(i, 'joueur');
-    const filter = typeof joueur === 'string' ? joueur.trim().toLowerCase() : '';
+    const player = option(i, 'player');
+    const filter = typeof player === 'string' ? player.trim().toLowerCase() : '';
     const s = await yner.stats(token, active.id);
     const players = s.players.filter((p) => !filter || p.userName.toLowerCase().includes(filter));
     if (!players.length) return ephemeral('Aucun jet.');
@@ -235,8 +235,8 @@ export function bot(deps: BotDeps) {
         );
       if (!token) return await discord.editOriginal(i.token, linkButton());
       switch (name) {
-        case 'salle':
-          return await discord.editOriginal(i.token, await salle(i, token));
+        case 'room':
+          return await discord.editOriginal(i.token, await room(i, token));
         case 'roll':
           return await roll(i, token);
         case 'history':
@@ -264,7 +264,7 @@ export function bot(deps: BotDeps) {
     const typed = typeof focused?.value === 'string' ? focused.value : '';
     const token = await yner.delegate(discordUserId);
     if (!token) return [];
-    if (i.data?.name === 'salle') {
+    if (i.data?.name === 'room') {
       const wanted = typed.toLowerCase();
       const campaigns = await yner.myCampaigns(token);
       const systems = new Map<string, string>();

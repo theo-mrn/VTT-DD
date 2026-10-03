@@ -11,12 +11,12 @@ const contexts = { contexts: [0, 1], integration_types: [0] };
 
 export const COMMANDS = [
   {
-    name: 'salle',
+    name: 'room',
     description: 'Choisir la salle que suivent tes jets',
     options: [
       {
         type: STRING,
-        name: 'campagne',
+        name: 'campaign',
         description: 'Une de tes campagnes (vide : affiche la salle active)',
         autocomplete: true,
       },
@@ -29,12 +29,12 @@ export const COMMANDS = [
     options: [
       {
         type: STRING,
-        name: 'des',
+        name: 'dice',
         description: 'Dés du système (vide : plateau de dés)',
         autocomplete: true,
         max_length: 200,
       },
-      { type: BOOLEAN, name: 'cache', description: 'Visible de toi et du MJ seulement' },
+      { type: BOOLEAN, name: 'hidden', description: 'Visible de toi et du MJ seulement' },
     ],
     ...contexts,
   },
@@ -42,15 +42,15 @@ export const COMMANDS = [
     name: 'history',
     description: 'Derniers jets publics de ta salle active',
     options: [
-      { type: STRING, name: 'joueur', description: 'Nom du joueur ou du personnage' },
-      { type: INTEGER, name: 'n', description: 'Nombre de jets', min_value: 1, max_value: 20 },
+      { type: STRING, name: 'player', description: 'Nom du joueur ou du personnage' },
+      { type: INTEGER, name: 'count', description: 'Nombre de jets', min_value: 1, max_value: 20 },
     ],
     ...contexts,
   },
   {
     name: 'stats',
     description: 'Statistiques de ta salle active',
-    options: [{ type: STRING, name: 'joueur', description: 'Nom du joueur ou du personnage' }],
+    options: [{ type: STRING, name: 'player', description: 'Nom du joueur ou du personnage' }],
     ...contexts,
   },
   { name: 'link', description: 'Lier ton compte Yner à Discord', ...contexts },

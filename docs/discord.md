@@ -5,7 +5,7 @@ Reprise des deux fonctionnalités Discord du legacy (`legacy/src/app/discord`,
 
 - **l'activité** : Yner lancé dans un salon vocal Discord (iframe), connexion par le compte
   Discord, salle active, mes campagnes, création, puis le jeu complet dans Discord ;
-- **le bot de dés** : `/roll` adapté au système de la salle active, `/salle`, `/history`,
+- **le bot de dés** : `/roll` adapté au système de la salle active, `/room`, `/history`,
   `/stats`, `/link`, `/unlink`.
 
 Abandonné volontairement : `/login email mot de passe` (le mot de passe tapé dans une commande
@@ -48,7 +48,7 @@ compte par là ; un joueur déjà connecté une fois avec Discord retrouve campa
 ## Salle active
 
 Chaque joueur a une **salle active** : la campagne que suivent ses jets Discord et où l'activité
-le ramène. Elle se choisit parmi les campagnes dont il est déjà joueur ou MJ (`/salle` dans
+le ramène. Elle se choisit parmi les campagnes dont il est déjà joueur ou MJ (`/room` dans
 Discord, ou en entrant dans une campagne depuis l'activité). Pas de lien salon ↔ campagne : deux
 joueurs d'un même salon peuvent suivre deux salles différentes.
 
@@ -126,17 +126,18 @@ Le bot n'a aucun droit propre. Pour chaque commande :
 
 ### Commandes
 
-Le bot ne fait que des dés. Pas de compte lié → message éphémère avec le bouton de `/link` ;
-pas de salle active → message éphémère qui propose `/salle`.
+Le bot ne fait que des dés. Commandes et options en anglais (noms du legacy) ; descriptions et
+messages en français. Pas de compte lié → message éphémère avec le bouton de `/link` ;
+pas de salle active → message éphémère qui propose `/room`.
 
-| Commande                | Effet                                                                                                                                                          |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/salle [campagne]`     | Choisit la salle active parmi ses campagnes (autocomplétion : titre et système) ; sans argument, affiche la salle active                                       |
-| `/roll [dés] [caché]`   | Jet dans la salle active, avec le personnage du joueur (`POST /v1/dice/rolls`, tiré par le serveur) : visible sur la carte et dans l'historique comme tout jet |
-| `/history [joueur] [n]` | Derniers jets publics de la salle active (`GET /v1/dice/rolls`)                                                                                                |
-| `/stats [joueur]`       | Statistiques de la salle active (`GET /v1/dice/stats`)                                                                                                         |
-| `/link`                 | Bouton « Lier mon compte » (connexion Discord sur le site), message éphémère                                                                                   |
-| `/unlink`               | Retire le lien Discord du compte (`DELETE /v1/auth/discord/link`) (refusé s'il n'a pas d'autre moyen de connexion)                                             |
+| Commande                    | Effet                                                                                                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/room [campaign]`          | Choisit la salle active parmi ses campagnes (autocomplétion : titre et système) ; sans argument, affiche la salle active                                       |
+| `/roll [dice] [hidden]`     | Jet dans la salle active, avec le personnage du joueur (`POST /v1/dice/rolls`, tiré par le serveur) : visible sur la carte et dans l'historique comme tout jet |
+| `/history [player] [count]` | Derniers jets publics de la salle active (`GET /v1/dice/rolls`)                                                                                                |
+| `/stats [player]`           | Statistiques de la salle active (`GET /v1/dice/stats`)                                                                                                         |
+| `/link`                     | Bouton « Lier mon compte » (connexion Discord sur le site), message éphémère                                                                                   |
+| `/unlink`                   | Retire le lien Discord du compte (`DELETE /v1/auth/discord/link`) (refusé s'il n'a pas d'autre moyen de connexion)                                             |
 
 ### Dés adaptés au système
 
@@ -148,7 +149,7 @@ système, `packages/systemes`) : aucun dé écrit en dur dans le bot.
   D&D, Fortune, Aptitude, Maîtrise, Infortune, Difficulté, Défi, Force pour Star Wars), un
   compteur par sorte, ± modificateur pour les systèmes chiffrés, puis « Lancer » : le résultat
   est publié dans le salon.
-- **`/roll dés`** : notation du système (`1d20+5`, ou dés à symboles), avec une autocomplétion
+- **`/roll dice`** : notation du système (`1d20+5`, ou dés à symboles), avec une autocomplétion
   qui propose les dés de ce système.
 - **Résultat** : total et détail des dés pour un système chiffré ; symboles nets (Succès,
   Avantages, Triomphe…) avec leurs libellés courts pour un système à symboles. Couleurs de
