@@ -107,6 +107,82 @@ function dateCreation(u: FirebaseAuthUser, repli: Date): Date {
   return Number.isFinite(ms) && ms > 0 ? new Date(ms) : repli;
 }
 
+type DocProfil = Record<string, unknown>;
+
+/** E-mail repris : valide, et pas déjà pris par un compte plus ancien. */
+function emailRetenu(
+  u: FirebaseAuthUser,
+  doc: DocProfil,
+  emailsVus: Set<string>,
+  rapport: ImportReport,
+): string | null {
+  const email = texte(u.email) ?? texte(doc.email);
+  if (!email) return null;
+  if (!EMAIL.test(email)) {
+    rapport.emailsInvalides.push(u.localId);
+    return null;
+  }
+  const cle = email.toLowerCase();
+  if (emailsVus.has(cle)) {
+    rapport.emailsEnDouble.push(u.localId);
+    return null;
+  }
+  emailsVus.add(cle);
+  return email;
+}
+
+/** Connexion du compte (mot de passe ou Google), comptée au rapport. */
+function connexionDe(
+  u: FirebaseAuthUser,
+  rapport: ImportReport,
+): Pick<ImportedAccount, 'password' | 'oauth'> {
+  const google = (u.providerUserInfo ?? [])
+    .filter((p) => p.providerId === 'google.com')
+    .map((p) => ({
+      provider: 'google' as const,
+      providerAccountId: p.rawId,
+      email: texte(p.email),
+    }));
+
+  const password: StoredPassword | null =
+    u.passwordHash && u.salt
+      ? { algorithm: 'firebase-scrypt', hash: u.passwordHash, salt: u.salt }
+      : null;
+  if (password) rapport.avecMotDePasse++;
+  else if (google.length) rapport.googleUniquement++;
+  else rapport.aReinitialiser.push(u.localId);
+  return { password, oauth: google };
+}
+
+/** Champs Firestore du profil laissés aux tranches suivantes. */
+function compterChampsNonRepris(doc: DocProfil, rapport: ImportReport): void {
+  for (const champ of Object.keys(doc)) {
+    if (!CHAMPS_PROFIL.has(champ)) {
+      rapport.champsNonRepris[champ] = (rapport.champsNonRepris[champ] ?? 0) + 1;
+    }
+  }
+}
+
+/** Profil public repris du document Firestore, à défaut du compte Firebase Auth. */
+function profilDe(u: FirebaseAuthUser, doc: DocProfil): ImportedAccount['profile'] {
+  const temps = Number(doc.timeSpent);
+  return {
+    name: texte(doc.name, NOM_MAX) ?? texte(u.displayName, NOM_MAX) ?? 'Joueur',
+    avatarUrl: texte(doc.pp) ?? texte(u.photoUrl),
+    title: texte(doc.titre),
+    bio: texte(doc.bio, BIO_MAX),
+    bannerUrl: texte(doc.imageURL),
+    borderType: texte(doc.borderType) ?? 'none',
+    // Affiché par défaut, comme dans l'ancienne app
+    showPremiumBadge: doc.showPremiumBadge !== false,
+    timeSpentMinutes: Number.isFinite(temps) && temps > 0 ? Math.floor(temps) : 0,
+    settings:
+      doc.settings && typeof doc.settings === 'object' && !Array.isArray(doc.settings)
+        ? (doc.settings as Record<string, unknown>)
+        : {},
+  };
+}
+
 export function transformFirebaseUsers(
   auth: z.infer<typeof FirebaseAuthExport>,
   profils: ReadonlyMap<string, Record<string, unknown>>,
@@ -134,47 +210,11 @@ export function transformFirebaseUsers(
   for (const u of tries) {
     const doc = profils.get(u.localId) ?? {};
     const creation = dateCreation(u, now);
-
-    let email = texte(u.email) ?? texte(doc.email);
-    if (email && !EMAIL.test(email)) {
-      rapport.emailsInvalides.push(u.localId);
-      email = null;
-    }
-    if (email) {
-      const cle = email.toLowerCase();
-      if (emailsVus.has(cle)) {
-        rapport.emailsEnDouble.push(u.localId);
-        email = null;
-      } else {
-        emailsVus.add(cle);
-      }
-    }
-
-    const google = (u.providerUserInfo ?? [])
-      .filter((p) => p.providerId === 'google.com')
-      .map((p) => ({
-        provider: 'google' as const,
-        providerAccountId: p.rawId,
-        email: texte(p.email),
-      }));
-
-    const password: StoredPassword | null =
-      u.passwordHash && u.salt
-        ? { algorithm: 'firebase-scrypt', hash: u.passwordHash, salt: u.salt }
-        : null;
-    if (password) rapport.avecMotDePasse++;
-    else if (google.length) rapport.googleUniquement++;
-    else rapport.aReinitialiser.push(u.localId);
-
+    const email = emailRetenu(u, doc, emailsVus, rapport);
+    const { password, oauth } = connexionDe(u, rapport);
     if (u.disabled) rapport.desactives++;
+    compterChampsNonRepris(doc, rapport);
 
-    for (const champ of Object.keys(doc)) {
-      if (!CHAMPS_PROFIL.has(champ)) {
-        rapport.champsNonRepris[champ] = (rapport.champsNonRepris[champ] ?? 0) + 1;
-      }
-    }
-
-    const temps = Number(doc.timeSpent);
     comptes.push({
       legacyUid: u.localId,
       user: {
@@ -185,23 +225,9 @@ export function transformFirebaseUsers(
         createdAt: creation,
         disabledAt: u.disabled ? now : null,
       },
-      profile: {
-        name: texte(doc.name, NOM_MAX) ?? texte(u.displayName, NOM_MAX) ?? 'Joueur',
-        avatarUrl: texte(doc.pp) ?? texte(u.photoUrl),
-        title: texte(doc.titre),
-        bio: texte(doc.bio, BIO_MAX),
-        bannerUrl: texte(doc.imageURL),
-        borderType: texte(doc.borderType) ?? 'none',
-        // Affiché par défaut, comme dans l'ancienne app
-        showPremiumBadge: doc.showPremiumBadge !== false,
-        timeSpentMinutes: Number.isFinite(temps) && temps > 0 ? Math.floor(temps) : 0,
-        settings:
-          doc.settings && typeof doc.settings === 'object' && !Array.isArray(doc.settings)
-            ? (doc.settings as Record<string, unknown>)
-            : {},
-      },
+      profile: profilDe(u, doc),
       password,
-      oauth: google,
+      oauth,
     });
   }
 
