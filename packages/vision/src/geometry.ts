@@ -87,6 +87,24 @@ export function pointInPolygon(p: Vec, polygon: readonly Vec[] | Polygon): boole
   return inside;
 }
 
+/** Intervalle [t0, t1] du segment encore dans le rectangle, pendant `clipSegmentToRect`. */
+let clipT0 = 0;
+let clipT1 = 1;
+
+/** Restreint [t0, t1] à un bord (p t ≤ q) ; rend false si rien ne reste. */
+function clipBoundary(p: number, q: number): boolean {
+  if (p === 0) return !(q < 0);
+  const r = q / p;
+  if (p < 0) {
+    if (r > clipT1) return false;
+    if (r > clipT0) clipT0 = r;
+  } else {
+    if (r < clipT0) return false;
+    if (r < clipT1) clipT1 = r;
+  }
+  return true;
+}
+
 /**
  * Coupe le segment [a, b] au rectangle [minX, maxX] × [minY, maxY] (Liang-Barsky). Écrit le
  * résultat dans `out` (x1, y1, x2, y2) et rend false si rien ne reste.
@@ -104,26 +122,12 @@ export function clipSegmentToRect(
 ): boolean {
   const dx = bx - ax;
   const dy = by - ay;
-  let t0 = 0;
-  let t1 = 1;
-  const p = [-dx, dx, -dy, dy];
-  const q = [ax - minX, maxX - ax, ay - minY, maxY - ay];
-  for (let i = 0; i < 4; i++) {
-    const pi = p[i]!;
-    const qi = q[i]!;
-    if (pi === 0) {
-      if (qi < 0) return false;
-    } else {
-      const r = qi / pi;
-      if (pi < 0) {
-        if (r > t1) return false;
-        if (r > t0) t0 = r;
-      } else {
-        if (r < t0) return false;
-        if (r < t1) t1 = r;
-      }
-    }
-  }
+  clipT0 = 0;
+  clipT1 = 1;
+  if (!clipBoundary(-dx, ax - minX) || !clipBoundary(dx, maxX - ax)) return false;
+  if (!clipBoundary(-dy, ay - minY) || !clipBoundary(dy, maxY - ay)) return false;
+  const t0 = clipT0;
+  const t1 = clipT1;
   out[0] = t0 === 0 ? ax : ax + t0 * dx;
   out[1] = t0 === 0 ? ay : ay + t0 * dy;
   out[2] = t1 === 1 ? bx : ax + t1 * dx;
