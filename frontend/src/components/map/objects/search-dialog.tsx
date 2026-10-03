@@ -81,7 +81,7 @@ export function SearchDialog({
 
         {inRange.length > 1 && s.characterId && (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Personnage</label>
+            <p className="text-xs font-medium text-muted-foreground">Personnage</p>
             <SelectField
               aria-label="Personnage qui fouille"
               value={s.characterId}
