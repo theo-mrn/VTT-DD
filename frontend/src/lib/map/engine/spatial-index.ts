@@ -109,16 +109,9 @@ export class SpatialIndex {
     const found = new Set<string>();
     const { x0, y0, x1, y1 } = this.range(rect);
     const count = (x1 - x0 + 1) * (y1 - y0 + 1);
-    if (count > this.cells.size) {
-      // Zone plus grande que la grille occupée : on parcourt les cases existantes
-      for (const cell of this.cells.values()) for (const id of cell) found.add(id);
-    } else {
-      for (let cx = x0; cx <= x1; cx++)
-        for (let cy = y0; cy <= y1; cy++) {
-          const cell = this.cells.get(SpatialIndex.key(cx, cy));
-          if (cell) for (const id of cell) found.add(id);
-        }
-    }
+    // Zone plus grande que la grille occupée : on parcourt les cases existantes
+    if (count > this.cells.size) this.collectAll(found);
+    else this.collectRange(found, x0, y0, x1, y1);
     for (const id of this.oversized) found.add(id);
     const out: string[] = [];
     for (const id of found) {
@@ -126,6 +119,20 @@ export class SpatialIndex {
       if (e && rectsIntersect(e.rect, rect)) out.push(id);
     }
     return out;
+  }
+
+  /** Éléments de toutes les cases occupées. */
+  private collectAll(found: Set<string>) {
+    for (const cell of this.cells.values()) for (const id of cell) found.add(id);
+  }
+
+  /** Éléments des cases de la plage (bornes comprises). */
+  private collectRange(found: Set<string>, x0: number, y0: number, x1: number, y1: number) {
+    for (let cx = x0; cx <= x1; cx++)
+      for (let cy = y0; cy <= y1; cy++) {
+        const cell = this.cells.get(SpatialIndex.key(cx, cy));
+        if (cell) for (const id of cell) found.add(id);
+      }
   }
 
   /** Éléments dont la boîte touche le point, à `tolerance` près (pixels du monde). */
