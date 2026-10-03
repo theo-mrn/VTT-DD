@@ -193,7 +193,7 @@ function DrawerBody({
                 Coûts de l’attaquant{attacker ? ` (${attacker.name})` : ''}
               </p>
               <ModeSwitch
-                value={actorLater ? 'later' : actor.apply ? 'apply' : 'skip'}
+                value={actorLater ? 'later' : modeOf(actor.apply)}
                 onChange={(m) => {
                   setActorLater(m === 'later');
                   if (m !== 'later') setActor({ ...actor, apply: m === 'apply' });
@@ -278,13 +278,7 @@ function ModeSwitch({
           onClick={() => onChange(o.v)}
           className={cn(
             'px-2 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60',
-            value === o.v
-              ? o.v === 'apply'
-                ? 'bg-primary/15 text-primary-strong'
-                : o.v === 'skip'
-                  ? 'bg-destructive/15 text-destructive'
-                  : 'bg-surface-3 text-foreground'
-              : 'text-muted-foreground hover:bg-surface-3',
+            value === o.v ? MODE_ACTIF[o.v] : 'text-muted-foreground hover:bg-surface-3',
           )}
         >
           {o.t}
@@ -346,21 +340,7 @@ function TargetEditor({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">{name}</span>
           <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            {outcome && (
-              <Badge
-                ton={
-                  outcome.tone === 'critical'
-                    ? 'arcane'
-                    : outcome.tone === 'success'
-                      ? 'succes'
-                      : outcome.tone === 'fumble'
-                        ? 'danger'
-                        : 'neutre'
-                }
-              >
-                {outcome.label}
-              </Badge>
-            )}
+            {outcome && <Badge ton={TON_ISSUE[outcome.tone] ?? 'neutre'}>{outcome.label}</Badge>}
             {roll && <span className="font-mono tabular-nums">jet {roll}</span>}
           </span>
         </span>
@@ -482,7 +462,7 @@ function ModificationsEditor({
                   {attributeLabel(systeme, m.attribute, entityType)}
                 </span>
                 <span className="font-mono text-xs text-subtle" aria-hidden>
-                  {m.operation === 'add' ? '+' : m.operation === 'subtract' ? '−' : '='}
+                  {SIGNE_OPERATION[m.operation] ?? '='}
                 </span>
                 <span className="flex items-center">
                   <Button
@@ -551,7 +531,7 @@ function ModificationsEditor({
                     {resistancesOf(m.attribute)
                       .map(
                         (r) =>
-                          `${r.name} (${r.operation === 'cancel' ? 'immunité' : r.operation === 'multiply' ? `×${r.value}` : `−${r.value}`})${r.ignored ? ', écartée' : ''}`,
+                          `${r.name} (${resistanceEffect(r.operation, r.value)})${r.ignored ? ', écartée' : ''}`,
                       )
                       .join(' · ')}
                   </p>
@@ -734,7 +714,7 @@ function TablesEditor({
                 <span className="text-muted-foreground">
                   {' '}
                   : {d.value}
-                  {d.modifier ? ` (dont ${d.modifier > 0 ? '+' : ''}${d.modifier})` : ''} →{' '}
+                  {d.modifier ? ` (dont ${signed(d.modifier)})` : ''} →{' '}
                   {d.line?.name ?? 'aucune ligne'}
                 </span>
               </span>
@@ -768,3 +748,29 @@ function TablesEditor({
     </ul>
   );
 }
+
+const modeOf = (apply: boolean) => (apply ? 'apply' : 'skip');
+
+/** Mode choisi du sélecteur : sa couleur. */
+const MODE_ACTIF: Record<string, string> = {
+  apply: 'bg-primary/15 text-primary-strong',
+  skip: 'bg-destructive/15 text-destructive',
+  later: 'bg-surface-3 text-foreground',
+};
+
+const TON_ISSUE: Partial<Record<string, 'arcane' | 'succes' | 'danger'>> = {
+  critical: 'arcane',
+  success: 'succes',
+  fumble: 'danger',
+};
+
+const SIGNE_OPERATION: Partial<Record<string, string>> = { add: '+', subtract: '−' };
+
+/** Effet d'une résistance, lisible : immunité, ×2, −3. */
+function resistanceEffect(operation: string, value: number): string {
+  if (operation === 'cancel') return 'immunité';
+  if (operation === 'multiply') return `×${value}`;
+  return `−${value}`;
+}
+
+const signed = (n: number) => `${n > 0 ? '+' : ''}${n}`;

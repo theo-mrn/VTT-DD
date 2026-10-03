@@ -256,15 +256,24 @@ export function ReportCard({
   else if (t.status === 'failed') status = <Badge ton="danger">Refusé</Badge>;
   else if (outcome) status = <Badge ton={TONES[outcome.tone]}>{outcome.label}</Badge>;
 
+  // Actions de la cible : une seule famille selon l'état de l'attaque
+  let mode: 'decider' | 'reagir' | 'serveur' | 'annuler' | 'statut' = 'statut';
+  let bordure = 'border-border';
+  if (decidable)
+    bordure =
+      outcome?.tone === 'success' || outcome?.tone === 'critical'
+        ? 'border-primary/35'
+        : 'border-border-strong';
+  if (decidable) mode = 'decider';
+  else if (t.status === 'awaiting_reaction' && !closed) mode = 'reagir';
+  else if (isOpen(attack) && attack.pendingSteps.length > 0) mode = 'serveur';
+  else if (t.decision === 'applied' && canRevert(attack) && !conflict) mode = 'annuler';
+
   return (
     <article
       className={cn(
         'relative flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-surface transition-opacity',
-        decidable
-          ? outcome?.tone === 'success' || outcome?.tone === 'critical'
-            ? 'border-primary/35'
-            : 'border-border-strong'
-          : 'border-border',
+        bordure,
         (decided || closed) && 'opacity-60 hover:opacity-100 focus-within:opacity-100',
       )}
       aria-label={`${attack.action.name} : ${attackerName} contre ${name}`}
@@ -536,7 +545,7 @@ export function ReportCard({
         >
           <ChevronDown className={cn('transition-transform', details && 'rotate-180')} />
         </Button>
-        {decidable ? (
+        {mode === 'decider' && (
           <>
             <Button
               size="sm"
@@ -572,7 +581,8 @@ export function ReportCard({
               </Button>
             </Info>
           </>
-        ) : t.status === 'awaiting_reaction' && !closed ? (
+        )}
+        {mode === 'reagir' && (
           <>
             <Button
               size="sm"
@@ -594,7 +604,8 @@ export function ReportCard({
               Passer
             </Button>
           </>
-        ) : isOpen(attack) && attack.pendingSteps.length > 0 ? (
+        )}
+        {mode === 'serveur' && (
           <Info texte="L’auteur ne lance pas ses dés : le serveur tire la suite">
             <Button
               size="sm"
@@ -608,7 +619,8 @@ export function ReportCard({
               Tirer par le serveur
             </Button>
           </Info>
-        ) : t.decision === 'applied' && canRevert(attack) && !conflict ? (
+        )}
+        {mode === 'annuler' && (
           <Button
             size="sm"
             variant="ghost"
@@ -620,7 +632,8 @@ export function ReportCard({
             <Undo2 />
             Annuler l’application{count > 1 ? ` (${count} cibles)` : ''}
           </Button>
-        ) : (
+        )}
+        {mode === 'statut' && (
           <span className="ml-auto text-[11px] text-subtle">
             {decisionLabel(t.decision) ?? ATTACK_STATUS_LABELS[attack.status]}
           </span>
@@ -684,11 +697,7 @@ function NumberBox({
       <p
         className={cn(
           'font-mono text-2xl font-bold leading-tight tabular-nums',
-          tone === 'danger'
-            ? 'text-destructive'
-            : tone === 'success'
-              ? 'text-success'
-              : 'text-foreground',
+          tone ? TONE_TEXTE[tone] : 'text-foreground',
         )}
       >
         {value}
@@ -745,7 +754,7 @@ function RollDetails({
         <Dices className="size-3" aria-hidden />
         {DICE_ORIGIN_LABELS[diceOrigin(attack)]}
       </p>
-      {roll?.kind === 'numeric' ? (
+      {roll?.kind === 'numeric' && (
         <p className="font-mono text-xs tabular-nums">
           {roll.formula} :{' '}
           {roll.dice
@@ -764,7 +773,8 @@ function RollDetails({
             .join('')}{' '}
           → <span className="font-semibold">{roll.total}</span>
         </p>
-      ) : roll && systeme ? (
+      )}
+      {roll && roll.kind !== 'numeric' && systeme && (
         <>
           <DesSymboles
             systeme={systeme}
@@ -775,14 +785,7 @@ function RollDetails({
             <ul className="space-y-0.5 text-[11px] text-muted-foreground">
               {roll.construction.map((s, i) => (
                 <li key={i}>
-                  {s.name} :{' '}
-                  {s.operation === 'add'
-                    ? '+'
-                    : s.operation === 'remove'
-                      ? '−'
-                      : s.operation === 'upgrade'
-                        ? '↑'
-                        : '↓'}
+                  {s.name} : {SYMBOLE_CONSTRUCTION[s.operation] ?? '↓'}
                   {s.count} {dieName(systeme, s.die)}
                   {s.to ? ` → ${dieName(systeme, s.to)}` : ''}
                   {s.side === 'target' ? ' (cible)' : ''}
@@ -791,7 +794,7 @@ function RollDetails({
             </ul>
           )}
         </>
-      ) : null}
+      )}
       {explanations.length > 0 && (
         <ol className="list-decimal space-y-0.5 pl-4 text-[11px] text-muted-foreground">
           {explanations.map((e, i) => (
@@ -982,3 +985,12 @@ export function ActorCostCard({
     </div>
   );
 }
+
+const TONE_TEXTE = { success: 'text-success', danger: 'text-destructive' } as const;
+
+/** Construction d'un pool : dés ajoutés, retirés, améliorés (↑) ou dégradés (↓). */
+const SYMBOLE_CONSTRUCTION: Partial<Record<string, string>> = {
+  add: '+',
+  remove: '−',
+  upgrade: '↑',
+};
