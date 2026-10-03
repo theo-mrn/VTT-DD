@@ -102,16 +102,20 @@ export function talliesOf(
     const t = out.get(r.characterId);
     if (!t) continue;
     if (audience === 'players' && (r.visibility !== 'public' || hidden.has(r.attackerId))) continue;
-    const thisRound = r.round === state.round;
-    if (r.kind === 'made') {
-      t.attacksMade += r.count;
-      if (thisRound) t.attacksMadeRound += r.count;
-    } else {
-      t.targeted += r.count;
-      if (thisRound) t.targetedRound += r.count;
-    }
+    addToTally(t, r, r.round === state.round);
   }
   return out;
+}
+
+/** Ajoute une ligne (attaques faites ou subies) au décompte d'un participant. */
+function addToTally(t: CombatTally, r: TallyRow, thisRound: boolean): void {
+  if (r.kind === 'made') {
+    t.attacksMade += r.count;
+    if (thisRound) t.attacksMadeRound += r.count;
+  } else {
+    t.targeted += r.count;
+    if (thisRound) t.targetedRound += r.count;
+  }
 }
 
 /** Lignes d'une attaque pas encore enregistrée (lot du MJ : les suivantes la comptent). */
