@@ -132,11 +132,8 @@ export type Widget = z.output<typeof Widget>;
 
 /** Champs de regroupement d'un widget inventaire, dans l'ordre de préférence. */
 export function champsGroupe(w: Extract<Widget, { type: 'inventaire' }>): string[] {
-  return w.groupeChamp === undefined
-    ? []
-    : typeof w.groupeChamp === 'string'
-      ? [w.groupeChamp]
-      : w.groupeChamp;
+  if (w.groupeChamp === undefined) return [];
+  return typeof w.groupeChamp === 'string' ? [w.groupeChamp] : w.groupeChamp;
 }
 
 /** Sortes déclarées par un bloc Compétences ; vide : déduites par le front. */
@@ -627,7 +624,7 @@ export function erreursWidget(systeme: SystemeCharge, entite: string, w: Widget)
   const erreurs: string[] = [];
   if (w.option !== undefined && !systeme.options.has(w.option))
     erreurs.push(`Option inconnue : ${w.option}`);
-  const attrs = 'attributs' in w ? (w.attributs ?? []) : 'attribut' in w ? [w.attribut] : [];
+  const attrs = attributsDuWidget(w);
   for (const a of attrs)
     if (!e.attributs.has(a)) erreurs.push(`Attribut inconnu de ${entite} : ${a}`);
   if ('groupe' in w && w.groupe && !e.type.groupes.some((g) => g.id === w.groupe))
@@ -644,14 +641,7 @@ export function erreursWidget(systeme: SystemeCharge, entite: string, w: Widget)
       else if (nature === 'texte') erreurs.push(`${a} est un texte : bloc « texte » attendu`);
     }
   }
-  const sortes =
-    w.type === 'possessions'
-      ? [w.sorte]
-      : w.type === 'competences'
-        ? sortesCompetences(w)
-        : w.type === 'details' || w.type === 'inventaire'
-          ? w.sortes
-          : [];
+  const sortes = sortesDuWidget(w);
   for (const so of sortes) {
     const sorte = systeme.sortes.get(so);
     if (!sorte) erreurs.push(`Sorte inconnue : ${so}`);
@@ -721,4 +711,25 @@ export function erreursReferences(systeme: SystemeCharge, r: References): Erreur
     });
   }
   return erreurs;
+}
+
+/** Attributs qu'un widget affiche (un seul, une liste, ou aucun). */
+function attributsDuWidget(w: Widget): string[] {
+  if ('attributs' in w) return w.attributs ?? [];
+  return 'attribut' in w ? [w.attribut] : [];
+}
+
+/** Sortes d'entrées qu'un widget affiche. */
+function sortesDuWidget(w: Widget): readonly string[] {
+  switch (w.type) {
+    case 'possessions':
+      return [w.sorte];
+    case 'competences':
+      return sortesCompetences(w);
+    case 'details':
+    case 'inventaire':
+      return w.sortes;
+    default:
+      return [];
+  }
 }

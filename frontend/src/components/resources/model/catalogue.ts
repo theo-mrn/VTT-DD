@@ -121,7 +121,7 @@ export function groupEntries(
     parNom.set(g, [...(parNom.get(g) ?? []), e]);
   }
   return [...parNom.entries()]
-    .sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b, 'fr')))
+    .sort(([a], [b]) => groupesSansNomALaFin(a, b))
     .map(([name, list]) => ({
       name,
       entries: [...list].sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
@@ -156,12 +156,8 @@ export function fieldText(
     return formuleLisible(systeme, fiche.entite.type.id, f.noeud, vars);
   }
   const brut = entry.champs[champ.id];
-  const v =
-    brut !== undefined
-      ? brut
-      : withDefault && 'defaut' in champ && champ.defaut !== undefined
-        ? champ.defaut
-        : undefined;
+  let v: typeof brut | undefined = brut;
+  if (v === undefined && withDefault && 'defaut' in champ) v = champ.defaut;
   if (v === undefined || v === '') return null;
   if (Array.isArray(v)) return v.map((id) => systeme.entrees.get(id)?.nom ?? id).join(', ') || null;
   if (typeof v === 'boolean') return v ? 'oui' : null;
@@ -277,7 +273,7 @@ export function linkGroups(
   for (const c of sorte ? champsActifs(sorte, fiche.options) : []) {
     if (c.type !== 'entree' && c.type !== 'entrees') continue;
     const v = entry.champs[c.id];
-    const ids = Array.isArray(v) ? v : typeof v === 'string' && v ? [v] : [];
+    const ids = idsDe(v);
     const links = ids.flatMap((id) => {
       const e = get(id);
       return e ? [{ entry: e, note: null }] : [];
@@ -341,9 +337,7 @@ function descendants(systeme: SystemeCharge, entry: Entree, depth = 2): Entree[]
     const suivant: Entree[] = [];
     for (const e of niveau) {
       const ids = [
-        ...Object.values(e.champs).flatMap((v) =>
-          Array.isArray(v) ? v : typeof v === 'string' ? [v] : [],
-        ),
+        ...Object.values(e.champs).flatMap((v) => idsDe(v, true)),
         ...e.effets.flatMap((x) => (x.sur === 'rang' ? [x.entree] : [])),
       ];
       for (const id of ids) {
@@ -381,4 +375,18 @@ export function searchEntry(
   if (texteDe(entry).includes(q)) return { entry, via: [] };
   const via = descendants(systeme, entry).filter((d) => texteDe(d).includes(q));
   return via.length ? { entry, via } : null;
+}
+
+/** Groupes par nom (ordre alphabétique français), le groupe sans nom en dernier. */
+function groupesSansNomALaFin(a: string | null, b: string | null): number {
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return a.localeCompare(b, 'fr');
+}
+
+/** Identifiants d'entrées d'une valeur de champ (liste, ou un seul ; vide ignoré sauf `vide`). */
+function idsDe(v: unknown, vide = false): string[] {
+  if (Array.isArray(v)) return v as string[];
+  if (typeof v === 'string' && (vide || v)) return [v];
+  return [];
 }

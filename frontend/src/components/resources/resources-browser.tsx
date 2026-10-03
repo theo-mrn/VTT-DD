@@ -86,13 +86,8 @@ export function ResourcesBrowser({
   const references = presentation?.references;
   const titre = (id: ResourceTab) => {
     const propre =
-      id === 'capacites'
-        ? references?.capacites?.titre
-        : id === 'marche'
-          ? references?.marche?.titre
-          : id === 'bestiaire'
-            ? references?.bestiaire?.titre
-            : references?.images?.titre;
+      references?.[id === 'capacites' || id === 'marche' || id === 'bestiaire' ? id : 'images']
+        ?.titre;
     return propre ?? ONGLETS.find((o) => o.id === id)!.label;
   };
 
@@ -129,11 +124,11 @@ export function ResourcesBrowser({
         )}
         {onglets.map((id) => (
           <TabsContent key={id} value={id} className={onglets.length > 1 ? 'mt-5' : 'mt-0'}>
-            {id === 'capacites' ? (
-              <CatalogueTab systeme={systeme} presentation={presentation} />
-            ) : id === 'marche' ? (
+            {id === 'capacites' && <CatalogueTab systeme={systeme} presentation={presentation} />}
+            {id === 'marche' && (
               <MarketTab systeme={systeme} presentation={presentation} target={access.inventory} />
-            ) : id === 'bestiaire' ? (
+            )}
+            {id === 'bestiaire' && (
               <BestiaryTab
                 systemId={systemId}
                 systeme={systeme}
@@ -141,9 +136,8 @@ export function ResourcesBrowser({
                 campaignId={access.campaignBestiary}
                 reference={access.systemBestiary}
               />
-            ) : (
-              <ImagesTab presentation={presentation} />
             )}
+            {id === 'images' && <ImagesTab presentation={presentation} />}
           </TabsContent>
         ))}
       </Tabs>

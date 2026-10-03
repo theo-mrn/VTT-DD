@@ -352,6 +352,11 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
     { id: 'campaign', label: 'Campagne', count: templateCards.length },
   ];
 
+  let etat: 'chargement' | 'echec' | 'vide' | 'grille' = 'grille';
+  if (loading) etat = 'chargement';
+  else if (failed) etat = 'echec';
+  else if (!visible.length) etat = 'vide';
+
   return (
     <MapPanel
       id="object-library"
@@ -410,7 +415,7 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
                     : 'border-border-strong text-muted-foreground hover:text-foreground',
                 )}
               >
-                {c === ALL ? 'Tout' : c === NO_CATEGORY ? 'Sans catégorie' : c}
+                {categoryLabel(c)}
               </button>
             ))}
           </div>
@@ -421,7 +426,7 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
         ref={scrollRef}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 [scrollbar-width:thin]"
       >
-        {loading ? (
+        {etat === 'chargement' && (
           <div
             className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5"
             aria-label="Chargement des objets"
@@ -430,7 +435,8 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
               <Skeleton key={i} className="aspect-[4/5]" />
             ))}
           </div>
-        ) : failed ? (
+        )}
+        {etat === 'echec' && (
           <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
             {current === 'system'
               ? 'La bibliothèque d’objets n’a pas pu être chargée.'
@@ -443,15 +449,13 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
               Réessayer
             </Button>
           </div>
-        ) : !visible.length ? (
+        )}
+        {etat === 'vide' && (
           <p className="rounded-lg border border-dashed border-border-strong px-3 py-4 text-center text-[13px] text-muted-foreground">
-            {cards.length
-              ? 'Aucun objet ne correspond.'
-              : current === 'campaign'
-                ? 'Aucun modèle d’objet dans cette campagne : envoyez une image pour en créer un.'
-                : 'Ce système ne déclare pas encore d’objets.'}
+            {cards.length ? 'Aucun objet ne correspond.' : AUCUN_OBJET[current]}
           </p>
-        ) : (
+        )}
+        {etat === 'grille' && (
           <ul
             aria-label={current === 'system' ? 'Objets du système' : 'Modèles d’objets'}
             className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5"
@@ -578,4 +582,15 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
       </div>
     </MapPanel>
   );
+}
+
+/** Bibliothèque vide : selon qu'on regarde les modèles de la campagne ou le système. */
+const AUCUN_OBJET = {
+  campaign: 'Aucun modèle d’objet dans cette campagne : envoyez une image pour en créer un.',
+  system: 'Ce système ne déclare pas encore d’objets.',
+} as const;
+
+function categoryLabel(c: string): string {
+  if (c === ALL) return 'Tout';
+  return c === NO_CATEGORY ? 'Sans catégorie' : c;
 }
