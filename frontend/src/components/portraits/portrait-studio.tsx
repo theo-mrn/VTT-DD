@@ -113,6 +113,18 @@ export function PortraitStudio({
   );
 }
 
+/** Zone de recadrage : bibliothèque, invitation à déposer, chargement, échec, ou l'image. */
+function zoneOf(
+  library: boolean,
+  hasSource: boolean,
+  status: string,
+): 'library' | 'empty' | 'loading' | 'error' | 'crop' {
+  if (library) return 'library';
+  if (!hasSource) return 'empty';
+  if (status === 'loading') return 'loading';
+  return status === 'error' ? 'error' : 'crop';
+}
+
 function Body({
   characterId,
   name,
@@ -228,11 +240,7 @@ function Body({
   }
 
   // Zone de recadrage : bibliothèque, invitation à déposer, chargement, échec, ou l'image
-  let zone: 'library' | 'empty' | 'loading' | 'error' | 'crop' = 'crop';
-  if (library) zone = 'library';
-  else if (!source) zone = 'empty';
-  else if (loaded.status === 'loading') zone = 'loading';
-  else if (loaded.status === 'error') zone = 'error';
+  const zone = zoneOf(library, source !== null, loaded.status);
 
   return (
     <div

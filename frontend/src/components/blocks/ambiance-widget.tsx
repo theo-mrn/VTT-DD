@@ -34,6 +34,61 @@ type ActiveSource =
   | { kind: 'library'; name: string }
   | null;
 
+/** Lecture possible : une source chargée, un fichier à choisir, ou une adresse YouTube saisie. */
+function canTogglePlay(
+  activeSource: ActiveSource,
+  creationType: 'file' | 'youtube',
+  youtubeInput: string,
+): boolean {
+  return (
+    activeSource !== null ||
+    (creationType === 'youtube' && !!youtubeInput) ||
+    creationType === 'file'
+  );
+}
+
+/** Choix de la source : import d'un fichier audio, ou adresse d'une vidéo YouTube. */
+function SourceInput({
+  creationType,
+  activeSource,
+  youtubeInput,
+  onYoutubeInput,
+  onPickFile,
+  onLoadYoutube,
+}: Readonly<{
+  creationType: 'file' | 'youtube';
+  activeSource: ActiveSource;
+  youtubeInput: string;
+  onYoutubeInput(v: string): void;
+  onPickFile(): void;
+  onLoadYoutube(): void;
+}>) {
+  if (creationType === 'file')
+    return (
+      <button
+        onClick={onPickFile}
+        className={cn(
+          'mt-2 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 bg-white/5 border border-dashed border-white/20 text-white/60 hover:text-white hover:border-[#c9a965]/40 transition-all text-xs cursor-pointer',
+          'font-logo',
+        )}
+      >
+        <Upload className="w-3.5 h-3.5" />
+        {activeSource?.kind === 'file' ? activeSource.label : 'Importer un fichier audio'}
+      </button>
+    );
+  return (
+    <div className="mt-2 flex gap-2">
+      <Input
+        placeholder="URL YouTube"
+        value={youtubeInput}
+        onChange={(e) => onYoutubeInput(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && onLoadYoutube()}
+        className="h-8 bg-white/5 border-white/15 text-white text-xs"
+      />
+    </div>
+  );
+}
+
 export function AmbiancePlayerCard({ delay = 0 }: Readonly<{ delay?: number }>) {
   const [creationType, setCreationType] = React.useState<'file' | 'youtube'>('file');
   const [youtubeInput, setYoutubeInput] = React.useState('');
@@ -153,10 +208,7 @@ export function AmbiancePlayerCard({ delay = 0 }: Readonly<{ delay?: number }>) 
     });
   }, [libraryTab, librarySearch, libraryCategory]);
 
-  const canToggle =
-    activeSource !== null ||
-    (creationType === 'youtube' && !!youtubeInput) ||
-    creationType === 'file';
+  const canToggle = canTogglePlay(activeSource, creationType, youtubeInput);
 
   return (
     <>
@@ -201,28 +253,14 @@ export function AmbiancePlayerCard({ delay = 0 }: Readonly<{ delay?: number }>) 
           </button>
         </div>
 
-        {creationType === 'file' ? (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              'mt-2 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 bg-white/5 border border-dashed border-white/20 text-white/60 hover:text-white hover:border-[#c9a965]/40 transition-all text-xs cursor-pointer',
-              'font-logo',
-            )}
-          >
-            <Upload className="w-3.5 h-3.5" />
-            {activeSource?.kind === 'file' ? activeSource.label : 'Importer un fichier audio'}
-          </button>
-        ) : (
-          <div className="mt-2 flex gap-2">
-            <Input
-              placeholder="URL YouTube"
-              value={youtubeInput}
-              onChange={(e) => setYoutubeInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && loadYoutube()}
-              className="h-8 bg-white/5 border-white/15 text-white text-xs"
-            />
-          </div>
-        )}
+        <SourceInput
+          creationType={creationType}
+          activeSource={activeSource}
+          youtubeInput={youtubeInput}
+          onYoutubeInput={setYoutubeInput}
+          onPickFile={() => fileInputRef.current?.click()}
+          onLoadYoutube={loadYoutube}
+        />
 
         <button
           onClick={togglePlay}
