@@ -16,7 +16,7 @@
  */
 import type { Container, Graphics, Sprite } from 'pixi.js';
 import type { RenderContext } from '../../engine/entities/entity-kind';
-import type { Point } from '../../engine/geometry';
+import type { Point, Rect } from '../../engine/geometry';
 import type { MapEngine } from '../../engine/map-engine';
 import { SelectTool } from '../../engine/tools/select-tool';
 import type { MapPointer, Tool } from '../../engine/tools/tool';
@@ -37,6 +37,48 @@ interface Preview {
   frameZoom: number;
   frameImage: boolean;
   lassoDrawn: boolean;
+}
+
+/** Lasso de la sélection (le rendu ne le dessine que pour l'outil de sélection). */
+function drawPreviewLasso(p: Preview, lasso: Rect | null, ctx: RenderContext) {
+  if (lasso) {
+    const px = 1 / ctx.zoom;
+    p.lasso
+      .clear()
+      .rect(lasso.x, lasso.y, lasso.width, lasso.height)
+      .fill({ color: ctx.theme.primary, alpha: 0.08 })
+      .stroke({ width: px, color: ctx.theme.primary, alpha: 0.9 });
+    p.lassoDrawn = true;
+  } else if (p.lassoDrawn) {
+    p.lasso.clear();
+    p.lassoDrawn = false;
+  }
+}
+
+/** Cadre de l'objet à poser, redessiné si sa taille, le zoom ou la présence d'image changent. */
+function drawPreviewFrame(
+  p: Preview,
+  size: { width: number; height: number },
+  ctx: RenderContext,
+  image: boolean,
+) {
+  if (
+    p.frameW === size.width &&
+    p.frameH === size.height &&
+    p.frameZoom === ctx.zoom &&
+    p.frameImage === image
+  )
+    return;
+  p.frameW = size.width;
+  p.frameH = size.height;
+  p.frameZoom = ctx.zoom;
+  p.frameImage = image;
+  const px = 1 / ctx.zoom;
+  p.frame
+    .clear()
+    .rect(-size.width / 2, -size.height / 2, size.width, size.height)
+    .fill({ color: ctx.theme.primary, alpha: image ? 0.04 : 0.12 })
+    .stroke({ width: 1.5 * px, color: ctx.theme.primary, alpha: 0.9 });
 }
 
 export class ObjectPlaceTool implements Tool {
@@ -191,21 +233,7 @@ export class ObjectPlaceTool implements Tool {
 
   renderPreview(layer: Container, ctx: RenderContext) {
     const p = (this.preview ??= this.createPreview(layer, ctx));
-
-    // Lasso de la sélection (le rendu ne le dessine que pour l'outil de sélection)
-    const lasso = this.select.lasso;
-    if (lasso) {
-      const px = 1 / ctx.zoom;
-      p.lasso
-        .clear()
-        .rect(lasso.x, lasso.y, lasso.width, lasso.height)
-        .fill({ color: ctx.theme.primary, alpha: 0.08 })
-        .stroke({ width: px, color: ctx.theme.primary, alpha: 0.9 });
-      p.lassoDrawn = true;
-    } else if (p.lassoDrawn) {
-      p.lasso.clear();
-      p.lassoDrawn = false;
-    }
+    drawPreviewLasso(p, this.select.lasso, ctx);
 
     const source = this.armedSource;
     if (!source || !this.hovering) {
@@ -218,47 +246,32 @@ export class ObjectPlaceTool implements Tool {
     p.root.visible = true;
     p.root.position.set(c.x, c.y);
 
-    if (p.url !== source.imageUrl) {
-      p.url = source.imageUrl;
-      p.sprite.visible = false;
-      if (source.imageUrl) {
-        const url = source.imageUrl;
-        const key = source.key;
-        void ctx.texture(url).then(
-          (t) => {
-            if (!this.preview || this.preview.url !== url || p.sprite.destroyed) return;
-            p.sprite.texture = t;
-            p.sprite.visible = true;
-            const w = t.orig?.width ?? t.width;
-            const h = t.orig?.height ?? t.height;
-            if (w > 0 && h > 0) this.learnAspect(key, w / h);
-            ctx.invalidate();
-          },
-          () => undefined,
-        );
-      }
-    }
+    if (p.url !== source.imageUrl) this.loadPreviewImage(p, source, ctx);
     if (p.sprite.visible && (p.sprite.width !== size.width || p.sprite.height !== size.height))
       p.sprite.setSize(size.width, size.height);
-    const image = source.imageUrl !== '';
-    if (
-      p.frameW !== size.width ||
-      p.frameH !== size.height ||
-      p.frameZoom !== ctx.zoom ||
-      p.frameImage !== image
-    ) {
-      p.frameW = size.width;
-      p.frameH = size.height;
-      p.frameZoom = ctx.zoom;
-      p.frameImage = image;
-      const px = 1 / ctx.zoom;
-      p.frame
-        .clear()
-        .rect(-size.width / 2, -size.height / 2, size.width, size.height)
-        .fill({ color: ctx.theme.primary, alpha: image ? 0.04 : 0.12 })
-        .stroke({ width: 1.5 * px, color: ctx.theme.primary, alpha: 0.9 });
-    }
+    drawPreviewFrame(p, size, ctx, source.imageUrl !== '');
     p.root.alpha = this.pressed ? 0.85 : 0.65;
+  }
+
+  /** Image de l'objet armé, chargée pour l'aperçu (son format appris au passage). */
+  private loadPreviewImage(p: Preview, source: ObjectSource, ctx: RenderContext) {
+    p.url = source.imageUrl;
+    p.sprite.visible = false;
+    if (!source.imageUrl) return;
+    const url = source.imageUrl;
+    const key = source.key;
+    void ctx.texture(url).then(
+      (t) => {
+        if (!this.preview || this.preview.url !== url || p.sprite.destroyed) return;
+        p.sprite.texture = t;
+        p.sprite.visible = true;
+        const w = t.orig?.width ?? t.width;
+        const h = t.orig?.height ?? t.height;
+        if (w > 0 && h > 0) this.learnAspect(key, w / h);
+        ctx.invalidate();
+      },
+      () => undefined,
+    );
   }
 
   private createPreview(layer: Container, ctx: RenderContext): Preview {

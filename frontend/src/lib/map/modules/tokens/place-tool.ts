@@ -161,13 +161,7 @@ export class TokenPlaceTool implements Tool {
   renderPreview(layer: Container, ctx: RenderContext) {
     const lib = this.tokens.library.getState();
     const armed = lib.armed && !lib.placing ? lib.armed : null;
-    let g = this.ghost;
-    if (!g || g.destroyed) {
-      g = new ctx.pixi.Graphics({ label: 'pose-pnj' });
-      this.ghost = g;
-      this.ghostKey = '';
-    }
-    if (g.parent !== layer) layer.addChild(g);
+    const g = this.ensureGhost(layer, ctx);
     // Lasso de la sélection (outil sélection embarqué)
     const lasso = this.select.lasso;
     const px = 1 / Math.max(ctx.zoom, 1e-6);
@@ -202,6 +196,18 @@ export class TokenPlaceTool implements Tool {
         alpha: 0.9,
       });
     }
+  }
+
+  /** Dessin du fantôme, créé au besoin, dans le plan donné. */
+  private ensureGhost(layer: Container, ctx: RenderContext): Graphics {
+    let g = this.ghost;
+    if (!g || g.destroyed) {
+      g = new ctx.pixi.Graphics({ label: 'pose-pnj' });
+      this.ghost = g;
+      this.ghostKey = '';
+    }
+    if (g.parent !== layer) layer.addChild(g);
+    return g;
   }
 
   /** Libère le fantôme (démontage du module). */
