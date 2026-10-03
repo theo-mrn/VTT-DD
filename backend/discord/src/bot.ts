@@ -279,6 +279,8 @@ export function bot(deps: BotDeps) {
         case 'room':
           return await discord.editOriginal(i.token, await room(i, token));
         case 'roll':
+        // Sans dés (/tray) : plateau à boutons
+        case 'tray':
           return await roll(i, token);
         case 'history':
           return await history(i, token);

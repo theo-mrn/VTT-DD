@@ -139,7 +139,8 @@ pas de salle active → message éphémère qui propose `/room`.
 | Commande                    | Effet                                                                                                                                                          |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/room [campaign]`          | Choisit la salle active parmi ses campagnes (autocomplétion : titre et système) ; sans argument, affiche la salle active                                       |
-| `/roll [dice] [hidden]`     | Jet dans la salle active, avec le personnage du joueur (`POST /v1/dice/rolls`, tiré par le serveur) : visible sur la carte et dans l'historique comme tout jet |
+| `/roll dice [hidden]`       | Jet dans la salle active, avec le personnage du joueur (`POST /v1/dice/rolls`, tiré par le serveur) : visible sur la carte et dans l'historique comme tout jet |
+| `/tray`                     | Plateau à boutons des dés du système de la salle active                                                                                                        |
 | `/history [player] [count]` | Derniers jets publics de la salle active (`GET /v1/dice/rolls`)                                                                                                |
 | `/stats [player]`           | Statistiques de la salle active (`GET /v1/dice/stats`)                                                                                                         |
 | `/me`                       | Compte Yner lié et salle active, message éphémère                                                                                                              |
@@ -152,7 +153,7 @@ Les options d'une commande Discord sont les mêmes pour tous ; ce qui s'adapte e
 chaque appel, d'après le système de la salle active et ses `des.sortes` (présentation du
 système, `packages/systemes`) : aucun dé écrit en dur dans le bot.
 
-- **`/roll` sans argument** : plateau éphémère, un bouton par sorte de dé du système (d4…d20 pour
+- **`/tray`** : plateau éphémère, un bouton par sorte de dé du système (d4…d20 pour
   D&D, Fortune, Aptitude, Maîtrise, Infortune, Difficulté, Défi, Force pour Star Wars), un
   compteur par sorte, ± modificateur pour les systèmes chiffrés, puis « Lancer » : le résultat
   est publié dans le salon.

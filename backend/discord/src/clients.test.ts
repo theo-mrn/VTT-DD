@@ -239,6 +239,7 @@ describe('API Discord', () => {
     expect((ok.calls[0]!.body as { name: string }[]).map((c) => c.name)).toEqual([
       'room',
       'roll',
+      'tray',
       'history',
       'stats',
       'me',

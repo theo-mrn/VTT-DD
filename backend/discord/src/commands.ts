@@ -30,12 +30,19 @@ export const COMMANDS = [
       {
         type: STRING,
         name: 'dice',
-        description: 'Dés du système (vide : plateau de dés)',
+        description: 'Dés du système, ex. 1d20+CON',
+        // Obligatoire : Discord y met alors le texte tapé après /roll (facultative, il l'ignore)
+        required: true,
         autocomplete: true,
         max_length: 200,
       },
       { type: BOOLEAN, name: 'hidden', description: 'Visible de toi et du MJ seulement' },
     ],
+    ...contexts,
+  },
+  {
+    name: 'tray',
+    description: 'Plateau de dés du système de ta salle active',
     ...contexts,
   },
   {

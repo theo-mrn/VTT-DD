@@ -201,8 +201,8 @@ describe('POST /v1/discord/interactions', () => {
     expect(f.sent[0]).toMatchObject({ kind: 'edit', message: { flags: 64 } });
   });
 
-  it('/roll sans dés : plateau des dés du système, puis lancer depuis le plateau', async () => {
-    await post(interaction(2, { name: 'roll' }));
+  it('/tray : plateau des dés du système, puis lancer depuis le plateau', async () => {
+    await post(interaction(2, { name: 'tray' }));
     await settle();
     const tray = f.sent[0]!.message!;
     const d20 = tray.components![0]!.components[0]!;
