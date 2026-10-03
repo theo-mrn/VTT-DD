@@ -99,16 +99,7 @@ export class InteractionController {
     // Deuxième doigt : le geste de l'outil s'efface devant le pincement
     const touches = [...this.pointers.values()].filter((p) => p.type === 'touch');
     if (e.type === 'touch' && touches.length === 2) {
-      this.cancelLongPress();
-      if (this.mode === 'tool') engine.tools.active.cancel?.(engine);
-      const [a, b] = touches as [MapPointer, MapPointer];
-      this.pinch = {
-        a: a.id,
-        b: b.id,
-        distance: Math.max(1, Math.hypot(a.screen.x - b.screen.x, a.screen.y - b.screen.y)),
-        mid: mid(a.screen, b.screen),
-      };
-      this.mode = 'pinch';
+      this.startPinch(touches as [MapPointer, MapPointer]);
       return true;
     }
     // Un seul geste à la fois (un clic droit pendant un glisser est ignoré)
@@ -116,13 +107,28 @@ export class InteractionController {
 
     const double = this.isDouble(e);
     this.lastDown = double ? null : { time: e.time, screen: e.screen, button: e.button };
+    return this.press(e, double);
+  }
 
+  /** Deux doigts posés : pincement (zoom et pan). */
+  private startPinch([a, b]: [MapPointer, MapPointer]) {
+    const engine = this.engine;
+    this.cancelLongPress();
+    if (this.mode === 'tool') engine.tools.active.cancel?.(engine);
+    this.pinch = {
+      a: a.id,
+      b: b.id,
+      distance: Math.max(1, Math.hypot(a.screen.x - b.screen.x, a.screen.y - b.screen.y)),
+      mid: mid(a.screen, b.screen),
+    };
+    this.mode = 'pinch';
+  }
+
+  /** Appui d'un bouton hors geste : milieu (pan, recadrer), droit (menu), gauche (outil). */
+  private press(e: MapPointer, double: boolean): boolean {
     if (e.button === 1) {
-      if (double) {
-        engine.fitView();
-        return true;
-      }
-      this.startPan(e);
+      if (double) this.engine.fitView();
+      else this.startPan(e);
       return true;
     }
     if (e.button === 0 && this.spaceHeld) {
@@ -134,13 +140,15 @@ export class InteractionController {
       return true;
     }
     if (e.button !== 0) return false;
+    return this.pressPrimary(e, double);
+  }
 
-    if (double) {
-      const tool = engine.tools.active;
-      if (tool.doubleClick?.(e, engine)) {
-        this.mode = 'none';
-        return true;
-      }
+  /** Bouton gauche : double clic à l'outil, sinon geste de l'outil, sinon pan. */
+  private pressPrimary(e: MapPointer, double: boolean): boolean {
+    const engine = this.engine;
+    if (double && engine.tools.active.doubleClick?.(e, engine)) {
+      this.mode = 'none';
+      return true;
     }
 
     if (e.type === 'touch') this.startLongPress(e);
@@ -307,67 +315,81 @@ export class InteractionController {
   /** Touche enfoncée, carte focalisée ; renvoie vrai si elle est prise. */
   keyDown(k: MapKey): boolean {
     const engine = this.engine;
-    const tools = engine.tools;
-
-    if (k.code === 'Space' && !k.ctrl && !k.meta) {
-      if (!this.spaceHeld) {
-        this.spaceHeld = true;
-        engine.refreshCursor();
-      }
-      return true;
-    }
-
-    if (k.key === 'Escape') {
-      if (this.mode === 'pan' || this.mode === 'pinch') return true;
-      if (tools.active.cancel?.(engine)) {
-        this.mode = 'none';
-        return true;
-      }
-      if (engine.closeOverlays()) return true;
-      if (tools.getActiveId() !== SELECT_TOOL_ID) {
-        tools.activate(SELECT_TOOL_ID);
-        return true;
-      }
-      if (engine.selection.size) {
-        engine.selection.clear();
-        return true;
-      }
-      return false;
-    }
-
-    if (tools.active.key?.(k, engine)) return true;
-
-    const mod = k.ctrl || k.meta;
-    const selected = engine.selection.size > 0;
-    if (mod) {
-      // Ordre et calque : ⌘/Ctrl+↑↓ un cran, +⇧ premier plan / arrière-plan, +⌥ changer de calque
-      if ((k.key === 'ArrowUp' || k.key === 'ArrowDown') && this.mode === 'none') {
-        if (!selected) return false;
-        const up = k.key === 'ArrowUp';
-        const entities = engine.selectedEntities();
-        if (k.alt) void engine.moveToLayer(entities, up ? 'above' : 'below');
-        else if (k.shift) void engine.arrange(entities, up ? 'front' : 'back');
-        else void engine.arrange(entities, up ? 'forward' : 'backward');
-        return true;
-      }
-      if (k.code === 'KeyZ') {
-        void (k.shift ? engine.commands.redo() : engine.commands.undo());
-        return true;
-      }
-      if (k.code === 'KeyY') {
-        void engine.commands.redo();
-        return true;
-      }
-      if (k.code === 'KeyD') {
-        void engine.duplicateSelection();
-        return true;
-      }
-      return false;
-    }
+    if (k.code === 'Space' && !k.ctrl && !k.meta) return this.holdSpace();
+    if (k.key === 'Escape') return this.escape();
+    if (engine.tools.active.key?.(k, engine)) return true;
+    if (k.ctrl || k.meta) return this.modifiedKey(k);
     if (k.alt) return false;
     // Pendant un geste, pas de raccourci qui modifierait ce qu'on tient
     if (this.mode !== 'none') return false;
+    return this.plainKey(k);
+  }
 
+  /** Espace enfoncé : la vue se déplace au glisser. */
+  private holdSpace(): boolean {
+    if (!this.spaceHeld) {
+      this.spaceHeld = true;
+      this.engine.refreshCursor();
+    }
+    return true;
+  }
+
+  /** Échap : geste, puis outil, puis surcouches, puis outil sélection, puis sélection. */
+  private escape(): boolean {
+    const engine = this.engine;
+    const tools = engine.tools;
+    if (this.mode === 'pan' || this.mode === 'pinch') return true;
+    if (tools.active.cancel?.(engine)) {
+      this.mode = 'none';
+      return true;
+    }
+    if (engine.closeOverlays()) return true;
+    if (tools.getActiveId() !== SELECT_TOOL_ID) {
+      tools.activate(SELECT_TOOL_ID);
+      return true;
+    }
+    if (engine.selection.size) {
+      engine.selection.clear();
+      return true;
+    }
+    return false;
+  }
+
+  /** Raccourcis avec ⌘/Ctrl : ordre et calque, annuler, rétablir, dupliquer. */
+  private modifiedKey(k: MapKey): boolean {
+    const engine = this.engine;
+    if ((k.key === 'ArrowUp' || k.key === 'ArrowDown') && this.mode === 'none')
+      return this.arrangeSelection(k, k.key === 'ArrowUp');
+    if (k.code === 'KeyZ') {
+      void (k.shift ? engine.commands.redo() : engine.commands.undo());
+      return true;
+    }
+    if (k.code === 'KeyY') {
+      void engine.commands.redo();
+      return true;
+    }
+    if (k.code === 'KeyD') {
+      void engine.duplicateSelection();
+      return true;
+    }
+    return false;
+  }
+
+  /** ⌘/Ctrl+↑↓ un cran, +⇧ premier plan / arrière-plan, +⌥ changer de calque. */
+  private arrangeSelection(k: MapKey, up: boolean): boolean {
+    const engine = this.engine;
+    if (engine.selection.size === 0) return false;
+    const entities = engine.selectedEntities();
+    if (k.alt) void engine.moveToLayer(entities, up ? 'above' : 'below');
+    else if (k.shift) void engine.arrange(entities, up ? 'front' : 'back');
+    else void engine.arrange(entities, up ? 'forward' : 'backward');
+    return true;
+  }
+
+  /** Raccourcis sans modificateur : suppression, flèches, rotation, calques, outils. */
+  private plainKey(k: MapKey): boolean {
+    const engine = this.engine;
+    const selected = engine.selection.size > 0;
     switch (k.key) {
       case 'Delete':
       case 'Backspace':
@@ -377,13 +399,8 @@ export class InteractionController {
       case 'ArrowLeft':
       case 'ArrowRight':
       case 'ArrowUp':
-      case 'ArrowDown': {
-        if (!selected) return false;
-        const step = (engine.grid()?.size ?? 50) * (k.shift ? 5 : 1);
-        const [dx, dy] = NUDGE[k.key];
-        void engine.nudgeSelection(dx * step, dy * step);
-        return true;
-      }
+      case 'ArrowDown':
+        return selected && this.nudge(k.key, k.shift);
     }
     if (k.code === 'KeyR' && selected) {
       void engine.rotateEntities(engine.selectedEntities(), k.shift ? -ROTATE_STEP : ROTATE_STEP);
@@ -394,15 +411,28 @@ export class InteractionController {
       engine.toggleLayersPanel();
       return true;
     }
-    if (!k.shift && !k.repeat) {
-      const def = tools.byShortcut(k.code);
-      if (def) return tools.activate(def.id);
-      // Raccourcis des modules (Q : quadrillage)
-      const shortcut = engine.shortcutFor(k.code);
-      if (shortcut) {
-        shortcut.run();
-        return true;
-      }
+    if (!k.shift && !k.repeat) return this.shortcutKey(k.code);
+    return false;
+  }
+
+  /** Flèches : la sélection avance d'une case (⇧ : 5 cases). */
+  private nudge(key: keyof typeof NUDGE, fast: boolean): boolean {
+    const engine = this.engine;
+    const step = (engine.grid()?.size ?? 50) * (fast ? 5 : 1);
+    const [dx, dy] = NUDGE[key];
+    void engine.nudgeSelection(dx * step, dy * step);
+    return true;
+  }
+
+  /** Lettre d'un outil, sinon raccourci d'un module (Q : quadrillage). */
+  private shortcutKey(code: string): boolean {
+    const tools = this.engine.tools;
+    const def = tools.byShortcut(code);
+    if (def) return tools.activate(def.id);
+    const shortcut = this.engine.shortcutFor(code);
+    if (shortcut) {
+      shortcut.run();
+      return true;
     }
     return false;
   }
