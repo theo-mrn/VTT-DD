@@ -1,5 +1,6 @@
 import { connectBus, createService, type Bus, type ServiceOptions } from '@vtt/platform';
 import { sql } from 'drizzle-orm';
+import type { FastifyBaseLogger } from 'fastify';
 import { campaignRights, noCampaigns } from './clients/campaign.js';
 import type { HistoryConfig } from './config.js';
 import { startConsumer, type Logger } from './consumer/index.js';
@@ -10,6 +11,38 @@ import { register as history } from './modules/history/index.js';
 import { register as internal } from './modules/internal/index.js';
 
 const DAY_MS = 24 * 3600 * 1000;
+
+/** Droits lus chez campaign ; sans URL ou secret, historique illisible (503). */
+function rightsOf(log: FastifyBaseLogger, config: HistoryConfig): Deps['campaigns'] {
+  const secret = config.INTERNAL_API_SECRET;
+  if (!secret || !config.CAMPAIGN_URL) return noCampaigns;
+  return campaignRights({
+    url: config.CAMPAIGN_URL,
+    secret,
+    cacheMs: config.RIGHTS_CACHE_MS,
+    onError: (e) => log.warn({ error: (e as Error).message }, 'campaign injoignable'),
+  });
+}
+
+/** Consommation du bus (journal des événements) ; renvoie son arrêt. */
+async function consumeBus(
+  bus: Bus,
+  db: Db,
+  log: FastifyBaseLogger,
+  config: HistoryConfig,
+  consume: false | { durable?: string; subjects?: string[] } | undefined,
+): Promise<() => Promise<void>> {
+  const durable = (consume && consume.durable) || config.HISTORY_CONSUMER;
+  const stop = await startConsumer({
+    bus,
+    db,
+    logger: log as unknown as Logger,
+    durable,
+    subjects: consume ? consume.subjects : undefined,
+  });
+  log.info({ durable }, 'consommation du bus démarrée');
+  return stop;
+}
 
 export async function buildHistory(
   config: HistoryConfig,
@@ -68,16 +101,7 @@ export async function buildHistory(
   const deps: Deps = {
     config,
     db,
-    campaigns:
-      campaigns ??
-      (secret && config.CAMPAIGN_URL
-        ? campaignRights({
-            url: config.CAMPAIGN_URL,
-            secret,
-            cacheMs: config.RIGHTS_CACHE_MS,
-            onError: (e) => app.log.warn({ error: (e as Error).message }, 'campaign injoignable'),
-          })
-        : noCampaigns),
+    campaigns: campaigns ?? rightsOf(app.log, config),
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
@@ -101,17 +125,8 @@ export async function buildHistory(
     partitionTimer.unref();
   }
 
-  if (bus) {
-    const durable = (consume && consume.durable) || config.HISTORY_CONSUMER;
-    stopConsumer = await startConsumer({
-      bus,
-      db,
-      logger: app.log as unknown as Logger,
-      durable,
-      subjects: consume ? consume.subjects : undefined,
-    });
-    app.log.info({ durable }, 'consommation du bus démarrée');
-  } else if (consume !== false) {
+  if (bus) stopConsumer = await consumeBus(bus, db, app.log, config, consume);
+  else if (consume !== false) {
     app.log.warn('NATS_URL absent : aucun événement ne sera journalisé');
   }
 
