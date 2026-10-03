@@ -153,6 +153,35 @@ function engineVariables(
   }
 }
 
+/** Rang de l'entrée choisie et ses champs simples (`arme.rang`, `arme.competence`). */
+function setEntryFields(
+  values: Map<string, Valeur>,
+  systeme: SystemeCharge,
+  fiche: Fiche,
+  param: string,
+  value: string,
+) {
+  const id = value.split('#', 1)[0]!;
+  const entry = systeme.entrees.get(id);
+  values.set(`${param}.rang`, fiche.possessions.get(id)?.rang ?? 0);
+  for (const [champ, v] of Object.entries(entry?.champs ?? {}))
+    if (typeof v === 'number' || typeof v === 'boolean') values.set(`${param}.${champ}`, v);
+}
+
+/** Paramètres cachés : leur défaut (le moteur fait de même), un choix compris. */
+function setHiddenDefaults(
+  values: Map<string, Valeur>,
+  systeme: SystemeCharge,
+  action: Action,
+  fiche: Fiche,
+) {
+  for (const p of action.parametres) {
+    if (values.has(p.id) || paramAllowed(systeme, action, p, fiche)) continue;
+    if (p.type === 'nombre' || p.type === 'booleen') values.set(p.id, p.defaut);
+    else if (isChoiceParam(p)) values.set(p.id, defaultParamValue(fiche, p));
+  }
+}
+
 /**
  * Variables connues avant le jet pour l'aperçu : celles du moteur (variables de l'action),
  * puis valeurs des paramètres et champs simples de l'entrée choisie (`arme.competence`,
@@ -169,20 +198,10 @@ function previewVariables(
     const v = params[p.id];
     if (v === undefined) continue;
     values.set(p.id, v);
-    if (p.type !== 'entree' || typeof v !== 'string' || !v) continue;
-    const id = v.split('#', 1)[0]!;
-    const entry = systeme.entrees.get(id);
-    values.set(`${p.id}.rang`, fiche.possessions.get(id)?.rang ?? 0);
-    for (const [champ, value] of Object.entries(entry?.champs ?? {}))
-      if (typeof value === 'number' || typeof value === 'boolean')
-        values.set(`${p.id}.${champ}`, value);
+    if (p.type === 'entree' && typeof v === 'string' && v)
+      setEntryFields(values, systeme, fiche, p.id, v);
   }
-  // Paramètres cachés : leur défaut (le moteur fait de même), un choix compris
-  for (const p of action.parametres)
-    if (!values.has(p.id) && !paramAllowed(systeme, action, p, fiche)) {
-      if (p.type === 'nombre' || p.type === 'booleen') values.set(p.id, p.defaut);
-      else if (isChoiceParam(p)) values.set(p.id, defaultParamValue(fiche, p));
-    }
+  setHiddenDefaults(values, systeme, action, fiche);
   const computed = engineVariables(systeme, action, fiche, params);
   return (name) => computed?.get(name) ?? values.get(name);
 }
