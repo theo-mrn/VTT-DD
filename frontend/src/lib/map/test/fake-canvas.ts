@@ -80,3 +80,13 @@ canvasProto.getContext = function (type) {
 canvasProto.toDataURL = () => 'data:,';
 const g = globalThis as Record<string, unknown>;
 g.CanvasRenderingContext2D ??= FakeContext2d;
+
+/** Pixels d'image (absents de jsdom) : la météo peint ses textures avec. */
+class FakeImageData {
+  constructor(
+    public data: Uint8ClampedArray,
+    public width: number,
+    public height: number,
+  ) {}
+}
+g.ImageData ??= FakeImageData;

@@ -75,6 +75,26 @@ export function installFakeGpu() {
   proto.destroy = function () {
     this.stage.destroy({ children: true });
   };
+  // Second rendu (la météo dessine dans son propre canevas) : même faux GPU
+  const webgl = PIXI.WebGLRenderer.prototype as unknown as {
+    init(this: Record<string, unknown>, o: { width?: number; height?: number }): Promise<void>;
+  };
+  webgl.init = async function (o) {
+    const canvas = document.createElement('canvas');
+    const size = { width: o.width ?? 1, height: o.height ?? 1 };
+    Object.defineProperty(this, 'canvas', { value: canvas, configurable: true });
+    Object.defineProperty(this, 'width', { get: () => size.width, configurable: true });
+    Object.defineProperty(this, 'height', { get: () => size.height, configurable: true });
+    this.renders = 0;
+    this.render = function (this: { renders: number }) {
+      this.renders += 1;
+    };
+    this.resize = (w: number, h: number) => {
+      size.width = w;
+      size.height = h;
+    };
+    this.destroy = () => canvas.remove();
+  };
   // Images : une texture blanche, tout de suite
   vi.spyOn(PIXI.Assets, 'load').mockImplementation(async () => PIXI.Texture.WHITE as never);
   vi.spyOn(PIXI.Assets, 'unload').mockImplementation(async () => undefined);
