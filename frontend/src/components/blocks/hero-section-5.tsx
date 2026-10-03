@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
 import { cn } from '@/lib/utils';
+import { LogoYner } from '@/components/commun/logo-yner';
 import { Menu, X, Mail, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FormulaireConnexion } from '@/components/auth/formulaire-connexion';
@@ -139,7 +140,7 @@ const HeroHeader = ({
 const Logo = () => {
   return (
     <div className="flex items-center gap-3">
-      <img src="/logo.png" alt="Yner Logo" className="h-12 w-auto drop-shadow-md" />
+      <LogoYner className="size-12 text-primary drop-shadow-md" />
       <h1 className={cn('text-3xl tracking-wider text-white', 'font-logo')}>YNER</h1>
     </div>
   );

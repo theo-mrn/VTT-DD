@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import { Illustration } from '@/components/commun/illustration';
 import { DeVisuel } from '@/components/des/de-visuel';
 import { cn } from '@/lib/utils';
+import { LogoYner } from '@/components/commun/logo-yner';
 
 /**
  * Pages d'authentification : formulaire à gauche, vitrine de l'app à droite
@@ -18,21 +19,7 @@ export function CadreAuth({ children }: { children: ReactNode }) {
       <div className="relative flex flex-col px-6 py-6 sm:px-10">
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-halo" />
         <Link href="/" className="relative flex w-fit items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-strong via-primary to-primary/60 shadow-glow">
-            <svg
-              viewBox="0 0 24 24"
-              className="size-[18px] text-primary-foreground"
-              fill="none"
-              aria-hidden
-            >
-              <path
-                d="M12 2.5 20.5 7.4v9.2L12 21.5 3.5 16.6V7.4L12 2.5Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
+          <LogoYner className="size-8 text-primary" />
           <span className="font-logo text-lg tracking-[0.18em]">YNER</span>
         </Link>
         <main className="relative flex flex-1 items-center justify-center py-10">{children}</main>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useProfilRequis } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { EcranChargement } from './ecran-chargement';
+import { LogoYner } from '@/components/commun/logo-yner';
 
 /**
  * Pages « focus » (onboarding, assistants de création, choix du héros) :
@@ -39,21 +40,7 @@ export function EnTeteFocus({
       )}
     >
       <Link href="/accueil" className="flex shrink-0 items-center gap-2.5" aria-label="Accueil">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-strong via-primary to-primary/60 shadow-glow">
-          <svg
-            viewBox="0 0 24 24"
-            className="size-[18px] text-primary-foreground"
-            fill="none"
-            aria-hidden
-          >
-            <path
-              d="M12 2.5 20.5 7.4v9.2L12 21.5 3.5 16.6V7.4L12 2.5Z"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
+        <LogoYner className="size-8 text-primary" />
         <span className="hidden font-logo text-base tracking-[0.18em] sm:inline">YNER</span>
       </Link>
       <div className="flex min-w-0 flex-1 justify-center">{centre}</div>

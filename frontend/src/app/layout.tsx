@@ -27,7 +27,13 @@ const aclonica = Aclonica({
 export const metadata: Metadata = {
   title: { default: 'Yner', template: '%s · Yner' },
   description: 'Plateforme de JDR VTT pour créer, gérer et jouer vos aventures épiques en ligne.',
-  icons: { icon: '/favicon.ico' },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-icon.png',
+  },
 };
 
 export const viewport: Viewport = {

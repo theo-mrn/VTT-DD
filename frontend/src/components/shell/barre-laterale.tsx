@@ -29,6 +29,7 @@ import { useSession } from '@/lib/session';
 import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { cn } from '@/lib/utils';
 import { estActif, LIENS_COMPTE, NAV_PRINCIPALE, NAV_SOCIALE, type LienNav } from './navigation';
+import { LogoYner } from '@/components/commun/logo-yner';
 
 /**
  * Barre latérale : création rapide, recherche, espaces, campagnes récentes,
@@ -65,7 +66,7 @@ export function BarreLaterale({
           onClick={onNavigue}
           className="group flex items-center gap-2.5 rounded-lg outline-none"
         >
-          <Logo />
+          <LogoYner className="size-8 text-primary" />
           {!repliee && (
             <span className="font-logo text-lg tracking-[0.18em] text-foreground">YNER</span>
           )}
@@ -179,31 +180,6 @@ export function BarreLaterale({
         <MenuUtilisateur repliee={repliee} onNavigue={onNavigue} />
       </div>
     </div>
-  );
-}
-
-function Logo() {
-  return (
-    <span
-      aria-hidden
-      className="relative flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-strong via-primary to-primary/60 shadow-glow"
-    >
-      <svg viewBox="0 0 24 24" className="size-[18px] text-primary-foreground" fill="none">
-        <path
-          d="M12 2.5 20.5 7.4v9.2L12 21.5 3.5 16.6V7.4L12 2.5Z"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M12 2.5v19M3.5 7.4 12 12l8.5-4.6"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-      </svg>
-    </span>
   );
 }
 
