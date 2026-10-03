@@ -83,21 +83,16 @@ export function appliquerModifications(
       );
     }
     const stocke = valeurs[m.attribut];
-    const depart =
-      typeof stocke === 'number'
-        ? stocke
-        : a.nature === 'ressource'
-          ? Number(fiche.valeur(m.attribut))
-          : Number(
-              fiche.valeurs.get(m.attribut)?.detail.find((l) => l.source === 'base')?.valeur ??
-                a.defaut,
-            );
-    valeurs[m.attribut] =
-      m.operation === 'fixer'
-        ? m.valeur
-        : m.operation === 'ajouter'
-          ? depart + m.valeur
-          : depart - m.valeur;
+    let depart: number;
+    if (typeof stocke === 'number') depart = stocke;
+    else if (a.nature === 'ressource') depart = Number(fiche.valeur(m.attribut));
+    else
+      depart = Number(
+        fiche.valeurs.get(m.attribut)?.detail.find((l) => l.source === 'base')?.valeur ?? a.defaut,
+      );
+    if (m.operation === 'fixer') valeurs[m.attribut] = m.valeur;
+    else if (m.operation === 'ajouter') valeurs[m.attribut] = depart + m.valeur;
+    else valeurs[m.attribut] = depart - m.valeur;
   }
 
   return { ...fiche.etat, valeurs, possessions };

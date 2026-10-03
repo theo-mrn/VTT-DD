@@ -290,13 +290,8 @@ export const register: Module = async (app, deps) => {
         userAvatar = p?.avatarUrl ?? null;
       }
 
-      const source: Source = replayed
-        ? replayed.completed > 0
-          ? 'mixed'
-          : '3d'
-        : req.user!.roles.includes('api')
-          ? 'api'
-          : 'free';
+      let source: Source = req.user!.roles.includes('api') ? 'api' : 'free';
+      if (replayed) source = replayed.completed > 0 ? 'mixed' : '3d';
       let row: RollRow;
       try {
         row = await db.transaction((tx) =>

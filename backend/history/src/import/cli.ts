@@ -284,8 +284,7 @@ const totals = {
 };
 const warnings = new Map<string, number>();
 for (const l of byCode.values()) {
-  const status =
-    dryRun && !verify ? 'dry-run' : !l.campaignId ? 'no-campaign' : dryRun ? 'dry-run' : 'imported';
+  const status = campaignStatus(l.campaignId, dryRun, verify);
   if (verify && !l.campaignId) totals.noCampaign += l.events - l.errors;
   totals.imported += l.imported;
   totals.alreadyImported += l.alreadyImported;
@@ -333,3 +332,10 @@ if (live.size)
   );
 console.log(`Rapport : ${values.report}`);
 if (totals.errors) process.exitCode = 1;
+
+/** Statut d'une campagne dans le rapport : simulée, sans campagne cible, ou importée. */
+function campaignStatus(campaignId: unknown, dryRun: boolean, verify: boolean) {
+  if (dryRun && !verify) return 'dry-run';
+  if (!campaignId) return 'no-campaign';
+  return dryRun ? 'dry-run' : 'imported';
+}

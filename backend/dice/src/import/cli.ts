@@ -243,8 +243,7 @@ await flush();
 
 const totals = { imported: 0, alreadyImported: 0, noCampaign: 0, noAuthor: 0, errors: 0 };
 for (const l of byCampaign.values()) {
-  const status =
-    dryRun && !verify ? 'dry-run' : !l.campaignId ? 'no-campaign' : dryRun ? 'dry-run' : 'imported';
+  const status = campaignStatus(l.campaignId, dryRun, verify);
   if (verify && !l.campaignId) totals.noCampaign += l.rolls - l.errors;
   totals.imported += l.imported;
   totals.alreadyImported += l.alreadyImported;
@@ -313,3 +312,10 @@ console.log(
 );
 console.log(`Rapport : ${values.report}`);
 if (totals.errors) process.exitCode = 1;
+
+/** Statut d'une campagne dans le rapport : simulée, sans campagne cible, ou importée. */
+function campaignStatus(campaignId: unknown, dryRun: boolean, verify: boolean) {
+  if (dryRun && !verify) return 'dry-run';
+  if (!campaignId) return 'no-campaign';
+  return dryRun ? 'dry-run' : 'imported';
+}

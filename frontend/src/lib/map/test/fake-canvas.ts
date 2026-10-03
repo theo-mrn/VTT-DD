@@ -45,8 +45,10 @@ function fakeContext2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
     isPointInPath: () => false,
   };
   return new Proxy(state, {
-    get: (target, key) =>
-      key in methods ? methods[key as string] : key in target ? target[key] : () => undefined,
+    get: (target, key) => {
+      if (key in methods) return methods[key as string];
+      return key in target ? target[key] : () => undefined;
+    },
     set: (target, key, value) => {
       target[key] = value;
       return true;

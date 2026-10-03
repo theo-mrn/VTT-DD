@@ -126,7 +126,7 @@ export function transformRoll(doc: FirestoreDoc<LegacyRoll>): ImportedRoll {
     userName: (toText(d.userName) ?? 'Aventurier').slice(0, 200),
     userAvatar: toText(d.userAvatar) ?? null,
     ...(toText(d.persoId) ? { persoId: toText(d.persoId)! } : {}),
-    visibility: d.isBlind ? 'gm' : d.isPrivate ? 'private' : 'public',
+    visibility: legacyVisibility(d.isBlind, d.isPrivate),
     notation: notation ? notation.slice(0, 500) : null,
     output: output.slice(0, 5000),
     symbolResult,
@@ -160,7 +160,8 @@ export interface ImportedPreferences {
  */
 function premiumEnd(v: unknown): number | null | undefined {
   if (v === undefined || v === null || v === 0) return null;
-  if (typeof v === 'number') return Number.isFinite(v) ? (v < 1e12 ? v * 1000 : v) : undefined;
+  if (typeof v === 'number' && !Number.isFinite(v)) return undefined;
+  if (typeof v === 'number') return v < 1e12 ? v * 1000 : v;
   return toDate(v)?.getTime();
 }
 
@@ -209,4 +210,10 @@ export function transformPreferences(
     }
   }
   return { uid: doc.id, skinId, inventory: [...inventory], allSkins, warnings };
+}
+
+/** Visibilité d'un jet legacy : aveugle (MJ seul), privé, ou public. */
+function legacyVisibility(blind: unknown, hidden: unknown) {
+  if (blind) return 'gm' as const;
+  return hidden ? ('private' as const) : ('public' as const);
 }

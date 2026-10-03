@@ -234,6 +234,14 @@ function candidats(fiche: Fiche, achat: Achat): Candidat[] {
   }
 }
 
+/** Valeur calculée du candidat : celle de l'attribut, 0 pour une entrée, sinon l'actuelle. */
+function valeurCalculee(fiche: Fiche, c: Candidat): number {
+  if (c.attribut) return Number(fiche.valeur(c.attribut.cle));
+  return c.type === 'entree' ? 0 : c.actuel;
+}
+
+const VIDE_PAR_TYPE: Partial<Record<string, number | boolean>> = { nombre: 0, booleen: false };
+
 function examiner(fiche: Fiche, achat: Achat, c: Candidat, disponible: number): ObjetAchetable {
   const { systeme, etat } = fiche;
   const blocages: Blocage[] = [];
@@ -243,11 +251,7 @@ function examiner(fiche: Fiche, achat: Achat, c: Candidat, disponible: number): 
   const extra = {
     variable: variables({
       actuel: c.actuel,
-      calcule: c.attribut
-        ? Number(fiche.valeur(c.attribut.cle))
-        : c.type === 'entree'
-          ? 0
-          : c.actuel,
+      calcule: valeurCalculee(fiche, c),
       cible,
       nombre: c.nombre,
       creation: etat.creation,
@@ -544,8 +548,7 @@ function champsEntree(fiche: Fiche, c: Candidat): Record<string, Valeur> {
     } else if ('defaut' in champ && champ.defaut !== undefined) {
       vars[`entree.${champ.id}`] = champ.defaut;
     } else {
-      vars[`entree.${champ.id}`] =
-        champ.type === 'nombre' ? 0 : champ.type === 'booleen' ? false : '';
+      vars[`entree.${champ.id}`] = VIDE_PAR_TYPE[champ.type] ?? '';
     }
   }
   return vars;

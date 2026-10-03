@@ -759,7 +759,9 @@ export const DiceThrower = () => {
     return () => window.clearTimeout(t);
   }, [rolling, hasDice]);
   const idleTick = anyAnimated || settling ? IDLE_FRAME_MS : 0;
-  const tickMs = hasDice && !animating ? idleTick : warming && !animating ? WARM_FRAME_MS : 0;
+  let tickMs = 0;
+  if (!animating && hasDice) tickMs = idleTick;
+  else if (!animating && warming) tickMs = WARM_FRAME_MS;
 
   // Réglages lus une fois. Machine économe (Windows, machine modeste) : pas
   // d'antialiasing, densité 1. Ailleurs l'antialiasing reste : la densité

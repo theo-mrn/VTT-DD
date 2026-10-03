@@ -378,7 +378,7 @@ export function etapesCreation(systeme: SystemeCharge, etat: EtatEntite): EtatEt
     const { invalides, aFaire, ...reste } = examiner(fiche, etape);
     return {
       etape,
-      statut: invalides.length ? 'invalide' : aFaire.length ? 'a-faire' : 'faite',
+      statut: statutEtape(invalides.length, aFaire.length),
       raisons: [...invalides, ...aFaire],
       ...reste,
     };
@@ -458,13 +458,10 @@ export function choisirEtape(
   );
   for (const s of retenus) {
     const existante = etat.possessions.find((q) => estExemplaire(q, s.entree, s.exemplaire));
+    const exemplaire = s.exemplaire !== undefined ? { exemplaire: s.exemplaire } : {};
     const poss = existante
       ? copierPossession(existante)
-      : nouvellePossession(
-          s.entree,
-          0,
-          s.exemplaire !== undefined ? { exemplaire: s.exemplaire } : {},
-        );
+      : nouvellePossession(s.entree, 0, exemplaire);
     if (s.choix)
       poss.choix = Object.fromEntries(Object.entries(s.choix).map(([k, v]) => [k, [...v]]));
     suivant.possessions.push(poss);
@@ -675,4 +672,9 @@ export function terminerCreation(systeme: SystemeCharge, etat: EtatEntite): Resu
       suivant.valeurs[a.cle] = fiche.valeur(a.cle);
   }
   return { ok: true, etat: suivant };
+}
+
+function statutEtape(invalides: number, aFaire: number) {
+  if (invalides) return 'invalide' as const;
+  return aFaire ? ('a-faire' as const) : ('faite' as const);
 }
