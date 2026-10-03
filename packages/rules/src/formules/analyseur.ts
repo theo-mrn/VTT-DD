@@ -110,97 +110,97 @@ function decouper(s: string): JetonFormule[] {
   let i = 0;
   while (i < s.length) {
     const c = s[i]!;
-    if (/\s/.test(c)) {
-      i++;
-      continue;
-    }
-    const pos = i;
-
-    if (CHIFFRE.test(c) || (c === '.' && CHIFFRE.test(s[i + 1] ?? ''))) {
-      let fin = lireEntier(s, i);
-      if (s[fin] === 'd' && CHIFFRE.test(s[fin + 1] ?? '')) {
-        const finFaces = lireEntier(s, fin + 1);
-        const jeton: Extract<JetonFormule, { k: 'des' }> = {
-          k: 'des',
-          nombre: Number(s.slice(i, fin)),
-          faces: Number(s.slice(fin + 1, finFaces)),
-          explose: false,
-          pos,
-        };
-        i = lireSuffixesDes(s, finFaces, jeton);
-        jetons.push(jeton);
-        continue;
-      }
-      if (s[fin] === '.') fin = lireEntier(s, fin + 1);
-      if (fin < s.length && LETTRE.test(s[fin]!)) throw new Echec('Nombre mal formé', pos);
-      jetons.push({ k: 'nombre', v: Number(s.slice(i, fin)), pos });
-      i = fin;
-      continue;
-    }
-
-    if (c === '"' || c === "'") {
-      let fin = i + 1;
-      let v = '';
-      while (fin < s.length && s[fin] !== c) {
-        if (s[fin] === '\\' && fin + 1 < s.length) fin++;
-        v += s[fin];
-        fin++;
-      }
-      if (fin >= s.length) throw new Echec('Texte non terminé', pos);
-      jetons.push({ k: 'texte', v, pos });
-      i = fin + 1;
-      continue;
-    }
-
-    if (c === '@') {
-      if (!LETTRE.test(s[i + 1] ?? '')) throw new Echec('Nom d’attribut attendu après « @ »', pos);
-      const fin = lireIdent(s, i + 1);
-      const premier = s.slice(i + 1, fin);
-      if (s[fin] === '.' && LETTRE.test(s[fin + 1] ?? '')) {
-        let fin2 = lireIdent(s, fin + 1);
-        // Clé à plusieurs niveaux (`@combat.cible.aAgi`) : elle garde ses points
-        while (s[fin2] === '.' && LETTRE.test(s[fin2 + 1] ?? '')) fin2 = lireIdent(s, fin2 + 1);
-        jetons.push({ k: 'ref', entite: premier, cle: s.slice(fin + 1, fin2), pos });
-        i = fin2;
-      } else {
-        jetons.push({ k: 'ref', cle: premier, pos });
-        i = fin;
-      }
-      continue;
-    }
-
-    if (LETTRE.test(c)) {
-      // `d20` : dé unique
-      if (c === 'd' && CHIFFRE.test(s[i + 1] ?? '')) {
-        const finFaces = lireEntier(s, i + 1);
-        if (finFaces >= s.length || !LETTRE_OU_CHIFFRE.test(s[finFaces]!) || s[finFaces] === 'k') {
-          const jeton: Extract<JetonFormule, { k: 'des' }> = {
-            k: 'des',
-            nombre: 1,
-            faces: Number(s.slice(i + 1, finFaces)),
-            explose: false,
-            pos,
-          };
-          i = lireSuffixesDes(s, finFaces, jeton);
-          jetons.push(jeton);
-          continue;
-        }
-      }
-      let fin = lireIdent(s, i);
-      // Chemins pointés : `arme.degats`
-      while (s[fin] === '.' && LETTRE.test(s[fin + 1] ?? '')) fin = lireIdent(s, fin + 1);
-      jetons.push({ k: 'ident', v: s.slice(i, fin), pos });
-      i = fin;
-      continue;
-    }
-
-    const op = OPERATEURS.find((o) => s.startsWith(o, i));
-    if (!op) throw new Echec(`Caractère inattendu « ${c} »`, pos);
-    jetons.push({ k: 'op', v: op, pos });
-    i += op.length;
+    if (/\s/.test(c)) i++;
+    else if (CHIFFRE.test(c) || (c === '.' && CHIFFRE.test(s[i + 1] ?? '')))
+      i = lireNombre(s, i, jetons);
+    else if (c === '"' || c === "'") i = lireTexte(s, i, jetons);
+    else if (c === '@') i = lireRef(s, i, jetons);
+    else if (LETTRE.test(c)) i = lireMot(s, i, jetons);
+    else i = lireOperateur(s, i, jetons);
   }
   jetons.push({ k: 'fin', pos: s.length });
   return jetons;
+}
+
+/** Nombre (`12`, `1.5`) ou notation de dés (`2d6`, `4d6k3`) ; renvoie la position suivante. */
+function lireNombre(s: string, i: number, jetons: JetonFormule[]): number {
+  let fin = lireEntier(s, i);
+  if (s[fin] === 'd' && CHIFFRE.test(s[fin + 1] ?? '')) {
+    const finFaces = lireEntier(s, fin + 1);
+    const jeton: Extract<JetonFormule, { k: 'des' }> = {
+      k: 'des',
+      nombre: Number(s.slice(i, fin)),
+      faces: Number(s.slice(fin + 1, finFaces)),
+      explose: false,
+      pos: i,
+    };
+    jetons.push(jeton);
+    return lireSuffixesDes(s, finFaces, jeton);
+  }
+  if (s[fin] === '.') fin = lireEntier(s, fin + 1);
+  if (fin < s.length && LETTRE.test(s[fin]!)) throw new Echec('Nombre mal formé', i);
+  jetons.push({ k: 'nombre', v: Number(s.slice(i, fin)), pos: i });
+  return fin;
+}
+
+/** Texte entre guillemets (simples ou doubles), avec échappement `\` ; position suivante. */
+function lireTexte(s: string, i: number, jetons: JetonFormule[]): number {
+  const c = s[i];
+  let fin = i + 1;
+  let v = '';
+  while (fin < s.length && s[fin] !== c) {
+    if (s[fin] === '\\' && fin + 1 < s.length) fin++;
+    v += s[fin];
+    fin++;
+  }
+  if (fin >= s.length) throw new Echec('Texte non terminé', i);
+  jetons.push({ k: 'texte', v, pos: i });
+  return fin + 1;
+}
+
+/** Référence `@cle` ou `@entite.cle` (clé à plusieurs niveaux : `@combat.cible.aAgi`). */
+function lireRef(s: string, i: number, jetons: JetonFormule[]): number {
+  if (!LETTRE.test(s[i + 1] ?? '')) throw new Echec('Nom d’attribut attendu après « @ »', i);
+  const fin = lireIdent(s, i + 1);
+  const premier = s.slice(i + 1, fin);
+  if (s[fin] !== '.' || !LETTRE.test(s[fin + 1] ?? '')) {
+    jetons.push({ k: 'ref', cle: premier, pos: i });
+    return fin;
+  }
+  let fin2 = lireIdent(s, fin + 1);
+  // Clé à plusieurs niveaux (`@combat.cible.aAgi`) : elle garde ses points
+  while (s[fin2] === '.' && LETTRE.test(s[fin2 + 1] ?? '')) fin2 = lireIdent(s, fin2 + 1);
+  jetons.push({ k: 'ref', entite: premier, cle: s.slice(fin + 1, fin2), pos: i });
+  return fin2;
+}
+
+/** Identifiant (chemins pointés : `arme.degats`) ou dé unique (`d20`). */
+function lireMot(s: string, i: number, jetons: JetonFormule[]): number {
+  if (s[i] === 'd' && CHIFFRE.test(s[i + 1] ?? '')) {
+    const finFaces = lireEntier(s, i + 1);
+    if (finFaces >= s.length || !LETTRE_OU_CHIFFRE.test(s[finFaces]!) || s[finFaces] === 'k') {
+      const jeton: Extract<JetonFormule, { k: 'des' }> = {
+        k: 'des',
+        nombre: 1,
+        faces: Number(s.slice(i + 1, finFaces)),
+        explose: false,
+        pos: i,
+      };
+      jetons.push(jeton);
+      return lireSuffixesDes(s, finFaces, jeton);
+    }
+  }
+  let fin = lireIdent(s, i);
+  while (s[fin] === '.' && LETTRE.test(s[fin + 1] ?? '')) fin = lireIdent(s, fin + 1);
+  jetons.push({ k: 'ident', v: s.slice(i, fin), pos: i });
+  return fin;
+}
+
+function lireOperateur(s: string, i: number, jetons: JetonFormule[]): number {
+  const op = OPERATEURS.find((o) => s.startsWith(o, i));
+  if (!op) throw new Echec(`Caractère inattendu « ${s[i]} »`, i);
+  jetons.push({ k: 'op', v: op, pos: i });
+  return i + op.length;
 }
 
 const COMPARAISONS = new Set(['<', '<=', '>', '>=', '==', '!=']);
@@ -392,32 +392,30 @@ class Analyseur {
       if (args.length !== 3) throw new Echec('si(condition, alors, sinon) attend 3 arguments', pos);
       return { t: 'si', condition: args[0]!, alors: args[1]!, sinon: args[2]!, pos };
     }
-    if (fn === 'des' || fn === 'des_explosifs') {
-      // des(nombre, faces) ou des(nombre, faces, garder, "haut"|"bas")
-      if (args.length !== 2 && args.length !== 3 && args.length !== 4) {
-        throw new Echec(
-          `${fn}(nombre, faces[, garder[, "haut"|"bas"]]) attend 2 à 4 arguments`,
-          pos,
-        );
-      }
-      const n: Noeud = {
-        t: 'des',
-        nombre: args[0]!,
-        faces: args[1]!,
-        explose: fn === 'des_explosifs',
-        pos,
-      };
-      if (args[2]) {
-        const sens = args[3];
-        if (sens && (sens.t !== 'texte' || (sens.v !== 'haut' && sens.v !== 'bas'))) {
-          throw new Echec('Le sens de garde est "haut" ou "bas"', sens.pos);
-        }
-        n.garder = { sens: sens?.t === 'texte' && sens.v === 'bas' ? 'bas' : 'haut', n: args[2] };
-      }
-      return n;
-    }
+    if (fn === 'des' || fn === 'des_explosifs') return noeudDes(fn, args, pos);
     return { t: 'appel', fn, args, pos };
   }
+}
+
+/** `des(nombre, faces)` ou `des(nombre, faces, garder, "haut"|"bas")`, explosifs ou non. */
+function noeudDes(fn: string, args: Noeud[], pos: number): Noeud {
+  if (args.length < 2 || args.length > 4) {
+    throw new Echec(`${fn}(nombre, faces[, garder[, "haut"|"bas"]]) attend 2 à 4 arguments`, pos);
+  }
+  const n: Noeud = {
+    t: 'des',
+    nombre: args[0]!,
+    faces: args[1]!,
+    explose: fn === 'des_explosifs',
+    pos,
+  };
+  if (!args[2]) return n;
+  const sens = args[3];
+  if (sens && (sens.t !== 'texte' || (sens.v !== 'haut' && sens.v !== 'bas'))) {
+    throw new Echec('Le sens de garde est "haut" ou "bas"', sens.pos);
+  }
+  n.garder = { sens: sens?.t === 'texte' && sens.v === 'bas' ? 'bas' : 'haut', n: args[2] };
+  return n;
 }
 
 export function analyser(texte: string): ResultatAnalyse {
