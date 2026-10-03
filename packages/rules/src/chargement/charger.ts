@@ -29,6 +29,24 @@ import {
 } from '../schema/index.js';
 import { etapesAction } from '../jets/etapes.js';
 
+/** Sous-expressions d'un nœud de formule. */
+function enfants(x: Noeud): Noeud[] {
+  switch (x.t) {
+    case 'appel':
+      return x.args;
+    case 'unaire':
+      return [x.arg];
+    case 'binaire':
+      return [x.g, x.d];
+    case 'si':
+      return [x.condition, x.alors, x.sinon];
+    case 'des':
+      return x.garder ? [x.nombre, x.faces, x.garder.n] : [x.nombre, x.faces];
+    default:
+      return [];
+  }
+}
+
 /** Type JavaScript attendu d'un champ simple. */
 const TYPES_JS = { nombre: 'number', texte: 'string', booleen: 'boolean' } as const;
 
@@ -243,51 +261,39 @@ class Chargeur {
 
   /** Vérifie les arguments littéraux des fonctions d'agrégat (sorte, champ, marque existants). */
   private verifierLitteraux(chemin: string, n: Noeud): void {
-    const visiter = (x: Noeud): void => {
-      switch (x.t) {
-        case 'appel': {
-          const lit = x.args.map((a) => (a.t === 'texte' ? a.v : null));
-          if (AGREGATS.includes(x.fn)) {
-            const sorte = lit[0] != null ? this.sortes.get(lit[0]) : undefined;
-            if (lit[0] != null && !sorte) this.erreur(chemin, `Sorte inconnue : ${lit[0]}`, x.pos);
-            if ((x.fn === 'somme' || x.fn === 'somme_actifs') && sorte && lit[1] != null) {
-              const champ = sorte.champs.find((c) => c.id === lit[1]);
-              if (!champ || (champ.type !== 'nombre' && champ.type !== 'booleen')) {
-                this.erreur(chemin, `Champ numérique inconnu sur ${sorte.id} : ${lit[1]}`, x.pos);
-              }
-            }
-          }
-          if (x.fn === 'marquee') {
-            if (lit[0] != null && !this.entrees.has(lit[0]))
-              this.erreur(chemin, `Entrée inconnue : ${lit[0]}`, x.pos);
-            if (lit[1] != null && !this.marques.has(lit[1]))
-              this.erreur(chemin, `Marque jamais posée : ${lit[1]}`, x.pos);
-          }
-          if (x.fn === 'marque' && lit[0] != null && !this.marques.has(lit[0])) {
-            this.erreur(chemin, `Marque jamais posée : ${lit[0]}`, x.pos);
-          }
-          x.args.forEach(visiter);
-          return;
-        }
-        case 'unaire':
-          return visiter(x.arg);
-        case 'binaire':
-          visiter(x.g);
-          return visiter(x.d);
-        case 'si':
-          visiter(x.condition);
-          visiter(x.alors);
-          return visiter(x.sinon);
-        case 'des':
-          visiter(x.nombre);
-          visiter(x.faces);
-          if (x.garder) visiter(x.garder.n);
-          return;
-        default:
-          return;
-      }
-    };
-    visiter(n);
+    if (n.t === 'appel') this.verifierAppel(chemin, n);
+    for (const x of enfants(n)) this.verifierLitteraux(chemin, x);
+  }
+
+  private verifierAppel(chemin: string, x: Extract<Noeud, { t: 'appel' }>): void {
+    const lit = x.args.map((a) => (a.t === 'texte' ? a.v : null));
+    if (AGREGATS.includes(x.fn)) this.verifierAgregat(chemin, x, lit);
+    if (x.fn === 'marquee') {
+      if (lit[0] != null && !this.entrees.has(lit[0]))
+        this.erreur(chemin, `Entrée inconnue : ${lit[0]}`, x.pos);
+      if (lit[1] != null && !this.marques.has(lit[1]))
+        this.erreur(chemin, `Marque jamais posée : ${lit[1]}`, x.pos);
+    }
+    if (x.fn === 'marque' && lit[0] != null && !this.marques.has(lit[0])) {
+      this.erreur(chemin, `Marque jamais posée : ${lit[0]}`, x.pos);
+    }
+  }
+
+  /** Agrégat sur une sorte : sorte connue ; une somme porte sur un champ numérique. */
+  private verifierAgregat(
+    chemin: string,
+    x: Extract<Noeud, { t: 'appel' }>,
+    lit: (string | null)[],
+  ): void {
+    const [nomSorte, nomChamp] = lit;
+    if (nomSorte == null) return;
+    const sorte = this.sortes.get(nomSorte);
+    if (!sorte) return this.erreur(chemin, `Sorte inconnue : ${nomSorte}`, x.pos);
+    if ((x.fn !== 'somme' && x.fn !== 'somme_actifs') || nomChamp == null) return;
+    const champ = sorte.champs.find((c) => c.id === nomChamp);
+    if (!champ || (champ.type !== 'nombre' && champ.type !== 'booleen')) {
+      this.erreur(chemin, `Champ numérique inconnu sur ${sorte.id} : ${nomChamp}`, x.pos);
+    }
   }
 
   private unique<T>(
@@ -358,6 +364,16 @@ class Chargeur {
    * les siens, rangés `section: situation` : le reste du chargement, le moteur, le front et
    * les services les voient comme des paramètres ordinaires de l'action.
    */
+  /** L'action reçoit ce paramètre de situation, sauf si elle déclare déjà le même. */
+  private recoitParametre(chemin: string, a: Action, id: string): boolean {
+    if (!a.parametres.some((x) => x.id === id)) return true;
+    this.erreur(
+      `${chemin}/parametres/${id}`,
+      'Paramètre déjà déclaré par la situation du système (l’écarter par situation.sauf)',
+    );
+    return false;
+  }
+
   private fusionnerSituation(): void {
     const situation = this.s.situation;
     const communs = situation?.parametres ?? [];
@@ -376,23 +392,81 @@ class Chargeur {
         if (!communs.some((p) => p.id === x))
           this.erreur(`${chemin}/situation`, `Paramètre de situation inconnu : ${x}`);
       if (!a.cible || a.situation === false || !communs.length) continue;
-      const recus = [];
-      for (const p of communs) {
-        if (sauf.includes(p.id)) continue;
-        if (a.parametres.some((x) => x.id === p.id)) {
-          this.erreur(
-            `${chemin}/parametres/${p.id}`,
-            'Paramètre déjà déclaré par la situation du système (l’écarter par situation.sauf)',
-          );
-          continue;
-        }
-        recus.push({ ...p, section: 'situation' as const });
-      }
+      const recus = communs
+        .filter((p) => !sauf.includes(p.id) && this.recoitParametre(chemin, a, p.id))
+        .map((p) => ({ ...p, section: 'situation' as const }));
       this.actions.set(id, { ...a, parametres: [...a.parametres, ...recus] });
     }
   }
 
   // ─── Entités et attributs ──────────────────────────────────────────────────
+
+  private verifierAttribut(
+    id: string,
+    a: Attribut,
+    groupes: ReadonlySet<string>,
+    moi: OptionsEnv,
+  ): void {
+    const ou = `entites/${id}/${a.cle}`;
+    const ch = (c: Parameters<typeof chemins.attribut>[2]) => chemins.attribut(id, a.cle, c);
+    if (a.groupe && !groupes.has(a.groupe)) this.erreur(ou, `Groupe inconnu : ${a.groupe}`);
+    this.verifierOption(ou, a.option);
+
+    this.verifierNature(ou, a, moi, ch);
+    if (a.nature === 'base' || a.nature === 'derivee') this.verifierModificateur(ou, a, moi, ch);
+    if ('jet' in a && a.jet) this.verifierJet(id, a, a.jet, moi);
+  }
+
+  /** Formules propres à la nature d'un attribut (bornes, formule, ressource, défaut d'un choix). */
+  private verifierNature(
+    ou: string,
+    a: Attribut,
+    moi: OptionsEnv,
+    ch: (c: Parameters<typeof chemins.attribut>[2]) => string,
+  ): void {
+    switch (a.nature) {
+      case 'base':
+        if (a.min !== undefined) this.compiler(ch('min'), a.min, moi, 'nombre');
+        if (a.max !== undefined) this.compiler(ch('max'), a.max, moi, 'nombre');
+        break;
+      case 'derivee':
+        this.compiler(ch('formule'), a.formule, moi, a.type);
+        break;
+      case 'ressource':
+        this.compiler(ch('max'), a.max, moi, 'nombre');
+        this.compiler(ch('min'), a.min, moi, 'nombre');
+        if (a.initiale !== 'max' && a.initiale !== 'min')
+          this.compiler(ch('initiale'), a.initiale, moi, 'nombre');
+        break;
+      case 'choix':
+        if (a.defaut && !a.options.some((o) => o.valeur === a.defaut))
+          this.erreur(ou, `Valeur par défaut hors des options : ${a.defaut}`);
+        break;
+    }
+  }
+
+  /** Modificateur d'un attribut numérique : celui du système (`true`) ou sa propre formule. */
+  private verifierModificateur(
+    ou: string,
+    a: Extract<Attribut, { nature: 'base' | 'derivee' }>,
+    moi: OptionsEnv,
+    ch: (c: 'modificateur') => string,
+  ): void {
+    if (a.modificateur === undefined || a.modificateur === false) return;
+    if (a.nature === 'derivee' && a.type !== 'nombre')
+      return this.erreur(ou, 'Seul un attribut numérique peut avoir un modificateur');
+    if (a.modificateur !== true) {
+      this.compiler(
+        ch('modificateur'),
+        a.modificateur,
+        { ...moi, variables: { valeur: 'nombre' } },
+        'nombre',
+      );
+      return;
+    }
+    if (this.s.modificateur === undefined)
+      this.erreur(ou, 'modificateur: true sans formule de modificateur dans le système');
+  }
 
   private verifierEntites(): void {
     const s = this.s;
@@ -408,65 +482,7 @@ class Chargeur {
     for (const [id, e] of this.entites) {
       const groupes = new Set(e.type.groupes.map((g) => g.id));
       const moi = { entite: [e.attributs] };
-      for (const a of e.attributs.values()) {
-        const ch = (c: Parameters<typeof chemins.attribut>[2]) => chemins.attribut(id, a.cle, c);
-        if (a.groupe && !groupes.has(a.groupe))
-          this.erreur(`entites/${id}/${a.cle}`, `Groupe inconnu : ${a.groupe}`);
-        this.verifierOption(`entites/${id}/${a.cle}`, a.option);
-
-        switch (a.nature) {
-          case 'base':
-            if (a.min !== undefined) this.compiler(ch('min'), a.min, moi, 'nombre');
-            if (a.max !== undefined) this.compiler(ch('max'), a.max, moi, 'nombre');
-            break;
-          case 'derivee':
-            this.compiler(ch('formule'), a.formule, moi, a.type);
-            break;
-          case 'ressource':
-            this.compiler(ch('max'), a.max, moi, 'nombre');
-            this.compiler(ch('min'), a.min, moi, 'nombre');
-            if (a.initiale !== 'max' && a.initiale !== 'min')
-              this.compiler(ch('initiale'), a.initiale, moi, 'nombre');
-            break;
-          case 'choix':
-            if (a.defaut && !a.options.some((o) => o.valeur === a.defaut)) {
-              this.erreur(
-                `entites/${id}/${a.cle}`,
-                `Valeur par défaut hors des options : ${a.defaut}`,
-              );
-            }
-            break;
-        }
-
-        if (
-          (a.nature === 'base' || a.nature === 'derivee') &&
-          a.modificateur !== undefined &&
-          a.modificateur !== false
-        ) {
-          if (a.nature === 'derivee' && a.type !== 'nombre') {
-            this.erreur(
-              `entites/${id}/${a.cle}`,
-              'Seul un attribut numérique peut avoir un modificateur',
-            );
-          } else if (a.modificateur === true) {
-            if (s.modificateur === undefined) {
-              this.erreur(
-                `entites/${id}/${a.cle}`,
-                'modificateur: true sans formule de modificateur dans le système',
-              );
-            }
-          } else {
-            this.compiler(
-              ch('modificateur'),
-              a.modificateur,
-              { ...moi, variables: { valeur: 'nombre' } },
-              'nombre',
-            );
-          }
-        }
-
-        if ('jet' in a && a.jet) this.verifierJet(id, a, a.jet, moi);
-      }
+      for (const a of e.attributs.values()) this.verifierAttribut(id, a, groupes, moi);
       if (e.type.horsCombat !== undefined)
         this.compiler(chemins.horsCombat(id), e.type.horsCombat, moi, 'booleen');
     }
@@ -497,49 +513,50 @@ class Chargeur {
 
   // ─── Sortes et catalogue ───────────────────────────────────────────────────
 
-  private verifierSortesEtCatalogue(): void {
-    for (const sorte of this.sortes.values()) {
-      const chemin = `sortes/${sorte.id}`;
-      this.verifierTypes(chemin, sorte.pour);
-      this.unique(sorte.champs, (c) => c.id, chemin, 'Champ');
-      for (const c of sorte.champs) {
-        this.verifierOption(`${chemin}/${c.id}`, c.option);
-        if (c.type === 'entree' || c.type === 'entrees') {
-          if (!this.sortes.has(c.sorte))
-            this.erreur(`${chemin}/${c.id}`, `Sorte inconnue : ${c.sorte}`);
-        }
-        if (c.type === 'attribut' && !this.entites.has(c.entite)) {
-          this.erreur(`${chemin}/${c.id}`, `Type d’entité inconnu : ${c.entite}`);
-        }
-        if (c.type === 'choix') {
-          this.unique(c.options, (o) => o.valeur, `${chemin}/${c.id}`, 'Option');
-          if (c.defaut !== undefined && !c.options.some((o) => o.valeur === c.defaut))
-            this.erreur(`${chemin}/${c.id}`, `Option par défaut inconnue : ${c.defaut}`);
-        }
-      }
-      // Nom et description propres d'un exemplaire : champs texte de la sorte
-      for (const [cle, id] of [
-        ['nomExemplaire', sorte.nomExemplaire],
-        ['descriptionExemplaire', sorte.descriptionExemplaire],
-      ] as const) {
-        if (id !== undefined && sorte.champs.find((c) => c.id === id)?.type !== 'texte')
-          this.erreur(`${chemin}/${cle}`, `Champ texte attendu : ${id}`);
-      }
-      if (sorte.rangs && sorte.exemplaires)
-        this.erreur(
-          `${chemin}/exemplaires`,
-          'Une entrée à rangs ne se possède qu’une fois : ses rangs s’additionnent',
-        );
-      if (sorte.rangs && sorte.quantites)
-        this.erreur(`${chemin}/quantites`, 'Une entrée à rangs n’a pas de quantité');
-      if (sorte.rangs)
-        this.compiler(
-          chemins.rangsMax(sorte.id),
-          sorte.rangs.max,
-          { entite: this.attributsDe(sorte.pour) },
-          'nombre',
-        );
+  private verifierSorte(sorte: Sorte): void {
+    const chemin = `sortes/${sorte.id}`;
+    this.verifierTypes(chemin, sorte.pour);
+    this.unique(sorte.champs, (c) => c.id, chemin, 'Champ');
+    for (const c of sorte.champs) this.verifierChampSorte(`${chemin}/${c.id}`, c);
+    // Nom et description propres d'un exemplaire : champs texte de la sorte
+    for (const [cle, id] of [
+      ['nomExemplaire', sorte.nomExemplaire],
+      ['descriptionExemplaire', sorte.descriptionExemplaire],
+    ] as const) {
+      if (id !== undefined && sorte.champs.find((c) => c.id === id)?.type !== 'texte')
+        this.erreur(`${chemin}/${cle}`, `Champ texte attendu : ${id}`);
     }
+    if (!sorte.rangs) return;
+    if (sorte.exemplaires)
+      this.erreur(
+        `${chemin}/exemplaires`,
+        'Une entrée à rangs ne se possède qu’une fois : ses rangs s’additionnent',
+      );
+    if (sorte.quantites)
+      this.erreur(`${chemin}/quantites`, 'Une entrée à rangs n’a pas de quantité');
+    this.compiler(
+      chemins.rangsMax(sorte.id),
+      sorte.rangs.max,
+      { entite: this.attributsDe(sorte.pour) },
+      'nombre',
+    );
+  }
+
+  /** Champ d'une sorte : option, sorte ou entité visée connue, options d'un choix. */
+  private verifierChampSorte(ou: string, c: Sorte['champs'][number]): void {
+    this.verifierOption(ou, c.option);
+    if ((c.type === 'entree' || c.type === 'entrees') && !this.sortes.has(c.sorte))
+      this.erreur(ou, `Sorte inconnue : ${c.sorte}`);
+    if (c.type === 'attribut' && !this.entites.has(c.entite))
+      this.erreur(ou, `Type d’entité inconnu : ${c.entite}`);
+    if (c.type !== 'choix') return;
+    this.unique(c.options, (o) => o.valeur, ou, 'Option');
+    if (c.defaut !== undefined && !c.options.some((o) => o.valeur === c.defaut))
+      this.erreur(ou, `Option par défaut inconnue : ${c.defaut}`);
+  }
+
+  private verifierSortesEtCatalogue(): void {
+    for (const sorte of this.sortes.values()) this.verifierSorte(sorte);
 
     for (const e of this.entrees.values()) this.verifierEntree(e);
 
@@ -921,27 +938,29 @@ class Chargeur {
   // ─── Arbres ────────────────────────────────────────────────────────────────
 
   private verifierArbres(): void {
-    for (const a of this.arbres.values()) {
-      const chemin = `arbres/${a.id}`;
-      if (a.ouvertPar && !this.entrees.has(a.ouvertPar))
-        this.erreur(chemin, `Entrée inconnue : ${a.ouvertPar}`);
-      const noeuds = this.unique(a.noeuds, (n) => n.id, chemin, 'Nœud');
-      for (const n of a.noeuds) {
-        if (!this.entrees.has(n.entree))
-          this.erreur(`${chemin}/${n.id}`, `Entrée inconnue : ${n.entree}`);
-        this.compiler(
-          chemins.noeud(a.id, n.id),
-          n.cout,
-          { variables: { x: 'nombre', y: 'nombre' } },
-          'nombre',
-        );
-      }
-      for (const l of a.liens) {
-        if (!noeuds.has(l.de)) this.erreur(`${chemin}/liens`, `Nœud inconnu : ${l.de}`);
-        if (!noeuds.has(l.vers)) this.erreur(`${chemin}/liens`, `Nœud inconnu : ${l.vers}`);
-      }
-      if (!a.noeuds.some((n) => n.depart)) this.erreur(chemin, 'Aucun nœud de départ');
+    for (const a of this.arbres.values()) this.verifierArbre(a);
+  }
+
+  private verifierArbre(a: Arbre): void {
+    const chemin = `arbres/${a.id}`;
+    if (a.ouvertPar && !this.entrees.has(a.ouvertPar))
+      this.erreur(chemin, `Entrée inconnue : ${a.ouvertPar}`);
+    const noeuds = this.unique(a.noeuds, (n) => n.id, chemin, 'Nœud');
+    for (const n of a.noeuds) {
+      if (!this.entrees.has(n.entree))
+        this.erreur(`${chemin}/${n.id}`, `Entrée inconnue : ${n.entree}`);
+      this.compiler(
+        chemins.noeud(a.id, n.id),
+        n.cout,
+        { variables: { x: 'nombre', y: 'nombre' } },
+        'nombre',
+      );
     }
+    for (const l of a.liens) {
+      if (!noeuds.has(l.de)) this.erreur(`${chemin}/liens`, `Nœud inconnu : ${l.de}`);
+      if (!noeuds.has(l.vers)) this.erreur(`${chemin}/liens`, `Nœud inconnu : ${l.vers}`);
+    }
+    if (!a.noeuds.some((n) => n.depart)) this.erreur(chemin, 'Aucun nœud de départ');
   }
 
   // ─── Actions ───────────────────────────────────────────────────────────────
@@ -1301,60 +1320,63 @@ class Chargeur {
   // ─── Graphe de dépendances ─────────────────────────────────────────────────
 
   private calculerOrdres(): void {
-    for (const [id, e] of this.entites) {
-      const deps = new Map<string, Set<string>>();
-      const ajouter = (cle: string, f: FormuleVerifiee | undefined, sauf?: string) => {
-        if (!f) return;
-        const s = deps.get(cle) ?? new Set<string>();
-        for (const d of f.dependances) if (d !== sauf) s.add(d);
-        deps.set(cle, s);
-      };
+    for (const [id, e] of this.entites) e.ordre = this.ordreDe(id, e, this.dependancesDe(id, e));
+  }
 
-      for (const a of e.attributs.values()) {
-        deps.set(a.cle, deps.get(a.cle) ?? new Set());
-        for (const c of ['formule', 'min', 'max', 'initiale'] as const) {
-          ajouter(a.cle, this.formules.get(chemins.attribut(id, a.cle, c)));
-        }
-        ajouter(a.cle, this.formules.get(chemins.attribut(id, a.cle, 'modificateur')), a.cle);
+  /** Ce dont dépend chaque attribut : ses formules, et les effets qui le visent. */
+  private dependancesDe(id: string, e: EntiteChargee): Map<string, Set<string>> {
+    const deps = new Map<string, Set<string>>();
+    const ajouter = (cle: string, f: FormuleVerifiee | undefined, sauf?: string) => {
+      if (!f) return;
+      const s = deps.get(cle) ?? new Set<string>();
+      for (const d of f.dependances) if (d !== sauf) s.add(d);
+      deps.set(cle, s);
+    };
+
+    for (const a of e.attributs.values()) {
+      deps.set(a.cle, deps.get(a.cle) ?? new Set());
+      for (const c of ['formule', 'min', 'max', 'initiale'] as const) {
+        ajouter(a.cle, this.formules.get(chemins.attribut(id, a.cle, c)));
       }
-
-      // Un effet sur un attribut en fait dépendre la valeur de tout ce que l'effet lit
-      for (const entree of this.entrees.values()) {
-        if (!e.sortes.has(entree.sorte)) continue;
-        entree.effets.forEach((f, i) => {
-          if (f.sur !== 'attribut' || !e.attributs.has(f.attribut)) return;
-          ajouter(f.attribut, this.formules.get(chemins.effet(entree.id, i, 'valeur')));
-          ajouter(f.attribut, this.formules.get(chemins.effet(entree.id, i, 'condition')));
-        });
-      }
-
-      e.type.effets.forEach((f, i) => {
-        if (f.sur !== 'attribut' || !e.attributs.has(f.attribut)) return;
-        ajouter(f.attribut, this.formules.get(chemins.effetEntite(id, i, 'valeur')));
-        ajouter(f.attribut, this.formules.get(chemins.effetEntite(id, i, 'condition')));
-      });
-
-      const ordre: string[] = [];
-      const etat = new Map<string, 'encours' | 'fait'>();
-      const pile: string[] = [];
-      const visiter = (cle: string): boolean => {
-        const s = etat.get(cle);
-        if (s === 'fait') return true;
-        if (s === 'encours') {
-          const cycle = [...pile.slice(pile.indexOf(cle)), cle];
-          this.erreur(`entites/${id}`, `Dépendance circulaire : ${cycle.join(' → ')}`);
-          return false;
-        }
-        etat.set(cle, 'encours');
-        pile.push(cle);
-        for (const d of deps.get(cle) ?? []) if (!visiter(d)) return false;
-        pile.pop();
-        etat.set(cle, 'fait');
-        ordre.push(cle);
-        return true;
-      };
-      for (const cle of e.attributs.keys()) if (!visiter(cle)) break;
-      e.ordre = ordre;
+      ajouter(a.cle, this.formules.get(chemins.attribut(id, a.cle, 'modificateur')), a.cle);
     }
+
+    // Un effet sur un attribut en fait dépendre la valeur de tout ce que l'effet lit
+    const effetSur = (f: { sur: string; attribut?: string }, chemin: (x: string) => string) => {
+      if (f.sur !== 'attribut' || !f.attribut || !e.attributs.has(f.attribut)) return;
+      ajouter(f.attribut, this.formules.get(chemin('valeur')));
+      ajouter(f.attribut, this.formules.get(chemin('condition')));
+    };
+    for (const entree of this.entrees.values()) {
+      if (!e.sortes.has(entree.sorte)) continue;
+      entree.effets.forEach((f, i) => effetSur(f, (x) => chemins.effet(entree.id, i, x)));
+    }
+    e.type.effets.forEach((f, i) => effetSur(f, (x) => chemins.effetEntite(id, i, x)));
+    return deps;
+  }
+
+  /** Ordre de calcul des attributs (dépendances d'abord) ; un cycle est une erreur. */
+  private ordreDe(id: string, e: EntiteChargee, deps: Map<string, Set<string>>): string[] {
+    const ordre: string[] = [];
+    const etat = new Map<string, 'encours' | 'fait'>();
+    const pile: string[] = [];
+    const visiter = (cle: string): boolean => {
+      const s = etat.get(cle);
+      if (s === 'fait') return true;
+      if (s === 'encours') {
+        const cycle = [...pile.slice(pile.indexOf(cle)), cle];
+        this.erreur(`entites/${id}`, `Dépendance circulaire : ${cycle.join(' → ')}`);
+        return false;
+      }
+      etat.set(cle, 'encours');
+      pile.push(cle);
+      for (const d of deps.get(cle) ?? []) if (!visiter(d)) return false;
+      pile.pop();
+      etat.set(cle, 'fait');
+      ordre.push(cle);
+      return true;
+    };
+    for (const cle of e.attributs.keys()) if (!visiter(cle)) break;
+    return ordre;
   }
 }
