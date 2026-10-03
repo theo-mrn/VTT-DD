@@ -22,11 +22,10 @@ env:
   CAMPAIGN_URL: http://campaign.vtt-staging.svc
   # Historique des jets : chaque jet d'action est transmis à dice (/internal/rolls)
   DICE_URL: http://dice.vtt-staging.svc
-  # Fichiers orphelins de ses dossiers (docs/nettoyage.md § Fichiers) : chaque autre service qui
-  # garde des adresses de fichiers (même INTERNAL_API_SECRET partout) ; essai tant que les
-  # journaux n'ont pas été vérifiés, puis « on »
   STORAGE_REFERENCE_URLS: http://campaign.vtt-staging.svc,http://identity.vtt-staging.svc,http://dice.vtt-staging.svc
-  ORPHAN_SWEEP: dry-run
+  # Staging sur le bucket de production (vtt-dd-assets) : le nettoyage des fichiers orphelins
+  # ne tourne jamais ici, il supprimerait des fichiers de la prod
+  ORPHAN_SWEEP: 'off'
 # Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:

@@ -20,11 +20,10 @@ env:
   APP_URL: https://staging.yner.fr
   MAIL_FROM: 'YNER <contact@yner.fr>'
   S3_REGION: auto
-  # Fichiers orphelins de ses dossiers (docs/nettoyage.md § Fichiers) : chaque autre service qui
-  # garde des adresses de fichiers (même INTERNAL_API_SECRET partout) ; essai tant que les
-  # journaux n'ont pas été vérifiés, puis « on »
   STORAGE_REFERENCE_URLS: http://character.vtt-staging.svc,http://campaign.vtt-staging.svc,http://dice.vtt-staging.svc
-  ORPHAN_SWEEP: dry-run
+  # Staging sur le bucket de production (vtt-dd-assets) : le nettoyage des fichiers orphelins
+  # ne tourne jamais ici, il supprimerait des fichiers de la prod
+  ORPHAN_SWEEP: 'off'
 # Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
