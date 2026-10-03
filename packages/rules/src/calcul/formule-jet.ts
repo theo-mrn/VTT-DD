@@ -16,6 +16,8 @@
 import type { SystemeCharge } from '../chargement/index.js';
 import {
   decouperFormule,
+  ecrireDes,
+  notationDes,
   type ErreurFormule,
   type JetonFormule,
   type Noeud,
@@ -265,26 +267,6 @@ function calculer(op: string, a: number, b: number): Valeur | undefined {
     default:
       return undefined;
   }
-}
-
-type NoeudDes = Extract<Noeud, { t: 'des' }>;
-
-/** `2d6k1!` quand nombre, faces et garde sont des constantes ; sinon null. */
-function notationDes(n: NoeudDes, nombre: (v: number) => string): string | null {
-  const nb = n.nombre.t === 'nombre' ? nombre(n.nombre.v) : null;
-  const fa = n.faces.t === 'nombre' ? nombre(n.faces.v) : null;
-  const gk = n.garder && n.garder.n.t === 'nombre' ? nombre(n.garder.n.v) : null;
-  if (nb === null || fa === null || (n.garder && gk === null)) return null;
-  const sens = n.garder?.sens === 'bas' ? 'kl' : 'k';
-  const garder = n.garder ? `${sens}${gk}` : '';
-  return `${nb}d${fa}${garder}${n.explose ? '!' : ''}`;
-}
-
-/** `des(…)` ou `des_explosifs(…)` avec ses arguments écrits. */
-function ecrireDes(n: NoeudDes, ecrire: (x: Noeud) => string): string {
-  const args = [ecrire(n.nombre), ecrire(n.faces)];
-  if (n.garder) args.push(ecrire(n.garder.n), JSON.stringify(n.garder.sens));
-  return `${n.explose ? 'des_explosifs' : 'des'}(${args.join(', ')})`;
 }
 
 /**

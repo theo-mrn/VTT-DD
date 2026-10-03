@@ -170,58 +170,43 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
       }
       case 'maximum_des':
         return avecMode({ ...mode, maximum: true }, n.args[0]!);
-      case 'floor':
-        return Math.floor(nombre(n.args[0]!));
-      case 'ceil':
-        return Math.ceil(nombre(n.args[0]!));
-      case 'round':
-        return Math.round(nombre(n.args[0]!));
-      case 'abs':
-        return Math.abs(nombre(n.args[0]!));
-      case 'min':
-        return Math.min(...args());
-      case 'max':
-        return Math.max(...args());
-      case 'clamp': {
-        const [x, bas, haut] = args() as [number, number, number];
-        return Math.min(Math.max(x, bas), haut);
-      }
       case 'mod': {
         const a = n.args[0] as Extract<Noeud, { t: 'attribut' }>;
         return ctx.modificateur(a.cle, a.entite);
       }
       case 'rang':
-      case 'possede': {
-        const id = ev(n.args[0]!);
-        if (typeof id !== 'string') throw new ErreurEvaluation(`${n.fn}() attend un texte`, n.pos);
-        const f = n.fn === 'rang' ? ctx.rang : ctx.possede;
-        if (!f) throw new ErreurEvaluation(`${n.fn}() indisponible dans ce contexte`, n.pos);
-        return f(id);
-      }
-      case 'option': {
-        const id = ev(n.args[0]!);
-        if (typeof id !== 'string') throw new ErreurEvaluation('option() attend un texte', n.pos);
-        if (!ctx.option)
-          throw new ErreurEvaluation('option() indisponible dans ce contexte', n.pos);
-        return ctx.option(id);
-      }
+      case 'possede':
+      case 'option':
+        return appelPossessions(n);
       case 'valeur': {
-        const cle = ev(n.args[0]!);
-        if (typeof cle !== 'string') throw new ErreurEvaluation('valeur() attend un texte', n.pos);
+        const cle = texteArgument(n);
         const v = ctx.attribut(cle);
         if (typeof v !== 'number') throw new ErreurEvaluation(`@${cle} n’est pas un nombre`, n.pos);
         return v;
       }
-      case 'modificateur': {
-        const cle = ev(n.args[0]!);
-        if (typeof cle !== 'string')
-          throw new ErreurEvaluation('modificateur() attend un texte', n.pos);
-        return ctx.modificateur(cle);
-      }
+      case 'modificateur':
+        return ctx.modificateur(texteArgument(n));
     }
+    const math = MATHS[n.fn];
+    if (math) return math(args());
     const f = ctx.fonctions?.[n.fn];
     if (!f) throw new ErreurEvaluation(`Fonction inconnue : ${n.fn}()`, n.pos);
     return f(...n.args.map(ev));
+  }
+
+  /** Unique argument texte d'un appel (`valeur("FOR")`). */
+  function texteArgument(n: Extract<Noeud, { t: 'appel' }>): string {
+    const v = ev(n.args[0]!);
+    if (typeof v !== 'string') throw new ErreurEvaluation(`${n.fn}() attend un texte`, n.pos);
+    return v;
+  }
+
+  /** `rang()`, `possede()`, `option()` : lus dans le contexte, s'il les fournit. */
+  function appelPossessions(n: Extract<Noeud, { t: 'appel' }>): Valeur {
+    const id = texteArgument(n);
+    const f = { rang: ctx.rang, possede: ctx.possede, option: ctx.option }[n.fn as 'rang'];
+    if (!f) throw new ErreurEvaluation(`${n.fn}() indisponible dans ce contexte`, n.pos);
+    return f(id);
   }
 
   function des(n: Extract<Noeud, { t: 'des' }>): number {
@@ -240,29 +225,14 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
     }
 
     const tires: De[] = [];
-    for (let i = 0; i < nb; i++) {
-      // Dés maximaux : chaque dé vaut ses faces, sans explosion
-      let v = mode.maximum || !g ? faces : g.entier(faces);
-      tires.push({ valeur: v, garde: true, explosion: false });
-      if (mode.maximum) continue;
-      // Un d1 explosif exploserait indéfiniment : l'explosion n'a de sens qu'à partir de 2 faces
-      let explosions = 0;
-      while (n.explose && faces > 1 && v === faces && explosions < LIMITES.explosions) {
-        v = g!.entier(faces);
-        tires.push({ valeur: v, garde: true, explosion: true });
-        explosions++;
-      }
-    }
+    for (let i = 0; i < nb; i++)
+      tires.push(...lancerDe(faces, n.explose, mode.maximum ? undefined : g));
 
     if (n.garder) {
       const k = nombre(n.garder.n);
       if (!Number.isInteger(k) || k < 0)
         throw new ErreurEvaluation(`Nombre de dés gardés invalide : ${k}`, n.pos);
-      const ordre = tires
-        .map((d, i) => ({ v: d.valeur, i }))
-        .sort((a, b) => (n.garder!.sens === 'haut' ? b.v - a.v : a.v - b.v) || a.i - b.i);
-      const gardes = new Set(ordre.slice(0, k).map((o) => o.i));
-      tires.forEach((d, i) => (d.garde = gardes.has(i)));
+      garderDes(tires, k, n.garder.sens);
     }
 
     const total = tires.reduce((s, d) => s + (d.garde ? d.valeur : 0), 0);
@@ -272,4 +242,39 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
 
   const valeur = ev(noeud);
   return { valeur, jets };
+}
+
+/** Fonctions mathématiques sur des nombres. */
+const MATHS: Partial<Record<string, (a: number[]) => number>> = {
+  floor: ([x]) => Math.floor(x!),
+  ceil: ([x]) => Math.ceil(x!),
+  round: ([x]) => Math.round(x!),
+  abs: ([x]) => Math.abs(x!),
+  min: (a) => Math.min(...a),
+  max: (a) => Math.max(...a),
+  clamp: ([x, bas, haut]) => Math.min(Math.max(x!, bas!), haut!),
+};
+
+/**
+ * Un dé et ses explosions ; sans générateur (dés maximaux), il vaut ses faces sans exploser.
+ * Un d1 explosif exploserait indéfiniment : l'explosion n'a de sens qu'à partir de 2 faces.
+ */
+function lancerDe(faces: number, explose: boolean, g: Generateur | undefined): De[] {
+  let v = g ? g.entier(faces) : faces;
+  const des: De[] = [{ valeur: v, garde: true, explosion: false }];
+  if (!g) return des;
+  for (let n = 0; explose && faces > 1 && v === faces && n < LIMITES.explosions; n++) {
+    v = g.entier(faces);
+    des.push({ valeur: v, garde: true, explosion: true });
+  }
+  return des;
+}
+
+/** Garde les `k` meilleurs (ou pires) dés ; à égalité, les premiers lancés. */
+function garderDes(tires: De[], k: number, sens: 'haut' | 'bas'): void {
+  const ordre = tires
+    .map((d, i) => ({ v: d.valeur, i }))
+    .sort((a, b) => (sens === 'haut' ? b.v - a.v : a.v - b.v) || a.i - b.i);
+  const gardes = new Set(ordre.slice(0, k).map((o) => o.i));
+  tires.forEach((d, i) => (d.garde = gardes.has(i)));
 }
