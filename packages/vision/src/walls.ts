@@ -367,33 +367,10 @@ function weldPoints(
   // Sommet de chaque point : les fixes sont eux-mêmes, les autres à déterminer.
   const vertexOfAll = new Int32Array(total).fill(-1);
   for (let k = 0; k < fixedCount; k++) vertexOfAll[k] = k;
-  const snap2 = snap * snap;
   for (let k = fixedCount; k < total; k++) {
     const x = px(k);
     const y = py(k);
-    let found = -1;
-    let bestD = Infinity;
-    const c1 = grid.col(x - snap);
-    const c2 = grid.col(x + snap);
-    const r1 = grid.row(y - snap);
-    const r2 = grid.row(y + snap);
-    for (let r = r1; r <= r2; r++) {
-      for (let c = c1; c <= c2; c++) {
-        const cell = r * grid.cols + c;
-        for (let e = grid.start[cell]!, end = grid.start[cell + 1]!; e < end; e++) {
-          const vj = vertexOfAll[grid.items[e]!]!;
-          if (vj < 0) continue; // pas encore traité
-          const dx = vx.data[vj]! - x;
-          const dy = vy.data[vj]! - y;
-          const d = dx * dx + dy * dy;
-          // Le plus proche ; à égalité, le plus ancien sommet.
-          if (d <= snap2 && (d < bestD || (d === bestD && vj < found))) {
-            bestD = d;
-            found = vj;
-          }
-        }
-      }
-    }
+    let found = nearestWelded(grid, vertexOfAll, vx, vy, x, y, snap);
     if (found < 0) {
       found = vx.length;
       vx.push(x);
@@ -402,6 +379,50 @@ function weldPoints(
     vertexOfAll[k] = found;
   }
   return vertexOfAll.slice(fixedCount);
+}
+
+/** Le sommet `vj` à distance² `d` bat-il le meilleur actuel (à égalité, le plus ancien) ? */
+function closerVertex(d: number, vj: number, bestD: number, found: number): boolean {
+  return d < bestD || (d === bestD && vj < found);
+}
+
+/**
+ * Sommet déjà attribué le plus proche de (x, y) à moins de `snap` (à égalité, le plus ancien),
+ * −1 s'il n'y en a pas.
+ */
+function nearestWelded(
+  grid: Grid,
+  vertexOfAll: Int32Array,
+  vx: F64List,
+  vy: F64List,
+  x: number,
+  y: number,
+  snap: number,
+): number {
+  const snap2 = snap * snap;
+  let found = -1;
+  let bestD = Infinity;
+  const c1 = grid.col(x - snap);
+  const c2 = grid.col(x + snap);
+  const r1 = grid.row(y - snap);
+  const r2 = grid.row(y + snap);
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      const cell = r * grid.cols + c;
+      for (let e = grid.start[cell]!, end = grid.start[cell + 1]!; e < end; e++) {
+        const vj = vertexOfAll[grid.items[e]!]!;
+        if (vj < 0) continue; // pas encore traité
+        const dx = vx.data[vj]! - x;
+        const dy = vy.data[vj]! - y;
+        const d = dx * dx + dy * dy;
+        if (d <= snap2 && closerVertex(d, vj, bestD, found)) {
+          bestD = d;
+          found = vj;
+        }
+      }
+    }
+  }
+  return found;
 }
 
 function dimsCol(dims: { cell: number; cols: number }, min: number, x: number) {
@@ -494,27 +515,33 @@ function collectCell(c: number) {
   cellBuf[cellCount++] = c;
 }
 
-/**
- * Cherche les jonctions en T et les croisements francs entre segments voisins (mêmes cases de
- * la grille, boîtes englobantes qui se touchent, chaque paire testée une fois, au moins un des
- * deux segments à revérifier). Rend null si rien n'est à couper.
- */
-function findSplits(
-  grid: Grid,
-  vx: F64List,
-  vy: F64List,
-  segs: SegList,
-  snap: number,
-  width: number,
-  height: number,
-): Splits | null {
+/** Recherche de coupes en cours : sommets, segments, boîtes élargies et coupes trouvées. */
+interface SplitSearch {
+  X: Float64Array;
+  Y: Float64Array;
+  A: Int32Array;
+  B: Int32Array;
+  dirty: Uint8Array;
+  minX: Float64Array;
+  minY: Float64Array;
+  maxX: Float64Array;
+  maxY: Float64Array;
+  /** Dernier segment i pour lequel la paire (i, j) a été vue. */
+  pairStamp: Int32Array;
+  snap2: number;
+  bySeg: Map<number, number[]>;
+  /** Croisements : points à souder ensuite, avec leurs deux segments. */
+  crossPts: F64List;
+  crossSegs: number[];
+}
+
+/** État initial de la recherche, boîtes englobantes élargies de snap comprises. */
+function newSplitSearch(vx: F64List, vy: F64List, segs: SegList, snap: number): SplitSearch {
   const S = segs.length;
   const X = vx.data;
   const Y = vy.data;
   const A = segs.a;
   const B = segs.b;
-  const dirty = segs.dirty;
-  // Boîtes englobantes élargies de snap.
   const minX = new Float64Array(S);
   const minY = new Float64Array(S);
   const maxX = new Float64Array(S);
@@ -529,85 +556,161 @@ function findSplits(
     minY[s] = (ay < by ? ay : by) - snap;
     maxY[s] = (ay < by ? by : ay) + snap;
   }
-  const pairStamp = new Int32Array(S).fill(-1);
-  const bySeg = new Map<number, number[]>();
-  // Croisements : points à souder ensuite, avec leurs deux segments.
-  const crossPts = new F64List(64);
-  const crossSegs: number[] = [];
-  const snap2 = snap * snap;
+  return {
+    X,
+    Y,
+    A,
+    B,
+    dirty: segs.dirty,
+    minX,
+    minY,
+    maxX,
+    maxY,
+    pairStamp: new Int32Array(S).fill(-1),
+    snap2: snap * snap,
+    bySeg: new Map<number, number[]>(),
+    crossPts: new F64List(64),
+    crossSegs: [],
+  };
+}
+
+/** Les boîtes élargies des segments i et j se touchent-elles ? */
+function boxesTouch(q: SplitSearch, i: number, j: number): boolean {
+  if (q.maxX[i]! < q.minX[j]! || q.maxX[j]! < q.minX[i]! || q.maxY[i]! < q.minY[j]!) return false;
+  return !(q.maxY[j]! < q.minY[i]!);
+}
+
+/** Jonctions en T entre les segments i et j, notées dans les coupes ; vrai si l'une est trouvée. */
+function addTJunctions(q: SplitSearch, i: number, j: number): boolean {
+  const X = q.X;
+  const Y = q.Y;
+  const a = q.A[i]!;
+  const b = q.B[i]!;
+  const c = q.A[j]!;
+  const d = q.B[j]!;
+  let touched = false;
+  if (c !== a && c !== b && onInterior(X, Y, c, a, b, q.snap2)) {
+    addSplit(q.bySeg, i, c);
+    touched = true;
+  }
+  if (d !== a && d !== b && onInterior(X, Y, d, a, b, q.snap2)) {
+    addSplit(q.bySeg, i, d);
+    touched = true;
+  }
+  if (a !== c && a !== d && onInterior(X, Y, a, c, d, q.snap2)) {
+    addSplit(q.bySeg, j, a);
+    touched = true;
+  }
+  if (b !== c && b !== d && onInterior(X, Y, b, c, d, q.snap2)) {
+    addSplit(q.bySeg, j, b);
+    touched = true;
+  }
+  return touched;
+}
+
+/** Orientations strictement opposées (de part et d'autre de la droite) ? */
+function opposite(o1: number, o2: number): boolean {
+  return (o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0);
+}
+
+/** Croisement franc des segments i et j : point noté pour la soudure, avec ses deux segments. */
+function addCrossing(q: SplitSearch, i: number, j: number): void {
+  const X = q.X;
+  const Y = q.Y;
+  const ax = X[q.A[i]!]!;
+  const ay = Y[q.A[i]!]!;
+  const bx = X[q.B[i]!]!;
+  const by = Y[q.B[i]!]!;
+  const cx = X[q.A[j]!]!;
+  const cy = Y[q.A[j]!]!;
+  const dx = X[q.B[j]!]!;
+  const dy = Y[q.B[j]!]!;
+  const o1 = orient(ax, ay, bx, by, cx, cy);
+  const o2 = orient(ax, ay, bx, by, dx, dy);
+  if (!opposite(o1, o2)) return;
+  const o3 = orient(cx, cy, dx, dy, ax, ay);
+  const o4 = orient(cx, cy, dx, dy, bx, by);
+  if (!opposite(o3, o4)) return;
+  // t le long de [a, b], rapport des distances signées à la droite cd.
+  const t = o3 / (o3 - o4);
+  q.crossPts.push(ax + t * (bx - ax));
+  q.crossPts.push(ay + t * (by - ay));
+  q.crossSegs.push(i, j);
+}
+
+/** Teste la paire (i, j) : jonctions en T, sinon croisement franc s'ils ne partagent aucun sommet. */
+function checkPair(q: SplitSearch, i: number, j: number): void {
+  if (!boxesTouch(q, i, j)) return;
+  if (addTJunctions(q, i, j)) return;
+  const a = q.A[i]!;
+  const b = q.B[i]!;
+  const c = q.A[j]!;
+  const d = q.B[j]!;
+  if (a === c || a === d || b === c || b === d) return;
+  addCrossing(q, i, j);
+}
+
+/** Paires du segment i avec ses voisins de grille, chacune testée une fois. */
+function scanSegment(q: SplitSearch, grid: Grid, i: number, margin: number): void {
+  const a = q.A[i]!;
+  const b = q.B[i]!;
+  cellCount = 0;
+  visitSegment(grid, q.X[a]!, q.Y[a]!, q.X[b]!, q.Y[b]!, margin, collectCell);
+  for (let ci = 0; ci < cellCount; ci++) {
+    const cell = cellBuf[ci]!;
+    for (let k = grid.start[cell]!, end = grid.start[cell + 1]!; k < end; k++) {
+      const j = grid.items[k]!;
+      // Paire déjà vue, ou vue depuis j (j à revérifier et plus petit).
+      if (j === i || q.pairStamp[j] === i || (q.dirty[j] === 1 && j < i)) continue;
+      q.pairStamp[j] = i;
+      checkPair(q, i, j);
+    }
+  }
+}
+
+/** Soudure des points de croisement aux sommets existants (et entre eux), puis coupes. */
+function weldCrossings(
+  q: SplitSearch,
+  vx: F64List,
+  vy: F64List,
+  snap: number,
+  width: number,
+  height: number,
+): void {
+  const crossCount = q.crossSegs.length >> 1;
+  if (crossCount === 0) return;
+  const vOf = weldPoints(width, height, q.crossPts.data, crossCount, snap, vx, vy, vx.length);
+  for (let k = 0; k < crossCount; k++) {
+    const v = vOf[k]!;
+    const i = q.crossSegs[2 * k]!;
+    const j = q.crossSegs[2 * k + 1]!;
+    if (v !== q.A[i] && v !== q.B[i]) addSplit(q.bySeg, i, v);
+    if (v !== q.A[j] && v !== q.B[j]) addSplit(q.bySeg, j, v);
+  }
+}
+
+/**
+ * Cherche les jonctions en T et les croisements francs entre segments voisins (mêmes cases de
+ * la grille, boîtes englobantes qui se touchent, chaque paire testée une fois, au moins un des
+ * deux segments à revérifier). Rend null si rien n'est à couper.
+ */
+function findSplits(
+  grid: Grid,
+  vx: F64List,
+  vy: F64List,
+  segs: SegList,
+  snap: number,
+  width: number,
+  height: number,
+): Splits | null {
+  const q = newSplitSearch(vx, vy, segs, snap);
   const margin = snap * 1.5;
-
-  for (let i = 0; i < S; i++) {
-    if (dirty[i] === 0) continue;
-    const a = A[i]!;
-    const b = B[i]!;
-    const ax = X[a]!;
-    const ay = Y[a]!;
-    const bx = X[b]!;
-    const by = Y[b]!;
-    cellCount = 0;
-    visitSegment(grid, ax, ay, bx, by, margin, collectCell);
-    for (let ci = 0; ci < cellCount; ci++) {
-      const cell = cellBuf[ci]!;
-      for (let k = grid.start[cell]!, end = grid.start[cell + 1]!; k < end; k++) {
-        const j = grid.items[k]!;
-        // Paire déjà vue, ou vue depuis j (j à revérifier et plus petit).
-        if (j === i || pairStamp[j] === i || (dirty[j] === 1 && j < i)) continue;
-        pairStamp[j] = i;
-        if (maxX[i]! < minX[j]! || maxX[j]! < minX[i]! || maxY[i]! < minY[j]!) continue;
-        if (maxY[j]! < minY[i]!) continue;
-        const c = A[j]!;
-        const d = B[j]!;
-        let touched = false;
-        if (c !== a && c !== b && onInterior(X, Y, c, a, b, snap2)) {
-          addSplit(bySeg, i, c);
-          touched = true;
-        }
-        if (d !== a && d !== b && onInterior(X, Y, d, a, b, snap2)) {
-          addSplit(bySeg, i, d);
-          touched = true;
-        }
-        if (a !== c && a !== d && onInterior(X, Y, a, c, d, snap2)) {
-          addSplit(bySeg, j, a);
-          touched = true;
-        }
-        if (b !== c && b !== d && onInterior(X, Y, b, c, d, snap2)) {
-          addSplit(bySeg, j, b);
-          touched = true;
-        }
-        if (touched || a === c || a === d || b === c || b === d) continue;
-        const cx = X[c]!;
-        const cy = Y[c]!;
-        const dx = X[d]!;
-        const dy = Y[d]!;
-        const o1 = orient(ax, ay, bx, by, cx, cy);
-        const o2 = orient(ax, ay, bx, by, dx, dy);
-        if (!((o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0))) continue;
-        const o3 = orient(cx, cy, dx, dy, ax, ay);
-        const o4 = orient(cx, cy, dx, dy, bx, by);
-        if (!((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0))) continue;
-        // Croisement franc : t le long de [a, b], rapport des distances signées à la droite cd.
-        const t = o3 / (o3 - o4);
-        crossPts.push(ax + t * (bx - ax));
-        crossPts.push(ay + t * (by - ay));
-        crossSegs.push(i, j);
-      }
-    }
+  for (let i = 0; i < segs.length; i++) {
+    if (q.dirty[i] === 0) continue;
+    scanSegment(q, grid, i, margin);
   }
-
-  const crossCount = crossSegs.length >> 1;
-  if (crossCount > 0) {
-    // Soudure des points de croisement aux sommets existants (et entre eux).
-    const vOf = weldPoints(width, height, crossPts.data, crossCount, snap, vx, vy, vx.length);
-    for (let k = 0; k < crossCount; k++) {
-      const v = vOf[k]!;
-      const i = crossSegs[2 * k]!;
-      const j = crossSegs[2 * k + 1]!;
-      if (v !== A[i] && v !== B[i]) addSplit(bySeg, i, v);
-      if (v !== A[j] && v !== B[j]) addSplit(bySeg, j, v);
-    }
-  }
-  return bySeg.size > 0 ? { bySeg } : null;
+  weldCrossings(q, vx, vy, snap, width, height);
+  return q.bySeg.size > 0 ? { bySeg: q.bySeg } : null;
 }
 
 /**
