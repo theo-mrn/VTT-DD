@@ -30,6 +30,7 @@ import type { FastifyContextConfig } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { campaignBans, campaignCharacters, campaignMembers, campaigns } from '../../db/schema.js';
+import type { Tx } from '../../db/outbox.js';
 import type { Module } from '../../deps.js';
 import { isAcceptedImageUrl, publicBase } from '../../storage/images.js';
 import { removeFromCombat } from '../combat/repository.js';
@@ -110,6 +111,27 @@ const CAMPAIGN_UPLOAD_USAGES: readonly UploadUsageId[] = [
   'map-object',
   'npc-image',
 ];
+
+/**
+ * Changement de système : refusé tant que des personnages sont engagés (ils sont tous du
+ * système de la campagne).
+ */
+async function checkSystemChange(
+  tx: Tx,
+  campaign: { id: string; systemId: string },
+  systemId: string | undefined,
+): Promise<void> {
+  if (!systemId || systemId === campaign.systemId) return;
+  const [engaged] = await tx
+    .select({ n: count() })
+    .from(campaignCharacters)
+    .where(eq(campaignCharacters.campaignId, campaign.id));
+  if (engaged!.n > 0)
+    throw HttpError.conflict(
+      'Retirez d’abord les personnages engagés pour changer de système',
+      'characters_engaged',
+    );
+}
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -335,18 +357,7 @@ export const register: Module = async (app, deps) => {
         )
           throw invalidImage();
         const system = systemId ? knownSystem(systemId) : undefined;
-        if (system && system.id !== a.campaign.systemId) {
-          // Les personnages engagés sont tous du système de la campagne
-          const [engaged] = await tx
-            .select({ n: count() })
-            .from(campaignCharacters)
-            .where(eq(campaignCharacters.campaignId, a.campaign.id));
-          if (engaged!.n > 0)
-            throw HttpError.conflict(
-              'Retirez d’abord les personnages engagés pour changer de système',
-              'characters_engaged',
-            );
-        }
+        await checkSystemChange(tx, a.campaign, system?.id);
         const fields = {
           ...(name !== undefined ? { name } : {}),
           ...(description !== undefined ? { description } : {}),
