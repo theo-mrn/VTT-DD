@@ -97,7 +97,8 @@ export function combatPresentation(presentation: Presentation | null | undefined
 /** Mode d'initiative déclaré par le système (`initiative.mode`), s'il le déclare. */
 export function systemInitiativeMode(systeme: SystemeCharge | null | undefined) {
   const mode = (systeme?.source.initiative as { mode?: unknown } | undefined)?.mode;
-  return mode === 'creneaux' ? 'slots' : mode === 'individuel' ? 'individual' : null;
+  if (mode === 'creneaux') return 'slots';
+  return mode === 'individuel' ? 'individual' : null;
 }
 
 // ─── États d'un participant ──────────────────────────────────────────────────

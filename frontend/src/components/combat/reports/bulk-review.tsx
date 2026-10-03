@@ -123,7 +123,7 @@ function ReviewBody({
     }
   };
 
-  const all = selected === rows.length ? true : selected ? ('mixed' as const) : false;
+  const all = allState(selected, rows.length);
 
   return (
     <>
@@ -259,4 +259,10 @@ function ReviewBody({
       </DialogFooter>
     </>
   );
+}
+
+/** État d'une case « tout cocher » : toutes, une partie, ou aucune. */
+function allState(checked: number, total: number): boolean | 'mixed' {
+  if (checked === total) return true;
+  return checked ? 'mixed' : false;
 }

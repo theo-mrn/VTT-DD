@@ -61,7 +61,7 @@ export function SetupList({
 
   const checked = rows.filter((r) => r.checked).length;
   const onScene = rows.filter((r) => r.onScene).length;
-  const all = checked === rows.length ? true : checked ? ('mixed' as const) : false;
+  const all = allState(checked, rows.length);
 
   return (
     <div className="space-y-2">
@@ -164,4 +164,10 @@ export function SetupList({
       </ol>
     </div>
   );
+}
+
+/** État d'une case « tout cocher » : toutes, une partie, ou aucune. */
+function allState(checked: number, total: number): boolean | 'mixed' {
+  if (checked === total) return true;
+  return checked ? 'mixed' : false;
 }

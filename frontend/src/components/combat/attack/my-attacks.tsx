@@ -61,11 +61,7 @@ export function MyAttacks({
               </span>
             </span>
             <span className="flex shrink-0 flex-col items-end gap-1">
-              <Badge
-                ton={a.status === 'applied' ? 'succes' : isClosed(a.status) ? 'neutre' : 'alerte'}
-              >
-                {ATTACK_STATUS_LABELS[a.status]}
-              </Badge>
+              <Badge ton={statusTone(a.status)}>{ATTACK_STATUS_LABELS[a.status]}</Badge>
               <span className="flex items-center gap-1.5 text-[11px] text-subtle">
                 {a.visibility === 'gm' && <EyeOff className="size-3" aria-label="Cachée" />}
                 {a.outOfTurn && <Clock className="size-3" aria-label="Hors tour" />}
@@ -78,4 +74,9 @@ export function MyAttacks({
       ))}
     </ul>
   );
+}
+
+function statusTone(status: Attack['status']) {
+  if (status === 'applied') return 'succes';
+  return isClosed(status) ? 'neutre' : 'alerte';
 }

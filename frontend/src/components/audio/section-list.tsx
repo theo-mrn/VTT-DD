@@ -121,13 +121,15 @@ export function SectionList({
         </Button>
       </div>
 
-      {library.loading ? (
+      {library.loading && (
         <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
-      ) : list.length === 0 ? (
+      )}
+      {!library.loading && list.length === 0 && (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-[13px] text-muted-foreground">
           {sounds.length ? 'Aucun son ne correspond à la recherche.' : t.vide}
         </p>
-      ) : (
+      )}
+      {!library.loading && list.length > 0 && (
         <ul className="-mx-1 divide-y divide-border/60">
           {list.map((a) => (
             <Row

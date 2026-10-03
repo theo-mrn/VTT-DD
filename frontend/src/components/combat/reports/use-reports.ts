@@ -91,16 +91,11 @@ export function useReports(
   }
 
   const toReview = useMemo(() => pending.attacks.filter(isPending), [pending.attacks]);
-  const all = useMemo(
-    () =>
-      view.filter === 'pending'
-        ? mergeAttacks(open.attacks, pending.attacks, recent)
-        : mergeAttacks(
-            history.attacks,
-            view.filter === 'all' ? [...open.attacks, ...pending.attacks] : [],
-          ),
-    [view.filter, open.attacks, pending.attacks, recent, history.attacks],
-  );
+  const all = useMemo(() => {
+    if (view.filter === 'pending') return mergeAttacks(open.attacks, pending.attacks, recent);
+    if (view.filter === 'all') return mergeAttacks(history.attacks, open.attacks, pending.attacks);
+    return mergeAttacks(history.attacks);
+  }, [view.filter, open.attacks, pending.attacks, recent, history.attacks]);
   const combatId = combat?.id ?? null;
   const scoped = filterReports(
     all,

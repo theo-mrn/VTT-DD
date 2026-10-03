@@ -58,7 +58,7 @@ export function Segmented({
   options: { value: string; label: string; icon?: LucideIcon; count?: number }[];
 }>) {
   const clavier = (e: KeyboardEvent<HTMLDivElement>) => {
-    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    const d = ({ ArrowRight: 1, ArrowLeft: -1 } as Partial<Record<string, number>>)[e.key] ?? 0;
     if (!d) return;
     e.preventDefault();
     const i = options.findIndex((o) => o.value === value);

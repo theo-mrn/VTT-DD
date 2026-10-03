@@ -175,7 +175,8 @@ export function situationText(
     if (v === undefined || v === null || v === p.defaut) return [];
     const name = p.nom ?? p.id;
     if (typeof v === 'boolean') return v ? [name] : [];
-    if (typeof v === 'number') return v === 0 ? [] : [`${name} ${v > 0 ? '+' : '−'}${Math.abs(v)}`];
+    if (typeof v === 'number' && v === 0) return [];
+    if (typeof v === 'number') return [`${name} ${v > 0 ? '+' : '−'}${Math.abs(v)}`];
     if (typeof v !== 'string' || v === '') return [];
     if (p.type === 'entree') return [`${name} : ${entryName(systeme, v)}`];
     if (p.type === 'attribut') return [`${name} : ${attributeLabel(systeme, v)}`];

@@ -80,7 +80,7 @@ export function ReactionForm({
 
   return (
     <div className={cn('space-y-3', compact && 'space-y-2')}>
-      {fiche && params.length > 0 ? (
+      {fiche && params.length > 0 && (
         <div className="grid gap-3">
           {params.map((p) => (
             <ParamField
@@ -93,9 +93,10 @@ export function ReactionForm({
             />
           ))}
         </div>
-      ) : params.length > 0 ? (
+      )}
+      {!fiche && params.length > 0 && (
         <p className="text-[13px] text-muted-foreground">Chargement de la fiche…</p>
-      ) : null}
+      )}
       <div className="flex flex-wrap justify-end gap-2">
         <Button
           variant="ghost"

@@ -41,6 +41,7 @@ export function ReglagesRegles({
   const { systeme, declarees, valeurs } = useReglesOptionnelles(systemId, options);
   if (systeme.data && !declarees.length) return null;
 
+  const chargement = systeme.isPending || loading;
   return (
     <div className="space-y-3">
       <div className="space-y-1">
@@ -50,15 +51,17 @@ export function ReglagesRegles({
           valeurs saisies restent, sans effet.
         </p>
       </div>
-      {systeme.isPending || loading ? (
+      {chargement && (
         <div className="space-y-2" aria-label="Chargement des règles optionnelles">
           {Array.from({ length: 2 }, (_, i) => (
             <Skeleton key={i} className="h-9 w-full rounded-lg" />
           ))}
         </div>
-      ) : systeme.error ? (
+      )}
+      {!chargement && systeme.error && (
         <p className="text-xs text-destructive">Système indisponible : {systeme.error.message}</p>
-      ) : (
+      )}
+      {!chargement && !systeme.error && (
         <div className="space-y-3">
           {declarees.map((o) => (
             <Interrupteur

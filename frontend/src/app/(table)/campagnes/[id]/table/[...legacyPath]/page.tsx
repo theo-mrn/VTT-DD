@@ -18,7 +18,7 @@ export default async function RedirectionAncienOnglet({
   const [onglet, personnage] = legacyPath;
   const query = new URLSearchParams();
   for (const [cle, valeur] of Object.entries(recherche))
-    for (const v of Array.isArray(valeur) ? valeur : valeur ? [valeur] : []) query.append(cle, v);
+    for (const v of [valeur ?? []].flat()) query.append(cle, v);
   if (onglet && PANNEAUX.has(onglet)) {
     query.set('panneau', onglet);
     if (onglet === 'joueurs' && personnage) query.set('personnage', personnage);

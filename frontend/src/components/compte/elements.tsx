@@ -88,7 +88,9 @@ export function Message({
   children: ReactNode;
   className?: string;
 }>) {
-  const Icone = ton === 'succes' ? CheckCircle2 : ton === 'info' ? IconeInfo : AlertCircle;
+  let Icone = AlertCircle;
+  if (ton === 'succes') Icone = CheckCircle2;
+  else if (ton === 'info') Icone = IconeInfo;
   return (
     <p
       role={ton === 'erreur' ? 'alert' : 'status'}

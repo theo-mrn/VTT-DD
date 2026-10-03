@@ -95,13 +95,14 @@ export default function PagePersonnages() {
 
       {personnages.isError && <Message>{personnages.error?.message}</Message>}
 
-      {personnages.isLoading ? (
+      {personnages.isLoading && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 5 }, (_, i) => (
             <CartePersonnageSquelette key={i} />
           ))}
         </div>
-      ) : personnages.data?.length === 0 ? (
+      )}
+      {!personnages.isLoading && personnages.data?.length === 0 && (
         <EtatVide
           icone={UserRound}
           titre="Aucun personnage"
@@ -115,7 +116,8 @@ export default function PagePersonnages() {
             </Button>
           }
         />
-      ) : (
+      )}
+      {!personnages.isLoading && personnages.data?.length !== 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {liste.map((p, i) => {
             const campagne = nomCampagne(p.roomId);

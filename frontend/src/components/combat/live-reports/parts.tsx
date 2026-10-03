@@ -162,7 +162,8 @@ export function OutcomeBadge({
   size?: 'sm' | 'md';
 }>) {
   const outcome = target.result?.outcome ?? target.view?.outcome ?? null;
-  const o = hitOnly ? hitOf(successRule ? outcome : null) : outcomeOf(target, successRule);
+  const hitOutcome = successRule ? outcome : null;
+  const o = hitOnly ? hitOf(hitOutcome) : outcomeOf(target, successRule);
   if (!o) return null;
   const look = OUTCOME_LOOK[o.tone];
   return (

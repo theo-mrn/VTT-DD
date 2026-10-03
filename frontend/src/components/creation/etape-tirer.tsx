@@ -143,7 +143,7 @@ export function EtapeTirer({
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-3xl font-bold leading-none tabular">
-                    {typeof base === 'number' ? (v ? String(v.valeur) : base) : '—'}
+                    {valeurTiree(base, v?.valeur)}
                   </p>
                   {v?.modificateur !== undefined && typeof base === 'number' && (
                     <p className="mt-1 font-mono text-xs text-primary">
@@ -229,4 +229,10 @@ export function EtapeTirer({
       )}
     </div>
   );
+}
+
+/** Valeur affichée d'un attribut tiré : la finale, sinon la base, sinon un tiret. */
+function valeurTiree(base: unknown, finale: unknown): string {
+  if (typeof base !== 'number') return '—';
+  return finale === undefined ? String(base) : String(finale);
 }

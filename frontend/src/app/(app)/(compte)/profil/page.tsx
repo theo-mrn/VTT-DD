@@ -329,6 +329,7 @@ function CarteIdentite({ profil }: Readonly<{ profil: Profil }>) {
 function CarteTitre({ profil }: Readonly<{ profil: Profil }>) {
   const { remplacerProfil } = useSession();
   const debloques = useRessource('mes-titres', lireMesTitres);
+  const chargeTitres = debloques.chargement && !debloques.donnees;
   const catalogue = useRessource('titres', lireTitres);
   const [envoi, setEnvoi] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -359,11 +360,9 @@ function CarteTitre({ profil }: Readonly<{ profil: Profil }>) {
       titre="Titre"
       description="Le titre affiché sous votre nom, parmi ceux que vous avez débloqués."
     >
-      {debloques.chargement && !debloques.donnees ? (
-        <Chargement />
-      ) : debloques.erreur ? (
-        <Message>{debloques.erreur}</Message>
-      ) : (
+      {chargeTitres && <Chargement />}
+      {!chargeTitres && debloques.erreur && <Message>{debloques.erreur}</Message>}
+      {!chargeTitres && !debloques.erreur && (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Titre affiché">
             <PastilleTitre

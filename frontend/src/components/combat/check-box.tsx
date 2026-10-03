@@ -38,11 +38,8 @@ export function CheckBox({
         className,
       )}
     >
-      {checked === 'mixed' ? (
-        <Minus className="size-3.5" aria-hidden />
-      ) : checked ? (
-        <Check className="size-3.5" aria-hidden />
-      ) : null}
+      {checked === 'mixed' && <Minus className="size-3.5" aria-hidden />}
+      {checked === true && <Check className="size-3.5" aria-hidden />}
     </button>
   );
 }
