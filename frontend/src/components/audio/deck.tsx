@@ -75,8 +75,6 @@ export function Deck({
   const { needsUnlock } = useAudioStatus();
   const heard = live.some((l) => l.kind === channel);
   const hasTrack = !!s?.track && !s.track.deleted;
-  const isMusic = channel === 'music';
-  const repeat = s?.repeat ?? 'all';
   const status = statusLabel({
     hasTrack,
     playing,
@@ -84,12 +82,8 @@ export function Deck({
     needsUnlock,
     paused: s?.status === 'paused',
   });
-  let trackLabel = `${LABELS[channel]} : rien en cours`;
-  if (s?.track?.deleted) trackLabel = 'Son supprimé';
-  else if (hasTrack) trackLabel = s!.track!.name;
-  let statusTone = 'text-subtle';
-  if (heard) statusTone = 'text-primary-strong';
-  else if (playing && needsUnlock) statusTone = 'text-warning';
+  const trackLabel = trackLabelOf(s, hasTrack, channel);
+  const statusTone = statusToneOf(heard, playing, needsUnlock);
 
   return (
     <section
@@ -120,130 +114,25 @@ export function Deck({
             {hasTrack && <span className={cn('shrink-0 text-[11px]', statusTone)}>{status}</span>}
           </p>
           {hasTrack && (
-            <p className="flex items-center gap-1.5 text-[11px] tabular-nums text-subtle">
-              <span className="uppercase tracking-wide">{LABELS[channel]}</span>
-              {duration !== null && (
-                <span>
-                  · <DeckTime channel={channel} dragging={dragging} active={visible} /> /{' '}
-                  {formatTime(duration)}
-                </span>
-              )}
-              {isMusic && s && s.queueLength > 1 && s.queueIndex !== null && (
-                <span>
-                  · {s.queueIndex + 1}/{s.queueLength}
-                </span>
-              )}
-              {isMusic && s?.next && (
-                <span className="min-w-0 truncate">· ensuite {s.next.name}</span>
-              )}
-            </p>
+            <DeckMeta
+              channel={channel}
+              state={s}
+              duration={duration}
+              dragging={dragging}
+              active={visible}
+            />
           )}
         </div>
 
         {gm && hasTrack && (
-          <div className="flex shrink-0 items-center">
-            {isMusic && (
-              <Info texte="Morceau précédent">
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="Morceau précédent"
-                  disabled={c.pending}
-                  onClick={() => void run(c.previous())}
-                >
-                  <SkipBack />
-                </Button>
-              </Info>
-            )}
-            <Info texte={playing ? 'Pause' : 'Lecture'}>
-              <Button
-                size="icon-sm"
-                aria-label={playing ? 'Mettre en pause' : 'Reprendre la lecture'}
-                disabled={c.pending}
-                onClick={() => void run(playing ? c.pause() : c.resume())}
-              >
-                {playing ? <Pause /> : <Play />}
-              </Button>
-            </Info>
-            {isMusic && (
-              <Info texte="Morceau suivant">
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="Morceau suivant"
-                  disabled={c.pending}
-                  onClick={() => void run(c.next())}
-                >
-                  <SkipForward />
-                </Button>
-              </Info>
-            )}
-            <Info texte="Arrêter">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Arrêter"
-                disabled={s?.status === 'stopped' || c.pending}
-                onClick={() => void run(c.stop())}
-              >
-                <Square />
-              </Button>
-            </Info>
-            <Popover>
-              <Info texte="Volume de la table et options">
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Volume et options de la ${LABELS[channel].toLowerCase()}`}
-                  >
-                    <SlidersHorizontal />
-                  </Button>
-                </PopoverTrigger>
-              </Info>
-              <PopoverContent align="end" className="w-64 space-y-3 p-3">
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Volume pour toute la table
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Volume2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                    <Slider
-                      aria-label={`Volume de la ${LABELS[channel].toLowerCase()} pour toute la table`}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={[volume ?? s?.volume ?? 1]}
-                      onValueChange={([v]) => setVolume(v ?? 1)}
-                      onValueCommit={([v]) => void run(c.configure({ volume: v ?? 1 }))}
-                    />
-                  </div>
-                </div>
-                {isMusic && (
-                  <div className="flex gap-1.5">
-                    <Button
-                      variant={repeat !== 'off' ? 'default' : 'secondary'}
-                      size="xs"
-                      aria-pressed={repeat !== 'off'}
-                      onClick={() => void run(c.configure({ repeat: NEXT_REPEAT[repeat] }))}
-                    >
-                      {repeat === 'track' ? <Repeat1 /> : <Repeat />}
-                      {REPEAT_LABELS[repeat]}
-                    </Button>
-                    <Button
-                      variant={s?.shuffle ? 'default' : 'secondary'}
-                      size="xs"
-                      aria-pressed={!!s?.shuffle}
-                      onClick={() => void run(c.configure({ shuffle: !s?.shuffle }))}
-                    >
-                      <Shuffle />
-                      Aléatoire
-                    </Button>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
-          </div>
+          <DeckControls
+            channel={channel}
+            control={c}
+            playing={playing}
+            volume={volume}
+            onVolume={setVolume}
+            run={run}
+          />
         )}
       </div>
 
@@ -268,6 +157,191 @@ export function Deck({
         </div>
       )}
     </section>
+  );
+}
+
+type ChannelControl = ReturnType<typeof useChannel>;
+type ChannelState = ChannelControl['state'];
+
+/** Titre affiché : le morceau, « Son supprimé », ou rien en cours. */
+function trackLabelOf(s: ChannelState, hasTrack: boolean, channel: ChannelName): string {
+  if (s?.track?.deleted) return 'Son supprimé';
+  if (hasTrack) return s!.track!.name;
+  return `${LABELS[channel]} : rien en cours`;
+}
+
+/** Couleur de l'état : entendu ici, bloqué par le navigateur, ou neutre. */
+function statusToneOf(heard: boolean, playing: boolean, needsUnlock: boolean): string {
+  if (heard) return 'text-primary-strong';
+  if (playing && needsUnlock) return 'text-warning';
+  return 'text-subtle';
+}
+
+/** Ligne sous le titre : canal, temps, rang dans la file et morceau suivant (musique). */
+function DeckMeta({
+  channel,
+  state: s,
+  duration,
+  dragging,
+  active,
+}: Readonly<{
+  channel: ChannelName;
+  state: ChannelState;
+  duration: number | null;
+  dragging: number | null;
+  active: boolean;
+}>) {
+  const isMusic = channel === 'music';
+  return (
+    <p className="flex items-center gap-1.5 text-[11px] tabular-nums text-subtle">
+      <span className="uppercase tracking-wide">{LABELS[channel]}</span>
+      {duration !== null && (
+        <span>
+          · <DeckTime channel={channel} dragging={dragging} active={active} /> /{' '}
+          {formatTime(duration)}
+        </span>
+      )}
+      {isMusic && s && s.queueLength > 1 && s.queueIndex !== null && (
+        <span>
+          · {s.queueIndex + 1}/{s.queueLength}
+        </span>
+      )}
+      {isMusic && s?.next && <span className="min-w-0 truncate">· ensuite {s.next.name}</span>}
+    </p>
+  );
+}
+
+/** Commandes du MJ : précédent et suivant (musique), lecture ou pause, arrêt, volume et options. */
+function DeckControls({
+  channel,
+  control: c,
+  playing,
+  volume,
+  onVolume,
+  run,
+}: Readonly<{
+  channel: ChannelName;
+  control: ChannelControl;
+  playing: boolean;
+  /** Volume glissé, pas encore envoyé. */
+  volume: number | null;
+  onVolume(v: number | null): void;
+  run(p: Promise<unknown>): Promise<unknown>;
+}>) {
+  const s = c.state;
+  const isMusic = channel === 'music';
+  return (
+    <div className="flex shrink-0 items-center">
+      {isMusic && (
+        <Info texte="Morceau précédent">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Morceau précédent"
+            disabled={c.pending}
+            onClick={() => void run(c.previous())}
+          >
+            <SkipBack />
+          </Button>
+        </Info>
+      )}
+      <Info texte={playing ? 'Pause' : 'Lecture'}>
+        <Button
+          size="icon-sm"
+          aria-label={playing ? 'Mettre en pause' : 'Reprendre la lecture'}
+          disabled={c.pending}
+          onClick={() => void run(playing ? c.pause() : c.resume())}
+        >
+          {playing ? <Pause /> : <Play />}
+        </Button>
+      </Info>
+      {isMusic && (
+        <Info texte="Morceau suivant">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Morceau suivant"
+            disabled={c.pending}
+            onClick={() => void run(c.next())}
+          >
+            <SkipForward />
+          </Button>
+        </Info>
+      )}
+      <Info texte="Arrêter">
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Arrêter"
+          disabled={s?.status === 'stopped' || c.pending}
+          onClick={() => void run(c.stop())}
+        >
+          <Square />
+        </Button>
+      </Info>
+      <Popover>
+        <Info texte="Volume de la table et options">
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Volume et options de la ${LABELS[channel].toLowerCase()}`}
+            >
+              <SlidersHorizontal />
+            </Button>
+          </PopoverTrigger>
+        </Info>
+        <PopoverContent align="end" className="w-64 space-y-3 p-3">
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Volume pour toute la table</p>
+            <div className="flex items-center gap-2">
+              <Volume2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <Slider
+                aria-label={`Volume de la ${LABELS[channel].toLowerCase()} pour toute la table`}
+                min={0}
+                max={1}
+                step={0.05}
+                value={[volume ?? s?.volume ?? 1]}
+                onValueChange={([v]) => onVolume(v ?? 1)}
+                onValueCommit={([v]) => void run(c.configure({ volume: v ?? 1 }))}
+              />
+            </div>
+          </div>
+          {isMusic && <MusicOptions control={c} run={run} />}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+/** Répétition (liste, morceau, aucune) et lecture aléatoire de la musique. */
+function MusicOptions({
+  control: c,
+  run,
+}: Readonly<{ control: ChannelControl; run(p: Promise<unknown>): Promise<unknown> }>) {
+  const s = c.state;
+  const repeat = s?.repeat ?? 'all';
+  return (
+    <div className="flex gap-1.5">
+      <Button
+        variant={repeat !== 'off' ? 'default' : 'secondary'}
+        size="xs"
+        aria-pressed={repeat !== 'off'}
+        onClick={() => void run(c.configure({ repeat: NEXT_REPEAT[repeat] }))}
+      >
+        {repeat === 'track' ? <Repeat1 /> : <Repeat />}
+        {REPEAT_LABELS[repeat]}
+      </Button>
+      <Button
+        variant={s?.shuffle ? 'default' : 'secondary'}
+        size="xs"
+        aria-pressed={!!s?.shuffle}
+        onClick={() => void run(c.configure({ shuffle: !s?.shuffle }))}
+      >
+        <Shuffle />
+        Aléatoire
+      </Button>
+    </div>
   );
 }
 

@@ -180,6 +180,34 @@ export function SectionList({
   );
 }
 
+/** Ligne sous le nom d'un son : en cours, durée, YouTube, préparation ou refus. */
+function AssetInfo({ asset, current }: Readonly<{ asset: Asset; current: boolean }>) {
+  return (
+    <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      {current && <span className="font-semibold text-primary-strong">En cours</span>}
+      {asset.durationMs ? (
+        <span className="tabular-nums">{formatTime(asset.durationMs)}</span>
+      ) : null}
+      {asset.source === 'youtube' && <span>YouTube</span>}
+      {asset.status === 'processing' && (
+        <span className="inline-flex items-center gap-1">
+          <Loader2 className="size-3 animate-spin" aria-hidden />
+          Préparation…
+        </span>
+      )}
+      {asset.status === 'rejected' && (
+        <span
+          className="inline-flex items-center gap-1 text-destructive"
+          title={asset.rejectReason ?? ''}
+        >
+          <AlertTriangle className="size-3" aria-hidden />
+          Fichier refusé
+        </span>
+      )}
+    </p>
+  );
+}
+
 function Row({
   asset,
   section,
@@ -256,28 +284,7 @@ function Row({
             {asset.name}
           </p>
         )}
-        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          {current && <span className="font-semibold text-primary-strong">En cours</span>}
-          {asset.durationMs ? (
-            <span className="tabular-nums">{formatTime(asset.durationMs)}</span>
-          ) : null}
-          {asset.source === 'youtube' && <span>YouTube</span>}
-          {asset.status === 'processing' && (
-            <span className="inline-flex items-center gap-1">
-              <Loader2 className="size-3 animate-spin" aria-hidden />
-              Préparation…
-            </span>
-          )}
-          {asset.status === 'rejected' && (
-            <span
-              className="inline-flex items-center gap-1 text-destructive"
-              title={asset.rejectReason ?? ''}
-            >
-              <AlertTriangle className="size-3" aria-hidden />
-              Fichier refusé
-            </span>
-          )}
-        </p>
+        <AssetInfo asset={asset} current={current} />
       </div>
 
       <Info texte={previewing ? 'Arrêter l’écoute' : 'Écouter pour moi seul'}>
