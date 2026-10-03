@@ -10,7 +10,7 @@ tous les jobs passent (règles de protection de la branche, voir la fin).
 | SonarQube (Quality Gate)  | Analyse du code et de la couverture (unitaires et intégration) ; échoue si le Quality Gate échoue : nouveau code couvert, sans bug ni faille ajoutés.                                                                                           |
 | Bout en bout (Playwright) | Stack complète (`infra/ci/e2e-stack.sh` : infra, migrations, services compilés, front servi) et les parcours de `frontend/e2e`. En cas d'échec : rapport, traces et journaux de chaque processus en artefact `e2e`.                             |
 | Secrets et dépendances    | Gitleaks, revue des nouvelles dépendances (licences, failles), `pnpm audit`, OSV-Scanner.                                                                                                                                                       |
-| Manifests Kubernetes      | Chart des services rendu pour chaque environnement, charts tiers (NATS, Valkey, SonarQube) rendus depuis leurs Applications Argo CD, schémas validés par kubeconform.                                                                           |
+| Manifests Kubernetes      | Chart des services rendu pour chaque environnement, charts tiers (NATS, Valkey) rendus depuis leurs Applications Argo CD, schémas validés par kubeconform.                                                                                      |
 | Image …                   | Chaque image construite et scannée par Trivy ; une CVE critique corrigeable bloque.                                                                                                                                                             |
 
 CodeQL tourne à part (`codeql.yml`), chaque lundi et sur les PR.
@@ -23,29 +23,21 @@ CodeQL tourne à part (`codeql.yml`), chaque lundi et sur les PR.
 
 ## SonarQube
 
-Auto-hébergé sur le cluster : édition Community Build, chart officiel, base CloudNativePG à part
-(`infra/argocd/sonarqube.yaml`, `infra/cluster/sonarqube/`, `infra/sonarqube/values.yaml`),
-servi sur `https://sonar.yner.fr`.
-
-La Community Build n'analyse qu'une branche : chaque analyse (PR ou `main`) remplace la
-précédente dans le projet. Le Quality Gate porte sur le « nouveau code » (par défaut : depuis
-la version précédente), et le job échoue s'il ne passe pas.
+Instance existante : `https://sonarqube.cluster.afflair.app` (hors de ce dépôt). Le job envoie
+l'analyse et la couverture, puis attend le Quality Gate (`sonar.qualitygate.wait`) : il échoue
+si le nouveau code n'est pas couvert ou ajoute un bug ou une faille. Projet : `vtt`
+(`sonar-project.properties`).
 
 ### Mise en place (une fois)
 
-1. **Nœud** : Elasticsearch embarqué exige `vm.max_map_count` ≥ 524288 (le conteneur d'init
-   privilégié du chart est désactivé). Sur le nœud qui porte SonarQube :
-   `echo 'vm.max_map_count=524288' | sudo tee /etc/sysctl.d/99-sonarqube.conf && sudo sysctl --system`.
-2. **Secret de la sonde** (le pod n'est jamais prêt sans lui) :
-   `kubectl -n sonarqube create secret generic sonarqube-monitoring --from-literal=passcode="$(openssl rand -hex 24)"`.
-   Le namespace vient de `sonarqube-base` : appliquer d'abord `infra/argocd/sonarqube.yaml`.
-3. **DNS** : `sonar.yner.fr` vers l'ingress (certificat Let's Encrypt par cert-manager).
-4. **Premier accès** : `admin` / `admin`, mot de passe changé aussitôt.
-5. **Projet** : créer le projet `vtt` (clé de `sonar-project.properties`), puis un jeton
-   d'analyse de projet (My Account → Security).
-6. **GitHub** (Settings → Secrets and variables → Actions) : secret `SONAR_TOKEN` (le jeton),
-   variable `SONAR_HOST_URL` = `https://sonar.yner.fr`. Sans eux, le job SonarQube passe avec un
-   avertissement.
+1. **Accès depuis GitHub Actions** : l'instance est derrière la SSO `auth.cluster.afflair.app`,
+   qui redirige toute requête non connectée, y compris l'API. Le scanner (runner GitHub) doit
+   la traverser : exempter de la SSO les routes `/api/` (elles exigent déjà un jeton
+   SonarQube), ou lancer ce job sur un runner auto-hébergé dans le cluster.
+2. **Projet** : créer le projet `vtt`, puis un jeton d'analyse de projet.
+3. **GitHub** (Settings → Secrets and variables → Actions) : secret `SONAR_TOKEN` (le jeton),
+   variable `SONAR_HOST_URL` = `https://sonarqube.cluster.afflair.app`. Sans eux, le job
+   SonarQube passe avec un avertissement.
 
 ### Protection de `main`
 
