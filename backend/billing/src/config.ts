@@ -1,4 +1,4 @@
-import { BaseConfig } from '@vtt/platform';
+import { BaseConfig, withoutTrailingSlashes } from '@vtt/platform';
 import { z } from 'zod';
 
 /** Variable facultative : une valeur vide dans le .env vaut absente. */
@@ -18,11 +18,7 @@ export const BillingConfig = BaseConfig.extend({
   JWKS_URL: z.string().url().optional(),
 
   /** URL publique du front : retours de Stripe Checkout et du portail client. */
-  APP_URL: z
-    .string()
-    .url()
-    .default('http://localhost:3000')
-    .transform((u) => u.replace(/\/+$/, '')),
+  APP_URL: z.string().url().default('http://localhost:3000').transform(withoutTrailingSlashes),
 
   /**
    * Clé secrète Stripe (sk_… ou clé restreinte rk_…). Absente : le service

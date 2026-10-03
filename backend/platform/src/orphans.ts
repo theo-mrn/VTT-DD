@@ -17,6 +17,7 @@ import type pg from 'pg';
 import { z } from 'zod';
 import { requireInternalSecret } from './internal-secret.js';
 import type { ObjectStore } from './storage.js';
+import { withoutTrailingSlashes } from './strings.js';
 
 const FOLDERS = [...new Set(Object.values(UPLOAD_USAGES).map((u) => u.folder))];
 const EXTENSIONS = [...new Set(Object.values(UPLOAD_EXTENSIONS))];
@@ -138,7 +139,7 @@ export function remoteReferences(
   secret: string,
   fetcher: typeof fetch = fetch,
 ): ReferenceChecker {
-  const url = `${baseUrl.replace(/\/+$/, '')}/internal/storage/references`;
+  const url = `${withoutTrailingSlashes(baseUrl)}/internal/storage/references`;
   return async (keys) => {
     const res = await fetcher(url, {
       method: 'POST',
@@ -159,7 +160,7 @@ export function remotePlaces(
   secret: string,
   fetcher: typeof fetch = fetch,
 ): PlacesChecker {
-  const url = `${baseUrl.replace(/\/+$/, '')}/internal/storage/references`;
+  const url = `${withoutTrailingSlashes(baseUrl)}/internal/storage/references`;
   return async (keys) => {
     const res = await fetcher(url, {
       method: 'POST',

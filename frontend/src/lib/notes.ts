@@ -33,6 +33,7 @@ import { api, ApiError } from './api';
 import { useCampaignEvents, type RealtimeEvent } from './realtime';
 import { premiereFois, relireVersion } from './realtime-bridge';
 import { randomId } from '@/lib/random-id';
+import { stripTags } from '@/lib/strip-tags';
 
 // ─── Contrat de l'API (schémas Zod de backend/campaign/src/modules/notes/schemas.ts) ─
 
@@ -245,9 +246,7 @@ export function iconeNote(n: Pick<BaseNote, 'icon' | 'kind'>): string {
 
 /** Texte brut d'un HTML de note (aperçus, statistiques) : jamais interprété comme HTML. */
 export function texteNote(html: string): string {
-  return html
-    .replace(/<(br|\/p|\/h\d|\/li)>/gi, ' ')
-    .replace(/<[^>]+>/g, '')
+  return stripTags(html.replace(/<(br|\/p|\/h\d|\/li)>/gi, ' '))
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')

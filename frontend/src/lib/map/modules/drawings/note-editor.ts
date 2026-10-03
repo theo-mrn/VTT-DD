@@ -118,7 +118,7 @@ export class NoteEditor {
     if (!s) return null;
     this.close(s);
     const engine = this.rt.engine;
-    const text = s.text.replace(/\s+$/u, '');
+    const text = s.text.trimEnd();
     if (s.id === null) {
       if (!text.trim()) return null;
       return createNote(

@@ -13,7 +13,7 @@
  * Tout échec renvoie vers {APP_URL}/login?erreur=oauth, sans détail ; la
  * cause est journalisée sans code, jeton ni e-mail.
  */
-import { HttpError } from '@vtt/platform';
+import { HttpError, withoutTrailingSlashes } from '@vtt/platform';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -81,7 +81,7 @@ export async function registerOAuth(app: ServiceApp, deps: Deps, clients: Client
   if (!secret) throw new Error('Clé privée JWT absente : impossible de signer le cookie OAuth');
   const cle = deriverCleEtat(secret);
 
-  const appUrl = config.APP_URL.replace(/\/+$/, '');
+  const appUrl = withoutTrailingSlashes(config.APP_URL);
   const redirectUri = (f: Fournisseur) => `${appUrl}/v1/auth/oauth/${f}/callback`;
 
   const clientDe = (

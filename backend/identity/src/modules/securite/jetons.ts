@@ -7,6 +7,7 @@
  *   l'adresse à laquelle il a été envoyé.
  */
 import { createHash, randomBytes } from 'node:crypto';
+import { withoutTrailingSlashes } from '@vtt/platform';
 
 const HEURE_MS = 3600 * 1000;
 
@@ -39,7 +40,7 @@ export function echeanceJeton(objet: ObjetJeton, maintenant: Date = new Date()):
 
 /** Lien envoyé par e-mail : {APP_URL}/<page>?jeton=<jeton>. */
 export function lienJeton(appUrl: string, objet: ObjetJeton, jeton: string): string {
-  return `${appUrl.replace(/\/+$/, '')}${PAGE[objet]}?jeton=${encodeURIComponent(jeton)}`;
+  return `${withoutTrailingSlashes(appUrl)}${PAGE[objet]}?jeton=${encodeURIComponent(jeton)}`;
 }
 
 export interface JetonStocke {

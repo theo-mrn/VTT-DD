@@ -146,7 +146,7 @@ export function visibilityOf(b: {
 
 /** La notation contient-elle autre chose que des dés et des nombres (variables, dés à symboles) ? */
 const hasNames = (notation: string) =>
-  /[A-Za-z_@]/.test(notation.replace(/\d*[dD]\d+(?:k[hl]?\d+)?!?/g, ''));
+  /[A-Za-z_@]/.test(notation.replace(/[dD]\d+(?:k[hl]?\d+)?!?/g, ''));
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();

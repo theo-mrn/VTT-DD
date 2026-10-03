@@ -80,11 +80,11 @@ export function retirerDe(formule: string, faces: number): string {
   const n = Number(m[2] || 1);
   if (n > 1) return f.replace(motif, `${m[1]}${n - 1}d${faces}`);
   // Dernier dé du groupe : le terme disparaît avec l'opérateur qui le liait
-  return f
+  const sans = f
     .replace(motif, '$1')
     .replace(/([+-])\s*([+-])/g, '$2')
-    .replace(/^\s*\+\s*/, '')
-    .replace(/\s*[+-]\s*$/, '')
+    .replace(/^\s*\+\s*/, '');
+  return sansOperateurFinal(sans)
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
@@ -93,4 +93,10 @@ export function retirerDe(formule: string, faces: number): string {
 export function ajouterTerme(formule: string, terme: string): string {
   const f = formule.trim();
   return f ? `${f} + ${terme}` : `1d20 + ${terme}`;
+}
+
+/** Opérateur « + » ou « - » laissé en fin de formule : retiré (en temps linéaire). */
+function sansOperateurFinal(f: string): string {
+  const t = f.trimEnd();
+  return t.endsWith('+') || t.endsWith('-') ? t.slice(0, -1) : f;
 }

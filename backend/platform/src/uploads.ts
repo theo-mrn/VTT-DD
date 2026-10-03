@@ -31,6 +31,7 @@ import {
   type FetchOptions,
   type RemoteImage,
 } from './remote-image.js';
+import { withoutTrailingSlashes } from './strings.js';
 
 /** Variables du stockage, communes aux services. */
 export interface StorageSettings {
@@ -154,7 +155,7 @@ export class Uploads {
     private readonly writer?: ObjectWriter,
     private readonly fetchRemote: RemoteFetcher = fetchRemoteImage,
   ) {
-    this.publicBase = publicUrl ? publicUrl.replace(/\/+$/, '') : null;
+    this.publicBase = publicUrl ? withoutTrailingSlashes(publicUrl) : null;
   }
 
   static fromSettings(s: StorageSettings): Uploads {

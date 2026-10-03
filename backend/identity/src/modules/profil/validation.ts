@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import { compareCodeUnits } from '@vtt/contracts';
+import { withoutTrailingSlashes } from '@vtt/platform';
 
 /** Bordures de la carte de profil, reprises telles quelles de l'ancienne app. */
 export const BORDER_TYPES = [
@@ -79,7 +80,7 @@ export const DOSSIERS = { avatar: 'avatars', banner: 'banners' } as const;
 
 /** URL publique du stockage sans barre finale, ou null si non configurée. */
 export function basePublique(s3PublicUrl: string | undefined): string | null {
-  return s3PublicUrl ? s3PublicUrl.replace(/\/+$/, '') : null;
+  return s3PublicUrl ? withoutTrailingSlashes(s3PublicUrl) : null;
 }
 
 /**

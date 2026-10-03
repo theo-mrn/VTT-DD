@@ -20,14 +20,14 @@ import {
 } from '../model/catalogue';
 import { Chips, MasterDetail, Notice, SearchField, Thumb, Toolbar } from '../parts';
 import { EntryDetail } from './entry-detail';
+import { stripTags } from '@/lib/strip-tags';
 
 const TOUS = '';
 
 /** Première phrase lisible d'une description (sans marques de mise en forme). */
 function extrait(texte: string | undefined): string {
   if (!texte) return '';
-  const t = texte
-    .replace(/<[^>]+>/g, ' ')
+  const t = stripTags(texte, ' ')
     .replace(/^#+\s.*$/gm, ' ')
     .replace(/\*\*|__/g, '')
     .replace(/^\s*[-*]\s+/gm, '')

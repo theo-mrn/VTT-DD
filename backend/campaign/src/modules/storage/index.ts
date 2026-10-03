@@ -9,7 +9,7 @@
  * injoignable n'empêche pas de répondre avec le dernier inventaire.
  */
 import { CampaignStorage, ReserveStorage } from '@vtt/contracts';
-import { HttpError } from '@vtt/platform';
+import { HttpError, withoutTrailingSlashes } from '@vtt/platform';
 import type { FastifyContextConfig } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -51,7 +51,7 @@ const inventoryDeps = (deps: Deps) => {
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db, config } = deps;
-  const publicBase = (config.S3_PUBLIC_URL ?? '').replace(/\/+$/, '');
+  const publicBase = withoutTrailingSlashes(config.S3_PUBLIC_URL ?? '');
 
   r.get(
     '/v1/campaigns/:id/storage',

@@ -1,4 +1,4 @@
-import { BaseConfig } from '@vtt/platform';
+import { BaseConfig, withoutTrailingSlashes } from '@vtt/platform';
 import { z } from 'zod';
 
 /** Variable facultative : une valeur vide dans le .env vaut absente. */
@@ -90,5 +90,5 @@ export type AudioConfig = z.infer<typeof AudioConfig>;
 
 export const catalogOrigins = (c: Pick<AudioConfig, 'AUDIO_CATALOG_ORIGINS'>) =>
   c.AUDIO_CATALOG_ORIGINS.split(',')
-    .map((s) => s.trim().replace(/\/+$/, ''))
+    .map((s) => withoutTrailingSlashes(s.trim()))
     .filter(Boolean);

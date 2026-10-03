@@ -23,6 +23,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { AudioConfig } from '../config.js';
+import { withoutTrailingSlashes } from '@vtt/platform';
 
 export const INCOMING_PREFIX = 'audio/incoming/';
 
@@ -70,9 +71,8 @@ export function createS3Storage(
   const { S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = config;
   if (!S3_ENDPOINT || !S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) return undefined;
   const bucket = S3_BUCKET;
-  const base = (config.S3_PUBLIC_URL ?? `${S3_ENDPOINT.replace(/\/+$/, '')}/${bucket}`).replace(
-    /\/+$/,
-    '',
+  const base = withoutTrailingSlashes(
+    config.S3_PUBLIC_URL ?? `${withoutTrailingSlashes(S3_ENDPOINT)}/${bucket}`,
   );
 
   const client = new S3Client({

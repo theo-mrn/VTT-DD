@@ -11,7 +11,7 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { MEDIA_IMAGE_TYPES, MEDIA_VIDEO_TYPES, uuidv7 } from '@vtt/contracts';
-import { HttpError } from '@vtt/platform';
+import { HttpError, withoutTrailingSlashes } from '@vtt/platform';
 import type { FastifyBaseLogger } from 'fastify';
 import type { CampaignConfig } from '../config.js';
 
@@ -90,7 +90,7 @@ export async function signUpload(
 
 /** URL publique du stockage sans barre finale, ou null si non configurée. */
 export function publicBase(s3PublicUrl: string | undefined): string | null {
-  return s3PublicUrl ? s3PublicUrl.replace(/\/+$/, '') : null;
+  return s3PublicUrl ? withoutTrailingSlashes(s3PublicUrl) : null;
 }
 
 /**

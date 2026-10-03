@@ -195,7 +195,7 @@ function versJet(r: RollApi): Jet {
 export function normaliserFormule(texte: string): string {
   return texte
     .trim()
-    .replace(/(\d*)D(\d+|%)/g, '$1d$2')
+    .replace(/D(?=\d|%)/g, 'd')
     .replace(/d%/g, 'd100')
     .replace(/kh(\d)/g, 'k$1');
 }

@@ -10,6 +10,7 @@
 import { normalizeSourceUrl, type AssetKind } from '@vtt/contracts';
 import type { CatalogCategory, CatalogEntry } from '@vtt/contracts';
 import { DEFAULT_MUSICS, DEFAULT_SOUNDS, STARWARS_SOUNDS, type RawEntry } from './data.js';
+import { withoutTrailingSlashes } from '@vtt/platform';
 
 export type LibraryId = 'default' | 'starwars';
 
@@ -89,7 +90,7 @@ export function createCatalog(o: { publishedBase: string | null }): Catalog {
   add('default', DEFAULT_SOUNDS, (p) => normalizeSourceUrl(p));
   add('default', DEFAULT_MUSICS, (p) => normalizeSourceUrl(p));
   if (o.publishedBase) {
-    const base = o.publishedBase.replace(/\/+$/, '');
+    const base = withoutTrailingSlashes(o.publishedBase);
     // publishedBase = …/audio/catalog : la clé commence par audio/catalog/
     add(
       'starwars',

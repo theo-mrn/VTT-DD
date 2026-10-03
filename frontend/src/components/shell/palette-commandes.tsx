@@ -39,7 +39,7 @@ export function PaletteCommandes({
   const campagnes = useCampagnes();
   const personnages = usePersonnages();
   const notes = useNotes();
-  const formuleProbable = /\d*d\d/i.test(saisie);
+  const formuleProbable = /d\d/i.test(saisie);
 
   function aller(href: string) {
     onOuverte(false);

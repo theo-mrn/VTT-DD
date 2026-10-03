@@ -1,4 +1,4 @@
-import { createService, type ServiceOptions } from '@vtt/platform';
+import { createService, type ServiceOptions, withoutTrailingSlashes } from '@vtt/platform';
 import { sql } from 'drizzle-orm';
 import { createCatalog, type Catalog } from './catalog/index.js';
 import { campaignRights, noCampaigns } from './clients/campaign.js';
@@ -18,7 +18,9 @@ import { createS3Storage, type AudioStorage } from './storage/s3.js';
 /** URL publique du catalogue publié dans le bucket (sons Star Wars). */
 export function publishedCatalogBase(config: AudioConfig): string | null {
   if (config.AUDIO_CATALOG_PUBLISHED_URL) return config.AUDIO_CATALOG_PUBLISHED_URL;
-  return config.S3_PUBLIC_URL ? `${config.S3_PUBLIC_URL.replace(/\/+$/, '')}/audio/catalog` : null;
+  return config.S3_PUBLIC_URL
+    ? `${withoutTrailingSlashes(config.S3_PUBLIC_URL)}/audio/catalog`
+    : null;
 }
 
 export async function buildAudio(

@@ -9,6 +9,7 @@
  */
 import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
+import { withoutTrailingSlashes } from '@vtt/platform';
 
 export const OAUTH_COOKIE = 'vtt_oauth';
 export const OAUTH_COOKIE_PATH = '/v1/auth/oauth';
@@ -136,5 +137,5 @@ export function cheminDeRetour(brut: unknown): string {
 
 /** URL absolue du front pour un chemin déjà validé (APP_URL sans « / » final). */
 export function urlDuFront(appUrl: string, chemin: string): string {
-  return `${appUrl.replace(/\/+$/, '')}${chemin}`;
+  return `${withoutTrailingSlashes(appUrl)}${chemin}`;
 }

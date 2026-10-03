@@ -352,10 +352,7 @@ function cleanUrl(raw: string): string | null {
   const decoded = decodeEntities(raw, true);
   if (decoded === null) return null;
   // Le navigateur retire tabulations et sauts de ligne partout, contrôles et espaces aux bords
-  const url = decoded
-    .replace(/[\t\n\r]/g, '')
-    // eslint-disable-next-line no-control-regex
-    .replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '');
+  const url = trimControls(decoded.replace(/[\t\n\r]/g, ''));
   // eslint-disable-next-line no-control-regex
   if (!url || url.length > URL_MAX || /[\u0000-\u001f\u007f]/.test(url)) return null;
   return url.replace(/ /g, '%20');
@@ -570,4 +567,13 @@ export function searchTerms(q: string): string[] {
         .map((t) => t.slice(0, 64)),
     ),
   ].slice(0, 10);
+}
+
+/** Contrôles et espaces (U+0000 à U+0020) retirés aux deux bords, en temps linéaire. */
+function trimControls(s: string): string {
+  let start = 0;
+  let end = s.length;
+  while (start < end && s.codePointAt(start)! <= 0x20) start++;
+  while (end > start && s.codePointAt(end - 1)! <= 0x20) end--;
+  return s.slice(start, end);
 }
