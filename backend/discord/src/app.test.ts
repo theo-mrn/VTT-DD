@@ -9,7 +9,13 @@ import { buildDiscord } from './app.js';
 import { DiscordConfig } from './config.js';
 import type { DiscordApi } from './discord/api.js';
 import type { Message } from './discord/types.js';
-import type { Campaign, GameSystem, RollInput, YnerClient } from './yner.js';
+import {
+  YnerError,
+  type Campaign,
+  type GameSystem,
+  type RollInput,
+  type YnerClient,
+} from './yner.js';
 
 const { publicKey, privateKey } = generateKeyPairSync('ed25519');
 const PUBLIC_HEX = publicKey.export({ format: 'der', type: 'spki' }).subarray(-32).toString('hex');
@@ -52,6 +58,8 @@ function fakes() {
     activeCampaign: async () => active,
     setActiveCampaign: async (_t, id) => (id === CAMPAIGN.id ? (active = CAMPAIGN) : null),
     roll: async (_t, input) => {
+      if (input.characterId === 'supprime')
+        throw new YnerError(404, 'character_not_found', undefined);
       rolls.push(input);
       return {
         id: 'r1',
@@ -323,5 +331,14 @@ describe('POST /v1/discord/interactions', () => {
     await post(interaction(2, { name: 'me' }, '999'));
     await settle();
     expect(f.sent[0]!.message!.components![0]!.components[0]!.label).toBe('Lier mon compte');
+  });
+
+  it('personnage joué supprimé : le jet part au nom du joueur au lieu d’échouer', async () => {
+    f.setActive({ ...CAMPAIGN, playedCharacterId: 'supprime' });
+    await post(
+      interaction(2, { name: 'roll', options: [{ name: 'dice', type: 3, value: '1d20' }] }),
+    );
+    await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['followUp', 'delete']));
+    expect(f.rolls.at(-1)).toMatchObject({ characterId: null, notation: '1d20' });
   });
 });

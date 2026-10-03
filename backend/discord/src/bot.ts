@@ -24,7 +24,7 @@ import {
   type Message,
 } from './discord/types.js';
 import { apply, decodeTray, trayMessage } from './tray.js';
-import { YnerError, type Campaign, type Roll, type YnerClient } from './yner.js';
+import { YnerError, type Campaign, type Roll, type RollInput, type YnerClient } from './yner.js';
 
 export interface BotDeps {
   yner: YnerClient;
@@ -103,6 +103,26 @@ export function bot(deps: BotDeps) {
     };
   }
 
+  /**
+   * Jet avec le personnage joué ; s'il est introuvable ou inaccessible (supprimé, mais encore
+   * marqué comme joué dans la campagne), le jet part au nom du joueur plutôt que d'échouer.
+   */
+  async function rollWithCharacter(token: string, input: RollInput): Promise<Roll> {
+    try {
+      return await yner.roll(token, input);
+    } catch (err) {
+      const unusable =
+        err instanceof YnerError &&
+        (err.code === 'character_not_found' || err.code === 'character_forbidden');
+      if (!unusable || !input.characterId) throw err;
+      log.warn(
+        { characterId: input.characterId },
+        'personnage joué inutilisable : jet sans personnage',
+      );
+      return yner.roll(token, { ...input, characterId: null });
+    }
+  }
+
   /** Publie un résultat : message public de suite, ou éphémère pour un jet caché. */
   async function publish(token: string, message: Message, isPublic: boolean) {
     if (isPublic) {
@@ -161,7 +181,7 @@ export function bot(deps: BotDeps) {
       return discord.editOriginal(i.token, trayMessage(set, active.name));
     }
     const hidden = option(i, 'hidden') === true;
-    const result = await yner.roll(token, {
+    const result = await rollWithCharacter(token, {
       campaignId: active.id,
       systemId: active.system.id,
       characterId: active.playedCharacterId,
@@ -351,7 +371,7 @@ export function bot(deps: BotDeps) {
         modifier: state.selection.modifier,
       };
       if (isEmpty(chosen)) return;
-      const result = await yner.roll(token, {
+      const result = await rollWithCharacter(token, {
         campaignId: active.id,
         systemId: active.system.id,
         characterId: active.playedCharacterId,
