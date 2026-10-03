@@ -80,7 +80,6 @@ export function ImageDrop({
   const [url, setUrl] = useState('');
   const busy = phase.kind === 'upload';
   const accept = u.types.join(',');
-  const video = value ? /\.(webm|mp4)(\?|$)/i.test(value) : false;
 
   // Aperçus locaux libérés quand ils changent ou au départ du composant
   const previews = useRef(new Set<string>());
@@ -179,19 +178,10 @@ export function ImageDrop({
     }
   };
 
-  const ratio = aspect ?? (value ? undefined : 16 / 9);
-
-  // Ce que montre la zone : envoi en cours, invitation à déposer, ou l'image choisie
-  let vue: 'upload' | 'empty' | 'value' = 'empty';
-  if (busy) vue = 'upload';
-  else if (value) vue = 'value';
-  let cadre = 'border-border-strong bg-surface/40 hover:border-primary/60 hover:bg-surface/70';
-  if (dragging) cadre = 'border-primary bg-primary/10 shadow-glow';
-  else if (value) cadre = 'border-transparent';
-  // Sous la zone : l'erreur, le champ d'adresse, ou le bouton qui l'ouvre
-  let pied: 'erreur' | 'adresse' | 'bouton' = 'bouton';
-  if (phase.kind === 'error') pied = 'erreur';
-  else if (urlMode) pied = 'adresse';
+  const ratio = ratioOf(aspect, value);
+  const vue = vueOf(busy, value);
+  const cadre = cadreOf(dragging, value);
+  const pied = piedOf(phase, urlMode);
 
   return (
     <div className={cn('space-y-2', className)}>
@@ -224,21 +214,7 @@ export function ImageDrop({
           disabled && 'pointer-events-none opacity-60',
         )}
       >
-        {!value && <DotsBackdrop />}
-        {value &&
-          (video ? (
-            <video
-              src={value}
-              muted
-              loop
-              autoPlay
-              playsInline
-              className="absolute inset-0 -z-10 size-full object-cover"
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={value} alt="" className="absolute inset-0 -z-10 size-full object-cover" />
-          ))}
+        <Fond value={value} />
 
         <AnimatePresence mode="wait" initial={false}>
           {vue === 'upload' && phase.kind === 'upload' && (
@@ -330,32 +306,11 @@ export function ImageDrop({
       {/* Adresse web, ou erreur de l'envoi */}
       <div className="flex min-h-8 items-center gap-2">
         {pied === 'erreur' && phase.kind === 'error' && (
-          <p
-            role="alert"
-            className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-destructive"
-          >
-            <ImageOff className="size-3.5 shrink-0" aria-hidden />
-            <span className="truncate">{phase.message}</span>
-            {phase.retry && (
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                onClick={() => void send(phase.retry!)}
-              >
-                <RefreshCw /> Réessayer
-              </Button>
-            )}
-            <Button
-              type="button"
-              size="icon-xs"
-              variant="ghost"
-              aria-label="Fermer"
-              onClick={() => setPhase({ kind: 'idle' })}
-            >
-              <X />
-            </Button>
-          </p>
+          <ErreurEnvoi
+            phase={phase}
+            onRetry={(file) => void send(file)}
+            onClose={() => setPhase({ kind: 'idle' })}
+          />
         )}
         {pied === 'adresse' && (
           <form
@@ -409,6 +364,75 @@ export function ImageDrop({
         onDone={(file, area) => void send(file, area)}
       />
     </div>
+  );
+}
+
+/** Format de la zone : celui du recadrage, sinon 16/9 tant qu'elle est vide. */
+function ratioOf(aspect: number | null, value: string | null): number | undefined {
+  return aspect ?? (value ? undefined : 16 / 9);
+}
+
+/** Ce que montre la zone : envoi en cours, invitation à déposer, ou l'image choisie. */
+function vueOf(busy: boolean, value: string | null): 'upload' | 'empty' | 'value' {
+  if (busy) return 'upload';
+  return value ? 'value' : 'empty';
+}
+
+/** Bordure de la zone : survolée par un fichier, pleine, ou en attente. */
+function cadreOf(dragging: boolean, value: string | null): string {
+  if (dragging) return 'border-primary bg-primary/10 shadow-glow';
+  if (value) return 'border-transparent';
+  return 'border-border-strong bg-surface/40 hover:border-primary/60 hover:bg-surface/70';
+}
+
+/** Sous la zone : l'erreur, le champ d'adresse, ou le bouton qui l'ouvre. */
+function piedOf(phase: Phase, urlMode: boolean): 'erreur' | 'adresse' | 'bouton' {
+  if (phase.kind === 'error') return 'erreur';
+  return urlMode ? 'adresse' : 'bouton';
+}
+
+/** Fond de la zone : points tant qu'elle est vide, sinon l'image ou la vidéo choisie. */
+function Fond({ value }: Readonly<{ value: string | null }>) {
+  if (!value) return <DotsBackdrop />;
+  if (/\.(webm|mp4)(\?|$)/i.test(value))
+    return (
+      <video
+        src={value}
+        muted
+        loop
+        autoPlay
+        playsInline
+        className="absolute inset-0 -z-10 size-full object-cover"
+      />
+    );
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={value} alt="" className="absolute inset-0 -z-10 size-full object-cover" />;
+}
+
+/** Envoi échoué : le message, « Réessayer » si le fichier est gardé, et fermer. */
+function ErreurEnvoi({
+  phase,
+  onRetry,
+  onClose,
+}: Readonly<{
+  phase: Extract<Phase, { kind: 'error' }>;
+  onRetry(file: File): void;
+  onClose(): void;
+}>) {
+  const retry = phase.retry;
+  return (
+    <p role="alert" className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-destructive">
+      <ImageOff className="size-3.5 shrink-0" aria-hidden />
+      <span className="truncate">{phase.message}</span>
+      {retry && (
+        <Button type="button" size="xs" variant="ghost" onClick={() => onRetry(retry)}>
+          <RefreshCw /> Réessayer
+        </Button>
+      )}
+      <Button type="button" size="icon-xs" variant="ghost" aria-label="Fermer" onClick={onClose}>
+        <X />
+      </Button>
+    </p>
   );
 }
 
