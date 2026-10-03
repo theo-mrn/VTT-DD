@@ -79,6 +79,16 @@ function drawRing(
   g.stroke({ width: 2.5 * unit, color: theme.destructive, alpha: 0.95, cap: 'round' });
 }
 
+/** Personnages concernés : celui du tour, les cibles, les tombés, ceux des traits de visée. */
+function wantedCharacters(snap: RingSnapshot): Set<string> {
+  return new Set<string>([
+    ...(snap.turnCharacterId ? [snap.turnCharacterId] : []),
+    ...snap.targets,
+    ...snap.defeated,
+    ...snap.lines.flatMap((l) => [l.attackerId, ...l.targetIds]),
+  ]);
+}
+
 const radiusOf = (e: MapEntity) => Math.max(e.current.width, e.current.height) / 2;
 const shown = (e: MapEntity) => e.masks.size === 0 && e.display?.visible === true;
 
@@ -111,45 +121,44 @@ export function mountCombatRings(engine: MapEngine, source: RingSource): () => v
     let drawnLines: number[] = [];
     let linesUnit = Number.NaN;
 
-    const index = () => {
-      const wanted = new Set<string>([
-        ...(snap.turnCharacterId ? [snap.turnCharacterId] : []),
-        ...snap.targets,
-        ...snap.defeated,
-        ...snap.lines.flatMap((l) => [l.attackerId, ...l.targetIds]),
-      ]);
+    /** Tokens des personnages voulus, par personnage. */
+    const indexTokens = (wanted: ReadonlySet<string>) => {
       byCharacter = new Map();
-      if (wanted.size)
-        for (const e of engine.entitiesOfKind(TOKEN_KIND_ID)) {
-          const c = characterOf(e);
-          if (c && wanted.has(c)) byCharacter.set(c, [...(byCharacter.get(c) ?? []), e]);
-        }
-      // Anneaux voulus : ceux qui manquent sont créés, les autres détruits
+      if (!wanted.size) return;
+      for (const e of engine.entitiesOfKind(TOKEN_KIND_ID)) {
+        const c = characterOf(e);
+        if (c && wanted.has(c)) byCharacter.set(c, [...(byCharacter.get(c) ?? []), e]);
+      }
+    };
+
+    /** Anneau voulu : créé s'il manque (ou si son token ou son doublement a changé). */
+    const want = (e: MapEntity, kind: RingKind, mine: boolean, keep: Set<string>) => {
+      const id = `${kind}:${e.id}`;
+      keep.add(id);
+      const ring = rings.get(id);
+      if (ring && ring.entity === e && ring.mine === mine) return;
+      ring?.g.destroy();
+      const g = new pixi.Graphics({ label: `combat-${kind}` });
+      g.visible = false;
+      root.addChildAt(g, 0);
+      rings.set(id, { entity: e, kind, mine, g, r: Number.NaN, unit: Number.NaN });
+    };
+
+    /** Tokens d'un personnage. */
+    const tokensOf = (c: string | null) => (c ? (byCharacter.get(c) ?? []) : []);
+
+    /** Anneaux voulus (tour, cibles, hors de combat) ; renvoie leurs identifiants. */
+    const wantRings = (): Set<string> => {
       const keep = new Set<string>();
-      const want = (e: MapEntity, kind: RingKind, mine: boolean) => {
-        const id = `${kind}:${e.id}`;
-        keep.add(id);
-        const ring = rings.get(id);
-        if (ring && ring.entity === e && ring.mine === mine) return;
-        ring?.g.destroy();
-        const g = new pixi.Graphics({ label: `combat-${kind}` });
-        g.visible = false;
-        root.addChildAt(g, 0);
-        rings.set(id, { entity: e, kind, mine, g, r: Number.NaN, unit: Number.NaN });
-      };
       const turn = snap.turnCharacterId;
-      for (const e of turn ? (byCharacter.get(turn) ?? []) : [])
-        want(e, 'turn', snap.mine.includes(turn!));
-      for (const c of snap.targets)
-        for (const e of byCharacter.get(c) ?? []) want(e, 'target', false);
-      for (const c of snap.defeated)
-        for (const e of byCharacter.get(c) ?? []) want(e, 'defeated', false);
-      for (const [id, ring] of rings)
-        if (!keep.has(id)) {
-          ring.g.destroy();
-          rings.delete(id);
-        }
-      drawnLines = [];
+      for (const e of tokensOf(turn)) want(e, 'turn', snap.mine.includes(turn!), keep);
+      for (const c of snap.targets) for (const e of tokensOf(c)) want(e, 'target', false, keep);
+      for (const c of snap.defeated) for (const e of tokensOf(c)) want(e, 'defeated', false, keep);
+      return keep;
+    };
+
+    /** La boucle d'images ne tourne que s'il y a un anneau ou un trait. */
+    const syncFrames = () => {
       const busy = rings.size > 0 || snap.lines.length > 0;
       if (busy && !stopFrames) stopFrames = engine.onFrame(() => void frame());
       if (!busy && stopFrames) {
@@ -157,6 +166,19 @@ export function mountCombatRings(engine: MapEngine, source: RingSource): () => v
         stopFrames = null;
         lines.clear();
       }
+    };
+
+    const index = () => {
+      indexTokens(wantedCharacters(snap));
+      // Anneaux voulus : ceux qui manquent sont créés, les autres détruits
+      const keep = wantRings();
+      for (const [id, ring] of rings)
+        if (!keep.has(id)) {
+          ring.g.destroy();
+          rings.delete(id);
+        }
+      drawnLines = [];
+      syncFrames();
       frame();
       engine.invalidate();
     };
