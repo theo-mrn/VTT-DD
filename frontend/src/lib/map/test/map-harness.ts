@@ -17,6 +17,7 @@ import { MapEngine } from '../engine/map-engine';
 import type { Point } from '../engine/geometry';
 import type { MapKey, MapPointer } from '../engine/tools/tool';
 import { fakeBackend, spyPersistence } from '../engine/test-kit';
+import { LiveChannel, LIVE_KIND, PING_KIND, type LiveMessage } from '../live/live-channel';
 import { MAP_MODULES } from '../modules';
 import { CommandHistory, CommandManager } from '../store/commands';
 import { createMapStore, type MapDto } from '../store/map-store';
@@ -417,6 +418,8 @@ export interface MapHarnessOptions {
   players?: MapPlayer[];
   /** Ne pas monter le rendu (moteur seul). */
   headless?: boolean;
+  /** Sans canal direct (gestes des autres, curseurs, pings). */
+  offline?: boolean;
 }
 
 /** Carte complète montée dans un hôte jsdom de 1000 × 800. */
@@ -483,8 +486,20 @@ export async function mountMap(opts: MapHarnessOptions = {}) {
     return p;
   };
   const backend = { ...fakeBackend(), collection: persistence };
+  // Canal direct : ce qui part est noté, ce qui arrive passe par `receive`
+  const sent: { kind: string; data: unknown; options: unknown }[] = [];
+  const engineRef: { current: MapEngine | null } = { current: null };
+  const live = opts.offline
+    ? null
+    : new LiveChannel({
+        mapId: 'carte',
+        selfId: (opts.viewer ?? GM).userId,
+        transport: { send: (kind, data, options) => sent.push({ kind, data, options }) },
+        audienceOf: (id) => engineRef.current?.liveAudience(id) ?? 'gm',
+      });
   const engine = new MapEngine({
     store,
+    live,
     viewer: opts.viewer ?? GM,
     commands,
     backend,
@@ -497,6 +512,7 @@ export async function mountMap(opts: MapHarnessOptions = {}) {
       players: () => opts.players ?? PLAYERS,
     },
   });
+  engineRef.current = engine;
   for (const module of MAP_MODULES) engine.use(module);
   const host = document.createElement('div');
   Object.defineProperty(host, 'clientWidth', { value: 1000 });
@@ -562,8 +578,23 @@ export async function mountMap(opts: MapHarnessOptions = {}) {
     c.keyUp(key(k, extra));
   };
   const renderer = () => engine.renderer as unknown as FakeRenderer;
+  let seq = 0;
+  /** Message direct d'un autre (numéro de séquence croissant). */
+  const receive = (
+    userId: string,
+    data: Omit<LiveMessage, 'm' | 's'>,
+    role = userId === 'mj' ? 'gm' : 'player',
+  ) =>
+    live?.receive({
+      kind: LIVE_KIND,
+      data: { m: 'carte', s: ++seq, ...data },
+      from: { userId, role },
+    });
+  const receivePing = (userId: string, x: number, y: number, focus = false, role = 'gm') =>
+    live?.receive({ kind: PING_KIND, data: { m: 'carte', x, y, focus }, from: { userId, role } });
   const destroy = () => {
     engine.destroy();
+    live?.destroy();
     host.remove();
   };
   return {
@@ -584,6 +615,10 @@ export async function mountMap(opts: MapHarnessOptions = {}) {
     press,
     renderer,
     destroy,
+    live,
+    sent,
+    receive,
+    receivePing,
     /** Donnée d'une collection. */
     get: (collection: string, id: string) =>
       store.getState().collections[collection]?.get(id) as Record<string, unknown> | undefined,
