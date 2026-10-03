@@ -152,113 +152,137 @@ class Items {
     [...this.byId.values()].map((i) => (i.tables?.length ? i : { ...i, tables: undefined }));
 }
 
-/** Plan d'une décision : ce qui part à character, ce qui est enregistré pour chaque cible. */
-function planOf(l: LoadedAttack, input: ApplyInput, userId: string): Plan {
-  const now = new Date().toISOString();
-  const applicationId = uuidv7();
-  const items = new Items();
-  const decisions: ApplicationDecision[] = [];
-  const attackerId = l.attack.attackerId;
-  const applied = (
-    modifications: AttackModification[],
-    tables: AttackAppliedTarget['tables'],
-    redirectedTo: string | null,
-  ): AttackAppliedTarget => ({
-    applicationId,
+/** Plan en construction : l'attaque, les modifications par fiche, qui applique et quand. */
+interface PlanContext {
+  l: LoadedAttack;
+  items: Items;
+  stamp: { applicationId: string; userId: string; now: string };
+}
+
+/** Trace d'une application, pour une cible ou pour l'attaquant. */
+function appliedOf(
+  stamp: PlanContext['stamp'],
+  modifications: AttackModification[],
+  tables: AttackAppliedTarget['tables'],
+  redirectedTo: string | null,
+): AttackAppliedTarget {
+  return {
+    applicationId: stamp.applicationId,
     modifications,
     tables,
     redirectedTo,
     defeated: false,
-    appliedBy: userId,
-    appliedAt: now,
-  });
+    appliedBy: stamp.userId,
+    appliedAt: stamp.now,
+  };
+}
 
-  for (const d of input.targets) {
-    const t = l.targets.find((x) => x.characterId === d.characterId);
-    if (!t)
-      throw HttpError.badRequest(`Cible absente du rapport : ${d.characterId}`, 'unknown_target');
-    if (d.apply && t.status !== 'resolved')
-      throw HttpError.conflict(
-        `Cible non résolue (refusée par les règles) : ${d.characterId}`,
-        'target_not_resolved',
-      );
-    if (t.status === 'resolved' && !undecided(t))
-      throw HttpError.conflict(`Cible déjà décidée : ${d.characterId}`, 'already_decided');
-    if (!d.apply) {
-      decisions.push({
-        targetId: t.characterId,
-        apply: false,
-        characterIds: [],
-        applied: null,
-        reverted: false,
-      });
-      continue;
-    }
-    const result = t.result;
-    const dest = d.redirectTo ?? t.characterId;
-    const mods: AttackModification[] = d.modifications
-      ? d.modifications.map((m) => withEntity(m, 'target'))
-      : (result?.modifications ?? []);
-    const toTarget = mods.filter((m) => m.entity === 'target');
-    const toActor = mods.filter((m) => m.entity === 'actor');
-    const drawn = result?.tables ?? [];
-    const choices: AttackTableChoice[] =
-      d.tables ?? drawn.map((x) => ({ table: x.table, apply: true }));
-    const tables: AttackAppliedTarget['tables'] = [];
-    for (const c of choices) {
-      const draw = drawn.find((x) => x.table === c.table);
-      if (!draw)
-        throw HttpError.badRequest(
-          `Table non tirée pour cette cible : ${c.table}`,
-          'unknown_table',
-        );
-      if (!c.apply) continue;
-      const entry = c.entry ?? draw.line?.entry ?? null;
-      if (entry) tables.push({ table: c.table, entry });
-    }
-    items.add(dest, toTarget.map(toInput), tables);
-    items.add(attackerId, toActor.map(toInput));
-    decisions.push({
+/** Cible d'une décision : au rapport, résolue si elle est appliquée, pas encore décidée. */
+function decidedTarget(l: LoadedAttack, d: ApplyInput['targets'][number]): TargetRow {
+  const t = l.targets.find((x) => x.characterId === d.characterId);
+  if (!t)
+    throw HttpError.badRequest(`Cible absente du rapport : ${d.characterId}`, 'unknown_target');
+  if (d.apply && t.status !== 'resolved')
+    throw HttpError.conflict(
+      `Cible non résolue (refusée par les règles) : ${d.characterId}`,
+      'target_not_resolved',
+    );
+  if (t.status === 'resolved' && !undecided(t))
+    throw HttpError.conflict(`Cible déjà décidée : ${d.characterId}`, 'already_decided');
+  return t;
+}
+
+/** Tables tirées appliquées à une cible : celles choisies par le MJ, sinon toutes. */
+function appliedTables(
+  d: ApplyInput['targets'][number],
+  result: TargetRow['result'],
+): AttackAppliedTarget['tables'] {
+  const drawn = result?.tables ?? [];
+  const choices: AttackTableChoice[] =
+    d.tables ?? drawn.map((x) => ({ table: x.table, apply: true }));
+  const tables: AttackAppliedTarget['tables'] = [];
+  for (const c of choices) {
+    const draw = drawn.find((x) => x.table === c.table);
+    if (!draw)
+      throw HttpError.badRequest(`Table non tirée pour cette cible : ${c.table}`, 'unknown_table');
+    if (!c.apply) continue;
+    const entry = c.entry ?? draw.line?.entry ?? null;
+    if (entry) tables.push({ table: c.table, entry });
+  }
+  return tables;
+}
+
+/** Décision pour une cible : ses modifications (et celles de l'attaquant) partent à character. */
+function targetDecision(ctx: PlanContext, d: ApplyInput['targets'][number]): ApplicationDecision {
+  const { l, items, stamp } = ctx;
+  const attackerId = l.attack.attackerId;
+  const t = decidedTarget(l, d);
+  if (!d.apply)
+    return {
       targetId: t.characterId,
-      apply: true,
-      characterIds: [...new Set([dest, ...(toActor.length ? [attackerId] : [])])],
-      applied: applied(mods, tables, d.redirectTo ?? null),
+      apply: false,
+      characterIds: [],
+      applied: null,
       reverted: false,
-    });
-  }
+    };
+  const result = t.result;
+  const dest = d.redirectTo ?? t.characterId;
+  const mods: AttackModification[] = d.modifications
+    ? d.modifications.map((m) => withEntity(m, 'target'))
+    : (result?.modifications ?? []);
+  const toTarget = mods.filter((m) => m.entity === 'target');
+  const toActor = mods.filter((m) => m.entity === 'actor');
+  const tables = appliedTables(d, result);
+  items.add(dest, toTarget.map(toInput), tables);
+  items.add(attackerId, toActor.map(toInput));
+  return {
+    targetId: t.characterId,
+    apply: true,
+    characterIds: [...new Set([dest, ...(toActor.length ? [attackerId] : [])])],
+    applied: appliedOf(stamp, mods, tables, d.redirectTo ?? null),
+    reverted: false,
+  };
+}
 
-  if (input.actor) {
-    const actor = l.attack.actor;
-    if (actor && !actorUndecided(actor) && actor.modifications.length)
-      throw HttpError.conflict('Coûts de l’attaquant déjà décidés', 'already_decided');
-    if (!input.actor.apply)
-      decisions.push({
-        targetId: null,
-        apply: false,
-        characterIds: [],
-        applied: null,
-        reverted: false,
-      });
-    else {
-      const mods: AttackModification[] = input.actor.modifications
-        ? input.actor.modifications.map((m) => withEntity(m, 'actor'))
-        : (actor?.modifications ?? []);
-      items.add(attackerId, mods.map(toInput));
-      decisions.push({
-        targetId: null,
-        apply: true,
-        characterIds: [attackerId],
-        applied: applied(mods, [], null),
-        reverted: false,
-      });
-    }
-  }
+/** Décision pour les coûts de l'attaquant. */
+function actorDecision(
+  ctx: PlanContext,
+  input: NonNullable<ApplyInput['actor']>,
+): ApplicationDecision {
+  const { l, items, stamp } = ctx;
+  const attackerId = l.attack.attackerId;
+  const actor = l.attack.actor;
+  if (actor && !actorUndecided(actor) && actor.modifications.length)
+    throw HttpError.conflict('Coûts de l’attaquant déjà décidés', 'already_decided');
+  if (!input.apply)
+    return { targetId: null, apply: false, characterIds: [], applied: null, reverted: false };
+  const mods: AttackModification[] = input.modifications
+    ? input.modifications.map((m) => withEntity(m, 'actor'))
+    : (actor?.modifications ?? []);
+  items.add(attackerId, mods.map(toInput));
+  return {
+    targetId: null,
+    apply: true,
+    characterIds: [attackerId],
+    applied: appliedOf(stamp, mods, [], null),
+    reverted: false,
+  };
+}
+
+/** Plan d'une décision : ce qui part à character, ce qui est enregistré pour chaque cible. */
+function planOf(l: LoadedAttack, input: ApplyInput, userId: string): Plan {
+  const now = new Date().toISOString();
+  const applicationId = uuidv7();
+  const ctx: PlanContext = { l, items: new Items(), stamp: { applicationId, userId, now } };
+  const decisions: ApplicationDecision[] = [];
+  for (const d of input.targets) decisions.push(targetDecision(ctx, d));
+  if (input.actor) decisions.push(actorDecision(ctx, input.actor));
   const any = decisions.some((d) => d.apply);
   return {
     loaded: l,
     applicationId: any ? applicationId : null,
     decisions,
-    items: items.list(),
+    items: ctx.items.list(),
     note: input.note,
   };
 }
@@ -619,24 +643,11 @@ export interface RevertInput {
   force?: boolean;
 }
 
-/**
- * `…/revert` (MJ) : character rend les valeurs d'avant, fiche par fiche, si elles n'ont pas
- * changé depuis (sinon 409 `revert_conflict`, sauf `force`). Les décisions annulées repassent
- * en `reverted` : le MJ peut décider à nouveau.
- */
-export async function revertAttack(
-  deps: { db: Db; character: CharacterClient },
-  req: FastifyRequest,
-  a: Access,
-  userId: string,
-  attackId: string,
+/** Ce qu'annule une demande : cibles appliquées visées, et coûts de l'attaquant. */
+function revertScope(
+  l: LoadedAttack,
   input: RevertInput,
-): Promise<LoadedAttack> {
-  const { db } = deps;
-  const actor: EventActor = { userId, role: a.role };
-  const l = await loadAttack(db, a.campaign.id, attackId);
-  if (!l) throw attackNotFound();
-  checkAttackVersion(l, input.version);
+): { applied: TargetRow[]; wantedTargets: string[]; withActor: boolean } {
   const applied = l.targets.filter((t) => t.decision === 'applied' && t.applied);
   const wantedTargets = input.targets ?? applied.map((t) => t.characterId);
   for (const id of wantedTargets)
@@ -650,8 +661,17 @@ export async function revertAttack(
     throw HttpError.conflict('Coûts de l’attaquant non appliqués', 'not_applied');
   if (!wantedTargets.length && !withActor)
     throw HttpError.conflict('Rien d’appliqué à annuler', 'nothing_to_revert');
+  return { applied, wantedTargets, withActor };
+}
 
-  // Applications concernées et fiches à rendre dans chacune
+/** Applications concernées et fiches à rendre dans chacune. */
+async function selectedApplications(
+  db: Db,
+  l: LoadedAttack,
+  attackId: string,
+  scope: { applied: TargetRow[]; wantedTargets: string[]; withActor: boolean },
+): Promise<Map<string, Set<string>>> {
+  const { applied, wantedTargets, withActor } = scope;
   const rows = new Map((await applicationsOf(db, [attackId])).map((r) => [r.id, r]));
   const selected = new Map<string, Set<string>>();
   const touch = (applicationId: string, targetId: string | null) => {
@@ -664,9 +684,25 @@ export async function revertAttack(
   for (const id of wantedTargets)
     touch(applied.find((t) => t.characterId === id)!.applied!.applicationId, id);
   if (withActor) touch(l.attack.actor!.applied!.applicationId, null);
+  return selected;
+}
 
+/**
+ * Fiches rendues par character, application par application, jusqu'à la première panne :
+ * les applications rendues, et l'erreur qui a arrêté les suivantes.
+ */
+async function revertInCharacter(
+  deps: { character: CharacterClient },
+  req: FastifyRequest,
+  a: Access,
+  userId: string,
+  input: RevertInput,
+  selected: Map<string, Set<string>>,
+): Promise<{
+  done: { applicationId: string; characterIds: Set<string> }[];
+  failure: HttpError | null;
+}> {
   const done: { applicationId: string; characterIds: Set<string> }[] = [];
-  let failure: HttpError | null = null;
   for (const [applicationId, characterIds] of selected) {
     if (!characterIds.size) {
       done.push({ applicationId, characterIds });
@@ -687,12 +723,33 @@ export async function revertAttack(
       // Application inconnue de character : rien n'a été écrit, rien à rendre
       if (e instanceof CharacterError && e.code === 'application_not_found')
         done.push({ applicationId, characterIds });
-      else {
-        failure = characterFailure(e, req.log, 'annulation');
-        break;
-      }
+      else return { done, failure: characterFailure(e, req.log, 'annulation') };
     }
   }
+  return { done, failure: null };
+}
+
+/**
+ * `…/revert` (MJ) : character rend les valeurs d'avant, fiche par fiche, si elles n'ont pas
+ * changé depuis (sinon 409 `revert_conflict`, sauf `force`). Les décisions annulées repassent
+ * en `reverted` : le MJ peut décider à nouveau.
+ */
+export async function revertAttack(
+  deps: { db: Db; character: CharacterClient },
+  req: FastifyRequest,
+  a: Access,
+  userId: string,
+  attackId: string,
+  input: RevertInput,
+): Promise<LoadedAttack> {
+  const { db } = deps;
+  const actor: EventActor = { userId, role: a.role };
+  const l = await loadAttack(db, a.campaign.id, attackId);
+  if (!l) throw attackNotFound();
+  checkAttackVersion(l, input.version);
+  const scope = revertScope(l, input);
+  const selected = await selectedApplications(db, l, attackId, scope);
+  const { done, failure } = await revertInCharacter(deps, req, a, userId, input, selected);
 
   let saved = l;
   if (done.length)
