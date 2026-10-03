@@ -49,3 +49,4 @@ frontend/public/systemes/
 # Tests de bout en bout (Playwright) : rapports et traces
 frontend/e2e/rapport/
 frontend/e2e/resultats/
+e2e-logs/

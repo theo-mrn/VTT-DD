@@ -13,8 +13,12 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: true,
   workers: 2,
-  retries: 0,
-  reporter: [['list'], ['html', { open: 'never', outputFolder: 'e2e/rapport' }]],
+  // En CI : une reprise (signalée « flaky » dans le rapport), annotations sur la PR
+  retries: process.env.CI ? 1 : 0,
+  reporter: [
+    [process.env.CI ? 'github' : 'list'],
+    ['html', { open: 'never', outputFolder: 'e2e/rapport' }],
+  ],
   outputDir: 'e2e/resultats',
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
