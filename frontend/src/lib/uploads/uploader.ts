@@ -127,7 +127,8 @@ export async function uploadFile(
     const failed = result?.failed?.[0];
     if (failed) {
       const e: unknown = failed.error;
-      throw e instanceof Error ? e : new Error(typeof e === 'string' && e ? e : 'Envoi impossible');
+      if (e instanceof Error) throw e;
+      throw new Error(typeof e === 'string' && e ? e : 'Envoi impossible');
     }
     const ticket = tickets.get(id);
     if (!ticket) throw new Error('Envoi impossible');

@@ -46,7 +46,10 @@ const RIM_TINT = 0.3;
 const RIM_GLOW = 0.45;
 
 /** Lueur de l'encre : pigment sur un dé éclairé, lumineuse sur un dé sans éclairage ou en verre. */
-const inkGlow = (skin: DiceSkin) => (skin.effectType === 'orb' ? 1 : isVoidSkin(skin) ? 0.9 : 0.12);
+const inkGlow = (skin: DiceSkin) => {
+  if (skin.effectType === 'orb') return 1;
+  return isVoidSkin(skin) ? 0.9 : 0.12;
+};
 
 // Visual Die Component (Pure Rendering). The parent handles positioning /
 // rotation via a Group, so this just renders the mesh + effects at 0,0,0.

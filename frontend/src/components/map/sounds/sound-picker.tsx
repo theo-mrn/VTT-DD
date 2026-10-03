@@ -319,13 +319,15 @@ function MineList({
         className="sm:w-full"
       />
       {filters.chips}
-      {library.loading ? (
+      {library.loading && (
         <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
-      ) : items.length === 0 ? (
+      )}
+      {!library.loading && items.length === 0 && (
         <p className="py-6 text-center text-[13px] text-muted-foreground">
           {sounds.length ? 'Aucun son ne correspond.' : 'La bibliothèque est vide.'}
         </p>
-      ) : (
+      )}
+      {!library.loading && items.length > 0 && (
         <ul>
           {items.map((a) => (
             <PickRow

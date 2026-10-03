@@ -93,7 +93,8 @@ function health(r: ResourceGauge): number {
 const toneOf = (r: ResourceGauge | null) => {
   if (!r) return 'text-border-strong';
   const h = health(r);
-  return h > 0.5 ? 'text-success' : h > 0.25 ? 'text-warning' : 'text-destructive';
+  if (h > 0.5) return 'text-success';
+  return h > 0.25 ? 'text-warning' : 'text-destructive';
 };
 
 /** Personnages de la scène (un par personnage, dans l'ordre des tokens), selon le mode. */

@@ -284,7 +284,7 @@ export function OngletPnj() {
         />
       )}
 
-      {!cards.length ? (
+      {!cards.length && (
         <Notice
           icon={Skull}
           title="Pas encore de PNJ"
@@ -296,11 +296,13 @@ export function OngletPnj() {
             </Button>
           }
         />
-      ) : !shown.length ? (
+      )}
+      {cards.length > 0 && !shown.length && (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-[13px] text-muted-foreground">
           Aucun PNJ ne correspond.
         </p>
-      ) : (
+      )}
+      {shown.length > 0 && (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-2.5">
           {shown.map(({ template: t, item }) => (
             <li key={t.id}>

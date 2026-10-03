@@ -97,6 +97,8 @@ export function formatBytes(bytes: number): string {
     v /= 1024;
     i += 1;
   }
-  const digits = i === 0 || v >= 100 ? 0 : v >= 10 ? 1 : 2;
+  let digits = 2;
+  if (i === 0 || v >= 100) digits = 0;
+  else if (v >= 10) digits = 1;
   return `${v.toLocaleString('fr-FR', { maximumFractionDigits: digits })} ${units[i]}`;
 }

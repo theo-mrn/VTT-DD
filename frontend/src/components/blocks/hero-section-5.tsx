@@ -86,9 +86,10 @@ const HeroHeader = ({
 
             <div className="bg-[#0c0c0e] group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border border-white/10 p-6 shadow-2xl md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none pointer-events-auto">
               <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-                {isUserLoggedIn === null ? (
+                {isUserLoggedIn === null && (
                   <div className="w-10 h-10 rounded-full bg-zinc-200/20 animate-pulse" />
-                ) : isUserLoggedIn ? (
+                )}
+                {isUserLoggedIn === true && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Avatar className="h-10 w-10 border-2 border-[#c9a965]/50 hover:border-[#c9a965] transition-all cursor-pointer shadow-md bg-white/5">
@@ -119,7 +120,8 @@ const HeroHeader = ({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                ) : (
+                )}
+                {isUserLoggedIn === false && (
                   <InteractiveHoverButton
                     onClick={onOpenAuth}
                     className={cn('text-sm', 'font-logo')}

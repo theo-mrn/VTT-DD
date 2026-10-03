@@ -21,8 +21,8 @@ const hasEmissive = (m: THREE.Material): m is Emissive =>
 const collectEmissive = (root: THREE.Object3D) => {
   const found: { mat: Emissive; color: THREE.Color; intensity: number }[] = [];
   root.traverse((o) => {
-    const mats = (o as THREE.Mesh).isMesh ? (o as THREE.Mesh).material : null;
-    for (const m of Array.isArray(mats) ? mats : mats ? [mats] : []) {
+    const mats = (o as THREE.Mesh).isMesh ? (o as THREE.Mesh).material : [];
+    for (const m of [mats].flat()) {
       if (hasEmissive(m) && !found.some((f) => f.mat === m))
         found.push({ mat: m, color: m.emissive.clone(), intensity: m.emissiveIntensity });
     }

@@ -81,13 +81,13 @@ export function DiceSettings() {
         </PopoverTrigger>
         <PopoverContent align="end" className="w-80 space-y-4">
           <p className="text-sm font-medium">Vos dés</p>
-          {prefs.isPending ? (
-            <Skeleton className="h-16 rounded-xl" />
-          ) : !p ? (
+          {prefs.isPending && <Skeleton className="h-16 rounded-xl" />}
+          {!prefs.isPending && !p && (
             <p className="text-xs text-destructive">
               Préférences indisponibles : {messageErreur(prefs.error)}
             </p>
-          ) : (
+          )}
+          {!prefs.isPending && p && (
             <>
               <button
                 type="button"

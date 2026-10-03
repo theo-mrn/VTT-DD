@@ -26,7 +26,7 @@ export function GroupeLancer({
     try {
       const jet = await lancer.mutateAsync({ formula: f });
       toast(`${jet.symbolResult ?? jet.total}`, {
-        description: `${jet.formula}${jet.critical === 'success' ? ' · critique !' : jet.critical === 'failure' ? ' · échec critique' : ''}`,
+        description: `${jet.formula}${MENTION_CRITIQUE[jet.critical ?? ''] ?? ''}`,
         icon: <Dices className="size-4 text-primary" />,
         action: { label: 'Table de dés', onClick: () => router.push('/des') },
       });
@@ -45,3 +45,8 @@ export function GroupeLancer({
     </CommandGroup>
   );
 }
+
+const MENTION_CRITIQUE: Partial<Record<string, string>> = {
+  success: ' · critique !',
+  failure: ' · échec critique',
+};
