@@ -22,7 +22,9 @@ import {
   quantiteDe,
   type BonusLibre,
   type Effet,
+  type EntiteChargee,
   type Possession,
+  type Sorte,
   type SystemeCharge,
 } from '@vtt/rules';
 import { and, eq, isNull } from 'drizzle-orm';
@@ -80,6 +82,164 @@ function canonique(v: unknown): string {
 }
 const memeEffets = (a: readonly Effet[], b: readonly Effet[]) => canonique(a) === canonique(b);
 
+/** Reprise en cours : état copié, modifié sur place, et son bilan. */
+interface Reprise {
+  systeme: SystemeCharge;
+  etat: EtatEntite;
+  bilan: BilanReprise;
+}
+
+/** Sorte d'une entrée du catalogue. */
+function sorteDe(systeme: SystemeCharge, entree: string): Sorte | undefined {
+  return systeme.sortes.get(systeme.entrees.get(entree)?.sorte ?? '');
+}
+
+/** Ajoute une possession : quantité cumulée (sorte à quantités sans exemplaires), sinon un exemplaire de plus. */
+function ajouter(r: Reprise, p: Possession): void {
+  const { etat } = r;
+  const sorte = sorteDe(r.systeme, p.entree);
+  const siens = etat.possessions.filter((x) => x.entree === p.entree);
+  const copie = structuredClone(p);
+  delete copie.exemplaire;
+  if (siens.length && sorte?.quantites && !sorte.exemplaires) {
+    siens[0]!.quantite = quantiteDe(siens[0]!) + quantiteDe(p);
+    return;
+  }
+  if (siens.length) copie.exemplaire = nouvelExemplaire(etat.possessions, p.entree);
+  etat.possessions.push(copie);
+}
+
+/** Objet déjà migré par le premier import : monnaie créditée, ou objets du catalogue d'une sorte reprise. */
+function dejaImporte(systeme: SystemeCharge, o: ObjetRepris): boolean {
+  const initiales = SORTES_IMPORT_INITIAL[systeme.source.id] ?? [];
+  return (
+    o.credite !== undefined ||
+    (o.possessions.length > 0 &&
+      o.possessions.every(
+        (p) =>
+          !systeme.entrees.get(p.entree)?.libre &&
+          initiales.includes(sorteDe(systeme, p.entree)?.id ?? ''),
+      ))
+  );
+}
+
+/**
+ * Bonus legacy de l'objet : devenu bonus libre au premier import, il revient à l'objet ;
+ * retiré depuis par le joueur, il n'est pas recréé.
+ */
+function rattacherBonus(r: Reprise, o: ObjetRepris, possessions: Possession[]): void {
+  if (!o.bonus || !possessions[0]?.effets.length) return;
+  const { etat, bilan } = r;
+  const effets = possessions[0].effets;
+  const i = etat.bonus.findIndex(
+    (b: BonusLibre) => b.nom === o.bonus && memeEffets(b.effets, effets),
+  );
+  if (i >= 0 && etat.bonus[i]!.actif) {
+    etat.bonus.splice(i, 1);
+    bilan.bonusRattaches++;
+  } else possessions[0].effets = [];
+}
+
+/**
+ * Ajoute les objets legacy non tracés ; renvoie la valeur, en unités de la bourse, des
+ * pièces ajoutées.
+ */
+function reprendreObjets(
+  r: Reprise,
+  objets: readonly ObjetRepris[],
+  traces: ReadonlySet<string>,
+  nouvellesTraces: string[],
+  valeurPiece: ReadonlyMap<string, number>,
+): number {
+  let piecesLegacy = 0;
+  for (const o of objets) {
+    if (traces.has(o.legacyId)) {
+      r.bilan.dejaRepris++;
+      continue;
+    }
+    nouvellesTraces.push(o.legacyId);
+    if (dejaImporte(r.systeme, o)) {
+      r.bilan.dejaImportes++;
+      continue;
+    }
+    const possessions = o.possessions.map((p) => structuredClone(p));
+    rattacherBonus(r, o, possessions);
+    for (const p of possessions) {
+      ajouter(r, p);
+      piecesLegacy += (valeurPiece.get(p.entree) ?? 0) * quantiteDe(p);
+    }
+    r.bilan.ajoutes++;
+  }
+  return piecesLegacy;
+}
+
+/** Convertit `total` unités de la bourse en pièces, de la plus grosse à la plus petite. */
+function ajouterPieces(r: Reprise, bourse: Bourse, total: number): Record<string, number> {
+  let reste = total;
+  const ajoutees: Record<string, number> = {};
+  for (const [entree, valeur] of bourse.pieces) {
+    if (reste <= 0 || !r.systeme.entrees.has(entree)) continue;
+    const n = Math.floor(reste / valeur);
+    if (n <= 0) continue;
+    reste -= n * valeur;
+    ajoutees[entree] = n;
+    ajouter(r, {
+      entree,
+      rang: 0,
+      actif: true,
+      choix: {},
+      champs: {},
+      effets: [],
+      ...(n > 1 ? { quantite: n } : {}),
+    });
+  }
+  return ajoutees;
+}
+
+/**
+ * Bourse : le premier import y avait crédité les pièces legacy (arrondi à l'unité), que
+ * la reprise vient d'ajouter en objets ; seul l'écart (gains et dépenses depuis) est converti.
+ */
+function convertirBourse(
+  r: Reprise,
+  bourse: Bourse | undefined,
+  entite: EntiteChargee | undefined,
+  piecesLegacy: number,
+): void {
+  if (!bourse || entite?.attributs.has(bourse.attribut)) return;
+  const { etat, bilan } = r;
+  const brut = etat.valeurs[bourse.attribut];
+  if (typeof brut !== 'number') return;
+  const depense = etat.journal
+    .filter((l) => l.monnaie === bourse.monnaie)
+    .reduce((s, l) => s + l.cout, 0);
+  const reste = Math.floor(brut - depense - Math.floor(piecesLegacy + 1e-9));
+  if (reste < 0)
+    bilan.avertissements.push(
+      `Bourse : ${-reste} de moins que les pièces reprises, pièces laissées telles quelles`,
+    );
+  const ajoutees = ajouterPieces(r, bourse, reste);
+  bilan.bourse = { valeur: brut - depense, pieces: ajoutees };
+}
+
+/**
+ * Valeurs d'attributs retirés des règles, lignes de journal d'une monnaie retirée :
+ * ignorées par le calcul, elles sont nettoyées ici.
+ */
+function nettoyer(r: Reprise, entite: EntiteChargee | undefined): void {
+  const { systeme, etat, bilan } = r;
+  for (const cle of Object.keys(etat.valeurs))
+    if (!entite?.attributs.has(cle)) {
+      delete etat.valeurs[cle];
+      bilan.valeursRetirees.push(cle);
+    }
+  // Une ligne d'un achat inconnu mais d'une monnaie connue reste (dépense d'XP reprise
+  // de l'ancienne app, achat « migration ») : elle compte toujours dans le solde
+  const avant = etat.journal.length;
+  etat.journal = etat.journal.filter((l) => systeme.monnaies.has(l.monnaie));
+  bilan.lignesRetirees = avant - etat.journal.length;
+}
+
 /**
  * Nouvel état après reprise : objets legacy non tracés ajoutés, bourse convertie en
  * pièces, valeurs et lignes de journal inconnues retirées. `traces` : chemins legacy déjà
@@ -101,113 +261,15 @@ export function reprendreEtat(
     lignesRetirees: 0,
     avertissements: [],
   };
+  const r: Reprise = { systeme, etat, bilan };
   const nouvellesTraces: string[] = [];
-  const initiales = SORTES_IMPORT_INITIAL[systeme.source.id] ?? [];
-  const sorteDe = (entree: string) => systeme.sortes.get(systeme.entrees.get(entree)?.sorte ?? '');
   const bourse = BOURSES[systeme.source.id];
   const valeurPiece = new Map(bourse?.pieces ?? []);
-  let piecesLegacy = 0;
 
-  const ajouter = (p: Possession) => {
-    const sorte = sorteDe(p.entree);
-    const siens = etat.possessions.filter((x) => x.entree === p.entree);
-    const copie = structuredClone(p);
-    delete copie.exemplaire;
-    if (siens.length && sorte?.quantites && !sorte.exemplaires) {
-      siens[0]!.quantite = quantiteDe(siens[0]!) + quantiteDe(p);
-      return;
-    }
-    if (siens.length) copie.exemplaire = nouvelExemplaire(etat.possessions, p.entree);
-    etat.possessions.push(copie);
-  };
-
-  for (const o of objets) {
-    if (traces.has(o.legacyId)) {
-      bilan.dejaRepris++;
-      continue;
-    }
-    nouvellesTraces.push(o.legacyId);
-    const dejaImporte =
-      o.credite !== undefined ||
-      (o.possessions.length > 0 &&
-        o.possessions.every(
-          (p) =>
-            !systeme.entrees.get(p.entree)?.libre &&
-            initiales.includes(sorteDe(p.entree)?.id ?? ''),
-        ));
-    if (dejaImporte) {
-      bilan.dejaImportes++;
-      continue;
-    }
-    const possessions = o.possessions.map((p) => structuredClone(p));
-    // Bonus legacy de l'objet : devenu bonus libre au premier import, il revient à l'objet ;
-    // retiré depuis par le joueur, il n'est pas recréé
-    if (o.bonus && possessions[0]?.effets.length) {
-      const effets = possessions[0].effets;
-      const i = etat.bonus.findIndex(
-        (b: BonusLibre) => b.nom === o.bonus && memeEffets(b.effets, effets),
-      );
-      if (i >= 0) {
-        if (etat.bonus[i]!.actif) {
-          etat.bonus.splice(i, 1);
-          bilan.bonusRattaches++;
-        } else possessions[0].effets = [];
-      } else possessions[0].effets = [];
-    }
-    for (const p of possessions) {
-      ajouter(p);
-      piecesLegacy += (valeurPiece.get(p.entree) ?? 0) * quantiteDe(p);
-    }
-    bilan.ajoutes++;
-  }
-
-  // Bourse : le premier import y avait crédité les pièces legacy (arrondi à l'unité), que
-  // la reprise vient d'ajouter en objets ; seul l'écart (gains et dépenses depuis) est converti
+  const piecesLegacy = reprendreObjets(r, objets, traces, nouvellesTraces, valeurPiece);
   const entite = systeme.entites.get(etat.type);
-  if (bourse && !entite?.attributs.has(bourse.attribut)) {
-    const brut = etat.valeurs[bourse.attribut];
-    if (typeof brut === 'number') {
-      const depense = etat.journal
-        .filter((l) => l.monnaie === bourse.monnaie)
-        .reduce((s, l) => s + l.cout, 0);
-      let reste = Math.floor(brut - depense - Math.floor(piecesLegacy + 1e-9));
-      if (reste < 0)
-        bilan.avertissements.push(
-          `Bourse : ${-reste} de moins que les pièces reprises, pièces laissées telles quelles`,
-        );
-      const ajoutees: Record<string, number> = {};
-      for (const [entree, valeur] of bourse.pieces) {
-        if (reste <= 0 || !systeme.entrees.has(entree)) continue;
-        const n = Math.floor(reste / valeur);
-        if (n <= 0) continue;
-        reste -= n * valeur;
-        ajoutees[entree] = n;
-        ajouter({
-          entree,
-          rang: 0,
-          actif: true,
-          choix: {},
-          champs: {},
-          effets: [],
-          ...(n > 1 ? { quantite: n } : {}),
-        });
-      }
-      bilan.bourse = { valeur: brut - depense, pieces: ajoutees };
-    }
-  }
-
-  // Valeurs d'attributs retirés des règles, lignes de journal d'une monnaie retirée :
-  // ignorées par le calcul, elles sont nettoyées ici
-  for (const cle of Object.keys(etat.valeurs))
-    if (!entite?.attributs.has(cle)) {
-      delete etat.valeurs[cle];
-      bilan.valeursRetirees.push(cle);
-    }
-  // Une ligne d'un achat inconnu mais d'une monnaie connue reste (dépense d'XP reprise
-  // de l'ancienne app, achat « migration ») : elle compte toujours dans le solde
-  const avant = etat.journal.length;
-  etat.journal = etat.journal.filter((l) => systeme.monnaies.has(l.monnaie));
-  bilan.lignesRetirees = avant - etat.journal.length;
+  convertirBourse(r, bourse, entite, piecesLegacy);
+  nettoyer(r, entite);
 
   etat.systeme = { id: systeme.source.id, version: systeme.source.version };
   return { etat: EtatEntite.parse(etat), bilan, nouvellesTraces };
