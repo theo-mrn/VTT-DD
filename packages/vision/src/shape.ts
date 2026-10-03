@@ -8,6 +8,94 @@ import type { Vec } from './types.js';
 /** Au-delà de ce nombre d'arêtes, les arêtes sont rangées par bandes horizontales. */
 const BAND_THRESHOLD = 24;
 
+/** Points finis à plat, premier point répété en fin retiré. */
+function finiteCoords(points: readonly Vec[]): Float64Array {
+  const xs: number[] = [];
+  for (const p of points) {
+    if (Number.isFinite(p.x) && Number.isFinite(p.y)) xs.push(p.x, p.y);
+  }
+  let n = xs.length >> 1;
+  if (n > 1 && xs[0] === xs[2 * n - 2] && xs[1] === xs[2 * n - 1]) n--;
+  return new Float64Array(xs.slice(0, 2 * n));
+}
+
+/** Boîte englobante et aire (valeur absolue) d'un polygone à plat. */
+interface Extent {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  area: number;
+}
+
+/** Boîte englobante et aire du polygone. */
+function extentOf(coords: Float64Array, n: number): Extent {
+  const ext: Extent = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity, area: 0 };
+  let area2 = 0;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const x = coords[2 * i]!;
+    const y = coords[2 * i + 1]!;
+    if (x < ext.minX) ext.minX = x;
+    if (x > ext.maxX) ext.maxX = x;
+    if (y < ext.minY) ext.minY = y;
+    if (y > ext.maxY) ext.maxY = y;
+    area2 += coords[2 * j]! * y - x * coords[2 * j + 1]!;
+  }
+  ext.area = Math.abs(area2) / 2;
+  return ext;
+}
+
+/** Arêtes rangées par bandes horizontales (CSR). */
+interface Bands {
+  count: number;
+  height: number;
+  start: Int32Array;
+  edges: Int32Array;
+}
+
+/** Bande de y, bornée aux bandes existantes. */
+function bandOf(y: number, minY: number, height: number, count: number): number {
+  const k = Math.floor((y - minY) / height);
+  return Math.min(Math.max(k, 0), count - 1);
+}
+
+/**
+ * Bandes horizontales : chaque arête est rangée dans toutes les bandes que son intervalle en y
+ * touche (bornes comprises, même formule qu'à la requête).
+ */
+function buildBands(coords: Float64Array, n: number, minY: number, maxY: number): Bands {
+  const count = Math.min(256, Math.max(4, Math.ceil(Math.sqrt(n) * 2)));
+  const height = (maxY - minY) / count;
+  const start = new Int32Array(count + 1);
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const y1 = coords[2 * j + 1]!;
+    const y2 = coords[2 * i + 1]!;
+    const k1 = bandOf(Math.min(y1, y2), minY, height, count);
+    const k2 = bandOf(Math.max(y1, y2), minY, height, count);
+    for (let k = k1; k <= k2; k++) start[k + 1]!++;
+  }
+  for (let k = 0; k < count; k++) start[k + 1]! += start[k]!;
+  const edges = new Int32Array(start[count]!);
+  const fill = start.slice(0, count);
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const y1 = coords[2 * j + 1]!;
+    const y2 = coords[2 * i + 1]!;
+    const k1 = bandOf(Math.min(y1, y2), minY, height, count);
+    const k2 = bandOf(Math.max(y1, y2), minY, height, count);
+    for (let k = k1; k <= k2; k++) edges[fill[k]!++] = i;
+  }
+  return { count, height, start, edges };
+}
+
+/** L'arête j→i coupe-t-elle la demi-droite horizontale à droite de (x, y) (pair-impair) ? */
+function crossesRight(c: Float64Array, i: number, j: number, x: number, y: number): boolean {
+  const xi = c[2 * i]!;
+  const yi = c[2 * i + 1]!;
+  const xj = c[2 * j]!;
+  const yj = c[2 * j + 1]!;
+  return yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+}
+
 export class PolygonShape {
   /** Sommets à plat `[x0, y0, …]`. */
   readonly coords: Float64Array;
@@ -25,72 +113,23 @@ export class PolygonShape {
 
   constructor(points: readonly Vec[]) {
     // Points non finis ignorés, premier point répété en fin retiré.
-    const xs: number[] = [];
-    for (const p of points) {
-      if (Number.isFinite(p.x) && Number.isFinite(p.y)) xs.push(p.x, p.y);
-    }
-    let n = xs.length >> 1;
-    if (n > 1 && xs[0] === xs[2 * n - 2] && xs[1] === xs[2 * n - 1]) n--;
-    const coords = new Float64Array(xs.slice(0, 2 * n));
+    const coords = finiteCoords(points);
+    const n = coords.length >> 1;
     this.coords = coords;
     this.count = n;
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    let area2 = 0;
-    for (let i = 0, j = n - 1; i < n; j = i++) {
-      const x = coords[2 * i]!;
-      const y = coords[2 * i + 1]!;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-      area2 += coords[2 * j]! * y - x * coords[2 * j + 1]!;
-    }
-    this.minX = minX;
-    this.minY = minY;
-    this.maxX = maxX;
-    this.maxY = maxY;
-    this.area = Math.abs(area2) / 2;
+    const ext = extentOf(coords, n);
+    this.minX = ext.minX;
+    this.minY = ext.minY;
+    this.maxX = ext.maxX;
+    this.maxY = ext.maxY;
+    this.area = ext.area;
 
-    if (n > BAND_THRESHOLD && maxY > minY) {
-      // Bandes horizontales : chaque arête est rangée dans toutes les bandes que son
-      // intervalle en y touche (bornes comprises, même formule qu'à la requête).
-      const bandCount = Math.min(256, Math.max(4, Math.ceil(Math.sqrt(n) * 2)));
-      const bandHeight = (maxY - minY) / bandCount;
-      const band = (y: number) => {
-        const k = Math.floor((y - minY) / bandHeight);
-        return Math.min(Math.max(k, 0), bandCount - 1);
-      };
-      const start = new Int32Array(bandCount + 1);
-      for (let i = 0, j = n - 1; i < n; j = i++) {
-        const y1 = coords[2 * j + 1]!;
-        const y2 = coords[2 * i + 1]!;
-        const k1 = band(Math.min(y1, y2));
-        const k2 = band(Math.max(y1, y2));
-        for (let k = k1; k <= k2; k++) start[k + 1]!++;
-      }
-      for (let k = 0; k < bandCount; k++) start[k + 1]! += start[k]!;
-      const edges = new Int32Array(start[bandCount]!);
-      const fill = start.slice(0, bandCount);
-      for (let i = 0, j = n - 1; i < n; j = i++) {
-        const y1 = coords[2 * j + 1]!;
-        const y2 = coords[2 * i + 1]!;
-        const k1 = band(Math.min(y1, y2));
-        const k2 = band(Math.max(y1, y2));
-        for (let k = k1; k <= k2; k++) edges[fill[k]!++] = i;
-      }
-      this.bandCount = bandCount;
-      this.bandHeight = bandHeight;
-      this.bandStart = start;
-      this.bandEdges = edges;
-    } else {
-      this.bandCount = 0;
-      this.bandHeight = 0;
-      this.bandStart = null;
-      this.bandEdges = null;
-    }
+    const bands = n > BAND_THRESHOLD && ext.maxY > ext.minY;
+    const built = bands ? buildBands(coords, n, ext.minY, ext.maxY) : null;
+    this.bandCount = built ? built.count : 0;
+    this.bandHeight = built ? built.height : 0;
+    this.bandStart = built ? built.start : null;
+    this.bandEdges = built ? built.edges : null;
   }
 
   /** Point dans le polygone (pair-impair, bord demi-ouvert comme `pointInPolygon`). */
@@ -98,31 +137,29 @@ export class PolygonShape {
     if (this.count < 3 || x < this.minX || x > this.maxX || y < this.minY || y > this.maxY) {
       return false;
     }
+    if (this.bandStart !== null && this.bandEdges !== null) {
+      return this.containsBanded(x, y, this.bandStart, this.bandEdges);
+    }
     const c = this.coords;
     const n = this.count;
     let inside = false;
-    if (this.bandStart !== null && this.bandEdges !== null) {
-      let k = Math.floor((y - this.minY) / this.bandHeight);
-      if (k < 0) k = 0;
-      else if (k >= this.bandCount) k = this.bandCount - 1;
-      const edges = this.bandEdges;
-      for (let e = this.bandStart[k]!, end = this.bandStart[k + 1]!; e < end; e++) {
-        const i = edges[e]!;
-        const j = i === 0 ? n - 1 : i - 1;
-        const xi = c[2 * i]!;
-        const yi = c[2 * i + 1]!;
-        const xj = c[2 * j]!;
-        const yj = c[2 * j + 1]!;
-        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
-      }
-      return inside;
-    }
     for (let i = 0, j = n - 1; i < n; j = i++) {
-      const xi = c[2 * i]!;
-      const yi = c[2 * i + 1]!;
-      const xj = c[2 * j]!;
-      const yj = c[2 * j + 1]!;
-      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+      if (crossesRight(c, i, j, x, y)) inside = !inside;
+    }
+    return inside;
+  }
+
+  /** Pair-impair limité aux arêtes de la bande de y. */
+  private containsBanded(x: number, y: number, start: Int32Array, edges: Int32Array): boolean {
+    const c = this.coords;
+    const n = this.count;
+    let k = Math.floor((y - this.minY) / this.bandHeight);
+    if (k < 0) k = 0;
+    else if (k >= this.bandCount) k = this.bandCount - 1;
+    let inside = false;
+    for (let e = start[k]!, end = start[k + 1]!; e < end; e++) {
+      const i = edges[e]!;
+      if (crossesRight(c, i, i === 0 ? n - 1 : i - 1, x, y)) inside = !inside;
     }
     return inside;
   }
