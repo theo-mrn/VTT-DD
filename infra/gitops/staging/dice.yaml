@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-dice
-  digest: 'sha256:11f9ca3cab039379f194c0b1cc7ff48a07698fa17dba335cc6a16e45d11462df'
+  digest: 'sha256:15de71eff3b09e36abb39c8aa2d8821b2931ec30f9c2467cca56f46f9c1aa804'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -60,7 +60,7 @@ migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-dice-migrations
-    digest: 'sha256:541d6ccf263775f4c19751a22db6a746571a41c0996c59959259ac271b717eb4'
+    digest: 'sha256:dd6be68e42f2719463a446f38de1498c1d1b4b2a1ffde96166a75a1d76202e71'
     tag: 'main'
   schema: dice
   # Secret généré par CloudNativePG pour le rôle dice_owner

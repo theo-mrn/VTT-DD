@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/theo-mrn/vtt-web
-  digest: 'sha256:4c019a2d0704e5746cebc567137cf0a67350b77d99ba9bb26e1c7f95eee3e60d'
+  digest: 'sha256:1649b60f7ff96cd468e9dac6a8da1561691f2723e6673e55f463fe270d788c09'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
