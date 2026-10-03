@@ -670,23 +670,23 @@ export async function writeItem(
   const api = toApi(def, after!);
   if (isObjects(def)) {
     await objectEvent(tx, ctx, v, map, 'updated', api, seenBefore ?? null);
-    return api;
-  }
-  const hidden = await hiddenFor(tx, def, map.id);
-  const visible = isPublic(def, after!, hidden);
-  await layerEvent(tx, ctx, v, def, 'updated', api, {
-    visible,
-    restricted: inHiddenLayer(def, after!, hidden),
-  });
-  // Élément qui vient d'être caché (visibilité, calque masqué) : les joueurs le retirent
-  if (isPublic(def, before, hidden) && !visible)
-    await mapEvent(tx, ctx, v, {
-      type: `${layerDomain(def)}.hidden`,
-      aggregate: { type: layerDomain(def), id: before.id },
-      payload: { id: before.id, mapId: map.id },
+  } else {
+    const hidden = await hiddenFor(tx, def, map.id);
+    const visible = isPublic(def, after!, hidden);
+    await layerEvent(tx, ctx, v, def, 'updated', api, {
+      visible,
+      restricted: inHiddenLayer(def, after!, hidden),
     });
-  await visionChanged(tx, ctx, v, map, def, Object.keys(columns));
-  if (hooks) await def.afterWrite?.(tx, map, before, after!, siblingWriter(tx, ctx, def, v));
+    // Élément qui vient d'être caché (visibilité, calque masqué) : les joueurs le retirent
+    if (isPublic(def, before, hidden) && !visible)
+      await mapEvent(tx, ctx, v, {
+        type: `${layerDomain(def)}.hidden`,
+        aggregate: { type: layerDomain(def), id: before.id },
+        payload: { id: before.id, mapId: map.id },
+      });
+    await visionChanged(tx, ctx, v, map, def, Object.keys(columns));
+    if (hooks) await def.afterWrite?.(tx, map, before, after!, siblingWriter(tx, ctx, def, v));
+  }
   return api;
 }
 

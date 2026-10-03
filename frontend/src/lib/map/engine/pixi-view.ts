@@ -514,7 +514,7 @@ class PixiView implements EngineView {
     this.adornDirty = false;
     this.adornZoom = zoom;
     const px = 1 / zoom;
-    const { primary, muted, background, foreground } = this.theme;
+    const { primary, muted, background } = this.theme;
     g.clear();
 
     const gm = engine.viewer.role === 'gm';

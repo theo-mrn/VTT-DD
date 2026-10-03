@@ -106,7 +106,13 @@ export function FormulaireConnexion({
         </p>
       </div>
 
-      <SelecteurMode mode={mode} onChange={(m) => (setMode(m), setErreur(null))} />
+      <SelecteurMode
+        mode={mode}
+        onChange={(m) => {
+          setMode(m);
+          setErreur(null);
+        }}
+      />
 
       {actifs.length > 0 && (
         <>

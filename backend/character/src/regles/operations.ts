@@ -833,7 +833,9 @@ function identifiantBonus(nom: string, etat: EtatEntite): string {
       .replace(/^-|-$/g, '')
       .slice(0, 40) || 'bonus';
   let id = base;
-  for (let n = 2; etat.bonus.some((b) => b.id === id); n++) id = `${base}-${n}`;
+  // Identifiant déjà pris : suffixe -2, -3…
+  let n = 2;
+  while (etat.bonus.some((b) => b.id === id)) id = `${base}-${n++}`;
   return id;
 }
 

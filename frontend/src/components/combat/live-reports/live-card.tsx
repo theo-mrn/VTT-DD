@@ -109,7 +109,7 @@ function Versus({ attacker, versus }: Readonly<{ attacker: string; versus: strin
 // ─── Carte dépliée ───────────────────────────────────────────────────────────
 
 export function ReportCard({ attack: a, live }: Readonly<{ attack: Attack; live: Live }>) {
-  const { cast, systeme, presentation, busy } = live;
+  const { cast, systeme, busy } = live;
   const r = readReport(a, cast, systeme);
   const decidable = decidableTargets(a);
   const single = a.targets.length === 1;

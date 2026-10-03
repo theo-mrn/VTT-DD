@@ -119,7 +119,9 @@ const FunDie = ({
       oscGain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.1);
-    } catch (e) {}
+    } catch {
+      // Audio indisponible (contexte suspendu, navigateur sans Web Audio) : sans son
+    }
   }, []);
 
   const [ref, api] = useConvexPolyhedron(() => ({

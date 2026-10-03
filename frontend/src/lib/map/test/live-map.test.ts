@@ -5,7 +5,13 @@
  * cours qui se pose quand le dessin enregistré arrive, mesure, ping et ping centré du MJ).
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { LIVE_KIND, PING_KIND, type LiveMessage } from '../live/live-channel';
+import {
+  LIVE_KIND,
+  PING_KIND,
+  type LiveMessage,
+  type MeasureEvent,
+  type StrokeEvent,
+} from '../live/live-channel';
 import { ALICE, fixtures, GM, mountMap, type MapHarness } from './map-harness';
 
 let h: MapHarness | null = null;
@@ -79,14 +85,18 @@ describe('les gestes des autres arrivent', () => {
     h.frames(3, 40);
   });
 
-  it('curseurs des autres : affichés puis effacés après un silence', async () => {
+  it('curseurs des autres : reçus et interpolés, puis dessinés ; messages hors carte ignorés', async () => {
     h = await mountMap({ viewer: GM });
     h.receive('alice', { cursor: [500, 500] });
     h.receive('bob', { cursor: [600, 600] });
-    h.frames(3);
+    // Lus avec 100 ms de retard (interpolation), sur l'horloge du canal
     await wait(150);
-    h.receive('alice', { cursor: [520, 540] });
-    h.frames(3);
+    expect(h.live!.cursorPositions()).toEqual(
+      expect.arrayContaining([
+        { userId: 'alice', x: 500, y: 500 },
+        { userId: 'bob', x: 600, y: 600 },
+      ]),
+    );
     // Message en retard (numéro plus ancien) : ignoré ; autre carte : ignorée
     h.live!.receive({
       kind: LIVE_KIND,
@@ -94,11 +104,20 @@ describe('les gestes des autres arrivent', () => {
       from: { userId: 'bob', role: 'player' },
     });
     h.live!.receive({ kind: 'inconnu', data: {}, from: { userId: 'bob', role: 'player' } });
-    h.frames(2);
+    expect(h.live!.cursorPositions().find((c) => c.userId === 'bob')).toEqual({
+      userId: 'bob',
+      x: 600,
+      y: 600,
+    });
+    // Le moteur les dessine (son temps d'images est à part : ici, seulement sans erreur)
+    h.receive('alice', { cursor: [520, 540] });
+    h.frames(3);
   });
 
   it('tracé en cours d’un joueur : fantôme, puis posé quand son dessin enregistré arrive', async () => {
     h = await mountMap({ viewer: GM });
+    const recus: StrokeEvent[] = [];
+    h.live!.onStroke((e) => recus.push(e));
     const stroke = { id: 's1', tool: 'pen' as const, color: '#ff000080', width: 4 };
     h.receive('alice', { stroke: { ...stroke, points: [100, 600, 150, 620] } });
     h.frame();
@@ -135,10 +154,16 @@ describe('les gestes des autres arrivent', () => {
       end: true,
     });
     h.frames(2);
+    expect(recus.filter((e) => e.userId === 'alice').map((e) => e.stroke?.id)).toEqual(
+      expect.arrayContaining(['s1', 's2']),
+    );
+    expect(recus.filter((e) => e.end).map((e) => e.userId)).toEqual(['alice', 'bob']);
   });
 
   it('mesure en cours d’un joueur, puis effacée', async () => {
     h = await mountMap({ viewer: GM });
+    const recues: MeasureEvent[] = [];
+    h.live!.onMeasure((e) => recues.push(e));
     h.receive('alice', {
       measure: {
         id: 'mx',
@@ -163,6 +188,8 @@ describe('les gestes des autres arrivent', () => {
     h.frames(3);
     h.receive('alice', { measure: null, end: true });
     h.frames(3);
+    expect(recues.map((e) => e.measure?.shape ?? null)).toEqual(['cone', 'circle', null]);
+    expect(recues.at(-1)!.end).toBe(true);
   });
 
   it('pings : d’un joueur (marque), du MJ centré (la vue s’y rend)', async () => {

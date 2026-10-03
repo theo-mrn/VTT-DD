@@ -245,7 +245,7 @@ if (base && !dryRun && first && last) {
   console.log(`Partitions mensuelles créées : ${created}`);
 }
 
-for (const [campaignId, bucket] of ready) {
+for (const bucket of ready.values()) {
   const l = line(bucket.code);
   const sorted = bucket.events
     .map((e) => ({ e, occurredAt: new Date(e.occurredAt), legacyId: e.legacyId }))

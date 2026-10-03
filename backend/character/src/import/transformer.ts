@@ -569,7 +569,9 @@ function migrerBonus(
       }
     }
     let id = slug(nom).slice(0, 40) || 'bonus';
-    for (let n = 2; ids.has(id); n++) id = `${slug(nom).slice(0, 36) || 'bonus'}-${n}`;
+    // Nom déjà pris : suffixe -2, -3…
+    let n = 2;
+    while (ids.has(id)) id = `${slug(nom).slice(0, 36) || 'bonus'}-${n++}`;
     ids.add(id);
     const source =
       d.category === 'Competence'

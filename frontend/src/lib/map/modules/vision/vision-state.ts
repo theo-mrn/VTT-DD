@@ -388,14 +388,11 @@ export class VisionState {
     }
 
     if (changed || moved || !this.map) {
-      const byId = new Map<string, Vec>();
       const list = [...tokens.values()].map((t, i) => {
         const x = positions[2 * i]!;
         const y = positions[2 * i + 1]!;
         const pos = Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
-        const vt = visionToken(t, pos, this.playerCharacters);
-        byId.set(t.id, vt.pos);
-        return vt;
+        return visionToken(t, pos, this.playerCharacters);
       });
       const geo = this.geoScene!;
       this.map = new MapVision({

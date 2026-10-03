@@ -63,7 +63,9 @@ export class FakeElement {
   pause() {
     this.paused = true;
   }
-  load() {}
+  load() {
+    // Le faux élément n'a rien à charger
+  }
   getAttribute(name: string) {
     return name === 'src' && this.src ? this.src : null;
   }

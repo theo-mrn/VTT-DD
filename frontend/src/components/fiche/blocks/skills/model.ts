@@ -168,13 +168,14 @@ export function rollEffectText(fiche: Fiche, e: Effet, rank: number): string | n
   };
   const a = e.ajout;
   let base: string | null = null;
-  if (!a) base = null;
-  else if ('de' in a) base = `+${n(a.nombre)} ${diceName(s, a.de)}`;
-  else if ('ameliorer' in a)
-    base = `${n(a.nombre)} ${diceName(s, a.ameliorer)} → ${diceName(s, a.vers)}`;
-  else if ('retrograder' in a)
-    base = `${n(a.nombre)} ${diceName(s, a.retrograder)} → ${diceName(s, a.vers)}`;
-  else if ('retirer' in a) base = `−${n(a.nombre)} ${diceName(s, a.retirer)}`;
+  if (a) {
+    if ('de' in a) base = `+${n(a.nombre)} ${diceName(s, a.de)}`;
+    else if ('ameliorer' in a)
+      base = `${n(a.nombre)} ${diceName(s, a.ameliorer)} → ${diceName(s, a.vers)}`;
+    else if ('retrograder' in a)
+      base = `${n(a.nombre)} ${diceName(s, a.retrograder)} → ${diceName(s, a.vers)}`;
+    else if ('retirer' in a) base = `−${n(a.nombre)} ${diceName(s, a.retirer)}`;
+  }
   // Condition qui ne fait que choisir la caractéristique : « aux jets de DEX »
   const vises = !e.implique && e.si !== undefined ? jetsVises(fiche, e.si) : null;
   const jets = vises ? `aux jets de ${vises.join(', ')}` : 'au jet';

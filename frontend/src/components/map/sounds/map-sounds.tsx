@@ -93,11 +93,10 @@ function useListener(engine: MapEngine): Point | null {
         Boolean(next) !== Boolean(shown) ||
         (next && shown && Math.abs(next.x - shown.x) + Math.abs(next.y - shown.y) >= 1);
       pending = next;
-      if (!moved || timer) return false;
+      if (!moved || timer) return;
       const wait = lastAt + LISTENER_GAP_MS - now;
       if (wait <= 0) commit();
       else timer = setTimeout(commit, wait);
-      return false;
     });
     return () => {
       off();

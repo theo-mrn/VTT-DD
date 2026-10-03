@@ -45,7 +45,7 @@ export function TreeDetailDialog({
   selection: TreeSelection | null;
   onClose: () => void;
 }>) {
-  const { fiche, systeme } = ctx;
+  const { systeme } = ctx;
   const cur = (id: string | undefined) => currencyName(systeme, id);
 
   const info = useMemo(() => {

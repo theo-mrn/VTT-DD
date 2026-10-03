@@ -642,7 +642,7 @@ export function champsAffiches(
     const modifiable =
       c.type === 'nombre' || c.type === 'texte' || c.type === 'booleen' || c.type === 'choix';
     const identite = c.id === sorte.nomExemplaire || c.id === sorte.descriptionExemplaire;
-    let valeur: string | null = null;
+    let valeur: string | null;
     if (Array.isArray(v))
       valeur = v.map((id) => fiche.systeme.entrees.get(id)?.nom ?? id).join(', ') || null;
     else if (v === undefined || v === '') valeur = null;

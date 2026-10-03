@@ -263,7 +263,7 @@ export const weatherModule: MapModule = {
     // demande jamais d'image à la carte.
     cleanups.push(
       engine.onFrame((now) => {
-        if (!overlay || !sim.active) return false;
+        if (!overlay || !sim.active) return;
         const cam = engine.camera;
         if (
           cam.x !== camX ||
@@ -276,7 +276,6 @@ export const weatherModule: MapModule = {
           cancel();
           frame(now);
         }
-        return false;
       }),
     );
 
