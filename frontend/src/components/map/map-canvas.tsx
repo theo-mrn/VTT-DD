@@ -61,7 +61,7 @@ interface Runtime {
   sync: { current: MapSync | null };
 }
 
-export default function MapCanvas(props: MapCanvasProps) {
+export default function MapCanvas(props: Readonly<MapCanvasProps>) {
   const { campaignId, mapId, viewer } = props;
   const [runtime, setRuntime] = useState<Runtime | null>(null);
 
@@ -150,11 +150,11 @@ function MapRuntime({
   runtime,
   campaignId,
   viewer,
-}: {
+}: Readonly<{
   runtime: Runtime;
   campaignId: string;
   viewer: MapViewer;
-}) {
+}>) {
   const { engine, store, api, live } = runtime;
   const hostRef = useRef<HTMLDivElement>(null);
 

@@ -9,7 +9,7 @@ import { ChevronRight } from 'lucide-react';
 // Fond plein écran (3 Mo à la source) : version redimensionnée par le CDN.
 const BG_IMAGE = vignette('https://assets.yner.fr/Cartes/Foret/image2.webp', 1920);
 
-export function StartCampaignSection({ onStart }: { onStart: () => void }) {
+export function StartCampaignSection({ onStart }: Readonly<{ onStart: () => void }>) {
   return (
     <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden">
       <img

@@ -25,7 +25,7 @@ import type { SheetWrites } from '../tree/writes';
 import { EntryDetails } from './entry-details';
 import type { SkillCard } from './model';
 
-export function RankMarks({ rank, max }: { rank: number; max: number }) {
+export function RankMarks({ rank, max }: Readonly<{ rank: number; max: number }>) {
   if (max > 6)
     return (
       <span className="font-mono text-[11px] tabular text-muted-foreground">
@@ -56,12 +56,12 @@ export function SkillDialog({
   card,
   writes,
   onClose,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   card: SkillCard | null;
   writes: SheetWrites | undefined;
   onClose: () => void;
-}) {
+}>) {
   const sorte = card ? ctx.systeme.sortes.get(card.entry.sorte) : undefined;
   const on = !!card && card.activable && card.active;
   return (

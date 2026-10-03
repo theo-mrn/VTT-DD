@@ -50,7 +50,7 @@ export function LanceurAction({
   ouvert,
   onOuvert,
   onAction,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   fiche: Fiche;
@@ -60,7 +60,7 @@ export function LanceurAction({
   onOuvert: (v: boolean) => void;
   /** Jet tiré par le service (voir useOperationsPersonnage). */
   onAction: OperationsPersonnage['action'];
-}) {
+}>) {
   const [valeurs, setValeurs] = useState<Record<string, Valeur>>(() =>
     Object.fromEntries(action.parametres.map((p) => [p.id, defaultParamValue(fiche, p)])),
   );

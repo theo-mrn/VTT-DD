@@ -16,7 +16,7 @@ import { SoundPicker } from './sound-picker';
 
 const percent = (v: number) => `${Math.round(v * 100)} %`;
 
-export function SoundInspector({ engine, entities }: InspectorSectionProps) {
+export function SoundInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = soundContextOf(engine);
   const id = useId();
   const first = entities[0]?.data as SoundZoneData | undefined;

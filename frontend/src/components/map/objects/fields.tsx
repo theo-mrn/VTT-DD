@@ -11,7 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 /** Libellé au-dessus d'un champ. */
-export function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
+export function FieldLabel({
+  htmlFor,
+  children,
+}: Readonly<{ htmlFor?: string; children: ReactNode }>) {
   return (
     <label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">
       {children}
@@ -28,7 +31,7 @@ export function CommitInput({
   maxLength,
   className,
   'aria-label': ariaLabel,
-}: {
+}: Readonly<{
   id?: string;
   value: string;
   onCommit(value: string): void;
@@ -36,7 +39,7 @@ export function CommitInput({
   maxLength?: number;
   className?: string;
   'aria-label'?: string;
-}) {
+}>) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   const commit = () => {
@@ -75,7 +78,7 @@ export function CommitNumber({
   disabled,
   className,
   'aria-label': ariaLabel,
-}: {
+}: Readonly<{
   id?: string;
   value: number;
   onCommit(value: number): void;
@@ -86,7 +89,7 @@ export function CommitNumber({
   disabled?: boolean;
   className?: string;
   'aria-label'?: string;
-}) {
+}>) {
   const shown = String(Math.round(value * 100) / 100);
   const [draft, setDraft] = useState(shown);
   useEffect(() => setDraft(shown), [shown]);
@@ -137,14 +140,14 @@ export function CommitTextarea({
   placeholder,
   maxLength,
   rows = 3,
-}: {
+}: Readonly<{
   id?: string;
   value: string;
   onCommit(value: string): void;
   placeholder?: string;
   maxLength?: number;
   rows?: number;
-}) {
+}>) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   return (
@@ -176,13 +179,13 @@ export function ToggleRow({
   checked,
   onChange,
   disabled,
-}: {
+}: Readonly<{
   label: string;
   hint?: ReactNode;
   checked: boolean | 'mixed';
   onChange(checked: boolean): void;
   disabled?: boolean;
-}) {
+}>) {
   const id = useId();
   return (
     <div className="flex items-start justify-between gap-3">
@@ -210,12 +213,12 @@ export function Segmented<V extends string>({
   value,
   options,
   onChange,
-}: {
+}: Readonly<{
   label: string;
   value: V | null;
   options: readonly { value: V; label: string }[];
   onChange(value: V): void;
-}) {
+}>) {
   return (
     <div
       role="group"

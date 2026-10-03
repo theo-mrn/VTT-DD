@@ -42,7 +42,7 @@ interface Session {
 const Contexte = createContext<Session | null>(null);
 
 /** Une seule session pour toute l'app : le profil est chargé une fois, puis partagé. */
-export function SessionProvider({ children }: { children: ReactNode }) {
+export function SessionProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [statut, setStatut] = useState<Session['statut']>('chargement');
   const [profil, setProfil] = useState<Profil | null>(null);
   const [sortieVolontaire, setSortieVolontaire] = useState(false);

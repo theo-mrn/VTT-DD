@@ -29,7 +29,7 @@ export function EtapePortrait({
   onPortrait,
   nom,
   personnageId,
-}: {
+}: Readonly<{
   fiche: Fiche;
   presentation: Presentation | null;
   portrait: string | null;
@@ -37,7 +37,7 @@ export function EtapePortrait({
   nom: string;
   /** Personnage en création : son dossier reçoit l'image envoyée. */
   personnageId: string | null;
-}) {
+}>) {
   const assets = useAssets();
   const dossiers = useMemo(() => portraitsParDossier(assets.data ?? []), [assets.data]);
   const mots = motsClesPortrait(fiche);
@@ -167,12 +167,12 @@ function OuvrirStudio({
   nom,
   portrait,
   onPortrait,
-}: {
+}: Readonly<{
   personnageId: string;
   nom: string;
   portrait: string;
   onPortrait: (url: string | null) => void;
-}) {
+}>) {
   const modifier = useModifierPersonnage(personnageId);
   const [ouvert, setOuvert] = useState(false);
   return (
@@ -205,12 +205,12 @@ function Vignette({
   nom,
   choisie,
   onClick,
-}: {
+}: Readonly<{
   src: string;
   nom: string;
   choisie: boolean;
   onClick: () => void;
-}) {
+}>) {
   return (
     <button
       type="button"

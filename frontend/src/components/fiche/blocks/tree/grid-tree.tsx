@@ -77,12 +77,12 @@ export function GridTree({
   geometry,
   currencyName,
   onSelect,
-}: {
+}: Readonly<{
   view: TreeView;
   geometry: Geometry | undefined;
   currencyName: (id: string | undefined) => string;
   onSelect: (node: NodeView) => void;
-}) {
+}>) {
   const g = geometry ?? DEFAULT_GEOMETRY;
   const width = (view.columns - 1) * g.colonne + g.noeud.largeur + PAD * 2;
   const height = (view.rows - 1) * g.ligne + g.noeud.hauteur + PAD * 2;

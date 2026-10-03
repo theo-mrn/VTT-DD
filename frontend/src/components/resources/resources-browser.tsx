@@ -69,7 +69,7 @@ export function ResourcesBrowser({
   variant,
   tab,
   onTabChange,
-}: {
+}: Readonly<{
   systemId: string;
   systeme: SystemeCharge;
   presentation: Presentation | null;
@@ -78,7 +78,7 @@ export function ResourcesBrowser({
   /** Onglet ouvert, s'il est tenu par l'appelant (adresse de la page). */
   tab?: ResourceTab | null;
   onTabChange?: (tab: ResourceTab) => void;
-}) {
+}>) {
   const onglets = availableTabs(presentation, access);
   const [local, setLocal] = useState<ResourceTab | null>(null);
   const voulu = tab !== undefined ? tab : local;

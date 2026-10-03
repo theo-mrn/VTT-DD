@@ -11,7 +11,10 @@ import { CommandGroup, CommandItem, CommandShortcut } from '@/components/ui/comm
 import { messageErreur } from '@/lib/api';
 import { useLancer, verifierFormule } from '@/lib/jets';
 
-export function GroupeLancer({ saisie, onLance }: { saisie: string; onLance: () => void }) {
+export function GroupeLancer({
+  saisie,
+  onLance,
+}: Readonly<{ saisie: string; onLance: () => void }>) {
   const router = useRouter();
   const lancer = useLancer();
   const formule = verifierFormule(saisie).ok ? saisie.trim() : null;

@@ -13,14 +13,14 @@ export function CheckBox({
   label,
   disabled,
   className,
-}: {
+}: Readonly<{
   /** `mixed` : une partie seulement (case « tout cocher »). */
   checked: boolean | 'mixed';
   onChange(checked: boolean): void;
   label: string;
   disabled?: boolean;
   className?: string;
-}) {
+}>) {
   return (
     <button
       type="button"

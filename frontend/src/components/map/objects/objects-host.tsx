@@ -20,7 +20,7 @@ import { clesPersonnages } from '@/lib/personnages';
 import { useCampaignEvents } from '@/lib/realtime';
 import { SearchDialog } from './search-dialog';
 
-export function ObjectsHost({ engine }: { engine: MapEngine }) {
+export function ObjectsHost({ engine }: Readonly<{ engine: MapEngine }>) {
   const controller = searchControllerOf(engine);
   const role = engine.viewer.role;
   return (

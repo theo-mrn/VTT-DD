@@ -4,7 +4,7 @@
 import { BlocTexte } from '../../widgets';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
 
-function TextBlock({ ctx, widget }: SheetBlockProps<'texte'>) {
+function TextBlock({ ctx, widget }: Readonly<SheetBlockProps<'texte'>>) {
   return <BlocTexte ctx={ctx} widget={widget} />;
 }
 

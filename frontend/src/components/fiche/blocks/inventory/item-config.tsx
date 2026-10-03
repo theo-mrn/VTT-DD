@@ -65,7 +65,7 @@ export function ItemConfig({
   onAjouter,
   dossierOuvert = null,
   mj = false,
-}: {
+}: Readonly<{
   fiche: Fiche;
   cible: CibleAjout;
   presentation: Presentation | null;
@@ -75,7 +75,7 @@ export function ItemConfig({
   mj?: boolean;
   onRetour(): void;
   onAjouter(modele: ModeleLibre, saisie: SaisieLibre): void;
-}) {
+}>) {
   const [sorte, setSorte] = useState(cible.modeles[0]?.sorte.id ?? '');
   const modele = cible.modeles.find((m) => m.sorte.id === sorte) ?? cible.modeles[0];
   const [categorie, setCategorie] = useState(defautCategorie(cible.modeles[0]));
@@ -136,7 +136,7 @@ function Formulaire({
   onAjouter,
   dossierOuvert,
   mj,
-}: {
+}: Readonly<{
   fiche: Fiche;
   cible: CibleAjout;
   modele: ModeleLibre;
@@ -155,7 +155,7 @@ function Formulaire({
   categorieInitiale: string;
   onRetour(): void;
   onAjouter(modele: ModeleLibre, saisie: SaisieLibre): void;
-}) {
+}>) {
   const id = useId();
   const { entree, sorte } = modele;
   const folders: InventoryFolder[] = fiche.etat.folders;
@@ -599,13 +599,13 @@ function Champ({
   erreur,
   aide,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor: string;
   erreur?: string | null;
   aide?: string | undefined;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="space-y-1.5">
       <label htmlFor={htmlFor} className="block text-xs font-medium text-muted-foreground">
@@ -629,11 +629,11 @@ function Case({
   titre,
   htmlFor,
   children,
-}: {
+}: Readonly<{
   titre: string;
   htmlFor?: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="-mb-px flex min-h-12 items-center justify-between gap-3 px-3 py-2">
       <label htmlFor={htmlFor} className="text-xs text-muted-foreground">

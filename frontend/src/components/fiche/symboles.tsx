@@ -35,11 +35,11 @@ export function ResultatsSymboles({
   systeme,
   presentation,
   resultats,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   resultats: Record<string, number>;
-}) {
+}>) {
   const declares = systeme.source.des?.resultats ?? [];
   const non0 = declares.filter((r) => (resultats[r.cle] ?? 0) > 0);
   if (non0.length === 0)
@@ -75,11 +75,11 @@ export function DesSymboles({
   systeme,
   presentation,
   des,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   des: DeSymbole[];
-}) {
+}>) {
   const noms = new Map((systeme.source.des?.sortes ?? []).map((s) => [s.id, s.nom]));
   return (
     <div className="flex flex-wrap gap-1.5">

@@ -83,7 +83,7 @@ export function profileStats(ctx: ContexteFiche): KeyStat[] {
   });
 }
 
-export function Gauge({ stat, className }: { stat: KeyStat; className?: string }) {
+export function Gauge({ stat, className }: Readonly<{ stat: KeyStat; className?: string }>) {
   if (!stat.gauge) return null;
   return (
     <div aria-hidden className={cn('h-1 overflow-hidden rounded-full bg-surface-3', className)}>
@@ -99,7 +99,7 @@ export function Gauge({ stat, className }: { stat: KeyStat; className?: string }
 }
 
 /** Contenu du bouton « Statistiques » de l'en-tête. */
-export function AttackerStats({ ctx, name }: { ctx: ContexteFiche; name: string }) {
+export function AttackerStats({ ctx, name }: Readonly<{ ctx: ContexteFiche; name: string }>) {
   const resources = resourceStats(ctx, 6);
   const profile = profileStats(ctx);
   const blocks = widgetsDe(ctx).filter(

@@ -64,7 +64,7 @@ export const MessageItem = memo(
     a.ctx === b.ctx,
 );
 
-function MessageItemView({ item, first, ctx, editing: enCorrection }: MessageItemProps) {
+function MessageItemView({ item, first, ctx, editing: enCorrection }: Readonly<MessageItemProps>) {
   const m = item.message;
   const person = ctx.personOf(m.author.id);
   const name = ctx.nameOf(m.author.id, m.author.name);
@@ -161,7 +161,7 @@ function MessageItemView({ item, first, ctx, editing: enCorrection }: MessageIte
 }
 
 /** Texte enrichi : mentions (la mienne ressort) et liens. */
-function Rich({ segments, me }: { segments: readonly Segment[]; me: string }) {
+function Rich({ segments, me }: Readonly<{ segments: readonly Segment[]; me: string }>) {
   return (
     <>
       {segments.map((s, i) =>
@@ -193,7 +193,7 @@ function Rich({ segments, me }: { segments: readonly Segment[]; me: string }) {
   );
 }
 
-function PendingStatus({ item, ctx }: { item: ThreadMessage; ctx: MessageContext }) {
+function PendingStatus({ item, ctx }: Readonly<{ item: ThreadMessage; ctx: MessageContext }>) {
   const p = item.pending!;
   if (p.status === 'waiting')
     return (
@@ -247,11 +247,11 @@ function MessageActions({
   message,
   mine,
   ctx,
-}: {
+}: Readonly<{
   message: ChatMessage;
   mine: boolean;
   ctx: MessageContext;
-}) {
+}>) {
   const [confirm, setConfirm] = useState(false);
   const remove = useDeleteChatMessage(ctx.campaignId);
   const supprimer = () =>
@@ -316,7 +316,7 @@ function MessageActions({
 }
 
 /** Correction en place : Entrée enregistre, Échap annule. */
-function EditMessage({ message, ctx }: { message: ChatMessage; ctx: MessageContext }) {
+function EditMessage({ message, ctx }: Readonly<{ message: ChatMessage; ctx: MessageContext }>) {
   const [draft, setDraft] = useState(message.body);
   const edit = useEditChatMessage(ctx.campaignId);
   const ref = useRef<HTMLTextAreaElement>(null);

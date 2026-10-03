@@ -99,7 +99,7 @@ export function StepRoll({
   instant,
   revealed,
   onRevealed,
-}: {
+}: Readonly<{
   /** null : la déclaration part. */
   attack: Attack | null;
   ctx: AttackContext;
@@ -110,7 +110,7 @@ export function StepRoll({
   /** Le résultat a déjà été dévoilé une fois (retour des dégâts) : seuls les dégâts arrivent. */
   revealed: boolean;
   onRevealed: () => void;
-}) {
+}>) {
   if (!attack) return <Waiting title="Envoi de l’attaque…" />;
   const stage = declaredStage(attack);
   if (stage === 'reactions') {
@@ -144,7 +144,7 @@ export function StepRoll({
   );
 }
 
-function Centered({ children }: { children: ReactNode }) {
+function Centered({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="flex min-h-[16rem] flex-col items-center justify-center text-center">
       <div>{children}</div>
@@ -153,7 +153,7 @@ function Centered({ children }: { children: ReactNode }) {
 }
 
 /** Attente : le d20 du lanceur qui tremble (le bouclier pendant la défense). */
-function Waiting({ title, shield = false }: { title: string; shield?: boolean }) {
+function Waiting({ title, shield = false }: Readonly<{ title: string; shield?: boolean }>) {
   return (
     <div
       role="status"
@@ -189,7 +189,7 @@ function attributeNamer(systeme: SystemeCharge) {
 }
 
 /** Libellé discret au-dessus d'une valeur, comme le bandeau de la fiche. */
-function Label({ children }: { children: ReactNode }) {
+function Label({ children }: Readonly<{ children: ReactNode }>) {
   return <p className="text-[11px] font-medium uppercase tracking-wider text-subtle">{children}</p>;
 }
 
@@ -203,7 +203,7 @@ function Result({
   instant,
   settled,
   onRevealed,
-}: {
+}: Readonly<{
   attack: Attack;
   ctx: AttackContext;
   systeme: SystemeCharge;
@@ -211,7 +211,7 @@ function Result({
   instant: boolean;
   settled: boolean;
   onRevealed: () => void;
-}) {
+}>) {
   const reduced = useReducedMotion() ?? false;
   const quick = instant || reduced;
   // Retour de l'écran des dégâts : le jet est déjà connu, seuls les dégâts arrivent
@@ -324,7 +324,7 @@ function Duel({
   outcomeDelay,
   damageDelay,
   animateDamage,
-}: {
+}: Readonly<{
   summary: TargetSummary;
   systeme: SystemeCharge;
   presentation: Presentation | null;
@@ -333,7 +333,7 @@ function Duel({
   outcomeDelay: number;
   damageDelay: number;
   animateDamage: boolean;
-}) {
+}>) {
   const o = summary.outcome;
   const style = o ? OUTCOME_STYLE[o.tone] : null;
   const fig = summary.figure;
@@ -402,14 +402,14 @@ function BigRoll({
   quick,
   critique,
   cle,
-}: {
+}: Readonly<{
   figure: RollFigure;
   systeme: SystemeCharge;
   presentation: Presentation | null;
   quick: boolean;
   critique: 'success' | 'failure' | null;
   cle: string;
-}) {
+}>) {
   if (figure.kind === 'symbols')
     return (
       <div className="flex max-w-xl flex-col items-center gap-3">
@@ -458,11 +458,11 @@ function DamageNumber({
   damage,
   successRule,
   size,
-}: {
+}: Readonly<{
   damage: DamageFigure;
   successRule: boolean;
   size: 'md' | 'xl';
-}) {
+}>) {
   return (
     <span
       className={cn(
@@ -476,7 +476,10 @@ function DamageNumber({
   );
 }
 
-function DamageDetails({ damage, className }: { damage: DamageFigure; className?: string }) {
+function DamageDetails({
+  damage,
+  className,
+}: Readonly<{ damage: DamageFigure; className?: string }>) {
   if (!damage.details.length) return null;
   return (
     <ul className={cn('flex flex-wrap gap-1.5', className)}>
@@ -506,7 +509,7 @@ function TargetRow({
   successRule,
   quick,
   animateDamage,
-}: {
+}: Readonly<{
   summary: TargetSummary;
   ctx: AttackContext;
   systeme: SystemeCharge;
@@ -517,7 +520,7 @@ function TargetRow({
   successRule: boolean;
   quick: boolean;
   animateDamage: boolean;
-}) {
+}>) {
   const name = targetName(summary.characterId, ctx.known);
   const o = summary.outcome;
   const style = o ? OUTCOME_STYLE[o.tone] : null;
@@ -602,12 +605,12 @@ function Details({
   ctx,
   systeme,
   presentation,
-}: {
+}: Readonly<{
   attack: Attack;
   ctx: AttackContext;
   systeme: SystemeCharge;
   presentation: Presentation | null;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const successRule = hasSuccessRule(systeme.actions.get(attack.action.id));
   return (
@@ -653,7 +656,7 @@ function Details({
 // ─── Fin ─────────────────────────────────────────────────────────────────────
 
 /** « Rapport envoyé au MJ » et son statut en direct (§ 12.1, 4). */
-export function ReportStatus({ attack, gm }: { attack: Attack; gm: boolean }) {
+export function ReportStatus({ attack, gm }: Readonly<{ attack: Attack; gm: boolean }>) {
   const decided = attack.targets.filter((t) => t.decision !== 'pending').length;
   const label =
     attack.status === 'pending'

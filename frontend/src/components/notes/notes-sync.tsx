@@ -18,10 +18,10 @@ function SynchroUne({ campaignId }: { campaignId: string | null }) {
 export function SynchroNotes({
   campagnes,
   prioritaire,
-}: {
+}: Readonly<{
   campagnes: string[];
   prioritaire: string | null;
-}) {
+}>) {
   const suivies = [...new Set([...(prioritaire ? [prioritaire] : []), ...campagnes])].slice(
     0,
     MAX_CAMPAGNES,

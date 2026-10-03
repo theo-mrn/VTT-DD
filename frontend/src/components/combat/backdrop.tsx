@@ -16,10 +16,10 @@ const HALO: Record<BackdropTone, string> = {
 export function DotsBackdrop({
   tone = 'primary',
   className,
-}: {
+}: Readonly<{
   tone?: BackdropTone;
   className?: string;
-}) {
+}>) {
   return (
     <>
       <span

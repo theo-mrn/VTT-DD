@@ -8,7 +8,7 @@ import { Illustration } from '@/components/commun/illustration';
 import { Bloc, ChipsDetails } from '../../widgets';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
 
-function DetailsBlock({ ctx, widget }: SheetBlockProps<'details'>) {
+function DetailsBlock({ ctx, widget }: Readonly<SheetBlockProps<'details'>>) {
   const { personnage } = ctx;
   return (
     <Bloc titre={widget.titre}>

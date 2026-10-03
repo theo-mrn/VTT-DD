@@ -21,7 +21,7 @@ import { PlaylistsTab } from './playlists-tab';
 import { SectionList } from './section-list';
 import { Soundboard } from './soundboard';
 
-function GmSound({ campaignId, systemId }: { campaignId: string; systemId: string }) {
+function GmSound({ campaignId, systemId }: Readonly<{ campaignId: string; systemId: string }>) {
   const library = useAudioLibrary(campaignId);
   const music = useChannel(campaignId, 'music');
   const ambience = useChannel(campaignId, 'ambience');
@@ -120,7 +120,10 @@ function GmSound({ campaignId, systemId }: { campaignId: string; systemId: strin
 }
 
 /** Panneau « Son » du MJ (les autres ont le panneau « Volume », leur mixeur seul). */
-export function SoundPanel({ campaignId, systemId }: { campaignId: string; systemId: string }) {
+export function SoundPanel({
+  campaignId,
+  systemId,
+}: Readonly<{ campaignId: string; systemId: string }>) {
   return (
     <div className="space-y-4 px-4 py-4 sm:px-6">
       <div className="flex items-center gap-2">

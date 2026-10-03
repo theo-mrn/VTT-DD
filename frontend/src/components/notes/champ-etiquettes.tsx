@@ -15,12 +15,12 @@ export function ChampEtiquettes({
   valeur,
   onChange,
   suggestions,
-}: {
+}: Readonly<{
   valeur: string[];
   onChange: (tags: string[]) => void;
   /** Étiquettes déjà utilisées ailleurs, proposées à la saisie. */
   suggestions: string[];
-}) {
+}>) {
   const [saisie, setSaisie] = useState('');
   const [focus, setFocus] = useState(false);
   const [actif, setActif] = useState(0);

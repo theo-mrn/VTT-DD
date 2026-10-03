@@ -40,13 +40,13 @@ export function BarreLaterale({
   onReplier,
   onRecherche,
   onNavigue,
-}: {
+}: Readonly<{
   repliee?: boolean;
   onReplier?: () => void;
   onRecherche: () => void;
   /** Appelé après un clic de navigation (ferme le menu mobile). */
   onNavigue?: () => void;
-}) {
+}>) {
   const chemin = usePathname();
   const campagnes = useCampagnes();
   const demandes = useDemandesAmis();
@@ -183,7 +183,7 @@ export function BarreLaterale({
   );
 }
 
-function GroupeNav({ titre, children }: { titre?: string; children: React.ReactNode }) {
+function GroupeNav({ titre, children }: Readonly<{ titre?: string; children: React.ReactNode }>) {
   return (
     <div className="flex flex-col gap-0.5">
       {titre && (
@@ -202,13 +202,13 @@ function ElementNav({
   repliee,
   onClick,
   pastille = 0,
-}: {
+}: Readonly<{
   lien: LienNav;
   actif: boolean;
   repliee: boolean;
   onClick?: () => void;
   pastille?: number;
-}) {
+}>) {
   const Icone = lien.icone;
   return (
     <Info texte={repliee ? lien.label : null} cote="right">
@@ -254,7 +254,7 @@ function ElementNav({
   );
 }
 
-function MenuCreer({ repliee, onNavigue }: { repliee: boolean; onNavigue?: () => void }) {
+function MenuCreer({ repliee, onNavigue }: Readonly<{ repliee: boolean; onNavigue?: () => void }>) {
   const entrees = [
     {
       href: '/campagnes/nouvelle',
@@ -302,7 +302,10 @@ function MenuCreer({ repliee, onNavigue }: { repliee: boolean; onNavigue?: () =>
   );
 }
 
-function MenuUtilisateur({ repliee, onNavigue }: { repliee: boolean; onNavigue?: () => void }) {
+function MenuUtilisateur({
+  repliee,
+  onNavigue,
+}: Readonly<{ repliee: boolean; onNavigue?: () => void }>) {
   const { profil, seDeconnecter } = useSession();
   if (!profil) return null;
   return (

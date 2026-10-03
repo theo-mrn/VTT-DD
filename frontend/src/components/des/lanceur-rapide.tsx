@@ -31,7 +31,7 @@ export function ajouterDe(formule: string, faces: number): string {
  * jets sont personnels ; les dés 3D roulent par-dessus l'app et le résultat
  * s'affiche une fois qu'ils sont arrêtés.
  */
-export function LanceurRapide({ onFerme }: { onFerme?: () => void }) {
+export function LanceurRapide({ onFerme }: Readonly<{ onFerme?: () => void }>) {
   const [formule, setFormule] = useState('1d20');
   const [dernier, setDernier] = useState<Jet | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);

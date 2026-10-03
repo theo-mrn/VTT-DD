@@ -128,12 +128,12 @@ export function Bloc({
   action,
   children,
   className,
-}: {
+}: Readonly<{
   titre: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     // Dans la grille de la fiche, le bloc remplit sa case et son contenu défile
     <section
@@ -173,12 +173,12 @@ export function BlocAttributs({
   ctx,
   widget,
   arrangement,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'attributs' }>;
   /** Disposition réglée en personnalisation ; absente : celle de la présentation. */
   arrangement?: TileArrangement;
-}) {
+}>) {
   const { fiche } = ctx;
   const cles = arrangeTiles(clesAttributs(ctx, widget), arrangement);
   return (
@@ -239,12 +239,12 @@ export function BlocRessources({
   ctx,
   widget,
   arrangement,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'ressources' }>;
   /** Disposition réglée en personnalisation ; absente : celle de la présentation. */
   arrangement?: TileArrangement;
-}) {
+}>) {
   const { fiche, operations: ecritures } = ctx;
   function ajuster(cle: string, delta: number) {
     const v = fiche.valeurs.get(cle);
@@ -322,11 +322,11 @@ function ValeurChiffree({
   ctx,
   cle,
   onAjuster,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   cle: string;
   onAjuster?: ((delta: number) => void) | undefined;
-}) {
+}>) {
   const a = ctx.fiche.entite.attributs.get(cle);
   const v = ctx.fiche.valeurs.get(cle);
   if (!a || !v) return null;
@@ -404,10 +404,10 @@ function ValeurChiffree({
 export function ChipsDetails({
   ctx,
   widget,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'details' }>;
-}) {
+}>) {
   const { fiche } = ctx;
   const possessions = [...fiche.possessions.values()].filter((p) =>
     widget.sortes.includes(p.sorte.id),
@@ -453,11 +453,11 @@ export function FichePossession({
   ctx,
   id,
   children,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   id: string;
   children: ReactNode;
-}) {
+}>) {
   const e = ctx.systeme.entrees.get(id);
   if (!e) return <>{children}</>;
   const champs = champsLisibles(ctx.systeme, e);
@@ -493,10 +493,10 @@ export function FichePossession({
 export function BlocPossessions({
   ctx,
   widget,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'possessions' }>;
-}) {
+}>) {
   const { fiche, operations: ecritures } = ctx;
   const sorte = ctx.systeme.sortes.get(widget.sorte);
   // Une entrée à rangs n'apparaît qu'avec un rang, sauf si elle est prise explicitement (voie au rang 0)
@@ -628,10 +628,10 @@ export function BlocPossessions({
 export function BlocMonnaies({
   ctx,
   widget,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'monnaies' }>;
-}) {
+}>) {
   const liste = soldes(ctx.fiche);
   if (liste.length === 0) return null;
   return (
@@ -660,10 +660,10 @@ export function BlocMonnaies({
 export function BlocTexte({
   ctx,
   widget,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'texte' }>;
-}) {
+}>) {
   const v = ctx.fiche.valeurs.get(widget.attribut)?.valeur;
   if (typeof v !== 'string' || !v.trim()) return null;
   return (
@@ -693,10 +693,10 @@ export function actionsDisponibles(ctx: ContexteFiche, ids?: string[]): Action[]
 export function BlocActions({
   ctx,
   widget,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'actions' }>;
-}) {
+}>) {
   const actions = actionsDisponibles(ctx, widget.actions);
   const [ouverte, setOuverte] = useState<string | null>(null);
   // Actions à cible (attaques, sorts, soins) : elles se jouent dans le menu d'attaque, à la table

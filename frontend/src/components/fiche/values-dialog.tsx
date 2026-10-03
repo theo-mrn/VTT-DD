@@ -100,13 +100,13 @@ export function ValuesDialog({
   proprietaire,
   open,
   onOpenChange,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   /** A la main sur la fiche (joueur qui l'incarne, propriétaire hors campagne) : `Saisisseur`. */
   proprietaire: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}>) {
   const { fiche, systeme } = ctx;
   const etat = fiche.etat;
   const qui = { proprietaire, mj: ctx.mj === true };

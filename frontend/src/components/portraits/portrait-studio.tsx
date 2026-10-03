@@ -92,7 +92,7 @@ export function PortraitStudio({
   open,
   onOpenChange,
   ...rest
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   characterId: string;
@@ -101,7 +101,7 @@ export function PortraitStudio({
   current: { portraitUrl: string | null; studio: Studio | null };
   /** Enregistre les images envoyées et les réglages (PATCH du personnage). */
   onSave(r: StudioResult): Promise<void>;
-}) {
+}>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open && (
@@ -119,13 +119,13 @@ function Body({
   current,
   onSave,
   onClose,
-}: {
+}: Readonly<{
   characterId: string;
   name: string;
   current: { portraitUrl: string | null; studio: Studio | null };
   onSave(r: StudioResult): Promise<void>;
   onClose(): void;
-}) {
+}>) {
   const initial = current.studio ?? DEFAULT_PORTRAIT_STUDIO;
   const firstUrl = initial.source ?? current.portraitUrl;
   const [source, setSource] = useState<Source | null>(firstUrl ? { remote: firstUrl } : null);
@@ -453,7 +453,7 @@ function useLoadedImage(source: Source | null, characterId: string): Loaded {
   return state && state.source === source ? state.loaded : { status: 'loading' };
 }
 
-function Fade({ children }: { children: ReactNode }) {
+function Fade({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -467,7 +467,7 @@ function Fade({ children }: { children: ReactNode }) {
   );
 }
 
-function Empty({ icon, label }: { icon: ReactNode; label: string }) {
+function Empty({ icon, label }: Readonly<{ icon: ReactNode; label: string }>) {
   return (
     <div className="grid h-full place-items-center">
       <div className="flex flex-col items-center gap-2.5 text-center">
@@ -484,11 +484,11 @@ function SourceButtons({
   onFile,
   onLibrary,
   libraryOpen,
-}: {
+}: Readonly<{
   onFile(f: File | undefined): void;
   onLibrary(): void;
   libraryOpen: boolean;
-}) {
+}>) {
   const input = useRef<HTMLInputElement>(null);
   return (
     <div className="flex items-center gap-1.5">
@@ -536,7 +536,7 @@ function CropArea({
   initial,
   onChange,
   onInteract,
-}: {
+}: Readonly<{
   url: string;
   aspect: number;
   token: TokenLook | null;
@@ -544,7 +544,7 @@ function CropArea({
   onChange(c: StudioCrop): void;
   /** Geste de l'utilisateur (glisser, molette, clavier, zoom) : pas les réglages appliqués. */
   onInteract?: () => void;
-}) {
+}>) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   // Cadrage enregistré, repris une seule fois au montage
@@ -666,7 +666,7 @@ function effectiveCrops(
 }
 
 /** Le portrait suit le token, ou est réglé à part (un geste dans le cadrage l'en détache). */
-function FollowToggle({ follows, onFollow }: { follows: boolean; onFollow(): void }) {
+function FollowToggle({ follows, onFollow }: Readonly<{ follows: boolean; onFollow(): void }>) {
   return (
     <Info
       texte={follows ? 'Le portrait reprend le cadrage du token' : 'Reprendre le cadrage du token'}
@@ -693,11 +693,11 @@ function PortraitPreview({
   url,
   crop,
   name,
-}: {
+}: Readonly<{
   url: string | null;
   crop: StudioCrop | null;
   name: string;
-}) {
+}>) {
   const style = url && crop ? cropStyle(url, crop) : undefined;
   return (
     <div className="flex flex-col items-center gap-5 pt-2">
@@ -720,14 +720,14 @@ function SliderRow({
   max,
   onChange,
   format,
-}: {
+}: Readonly<{
   label: string;
   icon?: ReactNode;
   value: number;
   max: number;
   onChange(v: number): void;
   format(v: number): string;
-}) {
+}>) {
   return (
     <div className="space-y-2.5">
       <div className="flex items-center gap-2 text-xs">
@@ -751,10 +751,10 @@ function SliderRow({
 function FrameGallery({
   value,
   onChange,
-}: {
+}: Readonly<{
   value: string | null;
   onChange(v: string | null): void;
-}) {
+}>) {
   const assets = useAssets();
   const frames = useMemo(() => framesOf(assets.data ?? []), [assets.data]);
   return (
@@ -795,12 +795,12 @@ function FrameTile({
   onClick,
   label,
   children,
-}: {
+}: Readonly<{
   selected: boolean;
   onClick(): void;
   label: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -819,7 +819,7 @@ function FrameTile({
 }
 
 /** Portraits de la bibliothèque, par dossier. */
-function LibraryGrid({ onPick }: { onPick(url: string): void }) {
+function LibraryGrid({ onPick }: Readonly<{ onPick(url: string): void }>) {
   const assets = useAssets();
   const folders = useMemo(() => portraitsParDossier(assets.data ?? []), [assets.data]);
   const names = [...folders.keys()].sort((a, b) => a.localeCompare(b, 'fr'));

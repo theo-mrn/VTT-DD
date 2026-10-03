@@ -6,12 +6,12 @@ function Progress({
   ton = 'primaire',
   className,
   label,
-}: {
+}: Readonly<{
   valeur: number;
   ton?: 'primaire' | 'succes' | 'danger' | 'alerte' | 'info';
   className?: string;
   label?: string;
-}) {
+}>) {
   const v = Math.max(0, Math.min(100, valeur));
   return (
     <div

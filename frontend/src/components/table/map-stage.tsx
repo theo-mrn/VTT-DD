@@ -29,7 +29,7 @@ export function MapStage({
   seed,
   children,
   emptyMessage = 'La carte arrive bientôt',
-}: MapStageProps) {
+}: Readonly<MapStageProps>) {
   return (
     <section aria-label="Carte" className="absolute inset-0 overflow-hidden bg-background">
       {children ?? (

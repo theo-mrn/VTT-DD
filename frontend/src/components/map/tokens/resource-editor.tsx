@@ -23,10 +23,10 @@ import { cn } from '@/lib/utils';
 export function ResourceEditor({
   characterId,
   resource: r,
-}: {
+}: Readonly<{
   characterId: string;
   resource: ResourceGauge;
-}) {
+}>) {
   const ops = useOperationsPersonnage(characterId);
   const [value, setValue] = useState(r.value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

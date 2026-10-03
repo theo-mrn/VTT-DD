@@ -92,7 +92,7 @@ function useEnregistrement() {
 
 // ─── Bandeau « e-mail non vérifié » ──────────────────────────────────────────
 
-function BandeauVerification({ email }: { email: string }) {
+function BandeauVerification({ email }: Readonly<{ email: string }>) {
   const [etat, setEtat] = useState<'repos' | 'envoi' | 'envoye'>('repos');
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -136,7 +136,7 @@ function BandeauVerification({ email }: { email: string }) {
 
 // ─── En-tête : bannière, avatar, résumé ──────────────────────────────────────
 
-function EnTete({ profil }: { profil: Profil }) {
+function EnTete({ profil }: Readonly<{ profil: Profil }>) {
   const banniere = useEnvoiImage('banner');
   const avatar = useEnvoiImage('avatar');
   const urlBanniere = banniere.apercu ?? profil.bannerUrl;
@@ -241,11 +241,11 @@ function Statistique({
   icone: Icone,
   label,
   valeur,
-}: {
+}: Readonly<{
   icone: typeof Clock;
   label: string;
   valeur: string;
-}) {
+}>) {
   return (
     <div className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-surface-2/60 px-3 py-2.5">
       <Icone className="h-4 w-4 shrink-0 text-primary" />
@@ -259,7 +259,7 @@ function Statistique({
 
 // ─── Nom et bio ──────────────────────────────────────────────────────────────
 
-function CarteIdentite({ profil }: { profil: Profil }) {
+function CarteIdentite({ profil }: Readonly<{ profil: Profil }>) {
   const [nom, setNom] = useState(profil.name);
   const [bio, setBio] = useState(profil.bio ?? '');
   const { enregistrer, envoi, erreur, succes, effacer } = useEnregistrement();
@@ -326,7 +326,7 @@ function CarteIdentite({ profil }: { profil: Profil }) {
 
 // ─── Titre affiché ───────────────────────────────────────────────────────────
 
-function CarteTitre({ profil }: { profil: Profil }) {
+function CarteTitre({ profil }: Readonly<{ profil: Profil }>) {
   const { remplacerProfil } = useSession();
   const debloques = useRessource('mes-titres', lireMesTitres);
   const catalogue = useRessource('titres', lireTitres);
@@ -418,12 +418,12 @@ function PastilleTitre({
   actif,
   chargement,
   onClick,
-}: {
+}: Readonly<{
   label: string;
   actif: boolean;
   chargement: boolean;
   onClick(): void;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -446,7 +446,7 @@ function PastilleTitre({
 
 // ─── Bordure et badge premium ────────────────────────────────────────────────
 
-function CarteApparence({ profil, premium }: { profil: Profil; premium: boolean }) {
+function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium: boolean }>) {
   const [bordure, setBordure] = useState(profil.borderType);
   const [badge, setBadge] = useState(profil.showPremiumBadge);
   const { enregistrer, envoi, erreur, succes, effacer } = useEnregistrement();
@@ -545,7 +545,7 @@ function CarteApparence({ profil, premium }: { profil: Profil; premium: boolean 
 
 // ─── Préférences ─────────────────────────────────────────────────────────────
 
-function CartePreferences({ profil }: { profil: Profil }) {
+function CartePreferences({ profil }: Readonly<{ profil: Profil }>) {
   const { enregistrer, envoi, erreur } = useEnregistrement();
 
   return (

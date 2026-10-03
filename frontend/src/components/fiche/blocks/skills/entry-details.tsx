@@ -23,13 +23,13 @@ export function EntryDetails({
   entry,
   writes,
   showDescription = true,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   entry: Entree;
   /** Écritures de la fiche (absentes : lecture seule). */
   writes?: SheetWrites | undefined;
   showDescription?: boolean;
-}) {
+}>) {
   const { fiche } = ctx;
   const d = useMemo(() => describeEntry(fiche, entry), [fiche, entry]);
   // Entrée acquise à activer (capacité à activer…) : ses bonus ne s'appliquent qu'active

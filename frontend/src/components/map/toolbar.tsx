@@ -59,7 +59,7 @@ function ToolbarButton({
   disabled,
   onClick,
   children,
-}: {
+}: Readonly<{
   label: string;
   shortcut?: string;
   active?: boolean;
@@ -68,7 +68,7 @@ function ToolbarButton({
   disabled?: boolean;
   onClick(): void;
   children: ReactNode;
-}) {
+}>) {
   return (
     <Info
       texte={

@@ -37,14 +37,14 @@ export function EtapeAcheter({
   fiche,
   etape,
   onEtat,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   etat: EtatEntite;
   fiche: Fiche;
   etape: Etape;
   /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
   onEtat: (e: EtatEntite, op: OperationCreation) => void;
-}) {
+}>) {
   const [recherche, setRecherche] = useState('');
   const [tous, setTous] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);

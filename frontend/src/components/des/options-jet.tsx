@@ -15,7 +15,7 @@ import { PucesMacros, type EditionMacro } from './macros';
 import type { ModeD20 } from './outils-formule';
 import { FOCUS, TACTILE } from './tactile';
 
-function Section({ titre, children }: { titre: string; children: ReactNode }) {
+function Section({ titre, children }: Readonly<{ titre: string; children: ReactNode }>) {
   return (
     <section className="space-y-1.5">
       <h3 className="text-[11px] font-medium uppercase tracking-wider text-subtle">{titre}</h3>
@@ -56,7 +56,7 @@ export function OptionsJet({
   onChargerMacro,
   onEditerMacro,
   contexte,
-}: {
+}: Readonly<{
   ouvert: boolean;
   onOuvert: (o: boolean) => void;
   mode: ModeD20;
@@ -85,7 +85,7 @@ export function OptionsJet({
     onCampagne: (id: string | null) => void;
     onPersonnage: (id: string | null) => void;
   } | null;
-}) {
+}>) {
   const modifie = mode !== 'normal' || bonus !== 0 || libelle.trim() !== '';
   const basculer = (m: ModeD20) => onMode(mode === m ? 'normal' : m);
 

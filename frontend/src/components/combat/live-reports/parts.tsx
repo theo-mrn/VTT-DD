@@ -62,11 +62,11 @@ export function Portrait({
   name,
   src,
   className,
-}: {
+}: Readonly<{
   name: string;
   src: string | null | undefined;
   className?: string;
-}) {
+}>) {
   return (
     <Illustration
       largeur={36}
@@ -86,11 +86,11 @@ export function Duel({
   attack: a,
   cast,
   size = 'md',
-}: {
+}: Readonly<{
   attack: Attack;
   cast: Cast;
   size?: 'sm' | 'md';
-}) {
+}>) {
   const attacker = cast.get(a.attackerId);
   const face = size === 'md' ? 'size-9' : 'size-7';
   return (
@@ -155,12 +155,12 @@ export function OutcomeBadge({
   successRule,
   hitOnly = false,
   size = 'md',
-}: {
+}: Readonly<{
   target: AttackTarget;
   successRule: boolean;
   hitOnly?: boolean;
   size?: 'sm' | 'md';
-}) {
+}>) {
   const outcome = target.result?.outcome ?? target.view?.outcome ?? null;
   const o = hitOnly
     ? successRule && outcome
@@ -194,11 +194,11 @@ export function Figure({
   label,
   children,
   className,
-}: {
+}: Readonly<{
   label: string;
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
       <dt className={LABEL}>{label}</dt>
@@ -213,12 +213,12 @@ export function RollFigure({
   target: t,
   systeme,
   presentation,
-}: {
+}: Readonly<{
   attack: Attack;
   target: AttackTarget;
   systeme: SystemeCharge | null;
   presentation: Presentation | null;
-}) {
+}>) {
   const d = targetDisplay(a, t);
   const roll = d.roll;
   if (!roll)
@@ -269,7 +269,7 @@ export function Amount({
   size,
   label,
   detail = true,
-}: {
+}: Readonly<{
   m: AttributeModification;
   systeme: SystemeCharge | null;
   presentation: Presentation | null;
@@ -278,7 +278,7 @@ export function Amount({
   label?: string;
   /** Détail des réductions en info-bulle (pas dans un bouton : la ligne repliée). */
   detail?: boolean;
-}) {
+}>) {
   const r = reductionDetail(m);
   const value = `${m.operation === 'add' ? '+' : m.operation === 'set' ? '=' : '−'}${m.value}`;
   const danger = harmful(m, presentation);
@@ -340,14 +340,14 @@ export function Extras({
   cast,
   systeme,
   presentation,
-}: {
+}: Readonly<{
   target: AttackTarget;
   /** Valeurs déjà montrées en grand. */
   skip: number;
   cast: Cast;
   systeme: SystemeCharge | null;
   presentation: Presentation | null;
-}) {
+}>) {
   const type = cast.get(t.characterId)?.type;
   const rest = targetAmounts(t).slice(skip);
   const entries = (t.result?.modifications ?? []).filter(
@@ -380,7 +380,7 @@ export function Extras({
 // ─── Marques ─────────────────────────────────────────────────────────────────
 
 /** Auto-attaque, hors tour, ajusté à la main, caché : seulement quand c'est le cas. */
-export function Marks({ attack: a, className }: { attack: Attack; className?: string }) {
+export function Marks({ attack: a, className }: Readonly<{ attack: Attack; className?: string }>) {
   const self = a.targets.some((t) => t.characterId === a.attackerId);
   if (!self && !a.outOfTurn && !a.adjustments && a.visibility === 'public') return null;
   return (

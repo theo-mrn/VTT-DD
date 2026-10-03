@@ -25,7 +25,7 @@ import { FieldRow, RangeField, Swatches } from '../obstacles/controls';
 const percent = (v: number) => `${Math.round(v * 100)} %`;
 const NONE = '';
 
-export function LightInspector({ engine, entities }: InspectorSectionProps) {
+export function LightInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = lightContextOf(engine);
   const id = useId();
   const first = entities[0]?.data as LightData | undefined;

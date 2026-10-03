@@ -36,12 +36,12 @@ export function LigneResultat({
   anime,
   enCours,
   onRelancer,
-}: {
+}: Readonly<{
   jet: Jet | null;
   anime: boolean;
   enCours: boolean;
   onRelancer: () => void;
-}) {
+}>) {
   return (
     <div className="flex min-h-7 items-center gap-2 px-1">
       <p aria-live="polite" aria-atomic className="sr-only">

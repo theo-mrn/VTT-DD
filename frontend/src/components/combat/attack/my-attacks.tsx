@@ -21,13 +21,13 @@ export function MyAttacks({
   userId,
   known,
   onShow,
-}: {
+}: Readonly<{
   campaignId: string;
   combatId: string | null;
   userId: string;
   known: ReadonlyMap<string, KnownCharacter>;
   onShow: (attack: Attack) => void;
-}) {
+}>) {
   const { attacks, isLoading, isError } = useAttacks(campaignId, {
     ...(combatId ? { combatId } : {}),
     limit: 30,

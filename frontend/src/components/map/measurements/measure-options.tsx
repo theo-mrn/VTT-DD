@@ -50,13 +50,13 @@ const SHAPE_ICONS: Record<MeasureShape, ComponentType<{ className?: string }>> =
   cube: Square,
 };
 
-export function MeasureOptions({ engine }: { engine: MapEngine }) {
+export function MeasureOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const ctx = measureModuleOf(engine);
   if (!(engine.tools.active instanceof MeasureTool) || !ctx) return null;
   return <Options engine={engine} ctx={ctx} />;
 }
 
-function Options({ engine, ctx }: { engine: MapEngine; ctx: MeasureModule }) {
+function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModule }>) {
   const s = useStore(ctx.settings);
   const counting = useStore(ctx.prefs, (p) => p.counting);
   const set = ctx.settings.setState;

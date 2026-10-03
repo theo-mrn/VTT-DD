@@ -32,13 +32,13 @@ export function RankedList({
   matches,
   writes,
   onOpen,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   groups: RankedGroup[];
   matches: (card: SkillCard) => boolean;
   writes: SheetWrites | undefined;
   onOpen: (card: SkillCard) => void;
-}) {
+}>) {
   const sections = groups.flatMap((g) =>
     g.groups
       .map((s) => ({ ...s, key: `${g.sorte.id}:${s.key}`, cards: s.cards.filter(matches) }))

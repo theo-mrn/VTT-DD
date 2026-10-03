@@ -4,7 +4,7 @@
 import { BlocActions } from '../../widgets';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
 
-function ActionsBlock({ ctx, widget }: SheetBlockProps<'actions'>) {
+function ActionsBlock({ ctx, widget }: Readonly<SheetBlockProps<'actions'>>) {
   return <BlocActions ctx={ctx} widget={widget} />;
 }
 

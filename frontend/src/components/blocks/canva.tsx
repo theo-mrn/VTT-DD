@@ -91,7 +91,7 @@ interface CanvaSectionProps {
   isUserLoggedIn?: boolean | null;
 }
 
-export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionProps) {
+export function CanvaSection({ onStart, isUserLoggedIn = null }: Readonly<CanvaSectionProps>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   // Lecture seulement à l'écran et onglet visible (vidéo 4K distante)
   const videoRef = useVisibleVideo();

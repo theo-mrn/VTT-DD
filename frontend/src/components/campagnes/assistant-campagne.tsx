@@ -223,7 +223,11 @@ function useApercuFichier(fichier: File | null): string | null {
   return url;
 }
 
-function Recap({ ok, label, facultatif }: { ok: boolean; label: string; facultatif?: boolean }) {
+function Recap({
+  ok,
+  label,
+  facultatif,
+}: Readonly<{ ok: boolean; label: string; facultatif?: boolean }>) {
   return (
     <li className="flex items-center gap-2.5">
       <span
@@ -244,11 +248,11 @@ function TitreEtape({
   surtitre,
   titre,
   description,
-}: {
+}: Readonly<{
   surtitre: string;
   titre: ReactNode;
   description?: ReactNode;
-}) {
+}>) {
   return (
     <div className="mb-8 space-y-2">
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-primary">{surtitre}</p>
@@ -267,7 +271,7 @@ interface PropsEtape {
 
 // ─── 1. L'histoire ───────────────────────────────────────────────────────────
 
-function EtapeHistoire({ b, maj }: PropsEtape) {
+function EtapeHistoire({ b, maj }: Readonly<PropsEtape>) {
   const basculer = (t: string) =>
     maj({
       tags: b.tags.includes(t)
@@ -356,7 +360,7 @@ function EtapeHistoire({ b, maj }: PropsEtape) {
 
 // ─── 2. Les règles ───────────────────────────────────────────────────────────
 
-function EtapeRegles({ b, maj }: PropsEtape) {
+function EtapeRegles({ b, maj }: Readonly<PropsEtape>) {
   const systemes = useSystemes();
   return (
     <>
@@ -391,7 +395,7 @@ function EtapeRegles({ b, maj }: PropsEtape) {
 
 // ─── 3. L'ambiance ───────────────────────────────────────────────────────────
 
-function EtapeAmbiance({ b, maj }: PropsEtape) {
+function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
   const champ = useRef<HTMLInputElement>(null);
   const [erreurImage, setErreurImage] = useState<string | null>(null);
   const apercuImport = useApercuFichier(b.couverture);
@@ -562,7 +566,7 @@ function EtapeAmbiance({ b, maj }: PropsEtape) {
 
 // ─── 4. La table ─────────────────────────────────────────────────────────────
 
-function EtapeTable({ b, maj }: PropsEtape) {
+function EtapeTable({ b, maj }: Readonly<PropsEtape>) {
   const amis = useAmis();
   const invite = (id: string) => b.invite.some((i) => i.id === id);
 

@@ -17,7 +17,7 @@ import { isMinimized } from '@/lib/combat/attack-flow';
 import { attackMenuStore, registerAttackHost } from '@/lib/combat/attack-menu-store';
 import { AttackMenu } from './attack-menu';
 
-export function AttackMenuHost({ campaignId }: { campaignId: string }) {
+export function AttackMenuHost({ campaignId }: Readonly<{ campaignId: string }>) {
   const { engine } = useActiveMap(campaignId);
   useEffect(() => registerAttackHost(campaignId), [campaignId]);
   useCloseCoveringPanelOnAim(campaignId);

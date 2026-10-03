@@ -37,11 +37,11 @@ export function LiveReports({
   live,
   campagne,
   combat,
-}: {
+}: Readonly<{
   live: Live;
   campagne: DetailCampagne;
   combat: CombatState | null;
-}) {
+}>) {
   const { stack, focus, busy } = live;
   const focused = stack.visible.find((i) => i.attack.id === focus)?.attack ?? null;
 
@@ -149,7 +149,11 @@ export function LiveReports({
 }
 
 /** Une place de la pile : la carte change de forme (ligne, dépliée, confirmée) en fondu. */
-function Card({ item, live, expanded }: { item: LiveItem; live: Live; expanded: boolean }) {
+function Card({
+  item,
+  live,
+  expanded,
+}: Readonly<{ item: LiveItem; live: Live; expanded: boolean }>) {
   const a = item.attack;
   const settled = item.kind === 'settled' ? live.settled.get(a.id) : undefined;
   const shape = settled
@@ -196,7 +200,7 @@ function Card({ item, live, expanded }: { item: LiveItem; live: Live; expanded: 
  * Pastille des rapports dans la barre : combien attendent le MJ, et le repli de la pile. Une
  * attaque seulement en cours : un point qui respire.
  */
-export function ReportsToggle({ live }: { live: Live }) {
+export function ReportsToggle({ live }: Readonly<{ live: Live }>) {
   if (!pileShown(live)) return null;
   const { waiting } = live.stack;
   const label = live.collapsed ? 'Déplier les rapports' : 'Replier les rapports';

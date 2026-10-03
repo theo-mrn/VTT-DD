@@ -14,11 +14,11 @@ export function SlotBar({
   combat,
   busy,
   onSlot,
-}: {
+}: Readonly<{
   combat: CombatState;
   busy: boolean;
   onSlot(index: number): void;
-}) {
+}>) {
   const cells = slotBar(combat);
   if (!cells.length) return null;
   return (

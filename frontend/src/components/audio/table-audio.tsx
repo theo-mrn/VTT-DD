@@ -29,7 +29,7 @@ export function AudioUnlockBanner() {
   );
 }
 
-export function TableAudio({ campaignId, gm }: { campaignId: string; gm: boolean }) {
+export function TableAudio({ campaignId, gm }: Readonly<{ campaignId: string; gm: boolean }>) {
   useCampaignAudio(campaignId, { gm });
   useEffect(() => {
     const engine = getAudioEngine();

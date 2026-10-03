@@ -32,14 +32,14 @@ export function ParamField({
   valeur,
   onValeur,
   compact = false,
-}: {
+}: Readonly<{
   fiche: Fiche;
   parametre: ActionParam;
   valeur: Valeur;
   onValeur: (v: Valeur) => void;
   /** Panneau étroit (menu d'attaque) : libellés plus petits. */
   compact?: boolean;
-}) {
+}>) {
   const id = `param-${useId()}-${p.id}`;
   const label = cn(compact && 'text-[13px]');
   const aide = paramDescription(p);
@@ -164,14 +164,14 @@ export function ParamsForm({
   values,
   onChange,
   compact = false,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   action: Action;
   fiche: Fiche;
   values: Record<string, Valeur>;
   onChange: (id: string, value: Valeur) => void;
   compact?: boolean;
-}) {
+}>) {
   const params = attackerParams(systeme, action, fiche);
   if (!params.length) return null;
   return (

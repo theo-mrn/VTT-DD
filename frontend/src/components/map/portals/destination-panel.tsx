@@ -22,14 +22,14 @@ import { focusMap } from '../obstacles/controls';
 import { PortalToolIcon } from './portal-glyph';
 import { SceneDestination, type SceneTarget } from './scene-destination';
 
-export function PortalDestinationPanel({ engine }: { engine: MapEngine }) {
+export function PortalDestinationPanel({ engine }: Readonly<{ engine: MapEngine }>) {
   const active = useActiveToolId() === PORTALS_TOOL_ID;
   const tool = engine.tools.active;
   if (!active || !(tool instanceof PortalTool)) return null;
   return <Panel engine={engine} tool={tool} />;
 }
 
-function Panel({ engine, tool }: { engine: MapEngine; tool: PortalTool }) {
+function Panel({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalTool }>) {
   const state = useStore(tool.ui, (u) => u.state);
   const entry = useStore(tool.ui, (u) => u.entry);
   const twoWay = useStore(tool.settings, (s) => s.twoWay);

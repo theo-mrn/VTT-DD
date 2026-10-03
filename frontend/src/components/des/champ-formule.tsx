@@ -88,10 +88,10 @@ export const ChampFormule = forwardRef<
 export function AideLanceur({
   onEssayer,
   avecPersonnage,
-}: {
+}: Readonly<{
   onEssayer: (formule: string) => void;
   avecPersonnage: boolean;
-}) {
+}>) {
   const [ouvert, setOuvert] = useState(false);
   return (
     <Popover open={ouvert} onOpenChange={setOuvert}>

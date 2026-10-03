@@ -21,7 +21,7 @@ export function ViewSwitch<T extends string>({
   label,
   panelId,
   showLabels,
-}: {
+}: Readonly<{
   options: ViewOption<T>[];
   value: T;
   onChange: (v: T) => void;
@@ -29,7 +29,7 @@ export function ViewSwitch<T extends string>({
   panelId: string;
   /** Libellés visibles ; sinon icônes seules (libellé lu par les lecteurs d'écran). */
   showLabels: boolean;
-}) {
+}>) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const onKey = (e: KeyboardEvent, i: number) => {
     const last = options.length - 1;

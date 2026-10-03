@@ -32,7 +32,7 @@ interface PickerRow {
   meta: string;
 }
 
-export function CataloguePicker({ onPick }: { onPick(entry: Entree): void }) {
+export function CataloguePicker({ onPick }: Readonly<{ onPick(entry: Entree): void }>) {
   const { campagne } = useTable();
   const systeme = useCampaignSystem(campagne.system, campagne.id);
   const [query, setQuery] = useState('');

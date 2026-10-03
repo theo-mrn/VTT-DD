@@ -43,10 +43,10 @@ function recolor(d: MapDto, hex: string, alpha: number): MapDto {
 function PlacementInfo({
   engine,
   entities,
-}: {
+}: Readonly<{
   engine: MapEngine;
   entities: readonly MapEntity[];
-}) {
+}>) {
   const layered = entities.filter((e) => e.layerId !== null);
   const layer = layered.length === entities.length ? engine.layer(layered[0]!.layerId) : null;
   const author = entities.length === 1 ? String(entities[0]!.data.createdBy ?? '') : '';
@@ -75,7 +75,7 @@ function PlacementInfo({
   );
 }
 
-export function DrawingInspector({ engine, entities }: InspectorSectionProps) {
+export function DrawingInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const rt = useDrawingsRuntime(engine);
   const [opacityDraft, setOpacityDraft] = useState<number | null>(null);
   const [widthDraft, setWidthDraft] = useState<number | null>(null);
@@ -149,7 +149,7 @@ export function DrawingInspector({ engine, entities }: InspectorSectionProps) {
   );
 }
 
-export function NoteInspector({ engine, entities }: InspectorSectionProps) {
+export function NoteInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const rt = useDrawingsRuntime(engine);
   const first = entities[0]?.data as NoteData | undefined;
   const [sizeDraft, setSizeDraft] = useState<number | null>(null);

@@ -26,10 +26,10 @@ const LanceurRapide = dynamic(
 export function BarreHaute({
   onMenu,
   onRecherche,
-}: {
+}: Readonly<{
   onMenu: () => void;
   onRecherche: () => void;
-}) {
+}>) {
   const [des, setDes] = useState(false);
   const demandes = useDemandesAmis();
   const recues = demandes.data?.received ?? [];

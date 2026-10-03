@@ -56,7 +56,7 @@ export function SituationBlock({
   attackerId,
   targetIds,
   disabled,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   systeme: SystemeCharge;
   action: Action;
@@ -67,7 +67,7 @@ export function SituationBlock({
   attackerId: string | null;
   targetIds: readonly string[];
   disabled?: boolean;
-}) {
+}>) {
   const situation = combatSituation(ctx.combat, attackerId, targetIds);
   const insightKeys = useMemo(
     () => (ctx.gm ? targetAttributeKeys(systeme, action) : []),
@@ -193,13 +193,13 @@ function SituationRow({
   portrait,
   tone,
   children,
-}: {
+}: Readonly<{
   label: string;
   chips: readonly SituationChip[];
   portrait: string | null;
   tone: 'attacker' | 'target';
   children?: React.ReactNode;
-}) {
+}>) {
   return (
     <li className="flex items-start gap-2.5">
       {tone === 'target' ? (
@@ -236,11 +236,11 @@ function GmTargetInsight({
   ctx,
   targetId,
   keys,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   targetId: string;
   keys: readonly string[];
-}) {
+}>) {
   const { fiche } = useComputedSheet(ctx, targetId);
   if (!fiche) return null;
   const items = keys.flatMap((k) => valueOf(fiche, k));

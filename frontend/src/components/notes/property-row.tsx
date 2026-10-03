@@ -9,11 +9,11 @@ export function Ligne({
   icone: Icone,
   label,
   children,
-}: {
+}: Readonly<{
   icone: LucideIcon;
   label: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="flex min-h-9 items-start gap-2">
       <div className="flex h-9 w-[104px] shrink-0 items-center gap-2 text-[13px] text-subtle sm:w-32">

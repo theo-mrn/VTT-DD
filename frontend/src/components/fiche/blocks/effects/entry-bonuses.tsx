@@ -92,12 +92,12 @@ export function EntryBonuses({
   fiche,
   entry,
   edit,
-}: {
+}: Readonly<{
   fiche: Fiche;
   entry: Entree;
   /** Interrupteurs et gestion des bonus propres (absent : lecture seule). */
   edit?: EntryBonusEdit | undefined;
-}) {
+}>) {
   const id = useId();
   const [ajout, setAjout] = useState(false);
   const boutonAjout = useRef<HTMLButtonElement>(null);
@@ -248,12 +248,12 @@ function LigneBonus({
   possedee,
   toggle,
   onRetirer,
-}: {
+}: Readonly<{
   l: Ligne;
   possedee: boolean;
   toggle: ((cles: string[], actif: boolean) => void) | undefined;
   onRetirer: ((index: number) => void) | undefined;
-}) {
+}>) {
   const [confirme, setConfirme] = useState(false);
   const menu = useRef<HTMLButtonElement>(null);
   const coupe = l.statut === 'desactive';

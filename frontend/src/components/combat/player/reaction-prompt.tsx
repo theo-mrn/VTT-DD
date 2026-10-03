@@ -35,14 +35,14 @@ export function ReactionForm({
   systeme,
   compact = false,
   onDone,
-}: {
+}: Readonly<{
   campaignId: string;
   attack: Attack;
   target: AttackTarget;
   systeme: SystemeCharge | null;
   compact?: boolean;
   onDone?(): void;
-}) {
+}>) {
   const commands = useAttackCommands(campaignId);
   const { fiche } = useComputedSheet({ systeme }, target.characterId);
   const action = systeme?.actions.get(attack.action.id) ?? null;
@@ -132,11 +132,11 @@ export function ReactionPrompts({
   campaignId,
   mine,
   systeme,
-}: {
+}: Readonly<{
   campaignId: string;
   mine: ReadonlySet<string>;
   systeme: SystemeCharge | null;
-}) {
+}>) {
   const [signaled, setSignaled] = useState<readonly string[]>([]);
   useCampaignEvents(campaignId, ['combat.attack_updated'], (e) => {
     const p = e.event.payload as { attackId?: unknown; change?: unknown };

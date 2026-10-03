@@ -14,7 +14,7 @@ import { LIGHT_COLORS, RADIUS_RANGE } from '@/lib/map/modules/lights/model';
 import { LightTool } from '@/lib/map/modules/lights/tool';
 import { OptionSeparator, RangeField, Swatches } from '../obstacles/controls';
 
-export function LightOptions({ engine }: { engine: MapEngine }) {
+export function LightOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const tool = engine.tools.active;
   if (!(tool instanceof LightTool)) return null;
   return <Options engine={engine} tool={tool} />;
@@ -22,7 +22,7 @@ export function LightOptions({ engine }: { engine: MapEngine }) {
 
 const percent = (v: number) => `${Math.round(v * 100)} %`;
 
-function Options({ engine, tool }: { engine: MapEngine; tool: LightTool }) {
+function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: LightTool }>) {
   const radius = useStore(tool.settings, (s) => s.radius);
   const color = useStore(tool.settings, (s) => s.color);
   const intensity = useStore(tool.settings, (s) => s.intensity);

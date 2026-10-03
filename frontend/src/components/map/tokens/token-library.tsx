@@ -64,13 +64,13 @@ const PLACE_VISIBILITIES: readonly MapTokenVisibility[] = [
   'invisible',
 ];
 
-export function TokenLibraryPanel({ engine }: { engine: MapEngine }) {
+export function TokenLibraryPanel({ engine }: Readonly<{ engine: MapEngine }>) {
   const active = useActiveToolId() === TOKENS_TOOL_ID;
   if (!active || engine.viewer.role !== 'gm') return null;
   return <Library engine={engine} />;
 }
 
-function Library({ engine }: { engine: MapEngine }) {
+function Library({ engine }: Readonly<{ engine: MapEngine }>) {
   const tokens = useTokens(engine);
   const campaignId = engine.store.getState().campaignId;
   const campagne = useCampagne(campaignId);
@@ -366,13 +366,13 @@ function CardList({
   armedKey,
   drag,
   onArm,
-}: {
+}: Readonly<{
   entries: readonly { item: BestiaryItem; source: PlacementSource }[];
   search: string;
   armedKey: string | null;
   drag: CardDrag;
   onArm(source: PlacementSource | null): void;
-}) {
+}>) {
   const [limit, setLimit] = useState(PAGE);
   useEffect(() => setLimit(PAGE), [search]);
   if (!entries.length)
@@ -417,12 +417,12 @@ function Segmented<T extends string>({
   value,
   options,
   onChange,
-}: {
+}: Readonly<{
   label: string;
   value: T;
   options: readonly { value: T; label: string }[];
   onChange(v: T): void;
-}) {
+}>) {
   return (
     <div
       role="radiogroup"
@@ -451,7 +451,7 @@ function Segmented<T extends string>({
   );
 }
 
-function PlacementOptions({ tokens }: { tokens: TokensState }) {
+function PlacementOptions({ tokens }: Readonly<{ tokens: TokensState }>) {
   const count = useLibrary(tokens, (s) => s.count);
   const side = useLibrary(tokens, (s) => s.side);
   const visibility = useLibrary(tokens, (s) => s.visibility);

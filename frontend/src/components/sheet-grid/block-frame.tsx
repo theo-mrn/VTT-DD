@@ -77,11 +77,11 @@ function EmptyCard({
   title,
   icon = false,
   children,
-}: {
+}: Readonly<{
   title: string;
   icon?: boolean;
   children: ReactNode;
-}) {
+}>) {
   return (
     <section className="flex h-full min-h-0 flex-col rounded-2xl border border-dashed border-border-strong bg-card/60">
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
@@ -105,13 +105,13 @@ function BlockContent({
   ctx,
   mode,
   height,
-}: {
+}: Readonly<{
   block: GridBlock;
   definition: SheetBlockDefinition;
   ctx: ContexteFiche;
   mode: 'read' | 'edit';
   height: HeightMode;
-}) {
+}>) {
   const ref = useRef<HTMLDivElement>(null);
   const [vide, setVide] = useState(false);
   useLayoutEffect(() => {
@@ -154,11 +154,11 @@ function HeightSwitch({
   title,
   value,
   onChange,
-}: {
+}: Readonly<{
   title: string;
   value: HeightMode;
   onChange: (mode: HeightMode) => void;
-}) {
+}>) {
   return (
     <div
       role="radiogroup"

@@ -344,13 +344,13 @@ function AudiencePicker({
   people,
   audience,
   onChange,
-}: {
+}: Readonly<{
   me: ChatPerson;
   gm: boolean;
   people: readonly ChatPerson[];
   audience: ChatAudience | null;
   onChange: (audience: ChatAudience | null) => void;
-}) {
+}>) {
   const others = people.filter((p) => p.id !== me.id && (gm || p.role !== 'gm'));
   const hasGm = !gm && people.some((p) => p.role === 'gm' && p.id !== me.id);
 

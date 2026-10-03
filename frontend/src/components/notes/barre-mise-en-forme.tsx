@@ -154,10 +154,10 @@ const SEPARATEUR: Commande = {
 export function BarreMiseEnForme({
   editor,
   variante,
-}: {
+}: Readonly<{
   editor: Editor;
   variante: 'bulle' | 'fixe';
-}) {
+}>) {
   const actifs = useEditorState({
     editor,
     selector: ({ editor: e }) => {
@@ -227,12 +227,12 @@ function BoutonOutil({
   actif,
   infobulle,
   onClick,
-}: {
+}: Readonly<{
   commande: Commande;
   actif: boolean;
   infobulle: boolean;
   onClick: () => void;
-}) {
+}>) {
   const bouton = (
     <button
       type="button"
@@ -267,7 +267,7 @@ function BoutonOutil({
 }
 
 /** Saisie d'un lien à la place des boutons : Entrée applique, vide retire le lien. */
-function SaisieLien({ editor, onFin }: { editor: Editor; onFin: () => void }) {
+function SaisieLien({ editor, onFin }: Readonly<{ editor: Editor; onFin: () => void }>) {
   const actuel = (editor.getAttributes('link').href as string | undefined) ?? '';
   const [url, setUrl] = useState(actuel);
   const champ = useRef<HTMLInputElement>(null);
@@ -336,7 +336,7 @@ function SaisieLien({ editor, onFin }: { editor: Editor; onFin: () => void }) {
 }
 
 /** Bulle de mise en forme qui suit la sélection de texte. */
-export function BulleMiseEnForme({ editor }: { editor: Editor }) {
+export function BulleMiseEnForme({ editor }: Readonly<{ editor: Editor }>) {
   return (
     <BubbleMenu
       editor={editor}

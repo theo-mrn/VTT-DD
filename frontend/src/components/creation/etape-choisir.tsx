@@ -45,7 +45,7 @@ export function EtapeChoisir({
   fiche,
   etape,
   onEtat,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   etat: EtatEntite;
@@ -53,7 +53,7 @@ export function EtapeChoisir({
   etape: Etape;
   /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
   onEtat: (e: EtatEntite, op: OperationCreation) => void;
-}) {
+}>) {
   const [recherche, setRecherche] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
@@ -333,12 +333,12 @@ function ApercuEffets({
   entree,
   max = 3,
   clair = false,
-}: {
+}: Readonly<{
   fiche: Fiche;
   entree: string;
   max?: number;
   clair?: boolean;
-}) {
+}>) {
   const e = fiche.systeme.entrees.get(entree);
   const textes = (e?.effets ?? [])
     .filter((x) => x.sur === 'attribut')
@@ -375,7 +375,7 @@ function DetailEntree({
   choisie,
   selection,
   onOption,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   etat: EtatEntite;
@@ -384,7 +384,7 @@ function DetailEntree({
   choisie: boolean;
   selection: Selection[];
   onOption: (entree: string, choix: Choix, option: string, max: number) => void;
-}) {
+}>) {
   const e = systeme.entrees.get(entreeId)!;
   const effets = e.effets.map((x) => texteEffet(fiche, x)).filter((x): x is string => Boolean(x));
   const champs = champsLisibles(systeme, e);

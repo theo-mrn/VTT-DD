@@ -19,7 +19,7 @@ export function CarteChoix({
   badge,
   className,
   children,
-}: {
+}: Readonly<{
   choisie: boolean;
   onChoisir: () => void;
   titre: ReactNode;
@@ -30,7 +30,7 @@ export function CarteChoix({
   badge?: ReactNode;
   className?: string;
   children?: ReactNode;
-}) {
+}>) {
   return (
     <button
       type="button"

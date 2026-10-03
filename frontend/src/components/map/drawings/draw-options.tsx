@@ -49,7 +49,7 @@ const SHAPES: readonly { id: DrawShape; label: string; icon: LucideIcon; key: st
   { id: 'eraser', label: 'Gomme', icon: Eraser, key: '5' },
 ];
 
-export function DrawOptions({ engine }: { engine: MapEngine }) {
+export function DrawOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const rt = useDrawingsRuntime(engine);
   const shape = useDrawSettings(engine, (s) => s.shape);
   const color = useDrawSettings(engine, (s) => s.color);
@@ -156,7 +156,7 @@ export function DrawOptions({ engine }: { engine: MapEngine }) {
 }
 
 /** Aperçu du trait (épaisseur bornée pour tenir dans le bouton). */
-function StrokeSample({ width, color }: { width: number; color: string }) {
+function StrokeSample({ width, color }: Readonly<{ width: number; color: string }>) {
   return (
     <span aria-hidden className="grid h-4 w-5 place-items-center">
       <span
@@ -168,7 +168,7 @@ function StrokeSample({ width, color }: { width: number; color: string }) {
 }
 
 /** « Effacer mes dessins », « Tout effacer » (MJ) : annulables (⌘Z). */
-function ClearMenu({ engine }: { engine: MapEngine }) {
+function ClearMenu({ engine }: Readonly<{ engine: MapEngine }>) {
   const rt = useDrawingsRuntime(engine);
   const drawings = useMapState((s) => s.collections[DRAWINGS_COLLECTION]);
   const gm = engine.viewer.role === 'gm';

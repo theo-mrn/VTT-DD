@@ -92,7 +92,7 @@ const toSlider = (intensity: number) => Math.round((intensity / MAX_INTENSITY) *
 const fromSlider = (v: number) => (v / 100) * MAX_INTENSITY;
 const percent = (intensity: number) => `${toSlider(intensity)} %`;
 
-export function WeatherControls({ engine }: { engine: MapEngine }) {
+export function WeatherControls({ engine }: Readonly<{ engine: MapEngine }>) {
   const gm = engine.viewer.role === 'gm';
   const weather = useMapState(readWeather);
   const effect = effectOf(weather);
@@ -138,7 +138,10 @@ export function WeatherControls({ engine }: { engine: MapEngine }) {
   );
 }
 
-function GmWeather({ engine, weather }: { engine: MapEngine; weather: MapWeather | null }) {
+function GmWeather({
+  engine,
+  weather,
+}: Readonly<{ engine: MapEngine; weather: MapWeather | null }>) {
   const effect = effectOf(weather);
   const intensity = effect ? clampIntensity(weather!.intensity) : 0;
   // Un aperçu ne survit pas au menu
@@ -208,11 +211,11 @@ function EffectTile({
   effect,
   on,
   onPick,
-}: {
+}: Readonly<{
   effect: WeatherEffect;
   on: boolean;
   onPick: (type: WeatherType) => void;
-}) {
+}>) {
   return (
     <Tile label={effect.label} icon={ICONS[effect.id]} on={on} onClick={() => onPick(effect.id)} />
   );
@@ -223,12 +226,12 @@ function Tile({
   icon: Icon,
   on,
   onClick,
-}: {
+}: Readonly<{
   label: string;
   icon: LucideIcon;
   on: boolean;
   onClick: () => void;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -254,11 +257,11 @@ function WindControls({
   engine,
   weather,
   effect,
-}: {
+}: Readonly<{
   engine: MapEngine;
   weather: MapWeather;
   effect: WeatherEffect;
-}) {
+}>) {
   const wind = windOf(effect, weather.wind);
   const stored = weather.wind;
   const calm = (stored?.strength ?? wind.strength) === 0;
@@ -378,7 +381,7 @@ function SliderRow({
   format,
   onPreview,
   onCommit,
-}: {
+}: Readonly<{
   label: string;
   value: number;
   min: number;
@@ -387,7 +390,7 @@ function SliderRow({
   format: (v: number) => string;
   onPreview: (v: number) => void;
   onCommit: (v: number) => void;
-}) {
+}>) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   return (
@@ -425,7 +428,7 @@ function SliderRow({
 }
 
 /** Confort de chacun, sur son écran seulement (gardé dans le navigateur). */
-function ComfortPrefs({ engine }: { engine: MapEngine }) {
+function ComfortPrefs({ engine }: Readonly<{ engine: MapEngine }>) {
   const animate = useStore(weatherPrefs(engine), (s) => s.animate);
   const flashes = useStore(weatherPrefs(engine), (s) => s.flashes);
   return (
@@ -454,13 +457,13 @@ function PrefRow({
   hint,
   checked,
   onChange,
-}: {
+}: Readonly<{
   id: string;
   label: string;
   hint?: ReactNode;
   checked: boolean;
   onChange: (on: boolean) => void;
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between gap-3">
       <label htmlFor={id} className="text-[13px]">

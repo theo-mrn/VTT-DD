@@ -29,7 +29,7 @@ export function SetupList({
   onChange,
   onConsult,
   onAll,
-}: {
+}: Readonly<{
   rows: readonly SetupRow[];
   cast: ReadonlyMap<string, CastMember>;
   sheets: ReadonlyMap<string, ParticipantSheet>;
@@ -40,7 +40,7 @@ export function SetupList({
   onChange(row: SetupRow, patch: Partial<SetupChoice>): void;
   onConsult(characterId: string): void;
   onAll(checked: boolean): void;
-}) {
+}>) {
   if (loading)
     return (
       <div className="space-y-2">

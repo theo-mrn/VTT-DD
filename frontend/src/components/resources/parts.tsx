@@ -58,7 +58,7 @@ export function MasterDetail({
   open,
   title,
   onClose,
-}: {
+}: Readonly<{
   list: ReactNode;
   detail: ReactNode;
   placeholder: ReactNode;
@@ -66,7 +66,7 @@ export function MasterDetail({
   /** Titre du volet (lecteurs d'écran). */
   title: string;
   onClose(): void;
-}) {
+}>) {
   const wide = useWide();
   const variant = useResourcesVariant();
   return (
@@ -103,13 +103,13 @@ export function SearchField({
   placeholder,
   label,
   className,
-}: {
+}: Readonly<{
   value: string;
   onChange(v: string): void;
   placeholder: string;
   label: string;
   className?: string;
-}) {
+}>) {
   return (
     <div className={cn('w-full sm:w-72', className)}>
       <InputGroup
@@ -149,12 +149,12 @@ export function Chips({
   value,
   onChange,
   label,
-}: {
+}: Readonly<{
   options: ChipOption[];
   value: string;
   onChange(v: string): void;
   label: string;
-}) {
+}>) {
   return (
     <PillGroup>
       <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
@@ -191,7 +191,10 @@ export function Chips({
   );
 }
 
-export function Toolbar({ children, className }: { children: ReactNode; className?: string }) {
+export function Toolbar({
+  children,
+  className,
+}: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <div
       className={cn(
@@ -213,13 +216,13 @@ export function Notice({
   description,
   action,
   tone = 'neutral',
-}: {
+}: Readonly<{
   icon: LucideIcon;
   title: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
   tone?: 'neutral' | 'error';
-}) {
+}>) {
   return (
     <div
       role={tone === 'error' ? 'alert' : undefined}
@@ -242,7 +245,10 @@ export function Notice({
   );
 }
 
-export function ListSkeleton({ rows = 6, className }: { rows?: number; className?: string }) {
+export function ListSkeleton({
+  rows = 6,
+  className,
+}: Readonly<{ rows?: number; className?: string }>) {
   return (
     <div className={cn('space-y-2', className)} aria-busy="true" aria-label="Chargement">
       {Array.from({ length: rows }, (_, i) => (
@@ -318,12 +324,12 @@ export function CatalogueText({
   text,
   className,
   skipTitle = false,
-}: {
+}: Readonly<{
   text: string;
   className?: string;
   /** Sans le premier titre (déjà affiché au-dessus). */
   skipTitle?: boolean;
-}) {
+}>) {
   if (HTML.test(text)) return <RichText text={text} className={className} />;
   const liste = blocs(text);
   const debut = skipTitle && liste[0]?.t === 'titre' ? 1 : 0;
@@ -368,14 +374,14 @@ export function Thumb({
   className,
   fallback,
   width,
-}: {
+}: Readonly<{
   src: string | null;
   alt: string;
   className?: string;
   fallback: ReactNode;
   /** Largeur affichée (px CSS) : vignette du CDN en 1x/2x au lieu de la pleine résolution. */
   width?: number;
-}) {
+}>) {
   if (!src) return <>{fallback}</>;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- images du CDN public, tailles variées

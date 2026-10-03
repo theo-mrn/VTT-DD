@@ -67,11 +67,11 @@ export function SelecteurIcone({
   valeur,
   onChoix,
   children,
-}: {
+}: Readonly<{
   valeur: string | null;
   onChoix: (emoji: string | null) => void;
   children: ReactNode;
-}) {
+}>) {
   const [ouvert, setOuvert] = useState(false);
   const [filtre, setFiltre] = useState('');
   const visibles = useMemo(() => {

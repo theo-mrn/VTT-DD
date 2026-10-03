@@ -39,12 +39,12 @@ export function TreeDetailDialog({
   writes,
   selection,
   onClose,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   writes: SheetWrites | undefined;
   selection: TreeSelection | null;
   onClose: () => void;
-}) {
+}>) {
   const { fiche, systeme } = ctx;
   const cur = (id: string | undefined) => currencyName(systeme, id);
 

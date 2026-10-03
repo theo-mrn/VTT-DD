@@ -20,10 +20,10 @@ const full = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 's
 export function TrashButton({
   items,
   className,
-}: {
+}: Readonly<{
   items: TrashItem[] | undefined;
   className?: string;
-}) {
+}>) {
   const restore = useRestore();
   if (!items?.length) return null;
 

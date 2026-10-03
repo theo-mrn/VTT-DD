@@ -88,7 +88,7 @@ export function ListeNotes({
   creationEnCours,
   bandeau,
   className,
-}: {
+}: Readonly<{
   chargement: boolean;
   /** Une nouvelle recherche (ou de nouveaux filtres) est en cours au service. */
   recherchant: boolean;
@@ -118,7 +118,7 @@ export function ListeNotes({
   /** Message affiché sous les filtres (import des notes de ce navigateur). */
   bandeau?: ReactNode;
   className?: string;
-}) {
+}>) {
   const ordre = useMemo(() => groupes.flatMap((g) => g.notes.map((n) => n.note.id)), [groupes]);
   const parCampagne = useMemo(() => new Map(campagnes.map((c) => [c.id, c])), [campagnes]);
   const nbVisibles = ordre.length;
@@ -321,7 +321,7 @@ export function ListeNotes({
 }
 
 /** Date d'une note (« 14:32 », « hier »…), rafraîchie par l'horloge partagée. */
-function DateCourte({ iso }: { iso: string }) {
+function DateCourte({ iso }: Readonly<{ iso: string }>) {
   const maintenant = useMaintenant();
   return <>{dateCourte(iso, maintenant)}</>;
 }
@@ -332,14 +332,14 @@ function ElementNote({
   selectionnee,
   auteur,
   onChoix,
-}: {
+}: Readonly<{
   n: NoteIndexee;
   mots: string[];
   selectionnee: boolean;
   /** Auteur, si la note est celle d'un autre joueur. */
   auteur: string | null;
   onChoix: () => void;
-}) {
+}>) {
   const { note } = n;
   const apercu = n.apercu;
   const titre = note.title.trim();
@@ -440,7 +440,7 @@ function ElementNote({
 }
 
 /** Texte avec les termes cherchés mis en valeur. */
-function Surligne({ texte, mots }: { texte: string; mots: string[] }) {
+function Surligne({ texte, mots }: Readonly<{ texte: string; mots: string[] }>) {
   if (!mots.length) return <>{texte}</>;
   return (
     <>
@@ -490,13 +490,13 @@ function FiltresNotes({
   facettes,
   campagnes,
   campagneFixe,
-}: {
+}: Readonly<{
   filtre: FiltreNotes;
   onFiltre: (f: FiltreNotes) => void;
   facettes: FacettesNotes | undefined;
   campagnes: Campagne[];
   campagneFixe: boolean;
-}) {
+}>) {
   // Compteurs de toutes mes notes, calculés par le service
   const compte = {
     types: new Map<TypeNote, number>(Object.entries(facettes?.types ?? {}) as [TypeNote, number][]),
@@ -619,12 +619,12 @@ function ElementFiltre({
   compte,
   onSelect,
   children,
-}: {
+}: Readonly<{
   actif: boolean;
   compte?: number;
   onSelect: () => void;
   children: ReactNode;
-}) {
+}>) {
   return (
     <DropdownMenuItem onSelect={onSelect} className={cn(actif && 'text-foreground')}>
       <span className="flex min-w-0 flex-1 items-center gap-2">{children}</span>
@@ -661,11 +661,11 @@ function AucunResultat({
   recherche,
   filtre,
   onEffacer,
-}: {
+}: Readonly<{
   recherche: string;
   filtre: FiltreNotes;
   onEffacer: () => void;
-}) {
+}>) {
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center animate-in fade-in-0">
       <div className="mb-3 flex size-10 items-center justify-center rounded-xl border border-border-strong bg-surface-2">

@@ -37,7 +37,10 @@ export interface Saisie {
 }
 
 /** Saisie d'une valeur (texte ou nombre) ; `saisie` null : fermé. */
-export function PromptDialog({ saisie, onClose }: { saisie: Saisie | null; onClose(): void }) {
+export function PromptDialog({
+  saisie,
+  onClose,
+}: Readonly<{ saisie: Saisie | null; onClose(): void }>) {
   return (
     <Dialog open={saisie !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-sm">
@@ -47,7 +50,7 @@ export function PromptDialog({ saisie, onClose }: { saisie: Saisie | null; onClo
   );
 }
 
-function Prompt({ saisie, onClose }: { saisie: Saisie; onClose(): void }) {
+function Prompt({ saisie, onClose }: Readonly<{ saisie: Saisie; onClose(): void }>) {
   const id = useId();
   const [valeur, setValeur] = useState(saisie.initial);
   const n = Number(valeur);
@@ -105,14 +108,14 @@ export function ConfirmDialog({
   confirmer,
   onConfirmer,
   onClose,
-}: {
+}: Readonly<{
   ouvert: boolean;
   titre: string;
   description: ReactNode;
   confirmer: string;
   onConfirmer(): void;
   onClose(): void;
-}) {
+}>) {
   return (
     <Dialog open={ouvert} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-sm" role="alertdialog">
@@ -149,12 +152,12 @@ export function GiveDialog({
   personnage,
   onDonner,
   onClose,
-}: {
+}: Readonly<{
   item: InventoryItem | null;
   personnage: { id: string; roomId: string | null };
   onDonner(item: InventoryItem, to: { id: string; name: string }, quantite: number): void;
   onClose(): void;
-}) {
+}>) {
   return (
     <Dialog open={item !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
@@ -177,12 +180,12 @@ function Don({
   personnage,
   onDonner,
   onClose,
-}: {
+}: Readonly<{
   item: InventoryItem;
   personnage: { id: string; roomId: string | null };
   onDonner(item: InventoryItem, to: { id: string; name: string }, quantite: number): void;
   onClose(): void;
-}) {
+}>) {
   const id = useId();
   const table = usePersonnagesCampagne(personnage.roomId);
   const autres = (table.data ?? []).filter((p) => p.id !== personnage.id && !p.inCreation);

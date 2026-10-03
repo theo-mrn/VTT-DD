@@ -131,13 +131,13 @@ interface Card {
 }
 
 /** Panneau de la bibliothèque (surcouche de gauche) : ouvert tant que l'outil Objets l'est. */
-export function ObjectLibraryPanel({ engine }: { engine: MapEngine }) {
+export function ObjectLibraryPanel({ engine }: Readonly<{ engine: MapEngine }>) {
   const active = useActiveToolId() === OBJECTS_TOOL_ID;
   if (!active || engine.viewer.role !== 'gm') return null;
   return <ObjectLibrary engine={engine} />;
 }
 
-function ObjectLibrary({ engine }: { engine: MapEngine }) {
+function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
   const tool = useObjectTool(engine);
   const campaignId = engine.store.getState().campaignId;
   const client = useQueryClient();

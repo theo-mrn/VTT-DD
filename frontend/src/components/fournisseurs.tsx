@@ -12,7 +12,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { SessionProvider } from '@/lib/session';
 
 /** Contextes communs à toute l'app : cache des requêtes, session, infobulles, notifications. */
-export function Fournisseurs({ children }: { children: ReactNode }) {
+export function Fournisseurs({ children }: Readonly<{ children: ReactNode }>) {
   // Un client par onglet, créé une seule fois (et jamais partagé entre requêtes serveur)
   const [client] = useState(
     () =>

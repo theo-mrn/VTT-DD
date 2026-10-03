@@ -5,7 +5,7 @@ import { BlocRessources, clesRessources } from '../../widgets';
 import { attributeTiles } from '../tiles/labels';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
 
-function ResourcesBlock({ ctx, widget, arrangement }: SheetBlockProps<'ressources'>) {
+function ResourcesBlock({ ctx, widget, arrangement }: Readonly<SheetBlockProps<'ressources'>>) {
   return <BlocRessources ctx={ctx} widget={widget} arrangement={arrangement} />;
 }
 

@@ -30,10 +30,10 @@ const RACCOURCIS: { touches: ReactNode; label: string }[] = [
 export function AccueilEditeur({
   onNouvelle,
   enCours,
-}: {
+}: Readonly<{
   onNouvelle: () => void;
   enCours: boolean;
-}) {
+}>) {
   return (
     <div className="relative flex h-full flex-col items-center justify-center overflow-hidden px-8 text-center">
       <div aria-hidden className="absolute inset-0 bg-dots opacity-50 mask-radial" />
@@ -67,10 +67,10 @@ export function AccueilEditeur({
 export function GrimoireVide({
   onNouvelle,
   enCours,
-}: {
+}: Readonly<{
   onNouvelle: (modele?: ModeleNote) => void;
   enCours: boolean;
-}) {
+}>) {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col justify-center px-4 py-8 sm:px-6 lg:min-h-full lg:py-12">
       <EtatVide
@@ -121,10 +121,10 @@ export function GrimoireVide({
 export function ErreurNotes({
   message,
   onReessayer,
-}: {
+}: Readonly<{
   message: string;
   onReessayer: () => void;
-}) {
+}>) {
   return (
     <div className="flex items-center justify-center p-6 lg:h-[calc(100dvh-3.5rem)]">
       <EtatVide
@@ -144,7 +144,7 @@ export function ErreurNotes({
 }
 
 /** Lien vers une note qui n'existe plus (supprimée, autre compte). */
-export function NoteIntrouvable({ onRetour }: { onRetour: () => void }) {
+export function NoteIntrouvable({ onRetour }: Readonly<{ onRetour: () => void }>) {
   return (
     <div className="flex h-full items-center justify-center p-6">
       <EtatVide

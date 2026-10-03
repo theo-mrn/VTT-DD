@@ -29,7 +29,7 @@ function readClosed(): string[] {
   }
 }
 
-export function Projection({ campaignId, gm }: { campaignId: string; gm: boolean }) {
+export function Projection({ campaignId, gm }: Readonly<{ campaignId: string; gm: boolean }>) {
   const docs = useDocuments(campaignId);
   const [closed, setClosed] = useState<string[]>(() => readClosed());
   const projection = docs.data?.projection ?? null;
@@ -137,7 +137,7 @@ export function Projection({ campaignId, gm }: { campaignId: string; gm: boolean
  * retard ; volume du mixeur (général × musique). Lecture avec le son refusée par le navigateur :
  * elle part muette, un bouton rétablit le son.
  */
-function SyncedVideo({ doc, offsetMs }: { doc: SharedDocument; offsetMs: number }) {
+function SyncedVideo({ doc, offsetMs }: Readonly<{ doc: SharedDocument; offsetMs: number }>) {
   const ref = useRef<HTMLVideoElement>(null);
   const [blocked, setBlocked] = useState(false);
   const { volumes, muted } = useMixer();

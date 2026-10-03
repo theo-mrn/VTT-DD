@@ -4,7 +4,7 @@
  */
 import { cn } from '@/lib/utils';
 
-export function LogoYner({ className }: { className?: string }) {
+export function LogoYner({ className }: Readonly<{ className?: string }>) {
   return (
     <svg viewBox="0 0 100 100" aria-hidden className={cn('shrink-0', className)}>
       <path

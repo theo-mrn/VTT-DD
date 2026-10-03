@@ -182,7 +182,7 @@ function SelectField({
   contentClassName,
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
-}: {
+}: Readonly<{
   id?: string;
   value: string;
   onValueChange(value: string): void;
@@ -194,7 +194,7 @@ function SelectField({
   contentClassName?: string;
   'aria-label'?: string;
   'aria-describedby'?: string;
-}) {
+}>) {
   return (
     <Select
       value={versRadix(value)}

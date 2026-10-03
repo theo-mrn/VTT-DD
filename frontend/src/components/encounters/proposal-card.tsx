@@ -59,7 +59,7 @@ export function ProposalCard({
   onChange,
   onReroll,
   onSave,
-}: {
+}: Readonly<{
   index: number;
   encounter: Encounter;
   rules: Rencontres;
@@ -69,7 +69,7 @@ export function ProposalCard({
   onChange(action: EncounterEdit): void;
   onReroll(): void;
   onSave(): void;
-}) {
+}>) {
   const reading = readDifficulty(rules, party, encounter.groups);
   const reachedIndex = reading.reached
     ? reading.thresholds.findIndex((t) => t.id === reading.reached!.id)
@@ -256,12 +256,12 @@ function CreaturePicker({
   icon,
   options,
   onPick,
-}: {
+}: Readonly<{
   label: string;
   icon: ReactNode;
   options: readonly EncounterCreature[];
   onPick(c: EncounterCreature): void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>

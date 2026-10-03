@@ -15,12 +15,12 @@ export function ColorPalette({
   value,
   onChange,
   label = 'Couleur',
-}: {
+}: Readonly<{
   /** `#rrggbb`. */
   value: string;
   onChange(hex: string): void;
   label?: string;
-}) {
+}>) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   const latest = useRef(onChange);
@@ -92,7 +92,7 @@ export function ColorPalette({
 }
 
 /** Pastille de la couleur courante (bouton d'une barre). */
-export function ColorDot({ color, className }: { color: string; className?: string }) {
+export function ColorDot({ color, className }: Readonly<{ color: string; className?: string }>) {
   return (
     <span
       aria-hidden

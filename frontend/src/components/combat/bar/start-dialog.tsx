@@ -51,13 +51,13 @@ export function StartCombatDialog({
   onOpenChange,
   campagne,
   onConsult,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   campagne: DetailCampagne;
   /** Clic sur une ligne : la fiche de ce personnage. */
   onConsult(characterId: string): void;
-}) {
+}>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="isolate flex max-h-[min(88dvh,46rem)] flex-col gap-0 p-0 sm:max-w-xl">
@@ -78,11 +78,11 @@ function StartBody({
   campagne,
   onConsult,
   onStarted,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   onConsult(characterId: string): void;
   onStarted(): void;
-}) {
+}>) {
   const campaignId = campagne.id;
   const cast = useCast(campaignId);
   const commands = useCombatCommands(campaignId);
@@ -228,13 +228,13 @@ function SideSelects({
   sides,
   value,
   onChange,
-}: {
+}: Readonly<{
   param: Parametre;
   systeme: SystemeCharge;
   sides: readonly CampaignSide[];
   value: Partial<Record<CampaignSide, ActionParams>>;
   onChange(value: Partial<Record<CampaignSide, ActionParams>>): void;
-}) {
+}>) {
   const options = [{ valeur: '', nom: 'Par défaut' }, ...entryOptionsOf(systeme, param)];
   return (
     <div className="flex flex-wrap items-end gap-2" role="group" aria-label={param.nom}>

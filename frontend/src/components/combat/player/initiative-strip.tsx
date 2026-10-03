@@ -81,7 +81,7 @@ export function InitiativeStrip({
   menu,
   onFace,
   order,
-}: {
+}: Readonly<{
   campaignId: string;
   combat: CombatState;
   /** Pastille des rapports en direct (repli de la pile). */
@@ -91,7 +91,7 @@ export function InitiativeStrip({
   /** Clic sur un portrait : la fiche de combat de ce participant. */
   onFace?(characterId: string): void;
   order?: StripOrder;
-}) {
+}>) {
   const commands = useCombatCommands(campaignId);
   const cast = useCast(campaignId);
   // Stables tant que la distribution ne change pas : les portraits (mémoïsés) n'en dépendent
@@ -280,11 +280,11 @@ function Headline({
   onClick,
   open,
   children,
-}: {
+}: Readonly<{
   onClick?: () => void;
   open: boolean;
   children: ReactNode;
-}) {
+}>) {
   const box = 'relative hidden h-10 w-36 shrink-0 overflow-hidden px-1.5 md:block';
   if (!onClick)
     return (
@@ -317,7 +317,7 @@ function Rule() {
 }
 
 /** Round : libellé discret, chiffre en mono qui monte à chaque nouveau round. */
-function Round({ round }: { round: number }) {
+function Round({ round }: Readonly<{ round: number }>) {
   return (
     <span className="flex shrink-0 flex-col items-center gap-1 px-2 py-0.5">
       <span className={cn(LABEL, 'text-[10px] leading-none')}>Round</span>

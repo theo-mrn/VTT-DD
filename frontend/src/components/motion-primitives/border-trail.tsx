@@ -16,7 +16,7 @@ export function BorderTrail({
   transition,
   onAnimationComplete,
   style,
-}: BorderTrailProps) {
+}: Readonly<BorderTrailProps>) {
   const defaultTransition: Transition = {
     repeat: Infinity,
     duration: 5,

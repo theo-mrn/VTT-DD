@@ -68,14 +68,14 @@ export function ResultCard({
   systeme,
   presentation,
   successRule,
-}: {
+}: Readonly<{
   attack: Attack;
   target: AttackTarget;
   known: ReadonlyMap<string, KnownCharacter>;
   systeme: SystemeCharge;
   presentation: Presentation | null;
   successRule: boolean;
-}) {
+}>) {
   const [details, setDetails] = useState(false);
   const d = targetDisplay(attack, target);
   const name = targetName(d.characterId, known);

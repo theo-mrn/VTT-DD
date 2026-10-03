@@ -72,11 +72,11 @@ export function GmCombatBar({
   campagne,
   combat,
   live,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   combat: CombatState | null;
   live: LiveReports;
-}) {
+}>) {
   const campaignId = campagne.id;
   const cast = useCast(campaignId);
   const canAttack = useAttackHost(campaignId);
@@ -248,11 +248,11 @@ function OffCombatBar({
   onStart,
   reports,
   menu,
-}: {
+}: Readonly<{
   onStart(): void;
   reports: ReactNode;
   menu: ReactNode;
-}) {
+}>) {
   return (
     <section aria-label="Combat" className={HUD_BAR}>
       <Button
@@ -279,12 +279,12 @@ function BarMenu({
   hasInitiative,
   targets,
   onPick,
-}: {
+}: Readonly<{
   inCombat: boolean;
   hasInitiative: boolean;
   targets: number;
   onPick(dialog: BarDialog): void;
-}) {
+}>) {
   return (
     <DropdownMenu>
       <Info texte="Plus" cote="bottom">
@@ -351,13 +351,13 @@ function TargetsHost({
   campagne,
   ids,
   onPick,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   campagne: DetailCampagne;
   ids: readonly string[];
   onPick(characterId: string): void;
-}) {
+}>) {
   const cast = useCast(campagne.id);
   const { sheets } = useParticipantSheets(campagne.id, campagne.system, open ? ids : []);
   return (

@@ -18,7 +18,7 @@ export function TileGrid({
   gapPx = 8,
   className,
   children,
-}: {
+}: Readonly<{
   columns?: TileColumns;
   /** Tuiles affichées. */
   count: number;
@@ -29,7 +29,7 @@ export function TileGrid({
   gapPx?: number;
   className?: string;
   children: ReactNode;
-}) {
+}>) {
   const ref = useRef<HTMLDivElement>(null);
   const [largeur, setLargeur] = useState(0);
   useLayoutEffect(() => {

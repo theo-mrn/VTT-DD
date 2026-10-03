@@ -25,14 +25,14 @@ export function LibraryCard({
   armed,
   drag,
   onArm,
-}: {
+}: Readonly<{
   source: PlacementSource;
   subtitle: string | null;
   stats: readonly { key: string; label: string; value: string }[];
   armed: boolean;
   drag: CardDrag;
   onArm(): void;
-}) {
+}>) {
   return (
     <button
       type="button"

@@ -37,10 +37,10 @@ const editable = (t: EventTarget | null) =>
 export function MapBubbles({
   campaignId,
   hostRef,
-}: {
+}: Readonly<{
   campaignId: string;
   hostRef: RefObject<HTMLElement | null>;
-}) {
+}>) {
   const engine = useMapEngine();
   const board = useMemo(
     () => new BubbleBoard((id) => tokensStateOf(engine)?.directory.get(id)),
@@ -116,11 +116,11 @@ function BubblesLayer({
   engine,
   board,
   hostRef,
-}: {
+}: Readonly<{
   engine: MapEngine;
   board: BubbleBoard;
   hostRef: RefObject<HTMLElement | null>;
-}) {
+}>) {
   const bubbles = useStore(board.store, (s) => s.bubbles);
   const tokens = useStore(engine.store, (s) => s.collections[TOKENS_COLLECTION]);
   // Tokens de chaque personnage qui parle (un personnage peut en avoir plusieurs sur la scène)
@@ -156,12 +156,12 @@ function TokenBubble({
   hostRef,
   tokenId,
   bubble,
-}: {
+}: Readonly<{
   engine: MapEngine;
   hostRef: RefObject<HTMLElement | null>;
   tokenId: string;
   bubble: Bubble;
-}) {
+}>) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;

@@ -81,7 +81,7 @@ export function ChoixCampagnePersonnage() {
   );
 }
 
-function CarteChoix({ campagne }: { campagne: Campagne }) {
+function CarteChoix({ campagne }: Readonly<{ campagne: Campagne }>) {
   const nomSysteme = useNomSysteme(campagne.system);
   return (
     <Link

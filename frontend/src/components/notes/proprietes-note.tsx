@@ -72,7 +72,7 @@ export function ProprietesNote({
   onCampagne,
   onPartage,
   onTags,
-}: {
+}: Readonly<{
   kind: TypeNote;
   roomId: string;
   partage: Partage;
@@ -87,7 +87,7 @@ export function ProprietesNote({
   onCampagne: (id: string) => void;
   onPartage: (p: Partage) => void;
   onTags: (t: string[]) => void;
-}) {
+}>) {
   const type = typeNote(kind);
   const lecture = !permissions.edit;
   const campagne = campagnes.find((c) => c.id === roomId);
@@ -221,14 +221,14 @@ function SelecteurVisibilite({
   modifiable,
   jeSuisMj,
   onChange,
-}: {
+}: Readonly<{
   partage: Partage;
   roomId: string;
   moi: string;
   modifiable: boolean;
   jeSuisMj: boolean;
   onChange: (p: Partage) => void;
-}) {
+}>) {
   const desactive = !modifiable;
   const [ciblage, setCiblage] = useState(false);
   // Personnages des joueurs (sauf les miens), chargés à l'ouverture du choix

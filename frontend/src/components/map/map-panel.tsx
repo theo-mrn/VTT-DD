@@ -26,7 +26,7 @@ export function MapPanel({
   onKeyDown,
   className,
   children,
-}: {
+}: Readonly<{
   /** Clé de la position gardée (`vtt:map:panel:<id>`). */
   id: string;
   /** Nom accessible du panneau. */
@@ -43,7 +43,7 @@ export function MapPanel({
   /** Largeur (`w-80`, `w-[36rem]`…). */
   className?: string;
   children: ReactNode;
-}) {
+}>) {
   const drag = usePanelDrag<HTMLElement>(id);
   return (
     <aside

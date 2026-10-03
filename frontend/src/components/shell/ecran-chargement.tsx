@@ -1,7 +1,9 @@
 import { LogoYner } from '@/components/commun/logo-yner';
 
 /** Écran d'attente plein cadre (session en cours d'ouverture). */
-export function EcranChargement({ texte = 'Ouverture de votre table…' }: { texte?: string }) {
+export function EcranChargement({
+  texte = 'Ouverture de votre table…',
+}: Readonly<{ texte?: string }>) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-background">
       <div className="relative size-12">

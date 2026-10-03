@@ -19,11 +19,11 @@ export function TuileAttribut({
   fiche,
   cle,
   compacte = false,
-}: {
+}: Readonly<{
   fiche: Fiche;
   cle: string;
   compacte?: boolean;
-}) {
+}>) {
   const a = fiche.entite.attributs.get(cle);
   const v = fiche.valeurs.get(cle);
   if (!a || !v) return null;
@@ -81,11 +81,11 @@ export function JaugeRessource({
   fiche,
   cle,
   presentation,
-}: {
+}: Readonly<{
   fiche: Fiche;
   cle: string;
   presentation: Presentation | null;
-}) {
+}>) {
   const a = fiche.entite.attributs.get(cle);
   const v = fiche.valeurs.get(cle);
   // Une jauge pour une ressource seulement (un bloc « ressources » en valeur peut lister la Défense)
@@ -127,14 +127,14 @@ export function ApercuFiche({
   nom,
   portraitUrl,
   complet = false,
-}: {
+}: Readonly<{
   fiche: Fiche;
   presentation: Presentation | null;
   nom: string;
   portraitUrl: string | null;
   /** Tous les blocs (récapitulatif) plutôt que les principaux. */
   complet?: boolean;
-}) {
+}>) {
   const resume = resumer(fiche, presentation);
   const widgets = widgetsFiche(presentation, fiche.etat.type).filter(
     (w) => w.type === 'attributs' || w.type === 'ressources',

@@ -26,13 +26,13 @@ export function TravelDialog({
   characters,
   actions,
   onClose,
-}: {
+}: Readonly<{
   scene: MapScene | null;
   /** Personnages des joueurs. */
   characters: readonly { id: string; name: string }[];
   actions: ScenesActions;
   onClose(): void;
-}) {
+}>) {
   const [mode, setMode] = useState<'all' | 'some'>('all');
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
 

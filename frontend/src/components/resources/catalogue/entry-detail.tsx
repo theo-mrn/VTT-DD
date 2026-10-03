@@ -30,7 +30,7 @@ export function EntryDetail({
   onOpen,
   onBack,
   actions,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   entry: Entree;
@@ -40,7 +40,7 @@ export function EntryDetail({
   onBack?: () => void;
   /** Actions propres à l'onglet (ajout à l'inventaire…). */
   actions?: ReactNode;
-}) {
+}>) {
   const fiche = useMemo(() => sheetFor(systeme, entry), [systeme, entry]);
   const sorte = systeme.sortes.get(entry.sorte);
   const image = imageEntree(presentation, entry.id);
@@ -153,12 +153,12 @@ function LinkRow({
   link,
   onOpen,
   flat = false,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   link: Link;
   onOpen(id: string): void;
   flat?: boolean;
-}) {
+}>) {
   const sorte = systeme.sortes.get(link.entry.sorte);
   return (
     <button
@@ -188,12 +188,12 @@ function GrantCard({
   presentation,
   link,
   onOpen,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   link: Link;
   onOpen(id: string): void;
-}) {
+}>) {
   const fiche = useMemo(() => sheetFor(systeme, link.entry), [systeme, link.entry]);
   const accordes = useMemo(
     () =>

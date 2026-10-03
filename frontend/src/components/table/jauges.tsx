@@ -22,7 +22,7 @@ export function MiniJauge({
   couleur,
   montant = false,
   className,
-}: {
+}: Readonly<{
   libelle: string;
   valeur: number;
   max: number;
@@ -31,7 +31,7 @@ export function MiniJauge({
   /** La jauge monte quand ça va mal (stress…). */
   montant?: boolean;
   className?: string;
-}) {
+}>) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (valeur / max) * 100)) : 0;
   return (
     <div className={cn('min-w-0', className)} title={`${libelle} : ${valeur} / ${max}`}>
@@ -60,11 +60,11 @@ export function JaugesFiche({
   ctx,
   nombre = 3,
   className,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   nombre?: number;
   className?: string;
-}) {
+}>) {
   const cles = ressourcesPrincipales(ctx, nombre);
   if (!cles.length) return null;
   return (

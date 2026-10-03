@@ -74,13 +74,13 @@ export function SectionList({
   channel,
   board,
   onAdd,
-}: {
+}: Readonly<{
   section: AssetSection;
   library: Library;
   channel: Channel;
   board: Board;
   onAdd: () => void;
-}) {
+}>) {
   const [query, setQuery] = useState('');
   const preview = usePreview();
   const t = TEXTES[section];
@@ -195,7 +195,7 @@ function Row({
   onRename,
   onLeave,
   onDelete,
-}: {
+}: Readonly<{
   asset: Asset;
   section: AssetSection;
   texts: (typeof TEXTES)[AssetSection];
@@ -212,7 +212,7 @@ function Row({
   onRename: (name: string) => void;
   onLeave: () => void;
   onDelete: () => void;
-}) {
+}>) {
   const [confirm, setConfirm] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const ready = asset.status === 'ready';

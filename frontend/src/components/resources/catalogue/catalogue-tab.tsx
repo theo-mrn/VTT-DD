@@ -39,10 +39,10 @@ function extrait(texte: string | undefined): string {
 export function CatalogueTab({
   systeme,
   presentation,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
-}) {
+}>) {
   const sections = presentation?.references.capacites?.sections ?? [];
   const [index, setIndex] = useState(0);
   const [query, setQuery] = useState('');
@@ -217,13 +217,13 @@ function EntryRow({
   via,
   selected,
   onSelect,
-}: {
+}: Readonly<{
   entry: Entree;
   image: string | null;
   via: Entree[];
   selected: boolean;
   onSelect(): void;
-}) {
+}>) {
   const texte = via.length
     ? `Correspond : ${via
         .slice(0, 3)

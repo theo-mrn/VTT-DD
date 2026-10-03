@@ -51,7 +51,7 @@ export const panelDomId = (id: PanelId) => `table-panel-${id}`;
  * Hôte des panneaux : chacun est monté à sa première ouverture, puis gardé (masqué, inerte)
  * pour conserver son état. Un seul est visible à la fois.
  */
-export function PanelHost({ panels }: { panels: TablePanel[] }) {
+export function PanelHost({ panels }: Readonly<{ panels: TablePanel[] }>) {
   const active = usePanelStore((s) => s.active);
   const mounted = usePanelStore((s) => s.mounted);
   return (
@@ -67,7 +67,7 @@ export function PanelHost({ panels }: { panels: TablePanel[] }) {
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
 
-function PanelFrame({ panel, visible }: { panel: TablePanel; visible: boolean }) {
+function PanelFrame({ panel, visible }: Readonly<{ panel: TablePanel; visible: boolean }>) {
   const close = usePanelStore((s) => s.close);
   const reduit = useReducedMotion();
   const ref = useRef<HTMLElement>(null);

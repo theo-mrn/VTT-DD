@@ -201,7 +201,7 @@ export function EditeurNote({
   onRetour,
   onDupliquer,
   onSupprimer,
-}: {
+}: Readonly<{
   note: Note;
   campagnes: Campagne[];
   /** Utilisateur connecté. */
@@ -214,7 +214,7 @@ export function EditeurNote({
   onRetour: () => void;
   onDupliquer: (copie: NouvelleNote) => void;
   onSupprimer: (instantane: Note) => void;
-}) {
+}>) {
   const lecture = !note.permissions.edit;
   const [conflit, setConflit] = useState<Conflit | null>(null);
   const editeurRef = useRef<Editor | null>(null);
@@ -805,19 +805,19 @@ export function EditeurNote({
 }
 
 /** « il y a 3 min », rafraîchi par l'horloge partagée : seul ce texte se re-rend. */
-function IlYA({ iso }: { iso: string }) {
+function IlYA({ iso }: Readonly<{ iso: string }>) {
   const maintenant = useMaintenant();
   return <>{depuis(iso, maintenant)}</>;
 }
 
 /** Nombre de mots (petit écran). */
-function MotsNote({ editor }: { editor: Editor | null }) {
+function MotsNote({ editor }: Readonly<{ editor: Editor | null }>) {
   const stats = useStatistiques(editor);
   return <span>{stats.mots ?? 0} mots</span>;
 }
 
 /** Mots, caractères et temps de lecture (pied de l'éditeur). */
-function StatistiquesNote({ editor }: { editor: Editor | null }) {
+function StatistiquesNote({ editor }: Readonly<{ editor: Editor | null }>) {
   const stats = useStatistiques(editor);
   return (
     <span className="flex items-center gap-2">

@@ -148,13 +148,13 @@ export function FichePersonnage({
   id,
   dansPanneau = false,
   valeursOuvertes = false,
-}: {
+}: Readonly<{
   id: string;
   /** Dans un panneau de la table : en-tête plus compact. */
   dansPanneau?: boolean;
   /** Ouverte sur ses valeurs (stats à modifier), depuis la carte. */
   valeursOuvertes?: boolean;
-}) {
+}>) {
   const { perso, sys, ctx, proprietaire, peutModifier, permissions, ecritures } =
     useFicheCalculee(id);
   const campagne = useCampagne(perso.data?.roomId);
@@ -258,7 +258,7 @@ function EnTeteFiche({
   dansPanneau,
   valeursOuvertes,
   personnaliser,
-}: {
+}: Readonly<{
   personnage: Fiche;
   ctx: ContexteFiche | null;
   /** Propriétaire du personnage : lui seul le supprime. */
@@ -270,7 +270,7 @@ function EnTeteFiche({
   valeursOuvertes: boolean;
   /** Présent si l'utilisateur peut changer la mise en page de la fiche. */
   personnaliser?: () => void;
-}) {
+}>) {
   const nomSysteme = useNomSysteme(p.system.id);
   const campagne = useCampagne(p.roomId);
   const [edition, setEdition] = useState(false);
@@ -414,7 +414,7 @@ function MenuFiche({
   onPersonnaliser,
   onModifier,
   onSupprimer,
-}: {
+}: Readonly<{
   personnage: Fiche;
   proprietaire: boolean;
   peutModifier: boolean;
@@ -424,7 +424,7 @@ function MenuFiche({
   onPersonnaliser?: (() => void) | undefined;
   onModifier: () => void;
   onSupprimer: () => void;
-}) {
+}>) {
   const creation = proprietaire && p.inCreation && p.roomId;
   if (!progressions.length && !onValeurs && !onPersonnaliser && !peutModifier && !proprietaire)
     return null;
@@ -490,7 +490,7 @@ function MenuFiche({
   );
 }
 
-function Histoire({ personnage: p }: { personnage: Fiche }) {
+function Histoire({ personnage: p }: Readonly<{ personnage: Fiche }>) {
   const vide = !p.details.appearance && !p.details.backstory;
   if (vide)
     return (
@@ -526,11 +526,11 @@ function PortraitFiche({
   personnage: p,
   peutModifier,
   dansPanneau,
-}: {
+}: Readonly<{
   personnage: Fiche;
   peutModifier: boolean;
   dansPanneau: boolean;
-}) {
+}>) {
   const modifier = useModifierPersonnage(p.id);
   const [studio, setStudio] = useState(false);
   const image = (
@@ -587,11 +587,11 @@ function EditionIdentite({
   personnage: p,
   ouvert,
   onOuvert,
-}: {
+}: Readonly<{
   personnage: Fiche;
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
-}) {
+}>) {
   const modifier = useModifierPersonnage(p.id);
   const [nom, setNom] = useState(p.name);
   const [portrait, setPortrait] = useState(p.portraitUrl ?? '');
@@ -697,11 +697,11 @@ function DialogueSuppression({
   personnage: p,
   ouvert,
   onOuvert,
-}: {
+}: Readonly<{
   personnage: Fiche;
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
-}) {
+}>) {
   const router = useRouter();
   const supprimer = useSupprimerPersonnage();
   const client = useQueryClient();
@@ -749,7 +749,7 @@ function DialogueSuppression({
   );
 }
 
-export function SqueletteFiche({ dansPanneau = false }: { dansPanneau?: boolean }) {
+export function SqueletteFiche({ dansPanneau = false }: Readonly<{ dansPanneau?: boolean }>) {
   return (
     <div
       className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-8"

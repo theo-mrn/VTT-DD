@@ -21,7 +21,7 @@ import { EcranChargement } from './ecran-chargement';
  * navigation mobile en bas, palette ⌘K. Un nouveau compte passe d'abord par
  * l'onboarding.
  */
-export function CadreApp({ children }: { children: ReactNode }) {
+export function CadreApp({ children }: Readonly<{ children: ReactNode }>) {
   const profil = useProfilRequis();
   const router = useRouter();
   const chemin = usePathname();
@@ -100,7 +100,7 @@ export function CadreApp({ children }: { children: ReactNode }) {
   );
 }
 
-function NavMobile({ chemin }: { chemin: string }) {
+function NavMobile({ chemin }: Readonly<{ chemin: string }>) {
   return (
     <nav
       aria-label="Navigation"

@@ -171,11 +171,11 @@ function Recherche({
   relation,
   agir,
   enCours,
-}: {
+}: Readonly<{
   relation(id: string): Relation;
   agir(id: string, action: (id: string) => Promise<unknown>): Promise<boolean>;
   enCours: string | null;
-}) {
+}>) {
   const [texte, setTexte] = useState('');
   const [resultats, setResultats] = useState<JoueurTrouve[] | null>(null);
   const [recherche, setRecherche] = useState(false);
@@ -264,12 +264,12 @@ function ActionRelation({
   chargement,
   onAjouter,
   onAccepter,
-}: {
+}: Readonly<{
   relation: Relation;
   chargement: boolean;
   onAjouter(): void;
   onAccepter(): void;
-}) {
+}>) {
   if (relation === 'ami') return <span className="text-xs text-success">Ami</span>;
   if (relation === 'envoyee') return <span className="text-xs text-subtle">Demande envoyée</span>;
   if (relation === 'recue')

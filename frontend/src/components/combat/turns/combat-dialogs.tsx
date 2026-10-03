@@ -55,7 +55,7 @@ export function InitiativeDialog({
   combat,
   systeme,
   initial,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   campaignId: string;
@@ -63,7 +63,7 @@ export function InitiativeDialog({
   systeme: SystemeCharge | null;
   /** Choix par camp de l'en-tête, repris à l'ouverture. */
   initial?: Partial<Record<CampaignSide, ActionParams>>;
-}) {
+}>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open && (
@@ -85,13 +85,13 @@ function InitiativeBody({
   combat,
   systeme,
   initial,
-}: {
+}: Readonly<{
   onOpenChange(open: boolean): void;
   campaignId: string;
   combat: CombatState;
   systeme: SystemeCharge | null;
   initial: Partial<Record<CampaignSide, ActionParams>>;
-}) {
+}>) {
   const commands = useCombatCommands(campaignId);
   const [sideParams, setSideParams] =
     useState<Partial<Record<CampaignSide, ActionParams>>>(initial);
@@ -179,13 +179,13 @@ export function AddParticipantsDialog({
   campaignId,
   combat,
   members,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   campaignId: string;
   combat: CombatState;
   members: readonly CastMember[];
-}) {
+}>) {
   const commands = useCombatCommands(campaignId);
   const { tokens } = useSceneTokens(campaignId);
   const inCombat = useMemo(() => new Set(combat.order.map((p) => p.characterId)), [combat.order]);
@@ -312,13 +312,13 @@ export function EndCombatDialog({
   campaignId,
   combat,
   pendingReports,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   campaignId: string;
   combat: CombatState;
   pendingReports: number;
-}) {
+}>) {
   const commands = useCombatCommands(campaignId);
   const [reports, setReports] = useState<'keep' | 'dismiss'>('keep');
   const [clearTimed, setClearTimed] = useState(false);
@@ -413,12 +413,12 @@ export function SettingsDialog({
   onOpenChange,
   campaignId,
   combat,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   campaignId: string;
   combat: CombatState;
-}) {
+}>) {
   const commands = useCombatCommands(campaignId);
   const [busy, setBusy] = useState(false);
   const current = combatSettings(combat);

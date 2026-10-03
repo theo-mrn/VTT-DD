@@ -86,7 +86,7 @@ export function BackgroundPicker({
   campaignId,
   current,
   onPick,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   campaignId: string;
@@ -94,7 +94,7 @@ export function BackgroundPicker({
   current: string | null;
   /** Fond choisi (null : aucun). */
   onPick(url: string | null): void;
-}) {
+}>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open && (
@@ -119,12 +119,12 @@ function Body({
   current,
   onPick,
   onClose,
-}: {
+}: Readonly<{
   campaignId: string;
   current: string | null;
   onPick(url: string | null): void;
   onClose(): void;
-}) {
+}>) {
   const assets = useAssets();
   const items = useMemo(
     () =>
@@ -322,12 +322,12 @@ function FolderButton({
   label,
   count,
   onClick,
-}: {
+}: Readonly<{
   active: boolean;
   label: string;
   count: number;
   onClick(): void;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -351,11 +351,11 @@ function Tile({
   item,
   selected,
   onPick,
-}: {
+}: Readonly<{
   item: BackgroundItem;
   selected: boolean;
   onPick(): void;
-}) {
+}>) {
   const [hover, setHover] = useState(false);
   return (
     <button

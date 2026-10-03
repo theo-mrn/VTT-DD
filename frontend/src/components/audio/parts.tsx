@@ -33,10 +33,10 @@ export function formatTime(ms: number | null | undefined): string {
 export function SectionTitle({
   children,
   action,
-}: {
+}: Readonly<{
   children: React.ReactNode;
   action?: React.ReactNode;
-}) {
+}>) {
   return (
     <div className="mb-2 flex items-center justify-between gap-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-subtle">{children}</h3>
@@ -51,12 +51,12 @@ export function Segmented({
   value,
   onChange,
   options,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string; icon?: LucideIcon; count?: number }[];
-}) {
+}>) {
   const clavier = (e: KeyboardEvent<HTMLDivElement>) => {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
     if (!d) return;

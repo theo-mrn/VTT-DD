@@ -354,13 +354,13 @@ function OptionGrid({
   onChoose,
   onEnter,
   disabled,
-}: {
+}: Readonly<{
   options: CharacterOption[];
   selectedValue: string | null;
   onChoose: (id: string) => void;
   onEnter: (o: CharacterOption) => void;
   disabled: boolean;
-}) {
+}>) {
   return (
     <div className="grid gap-2.5 sm:grid-cols-2">
       {options.map((o) => (
@@ -385,11 +385,11 @@ function BringToggle({
   count,
   open,
   onToggle,
-}: {
+}: Readonly<{
   count: number;
   open: boolean;
   onToggle: () => void;
-}) {
+}>) {
   const id = useId();
   return (
     <button
@@ -429,7 +429,7 @@ function RadioCard({
   onEnter,
   describedBy,
   children,
-}: {
+}: Readonly<{
   value: string;
   checked: boolean;
   disabled: boolean;
@@ -437,7 +437,7 @@ function RadioCard({
   onEnter?: () => void;
   describedBy?: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <label
       onDoubleClick={disabled ? undefined : onEnter}
@@ -481,13 +481,13 @@ function GmOption({
   onChoose,
   onEnter,
   disabled,
-}: {
+}: Readonly<{
   checked: boolean;
   current: boolean;
   onChoose: () => void;
   onEnter: () => void;
   disabled: boolean;
-}) {
+}>) {
   return (
     <div className="grid sm:grid-cols-2">
       <RadioCard
@@ -522,13 +522,13 @@ function OptionCard({
   onChoose,
   onEnter,
   disabled,
-}: {
+}: Readonly<{
   option: CharacterOption;
   checked: boolean;
   onChoose: () => void;
   onEnter: () => void;
   disabled: boolean;
-}) {
+}>) {
   const p = o.character;
   const statusId = useId();
   const highlights = p.summary.highlights.slice(0, 2);
@@ -572,7 +572,7 @@ function OptionCard({
 }
 
 /** Où en est le personnage : en création, qui l'incarne en ce moment, libre, hors campagne. */
-function OptionStatus({ option: o }: { option: CharacterOption }) {
+function OptionStatus({ option: o }: Readonly<{ option: CharacterOption }>) {
   if (o.character.inCreation)
     return (
       <Badge ton="alerte">
@@ -611,10 +611,10 @@ function enterLabel(selected: CharacterOption | typeof GM_OPTION) {
 function SelectionNotes({
   option: o,
   played,
-}: {
+}: Readonly<{
   option: CharacterOption;
   played: CharacterOption | null;
-}) {
+}>) {
   const notes: string[] = [];
   if (o.takenFrom)
     notes.push(
@@ -646,13 +646,13 @@ function SelectionPanel({
   systemId,
   sending,
   onEnter,
-}: {
+}: Readonly<{
   selected: CharacterOption | typeof GM_OPTION | null;
   played: CharacterOption | null;
   systemId: string;
   sending: boolean;
   onEnter: () => void;
-}) {
+}>) {
   if (!selected)
     return (
       <div className="rounded-2xl border border-dashed border-border-strong px-6 py-12 text-center text-sm text-muted-foreground">
@@ -700,12 +700,12 @@ function CharacterPanel({
   played,
   systemId,
   action,
-}: {
+}: Readonly<{
   option: CharacterOption;
   played: CharacterOption | null;
   systemId: string;
   action: ReactNode;
-}) {
+}>) {
   const p = o.character;
   const full = usePersonnage(p.id);
   const sys = useSysteme(systemId);
@@ -791,11 +791,11 @@ function MobileBar({
   selected,
   sending,
   onEnter,
-}: {
+}: Readonly<{
   selected: CharacterOption | typeof GM_OPTION | null;
   sending: boolean;
   onEnter: () => void;
-}) {
+}>) {
   const name =
     selected === GM_OPTION ? 'Maître du jeu' : (selected?.character.name ?? 'Aucun personnage');
   return (

@@ -59,11 +59,11 @@ export interface ContexteTableDes {
 export function TableDes({
   contexte,
   raccourcis = true,
-}: {
+}: Readonly<{
   contexte?: ContexteTableDes;
   /** Raccourcis clavier actifs (faux quand l'écran est monté mais masqué, panneau fermé). */
   raccourcis?: boolean;
-}) {
+}>) {
   const [enregistre, setEtat] = usePreferenceLocale<EtatPlateau>(
     contexte ? `des:table:${contexte.campagneId}` : 'des:plateau',
     PLATEAU_INITIAL,

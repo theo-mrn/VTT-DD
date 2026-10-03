@@ -30,10 +30,10 @@ const GroupeLancer = dynamic(() => import('./palette-jet').then((m) => m.GroupeL
 export function PaletteCommandes({
   ouverte,
   onOuverte,
-}: {
+}: Readonly<{
   ouverte: boolean;
   onOuverte: (v: boolean) => void;
-}) {
+}>) {
   const router = useRouter();
   const [saisie, setSaisie] = useState('');
   const campagnes = useCampagnes();

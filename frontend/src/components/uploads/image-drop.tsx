@@ -56,7 +56,7 @@ export function ImageDrop({
   label,
   cropAspect,
   disabled = false,
-}: {
+}: Readonly<{
   target: UploadTarget | null;
   usage: UploadUsageId;
   value: string | null;
@@ -67,7 +67,7 @@ export function ImageDrop({
   /** Format du recadrage ; défaut : celui de l'usage (null : pas de recadrage). */
   cropAspect?: number | null;
   disabled?: boolean;
-}) {
+}>) {
   const u: UploadUsage = UPLOAD_USAGES[usage];
   const aspect = cropAspect === undefined ? u.aspect : cropAspect;
   const name = label ?? u.label;
@@ -405,12 +405,12 @@ function UploadMeter({
   progress,
   encoding,
   onCancel,
-}: {
+}: Readonly<{
   progress: UploadProgress | null;
   /** Conversion d'une vidéo avant l'envoi (0 à 1). */
   encoding: number | null;
   onCancel(): void;
-}) {
+}>) {
   const p = progress?.progress ?? encoding ?? 0;
   const shown = progress !== null || encoding !== null;
   const r = 22;
@@ -468,13 +468,13 @@ function CropDialog({
   title,
   onCancel,
   onDone,
-}: {
+}: Readonly<{
   phase: Phase;
   aspect: number | null;
   title: string;
   onCancel(): void;
   onDone(file: File, area: CropArea): void;
-}) {
+}>) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(null);

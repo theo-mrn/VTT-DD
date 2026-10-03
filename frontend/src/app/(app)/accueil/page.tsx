@@ -156,7 +156,7 @@ export default function PageAccueil() {
 
 // ─── Reprendre ───────────────────────────────────────────────────────────────
 
-function Reprendre({ campagne: c }: { campagne: Campagne }) {
+function Reprendre({ campagne: c }: Readonly<{ campagne: Campagne }>) {
   const personnages = usePersonnages();
   const role = c.role;
   const perso = personnages.data?.find((p) => p.id === c.playedCharacterId);
@@ -249,7 +249,7 @@ function InviteCampagne() {
 
 // ─── À venir ─────────────────────────────────────────────────────────────────
 
-function AVenir({ campagnes }: { campagnes: Campagne[] }) {
+function AVenir({ campagnes }: Readonly<{ campagnes: Campagne[] }>) {
   const sessions = campagnes
     .flatMap((c) => (c.nextSession ? [{ c, s: c.nextSession }] : []))
     .sort((a, b) => a.s.startsAt.localeCompare(b.s.startsAt))

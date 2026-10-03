@@ -22,13 +22,13 @@ export function BoutonNouvelleNote({
   enCours,
   compact = false,
   className,
-}: {
+}: Readonly<{
   onNouvelle: (modele?: ModeleNote) => void;
   enCours: boolean;
   /** Icône seule (volet étroit). */
   compact?: boolean;
   className?: string;
-}) {
+}>) {
   return (
     <div className={cn('inline-flex shrink-0 items-center', className)}>
       <Info

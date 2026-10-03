@@ -27,7 +27,7 @@ import { openScene } from '../use-table-map';
 import { trackOverlay, type OverlaySizes } from '../overlay-tracker';
 import { PortalGlyph } from './portal-glyph';
 
-export function PortalsHost({ engine }: { engine: MapEngine }) {
+export function PortalsHost({ engine }: Readonly<{ engine: MapEngine }>) {
   const ctx = portalModuleOf(engine);
   if (!ctx) return null;
   const role = engine.viewer.role;
@@ -119,7 +119,7 @@ function GmNotices({ ctx }: { ctx: PortalModule }) {
 }
 
 /** Proposition au joueur, au-dessus du portail : « Emprunter : <nom> ». */
-function Prompt({ ctx }: { ctx: PortalModule }) {
+function Prompt({ ctx }: Readonly<{ ctx: PortalModule }>) {
   const { engine, travel } = ctx;
   const prompt = useStore(travel.state, (s) => s.prompt);
   const busy = useStore(travel.state, (s) => s.busy);

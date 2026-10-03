@@ -114,7 +114,7 @@ export function NpcForm({
   columns = 2,
   onSubmit,
   onCancel,
-}: {
+}: Readonly<{
   campaignId: string;
   systeme: SystemeCharge;
   presentation: Presentation | null;
@@ -130,7 +130,7 @@ export function NpcForm({
   columns?: 2 | 3;
   onSubmit(result: NpcFormResult): void;
   onCancel?(): void;
-}) {
+}>) {
   const ids = { name: useId(), type: useId(), category: useId() };
   const types = useMemo(
     () => [...systeme.entites.values()].map((e) => ({ id: e.type.id, nom: e.type.nom })),
@@ -297,11 +297,11 @@ function AttributeInput({
   attribut: a,
   value,
   onChange,
-}: {
+}: Readonly<{
   attribut: Attribut;
   value: Saisie;
   onChange(v: Saisie): void;
-}) {
+}>) {
   const id = useId();
   const label = (
     <Label htmlFor={id} className="truncate text-xs text-muted-foreground" title={a.nom}>

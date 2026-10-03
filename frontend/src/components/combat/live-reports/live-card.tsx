@@ -81,7 +81,7 @@ export function rowDecision(a: Attack): { applyLabel: string; skip: Scope; canSk
 }
 
 /** Fond du lanceur : trame de points, halo de l'issue, liseré. */
-function Backdrop({ tone }: { tone: Parameters<typeof washOf>[0] }) {
+function Backdrop({ tone }: Readonly<{ tone: Parameters<typeof washOf>[0] }>) {
   return (
     <>
       <span aria-hidden className="absolute inset-0 -z-10 bg-dots opacity-60 mask-radial" />
@@ -96,7 +96,7 @@ function Backdrop({ tone }: { tone: Parameters<typeof washOf>[0] }) {
 }
 
 /** « Aragorn → Gobelin » : noms seuls, la flèche dit le sens. */
-function Versus({ attacker, versus }: { attacker: string; versus: string }) {
+function Versus({ attacker, versus }: Readonly<{ attacker: string; versus: string }>) {
   return (
     <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
       <span className="truncate">{attacker}</span>
@@ -108,7 +108,7 @@ function Versus({ attacker, versus }: { attacker: string; versus: string }) {
 
 // ─── Carte dépliée ───────────────────────────────────────────────────────────
 
-export function ReportCard({ attack: a, live }: { attack: Attack; live: Live }) {
+export function ReportCard({ attack: a, live }: Readonly<{ attack: Attack; live: Live }>) {
   const { cast, systeme, presentation, busy } = live;
   const r = readReport(a, cast, systeme);
   const decidable = decidableTargets(a);
@@ -209,11 +209,11 @@ function SingleTarget({
   attack: a,
   target: t,
   live,
-}: {
+}: Readonly<{
   attack: Attack;
   target: AttackTarget;
   live: Live;
-}) {
+}>) {
   const { cast, systeme, presentation } = live;
   const [main] = targetAmounts(t);
   const type = cast.get(t.characterId)?.type;
@@ -247,11 +247,11 @@ function TargetRow({
   attack: a,
   target: t,
   live,
-}: {
+}: Readonly<{
   attack: Attack;
   target: AttackTarget;
   live: Live;
-}) {
+}>) {
   const { cast, systeme, presentation, busy } = live;
   const r = readReport(a, cast, systeme);
   const m = cast.get(t.characterId);
@@ -332,13 +332,13 @@ function ActorCosts({
   live,
   only,
   busy,
-}: {
+}: Readonly<{
   attack: Attack;
   live: Live;
   /** Plus que les coûts à décider : leurs propres boutons. */
   only: boolean;
   busy: boolean;
-}) {
+}>) {
   const attacker = live.cast.get(a.attackerId);
   const costs = a.actor!.modifications.map((m) =>
     modificationText(live.systeme, toInput(m), attacker?.type),
@@ -405,7 +405,7 @@ function Row({
 }
 
 /** Rapport à décider, replié : lu d'un coup d'œil, décidé d'un clic, déplié d'un clic. */
-export function ReportRow({ attack: a, live }: { attack: Attack; live: Live }) {
+export function ReportRow({ attack: a, live }: Readonly<{ attack: Attack; live: Live }>) {
   const { cast, systeme, presentation, busy } = live;
   const r = readReport(a, cast, systeme);
   const single = a.targets.length === 1;
@@ -491,12 +491,12 @@ export function ProgressRow({
   live,
   onRoll,
   onCancel,
-}: {
+}: Readonly<{
   attack: Attack;
   live: Live;
   onRoll(): void;
   onCancel(): void;
-}) {
+}>) {
   const { cast, systeme, busy } = live;
   const r = readReport(a, cast, systeme);
   const reacting = a.targets.some((t) => t.status === 'awaiting_reaction');
@@ -566,12 +566,12 @@ export function SettledRow({
   busy,
   onUndo,
   onClose,
-}: {
+}: Readonly<{
   settled: Settled;
   busy: boolean;
   onUndo(): void;
   onClose(): void;
-}) {
+}>) {
   return (
     <div
       role="status"
@@ -623,7 +623,7 @@ export function SettledRow({
 }
 
 /** Coche tracée (appliqué) ou trait (non appliqué), dans un disque qui se pose. */
-function CheckMark({ applied }: { applied: boolean }) {
+function CheckMark({ applied }: Readonly<{ applied: boolean }>) {
   return (
     <motion.span
       initial={{ scale: 0.4, opacity: 0 }}

@@ -10,7 +10,7 @@ const HIGHLIGHTS = [
   { icon: Users, label: 'Jeu collaboratif' },
 ];
 
-export function MockupCtaSection({ onStart }: { onStart: () => void }) {
+export function MockupCtaSection({ onStart }: Readonly<{ onStart: () => void }>) {
   return (
     <section className="overflow-hidden py-16 md:py-24">
       <div className="mx-auto max-w-6xl px-6">

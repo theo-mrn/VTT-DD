@@ -11,10 +11,10 @@ import { cn } from '@/lib/utils';
 export function DieSwatch({
   color,
   className,
-}: {
+}: Readonly<{
   color?: string | undefined;
   className?: string;
-}) {
+}>) {
   return (
     <span
       aria-hidden
@@ -33,11 +33,11 @@ export function PreviewText({
   preview,
   presentation,
   compact = false,
-}: {
+}: Readonly<{
   preview: RollPreview;
   presentation: Presentation | null;
   compact?: boolean;
-}) {
+}>) {
   if (preview.kind === 'numeric')
     return <span className="truncate font-mono tabular-nums">{preview.formula}</span>;
   const sorte = (id: string) => presentation?.des?.sortes[id];

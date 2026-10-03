@@ -21,7 +21,7 @@ export function QuickCreate({
   presentation,
   onArm,
   onCreated,
-}: {
+}: Readonly<{
   campaignId: string;
   systemId: string;
   systeme: SystemeCharge;
@@ -29,7 +29,7 @@ export function QuickCreate({
   onArm(source: PlacementSource | null): void;
   /** Modèle créé et choisi pour la pose (la bibliothèque revient à ses modèles). */
   onCreated?(): void;
-}) {
+}>) {
   const templates = useNpcTemplates(campaignId);
   const refresh = useRefreshNpcTemplates(campaignId);
   const [busy, setBusy] = useState(false);

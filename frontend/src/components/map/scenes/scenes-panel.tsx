@@ -272,7 +272,7 @@ function SceneRow({
   onDelete,
   onSpawn,
   onParty,
-}: {
+}: Readonly<{
   scene: MapScene;
   party: boolean;
   shown: boolean;
@@ -282,7 +282,7 @@ function SceneRow({
   onDelete(): void;
   onSpawn: (() => void) | null;
   onParty(): void;
-}) {
+}>) {
   const { close } = usePanels();
   const video = isVideoBackground(scene.backgroundUrl);
   // Carte animée de la bibliothèque : son affiche (la vidéo n'est jamais chargée ici)
@@ -415,12 +415,12 @@ function GroupMenu({
   actions,
   onRename,
   onAdd,
-}: {
+}: Readonly<{
   group: MapGroup;
   actions: ScenesActions;
   onRename(): void;
   onAdd(): void;
-}) {
+}>) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -456,12 +456,12 @@ function FolderDialog({
   count,
   actions,
   onClose,
-}: {
+}: Readonly<{
   state: { group: MapGroup | null } | null;
   count: number;
   actions: ScenesActions;
   onClose(): void;
-}) {
+}>) {
   const [name, setName] = useState('');
   const [openedFor, setOpenedFor] = useState<typeof state>(null);
   if (state !== openedFor) {
@@ -526,11 +526,11 @@ function DeleteSceneDialog({
   scene,
   actions,
   onClose,
-}: {
+}: Readonly<{
   scene: MapScene | null;
   actions: ScenesActions;
   onClose(): void;
-}) {
+}>) {
   const remove = async () => {
     if (!scene) return;
     try {

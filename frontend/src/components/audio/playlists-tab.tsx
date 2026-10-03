@@ -73,7 +73,7 @@ function resume(p: Playlist, assets: Map<string, Asset>): string {
 }
 
 /** Couverture générée aux couleurs du thème, nuance stable tirée du nom (rien à charger). */
-function Cover({ name, size = 'md' }: { name: string; size?: 'md' | 'lg' }) {
+function Cover({ name, size = 'md' }: Readonly<{ name: string; size?: 'md' | 'lg' }>) {
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 997;
   const clair = 45 + (h % 35);
@@ -93,7 +93,10 @@ function Cover({ name, size = 'md' }: { name: string; size?: 'md' | 'lg' }) {
   );
 }
 
-export function PlaylistsTab({ campaignId, library }: { campaignId: string; library: Library }) {
+export function PlaylistsTab({
+  campaignId,
+  library,
+}: Readonly<{ campaignId: string; library: Library }>) {
   const music = useChannel(campaignId, 'music');
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
@@ -222,13 +225,13 @@ function PlaylistView({
   library,
   music,
   onBack,
-}: {
+}: Readonly<{
   playlist: Playlist;
   assets: Map<string, Asset>;
   library: Library;
   music: Channel;
   onBack: () => void;
-}) {
+}>) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -495,13 +498,13 @@ function AddTracks({
   playlist,
   library,
   onAdd,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange: (o: boolean) => void;
   playlist: Playlist;
   library: Library;
   onAdd: (ids: string[]) => Promise<unknown>;
-}) {
+}>) {
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);

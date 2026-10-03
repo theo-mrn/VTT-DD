@@ -131,7 +131,7 @@ function useContexteFormat(campagne: DetailCampagne, events: readonly HistoryEve
 
 // ─── Chronique ───────────────────────────────────────────────────────────────
 
-export function Chronique({ campagne }: { campagne: DetailCampagne }) {
+export function Chronique({ campagne }: Readonly<{ campagne: DetailCampagne }>) {
   const [vue, setVue] = useState<'journal' | 'personnages'>('journal');
   const [personnage, setPersonnage] = useState<string | null>(null);
   const { live } = useHistoriqueEnDirect(campagne.id);
@@ -204,10 +204,10 @@ export function Chronique({ campagne }: { campagne: DetailCampagne }) {
 function ChoixPersonnage({
   campagneId,
   onChoix,
-}: {
+}: Readonly<{
   campagneId: string;
   onChoix: (id: string) => void;
-}) {
+}>) {
   const personnages = usePersonnagesCampagne(campagneId);
   if (personnages.isLoading)
     return (
@@ -262,11 +262,11 @@ function Flux({
   campagne,
   characterId,
   parJour,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   characterId: string | null;
   parJour: boolean;
-}) {
+}>) {
   const flux = useHistorique(campagne.id, characterId);
   const bruts = useMemo(() => flux.data?.pages.flatMap((p) => p.events) ?? [], [flux.data]);
   const ctx = useContexteFormat(campagne, bruts);
@@ -365,11 +365,11 @@ function Ligne({
   ligne: l,
   ctx,
   avecDate = false,
-}: {
+}: Readonly<{
   ligne: GameEvent;
   ctx: FormatContext;
   avecDate?: boolean;
-}) {
+}>) {
   const categorie = CATEGORIES[l.type];
   const Icone = categorie.icone;
   const avatar =
@@ -438,12 +438,12 @@ function Suite({
   enCours,
   onCharger,
   compte,
-}: {
+}: Readonly<{
   actif: boolean;
   enCours: boolean;
   onCharger: () => void;
   compte: number;
-}) {
+}>) {
   const repere = useRef<HTMLDivElement>(null);
   const charger = useRef(onCharger);
   charger.current = onCharger;

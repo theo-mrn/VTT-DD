@@ -19,7 +19,7 @@ function sanitize(html: string): string | null {
   return p.sanitize(html, { ALLOWED_TAGS: BALISES, ALLOWED_ATTR: [] });
 }
 
-export function RichText({ text, className }: { text: string; className?: string }) {
+export function RichText({ text, className }: Readonly<{ text: string; className?: string }>) {
   const html = useMemo(() => (HTML.test(text) ? sanitize(text) : null), [text]);
   const base = cn('text-[13px] leading-relaxed text-foreground/85', className);
   if (html !== null)

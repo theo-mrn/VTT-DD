@@ -8,10 +8,10 @@ import type { EtatEnregistrement } from './enregistrement';
 export function IndicateurEnregistrement({
   etat,
   onReessayer,
-}: {
+}: Readonly<{
   etat: EtatEnregistrement;
   onReessayer: () => void;
-}) {
+}>) {
   // En attente et en cours se confondent à l'écran : pas de clignotement entre les deux
   const cle = etat === 'en-cours' ? 'en-attente' : etat;
 

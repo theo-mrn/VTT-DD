@@ -74,7 +74,7 @@ export function StepCompose({
   error,
   canAim,
   onAim,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   model: AttackModel;
   draft: AttackDraft;
@@ -82,7 +82,7 @@ export function StepCompose({
   error: string | null;
   canAim: boolean;
   onAim: () => void;
-}) {
+}>) {
   const { systeme, fiche, action } = model;
   const presentation = ctx.presentation;
   if (!systeme || !fiche) return null;
@@ -170,14 +170,14 @@ function ActionTabs({
   numbered,
   onChoose,
   disabled,
-}: {
+}: Readonly<{
   groups: readonly ActionGroup[];
   selected: Action | null;
   /** Touches 1 à 9 sur les onglets (pas de cartes à lancer sur cet écran). */
   numbered: boolean;
   onChoose: (a: Action) => void;
   disabled: boolean;
-}) {
+}>) {
   let index = 0;
   return (
     <div className="flex items-start gap-2">
@@ -234,11 +234,11 @@ function Notice({
   reason,
   aim,
   noTarget,
-}: {
+}: Readonly<{
   reason: string;
   aim: (() => void) | null;
   noTarget: boolean;
-}) {
+}>) {
   return (
     <div
       role="status"
@@ -275,7 +275,7 @@ function TypeCards({
   values,
   onLaunch,
   disabled,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   fiche: Fiche;
   action: Action;
@@ -283,7 +283,7 @@ function TypeCards({
   values: Record<string, Valeur>;
   onLaunch: (patch: Record<string, Valeur>) => void;
   disabled: boolean;
-}) {
+}>) {
   const reduced = useReducedMotion();
   const options = typeOptions(fiche, param);
   const current = String(values[param.id] ?? '');
@@ -379,7 +379,7 @@ function GenericBody({
   draft,
   preview,
   disabled,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   fiche: Fiche;
@@ -387,7 +387,7 @@ function GenericBody({
   draft: AttackDraft;
   preview: RollPreview | null;
   disabled: boolean;
-}) {
+}>) {
   const main = attackerParams(systeme, action, fiche).filter(
     (p) => paramSection(p) !== 'situation',
   );
@@ -433,12 +433,12 @@ function ChoiceField({
   param: p,
   values,
   disabled,
-}: {
+}: Readonly<{
   fiche: Fiche;
   param: ActionParam;
   values: Record<string, Valeur>;
   disabled: boolean;
-}) {
+}>) {
   return (
     <section>
       <SectionTitle hint={paramDescription(p)}>{p.nom}</SectionTitle>
@@ -494,7 +494,7 @@ function OptionsDisclosure({
   actionRollMode,
   hidden,
   disabled,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   systeme: SystemeCharge;
   presentation: Presentation | null;
@@ -507,7 +507,7 @@ function OptionsDisclosure({
   actionRollMode: AttackRollMode;
   hidden: boolean;
   disabled: boolean;
-}) {
+}>) {
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
   const params = attackerParams(systeme, action, fiche);
@@ -662,12 +662,12 @@ function OptionsSection({
   params,
   values,
   disabled,
-}: {
+}: Readonly<{
   fiche: Fiche;
   params: readonly ActionParam[];
   values: Record<string, Valeur>;
   disabled: boolean;
-}) {
+}>) {
   const toggles = params.filter((p) => p.type === 'booleen');
   const numbers = params.filter((p) => p.type === 'nombre');
   const choices = params.filter((p) => p.type === 'attribut' || isChoiceParam(p));
@@ -718,14 +718,14 @@ function DicePool({
   preview,
   draft,
   disabled,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   action: Action;
   preview: RollPreview | null;
   draft: AttackDraft;
   disabled: boolean;
-}) {
+}>) {
   const adjustments = draft.adjustments;
   const adjusted = hasAdjustments(adjustments);
   const set = (die: string | null, value: number) =>

@@ -18,12 +18,12 @@ export function ValeursDes({
   groupes,
   max = 12,
   className,
-}: {
+}: Readonly<{
   groupes: GroupeDes[];
   /** Au-delà, les dés sont résumés (« +12 »). */
   max?: number;
   className?: string;
-}) {
+}>) {
   const seulD20 =
     groupes.filter((g) => g.faces === 20).flatMap((g) => g.dice.filter((d) => d.kept)).length === 1;
   const tous = groupes.flatMap((g, i) =>

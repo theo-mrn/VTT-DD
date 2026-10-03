@@ -28,13 +28,13 @@ export function TreeExplorer({
   trees,
   writes,
   className,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   /** Arbres du système (`buildTrees`). */
   trees: TreeView[];
   writes: SheetWrites | undefined;
   className?: string;
-}) {
+}>) {
   const views = useMemo(() => trees.filter((t) => t.open || t.owned > 0), [trees]);
   const closed = useMemo(() => trees.filter((t) => !t.open && t.owned === 0), [trees]);
 

@@ -104,7 +104,7 @@ export function createPanelStore(initial: PanelId | null): StoreApi<PanelState> 
 
 const PanelStoreContext = createContext<StoreApi<PanelState> | null>(null);
 
-export function PanelStoreProvider({ children }: { children: ReactNode }) {
+export function PanelStoreProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [store] = useState(() =>
     createPanelStore(
       typeof window === 'undefined'

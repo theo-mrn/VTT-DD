@@ -240,7 +240,7 @@ export function PartyBar() {
  * MJ : la barre de combat, rangée ou montrée. En plein combat, la ranger propose aussi de
  * terminer le combat (la fenêtre de la barre de combat).
  */
-function CombatBarToggle({ campaignId }: { campaignId: string }) {
+function CombatBarToggle({ campaignId }: Readonly<{ campaignId: string }>) {
   const on = useHudPrefs((s) => s.combatBar);
   const set = useHudPrefs((s) => s.setCombatBar);
   const combat = useCombat(campaignId).combat;
@@ -406,12 +406,12 @@ function MemberCard({
   tokens,
   member,
   onDone,
-}: {
+}: Readonly<{
   engine: MapEngine;
   tokens: TokensState;
   member: Member;
   onDone(): void;
-}) {
+}>) {
   const { info } = member;
   const viewer = engine.viewer;
   const gm = viewer.role === 'gm';
@@ -525,13 +525,13 @@ function PrivateMessage({
   name,
   onSent,
   onCancel,
-}: {
+}: Readonly<{
   campaignId: string;
   to: string;
   name: string;
   onSent(): void;
   onCancel(): void;
-}) {
+}>) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const send = async () => {
@@ -587,11 +587,11 @@ function Overflow({
   engine,
   tokens,
   members,
-}: {
+}: Readonly<{
   engine: MapEngine;
   tokens: TokensState;
   members: Member[];
-}) {
+}>) {
   return (
     <Popover>
       <PopoverTrigger asChild>

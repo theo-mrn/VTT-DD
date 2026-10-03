@@ -24,7 +24,7 @@ export function PanneauJets({
   plusAnciens,
   onRelancer,
   onEfface,
-}: {
+}: Readonly<{
   jets: Jet[];
   chargement: boolean;
   erreur: unknown;
@@ -38,7 +38,7 @@ export function PanneauJets({
   plusAnciens: PlusAnciens;
   onRelancer: (jet: Jet) => void;
   onEfface: () => void;
-}) {
+}>) {
   const [onglet, setOnglet] = useState('historique');
   const stats = useStatsJets(roomId, onglet === 'stats');
   const Contexte = campagne ? Swords : UserRound;

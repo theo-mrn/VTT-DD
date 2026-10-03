@@ -19,13 +19,13 @@ export function CarteSysteme({
   onChoisir,
   multiple = false,
   compacte = false,
-}: {
+}: Readonly<{
   systeme: ResumeSysteme;
   choisie: boolean;
   onChoisir: () => void;
   multiple?: boolean;
   compacte?: boolean;
-}) {
+}>) {
   const etapes = systeme.creation[0]?.etapes.length ?? 0;
   return (
     <button

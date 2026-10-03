@@ -10,7 +10,7 @@ import { SoundTool } from '@/lib/map/modules/sounds/tool';
 import { OptionSeparator, RangeField } from '../obstacles/controls';
 import { SoundPicker } from './sound-picker';
 
-export function SoundOptions({ engine }: { engine: MapEngine }) {
+export function SoundOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const tool = engine.tools.active;
   if (!(tool instanceof SoundTool)) return null;
   return <Options engine={engine} tool={tool} />;
@@ -18,7 +18,7 @@ export function SoundOptions({ engine }: { engine: MapEngine }) {
 
 const percent = (v: number) => `${Math.round(v * 100)} %`;
 
-function Options({ engine, tool }: { engine: MapEngine; tool: SoundTool }) {
+function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: SoundTool }>) {
   const radius = useStore(tool.settings, (s) => s.radius);
   const volume = useStore(tool.settings, (s) => s.volume);
   const assetId = useStore(tool.settings, (s) => s.assetId);

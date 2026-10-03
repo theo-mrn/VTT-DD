@@ -30,7 +30,7 @@ export function NoteEditorOverlay({ engine }: { engine: MapEngine }) {
   );
 }
 
-function NoteField({ engine, session }: { engine: MapEngine; session: NoteSession }) {
+function NoteField({ engine, session }: Readonly<{ engine: MapEngine; session: NoteSession }>) {
   const rt = useDrawingsRuntime(engine);
   const ref = useRef<HTMLTextAreaElement>(null);
 

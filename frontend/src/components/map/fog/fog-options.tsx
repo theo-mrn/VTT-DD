@@ -34,13 +34,13 @@ const ICONS: Record<FogShape, LucideIcon> = {
   select: MousePointer2,
 };
 
-export function FogOptions({ engine }: { engine: MapEngine }) {
+export function FogOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const tool = engine.tools.active;
   if (!(tool instanceof FogTool)) return null;
   return <Options engine={engine} tool={tool} />;
 }
 
-function Options({ engine, tool }: { engine: MapEngine; tool: FogTool }) {
+function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: FogTool }>) {
   const shape = useStore(tool.settings, (s) => s.shape);
   const mode = useStore(tool.settings, (s) => s.mode);
   const fogFull = useMapState((s) => s.scene?.fogFull === true);

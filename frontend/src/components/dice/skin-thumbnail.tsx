@@ -15,13 +15,13 @@ export function SkinThumbnail({
   alt = '',
   className,
   small = false,
-}: {
+}: Readonly<{
   skinId: string;
   alt?: string;
   className?: string;
   /** Affichée à 64 px ou moins : vignette WebP de 128 px. */
   small?: boolean;
-}) {
+}>) {
   const [absente, setAbsente] = useState<string | null>(null);
 
   if (absente === skinId)

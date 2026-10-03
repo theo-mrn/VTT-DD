@@ -386,14 +386,14 @@ function Stepper({
   label,
   disabled,
   onChange,
-}: {
+}: Readonly<{
   value: number;
   min: number;
   max: number;
   label: string;
   disabled?: boolean;
   onChange(v: number): void;
-}) {
+}>) {
   return (
     <span
       role="group"
@@ -427,11 +427,11 @@ function Range({
   label,
   value,
   onChange,
-}: {
+}: Readonly<{
   label: string;
   value: { min?: number | undefined; max?: number | undefined };
   onChange(v: { min?: number; max?: number }): void;
-}) {
+}>) {
   const parse = (s: string) => (s.trim() === '' ? undefined : Number(s));
   const set = (k: 'min' | 'max', s: string) => {
     const next = { ...value, [k]: parse(s) };

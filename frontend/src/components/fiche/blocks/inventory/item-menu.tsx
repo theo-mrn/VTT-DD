@@ -87,11 +87,11 @@ export function ItemMenuItems({
   item,
   handlers,
   folders,
-}: {
+}: Readonly<{
   item: InventoryItem;
   handlers: ItemHandlers;
   folders: InventoryFolder[];
-}) {
+}>) {
   const a = actionsDe(item, handlers);
   const organiser = a.renommer || a.quantite || a.cacher || a.ranger || a.exemplaire;
   const regler = a.formules || a.bonus;
@@ -206,12 +206,12 @@ export function AnchoredMenu({
   onClose,
   className,
   children,
-}: {
+}: Readonly<{
   position: { x: number; y: number } | null;
   onClose(): void;
   className?: string;
   children: ReactNode;
-}) {
+}>) {
   // Le menu se ferme si la fenêtre change de taille : il resterait accroché au vide
   useEffect(() => {
     if (!position) return;
@@ -249,12 +249,12 @@ export function ContextMenu({
   onClose,
   handlers,
   folders,
-}: {
+}: Readonly<{
   cible: { item: InventoryItem; x: number; y: number } | null;
   onClose(): void;
   handlers: ItemHandlers;
   folders: InventoryFolder[];
-}) {
+}>) {
   return (
     <AnchoredMenu position={cible} onClose={onClose}>
       {cible && <ItemMenuItems item={cible.item} handlers={handlers} folders={folders} />}

@@ -12,12 +12,15 @@ import { LayoutGroup, motion } from 'motion/react';
 import { useId, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-export function PillGroup({ children }: { children: ReactNode }) {
+export function PillGroup({ children }: Readonly<{ children: ReactNode }>) {
   return <LayoutGroup id={useId()}>{children}</LayoutGroup>;
 }
 
 /** `id` : plusieurs pastilles par élément (fond et repère) glissent chacune de leur côté. */
-export function ActivePill({ className, id = 'active-pill' }: { className?: string; id?: string }) {
+export function ActivePill({
+  className,
+  id = 'active-pill',
+}: Readonly<{ className?: string; id?: string }>) {
   return (
     <motion.span
       layoutId={id}

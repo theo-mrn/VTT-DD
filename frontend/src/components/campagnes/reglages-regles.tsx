@@ -31,13 +31,13 @@ export function ReglagesRegles({
   options,
   onChange,
   loading,
-}: {
+}: Readonly<{
   systemId: string;
   /** Réglages de la campagne (écarts au défaut du système). */
   options: Record<string, boolean>;
   onChange: (options: Record<string, boolean>) => void;
   loading?: boolean;
-}) {
+}>) {
   const { systeme, declarees, valeurs } = useReglesOptionnelles(systemId, options);
   if (systeme.data && !declarees.length) return null;
 
@@ -82,10 +82,10 @@ export function ReglagesRegles({
 export function PanneauReglesOptionnelles({
   campaignId,
   systemId,
-}: {
+}: Readonly<{
   campaignId: string;
   systemId: string;
-}) {
+}>) {
   const reglages = useCampaignSettings(campaignId);
   const { systeme, declarees, valeurs } = useReglesOptionnelles(
     systemId,

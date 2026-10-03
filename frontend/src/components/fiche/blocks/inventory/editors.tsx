@@ -42,14 +42,14 @@ export function FieldInput({
   onChange,
   onEnter,
   className,
-}: {
+}: Readonly<{
   id: string;
   champ: ChampModifiable;
   valeur: ValeurChamp | undefined;
   onChange(v: ValeurChamp | undefined): void;
   onEnter?: () => void;
   className?: string;
-}) {
+}>) {
   const [texte, setTexte] = useState(valeur === undefined ? '' : String(valeur));
   if (champ.type === 'choix')
     return (
@@ -115,7 +115,7 @@ export function FormulaField({
   autoFocus,
   onEscape,
   actions,
-}: {
+}: Readonly<{
   id: string;
   label: string;
   /** Libellé affiché au-dessus du champ ; sinon lu seulement par les lecteurs d'écran. */
@@ -132,7 +132,7 @@ export function FormulaField({
   onEscape?: () => void;
   /** Boutons à droite du champ (Enregistrer, Annuler…). */
   actions?: ReactNode;
-}) {
+}>) {
   const erreur = verif && !verif.ok ? verif.erreurs.join(' ; ') : null;
   const champNombre = sorte.champs.find((c) => c.type === 'nombre')?.id;
   return (
@@ -193,11 +193,11 @@ export function BonusPropresListe({
   bonus,
   onBasculer,
   onRetirer,
-}: {
+}: Readonly<{
   bonus: BonusPropre[];
   onBasculer?: (index: number) => void;
   onRetirer?: (index: number) => void;
-}) {
+}>) {
   if (!bonus.length) return null;
   return (
     <ul className="divide-y divide-border rounded-xl border border-border">

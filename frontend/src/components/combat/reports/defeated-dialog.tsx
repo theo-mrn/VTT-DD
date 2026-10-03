@@ -96,10 +96,10 @@ const CHOICES: { value: Choice; label: string }[] = [
 export function DefeatedDialog({
   campagne,
   combat,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   combat: CombatState | null;
-}) {
+}>) {
   const ids = useStore(queue, (s) => s.ids);
   const host = useDefeatedHost();
   const cast = useCast(campagne.id);

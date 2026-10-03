@@ -65,7 +65,7 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
   );
 });
 
-function Pastille({ nombre }: { nombre: number }) {
+function Pastille({ nombre }: Readonly<{ nombre: number }>) {
   return (
     <span
       // Nouvelle valeur : la pastille « saute » (remontée à chaque changement)
@@ -78,7 +78,10 @@ function Pastille({ nombre }: { nombre: number }) {
   );
 }
 
-function RailButton({ panel, variante }: { panel: TablePanel; variante: 'rail' | 'dock' }) {
+function RailButton({
+  panel,
+  variante,
+}: Readonly<{ panel: TablePanel; variante: 'rail' | 'dock' }>) {
   const actif = usePanelStore((s) => s.active === panel.id);
   const monte = usePanelStore((s) => s.mounted.includes(panel.id));
   const badge = usePanelStore((s) => s.badges[panel.id] ?? 0);
@@ -152,7 +155,7 @@ function DockMap() {
 }
 
 /** Ordre et masquage des panneaux du rail, par boutons (pas de glisser-déposer). */
-function RailCustomizer({ layout, cote }: { layout: RailLayout; cote: 'right' | 'top' }) {
+function RailCustomizer({ layout, cote }: Readonly<{ layout: RailLayout; cote: 'right' | 'top' }>) {
   const { items, move, setHidden, reset, customized } = layout;
   const tousVisibles = items.filter((i) => !i.hidden).length;
   return (
@@ -213,14 +216,14 @@ function LigneCustomizer({
   dernierVisible,
   onMove,
   onHidden,
-}: {
+}: Readonly<{
   item: RailItem;
   premier: boolean;
   dernier: boolean;
   dernierVisible: boolean;
   onMove: (delta: -1 | 1) => void;
   onHidden: (hidden: boolean) => void;
-}) {
+}>) {
   const Icone = panel.icon;
   return (
     <li className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2">

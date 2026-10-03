@@ -76,7 +76,7 @@ export function ItemPanel({
   handlers,
   writes,
   onClose,
-}: {
+}: Readonly<{
   fiche: Fiche;
   item: InventoryItem | null;
   /** Section montrée à l'ouverture (dés et formules, bonus). */
@@ -88,7 +88,7 @@ export function ItemPanel({
   /** Absent : lecture seule. */
   writes?: PanelWrites | undefined;
   onClose(): void;
-}) {
+}>) {
   return (
     <Dialog open={item !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
@@ -124,7 +124,7 @@ function Contenu({
   handlers,
   writes,
   onClose,
-}: {
+}: Readonly<{
   fiche: Fiche;
   item: InventoryItem;
   section: SectionDetail | null;
@@ -134,7 +134,7 @@ function Contenu({
   handlers: ItemHandlers;
   writes?: PanelWrites | undefined;
   onClose(): void;
-}) {
+}>) {
   const { entree, sorte, possession } = item;
   const corps = useRef<HTMLDivElement>(null);
   // Ouvert depuis « Dés et formule… » ou « Bonus… » : la section visée
@@ -230,7 +230,10 @@ function Contenu({
 }
 
 /** Nom de l'objet, renommable sur place (champ `nomExemplaire` de la sorte). */
-function Nom({ item, onRenommer }: { item: InventoryItem; onRenommer?: (nom: string) => void }) {
+function Nom({
+  item,
+  onRenommer,
+}: Readonly<{ item: InventoryItem; onRenommer?: (nom: string) => void }>) {
   const [edition, setEdition] = useState(false);
   const [nom, setNom] = useState(item.nom);
   if (edition && onRenommer)
@@ -290,12 +293,12 @@ function Reglages({
   folders,
   handlers,
   writes,
-}: {
+}: Readonly<{
   item: InventoryItem;
   folders: InventoryFolder[];
   handlers: ItemHandlers;
   writes?: PanelWrites | undefined;
-}) {
+}>) {
   const id = useId();
   const a = actionsDe(item, writes ? handlers : { ouvrir: handlers.ouvrir });
   const cases: ReactNode[] = [];
@@ -388,11 +391,11 @@ function Case({
   titre,
   htmlFor,
   children,
-}: {
+}: Readonly<{
   titre: string;
   htmlFor?: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="-mb-px flex min-h-12 items-center justify-between gap-3 px-3 py-2">
       <label htmlFor={htmlFor} className="text-xs text-muted-foreground">
@@ -408,11 +411,11 @@ function Quantite({
   item,
   id,
   onChange,
-}: {
+}: Readonly<{
   item: InventoryItem;
   id: string;
   onChange(q: number): void;
-}) {
+}>) {
   const [saisie, setSaisie] = useState(String(item.quantite));
   const valider = () => {
     const q = Math.floor(Number(saisie));
@@ -460,7 +463,10 @@ function Quantite({
 }
 
 /** Description propre de l'exemplaire (champ `descriptionExemplaire`), sinon celle de l'entrée. */
-function Description({ item, writes }: { item: InventoryItem; writes?: PanelWrites | undefined }) {
+function Description({
+  item,
+  writes,
+}: Readonly<{ item: InventoryItem; writes?: PanelWrites | undefined }>) {
   const champ = item.sorte.descriptionExemplaire;
   const [edition, setEdition] = useState(false);
   const [texte, setTexte] = useState(item.description ?? '');
@@ -526,12 +532,12 @@ function EditeurFormule({
   item,
   formule,
   writes,
-}: {
+}: Readonly<{
   fiche: Fiche;
   item: InventoryItem;
   formule: FormuleAffichee;
   writes?: PanelWrites | undefined;
-}) {
+}>) {
   const id = useId();
   const [edition, setEdition] = useState(false);
   const [texte, setTexte] = useState(formule.texte);
@@ -634,11 +640,11 @@ function Caracteristiques({
   fiche,
   item,
   writes,
-}: {
+}: Readonly<{
   fiche: Fiche;
   item: InventoryItem;
   writes?: PanelWrites | undefined;
-}) {
+}>) {
   const champs = champsAffiches(fiche, item.entree, item.sorte, item.possession).filter(
     (c) => c.champ.type !== 'formule' && !c.identite,
   );
@@ -748,12 +754,12 @@ function Bonus({
   item,
   mj,
   writes,
-}: {
+}: Readonly<{
   fiche: Fiche;
   item: InventoryItem;
   mj: boolean;
   writes?: PanelWrites | undefined;
-}) {
+}>) {
   const propres = bonusPropres(fiche, item);
   const nbPropres = item.possession?.effets.length ?? 0;
   const catalogue = item.bonus.slice(

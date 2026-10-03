@@ -32,7 +32,7 @@ import { cn } from '@/lib/utils';
 
 const GM_VIEW = '__mj__';
 
-export function VisionViewMenu({ engine }: { engine: MapEngine }) {
+export function VisionViewMenu({ engine }: Readonly<{ engine: MapEngine }>) {
   const gm = engine.viewer.role === 'gm';
   const viewAs = useStore(engine.ui, (s) => s.viewAs);
   const fogAnimation = useStore(visionPrefs(engine), (s) => s.fogAnimation);

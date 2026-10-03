@@ -30,14 +30,14 @@ export function OptionButton({
   disabled,
   onClick,
   children,
-}: {
+}: Readonly<{
   label: string;
   shortcut?: string;
   active?: boolean;
   disabled?: boolean;
   onClick?(): void;
   children: ReactNode;
-}) {
+}>) {
   return (
     <Info
       texte={
@@ -71,12 +71,12 @@ export function FieldRow({
   htmlFor,
   hint,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor?: string;
   hint?: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="space-y-1">
       <div className="flex min-h-8 items-center justify-between gap-3">
@@ -105,7 +105,7 @@ export function RangeField({
   disabled,
   scale,
   inputMax,
-}: {
+}: Readonly<{
   label: string;
   value: number;
   min: number;
@@ -118,7 +118,7 @@ export function RangeField({
   scale?: number;
   /** Plafond de la saisie directe, au-delà du curseur (défaut : `max`). */
   inputMax?: number;
-}) {
+}>) {
   const [local, setLocal] = useState<number | null>(null);
   const shown = local ?? value;
   return (
@@ -164,13 +164,13 @@ export function Swatches({
   onChange,
   allowDefault,
   label = 'Couleur',
-}: {
+}: Readonly<{
   value: string | null;
   options: readonly { value: string; label: string }[];
   onChange(value: string | null): void;
   allowDefault?: boolean;
   label?: string;
-}) {
+}>) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   const latest = useRef(onChange);

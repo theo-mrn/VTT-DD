@@ -106,13 +106,13 @@ export function PucesMacros({
   onLancer,
   onCharger,
   onEditer,
-}: {
+}: Readonly<{
   formuleValide: boolean;
   onLancer: (m: Macro) => void;
   onCharger: (m: Macro) => void;
   /** Ouvre la fenêtre de nom (création ou renommage), rendue par l'appelant. */
   onEditer: (e: EditionMacro) => void;
-}) {
+}>) {
   const { macros, supprimer } = useMacros();
   const plein = macros.length >= MACROS_MAX;
   // « Charger » attend la fermeture du menu : sinon Radix rend le focus à son bouton
@@ -234,12 +234,12 @@ export function EditionMacroDialogue({
   formule,
   libelle,
   onFermer,
-}: {
+}: Readonly<{
   edition: EditionMacro | null;
   formule: string;
   libelle: string;
   onFermer: () => void;
-}) {
+}>) {
   const { ajouter, renommer } = useMacros();
   return (
     <DialogueMacro
@@ -266,13 +266,13 @@ function DialogueMacro({
   libelleParDefaut,
   onFermer,
   onValider,
-}: {
+}: Readonly<{
   edition: EditionMacro | null;
   formule: string;
   libelleParDefaut: string;
   onFermer: () => void;
   onValider: (nom: string) => Promise<void>;
-}) {
+}>) {
   const [nom, setNom] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [ouvertPour, setOuvertPour] = useState<EditionMacro | null>(null);

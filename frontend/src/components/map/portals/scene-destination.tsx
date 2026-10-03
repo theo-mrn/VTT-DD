@@ -29,12 +29,12 @@ export function SceneDestination({
   currentMapId,
   value,
   onChange,
-}: {
+}: Readonly<{
   scenes: readonly MapScene[];
   currentMapId: string;
   value: SceneTarget;
   onChange(v: SceneTarget): void;
-}) {
+}>) {
   const [query, setQuery] = useState('');
   const others = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('fr');
@@ -167,11 +167,11 @@ function ScenePointPicker({
   scene,
   point,
   onPick,
-}: {
+}: Readonly<{
   scene: MapScene;
   point: Point;
   onPick(p: Point): void;
-}) {
+}>) {
   const width = scene.width ?? DEFAULT_WORLD;
   const height = scene.height ?? DEFAULT_WORLD;
   const video = isVideoBackground(scene.backgroundUrl);

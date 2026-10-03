@@ -71,14 +71,14 @@ export function OrderList({
   busy,
   canAttack,
   actions,
-}: {
+}: Readonly<{
   combat: CombatState;
   cast: ReadonlyMap<string, CastMember>;
   sheets: ReadonlyMap<string, ParticipantSheet>;
   busy: boolean;
   canAttack: boolean;
   actions: OrderActions;
-}) {
+}>) {
   const rows = turnRows(combat);
   const [dragged, setDragged] = useState<string | null>(null);
   const currentRef = useRef<HTMLLIElement | null>(null);
@@ -181,7 +181,7 @@ function OrderRow({
   busy,
   canAttack,
   actions,
-}: {
+}: Readonly<{
   row: TurnRow;
   member: CastMember | null;
   sheet: ParticipantSheet | null;
@@ -189,7 +189,7 @@ function OrderRow({
   busy: boolean;
   canAttack: boolean;
   actions: OrderActions;
-}) {
+}>) {
   const name = member?.name ?? 'Personnage';
   const states = sheet?.states ?? [];
   const id = row.characterId;

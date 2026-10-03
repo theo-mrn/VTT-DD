@@ -13,7 +13,7 @@ import { LogoYner } from '@/components/commun/logo-yner';
  * Pages d'authentification : formulaire à gauche, vitrine de l'app à droite
  * (grand écran). Sert aussi aux pages de mot de passe et de vérification.
  */
-export function CadreAuth({ children }: { children: ReactNode }) {
+export function CadreAuth({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="grid min-h-dvh bg-background lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <div className="relative flex flex-col px-6 py-6 sm:px-10">

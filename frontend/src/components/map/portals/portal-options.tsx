@@ -16,7 +16,7 @@ import { PortalTool } from '@/lib/map/modules/portals/tool';
 import { OptionButton, OptionSeparator, RangeField, Swatches } from '../obstacles/controls';
 import { PortalGlyph } from './portal-glyph';
 
-export function PortalOptions({ engine }: { engine: MapEngine }) {
+export function PortalOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const tool = engine.tools.active;
   if (!(tool instanceof PortalTool)) return null;
   return <Options engine={engine} tool={tool} />;
@@ -29,7 +29,7 @@ const HINTS = {
   pick: 'Cliquez la nouvelle arrivée du portail sur la carte. Échap : annuler.',
 } as const;
 
-function Options({ engine, tool }: { engine: MapEngine; tool: PortalTool }) {
+function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalTool }>) {
   const s = useStore(tool.settings);
   const state = useStore(tool.ui, (u) => u.state);
   const set = tool.settings.setState;

@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 import { useMapEngine, useMapUi } from './engine-context';
 
 /** Entrées de menu (menu du clic droit, barre de la sélection). */
-export function MenuItems({ items }: { items: readonly MenuItem[] }) {
+export function MenuItems({ items }: Readonly<{ items: readonly MenuItem[] }>) {
   return (
     <>
       {items.map((item) => {
@@ -83,7 +83,7 @@ export function MenuItems({ items }: { items: readonly MenuItem[] }) {
   );
 }
 
-export function MapContextMenu({ hostRef }: { hostRef: RefObject<HTMLElement | null> }) {
+export function MapContextMenu({ hostRef }: Readonly<{ hostRef: RefObject<HTMLElement | null> }>) {
   const engine = useMapEngine();
   const menu = useMapUi((s) => s.menu);
   const items = useMemo(() => (menu ? engine.menuItems(menu.ids, menu.world) : []), [engine, menu]);

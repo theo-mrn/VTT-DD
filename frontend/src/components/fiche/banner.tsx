@@ -20,7 +20,7 @@ import {
 type Details = Extract<Widget, { type: 'details' }>;
 
 /** « Elfe · Barde » : chaque entrée ouvre son détail ; la sorte est dans l'infobulle. */
-export function BannerIdentity({ ctx, widget }: { ctx: ContexteFiche; widget: Details }) {
+export function BannerIdentity({ ctx, widget }: Readonly<{ ctx: ContexteFiche; widget: Details }>) {
   const possessions = [...ctx.fiche.possessions.values()].filter((p) =>
     widget.sortes.includes(p.sorte.id),
   );
@@ -101,7 +101,10 @@ function statsDuBandeau(ctx: ContexteFiche, widget: Details | undefined): Stat[]
 }
 
 /** Valeurs clés en une rangée, séparées par des filets ; les ressources ont leur jauge. */
-export function BannerStats({ ctx, widget }: { ctx: ContexteFiche; widget: Details | undefined }) {
+export function BannerStats({
+  ctx,
+  widget,
+}: Readonly<{ ctx: ContexteFiche; widget: Details | undefined }>) {
   const stats = statsDuBandeau(ctx, widget);
   if (!stats.length) return null;
   return (

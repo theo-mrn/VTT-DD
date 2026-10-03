@@ -85,7 +85,7 @@ export function CharacterDialog({
   canAttack,
   onBack,
   onClose,
-}: {
+}: Readonly<{
   campaignId: string;
   combat: CombatState | null;
   characterId: string | null;
@@ -98,7 +98,7 @@ export function CharacterDialog({
   /** Retour à la liste des cibles (carte « Cibles (n) »). */
   onBack?: () => void;
   onClose(): void;
-}) {
+}>) {
   const participant =
     characterId && combat
       ? (combat.order.find((p) => p.characterId === characterId) ?? null)
@@ -132,11 +132,11 @@ function Section({
   title,
   children,
   className,
-}: {
+}: Readonly<{
   title: string;
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     <section className={cn('space-y-2.5', className)}>
       <h3 className="text-[11px] font-semibold uppercase tracking-wider text-subtle">{title}</h3>
@@ -157,7 +157,7 @@ function DialogBody({
   canAttack,
   onBack,
   onClose,
-}: {
+}: Readonly<{
   campaignId: string;
   characterId: string;
   participant: CombatParticipant | null;
@@ -169,7 +169,7 @@ function DialogBody({
   canAttack: boolean;
   onBack?: () => void;
   onClose(): void;
-}) {
+}>) {
   const commands = useCombatCommands(campaignId);
   const { ctx, perso, sys, ecritures } = useFicheCalculee(characterId);
   const [busy, setBusy] = useState<string | null>(null);
@@ -446,7 +446,7 @@ function InitiativeBlock({
   busy,
   onReroll,
   onManual,
-}: {
+}: Readonly<{
   participant: CombatParticipant;
   systeme: Parameters<typeof InitiativeParamsForm>[0]['systeme'] | null;
   parametres: Parameters<typeof InitiativeParamsForm>[0]['parametres'];
@@ -454,7 +454,7 @@ function InitiativeBlock({
   busy: string | null;
   onReroll(params: ActionParams): Promise<boolean>;
   onManual(sortKeys: number[]): Promise<boolean>;
-}) {
+}>) {
   const [params, setParams] = useState<ActionParams>(p.initiative?.params ?? {});
   const [manual, setManual] = useState<string[] | null>(null);
   const keys = Math.max(1, tri.length);

@@ -31,7 +31,7 @@ const TUILE = cn(
 );
 
 /** Quantité, en bas à droite dans la tuile (seulement au-delà de 1). */
-function Quantite({ children }: { children: ReactNode }) {
+function Quantite({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <span
       aria-hidden
@@ -69,7 +69,7 @@ export function ItemTile({
   onFocusTile,
   onOpen,
   onMenu,
-}: {
+}: Readonly<{
   item: InventoryItem;
   icone: LucideIcon;
   image?: string | undefined;
@@ -80,7 +80,7 @@ export function ItemTile({
   onFocusTile(): void;
   onOpen(): void;
   onMenu(x: number, y: number): void;
-}) {
+}>) {
   const equipe = item.sorte.activable && item.actif;
   const range = item.sorte.activable && !item.actif;
   const bonus = item.bonus.filter((b) => !b.ignore);
@@ -188,7 +188,7 @@ export function FolderTile({
   onOpen,
   onMenu,
   onDeposer,
-}: {
+}: Readonly<{
   id: string;
   nom: string;
   nombre: number;
@@ -199,7 +199,7 @@ export function FolderTile({
   onOpen(): void;
   onMenu?: ((x: number, y: number) => void) | undefined;
   onDeposer(cle: string): void;
-}) {
+}>) {
   const [survol, setSurvol] = useState(false);
   const accepte = (e: DragEvent) => deposable && e.dataTransfer.types.includes(GLISSER_OBJET);
   return (
@@ -270,11 +270,11 @@ export function AddTile({
   onClick,
   focusable,
   onFocusTile,
-}: {
+}: Readonly<{
   onClick(): void;
   focusable: boolean;
   onFocusTile(): void;
-}) {
+}>) {
   return (
     <Info texte="Ajouter un objet">
       <button

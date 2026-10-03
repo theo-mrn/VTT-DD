@@ -59,7 +59,7 @@ export function AddDialog({
   onLibre,
   dossierOuvert = null,
   mj = false,
-}: {
+}: Readonly<{
   open: boolean;
   /** Dossier ouvert dans la grille, proposé par défaut. */
   dossierOuvert?: string | null;
@@ -73,7 +73,7 @@ export function AddDialog({
   onAcheter(entree: CatalogueEntry): void;
   /** Ajout d'un objet configuré, en une écriture (catalogue ou objet personnalisé). */
   onLibre(modele: ModeleLibre, saisie: SaisieLibre): void;
-}) {
+}>) {
   const [cible, setCible] = useState<CibleAjout | null>(null);
   // Recherche et catégorie gardées au retour de la configuration
   const [terme, setTerme] = useState('');
@@ -140,7 +140,7 @@ function Catalogue({
   onCategorie: setCategorie,
   onConfigurer,
   onAcheter,
-}: {
+}: Readonly<{
   fiche: Fiche;
   widget: InventoryWidget;
   presentation: Presentation | null;
@@ -150,7 +150,7 @@ function Catalogue({
   onCategorie(c: string | null): void;
   onConfigurer(cible: CibleAjout): void;
   onAcheter(entree: CatalogueEntry): void;
-}) {
+}>) {
   const [ouverte, setOuverte] = useState<string | null>(null);
   const modeles = useMemo(() => modelesLibres(fiche, widget), [fiche, widget]);
   const libre = (nom?: string) =>
@@ -285,11 +285,11 @@ function Chip({
   actif,
   onClick,
   children,
-}: {
+}: Readonly<{
   actif: boolean;
   onClick(): void;
   children: ReactNode;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -317,7 +317,7 @@ function Ligne({
   onBasculer,
   onAjouter,
   onAcheter,
-}: {
+}: Readonly<{
   fiche: Fiche;
   c: CatalogueEntry;
   image?: string | undefined;
@@ -326,7 +326,7 @@ function Ligne({
   onBasculer(): void;
   onAjouter(): void;
   onAcheter(): void;
-}) {
+}>) {
   const monnaie = c.achat ? fiche.systeme.monnaies.get(c.achat.monnaie) : undefined;
   const idDetail = `catalogue-${c.entree.id}`;
   const ajoutUnite = c.sorte.quantites && c.possede > 0;
@@ -423,7 +423,7 @@ function Ligne({
   );
 }
 
-function Detail({ id, fiche, c }: { id: string; fiche: Fiche; c: CatalogueEntry }) {
+function Detail({ id, fiche, c }: Readonly<{ id: string; fiche: Fiche; c: CatalogueEntry }>) {
   const champs = champsAffiches(fiche, c.entree, c.sorte).filter((x) => x.valeur !== '—');
   const bonus = bonusDe(fiche, c.entree, c.sorte, undefined, undefined);
   return (

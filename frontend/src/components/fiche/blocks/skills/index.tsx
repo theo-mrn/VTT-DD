@@ -78,11 +78,11 @@ function SearchField({
   value,
   onChange,
   label,
-}: {
+}: Readonly<{
   value: string;
   onChange: (v: string) => void;
   label: string;
-}) {
+}>) {
   return (
     <div className="relative min-w-0 flex-1">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-subtle" />
@@ -108,7 +108,12 @@ function SearchField({
   );
 }
 
-function SkillsBlock({ ctx, widget, mode, height = 'auto' }: SheetBlockProps<'competences'>) {
+function SkillsBlock({
+  ctx,
+  widget,
+  mode,
+  height = 'auto',
+}: Readonly<SheetBlockProps<'competences'>>) {
   const data = useMemo(() => buildSkillsBlock(ctx.fiche, widget), [ctx.fiche, widget]);
   const writes = sheetWrites(ctx, mode);
   const [bodyRef, width] = useWidth<HTMLDivElement>();

@@ -5,7 +5,7 @@ import { BlocAttributs, clesAttributs, visiblePour } from '../../widgets';
 import { attributeTiles } from '../tiles/labels';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
 
-function AttributesBlock({ ctx, widget, arrangement }: SheetBlockProps<'attributs'>) {
+function AttributesBlock({ ctx, widget, arrangement }: Readonly<SheetBlockProps<'attributs'>>) {
   return <BlocAttributs ctx={ctx} widget={widget} arrangement={arrangement} />;
 }
 

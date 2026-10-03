@@ -13,7 +13,7 @@ import { LogoYner } from '@/components/commun/logo-yner';
  * Pages « focus » (onboarding, assistants de création, choix du héros) :
  * plein écran, sans barre latérale, pour garder l'attention sur une tâche.
  */
-export function CadreFocus({ children }: { children: ReactNode }) {
+export function CadreFocus({ children }: Readonly<{ children: ReactNode }>) {
   const profil = useProfilRequis();
   if (!profil) return <EcranChargement />;
   return <div className="min-h-dvh bg-background">{children}</div>;
@@ -25,13 +25,13 @@ export function EnTeteFocus({
   quitter,
   libelleQuitter = 'Quitter',
   className,
-}: {
+}: Readonly<{
   centre?: ReactNode;
   /** Lien de sortie (ou action). */
   quitter?: { href: string } | { onClick: () => void };
   libelleQuitter?: string;
   className?: string;
-}) {
+}>) {
   return (
     <header
       className={cn(
@@ -70,12 +70,12 @@ export function ProgressionEtapes({
   etapes,
   courante,
   onAller,
-}: {
+}: Readonly<{
   etapes: { id: string; nom: string; faite?: boolean }[];
   courante: number;
   /** Rend les étapes déjà atteintes cliquables. */
   onAller?: (i: number) => void;
-}) {
+}>) {
   return (
     <div className="flex w-full max-w-xl flex-col items-center gap-2">
       <div className="flex w-full gap-1.5">

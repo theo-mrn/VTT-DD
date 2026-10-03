@@ -27,10 +27,10 @@ import { useNomSysteme } from './carte-campagne';
 export function InvitationsRecues({
   onRejointe,
   className,
-}: {
+}: Readonly<{
   onRejointe?: (c: DetailCampagne) => void | Promise<void>;
   className?: string;
-}) {
+}>) {
   const invitations = useInvitationsRecues();
   if (!invitations.data?.length) return null;
   return (
@@ -51,10 +51,10 @@ export function InvitationsRecues({
 function LigneInvitation({
   invitation: i,
   onRejointe,
-}: {
+}: Readonly<{
   invitation: InvitationRecue;
   onRejointe?: (c: DetailCampagne) => void | Promise<void>;
-}) {
+}>) {
   const router = useRouter();
   const profil = useProfil();
   const nomSysteme = useNomSysteme(i.system);

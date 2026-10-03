@@ -45,7 +45,7 @@ export function MessageList({
   isLoadingOlder,
   olderError,
   loadOlder,
-}: MessageListProps) {
+}: Readonly<MessageListProps>) {
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLOListElement>(null);
   const atBottom = useRef(true);

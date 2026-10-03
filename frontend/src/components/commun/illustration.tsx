@@ -32,7 +32,7 @@ export function Illustration({
   position = 'center',
   largeur,
   floute = false,
-}: {
+}: Readonly<{
   src: string | null | undefined;
   graine: string;
   alt?: string;
@@ -55,7 +55,7 @@ export function Illustration({
    * calque isolé.
    */
   floute?: boolean;
-}) {
+}>) {
   const [echec, setEchec] = useState<string | null>(null);
   const image = src && echec !== src ? src : null;
   const fond = floute && image ? flou(image) : null;

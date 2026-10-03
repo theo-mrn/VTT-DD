@@ -114,11 +114,11 @@ function DialogueCreation({
   ouvert,
   onFermer,
   onCreee,
-}: {
+}: Readonly<{
   ouvert: boolean;
   onFermer(): void;
   onCreee(cle: CleApiCreee): void;
-}) {
+}>) {
   const [nom, setNom] = useState('');
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -240,11 +240,11 @@ function DialogueRevocation({
   cle,
   onFermer,
   onRevoquee,
-}: {
+}: Readonly<{
   cle: CleApi | null;
   onFermer(): void;
   onRevoquee(id: string): void;
-}) {
+}>) {
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 

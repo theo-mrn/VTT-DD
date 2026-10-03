@@ -77,14 +77,14 @@ export function DecisionDrawer({
   cast,
   stateSorts,
   onClose,
-}: {
+}: Readonly<{
   campaignId: string;
   attack: Attack | null;
   systeme: SystemeCharge | null;
   cast: ReadonlyMap<string, CastMember>;
   stateSorts: readonly string[];
   onClose(): void;
-}) {
+}>) {
   return (
     <Dialog open={attack !== null} onOpenChange={(open) => !open && onClose()}>
       {attack && (
@@ -111,14 +111,14 @@ function DrawerBody({
   cast,
   stateSorts,
   onClose,
-}: {
+}: Readonly<{
   campaignId: string;
   attack: Attack;
   systeme: SystemeCharge | null;
   cast: ReadonlyMap<string, CastMember>;
   stateSorts: readonly string[];
   onClose(): void;
-}) {
+}>) {
   const commands = useAttackCommands(campaignId);
   const targets = decidableTargets(attack);
   const [drafts, setDrafts] = useState<Record<string, TargetDraft>>(() =>
@@ -251,12 +251,12 @@ function ModeSwitch({
   onChange,
   disabled,
   label,
-}: {
+}: Readonly<{
   value: Mode;
   onChange(m: Mode): void;
   disabled?: boolean;
   label: string;
-}) {
+}>) {
   const options: { v: Mode; t: string }[] = [
     { v: 'apply', t: 'Appliquer' },
     { v: 'skip', t: 'Ne pas appliquer' },
@@ -306,7 +306,7 @@ function TargetEditor({
   disabled,
   onMode,
   onDraft,
-}: {
+}: Readonly<{
   attack: Attack;
   target: AttackTarget;
   draft: TargetDraft;
@@ -318,7 +318,7 @@ function TargetEditor({
   disabled: boolean;
   onMode(m: Mode): void;
   onDraft(d: TargetDraft): void;
-}) {
+}>) {
   const member = cast.get(t.characterId);
   const name = member?.name ?? 'Personnage';
   const outcome = outcomeLabel(t.result?.outcome ?? null, successRule);
@@ -431,7 +431,7 @@ function ModificationsEditor({
   stateSorts,
   disabled,
   onChange,
-}: {
+}: Readonly<{
   mods: readonly AttackModificationInput[];
   /** Modifications du rapport (résistances appliquées, en info). */
   original: readonly AttackModification[];
@@ -443,7 +443,7 @@ function ModificationsEditor({
   stateSorts: readonly string[];
   disabled: boolean;
   onChange(mods: AttackModificationInput[]): void;
-}) {
+}>) {
   const { fiche } = useComputedSheet({ systeme }, characterId);
   const [resist, setResist] = useState('1');
   const [newState, setNewState] = useState('');
@@ -702,14 +702,14 @@ function TablesEditor({
   systeme,
   disabled,
   onChange,
-}: {
+}: Readonly<{
   attack: Attack;
   target: AttackTarget;
   tables: readonly AttackTableChoice[];
   systeme: SystemeCharge | null;
   disabled: boolean;
   onChange(tables: AttackTableChoice[]): void;
-}) {
+}>) {
   const draws = t.result?.tables ?? [];
   if (!draws.length) return null;
   return (

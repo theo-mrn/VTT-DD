@@ -43,11 +43,11 @@ export function SettingsFields({
   value,
   onChange,
   disabled,
-}: {
+}: Readonly<{
   value: CombatSettings;
   onChange(value: CombatSettings): void;
   disabled?: boolean;
-}) {
+}>) {
   return (
     <>
       {(Object.keys(SETTING_LABELS) as (keyof CombatSettings)[]).map((k) => (
@@ -79,7 +79,7 @@ export function StartSettingsDialog({
   onMode,
   settings,
   onSettings,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   /** Mode que déclare le système (`initiative.mode`), s'il en déclare un. */
@@ -89,7 +89,7 @@ export function StartSettingsDialog({
   onMode(mode: CombatMode | null): void;
   settings: CombatSettings;
   onSettings(settings: CombatSettings): void;
-}) {
+}>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="isolate sm:max-w-md">

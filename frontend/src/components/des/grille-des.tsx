@@ -17,11 +17,11 @@ export function GrilleDes({
   compte,
   onAjouter,
   onRetirer,
-}: {
+}: Readonly<{
   compte: Map<number, number>;
   onAjouter: (faces: number) => void;
   onRetirer: (faces: number) => void;
-}) {
+}>) {
   const aide = useId();
   return (
     <div>
@@ -50,13 +50,13 @@ export function BoutonDe({
   aide,
   onAjouter,
   onRetirer,
-}: {
+}: Readonly<{
   faces: number;
   n: number;
   aide: string;
   onAjouter: () => void;
   onRetirer: () => void;
-}) {
+}>) {
   const minuteur = useRef<number | undefined>(undefined);
   // Appui long déjà traité : le clic (ou le menu contextuel) qui suit ne compte pas
   const long = useRef(false);

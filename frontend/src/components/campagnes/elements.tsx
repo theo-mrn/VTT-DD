@@ -81,13 +81,13 @@ export function PileAvatars({
   total = membres.length,
   max = 4,
   taille = 'xs',
-}: {
+}: Readonly<{
   membres: Pick<Membre, 'userId' | 'name' | 'avatarUrl' | 'role'>[];
   /** Nombre total de membres, quand `membres` n'est qu'un aperçu. */
   total?: number;
   max?: number;
   taille?: 'xs' | 'sm';
-}) {
+}>) {
   const visibles = membres.slice(0, max);
   const reste = Math.max(0, total - visibles.length);
   return (
@@ -113,7 +113,7 @@ export function PileAvatars({
   );
 }
 
-export function BadgeRole({ role }: { role: RoleCampagne | null }) {
+export function BadgeRole({ role }: Readonly<{ role: RoleCampagne | null }>) {
   if (!role) return null;
   if (role === 'gm')
     return (

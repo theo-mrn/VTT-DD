@@ -68,7 +68,7 @@ export function LiveNow() {
   );
 }
 
-function LiveLine({ live }: { live: ReturnType<typeof useLiveSounds> }) {
+function LiveLine({ live }: Readonly<{ live: ReturnType<typeof useLiveSounds> }>) {
   return (
     <div
       role="status"

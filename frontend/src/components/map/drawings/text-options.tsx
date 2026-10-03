@@ -36,7 +36,7 @@ import { OptionSeparator, RangeSetting, TargetMenu } from './option-controls';
 import { useMapEngine } from '../engine-context';
 import { useDrawingsRuntime, useDrawSettings } from './use-drawings';
 
-export function TextOptions({ engine }: { engine: MapEngine }) {
+export function TextOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const rt = useDrawingsRuntime(engine);
   const text = useDrawSettings(engine, (s) => s.text);
   const target = useDrawSettings(engine, (s) => s.target);
@@ -73,7 +73,7 @@ export function TextStyleControls({
   onFontSize,
   onFontSizeCommit,
   onFont,
-}: {
+}: Readonly<{
   color: string;
   fontSize: number;
   fontFamily: string | null;
@@ -83,7 +83,7 @@ export function TextStyleControls({
   /** Fin du réglage (inspecteur : une seule commande). */
   onFontSizeCommit?(size: number): void;
   onFont(font: string): void;
-}) {
+}>) {
   return (
     <div className="flex items-center gap-1">
       <Popover>
@@ -154,11 +154,11 @@ function FontMenu({
   fontFamily,
   disabled,
   onFont,
-}: {
+}: Readonly<{
   fontFamily: string | null;
   disabled?: boolean;
   onFont(font: string): void;
-}) {
+}>) {
   const system = useSystemNoteFonts();
   const font = noteFontOf(fontFamily, system);
   const groups = useMemo(

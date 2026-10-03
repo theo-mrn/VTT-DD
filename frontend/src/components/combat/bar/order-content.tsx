@@ -24,14 +24,14 @@ export function OrderContent({
   turns,
   onOpen,
   onAttack,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   combat: CombatState;
   turns: TurnActions;
   /** Fiche de combat d'un participant. */
   onOpen(characterId: string): void;
   onAttack(characterId: string): void;
-}) {
+}>) {
   const cast = useCast(campagne.id);
   const canAttack = useAttackHost(campagne.id);
   const ids = combat.order.map((p) => p.characterId);

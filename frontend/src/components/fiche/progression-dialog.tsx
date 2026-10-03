@@ -45,12 +45,12 @@ export function ProgressionDialog({
   action,
   open,
   onOpenChange,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   action: Action;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}>) {
   const requetes = useQueryClient();
   const [envoi, setEnvoi] = useState(false);
   const [fait, setFait] = useState<{ resultat: ResultatAction; diff: Difference[] } | null>(null);

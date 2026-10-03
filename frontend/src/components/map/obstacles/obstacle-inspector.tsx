@@ -45,7 +45,7 @@ function common<T>(items: readonly ObstacleData[], pick: (o: ObstacleData) => T)
   return items.every((o) => pick(o) === first) ? first : 'mixed';
 }
 
-export function ObstacleInspector({ engine, entities }: InspectorSectionProps) {
+export function ObstacleInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = obstacleContextOf(engine);
   const id = useId();
   if (!ctx || !entities.length) return null;
@@ -164,7 +164,10 @@ export function ObstacleInspector({ engine, entities }: InspectorSectionProps) {
 }
 
 /** Nombre de segments et longueur totale. */
-function Summary({ engine, entities }: { engine: MapEngine; entities: readonly MapEntity[] }) {
+function Summary({
+  engine,
+  entities,
+}: Readonly<{ engine: MapEngine; entities: readonly MapEntity[] }>) {
   let segments = 0;
   let length = 0;
   for (const e of entities)

@@ -12,7 +12,7 @@ import { useProfilRequis } from '@/lib/session';
  * n'est rendu avant la session (sinon les hooks qui lisent le profil échouent), et un visiteur
  * non connecté est renvoyé vers la connexion.
  */
-export default function LayoutTable({ children }: { children: ReactNode }) {
+export default function LayoutTable({ children }: Readonly<{ children: ReactNode }>) {
   const { id } = useParams<{ id: string }>();
   const profil = useProfilRequis();
   if (!profil) return <EcranChargement />;

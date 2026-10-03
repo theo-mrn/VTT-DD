@@ -55,12 +55,12 @@ function ChampDetail({
   placeholder,
   lecture,
   onChange,
-}: {
+}: Readonly<{
   valeur: string | null;
   placeholder: string;
   lecture: boolean;
   onChange: (v: string | null) => void;
-}) {
+}>) {
   return (
     <input
       value={valeur ?? ''}
@@ -80,13 +80,13 @@ function Choix<T extends string>({
   vide,
   lecture,
   onChange,
-}: {
+}: Readonly<{
   valeur: T | null;
   options: { id: T; label: string }[];
   vide: string;
   lecture: boolean;
   onChange: (v: T | null) => void;
-}) {
+}>) {
   const actuel = options.find((o) => o.id === valeur);
   return (
     <DropdownMenu>
@@ -111,11 +111,11 @@ function Etapes({
   etapes,
   lecture,
   onChange,
-}: {
+}: Readonly<{
   etapes: SubQuest[];
   lecture: boolean;
   onChange: (etapes: SubQuest[]) => void;
-}) {
+}>) {
   const modifier = (id: string, m: Partial<SubQuest>) =>
     onChange(etapes.map((e) => (e.id === id ? { ...e, ...m } : e)));
 
@@ -209,12 +209,12 @@ export function DetailsNote({
   details,
   lecture,
   onChange,
-}: {
+}: Readonly<{
   kind: TypeNote;
   details: NoteDetails;
   lecture: boolean;
   onChange: (m: Partial<NoteDetails>, immediat?: boolean) => void;
-}) {
+}>) {
   if (kind === 'personnage')
     return (
       <>

@@ -4,7 +4,7 @@
 import { BlocPossessions } from '../../widgets';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
 
-function PossessionsBlock({ ctx, widget }: SheetBlockProps<'possessions'>) {
+function PossessionsBlock({ ctx, widget }: Readonly<SheetBlockProps<'possessions'>>) {
   return <BlocPossessions ctx={ctx} widget={widget} />;
 }
 

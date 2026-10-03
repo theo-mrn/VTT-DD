@@ -9,13 +9,13 @@ export function LigneJoueur({
   avatarUrl,
   detail,
   actions,
-}: {
+}: Readonly<{
   id: string;
   nom: string;
   avatarUrl: string | null;
   detail?: ReactNode;
   actions?: ReactNode;
-}) {
+}>) {
   return (
     <li className="flex flex-wrap items-center gap-3 py-3.5">
       <Link href={`/joueurs/${encodeURIComponent(id)}`} className="shrink-0" tabIndex={-1}>

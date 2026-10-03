@@ -31,12 +31,12 @@ export function Segmented<T extends string>({
   options,
   onChange,
   label,
-}: {
+}: Readonly<{
   value: T;
   options: readonly { value: T; label: string }[];
   onChange(v: T): void;
   label: string;
-}) {
+}>) {
   return (
     <div role="radiogroup" aria-label={label} className="flex gap-1 rounded-lg bg-surface-2 p-0.5">
       {options.map((o) => (
@@ -68,13 +68,13 @@ function OptionalNumber({
   placeholder,
   unit,
   onCommit,
-}: {
+}: Readonly<{
   label: string;
   value: number | null;
   placeholder: string;
   unit: string;
   onCommit(v: number | null): void;
-}) {
+}>) {
   const id = useId();
   const [text, setText] = useState(value ? String(value) : '');
   useEffect(() => setText(value ? String(value) : ''), [value]);
@@ -111,11 +111,11 @@ export function ConeSettings({
   value,
   unit,
   onChange,
-}: {
+}: Readonly<{
   value: ConeOptions;
   unit: string;
   onChange(next: ConeOptions): void;
-}) {
+}>) {
   const set = (patch: Partial<ConeOptions>) => onChange({ ...value, ...patch });
   return (
     <div className="space-y-3">
@@ -189,12 +189,12 @@ export function SkinPicker({
   shape,
   value,
   onChange,
-}: {
+}: Readonly<{
   engine: MapEngine;
   shape: MeasureShape;
   value: string | null;
   onChange(v: string | null): void;
-}) {
+}>) {
   const assets = useAssets();
   const animate = useStore(measurePrefs(engine), (p) => p.animateSkins);
   const options = skinOptions(assets.data ?? [], shape);

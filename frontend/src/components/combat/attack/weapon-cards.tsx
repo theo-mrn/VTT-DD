@@ -101,7 +101,7 @@ export function EntryPicker({
   mode = 'select',
   prefer,
   firstShortcut = null,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   fiche: Fiche;
@@ -116,7 +116,7 @@ export function EntryPicker({
   prefer?: (entree: Entree) => boolean;
   /** Raccourci de la première tuile (1 à 9), null : aucun. */
   firstShortcut?: number | null;
-}) {
+}>) {
   const options = useMemo(() => {
     const all = entryOptions(fiche, param);
     if (!prefer) return all;
@@ -287,7 +287,7 @@ function OtherPicker({
   disabled,
   none = false,
   icon = false,
-}: {
+}: Readonly<{
   label: string;
   options: readonly EntryOption[];
   value: string;
@@ -295,7 +295,7 @@ function OtherPicker({
   disabled?: boolean | undefined;
   none?: boolean;
   icon?: boolean;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.id === value);
   return (

@@ -9,10 +9,10 @@ import { cn } from '@/lib/utils';
 export function PortalGlyph({
   icon,
   className,
-}: {
+}: Readonly<{
   icon: MapPortalIcon | null | undefined;
   className?: string;
-}) {
+}>) {
   const parts = GLYPHS[icon ?? 'portal'] ?? GLYPHS.portal;
   const m = GLYPH_HALF + 1;
   return (
@@ -59,6 +59,6 @@ export function PortalGlyph({
 }
 
 /** Icône de l'outil « Portails » (la spirale). */
-export function PortalToolIcon({ className }: { className?: string }) {
+export function PortalToolIcon({ className }: Readonly<{ className?: string }>) {
   return <PortalGlyph icon="portal" className={className} />;
 }

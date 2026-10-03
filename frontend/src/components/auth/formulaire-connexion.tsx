@@ -37,13 +37,13 @@ export function FormulaireConnexion({
   erreurInitiale = null,
   modeInitial = 'connexion',
   carte = false,
-}: {
+}: Readonly<{
   onConnecte?: (mode: ModeAuth) => void;
   redirection?: string;
   erreurInitiale?: string | null;
   modeInitial?: ModeAuth;
   carte?: boolean;
-}) {
+}>) {
   const { seConnecter, sInscrire } = useSession();
   const chemin = usePathname();
   const [mode, setMode] = useState<ModeAuth>(modeInitial);
@@ -218,7 +218,10 @@ export function FormulaireConnexion({
   );
 }
 
-function SelecteurMode({ mode, onChange }: { mode: ModeAuth; onChange: (m: ModeAuth) => void }) {
+function SelecteurMode({
+  mode,
+  onChange,
+}: Readonly<{ mode: ModeAuth; onChange: (m: ModeAuth) => void }>) {
   return (
     <div
       role="tablist"
@@ -252,7 +255,7 @@ function SelecteurMode({ mode, onChange }: { mode: ModeAuth; onChange: (m: ModeA
 }
 
 /** Indication de solidité : longueur, variété des caractères. */
-function ForceMotDePasse({ motDePasse }: { motDePasse: string }) {
+function ForceMotDePasse({ motDePasse }: Readonly<{ motDePasse: string }>) {
   if (!motDePasse) return null;
   const criteres = [
     motDePasse.length >= LONGUEUR_MIN_MDP,

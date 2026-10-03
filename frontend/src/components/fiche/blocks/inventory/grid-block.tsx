@@ -119,7 +119,7 @@ function voisine(tuiles: HTMLElement[], i: number, sens: 'haut' | 'bas'): number
   return surLigne[0]!.j;
 }
 
-export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire'>) {
+export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'inventaire'>>) {
   const { fiche, systeme, presentation, personnage } = ctx;
   const ops = mode === 'read' ? ctx.operations : undefined;
   const editable = Boolean(ops);
@@ -883,7 +883,7 @@ function nomsSortes(systeme: SheetBlockProps['ctx']['systeme'], sortes: string[]
 }
 
 /** Monnaies des achats de ces sortes et charge déclarée par le système. */
-function Pied({ inv }: { inv: Inventory }) {
+function Pied({ inv }: Readonly<{ inv: Inventory }>) {
   const { monnaies, charge } = inv;
   if (!monnaies.length && !charge.charges.length) return null;
   return (

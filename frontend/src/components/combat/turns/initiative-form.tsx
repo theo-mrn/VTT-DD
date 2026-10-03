@@ -100,14 +100,14 @@ export function InitiativeParamsForm({
   onChange,
   idPrefix,
   disabled,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   parametres: readonly Parametre[];
   value: ActionParams;
   onChange(value: ActionParams): void;
   idPrefix: string;
   disabled?: boolean;
-}) {
+}>) {
   const set = (key: string, v: ActionParamValue | undefined) =>
     onChange(v === undefined ? without(value, key) : { ...value, [key]: v });
 
@@ -185,14 +185,14 @@ export function SideParamsForm({
   value,
   onChange,
   disabled,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   parametres: readonly Parametre[];
   sides: readonly CampaignSide[];
   value: Partial<Record<CampaignSide, ActionParams>>;
   onChange(value: Partial<Record<CampaignSide, ActionParams>>): void;
   disabled?: boolean;
-}) {
+}>) {
   const shown = SIDES.filter((s) => sides.includes(s));
   if (!parametres.length) return null;
   return (

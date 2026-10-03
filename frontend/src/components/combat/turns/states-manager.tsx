@@ -31,13 +31,19 @@ export function durationLabel(duration: number | null): string {
 }
 
 /** Icône d'un état (présentation du système), dessinée par lucide. */
-export function StateIcon({ state, className }: { state: TimedState; className?: string }) {
+export function StateIcon({
+  state,
+  className,
+}: Readonly<{ state: TimedState; className?: string }>) {
   const Icon = STATE_ICONS[state.icon];
   return <Icon className={className ?? 'size-3 shrink-0'} aria-hidden />;
 }
 
 /** Pastille d'un état : icône, nom et durée restante. */
-export function StateBadge({ state, className }: { state: TimedState; className?: string }) {
+export function StateBadge({
+  state,
+  className,
+}: Readonly<{ state: TimedState; className?: string }>) {
   return (
     <span
       className={
@@ -62,14 +68,14 @@ export function StatesManager({
   sheet,
   ecritures,
   disabled,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   stateSorts: readonly string[];
   states: readonly TimedState[];
   sheet: FichePersonnage;
   ecritures: OperationsPersonnage;
   disabled?: boolean;
-}) {
+}>) {
   const catalogue = [...systeme.entrees.values()]
     .filter((e) => stateSorts.includes(e.sorte))
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));

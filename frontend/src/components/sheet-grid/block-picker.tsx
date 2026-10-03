@@ -60,14 +60,14 @@ export function BlockPicker({
   open,
   onOpenChange,
   onPick,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   /** Widgets déjà sur la fiche. */
   present: Widget[];
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onPick: (w: Widget) => void;
-}) {
+}>) {
   const groupes = useMemo(() => {
     const deja = new Set(present.map(cibleDe));
     const liste = candidateWidgets(ctx).map((w) => ({ widget: w, present: deja.has(cibleDe(w)) }));

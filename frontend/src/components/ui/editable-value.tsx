@@ -39,7 +39,7 @@ export function EditableValue({
   label,
   disabled,
   className,
-}: {
+}: Readonly<{
   value: number;
   format(v: number): string;
   onCommit(v: number): void;
@@ -50,7 +50,7 @@ export function EditableValue({
   label: string;
   disabled?: boolean;
   className?: string;
-}) {
+}>) {
   const [text, setText] = useState<string | null>(null);
   // Échap : le champ disparaît sans que sa sortie n'enregistre
   const cancelled = useRef(false);

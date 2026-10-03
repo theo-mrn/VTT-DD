@@ -79,7 +79,10 @@ function versNouvelle(n: NoteLocale, ecrivables: Campagne[], cible: string): Nou
 }
 
 /** Bandeau d'import des notes restées dans ce navigateur (affiché seulement s'il y en a). */
-export function ImportNotesLocales({ moi, campagnes }: { moi: string; campagnes: Campagne[] }) {
+export function ImportNotesLocales({
+  moi,
+  campagnes,
+}: Readonly<{ moi: string; campagnes: Campagne[] }>) {
   const client = useQueryClient();
   const [locales, setLocales] = useState<NoteLocale[]>([]);
   const [enCours, setEnCours] = useState(false);

@@ -56,12 +56,12 @@ export function VisibiliteMenu({
   valeur,
   onChange,
   personnel,
-}: {
+}: Readonly<{
   valeur: VisibiliteJet;
   onChange: (v: VisibiliteJet) => void;
   /** Jets personnels (hors campagne) : vous seul les voyez. */
   personnel: boolean;
-}) {
+}>) {
   const vis = infoVisibilite(personnel ? 'self' : valeur);
   const Icone = vis.icone;
   if (personnel)

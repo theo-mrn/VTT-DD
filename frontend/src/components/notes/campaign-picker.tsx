@@ -26,13 +26,13 @@ export function ChoixCampagne({
   campagnes,
   onChoix,
   onFermer,
-}: {
+}: Readonly<{
   ouvert: boolean;
   /** Campagnes où l'utilisateur écrit, les plus récentes d'abord. */
   campagnes: Campagne[];
   onChoix: (id: string) => void;
   onFermer: () => void;
-}) {
+}>) {
   return (
     <Dialog open={ouvert} onOpenChange={(o) => !o && onFermer()}>
       <DialogContent className="sm:max-w-md">

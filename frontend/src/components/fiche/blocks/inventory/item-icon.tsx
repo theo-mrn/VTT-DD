@@ -119,13 +119,13 @@ export function ItemIcon({
   icone,
   image,
   className,
-}: {
+}: Readonly<{
   sorte: FormeSorte;
   /** Icône choisie par la présentation ; absente : celle de la sorte. */
   icone?: LucideIcon | undefined;
   image?: string | undefined;
   className?: string;
-}) {
+}>) {
   const Icone = icone ?? iconeSorte(sorte);
   if (image)
     return (
@@ -140,7 +140,10 @@ export function ItemIcon({
 }
 
 /** Titre de section d'un panneau (« Bonus », « Formules »). */
-export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
+export function SectionTitle({
+  children,
+  action,
+}: Readonly<{ children: ReactNode; action?: ReactNode }>) {
   return (
     <div className="mb-2 flex min-h-7 items-center justify-between gap-2">
       <h3 className="text-[11px] font-medium uppercase tracking-wider text-subtle">{children}</h3>

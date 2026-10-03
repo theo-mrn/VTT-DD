@@ -33,11 +33,11 @@ function CardLabel({
   tone,
   icon: Icon,
   children,
-}: {
+}: Readonly<{
   tone: Tone;
   icon: LucideIcon;
   children: ReactNode;
-}) {
+}>) {
   return (
     <span
       className={cn(
@@ -59,14 +59,14 @@ export function TargetsDialog({
   cast,
   sheets,
   onPick,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   ids: readonly string[];
   cast: ReadonlyMap<string, CastMember>;
   sheets: ReadonlyMap<string, ParticipantSheet>;
   onPick(characterId: string): void;
-}) {
+}>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -125,13 +125,13 @@ export function SlotPickCard({
   cast,
   busy,
   onChoose,
-}: {
+}: Readonly<{
   side: CampaignSide;
   candidates: readonly { characterId: string; acted: boolean }[];
   cast: ReadonlyMap<string, CastMember>;
   busy: boolean;
   onChoose(characterId: string, force: boolean): void;
-}) {
+}>) {
   return (
     <div
       className={cn(

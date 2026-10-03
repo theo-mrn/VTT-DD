@@ -88,7 +88,7 @@ export async function detectSceneGrid(engine: MapEngine): Promise<boolean> {
   return true;
 }
 
-export function GridScaleAssistant({ engine }: { engine: MapEngine }) {
+export function GridScaleAssistant({ engine }: Readonly<{ engine: MapEngine }>) {
   const scene = useMapState((s) => s.scene);
   const url = (scene?.backgroundUrl as string | null | undefined) ?? null;
   const width = (scene?.width as number | null | undefined) ?? null;

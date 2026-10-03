@@ -160,7 +160,10 @@ export function SelectionPanel() {
  * Personnage d'un token (MJ, ou le sien) : sa ressource principale modifiable sur place, et ses
  * stats à modifier (la fiche ouverte sur ses valeurs).
  */
-function CharacterQuick({ engine, characterId }: { engine: MapEngine; characterId: string }) {
+function CharacterQuick({
+  engine,
+  characterId,
+}: Readonly<{ engine: MapEngine; characterId: string }>) {
   const tokens = useTokens(engine);
   const info = useCharacterInfo(tokens, characterId);
   const viewer = engine.viewer;
@@ -204,13 +207,13 @@ function ActionRow({
   item,
   depth,
   emphasis = false,
-}: {
+}: Readonly<{
   engine: MapEngine;
   item: MenuItem;
   depth: number;
   /** Action principale de la sorte : mise en avant sobre (icône d'accent, texte appuyé). */
   emphasis?: boolean;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   if (isSeparator(item)) return <li aria-hidden className="my-1.5 h-px bg-border" />;
   if (isHeading(item))
@@ -284,7 +287,7 @@ function ActionRow({
 }
 
 /** Réglages de l'inspecteur, repliés par défaut. */
-function Settings({ children, forced }: { children: React.ReactNode; forced: boolean }) {
+function Settings({ children, forced }: Readonly<{ children: React.ReactNode; forced: boolean }>) {
   const [open, setOpen] = useState(forced);
   useEffect(() => {
     if (forced) setOpen(true);

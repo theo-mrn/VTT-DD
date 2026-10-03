@@ -8,11 +8,11 @@ export function CadrePublic({
   titre,
   description,
   children,
-}: {
+}: Readonly<{
   titre: string;
   description?: ReactNode;
   children: ReactNode;
-}) {
+}>) {
   return (
     <CadreAuth>
       <div className="w-full max-w-[400px] space-y-6">

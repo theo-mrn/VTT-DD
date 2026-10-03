@@ -46,7 +46,7 @@ const iconButton = cn(
 );
 
 /** Petit libellé au-dessus d'un nom, comme les libellés du bandeau de la fiche. */
-function Kicker({ children, className }: { children: ReactNode; className?: string }) {
+function Kicker({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <p className={cn('text-[11px] font-medium uppercase tracking-wider', className)}>{children}</p>
   );
@@ -68,7 +68,7 @@ export function VersusHeader({
   onAim,
   bar,
   promptAttacker = false,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   attackerId: string | null;
   attackerName: string | null;
@@ -88,7 +88,7 @@ export function VersusHeader({
   bar: ReactNode;
   /** Aucun attaquant choisi, ni proposé : la liste s'ouvre d'elle-même. */
   promptAttacker?: boolean;
-}) {
+}>) {
   const known = attackerId ? ctx.known.get(attackerId) : undefined;
   const attackerPortrait = portraitUrl ?? known?.portraitUrl ?? null;
   const firstTarget = targetIds[0] ? ctx.known.get(targetIds[0]) : undefined;
@@ -160,7 +160,7 @@ function AttackerSide({
   editable,
   onAttacker,
   promptAttacker,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   attackerId: string | null;
   name: string | null;
@@ -169,7 +169,7 @@ function AttackerSide({
   editable: boolean;
   onAttacker: (id: string) => void;
   promptAttacker: boolean;
-}) {
+}>) {
   const known = attackerId ? ctx.known.get(attackerId) : undefined;
   const label = name ?? known?.name ?? (attackerId ? 'Personnage' : 'Qui attaque ?');
   const choosable = editable && (ctx.attackers.length > 1 || !attackerId);
@@ -268,12 +268,12 @@ function AttackerSwitch({
   attackerId,
   prompt,
   onAttacker,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   attackerId: string | null;
   prompt: boolean;
   onAttacker: (id: string) => void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   // Personne n'attaque encore (MJ sans PNJ qui agit) : la liste s'ouvre d'elle-même
   useEffect(() => {
@@ -344,7 +344,7 @@ function TargetsSide({
   onToggle,
   onRemove,
   onAim,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   attackerId: string | null;
   targetIds: readonly string[];
@@ -354,7 +354,7 @@ function TargetsSide({
   onToggle: (id: string) => void;
   onRemove: (id: string) => void;
   onAim: () => void;
-}) {
+}>) {
   const n = targetIds.length;
   const shown = targetIds.slice(0, n > MAX_PORTRAITS ? MAX_PORTRAITS - 1 : MAX_PORTRAITS);
   const rest = n - shown.length;
@@ -474,14 +474,14 @@ function TargetPortrait({
   z,
   editable,
   onRemove,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   id: string;
   self: boolean;
   z: number;
   editable: boolean;
   onRemove: () => void;
-}) {
+}>) {
   const c = ctx.known.get(id);
   const name = targetName(id, ctx.known);
   const defeated = ctx.combat?.order.find((p) => p.characterId === id)?.defeated;
@@ -526,7 +526,7 @@ function TargetPicker({
   canAim,
   onToggle,
   onAim,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   attackerId: string | null;
   targetIds: readonly string[];
@@ -534,7 +534,7 @@ function TargetPicker({
   canAim: boolean;
   onToggle: (id: string) => void;
   onAim: () => void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const groups = targetGroups(ctx.roster, ctx.combat);
   const item = (c: RosterCharacter) => {

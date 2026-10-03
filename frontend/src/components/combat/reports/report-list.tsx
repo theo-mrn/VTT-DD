@@ -43,7 +43,7 @@ export function ReportsSection({
   onDecide,
   onReview,
   onOpenCharacter,
-}: {
+}: Readonly<{
   campaignId: string;
   combat: CombatState | null;
   data: ReportsData;
@@ -58,7 +58,7 @@ export function ReportsSection({
   onDecide(attackId: string): void;
   onReview(): void;
   onOpenCharacter(characterId: string): void;
-}) {
+}>) {
   const { progress } = data;
   const nameOf = (id: string) => cast.get(id)?.name ?? 'Personnage';
   const characters = [

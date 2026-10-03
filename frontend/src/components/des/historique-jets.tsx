@@ -42,14 +42,14 @@ export function HistoriqueJets({
   erreur,
   onRelancer,
   plusAnciens,
-}: {
+}: Readonly<{
   jets: Jet[];
   chargement: boolean;
   erreur: unknown;
   onRelancer: (jet: Jet) => void;
   /** Pages suivantes du service, une fois les jets chargés tous affichés. */
   plusAnciens?: PlusAnciens;
-}) {
+}>) {
   const maintenant = useMaintenant();
   const [limite, setLimite] = useState(PAR_PAGE);
   const [joueur, setJoueur] = useState<string | null>(null);
@@ -164,7 +164,7 @@ export function HistoriqueJets({
   );
 }
 
-function Avatar({ nom, url }: { nom: string; url: string | null }) {
+function Avatar({ nom, url }: Readonly<{ nom: string; url: string | null }>) {
   if (url)
     // eslint-disable-next-line @next/next/no-img-element
     return (
@@ -180,7 +180,11 @@ function Avatar({ nom, url }: { nom: string; url: string | null }) {
   );
 }
 
-function CarteJet({ jet, quand, onRelancer }: { jet: Jet; quand: string; onRelancer: () => void }) {
+function CarteJet({
+  jet,
+  quand,
+  onRelancer,
+}: Readonly<{ jet: Jet; quand: string; onRelancer: () => void }>) {
   const vis = infoVisibilite(jet.visibility);
   const cache = jet.hidden || jet.total === null;
   return (
@@ -266,13 +270,13 @@ export function EffacerHistorique({
   campagne,
   desactive,
   onEfface,
-}: {
+}: Readonly<{
   roomId: string | null;
   /** Nom de la campagne vidée, ou null pour les jets personnels. */
   campagne: string | null;
   desactive: boolean;
   onEfface: () => void;
-}) {
+}>) {
   const [ouvert, setOuvert] = useState(false);
   const effacer = useEffacerJets(roomId);
 

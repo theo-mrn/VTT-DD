@@ -32,7 +32,7 @@ export interface BadgeProps
   point?: boolean;
 }
 
-function Badge({ className, ton, taille, point, children, ...props }: BadgeProps) {
+function Badge({ className, ton, taille, point, children, ...props }: Readonly<BadgeProps>) {
   return (
     <span className={cn(badgeVariants({ ton, taille }), className)} {...props}>
       {point && <span className="size-1.5 rounded-full bg-current" aria-hidden />}

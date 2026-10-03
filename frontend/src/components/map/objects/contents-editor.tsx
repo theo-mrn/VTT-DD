@@ -30,11 +30,11 @@ import { FieldLabel } from './fields';
 export function ContentsEditor({
   items,
   onChange,
-}: {
+}: Readonly<{
   items: readonly MapObjectItem[];
   /** Nouvelle liste et libellé de la commande (« Ajouter un contenu »…). */
   onChange(items: MapObjectItem[], label: string): void;
-}) {
+}>) {
   const entries = useCatalogueEntries();
   const [freeOpen, setFreeOpen] = useState(false);
   const full = items.length >= ITEMS_MAX;
@@ -168,10 +168,10 @@ export function ContentsEditor({
 function FreeItemForm({
   onAdd,
   onCancel,
-}: {
+}: Readonly<{
   onAdd(input: { name: string; quantity: number; description: string }): void;
   onCancel(): void;
-}) {
+}>) {
   const id = useId();
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');

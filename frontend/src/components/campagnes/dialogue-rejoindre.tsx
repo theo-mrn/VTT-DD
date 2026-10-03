@@ -38,13 +38,13 @@ export function DialogueRejoindre({
   onOuvert,
   codeInitial = '',
   ongletInitial = 'code',
-}: {
+}: Readonly<{
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
   /** Code reçu par lien d'invitation (?code=). */
   codeInitial?: string;
   ongletInitial?: Onglet;
-}) {
+}>) {
   const router = useRouter();
   const [code, setCode] = useState(codeInitial.toUpperCase().slice(0, LONGUEUR_CODE));
   const [onglet, setOnglet] = useState<Onglet>(codeInitial ? 'code' : ongletInitial);

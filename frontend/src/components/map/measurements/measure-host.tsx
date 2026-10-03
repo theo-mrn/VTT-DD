@@ -20,13 +20,13 @@ import { labelAnchor } from '@/lib/map/modules/measurements/render';
 import type { LocalMeasure, MeasureModule } from '@/lib/map/modules/measurements/context';
 import { trackOverlay, type OverlaySizes } from '../overlay-tracker';
 
-export function MeasureHost({ engine }: { engine: MapEngine }) {
+export function MeasureHost({ engine }: Readonly<{ engine: MapEngine }>) {
   const ctx = measureModuleOf(engine);
   if (!ctx) return null;
   return <PinBar ctx={ctx} />;
 }
 
-function PinBar({ ctx }: { ctx: MeasureModule }) {
+function PinBar({ ctx }: Readonly<{ ctx: MeasureModule }>) {
   const { engine } = ctx;
   const recent = useStore(ctx.local, (s) => (s.measure?.phase === 'recent' ? s.measure : null));
   const ref = useRef<HTMLDivElement>(null);
@@ -77,7 +77,7 @@ function PinBar({ ctx }: { ctx: MeasureModule }) {
 }
 
 /** « Attaquer la zone (n) » (docs/combat.md § 12.1) : les personnages vus dans la forme. */
-function AttackZone({ ctx, spec }: { ctx: MeasureModule; spec: LocalMeasure['spec'] }) {
+function AttackZone({ ctx, spec }: Readonly<{ ctx: MeasureModule; spec: LocalMeasure['spec'] }>) {
   const { engine } = ctx;
   if (spec.shape === 'line' || engine.viewer.role === 'spectator') return null;
   const targets = charactersOf(tokensInZone(engine, spec));

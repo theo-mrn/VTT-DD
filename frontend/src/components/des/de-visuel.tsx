@@ -54,7 +54,7 @@ export function DeVisuel({
   entree = false,
   delai = 0,
   className,
-}: {
+}: Readonly<{
   faces: number;
   valeur?: number | null;
   etat?: EtatDe;
@@ -63,7 +63,7 @@ export function DeVisuel({
   entree?: boolean;
   delai?: number;
   className?: string;
-}) {
+}>) {
   const { d, lignes } = forme(faces);
   const [affiche, setAffiche] = useState<number | null | undefined>(roulement ? null : valeur);
 

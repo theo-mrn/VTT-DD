@@ -34,12 +34,12 @@ export function CampagnesOuvertes({
   onRejointe,
   compacte = false,
   className,
-}: {
+}: Readonly<{
   onRejointe?: (c: DetailCampagne) => void | Promise<void>;
   /** Deux colonnes et cartes basses (dialogue, onboarding). */
   compacte?: boolean;
   className?: string;
-}) {
+}>) {
   const router = useRouter();
   const [saisie, setSaisie] = useState('');
   const [recherche, setRecherche] = useState('');
@@ -158,13 +158,13 @@ function CarteOuverte({
   enCours,
   bloque,
   onRejoindre,
-}: {
+}: Readonly<{
   campagne: Campagne;
   compacte: boolean;
   enCours: boolean;
   bloque: boolean;
   onRejoindre: () => void;
-}) {
+}>) {
   const nomSysteme = useNomSysteme(c.system);
   const membre = c.role !== null;
   return (

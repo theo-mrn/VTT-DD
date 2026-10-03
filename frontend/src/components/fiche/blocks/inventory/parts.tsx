@@ -18,12 +18,12 @@ export function Thumbnail({
   image,
   sorte,
   className,
-}: {
+}: Readonly<{
   nom?: string;
   image?: string | undefined;
   sorte?: Pick<Sorte, 'champs' | 'activable' | 'quantites'>;
   className?: string;
-}) {
+}>) {
   const Icone = sorte ? iconeSorte(sorte) : Package;
   return (
     <span
@@ -47,11 +47,11 @@ export function BonusBadges({
   bonus,
   max,
   taille = 'sm',
-}: {
+}: Readonly<{
   bonus: BonusLabel[];
   max?: number;
   taille?: 'sm' | 'md';
-}) {
+}>) {
   if (!bonus.length) return null;
   const montres = max === undefined ? bonus : bonus.slice(0, max);
   const reste = bonus.length - montres.length;

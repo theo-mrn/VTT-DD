@@ -18,7 +18,7 @@ import {
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import { useMapEngine, useMapUi } from './engine-context';
 
-export function EntityPicker({ hostRef }: { hostRef: RefObject<HTMLElement | null> }) {
+export function EntityPicker({ hostRef }: Readonly<{ hostRef: RefObject<HTMLElement | null> }>) {
   const engine = useMapEngine();
   const picker = useMapUi((s) => s.picker);
   const entities = useMemo(
@@ -91,11 +91,11 @@ function PickerItem({
   entity,
   onHover,
   onChoose,
-}: {
+}: Readonly<{
   entity: MapEntity;
   onHover: () => void;
   onChoose: () => void;
-}) {
+}>) {
   const engine = useMapEngine();
   const name = entity.kind.name?.(entity.data, engine.kindContext()) ?? entity.kind.label;
   const thumbnail = entity.kind.thumbnail?.(entity.data) ?? null;

@@ -61,7 +61,10 @@ export const HudCombat = memo(function HudCombat({ table }: { table: Table }) {
 });
 
 /** Barre du MJ et pile de rapports : l'état des rapports est partagé (pastille, repli). */
-function GmCombat({ campagne, combat }: { campagne: DetailCampagne; combat: CombatState | null }) {
+function GmCombat({
+  campagne,
+  combat,
+}: Readonly<{ campagne: DetailCampagne; combat: CombatState | null }>) {
   const live = useLiveReports(campagne);
   useHudPrefsHydration();
   // La barre peut être rangée (bouton de la barre du groupe) ; les rapports restent. Un combat

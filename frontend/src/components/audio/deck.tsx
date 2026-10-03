@@ -51,11 +51,11 @@ export function Deck({
   campaignId,
   channel,
   gm,
-}: {
+}: Readonly<{
   campaignId: string;
   channel: ChannelName;
   gm: boolean;
-}) {
+}>) {
   const c = useChannel(campaignId, channel);
   const s = c.state;
   // Panneau gardé monté mais masqué : la position cesse de se rafraîchir
@@ -293,11 +293,11 @@ function DeckTime({
   channel,
   dragging,
   active,
-}: {
+}: Readonly<{
   channel: ChannelName;
   dragging: number | null;
   active: boolean;
-}) {
+}>) {
   const position = useChannelPosition(channel, 1_000, active && dragging === null);
   return <>{formatTime(dragging ?? position)}</>;
 }
@@ -310,14 +310,14 @@ function DeckSeek({
   active,
   onDrag,
   onSeek,
-}: {
+}: Readonly<{
   channel: ChannelName;
   duration: number;
   dragging: number | null;
   active: boolean;
   onDrag: (v: number) => void;
   onSeek: (v: number) => void;
-}) {
+}>) {
   const position = useChannelPosition(channel, 1_000, active && dragging === null);
   return (
     <Slider
@@ -334,7 +334,7 @@ function DeckSeek({
 }
 
 /** Barre des joueurs : échelle horizontale écrite à chaque image, sans rendu React. */
-function DeckProgress({ channel, active }: { channel: ChannelName; active: boolean }) {
+function DeckProgress({ channel, active }: Readonly<{ channel: ChannelName; active: boolean }>) {
   const bar = useRef<HTMLDivElement>(null);
   useChannelProgress(channel, bar, active);
   return (

@@ -123,11 +123,11 @@ function BubbleComposer({
   active,
   onSend,
   onClear,
-}: {
+}: Readonly<{
   active: boolean;
   onSend: (type: Mode, content: string, ms: number) => void;
   onClear: () => void;
-}) {
+}>) {
   const [mode, setMode] = useState<Mode>('emoji');
   const [seconds, setSeconds] = useState(BUBBLE_DURATION_DEFAULT_MS / 1000);
   const ms = seconds * 1000;
@@ -186,12 +186,12 @@ function ModeTab({
   label,
   on,
   onClick,
-}: {
+}: Readonly<{
   icon: typeof Smile;
   label: string;
   on: boolean;
   onClick: () => void;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -211,7 +211,10 @@ function ModeTab({
   );
 }
 
-function DurationMenu({ seconds, onChange }: { seconds: number; onChange: (s: number) => void }) {
+function DurationMenu({
+  seconds,
+  onChange,
+}: Readonly<{ seconds: number; onChange: (s: number) => void }>) {
   return (
     <DropdownMenu>
       <Info texte="Durée de la bulle">
@@ -378,7 +381,10 @@ const EmojiPane = memo(function EmojiPane({
   );
 });
 
-function TextPane({ onSend, active }: { onSend: (text: string) => void; active: boolean }) {
+function TextPane({
+  onSend,
+  active,
+}: Readonly<{ onSend: (text: string) => void; active: boolean }>) {
   const [text, setText] = useState('');
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {

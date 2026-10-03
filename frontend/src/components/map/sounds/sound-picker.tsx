@@ -46,12 +46,12 @@ export function SoundPicker({
   value,
   onChange,
   className,
-}: {
+}: Readonly<{
   campaignId: string;
   value: string | null;
   onChange(asset: Asset): void;
   className?: string;
-}) {
+}>) {
   const library = useAudioLibrary(campaignId);
   const preview = usePreview();
   const [open, setOpen] = useState(false);
@@ -105,12 +105,12 @@ function SoundLibraryDialog({
   value,
   onOpenChange,
   onPick,
-}: {
+}: Readonly<{
   library: Library;
   value: string | null;
   onOpenChange(open: boolean): void;
   onPick(asset: Asset): void;
-}) {
+}>) {
   const { campagne } = useTable();
   const preview = usePreview();
   const [source, setSource] = useState<Source>('mine');
@@ -171,7 +171,7 @@ function PickRow({
   chosen,
   busy,
   onPick,
-}: {
+}: Readonly<{
   name: string;
   meta: string;
   kind: AssetKind;
@@ -180,7 +180,7 @@ function PickRow({
   chosen: boolean;
   busy?: boolean;
   onPick(): void;
-}) {
+}>) {
   const Icon = KIND_ICONS[kind];
   return (
     <li
@@ -282,12 +282,12 @@ function MineList({
   preview,
   value,
   onPick,
-}: {
+}: Readonly<{
   library: Library;
   preview: Preview;
   value: string | null;
   onPick(a: Asset): void;
-}) {
+}>) {
   const { campagne } = useTable();
   const catalog = useAudioCatalog(campagne.system);
   const [query, setQuery] = useState('');
@@ -354,13 +354,13 @@ function CatalogList({
   preview,
   value,
   onPick,
-}: {
+}: Readonly<{
   systemId: string;
   library: Library;
   preview: Preview;
   value: string | null;
   onPick(a: Asset): void;
-}) {
+}>) {
   const catalog = useAudioCatalog(systemId);
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState<string | null>(null);

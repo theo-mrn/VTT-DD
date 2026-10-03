@@ -45,7 +45,7 @@ const NO_GRIDS: readonly MapGrid[] = [];
  * Dans la barre : l'interrupteur (tous, sur son écran, Q) et, pour le MJ, les réglages à côté.
  * Un joueur sans quadrillage montré n'a rien ; un MJ sans quadrillage n'a que les réglages.
  */
-export function GridControls({ engine }: { engine: MapEngine }) {
+export function GridControls({ engine }: Readonly<{ engine: MapEngine }>) {
   const gm = engine.viewer.role === 'gm';
   const grids = useMapState((s) => (s.scene?.grids as MapGrid[] | undefined) ?? NO_GRIDS);
   const mine = gm ? grids : grids.filter((g) => g.visibleToPlayers);
@@ -85,12 +85,12 @@ function GridSettings({
   engine,
   grids,
   compact,
-}: {
+}: Readonly<{
   engine: MapEngine;
   grids: readonly MapGrid[];
   /** À côté de l'interrupteur : un chevron ; seul (aucun quadrillage) : l'icône du quadrillage. */
   compact: boolean;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const save = (label: string, next: MapGrid[]) => void saveGrids(engine, label, next);
   const add = () => {
@@ -166,13 +166,13 @@ function GridCard({
   onChange,
   onRemove,
   onCalibrate,
-}: {
+}: Readonly<{
   engine: MapEngine;
   grid: MapGrid;
   onChange: (label: string, patch: Partial<Omit<MapGrid, 'id'>>) => void;
   onRemove: () => void;
   onCalibrate: () => void;
-}) {
+}>) {
   const settings = calibrateSettings(engine);
   const cells = useStore(settings, (s) => s.cells);
   const unit = engine.kindContext().unitName;
@@ -333,7 +333,11 @@ function GridCard({
   );
 }
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function Row({
+  label,
+  hint,
+  children,
+}: Readonly<{ label: string; hint?: string; children: ReactNode }>) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-[13px]">
@@ -350,11 +354,11 @@ function TextField({
   label,
   value,
   onCommit,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   onCommit: (v: string) => void;
-}) {
+}>) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   const commit = () => {
@@ -384,13 +388,13 @@ function NumberField({
   min,
   max,
   onCommit,
-}: {
+}: Readonly<{
   label: string;
   value: number;
   min: number;
   max: number;
   onCommit: (v: number) => void;
-}) {
+}>) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
   const commit = () => {
@@ -427,7 +431,7 @@ function SliderRow({
   step,
   format,
   onCommit,
-}: {
+}: Readonly<{
   label: string;
   value: number;
   min: number;
@@ -435,7 +439,7 @@ function SliderRow({
   step: number;
   format: (v: number) => string;
   onCommit: (v: number) => void;
-}) {
+}>) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   return (

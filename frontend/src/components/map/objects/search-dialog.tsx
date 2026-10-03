@@ -29,10 +29,10 @@ import { useCatalogueEntries } from './catalogue-picker';
 export function SearchDialog({
   engine,
   controller,
-}: {
+}: Readonly<{
   engine: MapEngine;
   controller: SearchController;
-}) {
+}>) {
   const s = useStore(controller.state);
   const object = useMapState((st) =>
     s.objectId
@@ -159,12 +159,12 @@ function ItemRow({
   busy,
   disabled,
   onTake,
-}: {
+}: Readonly<{
   item: MapObjectItem;
   busy: boolean;
   disabled: boolean;
   onTake(quantity: number): void;
-}) {
+}>) {
   const entries = useCatalogueEntries();
   const [quantity, setQuantity] = useState(1);
   const q = Math.min(quantity, item.quantity);

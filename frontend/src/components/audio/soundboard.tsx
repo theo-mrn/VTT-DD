@@ -25,14 +25,14 @@ export function Soundboard({
   library,
   cues,
   onAdd,
-}: {
+}: Readonly<{
   board: Board;
   /** Tous les sons de la bibliothèque. */
   library: Asset[];
   cues: Cues;
   /** Ouvre « Ajouter un effet ». */
   onAdd: () => void;
-}) {
+}>) {
   const [editing, setEditing] = useState(false);
   const byId = useMemo(() => new Map(library.map((a) => [a.id, a])), [library]);
   const sounds = board.assetIds.map((id) => byId.get(id)).filter((a): a is Asset => !!a);

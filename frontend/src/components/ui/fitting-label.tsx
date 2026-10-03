@@ -11,12 +11,12 @@ export function FittingLabel({
   long,
   short,
   className,
-}: {
+}: Readonly<{
   long: string;
   /** Forme courte ; absente ou identique : le nom entier, tronqué s'il déborde. */
   short?: string | undefined;
   className?: string;
-}) {
+}>) {
   const box = useRef<HTMLSpanElement>(null);
   const measure = useRef<HTMLSpanElement>(null);
   const [tight, setTight] = useState(false);

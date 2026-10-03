@@ -32,7 +32,7 @@ import { FieldRow, OptionButton, RangeField, Swatches } from '../obstacles/contr
 import { PortalGlyph } from './portal-glyph';
 import { SceneDestination } from './scene-destination';
 
-export function PortalInspector({ engine, entities }: InspectorSectionProps) {
+export function PortalInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = portalModuleOf(engine);
   const id = useId();
   const first = entities[0]?.data as PortalData | undefined;
@@ -177,7 +177,7 @@ function Destination({
   portals,
   patch,
   placeReturn,
-}: {
+}: Readonly<{
   engine: InspectorSectionProps['engine'];
   portal: PortalData;
   scenes: Parameters<typeof SceneDestination>[0]['scenes'];
@@ -185,7 +185,7 @@ function Destination({
   portals: ReadonlyMap<string, unknown> | undefined;
   patch(label: string, fn: (p: PortalData) => Partial<PortalData>): void;
   placeReturn(): void;
-}) {
+}>) {
   const [mode, setMode] = useState<'here' | 'scene'>(
     portal.kind === 'scene_change' ? 'scene' : 'here',
   );

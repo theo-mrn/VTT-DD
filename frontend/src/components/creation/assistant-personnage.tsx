@@ -84,10 +84,10 @@ function adresseAbsolue(url: string | null): string | null {
 export function AssistantPersonnage({
   campagneId,
   personnageId = null,
-}: {
+}: Readonly<{
   campagneId: string;
   personnageId?: string | null;
-}) {
+}>) {
   const router = useRouter();
   const profil = useProfil();
   const campagne = useCampagne(campagneId);
@@ -582,7 +582,7 @@ function titreEtape(e: EtapeUI): string {
   }
 }
 
-function PastilleStatut({ statut }: { statut: StatutEtape }) {
+function PastilleStatut({ statut }: Readonly<{ statut: StatutEtape }>) {
   if (statut === 'faite')
     return (
       <span className="flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -595,9 +595,9 @@ function PastilleStatut({ statut }: { statut: StatutEtape }) {
 
 function RaisonsEtape({
   statut,
-}: {
+}: Readonly<{
   statut: { statut: StatutEtape; raisons: string[] } | undefined;
-}) {
+}>) {
   if (!statut || statut.statut === 'faite' || statut.raisons.length === 0) return null;
   return (
     <div className="mt-6">
@@ -613,12 +613,12 @@ function Identite({
   setNom,
   details,
   setDetails,
-}: {
+}: Readonly<{
   nom: string;
   setNom: (v: string) => void;
   details: DetailsPersonnage;
   setDetails: (d: DetailsPersonnage) => void;
-}) {
+}>) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -679,11 +679,11 @@ function Recapitulatif({
   statuts,
   identiteOk,
   details,
-}: {
+}: Readonly<{
   statuts: { nom: string; statut: StatutEtape; raisons: string[] }[];
   identiteOk: boolean;
   details: DetailsPersonnage;
-}) {
+}>) {
   const restantes = statuts.filter((s) => s.statut !== 'faite');
   return (
     <div className="space-y-5">

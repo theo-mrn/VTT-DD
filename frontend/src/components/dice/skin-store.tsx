@@ -101,10 +101,10 @@ const CATALOGUE = Object.values(DICE_SKINS).sort((a, b) => rarete(b).ordre - rar
 export default function SkinStore({
   open,
   onOpenChange,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
+}>) {
   const prefs = useDicePreferences();
   const modifier = useUpdateDicePreferences();
   const [onglet, setOnglet] = useState<Onglet>('catalogue');
@@ -356,7 +356,7 @@ function BoutonAction({
   onEquiper,
   onAcheter,
   grand = false,
-}: {
+}: Readonly<{
   skin: DiceSkin;
   possede: boolean;
   equipe: boolean;
@@ -364,7 +364,7 @@ function BoutonAction({
   onEquiper: () => void;
   onAcheter: () => void;
   grand?: boolean;
-}) {
+}>) {
   if (possede)
     return (
       <Button
@@ -413,7 +413,7 @@ function Carte({
   onOuvrir,
   onEquiper,
   onAcheter,
-}: {
+}: Readonly<{
   skin: DiceSkin;
   possede: boolean;
   equipe: boolean;
@@ -421,7 +421,7 @@ function Carte({
   onOuvrir: () => void;
   onEquiper: () => void;
   onAcheter: () => void;
-}) {
+}>) {
   const r = rarete(skin);
   return (
     <div
@@ -477,14 +477,14 @@ function Detail({
   onRetour,
   onEquiper,
   onAcheter,
-}: {
+}: Readonly<{
   skin: DiceSkin;
   prefs: DicePreferences;
   equipement: boolean;
   onRetour: () => void;
   onEquiper: () => void;
   onAcheter: () => void;
-}) {
+}>) {
   const r = rarete(skin);
   const possede = ownsSkin(prefs, skin.id);
   return (
@@ -540,7 +540,7 @@ function Detail({
 }
 
 /** Abonnement : paiement reporté, boutons désactivés. */
-function Premium({ tousLesDes }: { tousLesDes: boolean }) {
+function Premium({ tousLesDes }: Readonly<{ tousLesDes: boolean }>) {
   const avantages = [
     { Icone: Dice5, texte: 'Tous les dés 3D animés débloqués' },
     { Icone: Package, texte: 'Les futurs dés inclus' },

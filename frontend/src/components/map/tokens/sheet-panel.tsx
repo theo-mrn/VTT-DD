@@ -11,7 +11,7 @@ import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { useCharacterInfo, useLibrary, useTokens } from './use-tokens';
 import { MapPanel } from '../map-panel';
 
-export function TokenSheetPanel({ engine }: { engine: MapEngine }) {
+export function TokenSheetPanel({ engine }: Readonly<{ engine: MapEngine }>) {
   const tokens = useTokens(engine);
   const characterId = useLibrary(tokens, (s) => s.sheetFor);
   const values = useLibrary(tokens, (s) => s.sheetValues === true);

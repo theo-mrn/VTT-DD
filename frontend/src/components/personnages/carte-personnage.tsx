@@ -17,7 +17,7 @@ export function CartePersonnage({
   className,
   onClick,
   choisie,
-}: {
+}: Readonly<{
   personnage: Pick<Personnage, 'id' | 'name' | 'portraitUrl' | 'summary'>;
   href?: string;
   /** Badges en haut à gauche (système, campagne…). */
@@ -27,7 +27,7 @@ export function CartePersonnage({
   className?: string;
   onClick?: () => void;
   choisie?: boolean;
-}) {
+}>) {
   const contenu = (
     <Illustration
       largeur={320}

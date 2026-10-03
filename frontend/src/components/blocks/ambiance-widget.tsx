@@ -34,7 +34,7 @@ type ActiveSource =
   | { kind: 'library'; name: string }
   | null;
 
-export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
+export function AmbiancePlayerCard({ delay = 0 }: Readonly<{ delay?: number }>) {
   const [creationType, setCreationType] = React.useState<'file' | 'youtube'>('file');
   const [youtubeInput, setYoutubeInput] = React.useState('');
   const [isPlaying, setIsPlaying] = React.useState(false);

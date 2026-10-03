@@ -39,14 +39,14 @@ export function ReglagesForm({
   actif,
   onTermine,
   pied,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   actif: boolean;
   /** Après l'enregistrement, ou à l'annulation (absent : pas de bouton Annuler). */
   onTermine?: () => void;
   /** Classes de la barre d'actions (collante en bas dans la page de la table). */
   pied?: string;
-}) {
+}>) {
   const modifier = useModifierCampagne(c.id);
   const reglages = useCampaignSettings(c.id);
   const modifierReglages = useUpdateCampaignSettings(c.id);
@@ -309,11 +309,11 @@ export function ReglagesCampagne({
   campagne: c,
   ouvert,
   onOuvert,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
-}) {
+}>) {
   const [vue, setVue] = useState<'campagne' | 'stockage'>('campagne');
   return (
     <Dialog open={ouvert} onOpenChange={onOuvert}>

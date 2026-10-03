@@ -30,7 +30,7 @@ export function BestiaryTab({
   presentation,
   campaignId,
   reference,
-}: {
+}: Readonly<{
   systemId: string;
   systeme: SystemeCharge;
   presentation: Presentation | null;
@@ -38,7 +38,7 @@ export function BestiaryTab({
   campaignId: string | null;
   /** Le système a un bestiaire de référence. */
   reference: boolean;
-}) {
+}>) {
   const templates = useNpcTemplates(campaignId, campaignId !== null);
   const creatures = useSystemBestiary(systemId, reference);
   const [source, setSource] = useState<Source>(campaignId ? 'campaign' : 'system');
@@ -211,7 +211,7 @@ export function BestiaryTab({
   );
 }
 
-function CreatureCard({ item, onOpen }: { item: BestiaryItem; onOpen(): void }) {
+function CreatureCard({ item, onOpen }: Readonly<{ item: BestiaryItem; onOpen(): void }>) {
   const cles = item.stats[0]?.items.slice(0, 3) ?? [];
   return (
     <button
@@ -251,7 +251,7 @@ function CreatureCard({ item, onOpen }: { item: BestiaryItem; onOpen(): void }) 
 }
 
 /** Fiche d'une créature : en-tête, statistiques par groupe, description, actions. */
-function CreatureSheet({ item }: { item: BestiaryItem }) {
+function CreatureSheet({ item }: Readonly<{ item: BestiaryItem }>) {
   return (
     <article className="flex flex-col">
       <header className="flex gap-4 border-b border-border p-5 pr-12">

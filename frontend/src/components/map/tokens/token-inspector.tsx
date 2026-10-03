@@ -61,7 +61,7 @@ const SIDE_TONE = { players: 'primaire', allies: 'succes', enemies: 'danger' } a
 
 // ─── Personnage ──────────────────────────────────────────────────────────────
 
-export function TokenCharacterSection({ engine, entities }: InspectorSectionProps) {
+export function TokenCharacterSection({ engine, entities }: Readonly<InspectorSectionProps>) {
   const tokens = useTokens(engine);
   const token = asTokens(entities)[0]!.data;
   const info = useCharacterInfo(tokens, token.characterId);
@@ -99,7 +99,7 @@ export function TokenCharacterSection({ engine, entities }: InspectorSectionProp
   );
 }
 
-function Gauge({ resource: r }: { resource: ResourceGauge }) {
+function Gauge({ resource: r }: Readonly<{ resource: ResourceGauge }>) {
   const part = r.max > 0 ? Math.max(0, Math.min(1, r.value / r.max)) : 0;
   return (
     <div>
@@ -136,11 +136,11 @@ function Field({
   label,
   htmlFor,
   children,
-}: {
+}: Readonly<{
   label: string;
   htmlFor?: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={htmlFor} className="text-xs text-muted-foreground">
@@ -151,7 +151,7 @@ function Field({
   );
 }
 
-export function TokenSettingsSection({ engine, entities }: InspectorSectionProps) {
+export function TokenSettingsSection({ engine, entities }: Readonly<InspectorSectionProps>) {
   const tokens = useTokens(engine);
   const list = asTokens(entities).filter((e) => !e.data.draft);
   const gm = engine.viewer.role === 'gm';
@@ -196,7 +196,7 @@ interface FieldProps {
   entities: readonly TokenEntity[];
 }
 
-function VisibilityField({ tokens, entities: es }: FieldProps) {
+function VisibilityField({ tokens, entities: es }: Readonly<FieldProps>) {
   const id = useId();
   const value = common(es, (d) => d.visibility);
   return (
@@ -231,7 +231,7 @@ function VisibilityField({ tokens, entities: es }: FieldProps) {
   );
 }
 
-function VisionField({ tokens, entities: es }: FieldProps) {
+function VisionField({ tokens, entities: es }: Readonly<FieldProps>) {
   const { engine } = tokens;
   const ctx = engine.kindContext();
   const unit = ctx.unitName;
@@ -267,7 +267,7 @@ function VisionField({ tokens, entities: es }: FieldProps) {
   );
 }
 
-function SizeField({ tokens, entities: es }: FieldProps) {
+function SizeField({ tokens, entities: es }: Readonly<FieldProps>) {
   const scale = common(es, (d) => d.scale);
   const [draft, setDraft] = useState<number | null>(null);
   const commit = (v: number) => {
@@ -295,7 +295,7 @@ function SizeField({ tokens, entities: es }: FieldProps) {
   );
 }
 
-function ShapeField({ tokens, entities: es }: FieldProps) {
+function ShapeField({ tokens, entities: es }: Readonly<FieldProps>) {
   const shape = common(es, (d) => d.shape);
   const set = (s: MapTokenShape) =>
     void patchTokens(tokens, es, 'Forme', (d) => (d.shape === s ? d : { ...d, shape: s }));
@@ -330,7 +330,7 @@ function ShapeField({ tokens, entities: es }: FieldProps) {
   );
 }
 
-function ImageField({ tokens, entity }: { tokens: TokensState; entity: TokenEntity }) {
+function ImageField({ tokens, entity }: Readonly<{ tokens: TokensState; entity: TokenEntity }>) {
   const { engine } = tokens;
   const id = useId();
   const file = useRef<HTMLInputElement>(null);
@@ -423,13 +423,13 @@ function NumberBox({
   min,
   step,
   onCommit,
-}: {
+}: Readonly<{
   label: string;
   value: number | null;
   min: number;
   step: number;
   onCommit(v: number): void;
-}) {
+}>) {
   const [text, setText] = useState(value === null ? '' : String(value));
   useEffect(() => setText(value === null ? '' : String(value)), [value]);
   const commit = () => {

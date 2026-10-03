@@ -122,7 +122,7 @@ const compte = (gs: GroupeSource[]) => ({
   total: gs.reduce((n, g) => n + g.lignes.length, 0),
 });
 
-function EffectsBlock({ ctx, widget, mode }: SheetBlockProps<'bonus'>) {
+function EffectsBlock({ ctx, widget, mode }: Readonly<SheetBlockProps<'bonus'>>) {
   const { fiche } = ctx;
   const operations = mode === 'read' ? ctx.operations : undefined;
   const [ajout, setAjout] = useState(false);
@@ -331,7 +331,7 @@ function Source({
   onActiver,
   onBonus,
   onRetirer,
-}: {
+}: Readonly<{
   g: GroupeSource;
   ouvert: boolean;
   onDeplier: () => void;
@@ -342,7 +342,7 @@ function Source({
   onActiver: ((entree: string, actif: boolean) => void) | undefined;
   onBonus: (b: BonusLibre) => void;
   onRetirer: (b: BonusLibre) => void;
-}) {
+}>) {
   const b = g.bonus;
   const act = g.activation;
   const eteinte = g.raison !== null;
@@ -479,11 +479,11 @@ function AjoutBonus({
   ctx,
   ouvert,
   onOuvert,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
-}) {
+}>) {
   const { fiche, operations } = ctx;
   const groupes = useMemo(
     () =>

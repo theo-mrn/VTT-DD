@@ -34,7 +34,7 @@ export function CharacterChoice({
   onToggle,
   all,
   disabled,
-}: CharacterChoiceProps) {
+}: Readonly<CharacterChoiceProps>) {
   const engine = useMapEngine();
   const characters = engine.directory.characters();
   if (!characters.length)

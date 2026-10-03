@@ -23,10 +23,10 @@ import type { KeyStat } from './use-cast';
 export function SituationChips({
   chips,
   className,
-}: {
+}: Readonly<{
   chips: readonly SituationChip[];
   className?: string;
-}) {
+}>) {
   if (!chips.length) return null;
   return (
     <span className={cn('inline-flex flex-wrap gap-1', className)}>
@@ -48,12 +48,12 @@ export function GaugeBar({
   color,
   rising,
   className,
-}: {
+}: Readonly<{
   ratio: number;
   color: string | null;
   rising: boolean;
   className?: string;
-}) {
+}>) {
   const part = Math.max(0, Math.min(1, ratio));
   // Sans couleur déclarée : une jauge qui se vide rougit en bas, une qui se remplit en haut
   const danger = rising ? part >= 0.75 : part <= 0.25;
@@ -71,7 +71,10 @@ export function GaugeBar({
 }
 
 /** Ressource principale : libellé, valeur / max, jauge. */
-export function Gauge({ gauge, className }: { gauge: ResourceGauge; className?: string }) {
+export function Gauge({
+  gauge,
+  className,
+}: Readonly<{ gauge: ResourceGauge; className?: string }>) {
   const ratio = gauge.max > 0 ? gauge.value / gauge.max : 0;
   return (
     <span
@@ -93,10 +96,10 @@ export function Gauge({ gauge, className }: { gauge: ResourceGauge; className?: 
 export function KeyStats({
   stats,
   size = 'sm',
-}: {
+}: Readonly<{
   stats: readonly KeyStat[];
   size?: 'sm' | 'md';
-}) {
+}>) {
   if (!stats.length) return null;
   return (
     <dl className="flex items-stretch divide-x divide-border">
@@ -141,11 +144,11 @@ export function ResourcesPopover({
   characterId,
   name,
   className,
-}: {
+}: Readonly<{
   characterId: string;
   name: string;
   className?: string;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -168,7 +171,7 @@ export function ResourcesPopover({
   );
 }
 
-function ResourcesBody({ characterId, name }: { characterId: string; name: string }) {
+function ResourcesBody({ characterId, name }: Readonly<{ characterId: string; name: string }>) {
   const { ctx, perso } = useFicheCalculee(characterId);
   const bloc = ctx ? widgetsDe(ctx).find((w) => w.type === 'ressources') : undefined;
   return (

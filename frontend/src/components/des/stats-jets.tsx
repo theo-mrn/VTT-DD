@@ -21,11 +21,11 @@ export function StatsJets({
   stats,
   chargement,
   erreur,
-}: {
+}: Readonly<{
   stats: Statistiques | null;
   chargement: boolean;
   erreur: unknown;
-}) {
+}>) {
   if (chargement)
     return (
       <div className="space-y-5 p-4" aria-label="Chargement des statistiques">
@@ -127,12 +127,12 @@ function TuileStat({
   valeur,
   icone,
   children,
-}: {
+}: Readonly<{
   libelle: string;
   valeur: string;
   icone?: ReactNode;
   children: ReactNode;
-}) {
+}>) {
   return (
     <div className="rounded-xl border border-border bg-surface-2/50 p-3">
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -153,7 +153,10 @@ function TuileStat({
  * survol (ou le toucher) détaille une face ; un tableau caché sert les
  * lecteurs d'écran.
  */
-function RepartitionD20({ repartition, total }: { repartition: number[]; total: number }) {
+function RepartitionD20({
+  repartition,
+  total,
+}: Readonly<{ repartition: number[]; total: number }>) {
   const [survol, setSurvol] = useState<number | null>(null);
   const attendu = total / 20;
   const plafond = Math.max(...repartition, attendu) * 1.1;
@@ -255,7 +258,7 @@ function RepartitionD20({ repartition, total }: { repartition: number[]; total: 
 }
 
 /** Où tombe la moyenne des d20 entre 1 et 20, face à 10,5. */
-function JaugeChance({ moyenne, total }: { moyenne: number; total: number }) {
+function JaugeChance({ moyenne, total }: Readonly<{ moyenne: number; total: number }>) {
   const position = (v: number) => `${((v - 1) / 19) * 100}%`;
   const ecart = moyenne - MOYENNE_ATTENDUE;
   // Sous une vingtaine de dés, l'écart n'a pas de sens : on le dit plutôt que d'en tirer un verdict

@@ -39,7 +39,7 @@ import { TableRail } from './rail/table-rail';
  * Contrôle d'accès : un non-membre retourne à la page de la campagne ; un joueur sans héros
  * choisit d'abord le sien.
  */
-export function TableScene({ id, children }: { id: string; children: ReactNode }) {
+export function TableScene({ id, children }: Readonly<{ id: string; children: ReactNode }>) {
   const profil = useProfilRequis();
   const router = useRouter();
   const campagne = useCampagne(profil ? id : null);
@@ -127,11 +127,11 @@ function HerosTable({
   campaignId,
   herosId,
   children,
-}: {
+}: Readonly<{
   campaignId: string;
   herosId: string | null;
   children: ReactNode;
-}) {
+}>) {
   const engages = usePersonnagesCampagne(campaignId);
   const heros = useMemo(
     () => engages.data?.find((p) => p.id === herosId) ?? null,

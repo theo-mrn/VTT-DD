@@ -84,7 +84,7 @@ export function DocumentsPanel() {
 
 // ─── Vignettes ───────────────────────────────────────────────────────────────
 
-function Vignette({ h, className }: { h: Handout; className?: string }) {
+function Vignette({ h, className }: Readonly<{ h: Handout; className?: string }>) {
   return (
     <div className={cn('relative grid place-items-center overflow-hidden bg-surface-2', className)}>
       {isVideo(h.contentType) ? (
@@ -106,7 +106,7 @@ function Vignette({ h, className }: { h: Handout; className?: string }) {
 }
 
 /** Document agrandi (joueur, historique) : image entière, vidéo avec ses commandes. */
-function Agrandi({ doc, onClose }: { doc: Handout | null; onClose: () => void }) {
+function Agrandi({ doc, onClose }: Readonly<{ doc: Handout | null; onClose: () => void }>) {
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-5xl p-3 sm:p-4">
@@ -131,7 +131,7 @@ function Agrandi({ doc, onClose }: { doc: Handout | null; onClose: () => void })
 
 // ─── Joueur : documents reçus ────────────────────────────────────────────────
 
-function Recus({ campaignId }: { campaignId: string }) {
+function Recus({ campaignId }: Readonly<{ campaignId: string }>) {
   const docs = useDocuments(campaignId);
   const [ouvert, setOuvert] = useState<Handout | null>(null);
   // Un document partagé plusieurs fois (projeté puis renvoyé…) n'apparaît qu'une fois, à la date
@@ -181,7 +181,7 @@ function Recus({ campaignId }: { campaignId: string }) {
 
 // ─── MJ : bibliothèque ───────────────────────────────────────────────────────
 
-function Bibliotheque({ campaignId }: { campaignId: string }) {
+function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
   const { campagne } = useTable();
   const library = useHandoutLibrary(campaignId, true);
   const input = useRef<HTMLInputElement>(null);
@@ -299,11 +299,11 @@ function Destinataires({
   joueurs,
   value,
   onChange,
-}: {
+}: Readonly<{
   joueurs: { userId: string; name: string | null }[];
   value: string[] | null;
   onChange: (v: string[] | null) => void;
-}) {
+}>) {
   const nom = (id: string) => joueurs.find((j) => j.userId === id)?.name ?? 'Joueur';
   const libelle = !value
     ? 'Toute la table'
@@ -358,13 +358,13 @@ function Document({
   onShow,
   onSend,
   onChanged,
-}: {
+}: Readonly<{
   h: Handout;
   campaignId: string;
   onShow: () => void;
   onSend: () => void;
   onChanged: () => void;
-}) {
+}>) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const valider = () => {
     const name = renaming?.trim();
@@ -444,7 +444,7 @@ function Document({
 
 // ─── MJ : historique des partages ────────────────────────────────────────────
 
-function Partages({ campaignId }: { campaignId: string }) {
+function Partages({ campaignId }: Readonly<{ campaignId: string }>) {
   const { campagne } = useTable();
   const docs = useDocuments(campaignId);
   const [ouvert, setOuvert] = useState<Handout | null>(null);

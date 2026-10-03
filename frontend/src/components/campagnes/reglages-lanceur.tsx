@@ -26,13 +26,13 @@ export function ReglagesLanceur({
   hidden,
   onChange,
   loading,
-}: {
+}: Readonly<{
   systemId: string;
   /** Clés retirées du lanceur. */
   hidden: readonly string[];
   onChange: (hidden: string[]) => void;
   loading?: boolean;
-}) {
+}>) {
   const systeme = useSysteme(systemId);
   const groups = useMemo(
     () =>

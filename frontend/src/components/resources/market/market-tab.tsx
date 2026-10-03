@@ -31,12 +31,12 @@ export function MarketTab({
   systeme,
   presentation,
   target,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   presentation: Presentation | null;
   /** Inventaire où ranger un objet (table, droit d'écriture) ; absent : catalogue seul. */
   target: InventoryTarget | null;
-}) {
+}>) {
   const sections = useMemo(() => buildMarket(systeme, presentation), [systeme, presentation]);
   const textes = useMemo(() => {
     const ids = presentation?.references.marche?.textes ?? [];
@@ -207,13 +207,13 @@ function MarketTable({
   titled,
   target,
   onOpen,
-}: {
+}: Readonly<{
   section: MarketSection;
   rows: MarketRow[];
   titled: boolean;
   target: InventoryTarget | null;
   onOpen(id: string): void;
-}) {
+}>) {
   const prix = priceLabel(section);
   return (
     <section aria-label={section.title}>
@@ -301,11 +301,11 @@ function AddButton({
   target,
   entry,
   large = false,
-}: {
+}: Readonly<{
   target: InventoryTarget;
   entry: Entree;
   large?: boolean;
-}) {
+}>) {
   const [envoi, setEnvoi] = useState(false);
   const refus = target.blocked(entry);
   const bouton = (

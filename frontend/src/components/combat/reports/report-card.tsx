@@ -222,7 +222,7 @@ export function ReportCard({
   onDecide,
   onOpenCharacter,
   onFilter,
-}: ReportCardProps) {
+}: Readonly<ReportCardProps>) {
   const actions = useAttackActions(campaignId, attack);
   const { busy, conflict } = actions;
   const [details, setDetails] = useState(false);
@@ -635,12 +635,12 @@ function PersonChip({
   portrait,
   onClick,
   strong,
-}: {
+}: Readonly<{
   name: string;
   portrait: string | null;
   onClick(): void;
   strong?: boolean;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -672,12 +672,12 @@ function NumberBox({
   value,
   sub,
   tone,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   sub?: string;
   tone?: 'success' | 'danger';
-}) {
+}>) {
   return (
     <div className="rounded-xl border border-border bg-background/50 px-2.5 py-1.5 text-center">
       <p className="truncate text-[10px] font-bold uppercase tracking-wider text-subtle">{label}</p>
@@ -731,13 +731,13 @@ function RollDetails({
   systeme,
   presentation,
   explanations,
-}: {
+}: Readonly<{
   attack: Attack;
   target: AttackTarget;
   systeme: SystemeCharge | null;
   presentation: Presentation | null;
   explanations: readonly string[];
-}) {
+}>) {
   const roll = t.result?.roll ?? t.view?.roll ?? null;
   return (
     <div className="mx-3 ml-4 mt-2 space-y-2 rounded-xl border border-border bg-background/40 p-2.5">
@@ -822,7 +822,7 @@ function CardMenu({
   onDecide,
   onOpenCharacter,
   onFilter,
-}: {
+}: Readonly<{
   attack: Attack;
   target: AttackTarget;
   attackerName: string;
@@ -835,7 +835,7 @@ function CardMenu({
   onDecide(): void;
   onOpenCharacter(id: string): void;
   onFilter(id: string): void;
-}) {
+}>) {
   return (
     <DropdownMenu onOpenChange={(open) => !open && setConfirmDismiss(false)}>
       <DropdownMenuTrigger asChild>
@@ -922,12 +922,12 @@ export function ActorCostCard({
   attack,
   systeme,
   cast,
-}: {
+}: Readonly<{
   campaignId: string;
   attack: Attack;
   systeme: SystemeCharge | null;
   cast: ReadonlyMap<string, CastMember>;
-}) {
+}>) {
   const actions = useAttackActions(campaignId, attack);
   const attacker = cast.get(attack.attackerId);
   const actor = attack.actor;

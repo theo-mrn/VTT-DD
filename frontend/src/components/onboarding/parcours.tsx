@@ -158,11 +158,11 @@ function TitreEtape({
   surtitre,
   titre,
   description,
-}: {
+}: Readonly<{
   surtitre: string;
   titre: ReactNode;
   description?: ReactNode;
-}) {
+}>) {
   return (
     <div className="mb-8 space-y-2">
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-primary">{surtitre}</p>
@@ -176,7 +176,7 @@ function TitreEtape({
 
 // ─── Étape 0 : bienvenue ─────────────────────────────────────────────────────
 
-function EtapeBienvenue({ nom, onCommencer }: { nom: string; onCommencer: () => void }) {
+function EtapeBienvenue({ nom, onCommencer }: Readonly<{ nom: string; onCommencer: () => void }>) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
       <motion.div
@@ -218,12 +218,12 @@ function EtapeProfil({
   setNom,
   bio,
   setBio,
-}: {
+}: Readonly<{
   nom: string;
   setNom: (v: string) => void;
   bio: string;
   setBio: (v: string) => void;
-}) {
+}>) {
   const profil = useProfil();
   const avatar = useEnvoiImage('avatar');
 
@@ -304,10 +304,10 @@ function EtapeProfil({
 function EtapeDepart({
   envoi,
   onTerminer,
-}: {
+}: Readonly<{
   envoi: boolean;
   onTerminer: (destination: string) => Promise<void>;
-}) {
+}>) {
   const router = useRouter();
   const [code, setCode] = useState('');
   const [ouvertes, setOuvertes] = useState(false);

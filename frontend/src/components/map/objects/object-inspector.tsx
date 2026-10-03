@@ -58,12 +58,15 @@ const KINDS: readonly { value: MapObjectKind; label: string }[] = [
 const tri = (values: boolean[]): boolean | 'mixed' =>
   values.every(Boolean) ? true : values.some(Boolean) ? 'mixed' : false;
 
-export function ObjectInspector({ engine, entities }: InspectorSectionProps) {
+export function ObjectInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   if (entities.length === 1) return <SingleObject engine={engine} entity={entities[0]!} />;
   return <ManyObjects engine={engine} entities={entities} />;
 }
 
-function SizeButtons({ engine, entities }: { engine: MapEngine; entities: readonly MapEntity[] }) {
+function SizeButtons({
+  engine,
+  entities,
+}: Readonly<{ engine: MapEngine; entities: readonly MapEntity[] }>) {
   const locked = entities.every((e) => e.state.locked);
   return (
     <div className="flex gap-1.5">
@@ -100,7 +103,10 @@ function SizeButtons({ engine, entities }: { engine: MapEngine; entities: readon
   );
 }
 
-function ManyObjects({ engine, entities }: { engine: MapEngine; entities: readonly MapEntity[] }) {
+function ManyObjects({
+  engine,
+  entities,
+}: Readonly<{ engine: MapEngine; entities: readonly MapEntity[] }>) {
   const data = entities.map((e) => e.data as ObjectData);
   const kinds = new Set(data.map((o) => o.kind));
   return (
@@ -139,7 +145,7 @@ function ManyObjects({ engine, entities }: { engine: MapEngine; entities: readon
   );
 }
 
-function SingleObject({ engine, entity }: { engine: MapEngine; entity: MapEntity }) {
+function SingleObject({ engine, entity }: Readonly<{ engine: MapEngine; entity: MapEntity }>) {
   const o = entity.data as ObjectData;
   const unit = useMapState((s) => unitNameOf(s.settings));
   const ppu = engine.kindContext().pixelsPerUnit;
@@ -289,7 +295,7 @@ function SingleObject({ engine, entity }: { engine: MapEngine; entity: MapEntity
 }
 
 /** Image de l'objet : aperçu, remplacer (envoi), retirer (zone à fouiller). */
-function ImageField({ engine, entity }: { engine: MapEngine; entity: MapEntity }) {
+function ImageField({ engine, entity }: Readonly<{ engine: MapEngine; entity: MapEntity }>) {
   const o = entity.data as ObjectData;
   const [busy, setBusy] = useState(false);
   const campaignId = engine.store.getState().campaignId;
@@ -349,7 +355,7 @@ function ImageField({ engine, entity }: { engine: MapEngine; entity: MapEntity }
 }
 
 /** « Visible pour… » : tous les joueurs, ou certains personnages seulement. */
-function VisibleFor({ engine, entity }: { engine: MapEngine; entity: MapEntity }) {
+function VisibleFor({ engine, entity }: Readonly<{ engine: MapEngine; entity: MapEntity }>) {
   const o = entity.data as ObjectData;
   const restricted = o.visibility === 'custom';
   const chosen = new Set(restricted ? (o.visibleTo ?? []) : []);

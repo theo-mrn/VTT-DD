@@ -130,7 +130,7 @@ function BentoVideoCard({
   span,
   compact,
   delay,
-}: BentoVideoCardProps) {
+}: Readonly<BentoVideoCardProps>) {
   // Lecture seulement à l'écran et onglet visible
   const videoRef = useVisibleVideo();
   return (
@@ -205,7 +205,7 @@ interface MiniFeatureCardProps {
   delay: number;
 }
 
-function MiniFeatureCard({ icon, title, description, delay }: MiniFeatureCardProps) {
+function MiniFeatureCard({ icon, title, description, delay }: Readonly<MiniFeatureCardProps>) {
   return (
     <motion.div
       className="glass-card glass-card-hover relative rounded-2xl p-6 flex flex-col"

@@ -13,7 +13,7 @@ export function DesDuJet({
   roulement = false,
   entree = false,
   max = 24,
-}: {
+}: Readonly<{
   groupes: GroupeDes[];
   taille?: 'xs' | 'sm' | 'md' | 'lg';
   /** Valeurs qui défilent avant de se poser (résultat déjà tiré). */
@@ -22,7 +22,7 @@ export function DesDuJet({
   entree?: boolean;
   /** Au-delà, les dés sont résumés (« +12 »). */
   max?: number;
-}) {
+}>) {
   const seulD20 =
     groupes.filter((g) => g.faces === 20).flatMap((g) => g.dice.filter((d) => d.kept)).length === 1;
   const tous = groupes.flatMap((g, i) => g.dice.map((d, j) => ({ g, d, cle: `${i}-${j}` })));
@@ -58,7 +58,7 @@ export function TotalJet({
   cle,
   symboles = null,
   sansBadge = false,
-}: {
+}: Readonly<{
   total: number | null;
   critique: Critique;
   taille?: 'md' | 'lg' | 'xl';
@@ -67,7 +67,7 @@ export function TotalJet({
   symboles?: string | null;
   /** Pas de pastille « Critique » : l'issue est dite ailleurs (menu d'attaque). */
   sansBadge?: boolean;
-}) {
+}>) {
   if (total === null)
     return (
       <div className="flex items-center gap-2.5 text-muted-foreground">

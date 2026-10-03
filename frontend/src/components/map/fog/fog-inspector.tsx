@@ -16,7 +16,7 @@ const SHAPES: Record<FogZoneData['shape'], string> = {
   polygon: 'Main levée',
 };
 
-export function FogInspector({ engine, entities }: InspectorSectionProps) {
+export function FogInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = fogContextOf(engine);
   if (!ctx || !entities.length) return null;
   const zones = entities.map((e) => e.data as FogZoneData);

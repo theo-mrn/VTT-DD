@@ -26,11 +26,11 @@ export function Stagger({
   index,
   children,
   className,
-}: {
+}: Readonly<{
   index: number;
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   const reduced = useReducedMotion();
   return (
     <motion.div
@@ -45,7 +45,10 @@ export function Stagger({
 }
 
 /** Pastille de raccourci (souris et clavier seulement). */
-function ShortcutKbd({ children, className }: { children: ReactNode; className?: string }) {
+function ShortcutKbd({
+  children,
+  className,
+}: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <Kbd aria-hidden className={cn('[@media(pointer:coarse)]:hidden', className)}>
       {children}
@@ -153,7 +156,7 @@ export function SourceCard({
   shortcut,
   disabled,
   onClick,
-}: {
+}: Readonly<{
   icon: LucideIcon;
   name: string;
   /** Précision sous le nom (« Toujours disponible », « Catalogue »). */
@@ -164,7 +167,7 @@ export function SourceCard({
   shortcut?: number | null;
   disabled?: boolean | undefined;
   onClick: () => void;
-}) {
+}>) {
   const formula = fields.find((f) => f.formula);
   const rest = fields.filter((f) => f !== formula);
   return (

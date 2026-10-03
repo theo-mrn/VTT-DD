@@ -27,7 +27,7 @@ import { Chips, Notice, Thumb, Toolbar } from '../parts';
 const PAGE = 60;
 const TOUTES = '';
 
-export function ImagesTab({ presentation }: { presentation: Presentation | null }) {
+export function ImagesTab({ presentation }: Readonly<{ presentation: Presentation | null }>) {
   const collections = presentation?.references.images?.collections ?? [];
   const assets = useAssets();
   const [index, setIndex] = useState(0);

@@ -7,12 +7,12 @@ export function Page({
   children,
   className,
   large = false,
-}: {
+}: Readonly<{
   children: ReactNode;
   className?: string;
   /** Pleine largeur utile (tableaux de bord, grilles). */
   large?: boolean;
-}) {
+}>) {
   return (
     <div
       className={cn(
@@ -33,13 +33,13 @@ export function EnTetePage({
   description,
   actions,
   className,
-}: {
+}: Readonly<{
   surtitre?: ReactNode;
   titre: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     <header
       className={cn(
@@ -69,12 +69,12 @@ export function TitreSection({
   action,
   compte,
   className,
-}: {
+}: Readonly<{
   children: ReactNode;
   action?: ReactNode;
   compte?: number;
   className?: string;
-}) {
+}>) {
   return (
     <div className={cn('mb-3 flex items-center justify-between gap-3', className)}>
       <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -98,7 +98,7 @@ export function Panneau({
   description,
   action,
   corps = true,
-}: {
+}: Readonly<{
   children: ReactNode;
   className?: string;
   titre?: ReactNode;
@@ -106,7 +106,7 @@ export function Panneau({
   action?: ReactNode;
   /** Faux : pas de marge intérieure (listes, tableaux bord à bord). */
   corps?: boolean;
-}) {
+}>) {
   return (
     <section className={cn('rounded-2xl border border-border bg-card shadow-surface', className)}>
       {(titre || action) && (
@@ -130,13 +130,13 @@ export function EtatVide({
   description,
   action,
   className,
-}: {
+}: Readonly<{
   icone: LucideIcon;
   titre: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     <div
       className={cn(

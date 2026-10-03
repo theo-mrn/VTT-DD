@@ -53,7 +53,7 @@ function automatic(engine: MapEngine) {
   void saveGrids(engine, 'Échelle automatique', next);
 }
 
-export function ScaleMenu({ engine }: { engine: MapEngine }) {
+export function ScaleMenu({ engine }: Readonly<{ engine: MapEngine }>) {
   const grids = useMapState((s) => (s.scene?.grids as MapGrid[] | undefined) ?? NO_GRIDS);
   const hasBackground = useMapState((s) => Boolean(s.scene?.backgroundUrl));
   const campaignId = useMapState((s) => s.campaignId);

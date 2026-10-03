@@ -37,7 +37,7 @@ export function OptionButton({
   onClick,
   children,
   className,
-}: {
+}: Readonly<{
   label: string;
   shortcut?: string;
   active?: boolean;
@@ -45,7 +45,7 @@ export function OptionButton({
   onClick?(): void;
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     <Info
       texte={
@@ -81,11 +81,11 @@ export function TargetMenu({
   engine,
   value,
   onChange,
-}: {
+}: Readonly<{
   engine: MapEngine;
   value: DrawTarget;
   onChange(target: DrawTarget): void;
-}) {
+}>) {
   // Relu quand les calques ou le calque actif changent
   useMapState((s) => s.collections.layers);
   useMapUi((s) => s.activeLayerId);
@@ -149,7 +149,7 @@ export function RangeSetting({
   disabled,
   onChange,
   onCommit,
-}: {
+}: Readonly<{
   label: string;
   value: number;
   min: number;
@@ -161,7 +161,7 @@ export function RangeSetting({
   disabled?: boolean;
   onChange(v: number): void;
   onCommit?(v: number): void;
-}) {
+}>) {
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between">

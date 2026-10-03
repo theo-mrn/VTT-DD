@@ -39,7 +39,7 @@ export function ArrangementPopover({
   addable = [],
   onAdd,
   onRemove,
-}: {
+}: Readonly<{
   title: string;
   /** Valeurs du bloc, dans l'ordre du système. */
   tiles: Tile[];
@@ -51,7 +51,7 @@ export function ArrangementPopover({
   onAdd?: ((key: string) => void) | undefined;
   /** Retire une valeur du bloc (il en garde au moins une). */
   onRemove?: ((key: string) => void) | undefined;
-}) {
+}>) {
   const keys = tiles.map((t) => t.key);
   const parCle = new Map(tiles.map((t) => [t.key, t]));
   const ordre = orderedKeys(keys, value);

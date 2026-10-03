@@ -4,7 +4,7 @@
 import { BlocMonnaies } from '../../widgets';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
 
-function CurrenciesBlock({ ctx, widget }: SheetBlockProps<'monnaies'>) {
+function CurrenciesBlock({ ctx, widget }: Readonly<SheetBlockProps<'monnaies'>>) {
   return <BlocMonnaies ctx={ctx} widget={widget} />;
 }
 

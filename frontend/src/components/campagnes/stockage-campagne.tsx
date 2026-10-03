@@ -53,7 +53,7 @@ function ownerOf(key: string): { kind: 'character' | 'sound'; id: string } | nul
   return null;
 }
 
-export function StockageCampagne({ campaignId }: { campaignId: string }) {
+export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }>) {
   const client = useQueryClient();
   const q = useQuery({
     queryKey: cle(campaignId),
@@ -274,14 +274,14 @@ function Fichier({
   ecoute,
   onEcoute,
   onSupprimer,
-}: {
+}: Readonly<{
   fichier: StorageFile;
   nom: string | null;
   usedBy: string[];
   ecoute: boolean;
   onEcoute: () => void;
   onSupprimer: () => Promise<void>;
-}) {
+}>) {
   const [confirmer, setConfirmer] = useState(false);
   const [busy, setBusy] = useState(false);
   // Second clic attendu dans les 3 s, sinon la demande retombe
@@ -371,10 +371,10 @@ function Fichier({
 export function OngletsReglages({
   vue,
   onVue,
-}: {
+}: Readonly<{
   vue: 'campagne' | 'stockage';
   onVue: (v: 'campagne' | 'stockage') => void;
-}) {
+}>) {
   return (
     <Tabs value={vue} onValueChange={(v) => onVue(v as 'campagne' | 'stockage')}>
       <TabsList>

@@ -83,14 +83,14 @@ export function AddSoundDialog({
   library,
   board,
   onOpenChange,
-}: {
+}: Readonly<{
   /** null : fenêtre fermée. */
   target: SoundTarget | null;
   systemId: string;
   library: Library;
   board: Board;
   onOpenChange: (open: boolean) => void;
-}) {
+}>) {
   const [source, setSource] = useState<Source>('file');
   const open = target !== null;
   const fermer = (o: boolean) => {
@@ -168,12 +168,12 @@ export function FileSource({
   library,
   ranger,
   onDone,
-}: {
+}: Readonly<{
   target: SoundTarget;
   library: Library;
   ranger: (a: Asset) => Promise<void>;
   onDone: () => void;
-}) {
+}>) {
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
@@ -286,12 +286,12 @@ function YoutubeSource({
   library,
   ranger,
   onDone,
-}: {
+}: Readonly<{
   target: SoundTarget;
   library: Library;
   ranger: (a: Asset) => Promise<void>;
   onDone: () => void;
-}) {
+}>) {
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -352,7 +352,7 @@ function ChoiceRow({
   done,
   busy,
   onAdd,
-}: {
+}: Readonly<{
   name: string;
   meta?: string;
   previewing: boolean;
@@ -360,7 +360,7 @@ function ChoiceRow({
   done: boolean;
   busy: boolean;
   onAdd: () => void;
-}) {
+}>) {
   return (
     <li className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-surface-2">
       <Button
@@ -397,13 +397,13 @@ function CatalogSource({
   library,
   board,
   ranger,
-}: {
+}: Readonly<{
   target: SoundTarget;
   systemId: string;
   library: Library;
   board: Board;
   ranger: (a: Asset) => Promise<void>;
-}) {
+}>) {
   const catalog = useAudioCatalog(systemId);
   const preview = usePreview();
   const [query, setQuery] = useState('');
@@ -520,12 +520,12 @@ function MineSource({
   library,
   board,
   ranger,
-}: {
+}: Readonly<{
   target: SoundTarget;
   library: Library;
   board: Board;
   ranger: (a: Asset) => Promise<void>;
-}) {
+}>) {
   const preview = usePreview();
   const [query, setQuery] = useState('');
   const [where, setWhere] = useState<Where>('all');

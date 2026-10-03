@@ -40,7 +40,7 @@ export function StepDamage({
   fiche,
   launching,
   onLaunch,
-}: {
+}: Readonly<{
   attack: Attack;
   /** Paramètres que l'étape demande. */
   stepParams: readonly string[];
@@ -50,7 +50,7 @@ export function StepDamage({
   fiche: Fiche;
   launching: boolean;
   onLaunch: (params: Record<string, Valeur>) => void;
-}) {
+}>) {
   const action = systeme.actions.get(attack.action.id) as Action | undefined;
   const params = useMemo(
     () =>
@@ -173,7 +173,7 @@ export function StepDamage({
 }
 
 /** Le jet d'attaque en une ligne, comme « Dernier jet » du lanceur. */
-function RecapLine({ summary: s, name }: { summary: TargetSummary; name: string }) {
+function RecapLine({ summary: s, name }: Readonly<{ summary: TargetSummary; name: string }>) {
   const style = s.outcome ? OUTCOME_STYLE[s.outcome.tone] : null;
   const fig = s.figure;
   return (

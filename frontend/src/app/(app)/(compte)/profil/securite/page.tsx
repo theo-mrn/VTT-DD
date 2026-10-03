@@ -150,7 +150,7 @@ function CarteMotDePasse() {
 }
 
 /** Compte créé via Google / Discord : un mot de passe se définit par le lien de réinitialisation. */
-function CarteSansMotDePasse({ profil }: { profil: Profil }) {
+function CarteSansMotDePasse({ profil }: Readonly<{ profil: Profil }>) {
   const [etat, setEtat] = useState<'repos' | 'envoi' | 'envoye'>('repos');
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -196,7 +196,7 @@ function CarteSansMotDePasse({ profil }: { profil: Profil }) {
   );
 }
 
-function CarteComptesLies({ profil }: { profil: Profil }) {
+function CarteComptesLies({ profil }: Readonly<{ profil: Profil }>) {
   return (
     <Carte titre="Comptes liés" description="Services avec lesquels vous pouvez vous connecter.">
       <ul className="space-y-2 text-sm">
@@ -213,7 +213,7 @@ function CarteComptesLies({ profil }: { profil: Profil }) {
   );
 }
 
-function LigneConnexion({ label, actif }: { label: string; actif: boolean }) {
+function LigneConnexion({ label, actif }: Readonly<{ label: string; actif: boolean }>) {
   return (
     <li className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
       <span className="text-foreground">{label}</span>
@@ -390,7 +390,7 @@ function CarteSessions() {
 
 const MOT_CONFIRMATION = 'SUPPRIMER';
 
-function CarteSuppression({ profil }: { profil: Profil }) {
+function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
   const { oublierSession } = useSession();
   const [ouvert, setOuvert] = useState(false);
   const [confirmation, setConfirmation] = useState('');

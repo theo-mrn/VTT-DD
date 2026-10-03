@@ -14,7 +14,7 @@ import type { ObjectData } from '@/lib/map/modules/objects/types';
 import { useMapState } from '../engine-context';
 import { unitNameOf } from '@/lib/map/store/map-store';
 
-export function PlayerSearchSection({ engine, entities }: InspectorSectionProps) {
+export function PlayerSearchSection({ engine, entities }: Readonly<InspectorSectionProps>) {
   const entity = entities[0]!;
   const o = entity.data as ObjectData;
   const tokens = useMapState((s) => s.collections.tokens);

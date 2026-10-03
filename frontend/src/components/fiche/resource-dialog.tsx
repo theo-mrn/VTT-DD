@@ -39,7 +39,7 @@ export function ResourceDialog({
   Icone,
   onAjuster,
   children,
-}: {
+}: Readonly<{
   nom: string;
   valeur: number;
   min?: number | undefined;
@@ -49,7 +49,7 @@ export function ResourceDialog({
   onAjuster: (delta: number) => void;
   /** Déclencheur (la valeur affichée sur la fiche). */
   children: ReactNode;
-}) {
+}>) {
   const [ouvert, setOuvert] = useState(false);
   const [mode, setMode] = useState<Mode>('retirer');
   const [texte, setTexte] = useState('');

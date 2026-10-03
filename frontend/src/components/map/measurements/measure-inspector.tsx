@@ -29,12 +29,12 @@ function NumberField({
   value,
   suffix,
   onCommit,
-}: {
+}: Readonly<{
   id: string;
   value: number;
   suffix: string;
   onCommit(v: number): void;
-}) {
+}>) {
   const shown = String(round(value)).replace('.', ',');
   const [text, setText] = useState(shown);
   useEffect(() => setText(shown), [shown]);
@@ -61,7 +61,7 @@ function NumberField({
   );
 }
 
-export function MeasureInspector({ engine, entities }: InspectorSectionProps) {
+export function MeasureInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = measureModuleOf(engine);
   const id = useId();
   const first = entities[0]?.data as MeasurementData | undefined;

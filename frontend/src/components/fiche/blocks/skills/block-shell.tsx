@@ -15,7 +15,7 @@ export function BlockShell({
   children,
   className,
   bodyClassName,
-}: {
+}: Readonly<{
   title: ReactNode;
   count?: number;
   actions?: ReactNode;
@@ -23,7 +23,7 @@ export function BlockShell({
   children: ReactNode;
   className?: string;
   bodyClassName?: string;
-}) {
+}>) {
   return (
     <section
       className={cn(

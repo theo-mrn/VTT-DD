@@ -70,7 +70,7 @@ import { ReglagesCampagne } from './reglages-campagne';
 import { PanneauReglesOptionnelles } from './reglages-regles';
 
 /** Salon d'une campagne : présentation, table (joueurs et héros), invitation, sessions. */
-export function SalonCampagne({ id }: { id: string }) {
+export function SalonCampagne({ id }: Readonly<{ id: string }>) {
   const profil = useProfil();
   const campagne = useCampagne(id);
   const personnages = usePersonnagesCampagne(id);
@@ -132,7 +132,7 @@ export function SalonCampagne({ id }: { id: string }) {
 }
 
 /** Invitations nominatives en attente (MJ) : l'invité voit l'invitation et rejoint sans code. */
-function InvitationsEnAttente({ campagne: c }: { campagne: DetailCampagne }) {
+function InvitationsEnAttente({ campagne: c }: Readonly<{ campagne: DetailCampagne }>) {
   const annuler = useAnnulerInvitation(c.id);
   return (
     <Panneau titre="Invitations en attente" corps={false}>
@@ -172,11 +172,11 @@ function Banniere({
   campagne: c,
   role,
   monPerso,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   role: Membre['role'] | null;
   monPerso: Personnage | null;
-}) {
+}>) {
   const profil = useProfil();
   const nomSysteme = useNomSysteme(c.system);
   const [reglages, setReglages] = useState(false);
@@ -299,11 +299,11 @@ function DialogueSortie({
   campagne,
   mode,
   onFerme,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   mode: 'supprimer' | 'quitter' | null;
   onFerme: () => void;
-}) {
+}>) {
   const router = useRouter();
   const profil = useProfil();
   const sortir = useSortirCampagne(campagne.id, profil.id);
@@ -367,7 +367,7 @@ function DialogueSortie({
 
 // ─── Bandeau après création ──────────────────────────────────────────────────
 
-function BandeauBienvenue({ campagne }: { campagne: DetailCampagne }) {
+function BandeauBienvenue({ campagne }: Readonly<{ campagne: DetailCampagne }>) {
   const router = useRouter();
   const nouvelle = useSearchParams().get('bienvenue') === '1';
   if (!nouvelle) return null;
@@ -409,12 +409,12 @@ function Table({
   personnages,
   moi,
   gm,
-}: {
+}: Readonly<{
   campagne: DetailCampagne;
   personnages: Personnage[];
   moi: string;
   gm: boolean;
-}) {
+}>) {
   const retirer = useRetirerMembre(c.id);
   const mj = c.members.filter((m) => m.role === 'gm');
   const joueurs = c.members.filter((m) => m.role === 'player');
@@ -477,11 +477,11 @@ function SiegeMembre({
   membre: m,
   estMoi,
   action,
-}: {
+}: Readonly<{
   membre: Membre;
   estMoi: boolean;
   action: React.ReactNode;
-}) {
+}>) {
   return (
     <div
       className={cn(
@@ -511,7 +511,7 @@ function SiegeMembre({
 
 // ─── Invitation ──────────────────────────────────────────────────────────────
 
-function CarteInvitation({ campagne: c, gm }: { campagne: DetailCampagne; gm: boolean }) {
+function CarteInvitation({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: boolean }>) {
   const [copie, setCopie] = useState<'code' | 'lien' | null>(null);
   const nouveauCode = useNouveauCode(c.id);
 
@@ -579,7 +579,7 @@ function CarteInvitation({ campagne: c, gm }: { campagne: DetailCampagne; gm: bo
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
-function Sessions({ campagne: c, gm }: { campagne: DetailCampagne; gm: boolean }) {
+function Sessions({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: boolean }>) {
   const planifier = usePlanifier(c.id);
   const deplanifier = useDeplanifier(c.id);
   const sessions = useSessionsCampagne(c.id);
@@ -705,7 +705,7 @@ function Sessions({ campagne: c, gm }: { campagne: DetailCampagne; gm: boolean }
 
 // ─── Notes de la campagne ────────────────────────────────────────────────────
 
-function NotesCampagne({ campagneId }: { campagneId: string }) {
+function NotesCampagne({ campagneId }: Readonly<{ campagneId: string }>) {
   const notes = useNotes({ campaignId: campagneId, limit: 6 });
   // Notes de la campagne tenues à jour en direct (écrites ou partagées par les autres)
   useNotesSync(campagneId);

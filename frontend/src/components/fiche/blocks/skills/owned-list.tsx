@@ -18,13 +18,13 @@ export function OwnedList({
   showFilterLabel,
   writes,
   onOpen,
-}: {
+}: Readonly<{
   items: OwnedItem[];
   /** La valeur du filtre est un champ (activation…) : montrée sur la ligne. */
   showFilterLabel: (item: OwnedItem) => boolean;
   writes: SheetWrites | undefined;
   onOpen: (item: OwnedItem) => void;
-}) {
+}>) {
   return (
     <ul className="divide-y divide-border">
       {items.map((item) => {

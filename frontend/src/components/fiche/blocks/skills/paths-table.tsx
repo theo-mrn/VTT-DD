@@ -55,7 +55,7 @@ function costText(rank: PathRankView, currencyName: (id: string) => string): str
     : o.blocages.map((b) => b.message).join(' · ') || `${o.cout} ${currencyName(o.monnaie)}`;
 }
 
-function StateGlyph({ state }: { state: CellState }) {
+function StateGlyph({ state }: Readonly<{ state: CellState }>) {
   if (state === 'owned') return <Check className="size-3 shrink-0" aria-hidden />;
   if (state === 'available') return <Plus className="size-3 shrink-0 text-primary" aria-hidden />;
   if (state === 'locked') return <Lock className="size-2.5 shrink-0 opacity-70" aria-hidden />;
@@ -67,11 +67,11 @@ function CellBody({
   rank,
   state,
   currencyName,
-}: {
+}: Readonly<{
   rank: PathRankView | undefined;
   state: CellState;
   currencyName: (id: string) => string;
-}) {
+}>) {
   const cost = rank?.offer ? rank.offer.cout : undefined;
   return (
     <>
@@ -122,7 +122,7 @@ export function PathsTable({
   narrow,
   currencyName,
   onSelect,
-}: {
+}: Readonly<{
   paths: PathRow[];
   columns: number;
   caption: string;
@@ -130,7 +130,7 @@ export function PathsTable({
   narrow: boolean;
   currencyName: (id: string) => string;
   onSelect: (path: PathRow, rank: PathRankView) => void;
-}) {
+}>) {
   if (!paths.length)
     return (
       <p className="py-6 text-center text-sm text-muted-foreground">Aucune voie pour l’instant.</p>
@@ -154,13 +154,13 @@ function PathsGrid({
   caption,
   currencyName,
   onSelect,
-}: {
+}: Readonly<{
   paths: PathRow[];
   columns: number;
   caption: string;
   currencyName: (id: string) => string;
   onSelect: (path: PathRow, rank: PathRankView) => void;
-}) {
+}>) {
   const ranks = Array.from({ length: columns }, (_, i) => i + 1);
   // Focus itinérant : une seule case atteignable par Tab, les flèches déplacent le focus
   const [focus, setFocus] = useState<[number, number]>(() => {
@@ -295,11 +295,11 @@ function PathsList({
   paths,
   currencyName,
   onSelect,
-}: {
+}: Readonly<{
   paths: PathRow[];
   currencyName: (id: string) => string;
   onSelect: (path: PathRow, rank: PathRankView) => void;
-}) {
+}>) {
   const [open, setOpen] = useState<Set<string>>(() => {
     const first = paths.find((p) => p.ranks.some((r) => r.offer?.possible)) ?? paths[0];
     return new Set(first ? [first.entry.id] : []);

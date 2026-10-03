@@ -35,13 +35,13 @@ export function EtapeTirer({
   fiche,
   etape,
   onTirer,
-}: {
+}: Readonly<{
   etat: EtatEntite;
   fiche: Fiche;
   etape: Etape;
   /** Tirage par le service (sans affectation), ou répartition du tirage en attente. */
   onTirer: (affectation?: Record<string, number>) => Promise<TirageCreation | null>;
-}) {
+}>) {
   const [tirage, setTirage] = useState<Tirage | null>(null);
   const [nombre, setNombre] = useState(0);
   const [affectation, setAffectation] = useState<Record<string, number>>({});

@@ -159,7 +159,7 @@ export function SheetGrid({
   editing,
   onEditingChange,
   onSave,
-}: {
+}: Readonly<{
   ctx: ContexteFiche;
   /** Mise en page enregistrée ; null : disposition par défaut de la présentation. */
   layout: SheetLayout | null;
@@ -168,7 +168,7 @@ export function SheetGrid({
   onEditingChange: (v: boolean) => void;
   /** Enregistre la mise en page (null : retour à la disposition par défaut). */
   onSave: (layout: SheetLayout | null) => Promise<unknown>;
-}) {
+}>) {
   // ─── Largeur du conteneur ────────────────────────────────────────────────
   const conteneur = useRef<HTMLDivElement>(null);
   const [largeur, setLargeur] = useState(0);
@@ -695,7 +695,7 @@ export function SheetGrid({
   );
 }
 
-function StatutEnregistrement({ statut }: { statut: Statut }) {
+function StatutEnregistrement({ statut }: Readonly<{ statut: Statut }>) {
   if (statut === 'idle') return null;
   const contenu =
     statut === 'error' ? (

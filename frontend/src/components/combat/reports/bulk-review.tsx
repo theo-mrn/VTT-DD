@@ -47,14 +47,14 @@ export function BulkReview({
   attacks,
   systeme,
   cast,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   campaignId: string;
   attacks: readonly Attack[];
   systeme: SystemeCharge | null;
   cast: ReadonlyMap<string, CastMember>;
-}) {
+}>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -78,13 +78,13 @@ function ReviewBody({
   systeme,
   cast,
   onDone,
-}: {
+}: Readonly<{
   campaignId: string;
   attacks: readonly Attack[];
   systeme: SystemeCharge | null;
   cast: ReadonlyMap<string, CastMember>;
   onDone(): void;
-}) {
+}>) {
   const commands = useAttackCommands(campaignId);
   // Figée à l'ouverture : un rapport arrivé pendant la revue attend la suivante
   const [snapshot] = useState(() => [...attacks]);

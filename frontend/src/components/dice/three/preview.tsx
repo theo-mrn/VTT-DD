@@ -71,11 +71,11 @@ export function DicePreview({
   skinId,
   type = 'd20',
   className = '',
-}: {
+}: Readonly<{
   skinId: string;
   type?: string;
   className?: string;
-}) {
+}>) {
   const hostRef = useRef<HTMLDivElement>(null);
   const onScreen = useOnScreen(hostRef);
   // « Essayer un lancer » : l'aperçu se fige tant que des dés roulent, le GPU

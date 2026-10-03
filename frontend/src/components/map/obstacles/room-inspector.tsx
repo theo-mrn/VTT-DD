@@ -17,7 +17,7 @@ import { newPlan } from '@/lib/map/modules/obstacles/kinds';
 import { defaultProps, type RoomData } from '@/lib/map/modules/obstacles/model';
 import { obstacleContextOf } from '@/lib/map/modules/obstacles/register';
 
-export function RoomInspector({ engine, entities }: InspectorSectionProps) {
+export function RoomInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = obstacleContextOf(engine);
   const id = useId();
   const room = entities[0]?.data as RoomData | undefined;

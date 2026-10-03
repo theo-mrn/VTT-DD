@@ -24,7 +24,7 @@ export function BonusForm({
   onAjouter,
   onAnnuler,
   className = 'mt-3 space-y-2 rounded-xl border border-border p-3',
-}: {
+}: Readonly<{
   fiche: Fiche;
   sorte: Sorte;
   mj: boolean;
@@ -32,7 +32,7 @@ export function BonusForm({
   onAnnuler(): void;
   /** Cadre du formulaire (par défaut : encadré, sous la liste des bonus). */
   className?: string;
-}) {
+}>) {
   const id = useId();
   const attributs = useMemo(() => attributsBonus(fiche, mj), [fiche, mj]);
   const [attribut, setAttribut] = useState(attributs[0]?.cle ?? '');

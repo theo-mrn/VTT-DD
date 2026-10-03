@@ -364,7 +364,7 @@ function EditorForm({
   busy,
   onSubmit,
   onCancel,
-}: {
+}: Readonly<{
   campaignId: string;
   systeme: SystemeCharge;
   presentation: Parameters<typeof NpcForm>[0]['presentation'];
@@ -374,7 +374,7 @@ function EditorForm({
   busy: boolean;
   onSubmit(r: NpcFormResult): void;
   onCancel(): void;
-}) {
+}>) {
   const t = editing.mode === 'edit' ? editing.template : null;
   return (
     <NpcForm
@@ -410,7 +410,7 @@ function TemplateCard({
   onDuplicate,
   onMove,
   onDelete,
-}: {
+}: Readonly<{
   template: NpcTemplate;
   name: string;
   subtitle: string | null;
@@ -422,7 +422,7 @@ function TemplateCard({
   onDuplicate(): void;
   onMove(categoryId: string | null): void;
   onDelete(): void;
-}) {
+}>) {
   const [confirm, setConfirm] = useState(false);
   return (
     <div className="group relative flex gap-3 rounded-xl border border-border bg-surface p-2.5 transition-colors hover:border-border-strong">
@@ -532,11 +532,11 @@ function CategoryManager({
   campaignId,
   categories,
   onChanged,
-}: {
+}: Readonly<{
   campaignId: string;
   categories: readonly NpcTemplateCategory[];
   onChanged(): void;
-}) {
+}>) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const act = async (label: string, work: () => Promise<unknown>) => {
@@ -632,12 +632,12 @@ function CategoryRow({
   disabled,
   onRename,
   onDelete,
-}: {
+}: Readonly<{
   category: NpcTemplateCategory;
   disabled: boolean;
   onRename(name: string): void;
   onDelete(): void;
-}) {
+}>) {
   const [draft, setDraft] = useState(c.name);
   const [confirm, setConfirm] = useState(false);
   const commit = () => {

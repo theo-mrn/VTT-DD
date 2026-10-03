@@ -23,13 +23,13 @@ export function ReportsDialog({
   combat,
   live,
   onOpenCharacter,
-}: {
+}: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
   combat: CombatState | null;
   live: LiveReports;
   onOpenCharacter(characterId: string): void;
-}) {
+}>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="isolate flex h-[min(88dvh,52rem)] flex-col gap-0 p-0 sm:max-w-2xl">
@@ -45,11 +45,11 @@ function ReportsBody({
   combat,
   live,
   onOpenCharacter,
-}: {
+}: Readonly<{
   combat: CombatState | null;
   live: LiveReports;
   onOpenCharacter(characterId: string): void;
-}) {
+}>) {
   const { campaignId, systeme, presentation, cast } = live;
   // La pile montre déjà l'attente : l'historique s'ouvre sur tout
   const [view, setView] = useState<ReportView>({ ...DEFAULT_REPORT_VIEW, filter: 'all' });

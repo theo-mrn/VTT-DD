@@ -17,12 +17,12 @@ export function SectionTitle({
   children,
   action,
   hint,
-}: {
+}: Readonly<{
   icon?: ReactNode;
   children: ReactNode;
   action?: ReactNode;
   hint?: string | null;
-}) {
+}>) {
   return (
     <div className="mb-2.5 flex min-h-7 items-center justify-between gap-2">
       <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">
@@ -36,7 +36,7 @@ export function SectionTitle({
 }
 
 /** Petite icône « i » avec son info-bulle (description d'un paramètre). */
-export function HintIcon({ text }: { text: string }) {
+export function HintIcon({ text }: Readonly<{ text: string }>) {
   return (
     <Info texte={text}>
       <button
@@ -64,7 +64,7 @@ export function Stepper({
   marked,
   hint,
   className,
-}: {
+}: Readonly<{
   label: ReactNode;
   /** Nom accessible, quand le libellé n'est pas un simple texte. */
   name?: string;
@@ -81,7 +81,7 @@ export function Stepper({
   marked?: boolean;
   hint?: string | null;
   className?: string;
-}) {
+}>) {
   const name = accessibleName ?? (typeof label === 'string' ? label : 'Valeur');
   return (
     <div
@@ -150,13 +150,13 @@ export function ToggleTile({
   onChange,
   disabled,
   hint,
-}: {
+}: Readonly<{
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
   hint?: string | null;
-}) {
+}>) {
   return (
     <div className="relative">
       <button
@@ -250,13 +250,13 @@ export function Segmented({
   value,
   onChange,
   disabled,
-}: {
+}: Readonly<{
   label: string;
   options: readonly SegmentOption[];
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
-}) {
+}>) {
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1.5">
       {options.map((o) => {

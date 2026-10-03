@@ -37,7 +37,7 @@ export function SceneDialog({
   defaultGroupId,
   actions,
   onOpenChange,
-}: {
+}: Readonly<{
   campaignId: string;
   open: boolean;
   /** Scène modifiée ; null : nouvelle scène. */
@@ -46,7 +46,7 @@ export function SceneDialog({
   defaultGroupId?: string | null;
   actions: ScenesActions;
   onOpenChange(open: boolean): void;
-}) {
+}>) {
   const ids = useId();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -179,7 +179,7 @@ export function SceneDialog({
 }
 
 /** Aperçu du fond choisi ; un clic ouvre le sélecteur (bibliothèque ou import). */
-function BackgroundField({ url, onOpen }: { url: string | null; onOpen(): void }) {
+function BackgroundField({ url, onOpen }: Readonly<{ url: string | null; onOpen(): void }>) {
   const video = url ? isVideoUrl(url) : false;
   const variant = url && video ? videoVariant(url) : null;
   const poster = url

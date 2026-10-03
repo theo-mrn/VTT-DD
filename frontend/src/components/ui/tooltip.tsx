@@ -34,11 +34,11 @@ function Info({
   texte,
   cote = 'top',
   children,
-}: {
+}: Readonly<{
   texte: React.ReactNode;
   cote?: 'top' | 'bottom' | 'left' | 'right';
   children: React.ReactNode;
-}) {
+}>) {
   if (!texte) return <>{children}</>;
   return (
     <Tooltip>

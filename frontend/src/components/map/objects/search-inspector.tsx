@@ -18,7 +18,7 @@ import { ContentsEditor } from './contents-editor';
 import { CommitNumber, FieldLabel, ToggleRow } from './fields';
 import { unitNameOf } from '@/lib/map/store/map-store';
 
-export function SearchInspector({ engine, entities }: InspectorSectionProps) {
+export function SearchInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const entity = entities[0]!;
   const o = entity.data as ObjectData;
   const unit = useMapState((s) => unitNameOf(s.settings));

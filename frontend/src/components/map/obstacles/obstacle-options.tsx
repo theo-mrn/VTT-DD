@@ -41,13 +41,13 @@ const ICONS: Record<ObstacleMode, LucideIcon> = {
   edit: Spline,
 };
 
-export function ObstacleOptions({ engine }: { engine: MapEngine }) {
+export function ObstacleOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const tool = engine.tools.active;
   if (!(tool instanceof ObstacleTool)) return null;
   return <Options engine={engine} tool={tool} />;
 }
 
-function Options({ engine, tool }: { engine: MapEngine; tool: ObstacleTool }) {
+function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: ObstacleTool }>) {
   const mode = useStore(tool.settings, (s) => s.mode);
   const doorWidth = useStore(tool.settings, (s) => s.doorWidth);
   const roomWalls = useStore(tool.settings, (s) => s.roomWalls);
@@ -133,7 +133,7 @@ function Options({ engine, tool }: { engine: MapEngine; tool: ObstacleTool }) {
 }
 
 /** « Tout effacer » : murs, portes, fenêtres et pièces de la scène (confirmé, annulable). */
-function ClearAll({ engine }: { engine: MapEngine }) {
+function ClearAll({ engine }: Readonly<{ engine: MapEngine }>) {
   const obstacles = useMapState((s) => s.collections[OBSTACLES]?.size ?? 0);
   const rooms = useMapState((s) => s.collections[ROOMS]?.size ?? 0);
   const total = obstacles + rooms;

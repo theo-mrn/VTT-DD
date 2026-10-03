@@ -63,13 +63,13 @@ export function PastillesAttributs({
   erreur,
   nomPersonnage,
   onAjouter,
-}: {
+}: Readonly<{
   groupes: RollableGroup[];
   chargement: boolean;
   erreur: string | null;
   nomPersonnage: string;
   onAjouter: (a: RollableAttribute) => void;
-}) {
+}>) {
   if (erreur)
     return (
       <p className="truncate text-xs text-destructive">
@@ -146,11 +146,11 @@ function Vignette({
   graine,
   libelle,
   className,
-}: {
+}: Readonly<{
   graine: string;
   libelle: string;
   className?: string;
-}) {
+}>) {
   return (
     <span
       aria-hidden
@@ -178,7 +178,7 @@ export function SelecteurContexte({
   aucun,
   vide,
   chargement,
-}: {
+}: Readonly<{
   etiquette: string;
   icone: LucideIcon;
   options: OptionContexte[];
@@ -189,7 +189,7 @@ export function SelecteurContexte({
   /** Message quand la liste est vide. */
   vide: string;
   chargement?: boolean;
-}) {
+}>) {
   const choisie = options.find((o) => o.id === valeur) ?? null;
 
   return (

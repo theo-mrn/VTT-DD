@@ -77,12 +77,12 @@ export function BonusJetListe({
   choisis,
   onBasculer,
   className,
-}: {
+}: Readonly<{
   bonus: BonusJet[];
   choisis: ReadonlySet<string>;
   onBasculer: (cle: string) => void;
   className?: string;
-}) {
+}>) {
   const concernes = useMemo(() => bonus.filter((b) => b.concerne).length, [bonus]);
   if (!bonus.length) return null;
   return (
@@ -119,11 +119,11 @@ function LigneBonus({
   b,
   coche,
   onBasculer,
-}: {
+}: Readonly<{
   b: BonusJet;
   coche: boolean;
   onBasculer: () => void;
-}) {
+}>) {
   return (
     <li className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-surface-2">
       <Tooltip>

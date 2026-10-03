@@ -185,7 +185,7 @@ function LayerRow({
   onDragStart,
   onDragOverRow,
   onDragEnd,
-}: {
+}: Readonly<{
   layer: LayerLike;
   index: number;
   total: number;
@@ -202,7 +202,7 @@ function LayerRow({
   onDragStart(): void;
   onDragOverRow(after: boolean): void;
   onDragEnd(): void;
-}) {
+}>) {
   const engine = useMapEngine();
   const [opacity, setOpacity] = useState<number | null>(null);
 

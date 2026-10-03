@@ -76,11 +76,11 @@ import { VersusHeader } from './versus-header';
 export function AttackMenu({
   campaignId,
   canAim,
-}: {
+}: Readonly<{
   campaignId: string;
   /** Une carte est affichée : « Viser sur la carte » y est possible. */
   canAim: boolean;
-}) {
+}>) {
   const flow = useAttackFlow((f) => f);
   if (flow.phase === 'closed' || flow.campaignId !== campaignId) return null;
   return <OpenMenu flow={flow} canAim={canAim} />;
@@ -97,7 +97,7 @@ const PRESSABLE =
 /** Écran affiché : composer, le jet (et la fin), les dégâts. */
 type Screen = 'compose' | 'roll' | 'damage';
 
-function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
+function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }>) {
   const ctx = useAttackContext(flow.campaignId);
   const model = useAttackModel(flow, ctx);
   const attack = useDeclaredAttack(flow, model.commands);
@@ -396,12 +396,12 @@ function TopBar({
   flow,
   model,
   onClose,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   flow: OpenFlow;
   model: AttackModel;
   onClose: () => void;
-}) {
+}>) {
   const [mine, setMine] = useState(false);
   const standing =
     flow.draft.attackerId && model.standing !== 'free' && flow.phase !== 'declared'
@@ -483,14 +483,14 @@ function ComposeBody({
   loading,
   canAim,
   onAim,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   flow: OpenFlow;
   model: AttackModel;
   loading: boolean;
   canAim: boolean;
   onAim: () => void;
-}) {
+}>) {
   if (loading)
     return (
       <div
@@ -533,7 +533,7 @@ function Footer({
   onClose,
   onLaunchNext,
   launching,
-}: {
+}: Readonly<{
   ctx: AttackContext;
   flow: OpenFlow;
   model: AttackModel;
@@ -544,7 +544,7 @@ function Footer({
   /** Lance l'étape suivante (dégâts après TOUCHÉ, table). */
   onLaunchNext: () => void;
   launching: boolean;
-}) {
+}>) {
   const [busy, setBusy] = useState<string | null>(null);
 
   async function run(label: string, fn: () => Promise<Parameters<typeof attackMenu.dispatch>[0]>) {
@@ -693,7 +693,7 @@ function Footer({
   );
 }
 
-function Bar({ children, className }: { children: ReactNode; className?: string }) {
+function Bar({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <footer
       className={cn(

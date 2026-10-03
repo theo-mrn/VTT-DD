@@ -48,14 +48,14 @@ export function EtapeSaisir({
   fiche,
   etape,
   onEtat,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   etat: EtatEntite;
   fiche: Fiche;
   etape: EtapeSaisir;
   /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
   onEtat: (e: EtatEntite, op: OperationCreation) => void;
-}) {
+}>) {
   const attributs = vises(fiche, etape, (a) => a.nature !== 'derivee');
   const [local, setLocal] = useState<Record<string, string>>({});
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
@@ -148,7 +148,7 @@ export function EtapeRepartir({
   etape,
   statut,
   onEtat,
-}: {
+}: Readonly<{
   systeme: SystemeCharge;
   etat: EtatEntite;
   fiche: Fiche;
@@ -156,7 +156,7 @@ export function EtapeRepartir({
   statut: EtatEtape | undefined;
   /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
   onEtat: (e: EtatEntite, op: OperationCreation) => void;
-}) {
+}>) {
   const [erreur, setErreur] = useState<string | null>(null);
   const attributs = vises(fiche, etape, (a) => a.nature === 'base');
   const budget = statut?.budget ?? 0;

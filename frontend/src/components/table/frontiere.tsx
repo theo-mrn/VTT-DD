@@ -58,7 +58,7 @@ export class FrontiereTable extends Component<
 }
 
 /** Attente du code d'un panneau (chargé à la demande). */
-export function ChargementOnglet({ className }: { className?: string }) {
+export function ChargementOnglet({ className }: Readonly<{ className?: string }>) {
   return (
     <div
       className={cn(

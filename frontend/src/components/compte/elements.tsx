@@ -31,7 +31,10 @@ export function Bouton({
 
 // ─── Mise en page ────────────────────────────────────────────────────────────
 
-export function TitrePage({ children, sousTitre }: { children: ReactNode; sousTitre?: ReactNode }) {
+export function TitrePage({
+  children,
+  sousTitre,
+}: Readonly<{ children: ReactNode; sousTitre?: ReactNode }>) {
   return (
     <header className="space-y-1.5">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
@@ -48,13 +51,13 @@ export function Carte({
   action,
   children,
   className,
-}: {
+}: Readonly<{
   titre?: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     <section
       className={cn(
@@ -80,11 +83,11 @@ export function Message({
   ton = 'erreur',
   children,
   className,
-}: {
+}: Readonly<{
   ton?: 'erreur' | 'succes' | 'info';
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   const Icone = ton === 'succes' ? CheckCircle2 : ton === 'info' ? IconeInfo : AlertCircle;
   return (
     <p
@@ -103,7 +106,7 @@ export function Message({
   );
 }
 
-export function Chargement({ texte = 'Chargement…' }: { texte?: string }) {
+export function Chargement({ texte = 'Chargement…' }: Readonly<{ texte?: string }>) {
   return (
     <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
       <Loader2 className="size-4 animate-spin text-primary" />
@@ -112,7 +115,7 @@ export function Chargement({ texte = 'Chargement…' }: { texte?: string }) {
   );
 }
 
-export function Vide({ children }: { children: ReactNode }) {
+export function Vide({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-sm text-subtle">
       {children}
@@ -127,13 +130,13 @@ export function Interrupteur({
   label,
   description,
   disabled,
-}: {
+}: Readonly<{
   actif: boolean;
   onChange(actif: boolean): void;
   label: ReactNode;
   description?: ReactNode;
   disabled?: boolean;
-}) {
+}>) {
   const id = useId();
   return (
     <div className="flex items-start justify-between gap-4">
@@ -184,13 +187,13 @@ export function AvatarJoueur({
   bordure = 'none',
   taille = 'md',
   className,
-}: {
+}: Readonly<{
   nom: string;
   url: string | null | undefined;
   bordure?: string;
   taille?: keyof typeof tailles;
   className?: string;
-}) {
+}>) {
   const b = BORDURES.find((x) => x.id === bordure);
   const couleurs = b?.couleurs ?? [];
   const avatar = (
