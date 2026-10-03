@@ -148,14 +148,12 @@ export async function mapEvent(
     Array.isArray(e.payload.visibleTo)
       ? e.payload.visibleTo.filter((id): id is string => typeof id === 'string')
       : [];
-  const users =
-    visibility !== 'gm_only' || e.restricted
-      ? []
-      : e.toUsers
-        ? [...new Set(e.toUsers)].sort(compareCodeUnits)
-        : characterIds.length
-          ? await usersOfCharacters(tx, v.access.campaign.id, characterIds)
-          : [];
+  let users: string[] = [];
+  if (visibility === 'gm_only' && !e.restricted) {
+    if (e.toUsers) users = [...new Set(e.toUsers)].sort(compareCodeUnits);
+    else if (characterIds.length)
+      users = await usersOfCharacters(tx, v.access.campaign.id, characterIds);
+  }
   const payload = users.length ? { ...e.payload, visibleToUsers: users } : e.payload;
   return appendEvent(tx, ctx, {
     type: e.type,

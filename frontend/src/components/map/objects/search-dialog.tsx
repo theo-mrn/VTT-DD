@@ -124,31 +124,31 @@ export function SearchDialog({
           </div>
         )}
 
-        {s.status === 'loading' && !s.result ? (
+        {s.status === 'loading' && !s.result && (
           <div className="space-y-2" aria-label="Fouille en cours">
             {Array.from({ length: 3 }, (_, i) => (
               <Skeleton key={i} className="h-14" />
             ))}
           </div>
-        ) : s.result ? (
-          s.result.items.length ? (
-            <ul className="max-h-[55dvh] space-y-2 overflow-y-auto overscroll-contain pr-1">
-              {s.result.items.map((item) => (
-                <ItemRow
-                  key={item.id}
-                  item={item}
-                  busy={s.taking === item.id}
-                  disabled={s.taking !== null || gone}
-                  onTake={(q) => void controller.take(item.id, q)}
-                />
-              ))}
-            </ul>
-          ) : (
-            <p className="rounded-lg border border-dashed border-border-strong px-3 py-6 text-center text-[13px] text-muted-foreground">
-              Il n’y a rien (ou plus rien) à prendre.
-            </p>
-          )
-        ) : null}
+        )}
+        {s.result && s.result.items.length > 0 && (
+          <ul className="max-h-[55dvh] space-y-2 overflow-y-auto overscroll-contain pr-1">
+            {s.result.items.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                busy={s.taking === item.id}
+                disabled={s.taking !== null || gone}
+                onTake={(q) => void controller.take(item.id, q)}
+              />
+            ))}
+          </ul>
+        )}
+        {s.result?.items.length === 0 && (
+          <p className="rounded-lg border border-dashed border-border-strong px-3 py-6 text-center text-[13px] text-muted-foreground">
+            Il n’y a rien (ou plus rien) à prendre.
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

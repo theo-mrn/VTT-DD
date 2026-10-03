@@ -61,13 +61,11 @@ export function TableMap() {
     [campagne.members, campagne.characters],
   );
 
-  const empty = target.loading
-    ? 'Ouverture de la scène…'
-    : gm
-      ? target.maps.length
-        ? 'Aucune scène ouverte : choisissez-en une dans Scènes (E).'
-        : 'Aucune scène : créez la première dans Scènes (E).'
-      : 'Le MJ n’a pas encore ouvert de scène.';
+  let empty = 'Le MJ n’a pas encore ouvert de scène.';
+  if (target.loading) empty = 'Ouverture de la scène…';
+  else if (gm && target.maps.length)
+    empty = 'Aucune scène ouverte : choisissez-en une dans Scènes (E).';
+  else if (gm) empty = 'Aucune scène : créez la première dans Scènes (E).';
 
   return (
     <>

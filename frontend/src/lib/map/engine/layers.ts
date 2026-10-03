@@ -7,6 +7,7 @@
  * Calcul pur : tri des calques, nouvel ordre d'une sélection (avancer, reculer, premier plan,
  * arrière-plan) et `z` pris **entre les voisins**, pour n'écrire que les éléments déplacés.
  */
+import { compareCodeUnits } from '@vtt/contracts';
 
 /**
  * Rôle d'un calque par défaut (`MapLayer.role`) : `ground` (Sol), `objects` (objet posé sans
@@ -33,9 +34,7 @@ export const IMPLICIT_LAYER_ID = '__implicit';
 export function sortLayers<L extends Pick<LayerLike, 'id' | 'sortOrder'>>(
   layers: Iterable<L>,
 ): L[] {
-  return [...layers].sort(
-    (a, b) => a.sortOrder - b.sortOrder || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
-  );
+  return [...layers].sort((a, b) => a.sortOrder - b.sortOrder || compareCodeUnits(a.id, b.id));
 }
 
 /** Élément d'une pile : identifiant et ordre dans son calque. */
@@ -48,7 +47,7 @@ export type OrderOp = 'forward' | 'backward' | 'front' | 'back';
 
 /** Pile triée par `z` croissant (à `z` égal, par identifiant). */
 export function sortStack<S extends Stackable>(items: Iterable<S>): S[] {
-  return [...items].sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return [...items].sort((a, b) => a.z - b.z || compareCodeUnits(a.id, b.id));
 }
 
 /**

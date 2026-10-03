@@ -19,8 +19,8 @@ export function blocksFromDirection(points: MapPoint[], direction: string | null
   const [a, b] = points;
   const dx = (b?.x ?? 0) - (a?.x ?? 0);
   const dy = (b?.y ?? 0) - (a?.y ?? 0);
-  const align =
-    direction === 'south' ? dx : direction === 'east' ? -dy : direction === 'west' ? dy : -dx;
+  const aligns: Partial<Record<string, number>> = { south: dx, east: -dy, west: dy };
+  const align = aligns[direction ?? ''] ?? -dx;
   return align >= 0 ? 'right' : 'left';
 }
 

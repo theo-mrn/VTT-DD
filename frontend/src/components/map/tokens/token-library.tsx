@@ -127,21 +127,19 @@ function Library({ engine }: Readonly<{ engine: MapEngine }>) {
           )}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3">
-          {!sys.data ? (
-            sys.isError ? (
-              <Notice
-                tone="error"
-                icon={AlertTriangle}
-                title="Règles indisponibles"
-                description={messageErreur(
-                  sys.error,
-                  'Le système de la campagne n’a pas pu être chargé.',
-                )}
-              />
-            ) : (
-              <ListSkeleton rows={5} />
-            )
-          ) : (
+          {!sys.data && sys.isError && (
+            <Notice
+              tone="error"
+              icon={AlertTriangle}
+              title="Règles indisponibles"
+              description={messageErreur(
+                sys.error,
+                'Le système de la campagne n’a pas pu être chargé.',
+              )}
+            />
+          )}
+          {!sys.data && !sys.isError && <ListSkeleton rows={5} />}
+          {sys.data && (
             <>
               <TabsContent value="templates" className="mt-0">
                 <TemplatesTab
@@ -512,21 +510,23 @@ function PlacementOptions({ tokens }: Readonly<{ tokens: TokensState }>) {
         />
       </div>
       <p aria-live="polite" className="flex items-start gap-1.5 text-xs text-muted-foreground">
-        {placing ? (
+        {placing && (
           <>
             <Loader2 className="mt-px size-3.5 shrink-0 animate-spin" aria-hidden />
             Pose en cours…
           </>
-        ) : armed ? (
+        )}
+        {!placing && armed && (
           <span>
             Cliquez sur la scène pour poser{' '}
             <strong className="text-foreground">{armed.name}</strong>
             {count > 1 ? ` × ${count}` : ''}. <Kbd>⇧</Kbd> : en poser d’autres, <Kbd>Échap</Kbd> :
             annuler.
           </span>
-        ) : (
-          'Glissez une carte sur la scène, ou choisissez-la puis cliquez sur la carte.'
         )}
+        {!placing &&
+          !armed &&
+          'Glissez une carte sur la scène, ou choisissez-la puis cliquez sur la carte.'}
       </p>
     </footer>
   );

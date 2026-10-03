@@ -34,13 +34,13 @@ export class Grid {
   /** Colonne de x, bornée à la grille. */
   col(x: number): number {
     const c = Math.floor((x - this.minX) / this.cellSize);
-    return c < 0 ? 0 : c >= this.cols ? this.cols - 1 : c;
+    return Math.min(Math.max(c, 0), this.cols - 1);
   }
 
   /** Ligne de y, bornée à la grille. */
   row(y: number): number {
     const r = Math.floor((y - this.minY) / this.cellSize);
-    return r < 0 ? 0 : r >= this.rows ? this.rows - 1 : r;
+    return Math.min(Math.max(r, 0), this.rows - 1);
   }
 }
 

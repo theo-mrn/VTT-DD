@@ -27,6 +27,13 @@ export const DOUBLE_CLICK_MS = 350;
 export const DOUBLE_CLICK_PX = 6;
 /** Pas de rotation au clavier (R, ⇧R). */
 export const ROTATE_STEP = 15;
+/** Direction d'un déplacement au clavier, en pas de grille. */
+const NUDGE: Record<'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown', [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
 
 type Mode = 'none' | 'tool' | 'pan' | 'pinch';
 
@@ -373,9 +380,8 @@ export class InteractionController {
       case 'ArrowDown': {
         if (!selected) return false;
         const step = (engine.grid()?.size ?? 50) * (k.shift ? 5 : 1);
-        const dx = k.key === 'ArrowLeft' ? -step : k.key === 'ArrowRight' ? step : 0;
-        const dy = k.key === 'ArrowUp' ? -step : k.key === 'ArrowDown' ? step : 0;
-        void engine.nudgeSelection(dx, dy);
+        const [dx, dy] = NUDGE[k.key];
+        void engine.nudgeSelection(dx * step, dy * step);
         return true;
       }
     }
