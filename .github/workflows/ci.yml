@@ -194,6 +194,14 @@ jobs:
         run: |
           pnpm turbo run build --filter '@vtt/realtime^...'
           pnpm --filter @vtt/realtime exec vitest run --coverage.enabled --coverage.reporter=lcov
+      - name: Couverture des tests d'intégration (pour SonarQube)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-integration
+          path: |
+            backend/*/coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 3
 
   e2e:
     name: Bout en bout (Playwright)
@@ -225,15 +233,6 @@ jobs:
             frontend/e2e/resultats
             e2e-logs
           retention-days: 7
-
-      - name: Couverture des tests d'intégration (pour SonarQube)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: coverage-integration
-          path: |
-            backend/*/coverage/lcov.info
-          if-no-files-found: ignore
-          retention-days: 3
 
   sonar:
     name: SonarQube (Quality Gate)
