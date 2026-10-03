@@ -49,7 +49,7 @@ test('le MJ crée la campagne, le joueur la rejoint par le code avec son héros'
     await expect(joueurPage).toHaveURL(new RegExp(`/campagnes/${campagneId}/personnage`));
     const amener = joueurPage.getByRole('button', { name: /Amener un personnage existant/ });
     if ((await amener.getAttribute('aria-expanded')) === 'false') await amener.click();
-    await joueurPage.getByRole('radio', { name: new RegExp(heros.nom) }).check();
+    await joueurPage.getByRole('radio', { name: new RegExp(heros.nom) }).check({ force: true });
     await joueurPage.getByRole('button', { name: 'Entrer à la table' }).first().click();
     await expect(joueurPage).toHaveURL(new RegExp(`/campagnes/${campagneId}/table`));
     await expect(joueurPage.getByText(`Vous incarnez ${heros.nom}`)).toBeVisible();

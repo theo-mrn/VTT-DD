@@ -13,7 +13,7 @@ import {
   nettoyer,
   rejoindre,
 } from './support/api';
-import { carteChargee } from './support/carte';
+import { carteChargee, elements } from './support/carte';
 
 interface Combat {
   round: number;
@@ -33,14 +33,23 @@ test('le MJ démarre le combat sans initiative puis le termine', async ({ browse
   try {
     await rejoindre(joueur, campagne.code);
     await incarner(joueur, campagne.id, heros.id);
-    await creerScene(mj, campagne.id, [heros.id]);
+    const scene = await creerScene(mj, campagne.id, [heros.id]);
 
-    await mjPage.goto(`/campagnes/${campagne.id}/table`);
+    await mjPage.goto(`/campagnes/${campagne.id}/table?scene=${scene.id}`);
     await carteChargee(mjPage);
+    await expect
+      .poll(async () =>
+        (await elements<{ characterId: string }>(mjPage, 'tokens')).map((t) => t.characterId),
+      )
+      .toContain(heros.id);
     await mjPage
       .getByRole('region', { name: 'Combat', exact: true })
       .getByRole('button', { name: 'Combat', exact: true })
       .click();
+    // Posé sur la scène : coché d'office
+    await expect(
+      mjPage.getByRole('checkbox', { name: `${heros.nom} participe au combat` }),
+    ).toBeChecked();
     await mjPage.getByRole('button', { name: 'Démarrer sans initiative' }).click();
     await expect(mjPage.getByRole('region', { name: 'Combat, round 1' })).toBeVisible();
 

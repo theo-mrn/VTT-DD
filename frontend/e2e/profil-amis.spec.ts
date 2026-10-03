@@ -9,7 +9,11 @@ test('changer son nom d’aventurier', async ({ page }) => {
   await page.goto('/profil');
   const nom = `Elrond ${Date.now().toString(36)}`;
   await page.getByLabel('Nom', { exact: true }).fill(nom);
-  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await page
+    .locator('form')
+    .filter({ has: page.getByLabel('Nom', { exact: true }) })
+    .getByRole('button', { name: 'Enregistrer', exact: true })
+    .click();
   await expect
     .poll(async () => (await appel<{ name: string }>(moi, 'GET', '/v1/users/me')).name)
     .toBe(nom);

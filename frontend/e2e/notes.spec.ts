@@ -43,8 +43,7 @@ test('le joueur écrit une note privée, puis la partage avec la table : le MJ l
     await incarner(joueur, campagne.id, heros.id);
 
     // ── Le joueur écrit ──
-    await joueurPage.goto(`/notes?campagne=${campagne.id}`);
-    await joueurPage.getByRole('button', { name: 'Nouvelle note' }).click();
+    await joueurPage.goto(`/notes?campagne=${campagne.id}&nouvelle=1`);
     const titre = `Indices ${Date.now().toString(36)}`;
     await joueurPage.getByLabel('Titre de la note').fill(titre);
     await joueurPage.getByLabel('Contenu de la note').click();

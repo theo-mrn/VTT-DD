@@ -8,7 +8,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 60_000,
+  // Large : une inscription peut attendre la fin de la fenêtre de limite de débit
+  timeout: 120_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
   workers: 2,

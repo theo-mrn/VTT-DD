@@ -52,9 +52,18 @@ export async function appel<T>(
  */
 export async function creerCompte(page: Page, prefixe: string): Promise<Compte> {
   const i = identite(prefixe);
-  const res = await page.request.post('/v1/auth/register', {
+  // Inscription limitée à 10 par minute et par adresse : la suite en crée davantage, on attend
+  // le délai annoncé par le service
+  let res = await page.request.post('/v1/auth/register', {
     data: { email: i.email, password: i.motDePasse, name: i.nom },
   });
+  while (res.status() === 429) {
+    const secondes = Number(res.headers()['retry-after'] ?? 10);
+    await page.waitForTimeout((secondes + 1) * 1000);
+    res = await page.request.post('/v1/auth/register', {
+      data: { email: i.email, password: i.motDePasse, name: i.nom },
+    });
+  }
   expect(res.ok(), `inscription : ${res.status()} ${await res.text()}`).toBe(true);
   const { accessToken, user } = (await res.json()) as { accessToken: string; user: { id: string } };
   const compte: Compte = { ...i, id: user.id, jeton: accessToken, request: page.request };
