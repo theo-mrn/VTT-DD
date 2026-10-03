@@ -74,6 +74,26 @@ export async function checkPortalTarget(db: Db | Tx, map: MapRow, input: Input) 
 }
 
 /**
+ * Une téléportation n'a pas de carte visée ; une carte visée qui est celle du portail en fait
+ * une téléportation ; une carte visée sans genre précisé en fait un changement de scène.
+ */
+function normalizeDestination(out: Input, mapId: string): void {
+  if (out.targetMapId === mapId) {
+    out.targetMapId = null;
+    out.kind = 'same_map';
+  } else if (out.kind === 'same_map') out.targetMapId = null;
+  else if (typeof out.targetMapId === 'string' && out.kind === undefined) out.kind = 'scene_change';
+}
+
+/** L'écriture change la scène visée ou le genre du portail. */
+function retargeted(out: Input, before: PortalRow): boolean {
+  return (
+    (out.targetMapId !== undefined && (out.targetMapId ?? null) !== before.targetMapId) ||
+    (out.kind !== undefined && out.kind !== before.kind)
+  );
+}
+
+/**
  * Colonnes de l'écriture ajustées : une téléportation n'a pas de carte visée (une carte visée
  * qui est celle du portail en fait une téléportation) ; relier aligne la destination sur le
  * retour ; changer de scène visée délie.
@@ -86,11 +106,7 @@ export async function portalBeforeWrite(
 ): Promise<Input> {
   const before = beforeRow as PortalRow | null;
   const out = { ...columns };
-  if (out.targetMapId === map.id) {
-    out.targetMapId = null;
-    out.kind = 'same_map';
-  } else if (out.kind === 'same_map') out.targetMapId = null;
-  else if (typeof out.targetMapId === 'string' && out.kind === undefined) out.kind = 'scene_change';
+  normalizeDestination(out, map.id);
 
   const link = out.linkedPortalId;
   if (typeof link === 'string' && link !== before?.linkedPortalId) {
@@ -99,12 +115,8 @@ export async function portalBeforeWrite(
     const twin = await lockPortal(tx, map.campaignId, link);
     if (!twin) throw refused('Portail de retour introuvable', 'unknown_portal');
     Object.assign(out, destinationTo(twin, map.id));
-  } else if (before?.linkedPortalId && link === undefined) {
-    const retargeted =
-      (out.targetMapId !== undefined && (out.targetMapId ?? null) !== before.targetMapId) ||
-      (out.kind !== undefined && out.kind !== before.kind);
-    if (retargeted) out.linkedPortalId = null;
-  }
+  } else if (before?.linkedPortalId && link === undefined && retargeted(out, before))
+    out.linkedPortalId = null;
   return out;
 }
 
