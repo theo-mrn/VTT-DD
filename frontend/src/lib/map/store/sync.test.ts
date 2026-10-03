@@ -307,3 +307,87 @@ describe('MapSync', () => {
     expect(t.store.getState().collections.tokens!.size).toBe(2);
   });
 });
+
+describe('MapSync : erreurs et événements rares', () => {
+  it('chargement refusé : carte partie (404, 403) ou erreur ; réponse d’un chargement dépassé ignorée', async () => {
+    for (const [status, expected] of [
+      [404, 'gone'],
+      [403, 'gone'],
+      [500, 'error'],
+    ] as const) {
+      const t = setup();
+      t.reader.snapshot.mockRejectedValueOnce(Object.assign(new Error('x'), { status }));
+      await t.sync.load();
+      expect(t.store.getState().status).toBe(expected);
+    }
+    const t = setup();
+    t.reader.snapshot.mockRejectedValueOnce(new Error('lent'));
+    const first = t.sync.load();
+    await t.sync.load();
+    await first;
+    expect(t.store.getState().status).toBe('ready');
+  });
+
+  it('scène : mise à jour appliquée ; masquée ou autre forme : relue ; supprimée, cachée : partie', async () => {
+    const t = setup({ role: 'player', characterIds: [] });
+    await t.sync.load();
+    t.sync.handle(event('map.updated', { id: 'carte', version: 2, width: 1200, height: 800 }));
+    expect(t.store.getState().scene).toMatchObject({ width: 1200 });
+    t.reader.snapshot.mockClear();
+    t.sync.handle(event('map.updated', { id: 'carte' }, true));
+    t.sync.handle(event('map.updated', { id: 'autre' }));
+    t.sync.handle(event('map.rescaled', { id: 'carte' }));
+    expect(t.reader.snapshot).toHaveBeenCalledTimes(2);
+    t.sync.handle(event('map.visibility_changed', { id: 'carte' }));
+    t.sync.handle(event('map.hidden', { id: 'carte' }));
+    expect(t.store.getState().status).toBe('gone');
+    const gm = setup();
+    await gm.sync.load();
+    gm.sync.handle(event('map.hidden', { id: 'carte' }));
+    expect(gm.store.getState().status).toBe('ready');
+    gm.sync.handle(event('map.deleted', { id: 'carte' }));
+    expect(gm.store.getState().status).toBe('gone');
+  });
+
+  it('tokens : parti sur une autre carte, caché aux joueurs, supprimé', async () => {
+    const t = setup({ role: 'player', characterIds: [] });
+    await t.sync.load();
+    t.sync.handle(event('token.updated', { ...token('a', 5), mapId: 'ailleurs' }));
+    expect(t.get('tokens', 'a')).toBeUndefined();
+    t.sync.handle(event('token.updated', { ...token('zz', 5), mapId: 'ailleurs' }));
+    t.sync.handle(event('token.hidden', { id: 'b' }));
+    expect(t.get('tokens', 'b')).toBeUndefined();
+    const gm = setup();
+    await gm.sync.load();
+    gm.sync.handle(event('token.hidden', { id: 'b' }));
+    expect(gm.get('tokens', 'b')).toBeDefined();
+    gm.sync.handle(event('token.deleted', { id: 'b' }));
+    expect(gm.get('tokens', 'b')).toBeUndefined();
+  });
+
+  it('couches : élément d’une autre carte ignoré, supprimé, caché aux joueurs (calque : son contenu)', async () => {
+    const t = setup({ role: 'player', characterIds: [] });
+    await t.sync.load();
+    t.sync.handle(event('map_object.updated', { id: 'o', version: 2, mapId: 'ailleurs' }));
+    expect(t.get('objects', 'o')).toMatchObject({ version: 1 });
+    t.sync.handle(event('map_object.hidden', { id: 'o' }));
+    expect(t.get('objects', 'o')).toBeUndefined();
+    t.sync.handle(event('map_layer.hidden', { id: 'persos' }));
+    expect(t.get('layers', 'persos')).toBeUndefined();
+    expect(t.get('tokens', 'a')).toBeUndefined();
+    const gm = setup();
+    await gm.sync.load();
+    gm.sync.handle(event('map_obstacle.hidden', { id: 'porte' }));
+    expect(gm.get('obstacles', 'porte')).toBeDefined();
+    gm.sync.handle(event('map_obstacle.deleted', { id: 'porte' }));
+    expect(gm.get('obstacles', 'porte')).toBeUndefined();
+  });
+
+  it('relecture d’une couche en erreur : rattrapée au chargement suivant', async () => {
+    const t = setup();
+    await t.sync.load();
+    t.reader.list.mockRejectedValueOnce(new Error('réseau'));
+    await t.sync.refetchNow(['tokens']);
+    expect(t.get('tokens', 'a')).toMatchObject({ version: 1 });
+  });
+});
