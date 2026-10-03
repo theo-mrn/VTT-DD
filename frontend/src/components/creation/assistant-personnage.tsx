@@ -6,7 +6,10 @@ import {
   etapesCreation,
   type EtapeCreation,
   type EtatEntite,
+  type Fiche,
+  type Presentation,
   type StatutEtape,
+  type SystemeCharge,
 } from '@vtt/rules';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -126,13 +129,7 @@ export function AssistantPersonnage({
   );
   const statut = (etapeId: string) => statuts.find((s) => s.etape.id === etapeId);
 
-  const regles = systeme ? (creationDe(systeme, TYPE_HEROS)?.etapes ?? []) : [];
-  const etapes: EtapeUI[] = [
-    { id: 'identite' as const, nom: 'Identité' },
-    ...regles.map((r) => ({ id: `regle:${r.id}`, nom: r.nom, regle: r })),
-    { id: 'portrait' as const, nom: 'Portrait' },
-    { id: 'recap' as const, nom: 'Récapitulatif' },
-  ];
+  const etapes = etapesUI(systeme);
   const index = Math.max(
     0,
     etapes.findIndex((e) => e.id === courant),
@@ -279,29 +276,14 @@ export function AssistantPersonnage({
     }
   }
 
-  if (campagne.isError || (id && perso.isError))
-    return (
-      <div className="px-4 py-20">
-        <EtatVide
-          icone={AlertTriangle}
-          titre={campagne.isError ? 'Campagne introuvable' : 'Héros introuvable'}
-          description={
-            campagne.isError
-              ? 'Impossible de créer un héros pour cette campagne.'
-              : 'Ce héros a peut-être été supprimé.'
-          }
-        />
-      </div>
-    );
+  if (campagne.isError || (id && perso.isError)) return <Introuvable campagne={campagne.isError} />;
 
   const quitter = `/campagnes/${campagneId}/personnage`;
   // Le MJ réserve la création des héros : le joueur engage un personnage terminé
   const creationFermee =
     !id && campagne.data && !campagne.data.freeCreation && campagne.data.role !== 'gm';
   // Héros déjà en création dans cette campagne (proposé avant d'en commencer un autre)
-  const enCours = id
-    ? []
-    : (engages.data ?? []).filter((p) => p.ownerId === profil.id && p.inCreation);
+  const enCours = herosEnCours(engages.data, profil.id, id);
 
   return (
     <div className="flex min-h-dvh flex-col" data-ambiance={campagne.data?.ambiance}>
@@ -325,45 +307,16 @@ export function AssistantPersonnage({
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-halo" />
         <div className="relative mx-auto grid w-full max-w-7xl gap-10 px-5 py-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:py-12">
           <main className="min-w-0">
-            <div className="mb-8 flex items-start justify-between gap-4">
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-[0.14em] text-primary">
-                  Nouveau héros{campagne.data ? ` · ${campagne.data.name}` : ''}
-                </p>
-                <h1 className="text-balance text-3xl font-semibold tracking-tight">
-                  {titreEtape(etape)}
-                </h1>
-                {regle?.description && (
-                  <p className="max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">
-                    {regle.description}
-                  </p>
-                )}
-              </div>
-              {id && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => void recommencer()}
-                  loading={supprimer.isPending}
-                  className="shrink-0"
-                >
-                  {!supprimer.isPending && <RotateCcw />}
-                  <span className="hidden sm:inline">Recommencer</span>
-                </Button>
-              )}
-            </div>
+            <EnTeteEtape
+              campagne={campagne.data?.name}
+              etape={etape}
+              description={regle?.description}
+              recommencer={id ? () => void recommencer() : undefined}
+              suppression={supprimer.isPending}
+            />
 
             {creationFermee ? (
-              <EtatVide
-                icone={Lock}
-                titre="Création réservée au MJ"
-                description="Le maître du jeu attribue les personnages de cette campagne : choisissez un héros terminé."
-                action={
-                  <Button asChild variant="secondary">
-                    <Link href={quitter}>Retour au choix du héros</Link>
-                  </Button>
-                }
-              />
+              <CreationFermee quitter={quitter} />
             ) : (
               <AnimatePresence mode="wait" custom={sens}>
                 <motion.section
@@ -374,85 +327,36 @@ export function AssistantPersonnage({
                   exit={{ opacity: 0, x: sens * -28 }}
                   transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  {etape.id === 'identite' && enCours.length > 0 && (
-                    <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/[0.06] p-4 sm:flex-row sm:items-center">
-                      <Hammer className="size-5 shrink-0 text-primary" />
-                      <p className="min-w-0 flex-1 text-sm">
-                        {enCours.length > 1
-                          ? `${enCours.length} héros sont déjà en création dans cette campagne.`
-                          : `${enCours[0]!.name} est déjà en création dans cette campagne.`}
-                      </p>
-                      <Button size="sm" variant="secondary" asChild>
-                        <Link
-                          href={`/personnages/nouveau?${new URLSearchParams({ campagne: campagneId, personnage: enCours[0]!.id })}`}
-                          onClick={() => {
-                            repris.current = false;
-                            setId(enCours[0]!.id);
-                          }}
-                        >
-                          Reprendre {enCours[0]!.name}
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-
                   {etape.id === 'identite' && (
-                    <Identite nom={nom} setNom={setNom} details={details} setDetails={setDetails} />
+                    <>
+                      <HerosEnCours
+                        enCours={enCours}
+                        campagneId={campagneId}
+                        onReprendre={(heros) => {
+                          repris.current = false;
+                          setId(heros);
+                        }}
+                      />
+                      <Identite
+                        nom={nom}
+                        setNom={setNom}
+                        details={details}
+                        setDetails={setDetails}
+                      />
+                    </>
                   )}
 
-                  {regle && (!systeme || !etat || !fiche) && (
-                    <Chargement texte="Chargement des règles…" />
-                  )}
-                  {regle && systeme && etat && fiche && (
-                    <>
-                      {regle.type === 'choisir' && (
-                        <EtapeChoisir
-                          systeme={systeme}
-                          presentation={presentation}
-                          etat={etat}
-                          fiche={fiche}
-                          etape={regle}
-                          onEtat={enregistrer}
-                        />
-                      )}
-                      {regle.type === 'tirer' && (
-                        <EtapeTirer
-                          etat={etat}
-                          fiche={fiche}
-                          etape={regle}
-                          onTirer={(affectation) => tirer(regle.id, affectation)}
-                        />
-                      )}
-                      {regle.type === 'saisir' && (
-                        <EtapeSaisir
-                          systeme={systeme}
-                          etat={etat}
-                          fiche={fiche}
-                          etape={regle}
-                          onEtat={enregistrer}
-                        />
-                      )}
-                      {regle.type === 'repartir' && (
-                        <EtapeRepartir
-                          systeme={systeme}
-                          etat={etat}
-                          fiche={fiche}
-                          etape={regle}
-                          statut={statut(regle.id)}
-                          onEtat={enregistrer}
-                        />
-                      )}
-                      {regle.type === 'acheter' && (
-                        <EtapeAcheter
-                          systeme={systeme}
-                          etat={etat}
-                          fiche={fiche}
-                          etape={regle}
-                          onEtat={enregistrer}
-                        />
-                      )}
-                      <RaisonsEtape statut={statut(regle.id)} />
-                    </>
+                  {regle && (
+                    <EtapeRegle
+                      regle={regle}
+                      systeme={systeme}
+                      presentation={presentation}
+                      etat={etat}
+                      fiche={fiche}
+                      statut={statut(regle.id)}
+                      onEtat={enregistrer}
+                      onTirer={(affectation) => tirer(regle.id, affectation)}
+                    />
                   )}
 
                   {etape.id === 'portrait' && fiche && (
@@ -494,77 +398,307 @@ export function AssistantPersonnage({
             )}
 
             {!creationFermee && (
-              <div className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">
-                <Button
-                  variant="ghost"
-                  onClick={() => aller(index - 1)}
-                  className={cn(index === 0 && 'invisible')}
-                >
-                  <ArrowLeft />
-                  Retour
-                </Button>
-                {etape.id === 'recap' ? (
-                  <Button
-                    size="lg"
-                    onClick={() => void terminer()}
-                    loading={envoi}
-                    disabled={!toutesValides || !id}
-                  >
-                    <Check />
-                    Créer le personnage
-                  </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    onClick={() => void avancer(index + 1)}
-                    loading={envoi}
-                    disabled={!valide(etape) || !campagne.data}
-                  >
-                    Continuer
-                    <ArrowRight />
-                  </Button>
-                )}
-              </div>
+              <Navigation
+                index={index}
+                recap={etape.id === 'recap'}
+                envoi={envoi}
+                creable={toutesValides && Boolean(id)}
+                continuable={valide(etape) && Boolean(campagne.data)}
+                onRetour={() => aller(index - 1)}
+                onTerminer={() => void terminer()}
+                onContinuer={() => void avancer(index + 1)}
+              />
             )}
           </main>
 
-          <aside className="hidden lg:block">
-            <div className="sticky top-24 space-y-4">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-subtle">
-                Votre héros
-              </p>
-              {fiche ? (
-                <ApercuFiche
-                  fiche={fiche}
-                  presentation={presentation}
-                  nom={nom}
-                  portraitUrl={portraitUrl}
-                />
-              ) : (
-                <div className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-subtle">
-                  Chargement des règles de la campagne…
-                </div>
-              )}
-              {statuts.length > 0 && (
-                <ul className="space-y-1.5 rounded-2xl border border-border bg-card p-4 text-[13px] shadow-surface">
-                  {statuts.map((s) => (
-                    <li key={s.etape.id} className="flex items-center gap-2.5">
-                      <PastilleStatut statut={s.statut} />
-                      <span
-                        className={
-                          s.statut === 'faite' ? 'text-foreground' : 'text-muted-foreground'
-                        }
-                      >
-                        {s.etape.nom}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </aside>
+          <ApercuLateral
+            fiche={fiche}
+            presentation={presentation}
+            nom={nom}
+            portraitUrl={portraitUrl}
+            statuts={statuts}
+          />
         </div>
       </div>
+    </div>
+  );
+}
+
+type EtatEtapeCreation = ReturnType<typeof etapesCreation>[number];
+
+/** Campagne ou héros introuvable. */
+function Introuvable({ campagne }: Readonly<{ campagne: boolean }>) {
+  return (
+    <div className="px-4 py-20">
+      <EtatVide
+        icone={AlertTriangle}
+        titre={campagne ? 'Campagne introuvable' : 'Héros introuvable'}
+        description={
+          campagne
+            ? 'Impossible de créer un héros pour cette campagne.'
+            : 'Ce héros a peut-être été supprimé.'
+        }
+      />
+    </div>
+  );
+}
+
+/** Création réservée au MJ : retour au choix d'un héros terminé. */
+function CreationFermee({ quitter }: Readonly<{ quitter: string }>) {
+  return (
+    <EtatVide
+      icone={Lock}
+      titre="Création réservée au MJ"
+      description="Le maître du jeu attribue les personnages de cette campagne : choisissez un héros terminé."
+      action={
+        <Button asChild variant="secondary">
+          <Link href={quitter}>Retour au choix du héros</Link>
+        </Button>
+      }
+    />
+  );
+}
+
+/** Héros déjà en création dans la campagne : reprendre le premier plutôt qu'en commencer un autre. */
+function HerosEnCours({
+  enCours,
+  campagneId,
+  onReprendre,
+}: Readonly<{
+  enCours: { id: string; name: string }[];
+  campagneId: string;
+  onReprendre(id: string): void;
+}>) {
+  const premier = enCours[0];
+  if (!premier) return null;
+  return (
+    <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/[0.06] p-4 sm:flex-row sm:items-center">
+      <Hammer className="size-5 shrink-0 text-primary" />
+      <p className="min-w-0 flex-1 text-sm">
+        {enCours.length > 1
+          ? `${enCours.length} héros sont déjà en création dans cette campagne.`
+          : `${premier.name} est déjà en création dans cette campagne.`}
+      </p>
+      <Button size="sm" variant="secondary" asChild>
+        <Link
+          href={`/personnages/nouveau?${new URLSearchParams({ campagne: campagneId, personnage: premier.id })}`}
+          onClick={() => onReprendre(premier.id)}
+        >
+          Reprendre {premier.name}
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+/** Étape déclarée par le système : choisir, tirer, saisir, répartir ou acheter. */
+function EtapeRegle({
+  regle,
+  systeme,
+  presentation,
+  etat,
+  fiche,
+  statut,
+  onEtat,
+  onTirer,
+}: Readonly<{
+  regle: EtapeCreation;
+  systeme: SystemeCharge | null;
+  presentation: Presentation | null;
+  etat: EtatEntite | null;
+  fiche: Fiche | null;
+  statut: EtatEtapeCreation | undefined;
+  onEtat(apercu: EtatEntite, op: OperationCreation): void;
+  onTirer: Parameters<typeof EtapeTirer>[0]['onTirer'];
+}>) {
+  if (!systeme || !etat || !fiche) return <Chargement texte="Chargement des règles…" />;
+  return (
+    <>
+      {regle.type === 'choisir' && (
+        <EtapeChoisir
+          systeme={systeme}
+          presentation={presentation}
+          etat={etat}
+          fiche={fiche}
+          etape={regle}
+          onEtat={onEtat}
+        />
+      )}
+      {regle.type === 'tirer' && (
+        <EtapeTirer etat={etat} fiche={fiche} etape={regle} onTirer={onTirer} />
+      )}
+      {regle.type === 'saisir' && (
+        <EtapeSaisir systeme={systeme} etat={etat} fiche={fiche} etape={regle} onEtat={onEtat} />
+      )}
+      {regle.type === 'repartir' && (
+        <EtapeRepartir
+          systeme={systeme}
+          etat={etat}
+          fiche={fiche}
+          etape={regle}
+          statut={statut}
+          onEtat={onEtat}
+        />
+      )}
+      {regle.type === 'acheter' && (
+        <EtapeAcheter systeme={systeme} etat={etat} fiche={fiche} etape={regle} onEtat={onEtat} />
+      )}
+      <RaisonsEtape statut={statut} />
+    </>
+  );
+}
+
+/** Retour, puis Continuer, ou Créer le personnage au récapitulatif. */
+function Navigation({
+  index,
+  recap,
+  envoi,
+  creable,
+  continuable,
+  onRetour,
+  onTerminer,
+  onContinuer,
+}: Readonly<{
+  index: number;
+  recap: boolean;
+  envoi: boolean;
+  creable: boolean;
+  continuable: boolean;
+  onRetour(): void;
+  onTerminer(): void;
+  onContinuer(): void;
+}>) {
+  return (
+    <div className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">
+      <Button variant="ghost" onClick={onRetour} className={cn(index === 0 && 'invisible')}>
+        <ArrowLeft />
+        Retour
+      </Button>
+      {recap ? (
+        <Button size="lg" onClick={onTerminer} loading={envoi} disabled={!creable}>
+          <Check />
+          Créer le personnage
+        </Button>
+      ) : (
+        <Button size="lg" onClick={onContinuer} loading={envoi} disabled={!continuable}>
+          Continuer
+          <ArrowRight />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** Colonne de droite : aperçu de la fiche et avancement des étapes. */
+function ApercuLateral({
+  fiche,
+  presentation,
+  nom,
+  portraitUrl,
+  statuts,
+}: Readonly<{
+  fiche: Fiche | null;
+  presentation: Presentation | null;
+  nom: string;
+  portraitUrl: string | null;
+  statuts: EtatEtapeCreation[];
+}>) {
+  return (
+    <aside className="hidden lg:block">
+      <div className="sticky top-24 space-y-4">
+        <p className="text-xs font-medium uppercase tracking-[0.14em] text-subtle">Votre héros</p>
+        {fiche ? (
+          <ApercuFiche
+            fiche={fiche}
+            presentation={presentation}
+            nom={nom}
+            portraitUrl={portraitUrl}
+          />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-subtle">
+            Chargement des règles de la campagne…
+          </div>
+        )}
+        {statuts.length > 0 && (
+          <ul className="space-y-1.5 rounded-2xl border border-border bg-card p-4 text-[13px] shadow-surface">
+            {statuts.map((s) => (
+              <li key={s.etape.id} className="flex items-center gap-2.5">
+                <PastilleStatut statut={s.statut} />
+                <span
+                  className={s.statut === 'faite' ? 'text-foreground' : 'text-muted-foreground'}
+                >
+                  {s.etape.nom}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+/** Héros du joueur en création dans la campagne ; aucun une fois le sien commencé. */
+function herosEnCours(
+  engages: ReturnType<typeof usePersonnagesCampagne>['data'],
+  joueur: string | undefined,
+  id: string | null,
+) {
+  if (id) return [];
+  return (engages ?? []).filter((p) => p.ownerId === joueur && p.inCreation);
+}
+
+/** Étapes de l'assistant : identité, celles du système, portrait, récapitulatif. */
+function etapesUI(systeme: SystemeCharge | null): EtapeUI[] {
+  const regles = systeme ? (creationDe(systeme, TYPE_HEROS)?.etapes ?? []) : [];
+  return [
+    { id: 'identite' as const, nom: 'Identité' },
+    ...regles.map((r) => ({ id: `regle:${r.id}`, nom: r.nom, regle: r })),
+    { id: 'portrait' as const, nom: 'Portrait' },
+    { id: 'recap' as const, nom: 'Récapitulatif' },
+  ];
+}
+
+/** Titre de l'étape, sa description, et « Recommencer » une fois le héros créé. */
+function EnTeteEtape({
+  campagne,
+  etape,
+  description,
+  recommencer,
+  suppression,
+}: Readonly<{
+  campagne: string | undefined;
+  etape: EtapeUI;
+  description: string | undefined;
+  /** Absent tant que le héros n'existe pas dans le service. */
+  recommencer: (() => void) | undefined;
+  suppression: boolean;
+}>) {
+  return (
+    <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-[0.14em] text-primary">
+          Nouveau héros{campagne !== undefined ? ` · ${campagne}` : ''}
+        </p>
+        <h1 className="text-balance text-3xl font-semibold tracking-tight">{titreEtape(etape)}</h1>
+        {description && (
+          <p className="max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        )}
+      </div>
+      {recommencer && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={recommencer}
+          loading={suppression}
+          className="shrink-0"
+        >
+          {!suppression && <RotateCcw />}
+          <span className="hidden sm:inline">Recommencer</span>
+        </Button>
+      )}
     </div>
   );
 }

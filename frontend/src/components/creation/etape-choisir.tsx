@@ -186,99 +186,27 @@ export function EtapeChoisir({
             {g.entrees.map((e) => {
               const choisie = ids.includes(e.id);
               const bloque = !choisie ? prerequisManquant(fiche, e) : null;
-              const image = imageEntree(presentation, e.id);
               return avecImages ? (
-                <button
+                <CarteIllustree
                   key={e.id}
-                  type="button"
-                  role={unique ? 'radio' : 'checkbox'}
-                  aria-checked={choisie}
-                  disabled={Boolean(bloque)}
-                  onClick={() => basculer(e.id)}
-                  title={bloque ?? undefined}
-                  className={cn(
-                    'group relative overflow-hidden rounded-2xl border-2 text-left transition-all duration-200 disabled:opacity-40',
-                    choisie
-                      ? 'border-primary shadow-glow'
-                      : 'border-transparent hover:-translate-y-0.5 hover:border-border-strong',
-                  )}
-                >
-                  <Illustration
-                    largeur={320}
-                    src={image}
-                    graine={e.nom}
-                    position="top"
-                    className="aspect-[3/4]"
-                    classeImage="transition-transform duration-500 group-hover:scale-105"
-                    voile
-                  >
-                    <span
-                      className={cn(
-                        'absolute right-2.5 top-2.5 flex size-6 items-center justify-center rounded-full border backdrop-blur transition-all',
-                        choisie
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-white/25 bg-black/30 text-transparent',
-                      )}
-                    >
-                      <Check className="size-3.5" strokeWidth={3} />
-                    </span>
-                    <span className="absolute inset-x-3 bottom-3">
-                      <span className="block font-display text-lg font-semibold leading-tight text-white">
-                        {e.nom}
-                      </span>
-                      <ApercuEffets fiche={fiche} entree={e.id} max={2} clair />
-                    </span>
-                  </Illustration>
-                </button>
+                  entree={e}
+                  fiche={fiche}
+                  presentation={presentation}
+                  unique={unique}
+                  choisie={choisie}
+                  bloque={bloque}
+                  onBasculer={() => basculer(e.id)}
+                />
               ) : (
-                <button
+                <CarteListe
                   key={e.id}
-                  type="button"
-                  role={unique ? 'radio' : 'checkbox'}
-                  aria-checked={choisie}
-                  disabled={Boolean(bloque)}
-                  onClick={() => basculer(e.id)}
-                  className={cn(
-                    'flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-50',
-                    choisie
-                      ? 'border-primary/60 bg-primary/[0.07]'
-                      : 'border-border bg-card hover:border-border-strong hover:bg-surface-2',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'mt-0.5 flex size-5 shrink-0 items-center justify-center border',
-                      unique ? 'rounded-full' : 'rounded-md',
-                      choisie
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border-strong',
-                    )}
-                  >
-                    {bloque ? (
-                      <Lock className="size-3 text-subtle" />
-                    ) : (
-                      choisie && <Check className="size-3" strokeWidth={3} />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
-                      {e.nom}
-                      {suggerees.includes(e.id) && (
-                        <Badge ton="primaire">
-                          <Lightbulb /> Suggérée
-                        </Badge>
-                      )}
-                    </span>
-                    {e.description && (
-                      <span className="mt-1 line-clamp-2 block whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
-                        {e.description}
-                      </span>
-                    )}
-                    {bloque && (
-                      <span className="mt-1 block text-[11px] text-warning">{bloque}</span>
-                    )}
-                  </span>
-                </button>
+                  entree={e}
+                  unique={unique}
+                  choisie={choisie}
+                  bloque={bloque}
+                  suggeree={suggerees.includes(e.id)}
+                  onBasculer={() => basculer(e.id)}
+                />
               );
             })}
           </div>
@@ -481,5 +409,134 @@ function DetailEntree({
           );
         })}
     </section>
+  );
+}
+
+type EntreeChoix = ReturnType<typeof entreesDeSorte>[number];
+
+/** Choix illustré : portrait de l'entrée, coche, nom et premiers effets. */
+function CarteIllustree({
+  entree: e,
+  fiche,
+  presentation,
+  unique,
+  choisie,
+  bloque,
+  onBasculer,
+}: Readonly<{
+  entree: EntreeChoix;
+  fiche: Fiche;
+  presentation: Presentation | null;
+  unique: boolean;
+  choisie: boolean;
+  bloque: string | null;
+  onBasculer(): void;
+}>) {
+  const image = imageEntree(presentation, e.id);
+  return (
+    <button
+      type="button"
+      role={unique ? 'radio' : 'checkbox'}
+      aria-checked={choisie}
+      disabled={Boolean(bloque)}
+      onClick={onBasculer}
+      title={bloque ?? undefined}
+      className={cn(
+        'group relative overflow-hidden rounded-2xl border-2 text-left transition-all duration-200 disabled:opacity-40',
+        choisie
+          ? 'border-primary shadow-glow'
+          : 'border-transparent hover:-translate-y-0.5 hover:border-border-strong',
+      )}
+    >
+      <Illustration
+        largeur={320}
+        src={image}
+        graine={e.nom}
+        position="top"
+        className="aspect-[3/4]"
+        classeImage="transition-transform duration-500 group-hover:scale-105"
+        voile
+      >
+        <span
+          className={cn(
+            'absolute right-2.5 top-2.5 flex size-6 items-center justify-center rounded-full border backdrop-blur transition-all',
+            choisie
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-white/25 bg-black/30 text-transparent',
+          )}
+        >
+          <Check className="size-3.5" strokeWidth={3} />
+        </span>
+        <span className="absolute inset-x-3 bottom-3">
+          <span className="block font-display text-lg font-semibold leading-tight text-white">
+            {e.nom}
+          </span>
+          <ApercuEffets fiche={fiche} entree={e.id} max={2} clair />
+        </span>
+      </Illustration>
+    </button>
+  );
+}
+
+/** Choix en liste : case ou bouton radio, nom, suggestion, description, prérequis manquant. */
+function CarteListe({
+  entree: e,
+  unique,
+  choisie,
+  bloque,
+  suggeree,
+  onBasculer,
+}: Readonly<{
+  entree: EntreeChoix;
+  unique: boolean;
+  choisie: boolean;
+  bloque: string | null;
+  suggeree: boolean;
+  onBasculer(): void;
+}>) {
+  return (
+    <button
+      type="button"
+      role={unique ? 'radio' : 'checkbox'}
+      aria-checked={choisie}
+      disabled={Boolean(bloque)}
+      onClick={onBasculer}
+      className={cn(
+        'flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-50',
+        choisie
+          ? 'border-primary/60 bg-primary/[0.07]'
+          : 'border-border bg-card hover:border-border-strong hover:bg-surface-2',
+      )}
+    >
+      <span
+        className={cn(
+          'mt-0.5 flex size-5 shrink-0 items-center justify-center border',
+          unique ? 'rounded-full' : 'rounded-md',
+          choisie ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong',
+        )}
+      >
+        {bloque ? (
+          <Lock className="size-3 text-subtle" />
+        ) : (
+          choisie && <Check className="size-3" strokeWidth={3} />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
+          {e.nom}
+          {suggeree && (
+            <Badge ton="primaire">
+              <Lightbulb /> Suggérée
+            </Badge>
+          )}
+        </span>
+        {e.description && (
+          <span className="mt-1 line-clamp-2 block whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
+            {e.description}
+          </span>
+        )}
+        {bloque && <span className="mt-1 block text-[11px] text-warning">{bloque}</span>}
+      </span>
+    </button>
   );
 }
