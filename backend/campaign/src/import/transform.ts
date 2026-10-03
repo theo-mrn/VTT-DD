@@ -26,6 +26,7 @@ import {
   toIsoDate,
   toText,
   type FirestoreDoc,
+  type LegacyCampaign,
   type LegacyCharacter,
 } from './legacy.js';
 
@@ -132,64 +133,67 @@ function truncate(v: string, max: number, what: string, warn: (m: string) => voi
   warn(`${what} tronqué(e) à ${max} caractères (${chars.length})`);
   return chars.slice(0, max).join('').trimEnd();
 }
+type Warn = (m: string) => void;
 
-export function transformCampaign(a: CampaignToImport): MigratedCampaign {
-  const warnings: string[] = [];
-  const warn = (m: string) => warnings.push(m);
-  const s = a.doc.data ?? {};
-
-  // Code : les codes à 6 chiffres de l'ancienne app sont repris tels quels
+/** Code : les codes à 6 chiffres de l'ancienne app sont repris tels quels. */
+function codeOf(a: CampaignToImport, warn: Warn): string | null {
   const legacyCode = a.code.trim().toUpperCase();
   const code = CAMPAIGN_CODE_FORMAT.test(legacyCode) ? legacyCode : null;
   if (!code) warn(`Code « ${a.code} » hors forme : un nouveau code sera tiré`);
+  return code;
+}
 
-  // Nom, description
+/** Nom de la campagne, à défaut tiré de son code. */
+function nameOf(a: CampaignToImport, s: LegacyCampaign, warn: Warn): string {
   let name = toText(s.title);
   if (!name) {
     name = `Campagne ${a.code}`;
     warn(`Campagne sans titre : nommée « ${name} »`);
   }
-  name = truncate(name, LIMITS.name, 'Titre', warn);
-  const description = truncate(
-    toText(s.description) ?? '',
-    LIMITS.description,
-    'Description',
-    warn,
-  );
+  return truncate(name, LIMITS.name, 'Titre', warn);
+}
 
-  // Système
-  const system = campaignSystem(a.system, a.characters);
-  if (!system.certain) {
-    const source = a.system.gameSystemId
-      ? `système « ${a.system.systemName ?? a.system.gameSystemId} » non reconnu`
-      : 'campagne sans système';
-    warn(`Système deviné (${source}) : ${system.id}`);
-  }
+/** Système deviné : dit d'où vient le doute. */
+function warnGuessedSystem(
+  a: CampaignToImport,
+  system: { id: MigratedSystemId; certain: boolean },
+  warn: Warn,
+): void {
+  if (system.certain) return;
+  const source = a.system.gameSystemId
+    ? `système « ${a.system.systemName ?? a.system.gameSystemId} » non reconnu`
+    : 'campagne sans système';
+  warn(`Système deviné (${source}) : ${system.id}`);
+}
 
-  // Image : l'URL Firebase Storage est recopiée dans le stockage par l'import (cli.ts)
-  let imageUrl = toText(s.imageUrl) ?? null;
+/** Image : l'URL Firebase Storage est recopiée dans le stockage par l'import (cli.ts). */
+function imageOf(s: LegacyCampaign, warn: Warn): string | null {
+  const imageUrl = toText(s.imageUrl) ?? null;
   if (imageUrl && imageUrl.length > LIMITS.imageUrl) {
     warn(`Image ignorée : URL de plus de ${LIMITS.imageUrl} caractères`);
-    imageUrl = null;
-  } else if (imageUrl && FIREBASE_HOSTING.test(imageUrl)) {
-    warn('Image sur Firebase Storage : recopiée dans le stockage à l’import');
+    return null;
   }
+  if (imageUrl && FIREBASE_HOSTING.test(imageUrl))
+    warn('Image sur Firebase Storage : recopiée dans le stockage à l’import');
+  return imageUrl;
+}
 
-  // Bannis, membres et rôles
-  const ownerUid = toText(s.creatorId);
-  if (!ownerUid) warn('Campagne sans créateur');
+/** Bannis, sans doublon ni le créateur. */
+function bansOf(s: LegacyCampaign, ownerUid: string | undefined, warn: Warn): string[] {
   const bannedList = (Array.isArray(s.bannedUsers) ? s.bannedUsers : []).map(toText);
   const bans = [...new Set(bannedList)].filter((uid): uid is string => !!uid && uid !== ownerUid);
   if (ownerUid && bannedList.includes(ownerUid))
     warn('Le créateur figurait parmi les bannis : bannissement ignoré');
+  return bans;
+}
 
-  const charactersById = new Map(a.characters.map((c) => [c.id, c]));
-  const charactersByName = new Map<string, FirestoreDoc<LegacyCharacter>[]>();
-  for (const c of a.characters) {
-    const n = toText(c.data?.Nomperso);
-    if (n) charactersByName.set(n, [...(charactersByName.get(n) ?? []), c]);
-  }
-
+/** Membres et rôles : le créateur est MJ, les autres joueurs, les bannis écartés. */
+function membersOf(
+  a: CampaignToImport,
+  bans: readonly string[],
+  ownerUid: string | undefined,
+  warn: Warn,
+): MigratedMember[] {
   const members: MigratedMember[] = [];
   for (const m of a.members) {
     if (bans.includes(m.uid)) {
@@ -203,43 +207,85 @@ export function transformCampaign(a: CampaignToImport): MigratedCampaign {
     }
     members.push({ uid: m.uid, role });
   }
+  return members;
+}
 
-  // Personnage incarné : persoId d'abord (plus sûr qu'un nom), puis Noms
-  const played = new Set<string>();
-  const play = (uid: string, c: FirestoreDoc<LegacyCharacter>, source: string) => {
-    const member = members.find((x) => x.uid === uid);
-    if (!member || member.plays) return;
-    if (played.has(c.path)) {
-      warn(`${c.path} déjà incarné : ignoré pour ${uid} (${source})`);
-      return;
-    }
-    member.plays = c.path;
-    played.add(c.path);
-  };
+/** Personnages de la campagne par nom (`Nomperso`), homonymes compris. */
+function charactersByNameOf(a: CampaignToImport): Map<string, FirestoreDoc<LegacyCharacter>[]> {
+  const charactersByName = new Map<string, FirestoreDoc<LegacyCharacter>[]>();
+  for (const c of a.characters) {
+    const n = toText(c.data?.Nomperso);
+    if (n) charactersByName.set(n, [...(charactersByName.get(n) ?? []), c]);
+  }
+  return charactersByName;
+}
+
+/** Attribution des personnages incarnés : un personnage ne l'est qu'une fois. */
+interface Casting {
+  members: MigratedMember[];
+  played: Set<string>;
+  warn: Warn;
+}
+
+/** Un membre incarne un personnage, s'il n'en incarne pas déjà un et que le personnage est libre. */
+function play(
+  casting: Casting,
+  uid: string,
+  c: FirestoreDoc<LegacyCharacter>,
+  source: string,
+): void {
+  const { members, played, warn } = casting;
+  const member = members.find((x) => x.uid === uid);
+  if (!member || member.plays) return;
+  if (played.has(c.path)) {
+    warn(`${c.path} déjà incarné : ignoré pour ${uid} (${source})`);
+    return;
+  }
+  member.plays = c.path;
+  played.add(c.path);
+}
+
+/** Personnage incarné d'après le nom choisi dans Noms, s'il est unique dans la campagne. */
+function playByName(
+  casting: Casting,
+  m: CampaignToImport['members'][number],
+  charactersByName: Map<string, FirestoreDoc<LegacyCharacter>[]>,
+): void {
+  const { members, warn } = casting;
+  if (!m.name || m.name === GM_NAME || members.find((x) => x.uid === m.uid)?.plays) return;
+  const candidates = charactersByName.get(m.name) ?? [];
+  if (candidates.length === 1) play(casting, m.uid, candidates[0]!, 'Noms');
+  else if (candidates.length > 1)
+    warn(
+      `« ${m.name} » joué par ${m.uid} : ${candidates.length} personnages de ce nom, aucun incarné`,
+    );
+  else if (!m.persoId) warn(`« ${m.name} » joué par ${m.uid} : personnage introuvable`);
+}
+
+/** Personnage incarné : persoId d'abord (plus sûr qu'un nom), puis Noms. */
+function assignPlayed(a: CampaignToImport, members: MigratedMember[], warn: Warn): void {
+  const charactersById = new Map(a.characters.map((c) => [c.id, c]));
+  const charactersByName = charactersByNameOf(a);
+  const casting: Casting = { members, played: new Set<string>(), warn };
   for (const m of a.members) {
     const c = m.persoId ? charactersById.get(m.persoId) : undefined;
     if (m.persoId && !c) warn(`persoId ${m.persoId} de ${m.uid} absent de la campagne`);
-    if (c) play(m.uid, c, 'persoId');
+    if (c) play(casting, m.uid, c, 'persoId');
   }
-  for (const m of a.members) {
-    if (!m.name || m.name === GM_NAME || members.find((x) => x.uid === m.uid)?.plays) continue;
-    const candidates = charactersByName.get(m.name) ?? [];
-    if (candidates.length === 1) play(m.uid, candidates[0]!, 'Noms');
-    else if (candidates.length > 1)
-      warn(
-        `« ${m.name} » joué par ${m.uid} : ${candidates.length} personnages de ce nom, aucun incarné`,
-      );
-    else if (!m.persoId) warn(`« ${m.name} » joué par ${m.uid} : personnage introuvable`);
-  }
+  for (const m of a.members) playByName(casting, m, charactersByName);
+}
 
-  // Personnages engagés
-  const characters = a.characters.map((c) => ({
+/** Personnages engagés, dans leur camp. */
+function charactersOf(a: CampaignToImport): MigratedCampaign['characters'] {
+  return a.characters.map((c) => ({
     legacyId: c.path,
     ...(toText(c.data?.Nomperso) ? { name: toText(c.data?.Nomperso)! } : {}),
     side: (toText(c.data?.type) === 'joueurs' ? 'players' : 'enemies') as Side,
   }));
+}
 
-  // Sessions prévues
+/** Sessions prévues, dans l'ordre chronologique. */
+function sessionsOf(a: CampaignToImport, warn: Warn): MigratedCampaign['sessions'] {
   const sessions: MigratedCampaign['sessions'] = [];
   for (const d of a.sessions) {
     const scheduledAt = toIsoDate(d.data?.date);
@@ -247,8 +293,11 @@ export function transformCampaign(a: CampaignToImport): MigratedCampaign {
     else warn(`Session ${d.id} sans date lisible : ignorée`);
   }
   sessions.sort((x, y) => x.scheduledAt.localeCompare(y.scheduledAt));
+  return sessions;
+}
 
-  // Discussion : l'ancienne app n'affichait que les messages avec un texte
+/** Discussion : l'ancienne app n'affichait que les messages avec un texte. */
+function messagesOf(a: CampaignToImport, warn: Warn): MigratedCampaign['messages'] {
   const messages: MigratedCampaign['messages'] = [];
   let truncated = 0;
   for (const d of a.messages) {
@@ -269,6 +318,39 @@ export function transformCampaign(a: CampaignToImport): MigratedCampaign {
   }
   if (truncated) warn(`${truncated} message(s) tronqué(s) à ${LIMITS.message} caractères`);
   messages.sort((x, y) => x.createdAt.localeCompare(y.createdAt));
+  return messages;
+}
+
+export function transformCampaign(a: CampaignToImport): MigratedCampaign {
+  const warnings: string[] = [];
+  const warn = (m: string) => warnings.push(m);
+  const s = a.doc.data ?? {};
+
+  const code = codeOf(a, warn);
+
+  // Nom, description
+  const name = nameOf(a, s, warn);
+  const description = truncate(
+    toText(s.description) ?? '',
+    LIMITS.description,
+    'Description',
+    warn,
+  );
+
+  const system = campaignSystem(a.system, a.characters);
+  warnGuessedSystem(a, system, warn);
+  const imageUrl = imageOf(s, warn);
+
+  // Bannis, membres et rôles
+  const ownerUid = toText(s.creatorId);
+  if (!ownerUid) warn('Campagne sans créateur');
+  const bans = bansOf(s, ownerUid, warn);
+  const members = membersOf(a, bans, ownerUid, warn);
+  assignPlayed(a, members, warn);
+
+  const characters = charactersOf(a);
+  const sessions = sessionsOf(a, warn);
+  const messages = messagesOf(a, warn);
 
   return {
     code,
