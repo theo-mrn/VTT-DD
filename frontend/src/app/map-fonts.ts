@@ -1,166 +1,149 @@
 /**
- * Polices des textes de la carte (docs/carte.md § 10, Dessins et textes), auto-hébergées par
- * `next/font` (aucun appel à Google au moment de jouer). `preload: false` : aucune n'est
- * téléchargée tant qu'un texte ne l'utilise pas. Chacune pose sa variable CSS sur <html>
- * (`--font-map-<id>`) ; le catalogue (libellés, groupes) est dans
+ * Polices des textes de la carte (docs/carte.md § 10, Dessins et textes), hébergées dans le dépôt
+ * (src/app/fonts, sous-ensemble latin de Google Fonts) : ni le build ni la partie n'appellent
+ * Google. `preload: false` : aucune n'est téléchargée tant qu'un texte ne l'utilise pas. Chacune
+ * pose sa variable CSS sur <html> (`--font-map-<id>`) ; le catalogue (libellés, groupes) est dans
  * `lib/map/modules/drawings/palette.ts`, sans dépendre de ce fichier (testable sans Next).
  *
  * `next/font` exige des options écrites en toutes lettres : une déclaration par police.
  */
-import {
-  Almendra,
-  Audiowide,
-  Bebas_Neue,
-  Caveat,
-  Cinzel_Decorative,
-  Creepster,
-  Dancing_Script,
-  IM_Fell_English,
-  Indie_Flower,
-  Kalam,
-  Lora,
-  MedievalSharp,
-  Nosifer,
-  Orbitron,
-  Pirata_One,
-  Shadows_Into_Light,
-  Share_Tech_Mono,
-  Special_Elite,
-  Uncial_Antiqua,
-  UnifrakturMaguntia,
-} from 'next/font/google';
+import localFont from 'next/font/local';
 
-const lora = Lora({
-  subsets: ['latin'],
+const lora = localFont({
+  src: './fonts/lora.woff2',
+  weight: '400 700',
   display: 'swap',
   preload: false,
   variable: '--font-map-lora',
 });
-const imFell = IM_Fell_English({
-  subsets: ['latin'],
+const imFell = localFont({
+  src: './fonts/im-fell-english.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-im-fell',
 });
-const medievalSharp = MedievalSharp({
-  subsets: ['latin'],
+const medievalSharp = localFont({
+  src: './fonts/medieval-sharp.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-medieval-sharp',
 });
-const uncial = Uncial_Antiqua({
-  subsets: ['latin'],
+const uncial = localFont({
+  src: './fonts/uncial-antiqua.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-uncial',
 });
-const almendra = Almendra({
-  subsets: ['latin'],
+const almendra = localFont({
+  src: './fonts/almendra.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-almendra',
 });
-const cinzelDecorative = Cinzel_Decorative({
-  subsets: ['latin'],
+const cinzelDecorative = localFont({
+  src: './fonts/cinzel-decorative-700.woff2',
   weight: '700',
   display: 'swap',
   preload: false,
   variable: '--font-map-cinzel-decorative',
 });
-const pirata = Pirata_One({
-  subsets: ['latin'],
+const pirata = localFont({
+  src: './fonts/pirata-one.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-pirata',
 });
-const unifraktur = UnifrakturMaguntia({
-  subsets: ['latin'],
+const unifraktur = localFont({
+  src: './fonts/unifraktur-maguntia.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-unifraktur',
 });
-const caveat = Caveat({
-  subsets: ['latin'],
+const caveat = localFont({
+  src: './fonts/caveat.woff2',
+  weight: '400 700',
   display: 'swap',
   preload: false,
   variable: '--font-map-caveat',
 });
-const kalam = Kalam({
-  subsets: ['latin'],
+const kalam = localFont({
+  src: './fonts/kalam-400.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-kalam',
 });
-const dancing = Dancing_Script({
-  subsets: ['latin'],
+const dancing = localFont({
+  src: './fonts/dancing-script.woff2',
+  weight: '400 700',
   display: 'swap',
   preload: false,
   variable: '--font-map-dancing',
 });
-const indieFlower = Indie_Flower({
-  subsets: ['latin'],
+const indieFlower = localFont({
+  src: './fonts/indie-flower.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-indie-flower',
 });
-const shadows = Shadows_Into_Light({
-  subsets: ['latin'],
+const shadows = localFont({
+  src: './fonts/shadows-into-light.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-shadows',
 });
-const bebas = Bebas_Neue({
-  subsets: ['latin'],
+const bebas = localFont({
+  src: './fonts/bebas-neue.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-bebas',
 });
-const orbitron = Orbitron({
-  subsets: ['latin'],
+const orbitron = localFont({
+  src: './fonts/orbitron.woff2',
+  weight: '400 900',
   display: 'swap',
   preload: false,
   variable: '--font-map-orbitron',
 });
-const audiowide = Audiowide({
-  subsets: ['latin'],
+const audiowide = localFont({
+  src: './fonts/audiowide.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-audiowide',
 });
-const shareTech = Share_Tech_Mono({
-  subsets: ['latin'],
+const shareTech = localFont({
+  src: './fonts/share-tech-mono.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-share-tech',
 });
-const specialElite = Special_Elite({
-  subsets: ['latin'],
+const specialElite = localFont({
+  src: './fonts/special-elite.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-special-elite',
 });
-const creepster = Creepster({
-  subsets: ['latin'],
+const creepster = localFont({
+  src: './fonts/creepster.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
   variable: '--font-map-creepster',
 });
-const nosifer = Nosifer({
-  subsets: ['latin'],
+const nosifer = localFont({
+  src: './fonts/nosifer.woff2',
   weight: '400',
   display: 'swap',
   preload: false,
