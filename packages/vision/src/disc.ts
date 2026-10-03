@@ -14,7 +14,7 @@ function arcStep(r: number): number {
   const step = ratio > -1 ? 2 * Math.acos(ratio) : Math.PI;
   const min = (2 * Math.PI) / 256;
   const max = (2 * Math.PI) / 24;
-  return step < min ? min : step > max ? max : step;
+  return clamp(step, min, max);
 }
 
 /** Tableau de sortie qui grandit. */
@@ -116,7 +116,7 @@ export function clipStarToDisc(star: StarPolygon, r: number): Float64Array {
       tExit = t2;
     }
     if (!Number.isNaN(tEnter)) {
-      const tt = tEnter < 0 ? 0 : tEnter > 1 ? 1 : tEnter;
+      const tt = clamp(tEnter, 0, 1);
       const x = px + tt * dx;
       const y = py + tt * dy;
       const ang = Math.atan2(y, x);
@@ -130,7 +130,7 @@ export function clipStarToDisc(star: StarPolygon, r: number): Float64Array {
       anyCross = true;
     }
     if (!Number.isNaN(tExit)) {
-      const tt = tExit < 0 ? 0 : tExit > 1 ? 1 : tExit;
+      const tt = clamp(tExit, 0, 1);
       const x = px + tt * dx;
       const y = py + tt * dy;
       out.push(cx + x, cy + y);
@@ -150,4 +150,10 @@ export function clipStarToDisc(star: StarPolygon, r: number): Float64Array {
   const d = out.data;
   if (m >= 4 && d[0] === d[m - 2] && d[1] === d[m - 1]) m -= 2;
   return d.slice(0, m);
+}
+
+/** Borne `v` entre `lo` et `hi` (NaN reste NaN, contrairement à Math.min/Math.max mêlés). */
+function clamp(v: number, lo: number, hi: number): number {
+  if (v < lo) return lo;
+  return v > hi ? hi : v;
 }

@@ -109,7 +109,7 @@ export function mentionCandidates(
     .filter((p) => p.id !== exclude && p.name.trim())
     .map((p) => {
       const name = normalize(p.name);
-      const rank = name.startsWith(q) ? 0 : name.split(/\s+/).some((w) => w.startsWith(q)) ? 1 : -1;
+      const rank = mentionRank(name, q);
       return { p, rank };
     })
     .filter((x) => x.rank >= 0)
@@ -132,7 +132,7 @@ export function audienceLabel(
 ): string {
   const names = recipients.users.map((u) => (u.id === me ? 'vous' : nameOf(u.id, u.name)));
   // « vous » en tête
-  names.sort((a, b) => (a === 'vous' ? -1 : b === 'vous' ? 1 : 0));
+  names.sort((a, b) => Number(b === 'vous') - Number(a === 'vous'));
   if (recipients.gm) names.push('MJ');
   if (names.length === 1 && names[0] === 'MJ') return 'Chuchoté au MJ';
   const texte = listeFr(names.map((n) => (n === 'MJ' ? 'le MJ' : n)));
@@ -140,13 +140,14 @@ export function audienceLabel(
 }
 
 /** Clé d'auditoire : deux messages ne se groupent que s'ils ont les mêmes destinataires. */
-export const audienceKey = (r: ChatRecipients | null) =>
-  r
-    ? `w:${r.gm ? 'gm' : ''}:${r.users
-        .map((u) => u.id)
-        .sort(compareCodeUnits)
-        .join(',')}`
-    : 'all';
+export function audienceKey(r: ChatRecipients | null): string {
+  if (!r) return 'all';
+  const users = r.users
+    .map((u) => u.id)
+    .sort(compareCodeUnits)
+    .join(',');
+  return `w:${r.gm ? 'gm' : ''}:${users}`;
+}
 
 // ─── Dates ───────────────────────────────────────────────────────────────────
 
@@ -229,4 +230,10 @@ export function buildThread(
     prev = t;
   }
   return out;
+}
+
+/** Pertinence d'un nom pour une mention : début du nom, début d'un mot, ou rien (-1). */
+function mentionRank(name: string, q: string): number {
+  if (name.startsWith(q)) return 0;
+  return name.split(/\s+/).some((w) => w.startsWith(q)) ? 1 : -1;
 }

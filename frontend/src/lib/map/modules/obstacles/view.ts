@@ -258,13 +258,9 @@ export class ObstacleView {
       v.glyph = glyph;
       v.unregister = this.engine.screenSpace.add(icon);
     }
-    const ctx = o.isOpen
-      ? o.isLocked
-        ? ctxs.openLocked
-        : ctxs.open
-      : o.isLocked
-        ? ctxs.closedLocked
-        : ctxs.closed;
+    const locked = { open: ctxs.openLocked, closed: ctxs.closedLocked };
+    const free = { open: ctxs.open, closed: ctxs.closed };
+    const ctx = (o.isLocked ? locked : free)[o.isOpen ? 'open' : 'closed'];
     if (v.glyph!.context !== ctx) v.glyph!.context = ctx;
     const c = doorCenter(pts);
     v.icon.position.set(c.x, c.y);
@@ -309,7 +305,7 @@ export class ObstacleView {
     for (const p of pts) flat.push(p.x, p.y);
     g.poly(flat, true).fill({
       color: theme.primary,
-      alpha: e.state.selected ? 0.1 : e.state.hovered ? 0.07 : 0.035,
+      alpha: roomAlpha(e.state),
     });
     if (e.state.selected) {
       g.poly(flat, true).stroke({ width: 2 * u, color: theme.primary, alpha: 0.95 });
@@ -364,4 +360,10 @@ function doorGlyph(c: GraphicsContext, theme: MapTheme, open: boolean, locked: b
     c.rect(5.3, 7, 4.4, 3.3).fill({ color: theme.background });
     c.moveTo(6.2, 7).arc(7.5, 6.6, 1.3, Math.PI, 0).stroke({ width: 1, color: theme.background });
   }
+}
+
+/** Remplissage d'une pièce (MJ) : plus marqué au survol, encore plus sélectionnée. */
+function roomAlpha(state: { selected?: boolean; hovered?: boolean }): number {
+  if (state.selected) return 0.1;
+  return state.hovered ? 0.07 : 0.035;
 }

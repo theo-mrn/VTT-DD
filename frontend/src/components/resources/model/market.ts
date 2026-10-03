@@ -61,12 +61,7 @@ export function buildMarket(
         const brut = priceField ? entry.champs[priceField.id] : undefined;
         const price = typeof brut === 'number' ? brut : null;
         const cat = categoryField ? entry.champs[categoryField.id] : undefined;
-        const category =
-          categoryField && typeof cat === 'string' && cat
-            ? valueName(systeme, categoryField, cat)
-            : categoryField && 'defaut' in categoryField && categoryField.defaut
-              ? valueName(systeme, categoryField, String(categoryField.defaut))
-              : null;
+        const category = categoryField ? categoryName(systeme, categoryField, cat) : null;
         const cells = columns.map((c) => fieldText(fiche, entry, c, true));
         return {
           entry,
@@ -111,18 +106,26 @@ export function visibleRows(
   if (sort === 'nom') return rows.sort(parNom);
   const sens = sort === 'prix-croissant' ? 1 : -1;
   // Sans prix : toujours en dernier
-  return rows.sort((a, b) =>
-    a.price === b.price
-      ? parNom(a, b)
-      : a.price === null
-        ? 1
-        : b.price === null
-          ? -1
-          : (a.price - b.price) * sens,
-  );
+  return rows.sort((a, b) => {
+    if (a.price === b.price) return parNom(a, b);
+    if (a.price === null) return 1;
+    if (b.price === null) return -1;
+    return (a.price - b.price) * sens;
+  });
 }
 
 /** Nom de colonne du prix : « Prix (pa) » tel que le système le nomme. */
 export function priceLabel(section: MarketSection): string | null {
   return section.priceField?.nom ?? null;
+}
+
+/** Catégorie lisible d'un objet : sa valeur, sinon celle du champ par défaut. */
+function categoryName(
+  systeme: Parameters<typeof valueName>[0],
+  field: Parameters<typeof valueName>[1],
+  cat: unknown,
+): string | null {
+  if (typeof cat === 'string' && cat) return valueName(systeme, field, cat);
+  if ('defaut' in field && field.defaut) return valueName(systeme, field, String(field.defaut));
+  return null;
 }

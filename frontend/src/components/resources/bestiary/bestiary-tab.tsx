@@ -86,6 +86,12 @@ export function BestiaryTab({
     setLimite(PAGE);
   };
 
+  let vue: 'chargement' | 'erreur' | 'vide' | 'aucun' | 'grille' = 'grille';
+  if (requete.isPending) vue = 'chargement';
+  else if (requete.isError) vue = 'erreur';
+  else if (items.length === 0) vue = 'vide';
+  else if (filtres.length === 0) vue = 'aucun';
+
   return (
     <div>
       <Toolbar>
@@ -142,13 +148,14 @@ export function BestiaryTab({
         </div>
       </Toolbar>
 
-      {requete.isPending ? (
+      {vue === 'chargement' && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-busy="true">
           {Array.from({ length: 8 }, (_, i) => (
             <Skeleton key={i} className="h-56 rounded-xl" />
           ))}
         </div>
-      ) : requete.isError ? (
+      )}
+      {vue === 'erreur' && (
         <Notice
           tone="error"
           icon={AlertTriangle}
@@ -160,7 +167,8 @@ export function BestiaryTab({
             </Button>
           }
         />
-      ) : items.length === 0 ? (
+      )}
+      {vue === 'vide' && (
         <Notice
           icon={Skull}
           title={source === 'campaign' ? 'Aucun modèle de PNJ' : 'Bestiaire vide'}
@@ -177,13 +185,15 @@ export function BestiaryTab({
             ) : undefined
           }
         />
-      ) : filtres.length === 0 ? (
+      )}
+      {vue === 'aucun' && (
         <Notice
           icon={SearchX}
           title="Aucun résultat"
           description={recherche ? `Aucune créature ne correspond à « ${recherche} ».` : undefined}
         />
-      ) : (
+      )}
+      {vue === 'grille' && (
         <>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {filtres.slice(0, limite).map((i) => (
