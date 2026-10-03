@@ -68,35 +68,43 @@ function enfants<T>(docs: readonly DocFirestore[], prefixe: string): DocFirestor
   ) as DocFirestore<T>[];
 }
 
-export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
-  // Salles : créateur et système
-  const salles = new Map<string, Record<string, unknown>>();
-  for (const d of e.salles) if (segments(d.path).length === 2) salles.set(d.id, d.data ?? {});
+/** Documents racines d'une collection (`collection/{id}`), par id. */
+function racines(docs: readonly DocFirestore[]): Map<string, Record<string, unknown>> {
+  const r = new Map<string, Record<string, unknown>>();
+  for (const d of docs) if (segments(d.path).length === 2) r.set(d.id, d.data ?? {});
+  return r;
+}
 
-  // Systèmes : nom, stats, spécialisations du contenu
-  const systemes = new Map<string, Record<string, unknown>>();
-  for (const d of e.systemes) if (segments(d.path).length === 2) systemes.set(d.id, d.data ?? {});
-  const specialisationsDe = (prefixe: string): Record<string, SpecialisationLegacy> => {
-    const r: Record<string, SpecialisationLegacy> = {};
-    for (const d of [...e.systemes, ...e.salles]) {
-      if (!d.path.startsWith(prefixe + '/content/')) continue;
-      const data = (d.data ?? {}) as Record<string, unknown>;
-      if (data.kind === 'specialization') r[d.id] = data as SpecialisationLegacy;
-    }
-    return r;
-  };
+/** Spécialisations du contenu rangé sous `prefixe/content/`, par id de document. */
+function specialisationsDe(e: Exports, prefixe: string): Record<string, SpecialisationLegacy> {
+  const r: Record<string, SpecialisationLegacy> = {};
+  for (const d of [...e.systemes, ...e.salles]) {
+    if (!d.path.startsWith(prefixe + '/content/')) continue;
+    const data = (d.data ?? {}) as Record<string, unknown>;
+    if (data.kind === 'specialization') r[d.id] = data as SpecialisationLegacy;
+  }
+  return r;
+}
 
-  const toutesSpecialisations: Record<string, SpecialisationLegacy> = {};
+/** Spécialisations de tout le contenu exporté (systèmes et surcharges de salle). */
+function toutesSpecialisationsDe(e: Exports): Record<string, SpecialisationLegacy> {
+  const r: Record<string, SpecialisationLegacy> = {};
   for (const d of [...e.systemes, ...e.salles]) {
     const data = (d.data ?? {}) as Record<string, unknown>;
     if (d.path.includes('/content/') && data.kind === 'specialization')
-      toutesSpecialisations[d.id] = data as SpecialisationLegacy;
+      r[d.id] = data as SpecialisationLegacy;
   }
+  return r;
+}
 
-  // Joueurs : personnage actif, copies de leurs personnages
+/** Joueurs : personnage actif (persoId → uid) et copies de leurs personnages. */
+function joueurs(users: readonly DocFirestore[]): {
+  persoIdDe: Map<string, string>;
+  copies: DocFirestore<PersonnageLegacy>[];
+} {
   const persoIdDe = new Map<string, string>(); // persoId → uid
   const copies: DocFirestore<PersonnageLegacy>[] = [];
-  for (const d of e.users) {
+  for (const d of users) {
     const s = segments(d.path);
     if (s.length === 2) {
       const persoId = texte((d.data ?? {}).persoId);
@@ -105,7 +113,14 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
       copies.push(d as DocFirestore<PersonnageLegacy>);
     }
   }
-  const uidDesCopies = new Map<string, Set<string>>(); // Nomperso → uids
+  return { persoIdDe, copies };
+}
+
+/** Joueurs qui gardent une copie de chaque personnage : Nomperso → uids. */
+function uidsDesCopies(
+  copies: readonly DocFirestore<PersonnageLegacy>[],
+): Map<string, Set<string>> {
+  const uidDesCopies = new Map<string, Set<string>>();
   for (const c of copies) {
     const nom = texte(c.data?.Nomperso);
     if (!nom) continue;
@@ -113,10 +128,15 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
     uids.add(segments(c.path)[1]!);
     uidDesCopies.set(nom, uids);
   }
+  return uidDesCopies;
+}
 
-  // Personnage joué par chaque membre d'une salle : code → Nomperso → uids
+/** Personnage joué par chaque membre d'une salle : code → Nomperso → uids. */
+function joueursParSalle(
+  noms: readonly DocFirestore[] | undefined,
+): Map<string, Map<string, Set<string>>> {
   const joueursParNom = new Map<string, Map<string, Set<string>>>();
-  for (const d of e.noms ?? []) {
+  for (const d of noms ?? []) {
     const s = segments(d.path);
     if (s.length !== 4 || s[0] !== 'salles' || s[2] !== 'Noms') continue;
     const nom = texte((d.data ?? {}).nom);
@@ -127,6 +147,126 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
     parNom.set(nom, uids);
     joueursParNom.set(s[1]!, parNom);
   }
+  return joueursParNom;
+}
+
+/** Index des exports utiles au regroupement de chaque personnage de salle. */
+interface Index {
+  e: Exports;
+  salles: Map<string, Record<string, unknown>>;
+  systemes: Map<string, Record<string, unknown>>;
+  toutesSpecialisations: Record<string, SpecialisationLegacy>;
+  persoIdDe: Map<string, string>;
+  uidDesCopies: Map<string, Set<string>>;
+  joueursParNom: Map<string, Map<string, Set<string>>>;
+}
+
+/** Propriétaire d'un personnage de salle, dans l'ordre de priorité de l'en-tête. */
+function proprietaire(
+  index: Index,
+  docId: string,
+  roomId: string,
+  nom: string | undefined,
+  salle: Record<string, unknown>,
+): { ownerUid: string | undefined; origine: PersonnageAImporter['origineProprietaire'] } {
+  let ownerUid: string | undefined = index.persoIdDe.get(docId);
+  let origine: PersonnageAImporter['origineProprietaire'] = ownerUid ? 'persoId' : 'inconnu';
+  // Liste des membres de la salle : le joueur qui joue ce personnage (un seul)
+  const joueurs = nom ? index.joueursParNom.get(roomId)?.get(nom) : undefined;
+  if (!ownerUid && joueurs?.size === 1) {
+    ownerUid = [...joueurs][0];
+    origine = 'noms';
+  }
+  if (!ownerUid && nom && index.uidDesCopies.get(nom)?.size === 1) {
+    ownerUid = [...index.uidDesCopies.get(nom)!][0];
+    origine = 'copie';
+  }
+  if (!ownerUid) {
+    const createur = texte(salle.creatorId);
+    if (createur) {
+      ownerUid = createur;
+      origine = 'createur-salle';
+    }
+  }
+  return { ownerUid, origine };
+}
+
+/**
+ * Un personnage peut référencer une spécialisation d'un ancien système de
+ * la salle (overrides `custom_…` successifs) : les ids Firestore étant
+ * uniques, on cherche dans tout le contenu exporté, le système courant
+ * de la salle ayant priorité.
+ */
+function specialisationsDeSalle(
+  index: Index,
+  roomId: string,
+  gameSystemId: string | undefined,
+): Record<string, SpecialisationLegacy> {
+  if (!gameSystemId) return { ...index.toutesSpecialisations };
+  return {
+    ...index.toutesSpecialisations,
+    ...specialisationsDe(index.e, `gameSystems/${gameSystemId}`),
+    ...specialisationsDe(index.e, `Salle/${roomId}/gameSystemOverrides/${gameSystemId}`),
+  };
+}
+
+/** Personnage de salle (`cartes/{room}/characters/{id}`) et ce qu'il emporte. */
+function personnageDeSalle(
+  index: Index,
+  doc: DocFirestore<PersonnageLegacy>,
+  roomId: string,
+  nom: string | undefined,
+): PersonnageAImporter {
+  const { e } = index;
+  const salle = index.salles.get(roomId) ?? {};
+  const gameSystemId = texte(salle.gameSystemId);
+  const systeme = gameSystemId ? index.systemes.get(gameSystemId) : undefined;
+  const { ownerUid, origine } = proprietaire(index, doc.id, roomId, nom, salle);
+
+  const cle = nom ?? '';
+  const specialisations = specialisationsDeSalle(index, roomId, gameSystemId);
+  const stats = Array.isArray(systeme?.stats)
+    ? (systeme.stats as { key: string; recoversToZero?: boolean }[])
+    : undefined;
+
+  return {
+    doc,
+    legacyId: doc.path,
+    roomId,
+    ...(ownerUid ? { ownerUid } : {}),
+    origineProprietaire: origine,
+    salle: {
+      ...(gameSystemId ? { gameSystemId } : {}),
+      ...(texte(systeme?.name) ? { nomSysteme: texte(systeme?.name)! } : {}),
+    },
+    options: {
+      inventaire: cle
+        ? enfants<ObjetInventaireLegacy>(e.inventaire, `Inventaire/${roomId}/${cle}`)
+        : [],
+      bonus: cle ? enfants<BonusLegacy>(e.bonus, `Bonus/${roomId}/${cle}`) : [],
+      competencesPersonnalisees: enfants<CompetencePersonnaliseeLegacy>(
+        e.cartes,
+        `${doc.path}/customCompetences`,
+      ),
+      specialisations,
+      ...(stats ? { statsSalle: stats } : {}),
+    },
+  };
+}
+
+export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
+  const { persoIdDe, copies } = joueurs(e.users);
+  const index: Index = {
+    e,
+    // Salles : créateur et système
+    salles: racines(e.salles),
+    // Systèmes : nom, stats, spécialisations du contenu
+    systemes: racines(e.systemes),
+    toutesSpecialisations: toutesSpecialisationsDe(e),
+    persoIdDe,
+    uidDesCopies: uidsDesCopies(copies),
+    joueursParNom: joueursParSalle(e.noms),
+  };
 
   const resultat: PersonnageAImporter[] = [];
   const nomsEnSalle = new Set<string>();
@@ -135,76 +275,10 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
     const s = segments(d.path);
     if (s.length !== 4 || s[0] !== 'cartes' || s[2] !== 'characters') continue;
     const doc = d as DocFirestore<PersonnageLegacy>;
-    const roomId = s[1]!;
     const p = doc.data ?? {};
     const nom = texte(p.Nomperso);
     if (nom) nomsEnSalle.add(nom);
-
-    const salle = salles.get(roomId) ?? {};
-    const gameSystemId = texte(salle.gameSystemId);
-    const systeme = gameSystemId ? systemes.get(gameSystemId) : undefined;
-
-    let ownerUid: string | undefined = persoIdDe.get(doc.id);
-    let origine: PersonnageAImporter['origineProprietaire'] = ownerUid ? 'persoId' : 'inconnu';
-    // Liste des membres de la salle : le joueur qui joue ce personnage (un seul)
-    const joueurs = nom ? joueursParNom.get(roomId)?.get(nom) : undefined;
-    if (!ownerUid && joueurs?.size === 1) {
-      ownerUid = [...joueurs][0];
-      origine = 'noms';
-    }
-    if (!ownerUid && nom && uidDesCopies.get(nom)?.size === 1) {
-      ownerUid = [...uidDesCopies.get(nom)!][0];
-      origine = 'copie';
-    }
-    if (!ownerUid) {
-      const createur = texte(salle.creatorId);
-      if (createur) {
-        ownerUid = createur;
-        origine = 'createur-salle';
-      }
-    }
-
-    const cle = nom ?? '';
-    // Un personnage peut référencer une spécialisation d'un ancien système de
-    // la salle (overrides `custom_…` successifs) : les ids Firestore étant
-    // uniques, on cherche dans tout le contenu exporté, le système courant
-    // de la salle ayant priorité.
-    const specialisations = {
-      ...toutesSpecialisations,
-      ...(gameSystemId
-        ? {
-            ...specialisationsDe(`gameSystems/${gameSystemId}`),
-            ...specialisationsDe(`Salle/${roomId}/gameSystemOverrides/${gameSystemId}`),
-          }
-        : {}),
-    };
-    const stats = Array.isArray(systeme?.stats)
-      ? (systeme.stats as { key: string; recoversToZero?: boolean }[])
-      : undefined;
-
-    resultat.push({
-      doc,
-      legacyId: doc.path,
-      roomId,
-      ...(ownerUid ? { ownerUid } : {}),
-      origineProprietaire: origine,
-      salle: {
-        ...(gameSystemId ? { gameSystemId } : {}),
-        ...(texte(systeme?.name) ? { nomSysteme: texte(systeme?.name)! } : {}),
-      },
-      options: {
-        inventaire: cle
-          ? enfants<ObjetInventaireLegacy>(e.inventaire, `Inventaire/${roomId}/${cle}`)
-          : [],
-        bonus: cle ? enfants<BonusLegacy>(e.bonus, `Bonus/${roomId}/${cle}`) : [],
-        competencesPersonnalisees: enfants<CompetencePersonnaliseeLegacy>(
-          e.cartes,
-          `${doc.path}/customCompetences`,
-        ),
-        specialisations,
-        ...(stats ? { statsSalle: stats } : {}),
-      },
-    });
+    resultat.push(personnageDeSalle(index, doc, s[1]!, nom));
   }
 
   // Copies orphelines : leur salle n'existe plus, le personnage n'existe qu'ici
@@ -218,7 +292,7 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
       origineProprietaire: 'compte',
       salle: {},
       // Salle disparue : spécialisations retrouvées dans tout le contenu exporté
-      options: { specialisations: toutesSpecialisations },
+      options: { specialisations: index.toutesSpecialisations },
     });
   }
 
