@@ -1,5 +1,5 @@
 # main → images signées sur GHCR → staging (GitOps, automatique)
-# tag vX.Y.Z (release-please) → prod (GitOps, approbation manuelle)
+# tag vX.Y.Z (posé à la main) → prod (GitOps, approbation manuelle)
 name: Release
 
 on:

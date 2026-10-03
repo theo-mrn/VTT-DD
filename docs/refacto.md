@@ -253,7 +253,7 @@ GitHub Actions, uniquement sur ce qui a changé (`turbo --filter=...[origin/main
 | E2E            | PR                            | Playwright sur la stack complète en docker compose (les tests Playwright existants)                                                                                         | Oui                  |
 | Publication    | main                          | Push GHCR par digest, signature cosign keyless (OIDC), attestation de provenance SLSA                                                                                       | —                    |
 | Staging        | main                          | Job de migration, puis mise à jour du dépôt GitOps ; smoke tests                                                                                                            | Auto                 |
-| Prod           | tag `vX.Y.Z` (release-please) | Environnement GitHub avec approbation manuelle, vérification de signature à l'admission                                                                                     | Manuel               |
+| Prod           | tag `vX.Y.Z` (posé à la main) | Environnement GitHub avec approbation manuelle, vérification de signature à l'admission                                                                                     | Manuel               |
 
 Règles transverses :
 
