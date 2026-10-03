@@ -94,16 +94,7 @@ export class SelectTool implements Tool {
       hit = selected;
     }
     if (hit) {
-      this.target = hit;
-      this.selectedOnDown = false;
-      // Action de clic (porte) : décidée au lâcher, sans sélectionner au bouton
-      const clickAction = !!hit.kind.click && !e.shift && !e.alt;
-      if (!clickAction && !e.alt && !engine.selection.has(hit.id) && engine.isInteractive(hit)) {
-        if (e.shift) engine.selection.add([hit.id]);
-        else engine.selection.replace([hit.id]);
-        this.selectedOnDown = true;
-      }
-      this.state = 'pressing';
+      this.pressEntity(hit, e, engine);
       return true;
     }
 
@@ -112,40 +103,28 @@ export class SelectTool implements Tool {
     return true;
   }
 
+  /** Bouton sur une entité : sélectionnée tout de suite, sauf action de clic (porte) ou Alt. */
+  private pressEntity(hit: MapEntity, e: MapPointer, engine: MapEngine) {
+    this.target = hit;
+    this.selectedOnDown = false;
+    // Action de clic (porte) : décidée au lâcher, sans sélectionner au bouton
+    const clickAction = !!hit.kind.click && !e.shift && !e.alt;
+    if (!clickAction && !e.alt && !engine.selection.has(hit.id) && engine.isInteractive(hit)) {
+      if (e.shift) engine.selection.add([hit.id]);
+      else engine.selection.replace([hit.id]);
+      this.selectedOnDown = true;
+    }
+    this.state = 'pressing';
+  }
+
   move(e: MapPointer, engine: MapEngine) {
     switch (this.state) {
       case 'idle':
         if (e.buttons === 0) engine.setHovered(engine.hitTest(e.world)?.id ?? null, e);
         return;
-      case 'pressing': {
-        if (!this.start || !this.target) return;
-        if (!exceedsThreshold(this.start.screen, e.screen)) return;
-        // Touchée pour son seul clic (porte hors de l'outil obstacles) : la carte se déplace
-        if (!engine.isInteractive(this.target)) {
-          this.startPanning(e, engine);
-          return;
-        }
-        // Alt + glisser d'une entité non sélectionnée : elle rejoint la sélection
-        if (!engine.selection.has(this.target.id)) {
-          if (this.start.shift) engine.selection.add([this.target.id]);
-          else engine.selection.replace([this.target.id]);
-        }
-        const movable = engine.movableSelection(this.target);
-        if (!movable.length) {
-          // Verrouillée, sans droit ou mur hors de son outil : c'est la carte qui se déplace
-          this.startPanning(e, engine);
-          return;
-        }
-        this.state = 'dragging';
-        engine.setHovered(null);
-        // On déplace : pas de panneau, ni pendant ni après
-        engine.showSelectionPanel(false);
-        const primary = movable.includes(this.target) ? this.target : movable[0]!;
-        this.drag = new DragSession(engine, movable, this.start.world, primary);
-        this.drag.update(e.world, { snap: !e.alt });
-        engine.refreshCursor();
+      case 'pressing':
+        this.movePressing(e, engine);
         return;
-      }
       case 'dragging':
         this.drag?.update(e.world, { snap: !e.alt });
         return;
@@ -154,17 +133,7 @@ export class SelectTool implements Tool {
           this.startPanning(e, engine);
         return;
       case 'void':
-        if (!this.start || !exceedsThreshold(this.start.screen, e.screen)) return;
-        // ⇧ + glisser dans le vide : lasso ; sinon la carte se déplace, comme on s'y attend
-        if (!this.start.shift) {
-          this.startPanning(e, engine);
-          return;
-        }
-        this.state = 'lasso';
-        this.lassoAdditive = true;
-        this.lasso = rectFromPoints(this.start.world, e.world);
-        engine.invalidate();
-        engine.refreshCursor();
+        this.moveVoid(e, engine);
         return;
       case 'panning':
         if (!this.panFrom) return;
@@ -182,6 +151,52 @@ export class SelectTool implements Tool {
     }
   }
 
+  /** Appui sur une entité qui dépasse le seuil : glisser de la sélection, sinon la carte. */
+  private movePressing(e: MapPointer, engine: MapEngine) {
+    const start = this.start;
+    const target = this.target;
+    if (!start || !target) return;
+    if (!exceedsThreshold(start.screen, e.screen)) return;
+    // Touchée pour son seul clic (porte hors de l'outil obstacles) : la carte se déplace
+    if (!engine.isInteractive(target)) {
+      this.startPanning(e, engine);
+      return;
+    }
+    // Alt + glisser d'une entité non sélectionnée : elle rejoint la sélection
+    if (!engine.selection.has(target.id)) {
+      if (start.shift) engine.selection.add([target.id]);
+      else engine.selection.replace([target.id]);
+    }
+    const movable = engine.movableSelection(target);
+    if (!movable.length) {
+      // Verrouillée, sans droit ou mur hors de son outil : c'est la carte qui se déplace
+      this.startPanning(e, engine);
+      return;
+    }
+    this.state = 'dragging';
+    engine.setHovered(null);
+    // On déplace : pas de panneau, ni pendant ni après
+    engine.showSelectionPanel(false);
+    const primary = movable.includes(target) ? target : movable[0]!;
+    this.drag = new DragSession(engine, movable, start.world, primary);
+    this.drag.update(e.world, { snap: !e.alt });
+    engine.refreshCursor();
+  }
+
+  /** Glisser dans le vide : ⇧, lasso ; sinon la carte se déplace, comme on s'y attend. */
+  private moveVoid(e: MapPointer, engine: MapEngine) {
+    if (!this.start || !exceedsThreshold(this.start.screen, e.screen)) return;
+    if (!this.start.shift) {
+      this.startPanning(e, engine);
+      return;
+    }
+    this.state = 'lasso';
+    this.lassoAdditive = true;
+    this.lasso = rectFromPoints(this.start.world, e.world);
+    engine.invalidate();
+    engine.refreshCursor();
+  }
+
   up(e: MapPointer, engine: MapEngine) {
     const state = this.state;
     const target = this.target;
@@ -190,25 +205,7 @@ export class SelectTool implements Tool {
     this.reset();
     switch (state) {
       case 'pressing':
-        if (!target) break;
-        if (e.alt) {
-          engine.ping(e.world);
-          break;
-        }
-        // Action de clic de la sorte (ouvrir une porte) : la sélection ne change pas
-        if (
-          !e.shift &&
-          target.kind.click?.(target, { viewer: engine.viewer, engine, world: e.world })
-        )
-          break;
-        if (!engine.isInteractive(target)) break;
-        // Clic sur une entité déjà sélectionnée : ⇧ la retire, sinon elle reste seule
-        if (!this.selectedOnDown) {
-          if (e.shift) engine.selection.toggle(target.id);
-          else engine.selection.replace([target.id]);
-        }
-        // Clic simple, sans glisser : le panneau de la sélection s'ouvre
-        engine.showSelectionPanel();
+        if (target) this.clickEntity(target, e, engine);
         break;
       case 'dragging':
         void this.drag?.commit();
@@ -220,16 +217,9 @@ export class SelectTool implements Tool {
       case 'panning':
         engine.cameraSettled();
         break;
-      case 'lasso': {
-        if (!start) break;
-        const rect = rectFromPoints(start.world, e.world);
-        const ids = engine.entitiesInRect(rect).map((x) => x.id);
-        if (this.lassoAdditive) engine.selection.add(ids);
-        else engine.selection.replace(ids);
-        engine.showSelectionPanel();
-        engine.invalidate();
+      case 'lasso':
+        if (start) this.selectInLasso(start, e, engine);
         break;
-      }
       case 'handle':
         void this.transform?.commit();
         break;
@@ -248,6 +238,35 @@ export class SelectTool implements Tool {
         alt: e.alt,
         selectionBefore,
       });
+  }
+
+  /** Clic simple sur une entité : Alt, ping ; action de clic (porte) ; sinon la sélection. */
+  private clickEntity(target: MapEntity, e: MapPointer, engine: MapEngine) {
+    if (e.alt) {
+      engine.ping(e.world);
+      return;
+    }
+    // Action de clic de la sorte (ouvrir une porte) : la sélection ne change pas
+    if (!e.shift && target.kind.click?.(target, { viewer: engine.viewer, engine, world: e.world }))
+      return;
+    if (!engine.isInteractive(target)) return;
+    // Clic sur une entité déjà sélectionnée : ⇧ la retire, sinon elle reste seule
+    if (!this.selectedOnDown) {
+      if (e.shift) engine.selection.toggle(target.id);
+      else engine.selection.replace([target.id]);
+    }
+    // Clic simple, sans glisser : le panneau de la sélection s'ouvre
+    engine.showSelectionPanel();
+  }
+
+  /** Lasso lâché : les entités du rectangle sélectionnées (ajoutées avec ⇧). */
+  private selectInLasso(start: MapPointer, e: MapPointer, engine: MapEngine) {
+    const rect = rectFromPoints(start.world, e.world);
+    const ids = engine.entitiesInRect(rect).map((x) => x.id);
+    if (this.lassoAdditive) engine.selection.add(ids);
+    else engine.selection.replace(ids);
+    engine.showSelectionPanel();
+    engine.invalidate();
   }
 
   doubleClick(e: MapPointer, engine: MapEngine): boolean {
