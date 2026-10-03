@@ -22,6 +22,37 @@ import { centroid, isClosed, oneWayArrow, polylineSegments, type Pts } from './g
 import { type ObstacleData, type RoomData } from './model';
 import { OverlayRedraw, dashedPolyline, dataColor } from './overlay';
 
+/** Bouts et jonctions arrondis. */
+const ROUND = { join: 'round', cap: 'round' } as const;
+
+/** Chemin de la ligne brisée (fermé si son dernier point rejoint le premier). */
+function tracePath(g: Graphics, pts: Pts, closed: boolean) {
+  g.moveTo(pts[0]!.x, pts[0]!.y);
+  for (let i = 1; i < pts.length; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
+  if (closed) g.closePath();
+}
+
+/** Porte : liseré sombre, puis trait plein (fermée) ou en tirets (ouverte). */
+function drawDoorLine(
+  g: Graphics,
+  pts: Pts,
+  closed: boolean,
+  u: number,
+  color: number,
+  background: number,
+  open: boolean,
+) {
+  tracePath(g, pts, closed);
+  g.stroke({ width: 6 * u, color: background, alpha: 0.55, ...ROUND });
+  if (open) {
+    dashedPolyline(g, pts, 5 * u, 4 * u);
+    g.stroke({ width: 3 * u, color, alpha: 0.85, cap: 'butt' });
+  } else {
+    tracePath(g, pts, closed);
+    g.stroke({ width: 4 * u, color, ...ROUND });
+  }
+}
+
 /** Rayon de l'icône de porte, en pixels d'écran. */
 export const DOOR_ICON_PX = 11;
 
@@ -162,59 +193,11 @@ export class ObstacleView {
     if (!v || !theme || !pixi) return;
     const o = e.data as unknown as ObstacleData;
     const pts = this.pointsOf(e);
-    const u = this.redraw.unit;
     const g = v.line;
     g.clear();
 
     const gm = isGm(this.engine.viewer);
-    if (gm && pts.length >= 2) {
-      const closed = isClosed(pts);
-      const path = () => {
-        g.moveTo(pts[0]!.x, pts[0]!.y);
-        for (let i = 1; i < pts.length; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
-        if (closed) g.closePath();
-      };
-      const opacity = Math.max(0, Math.min(1, o.opacity ?? 1));
-      const strength = 0.35 + 0.65 * opacity;
-      const join = { join: 'round', cap: 'round' } as const;
-
-      // Halo de survol ou de sélection
-      if (e.state.selected || e.state.hovered) {
-        path();
-        g.stroke({
-          width: (e.state.selected ? 11 : 9) * u,
-          color: theme.primary,
-          alpha: e.state.selected ? 0.5 : 0.28,
-          ...join,
-        });
-      }
-
-      if (o.kind === 'door') {
-        const color = dataColor(pixi, o.color, theme.primary);
-        path();
-        g.stroke({ width: 6 * u, color: theme.background, alpha: 0.55, ...join });
-        if (o.isOpen) {
-          dashedPolyline(g, pts, 5 * u, 4 * u);
-          g.stroke({ width: 3 * u, color, alpha: 0.85, cap: 'butt' });
-        } else {
-          path();
-          g.stroke({ width: 4 * u, color, ...join });
-        }
-      } else if (o.kind === 'window') {
-        const color = dataColor(pixi, o.color, theme.foreground);
-        path();
-        g.stroke({ width: 5 * u, color: theme.background, alpha: 0.5 * strength, ...join });
-        dashedPolyline(g, pts, 7 * u, 5 * u, false);
-        g.stroke({ width: 3 * u, color, alpha: strength, cap: 'butt' });
-      } else {
-        const color = dataColor(pixi, o.color, theme.foreground);
-        path();
-        g.stroke({ width: 6 * u, color: theme.background, alpha: 0.55 * strength, ...join });
-        path();
-        g.stroke({ width: 3 * u, color, alpha: strength, ...join });
-        if (o.kind === 'one_way_wall') this.drawArrows(g, pts, o.blocksFrom ?? 'left', u, color);
-      }
-    }
+    if (gm && pts.length >= 2) this.drawLine(g, e, o, pts, theme, pixi);
 
     // Icône de porte (tous)
     if (o.kind === 'door') this.ensureIcon(e, v, o, pts);
@@ -224,6 +207,50 @@ export class ObstacleView {
       v.icon = null;
       v.glyph = null;
       v.unregister = null;
+    }
+  }
+
+  /** Trait de l'obstacle (MJ) : halo de survol ou de sélection, puis porte, fenêtre ou mur. */
+  private drawLine(
+    g: Graphics,
+    e: MapEntity,
+    o: ObstacleData,
+    pts: Pts,
+    theme: MapTheme,
+    pixi: NonNullable<MapEngine['pixi']>,
+  ) {
+    const u = this.redraw.unit;
+    const closed = isClosed(pts);
+    const opacity = Math.max(0, Math.min(1, o.opacity ?? 1));
+    const strength = 0.35 + 0.65 * opacity;
+
+    // Halo de survol ou de sélection
+    if (e.state.selected || e.state.hovered) {
+      tracePath(g, pts, closed);
+      g.stroke({
+        width: (e.state.selected ? 11 : 9) * u,
+        color: theme.primary,
+        alpha: e.state.selected ? 0.5 : 0.28,
+        ...ROUND,
+      });
+    }
+
+    if (o.kind === 'door') {
+      const color = dataColor(pixi, o.color, theme.primary);
+      drawDoorLine(g, pts, closed, u, color, theme.background, o.isOpen);
+    } else if (o.kind === 'window') {
+      const color = dataColor(pixi, o.color, theme.foreground);
+      tracePath(g, pts, closed);
+      g.stroke({ width: 5 * u, color: theme.background, alpha: 0.5 * strength, ...ROUND });
+      dashedPolyline(g, pts, 7 * u, 5 * u, false);
+      g.stroke({ width: 3 * u, color, alpha: strength, cap: 'butt' });
+    } else {
+      const color = dataColor(pixi, o.color, theme.foreground);
+      tracePath(g, pts, closed);
+      g.stroke({ width: 6 * u, color: theme.background, alpha: 0.55 * strength, ...ROUND });
+      tracePath(g, pts, closed);
+      g.stroke({ width: 3 * u, color, alpha: strength, ...ROUND });
+      if (o.kind === 'one_way_wall') this.drawArrows(g, pts, o.blocksFrom ?? 'left', u, color);
     }
   }
 
