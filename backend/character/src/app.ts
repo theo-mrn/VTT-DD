@@ -42,6 +42,12 @@ export async function buildCharacter(
   const connexion = dbFourni ? null : createDb(config.DATABASE_URL);
   const db = dbFourni ?? connexion!.db;
 
+  // Systèmes compilés avant le serveur : la compilation (synchrone, ~1 s par système) bloquerait
+  // sinon la boucle d'événements à la première requête, et la protection de charge du service
+  // (under-pressure) renverrait 503 aux requêtes suivantes
+  const catalogue = catalogueFourni ?? catalogueReference();
+  for (const s of catalogue.lister()) catalogue.charge(s.id);
+
   const app = await createService({
     config,
     ...options,
@@ -58,7 +64,7 @@ export async function buildCharacter(
   const deps: Deps = {
     config,
     db,
-    catalogue: catalogueFourni ?? catalogueReference(),
+    catalogue,
     aleatoire: aleatoire ?? aleatoireCrypto,
     maintenant: maintenant ?? (() => new Date()),
     droits: droits ?? droitsDesCampagnes(config, app.log),

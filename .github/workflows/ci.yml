@@ -296,10 +296,12 @@ jobs:
           fail-on-severity: high
           deny-licenses: AGPL-3.0, GPL-3.0
           comment-summary-in-pr: on-failure
-      - name: Audit pnpm (bloquant sur high/critical)
+      # Dépendances de production seulement : les outils de build (tailwind et ses globs…) ne
+      # partent pas dans les images ; OSV-Scanner ci-dessous rapporte tout, sans bloquer
+      - name: Audit pnpm (bloquant sur high/critical, dépendances de production)
         run: |
           npm install -g pnpm@10.28.0 --no-fund --no-audit
-          pnpm audit --audit-level high
+          pnpm audit --prod --audit-level high
       - name: OSV-Scanner (rapport, non bloquant)
         continue-on-error: true
         uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0

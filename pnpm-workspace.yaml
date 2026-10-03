@@ -22,3 +22,14 @@ peerDependencyRules:
 overrides:
   '@react-email/preview-server>next': ^16.3.6
   'protobufjs@>=8.0.0 <8.4.1': ^8.8.0
+# Avis connus sans correctif publié, ignorés par l'audit bloquant de la CI (à revoir à chaque
+# nouvelle version) :
+auditConfig:
+  ignoreGhsas:
+    # node-forge ≤ 1.4.0, aucune version corrigée : seulement via firebase-admin de l'ancienne app
+    # (legacy/, retirée à la fin de la migration) ; rien de la nouvelle plateforme n'en dépend
+    - GHSA-86w9-cpqp-85rv
+    # braces ≤ 3.0.3 (déni de service sur des motifs imbriqués), aucune version corrigée : via
+    # tailwindcss 3 (chokidar, fast-glob), outil de build ; ses motifs viennent de notre config,
+    # jamais d'une entrée utilisateur
+    - GHSA-vfj7-8cjw-p6xm
