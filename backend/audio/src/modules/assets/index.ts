@@ -178,6 +178,160 @@ export async function deleteAsset(
   });
 }
 
+type CreateBody = z.output<typeof CreateAsset>;
+
+/** Ce que partagent les créations d'un son. */
+interface CreateContext {
+  deps: Deps;
+  campaignId: string;
+  userId: string;
+  actor: Actor;
+  ctx: EventContext;
+}
+
+/**
+ * Son envoyé : jeton d'envoi vérifié, fichier reçu en entier et reconnu comme un son.
+ * Déjà créé (requête rejouée) : le même.
+ */
+async function createUploaded(
+  c: CreateContext,
+  body: Extract<CreateBody, { source: 'upload' }>,
+): Promise<AssetRow> {
+  const { deps, campaignId, userId, actor, ctx } = c;
+  const { db } = deps;
+  const secret = deps.config.AUDIO_UPLOAD_SECRET;
+  if (!deps.storage || !secret)
+    throw new HttpError(
+      503,
+      'Service indisponible',
+      'storage_unavailable',
+      'Envoi de fichiers indisponible',
+    );
+  const claims = verifyUploadToken(secret, body.uploadToken, deps.now());
+  if (!claims || claims.campaignId !== campaignId || claims.kind !== body.kind)
+    throw new HttpError(
+      422,
+      'Envoi invalide',
+      'invalid_upload',
+      'Jeton d’envoi invalide ou expiré',
+    );
+  // Déjà créé (requête rejouée) : même réponse
+  const [known] = await db.select().from(assets).where(eq(assets.id, claims.assetId));
+  if (known) return known;
+  const head = await deps.storage.head(claims.key);
+  if (!head || head.size !== claims.size)
+    throw new HttpError(
+      422,
+      'Envoi invalide',
+      'invalid_upload',
+      'Le fichier n’a pas été reçu en entier',
+    );
+  const format = sniffAudio(await deps.storage.readStart(claims.key, 4096));
+  if (!format || !UPLOAD_TYPES[claims.contentType]?.includes(format))
+    throw new HttpError(
+      415,
+      'Type non pris en charge',
+      'unsupported_media_type',
+      'Le contenu du fichier n’est pas un son accepté',
+    );
+  return db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(assets)
+      .values({
+        id: claims.assetId,
+        campaignId,
+        kind: body.kind,
+        sections: sectionsOf(body.kind),
+        name: body.name,
+        source: 'upload',
+        status: 'processing',
+        originalKey: claims.key,
+        mimeType: claims.contentType,
+        sizeBytes: claims.size,
+        createdBy: userId,
+      })
+      .onConflictDoNothing()
+      .returning();
+    if (!created) return (await tx.select().from(assets).where(eq(assets.id, claims.assetId)))[0]!;
+    await enqueueJob(tx, created.id, 'analyze');
+    await assetEvent(tx, ctx, 'audio.asset_created', campaignId, created.id, actor, {
+      asset: toAsset(created, deps.storage),
+    });
+    return created;
+  });
+}
+
+/** Son du catalogue, à id déterministe (ranimé s'il avait été supprimé). */
+async function createFromCatalog(
+  c: CreateContext,
+  body: Extract<CreateBody, { source: 'catalog' }>,
+): Promise<AssetRow> {
+  const { deps, campaignId, userId, actor, ctx } = c;
+  const entry = deps.catalog.get(body.catalogId);
+  if (!entry)
+    throw new HttpError(
+      404,
+      'Ressource introuvable',
+      'catalog_entry_not_found',
+      'Entrée du catalogue introuvable',
+    );
+  return deps.db.transaction(async (tx) => {
+    const { row, created } = await upsertDeterministic(tx, {
+      id: importedAssetId(campaignId, entry.url),
+      campaignId,
+      kind: body.kind ?? entry.kind,
+      name: body.name ?? entry.name,
+      source: 'catalog',
+      // Durée et loudness relevées par le worker
+      status: 'processing',
+      catalogId: entry.id,
+      playbackUrl: entry.url,
+      createdBy: userId,
+    });
+    if (created) {
+      if (row.status !== 'ready') await enqueueJob(tx, row.id, 'analyze');
+      await assetEvent(tx, ctx, 'audio.asset_created', campaignId, row.id, actor, {
+        asset: toAsset(row, deps.storage),
+      });
+    }
+    return row;
+  });
+}
+
+/** Vidéo YouTube, à id déterministe (ranimée si elle avait été supprimée). */
+async function createFromYoutube(
+  c: CreateContext,
+  body: Extract<CreateBody, { source: 'youtube' }>,
+): Promise<AssetRow> {
+  const { deps, campaignId, userId, actor, ctx } = c;
+  const youtubeId = parseYoutubeId(body.url);
+  if (!youtubeId)
+    throw new HttpError(
+      422,
+      'Lien YouTube invalide',
+      'invalid_youtube_id',
+      'Collez un lien YouTube ou un identifiant de vidéo',
+    );
+  return deps.db.transaction(async (tx) => {
+    const { row, created } = await upsertDeterministic(tx, {
+      id: importedAssetId(campaignId, `youtube:${youtubeId}`),
+      campaignId,
+      kind: body.kind ?? 'music',
+      name: body.name,
+      source: 'youtube',
+      status: 'ready',
+      youtubeId,
+      durationMs: body.durationMs ?? null,
+      createdBy: userId,
+    });
+    if (created)
+      await assetEvent(tx, ctx, 'audio.asset_created', campaignId, row.id, actor, {
+        asset: toAsset(row, deps.storage),
+      });
+    return row;
+  });
+}
+
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db } = deps;
@@ -358,139 +512,18 @@ export const register: Module = async (app, deps) => {
       const userId = currentUser(req);
       const campaignId = req.params.id;
       const role: CampaignRole = await requireGm(deps, campaignId, userId);
-      const actor = actorOf(userId, role);
+      const c: CreateContext = {
+        deps,
+        campaignId,
+        userId,
+        actor: actorOf(userId, role),
+        ctx: eventContext(req),
+      };
       const body = req.body;
-      const ctx = eventContext(req);
-
-      if (body.source === 'upload') {
-        const secret = deps.config.AUDIO_UPLOAD_SECRET;
-        if (!deps.storage || !secret)
-          throw new HttpError(
-            503,
-            'Service indisponible',
-            'storage_unavailable',
-            'Envoi de fichiers indisponible',
-          );
-        const claims = verifyUploadToken(secret, body.uploadToken, deps.now());
-        if (!claims || claims.campaignId !== campaignId || claims.kind !== body.kind)
-          throw new HttpError(
-            422,
-            'Envoi invalide',
-            'invalid_upload',
-            'Jeton d’envoi invalide ou expiré',
-          );
-        // Déjà créé (requête rejouée) : même réponse
-        const [known] = await db.select().from(assets).where(eq(assets.id, claims.assetId));
-        if (known) {
-          reply.code(201);
-          return toAsset(known, deps.storage);
-        }
-        const head = await deps.storage.head(claims.key);
-        if (!head || head.size !== claims.size)
-          throw new HttpError(
-            422,
-            'Envoi invalide',
-            'invalid_upload',
-            'Le fichier n’a pas été reçu en entier',
-          );
-        const format = sniffAudio(await deps.storage.readStart(claims.key, 4096));
-        if (!format || !UPLOAD_TYPES[claims.contentType]?.includes(format))
-          throw new HttpError(
-            415,
-            'Type non pris en charge',
-            'unsupported_media_type',
-            'Le contenu du fichier n’est pas un son accepté',
-          );
-        const row = await db.transaction(async (tx) => {
-          const [created] = await tx
-            .insert(assets)
-            .values({
-              id: claims.assetId,
-              campaignId,
-              kind: body.kind,
-              sections: sectionsOf(body.kind),
-              name: body.name,
-              source: 'upload',
-              status: 'processing',
-              originalKey: claims.key,
-              mimeType: claims.contentType,
-              sizeBytes: claims.size,
-              createdBy: userId,
-            })
-            .onConflictDoNothing()
-            .returning();
-          if (!created)
-            return (await tx.select().from(assets).where(eq(assets.id, claims.assetId)))[0]!;
-          await enqueueJob(tx, created.id, 'analyze');
-          await assetEvent(tx, ctx, 'audio.asset_created', campaignId, created.id, actor, {
-            asset: toAsset(created, deps.storage),
-          });
-          return created;
-        });
-        reply.code(201);
-        return toAsset(row, deps.storage);
-      }
-
-      if (body.source === 'catalog') {
-        const entry = deps.catalog.get(body.catalogId);
-        if (!entry)
-          throw new HttpError(
-            404,
-            'Ressource introuvable',
-            'catalog_entry_not_found',
-            'Entrée du catalogue introuvable',
-          );
-        const row = await db.transaction(async (tx) => {
-          const { row, created } = await upsertDeterministic(tx, {
-            id: importedAssetId(campaignId, entry.url),
-            campaignId,
-            kind: body.kind ?? entry.kind,
-            name: body.name ?? entry.name,
-            source: 'catalog',
-            // Durée et loudness relevées par le worker
-            status: 'processing',
-            catalogId: entry.id,
-            playbackUrl: entry.url,
-            createdBy: userId,
-          });
-          if (created) {
-            if (row.status !== 'ready') await enqueueJob(tx, row.id, 'analyze');
-            await assetEvent(tx, ctx, 'audio.asset_created', campaignId, row.id, actor, {
-              asset: toAsset(row, deps.storage),
-            });
-          }
-          return row;
-        });
-        reply.code(201);
-        return toAsset(row, deps.storage);
-      }
-
-      const youtubeId = parseYoutubeId(body.url);
-      if (!youtubeId)
-        throw new HttpError(
-          422,
-          'Lien YouTube invalide',
-          'invalid_youtube_id',
-          'Collez un lien YouTube ou un identifiant de vidéo',
-        );
-      const row = await db.transaction(async (tx) => {
-        const { row, created } = await upsertDeterministic(tx, {
-          id: importedAssetId(campaignId, `youtube:${youtubeId}`),
-          campaignId,
-          kind: body.kind ?? 'music',
-          name: body.name,
-          source: 'youtube',
-          status: 'ready',
-          youtubeId,
-          durationMs: body.durationMs ?? null,
-          createdBy: userId,
-        });
-        if (created)
-          await assetEvent(tx, ctx, 'audio.asset_created', campaignId, row.id, actor, {
-            asset: toAsset(row, deps.storage),
-          });
-        return row;
-      });
+      let row: AssetRow;
+      if (body.source === 'upload') row = await createUploaded(c, body);
+      else if (body.source === 'catalog') row = await createFromCatalog(c, body);
+      else row = await createFromYoutube(c, body);
       reply.code(201);
       return toAsset(row, deps.storage);
     },
