@@ -22,6 +22,8 @@ peerDependencyRules:
 overrides:
   '@react-email/preview-server>next': ^16.3.6
   'protobufjs@>=8.0.0 <8.4.1': ^8.8.0
+  # Firestore (ancienne app, export Firebase) fige grpc-js en 1.9 : GHSA-m9gg-hp2v-232j
+  '@grpc/grpc-js@<1.13.6': ^1.14.5
 # Avis connus sans correctif publié, ignorés par l'audit bloquant de la CI (à revoir à chaque
 # nouvelle version) :
 auditConfig:
