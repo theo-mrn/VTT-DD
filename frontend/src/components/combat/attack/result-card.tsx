@@ -49,7 +49,7 @@ function attributeName(systeme: SystemeCharge, key: string): string {
 
 function modificationText(systeme: SystemeCharge, m: AttackModification): string {
   if (m.kind === 'attribute') {
-    const sign = m.operation === 'subtract' ? '−' : m.operation === 'set' ? '=' : '+';
+    const sign = SIGN[m.operation] ?? '+';
     const type = m.damageType
       ? ` ${systeme.source.typesDegats.find((t) => t.id === m.damageType)?.nom ?? m.damageType}`
       : '';
@@ -57,7 +57,7 @@ function modificationText(systeme: SystemeCharge, m: AttackModification): string
     return `${attributeName(systeme, m.attribute)} ${sign}${m.value}${type}${raw}`;
   }
   const name = systeme.entrees.get(m.entry)?.nom ?? m.entry;
-  const duration = m.duration ? `, ${m.duration} round${m.duration > 1 ? 's' : ''}` : '';
+  const duration = m.duration ? `, ${rounds(m.duration)}` : '';
   return `${m.operation === 'give' ? '+' : '−'} ${name}${duration}`;
 }
 
@@ -170,13 +170,11 @@ export function ResultCard({
         ))}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        {decision ? (
-          <Badge ton={d.decision === 'applied' ? 'succes' : 'neutre'}>{decision}</Badge>
-        ) : d.status === 'resolved' ? (
+        {decision && <Badge ton={d.decision === 'applied' ? 'succes' : 'neutre'}>{decision}</Badge>}
+        {!decision && d.status === 'resolved' && (
           <span className="text-[12px] text-subtle">En attente de la décision du MJ</span>
-        ) : (
-          <span />
         )}
+        {!decision && d.status !== 'resolved' && <span />}
         {d.explanations.length > 0 && (
           <button
             type="button"
@@ -205,3 +203,7 @@ export function ResultCard({
     </li>
   );
 }
+
+const SIGN: Partial<Record<string, string>> = { subtract: '−', set: '=' };
+
+const rounds = (n: number) => `${n} round${n > 1 ? 's' : ''}`;

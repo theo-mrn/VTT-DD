@@ -41,15 +41,7 @@ export function SlotBar({
             className={cn(
               'grid size-8 place-items-center rounded-lg border font-mono text-xs font-semibold transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-              c.current
-                ? 'border-primary bg-primary text-primary-foreground shadow-surface'
-                : c.past
-                  ? 'border-border bg-surface text-subtle'
-                  : c.side === 'players'
-                    ? 'border-info/40 bg-info/10 text-info hover:bg-info/20'
-                    : c.side === 'enemies'
-                      ? 'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20'
-                      : 'border-success/40 bg-success/10 text-success hover:bg-success/20',
+              slotLook(c),
             )}
           >
             {label.short}
@@ -59,3 +51,15 @@ export function SlotBar({
     </div>
   );
 }
+
+/** Créneau : en cours, passé, ou à venir dans la couleur de son camp. */
+function slotLook(c: { current: boolean; past: boolean; side: string }): string {
+  if (c.current) return 'border-primary bg-primary text-primary-foreground shadow-surface';
+  if (c.past) return 'border-border bg-surface text-subtle';
+  return SIDE_LOOK[c.side] ?? 'border-success/40 bg-success/10 text-success hover:bg-success/20';
+}
+
+const SIDE_LOOK: Partial<Record<string, string>> = {
+  players: 'border-info/40 bg-info/10 text-info hover:bg-info/20',
+  enemies: 'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20',
+};

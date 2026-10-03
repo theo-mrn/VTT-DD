@@ -31,7 +31,10 @@ export const packColor = (bgr: number, alpha: number) => bgr + (((alpha * 255) |
 export const toBgr = (rgb: number) => ((rgb & 0xff) << 16) | (rgb & 0xff00) | ((rgb >> 16) & 0xff);
 
 const lerp = (r: Range, t: number) => r[0] + (r[1] - r[0]) * t;
-const smoothstep = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+function smoothstep(t: number): number {
+  if (t <= 0) return 0;
+  return t >= 1 ? 1 : t * t * (3 - 2 * t);
+}
 const mod = (v: number, m: number) => ((v % m) + m) % m;
 /** Respiration lente d'une opacité : 1 ± `depth` / 2, période en secondes. */
 const breathe = (b: { period: number; depth: number } | undefined, t: number) =>
@@ -444,11 +447,10 @@ export class WeatherSim {
 
     const vignette = effect?.vignette;
     f.vignette.color = vignette?.color ?? 0;
-    const pulse = vignette
-      ? this.flashes && !this.still
-        ? breathe(vignette.pulse, t)
-        : 1 - vignette.pulse.depth / 2
-      : 0;
+    let pulse = 0;
+    if (vignette)
+      pulse =
+        this.flashes && !this.still ? breathe(vignette.pulse, t) : 1 - vignette.pulse.depth / 2;
     f.vignette.alpha = vignette ? Math.min(1, lerp(vignette.alpha, i) * pulse * quiet) : 0;
 
     const noise = effect?.static;
@@ -511,7 +513,7 @@ export class WeatherSim {
     p.anchorY = 0.5;
     p.a0 = lerp(spec.alpha, rng()) * (0.5 + 0.5 * p.depth);
     p.rotation = spec.spin ? rng() * TAU : 0;
-    p.spin = spec.spin ? lerp(spec.spin, rng()) * (rng() < 0.5 ? -1 : 1) : 0;
+    p.spin = spec.spin ? lerp(spec.spin, rng()) * randomSign(rng) : 0;
     p.amp = spec.sway ? lerp(spec.sway.amp, rng()) : 0;
     p.omega = spec.sway ? TAU * lerp(spec.sway.freq, rng()) : 0;
     p.phase = rng() * TAU;
@@ -550,3 +552,6 @@ export class WeatherSim {
     p.y = mod(p.y + m, this.height + 2 * m) - m;
   }
 }
+
+/** −1 ou 1, à pile ou face. */
+const randomSign = (rng: () => number) => (rng() < 0.5 ? -1 : 1);

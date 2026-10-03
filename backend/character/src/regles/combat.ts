@@ -119,7 +119,7 @@ export function versModification(m: Modification): AttackModification {
     kind: 'attribute',
     entity,
     attribute: m.attribut,
-    operation: m.operation === 'ajouter' ? 'add' : m.operation === 'retirer' ? 'subtract' : 'set',
+    operation: OPERATION_ANGLAISE[m.operation] ?? 'set',
     value: m.valeur,
     ...(m.type !== undefined ? { damageType: m.type } : {}),
     ...(m.brut !== undefined ? { raw: m.brut } : {}),
@@ -129,12 +129,7 @@ export function versModification(m: Modification): AttackModification {
           resistances: m.resistances.map((l) => ({
             source: l.source,
             name: l.nom,
-            operation:
-              l.operation === 'annuler'
-                ? ('cancel' as const)
-                : l.operation === 'multiplier'
-                  ? ('multiply' as const)
-                  : ('reduce' as const),
+            operation: OPERATION_LIMITE[l.operation] ?? ('reduce' as const),
             value: l.valeur,
             ignored: l.ignore === true,
           })),
@@ -232,8 +227,7 @@ export function modificationsDecidees(
       sortie.push({
         entite: 'cible',
         attribut: m.attribute,
-        operation:
-          m.operation === 'add' ? 'ajouter' : m.operation === 'subtract' ? 'retirer' : 'fixer',
+        operation: OPERATION_FRANCAISE[m.operation] ?? 'fixer',
         valeur: m.value,
         ...(m.damageType !== undefined ? { type: m.damageType } : {}),
       });
@@ -372,3 +366,17 @@ export function annuler(
   }
   return { etat: { ...actuel, valeurs, possessions, bonus }, conflits };
 }
+
+/** Opérations du moteur (français) ↔ du contrat de combat (anglais). */
+const OPERATION_ANGLAISE: Partial<Record<string, 'add' | 'subtract' | 'set'>> = {
+  ajouter: 'add',
+  retirer: 'subtract',
+};
+const OPERATION_FRANCAISE: Partial<Record<string, 'ajouter' | 'retirer' | 'fixer'>> = {
+  add: 'ajouter',
+  subtract: 'retirer',
+};
+const OPERATION_LIMITE: Partial<Record<string, 'cancel' | 'multiply' | 'reduce'>> = {
+  annuler: 'cancel',
+  multiplier: 'multiply',
+};

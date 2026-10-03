@@ -496,8 +496,7 @@ export class ObstacleTool implements Tool {
       const ids = this.selectedIds(engine);
       if (!ids.obstacles.size && !ids.rooms.size) return false;
       const step = (engine.grid()?.size ?? 50) * (k.shift ? 5 : 1);
-      const dx = k.key === 'ArrowLeft' ? -step : k.key === 'ArrowRight' ? step : 0;
-      const dy = k.key === 'ArrowUp' ? -step : k.key === 'ArrowDown' ? step : 0;
+      const [dx, dy] = (ARROWS[k.key] ?? [0, 0]).map((d) => d * step) as [number, number];
       const plan = newPlan(engine);
       translate(plan, ids, { x: dx, y: dy }, true);
       dropDuplicateSegments(plan, ids.obstacles);
@@ -1190,7 +1189,7 @@ export class ObstacleTool implements Tool {
     // Chaîne en cours
     if (this.chain.length) {
       const pts = this.chain;
-      const color = this.mode === 'room' ? primary : this.mode === 'door' ? success : primary;
+      const color = this.mode === 'door' ? success : primary;
       if (pts.length > 1) {
         g.moveTo(pts[0]!.x, pts[0]!.y);
         for (let i = 1; i < pts.length; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
@@ -1294,3 +1293,11 @@ export class ObstacleTool implements Tool {
     }
   }
 }
+
+/** Direction d'une flèche du clavier. */
+const ARROWS: Partial<Record<string, [number, number]>> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
