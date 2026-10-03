@@ -34,10 +34,9 @@ si le nouveau code n'est pas couvert ou ajoute un bug ou une faille. Projet : `v
    qui redirige toute requête non connectée, y compris l'API. Le scanner (runner GitHub) doit
    la traverser : exempter de la SSO les routes `/api/` (elles exigent déjà un jeton
    SonarQube), ou lancer ce job sur un runner auto-hébergé dans le cluster.
-2. **Projet** : créer le projet `vtt`, puis un jeton d'analyse de projet.
-3. **GitHub** (Settings → Secrets and variables → Actions) : secret `SONAR_TOKEN` (le jeton),
-   variable `SONAR_HOST_URL` = `https://sonarqube.cluster.afflair.app`. Sans eux, le job
-   SonarQube passe avec un avertissement.
+2. **Jeton** : jeton d'analyse global dans SonarQube (le projet `vtt` est créé à la première
+   analyse), en secret `SONAR_TOKEN` du dépôt GitHub. L'adresse de l'instance est écrite dans le
+   workflow. Sans le secret, le job SonarQube passe avec un avertissement.
 
 ### Protection de `main`
 
