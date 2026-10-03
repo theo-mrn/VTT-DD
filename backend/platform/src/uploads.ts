@@ -145,6 +145,27 @@ export const uploadErrors = {
     ),
 };
 
+/** Refus d'un envoi par les règles de son usage : trop lourd (413) ou format refusé (415). */
+function uploadRefusal(refus: { code: string; message: string }): HttpError {
+  return new HttpError(
+    refus.code === UPLOAD_ERRORS.tooLarge ? 413 : 415,
+    refus.code === UPLOAD_ERRORS.tooLarge ? 'Fichier trop lourd' : 'Format refusé',
+    refus.code,
+    refus.message,
+  );
+}
+
+/** Import refusé : adresse non publique, fichier trop lourd, pas une image, ou échec. */
+function importRefusal(err: RemoteImageError): HttpError {
+  if (err.reason === 'address')
+    return new HttpError(422, 'Adresse refusée', UPLOAD_ERRORS.addressNotAllowed, err.message);
+  if (err.reason === 'too_large')
+    return new HttpError(413, 'Fichier trop lourd', UPLOAD_ERRORS.tooLarge, err.message);
+  if (err.reason === 'not_image')
+    return new HttpError(415, 'Format refusé', UPLOAD_ERRORS.unsupportedType, err.message);
+  return new HttpError(422, 'Import impossible', UPLOAD_ERRORS.importFailed, err.message);
+}
+
 export class Uploads {
   readonly publicBase: string | null;
 
@@ -185,13 +206,7 @@ export class Uploads {
   ): Promise<FileUploadTicket> {
     if (!allowed.includes(req.usage)) throw uploadErrors.usageNotAllowed(req.usage);
     const refus = checkUpload(req);
-    if (refus)
-      throw new HttpError(
-        refus.code === UPLOAD_ERRORS.tooLarge ? 413 : 415,
-        refus.code === UPLOAD_ERRORS.tooLarge ? 'Fichier trop lourd' : 'Format refusé',
-        refus.code,
-        refus.message,
-      );
+    if (refus) throw uploadRefusal(refus);
     if (!this.signer || !this.publicBase) throw uploadErrors.storageUnavailable();
     const contentType = req.contentType as UploadContentType;
     const key = uploadKey(req.usage, owner, contentType);
@@ -237,26 +252,14 @@ export class Uploads {
     } catch (err) {
       if (!(err instanceof RemoteImageError)) throw err;
       log.info({ usage: req.usage, reason: err.reason }, 'import refusé');
-      if (err.reason === 'address')
-        throw new HttpError(422, 'Adresse refusée', UPLOAD_ERRORS.addressNotAllowed, err.message);
-      if (err.reason === 'too_large')
-        throw new HttpError(413, 'Fichier trop lourd', UPLOAD_ERRORS.tooLarge, err.message);
-      if (err.reason === 'not_image')
-        throw new HttpError(415, 'Format refusé', UPLOAD_ERRORS.unsupportedType, err.message);
-      throw new HttpError(422, 'Import impossible', UPLOAD_ERRORS.importFailed, err.message);
+      throw importRefusal(err);
     }
     const refus = checkUpload({
       usage: req.usage,
       contentType: image.contentType,
       size: image.body.length,
     });
-    if (refus)
-      throw new HttpError(
-        refus.code === UPLOAD_ERRORS.tooLarge ? 413 : 415,
-        refus.code === UPLOAD_ERRORS.tooLarge ? 'Fichier trop lourd' : 'Format refusé',
-        refus.code,
-        refus.message,
-      );
+    if (refus) throw uploadRefusal(refus);
     const key = uploadKey(req.usage, owner, image.contentType);
     await reserve?.({
       key,

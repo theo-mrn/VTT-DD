@@ -169,6 +169,22 @@ async function readLimited(res: IncomingMessage, maxBytes: number): Promise<Buff
   return Buffer.concat(chunks);
 }
 
+/** Image de la réponse finale (après redirections) : 200, dans la limite, reconnue à son contenu. */
+async function finalImage(
+  res: IncomingMessage,
+  status: number,
+  maxBytes: number,
+): Promise<RemoteImage> {
+  if (status !== 200) {
+    res.resume();
+    throw new RemoteImageError('not_found', 'Image introuvable à cette adresse');
+  }
+  const body = await readLimited(res, maxBytes);
+  const contentType = sniffImageType(body);
+  if (!contentType) throw new RemoteImageError('not_image', 'Cette adresse n’est pas une image');
+  return { body, contentType };
+}
+
 /** Télécharge une image publique, dans les limites ci-dessus. */
 export async function fetchRemoteImage(raw: string, o: FetchOptions): Promise<RemoteImage> {
   const signal = AbortSignal.timeout(o.timeoutMs ?? 10_000);
@@ -184,15 +200,7 @@ export async function fetchRemoteImage(raw: string, o: FetchOptions): Promise<Re
         url = checkUrl(new URL(res.headers.location, url));
         continue;
       }
-      if (status !== 200) {
-        res.resume();
-        throw new RemoteImageError('not_found', 'Image introuvable à cette adresse');
-      }
-      const body = await readLimited(res, o.maxBytes);
-      const contentType = sniffImageType(body);
-      if (!contentType)
-        throw new RemoteImageError('not_image', 'Cette adresse n’est pas une image');
-      return { body, contentType };
+      return await finalImage(res, status, o.maxBytes);
     }
   } catch (err) {
     if (err instanceof RemoteImageError) throw err;
