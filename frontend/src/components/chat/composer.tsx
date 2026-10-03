@@ -140,26 +140,30 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     setCaret(0);
   };
 
+  /** Liste des mentions ouverte : flèches, Entrée ou Tab, Échap ; vrai si la touche est prise. */
+  const onMentionKey = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const delta = e.key === 'ArrowDown' ? 1 : -1;
+      setActiveMention((i) => (i + delta + candidates.length) % candidates.length);
+      return true;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      insertMention(candidates[activeMention]!);
+      return true;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setMentionClosed(true);
+      return true;
+    }
+    return false;
+  };
+
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
-    if (mentionOpen) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        const delta = e.key === 'ArrowDown' ? 1 : -1;
-        setActiveMention((i) => (i + delta + candidates.length) % candidates.length);
-        return;
-      }
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault();
-        insertMention(candidates[activeMention]!);
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setMentionClosed(true);
-        return;
-      }
-    }
+    if (mentionOpen && onMentionKey(e)) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       send();
@@ -293,11 +297,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         <span
           id={statusId}
           role="status"
-          className={cn(
-            'ml-auto shrink-0 tabular-nums',
-            tooLong ? 'text-destructive' : trimmed.length > CHAT_MAX_BODY - 50 && 'text-warning',
-            remaining > 0 && 'text-warning',
-          )}
+          className={counterClass(tooLong, trimmed.length, remaining)}
         >
           {counterText(remaining, trimmed.length)}
         </span>
@@ -305,6 +305,15 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     </div>
   );
 });
+
+/** Compteur : rouge au-delà de la limite, orange à l'approche ou pendant l'attente. */
+function counterClass(tooLong: boolean, length: number, remaining: number): string {
+  return cn(
+    'ml-auto shrink-0 tabular-nums',
+    tooLong ? 'text-destructive' : length > CHAT_MAX_BODY - 50 && 'text-warning',
+    remaining > 0 && 'text-warning',
+  );
+}
 
 /** Secondes restantes avant la fin de l'attente (0 : libre), rafraîchies chaque seconde. */
 function useCooldown(until: number | null): number {

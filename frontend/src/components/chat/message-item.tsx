@@ -102,26 +102,7 @@ function MessageItemView({ item, first, ctx, editing: enCorrection }: Readonly<M
       </div>
 
       <div className="min-w-0 flex-1">
-        {first ? (
-          <p className="flex min-w-0 items-baseline gap-1.5 leading-5">
-            <span className="truncate text-[13px] font-semibold text-foreground">{name}</span>
-            {person?.role === 'gm' && (
-              <Crown className="size-3 shrink-0 self-center text-primary" aria-label="MJ" />
-            )}
-            {person?.characterName && (
-              <span className="truncate text-[11px] text-subtle">{person.characterName}</span>
-            )}
-            <time
-              dateTime={m.createdAt}
-              title={formatFull(at)}
-              className="shrink-0 text-[11px] tabular-nums text-subtle"
-            >
-              {formatTime(at)}
-            </time>
-          </p>
-        ) : (
-          <span className="sr-only">{name} :</span>
-        )}
+        <AuthorLine first={first} name={name} person={person} createdAt={m.createdAt} at={at} />
 
         {whisper && first && (
           <p className="flex items-center gap-1 text-[11px] font-medium text-arcane">
@@ -153,6 +134,41 @@ function MessageItemView({ item, first, ctx, editing: enCorrection }: Readonly<M
         <MessageActions message={m} mine={mine} ctx={ctx} />
       )}
     </li>
+  );
+}
+
+/** Auteur en tête d'un groupe (nom, MJ, personnage, heure) ; sinon son nom pour les lecteurs d'écran. */
+function AuthorLine({
+  first,
+  name,
+  person,
+  createdAt,
+  at,
+}: Readonly<{
+  first: boolean;
+  name: string;
+  person: ReturnType<MessageContext['personOf']>;
+  createdAt: string;
+  at: Date;
+}>) {
+  if (!first) return <span className="sr-only">{name} :</span>;
+  return (
+    <p className="flex min-w-0 items-baseline gap-1.5 leading-5">
+      <span className="truncate text-[13px] font-semibold text-foreground">{name}</span>
+      {person?.role === 'gm' && (
+        <Crown className="size-3 shrink-0 self-center text-primary" aria-label="MJ" />
+      )}
+      {person?.characterName && (
+        <span className="truncate text-[11px] text-subtle">{person.characterName}</span>
+      )}
+      <time
+        dateTime={createdAt}
+        title={formatFull(at)}
+        className="shrink-0 text-[11px] tabular-nums text-subtle"
+      >
+        {formatTime(at)}
+      </time>
+    </p>
   );
 }
 
