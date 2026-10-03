@@ -150,6 +150,48 @@ export const weatherModule: MapModule = {
       camZoom = 0;
     };
 
+    /** Réglages, taille ou préférences changés : la simulation est reconfigurée. */
+    const configure = (
+      raw: unknown,
+      width: number,
+      height: number,
+      animate: boolean,
+      flashes: boolean,
+    ) => {
+      if (
+        raw === lastRaw &&
+        width === lastWidth &&
+        height === lastHeight &&
+        animate === lastAnimate &&
+        flashes === lastFlashes
+      )
+        return;
+      lastRaw = raw;
+      lastWidth = width;
+      lastHeight = height;
+      lastAnimate = animate;
+      lastFlashes = flashes;
+      sim.configure(normalizeWeather(raw), width, height, {
+        windows: economy,
+        scale: budgetScale,
+        still: !animate,
+        flashes,
+      });
+    };
+
+    /**
+     * Dégradation : toutes les 60 images animées, moitié moins de particules si le module
+     * dépasse 8 ms en moyenne.
+     */
+    const degrade = () => {
+      if (stats.count('frame') - checkedAt < DEGRADE_WINDOW) return;
+      checkedAt = stats.count('frame');
+      if (budgetScale > MIN_BUDGET && stats.recent('frame', DEGRADE_WINDOW) > DEGRADE_MS) {
+        budgetScale /= 2;
+        lastRaw = undefined;
+      }
+    };
+
     /** Une image de la météo : simulation, objets Pixi, rendu de son seul canvas. */
     const frame = (now: number) => {
       const started = performance.now();
@@ -158,25 +200,7 @@ export const weatherModule: MapModule = {
       const height = cam.viewport.height;
       const raw = displayedWeather(engine);
       const { animate, flashes } = prefs.getState();
-      if (
-        raw !== lastRaw ||
-        width !== lastWidth ||
-        height !== lastHeight ||
-        animate !== lastAnimate ||
-        flashes !== lastFlashes
-      ) {
-        lastRaw = raw;
-        lastWidth = width;
-        lastHeight = height;
-        lastAnimate = animate;
-        lastFlashes = flashes;
-        sim.configure(normalizeWeather(raw), width, height, {
-          windows: economy,
-          scale: budgetScale,
-          still: !animate,
-          flashes,
-        });
-      }
+      configure(raw, width, height, animate, flashes);
       if (!sim.active) {
         // Arrêt complet : ni minuteur, ni simulation, canvas caché
         driver.stop();
@@ -218,15 +242,7 @@ export const weatherModule: MapModule = {
       stats.record('render', end - drawn);
       engine.perf.weather += 1;
       engine.perf.weatherMs += end - started;
-      // Dégradation : toutes les 60 images animées, moitié moins de particules si le module
-      // dépasse 8 ms en moyenne
-      if (dt > 0 && stats.count('frame') - checkedAt >= DEGRADE_WINDOW) {
-        checkedAt = stats.count('frame');
-        if (budgetScale > MIN_BUDGET && stats.recent('frame', DEGRADE_WINDOW) > DEGRADE_MS) {
-          budgetScale /= 2;
-          lastRaw = undefined;
-        }
-      }
+      if (dt > 0) degrade();
     };
 
     // Onglet en arrière-plan : plus de minuteur ; au retour, une image (reprise d'un pas nul)
