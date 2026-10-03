@@ -1,0 +1,35 @@
+# Entrées seulement : SonarQube n'est joignable que par Traefik (et la sonde du chart), sa base
+# que par SonarQube et l'opérateur CloudNativePG. Les sorties restent ouvertes : l'instance
+# CloudNativePG parle à l'API Kubernetes.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sonarqube
+  namespace: sonarqube
+spec:
+  podSelector:
+    matchLabels: { app: sonarqube }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
+      ports: [{ port: 9000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sonarqube-pg
+  namespace: sonarqube
+spec:
+  podSelector:
+    matchLabels: { cnpg.io/cluster: sonarqube-pg }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: sonarqube } }
+      ports: [{ port: 5432 }]
+    # Opérateur : état de l'instance (port 8000) et réplication de contrôle
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: cnpg-system } }
+      ports: [{ port: 8000 }, { port: 5432 }]

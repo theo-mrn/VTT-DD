@@ -1,0 +1,67 @@
+# Namespace sonarqube : SonarQube Community Build (chart officiel épinglé) et sa base
+# CloudNativePG. Valeurs dans infra/sonarqube/, namespace, base et NetworkPolicies dans
+# infra/cluster/sonarqube/. Prérequis et secrets : « SonarQube » dans docs/ci.md.
+# Monter de version : changer targetRevision (chart) et community.buildNumber (values) ; le job
+# helm de la CI lit ces Applications pour rendre et valider le chart.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: sonarqube
+  namespace: argocd
+spec:
+  description: SonarQube, analyse du code de la CI (namespace sonarqube)
+  sourceRepos:
+    - https://github.com/theo-mrn/VTT-DD.git
+    - https://SonarSource.github.io/helm-chart-sonarqube
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: sonarqube
+  clusterResourceWhitelist:
+    - { group: '', kind: Namespace }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sonarqube-base
+  namespace: argocd
+spec:
+  project: sonarqube
+  source:
+    repoURL: https://github.com/theo-mrn/VTT-DD.git
+    targetRevision: main
+    path: infra/cluster/sonarqube
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sonarqube
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sonarqube
+  namespace: argocd
+spec:
+  project: sonarqube
+  sources:
+    - repoURL: https://SonarSource.github.io/helm-chart-sonarqube
+      chart: sonarqube
+      targetRevision: 2026.5.1001
+      helm:
+        releaseName: sonarqube
+        skipTests: true
+        valueFiles:
+          - $values/infra/sonarqube/values.yaml
+    - repoURL: https://github.com/theo-mrn/VTT-DD.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sonarqube
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ServerSideApply=true]
+    # Le namespace et la base viennent de sonarqube-base : on réessaie tant qu'ils manquent
+    retry:
+      limit: 10
+      backoff: { duration: 10s, factor: 2, maxDuration: 5m }

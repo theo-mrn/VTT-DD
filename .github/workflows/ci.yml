@@ -271,21 +271,22 @@ jobs:
             env=$(basename "$(dirname "$f")"); svc=$(basename "$f" .yaml)
             helm template "$svc" infra/helm/service -n "vtt-$env" -f "$f" > "rendered/$env-$svc.yaml"
           done
-      - name: Rendu des charts de messaging (NATS, Valkey)
+      - name: Rendu des charts tiers (NATS, Valkey, SonarQube)
         run: |
-          # Dépôt, chart, version, release et values lus dans les Applications Argo CD
+          # Dépôt, chart, version, release, values et namespace lus dans les Applications Argo CD
           yq 'select(.kind == "Application" and .spec.sources[0].chart != null)
             | [.spec.sources[0].repoURL, .spec.sources[0].chart, .spec.sources[0].targetRevision,
-               .spec.sources[0].helm.releaseName, (.spec.sources[0].helm.valueFiles | join(","))]
-            | @tsv' infra/argocd/messaging.yaml |
-          while IFS=$'\t' read -r repo chart version release values; do
+               .spec.sources[0].helm.releaseName, (.spec.sources[0].helm.valueFiles | join(",")),
+               .spec.destination.namespace]
+            | @tsv' infra/argocd/messaging.yaml infra/argocd/sonarqube.yaml |
+          while IFS=$'\t' read -r repo chart version release values namespace; do
             [ -n "$repo" ] || continue
             args=()
             for v in ${values//,/ }; do args+=(-f "${v#\$values/}"); done
-            helm template "$release" "$chart" --repo "$repo" --version "$version" -n messaging \
-              --skip-tests "${args[@]}" > "rendered/messaging-$release.yaml"
+            helm template "$release" "$chart" --repo "$repo" --version "$version" -n "$namespace" \
+              --skip-tests "${args[@]}" > "rendered/$namespace-$release.yaml"
           done
-          test -s rendered/messaging-nats.yaml
+          test -s rendered/messaging-nats.yaml && test -s rendered/sonarqube-sonarqube.yaml
       - name: Validation des schémas
         run: |
           kubeconform -strict -summary -ignore-missing-schemas \
