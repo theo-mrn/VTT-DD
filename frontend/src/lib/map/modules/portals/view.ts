@@ -54,6 +54,32 @@ type IconContexts = Record<
   glyphs: Record<MapPortalIcon, GraphicsContext>;
 };
 
+/** Zone du portail : trois disques, plus denses au centre, et son anneau (tirets s'il est masqué). */
+function drawArea(
+  g: Graphics,
+  pos: { x: number; y: number },
+  r: number,
+  u: number,
+  color: number,
+  state: { selected: boolean; hovered: boolean },
+  masked: boolean,
+) {
+  if (r <= 0) return;
+  const { x, y } = pos;
+  const { selected, hovered } = state;
+  g.circle(x, y, r).fill({ color, alpha: masked ? 0.05 : 0.09 });
+  g.circle(x, y, r * 0.62).fill({ color, alpha: masked ? 0.04 : 0.08 });
+  g.circle(x, y, r * 0.3).fill({ color, alpha: masked ? 0.04 : 0.1 });
+  let width = 1.5 * u;
+  if (selected) width = 2.5 * u;
+  else if (hovered) width = 2 * u;
+  const alpha = selected || hovered ? 0.95 : 0.7;
+  if (masked) {
+    dashedCircle(g, x, y, r, 6 * u, 5 * u);
+    g.stroke({ width, color, alpha });
+  } else g.circle(x, y, r).stroke({ width, color, alpha });
+}
+
 export class PortalView {
   private readonly redraw: OverlayRedraw;
   private contexts: IconContexts | null = null;
@@ -171,22 +197,7 @@ export class PortalView {
     const areaKey = `${p.pos.x}:${p.pos.y}:${r}:${color}:${selected ? 1 : 0}${hovered ? 1 : 0}${masked ? 1 : 0}:${u}`;
     if (force || areaKey !== v.drawnArea) {
       v.drawnArea = areaKey;
-      const g = v.area.clear();
-      const { x, y } = p.pos;
-      if (r > 0) {
-        // Plus dense au centre : trois disques
-        g.circle(x, y, r).fill({ color, alpha: masked ? 0.05 : 0.09 });
-        g.circle(x, y, r * 0.62).fill({ color, alpha: masked ? 0.04 : 0.08 });
-        g.circle(x, y, r * 0.3).fill({ color, alpha: masked ? 0.04 : 0.1 });
-        let width = 1.5 * u;
-        if (selected) width = 2.5 * u;
-        else if (hovered) width = 2 * u;
-        const alpha = selected || hovered ? 0.95 : 0.7;
-        if (masked) {
-          dashedCircle(g, x, y, r, 6 * u, 5 * u);
-          g.stroke({ width, color, alpha });
-        } else g.circle(x, y, r).stroke({ width, color, alpha });
-      }
+      drawArea(v.area.clear(), p.pos, r, u, color, e.state, masked);
     }
 
     // Icône (écran)
@@ -201,22 +212,25 @@ export class PortalView {
     v.auto.visible = p.auto;
     v.hidden.visible = masked;
 
-    // Nom, sur sa pastille
+    this.drawLabel(v, p, selected, theme);
+  }
+
+  /** Nom, sur sa pastille (refait seulement s'il change). */
+  private drawLabel(v: PortalVisual, p: PortalData, selected: boolean, theme: MapTheme) {
     const text = portalLabel(p);
     const labelKey = `${text}:${selected ? 1 : 0}`;
-    if (labelKey !== v.drawnLabel) {
-      v.drawnLabel = labelKey;
-      v.label.text = text;
-      const w = v.label.width + 12;
-      const h = v.label.height + 4;
-      const top = PORTAL_ICON_PX + 5;
-      v.plate
-        .clear()
-        .roundRect(-w / 2, top, w, h, h / 2)
-        .fill({ color: theme.background, alpha: 0.85 })
-        .stroke({ width: 1, color: selected ? theme.primary : theme.muted, alpha: 0.8 });
-      v.label.position.set(0, top + 2);
-    }
+    if (labelKey === v.drawnLabel) return;
+    v.drawnLabel = labelKey;
+    v.label.text = text;
+    const w = v.label.width + 12;
+    const h = v.label.height + 4;
+    const top = PORTAL_ICON_PX + 5;
+    v.plate
+      .clear()
+      .roundRect(-w / 2, top, w, h, h / 2)
+      .fill({ color: theme.background, alpha: 0.85 })
+      .stroke({ width: 1, color: selected ? theme.primary : theme.muted, alpha: 0.8 });
+    v.label.position.set(0, top + 2);
   }
 
   private iconContexts(): IconContexts | null {
