@@ -47,6 +47,20 @@ export function flashEnvelope(t: number): number {
   return Math.exp(-(t - 0.09) / 0.22);
 }
 
+/** Rotation, retournement et scintillement d'une particule. */
+function animateParticle(p: WeatherParticle, dt: number) {
+  if (p.spin !== 0) p.rotation += p.spin * dt;
+  if (p.flipOmega > 0) {
+    p.flipPhase += p.flipOmega * dt;
+    const c = Math.cos(p.flipPhase);
+    p.scaleY = p.sy * (c >= 0 ? Math.max(0.15, c) : Math.min(-0.15, c));
+  }
+  if (p.flickerOmega > 0) {
+    p.flickerPhase += p.flickerOmega * dt;
+    p.color = packColor(p.bgr, p.alpha * (0.6 + 0.4 * Math.sin(p.flickerPhase)));
+  }
+}
+
 export class WeatherParticle {
   // ─── Lu par Pixi (`IParticle`) ───
   x = 0;
@@ -304,64 +318,63 @@ export class WeatherSim {
   private stepEmitter(e: EmitterState, dt: number) {
     const spec = e.spec;
     const list = e.particles;
+    if (spec.life) {
+      for (let i = 0; i < list.length; i++) this.stepSplash(list[i]!, spec, dt);
+      return;
+    }
+    for (let i = 0; i < list.length; i++) this.stepParticle(list[i]!, dt, e.perpX, e.perpY);
+  }
+
+  /** Éclaboussure : immobile, grandit et s'efface, puis renaît ailleurs. */
+  private stepSplash(p: WeatherParticle, spec: EmitterSpec, dt: number) {
+    p.age += dt;
+    if (p.age >= p.life) {
+      p.age -= p.life;
+      p.x = this.rng() * this.width;
+      p.y = this.rng() * this.height;
+    }
+    const t = p.age / p.life;
+    const grow = spec.grow ? lerp(spec.grow, t) : 1;
+    p.scaleX = p.sx * grow;
+    p.scaleY = p.sy * grow;
+    const fade = 1 - t;
+    p.color = packColor(p.bgr, p.alpha * fade * fade);
+  }
+
+  /** Particule qui tombe : avance, balance, tourne, scintille ; sortie d'un bord, elle revient. */
+  private stepParticle(p: WeatherParticle, dt: number, perpX: number, perpY: number) {
+    let x = p.x + p.vx * dt;
+    let y = p.y + p.vy * dt;
+    if (p.amp > 0) {
+      p.phase += p.omega * dt;
+      const d = p.amp * p.omega * Math.cos(p.phase) * dt;
+      x += perpX * d;
+      y += perpY * d;
+    }
+    animateParticle(p, dt);
+    p.x = x;
+    p.y = y;
+    this.wrapParticle(p);
+  }
+
+  /** Sortie par un bord : retour par l'autre, à une place tirée le long de ce bord. */
+  private wrapParticle(p: WeatherParticle) {
     const m = WRAP_MARGIN;
     const w = this.width;
     const h = this.height;
-    const perpX = e.perpX;
-    const perpY = e.perpY;
-    for (let i = 0; i < list.length; i++) {
-      const p = list[i]!;
-      if (spec.life) {
-        // Éclaboussure : immobile, grandit et s'efface, puis renaît ailleurs
-        p.age += dt;
-        if (p.age >= p.life) {
-          p.age -= p.life;
-          p.x = this.rng() * w;
-          p.y = this.rng() * h;
-        }
-        const t = p.age / p.life;
-        const grow = spec.grow ? lerp(spec.grow, t) : 1;
-        p.scaleX = p.sx * grow;
-        p.scaleY = p.sy * grow;
-        const fade = 1 - t;
-        p.color = packColor(p.bgr, p.alpha * fade * fade);
-        continue;
-      }
-      let x = p.x + p.vx * dt;
-      let y = p.y + p.vy * dt;
-      if (p.amp > 0) {
-        p.phase += p.omega * dt;
-        const d = p.amp * p.omega * Math.cos(p.phase) * dt;
-        x += perpX * d;
-        y += perpY * d;
-      }
-      if (p.spin !== 0) p.rotation += p.spin * dt;
-      if (p.flipOmega > 0) {
-        p.flipPhase += p.flipOmega * dt;
-        const c = Math.cos(p.flipPhase);
-        p.scaleY = p.sy * (c >= 0 ? Math.max(0.15, c) : Math.min(-0.15, c));
-      }
-      if (p.flickerOmega > 0) {
-        p.flickerPhase += p.flickerOmega * dt;
-        p.color = packColor(p.bgr, p.alpha * (0.6 + 0.4 * Math.sin(p.flickerPhase)));
-      }
-      // Sortie par un bord : retour par l'autre, à une place tirée le long de ce bord
-      if (x < -m) {
-        x += w + 2 * m;
-        y = -m + this.rng() * (h + 2 * m);
-      } else if (x > w + m) {
-        x -= w + 2 * m;
-        y = -m + this.rng() * (h + 2 * m);
-      }
-      if (y < -m) {
-        y += h + 2 * m;
-        x = -m + this.rng() * (w + 2 * m);
-      } else if (y > h + m) {
-        y -= h + 2 * m;
-        x = -m + this.rng() * (w + 2 * m);
-      }
-      p.x = x;
-      p.y = y;
+    if (p.x < -m) {
+      p.x += w + 2 * m;
+      p.y = -m + this.rng() * (h + 2 * m);
+    } else if (p.x > w + m) {
+      p.x -= w + 2 * m;
+      p.y = -m + this.rng() * (h + 2 * m);
+    }
+    if (p.y < -m) {
+      p.y += h + 2 * m;
+      p.x = -m + this.rng() * (w + 2 * m);
+    } else if (p.y > h + m) {
+      p.y -= h + 2 * m;
+      p.x = -m + this.rng() * (w + 2 * m);
     }
   }
 
@@ -435,25 +448,42 @@ export class WeatherSim {
         lerp(specs[k]!.alpha, i) * breathe(specs[k]!.breathe, t) * quiet,
       );
 
-    const bolt = effect?.lightning;
-    if (bolt && this.flashes && !this.still && this.strikeT >= 0) {
-      const peak = lerp(bolt.peak, i);
-      const a =
-        flashEnvelope(this.strikeT) +
-        (this.strikeDouble ? 0.6 * flashEnvelope(this.strikeT - 0.2) : 0);
-      f.flash.color = bolt.color;
-      f.flash.alpha = Math.min(peak, peak * a);
-    } else f.flash.alpha = 0;
+    this.updateFlash(effect?.lightning, i);
+    this.updateVignette(effect?.vignette, i, t, quiet);
+    this.updateStatic(effect?.static, i, quiet);
+  }
 
-    const vignette = effect?.vignette;
+  /** Éclair en cours (deux coups rapprochés pour un éclair double). */
+  private updateFlash(bolt: WeatherEffect['lightning'], i: number) {
+    const f = this.frame;
+    if (!bolt || !this.flashes || this.still || this.strikeT < 0) {
+      f.flash.alpha = 0;
+      return;
+    }
+    const peak = lerp(bolt.peak, i);
+    const a =
+      flashEnvelope(this.strikeT) +
+      (this.strikeDouble ? 0.6 * flashEnvelope(this.strikeT - 0.2) : 0);
+    f.flash.color = bolt.color;
+    f.flash.alpha = Math.min(peak, peak * a);
+  }
+
+  /** Vignette : pulsation (avec les clignotements), sinon tenue à son niveau moyen. */
+  private updateVignette(vignette: WeatherEffect['vignette'], i: number, t: number, quiet: number) {
+    const f = this.frame;
     f.vignette.color = vignette?.color ?? 0;
-    let pulse = 0;
-    if (vignette)
-      pulse =
-        this.flashes && !this.still ? breathe(vignette.pulse, t) : 1 - vignette.pulse.depth / 2;
-    f.vignette.alpha = vignette ? Math.min(1, lerp(vignette.alpha, i) * pulse * quiet) : 0;
+    if (!vignette) {
+      f.vignette.alpha = 0;
+      return;
+    }
+    const pulse =
+      this.flashes && !this.still ? breathe(vignette.pulse, t) : 1 - vignette.pulse.depth / 2;
+    f.vignette.alpha = Math.min(1, lerp(vignette.alpha, i) * pulse * quiet);
+  }
 
-    const noise = effect?.static;
+  /** Grain, lignes et bandes de brouillage (bandes seulement avec les clignotements). */
+  private updateStatic(noise: WeatherEffect['static'], i: number, quiet: number) {
+    const f = this.frame;
     f.noise.alpha = noise ? Math.min(1, lerp(noise.noise, i) * quiet) : 0;
     f.scanlines.alpha = noise ? Math.min(1, lerp(noise.scanlines, i) * quiet) : 0;
     if (noise) {
