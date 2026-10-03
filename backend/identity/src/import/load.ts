@@ -70,7 +70,7 @@ export async function loadImportedAccounts(
           aggregate: { type: 'user', id: c.user.id },
           payload: {
             source: 'firebase',
-            password: c.password ? 'firebase-scrypt' : null,
+            password: c.password?.algorithm ?? null,
             providers: c.oauth.map((o) => o.provider),
           },
         });

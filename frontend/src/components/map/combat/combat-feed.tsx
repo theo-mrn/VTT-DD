@@ -31,6 +31,7 @@ import type { TokenData } from '@/lib/map/modules/tokens/model';
 import { clesPersonnages, personnages, type FichePersonnage } from '@/lib/personnages';
 import { useCampaignEphemeral } from '@/lib/realtime';
 import { useMapState } from '../engine-context';
+import { compareCodeUnits } from '@vtt/contracts';
 
 const EMPTY: ReadonlyMap<string, unknown> = new Map();
 
@@ -77,7 +78,11 @@ export function CombatMapFeed({ engine }: { engine: MapEngine }) {
       if (!d.draft && typeof d.characterId === 'string') ids.add(d.characterId);
     }
     const sides = new Map((list.data ?? []).map((c) => [c.characterId, c.side]));
-    return readableSheets([...ids].sort(), { gm, mine, sideOf: (id) => sides.get(id) });
+    return readableSheets([...ids].sort(compareCodeUnits), {
+      gm,
+      mine,
+      sideOf: (id) => sides.get(id),
+    });
   }, [tokenMap, list.data, gm, mine]);
   const sheets = useQueries({
     queries: sheetIds.map((id) => ({

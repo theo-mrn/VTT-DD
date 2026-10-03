@@ -34,6 +34,7 @@ import {
   type Viewer,
   type VisionScene,
 } from '@vtt/vision';
+import { compareCodeUnits } from '@vtt/contracts';
 
 /** Taille de la carte tant que son fond n'est pas connu (la vue y est bornée). */
 export const DEFAULT_MAP_SIZE = 100_000;
@@ -255,7 +256,7 @@ export class MapVision {
 
   /** Ce que voit ce joueur (clé : ses personnages). */
   forMember(member: VisionMember): MemberVision {
-    const key = `${member.userId}:${[...member.characterIds].sort().join(',')}`;
+    const key = `${member.userId}:${[...member.characterIds].sort(compareCodeUnits).join(',')}`;
     let m = this.members.get(key);
     if (!m) {
       m = new MemberVision(this, member.characterIds);

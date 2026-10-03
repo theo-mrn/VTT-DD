@@ -14,6 +14,7 @@ import {
 } from '@/components/fiche/widgets';
 import { defaultSkillSortes } from '@/components/fiche/blocks/skills/abilities';
 import { groupesAttributs } from '@/lib/creation';
+import { compareCodeUnits } from '@vtt/contracts';
 
 /** Disposition par défaut : les blocs de la présentation, sans le profil (montré en en-tête). */
 export function defaultWidgets(ctx: ContexteFiche): Widget[] {
@@ -96,7 +97,7 @@ export function candidateWidgets(ctx: ContexteFiche): Widget[] {
   });
 }
 
-const trie = (l: readonly string[]) => [...l].sort().join(',');
+const trie = (l: readonly string[]) => [...l].sort(compareCodeUnits).join(',');
 
 /**
  * Ce qu'un widget affiche, sans ses réglages de présentation (titre, colonnes, champ de

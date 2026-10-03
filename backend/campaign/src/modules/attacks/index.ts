@@ -41,6 +41,7 @@ import {
   type ActionParams,
   type AttackChange,
   type RollStep,
+  compareCodeUnits,
 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { sql } from 'drizzle-orm';
@@ -393,7 +394,7 @@ async function declare(
     const origin = { userId, campaignId: a.campaign.id, correlationId: req.ctx.correlationId };
     const prepared: Prepared[] = [];
     // Identifiants croissants dans l'ordre du lot (UUIDv7 d'une même milliseconde)
-    const attackIds = bodies.map(() => uuidv7()).sort();
+    const attackIds = bodies.map(() => uuidv7()).sort(compareCodeUnits);
     for (const [i, body] of bodies.entries()) {
       const visibility = defaultVisibility(body.visibility, v.isGm, settings);
       const diceHistory = { campaignId: a.campaign.id, authorId: userId, visibility };

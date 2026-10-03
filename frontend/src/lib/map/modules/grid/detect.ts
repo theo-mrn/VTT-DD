@@ -118,7 +118,7 @@ function commonPeriod(
   };
   const all: ReturnType<typeof joint>[] = [];
   for (let p = min; p <= max; p += 0.25) all.push(joint(p));
-  const best = all.reduce((a, b) => (b.score > a.score ? b : a));
+  const best = all.reduce((a, b) => (b.score > a.score ? b : a), all[0]!);
   if (best.score < MIN_CONFIDENCE) return null;
   let chosen = all.find((c) => c.score >= NEAR_BEST * best.score)!;
   // Affinage autour du pas retenu

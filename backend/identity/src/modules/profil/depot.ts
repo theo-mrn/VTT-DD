@@ -9,6 +9,7 @@ import type { Db } from '../../db/client.js';
 import { appendEvent, type EventContext } from '../../db/outbox.js';
 import { credentials, oauthAccounts, profiles, users } from '../../db/schema.js';
 import { echapperLike, jsonEgal, urlImageAcceptee, type PatchProfil } from './validation.js';
+import { compareCodeUnits } from '@vtt/contracts';
 
 export type Fournisseur = 'google' | 'discord';
 
@@ -183,7 +184,7 @@ export async function modifierProfil(
       const identique = champ === 'settings' ? jsonEgal(avant, valeur) : avant === valeur;
       if (!identique) (changements as Record<string, unknown>)[champ] = valeur;
     }
-    const champs = Object.keys(changements).sort();
+    const champs = Object.keys(changements).sort(compareCodeUnits);
     if (champs.length === 0) return [];
 
     await tx

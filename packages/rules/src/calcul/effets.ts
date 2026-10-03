@@ -17,6 +17,9 @@ import {
 } from '../schema/index.js';
 import { estEffective, type Fiche, type PossessionEffective } from './fiche.js';
 
+/** Ordre brut des chaînes (unités UTF-16), indépendant de la langue. */
+const ordreBrut = (a: string, b: string): number => (a < b ? -1 : Number(a > b));
+
 /**
  * Pourquoi un effet ne s'applique pas alors qu'il n'est pas coupé :
  * - `inactive`     : sa source est une possession activable non active (objet rangé) ;
@@ -242,7 +245,7 @@ function empreinte(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(empreinte).join(',')}]`;
   if (v && typeof v === 'object')
     return `{${Object.keys(v)
-      .sort()
+      .sort(ordreBrut)
       .map((k) => `${JSON.stringify(k)}:${empreinte((v as Record<string, unknown>)[k])}`)
       .join(',')}}`;
   return JSON.stringify(v) ?? 'null';

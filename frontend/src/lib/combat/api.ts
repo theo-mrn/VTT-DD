@@ -50,6 +50,7 @@ import type {
   UpdateCombatSettings,
 } from '@vtt/contracts';
 import { api, ApiError, messageErreur } from '../api';
+import { randomId } from '@/lib/random-id';
 
 // ─── Adresses ────────────────────────────────────────────────────────────────
 
@@ -70,9 +71,7 @@ const send = <T>(method: string, path: string, body?: unknown, headers?: Headers
 
 /** Clé d'idempotence d'une déclaration (double clic, reprise réseau : même clé). */
 export function newIdempotencyKey(): string {
-  const c = globalThis.crypto;
-  if (c?.randomUUID) return c.randomUUID();
-  return `k-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  return randomId();
 }
 
 const idempotency = (key: string) => ({ 'idempotency-key': key });

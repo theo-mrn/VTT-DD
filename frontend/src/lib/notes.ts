@@ -32,6 +32,7 @@ import { useEffect } from 'react';
 import { api, ApiError } from './api';
 import { useCampaignEvents, type RealtimeEvent } from './realtime';
 import { premiereFois, relireVersion } from './realtime-bridge';
+import { randomId } from '@/lib/random-id';
 
 // ─── Contrat de l'API (schémas Zod de backend/campaign/src/modules/notes/schemas.ts) ─
 
@@ -355,10 +356,7 @@ function versFacettes(f: NoteFacetsApi): FacettesNotes {
   };
 }
 
-const nouvelId = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+const nouvelId = () => randomId();
 
 /** Étiquettes de l'UI (libellés) → API : l'identifiant d'une étiquette connue est gardé. */
 function versTags(labels: string[], connues: TagApi[]): TagApi[] {

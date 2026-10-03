@@ -14,6 +14,7 @@ import {
   MediaUrl as ContractMediaUrl,
   scenePixelsPerUnit,
   type Visibility,
+  compareCodeUnits,
 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, eq, or, sql } from 'drizzle-orm';
@@ -151,7 +152,7 @@ export async function mapEvent(
     visibility !== 'gm_only' || e.restricted
       ? []
       : e.toUsers
-        ? [...new Set(e.toUsers)].sort()
+        ? [...new Set(e.toUsers)].sort(compareCodeUnits)
         : characterIds.length
           ? await usersOfCharacters(tx, v.access.campaign.id, characterIds)
           : [];

@@ -132,9 +132,7 @@ function toInput(m: AttackModification | AttackModificationInput): AttackModific
 }
 
 const withEntity = (m: AttackModificationInput, entity: 'actor' | 'target'): AttackModification =>
-  (m.kind === 'attribute'
-    ? { ...toInput(m), entity }
-    : { ...toInput(m), entity }) as AttackModification;
+  ({ ...toInput(m), entity }) as AttackModification;
 
 /** Modifications par fiche, dans l'ordre d'arrivée (une fiche peut revenir : auto-attaque). */
 class Items {

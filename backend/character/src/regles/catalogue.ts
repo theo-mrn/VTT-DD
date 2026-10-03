@@ -12,6 +12,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { Bestiary, type SystemeCharge, type SystemeSaisi } from '@vtt/rules';
 import { documentPresentation, documentSysteme, systeme } from '@vtt/systemes';
+import { compareCodeUnits } from '@vtt/contracts';
 
 export interface ResumeSysteme {
   id: string;
@@ -73,7 +74,7 @@ export function catalogueReference(ids: string[] = idsReference()): Catalogue {
 
   return {
     lister: () =>
-      [...connus].sort().map((id) => {
+      [...connus].sort(compareCodeUnits).map((id) => {
         const s = lireDocuments(id)!.systeme;
         return { id: s.id, version: s.version, nom: s.nom, description: s.description ?? null };
       }),

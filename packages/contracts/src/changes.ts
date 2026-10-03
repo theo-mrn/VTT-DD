@@ -14,6 +14,7 @@
  * `truncated: true` dès que quelque chose a été coupé ou omis.
  */
 import { z } from 'zod';
+import { compareCodeUnits } from './order.js';
 
 export const Change = z.object({
   /** Chemin lisible : `etat.valeurs.PV`, `etat.possessions[epee-longue#2].quantite`, `nom`. */
@@ -247,7 +248,7 @@ function walkArrays(s: State, a: unknown[], b: unknown[], path: string, depth: n
 function walk(s: State, a: unknown, b: unknown, path: string, depth: number) {
   if (s.full || a === b) return;
   if (isPlainObject(a) && isPlainObject(b) && depth < s.limits.maxDepth) {
-    const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].sort();
+    const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].sort(compareCodeUnits);
     for (const k of keys) walk(s, a[k], b[k], keySegment(path, k), depth + 1);
     return;
   }

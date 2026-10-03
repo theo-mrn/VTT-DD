@@ -368,7 +368,7 @@ export const LAYERS: LayerDef[] = [
     geom: mapMeasurements.geom,
     write: 'author',
     toColumns: ({ start, end, ...rest }) => {
-      if (!start !== !end)
+      if (Boolean(start) !== Boolean(end))
         throw HttpError.badRequest('start et end se modifient ensemble', 'start_end_together');
       return start ? { ...rest, geom: [start, end] } : rest;
     },

@@ -3,6 +3,7 @@
  * entrées et contrôle des URL d'images envoyées par le client.
  */
 import { z } from 'zod';
+import { compareCodeUnits } from '@vtt/contracts';
 
 /** Bordures de la carte de profil, reprises telles quelles de l'ancienne app. */
 export const BORDER_TYPES = [
@@ -118,7 +119,7 @@ function canonique(v: unknown): string {
   if (v && typeof v === 'object') {
     const cles = Object.keys(v as object)
       .filter((k) => (v as Record<string, unknown>)[k] !== undefined)
-      .sort();
+      .sort(compareCodeUnits);
     return `{${cles.map((k) => `${JSON.stringify(k)}:${canonique((v as Record<string, unknown>)[k])}`).join(',')}}`;
   }
   return JSON.stringify(v) ?? 'null';

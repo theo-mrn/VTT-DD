@@ -28,6 +28,7 @@ import { canReact } from './lifecycle.js';
 import { fullAttack } from './redact.js';
 import type { LoadedAttack } from './repository.js';
 import { announceContext, knownToAll, playersOf } from './rights.js';
+import { compareCodeUnits } from '@vtt/contracts';
 
 export interface EventActor {
   userId: string;
@@ -78,7 +79,7 @@ export async function attackUpdated(
 ) {
   const reacting = new Set(l.targets.filter(canReact).map((t) => t.characterId));
   const players = await playersOf(tx, l.attack.campaignId, reacting);
-  const users = [...new Set([l.attack.createdBy, ...players])].sort();
+  const users = [...new Set([l.attack.createdBy, ...players])].sort(compareCodeUnits);
   const payload: AttackUpdatedPayload = {
     attackId: l.attack.id,
     change,

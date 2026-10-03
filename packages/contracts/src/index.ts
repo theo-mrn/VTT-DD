@@ -11,3 +11,4 @@ export * from './storage.js';
 export * from './handouts.js';
 export * from './portrait.js';
 export * from './trash.js';
+export * from './order.js';

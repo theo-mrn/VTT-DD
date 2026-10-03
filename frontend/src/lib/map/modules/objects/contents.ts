@@ -11,6 +11,7 @@
  *   description de 10 000.
  */
 import type { MapObjectItem } from '@vtt/contracts';
+import { randomId } from '@/lib/random-id';
 
 export const ITEMS_MAX = 500;
 export const QUANTITY_MAX = 1_000_000;
@@ -20,10 +21,7 @@ export const ITEM_DESCRIPTION_MAX = 10_000;
 export type ItemIdFactory = () => string;
 
 /** Identifiant d'un contenu, unique dans son objet. */
-export const newItemId: ItemIdFactory = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `it-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+export const newItemId: ItemIdFactory = () => randomId();
 
 /** Quantité entière entre 1 et le maximum du contrat. */
 export function clampQuantity(q: number): number {

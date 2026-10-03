@@ -43,6 +43,7 @@ import type { LiveSound } from './engine/registry';
 import { MediaVoice } from './engine/voices';
 import { YoutubeVoice } from './engine/youtube';
 import { MixerStore } from './mixer';
+import { compareCodeUnits } from '@vtt/contracts';
 
 export const audioKeys = {
   assets: (campaignId: string) => ['audio', campaignId, 'assets'] as const,
@@ -621,7 +622,7 @@ export function useAudioAssets(
   campaignId: string,
   ids: string[],
 ): Record<string, PlaybackAsset | undefined> {
-  const key = [...new Set(ids)].sort().join(',');
+  const key = [...new Set(ids)].sort(compareCodeUnits).join(',');
   const q = useQuery({
     queryKey: audioKeys.resolve(campaignId, key),
     queryFn: async () => (await audioApi.resolve(campaignId, key.split(','))).items,

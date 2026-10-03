@@ -19,6 +19,7 @@
  */
 import { create } from 'zustand';
 import { startBusinessSpan } from './telemetry/tracer';
+import { randomId } from '@/lib/random-id';
 
 /** Formes du rendu 3D ; les autres dés (d100…) sont tirés par le serveur. */
 export const SHAPES_3D = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'] as const;
@@ -100,10 +101,7 @@ interface Waiter {
 /** Lancers attendus par un appelant, par identifiant. */
 const waiters = new Map<string, Waiter>();
 
-const newId = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+const newId = () => randomId();
 
 // ─── Côté écrans ─────────────────────────────────────────────────────────────
 

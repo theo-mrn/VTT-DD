@@ -21,6 +21,7 @@ import type {
   LegacyUser,
 } from './legacy.js';
 import { toText } from './legacy.js';
+import { compareCodeUnits } from '@vtt/contracts';
 
 export interface CampaignExports {
   /** `Salle` exporté récursivement : campagnes, sessions et discussion. */
@@ -184,5 +185,5 @@ export function groupCampaigns(e: CampaignExports): Grouping {
     if (campaign) campaign.characters.push(d as FirestoreDoc<LegacyCharacter>);
   }
 
-  return { campaigns: [...campaigns.values()], orphans: [...orphans].sort() };
+  return { campaigns: [...campaigns.values()], orphans: [...orphans].sort(compareCodeUnits) };
 }

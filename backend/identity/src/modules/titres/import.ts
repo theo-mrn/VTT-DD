@@ -16,6 +16,7 @@ import {
   type ConditionTitre,
   type TitreCatalogue,
 } from './catalogue.js';
+import { compareCodeUnits } from '@vtt/contracts';
 
 export interface DocFirestore {
   path: string;
@@ -70,7 +71,7 @@ export function slugsDebloques(profil: Record<string, unknown>): string[] {
     const slug = slugImporte(cle);
     if (slug) slugs.add(slug);
   }
-  return [...slugs].sort();
+  return [...slugs].sort(compareCodeUnits);
 }
 
 /**

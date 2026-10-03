@@ -8,6 +8,7 @@
  * verrou et relance) et en lire la difficulté, recalculée à chaque changement.
  */
 import type { Rencontres, Valeur } from '@vtt/rules';
+import { compareCodeUnits } from '@vtt/contracts';
 
 /** Une créature que le générateur peut proposer (bestiaire du système ou modèle du MJ). */
 export interface EncounterCreature {
@@ -169,7 +170,7 @@ function split(rng: Random, total: number, kinds: number): number[] {
 const signature = (groups: readonly EncounterGroup[]) =>
   groups
     .map((g) => `${g.creature.key}×${g.count}`)
-    .sort()
+    .sort(compareCodeUnits)
     .join('|');
 
 let nextId = 0;

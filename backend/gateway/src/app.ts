@@ -123,7 +123,7 @@ function decoder(chemin: string): string {
  */
 export function estInterne(url: string): boolean {
   const brut = decoder(url.split('?')[0] ?? '');
-  const resolu = decoder(new URL(url, 'http://gateway.local').pathname);
+  const resolu = decoder(new URL(url, 'https://gateway.local').pathname);
   return (
     /(^|[/\\])\.\.?([/\\]|$)/.test(brut) ||
     /^[/\\]+internal([/\\]|$)/.test(brut) ||

@@ -13,7 +13,13 @@
  * Chaque écriture passe par `enregistrer` (état validé, version, `character.updated` annoncé
  * aux MJ de la campagne et au joueur qui incarne le personnage).
  */
-import { AttackModificationInput, changesPayload, deepEqual, type Change } from '@vtt/contracts';
+import {
+  AttackModificationInput,
+  changesPayload,
+  deepEqual,
+  type Change,
+  compareCodeUnits,
+} from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import {
   appliquerModifications,
@@ -161,7 +167,7 @@ const introuvable = (id: string) =>
 
 /** Verrouille les personnages (ordre des identifiants) ; 404 `character_not_found` sinon. */
 async function verrouillerTous(tx: Tx, ids: string[]): Promise<Map<string, Ligne>> {
-  const uniquesIds = [...new Set(ids)].sort();
+  const uniquesIds = [...new Set(ids)].sort(compareCodeUnits);
   const lignes = await tx
     .select()
     .from(characters)
@@ -418,7 +424,7 @@ async function annulerApplication(
         ),
       )
       .orderBy(applicationItems.createdAt, applicationItems.characterId);
-    const ids = [...new Set(items.map((i) => i.characterId))].sort();
+    const ids = [...new Set(items.map((i) => i.characterId))].sort(compareCodeUnits);
     const lignes = ids.length
       ? await tx
           .select()

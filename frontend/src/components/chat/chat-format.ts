@@ -3,6 +3,7 @@
  * fil groupé par jour et par auteur, libellés des destinataires, saisie des mentions.
  */
 import type { ChatMessage, ChatRecipients } from '@/lib/campaign-chat';
+import { compareCodeUnits } from '@vtt/contracts';
 
 // ─── Personnes ───────────────────────────────────────────────────────────────
 
@@ -143,7 +144,7 @@ export const audienceKey = (r: ChatRecipients | null) =>
   r
     ? `w:${r.gm ? 'gm' : ''}:${r.users
         .map((u) => u.id)
-        .sort()
+        .sort(compareCodeUnits)
         .join(',')}`
     : 'all';
 

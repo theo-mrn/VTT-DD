@@ -91,6 +91,7 @@ import {
   type SaisieLibre,
   type Tri,
 } from './model';
+import { randomId } from '@/lib/random-id';
 
 const TOUT = '*';
 
@@ -99,7 +100,7 @@ const GRILLE = 'grid justify-start gap-1.5 [grid-template-columns:repeat(auto-fi
 
 /** Identifiant d'un nouveau dossier, choisi ici pour y ranger un objet aussitôt. */
 function nouvelIdDossier(): string {
-  return `dossier-${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
+  return `dossier-${randomId()}`;
 }
 
 /** Tuile voisine dans la grille, par la géométrie (colonnes variables, sections). */

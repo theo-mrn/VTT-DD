@@ -37,6 +37,7 @@ import type {
 } from '../../db/schema.js';
 import { blocksFromDirection, legacyItems } from './legacy-model.js';
 import { toText, type FirestoreDoc } from '../legacy.js';
+import { compareCodeUnits } from '@vtt/contracts';
 
 /** UUID version 5 (SHA-1) d'un chemin legacy : stable d'un import à l'autre. */
 export function legacyUuid(key: string): string {
@@ -373,7 +374,7 @@ export function transformRoom(
           .map(([k]) => cell(k))
           .filter((k): k is string => !!k),
       ),
-    ].sort();
+    ].sort(compareCodeUnits);
     const fullMap = bool(f.fullMapFog, false);
     if (!cells.length && !fullMap) continue;
     const mapId =

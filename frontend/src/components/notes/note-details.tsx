@@ -25,6 +25,7 @@ import {
 import type { NoteDetails, QuestStatus, QuestType, SubQuest, TypeNote } from '@/lib/notes';
 import { cn } from '@/lib/utils';
 import { Ligne, styleChampLigne, styleDeclencheur } from './property-row';
+import { randomId } from '@/lib/random-id';
 
 const LONGUEUR_DETAIL = 200;
 const MAX_ETAPES = 100;
@@ -43,10 +44,7 @@ const STATUTS: { id: QuestStatus; label: string; icone: typeof Circle }[] = [
 const statutSuivant = (s: QuestStatus): QuestStatus =>
   s === 'not_started' ? 'in_progress' : s === 'in_progress' ? 'completed' : 'not_started';
 
-const nouvelId = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const nouvelId = () => randomId();
 
 /** Types de note qui ont des champs structurés (ceux de l'ancien Grimoire). */
 export const aDesDetails = (kind: TypeNote) =>

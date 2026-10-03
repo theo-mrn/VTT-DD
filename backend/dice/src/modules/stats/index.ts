@@ -31,6 +31,7 @@ import { flatResults } from '../../engine/roll.js';
 import { memberRole } from '../rolls/index.js';
 import { visibleTo, type Viewer } from '../rolls/repository.js';
 import { CampaignId, currentUser, UserId } from '../schemas.js';
+import { compareCodeUnits } from '@vtt/contracts';
 
 /** Jets lus au plus (les plus récents) pour un calcul. */
 export const MAX_STATS_ROLLS = 10_000;
@@ -109,7 +110,7 @@ export function computeStats(
   filters: { diceType?: string; faces?: number; userId?: string },
 ): Stats {
   const typeOf = (r: StatRow) => `${r.diceCount}d${r.diceFaces}`;
-  const diceTypes = [...new Set(recentFirst.map(typeOf))].sort();
+  const diceTypes = [...new Set(recentFirst.map(typeOf))].sort(compareCodeUnits);
   const filtered = recentFirst.filter(
     (r) =>
       (!filters.diceType || typeOf(r) === filters.diceType) &&

@@ -70,11 +70,8 @@ store.youtubeBoxes ??= new Set();
 export function adoptContext(ctx: BaseAudioContext): void {
   for (const other of store.contexts!) {
     if (other === ctx) continue;
-    try {
-      void (other as AudioContext).close?.();
-    } catch {
-      // Déjà fermé
-    }
+    // Déjà fermé : la promesse est rejetée, sans conséquence
+    void (other as AudioContext).close?.()?.catch(() => undefined);
     store.contexts!.delete(other);
   }
   store.contexts!.add(ctx);

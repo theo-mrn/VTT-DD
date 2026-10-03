@@ -90,7 +90,7 @@ function useListener(engine: MapEngine): Point | null {
     const off = engine.onFrame((now) => {
       const next = listenerOf(engine);
       const moved =
-        !next !== !shown ||
+        Boolean(next) !== Boolean(shown) ||
         (next && shown && Math.abs(next.x - shown.x) + Math.abs(next.y - shown.y) >= 1);
       pending = next;
       if (!moved || timer) return false;

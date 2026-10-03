@@ -25,6 +25,7 @@ import { calculerMemo } from '@/lib/rules-cache';
 import { useMapState } from '../engine-context';
 import { mainResource } from './resource';
 import { useTokens } from './use-tokens';
+import { compareCodeUnits } from '@vtt/contracts';
 
 /** Délai avant de relire la liste pour un personnage inconnu, puis entre deux essais. */
 const ASK_DELAY_MS = 600;
@@ -58,7 +59,7 @@ export function TokenCharacterFeed({ engine }: { engine: MapEngine }) {
       const d = t as TokenData;
       if (!d.draft && typeof d.characterId === 'string') ids.add(d.characterId);
     }
-    return [...ids].sort();
+    return [...ids].sort(compareCodeUnits);
   }, [tokenMap]);
 
   // Fiches à lire : toutes pour le MJ, les siennes pour un joueur

@@ -25,6 +25,7 @@ import {
   MAP_PING_KIND,
   MapLiveMessage,
   MapPingMessage,
+  compareCodeUnits,
 } from '@vtt/contracts';
 import type { Point } from '../engine/geometry';
 
@@ -146,7 +147,11 @@ interface Track {
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 const audienceKey = (a: LiveAudience) =>
-  a === 'public' ? 'public' : a === 'gm' ? 'gm' : `u:${[...a.users].sort().join(',')}`;
+  a === 'public'
+    ? 'public'
+    : a === 'gm'
+      ? 'gm'
+      : `u:${[...a.users].sort(compareCodeUnits).join(',')}`;
 
 const sendOptions = (a: LiveAudience): LiveSendOptions =>
   a === 'public' ? {} : a === 'gm' ? { gmOnly: true } : { toUsers: a.users };
@@ -154,7 +159,7 @@ const sendOptions = (a: LiveAudience): LiveSendOptions =>
 /** Le serveur ignore un `toUsers` de plus de 50 noms : on découpe. Liste vide : MJ seulement. */
 function expandAudience(a: LiveAudience): LiveAudience[] {
   if (a === 'public' || a === 'gm') return [a];
-  const users = [...new Set(a.users)].sort();
+  const users = [...new Set(a.users)].sort(compareCodeUnits);
   if (!users.length) return ['gm'];
   const out: LiveAudience[] = [];
   for (let i = 0; i < users.length; i += EPHEMERAL_TO_USERS_MAX)

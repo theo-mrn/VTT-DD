@@ -126,8 +126,8 @@ export function cheminDeRetour(brut: unknown): string {
   if (/[\\\u0000- \u007f]/.test(brut)) return '/';
   // Ceinture et bretelles : le chemin résolu doit rester sur une origine fixe
   try {
-    const url = new URL(brut, 'http://retour.invalid');
-    if (url.origin !== 'http://retour.invalid') return '/';
+    const url = new URL(brut, 'https://retour.invalid');
+    if (url.origin !== 'https://retour.invalid') return '/';
   } catch {
     return '/';
   }

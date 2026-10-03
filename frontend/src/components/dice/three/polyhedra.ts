@@ -331,8 +331,9 @@ function build(type: DieType): DieShape {
     const pts = fc.ids.map((i) => Q[i]!.clone().addScaledVector(fc.n, r));
     const center = pts.reduce((s, p) => s.add(p), new THREE.Vector3()).divideScalar(pts.length);
     // « Haut » du chiffre : vers un sommet (d10 : le pôle, sommet le plus loin du centre)
-    const far = pts.reduce((best, p) =>
-      p.distanceTo(center) > best.distanceTo(center) + 1e-6 ? p : best,
+    const far = pts.reduce(
+      (best, p) => (p.distanceTo(center) > best.distanceTo(center) + 1e-6 ? p : best),
+      pts[0]!,
     );
     const up = new THREE.Vector3().subVectors(far, center).normalize();
     const right = new THREE.Vector3().crossVectors(up, fc.n).normalize();

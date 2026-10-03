@@ -53,6 +53,7 @@ import {
 } from './dice-preferences';
 import { useCampaignEvents, type RealtimeEvent } from './realtime';
 import { useProfil } from './session';
+import { randomId } from '@/lib/random-id';
 
 // ─── Contrat de l'API (schémas Zod de backend/dice/src/modules/schemas.ts) ─────
 
@@ -282,10 +283,7 @@ export function desDeFormule(texte: string, fiche?: Fiche | null): ThrowRequest[
 
 const PAGE = 50;
 
-const nouvelleCle = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+const nouvelleCle = () => randomId();
 
 function requete(params: Record<string, string | null | undefined>): string {
   const q = new URLSearchParams();
