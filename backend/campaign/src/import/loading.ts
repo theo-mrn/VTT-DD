@@ -61,30 +61,33 @@ export type Preparation =
   | { status: 'ready'; campaign: PreparedCampaign; warnings: string[] }
   | { status: 'no-account'; warnings: string[] };
 
-export function prepareCampaign(
-  m: MigratedCampaign,
-  maps: Mappings,
-  systemVersion: string,
-): Preparation {
-  const warnings = [...m.warnings];
-  const warn = (w: string) => warnings.push(w);
-  const account = (uid: string | undefined) => (uid ? maps.accounts.get(uid) : undefined);
+type Warn = (w: string) => void;
+/** Compte migré d'un UID Firebase. */
+type AccountOf = (uid: string | undefined) => string | undefined;
+type EngagedRow = PreparedCampaign['characters'][number];
 
-  // Propriétaire : le créateur, à défaut un autre MJ avec un compte migré
-  let owner = account(m.ownerUid);
-  if (!owner) {
-    const fallback = m.members.find((x) => x.role === 'gm' && account(x.uid));
-    if (!fallback) {
-      warn(`Créateur ${m.ownerUid ?? '(inconnu)'} sans compte migré : campagne ignorée`);
-      return { status: 'no-account', warnings };
-    }
-    owner = account(fallback.uid)!;
-    warn(
-      `Créateur ${m.ownerUid ?? '(inconnu)'} sans compte migré : campagne confiée à ${fallback.uid}`,
-    );
+/** Propriétaire : le créateur, à défaut un autre MJ avec un compte migré ; null sans l'un ni l'autre. */
+function ownerOf(m: MigratedCampaign, account: AccountOf, warn: Warn): string | null {
+  const owner = account(m.ownerUid);
+  if (owner) return owner;
+  const fallback = m.members.find((x) => x.role === 'gm' && account(x.uid));
+  if (!fallback) {
+    warn(`Créateur ${m.ownerUid ?? '(inconnu)'} sans compte migré : campagne ignorée`);
+    return null;
   }
+  warn(
+    `Créateur ${m.ownerUid ?? '(inconnu)'} sans compte migré : campagne confiée à ${fallback.uid}`,
+  );
+  return account(fallback.uid)!;
+}
 
-  // Membres (le propriétaire est toujours MJ)
+/** Membres (le propriétaire est toujours MJ), et compte de chaque membre retenu. */
+function membersOf(
+  m: MigratedCampaign,
+  owner: string,
+  account: AccountOf,
+  warn: Warn,
+): { members: Map<string, Role>; accountOf: Map<string, string> } {
   const members = new Map<string, Role>([[owner, 'gm']]);
   const accountOf = new Map<string, string>(); // uid → compte, membres retenus
   for (const x of m.members) {
@@ -96,17 +99,28 @@ export function prepareCampaign(
     accountOf.set(x.uid, id);
     if (!members.has(id)) members.set(id, x.role);
   }
+  return { members, accountOf };
+}
 
-  // Bannis
+/** Bannis avec un compte migré, hors membres. */
+function bansOf(
+  m: MigratedCampaign,
+  members: Map<string, Role>,
+  account: AccountOf,
+  warn: Warn,
+): string[] {
   const bans: string[] = [];
   for (const uid of m.bans) {
     const id = account(uid);
     if (!id) warn(`Banni ${uid} sans compte migré : ignoré`);
     else if (!members.has(id) && !bans.includes(id)) bans.push(id);
   }
+  return bans;
+}
 
-  // Personnages engagés, du système de la campagne
-  const engaged = new Map<string, PreparedCampaign['characters'][number]>(); // chemin legacy → ligne
+/** Personnages engagés, du système de la campagne : chemin legacy → ligne. */
+function engagedOf(m: MigratedCampaign, maps: Mappings, warn: Warn): Map<string, EngagedRow> {
+  const engaged = new Map<string, EngagedRow>();
   for (const c of m.characters) {
     const imported = maps.characters.get(c.legacyId);
     const label = c.name ? `« ${c.name} » (${c.legacyId})` : c.legacyId;
@@ -127,8 +141,17 @@ export function prepareCampaign(
       playedBy: null,
     });
   }
+  return engaged;
+}
 
-  // Personnage incarné : engagé, et à soi pour un joueur (le MJ incarne n'importe lequel)
+/** Personnage incarné : engagé, et à soi pour un joueur (le MJ incarne n'importe lequel). */
+function assignPlayed(
+  m: MigratedCampaign,
+  members: Map<string, Role>,
+  accountOf: Map<string, string>,
+  engaged: Map<string, EngagedRow>,
+  warn: Warn,
+): void {
   for (const x of m.members) {
     const id = accountOf.get(x.uid);
     if (!x.plays || !id) continue;
@@ -141,8 +164,14 @@ export function prepareCampaign(
       warn(`${x.uid} incarne déjà un personnage : ${x.plays} non incarné`);
     else row.playedBy = id;
   }
+}
 
-  // Discussion : auteurs sans compte regroupés
+/** Discussion : auteurs sans compte regroupés. */
+function messagesOf(
+  m: MigratedCampaign,
+  account: AccountOf,
+  warn: Warn,
+): PreparedCampaign['messages'] {
   const messages: PreparedCampaign['messages'] = [];
   const withoutAuthor = new Map<string, number>();
   for (const msg of m.messages) {
@@ -152,6 +181,25 @@ export function prepareCampaign(
   }
   for (const [uid, n] of withoutAuthor)
     warn(`${n} message(s) de ${uid} (sans compte migré) ignoré(s)`);
+  return messages;
+}
+
+export function prepareCampaign(
+  m: MigratedCampaign,
+  maps: Mappings,
+  systemVersion: string,
+): Preparation {
+  const warnings = [...m.warnings];
+  const warn = (w: string) => warnings.push(w);
+  const account: AccountOf = (uid) => (uid ? maps.accounts.get(uid) : undefined);
+
+  const owner = ownerOf(m, account, warn);
+  if (owner === null) return { status: 'no-account', warnings };
+  const { members, accountOf } = membersOf(m, owner, account, warn);
+  const bans = bansOf(m, members, account, warn);
+  const engaged = engagedOf(m, maps, warn);
+  assignPlayed(m, members, accountOf, engaged, warn);
+  const messages = messagesOf(m, account, warn);
 
   return {
     status: 'ready',
