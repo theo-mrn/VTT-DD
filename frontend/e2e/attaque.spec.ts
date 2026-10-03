@@ -74,10 +74,8 @@ test('le joueur attaque un PNJ, le MJ décide du rapport', async ({ browser }) =
     const menu = joueurPage.getByRole('dialog');
     const onglet = menu.getByRole('tab', { name: /Attaque avec une arme/ });
     if (await onglet.isVisible()) await onglet.click();
-    await menu
-      .getByRole('button', { name: /Contact/ })
-      .first()
-      .click();
+    // La carte du type d'attaque (« d20 Contact 1d20 + 3 »), pas la description de l'action
+    await menu.getByRole('button', { name: /Contact 1d20/ }).click();
 
     // Touché : l'arme vient ensuite ; raté : le rapport part directement
     const mainsNues = menu.getByRole('button', { name: /Mains nues/ });
