@@ -21,6 +21,14 @@ export const activeMapStore = createStore<ActiveMap>()(() => ({
   engine: null,
 }));
 
+// Tests de bout en bout (e2e/) : la carte est un canevas, ils lisent son état dans le moteur.
+// Jamais en production, sauf build de test explicite (`NEXT_PUBLIC_E2E=true`).
+if (
+  typeof window !== 'undefined' &&
+  (process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_E2E === 'true')
+)
+  (window as unknown as { __vttActiveMap?: typeof activeMapStore }).__vttActiveMap = activeMapStore;
+
 /** Enregistre le moteur monté ; renvoie son retrait (seulement s'il est toujours celui-là). */
 export function setActiveMap(campaignId: string, mapId: string, engine: MapEngine): () => void {
   activeMapStore.setState({ campaignId, mapId, engine });

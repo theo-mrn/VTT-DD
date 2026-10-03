@@ -45,3 +45,7 @@ legacy/starwars-bundle/assets/3d/
 
 # Systèmes de jeu copiés au build du front (frontend/scripts/systemes.mjs)
 frontend/public/systemes/
+
+# Tests de bout en bout (Playwright) : rapports et traces
+frontend/e2e/rapport/
+frontend/e2e/resultats/
