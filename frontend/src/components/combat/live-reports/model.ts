@@ -37,25 +37,38 @@ export function liveItems(
   lists: readonly (readonly Attack[])[],
   settled: ReadonlyMap<string, Attack> = new Map(),
 ): LiveItem[] {
+  const byId = latestById(lists);
+  const out: LiveItem[] = [];
+  for (const [id, a] of settled) {
+    const fresh = byId.get(id);
+    const newer = fresh && fresh.version > a.version ? fresh : null;
+    // Revenu en attente (application annulée) : la carte redevient à décider
+    if (newer && needsDecision(newer)) continue;
+    out.push({ attack: newer ?? a, kind: 'settled' });
+    byId.delete(id);
+  }
+  for (const a of byId.values()) {
+    const kind = liveKind(a);
+    if (kind) out.push({ attack: a, kind });
+  }
+  return out.sort((x, y) => y.attack.createdAt.localeCompare(x.attack.createdAt));
+}
+
+/** Dernière version connue de chaque attaque, toutes listes confondues. */
+function latestById(lists: readonly (readonly Attack[])[]): Map<string, Attack> {
   const byId = new Map<string, Attack>();
   for (const list of lists)
     for (const a of list) {
       const known = byId.get(a.id);
       if (!known || known.version < a.version) byId.set(a.id, a);
     }
-  const out: LiveItem[] = [];
-  for (const [id, a] of settled) {
-    const fresh = byId.get(id);
-    // Revenu en attente (application annulée) : la carte redevient à décider
-    if (fresh && fresh.version > a.version && needsDecision(fresh)) continue;
-    out.push({ attack: fresh && fresh.version > a.version ? fresh : a, kind: 'settled' });
-    byId.delete(id);
-  }
-  for (const a of byId.values()) {
-    if (needsDecision(a)) out.push({ attack: a, kind: 'decide' });
-    else if (isOpen(a)) out.push({ attack: a, kind: 'progress' });
-  }
-  return out.sort((x, y) => y.attack.createdAt.localeCompare(x.attack.createdAt));
+  return byId;
+}
+
+/** Carte d'une attaque de la pile : à décider, en cours, ou rien (rangée). */
+function liveKind(a: Attack): 'decide' | 'progress' | null {
+  if (needsDecision(a)) return 'decide';
+  return isOpen(a) ? 'progress' : null;
 }
 
 export interface LiveStack {

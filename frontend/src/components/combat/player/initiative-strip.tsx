@@ -195,50 +195,15 @@ export function InitiativeStrip({
 
       <Rule />
 
-      {!combat.initiativeRolled ? (
-        <Button
-          size="sm"
-          className={cn(CTA, 'h-10 rounded-[14px] px-4')}
-          onClick={() =>
-            void run('init', 'L’initiative n’a pas pu être lancée', () => commands.rollInitiative())
-          }
-          disabled={busy !== null}
-          aria-busy={busy === 'init' || undefined}
-        >
-          {busy === 'init' ? <Loader2 className="animate-spin" /> : <Dices />}
-          Lancer l’initiative
-        </Button>
-      ) : (
-        <span className="flex shrink-0 items-center gap-1">
-          <Info texte="Tour précédent" cote="bottom">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className={cn('size-10 rounded-[14px]', TOUCH)}
-              aria-label="Tour précédent"
-              onClick={() => void turn('previous', 'Le retour arrière n’a pas pu se faire')}
-              disabled={busy !== null || combat.canGoBack === false}
-              aria-busy={busy === 'previous' || undefined}
-            >
-              {busy === 'previous' ? <Loader2 className="animate-spin" /> : <ChevronLeft />}
-            </Button>
-          </Info>
-          <Button
-            size="sm"
-            className={cn(CTA, 'group h-10 rounded-[14px] pl-4 pr-3')}
-            onClick={() => void turn('next', 'Le tour n’a pas pu passer')}
-            disabled={busy !== null || !combat.order.length}
-            aria-busy={busy === 'next' || undefined}
-          >
-            Suivant
-            {busy === 'next' ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <ChevronRight className="transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
-            )}
-          </Button>
-        </span>
-      )}
+      <TurnControls
+        combat={combat}
+        busy={busy}
+        onRollInitiative={() =>
+          void run('init', 'L’initiative n’a pas pu être lancée', () => commands.rollInitiative())
+        }
+        onPrevious={() => void turn('previous', 'Le retour arrière n’a pas pu se faire')}
+        onNext={() => void turn('next', 'Le tour n’a pas pu passer')}
+      />
 
       {reports}
       {menu}
@@ -267,6 +232,66 @@ export function InitiativeStrip({
         bar
       )}
     </MotionConfig>
+  );
+}
+
+/** Lancer l'initiative, puis tour précédent et suivant. */
+function TurnControls({
+  combat,
+  busy,
+  onRollInitiative,
+  onPrevious,
+  onNext,
+}: Readonly<{
+  combat: CombatState;
+  busy: string | null;
+  onRollInitiative(): void;
+  onPrevious(): void;
+  onNext(): void;
+}>) {
+  if (!combat.initiativeRolled)
+    return (
+      <Button
+        size="sm"
+        className={cn(CTA, 'h-10 rounded-[14px] px-4')}
+        onClick={onRollInitiative}
+        disabled={busy !== null}
+        aria-busy={busy === 'init' || undefined}
+      >
+        {busy === 'init' ? <Loader2 className="animate-spin" /> : <Dices />}
+        Lancer l’initiative
+      </Button>
+    );
+  return (
+    <span className="flex shrink-0 items-center gap-1">
+      <Info texte="Tour précédent" cote="bottom">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className={cn('size-10 rounded-[14px]', TOUCH)}
+          aria-label="Tour précédent"
+          onClick={onPrevious}
+          disabled={busy !== null || combat.canGoBack === false}
+          aria-busy={busy === 'previous' || undefined}
+        >
+          {busy === 'previous' ? <Loader2 className="animate-spin" /> : <ChevronLeft />}
+        </Button>
+      </Info>
+      <Button
+        size="sm"
+        className={cn(CTA, 'group h-10 rounded-[14px] pl-4 pr-3')}
+        onClick={onNext}
+        disabled={busy !== null || !combat.order.length}
+        aria-busy={busy === 'next' || undefined}
+      >
+        Suivant
+        {busy === 'next' ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <ChevronRight className="transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+        )}
+      </Button>
+    </span>
   );
 }
 
