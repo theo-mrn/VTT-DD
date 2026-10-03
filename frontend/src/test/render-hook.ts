@@ -43,8 +43,16 @@ export async function renderHook<T>(hook: () => T, client = testQueryClient()) {
         }
       }
     },
-    /** Exécute une action qui fait rendre (mutation, invalidation). */
-    act: <R>(fn: () => Promise<R> | R) => act(async () => fn()) as Promise<R>,
+    /**
+     * Exécute une action qui fait rendre (mutation, invalidation), puis laisse passer un tour :
+     * React Query prévient ses abonnés au tour suivant de la boucle d'événements.
+     */
+    act: <R>(fn: () => Promise<R> | R) =>
+      act(async () => {
+        const out = await fn();
+        await new Promise((r) => setTimeout(r, 0));
+        return out;
+      }) as Promise<R>,
     unmount: () => act(() => root.unmount()),
   };
 }
