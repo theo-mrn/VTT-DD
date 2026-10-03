@@ -17,7 +17,6 @@ env:
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
   # Bus d'événements : relais d'outbox et consommateur campaign.deleted (NATS JetStream)
   NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Sondes /healthz et /readyz sur le port du conteneur
   WORKER_PORT: '3000'
   WORKER_CONCURRENCY: '2'

@@ -29,7 +29,8 @@ jobs:
       matrix:
         include:
           - { image: gateway, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=gateway' }
-          - { image: web, dockerfile: infra/docker/web.Dockerfile, args: '' }
+          # /v1 réécrit vers la gateway du même namespace (Service « gateway », port 80)
+          - { image: web, dockerfile: infra/docker/web.Dockerfile, args: 'API_URL=http://gateway' }
           - {
               image: identity,
               dockerfile: infra/docker/service.Dockerfile,

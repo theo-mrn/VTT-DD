@@ -3,7 +3,11 @@ image:
   repository: ghcr.io/theo-mrn/vtt-history
   digest: ''
   tag: 'main'
-replicaCount: 2
+# Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
@@ -12,7 +16,6 @@ env:
   NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
   # Consommateur durable partagé par les réplicas (JetStream répartit les messages)
   HISTORY_CONSUMER: history
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api

@@ -3,14 +3,17 @@ image:
   repository: ghcr.io/theo-mrn/vtt-dice
   digest: ''
   tag: 'main'
-replicaCount: 2
+# Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
   # Bus d'événements : le relais d'outbox y publie (NATS JetStream, namespace messaging)
   NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api

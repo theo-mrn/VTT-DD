@@ -3,13 +3,16 @@ image:
   repository: ghcr.io/theo-mrn/vtt-gateway
   digest: ''
   tag: 'main'
-replicaCount: 2
+# Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
   CORS_ORIGINS: https://staging.yner.fr
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
   JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json

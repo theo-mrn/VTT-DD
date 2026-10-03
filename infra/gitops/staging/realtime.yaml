@@ -6,9 +6,13 @@ image:
 # Chaque réplica lit tout le flux NATS et n'émet qu'à ses propres connexions : on peut en
 # ajouter sans qu'un client reçoive un événement deux fois. Pas de sessions collantes
 # (WebSocket seulement) ; l'adaptateur Redis relie les réplicas (éphémère, présence).
-replicaCount: 2
+# Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 autoscaling:
-  enabled: true
+  enabled: false
   minReplicas: 2
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
@@ -19,7 +23,6 @@ env:
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
   # Bus d'événements : diffusion en direct et rejeu après reconnexion (NATS JetStream)
   NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api

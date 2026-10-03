@@ -13,10 +13,10 @@ spec:
   ingress:
     - from:
         {{- if .Values.ingress.enabled }}
-        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }} } }
           podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
         {{- end }}
-        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace }} } }
         {{- if .Values.cronJobs }}
         # CronJobs du service (mêmes labels) : ils appellent leurs routes en interne
         - podSelector:

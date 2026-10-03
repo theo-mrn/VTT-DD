@@ -2,35 +2,26 @@ image:
   repository: ghcr.io/theo-mrn/vtt-web
   digest: ''
   tag: 'main'
-replicaCount: 2
+# Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 resources:
   requests: { cpu: 100m, memory: 256Mi }
   limits: { memory: 768Mi }
 env:
   NODE_ENV: production
-envFromSecrets:
-  - name: web-secrets # SOPS : clés Firebase/Stripe/Resend tant que la migration n'est pas finie
+# Pas de secret : le front ne parle qu'à la gateway (/v1, même origine)
 probes:
-  liveness: /api/healthz
-  readiness: /api/healthz
+  liveness: /healthz
+  readiness: /healthz
 writablePaths:
   - /app/frontend/.next/cache
-# Désactivés en staging : session-reminder enverrait de vrais e-mails en double
-# avec la prod, et optimize-images écrirait dans le même bucket R2.
-cronJobs:
-  session-reminder:
-    enabled: false
-    schedule: '0 8 * * *'
-    timeZone: Etc/UTC
-    path: /api/session-reminder
-    secretName: web-secrets
-  optimize-images:
-    enabled: false
-    schedule: '0 2 * * *'
-    timeZone: Etc/UTC
-    path: /api/cron/optimize-images
-    timeoutSeconds: 120
-    secretName: web-secrets
 ingress:
   enabled: true
   host: staging.yner.fr
+  # API et temps réel sur le même hôte, envoyés par Traefik à la gateway : le serveur Next ne
+  # relaie pas l'upgrade WebSocket de ses réécritures, et les cookies restent sur la même origine
+  extraPaths:
+    - { path: /v1, service: gateway }
