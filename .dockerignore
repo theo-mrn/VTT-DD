@@ -1,0 +1,14 @@
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/.env*
+!**/.env.example
+.git
+docs
+# Ancienne app : seul son manifest sert (cohérence du lockfile pnpm)
+legacy/**
+!legacy/package.json
+**/*.test.ts
+**/__tests__

@@ -1,0 +1,17 @@
+# Projet des applications VTT : les services (vtt-staging, plus tard vtt-prod), la base
+# (data) et leurs secrets scellés. Rien d'autre que ce dépôt comme source.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: vtt
+  namespace: argocd
+spec:
+  description: Services VTT, PostgreSQL et secrets scellés
+  sourceRepos:
+    - https://github.com/theo-mrn/VTT-DD.git
+  destinations:
+    - { server: https://kubernetes.default.svc, namespace: 'vtt-*' }
+    - { server: https://kubernetes.default.svc, namespace: data }
+    - { server: https://kubernetes.default.svc, namespace: messaging }
+  clusterResourceWhitelist:
+    - { group: '', kind: Namespace }

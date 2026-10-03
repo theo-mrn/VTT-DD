@@ -1,0 +1,65 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-character
+  digest: ''
+  tag: 'main'
+# Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
+  # Bus d'événements : le relais d'outbox y publie (NATS JetStream, namespace messaging)
+  NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.staging.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json
+  # Droits des MJ et des joueurs sur les personnages engagés dans leurs campagnes
+  CAMPAIGN_URL: http://campaign.vtt-staging.svc
+  # Historique des jets : chaque jet d'action est transmis à dice (/internal/rolls)
+  DICE_URL: http://dice.vtt-staging.svc
+  STORAGE_REFERENCE_URLS: http://campaign.vtt-staging.svc,http://identity.vtt-staging.svc,http://dice.vtt-staging.svc
+  # Staging sur le bucket de production (vtt-dd-assets) : le nettoyage des fichiers orphelins
+  # ne tourne jamais ici, il supprimerait des fichiers de la prod
+  ORPHAN_SWEEP: 'off'
+# Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
+# substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
+secretEnv:
+  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+# Secret character-secrets (SOPS) : DATABASE_URL (rôle characters_svc), INTERNAL_API_SECRET
+# (même valeur que campaign et dice)
+# + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
+#   d'outbox ne traverse pas PgBouncer (sans elle : DATABASE_URL, réveil par le poll de 5 s)
+envFromSecrets:
+  - name: character-secrets
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : character n'est joignable que par la gateway
+ingress:
+  enabled: false
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    # campaign appelle les routes /internal (initiative, durées, résumé)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
+    # dice lit la fiche d'un personnage pour les variables de ses jets (/internal)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
+    # identity demande quels fichiers ses tables référencent (/internal/storage)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: identity } }
+migrations:
+  enabled: true
+  image:
+    repository: ghcr.io/theo-mrn/vtt-character-migrations
+    digest: ''
+    tag: 'main'
+  # Schéma « characters » : CHARACTER est un mot réservé SQL
+  schema: characters
+  # Secret généré par CloudNativePG pour le rôle characters_owner
+  secretName: pg-characters-owner

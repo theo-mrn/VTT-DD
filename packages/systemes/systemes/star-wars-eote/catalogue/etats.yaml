@@ -1,0 +1,60 @@
+# États temporaires (sorte activable) : actifs tant qu'ils durent. Ceux qui touchent l'attaquant
+# modifient la Défense, le couvert ou la vulnérabilité de la cible, lus par l'action « attaque ».
+- id: etourdi
+  sorte: etat
+  nom: Étourdi
+  description: Ne peut effectuer aucune action (les manœuvres restent possibles).
+- id: desoriente
+  sorte: etat
+  nom: Désorienté
+  description: Ajoute 1 dé d'Infortune à tous ses tests.
+  effets:
+    - {
+        sur: jet,
+        actions: [test, test-cible, attaque, initiative, soins, recuperation, talent],
+        ajout: { de: infortune, nombre: 1 },
+      }
+- id: immobilise
+  sorte: etat
+  nom: Immobilisé
+  description: Ne peut effectuer aucune manœuvre.
+- id: a-terre
+  sorte: etat
+  nom: À terre
+  description: Les attaques à distance qui le visent ajoutent 1 dé d'Infortune, celles de mêlée 1 dé de Fortune.
+  effets:
+    - { sur: attribut, attribut: defenseDistance, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: vulnerabiliteMelee, operation: ajouter, valeur: 1 }
+- id: manoeuvre-defensive
+  sorte: etat
+  nom: Manœuvre défensive
+  description: Jusqu'à son prochain tour, ajoute 1 dé d'Infortune aux attaques qui le visent.
+  effets:
+    - { sur: attribut, attribut: defenseMelee, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: defenseDistance, operation: ajouter, valeur: 1 }
+- id: couvert-partiel
+  sorte: etat
+  nom: Couvert partiel
+  description: Les tirs qui le visent ajoutent 1 dé de Difficulté.
+  effets:
+    - { sur: attribut, attribut: couvert, operation: ajouter, valeur: 1, famille: couvert }
+- id: couvert-integral
+  sorte: etat
+  nom: Couvert intégral
+  description: Les tirs qui le visent ajoutent 2 dés de Difficulté (le MJ peut interdire le tir direct).
+  effets:
+    - { sur: attribut, attribut: couvert, operation: ajouter, valeur: 2, famille: couvert }
+- id: obligation-declenchee
+  sorte: etat
+  nom: Obligation déclenchée
+  description: Pour la séance, le seuil de stress de chaque personnage du groupe baisse de 1.
+  effets:
+    - { sur: attribut, attribut: seuilStress, operation: ajouter, valeur: -1 }
+- id: obligation-personnelle-declenchee
+  sorte: etat
+  nom: Obligation personnelle déclenchée
+  description: >-
+    S'ajoute à « Obligation déclenchée » pour le personnage dont l'Obligation s'active : son seuil de
+    stress baisse de 2 en tout pour la séance.
+  effets:
+    - { sur: attribut, attribut: seuilStress, operation: ajouter, valeur: -1 }

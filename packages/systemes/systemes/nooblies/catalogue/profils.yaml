@@ -1,0 +1,78 @@
+# Profils : seul le dé de vie (nombre de faces) est une donnée de règle.
+- {
+    id: barbare,
+    sorte: profil,
+    nom: Barbare,
+    champs: { deVie: 12 },
+    description: 'Un guerrier sauvage et puissant, le barbare puise sa force dans sa rage et son instinct de survie. Il excelle dans les affrontements au corps à corps.',
+  }
+- {
+    id: barde,
+    sorte: profil,
+    nom: Barde,
+    champs: { deVie: 8 },
+    description: 'Un artiste polyvalent et charismatique, le barde utilise la magie de la musique et des mots pour inspirer ses alliés et confondre ses ennemis.',
+  }
+- {
+    id: chevalier,
+    sorte: profil,
+    nom: Chevalier,
+    champs: { deVie: 10 },
+    description: 'Le Chevalier est un noble guerrier errant, monté sur un puissant destrier et protégé par une armure lourde.',
+  }
+- {
+    id: druide,
+    sorte: profil,
+    nom: Druide,
+    champs: { deVie: 8 },
+    description: 'Un prêtre de la nature qui tire ses pouvoirs des éléments et protège la pureté de la nature.',
+  }
+- {
+    id: ensorceleur,
+    sorte: profil,
+    nom: Ensorceleur,
+    champs: { deVie: 4 },
+    description: "L'Ensorceleur tire son pouvoir d'un talent inné pour la magie. Il pratique une magie subtile à base de tromperie et de contrôle.",
+  }
+- {
+    id: guerrier,
+    sorte: profil,
+    nom: Guerrier,
+    champs: { deVie: 10 },
+    description: "Un maître du combat, le guerrier excelle dans l'art de la guerre sous toutes ses formes, faisant de lui un combattant redoutable.",
+  }
+- {
+    id: magicien,
+    sorte: profil,
+    nom: Magicien,
+    champs: { deVie: 6 },
+    description: 'Un érudit des arcanes qui maîtrise les secrets de la magie pour lancer des sorts puissants.',
+  }
+- {
+    id: moine,
+    sorte: profil,
+    nom: Moine,
+    champs: { deVie: 8 },
+    description: "Le Moine combat à mains nues et utilise le contrôle qu'il a sur son esprit et son corps pour transformer ce dernier en arme de chair.",
+  }
+- {
+    id: pretre,
+    sorte: profil,
+    nom: Prêtre,
+    champs: { deVie: 8 },
+    description: 'Le prêtre utilise la force de sa foi pour protéger et soigner ses alliés, tout en combattant au nom de sa divinité.',
+  }
+- {
+    id: rodeur,
+    sorte: profil,
+    nom: Rôdeur,
+    champs: { deVie: 10 },
+    description: 'Un expert de la nature, le rôdeur combine ses talents de pisteur et de chasseur avec une connexion profonde avec le monde naturel.',
+  }
+- {
+    id: voleur,
+    sorte: profil,
+    nom: Voleur,
+    champs: { deVie: 6 },
+    description: 'Le Voleur crochète les portes, détecte les pièges et préfère piller les cadavres des ennemis que de se salir les mains pendant le combat.',
+  }

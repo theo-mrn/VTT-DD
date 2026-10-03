@@ -1,0 +1,57 @@
+# PostgreSQL (CloudNativePG) et sa sauvegarde logique, namespace data. Synchronisée avant les
+# services (vague -1) : les Jobs de migration attendent la base et ses rôles.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vtt-data
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-1'
+spec:
+  project: vtt
+  sources:
+    - repoURL: https://github.com/theo-mrn/VTT-DD.git
+      targetRevision: main
+      path: infra/cluster/data
+    # pg_dump chiffré quotidien vers R2 (secret logical-backup-rclone, voir seal-staging.sh) ;
+    # restore-test.yaml reste manuel (docs dans infra/cluster/backup/RESTORE.md)
+    - repoURL: https://github.com/theo-mrn/VTT-DD.git
+      targetRevision: main
+      path: infra/cluster/backup
+      directory: { include: logical-backup.yaml }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data
+  syncPolicy:
+    # Jamais de suppression automatique : une erreur de chemin n'emporte pas la base
+    automated: { prune: false, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    retry:
+      limit: 10
+      backoff: { duration: 10s, factor: 2, maxDuration: 5m }
+---
+# Secrets scellés (Sealed Secrets) des services, de la base et du bus : produits par
+# infra/cluster/secrets/seal-staging.sh, déchiffrés dans le cluster par le contrôleur.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vtt-secrets-staging
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-2'
+spec:
+  project: vtt
+  source:
+    repoURL: https://github.com/theo-mrn/VTT-DD.git
+    targetRevision: main
+    path: infra/cluster/secrets/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vtt-staging
+  syncPolicy:
+    automated: { prune: false, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+    # Les secrets de data et messaging attendent que leurs namespaces existent
+    retry:
+      limit: 10
+      backoff: { duration: 10s, factor: 2, maxDuration: 5m }

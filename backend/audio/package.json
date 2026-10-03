@@ -1,0 +1,39 @@
+{
+  "name": "@vtt/audio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node scripts/dev.mjs",
+    "dev:service": "tsx watch --env-file-if-exists=.env src/main.ts",
+    "dev:worker": "tsx --env-file-if-exists=.env src/worker.ts",
+    "start": "node --import ./dist/instrumentation.js dist/main.js",
+    "start:worker": "node --import ./dist/instrumentation.js dist/worker.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check src scripts",
+    "publish:catalog": "tsx --env-file-if-exists=.env scripts/publish-catalog.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1140.0",
+    "@aws-sdk/s3-request-presigner": "^3.1141.0",
+    "@vtt/contracts": "workspace:*",
+    "@vtt/platform": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "fastify": "^5.12.5",
+    "fastify-type-provider-zod": "^7.0.0",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@types/pg": "^8.23.1",
+    "jose": "^6.2.12",
+    "tsx": "^4.23.15",
+    "vitest": "^3.2.7"
+  },
+  "files": [
+    "dist"
+  ]
+}

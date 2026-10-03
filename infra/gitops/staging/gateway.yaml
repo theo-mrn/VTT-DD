@@ -1,0 +1,43 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-gateway
+  digest: ''
+  tag: 'main'
+# Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  CORS_ORIGINS: https://staging.yner.fr
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
+  JWT_ISSUER: https://api.staging.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json
+  UPSTREAM_IDENTITY_URL: http://identity.vtt-staging.svc
+  UPSTREAM_CHARACTER_URL: http://character.vtt-staging.svc
+  UPSTREAM_CAMPAIGN_URL: http://campaign.vtt-staging.svc
+  UPSTREAM_DICE_URL: http://dice.vtt-staging.svc
+  # Paiements Stripe ; /v1/billing/webhook passe sans jeton (signature vérifiée par billing)
+  UPSTREAM_BILLING_URL: http://billing.vtt-staging.svc
+  # Temps réel : WebSocket Socket.IO (/v1/realtime/socket.io), jeton vérifié par realtime
+  UPSTREAM_REALTIME_URL: http://realtime.vtt-staging.svc
+  # Journal d'historique : timeline d'une campagne, vérification de la chaîne de hash
+  UPSTREAM_HISTORY_URL: http://history.vtt-staging.svc
+  # Son : bibliothèque, canaux, effets, horloge, mixeur
+  UPSTREAM_AUDIO_URL: http://audio.vtt-staging.svc
+# Mot de passe de valkey-staging (secret messaging-credentials), substitué dans REDIS_URL :
+# voir « Déploiement » dans docs/bus.md
+secretEnv:
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+ingress:
+  enabled: true
+  # Connexions WebSocket longues (realtime)
+  websocket: true
+  host: api.staging.yner.fr
+networkPolicy:
+  enabled: true
+autoscaling:
+  enabled: false

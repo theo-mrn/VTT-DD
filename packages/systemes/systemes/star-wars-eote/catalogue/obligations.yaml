@@ -1,0 +1,74 @@
+# Types d'Obligation du livre de base. La valeur (10 par défaut) est propre à chaque personnage :
+# elle se saisit sur la possession (champ « valeur »). Le total est l'attribut dérivé « obligation ».
+- {
+    id: dependance,
+    sorte: obligation,
+    nom: Dépendance,
+    description: 'Addiction à une substance, un jeu ou une sensation.',
+  }
+- {
+    id: trahison,
+    sorte: obligation,
+    nom: Trahison,
+    description: "Le personnage a trahi quelqu'un, ou quelqu'un l'a trahi et il veut se venger.",
+  }
+- {
+    id: chantage,
+    sorte: obligation,
+    nom: Chantage,
+    description: "Quelqu'un détient un secret compromettant sur le personnage.",
+  }
+- {
+    id: prime,
+    sorte: obligation,
+    nom: Prime,
+    description: 'La tête du personnage est mise à prix.',
+  }
+- {
+    id: criminel,
+    sorte: obligation,
+    nom: Criminel,
+    description: 'Le personnage est recherché pour un crime, réel ou non.',
+  }
+- {
+    id: dette,
+    sorte: obligation,
+    nom: Dette,
+    description: "Le personnage doit une somme importante à quelqu'un de peu patient.",
+  }
+- {
+    id: devoir,
+    sorte: obligation,
+    nom: Devoir,
+    description: 'Contrat ou engagement formel envers une organisation.',
+  }
+- {
+    id: famille,
+    sorte: obligation,
+    nom: Famille,
+    description: "Des proches dépendent du personnage ou l'entraînent dans leurs ennuis.",
+  }
+- {
+    id: faveur,
+    sorte: obligation,
+    nom: Faveur,
+    description: 'Le personnage doit un service important.',
+  }
+- {
+    id: serment,
+    sorte: obligation,
+    nom: Serment,
+    description: "Le personnage s'est lié par un serment solennel.",
+  }
+- {
+    id: obsession,
+    sorte: obligation,
+    nom: Obsession,
+    description: 'Une idée fixe qui détourne le personnage de ses autres priorités.',
+  }
+- {
+    id: responsabilite,
+    sorte: obligation,
+    nom: Responsabilité,
+    description: "Le personnage se sent responsable d'une personne ou d'une communauté.",
+  }

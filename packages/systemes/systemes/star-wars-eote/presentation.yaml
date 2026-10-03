@@ -1,0 +1,241 @@
+# Présentation Star Wars — Aux confins de l'Empire
+#
+# Tout ce que le front affiche sans que ce soit une règle. Valeurs reprises de
+# l'ancienne app (starwars-bundle/styles/theme.css, dice-roller.tsx,
+# symbol-dice-badges.tsx, TalentTreeView.tsx, defaultCharacterLayout) : le
+# nouveau front ne code plus aucune de ces valeurs, il les lit ici.
+
+format: 1
+systeme: star-wars-eote
+
+theme:
+  couleurs:
+    fond: '#0b0b0c'
+    fondProfond: '#030304'
+    carte: '#0a0a0b'
+    canevas: '#060607'
+    bordure: '#232326'
+    accent: '#ffe81f'
+    accentSurvol: '#fff566'
+  # Polices de l'ancienne app (starwars-bundle/assets/fonts), dans polices/
+  polices:
+    corps: Orbitron
+    titres: Orbitron
+    decorative: Aurebesh
+    fichiers:
+      - { famille: Orbitron, fichier: Orbitron.woff2, graisse: '400 900' }
+      - { famille: Aurebesh, fichier: Aurebesh-Italic.ttf, graisse: '400', style: italic }
+  fond:
+    type: modele3d
+    source: star-wars-eote/3d/holotable.glb
+    echelle: 1
+    rotation: 0.25
+
+des:
+  sortes:
+    fortune: { skin: kyber_bleu, couleur: '#4aa8e0', forme: d6, court: Fortune, original: Boost }
+    infortune:
+      { skin: hyperespace, couleur: '#9a9aa2', forme: d6, court: Infortune, original: Setback }
+    aptitude:
+      { skin: kyber_vert, couleur: '#3fbf6a', forme: d8, court: Aptitude, original: Ability }
+    difficulte:
+      { skin: kyber_violet, couleur: '#a065e0', forme: d8, court: Difficulté, original: Difficulty }
+    maitrise:
+      { skin: kyber_or, couleur: '#f0c419', forme: d12, court: Maîtrise, original: Proficiency }
+    defi: { skin: kyber_rouge, couleur: '#e04b3a', forme: d12, court: Défi, original: Challenge }
+    force: { skin: esprit_force, couleur: '#f2f2f2', forme: d12, court: Force, original: Force }
+  glyphes:
+    base: '●'
+    ameliore: '▲'
+
+# Icônes lucide, par clé (symboles bruts et résultats nets)
+symboles:
+  succes: { icone: check, couleur: '#10b981', court: Succès }
+  echec: { icone: x, couleur: '#ef4444', court: Échec }
+  avantage: { icone: trending-up, couleur: '#38bdf8', court: Avantage }
+  menace: { icone: trending-down, couleur: '#f97316', court: Menace }
+  triomphe: { icone: star, couleur: '#f59e0b', court: Triomphe }
+  desespoir: { icone: skull, couleur: '#8b5cf6', court: Désespoir }
+  lumiere: { icone: sun, couleur: '#f8fafc', court: Lumineux }
+  obscur: { icone: moon, couleur: '#64748b', court: Obscur }
+  succesNets: { icone: check, couleur: '#10b981', court: Succès }
+  echecsNets: { icone: x, couleur: '#ef4444', court: Échecs }
+  avantagesNets: { icone: trending-up, couleur: '#38bdf8', court: Avantages }
+  menacesNettes: { icone: trending-down, couleur: '#f97316', court: Menaces }
+  triomphes: { icone: star, couleur: '#f59e0b', court: Triomphes }
+  desespoirs: { icone: skull, couleur: '#8b5cf6', court: Désespoirs }
+  coteLumineux: { icone: sun, couleur: '#f8fafc', court: Lumineux }
+  coteObscur: { icone: moon, couleur: '#64748b', court: Obscur }
+
+# Marques posées par les règles
+marques:
+  carriere: { nom: Carrière, icone: star, couleur: '#ffe81f' }
+  precisionMortelle: { nom: Précision mortelle, icone: crosshair }
+
+# Les jauges Star Wars se remplissent : 0 = indemne, le seuil = hors de combat
+ressources:
+  blessures: { sens: montant, couleur: '#ef4444' }
+  stress: { sens: montant, couleur: '#a065e0' }
+  coque: { sens: montant, couleur: '#4ade80' }
+  tension: { sens: montant, couleur: '#facc15' }
+
+fiches:
+  personnage:
+    widgets:
+      - {
+          type: details,
+          titre: Profil,
+          sortes: [espece, carriere, specialisation],
+          attributs: [nom, categorie],
+        }
+      - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
+      - { type: ressources, titre: Vitalité, attributs: [blessures, stress] }
+      - { type: possessions, titre: États, sorte: etat }
+      - {
+          type: attributs,
+          titre: Seuils et défense,
+          attributs:
+            [
+              seuilBlessure,
+              seuilStress,
+              encaissement,
+              defenseMelee,
+              defenseDistance,
+              critiquesSubis,
+              neutralise,
+            ],
+        }
+      - {
+          type: attributs,
+          titre: Défense active,
+          attributs: [pasDeCote, postureDefensive, protection],
+        }
+      # Compétences à rangs (vue par défaut), arbres de talents (vue Progression) et talents
+      # et capacités d'espèce acquis (vue Capacités)
+      - {
+          type: competences,
+          titre: Compétences et talents,
+          sortes: [competence, talent, capacite],
+          vue: rangs,
+        }
+      - { type: monnaies, titre: Expérience et crédits }
+      - { type: possessions, titre: Obligation, sorte: obligation }
+      # Source unique de l'équipement, regroupé par sorte
+      - { type: inventaire, titre: Inventaire, sortes: [arme, armure, objet, accessoire, devise] }
+      - { type: attributs, titre: Équipement et crédits, groupe: equipement }
+      - { type: attributs, titre: Bonus de combat, groupe: combat }
+      - { type: possessions, titre: Blessures critiques, sorte: blessureCritique }
+      - { type: bonus, titre: Bonus }
+      - { type: texte, titre: Motivation, attribut: motivation }
+      - { type: texte, titre: Historique, attribut: historique }
+  vehicule:
+    widgets:
+      - { type: details, titre: Modèle, sortes: [modele], attributs: [nom] }
+      - { type: attributs, titre: Profil, groupe: caracteristiques, colonnes: 3 }
+      - { type: attributs, titre: Défense, groupe: defense, colonnes: 5 }
+      - { type: ressources, titre: Structure, attributs: [coque, tension] }
+      - { type: possessions, titre: Dommages critiques, sorte: panneCritique }
+      - { type: attributs, titre: Capacité, groupe: capacite, colonnes: 4 }
+
+# Géométrie de la grille des arbres de talents (px)
+arbres:
+  colonne: 200
+  ligne: 130
+  noeud: { largeur: 176, hauteur: 64 }
+
+bibliotheques:
+  objets: starwars
+  sons: starwars
+
+# Icônes des objets de l'inventaire : les règles les plus précises d'abord.
+iconesObjets:
+  - { champ: melee, valeur: true, icone: epee }
+  - { sorte: arme, icone: cible }
+  - { sorte: armure, icone: bouclier }
+  - { sorte: accessoire, icone: outil }
+  - { sorte: devise, icone: pieces }
+  - { sorte: objet, icone: paquet }
+
+# Ressources consultables : panneau Ressources de la table et page Ressources de l'accueil
+# (docs/ressources.md). Pas de bibliothèque d'images : celle de l'app est médiévale.
+references:
+  capacites:
+    sections:
+      - { titre: Espèces, sorte: espece }
+      - { titre: Carrières, sorte: carriere }
+      - { titre: Spécialisations, sorte: specialisation, groupePar: { champ: carriere } }
+      - { titre: Talents, sorte: talent }
+      - { titre: Compétences, sorte: competence, groupePar: { champ: caracteristique } }
+  marche:
+    prix: prix
+    sortes:
+      - {
+          sorte: arme,
+          colonnes: [competence, degats, critique, portee, rarete],
+          groupeChamp: competence,
+        }
+      - { sorte: armure, colonnes: [defense, encaissement, encombrement, rarete] }
+      - { sorte: objet, colonnes: [encombrement, rarete] }
+      - { sorte: accessoire, colonnes: [pourType, pointsFixation, rarete] }
+  # Modèles de PNJ de la campagne (le système n'a pas de bestiaire de référence)
+  bestiaire:
+    statistiques:
+      personnage:
+        - {
+            titre: Caractéristiques,
+            attributs: [vigueur, agilite, intellect, ruse, volonte, presence],
+          }
+        - {
+            titre: Seuils et défense,
+            attributs: [seuilBlessure, seuilStress, encaissement, defenseMelee, defenseDistance],
+          }
+  # Objets à poser sur la carte (outil Objets, I) : dossiers de la bibliothèque d'actifs
+  objets:
+    categories:
+      - { titre: Véhicules, dossiers: [items/starwars-vehicules] }
+      - { titre: Stockage, dossiers: [items/starwars-stockage] }
+      - { titre: Stations, dossiers: [items/starwars-stations] }
+      - { titre: Général, dossiers: [items/starwars-general] }
+      - { titre: Tables, dossiers: [items/starwars-tables] }
+      - { titre: Environnement, dossiers: [items/starwars-environnement] }
+      - { titre: Fournitures, dossiers: [items/starwars-fournitures] }
+      - { titre: Armes, dossiers: [items/starwars-armes] }
+
+# Combat (docs/combat.md § 12) : groupes du menu d'attaque et états de la fiche du participant
+combat:
+  groupes:
+    - { titre: Combat, actions: [attaque] }
+    - { titre: Compétences, actions: [test-cible] }
+    - { titre: Soins, actions: [soins, stimpack] }
+    - { titre: Talents, actions: [protecteur] }
+  etats:
+    sortes: [etat, blessureCritique]
+    icones:
+      etourdi: etourdi
+      desoriente: desoriente
+      immobilise: entrave
+      a-terre: a-terre
+      manoeuvre-defensive: protection
+      couvert-partiel: couvert
+      couvert-integral: couvert
+      obligation-declenchee: alerte
+      obligation-personnelle-declenchee: alerte
+      egratignure: blessure
+      contusion: blessure
+      coupure: blessure
+      meurtrissure: blessure
+      blessure-ouverte: blessure
+      fracture: blessure
+      blessure-profonde: blessure
+      hemorragie: saignement
+      mutilation: blessure
+      traumatisme-severe: blessure
+      blessure-mortelle: blessure
+      mort: inconscient
+  # Icônes des paramètres de situation du menu d'attaque
+  situation:
+    icones:
+      couvert: couvert
+      desFortune: benediction
+      desInfortune: malediction
+      frappeRapide: alerte

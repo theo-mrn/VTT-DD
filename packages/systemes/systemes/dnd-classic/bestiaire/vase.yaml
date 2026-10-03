@@ -1,0 +1,136 @@
+# Bestiaire de référence — Vase (4).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: black-pudding
+  nom: Boudin noir
+  entite: personnage
+  categorie: Vase
+  type: Vase (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/black-pudding.png
+  valeurs:
+    niveau: 4
+    PV_Max: 85
+    Defense: 7
+    INIT: -3
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 5
+    CON: 16
+    INT: 1
+    SAG: 6
+    CHA: 1
+  actions:
+    - nom: Pseudopode
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts de matraquage plus 18 (4d8) points de dégâts d'acide. De plus,
+        les armures non magiques portées par la cible sont partiellement dissoutes et subissent une
+        pénalité permanente et cumulative de -1 à la CA qu'elles offrent. L'armure est détruite si
+        la pénalité réduit sa CA à 10."
+      toucher: 5
+- id: gelatinous-cube
+  nom: Cube gélatineux
+  entite: personnage
+  categorie: Vase
+  type: Vase (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://www.dnd5eapi.co/api/images/monsters/gelatinous-cube.png
+  valeurs:
+    niveau: 2
+    PV_Max: 84
+    Defense: 6
+    INIT: -4
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 14
+    DEX: 3
+    CON: 20
+    INT: 1
+    SAG: 6
+    CHA: 1
+  actions:
+    - nom: Pseudopode
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché :
+        10 (3d6) points de dégâts d'acide."
+      toucher: 4
+    - nom: Engloutir
+      description: >-
+        Le cube se déplace à sa vitesse. Ce faisant, il peut entrer dans l'espace de créatures plus
+        ou moins grandes. Chaque fois que le cube entre dans l'espace d'une créature, celle-ci doit
+        faire un jet de sauvegarde de Dextérité DC 12.
+
+        Sur une sauvegarde réussie, la créature peut choisir d'être repoussée de 5 pieds en arrière
+        ou sur le côté du cube. Une créature qui choisit de ne pas être poussée subit les
+        conséquences d'un jet de sauvegarde raté.
+
+        En cas de sauvegarde ratée, le cube entre dans l'espace de la créature, et celle-ci subit 10
+        (3d6) points de dégâts d'acide et est engloutie. La créature engloutie ne peut pas respirer,
+        est entravée et subit 21 (6d6) points de dégâts d'acide au début de chaque tour du cube.
+        Lorsque le cube se déplace, la créature engloutie se déplace avec lui.
+
+        Une créature engloutie peut tenter de s'échapper en effectuant un test de Force DC 12. En
+        cas de succès, la créature s'échappe et entre dans un espace de son choix à moins de 5 pieds
+        du cube.
+- id: ochre-jelly
+  nom: Gelée d'ocre
+  entite: personnage
+  categorie: Vase
+  type: Vase (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/ochre-jelly.png
+  valeurs:
+    niveau: 2
+    PV_Max: 45
+    Defense: 8
+    INIT: -2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 6
+    CON: 14
+    INT: 2
+    SAG: 6
+    CHA: 1
+  actions:
+    - nom: Pseudopode
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (2d6 + 2) points de dégâts de matraquage plus 3 (1d6) points de dégâts d'acide."
+      toucher: 4
+- id: gray-ooze
+  nom: Gris de suie
+  entite: personnage
+  categorie: Vase
+  type: Vase (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/gray-ooze.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 8
+    INIT: -2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 12
+    DEX: 6
+    CON: 16
+    INT: 1
+    SAG: 6
+    CHA: 2
+  actions:
+    - nom: Pseudopode
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) points de dégâts de matraquage plus 7 (2d6) points de dégâts d'acide, et si la
+        cible porte une armure métallique non magique, son armure est partiellement corrodée et
+        subit une pénalité permanente et cumulative de -1 à la CA qu'elle offre. L'armure est
+        détruite si la pénalité réduit sa CA à 10."
+      toucher: 3

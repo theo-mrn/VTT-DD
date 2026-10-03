@@ -1,0 +1,100 @@
+# Qualités spéciales d'arme (référence) ; les valeurs mécaniques sont des champs de l'arme.
+- id: precis
+  sorte: qualite
+  nom: Précis
+  description: "Ajoute 1 dé de Fortune par point de qualité aux jets d'attaque. VO : Accurate."
+
+- id: perforant
+  sorte: qualite
+  nom: Perforant
+  description: "Réduit l'Encaissement de la cible d'un point par point de qualité. VO : Pierce."
+
+- id: vicieux
+  sorte: qualite
+  nom: Vicieux
+  description: 'Ajoute +10 par point de qualité au jet de Blessure critique. VO : Vicious.'
+
+- id: encombrant
+  sorte: qualite
+  nom: Encombrant
+  description: 'Exige une Vigueur au moins égale à la valeur ; chaque point manquant augmente la difficulté des attaques de 1. VO : Cumbersome.'
+
+- id: preparation
+  sorte: qualite
+  nom: Préparation
+  description: 'Exige autant de manœuvres de préparation avant de pouvoir tirer. VO : Prepare.'
+
+- id: auto-feu
+  sorte: qualite
+  nom: Auto-feu
+  description: "Dépenser 2 Avantages pour toucher à nouveau la même cible ou une cible engagée avec elle ; la difficulté de l'attaque augmente de 1. VO : Auto-Fire."
+
+- id: explosif
+  sorte: qualite
+  nom: Explosif
+  description: 'Inflige des dégâts égaux à la valeur à toutes les cibles engagées avec la cible (déclenché par des Avantages ou un Triomphe). VO : Blast.'
+
+- id: munitions-limitees
+  sorte: qualite
+  nom: Munitions limitées
+  description: "Ne peut tirer qu'autant de fois que la valeur avant de devoir être rechargée. VO : Limited Ammo."
+
+- id: entrave
+  sorte: qualite
+  nom: Entrave
+  description: 'La cible touchée est immobilisée pendant un nombre de rounds égal à la valeur. VO : Ensnare.'
+
+- id: tir-lent
+  sorte: qualite
+  nom: Tir lent
+  description: "Après un tir, l'arme doit attendre autant de rounds que la valeur avant de tirer à nouveau. VO : Slow-Firing."
+
+- id: commotion
+  sorte: qualite
+  nom: Commotion
+  description: 'La cible touchée est chancelante pendant un nombre de rounds égal à la valeur. VO : Concussive.'
+
+- id: renversement
+  sorte: qualite
+  nom: Renversement
+  description: 'Un Avantage (ou plus selon la silhouette) met la cible à terre. VO : Knockdown.'
+
+- id: inexact
+  sorte: qualite
+  nom: Inexact
+  description: "Ajoute 1 dé d'Infortune par point de qualité aux jets d'attaque. VO : Inaccurate."
+
+- id: degats-etourdissants
+  sorte: qualite
+  nom: Dégâts étourdissants
+  description: 'Les dégâts sont infligés sous forme de stress plutôt que de blessures. VO : Stun Damage.'
+
+- id: desorientant
+  sorte: qualite
+  nom: Désorientant
+  description: 'Un Avantage désoriente la cible pendant un nombre de rounds égal à la valeur. VO : Disorient.'
+
+- id: brulure
+  sorte: qualite
+  nom: Brûlure
+  description: "La cible continue de subir les dégâts de l'arme pendant un nombre de rounds égal à la valeur. VO : Burn."
+
+- id: percee
+  sorte: qualite
+  nom: Percée
+  description: "Ignore 1 point de blindage (soit 10 d'Encaissement) par point de qualité. VO : Breach."
+
+- id: guide
+  sorte: qualite
+  nom: Guidé
+  description: 'Un projectile qui rate peut retenter sa chance au round suivant. VO : Guided.'
+
+- id: defensif
+  sorte: qualite
+  nom: Défensif
+  description: 'Augmente la Défense de mêlée du porteur de la valeur. VO : Defensive.'
+
+- id: brise
+  sorte: qualite
+  nom: Brise
+  description: "Un Avantage endommage d'un cran l'arme ou l'objet de l'adversaire. VO : Sunder."

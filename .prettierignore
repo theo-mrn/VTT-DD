@@ -1,0 +1,11 @@
+# Le front garde son formatage actuel tant qu'il n'est pas migré
+legacy/
+pnpm-lock.yaml
+infra/helm/**/templates/
+README.md
+.claude/
+
+# Sorties compilées : jamais reformatées
+**/.next/
+**/dist/
+**/*.tsbuildinfo

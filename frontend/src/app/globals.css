@@ -1,0 +1,431 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Jetons du design system (HSL sans « hsl() », pour l'opacité Tailwind : bg-primary/10).
+ * Sombre par défaut : l'app ne propose pas encore de thème clair.
+ */
+:root,
+.dark {
+  --background: 240 6% 3.9%;
+  --foreground: 40 12% 95%;
+
+  /* Surfaces empilées : fond < panneaux < cartes survolées < éléments actifs */
+  --surface: 240 5% 6.4%;
+  --surface-2: 240 5% 8.6%;
+  --surface-3: 240 4% 11.5%;
+
+  --card: 240 5% 6.4%;
+  --card-foreground: 40 12% 95%;
+  --popover: 240 5% 7.6%;
+  --popover-foreground: 40 12% 95%;
+
+  --primary: 40 48% 59%;
+  --primary-strong: 41 62% 72%;
+  --primary-foreground: 35 30% 8%;
+
+  --secondary: 240 4% 11.5%;
+  --secondary-foreground: 40 12% 95%;
+  --muted: 240 4% 11.5%;
+  --muted-foreground: 240 5% 65%;
+  --subtle: 240 4% 46%;
+  --accent: 240 4% 11.5%;
+  --accent-foreground: 40 12% 95%;
+
+  --destructive: 0 72% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 60% 48%;
+  --warning: 38 92% 58%;
+  --info: 213 94% 66%;
+  --arcane: 265 85% 72%;
+
+  --border: 240 4% 13.5%;
+  --border-strong: 240 4% 20%;
+  --input: 240 4% 16%;
+  --ring: 40 48% 59%;
+
+  --radius: 0.75rem;
+
+  color-scheme: dark;
+}
+
+/*
+ * Ambiances : couleur d'accent d'une campagne (salon, cartes, sélection du
+ * personnage). Seul l'accent change, les surfaces restent communes.
+ */
+[data-ambiance='braise'] {
+  --primary: 22 88% 60%;
+  --primary-strong: 28 95% 72%;
+  --primary-foreground: 20 40% 8%;
+  --ring: 22 88% 60%;
+}
+[data-ambiance='arcane'] {
+  --primary: 265 85% 72%;
+  --primary-strong: 268 95% 82%;
+  --primary-foreground: 265 40% 10%;
+  --ring: 265 85% 72%;
+}
+[data-ambiance='sylve'] {
+  --primary: 152 52% 52%;
+  --primary-strong: 150 60% 66%;
+  --primary-foreground: 152 40% 7%;
+  --ring: 152 52% 52%;
+}
+[data-ambiance='givre'] {
+  --primary: 200 90% 64%;
+  --primary-strong: 198 95% 76%;
+  --primary-foreground: 205 50% 8%;
+  --ring: 200 90% 64%;
+}
+[data-ambiance='sang'] {
+  --primary: 352 76% 62%;
+  --primary-strong: 352 90% 74%;
+  --primary-foreground: 352 40% 8%;
+  --ring: 352 76% 62%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings:
+      'ss01' 1,
+      'cv11' 1;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.7);
+    outline-offset: 2px;
+  }
+
+  /* Barres de défilement fines et discrètes partout */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(0 0% 100% / 0.12) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: hsl(0 0% 100% / 0.1);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(0 0% 100% / 0.2);
+  }
+
+  /* iOS Safari zoome sur un champ en dessous de 16 px */
+  @media (max-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Texte doré dégradé (titres, chiffres forts) */
+  .text-gradient-primary {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--primary-strong)) 0%,
+      hsl(var(--primary)) 55%,
+      hsl(var(--primary) / 0.75) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-light {
+    background: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 100% / 0.6) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Quadrillage de fond très léger (en-têtes, zones vides) */
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(0 0% 100% / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 100% / 0.035) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .bg-dots {
+    background-image: radial-gradient(hsl(0 0% 100% / 0.07) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+
+  /* Halo d'accent en haut d'une zone */
+  .bg-halo {
+    background: radial-gradient(
+      ellipse 80% 60% at 50% -10%,
+      hsl(var(--primary) / 0.14),
+      transparent 70%
+    );
+  }
+
+  .mask-fade-b {
+    mask-image: linear-gradient(to bottom, black 60%, transparent);
+  }
+  .mask-fade-x {
+    mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  }
+  .mask-radial {
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── Landing page ─────────────────────────────────────────────────────────── */
+
+.gold-glow {
+  box-shadow: 0 0 30px rgba(201, 169, 101, 0.2);
+}
+
+.gold-glow-lg {
+  box-shadow: 0 0 60px rgba(201, 169, 101, 0.3);
+}
+
+.gold-text-gradient {
+  background: linear-gradient(90deg, #f5edd6, #c9a965, #f5edd6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Reflet animé qui balaie le texte, façon titre « premium ». Quelques passages
+   seulement : animer background-position repeint le titre géant à chaque image. */
+.shimmer-text {
+  background: linear-gradient(100deg, #c9a965 40%, #fdf6e3 50%, #c9a965 60%);
+  background-size: 220% auto;
+  background-position: -20% center;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer-sweep 5s ease-in-out 3 both;
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    background-position: 200% center;
+  }
+  60% {
+    background-position: -20% center;
+  }
+  100% {
+    background-position: -20% center;
+  }
+}
+
+/* Respiration des jetons du hero interactif : signale l'interactivité sans gêner le drag.
+   Quelques cycles à l'arrivée, pas une boucle sans fin. */
+.token-breathe {
+  animation: token-breathe 3.5s ease-in-out 4;
+}
+
+@keyframes token-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+/* Invite « Découvrir » du hero : léger rebond vertical, quelques cycles */
+.scroll-hint {
+  animation: scroll-hint 2s ease-in-out 5;
+}
+
+@keyframes scroll-hint {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text,
+  .token-breathe,
+  .scroll-hint {
+    animation: none;
+  }
+}
+
+.glass-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card-hover {
+  transition:
+    border-color 300ms ease,
+    box-shadow 300ms ease,
+    transform 300ms ease;
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(201, 169, 101, 0.3);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(201, 169, 101, 0.1);
+  transform: translateY(-2px);
+}
+
+/* ─── Éditeur de notes (TipTap) ────────────────────────────────────────────── */
+
+.editeur-note {
+  color: hsl(var(--foreground) / 0.88);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.editeur-note:focus {
+  outline: none;
+}
+.editeur-note > * + * {
+  margin-top: 0.75em;
+}
+.editeur-note p.is-editor-empty:first-child::before,
+.editeur-note .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: hsl(var(--subtle));
+}
+.editeur-note h1,
+.editeur-note h2,
+.editeur-note h3 {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.editeur-note h1 {
+  font-size: 1.75rem;
+  margin-top: 1.5em;
+}
+.editeur-note h2 {
+  font-size: 1.35rem;
+  margin-top: 1.4em;
+}
+.editeur-note h3 {
+  font-size: 1.1rem;
+  margin-top: 1.2em;
+}
+.editeur-note strong {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+.editeur-note a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.editeur-note ul {
+  list-style: disc;
+  padding-left: 1.4rem;
+}
+.editeur-note ol {
+  list-style: decimal;
+  padding-left: 1.4rem;
+}
+.editeur-note li p {
+  margin: 0.15em 0;
+}
+.editeur-note li::marker {
+  color: hsl(var(--primary));
+}
+.editeur-note blockquote {
+  border-left: 3px solid hsl(var(--primary) / 0.7);
+  padding: 0.25em 0 0.25em 1rem;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+.editeur-note code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: hsl(var(--surface-3));
+  border-radius: 6px;
+  padding: 0.15em 0.4em;
+}
+.editeur-note pre {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: hsl(var(--surface-2));
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  padding: 0.9em 1em;
+  overflow-x: auto;
+}
+.editeur-note pre code {
+  background: none;
+  padding: 0;
+}
+.editeur-note hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border-strong));
+  margin: 2em 0;
+}
+
+/* Aperçu compact d'une note (liste) : pas de mise en forme lourde */
+.apercu-note h1,
+.apercu-note h2,
+.apercu-note h3 {
+  font-size: inherit;
+  font-weight: 600;
+}
+.apercu-note ul,
+.apercu-note ol {
+  padding-left: 1rem;
+  list-style: disc;
+}

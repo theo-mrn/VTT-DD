@@ -1,0 +1,6 @@
+apiVersion: v2
+name: vtt-service
+description: Chart commun à tous les services VTT (web, gateway, identity, ...)
+type: application
+version: 0.1.0
+appVersion: '0.1.0'

@@ -1,0 +1,56 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-billing
+  digest: ''
+  tag: 'main'
+# Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.staging.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json
+  # Retours de Stripe Checkout (/checkout/success, /checkout/cancel) et du portail
+  APP_URL: https://staging.yner.fr
+  # Livraison des paiements : skins et premium (dice), badge premium (identity)
+  DICE_URL: http://dice.vtt-staging.svc
+  IDENTITY_URL: http://identity.vtt-staging.svc
+# Mot de passe de valkey-staging (secret messaging-credentials), substitué dans REDIS_URL :
+# voir « Déploiement » dans docs/bus.md
+secretEnv:
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+# Secret billing-secrets (SOPS) :
+#   DATABASE_URL             rôle billing_svc
+#   INTERNAL_API_SECRET      même valeur que dice et identity
+#   STRIPE_SECRET_KEY        sk_… (ou clé restreinte rk_…) ; mode test en staging
+#   STRIPE_WEBHOOK_SECRET    whsec_… de l'endpoint https://api.staging.yner.fr/v1/billing/webhook
+#   STRIPE_PREMIUM_PRICE_ID  price_… de l'abonnement mensuel (facultatif : 4,99 €/mois décrit)
+envFromSecrets:
+  - name: billing-secrets
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : billing n'est joignable que par la gateway (webhook Stripe compris)
+ingress:
+  enabled: false
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+  # Sortie HTTPS (443) vers api.stripe.com : déjà ouverte par le chart (Internet
+  # public hors plages privées ; une NetworkPolicy ne filtre pas par nom de domaine)
+migrations:
+  enabled: true
+  image:
+    repository: ghcr.io/theo-mrn/vtt-billing-migrations
+    digest: ''
+    tag: 'main'
+  schema: billing
+  # Secret généré par CloudNativePG pour le rôle billing_owner
+  secretName: pg-billing-owner

@@ -1,0 +1,86 @@
+{{- /*
+Migrations Liquibase du service, exécutées par Argo CD AVANT chaque
+synchronisation (hook PreSync) : le nouveau code ne démarre que sur un schéma
+à jour. Rôle <schéma>_owner (DDL), identifiants lus dans le Secret que
+CloudNativePG génère pour ce rôle (clés username / password).
+Pods distincts du service (labels différents) : le Service ne leur envoie
+jamais de trafic ; une NetworkPolicy dédiée ne leur ouvre que DNS et Postgres.
+*/ -}}
+{{- if .Values.migrations.enabled }}
+{{- $nom := printf "%s-migrations" (include "svc.name" .) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $nom }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $nom }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: migrations
+        app.kubernetes.io/part-of: vtt
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: liquibase
+          {{- with .Values.migrations.image }}
+          image: {{ if .digest }}{{ .repository }}@{{ .digest }}{{ else }}{{ .repository }}:{{ .tag }}{{ end }}
+          {{- end }}
+          env:
+            - name: LIQUIBASE_COMMAND_URL
+              value: {{ .Values.migrations.jdbcUrl | quote }}
+            - name: LIQUIBASE_COMMAND_USERNAME
+              valueFrom: { secretKeyRef: { name: {{ .Values.migrations.secretName }}, key: username } }
+            - name: LIQUIBASE_COMMAND_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.migrations.secretName }}, key: password } }
+            - name: LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME
+              value: {{ .Values.migrations.schema | quote }}
+            - name: LIQUIBASE_LIQUIBASE_SCHEMA_NAME
+              value: {{ .Values.migrations.schema | quote }}
+            - name: JAVA_TOOL_OPTIONS
+              value: -Djava.io.tmpdir=/tmp
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $nom }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $nom }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: data } }
+      ports: [{ port: 5432 }]
+{{- end }}

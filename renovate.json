@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommits",
+    ":maintainLockFilesWeekly"
+  ],
+  "timezone": "Europe/Paris",
+  "schedule": ["before 7am on monday"],
+  "prConcurrentLimit": 5,
+  "vulnerabilityAlerts": { "enabled": true, "schedule": ["at any time"], "labels": ["security"] },
+  "packageRules": [
+    {
+      "description": "Correctifs testés par la CI : fusion automatique",
+      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "automerge": true
+    },
+    { "groupName": "opentelemetry", "matchPackageNames": ["@opentelemetry/**"] },
+    { "groupName": "fastify", "matchPackageNames": ["fastify", "@fastify/**", "fastify-*"] },
+    { "groupName": "radix-ui", "matchPackageNames": ["@radix-ui/**", "radix-ui"] },
+    { "groupName": "tiptap", "matchPackageNames": ["@tiptap/**"] },
+    { "groupName": "github-actions", "matchManagers": ["github-actions"] }
+  ]
+}

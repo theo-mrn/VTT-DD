@@ -1,0 +1,40 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-gateway
+  digest: ''
+  tag: 'main'
+replicaCount: 2
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  CORS_ORIGINS: https://yner.fr
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
+  JWT_ISSUER: https://api.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
+  UPSTREAM_IDENTITY_URL: http://identity.vtt-prod.svc
+  UPSTREAM_CHARACTER_URL: http://character.vtt-prod.svc
+  UPSTREAM_CAMPAIGN_URL: http://campaign.vtt-prod.svc
+  UPSTREAM_DICE_URL: http://dice.vtt-prod.svc
+  # Paiements Stripe ; /v1/billing/webhook passe sans jeton (signature vérifiée par billing)
+  UPSTREAM_BILLING_URL: http://billing.vtt-prod.svc
+  # Temps réel : WebSocket Socket.IO (/v1/realtime/socket.io), jeton vérifié par realtime
+  UPSTREAM_REALTIME_URL: http://realtime.vtt-prod.svc
+  # Journal d'historique : timeline d'une campagne, vérification de la chaîne de hash
+  UPSTREAM_HISTORY_URL: http://history.vtt-prod.svc
+  # Son : bibliothèque, canaux, effets, horloge, mixeur
+  UPSTREAM_AUDIO_URL: http://audio.vtt-prod.svc
+# Mot de passe de valkey-prod (secret messaging-credentials), substitué dans REDIS_URL :
+# voir « Déploiement » dans docs/bus.md
+secretEnv:
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+ingress:
+  enabled: true
+  # Connexions WebSocket longues (realtime)
+  websocket: true
+  host: api.yner.fr
+networkPolicy:
+  enabled: true
+autoscaling:
+  enabled: true

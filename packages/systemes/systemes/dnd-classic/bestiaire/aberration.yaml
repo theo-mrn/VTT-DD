@@ -1,0 +1,244 @@
+# Bestiaire de référence — Aberration (5).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: aboleth
+  nom: Aboleth
+  entite: personnage
+  categorie: Aberration
+  type: Aberration (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/aboleth.png
+  valeurs:
+    niveau: 10
+    PV_Max: 135
+    Defense: 17
+    INIT: -1
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 21
+    DEX: 9
+    CON: 15
+    INT: 18
+    SAG: 15
+    CHA: 18
+  actions:
+    - nom: Multi-attaques
+      description: L'aboleth fait trois attaques de tentacules.
+    - nom: Tentacule
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une cible. Touché : 12
+        (2d6 + 5) points de dégâts de matraquage. Si la cible est une créature, elle doit réussir un
+        jet de sauvegarde de Constitution DC 14 ou devenir malade. La maladie n'a aucun effet
+        pendant 1 minute et peut être enlevée par n'importe quelle magie qui guérit les maladies. Au
+        bout d'une minute, la peau de la créature malade devient translucide et visqueuse, la
+        créature ne peut pas regagner de points de vie à moins d'être sous l'eau, et la maladie ne
+        peut être enlevée que par guérison ou un autre sort de guérison des maladies de 6ème niveau
+        ou plus. Lorsque la créature se trouve hors d'une étendue d'eau, elle subit 6 (1d12) points
+        de dégâts d'acide toutes les 10 minutes, à moins qu'elle n'applique de l'humidité sur sa
+        peau avant que ces 10 minutes ne se soient écoulées."
+      toucher: 9
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (3d6 + 5) points de dégâts de matraquage."
+      toucher: 9
+    - nom: Asservir
+      description: >-
+        L'aboleth cible une créature qu'il peut voir dans un rayon de 30 pieds. La cible doit
+        réussir un jet de sauvegarde de Sagesse DC 14 ou être magiquement charmée par l'aboleth
+        jusqu'à ce que ce dernier meure ou qu'il se trouve sur un plan d'existence différent de
+        celui de la cible. La cible charmée est sous le contrôle de l'aboleth et ne peut pas réagir,
+        et l'aboleth et la cible peuvent communiquer télépathiquement à n'importe quelle distance.
+
+        A chaque fois que la cible charmée subit des dégâts, elle peut refaire un jet de sauvegarde.
+        En cas de succès, l'effet prend fin. Au maximum une fois par 24 heures, la cible peut
+        également répéter le jet de sauvegarde lorsqu'elle se trouve à au moins 1 mile de l'aboleth.
+- id: gibbering-mouther
+  nom: Bouche à oreille
+  entite: personnage
+  categorie: Aberration
+  type: Aberration (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/gibbering-mouther.png
+  valeurs:
+    niveau: 2
+    PV_Max: 67
+    Defense: 9
+    INIT: -1
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 10
+    DEX: 8
+    CON: 16
+    INT: 3
+    SAG: 10
+    CHA: 6
+  actions:
+    - nom: Multi-attaques
+      description:
+        Le barbouilleur effectue une attaque de morsure et, s'il le peut, utilise son crachat
+        aveuglant.
+    - nom: Morsures
+      description:
+        "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une créature. Touché :
+        17 (5d6) points de dégâts perforants. Si la cible est de taille moyenne ou plus petite, elle
+        doit réussir un jet de sauvegarde de Force DC 10 ou être mise à terre. Si la cible est tuée
+        par ces dégâts, elle est absorbée par le mouther."
+      toucher: 2
+    - nom: Crachats aveuglants
+      description:
+        Le mouther crache un globule chimique sur un point qu'il peut voir dans un rayon de 15
+        pieds. Le globule explose dans un éclair de lumière aveuglant au moment de l'impact. Toute
+        créature située à moins de 5 pieds de l'éclair doit réussir un jet de sauvegarde de
+        Dextérité DC 13 ou être aveuglée jusqu'à la fin du prochain tour du mouther.
+- id: chuul
+  nom: Chuul
+  entite: personnage
+  categorie: Aberration
+  type: Aberration (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/chuul.png
+  valeurs:
+    niveau: 4
+    PV_Max: 93
+    Defense: 16
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 16
+    INT: 5
+    SAG: 11
+    CHA: 5
+  actions:
+    - nom: Multi-attaques
+      description: Le chuul effectue deux attaques en tenaille. Si le chuul est aux prises avec une
+        créature, il peut également utiliser ses tentacules une fois.
+    - nom: Pince
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 11
+        (2d6 + 4) dégâts de matraquage. La cible est agrippée (échappatoire DC 14) s'il s'agit d'une
+        créature Grande ou plus petite et que le chuul n'a pas deux autres créatures agrippées."
+      toucher: 6
+    - nom: Tentacules
+      description:
+        Une créature saisie par le chuul doit réussir un jet de sauvegarde de Constitution DC
+        13 ou être empoisonnée pendant 1 minute. Jusqu'à ce que ce poison prenne fin, la cible est
+        paralysée. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours,
+        mettant fin à l'effet sur elle-même en cas de réussite.
+- id: cloaker
+  nom: Cloaker
+  entite: personnage
+  categorie: Aberration
+  type: Aberration (grande)
+  description: 'Alignement : chaotique neutre.'
+  image: https://assets.yner.fr/bestaire/cloaker.png
+  valeurs:
+    niveau: 8
+    PV_Max: 78
+    Defense: 14
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 17
+    DEX: 15
+    CON: 12
+    INT: 13
+    SAG: 12
+    CHA: 14
+  actions:
+    - nom: Multi-attaques
+      description: "L'occulteur effectue deux attaques : une avec sa morsure et une avec sa queue."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature. Touché :
+        10 (2d6 + 3) points de dégâts perforants, et si la cible est Grande ou plus petite,
+        l'occulteur s'attache à elle. Si l'occulteur a l'avantage contre la cible, l'occulteur
+        s'attache à la tête de la cible, et la cible est aveuglée et incapable de respirer tant que
+        l'occulteur est attaché. Tant qu'il est attaché, l'occulteur ne peut effectuer cette attaque
+        que contre la cible et a l'avantage sur le jet d'attaque. L'occulteur peut se détacher en
+        dépensant 5 pieds de son mouvement. Une créature, y compris la cible, peut entreprendre une
+        action pour détacher l'occulteur en réussissant un test de Force DC 16."
+      toucher: 6
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une créature. Touché :
+        7 (1d8 + 3) points de dégâts tranchants."
+      toucher: 6
+    - nom: Gémir
+      description:
+        Chaque créature dans un rayon de 60 pieds du cloaker qui peut entendre son gémissement
+        et qui n'est pas une aberration doit réussir un jet de sauvegarde de Sagesse DC 13 ou être
+        effrayée jusqu'à la fin du prochain tour du cloaker. Si le jet de sauvegarde d'une créature
+        est réussi, la créature est immunisée contre le gémissement de l'occulteur pour les
+        prochaines 24 heures.
+    - nom: Phantasmes
+      description: >-
+        L'occulteur crée magiquement trois doubles illusoires de lui-même s'il n'est pas en pleine
+        lumière. Les doubles se déplacent avec lui et imitent ses actions, changeant de position de
+        manière à rendre impossible le repérage du véritable occulteur. Si l'occulteur se trouve
+        dans une zone de lumière vive, les doubles disparaissent.
+
+        Lorsqu'une créature cible l'occulteur avec une attaque ou un sort nuisible alors qu'il reste
+        un double, cette créature effectue un jet aléatoire pour déterminer si elle vise l'occulteur
+        ou l'un des doubles. Une créature n'est pas affectée par cet effet magique si elle ne peut
+        pas voir ou si elle se fie à d'autres sens que la vue.
+
+        Un double a la CA de l'occulteur et utilise ses jets de sauvegarde. Si une attaque touche un
+        double, ou si un double échoue à un jet de sauvegarde contre un effet qui inflige des
+        dégâts, le double disparaît.
+- id: otyugh
+  nom: Otyugh
+  entite: personnage
+  categorie: Aberration
+  type: Aberration (grande)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/otyugh.png
+  valeurs:
+    niveau: 5
+    PV_Max: 114
+    Defense: 14
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 16
+    DEX: 11
+    CON: 19
+    INT: 6
+    SAG: 13
+    CHA: 6
+  actions:
+    - nom: Multi-attaques
+      description: "L'otyugh effectue trois attaques : une avec sa morsure et deux avec ses tentacules."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 12
+        (2d8 + 3) points de dégâts perforants. Si la cible est une créature, elle doit réussir un
+        jet de sauvegarde de Constitution DC 15 contre la maladie ou être empoisonnée jusqu'à ce que
+        la maladie soit guérie. Toutes les 24 heures, la cible doit répéter le jet de sauvegarde,
+        réduisant son maximum de points de vie de 5 (1d10) en cas d'échec. La maladie est guérie en
+        cas de succès. La cible meurt si la maladie réduit son maximum de points de vie à 0. Cette
+        réduction du maximum de points de vie de la cible dure jusqu'à ce que la maladie soit
+        guérie."
+      toucher: 6
+    - nom: Tentacule
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 7
+        (1d8 + 3) dégâts de matraquage plus 4 (1d8) dégâts de perforation. Si la cible est de taille
+        moyenne ou plus petite, elle est agrippée (échappatoire DC 13) et immobilisée jusqu'à la fin
+        de l'agrippement. L'otyugh possède deux tentacules, chacun pouvant saisir une cible."
+      toucher: 6
+    - nom: Claquement de tentacules
+      description:
+        L'otyugh frappe les créatures qu'il agrippe les unes contre les autres ou contre une
+        surface solide. Chaque créature doit réussir un jet de sauvegarde de Constitution DC 14 ou
+        subir 10 (2d6 + 3) dégâts de matraquage et être étourdie jusqu'à la fin du prochain tour de
+        l'otyugh. En cas de sauvegarde réussie, la cible subit la moitié des dégâts de matraquage et
+        n'est pas étourdie.

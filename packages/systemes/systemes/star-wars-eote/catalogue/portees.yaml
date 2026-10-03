@@ -1,0 +1,23 @@
+# Bandes de portée (texte « Portée et Engagement ») : choisies au moment d'une attaque.
+# Difficulté d'un tir : Facile à courte portée, +1 dé par bande ; engagé, Moyenne pour une arme
+# légère (Difficile pour une arme lourde, impossible en Artillerie). La mêlée est toujours Moyenne.
+- id: engage
+  sorte: portee
+  nom: Engagé
+  champs: { ordre: 0, difficulte: 2 }
+- id: courte
+  sorte: portee
+  nom: Courte
+  champs: { ordre: 1, difficulte: 1 }
+- id: moyenne
+  sorte: portee
+  nom: Moyenne
+  champs: { ordre: 2, difficulte: 2 }
+- id: longue
+  sorte: portee
+  nom: Longue
+  champs: { ordre: 3, difficulte: 3 }
+- id: extreme
+  sorte: portee
+  nom: Extrême
+  champs: { ordre: 4, difficulte: 4 }

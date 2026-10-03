@@ -1,0 +1,927 @@
+'use client';
+
+/**
+ * Configuration d'un objet avant son ajout, dans la fenêtre d'ajout : nom propre,
+ * description, catégorie, quantité, dossier, équipé, visibilité, champs propres, formules
+ * (dés en clés nues : `1d6-CON+8`) et bonus. Les valeurs par défaut sont celles de l'entrée ;
+ * les champs proposés sont ceux de la sorte. Seul ce qui diffère de l'entrée part au
+ * service, en une seule demande (`ajouterLibre`).
+ */
+import {
+  champsActifs,
+  type Effet,
+  type Fiche,
+  type InventoryFolder,
+  type Presentation,
+  type Sorte,
+} from '@vtt/rules';
+import { ArrowLeft, Eye, EyeOff, Minus, Plus, ShieldCheck } from 'lucide-react';
+import {
+  useId,
+  useMemo,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
+import { Button } from '@/components/ui/button';
+import { SelectField } from '@/components/ui/select';
+import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import { BonusForm } from '../../bonus-editor/bonus-form';
+import { attributsBonus } from '../../bonus-editor/model';
+import { BonusPropresListe, estModifiable, FieldInput, FormulaField } from './editors';
+import { SectionTitle } from './item-icon';
+import {
+  basculerBonusDans,
+  bonusDe,
+  bonusDesEffets,
+  champDe,
+  cleExemple,
+  formulesObjet,
+  modesAjout,
+  verifierFormuleObjet,
+  type ChampFormule,
+  type FormuleAffichee,
+  type FormuleVerifiee,
+  type ModeleLibre,
+  type ObjetFormules,
+  type SaisieLibre,
+  type ValeurChamp,
+} from './model';
+import { BonusBadges, Thumbnail } from './parts';
+
+/** Ce qu'on configure : une entrée du catalogue, ou un objet personnalisé (une sorte au choix). */
+export interface CibleAjout {
+  modeles: ModeleLibre[];
+  /** Objet personnalisé : le nom est à saisir. */
+  libre: boolean;
+  /** Nom proposé (terme recherché dans le catalogue). */
+  nom?: string;
+}
+
+/** Dossier : celui qu'affiche l'inventaire, la racine, ou un dossier de l'état. */
+const RACINE = '\u0000racine';
+const QUANTITE_MAX = 1_000_000;
+
+export function ItemConfig({
+  fiche,
+  cible,
+  presentation,
+  onRetour,
+  onAjouter,
+  dossierOuvert = null,
+  mj = false,
+}: Readonly<{
+  fiche: Fiche;
+  cible: CibleAjout;
+  presentation: Presentation | null;
+  /** Dossier ouvert dans la grille : choisi par défaut pour le nouvel objet. */
+  dossierOuvert?: string | null;
+  /** Le MJ peut viser des attributs qui lui sont réservés dans les bonus. */
+  mj?: boolean;
+  onRetour(): void;
+  onAjouter(modele: ModeleLibre, saisie: SaisieLibre): void;
+}>) {
+  const [sorte, setSorte] = useState(cible.modeles[0]?.sorte.id ?? '');
+  const modele = cible.modeles.find((m) => m.sorte.id === sorte) ?? cible.modeles[0];
+  const [categorie, setCategorie] = useState(defautCategorie(cible.modeles[0]));
+  // Nom et description survivent au changement de sorte d'un objet personnalisé
+  const [nom, setNom] = useState(cible.libre ? (cible.nom ?? '') : (modele?.entree.nom ?? ''));
+  const [description, setDescription] = useState(
+    cible.libre ? '' : (modele?.entree.description ?? ''),
+  );
+  if (!modele) return null;
+  return (
+    <Formulaire
+      key={`${modele.sorte.id}::${categorie}`}
+      fiche={fiche}
+      cible={cible}
+      modele={modele}
+      image={presentation?.images[modele.entree.id]}
+      nom={nom}
+      onNom={setNom}
+      description={description}
+      onDescription={setDescription}
+      categorieInitiale={categorie}
+      choixCategorie={
+        cible.modeles.length > 1
+          ? {
+              valeur: `${modele.sorte.id}::${categorie}`,
+              onChange: (v: string) => {
+                const [so = '', ca = ''] = v.split('::');
+                setSorte(so);
+                setCategorie(ca);
+              },
+            }
+          : undefined
+      }
+      onRetour={onRetour}
+      onAjouter={onAjouter}
+      dossierOuvert={dossierOuvert}
+      mj={mj}
+    />
+  );
+}
+
+function defautCategorie(m: ModeleLibre | undefined): string {
+  return m?.categorie?.defaut ?? m?.categorie?.options[0]?.valeur ?? '';
+}
+
+type ChampSorte = Sorte['champs'][number];
+
+/** Formules saisies et vérifiées ; un champ vide garde la formule de l'entrée. */
+function verifierFormules(
+  fiche: Fiche,
+  objet: ObjetFormules,
+  parDefaut: FormuleAffichee[],
+  formules: Record<string, string>,
+): Map<string, FormuleVerifiee> {
+  const verifs = new Map<string, FormuleVerifiee>();
+  for (const f of parDefaut) {
+    const texte = formules[f.champ.id];
+    if (!texte?.trim()) continue;
+    verifs.set(f.champ.id, verifierFormuleObjet(fiche, objet, f.champ as ChampFormule, texte));
+  }
+  return verifs;
+}
+
+/** Champs et formules qui diffèrent de l'entrée : seuls eux partent au service. */
+function champsPropres(
+  entree: ModeleLibre['entree'],
+  editables: ChampSorte[],
+  champs: Record<string, ValeurChamp>,
+  parDefaut: FormuleAffichee[],
+  verifs: Map<string, FormuleVerifiee>,
+): Record<string, ValeurChamp> {
+  const propres: Record<string, ValeurChamp> = {};
+  for (const c of editables) {
+    if (!(c.id in champs)) continue;
+    const v = champs[c.id]!;
+    const d = champDe(entree, c);
+    if (v !== d && !(v === '' && d === undefined)) propres[c.id] = v;
+  }
+  for (const f of parDefaut) {
+    const v = verifs.get(f.champ.id);
+    if (v?.ok && v.texte !== f.texte) propres[f.champ.id] = v.texte;
+  }
+  return propres;
+}
+
+/** Erreurs du nom (une fois le champ quitté) et de la quantité. */
+function erreursSaisie(nomTouche: boolean, nomOk: boolean, quantiteOk: boolean) {
+  return {
+    erreurNom: nomTouche && !nomOk ? 'Donnez un nom à l’objet.' : null,
+    erreurQuantite: quantiteOk ? null : `Un nombre entier entre 1 et ${QUANTITE_MAX}.`,
+  };
+}
+
+/** Ce qui empêche l'ajout, montré à côté du bouton. */
+function raisonBlocage(
+  quantiteOk: boolean,
+  seulementUnites: boolean,
+  nomOk: boolean,
+  aCorriger: boolean,
+): string | null {
+  if (!quantiteOk) return 'Quantité à corriger';
+  if (seulementUnites) return null;
+  if (!nomOk) return 'Nom à saisir';
+  if (aCorriger) return 'Valeurs à corriger';
+  return null;
+}
+
+function Formulaire({
+  fiche,
+  cible,
+  modele,
+  image,
+  nom,
+  onNom,
+  description,
+  onDescription,
+  choixCategorie,
+  categorieInitiale,
+  onRetour,
+  onAjouter,
+  dossierOuvert,
+  mj,
+}: Readonly<{
+  fiche: Fiche;
+  cible: CibleAjout;
+  modele: ModeleLibre;
+  dossierOuvert: string | null;
+  mj: boolean;
+  image?: string;
+  nom: string;
+  onNom(nom: string): void;
+  description: string;
+  onDescription(d: string): void;
+  /**
+   * Sélecteur combiné « sorte et catégorie » d'un objet personnalisé (plusieurs sortes) :
+   * valeur `sorte::catégorie`, options groupées par sorte (Arme · Contact, Objet · Potions…).
+   */
+  choixCategorie?: ChoixCategorie;
+  categorieInitiale: string;
+  onRetour(): void;
+  onAjouter(modele: ModeleLibre, saisie: SaisieLibre): void;
+}>) {
+  const id = useId();
+  const { entree, sorte } = modele;
+  const folders: InventoryFolder[] = fiche.etat.folders;
+
+  const [quantite, setQuantite] = useState('1');
+  const [categorie, setCategorie] = useState(categorieInitiale || defautCategorie(modele));
+  const [actif, setActif] = useState(true);
+  const [visible, setVisible] = useState(true);
+  const [dossier, setDossier] = useState(dossierOuvert ?? RACINE);
+  const [champs, setChamps] = useState<Record<string, ValeurChamp>>({});
+  const [invalides, setInvalides] = useState<Set<string>>(new Set());
+  const [formules, setFormules] = useState<Record<string, string>>({});
+  const [effets, setEffets] = useState<Effet[]>([]);
+  const [ajoutBonus, setAjoutBonus] = useState(false);
+  const [nomTouche, setNomTouche] = useState(false);
+
+  const q = Number(quantite);
+  const quantiteOk = quantiteValide(q);
+  const quantiteSaisie = quantiteOk ? q : null;
+  const nomOk = !cible.libre || nom.trim().length > 0;
+  // Un ajout crée toujours un exemplaire distinct (plus de choix « à la pile ») ; seule
+  // exception, imposée par la sorte : une entrée à quantités sans exemplaires, déjà possédée,
+  // ne peut que recevoir des unités.
+  const modes = useMemo(() => modesAjout(fiche, entree, sorte), [fiche, entree, sorte]);
+  const seulementUnites = !modes.nouveau && modes.empiler;
+
+  // Champs propres proposés : ceux de la sorte, hors identité, catégorie et formules
+  const exclus = new Set(
+    [sorte.nomExemplaire, sorte.descriptionExemplaire, modele.categorie?.champ.id].filter(Boolean),
+  );
+  // Sans les champs d'une règle optionnelle éteinte pour la campagne
+  const editables = champsActifs(sorte, fiche.options).filter(
+    (c) => estModifiable(c) && !exclus.has(c.id),
+  );
+  const valeur = (cid: string) => {
+    if (cid in champs) return champs[cid];
+    const c = sorte.champs.find((x) => x.id === cid);
+    const v = c ? champDe(entree, c) : undefined;
+    return Array.isArray(v) ? undefined : v;
+  };
+  const changerChamp = (cid: string, v: ValeurChamp | undefined) => {
+    setInvalides((x) => {
+      const n = new Set(x);
+      if (v === undefined) n.add(cid);
+      else n.delete(cid);
+      return n;
+    });
+    if (v !== undefined) setChamps((x) => ({ ...x, [cid]: v }));
+  };
+
+  // Formules : celles de l'entrée, lisibles, recalculées avec les champs saisis
+  const objet = {
+    entree,
+    sorte,
+    rang: 0,
+    actif: !sorte.activable || actif,
+    quantite: quantiteOk ? q : 1,
+    champs,
+  };
+  const parDefaut = formulesObjet(fiche, objet);
+  const verifs = verifierFormules(fiche, objet, parDefaut, formules);
+  const formulesInvalides = [...verifs.values()].some((v) => !v.ok);
+  const aCorriger = invalides.size > 0 || formulesInvalides;
+
+  const valide = quantiteOk && (seulementUnites || (nomOk && !aCorriger));
+  const cle = useMemo(() => cleExemple(fiche), [fiche]);
+  const peutBonus = useMemo(() => attributsBonus(fiche, false).length > 0, [fiche]);
+  const bonusCatalogue = useMemo(
+    () => bonusDe(fiche, entree, sorte, undefined, undefined),
+    [fiche, entree, sorte],
+  );
+
+  function envoyer(e: FormEvent) {
+    e.preventDefault();
+    if (!valide) return;
+    if (seulementUnites) {
+      onAjouter(modele, { nom: entree.nom, quantite: q, empiler: true });
+      return;
+    }
+    onAjouter(modele, {
+      nom: nom.trim() || entree.nom,
+      quantite: sorte.quantites ? q : 1,
+      ...(categorie ? { categorie } : {}),
+      ...(sorte.descriptionExemplaire ? { description } : {}),
+      champs: champsPropres(entree, editables, champs, parDefaut, verifs),
+      effets,
+      ...(sorte.activable ? { actif } : {}),
+      hidden: !visible,
+      folder: dossier === RACINE ? null : dossier,
+    });
+  }
+
+  const { erreurNom, erreurQuantite } = erreursSaisie(nomTouche, nomOk, quantiteOk);
+  const raison = raisonBlocage(quantiteOk, seulementUnites, nomOk, aCorriger);
+
+  return (
+    <form onSubmit={envoyer} noValidate className="flex min-h-0 flex-1 flex-col gap-4">
+      <EnTete cible={cible} modele={modele} image={image} onRetour={onRetour} />
+
+      <div className="-mx-2 min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-2 [scrollbar-width:thin]">
+        {!seulementUnites && (
+          <Identite
+            id={id}
+            cible={cible}
+            modele={modele}
+            choixCategorie={choixCategorie}
+            nom={nom}
+            onNom={onNom}
+            erreurNom={erreurNom}
+            onNomQuitte={() => setNomTouche(true)}
+            description={description}
+            onDescription={onDescription}
+            categorie={categorie}
+            onCategorie={setCategorie}
+          />
+        )}
+
+        <section
+          aria-label="Réglages"
+          className="grid grid-cols-1 overflow-hidden rounded-xl border border-border sm:grid-cols-2 [&>*]:border-b [&>*]:border-border sm:[&>*:nth-child(odd)]:border-r"
+        >
+          {sorte.quantites && (
+            <CaseQuantite
+              id={id}
+              seulementUnites={seulementUnites}
+              quantite={quantite}
+              q={q}
+              quantiteOk={quantiteOk}
+              erreurQuantite={erreurQuantite}
+              onQuantite={setQuantite}
+            />
+          )}
+          <ReglagesExemplaire
+            id={id}
+            seulementUnites={seulementUnites}
+            activable={sorte.activable}
+            actif={actif}
+            onActif={setActif}
+            visible={visible}
+            onVisible={setVisible}
+            folders={folders}
+            dossier={dossier}
+            onDossier={setDossier}
+          />
+        </section>
+        {erreurQuantite && (
+          <p id={`${id}-q-erreur`} role="alert" className="-mt-4 text-xs text-destructive">
+            {erreurQuantite}
+          </p>
+        )}
+
+        {!seulementUnites && (
+          <>
+            <Formules
+              id={id}
+              parDefaut={parDefaut}
+              formules={formules}
+              onFormule={(cid, t) => setFormules((x) => ({ ...x, [cid]: t }))}
+              verifs={verifs}
+              cle={cle}
+              sorte={sorte}
+            />
+            <Caracteristiques
+              id={id}
+              sorte={sorte}
+              editables={editables}
+              valeur={valeur}
+              onChamp={changerChamp}
+              invalides={invalides}
+            />
+            <SectionBonus
+              fiche={fiche}
+              sorte={sorte}
+              mj={mj}
+              bonusCatalogue={bonusCatalogue}
+              peutBonus={peutBonus}
+              effets={effets}
+              onEffets={setEffets}
+              ajoutBonus={ajoutBonus}
+              onAjoutBonus={setAjoutBonus}
+            />
+          </>
+        )}
+      </div>
+
+      <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border pt-4">
+        <p aria-live="polite" className="mr-auto text-xs text-subtle">
+          {raison}
+        </p>
+        <Button type="button" variant="ghost" onClick={onRetour}>
+          Retour
+        </Button>
+        <Button type="submit" disabled={!valide}>
+          <Plus />
+          {seulementUnites ? libelleUnites(quantiteSaisie) : 'Ajouter'}
+        </Button>
+      </footer>
+    </form>
+  );
+}
+
+type ChoixCategorie = { valeur: string; onChange(v: string): void };
+
+/** Quantité saisie acceptable : un entier entre 1 et le maximum. */
+const quantiteValide = (q: number) => Number.isInteger(q) && q >= 1 && q <= QUANTITE_MAX;
+
+/** Bonus : ceux de l'entrée, les bonus propres, et la saisie d'un nouveau. */
+function SectionBonus({
+  fiche,
+  sorte,
+  mj,
+  bonusCatalogue,
+  peutBonus,
+  effets,
+  onEffets,
+  ajoutBonus,
+  onAjoutBonus,
+}: Readonly<{
+  fiche: Fiche;
+  sorte: Sorte;
+  mj: boolean;
+  bonusCatalogue: ReturnType<typeof bonusDe>;
+  peutBonus: boolean;
+  effets: Effet[];
+  onEffets: Dispatch<SetStateAction<Effet[]>>;
+  ajoutBonus: boolean;
+  onAjoutBonus(ouvert: boolean): void;
+}>) {
+  if (!(bonusCatalogue.length > 0 || peutBonus)) return null;
+  return (
+    <section aria-label="Bonus">
+      <SectionTitle
+        action={
+          !ajoutBonus && peutBonus ? (
+            <Button type="button" variant="ghost" size="xs" onClick={() => onAjoutBonus(true)}>
+              <Plus /> Ajouter un bonus
+            </Button>
+          ) : undefined
+        }
+      >
+        Bonus
+      </SectionTitle>
+      {bonusCatalogue.length > 0 && (
+        <div className="mb-2">
+          <BonusBadges bonus={bonusCatalogue} taille="md" />
+        </div>
+      )}
+      <BonusPropresListe
+        bonus={bonusDesEffets(fiche, effets)}
+        onBasculer={(i) => onEffets((x) => basculerBonusDans(x, i))}
+        onRetirer={(i) => onEffets((x) => x.filter((_, j) => j !== i))}
+      />
+      {!bonusCatalogue.length && !effets.length && !ajoutBonus && (
+        <p className="text-[13px] text-subtle">Aucun bonus.</p>
+      )}
+      {ajoutBonus && (
+        <BonusForm
+          fiche={fiche}
+          sorte={sorte}
+          mj={mj}
+          onAjouter={(effet) => {
+            onEffets((x) => [...x, effet]);
+            onAjoutBonus(false);
+          }}
+          onAnnuler={() => onAjoutBonus(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+/** En-tête : retour au catalogue, vignette, nom de l'entrée ou « Objet personnalisé ». */
+function EnTete({
+  cible,
+  modele,
+  image,
+  onRetour,
+}: Readonly<{ cible: CibleAjout; modele: ModeleLibre; image?: string; onRetour(): void }>) {
+  const { entree, sorte } = modele;
+  return (
+    <DialogHeader className="shrink-0">
+      <div className="flex min-w-0 items-center gap-3 pr-8">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Revenir au catalogue (Échap)"
+          title="Revenir au catalogue (Échap)"
+          onClick={onRetour}
+        >
+          <ArrowLeft />
+        </Button>
+        <Thumbnail image={image} sorte={sorte} />
+        <div className="min-w-0 flex-1">
+          <DialogTitle className="truncate">
+            {cible.libre ? 'Objet personnalisé' : entree.nom}
+          </DialogTitle>
+          <DialogDescription className="truncate text-xs">
+            {cible.libre
+              ? 'Un objet absent du catalogue, configuré avant l’ajout'
+              : `${sorte.nom} · configurez l’objet avant de l’ajouter`}
+          </DialogDescription>
+        </div>
+      </div>
+    </DialogHeader>
+  );
+}
+
+/** Options du sélecteur combiné, groupées par sorte (`sorte::catégorie`). */
+function optionsCombinees(modeles: ModeleLibre[]) {
+  return modeles.map((m) =>
+    m.categorie && m.categorie.options.length > 0
+      ? {
+          groupe: m.sorte.nom,
+          options: m.categorie.options.map((o) => ({
+            valeur: `${m.sorte.id}::${o.valeur}`,
+            nom: o.nom,
+          })),
+        }
+      : { valeur: `${m.sorte.id}::`, nom: m.sorte.nom },
+  );
+}
+
+/** Identité : catégorie, nom propre et description de l'exemplaire. */
+function Identite({
+  id,
+  cible,
+  modele,
+  choixCategorie,
+  nom,
+  onNom,
+  erreurNom,
+  onNomQuitte,
+  description,
+  onDescription,
+  categorie,
+  onCategorie,
+}: Readonly<{
+  id: string;
+  cible: CibleAjout;
+  modele: ModeleLibre;
+  choixCategorie?: ChoixCategorie;
+  nom: string;
+  onNom(nom: string): void;
+  erreurNom: string | null;
+  onNomQuitte(): void;
+  description: string;
+  onDescription(d: string): void;
+  categorie: string;
+  onCategorie(c: string): void;
+}>) {
+  const { entree, sorte } = modele;
+  const options = modele.categorie?.options ?? [];
+  return (
+    <section aria-label="Identité" className="space-y-4">
+      {choixCategorie && (
+        <Champ label="Catégorie" htmlFor={`${id}-categorie-combinee`}>
+          <SelectField
+            id={`${id}-categorie-combinee`}
+            value={choixCategorie.valeur}
+            onValueChange={choixCategorie.onChange}
+            options={optionsCombinees(cible.modeles)}
+          />
+        </Champ>
+      )}
+      {sorte.nomExemplaire && (
+        <Champ
+          label={cible.libre ? 'Nom' : 'Nom de cet exemplaire'}
+          htmlFor={`${id}-nom`}
+          erreur={erreurNom}
+          aide={cible.libre ? undefined : `Par défaut : ${entree.nom}`}
+        >
+          <Input
+            id={`${id}-nom`}
+            value={nom}
+            autoFocus
+            maxLength={200}
+            required={cible.libre}
+            aria-invalid={erreurNom ? true : undefined}
+            aria-describedby={`${id}-nom-aide`}
+            placeholder={cible.libre ? 'Ration de voyage, amulette de famille…' : entree.nom}
+            onChange={(e) => onNom(e.target.value)}
+            onBlur={onNomQuitte}
+            className="h-10 px-3"
+          />
+        </Champ>
+      )}
+      {sorte.descriptionExemplaire && (
+        <Champ label="Description" htmlFor={`${id}-description`}>
+          <Textarea
+            id={`${id}-description`}
+            value={description}
+            maxLength={2000}
+            placeholder="Facultative"
+            onChange={(e) => onDescription(e.target.value)}
+            className="min-h-[72px] text-[13px]"
+          />
+        </Champ>
+      )}
+      {!choixCategorie && modele.categorie && options.length > 0 && (
+        <Champ label={modele.categorie.champ.nom} htmlFor={`${id}-categorie`}>
+          <SelectField
+            id={`${id}-categorie`}
+            value={categorie}
+            onValueChange={onCategorie}
+            options={options}
+          />
+        </Champ>
+      )}
+    </section>
+  );
+}
+
+/** Quantité (ou unités ajoutées), avec les boutons moins et plus. */
+function CaseQuantite({
+  id,
+  seulementUnites,
+  quantite,
+  q,
+  quantiteOk,
+  erreurQuantite,
+  onQuantite,
+}: Readonly<{
+  id: string;
+  seulementUnites: boolean;
+  quantite: string;
+  q: number;
+  quantiteOk: boolean;
+  erreurQuantite: string | null;
+  onQuantite(q: string): void;
+}>) {
+  return (
+    <Case titre={seulementUnites ? 'Unités ajoutées' : 'Quantité'} htmlFor={`${id}-q`}>
+      <div className="flex items-center gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Une unité de moins"
+          disabled={!quantiteOk || q <= 1}
+          onClick={() => onQuantite(String(q - 1))}
+        >
+          <Minus />
+        </Button>
+        <Input
+          id={`${id}-q`}
+          inputMode="numeric"
+          value={quantite}
+          aria-invalid={erreurQuantite ? true : undefined}
+          aria-describedby={erreurQuantite ? `${id}-q-erreur` : undefined}
+          onChange={(e) => onQuantite(e.target.value.trim())}
+          className="h-8 w-16 px-2 text-center font-mono tabular-nums"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Une unité de plus"
+          disabled={quantiteOk && q >= QUANTITE_MAX}
+          onClick={() => onQuantite(String(quantiteOk ? q + 1 : 1))}
+        >
+          <Plus />
+        </Button>
+      </div>
+    </Case>
+  );
+}
+
+/** Réglages d'un nouvel exemplaire : équipé, visibilité, dossier (rien pour des unités). */
+function ReglagesExemplaire({
+  id,
+  seulementUnites,
+  activable,
+  actif,
+  onActif,
+  visible,
+  onVisible,
+  folders,
+  dossier,
+  onDossier,
+}: Readonly<{
+  id: string;
+  seulementUnites: boolean;
+  activable: boolean | undefined;
+  actif: boolean;
+  onActif(a: boolean): void;
+  visible: boolean;
+  onVisible(v: boolean): void;
+  folders: InventoryFolder[];
+  dossier: string;
+  onDossier(d: string): void;
+}>) {
+  if (seulementUnites) return null;
+  return (
+    <>
+      {activable && (
+        <Case titre={actif ? 'Équipé' : 'Rangé'} htmlFor={`${id}-a`}>
+          <span className="flex items-center gap-2">
+            <ShieldCheck
+              aria-hidden
+              className={cn('size-4', actif ? 'text-success' : 'text-subtle')}
+            />
+            <Switch id={`${id}-a`} checked={actif} onCheckedChange={onActif} />
+          </span>
+        </Case>
+      )}
+      <Case
+        titre={visible ? 'Visible des autres joueurs' : 'Caché aux autres joueurs'}
+        htmlFor={`${id}-h`}
+      >
+        <span className="flex items-center gap-2">
+          {visible ? (
+            <Eye aria-hidden className="size-4 text-subtle" />
+          ) : (
+            <EyeOff aria-hidden className="size-4 text-subtle" />
+          )}
+          <Switch id={`${id}-h`} checked={visible} onCheckedChange={onVisible} />
+        </span>
+      </Case>
+      {folders.length > 0 && (
+        <Case titre="Dossier" htmlFor={`${id}-d`}>
+          <SelectField
+            id={`${id}-d`}
+            value={dossier}
+            onValueChange={onDossier}
+            className="h-8 max-w-44 px-2 text-xs"
+            options={[
+              { valeur: RACINE, nom: 'Sans dossier' },
+              ...folders.map((f) => ({ valeur: f.id, nom: f.name })),
+            ]}
+          />
+        </Case>
+      )}
+    </>
+  );
+}
+
+/** Formules de l'objet, modifiables (dés en clés nues). */
+function Formules({
+  id,
+  parDefaut,
+  formules,
+  onFormule,
+  verifs,
+  cle,
+  sorte,
+}: Readonly<{
+  id: string;
+  parDefaut: FormuleAffichee[];
+  formules: Record<string, string>;
+  onFormule(cid: string, texte: string): void;
+  verifs: Map<string, FormuleVerifiee>;
+  cle: string;
+  sorte: Sorte;
+}>) {
+  if (parDefaut.length === 0) return null;
+  return (
+    <section aria-label="Formules" className="space-y-3">
+      <SectionTitle>{parDefaut.some((f) => f.des) ? 'Dés et formules' : 'Formules'}</SectionTitle>
+      {parDefaut.map((f) => {
+        const texte = formules[f.champ.id];
+        const saisi = texte !== undefined && texte.trim() !== '';
+        return (
+          <div key={f.champ.id} className="rounded-xl border border-border px-3 py-2.5">
+            <FormulaField
+              id={`${id}-f-${f.champ.id}`}
+              label={f.champ.nom}
+              labelVisible
+              texte={texte ?? f.texte}
+              onChange={(t) => onFormule(f.champ.id, t)}
+              verif={
+                saisi
+                  ? (verifs.get(f.champ.id) ?? null)
+                  : { ok: true, texte: f.texte, apercu: f.apercu }
+              }
+              des={f.des}
+              cle={cle}
+              sorte={sorte}
+            />
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+/** Champs propres de l'exemplaire, et ceux dont la saisie est à corriger. */
+function Caracteristiques({
+  id,
+  sorte,
+  editables,
+  valeur,
+  onChamp,
+  invalides,
+}: Readonly<{
+  id: string;
+  sorte: Sorte;
+  editables: ChampSorte[];
+  valeur(cid: string): ValeurChamp | undefined;
+  onChamp(cid: string, v: ValeurChamp | undefined): void;
+  invalides: Set<string>;
+}>) {
+  if (editables.length === 0) return null;
+  return (
+    <section aria-label="Caractéristiques">
+      <SectionTitle>Caractéristiques</SectionTitle>
+      <dl className="grid grid-cols-1 gap-x-5 sm:grid-cols-2">
+        {editables.map((c) => {
+          if (!estModifiable(c)) return null;
+          const cid = `${id}-c-${c.id}`;
+          return (
+            <div
+              key={c.id}
+              className="flex min-h-9 min-w-0 items-center justify-between gap-3 border-b border-border py-1 text-[13px]"
+            >
+              <dt className="min-w-0 truncate text-muted-foreground">
+                <label htmlFor={cid}>{c.nom}</label>
+              </dt>
+              <dd className="flex shrink-0 items-center gap-1.5">
+                <FieldInput
+                  id={cid}
+                  champ={c}
+                  valeur={valeur(c.id)}
+                  onChange={(v) => onChamp(c.id, v)}
+                />
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+      {invalides.size > 0 && (
+        <p role="alert" className="mt-1.5 text-xs text-destructive">
+          {[...invalides].map((x) => sorte.champs.find((c) => c.id === x)?.nom ?? x).join(', ')} :
+          nombre attendu.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function Champ({
+  label,
+  htmlFor,
+  erreur,
+  aide,
+  children,
+}: Readonly<{
+  label: string;
+  htmlFor: string;
+  erreur?: string | null;
+  aide?: string;
+  children: ReactNode;
+}>) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={htmlFor} className="block text-xs font-medium text-muted-foreground">
+        {label}
+      </label>
+      {children}
+      {(erreur || aide) && (
+        <p
+          id={`${htmlFor}-aide`}
+          role={erreur ? 'alert' : undefined}
+          className={cn('text-xs', erreur ? 'text-destructive' : 'text-subtle')}
+        >
+          {erreur ?? aide}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Case({
+  titre,
+  htmlFor,
+  children,
+}: Readonly<{
+  titre: string;
+  htmlFor?: string;
+  children: ReactNode;
+}>) {
+  return (
+    <div className="-mb-px flex min-h-12 items-center justify-between gap-3 px-3 py-2">
+      <label htmlFor={htmlFor} className="text-xs text-muted-foreground">
+        {titre}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/** « Ajouter 3 unités » ; quantité invalide : « Ajouter  unité ». */
+function libelleUnites(q: number | null): string {
+  if (q === null) return 'Ajouter  unité';
+  return `Ajouter ${q} unité${q > 1 ? 's' : ''}`;
+}

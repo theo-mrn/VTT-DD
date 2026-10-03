@@ -1,0 +1,270 @@
+# Présentation D&D classique
+#
+# Reprise du thème par défaut de l'ancienne app (legacy/src/modules/builtin/
+# dnd-classic/theme.ts : bruns très sombres, accent ambre/pêche) et de sa
+# fiche (caractéristiques, combat, vitalité, voies, inventaire).
+
+format: 1
+systeme: dnd-classic
+
+theme:
+  couleurs:
+    fond: '#141110'
+    fondProfond: '#0a0807'
+    carte: '#1c1614'
+    canevas: '#0c0908'
+    bordure: '#28211c'
+    texte: '#e3dad4'
+    texteSecondaire: '#7a706a'
+    accent: '#c2956a'
+    accentSurvol: '#d0ad8b'
+  # Police manuscrite de l'ancienne app (public/fonts), dans polices/ : décorative seulement,
+  # le texte courant et les titres gardent les polices de l'application
+  polices:
+    decorative: Hobbiton Brush Hand
+    fichiers:
+      - { famille: Hobbiton Brush Hand, fichier: HobbitonBrushHand.ttf }
+  fond:
+    type: image
+    source: 'https://assets.yner.fr/Map/Chateau/Illustration/Cragwind Castle_Day02_static.webp'
+
+# Illustrations des races et des profils (assistant de création, fiches)
+images:
+  ame_forgee: https://assets.yner.fr/images/races/Ame-forgee.webp
+  elfe: https://assets.yner.fr/images/races/Elfe.webp
+  elfe_noir: https://assets.yner.fr/images/races/Elfenoir.jpg
+  elfe_sylvain: https://assets.yner.fr/images/races/Elfesylvain.webp
+  humain: https://assets.yner.fr/images/races/Humain.webp
+  nain: https://assets.yner.fr/images/races/Nain.webp
+  minotaure: https://assets.yner.fr/images/races/Minotaure.webp
+  halfelin: https://assets.yner.fr/images/races/Halfelin.webp
+  orque: https://assets.yner.fr/images/races/Orc.webp
+  drakonide: https://assets.yner.fr/images/races/Drakonide.webp
+  barbare: https://assets.yner.fr/images/profiles/barbare.jpg
+  barde: https://assets.yner.fr/images/profiles/Barde.jpg
+  chevalier: https://assets.yner.fr/images/profiles/chevalier.jpg
+  druide: https://assets.yner.fr/images/profiles/druide.webp
+  ensorceleur: https://assets.yner.fr/images/profiles/ensorceleur.jpg
+  forgesort: https://assets.yner.fr/images/profiles/forgesort.webp
+  guerrier: https://assets.yner.fr/images/profiles/guerrier.webp
+  invocateur: https://assets.yner.fr/images/profiles/invocateur.jpg
+  magicien: https://assets.yner.fr/images/profiles/magicien.webp
+  moine: https://assets.yner.fr/images/profiles/moine.jpg
+  necromancien: https://assets.yner.fr/images/profiles/necromancien.webp
+  pretre: https://assets.yner.fr/images/profiles/pretre.jpg
+  psionique: https://assets.yner.fr/images/profiles/psionique.jpg
+  rodeur: https://assets.yner.fr/images/profiles/rodeur.webp
+  samourai: https://assets.yner.fr/images/profiles/samourai.jpg
+  voleur: https://assets.yner.fr/images/profiles/voleur.webp
+
+des:
+  sortes:
+    d4: { couleur: '#c2956a', forme: d4 }
+    d6: { couleur: '#c2956a', forme: d6 }
+    d8: { couleur: '#c2956a', forme: d8 }
+    d10: { couleur: '#c2956a', forme: d10 }
+    d12: { couleur: '#c2956a', forme: d12 }
+    d20: { couleur: '#d0ad8b', forme: d20 }
+  # Lanceur de dés : ordre et groupes des attributs qui déclarent `jet` dans les règles
+  jets:
+    - { titre: Caractéristiques, attributs: [FOR, DEX, CON, SAG, INT, CHA] }
+    - { titre: Attaques et initiative, attributs: [Contact, Distance, Magie, INIT] }
+
+# Marques posées par les règles
+marques:
+  predilection: { nom: Arme de prédilection, icone: sword }
+
+# Les PV partent du maximum et descendent
+ressources:
+  PV: { sens: descendant, couleur: '#dc2626' }
+
+# Icônes des tuiles de la fiche (Vitalité, bandeau)
+attributs:
+  PV: { icone: coeur, couleur: '#dc2626' }
+  Defense: { icone: bouclier, couleur: '#3b82f6' }
+
+fiches:
+  personnage:
+    widgets:
+      # Bandeau de la fiche : race, profil, puis niveau, dé de vie et initiative
+      - { type: details, titre: Profil, sortes: [race, profil], attributs: [niveau, deVie, INIT] }
+      - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
+      # PV en chiffres (« PV / PV max »), puis la Défense
+      - { type: ressources, titre: Vitalité, attributs: [PV, Defense], affichage: valeur }
+      - { type: attributs, titre: Combat, attributs: [Contact, Distance, Magie], colonnes: 3 }
+      # Voies en tableau (vue Progression) et capacités acquises (vue Capacités, filtrées
+      # par activation : passive, limitée…)
+      - {
+          type: competences,
+          titre: Voies et capacités,
+          sortes: [capacite, capacite_active],
+          filtreChamp: activation,
+          vue: progression,
+        }
+      # Source unique de l'équipement : armes (contact, distance), protections, objets
+      # (potions, nourriture, bourse, autre)
+      - {
+          type: inventaire,
+          titre: Inventaire,
+          sortes: [arme, armure, objet],
+          groupeChamp: [attaque, categorie],
+        }
+      - { type: bonus, titre: Bonus }
+      - { type: possessions, titre: États, sorte: etat }
+
+# Icônes des objets de l'inventaire : les règles les plus précises d'abord.
+iconesObjets:
+  - { champ: attaque, valeur: Distance, icone: cible }
+  - { sorte: arme, icone: epee }
+  - { sorte: armure, icone: bouclier }
+  - { champ: categorie, valeur: potions, icone: fiole }
+  - { champ: categorie, valeur: nourriture, icone: nourriture }
+  - { champ: categorie, valeur: bourse, icone: pieces }
+  - { sorte: objet, icone: sac }
+
+# Ressources consultables : panneau Ressources de la table et page Ressources de l'accueil
+# (docs/ressources.md). Un onglet absent ici n'apparaît pas.
+references:
+  capacites:
+    sections:
+      # Race : description, modificateurs, capacités raciales et voie raciale dépliée
+      - { titre: Races, sorte: race }
+      # Profil : dé de vie et ses cinq voies, chacune avec ses capacités
+      - { titre: Profils, sorte: profil }
+      # Voies de prestige, groupées par leur profil (étiquette autre que « prestige »)
+      - { titre: Prestiges, sorte: voie, etiquette: prestige, groupePar: etiquette }
+  marche:
+    prix: prix
+    sortes:
+      - { sorte: arme, colonnes: [attaque, degats, portee], groupeChamp: attaque }
+      - { sorte: armure, colonnes: [def, bouclier] }
+      - { sorte: objet, colonnes: [categorie], groupeChamp: categorie }
+    # Services, logement, montures… : des tarifs, pas des objets de l'inventaire
+    textes: [tarifs]
+  bestiaire:
+    statistiques:
+      personnage:
+        - { titre: Combat, attributs: [niveau, PV_Max, Defense, INIT] }
+        - { titre: Attaques, attributs: [Contact, Distance, Magie] }
+        - { titre: Caractéristiques, attributs: [FOR, DEX, CON, INT, SAG, CHA] }
+  images:
+    collections:
+      - { titre: Personnages, dossiers: [Assets] }
+      - { titre: Cartes, dossiers: [Map, Cartes] }
+      - { titre: Photos, dossiers: [Photos] }
+  # Objets à poser sur la carte (outil Objets, I) : dossiers de la bibliothèque d'actifs
+  objets:
+    categories:
+      - { titre: Mobilier, dossiers: [objets/fourniture, items/furniture, items/decorations] }
+      - { titre: Campement, dossiers: [objets/camps, objets/travel] }
+      - { titre: Ferme, dossiers: [objets/farm] }
+      - { titre: Marché, dossiers: [objets/marché] }
+      - { titre: Conteneurs, dossiers: [items/chest, items/bag, items/barrel, items/containers] }
+      - { titre: Nature, dossiers: [objets/water, items/arbre, items/fire, items/feu] }
+      - { titre: Trésors, dossiers: [items/gem, items/keys] }
+      - { titre: Potions, dossiers: [items/potions] }
+      - { titre: Armes, dossiers: [items/arme] }
+      - { titre: Armures, dossiers: [items/armure] }
+      - { titre: Livres, dossiers: [items/book] }
+      - { titre: Architecture, dossiers: [items/stairs, items/ladder] }
+      - { titre: Véhicules, dossiers: [items/vehicles] }
+      - { titre: Équipement, dossiers: [items/equipment] }
+      - { titre: Macabre, dossiers: [items/dark] }
+      - { titre: Divers, dossiers: [items/misc] }
+
+# Combat (docs/combat.md § 12) : groupes du menu d'attaque et états de la fiche du participant
+combat:
+  groupes:
+    - titre: Armes
+      actions: [attaque, attaque-libre, mains-nues, coup-de-bouclier, griffes, coup-de-corne]
+    - titre: Capacités de combat
+      actions:
+        - charge
+        - attaque-brutale
+        - attaque-apres-feinte
+        - attaque-flamboyante
+        - chatiment-divin
+        - frappe-lourde
+        - attaque-puissante
+        - attaque-parfaite
+        - charge-montee
+        - attaque-bondissante
+        - attaque-sournoise
+        - kamikaze
+        - fleche-intangible
+        - frappe-de-l-enclume
+        - mise-a-mort
+        - briser-l-armure
+        - choc-electrique
+        - mains-d-energie
+        - arme-d-argent
+        - baton-de-mage
+        - fureur-du-dragon
+        - blagues-et-cabrioles
+        - saignement
+        - sang-mordant
+    - titre: Sorts
+      actions:
+        - sort
+        - projectile-magique
+        - attaque-sonore
+        - foudre
+        - arme-dansante
+        - fleche-enflammee
+        - boule-de-feu
+        - desintegration
+        - projection-du-ki
+        - briser-les-coeurs
+        - strangulation
+        - putrefaction
+        - marteau-spirituel
+        - foudres-divines
+        - attaque-mentale
+        - aspect-de-la-succube
+        - baiser-du-vampire
+        - frappe-des-arcanes
+        - onde-de-choc
+        - souffle
+        - cone-de-froid
+        - cri-de-la-banshee
+        - destruction-des-morts-vivants
+        - armee-des-morts
+    - titre: Pièges et objets
+      actions: [degats-libres, feu-gregeois, piege-de-feu]
+    - titre: Soins
+      actions:
+        - soins-legers
+        - soins-moderes
+        - soins-de-groupe
+        - guerison
+        - premiers-soins
+        - rappel-a-la-vie
+        - zone-de-vie
+        - phenix
+        - regeneration
+        - baies-magiques
+        - elixir-de-guerison
+        - fortifiant
+  etats:
+    sortes: [etat]
+    icones:
+      aveugle: aveugle
+      charme: charme
+      assourdi: assourdi
+      effraye: peur
+      incapacite: entrave
+      paralyse: paralyse
+      empoisonne: poison
+      etourdi: etourdi
+      inconscient: inconscient
+      dansant: danse
+      desoriente: desoriente
+      affaibli: affaibli
+      saignant: saignement
+  # Icônes des paramètres de situation du menu d'attaque
+  situation:
+    icones:
+      couvert: couvert
+      cibleATerre: a-terre
+      cibleEsquive: protection
+      cibleSurprise: alerte

@@ -1,0 +1,21 @@
+# Ouvre/maintient une PR de release à partir des commits conventionnels ;
+# la fusionner crée le tag vX.Y.Z qui déclenche le déploiement prod.
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        with:
+          release-type: node
+          # PAT requis pour que le tag créé déclenche release.yml (GITHUB_TOKEN ne déclenche pas de workflow)
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}

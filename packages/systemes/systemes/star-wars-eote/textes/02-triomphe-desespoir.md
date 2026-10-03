@@ -1,0 +1,11 @@
+# Triomphe et Désespoir
+
+Le Triomphe (face 12 du dé de Maîtrise, jaune) compte toujours comme un Succès ET déclenche un effet bénéfique majeur, en plus (pas à la place) des Avantages éventuellement obtenus sur le même jet. Le Désespoir (face 12 du dé de Défi, rouge) compte toujours comme un Échec ET déclenche une conséquence dramatique. Leurs effets spéciaux ne s'annulent JAMAIS entre eux, y compris avec les Avantages/Menaces normaux du même jet : si Triomphe et Désespoir sortent sur le même jet, les deux conséquences se produisent, indépendamment du résultat net Succès/Échec.
+
+Ce que permet un Triomphe (au-delà d'être un Succès garanti) :
+
+- Effets "gratuits" normalement coûteux en Avantages : un Triomphe déclenche automatiquement une Blessure Critique sur une attaque réussie (à condition de dépasser l'Encaissement de la cible, cf entrée "Blessures Critiques"), ou active la qualité spéciale d'une arme (Explosif/Blast, Auto-feu...) SANS avoir à dépenser le nombre d'Avantages normalement requis pour ces effets (cf entrée "Utilisation des symboles Avantage").
+- Récupération de Blessure physique : alors que les Avantages normaux ne permettent que de récupérer du Stress, un Triomphe peut, si la situation s'y prête (au jugement du MJ — un moment de répit, un coup de chance narratif), permettre de récupérer directement 1 Blessure physique (cf entrée "Blessures et Seuil de Blessure") plutôt que du Stress.
+- Résistance à la peur : sur un jet de résistance à la peur, un Triomphe peut être dépensé pour annuler toutes les pénalités déjà subies à cause de la peur, ou pour s'immuniser contre tout nouveau test de peur pour le reste de la rencontre.
+
+Un Désespoir fonctionne en miroir contre le personnage qui a agi : conséquence dramatique automatique (arme enrayée, munitions épuisées, chute, position compromise, attention hostile attirée) choisie par le MJ selon la scène — généralement plus grave et plus immédiate qu'une simple Menace, et jamais annulée par les Avantages/Triomphe éventuels du même jet.

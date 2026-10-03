@@ -1,0 +1,68 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-identity
+  digest: ''
+  tag: 'main'
+# Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
+  # Bus d'événements : le relais d'outbox y publie (NATS JetStream, namespace messaging)
+  NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.staging.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  APP_URL: https://staging.yner.fr
+  MAIL_FROM: 'YNER <contact@yner.fr>'
+  S3_REGION: auto
+  STORAGE_REFERENCE_URLS: http://character.vtt-staging.svc,http://campaign.vtt-staging.svc,http://dice.vtt-staging.svc
+  # Staging sur le bucket de production (vtt-dd-assets) : le nettoyage des fichiers orphelins
+  # ne tourne jamais ici, il supprimerait des fichiers de la prod
+  ORPHAN_SWEEP: 'off'
+# Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
+# substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
+secretEnv:
+  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+# Secret identity-secrets (SOPS) : DATABASE_URL (rôle identity_svc), JWT_PRIVATE_JWKS,
+# INTERNAL_API_SECRET, SMTP_URL, S3_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
+# + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
+#   d'outbox ne traverse pas PgBouncer (sans elle : DATABASE_URL, réveil par le poll de 5 s)
+envFromSecrets:
+  - name: identity-secrets
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : identity n'est joignable que par la gateway
+ingress:
+  enabled: false
+networkPolicy:
+  enabled: true
+  allowFrom:
+    # audio : JWKS
+    - podSelector: { matchLabels: { app.kubernetes.io/name: audio } }
+    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    # character et campaign vérifient les jetons avec le JWKS d'identity
+    - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
+    # campaign lit aussi les profils publics des membres (noms, avatars)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
+    # dice : JWKS et profils publics des lanceurs
+    - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
+    # billing : JWKS et statut premium du profil (/internal/users/:id/premium)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: billing } }
+  # SMTP (Resend) en plus du HTTPS
+  extraEgressPorts: [587]
+migrations:
+  enabled: true
+  image:
+    repository: ghcr.io/theo-mrn/vtt-identity-migrations
+    digest: ''
+    tag: 'main'
+  schema: identity
+  # Secret généré par CloudNativePG pour le rôle identity_owner
+  secretName: pg-identity-owner

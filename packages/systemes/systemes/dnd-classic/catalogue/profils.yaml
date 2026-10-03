@@ -1,0 +1,193 @@
+# Profils — généré depuis legacy/public/tabs (contenu D&D classique de l'ancienne app).
+- id: barbare
+  sorte: profil
+  nom: Barbare
+  description: Un guerrier sauvage et puissant, le barbare puise sa force dans sa rage et son instinct de survie. Il excelle dans les affrontements au corps à corps.
+  champs:
+    deVie: 12
+    voies:
+      - barbare-brute
+      - barbare-rage
+      - barbare-pagne
+      - barbare-pourfendeur
+      - barbare-primitif
+- id: barde
+  sorte: profil
+  nom: Barde
+  description: Un artiste polyvalent et charismatique, le barde utilise la magie de la musique et des mots pour inspirer ses alliés et confondre ses ennemis.
+  champs:
+    deVie: 8
+    voies:
+      - barde-seduction
+      - barde-escrime
+      - barde-musicien
+      - barde-saltimbanque
+      - barde-vagabond
+- id: chevalier
+  sorte: profil
+  nom: Chevalier
+  description: Le Chevalier est un noble guerrier errant, monté sur un puissant destrier et protégé par une armure lourde. Il parcourt la campagne en quête de torts à redresser et d’occasions de mettre son courage à l’épreuve.
+  champs:
+    deVie: 10
+    voies:
+      - chevalier-guerre
+      - chevalier-noblesse
+      - chevalier-cavalier
+      - chevalier-heros
+      - chevalier-meneur-d-homme
+- id: druide
+  sorte: profil
+  nom: Druide
+  description: Un prêtre de la nature qui tire ses pouvoirs des éléments et protège la pureté de la nature.
+  champs:
+    deVie: 8
+    voies:
+      - druide-nature
+      - druide-animaux
+      - druide-fauve
+      - druide-vegetaux
+      - druide-protecteur
+- id: ensorceleur
+  sorte: profil
+  nom: Ensorceleur
+  description: L’Ensorceleur tire son pouvoir d’un talent inné pour la magie. Il pratique une magie subtile à base de tromperie et de contrôle, et possède peu de sorts de destruction massive.
+  champs:
+    deVie: 4
+    voies:
+      - ensorceleur-divination
+      - ensorceleur-air
+      - ensorceleur-envouteur
+      - ensorceleur-illusions
+      - ensorceleur-invocation
+- id: forgesort
+  sorte: profil
+  nom: Forgesort
+  description: A la fois artisan et enchanteur, artiste et magicien, le Forgesort lie les énergies occultes à la matière qu’il façonne pour créer des artefacts magiques ou des breuvages aux propriétés fantastiques.
+  champs:
+    deVie: 6
+    voies:
+      - forgesort-elixirs
+      - forgesort-artefacts
+      - forgesort-runes
+      - forgesort-golem
+      - forgesort-metal
+- id: guerrier
+  sorte: profil
+  nom: Guerrier
+  description: Un maître du combat, le guerrier excelle dans l'art de la guerre sous toutes ses formes, faisant de lui un combattant redoutable.
+  champs:
+    deVie: 10
+    voies:
+      - guerrier-resistance
+      - guerrier-bouclier
+      - guerrier-combat
+      - guerrier-maitre-d-armes
+      - guerrier-soldat
+- id: invocateur
+  sorte: profil
+  nom: Invocateur
+  description: Un maître du combat, le guerrier excelle dans l'art de la guerre sous toutes ses formes, faisant de lui un combattant redoutable.
+  champs:
+    deVie: 6
+    voies:
+      - invocateur-conjuration
+      - invocateur-entite
+      - invocateur-mutations
+      - invocateur-portes
+      - invocateur-familier
+- id: magicien
+  sorte: profil
+  nom: Magicien
+  description: Un érudit des arcanes qui maîtrise les secrets de la magie pour lancer des sorts puissants. Sa vaste connaissance le rend précieux en aventure.
+  champs:
+    deVie: 6
+    voies:
+      - magicien-magie-des-arcanes
+      - magicien-magie-destructrice
+      - magicien-magie-elementaire
+      - magicien-magie-protectrice
+      - magicien-magie-universelle
+- id: moine
+  sorte: profil
+  nom: Moine
+  description: Le Moine combat à mains nues et utilise le contrôle qu’il a sur son esprit et son corps pour transformer ce dernier en arme de chair..
+  champs:
+    deVie: 8
+    voies:
+      - moine-maitrise
+      - moine-meditation
+      - moine-poing
+      - moine-vent
+      - moine-energie-vitale
+- id: necromancien
+  sorte: profil
+  nom: Nécromancien
+  description: Le nécromancien s'intéresse aux forces obscures et au pouvoir de la mort, manipulant les énergies pour ses propres fins.
+  champs:
+    deVie: 6
+    voies:
+      - necromancien-mort
+      - necromancien-sombre-magie
+      - necromancien-demon
+      - necromancien-outre-tombe
+      - necromancien-sang
+- id: pretre
+  sorte: profil
+  nom: Prêtre
+  description: Le prêtre utilise la force de sa foi pour protéger et soigner ses alliés, tout en combattant au nom de sa divinité.
+  champs:
+    deVie: 8
+    voies:
+      - pretre-foi
+      - pretre-guerre-sainte
+      - pretre-priere
+      - pretre-spiritualite
+      - pretre-soins
+- id: psionique
+  sorte: profil
+  nom: Psionique
+  description: Le psionique est un être d’exception. Il est né doté de pouvoirs psychiques extraordinaires qu’il a travaillés par la suite à la force de son ego et de son intuition. Profil polyvalent, le psionique peut être développé comme un subtil maître de l’esprit et un combattant à distance ou au contraire comme un guerrier porté par des pouvoirs psychiques.
+  champs:
+    deVie: 6
+    voies:
+      - psionique-telekinesie
+      - psionique-telepathie
+      - psionique-attaque-mentale
+      - psionique-empathie
+      - psionique-envouteur
+- id: rodeur
+  sorte: profil
+  nom: Rôdeur
+  description: Un expert de la nature, le rôdeur combine ses talents de pisteur et de chasseur avec une connexion profonde avec le monde naturel.
+  champs:
+    deVie: 10
+    voies:
+      - rodeur-archer
+      - rodeur-survie
+      - rodeur-escarmouche
+      - rodeur-compagnon-animal
+      - rodeur-traqueur
+- id: samourai
+  sorte: profil
+  nom: Samouraï
+  description: Le samouraï est un guerrier, mais aussi un seigneur, un homme de cour. Surtout, il est un homme d’honneur. Ces caractéristiques le rapprochent du profil du chevalier, mais il se distingue de ce dernier par des techniques de combat axées sur la vitesse et la maîtrise de l’arc. Le samouraï est lui-même le vassal dévoué d’un seigneur, dans un système de type féodal.
+  champs:
+    deVie: 8
+    voies:
+      - samourai-honneur
+      - samourai-dirigeant
+      - samourai-ki
+      - samourai-arc-et-du-cheval
+      - samourai-sabre
+- id: voleur
+  sorte: profil
+  nom: Voleur
+  description: Le Voleur crochète les portes, détecte les pièges et préfère piller les cadavres des ennemis que de se salir les mains pendant le combat.
+  champs:
+    deVie: 6
+    voies:
+      - voleur-assassin
+      - voleur-aventurier
+      - voleur-deplacement
+      - voleur-roublard
+      - voleur-spadassin

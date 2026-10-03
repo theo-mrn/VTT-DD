@@ -1,0 +1,510 @@
+# Modèles de véhicules et de vaisseaux : fixent les statistiques du véhicule.
+- id: chasseur-cloakshape
+  sorte: modele
+  nom: Chasseur CloakShape (Kuat Systems Eng.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 8 }
+
+- id: patrouilleur-firespray
+  sorte: modele
+  nom: Patrouilleur Firespray (Kuat Systems Eng.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 15 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 12 }
+
+- id: eclaireur-jm-5000-jumpmaster
+  sorte: modele
+  nom: Éclaireur JM-5000 JumpMaster (Corellian Eng. Corp.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 14 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 8 }
+
+- id: navette-de-classe-lambda-t-4a
+  sorte: modele
+  nom: Navette de classe Lambda T-4A (Sienar Fleet Systems)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 25 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 15 }
+
+- id: chasseur-tie-ln
+  sorte: modele
+  nom: Chasseur TIE/LN (Sienar Fleet Systems)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 6 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 8 }
+
+- id: chasseur-d-attaque-y-wing-btl-a4-s3
+  sorte: modele
+  nom: Chasseur d'attaque Y-Wing BTL-A4/S3 (Koensayr)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 12 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 10 }
+
+- id: z-95-af4-headhunter
+  sorte: modele
+  nom: Z-95-AF4 Headhunter (Incom/Subpro)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 9 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 8 }
+
+- id: skipray-blastboat-gat-12h
+  sorte: modele
+  nom: Skipray Blastboat GAT-12H (Sienar Fleet Systems)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 20 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 15 }
+
+- id: transport-lourd-action-vi
+  sorte: modele
+  nom: Transport lourd Action VI (Corellian Eng. Corp.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -3 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 40 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 20 }
+
+- id: cargo-leger-citadel-ilh-kk
+  sorte: modele
+  nom: Cargo léger Citadel ILH-KK (Koensayr)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 30 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 16 }
+
+- id: transport-moyen-gr-75
+  sorte: modele
+  nom: Transport moyen GR-75 (Gallofree Yards)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -3 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 20 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 18 }
+
+- id: yacht-spatial-de-luxe-3000
+  sorte: modele
+  nom: Yacht spatial de luxe 3000 (SoroSuub)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 30 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 12 }
+
+- id: transport-moyen-space-master
+  sorte: modele
+  nom: Transport moyen Space Master (Kuat Drive Yards)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -4 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 25 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 25 }
+
+- id: yacht-de-plaisance-starwind
+  sorte: modele
+  nom: Yacht de plaisance Starwind (Kuat Drive Yards)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -2 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 25 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 20 }
+
+- id: cargo-moyen-de-classe-wayfarer
+  sorte: modele
+  nom: Cargo moyen de classe Wayfarer (Kuat Systems Eng.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -2 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 32 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 20 }
+
+- id: cargo-leger-yt-1300
+  sorte: modele
+  nom: Cargo léger YT-1300 (Corellian Eng. Corp.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 22 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 15 }
+
+- id: cargo-leger-yt-2400
+  sorte: modele
+  nom: Cargo léger YT-2400 (Corellian Eng. Corp.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 25 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 18 }
+
+- id: transport-arme-star-galleon
+  sorte: modele
+  nom: Transport armé Star Galleon (Kuat Drive Yards)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 6 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -2 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 85 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 18 }
+
+- id: corvette-cr90
+  sorte: modele
+  nom: Corvette CR90 (Corellian Eng. Corp.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 50 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 25 }
+
+- id: canonniere-dp20
+  sorte: modele
+  nom: Canonnière DP20 (Corellian Eng. Corp.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 55 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 30 }
+
+- id: corvette-d-assaut-marauder
+  sorte: modele
+  nom: Corvette d'assaut Marauder (Republic Sienar Systems)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 65 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 35 }
+
+- id: fregate-d-escorte-ef76-nebulon-b
+  sorte: modele
+  nom: Frégate d'escorte EF76 Nebulon-B (Kuat Drive Yards)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 6 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 6 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 71 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 40 }
+
+- id: airspeeder-civil-generique
+  sorte: modele
+  nom: Airspeeder civil générique
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 5 }
+
+- id: cloud-car-storm-iv
+  sorte: modele
+  nom: Cloud Car Storm IV (Bespin Motors)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 5 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 7 }
+
+- id: skyhopper-t-16
+  sorte: modele
+  nom: Skyhopper T-16 (Incom)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 6 }
+
+- id: airspeeder-t-47
+  sorte: modele
+  nom: Airspeeder T-47 (Incom)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 6 }
+
+- id: speeder-bike-militaire-74-z
+  sorte: modele
+  nom: Speeder bike militaire 74-Z (Aratech)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 4 }
+
+- id: swoop-flare-s
+  sorte: modele
+  nom: Swoop Flare-S (Mobquet)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 3 }
+
+- id: speeder-lourd-a-a5
+  sorte: modele
+  nom: Speeder lourd A-A5 (Trast Heavy Transports)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -2 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 8 }
+
+- id: landspeeder-x-34
+  sorte: modele
+  nom: Landspeeder X-34 (SoroSuub)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 5 }
+
+- id: char-des-sables-digger-crawler
+  sorte: modele
+  nom: Char des sables Digger Crawler (Corellian Mining Corp.)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -3 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 40 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 30 }
+
+- id: transporteur-de-personnel-terrestre
+  sorte: modele
+  nom: Transporteur de personnel terrestre
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -2 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 8 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 4 }
+
+- id: marcheur-d-infanterie-at-pt
+  sorte: modele
+  nom: Marcheur d'infanterie AT-PT (Rothana)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 3 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 6 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 5 }
+
+- id: marcheur-d-exploration-at-est
+  sorte: modele
+  nom: Marcheur d'exploration AT-EST (Rothana)
+  effets:
+    - { sur: attribut, attribut: silhouette, operation: fixer, valeur: 4 }
+    - { sur: attribut, attribut: vitesse, operation: fixer, valeur: 1 }
+    - { sur: attribut, attribut: maniabilite, operation: fixer, valeur: -2 }
+    - { sur: attribut, attribut: defenseAvant, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseBabord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseTribord, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: defenseArriere, operation: fixer, valeur: 0 }
+    - { sur: attribut, attribut: blindage, operation: fixer, valeur: 2 }
+    - { sur: attribut, attribut: seuilCoque, operation: fixer, valeur: 20 }
+    - { sur: attribut, attribut: seuilTension, operation: fixer, valeur: 12 }

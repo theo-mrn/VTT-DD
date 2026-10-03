@@ -1,0 +1,57 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-realtime
+  digest: ''
+  tag: 'main'
+# Chaque réplica lit tout le flux NATS et n'émet qu'à ses propres connexions : on peut en
+# ajouter sans qu'un client reçoive un événement deux fois. Pas de sessions collantes
+# (WebSocket seulement) ; l'adaptateur Redis relie les réplicas (éphémère, présence).
+replicaCount: 2
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  # Cache des droits (campaign) et adaptateur Socket.IO entre réplicas
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
+  # Bus d'événements : diffusion en direct et rejeu après reconnexion (NATS JetStream)
+  NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
+  # Appartenance et rôle de l'abonné dans une campagne
+  CAMPAIGN_URL: http://campaign.vtt-prod.svc
+  RIGHTS_CACHE_SECONDS: '30'
+  # Au-delà, un client qui se reconnecte recharge son état en REST au lieu du rejeu
+  REPLAY_MAX_EVENTS: '1000'
+  # Canal éphémère : messages par seconde et par connexion, rafale, taille maximale (octets)
+  EPHEMERAL_RATE_PER_SECOND: '30'
+  EPHEMERAL_BURST: '60'
+  EPHEMERAL_MAX_BYTES: '4096'
+# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+# substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
+secretEnv:
+  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+# Secret realtime-secrets (SOPS) : INTERNAL_API_SECRET (même valeur que campaign). Pas de base :
+# ni DATABASE_URL ni migrations.
+envFromSecrets:
+  - name: realtime-secrets
+# Arrêt : /readyz passe à 503, puis les connexions sont fermées ; les clients se reconnectent
+# sur un autre réplica et rattrapent avec leur dernier seq
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : les WebSockets arrivent par la gateway (/v1/realtime/socket.io)
+ingress:
+  enabled: false
+# Sorties déjà permises par le chart : NATS et Valkey (namespace messaging), campaign (http)
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }

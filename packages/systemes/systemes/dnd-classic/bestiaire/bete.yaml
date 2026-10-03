@@ -1,0 +1,2568 @@
+# Bestiaire de référence — Bête (87).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: eagle
+  nom: Aigle
+  entite: personnage
+  categorie: Bête
+  type: Bête (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://www.dnd5eapi.co/api/images/monsters/eagle.png
+  valeurs:
+    niveau: 0
+    PV_Max: 3
+    Defense: 12
+    INIT: 2
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 6
+    DEX: 15
+    CON: 10
+    INT: 2
+    SAG: 14
+    CHA: 7
+  actions:
+    - nom: Talons
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d4 + 2) points de dégâts tranchants."
+      toucher: 4
+- id: spider
+  nom: Araignée
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/spider.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 12
+    INIT: 2
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 2
+    DEX: 14
+    CON: 8
+    INT: 1
+    SAG: 10
+    CHA: 2
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 1
+        point de dégâts perforants, et la cible doit réussir un jet de sauvegarde de Constitution DC
+        9 ou subir 2 (1d4) points de dégâts de poison."
+      toucher: 4
+- id: giant-spider
+  nom: Araignée géante
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-spider.png
+  valeurs:
+    niveau: 1
+    PV_Max: 26
+    Defense: 14
+    INIT: 3
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 14
+    DEX: 16
+    CON: 12
+    INT: 2
+    SAG: 11
+    CHA: 4
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature. Touché : 7
+        (1d8 + 3) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 11, subissant 9 (2d8) points de dégâts de poison en cas de sauvegarde ratée,
+        ou la moitié des dégâts en cas de sauvegarde réussie. Si les dégâts de poison réduisent la
+        cible à 0 point de vie, elle est stable mais empoisonnée pendant 1 heure, même après avoir
+        regagné des points de vie, et est paralysée tant qu'elle est empoisonnée de cette façon."
+      toucher: 5
+    - nom: Web
+      description:
+        "Attaque d'arme à distance : +5 pour toucher, portée 30/60 pieds, une créature. Touché
+        : La cible est retenue par une toile. Comme action, la cible retenue peut faire un test de
+        Force DC 12 et faire éclater la toile en cas de succès. La toile peut également être
+        attaquée et détruite (CA 10 ; pv 5 ; vulnérabilité aux dégâts de feu ; immunité aux coups,
+        au poison et aux dégâts psychiques)."
+      toucher: 5
+- id: giant-wolf-spider
+  nom: Araignée-loup géante
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-wolf-spider.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 11
+    Defense: 13
+    INIT: 3
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 12
+    DEX: 16
+    CON: 13
+    INT: 3
+    SAG: 12
+    CHA: 4
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une créature. Touché : 4
+        (1d6 + 1) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 11, subissant 7 (2d6) points de dégâts de poison en cas de sauvegarde ratée,
+        ou la moitié des dégâts en cas de sauvegarde réussie. Si les dégâts de poison réduisent la
+        cible à 0 point de vie, elle est stable mais empoisonnée pendant 1 heure, même après avoir
+        regagné des points de vie, et est paralysée tant qu'elle est empoisonnée de cette façon."
+      toucher: 3
+- id: baboon
+  nom: Babouin
+  entite: personnage
+  categorie: Bête
+  type: Bête (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/baboon.png
+  valeurs:
+    niveau: 0
+    PV_Max: 3
+    Defense: 12
+    INIT: 2
+    Contact: 0
+    Distance: 0
+    Magie: 0
+    FOR: 8
+    DEX: 14
+    CON: 11
+    INT: 4
+    SAG: 12
+    CHA: 6
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +1 au toucher, portée de 5 pieds, une cible. Touché : 1 (1d4
+        - 1) points de dégâts perforants."
+      toucher: 1
+- id: axe-beak
+  nom: Bec de hache
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/axe-beak.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 19
+    Defense: 11
+    INIT: 1
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 14
+    DEX: 12
+    CON: 12
+    INT: 2
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d8 + 2) points de dégâts tranchants."
+      toucher: 4
+- id: badger
+  nom: Blaireau
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/badger.png
+  valeurs:
+    niveau: 0
+    PV_Max: 3
+    Defense: 10
+    INIT: 0
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 4
+    DEX: 11
+    CON: 12
+    INT: 2
+    SAG: 12
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 1
+        dégât perforant."
+      toucher: 2
+- id: giant-badger
+  nom: Blaireau géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-badger.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 13
+    Defense: 10
+    INIT: 0
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 10
+    CON: 15
+    INT: 2
+    SAG: 12
+    CHA: 5
+  actions:
+    - nom: Multi-attaques
+      description: 'Le blaireau effectue deux attaques : une avec sa morsure et une avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) points de dégâts perforants."
+      toucher: 3
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (2d4 + 1) points de dégâts tranchants."
+      toucher: 3
+- id: jackal
+  nom: Chacal
+  entite: personnage
+  categorie: Bête
+  type: Bête (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/jackal.png
+  valeurs:
+    niveau: 0
+    PV_Max: 3
+    Defense: 12
+    INIT: 2
+    Contact: 0
+    Distance: 0
+    Magie: 0
+    FOR: 8
+    DEX: 15
+    CON: 11
+    INT: 3
+    SAG: 12
+    CHA: 6
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +1 au toucher, portée de 5 pieds, une cible. Touché : 1 (1d4
+        - 1) dégâts perforants."
+      toucher: 1
+- id: camel
+  nom: Chameau
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/camel.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 15
+    Defense: 9
+    INIT: -1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 16
+    DEX: 8
+    CON: 14
+    INT: 2
+    SAG: 8
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 2
+        (1d4) points de dégâts de matraquage."
+      toucher: 5
+- id: cat
+  nom: Chat
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/cat.png
+  valeurs:
+    niveau: 0
+    PV_Max: 2
+    Defense: 12
+    INIT: 2
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 15
+    CON: 10
+    INT: 3
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        point de dégâts tranchants."
+- id: bat
+  nom: Chauve-souris
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/bat.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 12
+    INIT: 2
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 2
+    DEX: 15
+    CON: 8
+    INT: 2
+    SAG: 12
+    CHA: 4
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une créature. Touché : 1
+        dégât perforant."
+- id: giant-bat
+  nom: Chauve-souris géante
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-bat.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 22
+    Defense: 13
+    INIT: 3
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 15
+    DEX: 16
+    CON: 11
+    INT: 2
+    SAG: 12
+    CHA: 6
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+- id: riding-horse
+  nom: Cheval d'équitation
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/riding-horse.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 13
+    Defense: 10
+    INIT: 0
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 16
+    DEX: 10
+    CON: 12
+    INT: 2
+    SAG: 11
+    CHA: 7
+  actions:
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (2d4 + 3) points de dégâts de matraquage."
+      toucher: 5
+- id: warhorse
+  nom: Cheval de guerre
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/warhorse.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 19
+    Defense: 11
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 18
+    DEX: 12
+    CON: 13
+    INT: 2
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts de matraquage."
+      toucher: 6
+- id: sea-horse
+  nom: Cheval de mer
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/sea-horse.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 11
+    INIT: 1
+    Contact: -4
+    Distance: -4
+    Magie: 0
+    FOR: 1
+    DEX: 12
+    CON: 8
+    INT: 1
+    SAG: 10
+    CHA: 2
+- id: draft-horse
+  nom: Cheval de trait
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://www.dnd5eapi.co/api/images/monsters/draft-horse.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 19
+    Defense: 10
+    INIT: 0
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 18
+    DEX: 10
+    CON: 12
+    INT: 2
+    SAG: 11
+    CHA: 7
+  actions:
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (2d4 + 4) points de dégâts de matraquage."
+      toucher: 6
+- id: goat
+  nom: Chèvre
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/goat.png
+  valeurs:
+    niveau: 0
+    PV_Max: 4
+    Defense: 10
+    INIT: 0
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 12
+    DEX: 10
+    CON: 11
+    INT: 2
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Ram
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 3
+        (1d4 + 1) dégâts de matraquage."
+      toucher: 3
+- id: giant-goat
+  nom: Chèvre géante
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-goat.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 19
+    Defense: 11
+    INIT: 0
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 17
+    DEX: 11
+    CON: 12
+    INT: 3
+    SAG: 12
+    CHA: 6
+  actions:
+    - nom: Ram
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (2d4 + 3) points de dégâts de matraquage."
+      toucher: 5
+- id: deer
+  nom: Chevreuil
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/deer.png
+  valeurs:
+    niveau: 0
+    PV_Max: 4
+    Defense: 13
+    INIT: 3
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 11
+    DEX: 16
+    CON: 11
+    INT: 2
+    SAG: 14
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 2
+        (1d4) points de dégâts perforants."
+      toucher: 2
+- id: giant-fire-beetle
+  nom: Coléoptère géant du feu
+  entite: personnage
+  categorie: Bête
+  type: Bête (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-fire-beetle.png
+  valeurs:
+    niveau: 0
+    PV_Max: 4
+    Defense: 13
+    INIT: 0
+    Contact: 0
+    Distance: 0
+    Magie: 0
+    FOR: 8
+    DEX: 10
+    CON: 12
+    INT: 1
+    SAG: 7
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +1 au toucher, portée de 5 pieds, une cible. Touché : 2 (1d6
+        - 1) points de dégâts tranchants."
+      toucher: 1
+- id: raven
+  nom: Corbeau
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/raven.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 12
+    INIT: 2
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 2
+    DEX: 14
+    CON: 8
+    INT: 2
+    SAG: 12
+    CHA: 6
+  actions:
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        dégât perforant."
+      toucher: 4
+- id: crab
+  nom: Crabe
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/crab.png
+  valeurs:
+    niveau: 0
+    PV_Max: 2
+    Defense: 11
+    INIT: 0
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 2
+    DEX: 11
+    CON: 10
+    INT: 1
+    SAG: 8
+    CHA: 2
+  actions:
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        dégât de matraquage."
+- id: giant-crab
+  nom: Crabe géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-crab.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 13
+    Defense: 15
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 15
+    CON: 11
+    INT: 1
+    SAG: 9
+    CHA: 3
+  actions:
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) points de dégâts de matraquage, et la cible est agrippée (échappatoire DC 11). Le
+        crabe possède deux pinces, chacune ne pouvant saisir qu'une seule cible."
+      toucher: 3
+- id: giant-toad
+  nom: Crapaud géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-toad.png
+  valeurs:
+    niveau: 1
+    PV_Max: 39
+    Defense: 11
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 13
+    CON: 13
+    INT: 2
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d10 + 2) points de dégâts perforants plus 5 (1d10) points de dégâts de poison, et la cible
+        est agrippée (échappatoire DC 13). Jusqu'à la fin de cette prise, la cible est immobilisée
+        et le crapaud ne peut pas mordre une autre cible."
+      toucher: 4
+    - nom: Avalez
+      description: >-
+        Le crapaud effectue une attaque de morsure contre une cible de taille moyenne ou plus petite
+        qu'il agrippe. Si l'attaque touche, la cible est avalée et la prise se termine. La cible
+        avalée est aveuglée et entravée, elle bénéficie d'une couverture totale contre les attaques
+        et autres effets extérieurs au crapaud, et elle subit 10 (3d6) points de dégâts d'acide au
+        début de chaque tour du crapaud. Le crapaud ne peut avaler qu'une seule cible à la fois.
+
+        Si le crapaud meurt, la créature avalée n'est plus retenue par lui et peut s'échapper du
+        cadavre en se déplaçant de 5 pieds, en sortant couchée.
+- id: crocodile
+  nom: Crocodile
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/crocodile.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 19
+    Defense: 12
+    INIT: 0
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 15
+    DEX: 10
+    CON: 13
+    INT: 2
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 7
+        (1d10 + 2) points de dégâts perforants, et la cible est agrippée (échappatoire DC 12).
+        Jusqu'à la fin de cette prise, la cible est immobilisée et le crocodile ne peut pas mordre
+        une autre cible"
+      toucher: 4
+- id: giant-crocodile
+  nom: Crocodile géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-crocodile.png
+  valeurs:
+    niveau: 5
+    PV_Max: 85
+    Defense: 14
+    INIT: -1
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 21
+    DEX: 9
+    CON: 17
+    INT: 2
+    SAG: 10
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: 'Le crocodile effectue deux attaques : une avec sa morsure et une avec sa queue.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une cible. Touché : 21
+        (3d10 + 5) points de dégâts perforants, et la cible est agrippée (échappatoire DC 16).
+        Jusqu'à la fin de cette prise, la cible est immobilisée et le crocodile ne peut pas mordre
+        une autre cible."
+      toucher: 8
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible non agrippée
+        par le crocodile. Touché : 14 (2d8 + 5) points de dégâts de matraquage. Si la cible est une
+        créature, elle doit réussir un jet de sauvegarde de Force DC 16 ou être mise à terre."
+      toucher: 8
+- id: giant-elk
+  nom: Élan géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-elk.png
+  valeurs:
+    niveau: 2
+    PV_Max: 42
+    Defense: 14
+    INIT: 3
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 16
+    CON: 14
+    INT: 7
+    SAG: 14
+    CHA: 10
+  actions:
+    - nom: Ram
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts de matraquage."
+      toucher: 6
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature à terre.
+        Touché : 22 (4d8 + 4) points de dégâts de matraquage."
+      toucher: 6
+- id: elephant
+  nom: Éléphant
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/elephant.png
+  valeurs:
+    niveau: 4
+    PV_Max: 76
+    Defense: 12
+    INIT: -1
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 22
+    DEX: 9
+    CON: 17
+    INT: 3
+    SAG: 11
+    CHA: 6
+  actions:
+    - nom: Gore
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une cible. Touché : 19
+        (3d8 + 6) points de dégâts perforants."
+      toucher: 8
+    - nom: Stomp
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une créature à terre.
+        Touché : 22 (3d10 + 6) points de dégâts de matraquage."
+      toucher: 8
+- id: hawk
+  nom: Faucon
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/hawk.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 13
+    INIT: 3
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 5
+    DEX: 16
+    CON: 8
+    INT: 2
+    SAG: 14
+    CHA: 6
+  actions:
+    - nom: Talons
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        point de dégâts tranchants."
+      toucher: 5
+- id: blood-hawk
+  nom: Faucon de sang
+  entite: personnage
+  categorie: Bête
+  type: Bête (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/blood-hawk.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 7
+    Defense: 12
+    INIT: 2
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 6
+    DEX: 14
+    CON: 10
+    INT: 3
+    SAG: 14
+    CHA: 5
+  actions:
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d4 + 2) points de dégâts perforants."
+      toucher: 4
+- id: weasel
+  nom: Fouine
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/weasel.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 13
+    INIT: 3
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 16
+    CON: 8
+    INT: 2
+    SAG: 12
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature. Touché : 1
+        dégât perforant."
+      toucher: 5
+- id: giant-weasel
+  nom: Fouine géante
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-weasel.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 9
+    Defense: 13
+    INIT: 3
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 11
+    DEX: 16
+    CON: 10
+    INT: 4
+    SAG: 12
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d4 + 3) points de dégâts perforants."
+      toucher: 5
+- id: giant-eagle
+  nom: Giant Eagle
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : neutre bon.'
+  image: https://assets.yner.fr/bestaire/giant-eagle.png
+  valeurs:
+    niveau: 1
+    PV_Max: 26
+    Defense: 13
+    INIT: 3
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 17
+    CON: 13
+    INT: 8
+    SAG: 14
+    CHA: 10
+  actions:
+    - nom: Multi-attaques
+      description: "L'aigle effectue deux attaques : une avec son bec et une avec ses serres."
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Talons
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts tranchants."
+      toucher: 5
+- id: frog
+  nom: Grenouille
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/frog.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 11
+    INIT: 1
+    Contact: -4
+    Distance: -4
+    Magie: 0
+    FOR: 1
+    DEX: 13
+    CON: 8
+    INT: 1
+    SAG: 8
+    CHA: 3
+- id: giant-frog
+  nom: Grenouille géante
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-frog.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 18
+    Defense: 11
+    INIT: 1
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 12
+    DEX: 13
+    CON: 11
+    INT: 2
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) points de dégâts perforants, et la cible est agrippée (échappatoire DC 11).
+        Jusqu'à la fin de cette prise, la cible est immobilisée et la grenouille ne peut pas mordre
+        une autre cible."
+      toucher: 3
+    - nom: Avalez
+      description:
+        La grenouille effectue une attaque de morsure contre une cible de petite taille ou plus
+        petite qu'elle agrippe. Si l'attaque touche, la cible est avalée et le grappin prend fin. La
+        cible avalée est aveuglée et entravée, elle bénéficie d'une couverture totale contre les
+        attaques et autres effets extérieurs à la grenouille, et elle subit 5 (2d4) points de dégâts
+        d'acide au début de chaque tour de la grenouille. La grenouille ne peut avaler qu'une seule
+        cible à la fois. Si la grenouille meurt, la créature avalée n'est plus retenue par elle et
+        peut s'échapper du cadavre en se déplaçant de 5 pieds, en sortant couchée.
+- id: giant-wasp
+  nom: Guêpe géante
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-wasp.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 13
+    Defense: 12
+    INIT: 2
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 10
+    DEX: 14
+    CON: 10
+    INT: 1
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Sting
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 5
+        (1d6 + 2) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 11, subissant 10 (3d6) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié des dégâts en cas de sauvegarde réussie. Si les dégâts de poison
+        réduisent la cible à 0 point de vie, elle est stable mais empoisonnée pendant 1 heure, même
+        après avoir regagné des points de vie, et est paralysée tant qu'elle est empoisonnée de
+        cette façon."
+      toucher: 4
+- id: owl
+  nom: Hibou
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/owl.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 11
+    INIT: 1
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 13
+    CON: 8
+    INT: 2
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Talons
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        point de dégâts tranchants."
+      toucher: 3
+- id: giant-owl
+  nom: Hibou géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/giant-owl.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 19
+    Defense: 12
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 15
+    CON: 12
+    INT: 8
+    SAG: 13
+    CHA: 10
+  actions:
+    - nom: Talons
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (2d6 + 1) points de dégâts tranchants."
+      toucher: 3
+- id: giant-sea-horse
+  nom: Hippocampe géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-sea-horse.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 16
+    Defense: 13
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 12
+    DEX: 15
+    CON: 11
+    INT: 2
+    SAG: 12
+    CHA: 5
+  actions:
+    - nom: Ram
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) dégâts de matraquage."
+      toucher: 3
+- id: hyena
+  nom: Hyène
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/hyena.png
+  valeurs:
+    niveau: 0
+    PV_Max: 5
+    Defense: 11
+    INIT: 1
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 11
+    DEX: 13
+    CON: 12
+    INT: 2
+    SAG: 12
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 3
+        (1d6) points de dégâts perforants."
+      toucher: 2
+- id: giant-hyena
+  nom: Hyène géante
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-hyena.png
+  valeurs:
+    niveau: 1
+    PV_Max: 45
+    Defense: 12
+    INIT: 2
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 14
+    CON: 14
+    INT: 2
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts perforants."
+      toucher: 5
+- id: killer-whale
+  nom: L'orque
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/killer-whale.png
+  valeurs:
+    niveau: 3
+    PV_Max: 90
+    Defense: 12
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 13
+    INT: 3
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 21
+        (5d6 + 4) points de dégâts perforants."
+      toucher: 6
+- id: lizard
+  nom: Lézard
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/lizard.png
+  valeurs:
+    niveau: 0
+    PV_Max: 2
+    Defense: 10
+    INIT: 0
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 2
+    DEX: 11
+    CON: 10
+    INT: 1
+    SAG: 8
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        dégât perforant."
+- id: giant-lizard
+  nom: Lézard géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-lizard.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 19
+    Defense: 12
+    INIT: 1
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 15
+    DEX: 12
+    CON: 13
+    INT: 2
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d8 + 2) points de dégâts perforants."
+      toucher: 4
+- id: lion
+  nom: Lion
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/lion.png
+  valeurs:
+    niveau: 1
+    PV_Max: 26
+    Defense: 12
+    INIT: 2
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 15
+    CON: 13
+    INT: 3
+    SAG: 12
+    CHA: 8
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts tranchants."
+      toucher: 5
+- id: wolf
+  nom: Loup
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/wolf.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 11
+    Defense: 13
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 12
+    DEX: 15
+    CON: 12
+    INT: 3
+    SAG: 12
+    CHA: 6
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (2d4 + 2) points de dégâts perforants. Si la cible est une créature, elle doit réussir un
+        jet de sauvegarde de Force DC 11 ou être mise à terre."
+      toucher: 4
+- id: dire-wolf
+  nom: Loup sinistre
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/dire-wolf.png
+  valeurs:
+    niveau: 1
+    PV_Max: 37
+    Defense: 14
+    INIT: 2
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 15
+    CON: 15
+    INT: 3
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts perforants. Si la cible est une créature, elle doit réussir un
+        jet de sauvegarde de Force DC 13 ou être mise à terre."
+      toucher: 5
+- id: mammoth
+  nom: Mammouth
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/mammoth.png
+  valeurs:
+    niveau: 6
+    PV_Max: 126
+    Defense: 13
+    INIT: -1
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 24
+    DEX: 9
+    CON: 21
+    INT: 3
+    SAG: 11
+    CHA: 6
+  actions:
+    - nom: Gore
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 25
+        (4d8 + 7) points de dégâts perforants."
+      toucher: 10
+    - nom: Stomp
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une créature à terre.
+        Touché : 29 (4d10 + 7) dégâts de matraquage."
+      toucher: 10
+- id: mastiff
+  nom: Mastiff
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/mastiff.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 5
+    Defense: 12
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 14
+    CON: 12
+    INT: 3
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) points de dégâts perforants. Si la cible est une créature, elle doit réussir un
+        jet de sauvegarde de Force DC 11 ou être mise à terre."
+      toucher: 3
+- id: giant-centipede
+  nom: Mille-pattes géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-centipede.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 4
+    Defense: 13
+    INIT: 2
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 5
+    DEX: 14
+    CON: 12
+    INT: 1
+    SAG: 7
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 4
+        (1d4 + 2) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de
+        Constitution DC 11 ou subir 10 (3d6) points de dégâts de poison. Si les dégâts de poison
+        réduisent la cible à 0 point de vie, elle est stable mais empoisonnée pendant 1 heure, même
+        après avoir regagné des points de vie, et elle est paralysée tant qu'elle est empoisonnée de
+        cette façon."
+      toucher: 4
+- id: mule
+  nom: Mule
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/mule.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 11
+    Defense: 10
+    INIT: 0
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 14
+    DEX: 10
+    CON: 13
+    INT: 2
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d4 + 2) dégâts de matraquage."
+      toucher: 2
+- id: brown-bear
+  nom: Ours brun
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/brown-bear.png
+  valeurs:
+    niveau: 1
+    PV_Max: 34
+    Defense: 11
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 16
+    INT: 2
+    SAG: 13
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: "L'ours effectue deux attaques : une avec sa morsure et une avec ses griffes."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d8 + 4) points de dégâts perforants."
+      toucher: 5
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 5
+- id: black-bear
+  nom: Ours noir
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/black-bear.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 19
+    Defense: 11
+    INIT: 0
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 15
+    DEX: 10
+    CON: 14
+    INT: 2
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: "L'ours effectue deux attaques : une avec sa morsure et une avec ses griffes."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 3
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (2d4 + 2) points de dégâts tranchants."
+      toucher: 3
+- id: polar-bear
+  nom: Ours polaire
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/polar-bear.png
+  valeurs:
+    niveau: 2
+    PV_Max: 42
+    Defense: 12
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 20
+    DEX: 10
+    CON: 16
+    INT: 2
+    SAG: 13
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: "L'ours effectue deux attaques : une avec sa morsure et une avec ses griffes."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (1d8 + 5) points de dégâts perforants."
+      toucher: 7
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 12
+        (2d6 + 5) points de dégâts tranchants."
+      toucher: 7
+- id: panther
+  nom: Panthère
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/panther.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 13
+    Defense: 12
+    INIT: 2
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 14
+    DEX: 15
+    CON: 10
+    INT: 3
+    SAG: 14
+    CHA: 7
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d4 + 2) points de dégâts tranchants."
+      toucher: 4
+- id: octopus
+  nom: Pieuvre
+  entite: personnage
+  categorie: Bête
+  type: Bête (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/octopus.png
+  valeurs:
+    niveau: 0
+    PV_Max: 3
+    Defense: 12
+    INIT: 2
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 4
+    DEX: 15
+    CON: 11
+    INT: 3
+    SAG: 10
+    CHA: 4
+  actions:
+    - nom: Tentacules
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        dégât de matraquage, et la cible est agrippée (échappatoire DC 10). Jusqu'à la fin de cette
+        prise, la pieuvre ne peut pas utiliser ses tentacules sur une autre cible."
+      toucher: 4
+    - nom: Nuage d'encre
+      description:
+        Un nuage d'encre d'un rayon de 5 pieds s'étend tout autour de la pieuvre si elle est
+        sous l'eau. La zone est fortement obscurcie pendant 1 minute, bien qu'un courant important
+        puisse disperser l'encre. Après avoir libéré l'encre, la pieuvre peut utiliser l'action Dash
+        comme action bonus.
+- id: giant-octopus
+  nom: Pieuvre géante
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-octopus.png
+  valeurs:
+    niveau: 1
+    PV_Max: 52
+    Defense: 11
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 13
+    CON: 13
+    INT: 4
+    SAG: 10
+    CHA: 4
+  actions:
+    - nom: Tentacules
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 15 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts de matraquage. Si la cible est une créature, elle est agrippée
+        (échappatoire DC 16). Jusqu'à la fin de cette prise, la cible est immobilisée et la pieuvre
+        ne peut pas utiliser ses tentacules sur une autre cible."
+      toucher: 5
+    - nom: Nuage d'encre
+      description:
+        Un nuage d'encre d'un rayon de 20 pieds s'étend tout autour de la pieuvre si elle est
+        sous l'eau. La zone est fortement obscurcie pendant 1 minute, bien qu'un courant important
+        puisse disperser l'encre. Après avoir libéré l'encre, la pieuvre peut utiliser l'action Dash
+        comme action bonus.
+- id: plesiosaurus
+  nom: Plesiosaurus
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/plesiosaurus.png
+  valeurs:
+    niveau: 2
+    PV_Max: 68
+    Defense: 13
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 15
+    CON: 16
+    INT: 2
+    SAG: 12
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 14
+        (3d6 + 4) points de dégâts perforants."
+      toucher: 6
+- id: pony
+  nom: Poney
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/pony.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 11
+    Defense: 10
+    INIT: 0
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 15
+    DEX: 10
+    CON: 13
+    INT: 2
+    SAG: 11
+    CHA: 7
+  actions:
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (2d4 + 2) points de dégâts de matraquage."
+      toucher: 4
+- id: quipper
+  nom: Quipper
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/quipper.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 13
+    INIT: 3
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 2
+    DEX: 16
+    CON: 9
+    INT: 1
+    SAG: 7
+    CHA: 2
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        dégât perforant."
+      toucher: 5
+- id: rat
+  nom: Rat
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/rat.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 10
+    INIT: 0
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 2
+    DEX: 11
+    CON: 9
+    INT: 2
+    SAG: 10
+    CHA: 4
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        dégât perforant."
+- id: giant-rat
+  nom: Rat géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-rat.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 7
+    Defense: 12
+    INIT: 2
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 7
+    DEX: 15
+    CON: 11
+    INT: 2
+    SAG: 10
+    CHA: 4
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d4 + 2) points de dégâts perforants."
+      toucher: 4
+- id: giant-rat-diseased
+  nom: Rat géant (malade)
+  entite: personnage
+  categorie: Bête
+  type: Bête (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-rat-diseased.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 7
+    Defense: 12
+    INIT: 2
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 7
+    DEX: 15
+    CON: 11
+    INT: 2
+    SAG: 10
+    CHA: 4
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 3
+        (1d4 + 2) points de dégâts perforants. Si la cible est une créature, elle doit réussir un
+        jet de sauvegarde de Constitution DC 10 ou contracter une maladie. Tant que la maladie n'est
+        pas guérie, la cible ne peut pas regagner de points de vie, sauf par des moyens magiques, et
+        son maximum de points de vie diminue de 3 (1d6) toutes les 24 heures. Si le maximum de
+        points de vie de la cible tombe à 0 à cause de cette maladie, la cible meurt."
+      toucher: 4
+- id: hunter-shark
+  nom: Requin chasseur
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/hunter-shark.png
+  valeurs:
+    niveau: 2
+    PV_Max: 45
+    Defense: 12
+    INIT: 1
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 13
+    CON: 15
+    INT: 1
+    SAG: 10
+    CHA: 4
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts perforants."
+      toucher: 6
+- id: reef-shark
+  nom: Requin de récif
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/reef-shark.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 12
+    INIT: 1
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 14
+    DEX: 13
+    CON: 13
+    INT: 1
+    SAG: 10
+    CHA: 4
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d8 + 2) points de dégâts perforants."
+      toucher: 4
+- id: giant-shark
+  nom: Requin géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-shark.png
+  valeurs:
+    niveau: 5
+    PV_Max: 126
+    Defense: 13
+    INIT: 0
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 23
+    DEX: 11
+    CON: 21
+    INT: 1
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 22
+        (3d10 + 6) points de dégâts perforants."
+      toucher: 9
+- id: rhinoceros
+  nom: Rhinocéros
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/rhinoceros.png
+  valeurs:
+    niveau: 2
+    PV_Max: 45
+    Defense: 11
+    INIT: -1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 21
+    DEX: 8
+    CON: 15
+    INT: 2
+    SAG: 12
+    CHA: 6
+  actions:
+    - nom: Gore
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (2d8 + 5) points de dégâts de matraquage."
+      toucher: 7
+- id: boar
+  nom: Sanglier
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/boar.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 11
+    Defense: 11
+    INIT: 0
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 11
+    CON: 12
+    INT: 2
+    SAG: 9
+    CHA: 5
+  actions:
+    - nom: Buste
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) points de dégâts tranchants."
+      toucher: 3
+- id: giant-boar
+  nom: Sanglier géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-boar.png
+  valeurs:
+    niveau: 2
+    PV_Max: 42
+    Defense: 12
+    INIT: 0
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 10
+    CON: 16
+    INT: 2
+    SAG: 7
+    CHA: 5
+  actions:
+    - nom: Buste
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts tranchants."
+      toucher: 5
+- id: scorpion
+  nom: Scorpion
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/scorpion.png
+  valeurs:
+    niveau: 0
+    PV_Max: 1
+    Defense: 11
+    INIT: 0
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 2
+    DEX: 11
+    CON: 8
+    INT: 1
+    SAG: 8
+    CHA: 2
+  actions:
+    - nom: Sting
+      description:
+        "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une créature. Touché : 1
+        dégât perforant, et la cible doit faire un jet de sauvegarde de Constitution DC 9, subissant
+        4 (1d8) dégâts de poison en cas de sauvegarde ratée, ou la moitié des dégâts en cas de
+        sauvegarde réussie."
+      toucher: 2
+- id: giant-scorpion
+  nom: Scorpion géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-scorpion.png
+  valeurs:
+    niveau: 3
+    PV_Max: 52
+    Defense: 15
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 13
+    CON: 15
+    INT: 1
+    SAG: 9
+    CHA: 3
+  actions:
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d8 + 2) points de dégâts de matraquage, et la cible est agrippée (échappatoire DC 12). Le
+        scorpion possède deux griffes, chacune ne pouvant saisir qu'une seule cible."
+      toucher: 4
+    - nom: Multi-attaques
+      description: 'Le scorpion effectue trois attaques : deux avec ses griffes et une avec son dard.'
+    - nom: Sting
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 7
+        (1d10 + 2) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 12, subissant 22 (4d10) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié en cas de sauvegarde réussie."
+      toucher: 4
+- id: constrictor-snake
+  nom: Serpent constricteur
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/constrictor-snake.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 13
+    Defense: 12
+    INIT: 2
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 15
+    DEX: 14
+    CON: 12
+    INT: 1
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Constrict
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 6
+        (1d8 + 2) points de dégâts de matraquage, et la cible est agrippée (échappatoire DC 14).
+        Jusqu'à la fin de cette prise, la créature est immobilisée et le serpent ne peut pas
+        immobiliser une autre cible."
+      toucher: 4
+- id: giant-constrictor-snake
+  nom: Serpent constricteur géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-constrictor-snake.png
+  valeurs:
+    niveau: 2
+    PV_Max: 60
+    Defense: 12
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 14
+    CON: 12
+    INT: 1
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une créature. Touché :
+        11 (2d6 + 4) points de dégâts perforants."
+      toucher: 6
+    - nom: Constrict
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature. Touché :
+        13 (2d8 + 4) points de dégâts contondants, et la cible est agrippée (échappatoire DC 16).
+        Jusqu'à la fin de cette prise, la créature est immobilisée et le serpent ne peut pas
+        immobiliser une autre cible."
+      toucher: 6
+- id: poisonous-snake
+  nom: Serpent venimeux
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/poisonous-snake.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 2
+    Defense: 13
+    INIT: 3
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 2
+    DEX: 16
+    CON: 11
+    INT: 1
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        dégât perforant, et la cible doit faire un jet de sauvegarde de Constitution DC 10,
+        subissant 5 (2d4) dégâts de poison en cas de sauvegarde ratée, ou la moitié des dégâts en
+        cas de sauvegarde réussie."
+      toucher: 5
+- id: giant-poisonous-snake
+  nom: Serpent venimeux géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-poisonous-snake.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 11
+    Defense: 14
+    INIT: 4
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 10
+    DEX: 18
+    CON: 13
+    INT: 2
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 6
+        (1d4 + 4) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 11, subissant 10 (3d6) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié des dégâts en cas de sauvegarde réussie."
+      toucher: 6
+- id: flying-snake
+  nom: Serpent volant
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/flying-snake.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 5
+    Defense: 14
+    INIT: 4
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 4
+    DEX: 18
+    CON: 11
+    INT: 2
+    SAG: 12
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 1
+        point de dégâts perforants plus 7 (3d4) points de dégâts de poison."
+      toucher: 6
+- id: ape
+  nom: Singe
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/ape.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 19
+    Defense: 12
+    INIT: 2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 16
+    DEX: 14
+    CON: 14
+    INT: 6
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: Le singe effectue deux attaques de poing.
+    - nom: Poing
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts de matraquage."
+      toucher: 5
+    - nom: Le rocher
+      description:
+        "Attaque d'arme à distance : +5 pour toucher, portée 25/50 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts de matraquage."
+      toucher: 5
+- id: giant-ape
+  nom: Singe géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/giant-ape.png
+  valeurs:
+    niveau: 7
+    PV_Max: 157
+    Defense: 12
+    INIT: 2
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 23
+    DEX: 14
+    CON: 18
+    INT: 7
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: Le singe effectue deux attaques de poing.
+    - nom: Poing
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une cible. Touché : 22
+        (3d10 + 6) points de dégâts de matraquage."
+      toucher: 9
+    - nom: Le rocher
+      description:
+        "Attaque d'arme à distance : +9 pour toucher, portée 50/100 pieds, une cible. Touché :
+        30 (7d6 + 6) points de dégâts de matraquage."
+      toucher: 9
+- id: stirge
+  nom: Stirge
+  entite: personnage
+  categorie: Bête
+  type: Bête (très petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/stirge.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 2
+    Defense: 14
+    INIT: 3
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 4
+    DEX: 16
+    CON: 11
+    INT: 2
+    SAG: 8
+    CHA: 6
+  actions:
+    - nom: Drainage sanguin
+      description: >-
+        Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature. Touché : 5 (1d4
+        + 3) points de dégâts perforants, et l'étrier s'attache à la cible. Tant qu'il est attaché,
+        l'étrog n'attaque pas. Au lieu de cela, au début de chaque tour de l'étrog, la cible perd 5
+        (1d4 + 3) points de vie à cause de la perte de sang.
+
+        L'étang peut se détacher en dépensant 5 pieds de son mouvement. Il le fait après avoir
+        drainé 10 points de vie de sang de la cible ou après que celle-ci soit morte. Une créature,
+        y compris la cible, peut utiliser son action pour détacher l'étrog.
+      toucher: 5
+- id: tiger
+  nom: Tigre
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/tiger.png
+  valeurs:
+    niveau: 1
+    PV_Max: 37
+    Defense: 12
+    INIT: 2
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 15
+    CON: 14
+    INT: 3
+    SAG: 12
+    CHA: 8
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d10 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts tranchants."
+      toucher: 5
+- id: saber-toothed-tiger
+  nom: Tigre à dents de sabre
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/saber-toothed-tiger.png
+  valeurs:
+    niveau: 2
+    PV_Max: 52
+    Defense: 12
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 14
+    CON: 15
+    INT: 3
+    SAG: 12
+    CHA: 8
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (1d10 + 5) points de dégâts perforants."
+      toucher: 6
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 12
+        (2d6 + 5) points de dégâts tranchants."
+      toucher: 6
+- id: triceratops
+  nom: Triceratops
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/triceratops.png
+  valeurs:
+    niveau: 5
+    PV_Max: 95
+    Defense: 13
+    INIT: -1
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 22
+    DEX: 9
+    CON: 17
+    INT: 2
+    SAG: 11
+    CHA: 5
+  actions:
+    - nom: Gore
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 24
+        (4d8 + 6) points de dégâts perforants."
+      toucher: 9
+    - nom: Stomp
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une créature à terre.
+        Touché : 22 (3d10 + 6) dégâts de matraquage."
+      toucher: 9
+- id: tyrannosaurus-rex
+  nom: Tyrannosaurus Rex
+  entite: personnage
+  categorie: Bête
+  type: Bête (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/tyrannosaurus-rex.png
+  valeurs:
+    niveau: 8
+    PV_Max: 136
+    Defense: 13
+    INIT: 0
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 25
+    DEX: 10
+    CON: 19
+    INT: 2
+    SAG: 12
+    CHA: 9
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le tyrannosaure effectue deux attaques : une avec sa morsure et une avec sa queue. Il
+        ne peut pas faire les deux attaques contre la même cible.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 33
+        (4d12 + 7) points de dégâts perforants. Si la cible est une créature moyenne ou plus petite,
+        elle est agrippée (évasion DC 17). Jusqu'à la fin de cette prise, la cible est immobilisée
+        et le tyrannosaure ne peut pas mordre une autre cible."
+      toucher: 10
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 20
+        (3d8 + 7) points de dégâts de matraquage."
+      toucher: 10
+- id: vulture
+  nom: Vautour
+  entite: personnage
+  categorie: Bête
+  type: Bête (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/vulture.png
+  valeurs:
+    niveau: 0
+    PV_Max: 5
+    Defense: 10
+    INIT: 0
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 7
+    DEX: 10
+    CON: 13
+    INT: 2
+    SAG: 12
+    CHA: 4
+  actions:
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 2
+        (1d4) points de dégâts perforants."
+      toucher: 2
+- id: giant-vulture
+  nom: Vautour géant
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/giant-vulture.png
+  valeurs:
+    niveau: 1
+    PV_Max: 22
+    Defense: 10
+    INIT: 0
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 10
+    CON: 15
+    INT: 6
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: 'Le vautour effectue deux attaques : une avec son bec et une avec ses serres.'
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (2d4 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Talons
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (2d6 + 2) points de dégâts tranchants."
+      toucher: 4
+- id: elk
+  nom: Wapiti
+  entite: personnage
+  categorie: Bête
+  type: Bête (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://www.dnd5eapi.co/api/images/monsters/elk.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 13
+    Defense: 10
+    INIT: 0
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 16
+    DEX: 10
+    CON: 12
+    INT: 2
+    SAG: 10
+    CHA: 6
+  actions:
+    - nom: Ram
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts de matraquage."
+      toucher: 5
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature à terre.
+        Touché : 8 (2d4 + 3) points de dégâts de matraquage."
+      toucher: 5

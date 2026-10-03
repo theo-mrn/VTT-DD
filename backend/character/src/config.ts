@@ -1,0 +1,74 @@
+import { BaseConfig, OrphanSweepSettings } from '@vtt/platform';
+import { z } from 'zod';
+
+/** Variable facultative : une valeur vide dans le .env vaut absente. */
+const facultatif = <S extends z.ZodType>(schema: S) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
+
+export const CharacterConfig = BaseConfig.extend({
+  SERVICE_NAME: z.string().default('character'),
+  PORT: z.coerce.number().int().positive().default(3002),
+  /** Connexion avec le rôle characters_svc (jamais characters_owner). */
+  DATABASE_URL: z.string().min(1),
+  /**
+   * Connexion directe à Postgres (hors PgBouncer) pour le LISTEN du relais
+   * d'outbox : LISTEN ne traverse pas un pooler en mode transaction. Absent : DATABASE_URL.
+   */
+  DATABASE_DIRECT_URL: facultatif(z.string().min(1)),
+  /**
+   * Bus NATS JetStream (`nats://hôte:4222`, plusieurs séparés par des virgules) :
+   * le relais y publie l'outbox. Absent : les événements restent dans l'outbox.
+   */
+  NATS_URL: facultatif(z.string().min(1)),
+
+  /** Jetons d'accès émis par identity : mêmes valeurs que la gateway. */
+  JWT_ISSUER: z.string().min(1),
+  JWT_AUDIENCE: z.string().min(1),
+  /** JWKS publié par identity. Facultatif seulement en test (résolveur de clé fourni). */
+  JWKS_URL: z.string().url().optional(),
+
+  /** Actions (jets de dés tirés par le serveur) par minute et par IP. */
+  RATE_LIMIT_ACTIONS_MAX: z.coerce.number().int().positive().default(120),
+
+  /**
+   * Secret partagé entre services (en-tête x-internal-secret) : protège les
+   * routes /internal appelées par campaign, et accompagne les appels de
+   * character vers campaign. Absent : pas de route interne, pas de droits de MJ.
+   */
+  INTERNAL_API_SECRET: facultatif(z.string().min(32)),
+  /**
+   * Service campaign, interrogé quand l'appelant n'est pas propriétaire d'un
+   * personnage (MJ ou joueur de la salle où il est engagé). Absent : seul le
+   * propriétaire accède à ses personnages.
+   */
+  CAMPAIGN_URL: facultatif(z.string().url()),
+  /**
+   * Service dice : chaque jet d'action lui est transmis (POST /internal/rolls)
+   * pour l'historique des jets. Absent : les jets d'action n'y apparaissent pas.
+   */
+  DICE_URL: facultatif(z.string().url()),
+  /**
+   * Stockage des portraits (docs/uploads.md) : SeaweedFS en dev (`pnpm dev --stockage`), R2 en
+   * prod ; mêmes valeurs que campaign et identity. Absent : l'envoi répond 503.
+   */
+  S3_ENDPOINT: facultatif(z.string().url()),
+  S3_REGION: z.string().default('auto'),
+  S3_BUCKET: facultatif(z.string()),
+  S3_ACCESS_KEY_ID: facultatif(z.string()),
+  S3_SECRET_ACCESS_KEY: facultatif(z.string()),
+  /** URL publique des fichiers envoyés (domaine R2 en prod). */
+  S3_PUBLIC_URL: facultatif(z.string().url()),
+  /** Passe d'entretien (purge de la corbeille, docs/nettoyage.md), en minutes ; 0 : jamais. */
+  CLEANUP_EVERY_MINUTES: z.coerce.number().int().nonnegative().default(60),
+  /** Journalise ce que la passe supprimerait, sans rien supprimer (première mise en prod). */
+  CLEANUP_DRY_RUN: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  /** Durée de vie en mémoire des droits renvoyés par campaign, en millisecondes. */
+  DROITS_CACHE_MS: z.coerce.number().int().nonnegative().default(5_000),
+
+  /** Fichiers orphelins de ses dossiers du stockage (docs/nettoyage.md § Fichiers). */
+  ...OrphanSweepSettings,
+});
+export type CharacterConfig = z.infer<typeof CharacterConfig>;

@@ -1,0 +1,479 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  quality:
+    name: Lint, types, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
+        with: { egress-policy: audit }
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with: { fetch-depth: 0 } # --affected compare avec la branche de base
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Format
+        run: pnpm format:check
+      - name: Commits conventionnels
+        if: github.event_name == 'pull_request'
+        run: pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+      - name: Variables factices pour le build Next
+        run: grep -E '^[A-Z0-9_]+=' infra/ci/build-placeholders.env >> "$GITHUB_ENV"
+      - name: Lint, typecheck, tests, build (paquets modifiés)
+        env:
+          # --affected compare à la branche de base distante (sans « origin/ », turbo ne la trouve pas)
+          TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+        run: |
+          set -o pipefail
+          affected=${{ github.event_name == 'pull_request' && '--affected' || '' }}
+          pnpm turbo run lint typecheck build --output-logs=errors-only $affected 2>&1 | tee /tmp/turbo.log
+          # Tests deux paquets à la fois : tous ensemble, les tests de propriétés (vision, systemes)
+          # et les garde-fous d'événements dépassent leurs délais sur les 4 cœurs du runner
+          pnpm turbo run test --concurrency=2 --continue --output-logs=errors-only $affected \
+            -- --coverage.enabled --coverage.reporter=lcov 2>&1 | tee -a /tmp/turbo.log
+      - name: Couverture des tests unitaires (pour SonarQube)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-unit
+          path: |
+            **/coverage/lcov.info
+            !**/node_modules/**
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Résumé de l'échec
+        if: failure()
+        run: |
+          # Les dernières lignes utiles en annotation : lisibles sur la PR sans ouvrir les logs
+          msg=$(grep -vE '^\s*$' /tmp/turbo.log | grep -vE 'warning ' | tail -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+          echo "::error title=Échec lint/typecheck/tests/build::${msg}"
+
+  sql:
+    name: Tests SQL (PostGIS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env: { POSTGRES_USER: vtt, POSTGRES_PASSWORD: vtt, POSTGRES_DB: vtt }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U vtt" --health-interval 5s --health-retries 10
+      # Bus et cache des tests d'intégration : mêmes images que le dev local (infra/local),
+      # sans authentification (les comptes NATS et les ACL Valkey ne concernent que le cluster)
+      nats:
+        image: nats:2.11.17-alpine@sha256:e4bf19f15fd3218814a4e3c9e0064e1334bd8aa20d5984b9f1a0afd084f8cc00
+        command: -js -m 8222
+        ports: ['4222:4222']
+        options: >-
+          --health-cmd "wget -q -O /dev/null http://127.0.0.1:8222/healthz" --health-interval 5s
+          --health-retries 10
+      valkey:
+        image: valkey/valkey:8.1.10-alpine@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "valkey-cli ping" --health-interval 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: vtt
+      PGPASSWORD: vtt
+      PGDATABASE: vtt
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Initialisation (identique au dev local)
+        run: |
+          for f in infra/postgres/init/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+          psql -v ON_ERROR_STOP=1 -q -f infra/cluster/data/schemas.sql
+      - name: Tests spatial, outbox, historique
+        run: psql -v ON_ERROR_STOP=1 -f infra/postgres/tests/smoke.sql
+      # Chaque service est migré avec son rôle propriétaire ; update-testing-rollback
+      # applique, annule puis réapplique : un rollback cassé fait échouer la CI.
+      - name: Migrations Liquibase (applique, annule, réapplique)
+        run: |
+          for svc in identity character campaign dice billing history audio; do
+            infra/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
+          done
+      - name: Droits et contraintes du schéma identity
+        run: bash infra/postgres/tests/identity-droits.sh
+      - name: Droits et contraintes du schéma characters
+        run: bash infra/postgres/tests/character-droits.sh
+      - name: Droits et contraintes du schéma campaign
+        run: bash infra/postgres/tests/campaign-droits.sh
+      - name: Droits et contraintes du schéma dice
+        run: bash infra/postgres/tests/dice-droits.sh
+      - name: Droits et contraintes du schéma billing
+        run: bash infra/postgres/tests/billing-droits.sh
+      - name: Droits, ajout seul et chaîne du schéma history
+        run: bash infra/postgres/tests/history-droits.sh
+      - name: Droits et contraintes du schéma audio
+        run: bash infra/postgres/tests/audio-droits.sh
+      # Tests d'intégration des services sur la base migrée ci-dessus, avec le rôle
+      # du service (jamais le propriétaire) : ils sont ignorés dans le job qualité.
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      # Installation complète : le fournisseur de couverture (@vitest/coverage-v8) est à la racine
+      - run: pnpm install --frozen-lockfile
+      # Relais d'outbox sur une table temporaire (rôle quelconque) et publication sur JetStream
+      - name: Tests d'intégration platform (Postgres et NATS réels)
+        env:
+          TEST_DATABASE_URL: postgres://dice_svc:dice-dev@localhost:5432/vtt
+          NATS_URL: nats://localhost:4222
+        run: |
+          pnpm turbo run build --filter '@vtt/platform^...'
+          pnpm --filter @vtt/platform exec vitest run --coverage.enabled --coverage.reporter=lcov
+      - name: Tests d'intégration identity (Postgres et NATS réels, titres)
+        env:
+          TEST_DATABASE_URL: postgres://identity_svc:identity-dev@localhost:5432/vtt
+          NATS_URL: nats://localhost:4222
+        run: |
+          pnpm turbo run build --filter '@vtt/identity^...'
+          pnpm --filter @vtt/identity exec vitest run --coverage.enabled --coverage.reporter=lcov
+      - name: Tests d'intégration character (Postgres réel)
+        env:
+          TEST_DATABASE_URL: postgres://characters_svc:characters-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/character^...'
+          pnpm --filter @vtt/character exec vitest run --coverage.enabled --coverage.reporter=lcov
+      - name: Tests d'intégration campaign (Postgres réel)
+        env:
+          TEST_DATABASE_URL: postgres://campaign_svc:campaign-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/campaign^...'
+          pnpm --filter @vtt/campaign exec vitest run --coverage.enabled --coverage.reporter=lcov
+      - name: Tests d'intégration dice (Postgres réel)
+        env:
+          TEST_DATABASE_URL: postgres://dice_svc:dice-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/dice^...'
+          pnpm --filter @vtt/dice exec vitest run --coverage.enabled --coverage.reporter=lcov
+      - name: Tests d'intégration billing (Postgres réel, Stripe simulé)
+        env:
+          TEST_DATABASE_URL: postgres://billing_svc:billing-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/billing^...'
+          pnpm --filter @vtt/billing exec vitest run --coverage.enabled --coverage.reporter=lcov
+      - name: Tests d'intégration history (Postgres et NATS réels)
+        env:
+          TEST_DATABASE_URL: postgres://history_svc:history-dev@localhost:5432/vtt
+          TEST_NATS_URL: nats://localhost:4222
+        run: |
+          pnpm turbo run build --filter '@vtt/history^...'
+          pnpm --filter @vtt/history exec vitest run --coverage.enabled --coverage.reporter=lcov
+      # ffmpeg du runner pour le worker ; SeaweedFS absent en CI : stockage en mémoire
+      - name: Tests d'intégration audio (Postgres, NATS et ffmpeg réels)
+        env:
+          TEST_DATABASE_URL: postgres://audio_svc:audio-dev@localhost:5432/vtt
+          NATS_URL: nats://localhost:4222
+        run: |
+          command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          pnpm turbo run build --filter '@vtt/audio^...'
+          pnpm --filter @vtt/audio exec vitest run --coverage.enabled --coverage.reporter=lcov
+      # Pas de base : canal durable sur JetStream, plusieurs réplicas reliés par Valkey
+      - name: Tests d'intégration realtime (NATS et Valkey réels)
+        env:
+          NATS_URL: nats://localhost:4222
+          REDIS_URL: redis://localhost:6379
+        run: |
+          pnpm turbo run build --filter '@vtt/realtime^...'
+          pnpm --filter @vtt/realtime exec vitest run --coverage.enabled --coverage.reporter=lcov
+      - name: Couverture des tests d'intégration (pour SonarQube)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-integration
+          path: |
+            backend/*/coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 3
+
+  e2e:
+    name: Bout en bout (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: ffmpeg (worker audio)
+        run: command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+      # Infra, migrations, services compilés et front servi : la stack de `pnpm dev`. Sans les
+      # variables factices du build Next : billing les lirait comme de vraies clés Stripe
+      - name: Stack complète
+        run: bash infra/ci/e2e-stack.sh
+      - name: Chromium
+        run: pnpm --filter @vtt/web exec playwright install --with-deps chromium
+      - name: Parcours
+        run: pnpm --filter @vtt/web e2e
+      - name: Rapport, traces et journaux
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e
+          path: |
+            frontend/e2e/rapport
+            frontend/e2e/resultats
+            e2e-logs
+          retention-days: 7
+
+  sonar:
+    name: SonarQube (Quality Gate)
+    needs: [quality, sql]
+    if: ${{ !cancelled() && needs.quality.result == 'success' && needs.sql.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: https://sonarqube.cluster.afflair.app
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with: { fetch-depth: 0 } # blame : nouveau code et auteur des problèmes
+      # Unitaires puis intégration : pour un service, la couverture des tests d'intégration
+      # (base réelle) remplace celle des seuls tests unitaires
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with: { name: coverage-unit }
+        continue-on-error: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with: { name: coverage-integration }
+        continue-on-error: true
+      - name: Chemins de la couverture relatifs à la racine
+        run: |
+          # vitest écrit « SF:src/… » relatif au paquet ; SonarQube lit depuis la racine
+          for f in $(find . -path ./node_modules -prune -o -name lcov.info -print); do
+            dir=$(dirname "$(dirname "${f#./}")")
+            sed -i "s#^SF:\([^/]\)#SF:$dir/\1#" "$f"
+          done
+      - name: SonarQube non configuré
+        if: env.SONAR_TOKEN == ''
+        run: echo "::warning title=SonarQube::secret SONAR_TOKEN absent (docs/ci.md)"
+      # Échoue si le Quality Gate échoue : nouveau code couvert, sans bug ni faille ajoutés
+      - name: Analyse et Quality Gate
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=600
+
+  security:
+    name: Secrets et dépendances
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with: { fetch-depth: 0 }
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Revue des nouvelles dépendances
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: high
+          deny-licenses: AGPL-3.0, GPL-3.0
+          comment-summary-in-pr: on-failure
+      # Dépendances de production seulement : les outils de build (tailwind et ses globs…) ne
+      # partent pas dans les images ; OSV-Scanner ci-dessous rapporte tout, sans bloquer
+      - name: Audit pnpm (bloquant sur high/critical, dépendances de production)
+        run: |
+          npm install -g pnpm@10.28.0 --no-fund --no-audit
+          pnpm audit --prod --audit-level high
+      - name: OSV-Scanner (rapport, non bloquant)
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml
+
+  helm:
+    name: Manifests Kubernetes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+      - name: Installer kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+      - name: helm lint + rendu de chaque environnement
+        run: |
+          helm lint infra/helm/service --strict
+          mkdir -p rendered
+          for f in infra/gitops/*/*.yaml; do
+            env=$(basename "$(dirname "$f")"); svc=$(basename "$f" .yaml)
+            helm template "$svc" infra/helm/service -n "vtt-$env" -f "$f" > "rendered/$env-$svc.yaml"
+          done
+      - name: Rendu des charts de messaging (NATS, Valkey)
+        run: |
+          # Dépôt, chart, version, release et values lus dans les Applications Argo CD
+          yq 'select(.kind == "Application" and .spec.sources[0].chart != null)
+            | [.spec.sources[0].repoURL, .spec.sources[0].chart, .spec.sources[0].targetRevision,
+               .spec.sources[0].helm.releaseName, (.spec.sources[0].helm.valueFiles | join(","))]
+            | @tsv' infra/argocd/messaging.yaml |
+          while IFS=$'\t' read -r repo chart version release values; do
+            [ -n "$repo" ] || continue
+            args=()
+            for v in ${values//,/ }; do args+=(-f "${v#\$values/}"); done
+            helm template "$release" "$chart" --repo "$repo" --version "$version" -n messaging \
+              --skip-tests "${args[@]}" > "rendered/messaging-$release.yaml"
+          done
+          test -s rendered/messaging-nats.yaml
+      - name: Validation des schémas
+        run: |
+          kubeconform -strict -summary -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            rendered/ infra/cluster infra/argocd
+
+  images:
+    name: Image ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: gateway, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=gateway' }
+          - { image: web, dockerfile: infra/docker/web.Dockerfile, args: '' }
+          - {
+              image: identity,
+              dockerfile: infra/docker/service.Dockerfile,
+              args: 'SERVICE=identity',
+            }
+          - {
+              image: identity-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=identity',
+            }
+          - {
+              image: character,
+              dockerfile: infra/docker/service.Dockerfile,
+              args: 'SERVICE=character',
+            }
+          - {
+              image: character-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=character',
+            }
+          - {
+              image: campaign,
+              dockerfile: infra/docker/service.Dockerfile,
+              args: 'SERVICE=campaign',
+            }
+          - {
+              image: campaign-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=campaign',
+            }
+          - { image: dice, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=dice' }
+          - {
+              image: dice-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=dice',
+            }
+          - { image: billing, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=billing' }
+          - {
+              image: billing-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=billing',
+            }
+          - { image: history, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=history' }
+          - {
+              image: history-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=history',
+            }
+          - { image: audio, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=audio' }
+          - {
+              image: audio-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=audio',
+            }
+          # Worker ffmpeg du service audio (même paquet, runtime Debian avec ffmpeg)
+          - { image: audio-worker, dockerfile: infra/docker/audio-worker.Dockerfile, args: '' }
+          # Pas de base : ni migrations ni image de migration
+          - {
+              image: realtime,
+              dockerfile: infra/docker/service.Dockerfile,
+              args: 'SERVICE=realtime',
+            }
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build (sans push)
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.args }}
+          tags: vtt-${{ matrix.image }}:ci
+          load: true
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+      - name: Résumé de l'échec du build
+        if: failure() && steps.build.outcome == 'failure'
+        run: |
+          set +e
+          args=""; [ -n "${{ matrix.args }}" ] && args="--build-arg ${{ matrix.args }}"
+          docker buildx build --progress=plain -f ${{ matrix.dockerfile }} $args . > /tmp/docker.log 2>&1
+          msg=$(grep -vE '^\s*$' /tmp/docker.log | tail -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+          echo "::error title=Échec du build ${{ matrix.image }}::${msg}"
+          exit 1
+      - name: Trivy (CVE critiques et mauvaises configurations)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: vtt-${{ matrix.image }}:ci
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-${{ matrix.image }}.sarif
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        if: always() && hashFiles(format('trivy-{0}.sarif', matrix.image)) != ''
+        with:
+          { sarif_file: 'trivy-${{ matrix.image }}.sarif', category: 'trivy-${{ matrix.image }}' }
+      - name: Bloquer sur CRITICAL
+        id: critical
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: vtt-${{ matrix.image }}:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+          output: trivy-critical.txt
+          skip-setup-trivy: true
+      - name: Résumé des CVE critiques
+        if: failure() && steps.critical.outcome == 'failure'
+        run: |
+          msg=$(grep -E 'CVE-|GHSA-|Library|───.*┬' trivy-critical.txt | head -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+          echo "::error title=CVE critiques ${{ matrix.image }}::${msg}"
+          exit 1

@@ -1,0 +1,9 @@
+# Analyse CodeQL de la nouvelle plateforme. L'ancienne application (legacy/) et les outils
+# d'export ponctuels (tools/) en sont exclus, comme de SonarQube : legacy/ disparaît à la fin de
+# la migration et n'est plus maintenu ici.
+name: vtt
+paths-ignore:
+  - legacy
+  - tools
+  - '**/dist'
+  - '**/node_modules'

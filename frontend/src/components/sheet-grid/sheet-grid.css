@@ -1,0 +1,126 @@
+/*
+ * Grille de la fiche (react-grid-layout), aux couleurs du thème : variables HSL du design
+ * system (globals.css, [data-ambiance]) ; opacités par color-mix(), jamais de couleur en dur.
+ */
+.sheet-grid {
+  /* Marge basse du cadre de chaque bloc (= MARGIN de model.ts) : la carte s'arrête au-dessus */
+  --sheet-gap: 12px;
+  position: relative;
+}
+
+/*
+ * Hors édition, seul le déplacement (transform, composité) est animé : animer left, top,
+ * width ou height relance la mise en page à chaque image, à chaque redimensionnement.
+ */
+.sheet-grid .react-grid-item.cssTransforms {
+  transition: transform 200ms ease;
+}
+
+/* En édition, les blocs glissent et changent de taille en douceur. */
+.sheet-grid.sheet-grid-editing {
+  transition: height 200ms ease;
+}
+
+.sheet-grid.sheet-grid-editing .react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+}
+
+.sheet-grid.sheet-grid-editing .react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+}
+
+.sheet-grid .react-grid-item.resizing {
+  z-index: 1;
+  transition: none;
+  will-change: width, height;
+}
+
+.sheet-grid .react-grid-item.react-draggable-dragging {
+  z-index: 3;
+  transition: none;
+  will-change: transform;
+}
+
+.sheet-grid .react-grid-item.react-grid-placeholder {
+  z-index: 2;
+  background: none;
+  opacity: 1;
+  transition-duration: 100ms;
+  user-select: none;
+}
+
+/* Emplacement d'arrivée, à la taille de la carte (sans la marge basse du cadre) */
+.sheet-grid .react-grid-item.react-grid-placeholder::after {
+  position: absolute;
+  inset: 0 0 var(--sheet-gap) 0;
+  border: 1px dashed color-mix(in srgb, hsl(var(--primary)) 70%, transparent);
+  border-radius: calc(var(--radius) + 8px);
+  background: color-mix(in srgb, hsl(var(--primary)) 12%, transparent);
+  content: '';
+}
+
+.sheet-grid .react-grid-item.react-grid-placeholder.placeholder-resizing {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-grid,
+  .sheet-grid .react-grid-item,
+  .sheet-grid .react-grid-item.cssTransforms,
+  .sheet-grid.sheet-grid-editing .react-grid-item.cssTransforms {
+    transition: none;
+  }
+}
+
+/*
+ * Poignées de redimensionnement, visibles en personnalisation : coin bas droit (hauteur
+ * définie) ou bord droit (hauteur automatique : seule la largeur se règle).
+ */
+.sheet-grid .react-grid-item > .react-resizable-handle {
+  position: absolute;
+  right: 2px;
+  bottom: calc(var(--sheet-gap) + 2px);
+  z-index: 20;
+  width: 22px;
+  height: 22px;
+  cursor: se-resize;
+  touch-action: none;
+}
+
+.sheet-grid .react-grid-item > .react-resizable-handle::after {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid color-mix(in srgb, hsl(var(--primary)) 80%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, hsl(var(--primary)) 80%, transparent);
+  border-bottom-right-radius: 3px;
+  content: '';
+}
+
+.sheet-grid .react-grid-item > .react-resizable-handle-e {
+  top: calc(50% - var(--sheet-gap) / 2);
+  right: 0;
+  bottom: auto;
+  width: 14px;
+  height: 40px;
+  cursor: ew-resize;
+  transform: translateY(-50%);
+}
+
+.sheet-grid .react-grid-item > .react-resizable-handle-e::after {
+  top: 8px;
+  right: 5px;
+  bottom: auto;
+  width: 4px;
+  height: 24px;
+  border: 0;
+  border-radius: 9999px;
+  background: color-mix(in srgb, hsl(var(--primary)) 80%, transparent);
+}
+
+.sheet-grid .react-resizable-hide > .react-resizable-handle {
+  display: none;
+}

@@ -1,12 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/session-reminder",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/optimize-images",
-      "schedule": "0 2 * * *"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": { "deploymentEnabled": false }
 }

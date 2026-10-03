@@ -1,0 +1,1301 @@
+"use client"
+
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { moduleRegistry } from '@/modules/registry'
+import { ExtensionHost } from '@/modules/bundle-scripts/ExtensionHost'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import { ChevronLeft, ChevronRight, Dice6, Check, Images, Upload, Dna, Swords, User, BookOpen, Search, Ghost, Heart, Zap, Crosshair, Sparkles, Brain } from 'lucide-react'
+import Image from 'next/image'
+import { db, storage, realtimeDb } from '@/lib/firebase'
+import { doc, addDoc, collection, setDoc } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { ref as rtdbRef, update as rtdbUpdate } from 'firebase/database'
+import { useSession } from '@/data/identity'
+import { useRouter } from 'next/navigation'
+import InventoryManagement from '@/components/(inventaire)/inventaire'
+import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(competences)/CompetenceCreator'
+import CareerSkillPicker, { type CareerSkillSelection } from '@/components/(competences)/CareerSkillPicker'
+import { toast } from 'sonner'
+import { rollCharacterStats, statsToDefaults, groupStats, resolveCharacterStats, evaluateFormula, statUpgradeCost, totalStatUpgradeCost, CREATION_STAT_MAX } from '@/lib/rules-engine'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
+import type { RaceDefinition, ProfileDefinition } from '@/modules/game-system/types'
+import { stripUndefinedDeep } from '@/modules/game-system/transfer'
+
+
+
+// Types
+type RaceData = {
+  description: string;
+  image?: string;
+  modificateurs?: Record<string, number>;
+}
+
+type ProfileData = {
+  description: string;
+  image?: string;
+  hitDie: string;
+}
+
+// Champs méta fixes (indépendants du système de règles actif) + index signature pour les stats
+// dynamiques du système de règles (abilities/derived/vital), dont les clés varient selon le système.
+type CharacterState = {
+  Nomperso: string;
+  Description: string;
+  Background: string;
+  Race: string;
+  Profile: string;
+  deVie: string;
+  imageURL: string;
+  niveau: number;
+  Taille: number;
+  Poids: number;
+  [statKey: string]: unknown;
+}
+
+// Load JSON data from public directory
+async function fetchJson(path: string) {
+  const response = await fetch(path)
+  if (!response.ok) {
+    throw new Error(`Could not fetch ${path}`)
+  }
+  return response.json()
+}
+
+const BASE_CHARACTER: CharacterState = {
+  Nomperso: '',
+  Description: '',
+  Background: '',
+  Race: '',
+  Profile: '',
+  deVie: 'd12',
+  imageURL: '',
+  niveau: 1,
+  Taille: 175,
+  Poids: 75,
+}
+
+// Brouillon de création sauvegardé en localStorage (pas de fichier/blob : selectedImage/imagePreview
+// ne survivraient pas à une sérialisation JSON) — un refresh en cours de création ne doit pas faire
+// tout reperdre. Scopé par roomId : deux salles ne doivent jamais partager/écraser le même brouillon.
+const DRAFT_STORAGE_PREFIX = 'vtt-creation-draft:'
+
+type CreationDraft = {
+  currentTab: string
+  baseStats: Record<string, number>
+  character: CharacterState
+  customImage: string
+  activeImageSource: 'race' | 'profile' | 'custom'
+  characterVoies: Voie[]
+  characterCustomCompetences: CustomCompetence[]
+  careerSkillSelection: CareerSkillSelection | null
+  bundleDraft: Record<string, unknown>
+  statPurchases: Record<string, number>
+}
+
+function loadCreationDraft(roomId: string): CreationDraft | null {
+  try {
+    const raw = localStorage.getItem(`${DRAFT_STORAGE_PREFIX}${roomId}`)
+    return raw ? JSON.parse(raw) as CreationDraft : null
+  } catch {
+    return null
+  }
+}
+
+function saveCreationDraft(roomId: string, draft: CreationDraft) {
+  try {
+    localStorage.setItem(`${DRAFT_STORAGE_PREFIX}${roomId}`, JSON.stringify(draft))
+  } catch {
+    // Quota dépassé ou stockage indisponible (navigation privée) : le brouillon reste en mémoire,
+    // seule la persistance entre refreshs est perdue — pas bloquant pour la création en cours.
+  }
+}
+
+function clearCreationDraft(roomId: string) {
+  try {
+    localStorage.removeItem(`${DRAFT_STORAGE_PREFIX}${roomId}`)
+  } catch {
+    // ignore
+  }
+}
+
+export default function CharacterCreationPage() {
+  const router = useRouter()
+  // string : inclut les onglets dynamiques `bundle:{id}` contribués par le bundle de règles.
+  const [currentTab, setCurrentTab] = useState<string>('info')
+  const [raceData, setRaceData] = useState<Record<string, RaceData>>({})
+  const [profileData, setProfileData] = useState<Record<string, ProfileData>>({})
+  const { user: sessionUser, profile } = useSession()
+  const userId = sessionUser?.uid ?? null
+  const [roomId, setRoomId] = useState<string | null>(null)
+  const { gameSystem, tableCustomStats, isLoading: isGameSystemLoading } = useGameSystem(roomId)
+  const isDndClassic = gameSystem.systemId === 'dnd-classic'
+  // Toutes les stats 'ability', y compris les techniques (visibleToPlayers=false, ex bases de seuils
+  // utilisées uniquement par une formule dérivée) — utilisé pour peupler `character`/`baseStats`, car
+  // ces stats techniques doivent exister sur le personnage (defaultValue, ex base=10) même si jamais
+  // montrées : les en exclure ferait résoudre leur formule dérivée avec une valeur brute à 0 au lieu de
+  // leur vraie base.
+  const allAbilityStats = gameSystem.stats.filter((s) => s.category === 'ability')
+  // Sous-ensemble affiché à l'écran de création (exclut les techniques) — sans quoi elles apparaîtraient
+  // comme de vraies caractéristiques à choisir/valider, avec leur propre carte Base+Race=Score.
+  const abilityStats = allAbilityStats.filter((s) => s.visibleToPlayers !== false)
+
+  // Races/profils : dnd-classic lit toujours race.json/profile.json (legacy, converti à la volée dans
+  // le même format que RaceDefinition/ProfileDefinition) ; tout autre système lit gameSystem.races/profiles,
+  // défini par le MJ dans l'éditeur de règles — générique, aucune clé D&D en dur.
+  const races: RaceDefinition[] = isDndClassic
+    ? Object.entries(raceData).map(([id, r]) => ({ id, label: id.replace('_', ' '), description: r.description, image: r.image, modifiers: r.modificateurs || {}, abilities: [], avgHeight: (r as any).tailleMoyenne, avgWeight: (r as any).poidsMoyen }))
+    : (gameSystem.races ?? [])
+  const profiles: ProfileDefinition[] = isDndClassic
+    ? Object.entries(profileData).map(([id, p]) => ({ id, label: id, description: p.description, image: p.image, hitDie: p.hitDie }))
+    : (gameSystem.profiles ?? [])
+  const hasRaceProfileContent = isDndClassic || races.length > 0 || profiles.length > 0
+  const raceLabel = isDndClassic ? 'Race' : (gameSystem.raceLabel || 'Race')
+  const profileLabel = isDndClassic ? 'Profil' : (gameSystem.profileLabel || 'Profil')
+
+  const [baseStats, setBaseStats] = useState<Record<string, number>>({})
+  const [character, setCharacter] = useState<CharacterState>(BASE_CHARACTER)
+  const [statsInitialized, setStatsInitialized] = useState(false)
+
+  // Initialise les stats du personnage dès que le système actif de la room est connu — une seule fois,
+  // pour ne pas écraser les valeurs déjà tirées/saisies par le joueur si le système recharge (onSnapshot).
+  useEffect(() => {
+    if (isGameSystemLoading || statsInitialized) return
+    setBaseStats(statsToDefaults(allAbilityStats) as Record<string, number>)
+    // Exclut 'derived' de cette initialisation : poser ne serait-ce qu'un 0 sur PV_Max/SeuilBlessure/...
+    // les FIGE prématurément (resolveCharacterStats ne recalcule plus jamais une stat 'derived' dès
+    // qu'une valeur — même 0 — existe déjà dessus, mécanisme pensé pour ne pas re-tirer un dé aléatoire
+    // à chaque re-render). Elles doivent rester undefined pendant toute la création (recalculées à la
+    // volée via displayStatValues) et ne sont écrites qu'une fois, à la sauvegarde finale.
+    setCharacter((prev) => ({
+      ...prev,
+      ...statsToDefaults(gameSystem.stats.filter((s) => s.category !== 'derived')),
+    }))
+    setStatsInitialized(true)
+  }, [isGameSystemLoading, statsInitialized, gameSystem, allAbilityStats])
+
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [customImage, setCustomImage] = useState<string>('')
+  const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'custom'>('custom')
+
+  // Competencies State (dnd-classic — Voies/CompetenceCreator)
+  const [characterVoies, setCharacterVoies] = useState<Voie[]>([])
+  const [characterCustomCompetences, setCharacterCustomCompetences] = useState<CustomCompetence[]>([])
+  // Compétences façon système narratif type EotE (gameSystem.skills non vide) — coexiste avec le
+  // système ci-dessus, jamais les deux actifs en même temps pour un même système.
+  const [careerSkillSelection, setCareerSkillSelection] = useState<CareerSkillSelection | null>(null)
+  const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0
+  // Brouillon GÉNÉRIQUE des onglets de création contribués par le bundle de règles de la salle
+  // (moduleRegistry.getCreationTabs, ex l'étape Obligation du bundle Star Wars) : chaque composant
+  // d'onglet y merge ses propres champs ({ MonChamp: valeur }), et le tout est fusionné tel quel
+  // dans le document personnage à la sauvegarde — la page ne connaît aucun de ces champs.
+  const [bundleDraft, setBundleDraft] = useState<Record<string, unknown>>({})
+  const mergeBundleDraft = useCallback((partial: Record<string, unknown>) => {
+    setBundleDraft(prev => ({ ...prev, ...partial }))
+  }, [])
+  const subscribeRegistry = useCallback((cb: () => void) => moduleRegistry.subscribe(cb), [])
+  const getRegistrySnapshot = useCallback(() => moduleRegistry.getSnapshot(), [])
+  useSyncExternalStore(subscribeRegistry, getRegistrySnapshot, getRegistrySnapshot)
+  const creationTabs = moduleRegistry.getCreationTabs()
+
+  // Achats de caractéristiques à la création (façon EotE, systèmes à compétences uniquement) : nombre
+  // de +1 achetés par stat avec l'XP de départ. Coût séquentiel = 10 × la valeur visée (3→5 = 40 + 50),
+  // plafond CREATION_STAT_MAX (5). La valeur affichée/sauvegardée = base + modificateur racial + achats.
+  const [statPurchases, setStatPurchases] = useState<Record<string, number>>({})
+
+  // Restauration du brouillon local (cf sauvegarde plus bas) — une seule fois, dès que roomId est
+  // connu. Marque statsInitialized=true quand un brouillon est trouvé : sans ça, l'effet d'init des
+  // stats par défaut (ci-dessus) écraserait aussitôt les valeurs restaurées.
+  const draftRestoredRef = useRef(false)
+  useEffect(() => {
+    if (!roomId || draftRestoredRef.current) return
+    draftRestoredRef.current = true
+    const draft = loadCreationDraft(roomId)
+    if (!draft) return
+    setCurrentTab(draft.currentTab)
+    setBaseStats(draft.baseStats)
+    setCharacter(draft.character)
+    setCustomImage(draft.customImage)
+    setActiveImageSource(draft.activeImageSource)
+    setCharacterVoies(draft.characterVoies)
+    setCharacterCustomCompetences(draft.characterCustomCompetences)
+    setCareerSkillSelection(draft.careerSkillSelection)
+    setBundleDraft(draft.bundleDraft)
+    setStatPurchases(draft.statPurchases)
+    setStatsInitialized(true)
+  }, [roomId])
+
+  // Sauvegarde automatique du brouillon à chaque changement (debounced) — tant que le personnage
+  // n'est pas encore créé (statsInitialized : pas de sauvegarde prématurée pendant le tout premier
+  // render, avant même que les stats par défaut ou un brouillon restauré aient été posés).
+  useEffect(() => {
+    if (!roomId || !statsInitialized) return
+    const timer = setTimeout(() => {
+      saveCreationDraft(roomId, {
+        currentTab, baseStats, character, customImage, activeImageSource,
+        characterVoies, characterCustomCompetences, careerSkillSelection,
+        bundleDraft, statPurchases,
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [roomId, statsInitialized, currentTab, baseStats, character, customImage, activeImageSource, characterVoies, characterCustomCompetences, careerSkillSelection, bundleDraft, statPurchases])
+
+  // Valeur de départ d'une stat (avant achats) : base de l'espèce + modificateur racial.
+  const statStartValue = (key: string) =>
+    (baseStats[key] ?? 0) + (races.find((r) => r.id === character.Race)?.modifiers[key] || 0)
+
+  // XP de départ déjà investi dans les caractéristiques — les coûts se recalculent depuis la valeur de
+  // départ (pas d'historique à stocker : les achats sont séquentiels par définition).
+  const statXpSpent = hasSkillSystem
+    ? Object.entries(statPurchases).reduce((sum, [key, count]) => {
+        const start = statStartValue(key)
+        return sum + totalStatUpgradeCost(start, start + count)
+      }, 0)
+    : 0
+  // Bonus d'XP de création déclaré par un onglet de bundle via la clé RÉSERVÉE __creationXpBonus du
+  // brouillon (ex Obligation EotE : chaque point d'Obligation pris rapporte autant d'XP de départ).
+  // Les clés '__*' sont des signaux pour la page, jamais persistées sur le doc personnage.
+  const bundleXpBonus = typeof bundleDraft.__creationXpBonus === 'number' ? bundleDraft.__creationXpBonus : 0
+  const creationStartingXp = (gameSystem.startingXp ?? 0) + bundleXpBonus
+  const creationXpRemaining = creationStartingXp - statXpSpent
+
+  // Changer d'espèce change les valeurs de départ (donc tous les coûts séquentiels) : on rembourse
+  // intégralement les achats plutôt que de les réappliquer sur des bases différentes.
+  useEffect(() => {
+    setStatPurchases({})
+  }, [character.Race])
+
+  const calculateModifier = (value: number) => Math.floor((value - 10) / 2)
+
+  // Nombre de fois où le joueur a cliqué "Lancer les dés" — le MJ peut limiter ce nombre via
+  // gameSystem.creation.maxRolls (absent = illimité, comportement historique inchangé).
+  const [rollCount, setRollCount] = useState(0)
+  const maxRolls = gameSystem.creation?.maxRolls
+  const rollsExhausted = maxRolls != null && rollCount >= maxRolls
+
+  // Délègue au moteur de règles partagé (src/lib/rules-engine), branché sur le système de règles
+  // actif de la room (dnd-classic ou un système custom défini par le MJ) — remplace la génération
+  // 3d6 + contrainte + formules dérivées codées en dur en dnd-classic uniquement.
+  const rollStats = () => {
+    if (rollsExhausted) return
+    const raceMods = races.find((r) => r.id === character.Race)?.modifiers ?? {}
+    // niveau: 1 dès l'aperçu (pas seulement à la sauvegarde finale, ligne ~500) — sans lui, une stat
+    // dérivée qui intègre (niveau - 1) dans sa formule (ex Contact/Distance/Magie pour dnd-classic)
+    // afficherait un résultat en dessous de la réalité pendant tout le flux de création.
+    const result = rollCharacterStats(gameSystem, raceMods, tableCustomStats, { deVie: character.deVie, niveau: 1 })
+
+    setBaseStats(result.rolledAbilities)
+
+    setCharacter(prev => ({
+      ...prev,
+      ...result.abilities,
+      ...result.derived,
+    }))
+    setRollCount((c) => c + 1)
+  }
+
+  // Réapplique automatiquement le modificateur racial aux abilities dès que la race change (ou dès
+  // l'initialisation) — sans ce recalcul, un système en method='manual' avec maxRolls=0 (bouton "Lancer
+  // les dés" désactivé, ex EotE : aucun aléa réel à tirer, juste base + modificateur racial) ne verrait
+  // JAMAIS ses abilities mises à jour après un choix de race. Ne touche PAS aux stats 'derived' : leur
+  // valeur calculée est dérivée à la volée pour l'affichage (cf resolveDisplayStats plus bas), jamais
+  // stockée sur `character` pendant la création — resolveCharacterStats FIGE définitivement toute stat
+  // 'derived' dès qu'une valeur existe déjà dessus (mécanisme pensé pour ne pas re-tirer un dé aléatoire
+  // à chaque re-render), ce qui gèlerait Seuil de Blessure/Encaissement à leur toute première valeur
+  // (souvent 0, avant le premier choix de race) au lieu de suivre les changements de race/caractéristiques.
+  // gameSystem/tableCustomStats/allAbilityStats/races sont recréés à CHAQUE render (nouvelles références)
+  // — lus via une ref tenue à jour plutôt que mis en dépendance, pour ne réagir qu'à un changement réel de
+  // race (sinon Maximum update depth exceeded : l'effet se redéclencherait à chaque render). Utilise
+  // TOUTES les abilities (allAbilityStats), pas seulement celles affichées : une stat technique (ex
+  // baseSeuilBlessure) doit exister sur `character` avec sa vraie valeur/defaultValue même si jamais
+  // montrée, sans quoi la formule dérivée qui la référence résoudrait 0 au lieu de sa vraie base.
+  const resolveStatsRef = useRef({ allAbilityStats, races, baseStats })
+  resolveStatsRef.current = { allAbilityStats, races, baseStats }
+
+  useEffect(() => {
+    if (!statsInitialized || Object.keys(resolveStatsRef.current.baseStats).length === 0) return
+    const { allAbilityStats: as, races: rc, baseStats: bs } = resolveStatsRef.current
+    const raceMods = rc.find((r) => r.id === character.Race)?.modifiers ?? {}
+    const abilities: Record<string, number> = {}
+    for (const stat of as) {
+      abilities[stat.key] = (bs[stat.key] ?? 0) + (raceMods[stat.key] || 0) + (statPurchases[stat.key] ?? 0)
+    }
+    setCharacter(prev => ({ ...prev, ...abilities }))
+  }, [character.Race, statsInitialized, statPurchases])
+
+  // Valeurs 'derived'/'vital' recalculées À LA VOLÉE pour l'affichage de l'écran de création (jamais
+  // stockées sur `character`, cf commentaire ci-dessus) — reflète toujours les abilities courantes.
+  const displayStatValues = resolveCharacterStats(gameSystem, tableCustomStats, character).values
+
+  // Salle courante suivie par la session partagée (l'ancien écouteur d'auth n'était jamais désabonné)
+  useEffect(() => {
+    if (profile?.roomId) setRoomId(profile.roomId)
+  }, [profile?.roomId])
+
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [races, profiles, mappings] = await Promise.all([
+          fetchJson('/tabs/race.json'),
+          fetchJson('/tabs/profile.json'),
+          fetchJson('/asset-mappings.json')
+        ])
+
+        // Create a lookup map: localPath -> remotePath
+        const urlMap = new Map<string, string>();
+        mappings.forEach((m: any) => {
+          if (m.localPath && m.path) {
+            urlMap.set(m.localPath, m.path);
+          }
+        });
+
+        const resolveImage = (localPath: string) => {
+          if (!localPath) return localPath;
+          return urlMap.get(localPath) || localPath;
+        };
+
+        // Update races with remote images
+        const updatedRaces = { ...races };
+        Object.keys(updatedRaces).forEach(key => {
+          if (updatedRaces[key].image) {
+            updatedRaces[key].image = resolveImage(updatedRaces[key].image);
+          }
+        });
+
+        // Update profiles with remote images
+        const updatedProfiles = { ...profiles };
+        Object.keys(updatedProfiles).forEach(key => {
+          if (updatedProfiles[key].image) {
+            updatedProfiles[key].image = resolveImage(updatedProfiles[key].image);
+          }
+        });
+
+        setRaceData(updatedRaces)
+        setProfileData(updatedProfiles)
+      } catch (error) {
+        console.error("Error loading data:", error)
+      }
+    }
+    loadData()
+  }, [])
+
+
+
+  const handleCreateCharacter = async () => {
+    if (!userId || !roomId) {
+      console.error("User ID or Room ID is not set, cannot save character data.")
+      return
+    }
+
+    try {
+      let imageURL = character.imageURL
+
+      // Handle uploaded custom image (base64)
+      if (customImage && activeImageSource === 'custom') {
+        // Convert base64 to blob
+        const response = await fetch(customImage)
+        const blob = await response.blob()
+        const imageRef = ref(storage, `users/${userId}/characters/${character.Nomperso}-image`)
+        await uploadBytes(imageRef, blob)
+        imageURL = await getDownloadURL(imageRef)
+      }
+      // Handle file input (legacy, si encore utilisé)
+      else if (selectedImage) {
+        const imageRef = ref(storage, `users/${userId}/characters/${character.Nomperso}-image`)
+        await uploadBytes(imageRef, selectedImage)
+        imageURL = await getDownloadURL(imageRef)
+      }
+      // Aucune image explicitement uploadée/choisie : reprendre celle affichée en aperçu (image par
+      // défaut de l'espèce, sinon du profil). Sans ce repli, un joueur qui garde l'image proposée sans
+      // y toucher était sauvegardé avec imageURL '' — token invisible sur la carte, et la fiche
+      // repliait sur /api/placeholder/192/192 (route inexistante, erreur getCroppedImg).
+      else if (!imageURL) {
+        const selectedRace = races.find((r) => r.id === character.Race)
+        const selectedProfile = profiles.find((p) => p.id === character.Profile)
+        imageURL = selectedRace?.image || selectedProfile?.image || ''
+      }
+
+      // (Height/Weight now managed in state)
+
+
+      // Prepare Voies data (dnd-classic uniquement — Voies/CompetenceCreator)
+      const voiesData: Record<string, any> = {};
+      if (!hasSkillSystem) {
+        characterVoies.forEach((voie, index) => {
+          voiesData[`Voie${index + 1}`] = voie.fichier;
+          voiesData[`v${index + 1}`] = 0; // Initialize ranks to 0
+        });
+      }
+
+      // Compétences façon système narratif type EotE (gameSystem.skills non vide) — career/skillRanks
+      // issus des 6 rangs gratuits (4 carrière + 2 spécialisation), xp = XP de départ configuré par le MJ.
+      const skillSystemData: Record<string, any> = {};
+      if (hasSkillSystem && careerSkillSelection) {
+        skillSystemData.career = careerSkillSelection.career;
+        skillSystemData.careerSkillChoices = careerSkillSelection.careerSkillChoices;
+        skillSystemData.specializations = careerSkillSelection.specializations;
+        skillSystemData.specializationSkillChoices = careerSkillSelection.specializationSkillChoices;
+        skillSystemData.skillRanks = careerSkillSelection.skillRanks;
+        // L'XP investi dans les caractéristiques à la création est définitivement dépensé : les
+        // caractéristiques ne s'améliorent plus après la création (règle EotE), donc pas de re-crédit.
+        // creationStartingXp inclut le bonus déclaré par les onglets de bundle (ex Obligations).
+        skillSystemData.xp = creationStartingXp - statXpSpent;
+        skillSystemData.xpSpent = statXpSpent;
+      }
+
+      // Stats 'vital' SANS valeur brute encore posée sur `character` (ex Blessures/Stress si l'effet
+      // d'initialisation n'a pas eu l'occasion de tourner avant ce clic) : sans ce garde-fou explicite,
+      // resolveCharacterStats les résoudrait à leur borne MAXIMALE (comportement "aucune valeur stockée
+      // => personnage frais démarre au max", pensé pour PV façon D&D) au lieu de leur rollFormula réelle
+      // (ex const 0 pour un compteur EotE qui doit démarrer vide). On pose explicitement rollFormula
+      // (ou 0) pour chaque 'vital' encore undefined, AVANT de résoudre les dérivées ci-dessous.
+      const vitalsNeedingDefault: Record<string, number> = {};
+      for (const stat of gameSystem.stats) {
+        if (stat.category !== 'vital') continue;
+        const current = character[stat.key];
+        if (current !== undefined && current !== null && current !== '') continue;
+        vitalsNeedingDefault[stat.key] = stat.rollFormula
+          ? evaluateFormula(stat.rollFormula, { rawStats: character as Record<string, number | string | boolean | undefined>, statDefs: Object.fromEntries(gameSystem.stats.map((s) => [s.key, s])) })
+          : 0;
+      }
+      const characterForResolution = { ...character, ...vitalsNeedingDefault };
+
+      // Stats 'derived'/'vital' (ex Seuil de Blessure, Encaissement) jamais stockées sur `character`
+      // pendant la création (cf displayStatValues plus haut) — calculées une dernière fois ici et
+      // figées dans le document final, seul moment où elles doivent vraiment être persistées.
+      const finalDerivedStats = Object.fromEntries(
+        Object.entries(resolveCharacterStats(gameSystem, tableCustomStats, characterForResolution).values).filter(([key]) =>
+          gameSystem.stats.some((s) => s.key === key && (s.category === 'derived' || s.category === 'vital')),
+        ),
+      )
+
+      // Save character data to Firestore with additional fields
+      const characterData = stripUndefinedDeep({
+        ...character,
+        ...finalDerivedStats,
+        ...voiesData, // Add voies
+        ...skillSystemData,
+        // Champs des onglets de création contribués par le bundle (ex Obligations) — fusion
+        // générique, la page ne connaît aucun de ces champs par son nom. Les clés '__*' sont des
+        // signaux page-only (ex __creationXpBonus), jamais persistées.
+        ...Object.fromEntries(Object.entries(bundleDraft).filter(([k]) => !k.startsWith('__'))),
+        imageURL,
+        type: 'joueurs',
+        // Sans ce champ, parseCharacterDoc (map/page.tsx) replie sur 'hidden' et le joueur
+        // n'apparaît aux autres joueurs que dans leur rayon de vision.
+        visibility: 'visible',
+        visibilityRadius: 150,
+        x: 500,
+        y: 500,
+        niveau: 1,
+        // Taille & Poids already in character object, but ensuring they are numbers
+        Taille: Number(character.Taille),
+        Poids: Number(character.Poids)
+      })
+
+      await addDoc(collection(db, `users/${userId}/characters`), characterData)
+
+      const docRef = await addDoc(collection(db, `cartes/${roomId}/characters`), characterData)
+
+      // Écrire la position initiale en RTDB
+      await rtdbUpdate(rtdbRef(realtimeDb, `rooms/${roomId}/positions/${docRef.id}`), { x: 500, y: 500 });
+
+      // Save Custom Competences if any
+      if (characterCustomCompetences.length > 0) {
+        const customCompsRef = collection(db, `cartes/${roomId}/characters/${docRef.id}/customCompetences`);
+        const savePromises = characterCustomCompetences.map(cc => {
+          const ccRef = doc(customCompsRef, `${cc.voieIndex}-${cc.slotIndex}`);
+          return setDoc(ccRef, cc);
+        });
+        await Promise.all(savePromises);
+      }
+
+      // Update user's current character ID
+      await setDoc(doc(db, 'users', userId), { persoId: docRef.id }, { merge: true })
+      clearCreationDraft(roomId)
+      // Redirect to /map after successful creation (change page)
+      toast.success("Personnage créé avec succès !")
+      router.push(`/${roomId}/map`)
+    } catch (error) {
+      console.error("Error creating character:", error)
+    }
+  }
+
+
+  // Espèce/Profil : visibles si dnd-classic (race.json/profile.json legacy) OU si le MJ a défini des
+  // races/profils custom pour le système actif — masqués si le système n'en propose aucun.
+  // Les onglets contribués par le bundle (`bundle:{id}`) s'insèrent juste après Informations : un
+  // onglet comme Obligation peut accorder un bonus d'XP de création (__creationXpBonus), il doit
+  // donc passer AVANT les étapes qui dépensent cet XP (carrière, compétences, caractéristiques).
+  type TabId = 'info' | 'race' | 'profile' | 'competences' | 'stats' | 'inventory' | 'image' | (string & {});
+  const bundleTabIds = creationTabs.map((t) => `bundle:${t.id}`);
+  const tabsOrder: TabId[] = hasRaceProfileContent
+    ? ['info', ...bundleTabIds, 'race', 'profile', 'competences', 'stats', 'inventory', 'image']
+    : ['info', ...bundleTabIds, 'competences', 'stats', 'inventory', 'image'];
+  const nextStep = useCallback(() => {
+    setCurrentTab(prev => {
+      const idx = tabsOrder.indexOf(prev);
+      if (idx < tabsOrder.length - 1) return tabsOrder[idx + 1];
+      return prev;
+    })
+  }, [tabsOrder])
+  const prevStep = useCallback(() => {
+    setCurrentTab(prev => {
+      const idx = tabsOrder.indexOf(prev);
+      if (idx > 0) return tabsOrder[idx - 1];
+      return prev;
+    })
+  }, [tabsOrder])
+
+  const renderBasicInfo = useCallback(() => (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <Label className="text-zinc-400 text-xs uppercase tracking-wider">Nom du personnage</Label>
+        <Input
+          placeholder="Ex: Alagarth de Viveflamme"
+          value={character.Nomperso}
+          onChange={(e) => setCharacter(prev => ({ ...prev, Nomperso: e.target.value }))}
+          className="bg-[var(--bg-canvas)] border-[var(--border-color)] text-white focus:border-[var(--accent-brown)]"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-zinc-400 text-xs uppercase tracking-wider">Description physique</Label>
+        <textarea
+          placeholder="Apparence, signes distinctifs, particularités..."
+          value={(character as any).Description || ''}
+          onChange={(e) => setCharacter(prev => ({ ...prev, Description: e.target.value }))}
+          className="w-full min-h-[100px] p-3 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-color)] text-white focus:border-[var(--accent-brown)] focus:ring-1 focus:ring-[var(--accent-brown)] outline-none transition-all custom-scrollbar resize-y text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-zinc-400 text-xs uppercase tracking-wider">Histoire (Background)</Label>
+        <textarea
+          placeholder="Origine, motivations, événements marquants..."
+          value={(character as any).Background || ''}
+          onChange={(e) => setCharacter(prev => ({ ...prev, Background: e.target.value }))}
+          className="w-full min-h-[180px] p-3 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-color)] text-white focus:border-[var(--accent-brown)] focus:ring-1 focus:ring-[var(--accent-brown)] outline-none transition-all custom-scrollbar resize-y text-sm"
+        />
+      </div>
+
+    </div>
+  ), [character.Nomperso, (character as any).Description, (character as any).Background])
+
+  // Helper to get preview image based on active source
+  const getPreviewImage = useCallback(() => {
+    const selectedRace = races.find((r) => r.id === character.Race)
+    const selectedProfile = profiles.find((p) => p.id === character.Profile)
+
+    // Custom image always takes priority when explicitly selected
+    if (activeImageSource === 'custom' && customImage) return customImage
+
+    // For race source: prioritize gallery-selected image over default
+    if (activeImageSource === 'race') {
+      // If an image was selected from gallery, it's stored in character.imageURL
+      if (character.imageURL) return character.imageURL
+      // Otherwise fall back to default race image
+      if (selectedRace?.image) return selectedRace.image
+    }
+
+    // For profile source: use profile's default image
+    if (activeImageSource === 'profile' && selectedProfile?.image) return selectedProfile.image
+
+    // Fallback hierarchy
+    if (customImage) return customImage
+    if (character.imageURL) return character.imageURL
+    if (selectedRace?.image) return selectedRace.image
+    if (selectedProfile?.image) return selectedProfile.image
+
+    return ''
+  }, [activeImageSource, customImage, character.Race, character.Profile, character.imageURL, races, profiles])
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setCustomImage(reader.result as string)
+        setActiveImageSource('custom')
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const renderSelectionPanel = useCallback(() => {
+    const selectRace = (raceId: string) => {
+      const currentRace = races.find((r) => r.id === raceId)
+      if (!currentRace) return
+      const mods = currentRace.modifiers
+
+      const patch: Record<string, number> = {}
+      for (const stat of allAbilityStats) {
+        patch[stat.key] = (baseStats[stat.key] ?? 0) + (mods[stat.key] || 0)
+      }
+
+      setCharacter(prev => ({
+        ...prev,
+        Race: raceId,
+        ...patch,
+        Taille: currentRace.avgHeight ?? 175,
+        Poids: currentRace.avgWeight ?? 75,
+      }))
+      setActiveImageSource('race')
+    }
+
+    const selectProfile = (profileId: string) => {
+      const currentProfile = profiles.find((p) => p.id === profileId)
+      if (!currentProfile) return
+      setCharacter(prev => ({
+        ...prev,
+        Profile: profileId,
+        deVie: currentProfile.hitDie ?? prev.deVie,
+      }))
+      if (activeImageSource !== 'custom') {
+        setActiveImageSource('profile')
+      }
+    }
+
+    return (
+      <div className="flex w-full h-[85vh] bg-[var(--bg-darker)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden mt-2">
+        {/* LEFT PANEL - Browser */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-darker)]">
+          {/* Selection Summary Bar */}
+          <div className="px-6 py-2 border-b border-[var(--border-color)] bg-[var(--bg-darker)] flex items-center gap-4 text-xs text-zinc-500 h-10">
+            {character.Race ? (
+              <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                {raceLabel}: {character.Race.replace('_', ' ')}
+              </span>
+            ) : null}
+
+            {character.Profile ? (
+              <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                {profileLabel}: {character.Profile}
+              </span>
+            ) : null}
+
+            {!character.Race && !character.Profile && (
+              <span>Sélectionnez {raceLabel.toLowerCase() === profileLabel.toLowerCase() ? `un(e) ${raceLabel.toLowerCase()}` : `un(e) ${raceLabel.toLowerCase()} et un(e) ${profileLabel.toLowerCase()}`} pour votre personnage</span>
+            )}
+          </div>
+
+          {/* Content Grid */}
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5">
+              {currentTab === 'race'
+                ? races.map((race) => {
+                  const isSelected = character.Race === race.id
+                  return (
+                    <div
+                      key={race.id}
+                      onClick={() => selectRace(race.id)}
+                      className={`
+                          group relative flex flex-col aspect-[3/4] rounded-xl overflow-hidden cursor-pointer transition-all duration-300
+                          border
+                          ${isSelected
+                          ? 'border-[var(--accent-brown)] ring-1 ring-[var(--accent-brown)] scale-[1.02] shadow-[0_0_20px_rgba(192,160,128,0.2)]'
+                          : 'border-[var(--border-color)] hover:border-[var(--border-color)] hover:shadow-xl opacity-80 hover:opacity-100'
+                        }
+                        `}
+                    >
+                      {/* Image Layer */}
+                      <div className="absolute inset-0 bg-[var(--bg-darker)]">
+                        {race.image && (
+                          <img
+                            src={race.image}
+                            alt={race.label}
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                      </div>
+
+                      {/* Content Layer */}
+                      <div className="relative flex-1 flex flex-col justify-end p-4">
+                        <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[var(--accent-brown)]' : 'text-zinc-200 group-hover:text-white'}`}>
+                          {race.label.replace('_', ' ')}
+                        </h3>
+
+                        {/* Footer with mods */}
+                        <div className="flex gap-1">
+                          {Object.entries(race.modifiers).slice(0, 2).map(([k, v]) => (
+                            <span key={k} className="text-[10px] bg-white/10 px-1 rounded">{k} {v > 0 ? '+' : ''}{v}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Selection Indicator */}
+                      {isSelected && (
+                        <div className="absolute top-3 right-3 w-6 h-6 bg-[var(--accent-brown)] rounded-full flex items-center justify-center shadow-lg">
+                          <Check className="w-4 h-4 text-black" strokeWidth={3} />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+                : profiles.map((profile) => {
+                  const isSelected = character.Profile === profile.id
+                  return (
+                    <div
+                      key={profile.id}
+                      onClick={() => selectProfile(profile.id)}
+                      className={`
+                          group relative flex flex-col aspect-[3/4] rounded-xl overflow-hidden cursor-pointer transition-all duration-300
+                          border
+                          ${isSelected
+                          ? 'border-[var(--accent-brown)] ring-1 ring-[var(--accent-brown)] scale-[1.02] shadow-[0_0_20px_rgba(192,160,128,0.2)]'
+                          : 'border-[var(--border-color)] hover:border-[var(--border-color)] hover:shadow-xl opacity-80 hover:opacity-100'
+                        }
+                        `}
+                    >
+                      {/* Image Layer */}
+                      <div className="absolute inset-0 bg-[var(--bg-darker)]">
+                        {profile.image && (
+                          <img
+                            src={profile.image}
+                            alt={profile.label}
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                      </div>
+
+                      {/* Content Layer */}
+                      <div className="relative flex-1 flex flex-col justify-end p-4">
+                        <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[var(--accent-brown)]' : 'text-zinc-200 group-hover:text-white'}`}>
+                          {profile.label}
+                        </h3>
+
+                        {/* Footer */}
+                        {profile.hitDie && <span className="text-xs text-red-300">DV: {profile.hitDie}</span>}
+                      </div>
+
+                      {/* Selection Indicator */}
+                      {isSelected && (
+                        <div className="absolute top-3 right-3 w-6 h-6 bg-[var(--accent-brown)] rounded-full flex items-center justify-center shadow-lg">
+                          <Check className="w-4 h-4 text-black" strokeWidth={3} />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              }
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT PANEL - Preview */}
+        <div className="w-[420px] border-l border-[var(--border-color)] bg-[var(--bg-canvas)] flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-10 relative">
+          <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+            {/* Portrait Header */}
+            <div className="relative h-[400px] bg-black group overflow-hidden border-b border-[var(--border-color)]">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800 to-black opacity-30" />
+              {getPreviewImage() ? (
+                <img src={getPreviewImage()} className="w-full h-full object-cover object-top" alt="Preview" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-[var(--bg-darker)]">
+                  <User className="w-20 h-20 text-[var(--border-color)]" strokeWidth={1} />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-canvas)] via-[color-mix(in_srgb,var(--bg-canvas)_60%,transparent)] to-transparent pointer-events-none z-20" />
+
+            </div>
+
+            {/* Stats & Info */}
+            <div className="px-6 pb-24 space-y-6">
+              {/* Description */}
+              {(character.Race || character.Profile) && (() => {
+                const selectedRace = races.find((r) => r.id === character.Race)
+                const selectedProfile = profiles.find((p) => p.id === character.Profile)
+                return (
+                  <div className="prose prose-invert prose-sm">
+                    {selectedRace && (
+                      <div className="mb-4">
+                        <h4 className="text-[var(--accent-brown)] text-sm font-bold mb-1">{selectedRace.label.replace('_', ' ')}</h4>
+                        <p className="text-zinc-400 text-xs leading-relaxed">{selectedRace.description}</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {Object.entries(selectedRace.modifiers).map(([stat, mod]) => (
+                            <span
+                              key={stat}
+                              className="text-[10px] px-2 py-0.5 rounded border text-[var(--accent-brown)]"
+                              style={{
+                                background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)',
+                                borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)',
+                              }}
+                            >
+                              {stat} {mod > 0 ? '+' : ''}{mod}
+                            </span>
+                          ))}
+                        </div>
+                        {selectedRace.abilities.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {selectedRace.abilities.map((ability) => (
+                              <p key={ability.id} className="text-zinc-400 text-xs leading-relaxed">
+                                <span className="text-[var(--accent-brown)] font-bold">{ability.label}</span>{ability.description ? ` : ${ability.description}` : ''}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {selectedProfile && (
+                      <div>
+                        <h4 className="text-[var(--accent-brown)] text-sm font-bold mb-1">{selectedProfile.label}</h4>
+                        <p className="text-zinc-400 text-xs leading-relaxed">{selectedProfile.description}</p>
+                        {selectedProfile.hitDie && <p className="text-red-300 text-xs mt-2">Dé de vie: {selectedProfile.hitDie}</p>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="p-6 border-t border-[var(--border-color)] bg-[var(--bg-canvas)] flex gap-3 z-20">
+            <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white">
+              <ChevronLeft className="mr-2 w-4 h-4" /> Précédent
+            </Button>
+            <Button
+              onClick={nextStep}
+              disabled={!character.Race || !character.Profile}
+              className={`flex-1 font-bold transition-all ${character.Race && character.Profile ? 'bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black shadow-lg' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+            >
+              Suivant <ChevronRight className="ml-2 w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }, [currentTab, character.Race, character.Profile, races, profiles, getPreviewImage, activeImageSource, customImage, baseStats, allAbilityStats])
+
+
+  const renderStatsSelection = useCallback(() => {
+    // Calculate global stats for verification (uniquement les abilities affichées comme modificateur)
+    const totalBaseMods = abilityStats.reduce((sum, stat) => {
+      if (!stat.rollUsesModifier) return sum
+      const baseVal = baseStats[stat.key] ?? 0
+      return sum + calculateModifier(baseVal)
+    }, 0)
+
+    // Regroupées selon l'organisation définie par le MJ dans l'éditeur de règles (StatDefinition.group),
+    // même regroupement que l'onglet "Tester" de l'éditeur — abilities + derived confondues, hors stats
+    // techniques (visibleToPlayers=false, ex bases de seuils cachées derrière une formule dérivée) et
+    // hors stats 'vital' (ex Blessures/Stress) : ce sont des compteurs de PARTIE, toujours à leur valeur
+    // de départ fixe à la création (0 ou une constante), jamais pertinents dans ce récapitulatif de
+    // caractéristiques — ils s'affichent normalement sur la fiche finale (widget Vitalité), pas ici.
+    const statGroupsData = groupStats(
+      gameSystem.stats.filter((s) => (s.category === 'ability' || s.category === 'derived') && s.visibleToPlayers !== false),
+      gameSystem.statGroups,
+    )
+
+    const ABILITY_ICONS: Record<string, any> = {
+      FOR: Swords, DEX: Ghost, CON: Heart, INT: Brain, SAG: BookOpen, CHA: Sparkles,
+    }
+
+    const StatCard = ({ label, statKey, icon: Icon, hasModifier }: { label: string, statKey: string, icon: any, hasModifier: boolean }) => {
+      const baseVal = baseStats[statKey] ?? 0
+      const raceMod = races.find((r) => r.id === character.Race)?.modifiers[statKey] || 0
+      const finalVal = Number(character[statKey] ?? baseVal)
+      const finalMod = calculateModifier(finalVal)
+      // Achat de caractéristique à la création (systèmes à compétences EotE-like) : coût séquentiel
+      // 10 × la valeur visée, plafonné à CREATION_STAT_MAX, budget = XP de départ.
+      const purchases = statPurchases[statKey] ?? 0
+      const nextCost = statUpgradeCost(finalVal + 1)
+      const canBuy = finalVal < CREATION_STAT_MAX && nextCost <= creationXpRemaining
+      const canRefund = purchases > 0
+
+      return (
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 flex flex-col items-center relative overflow-hidden group hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-3 z-10">
+            <div className="p-1.5 rounded-lg bg-[var(--border-color)] text-[var(--accent-brown)]">
+              <Icon className="w-4 h-4" />
+            </div>
+            <span className="font-serif font-bold text-zinc-200 tracking-wide">{label}</span>
+          </div>
+
+          {/* Main Number (Modifier, si le système en définit un) */}
+          <div className="relative z-10 flex flex-col items-center mb-4">
+            <span className="text-4xl font-bold text-white tracking-tight flex items-center gap-1 shadow-black drop-shadow-lg">
+              {hasModifier ? `${finalMod > 0 ? '+' : ''}${finalMod}` : finalVal}
+            </span>
+            <span className="text-[10px] uppercase tracking-widest text-[var(--accent-brown)]">{hasModifier ? 'Modificateur' : 'Valeur'}</span>
+          </div>
+
+          {/* Footer (Calculation) */}
+          <div className="w-full pt-3 border-t border-[var(--border-color)] flex justify-between items-center text-xs z-10">
+            <div className="flex flex-col items-center">
+              <span className="text-zinc-500">Base</span>
+              <span className="font-mono text-zinc-300">{baseVal}</span>
+            </div>
+            <div className="text-zinc-600">+</div>
+            <div className="flex flex-col items-center">
+              <span className="text-zinc-500">Race</span>
+              <span className={`font-mono ${raceMod !== 0 ? 'text-[var(--accent-brown)]' : 'text-zinc-600'}`}>
+                {raceMod > 0 ? '+' : ''}{raceMod}
+              </span>
+            </div>
+            <div className="text-zinc-600">=</div>
+            <div className="flex flex-col items-center px-2 py-0.5 rounded bg-[var(--border-color)]">
+              <span className="text-zinc-500 text-[10px]">Score</span>
+              <span className="font-mono font-bold text-white">{finalVal}</span>
+            </div>
+          </div>
+
+          {/* Achat avec l'XP de départ (systèmes à compétences EotE-like uniquement) */}
+          {hasSkillSystem && (
+            <div className="w-full mt-3 pt-3 border-t border-[var(--border-color)] flex items-center justify-between gap-2 z-10">
+              <button
+                type="button"
+                disabled={!canRefund}
+                onClick={() => setStatPurchases((prev) => ({ ...prev, [statKey]: Math.max(0, (prev[statKey] ?? 0) - 1) }))}
+                className="h-7 w-7 rounded-lg border border-[var(--border-color)] text-zinc-400 hover:text-white hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] disabled:opacity-25 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                title={canRefund ? `Rendre +1 (récupère ${statUpgradeCost(finalVal)} XP)` : 'Aucun achat à rembourser'}
+              >
+                −
+              </button>
+              <span className={`text-[10px] uppercase tracking-wide font-mono ${finalVal >= CREATION_STAT_MAX ? 'text-zinc-600' : canBuy ? 'text-[var(--accent-brown)]' : 'text-zinc-600'}`}>
+                {finalVal >= CREATION_STAT_MAX ? 'Max (5)' : `+1 → ${nextCost} XP`}
+              </span>
+              <button
+                type="button"
+                disabled={!canBuy}
+                onClick={() => setStatPurchases((prev) => ({ ...prev, [statKey]: (prev[statKey] ?? 0) + 1 }))}
+                className="h-7 w-7 rounded-lg border border-[var(--border-color)] text-zinc-400 hover:text-white hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] disabled:opacity-25 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                title={finalVal >= CREATION_STAT_MAX ? 'Plafond de création atteint (5)' : canBuy ? `Passer à ${finalVal + 1} pour ${nextCost} XP` : 'XP de départ insuffisant'}
+              >
+                +
+              </button>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <div className="w-full h-full flex flex-col gap-6">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-end gap-6 bg-[var(--bg-canvas)] p-6 rounded-2xl border border-[var(--border-color)] shrink-0">
+          <div>
+            <h2 className="text-2xl font-serif font-bold text-[var(--text-primary)] mb-2">Caractéristiques</h2>
+            {hasSkillSystem && (
+              <p className="text-xs text-zinc-500">
+                Améliorez vos caractéristiques avec votre XP de départ — coût : 10 × la valeur visée, palier par palier, max {CREATION_STAT_MAX}.
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col items-end gap-2">
+            {hasSkillSystem && (
+              <span
+                className="flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg border text-[var(--accent-brown)]"
+                style={{
+                  borderColor: 'color-mix(in srgb, var(--accent-brown) 40%, transparent)',
+                  background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)',
+                }}
+              >
+                {creationXpRemaining} / {creationStartingXp} XP
+              </span>
+            )}
+            <Button
+              onClick={rollStats}
+              disabled={rollsExhausted}
+              className="bg-[var(--accent-brown)] text-[var(--bg-darker)] hover:bg-[var(--accent-brown-hover)] border-none font-bold shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] transition-all transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              <Dice6 className="mr-2 h-4 w-4" />
+              Lancer les dés
+            </Button>
+            {maxRolls != null && (
+              <span className="text-xs text-zinc-500">{rollCount}/{maxRolls} tirage{maxRolls > 1 ? 's' : ''} utilisé{rollCount > 1 ? 's' : ''}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Stats groupées selon l'organisation définie par le MJ dans l'éditeur de règles (StatDefinition.group) */}
+        {statGroupsData.map((group) => (
+          <div key={group.name ?? '__ungrouped__'} className="space-y-3">
+            <h3 className="text-sm font-serif font-bold text-zinc-300 uppercase tracking-wider">{group.name ?? 'Autres stats'}</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {group.stats.map((stat) => (
+                stat.category === 'ability' ? (
+                  <StatCard key={stat.key} label={(stat.shortLabel ?? stat.label).toUpperCase()} statKey={stat.key} icon={ABILITY_ICONS[stat.key] ?? Sparkles} hasModifier={!!stat.rollUsesModifier} />
+                ) : (
+                  <div key={stat.key} className="text-center p-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] flex flex-col justify-center">
+                    <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1 truncate">{stat.label}</div>
+                    <div className="text-2xl font-bold text-white">{String(displayStatValues[stat.key] ?? 0)}</div>
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Physionomie — méta, indépendante du système de règles */}
+        <div className="bg-[var(--bg-canvas)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-card)] flex items-center gap-2">
+            <Crosshair className="w-5 h-5 text-[var(--accent-brown)]" />
+            <h3 className="font-serif font-bold text-zinc-200">Physionomie</h3>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex flex-col gap-2">
+              <Label className="text-zinc-400 text-xs uppercase tracking-wider">Taille (cm)</Label>
+              <Input
+                type="number"
+                value={character.Taille}
+                onChange={(e) => setCharacter(prev => ({ ...prev, Taille: Number(e.target.value) }))}
+                className="bg-[var(--bg-canvas)] border-[var(--border-color)] text-white focus:border-[var(--accent-brown)]"
+              />
+            </div>
+            <div className="p-4 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex flex-col gap-2">
+              <Label className="text-zinc-400 text-xs uppercase tracking-wider">Poids (kg)</Label>
+              <Input
+                type="number"
+                value={character.Poids}
+                onChange={(e) => setCharacter(prev => ({ ...prev, Poids: Number(e.target.value) }))}
+                className="bg-[var(--bg-canvas)] border-[var(--border-color)] text-white focus:border-[var(--accent-brown)]"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-between items-center pt-8 border-t border-[var(--border-color)]">
+          <Button
+            onClick={prevStep}
+            variant="outline"
+            className="border-[var(--border-color)] text-zinc-400 hover:text-white hover:bg-[var(--border-color)]"
+          >
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Précédent
+          </Button>
+          <Button
+            onClick={nextStep}
+            disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+            className={`font-bold px-8 py-6 rounded-xl shadow-lg transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+          >
+            Suivant
+            <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      </div>
+    )
+  }, [character, baseStats, races, abilityStats, gameSystem, hasRaceProfileContent, hasSkillSystem, statPurchases, creationXpRemaining])
+
+
+  if (!userId) return <p>Loading...</p>
+
+  const tabsList: { id: TabId; label: string; icon: typeof User }[] = [
+    { id: 'info', label: 'INFORMATIONS', icon: User },
+    // Onglets contribués par le bundle de règles (ex Obligation en Star Wars) — tôt dans le flux,
+    // avant les étapes qui dépensent l'XP de création (cf tabsOrder).
+    ...creationTabs.map((t) => ({ id: `bundle:${t.id}` as TabId, label: t.label.toUpperCase(), icon: (t.icon ?? BookOpen) as typeof User })),
+    ...(hasRaceProfileContent ? [
+      { id: 'race' as TabId, label: raceLabel.toUpperCase(), icon: Dna },
+      { id: 'profile' as TabId, label: profileLabel.toUpperCase(), icon: Swords },
+    ] : []),
+    { id: 'competences', label: 'COMPÉTENCES', icon: Zap },
+    { id: 'stats', label: 'CARACTÉRISTIQUES', icon: Dice6 },
+    { id: 'inventory', label: 'INVENTAIRE', icon: BookOpen },
+    { id: 'image', label: 'PORTRAIT', icon: Images }
+  ];
+
+  return (
+    <div className="flex flex-col items-center min-h-screen py-8 bg-background">
+      {/* Scripts du bundle de règles de la salle — fournit les onglets de création contribués
+          (moduleRegistry.getCreationTabs) ; ne rend rien lui-même. */}
+      <ExtensionHost roomId={roomId} />
+      {/* Top Navigation Tabs */}
+      <div className="w-full max-w-[95vw] px-6 mb-8 mt-4">
+        {/* max-w large + padding réduit + scroll horizontal de secours : le nombre d'onglets varie
+            (onglets contribués par le bundle), la barre ne doit jamais déborder de l'écran. */}
+        <div className="flex items-center justify-evenly relative pb-2 mx-auto max-w-6xl overflow-x-auto">
+          <div className="absolute left-0 right-0 h-px bg-[var(--border-color)] bottom-0 z-0" />
+          {tabsList.map((tab) => {
+            const isActive = currentTab === tab.id;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setCurrentTab(tab.id as any)}
+                className={`relative z-10 flex flex-col items-center gap-2 pb-3 px-4 shrink-0 transition-colors ${isActive ? 'text-[var(--accent-brown)]' : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+              >
+                <Icon className={`w-6 h-6 ${isActive ? 'text-white' : ''}`} />
+                <span className={`text-xs font-bold tracking-widest whitespace-nowrap ${isActive ? 'text-white' : ''}`}>{tab.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute bottom-0 left-0 right-0 h-[3px] bg-[var(--accent-brown)] rounded-t-sm"
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className={`w-full mx-auto transition-all duration-300 ${currentTab === 'info' ? 'max-w-4xl' : 'max-w-[95vw]'}`}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {currentTab === 'info' && (
+              <Card className="bg-[var(--bg-darker)] border-[var(--border-color)] rounded-2xl max-w-4xl mx-auto">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-serif text-[var(--text-primary)]">Informations de base</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {renderBasicInfo()}
+                  <div className="flex justify-between mt-6">
+                    <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                    <Button
+                      onClick={nextStep}
+                      disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                      className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                    >
+                      Suivant <ChevronRight className="ml-2 w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {(currentTab === 'race' || currentTab === 'profile') && renderSelectionPanel()}
+            {currentTab === 'competences' && (
+              <div className="bg-[var(--bg-darker)] border border-[var(--border-color)] rounded-2xl p-6 shadow-2xl mt-2">
+                {hasSkillSystem ? (
+                  <CareerSkillPicker
+                    gameSystem={gameSystem}
+                    initialCareer={character.Profile}
+                    initialSelection={careerSkillSelection}
+                    onSelectionChange={setCareerSkillSelection}
+                    onFinalStepComplete={nextStep}
+                    onFirstStepBack={prevStep}
+                  />
+                ) : (
+                  <CompetenceCreator
+                    initialProfile={character.Profile}
+                    initialRace={character.Race}
+                    onVoiesChange={(voies, customComps) => {
+                      setCharacterVoies(voies);
+                      setCharacterCustomCompetences(customComps);
+                    }}
+                  />
+                )}
+                {/* Pour hasSkillSystem, CareerSkillPicker affiche déjà sa propre paire Précédent/Suivant
+                    qui pilote ses sous-étapes internes (Carrière→Skills→Spécialisation→Skills) et
+                    avance vers l'onglet suivant sur la dernière — une seconde paire ici dupliquait
+                    visuellement les boutons et permettait de sauter l'étape sans la valider. */}
+                {!hasSkillSystem && (
+                  <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[var(--border-color)]">
+                    <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                    <Button
+                      onClick={nextStep}
+                      disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                      className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                    >
+                      Suivant <ChevronRight className="ml-2 w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            {currentTab === 'stats' && renderStatsSelection()}
+            {currentTab === 'inventory' && (
+              <div className="bg-[var(--bg-darker)] border border-[var(--border-color)] rounded-2xl p-6 shadow-2xl mt-2 h-[85vh] flex flex-col">
+                <div className="flex-1 overflow-hidden">
+                  {character.Nomperso ? (
+                    <InventoryManagement
+                      playerName={character.Nomperso}
+                      roomId={roomId || 'creation'}
+                      canEdit={true}
+                    />
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-[var(--bg-canvas)] rounded-xl border border-[var(--border-color)]">
+                      <BookOpen className="w-16 h-16 text-zinc-600 mb-4" />
+                      <h3 className="text-xl font-serif text-[var(--text-primary)] mb-2">Nom du personnage manquant</h3>
+                      <p className="text-zinc-500 max-w-md">L'inventaire est lié à votre nom de personnage. Veuillez retourner à l'onglet "INFORMATIONS" pour définir un nom avant de gérer votre équipement.</p>
+                      <Button onClick={() => setCurrentTab('info')} className="mt-6 bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold">Retour aux informations</Button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[var(--border-color)] shrink-0">
+                  <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                  <Button
+                    onClick={nextStep}
+                    disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                    className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                  >
+                    Suivant <ChevronRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            {/* Onglets contribués par le bundle de règles — le composant remplit bundleDraft,
+                fusionné dans le doc personnage à la sauvegarde. */}
+            {currentTab.startsWith('bundle:') && (() => {
+              const bundleTab = creationTabs.find((t) => `bundle:${t.id}` === currentTab);
+              if (!bundleTab) return null;
+              return (
+                <Card className="bg-[var(--bg-darker)] border-[var(--border-color)] rounded-2xl max-w-4xl mx-auto">
+                  <CardHeader>
+                    <CardTitle className="text-2xl font-serif text-[var(--text-primary)] text-center">{bundleTab.label}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <bundleTab.component draft={bundleDraft} setDraft={mergeBundleDraft} />
+                    <div className="flex w-full justify-between pt-6 border-t border-[var(--border-color)]">
+                      <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                      <Button onClick={nextStep} className="bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold">Suivant <ChevronRight className="ml-2 w-4 h-4" /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+            {currentTab === 'image' && (
+              <Card className="bg-[var(--bg-darker)] border-[var(--border-color)] rounded-2xl max-w-lg mx-auto">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-serif text-[var(--text-primary)] text-center">Portrait du personnage</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-8 flex flex-col items-center">
+                  <div className="relative w-64 h-80 rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-canvas)] flex items-center justify-center shadow-lg">
+                    {getPreviewImage() ? (
+                      <img src={getPreviewImage()} className="w-full h-full object-cover object-top" alt="Preview" />
+                    ) : (
+                      <User className="w-20 h-20 text-[var(--border-color)]" strokeWidth={1} />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-canvas)] via-[color-mix(in_srgb,var(--bg-canvas)_20%,transparent)] to-transparent pointer-events-none" />
+                  </div>
+
+                  <div className="w-full max-w-xs">
+                    <label className="bg-[var(--bg-darker)] border border-[var(--border-color)] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_5%,transparent)] transition-all group w-full shadow-md">
+                      <Upload className="w-6 h-6 text-zinc-500 group-hover:text-[var(--accent-brown)] mb-3" />
+                      <span className="text-xs uppercase text-zinc-400 font-bold tracking-wider group-hover:text-zinc-200">Choisir une image</span>
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </label>
+                  </div>
+
+                  <div className="flex w-full justify-between mt-4 pt-6 border-t border-[var(--border-color)]">
+                    <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                    <Button onClick={handleCreateCharacter} className="bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black font-bold flex-1 ml-4 shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]">Créer le personnage<ChevronRight className="ml-2 w-4 h-4" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}

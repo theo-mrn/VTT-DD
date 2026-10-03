@@ -1,0 +1,95 @@
+# NATS JetStream, chart officiel nats (version épinglée dans infra/argocd/messaging.yaml).
+# Un serveur, un compte par environnement : STAGING et PROD ont chacun leur JetStream, donc leur
+# propre flux VTT_EVENTS (même nom, données, consommateurs et limites séparés). Aucun accès
+# anonyme : sans utilisateur, la connexion est refusée. Mots de passe : secret nats-accounts
+# (voir « Déploiement » dans docs/bus.md). Images : celles du chart (nats 2.15.0-alpine et
+# nats-server-config-reloader 0.23.0 pour le chart 2.15.0).
+config:
+  # Un seul nœud aujourd'hui. HA dès 3 nœuds : enabled: true (3 pods, routes sur 6222 déjà
+  # permises par la NetworkPolicy), puis passer VTT_EVENTS en 3 réplicas (docs/bus.md).
+  cluster:
+    enabled: false
+    replicas: 3
+  jetstream:
+    enabled: true
+    fileStore:
+      pvc:
+        # Somme des max_file des comptes (2 + 6 Gio) + marge ; la réplication viendra de NATS
+        size: 10Gi
+        storageClassName: local-path
+    # Pas de flux en mémoire (VTT_EVENTS est sur disque)
+    memoryStore:
+      enabled: false
+  merge:
+    # 1 Mo, comme en local : une enveloppe plus grosse reste dans l'outbox (docs/bus.md)
+    max_payload: << 1MB >>
+    system_account: SYS
+    accounts:
+      # Administration (nats server report …) ; aucun service ne l'utilise
+      SYS:
+        users:
+          - { user: sys, password: << $NATS_SYS_PASSWORD >> }
+      STAGING:
+        jetstream:
+          max_file: << 2GB >>
+          max_memory: 0
+          max_streams: 8
+          # realtime : un consommateur ordonné par réplica et un par rejeu en cours
+          max_consumers: 1000
+        users:
+          - { user: vtt-staging, password: << $NATS_STAGING_PASSWORD >> }
+      PROD:
+        jetstream:
+          max_file: << 6GB >>
+          max_memory: 0
+          max_streams: 8
+          max_consumers: 2000
+        users:
+          - { user: vtt-prod, password: << $NATS_PROD_PASSWORD >> }
+
+container:
+  env:
+    # Valeurs lues par la configuration ($NATS_…_PASSWORD) ; une rotation demande un redémarrage
+    NATS_SYS_PASSWORD:
+      valueFrom: { secretKeyRef: { name: nats-accounts, key: SYS_PASSWORD } }
+    NATS_STAGING_PASSWORD:
+      valueFrom: { secretKeyRef: { name: nats-accounts, key: STAGING_PASSWORD } }
+    NATS_PROD_PASSWORD:
+      valueFrom: { secretKeyRef: { name: nats-accounts, key: PROD_PASSWORD } }
+    # Laisse de la marge au ramasse-miettes sous la limite du conteneur
+    GOMEMLIMIT: 900MiB
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+  merge:
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities: { drop: [ALL] }
+
+reloader:
+  merge:
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities: { drop: [ALL] }
+
+podTemplate:
+  # Même utilisateur pour nats et le reloader : il signale le serveur (processus partagés)
+  merge:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+  # Avec 3 réplicas : un pod par nœud (chaque PVC local-path est lié à son nœud)
+  topologySpreadConstraints:
+    kubernetes.io/hostname:
+      maxSkew: 1
+      whenUnsatisfiable: DoNotSchedule
+
+# Pas de nats-box dans le cluster : vérification par port-forward (docs/bus.md)
+natsBox:
+  enabled: false

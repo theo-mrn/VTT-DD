@@ -1,0 +1,75 @@
+# Namespace messaging : tout refuser, puis n'ouvrir que les ports des services vtt.
+# Staging et prod atteignent le même NATS (même port) : c'est le compte NATS, choisi par
+# l'utilisateur, qui sépare leurs flux. Valkey : une instance par environnement, chacune
+# joignable seulement depuis le sien.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: messaging
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nats
+  namespace: messaging
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: nats, app.kubernetes.io/component: nats }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Clients : pods des services (label posé par infra/helm/service) des deux environnements
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: vtt-staging } }
+          podSelector: { matchLabels: { app.kubernetes.io/part-of: vtt } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: vtt-prod } }
+          podSelector: { matchLabels: { app.kubernetes.io/part-of: vtt } }
+      ports: [{ port: 4222 }]
+    # Routes entre serveurs NATS (config.cluster.enabled, 3 réplicas)
+    - from:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: nats, app.kubernetes.io/component: nats }
+      ports: [{ port: 6222 }]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: nats, app.kubernetes.io/component: nats }
+      ports: [{ port: 6222 }]
+    # Résolution des routes (service headless)
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: valkey-staging
+  namespace: messaging
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: valkey, app.kubernetes.io/instance: valkey-staging }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: vtt-staging } }
+          podSelector: { matchLabels: { app.kubernetes.io/part-of: vtt } }
+      ports: [{ port: 6379 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: valkey-prod
+  namespace: messaging
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: valkey, app.kubernetes.io/instance: valkey-prod }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: vtt-prod } }
+          podSelector: { matchLabels: { app.kubernetes.io/part-of: vtt } }
+      ports: [{ port: 6379 }]

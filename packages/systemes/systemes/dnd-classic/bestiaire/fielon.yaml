@@ -1,0 +1,950 @@
+# Bestiaire de référence — Fiélon (23).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: balor
+  nom: Balor
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (très grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/balor.png
+  valeurs:
+    niveau: 19
+    PV_Max: 262
+    Defense: 19
+    INIT: 2
+    Contact: 14
+    Distance: 14
+    Magie: 0
+    FOR: 26
+    DEX: 15
+    CON: 22
+    INT: 20
+    SAG: 16
+    CHA: 22
+  actions:
+    - nom: Multi-attaques
+      description: 'Le balor effectue deux attaques : une avec son épée longue et une avec son fouet.'
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 21
+        (3d8 + 8) points de dégâts tranchants plus 13 (3d8) points de dégâts de foudre. Si le balor
+        obtient un coup critique, il lance les dés de dégâts trois fois au lieu de deux."
+      toucher: 14
+    - nom: Fouet
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 30 pieds, une cible. Touché : 15
+        (2d6 + 8) points de dégâts tranchants plus 10 (3d6) points de dégâts de feu, et la cible
+        doit réussir un jet de sauvegarde de Force DC 20 ou être tirée jusqu'à 25 pieds vers le
+        balor."
+      toucher: 14
+    - nom: Téléportation
+      description:
+        Le balor se téléporte magiquement, avec tout l'équipement qu'il porte, jusqu'à 120
+        pieds dans un espace inoccupé qu'il peut voir.
+- id: nightmare
+  nom: Cauchemar
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/nightmare.png
+  valeurs:
+    niveau: 3
+    PV_Max: 68
+    Defense: 13
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 15
+    CON: 16
+    INT: 10
+    SAG: 13
+    CHA: 15
+  actions:
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts de matraquage plus 7 (2d6) points de dégâts de feu."
+      toucher: 6
+    - nom: La foulée éthérée
+      description:
+        Le cauchemar et jusqu'à trois créatures consentantes dans un rayon de 5 pieds autour de
+        lui pénètrent magiquement dans le plan éthéré depuis le plan matériel, ou vice versa.
+- id: hell-hound
+  nom: Chien de l'enfer
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/hell-hound.png
+  valeurs:
+    niveau: 3
+    PV_Max: 45
+    Defense: 15
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 12
+    CON: 14
+    INT: 6
+    SAG: 13
+    CHA: 6
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts perforants plus 7 (2d6) points de dégâts de feu."
+      toucher: 5
+    - nom: Souffle de feu
+      description:
+        Le molosse exhale du feu dans un cône de 15 pieds. Chaque créature dans cette zone doit
+        faire un jet de sauvegarde de Dextérité DC 12, subissant 21 (6d6) points de dégâts de feu en
+        cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.
+- id: barbed-devil
+  nom: Diable barbelé
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/barbed-devil.png
+  valeurs:
+    niveau: 5
+    PV_Max: 110
+    Defense: 15
+    INIT: 3
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 16
+    DEX: 17
+    CON: 18
+    INT: 12
+    SAG: 14
+    CHA: 14
+  actions:
+    - nom: Multi-attaques
+      description: 'Le diable effectue trois attaques de mêlée : une avec sa queue et deux avec ses
+        griffes. Il peut également utiliser Hurl Flame deux fois.'
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts perforants."
+      toucher: 6
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts perforants."
+      toucher: 6
+    - nom: Flamme de Hurl
+      description:
+        "Attaque magique à distance : +5 pour toucher, portée de 150 pieds, une cible. Touché :
+        10 (3d6) points de dégâts de feu. Si la cible est un objet inflammable qui n'est pas porté
+        ou transporté, il s'enflamme également."
+      toucher: 5
+- id: bearded-devil
+  nom: Diable barbu
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/bearded-devil.png
+  valeurs:
+    niveau: 3
+    PV_Max: 52
+    Defense: 13
+    INIT: 2
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 15
+    CON: 15
+    INT: 9
+    SAG: 11
+    CHA: 11
+  actions:
+    - nom: Multi-attaques
+      description: 'Le diable effectue deux attaques : une avec sa barbe et une avec son glaive.'
+    - nom: Barbe
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature. Touché : 6
+        (1d8 + 2) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de
+        Constitution DC 12 ou être empoisonnée pendant 1 minute. Tant qu'elle est empoisonnée de
+        cette façon, la cible ne peut pas regagner de points de vie. La cible peut répéter le jet de
+        sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de
+        succès."
+      toucher: 5
+    - nom: Glaive
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 10 pieds, une cible. Touché : 8
+        (1d10 + 3) points de dégâts tranchants. Si la cible est une créature autre qu'un mort-vivant
+        ou une construction, elle doit réussir un jet de sauvegarde de Constitution DC 12 ou perdre
+        5 (1d10) points de vie au début de chacun de ses tours à cause d'une blessure infernale.
+        Chaque fois que le démon touche la cible blessée avec cette attaque, les dégâts infligés par
+        la blessure augmentent de 5 (1d10). Toute créature peut entreprendre une action pour panser
+        la plaie en réussissant un test de sagesse (médecine) DC 12. La blessure se referme
+        également si la cible bénéficie d'une guérison magique."
+      toucher: 5
+- id: horned-devil
+  nom: Diable cornu
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/horned-devil.png
+  valeurs:
+    niveau: 11
+    PV_Max: 178
+    Defense: 18
+    INIT: 3
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 22
+    DEX: 17
+    CON: 21
+    INT: 12
+    SAG: 16
+    CHA: 17
+  actions:
+    - nom: Multi-attaques
+      description: "Le diable effectue trois attaques de mêlée : deux avec sa fourche et une avec sa
+        queue. Il peut utiliser Hurl Flame à la place de n'importe quelle attaque de mêlée."
+    - nom: Fourchette
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d8 + 6) points de dégâts perforants."
+      toucher: 10
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 10
+        (1d8 + 6) points de dégâts perforants. Si la cible est une créature autre qu'un mort-vivant
+        ou une construction, elle doit réussir un jet de sauvegarde de Constitution DC 17 ou perdre
+        10 (3d6) points de vie au début de chacun de ses tours à cause d'une blessure infernale.
+        Chaque fois que le démon touche la cible blessée avec cette attaque, les dégâts infligés par
+        la blessure augmentent de 10 (3d6). Toute créature peut entreprendre une action pour panser
+        la plaie en réussissant un test de sagesse (médecine) DC 12. La blessure se referme
+        également si la cible bénéficie d'une guérison magique."
+      toucher: 10
+    - nom: Flamme de Hurl
+      description:
+        "Attaque magique à distance : +7 pour toucher, portée de 150 pieds, une cible. Touché :
+        14 (4d6) points de dégâts de feu. Si la cible est un objet inflammable qui n'est pas porté
+        ou transporté, il s'enflamme également."
+      toucher: 7
+- id: ice-devil
+  nom: Diable de glace
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/ice-devil.png
+  valeurs:
+    niveau: 14
+    PV_Max: 180
+    Defense: 18
+    INIT: 2
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 21
+    DEX: 14
+    CON: 18
+    INT: 18
+    SAG: 15
+    CHA: 18
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le diable effectue trois attaques : une avec sa morsure, une avec ses griffes et une
+        avec sa queue.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une cible. Touché : 12
+        (2d6 + 5) points de dégâts perforants plus 10 (3d6) points de dégâts de froid."
+      toucher: 10
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d4 + 5) points de dégâts tranchants plus 10 (3d6) points de dégâts de froid."
+      toucher: 10
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 12
+        (2d6 + 5) points de dégâts de matraquage plus 10 (3d6) points de dégâts de froid."
+      toucher: 10
+    - nom: Mur de glace
+      description: >-
+        Le diable forme magiquement un mur de glace opaque sur une surface solide qu'il peut voir
+        dans un rayon de 60 pieds. Le mur a 1 pied d'épaisseur et jusqu'à 30 pieds de long et 10
+        pieds de haut, ou c'est un dôme hémisphérique jusqu'à 20 pieds de diamètre.
+
+        Lorsque le mur apparaît, chaque créature se trouvant dans son espace est poussée hors de
+        celui-ci par le chemin le plus court. La créature choisit de quel côté du mur elle se
+        retrouve, à moins qu'elle ne soit incapable de le faire. La créature fait alors un jet de
+        sauvegarde de Dextérité DC 17, subissant 35 (10d6) points de dégâts de froid en cas d'échec,
+        ou moitié moins en cas de réussite.
+
+        Le mur dure 1 minute ou jusqu'à ce que le démon soit incapacité ou meure. Le mur peut être
+        endommagé et percé ; chaque section de 3 mètres a une CA de 5, 30 points de vie, une
+        vulnérabilité aux dégâts de feu et une immunité à l'acide, au froid, à la nécrose, au poison
+        et aux dégâts psychiques. Si une section est détruite, elle laisse derrière elle une nappe
+        d'air glacial dans l'espace que le mur occupait. Chaque fois qu'une créature finit de se
+        déplacer dans l'air glacial au cours d'un tour, volontairement ou non, elle doit effectuer
+        un jet de sauvegarde de Constitution DC 17, subissant 17 (5d6) points de dégâts de froid en
+        cas d'échec, ou la moitié de ces dégâts en cas de réussite. L'air glacial se dissipe lorsque
+        le reste du mur disparaît.
+- id: chain-devil
+  nom: Diable en chaîne
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/chain-devil.png
+  valeurs:
+    niveau: 8
+    PV_Max: 85
+    Defense: 16
+    INIT: 2
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 15
+    CON: 18
+    INT: 11
+    SAG: 12
+    CHA: 14
+  actions:
+    - nom: Multi-attaques
+      description: Le diable effectue deux attaques avec ses chaînes.
+    - nom: Chaîne
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants. La cible est agrippée (évasion DC 14) si le démon
+        n'est pas déjà en train d'agripper une créature. Jusqu'à la fin de cette prise, la cible est
+        entravée et subit 7 (2d6) points de dégâts perforants au début de chacun de ses tours."
+      toucher: 8
+    - nom: Animer des chaînes
+      description: >-
+        Jusqu'à quatre chaînes que le démon peut voir dans un rayon de 60 pieds autour de lui
+        poussent magiquement des barbelures tranchantes et s'animent sous le contrôle du démon, à
+        condition que les chaînes ne soient pas portées ou transportées.
+
+        Chaque chaîne animée est un objet doté d'une CA de 20, de 20 points de vie, d'une résistance
+        aux dégâts perforants et d'une immunité aux dégâts psychiques et du tonnerre. Lorsque le
+        démon utilise l'attaque multiple à son tour, il peut utiliser chaque chaîne animée pour
+        effectuer une attaque en chaîne supplémentaire. Une chaîne animée peut agripper une créature
+        à elle seule, mais ne peut pas effectuer d'attaque pendant qu'elle est agrippée. Une chaîne
+        animée retourne à son état inanimé si elle est réduite à 0 point de vie ou si le démon est
+        frappé d'incapacité ou meurt.
+- id: bone-devil
+  nom: Diable osseux
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/bone-devil.png
+  valeurs:
+    niveau: 9
+    PV_Max: 142
+    Defense: 19
+    INIT: 3
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 18
+    DEX: 16
+    CON: 18
+    INT: 13
+    SAG: 14
+    CHA: 16
+  actions:
+    - nom: Multi-attaques
+      description: 'Le diable fait trois attaques : deux avec ses griffes et une avec son aiguillon.'
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 8
+        (1d8 + 4) points de dégâts tranchants."
+      toucher: 8
+    - nom: Sting
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts perforants plus 17 (5d6) points de dégâts de poison, et la cible
+        doit réussir un jet de sauvegarde de Constitution DC 14 ou être empoisonnée pendant 1
+        minute. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant
+        fin à l'effet sur elle-même en cas de réussite."
+      toucher: 8
+- id: dretch
+  nom: Dretch
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (petite)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/dretch.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 18
+    Defense: 11
+    INIT: 0
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 11
+    DEX: 11
+    CON: 12
+    INT: 5
+    SAG: 8
+    CHA: 3
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dretch effectue deux attaques : une avec sa morsure et une avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 3
+        (1d6) points de dégâts perforants."
+      toucher: 2
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (2d4) points de dégâts tranchants."
+      toucher: 2
+    - nom: Nuage fétide
+      description:
+        Un rayon de 3 mètres de gaz vert dégoûtant s'étend à partir du dretch. Le gaz se répand
+        dans les coins et sa zone est légèrement obscurcie. Il dure 1 minute ou jusqu'à ce qu'un
+        vent fort le disperse. Toute créature qui commence son tour dans cette zone doit réussir un
+        jet de sauvegarde de Constitution DC 11 ou être empoisonnée jusqu'au début de son prochain
+        tour. Lorsqu'elle est ainsi empoisonnée, la cible peut effectuer une action ou une action
+        bonus à son tour, mais pas les deux, et ne peut pas faire de réactions.
+- id: erinyes
+  nom: Erinyes
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/erinyes.png
+  valeurs:
+    niveau: 12
+    PV_Max: 153
+    Defense: 18
+    INIT: 3
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 18
+    DEX: 16
+    CON: 18
+    INT: 14
+    SAG: 14
+    CHA: 18
+  actions:
+    - nom: Multi-attaques
+      description: L'érinyes effectue trois attaques
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d8 + 4) points de dégâts tranchants, ou 9 (1d10 + 4) points de dégâts tranchants si l'arme
+        est utilisée à deux mains, plus 13 (3d8) points de dégâts de poison."
+      toucher: 8
+    - nom: Arc long
+      description:
+        "Attaque d'arme à distance : +7 pour toucher, portée 150/600 pieds, une cible. Touché :
+        7 (1d8 + 3) points de dégâts perforants plus 13 (3d8) points de dégâts de poison, et la
+        cible doit réussir un jet de sauvegarde de Constitution DC 14 ou être empoisonnée. Le poison
+        dure jusqu'à ce qu'il soit éliminé par le sort de restauration inférieur ou une magie
+        similaire."
+      toucher: 7
+- id: pit-fiend
+  nom: Fléau de la fosse
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/pit-fiend.png
+  valeurs:
+    niveau: 20
+    PV_Max: 300
+    Defense: 19
+    INIT: 2
+    Contact: 14
+    Distance: 14
+    Magie: 0
+    FOR: 26
+    DEX: 14
+    CON: 24
+    INT: 22
+    SAG: 18
+    CHA: 24
+  actions:
+    - nom: Multi-attaques
+      description: 'Le démon de la fosse effectue quatre attaques : une avec sa morsure, une avec sa
+        griffe, une avec sa masse et une avec sa queue.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 5 pieds, une cible. Touché : 22
+        (4d6 + 8) points de dégâts perforants. La cible doit réussir un jet de sauvegarde de
+        Constitution DC 21 ou être empoisonnée. Tant qu'elle est empoisonnée de cette façon, la
+        cible ne peut pas regagner de points de vie et subit 21 (6d6) points de dégâts de poison au
+        début de chacun de ses tours. La cible empoisonnée peut répéter le jet de sauvegarde à la
+        fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de succès."
+      toucher: 14
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d8 + 8) points de dégâts tranchants."
+      toucher: 14
+    - nom: Masse
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d6 + 8) points de dégâts de matraquage plus 21 (6d6) points de dégâts de feu."
+      toucher: 14
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 24
+        (3d10 + 8) dégâts de matraquage."
+      toucher: 14
+- id: glabrezu
+  nom: Glabrezu
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/glabrezu.png
+  valeurs:
+    niveau: 9
+    PV_Max: 157
+    Defense: 17
+    INIT: 2
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 20
+    DEX: 15
+    CON: 21
+    INT: 19
+    SAG: 17
+    CHA: 16
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le glabrezu porte quatre attaques : deux avec ses pinces et deux avec ses poings. Il
+        peut aussi effectuer deux attaques avec ses pinces et lancer un sort.'
+    - nom: Pince
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une cible. Touché : 16
+        (2d10 + 5) dégâts de matraquage. Si la cible est une créature moyenne ou plus petite, elle
+        est agrippée (échappatoire DC 15). Le glabrezu possède deux pinces, chacune ne pouvant
+        saisir qu'une seule cible."
+      toucher: 9
+    - nom: Poing
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (2d4 + 2) points de dégâts de matraquage."
+      toucher: 9
+- id: night-hag
+  nom: Hagre de nuit
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/night-hag.png
+  valeurs:
+    niveau: 5
+    PV_Max: 112
+    Defense: 17
+    INIT: 2
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 15
+    CON: 16
+    INT: 16
+    SAG: 14
+    CHA: 16
+  actions:
+    - nom: Griffes (forme Hag uniquement)
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Changer de forme
+      description: La sorcière se transforme magiquement en une femme humanoïde de petite ou moyenne
+        taille, ou reprend sa véritable forme. Ses statistiques sont les mêmes sous chaque forme.
+        L'équipement qu'elle porte n'est pas transformé. Elle reprend sa forme réelle si elle meurt.
+    - nom: L'éthéré
+      description:
+        La sorcière entre magiquement dans le plan éthéré depuis le plan matériel, ou vice
+        versa. Pour ce faire, elle doit avoir une pierre de cœur en sa possession.
+    - nom: La hantise du cauchemar
+      description:
+        Lorsqu'elle se trouve sur le plan éthéré, la sorcière touche magiquement un humanoïde
+        endormi sur le plan matériel. Un sort de protection contre le mal et le bien lancé sur la
+        cible empêche ce contact, de même qu'un cercle magique. Tant que le contact persiste, la
+        cible a des visions épouvantables. Si ces visions durent au moins 1 heure, la cible ne
+        bénéficie pas de son repos et son maximum de points de vie est réduit de 5 (1d10). Si cet
+        effet réduit le maximum de points de vie de la cible à 0, la cible meurt, et si la cible
+        était maléfique, son âme est piégée dans le sac d'âme de la sorcière. La réduction du
+        maximum de points de vie de la cible dure jusqu'à ce qu'elle soit supprimée par le sort
+        restauration supérieure ou une magie similaire.
+- id: hezrou
+  nom: Hezrou
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/hezrou.png
+  valeurs:
+    niveau: 8
+    PV_Max: 136
+    Defense: 16
+    INIT: 3
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 17
+    CON: 20
+    INT: 5
+    SAG: 12
+    CHA: 13
+  actions:
+    - nom: Multi-attaques
+      description: 'Le hezrou effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 15
+        (2d10 + 4) points de dégâts perforants."
+      toucher: 7
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 7
+- id: lemure
+  nom: Lemure
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/lemure.png
+  valeurs:
+    niveau: 0
+    PV_Max: 13
+    Defense: 7
+    INIT: -3
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 10
+    DEX: 5
+    CON: 11
+    INT: 1
+    SAG: 11
+    CHA: 3
+  actions:
+    - nom: Poing
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 2
+        (1d4) points de dégâts de matraquage."
+      toucher: 3
+- id: imp
+  nom: Lutte contre l'alcoolisme
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (très petite)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/imp.png
+  valeurs:
+    niveau: 1
+    PV_Max: 10
+    Defense: 13
+    INIT: 3
+    Contact: 0
+    Distance: 0
+    Magie: 0
+    FOR: 6
+    DEX: 17
+    CON: 13
+    INT: 11
+    SAG: 12
+    CHA: 14
+  actions:
+    - nom: Piqûre (morsure sous forme de bête)
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d4 + 3) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de
+        Constitution DC 11, subissant 10 (3d6) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié des dégâts en cas de sauvegarde réussie."
+      toucher: 5
+    - nom: Invisibilité
+      description:
+        Le diablotin devient magiquement invisible jusqu'à ce qu'il attaque, ou jusqu'à la fin
+        de sa concentration (comme s'il se concentrait sur un sort). L'équipement que le diablotin
+        porte ou transporte est invisible avec lui.
+- id: marilith
+  nom: Marilith
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/marilith.png
+  valeurs:
+    niveau: 16
+    PV_Max: 189
+    Defense: 18
+    INIT: 5
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 18
+    DEX: 20
+    CON: 20
+    INT: 18
+    SAG: 16
+    CHA: 20
+  actions:
+    - nom: Multi-attaques
+      description: 'Le marilith peut effectuer sept attaques : six avec ses longues épées et une avec sa queue.'
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts tranchants."
+      toucher: 9
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une créature. Touché :
+        15 (2d10 + 4) dégâts de matraquage. Si la cible est de taille moyenne ou plus petite, elle
+        est agrippée (échappatoire DC 19). Jusqu'à la fin de cette prise, la cible est immobilisée,
+        le marilith peut automatiquement la frapper avec sa queue, et il ne peut pas effectuer
+        d'attaques de queue contre d'autres cibles."
+      toucher: 9
+    - nom: Téléportation
+      description:
+        Le marilith se téléporte magiquement, avec tout l'équipement qu'il porte, jusqu'à 120
+        pieds dans un espace inoccupé qu'il peut voir.
+- id: nalfeshnee
+  nom: Nalfeshnee
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/nalfeshnee.png
+  valeurs:
+    niveau: 13
+    PV_Max: 184
+    Defense: 18
+    INIT: 0
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 21
+    DEX: 10
+    CON: 22
+    INT: 19
+    SAG: 12
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description:
+        "La nalfeshnee utilise le Nimbus d'Horreur si elle le peut. Elle effectue ensuite trois
+        attaques : une avec sa morsure et deux avec ses griffes."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une cible. Touché : 32
+        (5d10 + 5) points de dégâts perforants."
+      toucher: 10
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (3d6 + 5) points de dégâts tranchants."
+      toucher: 10
+    - nom: Horreur Nimbus
+      description:
+        La nalfeshnee émet magiquement une lumière scintillante et multicolore. Chaque créature
+        située à moins de 15 pieds de la nalfeshnee qui peut voir la lumière doit réussir un jet de
+        sauvegarde de Sagesse DC 15 ou être effrayée pendant 1 minute. Une créature peut répéter le
+        jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en
+        cas de succès. Si une créature réussit son jet de sauvegarde ou si l'effet prend fin pour
+        elle, elle est immunisée contre le nimbe d'horreur de la nalfeshnee pendant les 24 heures
+        suivantes.
+    - nom: Téléportation
+      description:
+        Le nalfeshnee se téléporte magiquement, avec tout l'équipement qu'il porte, jusqu'à 120
+        pieds dans un espace inoccupé qu'il peut voir.
+- id: quasit
+  nom: Quasit
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (très petite)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/quasit.png
+  valeurs:
+    niveau: 1
+    PV_Max: 7
+    Defense: 13
+    INIT: 3
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 5
+    DEX: 17
+    CON: 10
+    INT: 7
+    SAG: 10
+    CHA: 10
+  actions:
+    - nom: Griffe (Morsure sous forme de bête)
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d4 + 3) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de
+        Constitution DC 10 ou subir 5 (2d4) points de dégâts de poison et être empoisonnée pendant 1
+        minute. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant
+        fin à l'effet sur elle-même en cas de succès."
+      toucher: 4
+    - nom: Effrayer
+      description:
+        Une créature choisie par le quasit dans un rayon de 20 pieds doit réussir un jet de
+        sauvegarde de Sagesse DC 10 ou être effrayée pendant 1 minute. La cible peut répéter le jet
+        de sauvegarde à la fin de chacun de ses tours, avec un désavantage si le quasit est en ligne
+        de vue, mettant fin à l'effet sur elle-même en cas de succès.
+    - nom: Invisibilité
+      description:
+        Le quasit devient magiquement invisible jusqu'à ce qu'il attaque ou utilise Peur, ou
+        jusqu'à la fin de sa concentration (comme s'il se concentrait sur un sort). Tout équipement
+        que le quasit porte ou transporte est invisible avec lui.
+- id: rakshasa
+  nom: Rakshasa
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/rakshasa.png
+  valeurs:
+    niveau: 13
+    PV_Max: 110
+    Defense: 16
+    INIT: 3
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 14
+    DEX: 17
+    CON: 18
+    INT: 13
+    SAG: 16
+    CHA: 20
+  actions:
+    - nom: Multi-attaques
+      description: Le rakshasa fait deux attaques de griffes
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (2d6 + 2) points de dégâts tranchants, et la cible est maudite s'il s'agit d'une créature.
+        La malédiction magique prend effet à chaque fois que la cible prend un repos court ou long,
+        remplissant ses pensées d'images et de rêves horribles. La cible maudite ne bénéficie
+        d'aucun avantage à la fin d'un repos court ou long. La malédiction dure jusqu'à ce qu'elle
+        soit levée par un sort de levée de malédiction ou une magie similaire."
+      toucher: 7
+- id: succubus-incubus
+  nom: Succube/Incube
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/succubus-incubus.png
+  valeurs:
+    niveau: 4
+    PV_Max: 66
+    Defense: 15
+    INIT: 3
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 8
+    DEX: 17
+    CON: 13
+    INT: 15
+    SAG: 12
+    CHA: 20
+  actions:
+    - nom: Griffe (Forme diabolique uniquement)
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Charme
+      description: >-
+        Un humanoïde que le démon peut voir dans un rayon de 30 pieds doit réussir un jet de
+        sauvegarde de Sagesse DC 15 ou être magiquement charmé pendant 1 jour. La cible charmée
+        obéit aux ordres verbaux ou télépathiques du démon. Si la cible est blessée ou reçoit un
+        ordre suicidaire, elle peut répéter son jet de sauvegarde, ce qui met fin à l'effet en cas
+        de succès. Si la cible réussit son jet de sauvegarde contre l'effet, ou si l'effet sur elle
+        prend fin, elle est immunisée contre le charme de ce démon pour les 24 heures suivantes.
+
+        Le démon ne peut charmer qu'une seule cible à la fois. S'il en charme une autre, l'effet sur
+        la cible précédente prend fin.
+    - nom: Baiser drainant
+      description:
+        Le démon embrasse une créature charmée par lui ou une créature consentante. La cible
+        doit effectuer un jet de sauvegarde de Constitution DC 15 contre cette magie, subissant 32
+        (5d10 + 5) points de dégâts psychiques en cas de sauvegarde ratée, ou la moitié en cas de
+        sauvegarde réussie. Le maximum de points de vie de la cible est réduit d'un montant égal aux
+        dégâts subis. Cette réduction dure jusqu'à ce que la cible termine un long repos. La cible
+        meurt si cet effet réduit son maximum de points de vie à 0.
+    - nom: L'éthéré
+      description: Le démon pénètre magiquement dans le plan éthéré depuis le plan matériel, ou vice versa.
+- id: vrock
+  nom: Vrock
+  entite: personnage
+  categorie: Fiélon
+  type: Fiélon (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/vrock.png
+  valeurs:
+    niveau: 6
+    PV_Max: 104
+    Defense: 15
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 17
+    DEX: 15
+    CON: 18
+    INT: 8
+    SAG: 13
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: 'Le vrock effectue deux attaques : une avec son bec et une avec ses serres.'
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts perforants."
+      toucher: 6
+    - nom: Talons
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (2d10 + 3) points de dégâts tranchants."
+      toucher: 6
+    - nom: Spores
+      description: Un nuage de spores toxiques d'un rayon de 15 pieds s'étend à partir du vrock. Les
+        spores se répandent dans les coins. Chaque créature dans cette zone doit réussir un jet de
+        sauvegarde de Constitution DC 14 ou être empoisonnée. Lorsqu'elle est ainsi empoisonnée, la
+        cible subit 5 (1d10) points de dégâts de poison au début de chacun de ses tours. La cible
+        peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur
+        elle-même en cas de succès. Vider une fiole d'eau bénite sur la cible met également fin à
+        l'effet sur elle.
+    - nom: Cri étourdissant
+      description:
+        Le vrock émet un horrible hurlement. Toute créature qui l'entend dans un rayon de 20
+        pieds et qui n'est pas un démon doit réussir un jet de sauvegarde de Constitution DC 14 ou
+        être étourdie jusqu'à la fin du prochain tour du vrock.

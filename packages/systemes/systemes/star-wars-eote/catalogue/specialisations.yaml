@@ -1,0 +1,335 @@
+# Spécialisations : ouvrent leur arbre de talents, marquent « carriere » 4 compétences ;
+# 2 rangs gratuits pour la première spécialisation (3 pour un droïde : @bonusChoixSpecialisation).
+- id: assassin
+  sorte: specialisation
+  nom: Assassin
+  description: "VO : Assassin. Ouvre l'arbre de talents « Assassin » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: chasseur-de-primes }
+  effets:
+    - { sur: marque, marque: carriere, entrees: [melee, distance-lourde, magouilles, discretion] }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi: { sorte: competence, entrees: [melee, distance-lourde, magouilles, discretion] }
+      donne: { type: rang, valeur: 1 }
+
+- id: bricoleur
+  sorte: specialisation
+  nom: Bricoleur
+  description: "VO : Gadgeteer. Ouvre l'arbre de talents « Bricoleur » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: chasseur-de-primes }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [corps-a-corps, coercition, mecanique, distance-legere],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi: { sorte: competence, entrees: [corps-a-corps, coercition, mecanique, distance-legere] }
+      donne: { type: rang, valeur: 1 }
+
+- id: survivaliste
+  sorte: specialisation
+  nom: Survivaliste
+  description: "VO : Survivalist. Ouvre l'arbre de talents « Survivaliste » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: chasseur-de-primes }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [connaissance-xenologie, perception, resistance, survie],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        { sorte: competence, entrees: [connaissance-xenologie, perception, resistance, survie] }
+      donne: { type: rang, valeur: 1 }
+
+- id: medecin
+  sorte: specialisation
+  nom: Médecin
+  description: "VO : Doctor. Ouvre l'arbre de talents « Médecin » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: colon }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [sang-froid, connaissance-education, medecine, resistance],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        { sorte: competence, entrees: [sang-froid, connaissance-education, medecine, resistance] }
+      donne: { type: rang, valeur: 1 }
+
+- id: politicien
+  sorte: specialisation
+  nom: Politicien
+  description: "VO : Politico. Ouvre l'arbre de talents « Politicien » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: colon }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [charme, coercition, tromperie, connaissance-noyau],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi: { sorte: competence, entrees: [charme, coercition, tromperie, connaissance-noyau] }
+      donne: { type: rang, valeur: 1 }
+
+- id: erudit
+  sorte: specialisation
+  nom: Érudit
+  description: "VO : Scholar. Ouvre l'arbre de talents « Érudit » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: colon }
+  effets:
+    - sur: marque
+      marque: carriere
+      entrees: [connaissance-bordure, connaissance-pegre, connaissance-xenologie, perception]
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        {
+          sorte: competence,
+          entrees: [connaissance-bordure, connaissance-pegre, connaissance-xenologie, perception],
+        }
+      donne: { type: rang, valeur: 1 }
+
+- id: vagabond
+  sorte: specialisation
+  nom: Vagabond
+  description: "VO : Fringer. Ouvre l'arbre de talents « Vagabond » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: explorateur }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [astrogation, coordination, negociation, sens-de-la-rue],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        { sorte: competence, entrees: [astrogation, coordination, negociation, sens-de-la-rue] }
+      donne: { type: rang, valeur: 1 }
+
+- id: eclaireur
+  sorte: specialisation
+  nom: Éclaireur
+  description: "VO : Scout. Ouvre l'arbre de talents « Éclaireur » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: explorateur }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [athletisme, medecine, pilotage-planetaire, survie],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi: { sorte: competence, entrees: [athletisme, medecine, pilotage-planetaire, survie] }
+      donne: { type: rang, valeur: 1 }
+
+- id: marchand
+  sorte: specialisation
+  nom: Marchand
+  description: "VO : Trader. Ouvre l'arbre de talents « Marchand » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: explorateur }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [tromperie, connaissance-noyau, connaissance-pegre, negociation],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        {
+          sorte: competence,
+          entrees: [tromperie, connaissance-noyau, connaissance-pegre, negociation],
+        }
+      donne: { type: rang, valeur: 1 }
+
+- id: garde-du-corps
+  sorte: specialisation
+  nom: Garde du corps
+  description: "VO : Bodyguard. Ouvre l'arbre de talents « Garde du corps » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: mercenaire }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [artillerie, perception, pilotage-planetaire, distance-lourde],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        {
+          sorte: competence,
+          entrees: [artillerie, perception, pilotage-planetaire, distance-lourde],
+        }
+      donne: { type: rang, valeur: 1 }
+
+- id: maraudeur
+  sorte: specialisation
+  nom: Maraudeur
+  description: "VO : Marauder. Ouvre l'arbre de talents « Maraudeur » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: mercenaire }
+  effets:
+    - { sur: marque, marque: carriere, entrees: [coercition, melee, resistance, survie] }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi: { sorte: competence, entrees: [coercition, melee, resistance, survie] }
+      donne: { type: rang, valeur: 1 }
+
+- id: soldat-mercenaire
+  sorte: specialisation
+  nom: Soldat mercenaire
+  description: "VO : Mercenary Soldier. Ouvre l'arbre de talents « Soldat mercenaire » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: mercenaire }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [discipline, artillerie, commandement, distance-lourde],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi: { sorte: competence, entrees: [discipline, artillerie, commandement, distance-lourde] }
+      donne: { type: rang, valeur: 1 }
+
+- id: pilote
+  sorte: specialisation
+  nom: Pilote
+  description: "VO : Pilot. Ouvre l'arbre de talents « Pilote » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: contrebandier }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [astrogation, artillerie, pilotage-planetaire, pilotage-spatial],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        {
+          sorte: competence,
+          entrees: [astrogation, artillerie, pilotage-planetaire, pilotage-spatial],
+        }
+      donne: { type: rang, valeur: 1 }
+
+- id: canaille
+  sorte: specialisation
+  nom: Canaille
+  description: "VO : Scoundrel. Ouvre l'arbre de talents « Canaille » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: contrebandier }
+  effets:
+    - { sur: marque, marque: carriere, entrees: [charme, sang-froid, tromperie, distance-legere] }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi: { sorte: competence, entrees: [charme, sang-froid, tromperie, distance-legere] }
+      donne: { type: rang, valeur: 1 }
+
+- id: voleur
+  sorte: specialisation
+  nom: Voleur
+  description: "VO : Thief. Ouvre l'arbre de talents « Voleur » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: contrebandier }
+  effets:
+    - { sur: marque, marque: carriere, entrees: [informatique, magouilles, discretion, vigilance] }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi: { sorte: competence, entrees: [informatique, magouilles, discretion, vigilance] }
+      donne: { type: rang, valeur: 1 }
+
+- id: mecanicien
+  sorte: specialisation
+  nom: Mécanicien
+  description: "VO : Mechanic. Ouvre l'arbre de talents « Mécanicien » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: technicien }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [corps-a-corps, mecanique, pilotage-spatial, magouilles],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        { sorte: competence, entrees: [corps-a-corps, mecanique, pilotage-spatial, magouilles] }
+      donne: { type: rang, valeur: 1 }
+
+- id: technicien-hors-la-loi
+  sorte: specialisation
+  nom: Technicien hors-la-loi
+  description: "VO : Outlaw Tech. Ouvre l'arbre de talents « Technicien hors-la-loi » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: technicien }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [connaissance-education, connaissance-pegre, mecanique, sens-de-la-rue],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        {
+          sorte: competence,
+          entrees: [connaissance-education, connaissance-pegre, mecanique, sens-de-la-rue],
+        }
+      donne: { type: rang, valeur: 1 }
+
+- id: pirate-informatique
+  sorte: specialisation
+  nom: Pirate informatique
+  description: "VO : Slicer. Ouvre l'arbre de talents « Pirate informatique » ; ses quatre compétences deviennent de carrière."
+  champs: { carriere: technicien }
+  effets:
+    - {
+        sur: marque,
+        marque: carriere,
+        entrees: [informatique, connaissance-education, connaissance-pegre, discretion],
+      }
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de spécialisation (première spécialisation, création)
+      nombre: 2 + @bonusChoixSpecialisation
+      parmi:
+        {
+          sorte: competence,
+          entrees: [informatique, connaissance-education, connaissance-pegre, discretion],
+        }
+      donne: { type: rang, valeur: 1 }

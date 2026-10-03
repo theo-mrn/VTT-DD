@@ -1,0 +1,4 @@
+# Sorties compilées : jamais reformatées (Prettier lit ce fichier quand il est lancé depuis frontend/)
+.next/
+node_modules/
+*.tsbuildinfo

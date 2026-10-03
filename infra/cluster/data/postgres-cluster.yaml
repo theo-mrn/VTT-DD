@@ -1,0 +1,128 @@
+# PostgreSQL par CloudNativePG, image PostGIS officielle CNPG.
+# Prérequis : opérateur CNPG (déjà sur le cluster, namespace cnpg-system).
+# Instance unique, comme les autres bases du cluster (docs/decisions/postgres-mono-instance.md
+# dans argocd_registry) ; sauvegarde : pg_dump chiffré quotidien vers R2 (infra/cluster/backup).
+# Pas d'archivage WAL tant que le plugin Barman Cloud (qui exige cert-manager) n'est pas installé.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: vtt-pg
+  namespace: data
+spec:
+  # Passer à 2 ou 3 pour la prod (réplicas, service -ro), jamais par kubectl edit
+  instances: 1
+  # PostgreSQL 17 + PostGIS 3.5, build 177 de CloudNativePG (le tag « 17-3.5 »
+  # seul n'existe pas), épinglé par digest. Image publiée en amd64 uniquement :
+  # les nœuds k3s qui portent Postgres doivent être en x86_64.
+  imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
+  primaryUpdateStrategy: unsupervised
+
+  postgresql:
+    shared_preload_libraries: [pg_stat_statements]
+    parameters:
+      wal_level: logical # permet un CDC (Debezium, pgoutput) plus tard si besoin
+      max_connections: '200'
+      shared_buffers: 256MB
+      log_min_duration_statement: '250ms'
+      pg_stat_statements.track: all
+      idle_in_transaction_session_timeout: '30s'
+
+  bootstrap:
+    initdb:
+      database: vtt
+      owner: vtt_owner
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - name: vtt-pg-init
+            key: schemas.sql
+
+  # Un rôle par service ; mots de passe générés et stockés dans des Secrets
+  managed:
+    roles:
+      # Propriétaires des schémas : utilisés seulement par les Jobs Liquibase (DDL)
+      - {
+          name: identity_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-identity-owner },
+        }
+      - {
+          name: billing_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-billing-owner },
+        }
+      - {
+          name: campaign_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-campaign-owner },
+        }
+      - {
+          name: characters_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-characters-owner },
+        }
+      - { name: dice_owner, ensure: present, login: true, passwordSecret: { name: pg-dice-owner } }
+      - {
+          name: history_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-history-owner },
+        }
+      - {
+          name: audio_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-audio-owner },
+        }
+      # Rôles des services : données uniquement (DML)
+      - { name: identity_svc, ensure: present, login: true, passwordSecret: { name: pg-identity } }
+      - { name: billing_svc, ensure: present, login: true, passwordSecret: { name: pg-billing } }
+      - { name: campaign_svc, ensure: present, login: true, passwordSecret: { name: pg-campaign } }
+      - {
+          name: characters_svc,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-characters },
+        }
+      - { name: dice_svc, ensure: present, login: true, passwordSecret: { name: pg-dice } }
+      - { name: history_svc, ensure: present, login: true, passwordSecret: { name: pg-history } }
+      - { name: audio_svc, ensure: present, login: true, passwordSecret: { name: pg-audio } }
+      - {
+          name: backup_ro,
+          ensure: present,
+          login: true,
+          inRoles: [pg_read_all_data],
+          passwordSecret: { name: pg-backup-ro },
+        }
+
+  storage:
+    size: 20Gi
+    storageClass: local-path # la réplication est assurée par Postgres, pas par le stockage
+  walStorage:
+    size: 5Gi
+    storageClass: local-path
+
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+
+  monitoring:
+    enablePodMonitor: true
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: vtt-pg-pooler
+  namespace: data
+spec:
+  cluster: { name: vtt-pg }
+  instances: 1
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: '1000'
+      default_pool_size: '20'

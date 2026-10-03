@@ -1,0 +1,83 @@
+# Races : modificateurs de caractéristiques en effets, capacités raciales
+# accordées par un rang gratuit (voir capacites.yaml).
+- id: humain
+  sorte: race
+  nom: Humain
+  description: Les humains sont des êtres polyvalents et adaptables, présents dans le monde entier. Leur diversité culturelle et leur capacité à s'adapter en font des individus remarquables.
+  champs: { tailleMoyenne: 175, poidsMoyen: 75 }
+  effets:
+    - { sur: rang, entree: instinct-de-survie, valeur: 1 }
+
+- id: elfe
+  sorte: race
+  nom: Elfe
+  description: Les elfes sont des créatures élégantes et gracieuses, vivant en harmonie avec la nature. Ils sont connus pour leur agilité et leur maîtrise de la magie, ainsi que pour leur longévité et leur sagesse.
+  champs: { tailleMoyenne: 175, poidsMoyen: 60 }
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: CHA, operation: ajouter, valeur: 2 }
+    - { sur: rang, entree: lumiere-des-etoiles, valeur: 1 }
+
+- id: elfe-noir
+  sorte: race
+  nom: Elfe noir
+  description: Les elfes noirs, ou drows, vivent dans les profondeurs souterraines et sont souvent associés à la magie noire et à la cruauté.
+  champs: { tailleMoyenne: 170, poidsMoyen: 55 }
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: DEX, operation: ajouter, valeur: 2 }
+    - { sur: rang, entree: vision-dans-le-noir, valeur: 1 }
+
+- id: nain
+  sorte: race
+  nom: Nain
+  description: Les nains sont des mineurs et forgerons habiles, vivant dans des citadelles souterraines. Ils sont robustes et endurants.
+  champs: { tailleMoyenne: 135, poidsMoyen: 70 }
+  effets:
+    - { sur: attribut, attribut: DEX, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+    - { sur: rang, entree: vision-dans-le-noir, valeur: 1 }
+
+- id: orque
+  sorte: race
+  nom: Orque
+  description: Les orques sont des guerriers puissants et belliqueux, vivant en tribus ou en sociétés militaires organisées.
+  champs: { tailleMoyenne: 190, poidsMoyen: 100 }
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: INT, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: CHA, operation: ajouter, valeur: -2 }
+    - { sur: rang, entree: vision-dans-le-noir, valeur: 1 }
+
+- id: halfelin
+  sorte: race
+  nom: Halfelin
+  description: Les halfelins sont une race de petite taille, souvent joyeux et farceurs. Ce sont des individus curieux et sociables.
+  champs: { tailleMoyenne: 90, poidsMoyen: 15 }
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: DEX, operation: ajouter, valeur: 2 }
+    - { sur: rang, entree: petite-taille, valeur: 1 }
+
+- id: minotaure
+  sorte: race
+  nom: Minotaure
+  description: Le minotaure est une créature mi-homme mi-taureau. Il est connu pour son sens de l'orientation et ses explosions de rage. Les minotaures, les mâles en particulier, sont des solitaires.
+  champs: { tailleMoyenne: 210, poidsMoyen: 150 }
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: 4 }
+    - { sur: attribut, attribut: INT, operation: ajouter, valeur: -4 }
+    - { sur: attribut, attribut: CHA, operation: ajouter, valeur: -2 }
+    - { sur: rang, entree: coup-de-corne, valeur: 1 }
+    - { sur: rang, entree: sens-de-l-orientation, valeur: 1 }
+    - { sur: rang, entree: vision-dans-le-noir, valeur: 1 }
+
+- id: drakonide
+  sorte: race
+  nom: Drakonide
+  description: Les drakonides possèdent des traits reptiliens et des ailes puissantes. Ils sont souvent vus comme des gardiens des anciennes connaissances des dragons.
+  champs: { tailleMoyenne: 195, poidsMoyen: 110 }
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: SAG, operation: ajouter, valeur: -2 }
+    - { sur: rang, entree: voie-raciale, valeur: 1 }

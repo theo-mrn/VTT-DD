@@ -1,0 +1,53 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-history
+  digest: ''
+  tag: 'main'
+replicaCount: 2
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
+  # Bus d'événements : history consomme tout vtt.> (NATS JetStream, namespace messaging)
+  NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
+  # Consommateur durable partagé par les réplicas (JetStream répartit les messages)
+  HISTORY_CONSUMER: history
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
+  # Rôle de l'appelant dans une campagne (membre, MJ)
+  CAMPAIGN_URL: http://campaign.vtt-prod.svc
+  # Partitions mensuelles de history.events créées à l'avance (mois courant compris)
+  PARTITION_MONTHS_AHEAD: '3'
+# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+# substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
+secretEnv:
+  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+# Secret history-secrets (SOPS) : DATABASE_URL (rôle history_svc), INTERNAL_API_SECRET (même
+# valeur que campaign)
+envFromSecrets:
+  - name: history-secrets
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : history n'est joignable que par la gateway. La route interne de rattrapage
+# (/internal/…, secret partagé) n'a pas d'appelant : ajouter son podSelector ici le jour où un
+# service s'en sert (realtime rejoue aujourd'hui depuis JetStream)
+ingress:
+  enabled: false
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+migrations:
+  enabled: true
+  image:
+    repository: ghcr.io/theo-mrn/vtt-history-migrations
+    digest: ''
+    tag: 'main'
+  schema: history
+  # Secret généré par CloudNativePG pour le rôle history_owner
+  secretName: pg-history-owner

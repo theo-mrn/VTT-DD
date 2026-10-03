@@ -1,0 +1,103 @@
+/**
+ * Outils communs de la progression : copie d'état (les fonctions de ce module
+ * ne mutent jamais l'état reçu) et évaluation protégée des formules.
+ */
+import type { Fiche } from '../calcul/index.js';
+import type { EntiteChargee } from '../chargement/index.js';
+import {
+  ErreurEvaluation,
+  evaluer,
+  type ContexteEvaluation,
+  type FormuleVerifiee,
+  type JetDes,
+  type Valeur,
+} from '../formules/index.js';
+import type { Attribut, EtatEntite, Possession } from '../schema/index.js';
+
+/** Résultat d'une opération qui produit un nouvel état. */
+export type ResultatEtat = { ok: true; etat: EtatEntite } | { ok: false; erreur: string };
+
+export type Evaluation =
+  { ok: true; valeur: Valeur; jets: JetDes[] } | { ok: false; message: string };
+
+/** Copie profonde d'un état : on modifie la copie, jamais l'original. */
+export function copier(etat: EtatEntite): EtatEntite {
+  return structuredClone(etat);
+}
+
+export function copierPossession(p: Possession): Possession {
+  return structuredClone(p);
+}
+
+/** Évalue une formule sur une fiche sans jamais lever d'erreur de données. */
+export function essayer(
+  fiche: Fiche,
+  f: FormuleVerifiee,
+  extra: Partial<ContexteEvaluation> = {},
+): Evaluation {
+  try {
+    const r = evaluer(f.noeud, fiche.contexte(extra));
+    return { ok: true, valeur: r.valeur, jets: r.jets };
+  } catch (e) {
+    if (!(e instanceof ErreurEvaluation)) throw e;
+    return { ok: false, message: `${e.message} (« ${f.texte} »)` };
+  }
+}
+
+/** Variables fournies à une formule, les autres noms lèvent une erreur d'évaluation. */
+export function variables(vars: Record<string, Valeur>): (nom: string) => Valeur {
+  return (nom) => {
+    const v = vars[nom];
+    if (v === undefined) throw new ErreurEvaluation(`Variable absente du contexte : ${nom}`, 0);
+    return v;
+  };
+}
+
+/** Valeur de base d'un attribut telle qu'enregistrée (ou sa valeur par défaut). */
+export function valeurBase(etat: EtatEntite, a: Attribut & { nature: 'base' }): number {
+  const v = etat.valeurs[a.cle];
+  return typeof v === 'number' ? v : a.defaut;
+}
+
+/** Attributs visés par une étape : liste explicite, puis ceux du groupe retenus par `garder`. */
+export function attributsVises(
+  entite: EntiteChargee,
+  o: { attributs?: string[]; groupe?: string },
+  garder: (a: Attribut) => boolean,
+): Attribut[] {
+  const cles = new Set(o.attributs ?? []);
+  if (o.groupe) {
+    for (const a of entite.attributs.values())
+      if (a.groupe === o.groupe && garder(a)) cles.add(a.cle);
+  }
+  return [...cles]
+    .map((c) => entite.attributs.get(c))
+    .filter((a): a is Attribut => a !== undefined);
+}
+
+/** Qui demande une saisie libre : le propriétaire de l'entité, le MJ, ou les deux. */
+export interface Saisisseur {
+  proprietaire: boolean;
+  mj: boolean;
+}
+
+/**
+ * Raison pour laquelle un attribut ne se saisit pas librement, `undefined` s'il
+ * se saisit. Texte, choix, booléen et ressource se saisissent toujours ; une
+ * dérivée jamais. Un attribut de base se saisit pendant la création, puis
+ * selon sa `saisie` : `jeu` (propriétaire ou MJ), `mj` (MJ seul), `creation`
+ * (plus du tout : il s'achète).
+ */
+export function refusSaisie(a: Attribut, creation: boolean, qui: Saisisseur): string | undefined {
+  if (!qui.proprietaire && !qui.mj) return `${a.nom} : saisie non autorisée`;
+  if (a.nature === 'derivee') return `${a.nom} est calculé, il ne se saisit pas`;
+  if (a.nature !== 'base' || creation) return undefined;
+  switch (a.saisie) {
+    case 'jeu':
+      return undefined;
+    case 'mj':
+      return qui.mj ? undefined : `${a.nom} ne se saisit en jeu que par le MJ`;
+    case 'creation':
+      return `${a.nom} ne se saisit que pendant la création (ensuite, il s’achète)`;
+  }
+}
