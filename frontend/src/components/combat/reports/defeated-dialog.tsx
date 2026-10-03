@@ -135,25 +135,29 @@ export function DefeatedDialog({
     setChoices((c) => Object.fromEntries(Object.entries(c).filter(([id]) => ids.includes(id))));
   }, [ids]);
 
+  /** Choix d'un personnage : le retirer du combat, ou supprimer son PNJ de la carte. */
+  const applyChoice = async (r: (typeof rows)[number]) => {
+    if (r.choice === 'remove') await commands.removeParticipant(r.id);
+    if (r.choice !== 'delete' || !engine) return;
+    const tokens = tokensStateOf(engine);
+    const items = tokensOf(engine).filter((t) => t.characterId === r.id);
+    if (tokens && items.length)
+      await tokens.engine.execute(
+        deleteNpcsCommand({
+          label: `Supprimer ${r.member?.name ?? 'le PNJ'}`,
+          api: tokens.api,
+          items,
+          sideOf: (id) => tokens.directory.get(id)?.side,
+        }),
+      );
+  };
+
   const confirm = async () => {
     setBusy(true);
     const failures: string[] = [];
     for (const r of rows) {
       try {
-        if (r.choice === 'remove') await commands.removeParticipant(r.id);
-        if (r.choice === 'delete' && engine) {
-          const tokens = tokensStateOf(engine);
-          const items = tokensOf(engine).filter((t) => t.characterId === r.id);
-          if (tokens && items.length)
-            await tokens.engine.execute(
-              deleteNpcsCommand({
-                label: `Supprimer ${r.member?.name ?? 'le PNJ'}`,
-                api: tokens.api,
-                items,
-                sideOf: (id) => tokens.directory.get(id)?.side,
-              }),
-            );
-        }
+        await applyChoice(r);
       } catch (err) {
         failures.push(
           `${r.member?.name ?? 'Personnage'} : ${

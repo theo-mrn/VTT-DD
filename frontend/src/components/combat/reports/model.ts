@@ -85,18 +85,20 @@ export function canRevert(a: Attack): boolean {
 
 export type DiceOrigin = 'physical' | 'server' | 'mixed';
 
+/** Sources des dés d'une cible : ceux de son jet, puis ceux des tables tirées. */
+function addDiceSources(t: AttackTarget, sources: Set<DieSource>) {
+  const roll = t.result?.roll ?? t.view?.roll;
+  if (!roll) return;
+  const dice = roll.kind === 'numeric' ? roll.dice.flatMap((g) => g.values) : roll.dice;
+  for (const d of dice) sources.add(d.source);
+  for (const draw of t.result?.tables ?? [])
+    for (const d of draw.dice.flatMap((g) => g.values)) sources.add(d.source);
+}
+
 /** Source des dés d'un rapport : tous en 3D, tous tirés par le serveur, ou un mélange. */
 export function diceOrigin(a: Attack): DiceOrigin {
   const sources = new Set<DieSource>();
-  for (const t of a.targets) {
-    const roll = t.result?.roll ?? t.view?.roll;
-    if (!roll) continue;
-    if (roll.kind === 'numeric')
-      for (const g of roll.dice) for (const d of g.values) sources.add(d.source);
-    else for (const d of roll.dice) sources.add(d.source);
-    for (const draw of t.result?.tables ?? [])
-      for (const g of draw.dice) for (const d of g.values) sources.add(d.source);
-  }
+  for (const t of a.targets) addDiceSources(t, sources);
   if (sources.size === 0) return a.dice;
   if (sources.size > 1) return 'mixed';
   return sources.has('physical') ? 'physical' : 'server';
@@ -431,6 +433,16 @@ function pathOf(p: unknown): string[] {
   return typeof path === 'string' ? [path] : [];
 }
 
+/** Conflit d'un personnage (`{ characterId, paths }`) ; sinon null (chemin isolé). */
+function characterConflict(c: unknown): RevertConflict | null {
+  const o = c && typeof c === 'object' ? (c as { characterId?: unknown; paths?: unknown }) : null;
+  if (!o || !Array.isArray(o.paths)) return null;
+  return {
+    characterId: typeof o.characterId === 'string' ? o.characterId : null,
+    paths: o.paths.flatMap(pathOf),
+  };
+}
+
 /**
  * Conflit d'une annulation (409 `revert_conflict`) : la fiche a changé depuis, par personnage
  * (`conflicts: [{ characterId, paths }]`, ou une liste de chemins). Null pour toute autre
@@ -445,12 +457,8 @@ export function revertConflictOf(err: unknown): RevertConflict[] | null {
   const loose: string[] = [];
   const out: RevertConflict[] = [];
   for (const c of raw) {
-    const o = c && typeof c === 'object' ? (c as { characterId?: unknown; paths?: unknown }) : null;
-    if (o && Array.isArray(o.paths))
-      out.push({
-        characterId: typeof o.characterId === 'string' ? o.characterId : null,
-        paths: o.paths.flatMap(pathOf),
-      });
+    const conflict = characterConflict(c);
+    if (conflict) out.push(conflict);
     else loose.push(...pathOf(c));
   }
   if (loose.length) out.push({ characterId: null, paths: loose });

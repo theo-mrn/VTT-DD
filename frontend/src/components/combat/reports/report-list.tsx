@@ -65,10 +65,7 @@ export function ReportsSection({
     ...new Set([...data.characters, ...(view.characterId ? [view.characterId] : [])]),
   ];
 
-  let etat: 'chargement' | 'erreur' | 'vide' | 'liste' = 'liste';
-  if (data.loading) etat = 'chargement';
-  else if (data.error) etat = 'erreur';
-  else if (data.items.length === 0) etat = 'vide';
+  const etat = etatRapports(data);
 
   return (
     <section
@@ -84,19 +81,7 @@ export function ReportsSection({
             <ScrollText className="size-4 text-primary" aria-hidden />
             Rapports d’attaque
           </h3>
-          {progress.total > 0 && (
-            <Info
-              texte={
-                progress.skipped
-                  ? `${nonAppliques(progress.skipped)}, ${progress.pending} en attente`
-                  : `${progress.pending} en attente`
-              }
-            >
-              <span className="cursor-help font-mono text-xs tabular-nums text-muted-foreground">
-                {progress.applied}/{progress.total} appliqué{progress.applied > 1 ? 's' : ''}
-              </span>
-            </Info>
-          )}
+          <Progression progress={progress} />
           <span className="flex-1" />
           <Info
             texte={
@@ -133,30 +118,12 @@ export function ReportsSection({
               ]}
             />
           )}
-          {(characters.length > 1 || view.characterId) && (
-            <span className="flex items-center gap-1">
-              <SelectField
-                value={view.characterId ?? ''}
-                onValueChange={(v) => onView({ ...view, characterId: v || null })}
-                className="h-8 w-44 text-xs"
-                aria-label="Personnage"
-                options={[
-                  { valeur: '', nom: 'Tous les personnages' },
-                  ...characters.map((id) => ({ valeur: id, nom: nameOf(id) })),
-                ]}
-              />
-              {view.characterId && (
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={() => onView({ ...view, characterId: null })}
-                  aria-label="Retirer le filtre du personnage"
-                >
-                  <X />
-                </Button>
-              )}
-            </span>
-          )}
+          <FiltrePersonnage
+            characters={characters}
+            characterId={view.characterId}
+            nameOf={nameOf}
+            onCharacter={(characterId) => onView({ ...view, characterId })}
+          />
           {view.filter === 'pending' && data.recentCount > 0 && (
             <Button size="xs" variant="ghost" onClick={data.clearRecent} className="ml-auto">
               <EyeOff />
@@ -179,17 +146,7 @@ export function ReportsSection({
             description={combatErrorMessage(data.error)}
           />
         )}
-        {etat === 'vide' && (
-          <Notice
-            icon={ScrollText}
-            title={view.filter === 'pending' ? 'Aucune attaque enregistrée' : 'Aucun rapport'}
-            description={
-              view.characterId
-                ? `Rien pour ${nameOf(view.characterId)} avec ces filtres.`
-                : VIDE_PAR_FILTRE(view.filter)
-            }
-          />
-        )}
+        {etat === 'vide' && <AucunRapport view={view} nameOf={nameOf} />}
         {etat === 'liste' && (
           <ul
             className={cn('grid items-start gap-2.5', columns === 2 && 'grid-cols-2')}
@@ -241,6 +198,89 @@ export function ReportsSection({
         )}
       </motion.div>
     </section>
+  );
+}
+
+/** Ce que montre la liste : chargement, erreur, aucun rapport, ou les cartes. */
+function etatRapports(data: ReportsData): 'chargement' | 'erreur' | 'vide' | 'liste' {
+  if (data.loading) return 'chargement';
+  if (data.error) return 'erreur';
+  if (data.items.length === 0) return 'vide';
+  return 'liste';
+}
+
+/** « x/y appliqués », avec les non appliqués et ceux en attente en info-bulle. */
+function Progression({ progress }: Readonly<{ progress: ReportsData['progress'] }>) {
+  if (progress.total <= 0) return null;
+  return (
+    <Info
+      texte={
+        progress.skipped
+          ? `${nonAppliques(progress.skipped)}, ${progress.pending} en attente`
+          : `${progress.pending} en attente`
+      }
+    >
+      <span className="cursor-help font-mono text-xs tabular-nums text-muted-foreground">
+        {progress.applied}/{progress.total} appliqué{progress.applied > 1 ? 's' : ''}
+      </span>
+    </Info>
+  );
+}
+
+/** Filtre sur un personnage (montré dès qu'il y en a plusieurs), retirable. */
+function FiltrePersonnage({
+  characters,
+  characterId,
+  nameOf,
+  onCharacter,
+}: Readonly<{
+  characters: string[];
+  characterId: string | null;
+  nameOf(id: string): string;
+  onCharacter(characterId: string | null): void;
+}>) {
+  if (!(characters.length > 1 || characterId)) return null;
+  return (
+    <span className="flex items-center gap-1">
+      <SelectField
+        value={characterId ?? ''}
+        onValueChange={(v) => onCharacter(v || null)}
+        className="h-8 w-44 text-xs"
+        aria-label="Personnage"
+        options={[
+          { valeur: '', nom: 'Tous les personnages' },
+          ...characters.map((id) => ({ valeur: id, nom: nameOf(id) })),
+        ]}
+      />
+      {characterId && (
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          onClick={() => onCharacter(null)}
+          aria-label="Retirer le filtre du personnage"
+        >
+          <X />
+        </Button>
+      )}
+    </span>
+  );
+}
+
+/** Aucun rapport avec ces filtres. */
+function AucunRapport({
+  view,
+  nameOf,
+}: Readonly<{ view: ReportView; nameOf(id: string): string }>) {
+  return (
+    <Notice
+      icon={ScrollText}
+      title={view.filter === 'pending' ? 'Aucune attaque enregistrée' : 'Aucun rapport'}
+      description={
+        view.characterId
+          ? `Rien pour ${nameOf(view.characterId)} avec ces filtres.`
+          : VIDE_PAR_FILTRE(view.filter)
+      }
+    />
   );
 }
 
