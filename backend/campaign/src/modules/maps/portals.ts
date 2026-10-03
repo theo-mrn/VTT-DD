@@ -18,6 +18,7 @@ import { MapPortalUseResult, UseMapPortal } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import type { z } from 'zod';
 import type { Tx } from '../../db/outbox.js';
 import { maps, mapTokens, type MapPoint } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
@@ -30,6 +31,7 @@ import {
   requireGm,
   requireWriter,
   viewerOf,
+  type Viewer,
 } from './common.js';
 import { layerDef, lockItem } from './layers.js';
 import type { PortalRow } from './portal-links.js';
@@ -74,6 +76,56 @@ async function destinationOf(
   return { map: target, around: portal.target ?? undefined };
 }
 
+/**
+ * Voyageurs demandés : le groupe (MJ), ou des personnages nommés, engagés dans la campagne et,
+ * pour un joueur, les siens.
+ */
+async function travellersOf(
+  tx: Tx,
+  v: Viewer,
+  map: MapRow,
+  body: z.output<typeof UseMapPortal>,
+  party: boolean,
+): Promise<string[]> {
+  if (party) return partyCharacterIds(tx, map.campaignId);
+  const ids = [...new Set((body as { characterIds: string[] }).characterIds)];
+  await engaged(tx, map.campaignId, ids);
+  if (!v.isGm && ids.some((id) => !v.characterIds.includes(id)))
+    throw HttpError.forbidden('Un joueur n’emprunte un portail qu’avec ses personnages');
+  return ids;
+}
+
+/** Tokens présents sur la carte des personnages donnés, verrouillés, par personnage. */
+async function tokensOn(tx: Tx, mapId: string, ids: string[]): Promise<Map<string, TokenRow>> {
+  const here = ids.length
+    ? await tx
+        .select()
+        .from(mapTokens)
+        .where(
+          and(
+            eq(mapTokens.mapId, mapId),
+            eq(mapTokens.present, true),
+            inArray(mapTokens.characterId, ids),
+          ),
+        )
+        .for('update')
+    : [];
+  return new Map(here.map((t) => [t.characterId, t]));
+}
+
+/** Personnages nommés : tous sur la carte et, pour un joueur, dans la zone du portail. */
+function checkNamedTravellers(
+  v: Viewer,
+  portal: PortalRow,
+  ids: string[],
+  tokenOf: Map<string, TokenRow>,
+): void {
+  const away = ids.filter((id) => !tokenOf.has(id));
+  if (away.length) throw refused('not_on_map', 'Ce personnage n’est pas sur la carte du portail');
+  if (!v.isGm && ids.some((id) => !insidePortal(portal, tokenOf.get(id)!.pos)))
+    throw refused('out_of_range', 'Le personnage n’est pas dans la zone du portail');
+}
+
 export const registerPortalUse: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db } = deps;
@@ -109,38 +161,12 @@ export const registerPortalUse: Module = async (app, deps) => {
         const crossing = destination.map.id !== map.id;
 
         // Voyageurs : le groupe (MJ) ou des personnages nommés
-        let ids = party
-          ? await partyCharacterIds(tx, map.campaignId)
-          : [...new Set((req.body as { characterIds: string[] }).characterIds)];
-        if (!party) {
-          await engaged(tx, map.campaignId, ids);
-          if (!v.isGm && ids.some((id) => !v.characterIds.includes(id)))
-            throw HttpError.forbidden('Un joueur n’emprunte un portail qu’avec ses personnages');
-        }
-        const here = ids.length
-          ? await tx
-              .select()
-              .from(mapTokens)
-              .where(
-                and(
-                  eq(mapTokens.mapId, map.id),
-                  eq(mapTokens.present, true),
-                  inArray(mapTokens.characterId, ids),
-                ),
-              )
-              .for('update')
-          : [];
-        const tokenOf = new Map(here.map((t) => [t.characterId, t]));
+        let ids = await travellersOf(tx, v, map, req.body, party);
+        const tokenOf = await tokensOn(tx, map.id, ids);
         // Le groupe qui se téléporte : ceux qui sont sur la carte ; vers une autre scène : tous
         if (party && !crossing) ids = ids.filter((id) => tokenOf.has(id));
         if (!ids.length) throw refused('no_travellers', 'Personne à faire passer');
-        if (!party) {
-          const away = ids.filter((id) => !tokenOf.has(id));
-          if (away.length)
-            throw refused('not_on_map', 'Ce personnage n’est pas sur la carte du portail');
-          if (!v.isGm && ids.some((id) => !insidePortal(portal, tokenOf.get(id)!.pos)))
-            throw refused('out_of_range', 'Le personnage n’est pas dans la zone du portail');
-        }
+        if (!party) checkNamedTravellers(v, portal, ids, tokenOf);
 
         const spots = await arrivalSpots(tx, destination.map, ids.length, destination.around, ids);
         const moved: TokenRow[] = [];
