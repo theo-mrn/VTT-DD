@@ -52,9 +52,13 @@ export function bot(deps: BotDeps) {
    * Bouton « Lier mon compte » : page du site qui lie cette identité Discord au compte connecté,
    * quel que soit son moyen de connexion (jeton signé par identity, 10 minutes).
    */
-  const linkButton = async (i: Interaction, discordUserId: string): Promise<Message> => {
+  const linkButton = async (
+    i: Interaction,
+    discordUserId: string,
+    content = 'Compte Discord non lié à Yner.',
+  ): Promise<Message> => {
     const token = await yner.linkToken(discordUserId, authorNameOf(i));
-    return ephemeral('Compte Discord non lié à Yner.', {
+    return ephemeral(content, {
       components: [
         {
           type: 1,
@@ -242,11 +246,12 @@ export function bot(deps: BotDeps) {
     const name = i.data?.name;
     try {
       const token = await yner.delegate(discordUserId);
-      if (name === 'link')
-        return await discord.editOriginal(
-          i.token,
-          token ? ephemeral('Compte déjà lié.') : await linkButton(i, discordUserId),
-        );
+      if (name === 'link') {
+        // Toujours le bouton : on peut lier le bot à un autre compte à tout moment
+        const current = token ? await yner.me(token) : null;
+        const content = current ? `Lié à **${current.name}**.` : 'Compte Discord non lié à Yner.';
+        return await discord.editOriginal(i.token, await linkButton(i, discordUserId, content));
+      }
       if (name === 'unlink')
         return await discord.editOriginal(i.token, await unlink(discordUserId));
       if (!token) return await discord.editOriginal(i.token, await linkButton(i, discordUserId));

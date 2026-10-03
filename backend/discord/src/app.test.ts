@@ -281,7 +281,8 @@ describe('POST /v1/discord/interactions', () => {
   it('/link et /unlink', async () => {
     await post(interaction(2, { name: 'link' }));
     await settle();
-    expect(f.sent[0]!.message!.content).toBe('Compte déjà lié.');
+    expect(f.sent[0]!.message!.content).toBe('Lié à **Théo**.');
+    expect(f.sent[0]!.message!.components![0]!.components[0]!.label).toBe('Lier mon compte');
 
     f.sent.length = 0;
     await post(interaction(2, { name: 'link' }, '999'));
