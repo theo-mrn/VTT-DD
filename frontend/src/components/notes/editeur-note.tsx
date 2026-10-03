@@ -548,52 +548,14 @@ export function EditeurNote({
               <IndicateurEnregistrement etat={etat} onReessayer={() => void vider()} />
             )}
             <span aria-hidden className="mx-1 hidden h-4 w-px bg-border-strong sm:block" />
-            <Info
-              texte={note.pinned ? 'Désépingler' : 'Épingler en haut de la liste (pour vous)'}
-              cote="bottom"
-            >
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-pressed={note.pinned}
-                aria-label={note.pinned ? 'Désépingler la note' : 'Épingler la note'}
-                onClick={basculerEpingle}
-                className={cn(note.pinned && 'text-primary hover:text-primary-strong')}
-              >
-                <Pin
-                  className={cn('transition-transform', note.pinned && 'rotate-45 fill-current')}
-                />
-              </Button>
-            </Info>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Plus d'actions">
-                  <Ellipsis />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onSelect={() => void dupliquer()}>
-                  <CopyPlus />
-                  Dupliquer
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => void copierLien()}>
-                  <Link2 />
-                  Copier le lien
-                </DropdownMenuItem>
-                {note.permissions.delete && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onSelect={() => setConfirmation(true)}
-                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                    >
-                      <Trash2 />
-                      Supprimer…
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ActionsNote
+              epinglee={note.pinned}
+              supprimable={note.permissions.delete}
+              onEpingler={basculerEpingle}
+              onDupliquer={() => void dupliquer()}
+              onCopierLien={() => void copierLien()}
+              onSupprimer={() => setConfirmation(true)}
+            />
           </div>
         </div>
 
@@ -605,80 +567,24 @@ export function EditeurNote({
         )}
 
         {conflit && (
-          <div
-            role="alert"
-            className="border-t border-warning/30 bg-warning/10 px-4 py-3 text-[13px] sm:px-5"
-          >
-            <p className="flex items-center gap-2 font-medium text-foreground">
-              <GitCompareArrows className="size-4 shrink-0 text-warning" aria-hidden />
-              Cette note a été modifiée ailleurs pendant votre saisie.
-            </p>
-            <p className="mt-0.5 text-muted-foreground">
-              La version la plus récente est affichée. Vos modifications non enregistrées sont
-              gardées de côté : rien n’a été écrasé.
-            </p>
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              <Button size="xs" onClick={reappliquer}>
-                Réappliquer mes modifications
-              </Button>
-              <Button size="xs" variant="secondary" onClick={copierConflit}>
-                En faire une copie
-              </Button>
-              <Button size="xs" variant="ghost" onClick={abandonnerConflit}>
-                Abandonner mes modifications
-              </Button>
-            </div>
-          </div>
+          <AlerteConflit
+            onReappliquer={reappliquer}
+            onCopier={copierConflit}
+            onAbandonner={abandonnerConflit}
+          />
         )}
       </header>
 
       <div className="flex-1 lg:min-h-0 lg:overflow-y-auto">
         <article className="mx-auto w-full max-w-[740px] px-5 pb-16 pt-8 sm:px-8 lg:px-12 lg:pt-14">
-          {brouillon.imageUrl && (
-            <figure className="group/image relative mb-6 overflow-hidden rounded-xl border border-border bg-surface">
-              {/* Image d'en-tête de l'ancien Grimoire (URL validée par le service) */}
-              <img
-                src={brouillon.imageUrl}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="max-h-72 w-full object-cover"
-              />
-              {!lecture && (
-                <Button
-                  size="xs"
-                  variant="secondary"
-                  onClick={() => changer({ imageUrl: null })}
-                  className="absolute right-2 top-2 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/image:opacity-100"
-                >
-                  <ImageOff />
-                  Retirer l’image
-                </Button>
-              )}
-            </figure>
-          )}
+          <ImageEntete
+            imageUrl={brouillon.imageUrl}
+            lecture={lecture}
+            onRetirer={() => changer({ imageUrl: null })}
+          />
 
           <div className="group/entete">
-            {lecture && icone && (
-              <span className="-ml-1.5 mb-3 flex size-[72px] items-center justify-center text-[52px] leading-none">
-                {icone}
-              </span>
-            )}
-            {!lecture && icone && (
-              <SelecteurIcone valeur={icone} onChoix={(i) => changer({ icon: i })}>
-                <button
-                  type="button"
-                  aria-label="Changer l'icône"
-                  className="-ml-1.5 mb-3 flex size-[72px] items-center justify-center rounded-2xl text-[52px] leading-none transition-[background-color,transform] duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-95 data-[state=open]:bg-surface-2"
-                >
-                  {icone}
-                </button>
-              </SelecteurIcone>
-            )}
-            {!lecture && !icone && (
-              <SelecteurIcone valeur={null} onChoix={(i) => changer({ icon: i })}>
-                <BoutonAjoutIcone className="-ml-2 mb-2 lg:opacity-0 lg:group-hover/entete:opacity-100" />
-              </SelecteurIcone>
-            )}
+            <IconeEntete icone={icone} lecture={lecture} onChoix={(i) => changer({ icon: i })} />
 
             <textarea
               ref={titreRef}
@@ -805,6 +711,172 @@ export function EditeurNote({
 }
 
 /** « il y a 3 min », rafraîchi par l'horloge partagée : seul ce texte se re-rend. */
+/** Épingle et menu « Plus d'actions » : dupliquer, copier le lien, supprimer. */
+function ActionsNote({
+  epinglee,
+  supprimable,
+  onEpingler,
+  onDupliquer,
+  onCopierLien,
+  onSupprimer,
+}: Readonly<{
+  epinglee: boolean;
+  supprimable: boolean;
+  onEpingler(): void;
+  onDupliquer(): void;
+  onCopierLien(): void;
+  onSupprimer(): void;
+}>) {
+  return (
+    <>
+      <Info
+        texte={epinglee ? 'Désépingler' : 'Épingler en haut de la liste (pour vous)'}
+        cote="bottom"
+      >
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-pressed={epinglee}
+          aria-label={epinglee ? 'Désépingler la note' : 'Épingler la note'}
+          onClick={onEpingler}
+          className={cn(epinglee && 'text-primary hover:text-primary-strong')}
+        >
+          <Pin className={cn('transition-transform', epinglee && 'rotate-45 fill-current')} />
+        </Button>
+      </Info>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label="Plus d'actions">
+            <Ellipsis />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onSelect={onDupliquer}>
+            <CopyPlus />
+            Dupliquer
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onCopierLien}>
+            <Link2 />
+            Copier le lien
+          </DropdownMenuItem>
+          {supprimable && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={onSupprimer}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                <Trash2 />
+                Supprimer…
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
+
+/** Conflit d'enregistrement : réappliquer, copier ou abandonner mes modifications. */
+function AlerteConflit({
+  onReappliquer,
+  onCopier,
+  onAbandonner,
+}: Readonly<{ onReappliquer(): void; onCopier(): void; onAbandonner(): void }>) {
+  return (
+    <div
+      role="alert"
+      className="border-t border-warning/30 bg-warning/10 px-4 py-3 text-[13px] sm:px-5"
+    >
+      <p className="flex items-center gap-2 font-medium text-foreground">
+        <GitCompareArrows className="size-4 shrink-0 text-warning" aria-hidden />
+        Cette note a été modifiée ailleurs pendant votre saisie.
+      </p>
+      <p className="mt-0.5 text-muted-foreground">
+        La version la plus récente est affichée. Vos modifications non enregistrées sont gardées de
+        côté : rien n’a été écrasé.
+      </p>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <Button size="xs" onClick={onReappliquer}>
+          Réappliquer mes modifications
+        </Button>
+        <Button size="xs" variant="secondary" onClick={onCopier}>
+          En faire une copie
+        </Button>
+        <Button size="xs" variant="ghost" onClick={onAbandonner}>
+          Abandonner mes modifications
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Image d'en-tête de l'ancien Grimoire, retirable hors lecture seule. */
+function ImageEntete({
+  imageUrl,
+  lecture,
+  onRetirer,
+}: Readonly<{ imageUrl: string | null | undefined; lecture: boolean; onRetirer(): void }>) {
+  if (!imageUrl) return null;
+  return (
+    <figure className="group/image relative mb-6 overflow-hidden rounded-xl border border-border bg-surface">
+      {/* Image d'en-tête de l'ancien Grimoire (URL validée par le service) */}
+      <img
+        src={imageUrl}
+        alt=""
+        referrerPolicy="no-referrer"
+        className="max-h-72 w-full object-cover"
+      />
+      {!lecture && (
+        <Button
+          size="xs"
+          variant="secondary"
+          onClick={onRetirer}
+          className="absolute right-2 top-2 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/image:opacity-100"
+        >
+          <ImageOff />
+          Retirer l’image
+        </Button>
+      )}
+    </figure>
+  );
+}
+
+/** Icône de la note : affichée en lecture, à changer ou à ajouter sinon. */
+function IconeEntete({
+  icone,
+  lecture,
+  onChoix,
+}: Readonly<{
+  icone: string | null | undefined;
+  lecture: boolean;
+  onChoix: Parameters<typeof SelecteurIcone>[0]['onChoix'];
+}>) {
+  if (lecture)
+    return icone ? (
+      <span className="-ml-1.5 mb-3 flex size-[72px] items-center justify-center text-[52px] leading-none">
+        {icone}
+      </span>
+    ) : null;
+  if (!icone)
+    return (
+      <SelecteurIcone valeur={null} onChoix={onChoix}>
+        <BoutonAjoutIcone className="-ml-2 mb-2 lg:opacity-0 lg:group-hover/entete:opacity-100" />
+      </SelecteurIcone>
+    );
+  return (
+    <SelecteurIcone valeur={icone} onChoix={onChoix}>
+      <button
+        type="button"
+        aria-label="Changer l'icône"
+        className="-ml-1.5 mb-3 flex size-[72px] items-center justify-center rounded-2xl text-[52px] leading-none transition-[background-color,transform] duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-95 data-[state=open]:bg-surface-2"
+      >
+        {icone}
+      </button>
+    </SelecteurIcone>
+  );
+}
+
 function IlYA({ iso }: Readonly<{ iso: string }>) {
   const maintenant = useMaintenant();
   return <>{depuis(iso, maintenant)}</>;

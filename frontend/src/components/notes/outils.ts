@@ -33,6 +33,17 @@ export function termes(requete: string): string[] {
     .filter(Boolean);
 }
 
+/** Marque, dans le texte d'origine, les caractères de chaque occurrence de `m` dans `plat`. */
+function marquerOccurrences(plat: string, origine: number[], m: string, marque: boolean[]) {
+  let depuis = 0;
+  for (;;) {
+    const i = plat.indexOf(m, depuis);
+    if (i < 0) break;
+    for (let k = i; k < i + m.length; k++) marque[origine[k]] = true;
+    depuis = i + m.length;
+  }
+}
+
 /**
  * Découpe `texte` en segments surlignés ou non selon les termes cherchés. La
  * comparaison se fait sur la forme normalisée, caractère par caractère, pour
@@ -48,15 +59,7 @@ export function segments(texte: string, mots: string[]): { t: string; surligne: 
     plat += n;
   }
   const marque = new Array<boolean>(texte.length).fill(false);
-  for (const m of mots) {
-    let depuis = 0;
-    for (;;) {
-      const i = plat.indexOf(m, depuis);
-      if (i < 0) break;
-      for (let k = i; k < i + m.length; k++) marque[origine[k]] = true;
-      depuis = i + m.length;
-    }
-  }
+  for (const m of mots) marquerOccurrences(plat, origine, m, marque);
   const res: { t: string; surligne: boolean }[] = [];
   for (let i = 0; i < texte.length; i++) {
     const dernier = res.at(-1);

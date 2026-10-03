@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { messageErreur } from '@/lib/api';
 import { useCampagnes } from '@/lib/campagnes';
@@ -155,28 +155,16 @@ export function EspaceNotes({
   const noteQ = useNote(idSelection);
 
   // ─── Données dérivées ────────────────────────────────────────────────────
-  // Notes des pages chargées (sans doublon), encore dans les filtres après une modification locale
-  const chargees = useMemo(() => {
-    const vues = new Set<string>();
-    return (liste.data?.pages ?? [])
-      .flatMap((p) => p.items)
-      .filter((n) => !vues.has(n.id) && vues.add(n.id) && dansLeFiltre(n, filtre));
-  }, [liste.data, filtre]);
-  const index = useMemo(() => indexer(chargees), [chargees]);
-  const mots = useMemo(() => termes(rechercheRetardee), [rechercheRetardee]);
-  const groupes = useMemo(
-    () => grouper(index, (id) => campagnes.find((c) => c.id === id)?.name ?? 'Campagne'),
-    [index, campagnes],
-  );
-  const ordre = useMemo(() => groupes.flatMap((g) => g.notes.map((n) => n.note.id)), [groupes]);
-  const total =
-    (campagneFixe ? facettes.data?.campagnes.get(campagneFixe) : facettes.data?.total) ??
-    chargees.length;
-  const totalFiltre = liste.data?.pages[0]?.total ?? null;
-  const filtree = filtreActif(filtreChoisi) || rechercheRetardee.trim() !== '';
-
-  // Étiquettes connues, les plus utilisées d'abord (suggestions à la saisie)
-  const etiquettes = facettes.data?.etiquettes ?? [];
+  const { chargees, groupes, mots, ordre, total, totalFiltre, filtree, etiquettes } =
+    useDonneesNotes({
+      liste,
+      filtre,
+      filtreChoisi,
+      rechercheRetardee,
+      campagnes,
+      facettes: facettes.data,
+      campagneFixe,
+    });
 
   // ─── Navigation ──────────────────────────────────────────────────────────
   const naviguer = useCallback(
@@ -373,7 +361,7 @@ export function EspaceNotes({
   const synchro = (
     <>
       <SynchroNotes
-        campagnes={campagneFixe ? [campagneFixe] : campagnes.map((c) => c.id)}
+        campagnes={campagnesSuivies(campagneFixe, campagnes)}
         prioritaire={noteQ.data?.roomId ?? null}
       />
       <ChoixCampagne
@@ -402,44 +390,28 @@ export function EspaceNotes({
       <ErreurNotes message={messageErreur(liste.error)} onReessayer={() => void liste.refetch()} />
     );
 
-  if (!liste.isPending && !filtree && total === 0 && chargees.length === 0 && !idSelection) {
-    if (demandeNouvelle) return <SqueletteEspace />;
+  if (!liste.isPending && !filtree && total === 0 && chargees.length === 0 && !idSelection)
     return (
-      <div className="lg:h-[calc(100dvh-3.5rem)] lg:overflow-y-auto">
-        {synchro}
-        {!campagneFixe && (
-          <div className="mx-auto max-w-md px-4 pt-6 empty:hidden">
-            <ImportNotesLocales moi={moi} campagnes={campagnes} />
-          </div>
-        )}
-        <GrimoireVide onNouvelle={(modele) => creerNote({ modele })} enCours={creer.isPending} />
-      </div>
+      <EspaceVide
+        demandeNouvelle={demandeNouvelle}
+        synchro={synchro}
+        campagneFixe={campagneFixe}
+        moi={moi}
+        campagnes={campagnes}
+        enCours={creer.isPending}
+        onNouvelle={(modele) => creerNote({ modele })}
+      />
     );
-  }
 
   // Une note s'ouvre (ou va s'ouvrir, `?nouvelle=1`) : l'éditeur prend la place sur mobile
   const ouverte = idSelection !== null || demandeNouvelle;
-  // Ce que montre l'éditeur : création en cours, accueil, chargement, la note, ou un échec
-  let vue: 'squelette' | 'accueil' | 'chargement' | 'note' | 'erreur' | 'introuvable';
-  if (!idSelection) vue = demandeNouvelle ? 'squelette' : 'accueil';
-  else if (noteQ.isPending) vue = 'chargement';
-  else if (noteQ.data) vue = 'note';
-  else if (noteQ.isError && !estIntrouvable(noteQ.error)) vue = 'erreur';
-  else vue = 'introuvable';
+  const vue = vueEditeur(idSelection, demandeNouvelle, noteQ);
   const masquee = listeMasquee && ouverte;
 
   return (
     <div className="relative lg:flex lg:h-[calc(100dvh-3.5rem)] lg:overflow-hidden">
       {synchro}
-      <div
-        inert={masquee}
-        className={cn(
-          'shrink-0 border-border lg:h-full lg:overflow-hidden lg:border-r lg:bg-surface/30',
-          'transition-[width,opacity,border-color] duration-300 ease-out motion-reduce:transition-none',
-          ouverte ? 'hidden lg:block' : 'block',
-          masquee ? 'lg:w-0 lg:border-transparent lg:opacity-0' : 'lg:w-[340px] xl:w-[360px]',
-        )}
-      >
+      <div inert={masquee} className={classesVolet(ouverte, masquee)}>
         <ListeNotes
           className="lg:w-[340px] xl:w-[360px]"
           chargement={liste.isPending}
@@ -483,10 +455,14 @@ export function EspaceNotes({
         aria-label="Éditeur de note"
         className={cn('min-w-0 flex-1 lg:h-full', ouverte ? 'block' : 'hidden lg:block')}
       >
-        {(vue === 'squelette' || vue === 'chargement') && <SqueletteEditeur />}
-        {vue === 'accueil' && (
-          <AccueilEditeur onNouvelle={() => creerNote()} enCours={creer.isPending} />
-        )}
+        <EtatEditeur
+          vue={vue}
+          enCours={creer.isPending}
+          erreur={noteQ.error}
+          onNouvelle={() => creerNote()}
+          onReessayer={() => void noteQ.refetch()}
+          onRetour={() => naviguer(null, 'replace')}
+        />
         {vue === 'note' && noteQ.data && (
           <motion.div
             key={noteQ.data.id}
@@ -510,17 +486,152 @@ export function EspaceNotes({
             />
           </motion.div>
         )}
-        {vue === 'erreur' && (
-          <ErreurNotes
-            message={messageErreur(noteQ.error)}
-            onReessayer={() => void noteQ.refetch()}
-          />
-        )}
-        {vue === 'introuvable' && <NoteIntrouvable onRetour={() => naviguer(null, 'replace')} />}
       </section>
     </div>
   );
 }
 
+/** Aucune note : création en cours (`?nouvelle=1`), sinon import des notes locales et modèles. */
+function EspaceVide({
+  demandeNouvelle,
+  synchro,
+  campagneFixe,
+  moi,
+  campagnes,
+  enCours,
+  onNouvelle,
+}: Readonly<{
+  demandeNouvelle: boolean;
+  synchro: ReactNode;
+  campagneFixe: string | null;
+  moi: string;
+  campagnes: NonNullable<ReturnType<typeof useCampagnes>['data']>;
+  enCours: boolean;
+  onNouvelle: Parameters<typeof GrimoireVide>[0]['onNouvelle'];
+}>) {
+  if (demandeNouvelle) return <SqueletteEspace />;
+  return (
+    <div className="lg:h-[calc(100dvh-3.5rem)] lg:overflow-y-auto">
+      {synchro}
+      {!campagneFixe && (
+        <div className="mx-auto max-w-md px-4 pt-6 empty:hidden">
+          <ImportNotesLocales moi={moi} campagnes={campagnes} />
+        </div>
+      )}
+      <GrimoireVide onNouvelle={onNouvelle} enCours={enCours} />
+    </div>
+  );
+}
+
+/** Campagnes suivies en temps réel : celle de l'espace, sinon toutes les miennes. */
+function campagnesSuivies(
+  campagneFixe: string | null,
+  campagnes: NonNullable<ReturnType<typeof useCampagnes>['data']>,
+): string[] {
+  return campagneFixe ? [campagneFixe] : campagnes.map((c) => c.id);
+}
+
+/** Données dérivées de la liste : notes chargées, groupes par campagne, ordre, totaux. */
+function useDonneesNotes({
+  liste,
+  filtre,
+  filtreChoisi,
+  rechercheRetardee,
+  campagnes,
+  facettes,
+  campagneFixe,
+}: {
+  liste: ReturnType<typeof useNotesListe>;
+  filtre: FiltreNotes;
+  filtreChoisi: FiltreNotes;
+  rechercheRetardee: string;
+  campagnes: NonNullable<ReturnType<typeof useCampagnes>['data']>;
+  facettes: ReturnType<typeof useFacettesNotes>['data'];
+  campagneFixe: string | null;
+}) {
+  // Notes des pages chargées (sans doublon), encore dans les filtres après une modification locale
+  const chargees = useMemo(() => {
+    const vues = new Set<string>();
+    return (liste.data?.pages ?? [])
+      .flatMap((p) => p.items)
+      .filter((n) => !vues.has(n.id) && vues.add(n.id) && dansLeFiltre(n, filtre));
+  }, [liste.data, filtre]);
+  const index = useMemo(() => indexer(chargees), [chargees]);
+  const mots = useMemo(() => termes(rechercheRetardee), [rechercheRetardee]);
+  const groupes = useMemo(
+    () => grouper(index, (id) => campagnes.find((c) => c.id === id)?.name ?? 'Campagne'),
+    [index, campagnes],
+  );
+  const ordre = useMemo(() => groupes.flatMap((g) => g.notes.map((n) => n.note.id)), [groupes]);
+  const total =
+    (campagneFixe ? facettes?.campagnes.get(campagneFixe) : facettes?.total) ?? chargees.length;
+  return {
+    chargees,
+    groupes,
+    mots,
+    ordre,
+    total,
+    totalFiltre: liste.data?.pages[0]?.total ?? null,
+    filtree: filtreActif(filtreChoisi) || rechercheRetardee.trim() !== '',
+    // Étiquettes connues, les plus utilisées d'abord (suggestions à la saisie)
+    etiquettes: facettes?.etiquettes ?? [],
+  };
+}
+
+type VueEditeur = 'squelette' | 'accueil' | 'chargement' | 'note' | 'erreur' | 'introuvable';
+
+/** Ce que montre l'éditeur : création en cours, accueil, chargement, la note, ou un échec. */
+function vueEditeur(
+  idSelection: string | null,
+  demandeNouvelle: boolean,
+  noteQ: ReturnType<typeof useNote>,
+): VueEditeur {
+  if (!idSelection) return demandeNouvelle ? 'squelette' : 'accueil';
+  if (noteQ.isPending) return 'chargement';
+  if (noteQ.data) return 'note';
+  if (noteQ.isError && !estIntrouvable(noteQ.error)) return 'erreur';
+  return 'introuvable';
+}
+
+/** Éditeur sans note à montrer : squelette, accueil, échec du chargement ou note introuvable. */
+function EtatEditeur({
+  vue,
+  enCours,
+  erreur,
+  onNouvelle,
+  onReessayer,
+  onRetour,
+}: Readonly<{
+  vue: VueEditeur;
+  enCours: boolean;
+  erreur: unknown;
+  onNouvelle(): void;
+  onReessayer(): void;
+  onRetour(): void;
+}>) {
+  switch (vue) {
+    case 'squelette':
+    case 'chargement':
+      return <SqueletteEditeur />;
+    case 'accueil':
+      return <AccueilEditeur onNouvelle={onNouvelle} enCours={enCours} />;
+    case 'erreur':
+      return <ErreurNotes message={messageErreur(erreur)} onReessayer={onReessayer} />;
+    case 'introuvable':
+      return <NoteIntrouvable onRetour={onRetour} />;
+    default:
+      return null;
+  }
+}
+
+/** Classes du volet de la liste : caché sur mobile quand une note s'ouvre, replié sur grand écran. */
+function classesVolet(ouverte: boolean, masquee: boolean): string {
+  return cn(
+    'shrink-0 border-border lg:h-full lg:overflow-hidden lg:border-r lg:bg-surface/30',
+    'transition-[width,opacity,border-color] duration-300 ease-out motion-reduce:transition-none',
+    ouverte ? 'hidden lg:block' : 'block',
+    masquee ? 'lg:w-0 lg:border-transparent lg:opacity-0' : 'lg:w-[340px] xl:w-[360px]',
+  );
+}
 /** « ? » pour ouvrir la requête d'une adresse, « & » si elle en a déjà une. */
 const separateurRequete = (url: string) => (url.includes('?') ? '&' : '?');
