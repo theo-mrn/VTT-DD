@@ -47,7 +47,7 @@ describe('persistance d’une couche (/batch)', () => {
       { created: [dto('a')], updated: [] },
       { created: [dto('b')], updated: [] },
     ];
-    const out = await p.create(drafts);
+    const out = await p.create!(drafts);
     expect(out.map((d) => d.id)).toEqual(['a', 'b']);
     expect(calls).toHaveLength(2);
     expect(calls[0]!.url).toBe(`${BASE}/lights/batch`);
@@ -74,7 +74,7 @@ describe('persistance d’une couche (/batch)', () => {
 
   it('suppression et envoi groupé en une transaction', async () => {
     const p = layerPersistence(BASE, 'obstacles');
-    await p.remove([dto('a'), dto('b')]);
+    await p.remove!([dto('a'), dto('b')]);
     expect(calls[0]!.body).toEqual({ delete: ['a', 'b'] });
     replies.next = [{ created: [dto('n')], updated: [dto('u', { version: 9 })] }];
     const r = await p.batch!({
@@ -95,7 +95,7 @@ describe('persistance d’une couche (/batch)', () => {
 describe('persistance des tokens', () => {
   it('pose un token par POST (champs permis)', async () => {
     replies.next = [dto('t1')];
-    await tokenPersistence(BASE).create([
+    await tokenPersistence(BASE).create!([
       dto('brouillon', { characterId: 'c', pos: { x: 1, y: 1 }, inconnu: 1 }),
     ]);
     expect(calls[0]).toMatchObject({ url: `${BASE}/tokens`, method: 'POST' });
@@ -124,7 +124,7 @@ describe('persistance des tokens', () => {
     await p.update([{ after: dto('a b'), version: 3, changes: { scale: 2 } }] as never);
     expect(calls[0]).toMatchObject({ url: `${BASE}/tokens/a%20b`, method: 'PATCH' });
     expect(calls[0]!.body).toEqual({ scale: 2, version: 3 });
-    await p.remove([dto('a'), dto('b')]);
+    await p.remove!([dto('a'), dto('b')]);
     expect(calls.slice(1).map((c) => `${c.method} ${c.url}`)).toEqual([
       `DELETE ${BASE}/tokens/a`,
       `DELETE ${BASE}/tokens/b`,
