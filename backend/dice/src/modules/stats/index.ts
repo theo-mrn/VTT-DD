@@ -104,79 +104,79 @@ export function streakOf(
   return { direction, length };
 }
 
-/**
- * Calculs de dice-stats.tsx sur des jets du plus récent au plus ancien.
- * Joueur : compte de l'auteur (ou, pour un jet importé sans compte, son nom).
- */
-export function computeStats(
-  recentFirst: readonly StatRow[],
-  filters: { diceType?: string; faces?: number; userId?: string },
-): Stats {
-  const typeOf = (r: StatRow) => `${r.diceCount}d${r.diceFaces}`;
-  const diceTypes = [...new Set(recentFirst.map(typeOf))].sort(compareCodeUnits);
-  const filtered = recentFirst.filter(
+type StatsFilters = { diceType?: string; faces?: number; userId?: string };
+type SizeStats = { count: number; sum: number; values: Map<number, number> };
+
+const typeOfRoll = (r: StatRow) => `${r.diceCount}d${r.diceFaces}`;
+
+/** Jets retenus par les filtres de type de dé et de nombre de faces. */
+function filterRolls(recentFirst: readonly StatRow[], filters: StatsFilters): StatRow[] {
+  return recentFirst.filter(
     (r) =>
-      (!filters.diceType || typeOf(r) === filters.diceType) &&
+      (!filters.diceType || typeOfRoll(r) === filters.diceType) &&
       (!filters.faces || r.diceFaces === filters.faces),
   );
+}
 
-  const players = new Map<string, PlayerStats>();
-  const global = new Map<number, number>();
-  const sizes = new Map<number, { count: number; sum: number; values: Map<number, number> }>();
-  const outcomes = { critical: 0, fumble: 0 };
-  for (const roll of filtered) {
-    if (roll.outcome?.critical) outcomes.critical += 1;
-    if (roll.outcome?.fumble) outcomes.fumble += 1;
-    for (const group of roll.dice) {
-      let size = sizes.get(group.faces);
-      if (!size) sizes.set(group.faces, (size = { count: 0, sum: 0, values: new Map() }));
-      for (const { value } of group.values) {
-        size.count += 1;
-        size.sum += value;
-        size.values.set(value, (size.values.get(value) ?? 0) + 1);
-      }
-    }
-    const key = roll.authorId ?? `name:${roll.authorName}`;
-    let p = players.get(key);
-    if (!p) {
-      // Jets du plus récent au plus ancien : le premier vu donne le nom actuel
-      p = {
-        userId: roll.authorId,
-        userName: roll.authorName,
-        userAvatar: roll.authorAvatarUrl,
-        totalRolls: 0,
-        averageRoll: 0,
-        highestRoll: null,
-        lowestRoll: null,
-        totalSum: 0,
-        criticalSuccesses: 0,
-        criticalFailures: 0,
-        rollDistribution: {},
-      };
-      players.set(key, p);
-    }
-    const d20 = roll.diceFaces === 20 && roll.diceCount === 1;
-    const first = roll.dice[0];
-    for (const [i, value] of flatResults(roll.dice, null).entries()) {
-      p.totalRolls += 1;
-      p.totalSum += value;
-      p.highestRoll = Math.max(p.highestRoll ?? -Infinity, value);
-      p.lowestRoll = Math.min(p.lowestRoll ?? Infinity, value);
-      // Critiques : seulement le d20 d'un jet de 1d20 (pas les autres dés du jet)
-      if (d20 && first && i < first.values.length) {
-        if (value === 20) p.criticalSuccesses += 1;
-        if (value === 1) p.criticalFailures += 1;
-      }
-      p.rollDistribution[value] = (p.rollDistribution[value] ?? 0) + 1;
-      global.set(value, (global.get(value) ?? 0) + 1);
+/** Dés d'un jet comptés par taille (écartés compris). */
+function addSizes(sizes: Map<number, SizeStats>, roll: StatRow): void {
+  for (const group of roll.dice) {
+    let size = sizes.get(group.faces);
+    if (!size) sizes.set(group.faces, (size = { count: 0, sum: 0, values: new Map() }));
+    for (const { value } of group.values) {
+      size.count += 1;
+      size.sum += value;
+      size.values.set(value, (size.values.get(value) ?? 0) + 1);
     }
   }
-  for (const p of players.values()) p.averageRoll = p.totalRolls ? p.totalSum / p.totalRolls : 0;
+}
 
-  const timelineRolls = filters.userId
-    ? filtered.filter((r) => r.authorId === filters.userId)
-    : filtered;
-  const timeline = timelineRolls
+/** Statistiques du joueur d'un jet, créées à son premier jet vu. */
+function playerOf(players: Map<string, PlayerStats>, roll: StatRow): PlayerStats {
+  const key = roll.authorId ?? `name:${roll.authorName}`;
+  let p = players.get(key);
+  if (!p) {
+    // Jets du plus récent au plus ancien : le premier vu donne le nom actuel
+    p = {
+      userId: roll.authorId,
+      userName: roll.authorName,
+      userAvatar: roll.authorAvatarUrl,
+      totalRolls: 0,
+      averageRoll: 0,
+      highestRoll: null,
+      lowestRoll: null,
+      totalSum: 0,
+      criticalSuccesses: 0,
+      criticalFailures: 0,
+      rollDistribution: {},
+    };
+    players.set(key, p);
+  }
+  return p;
+}
+
+/** Valeurs d'un jet ajoutées aux statistiques de son joueur et à la répartition globale. */
+function addValues(p: PlayerStats, global: Map<number, number>, roll: StatRow): void {
+  const d20 = roll.diceFaces === 20 && roll.diceCount === 1;
+  const first = roll.dice[0];
+  for (const [i, value] of flatResults(roll.dice, null).entries()) {
+    p.totalRolls += 1;
+    p.totalSum += value;
+    p.highestRoll = Math.max(p.highestRoll ?? -Infinity, value);
+    p.lowestRoll = Math.min(p.lowestRoll ?? Infinity, value);
+    // Critiques : seulement le d20 d'un jet de 1d20 (pas les autres dés du jet)
+    if (d20 && first && i < first.values.length) {
+      if (value === 20) p.criticalSuccesses += 1;
+      if (value === 1) p.criticalFailures += 1;
+    }
+    p.rollDistribution[value] = (p.rollDistribution[value] ?? 0) + 1;
+    global.set(value, (global.get(value) ?? 0) + 1);
+  }
+}
+
+/** Évolution : moyenne des dés de chaque jet, du plus ancien au plus récent. */
+function timelineOf(timelineRolls: readonly StatRow[]): Stats['timeline'] {
+  return timelineRolls
     .slice()
     .reverse()
     .map((roll, index) => {
@@ -185,34 +185,63 @@ export function computeStats(
       return {
         roll: index + 1,
         total: Number.parseFloat(avg.toFixed(2)),
-        notation: roll.notation || typeOf(roll),
+        notation: roll.notation || typeOfRoll(roll),
       };
     });
+}
 
-  // Série : sur un seul nombre de faces, sinon la moyenne n'a pas de sens
+/** Série : sur un seul nombre de faces, sinon la moyenne n'a pas de sens. */
+function streakFor(filters: StatsFilters, timelineRolls: readonly StatRow[]): Stats['streak'] {
   const faces = filters.faces ?? (filters.diceType ? Number(filters.diceType.split('d')[1]) : 0);
-  const streak = faces
-    ? streakOf(
-        // Du dernier dé lancé au plus ancien
-        timelineRolls.flatMap((r) =>
-          r.dice
-            .filter((g) => g.faces === faces)
-            .flatMap((g) => g.values.map((v) => v.value))
-            .reverse(),
-        ),
-        faces,
-      )
-    : { direction: null, length: 0 };
+  if (!faces) return { direction: null, length: 0 };
+  return streakOf(
+    // Du dernier dé lancé au plus ancien
+    timelineRolls.flatMap((r) =>
+      r.dice
+        .filter((g) => g.faces === faces)
+        .flatMap((g) => g.values.map((v) => v.value))
+        .reverse(),
+    ),
+    faces,
+  );
+}
+
+/** Répartition triée par valeur. */
+function distributionOf(counts: Map<number, number>): { value: number; count: number }[] {
+  return [...counts].map(([value, count]) => ({ value, count })).sort((a, b) => a.value - b.value);
+}
+
+/**
+ * Calculs de dice-stats.tsx sur des jets du plus récent au plus ancien.
+ * Joueur : compte de l'auteur (ou, pour un jet importé sans compte, son nom).
+ */
+export function computeStats(recentFirst: readonly StatRow[], filters: StatsFilters): Stats {
+  const diceTypes = [...new Set(recentFirst.map(typeOfRoll))].sort(compareCodeUnits);
+  const filtered = filterRolls(recentFirst, filters);
+
+  const players = new Map<string, PlayerStats>();
+  const global = new Map<number, number>();
+  const sizes = new Map<number, SizeStats>();
+  const outcomes = { critical: 0, fumble: 0 };
+  for (const roll of filtered) {
+    if (roll.outcome?.critical) outcomes.critical += 1;
+    if (roll.outcome?.fumble) outcomes.fumble += 1;
+    addSizes(sizes, roll);
+    addValues(playerOf(players, roll), global, roll);
+  }
+  for (const p of players.values()) p.averageRoll = p.totalRolls ? p.totalSum / p.totalRolls : 0;
+
+  const timelineRolls = filters.userId
+    ? filtered.filter((r) => r.authorId === filters.userId)
+    : filtered;
 
   return {
     rollCount: filtered.length,
     diceTypes,
     players: [...players.values()].sort((a, b) => b.totalRolls - a.totalRolls),
-    globalDistribution: [...global]
-      .map(([value, count]) => ({ value, count }))
-      .sort((a, b) => a.value - b.value),
-    timeline,
-    streak,
+    globalDistribution: distributionOf(global),
+    timeline: timelineOf(timelineRolls),
+    streak: streakFor(filters, timelineRolls),
     outcomes,
     byFaces: [...sizes]
       .sort(([a], [b]) => a - b)
@@ -220,9 +249,7 @@ export function computeStats(
         faces,
         count: size.count,
         sum: size.sum,
-        distribution: [...size.values]
-          .map(([value, count]) => ({ value, count }))
-          .sort((a, b) => a.value - b.value),
+        distribution: distributionOf(size.values),
       })),
   };
 }
