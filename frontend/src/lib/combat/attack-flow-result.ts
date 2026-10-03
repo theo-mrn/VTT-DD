@@ -88,27 +88,45 @@ export function damageFigure(
     (m) => m.kind === 'attribute' && m.entity === 'target' && m.operation !== 'set',
   );
   const firstMod = targetMods[0]?.kind === 'attribute' ? targetMods[0] : null;
-  let sense: 'add' | 'subtract' | null = null;
-  if (firstMod) sense = firstMod.operation === 'add' ? 'add' : 'subtract';
-  const details: DamageFigure['details'] = [];
-  let main: { value: number; name: string | null } | null = null;
-  if (numeric.length) {
-    const [first, ...rest] = numeric;
-    main = { value: first!.value as number, name: first!.name ?? null };
-    for (const v of rest) details.push({ label: v.name ?? v.key, value: text(v.value) });
-  } else if (firstMod?.kind === 'attribute') {
-    main = { value: firstMod.value, name: attributeName(firstMod.attribute) };
-  }
-  for (const v of d.values)
-    if (typeof v.value !== 'number') details.push({ label: v.name ?? v.key, value: text(v.value) });
+  const sense = senseOf(firstMod);
+  const main = mainFigure(numeric, firstMod, attributeName);
+  const details: DamageFigure['details'] = numeric.slice(1).map(valueDetail);
+  for (const v of d.values) if (typeof v.value !== 'number') details.push(valueDetail(v));
   if (!main) return null;
   for (const m of targetMods)
-    if (m.kind === 'attribute') {
-      const sign = m.operation === 'add' ? '+' : '−';
-      const raw = m.raw !== undefined && m.raw !== m.value ? ` (${m.raw} avant réduction)` : '';
-      details.push({ label: attributeName(m.attribute), value: `${sign}${m.value}${raw}` });
-    }
+    if (m.kind === 'attribute') details.push(modificationDetail(m, attributeName));
   return { ...main, sense, details };
+}
+
+type DisplayValue = TargetDisplay['values'][number];
+type AttributeModification = Extract<TargetDisplay['modifications'][number], { kind: 'attribute' }>;
+
+/** Sens de la première modification de la cible (ajout ou retrait), s'il y en a une. */
+function senseOf(mod: AttributeModification | null): 'add' | 'subtract' | null {
+  if (!mod) return null;
+  return mod.operation === 'add' ? 'add' : 'subtract';
+}
+
+/** Valeur mise en avant : la première valeur numérique, sinon la première modification. */
+function mainFigure(
+  numeric: readonly DisplayValue[],
+  firstMod: AttributeModification | null,
+  attributeName: (key: string) => string,
+): { value: number; name: string | null } | null {
+  const first = numeric[0];
+  if (first) return { value: first.value as number, name: first.name ?? null };
+  if (firstMod) return { value: firstMod.value, name: attributeName(firstMod.attribute) };
+  return null;
+}
+
+/** Détail d'une valeur montrée (« oui » / « non » pour un booléen). */
+const valueDetail = (v: DisplayValue) => ({ label: v.name ?? v.key, value: text(v.value) });
+
+/** Détail d'une modification : « −7 (10 avant réduction) ». */
+function modificationDetail(m: AttributeModification, attributeName: (key: string) => string) {
+  const sign = m.operation === 'add' ? '+' : '−';
+  const raw = m.raw !== undefined && m.raw !== m.value ? ` (${m.raw} avant réduction)` : '';
+  return { label: attributeName(m.attribute), value: `${sign}${m.value}${raw}` };
 }
 
 /** Ce que le menu montre d'une cible après la résolution. */
