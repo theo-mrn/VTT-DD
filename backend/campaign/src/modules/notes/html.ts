@@ -232,6 +232,119 @@ function matchAt(re: RegExp, s: string, at: number): string {
   return m ? m[0] : '';
 }
 
+/** Index qui suit le prochain `>` à partir de `from`, ou la fin du texte. */
+function afterGt(html: string, from: number): number {
+  const end = html.indexOf('>', from);
+  return end === -1 ? html.length : end + 1;
+}
+
+/** Fin d'un commentaire, doctype ou instruction ouvert en `i` ; -1 si ce n'en est pas un. */
+function skipMarkup(html: string, i: number): number {
+  if (html.startsWith('<!--', i)) {
+    const end = html.indexOf('-->', i + 4);
+    return end === -1 ? html.length : end + 3;
+  }
+  const next = html[i + 1];
+  if (next === '!' || next === '?') return afterGt(html, i + 2);
+  return -1;
+}
+
+/** Valeur d'attribut qui suit le `=` (blancs sautés) ; null si ses guillemets ne se ferment jamais. */
+function attrValue(html: string, from: number): { value: string; end: number } | null {
+  const p = from + matchAt(WS, html, from).length;
+  const quote = html[p];
+  if (quote === '"' || quote === "'") {
+    const end = html.indexOf(quote, p + 1);
+    if (end === -1) return null;
+    return { value: html.slice(p + 1, end), end: end + 1 };
+  }
+  const value = matchAt(UNQUOTED, html, p);
+  return { value, end: p + value.length };
+}
+
+interface StartTag {
+  attrs: Map<string, string>;
+  selfClosing: boolean;
+  /** Faux : balise inachevée en fin de texte. */
+  closed: boolean;
+  /** Index qui suit la balise. */
+  end: number;
+}
+
+/** Attributs d'une balise ouvrante lus à partir de `from`, jusqu'à son `>`. */
+function parseAttributes(html: string, from: number): StartTag {
+  const n = html.length;
+  const attrs = new Map<string, string>();
+  let p = from;
+  while (p < n) {
+    p += matchAt(SPACES, html, p).length;
+    if (p >= n) break;
+    if (html[p] === '>')
+      return { attrs, selfClosing: html[p - 1] === '/', closed: true, end: p + 1 };
+    const attrName = matchAt(ATTR_NAME, html, p);
+    if (!attrName) {
+      p += 1;
+      continue;
+    }
+    p += attrName.length;
+    p += matchAt(WS, html, p).length;
+    let value = '';
+    if (html[p] === '=') {
+      const v = attrValue(html, p + 1);
+      if (!v) return { attrs, selfClosing: false, closed: false, end: n };
+      value = v.value;
+      p = v.end;
+    }
+    const key = attrName.toLowerCase();
+    // Premier attribut du nom gagnant, comme le navigateur
+    if (!attrs.has(key)) attrs.set(key, value);
+  }
+  return { attrs, selfClosing: false, closed: false, end: p };
+}
+
+/** Index qui suit la balise fermante d'un élément de texte brut ; -1 s'il n'est jamais fermé. */
+function skipRawText(html: string, name: string, from: number): number {
+  const close = new RegExp(String.raw`</${name}(?=[\s/>])`, 'gi');
+  close.lastIndex = from;
+  const m = close.exec(html);
+  if (!m) return -1;
+  return afterGt(html, m.index);
+}
+
+/**
+ * Ce qui commence au `<` en `i` : le jeton à émettre (s'il y en a un) et
+ * l'index qui suit ; null quand l'analyse s'arrête là.
+ */
+function tagAt(html: string, i: number): { token?: Token; next: number } | null {
+  const skipped = skipMarkup(html, i);
+  if (skipped !== -1) return { next: skipped };
+  if (html[i + 1] === '/') {
+    const name = matchAt(TAG_NAME, html, i + 2);
+    const next = afterGt(html, i + 2);
+    // « </> » et « </ … > » ne ferment rien
+    if (!name) return { next };
+    return { token: { kind: 'end', name: name.toLowerCase() }, next };
+  }
+  const rawName = matchAt(TAG_NAME, html, i + 1);
+  // « < » isolé : du texte
+  if (!rawName) return { token: { kind: 'text', value: '<' }, next: i + 1 };
+  const name = rawName.toLowerCase();
+  const tag = parseAttributes(html, i + 1 + rawName.length);
+  // Balise inachevée en fin de texte : le navigateur l'ignore
+  if (!tag.closed) return null;
+
+  // Le navigateur ignore « /> » sur ces éléments : leur contenu reste du texte brut
+  if (RAW_TEXT.has(name)) {
+    const next = skipRawText(html, name, tag.end);
+    return next === -1 ? null : { next };
+  }
+  if (name === 'plaintext') return null;
+  return {
+    token: { kind: 'start', name, attrs: tag.attrs, selfClosing: tag.selfClosing },
+    next: tag.end,
+  };
+}
+
 /**
  * Découpe le HTML en balises et texte, sans jamais échouer. Les commentaires,
  * doctypes et instructions sont ignorés ; le contenu des éléments de texte brut
@@ -247,93 +360,10 @@ function* tokenize(html: string): Generator<Token> {
       return;
     }
     if (lt > i) yield { kind: 'text', value: html.slice(i, lt) };
-    i = lt;
-    const next = html[i + 1];
-
-    if (html.startsWith('<!--', i)) {
-      const end = html.indexOf('-->', i + 4);
-      i = end === -1 ? n : end + 3;
-      continue;
-    }
-    if (next === '!' || next === '?') {
-      const end = html.indexOf('>', i + 2);
-      i = end === -1 ? n : end + 1;
-      continue;
-    }
-    if (next === '/') {
-      const name = matchAt(TAG_NAME, html, i + 2);
-      const end = html.indexOf('>', i + 2);
-      i = end === -1 ? n : end + 1;
-      // « </> » et « </ … > » ne ferment rien
-      if (name) yield { kind: 'end', name: name.toLowerCase() };
-      continue;
-    }
-    const rawName = matchAt(TAG_NAME, html, i + 1);
-    if (!rawName) {
-      // « < » isolé : du texte
-      yield { kind: 'text', value: '<' };
-      i += 1;
-      continue;
-    }
-    const name = rawName.toLowerCase();
-    let p = i + 1 + rawName.length;
-    const attrs = new Map<string, string>();
-    let closed = false;
-    let selfClosing = false;
-    while (p < n) {
-      p += matchAt(SPACES, html, p).length;
-      if (p >= n) break;
-      if (html[p] === '>') {
-        selfClosing = html[p - 1] === '/';
-        closed = true;
-        p += 1;
-        break;
-      }
-      const attrName = matchAt(ATTR_NAME, html, p);
-      if (!attrName) {
-        p += 1;
-        continue;
-      }
-      p += attrName.length;
-      p += matchAt(WS, html, p).length;
-      let value = '';
-      if (html[p] === '=') {
-        p += 1;
-        p += matchAt(WS, html, p).length;
-        const quote = html[p];
-        if (quote === '"' || quote === "'") {
-          const end = html.indexOf(quote, p + 1);
-          if (end === -1) {
-            p = n;
-            break;
-          }
-          value = html.slice(p + 1, end);
-          p = end + 1;
-        } else {
-          value = matchAt(UNQUOTED, html, p);
-          p += value.length;
-        }
-      }
-      const key = attrName.toLowerCase();
-      // Premier attribut du nom gagnant, comme le navigateur
-      if (!attrs.has(key)) attrs.set(key, value);
-    }
-    i = p;
-    // Balise inachevée en fin de texte : le navigateur l'ignore
-    if (!closed) return;
-
-    // Le navigateur ignore « /> » sur ces éléments : leur contenu reste du texte brut
-    if (RAW_TEXT.has(name)) {
-      const close = new RegExp(String.raw`</${name}(?=[\s/>])`, 'gi');
-      close.lastIndex = i;
-      const m = close.exec(html);
-      if (!m) return;
-      const end = html.indexOf('>', m.index);
-      i = end === -1 ? n : end + 1;
-      continue;
-    }
-    if (name === 'plaintext') return;
-    yield { kind: 'start', name, attrs, selfClosing };
+    const step = tagAt(html, lt);
+    if (!step) return;
+    if (step.token) yield step.token;
+    i = step.next;
   }
 }
 
@@ -410,39 +440,67 @@ const textAttr = (v: string | undefined) => {
   return t ? t.slice(0, TEXT_ATTR_MAX) : null;
 };
 
+/** Lien : adresse sûre, ouvert dans un nouvel onglet ; null sans adresse sûre. */
+function linkAttributes(attrs: Map<string, string>): [string, string][] | null {
+  const href = safeHref(attrs.get('href') ?? '');
+  if (!href) return null;
+  return [
+    ['href', href],
+    ['target', '_blank'],
+    ['rel', 'noopener noreferrer nofollow'],
+  ];
+}
+
+/** Image : source sûre, texte de remplacement, titre et largeur ; null sans source sûre. */
+function imageAttributes(
+  attrs: Map<string, string>,
+  opts: SanitizeOptions,
+): [string, string][] | null {
+  const src = safeImageSrc(attrs.get('src') ?? '', opts);
+  if (!src) return null;
+  const out: [string, string][] = [['src', src]];
+  const alt = textAttr(attrs.get('alt'));
+  if (alt) out.push(['alt', alt]);
+  const title = textAttr(attrs.get('title'));
+  if (title) out.push(['title', title]);
+  const width = imageWidth(attrs);
+  if (width) out.push(['width', String(width)]);
+  return out;
+}
+
+/** Paragraphe ou titre : alignement du texte. */
+function alignAttributes(attrs: Map<string, string>): [string, string][] {
+  const align = textAlign(attrs.get('style'));
+  return align ? [['style', `text-align: ${align}`]] : [];
+}
+
+/** Liste numérotée : numéro de départ, s'il n'est pas 1. */
+function listAttributes(attrs: Map<string, string>): [string, string][] {
+  const start = attrs.get('start');
+  if (start && /^\s*\d{1,6}\s*$/.test(start) && Number(start) !== 1)
+    return [['start', String(Number(start))]];
+  return [];
+}
+
+/** Code : classe de langage. */
+function codeAttributes(attrs: Map<string, string>): [string, string][] {
+  const cls = attrs.get('class')?.trim();
+  if (cls && /^language-[a-zA-Z0-9+#_-]{1,32}$/.test(cls)) return [['class', cls]];
+  return [];
+}
+
 /** Attributs réécrits d'une balise gardée ; null : la balise est retirée (image sans source). */
 function attributesOf(
   name: string,
   attrs: Map<string, string>,
   opts: SanitizeOptions,
 ): [string, string][] | null {
-  const out: [string, string][] = [];
-  if (name === 'a') {
-    const href = safeHref(attrs.get('href') ?? '');
-    if (!href) return null;
-    out.push(['href', href], ['target', '_blank'], ['rel', 'noopener noreferrer nofollow']);
-  } else if (name === 'img') {
-    const src = safeImageSrc(attrs.get('src') ?? '', opts);
-    if (!src) return null;
-    out.push(['src', src]);
-    const alt = textAttr(attrs.get('alt'));
-    if (alt) out.push(['alt', alt]);
-    const title = textAttr(attrs.get('title'));
-    if (title) out.push(['title', title]);
-    const width = imageWidth(attrs);
-    if (width) out.push(['width', String(width)]);
-  } else if (name === 'p' || HEADING.test(name)) {
-    const align = textAlign(attrs.get('style'));
-    if (align) out.push(['style', `text-align: ${align}`]);
-  } else if (name === 'ol') {
-    const start = attrs.get('start');
-    if (start && /^\s*\d{1,6}\s*$/.test(start) && Number(start) !== 1)
-      out.push(['start', String(Number(start))]);
-  } else if (name === 'code') {
-    const cls = attrs.get('class')?.trim();
-    if (cls && /^language-[a-zA-Z0-9+#_-]{1,32}$/.test(cls)) out.push(['class', cls]);
-  }
-  return out;
+  if (name === 'a') return linkAttributes(attrs);
+  if (name === 'img') return imageAttributes(attrs, opts);
+  if (name === 'p' || HEADING.test(name)) return alignAttributes(attrs);
+  if (name === 'ol') return listAttributes(attrs);
+  if (name === 'code') return codeAttributes(attrs);
+  return [];
 }
 
 // ─── Assainissement ──────────────────────────────────────────────────────────
@@ -458,83 +516,114 @@ export interface SanitizedNote {
 
 const squash = (s: string) => s.replace(CONTROL, '').replace(/\s+/g, ' ').trim();
 
+/** Réécriture en cours d'une note. */
+interface Rewrite {
+  html: string;
+  text: string[];
+  preview: string[];
+  previewLength: number;
+  /** Balises ouvertes, dans l'ordre (seulement celles qui sont écrites). */
+  open: string[];
+  /** Conteneur jeté en cours (avec son imbrication), sinon null. */
+  dropping: { name: string; depth: number } | null;
+  headingDepth: number;
+}
+
+/** Texte brut, repris dans l'aperçu hors intertitres tant qu'il n'est pas plein. */
+function pushText(w: Rewrite, s: string): void {
+  w.text.push(s);
+  if (w.headingDepth === 0 && w.previewLength <= PREVIEW_LENGTH) {
+    w.preview.push(s);
+    w.previewLength += squash(s).length + 1;
+  }
+}
+
+/** Jeton à l'intérieur d'un conteneur jeté : seule son imbrication est suivie. */
+function skipDropped(w: Rewrite, dropping: { name: string; depth: number }, token: Token): void {
+  if (token.kind === 'start' && token.name === dropping.name && !token.selfClosing)
+    dropping.depth += 1;
+  else if (token.kind === 'end' && token.name === dropping.name) {
+    dropping.depth -= 1;
+    if (dropping.depth === 0) w.dropping = null;
+  }
+}
+
+/** Balise ouvrante : écrite si elle est permise, jetée avec son contenu si elle est dangereuse. */
+function writeStart(
+  w: Rewrite,
+  name: string,
+  token: Extract<Token, { kind: 'start' }>,
+  opts: SanitizeOptions,
+): void {
+  if (DROPPED.has(name)) {
+    if (!token.selfClosing) w.dropping = { name, depth: 1 };
+    return;
+  }
+  if (BLOCK.has(name)) pushText(w, ' ');
+  if (!ALLOWED.has(name)) return;
+  const attrs = attributesOf(name, token.attrs, opts);
+  // Lien sans adresse sûre : son texte reste, sans lien
+  if (!attrs) return;
+  w.html += `<${name}${attrs.map(([k, v]) => ` ${k}="${escapeAttr(v)}"`).join('')}>`;
+  if (VOID.has(name)) return;
+  w.open.push(name);
+  if (HEADING.test(name)) w.headingDepth += 1;
+}
+
+/** Balise fermante : referme tout jusqu'à la dernière balise ouverte du même nom. */
+function writeEnd(w: Rewrite, name: string): void {
+  if (BLOCK.has(name)) pushText(w, ' ');
+  const at = w.open.lastIndexOf(name);
+  if (at === -1) return;
+  while (w.open.length > at) {
+    const closing = w.open.pop()!;
+    if (HEADING.test(closing)) w.headingDepth -= 1;
+    w.html += `</${closing}>`;
+  }
+}
+
 /**
  * Réécrit le HTML d'une note avec la liste blanche, et en extrait le texte.
  * Toujours bien formé : balises ouvertes refermées, fermantes orphelines ignorées.
  */
 export function sanitizeNoteHtml(input: string, opts: SanitizeOptions): SanitizedNote {
-  let html = '';
-  const text: string[] = [];
-  const preview: string[] = [];
-  let previewLength = 0;
-  /** Balises ouvertes, dans l'ordre (seulement celles qui sont écrites). */
-  const open: string[] = [];
-  /** Conteneur jeté en cours (avec son imbrication), sinon null. */
-  let dropping: { name: string; depth: number } | null = null;
-  let headingDepth = 0;
-
-  const pushText = (s: string) => {
-    text.push(s);
-    if (headingDepth === 0 && previewLength <= PREVIEW_LENGTH) {
-      preview.push(s);
-      previewLength += squash(s).length + 1;
-    }
+  const w: Rewrite = {
+    html: '',
+    text: [],
+    preview: [],
+    previewLength: 0,
+    open: [],
+    dropping: null,
+    headingDepth: 0,
   };
-  const separate = () => pushText(' ');
 
   for (const token of tokenize(input)) {
-    if (dropping) {
-      if (token.kind === 'start' && token.name === dropping.name && !token.selfClosing)
-        dropping.depth += 1;
-      else if (token.kind === 'end' && token.name === dropping.name) {
-        dropping.depth -= 1;
-        if (dropping.depth === 0) dropping = null;
-      }
+    if (w.dropping) {
+      skipDropped(w, w.dropping, token);
       continue;
     }
 
     if (token.kind === 'text') {
       const value = decodeEntities(token.value)!;
-      html += escapeText(value);
-      pushText(value);
+      w.html += escapeText(value);
+      pushText(w, value);
       continue;
     }
 
     const name = RENAMED[token.name] ?? token.name;
-
     if (token.kind === 'start') {
-      if (DROPPED.has(name)) {
-        if (!token.selfClosing) dropping = { name, depth: 1 };
-        continue;
-      }
-      if (BLOCK.has(name)) separate();
-      if (!ALLOWED.has(name)) continue;
-      const attrs = attributesOf(name, token.attrs, opts);
-      // Lien sans adresse sûre : son texte reste, sans lien
-      if (!attrs) continue;
-      html += `<${name}${attrs.map(([k, v]) => ` ${k}="${escapeAttr(v)}"`).join('')}>`;
-      if (VOID.has(name)) continue;
-      open.push(name);
-      if (HEADING.test(name)) headingDepth += 1;
+      writeStart(w, name, token, opts);
       continue;
     }
-
     // Balise fermante
-    if (BLOCK.has(name)) separate();
-    const at = open.lastIndexOf(name);
-    if (at === -1) continue;
-    while (open.length > at) {
-      const closing = open.pop()!;
-      if (HEADING.test(closing)) headingDepth -= 1;
-      html += `</${closing}>`;
-    }
+    writeEnd(w, name);
   }
-  while (open.length) html += `</${open.pop()!}>`;
+  while (w.open.length) w.html += `</${w.open.pop()!}>`;
 
-  const plain = squash(text.join(''));
-  const short = squash(preview.join(''));
+  const plain = squash(w.text.join(''));
+  const short = squash(w.preview.join(''));
   return {
-    html,
+    html: w.html,
     text: plain,
     preview: short.length > PREVIEW_LENGTH ? `${short.slice(0, PREVIEW_LENGTH).trimEnd()}…` : short,
   };
