@@ -250,7 +250,19 @@ export function insertDoor(pts: Pts, index: number, at: Point, width: number): D
   const length = distance(a, b);
   const t = length ? projectOnSegment(at, a, b).t : 0;
   const w = Math.min(Math.max(width, MIN_SEGMENT), length);
-  let s0 = t * length - w / 2;
+  const [s0, s1] = doorSpan(t * length - w / 2, w, length);
+  const A = pointAlong(a, b, length, s0);
+  const B = pointAlong(a, b, length, s1);
+  const rest = isClosed(pts) ? restOfRing(pts, index, A, B) : restOfLine(pts, index, A, B);
+  return { door: [A, B], rest };
+}
+
+/**
+ * Bornes de la porte le long du segment (de `start`, sur `w`) : gardée dans le segment, sans
+ * bout de mur de moins de `MIN_SEGMENT`.
+ */
+function doorSpan(start: number, w: number, length: number): [number, number] {
+  let s0 = start;
   let s1 = s0 + w;
   if (s0 < 0) {
     s0 = 0;
@@ -262,36 +274,40 @@ export function insertDoor(pts: Pts, index: number, at: Point, width: number): D
   }
   if (s0 < MIN_SEGMENT) s0 = 0;
   if (length - s1 < MIN_SEGMENT) s1 = length;
-  const along = (s: number): Point => {
-    if (s <= 0) return a;
-    if (s >= length) return b;
-    return roundPoint({ x: a.x + ((b.x - a.x) * s) / length, y: a.y + ((b.y - a.y) * s) / length });
-  };
-  const A = along(s0);
-  const B = along(s1);
+  return [s0, s1];
+}
 
-  const rest: Point[][] = [];
-  if (isClosed(pts)) {
-    // On part de B, on fait le tour, on revient à A
-    const ring = pts.slice(0, -1);
-    const n = ring.length;
-    const loop: Point[] = [B];
-    for (let k = 1; k <= n; k++) {
-      const p = ring[(index + k) % n]!;
-      if (!samePoint(p, loop.at(-1)!)) loop.push(p);
-    }
-    // `loop` finit sur ring[index] = a ; on termine sur A
-    if (!samePoint(A, loop.at(-1)!)) loop.push(A);
-    if (loop.length >= 2) rest.push(loop);
-  } else {
-    const before = pts.slice(0, index + 1);
-    if (!samePoint(A, before.at(-1)!)) before.push(A);
-    const after = pts.slice(index + 1);
-    if (!samePoint(B, after[0]!)) after.unshift(B);
-    if (before.length >= 2) rest.push(before);
-    if (after.length >= 2) rest.push(after);
+/** Point à la distance `s` de `a` sur le segment [a, b] (les bouts tels quels). */
+function pointAlong(a: Point, b: Point, length: number, s: number): Point {
+  if (s <= 0) return a;
+  if (s >= length) return b;
+  return roundPoint({ x: a.x + ((b.x - a.x) * s) / length, y: a.y + ((b.y - a.y) * s) / length });
+}
+
+/** Ligne fermée ouverte par la porte : on part de B, on fait le tour, on revient à A. */
+function restOfRing(pts: Pts, index: number, A: Point, B: Point): Point[][] {
+  const ring = pts.slice(0, -1);
+  const n = ring.length;
+  const loop: Point[] = [B];
+  for (let k = 1; k <= n; k++) {
+    const p = ring[(index + k) % n]!;
+    if (!samePoint(p, loop.at(-1)!)) loop.push(p);
   }
-  return { door: [A, B], rest };
+  // `loop` finit sur ring[index] = a ; on termine sur A
+  if (!samePoint(A, loop.at(-1)!)) loop.push(A);
+  return loop.length >= 2 ? [loop] : [];
+}
+
+/** Ligne ouverte : le mur avant la porte, puis celui d'après (s'ils restent). */
+function restOfLine(pts: Pts, index: number, A: Point, B: Point): Point[][] {
+  const rest: Point[][] = [];
+  const before = pts.slice(0, index + 1);
+  if (!samePoint(A, before.at(-1)!)) before.push(A);
+  const after = pts.slice(index + 1);
+  if (!samePoint(B, after[0]!)) after.unshift(B);
+  if (before.length >= 2) rest.push(before);
+  if (after.length >= 2) rest.push(after);
+  return rest;
 }
 
 // ─── Boucles → pièces ────────────────────────────────────────────────────────
@@ -301,21 +317,37 @@ export function insertDoor(pts: Pts, index: number, at: Point, width: number): D
  * il doit rester un seul cycle simple. Renvoie ses sommets (sans répétition), ou null.
  */
 export function findLoop(segments: readonly (readonly [Point, Point])[]): Point[] | null {
-  const adjacency = new Map<string, Set<string>>();
   const points = new Map<string, Point>();
-  const link = (a: Point, b: Point) => {
+  const adjacency = adjacencyOf(segments, points);
+  pruneDangling(adjacency);
+  if (adjacency.size < 3) return null;
+  for (const next of adjacency.values()) if (next.size !== 2) return null;
+  const loop = walkCycle(adjacency);
+  return loop ? loop.map((k) => points.get(k)!) : null;
+}
+
+/** Voisins de chaque sommet (par clé) ; `points` reçoit le point de chaque clé. */
+function adjacencyOf(
+  segments: readonly (readonly [Point, Point])[],
+  points: Map<string, Point>,
+): Map<string, Set<string>> {
+  const adjacency = new Map<string, Set<string>>();
+  for (const [a, b] of segments) {
     const ka = pointKey(a);
     const kb = pointKey(b);
-    if (ka === kb) return;
+    if (ka === kb) continue;
     points.set(ka, a);
     points.set(kb, b);
     if (!adjacency.has(ka)) adjacency.set(ka, new Set());
     if (!adjacency.has(kb)) adjacency.set(kb, new Set());
     adjacency.get(ka)!.add(kb);
     adjacency.get(kb)!.add(ka);
-  };
-  for (const [a, b] of segments) link(a, b);
-  // Retire les bouts pendants
+  }
+  return adjacency;
+}
+
+/** Retire les bouts pendants, jusqu'à ce qu'il n'en reste plus. */
+function pruneDangling(adjacency: Map<string, Set<string>>) {
   let pruned = true;
   while (pruned) {
     pruned = false;
@@ -326,9 +358,10 @@ export function findLoop(segments: readonly (readonly [Point, Point])[]): Point[
       pruned = true;
     }
   }
-  if (adjacency.size < 3) return null;
-  for (const next of adjacency.values()) if (next.size !== 2) return null;
-  // Un seul cycle : on en fait le tour depuis un sommet
+}
+
+/** Un seul cycle : on en fait le tour depuis un sommet ; null s'il ne passe pas par tous. */
+function walkCycle(adjacency: Map<string, Set<string>>): string[] | null {
   const first = adjacency.keys().next().value!;
   const loop: string[] = [first];
   let prev: string | null = null;
@@ -341,8 +374,7 @@ export function findLoop(segments: readonly (readonly [Point, Point])[]): Point[
     cur = next;
     if (loop.length > adjacency.size) return null;
   }
-  if (loop.length !== adjacency.size) return null;
-  return loop.map((k) => points.get(k)!);
+  return loop.length === adjacency.size ? loop : null;
 }
 
 // ─── Polygones ───────────────────────────────────────────────────────────────
