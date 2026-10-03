@@ -100,6 +100,11 @@ let csb: Int32Array = new Int32Array(0);
 let cso: Float64Array = new Float64Array(0);
 let cox = 0;
 let coy = 0;
+/** Tampon de la requête en cours. */
+let cq = 0;
+/** Nombre de sommets retenus (`usedList`) et de segments à cheval sur l'angle 0 (`wrapList`). */
+let nUsed = 0;
+let nWrap = 0;
 /**
  * Rayon de référence pour le repli du comparateur : bissectrice des directions vers les
  * sommets `refV1` et `refV2`, calculée seulement quand le repli sert (rare).
@@ -112,6 +117,15 @@ let cry = 0;
 let heap: Int32Array = new Int32Array(0);
 let hpos: Int32Array = new Int32Array(0);
 let hsize = 0;
+/** Point calculé par `rayHit`. */
+let hitX = 0;
+let hitY = 0;
+/** Bornes rendues par `partitionPairs`. */
+let partI = 0;
+let partJ = 0;
+
+/** Verdict de `sideVerdict` quand les côtés ne tranchent pas. */
+const UNDECIDED = 2;
 
 /** Distance (paramètre) de O à la droite du segment s le long du rayon de référence. */
 function rayParam(s: number): number {
@@ -126,6 +140,18 @@ function rayParam(s: number): number {
   if (den === 0) return Infinity;
   const t = ((ax - cox) * ey - (ay - coy) * ex) / den;
   return t < 0 ? Infinity : t;
+}
+
+/**
+ * Côtés (`o1`, `o2`) des extrémités de t par rapport à la droite de s, O étant du côté `oS` :
+ * 1 si t est devant, −1 s'il est derrière, 0 si colinéaires, `UNDECIDED` sinon.
+ */
+function sideVerdict(o1: number, o2: number, oS: number): number {
+  if (o1 === 0 && o2 === 0) return 0;
+  if (oS === 0) return UNDECIDED;
+  if (o1 >= 0 && o2 >= 0) return oS > 0 ? 1 : -1;
+  if (o1 <= 0 && o2 <= 0) return oS < 0 ? 1 : -1;
+  return UNDECIDED;
 }
 
 /**
@@ -147,22 +173,15 @@ function front(s: number, t: number): number {
   const tay = cvy[ta]!;
   const tbx = cvx[tb]!;
   const tby = cvy[tb]!;
-  const oS = cso[s]!;
   const o1 = orient(sax, say, sbx, sby, tax, tay);
   const o2 = orient(sax, say, sbx, sby, tbx, tby);
-  if (o1 === 0 && o2 === 0) return 0;
-  if (oS !== 0) {
-    if (o1 >= 0 && o2 >= 0) return oS > 0 ? 1 : -1;
-    if (o1 <= 0 && o2 <= 0) return oS < 0 ? 1 : -1;
-  }
-  const oT = cso[t]!;
+  const byS = sideVerdict(o1, o2, cso[s]!);
+  if (byS !== UNDECIDED) return byS;
   const p1 = orient(tax, tay, tbx, tby, sax, say);
   const p2 = orient(tax, tay, tbx, tby, sbx, sby);
-  if (p1 === 0 && p2 === 0) return 0;
-  if (oT !== 0) {
-    if (p1 >= 0 && p2 >= 0) return oT > 0 ? -1 : 1;
-    if (p1 <= 0 && p2 <= 0) return oT < 0 ? -1 : 1;
-  }
+  const byT = sideVerdict(p1, p2, cso[t]!);
+  if (byT === 0) return 0;
+  if (byT !== UNDECIDED) return -byT;
   const ds = rayParam(s);
   const dt = rayParam(t);
   if (ds < dt) return -1;
@@ -229,23 +248,9 @@ function heapRemove(s: number) {
 /** Tri en place de (clé, indice) par clé croissante puis indice : résultat unique. */
 function sortPairs(keys: Float64Array, idx: Int32Array, lo: number, hi: number): void {
   while (hi - lo > 16) {
-    const mid = (lo + hi) >>> 1;
-    if (before(keys, idx, mid, lo)) swap(keys, idx, mid, lo);
-    if (before(keys, idx, hi, lo)) swap(keys, idx, hi, lo);
-    if (before(keys, idx, hi, mid)) swap(keys, idx, hi, mid);
-    const pk = keys[mid]!;
-    const pi = idx[mid]!;
-    let i = lo;
-    let j = hi;
-    while (i <= j) {
-      while (keys[i]! < pk || (keys[i] === pk && idx[i]! < pi)) i++;
-      while (keys[j]! > pk || (keys[j] === pk && idx[j]! > pi)) j--;
-      if (i <= j) {
-        swap(keys, idx, i, j);
-        i++;
-        j--;
-      }
-    }
+    partitionPairs(keys, idx, lo, hi);
+    const i = partI;
+    const j = partJ;
     if (j - lo < hi - i) {
       sortPairs(keys, idx, lo, j);
       lo = i;
@@ -254,6 +259,34 @@ function sortPairs(keys: Float64Array, idx: Int32Array, lo: number, hi: number):
       hi = j;
     }
   }
+  insertionSortPairs(keys, idx, lo, hi);
+}
+
+/** Médiane de trois (lo, milieu, hi) ramenée au milieu, puis partition autour d'elle. */
+function partitionPairs(keys: Float64Array, idx: Int32Array, lo: number, hi: number): void {
+  const mid = (lo + hi) >>> 1;
+  if (before(keys, idx, mid, lo)) swap(keys, idx, mid, lo);
+  if (before(keys, idx, hi, lo)) swap(keys, idx, hi, lo);
+  if (before(keys, idx, hi, mid)) swap(keys, idx, hi, mid);
+  const pk = keys[mid]!;
+  const pi = idx[mid]!;
+  let i = lo;
+  let j = hi;
+  while (i <= j) {
+    while (keys[i]! < pk || (keys[i] === pk && idx[i]! < pi)) i++;
+    while (keys[j]! > pk || (keys[j] === pk && idx[j]! > pi)) j--;
+    if (i <= j) {
+      swap(keys, idx, i, j);
+      i++;
+      j--;
+    }
+  }
+  partI = i;
+  partJ = j;
+}
+
+/** Tri par insertion de (clé, indice) sur [lo, hi]. */
+function insertionSortPairs(keys: Float64Array, idx: Int32Array, lo: number, hi: number): void {
   for (let i = lo + 1; i <= hi; i++) {
     const k = keys[i]!;
     const x = idx[i]!;
@@ -283,6 +316,180 @@ function swap(keys: Float64Array, idx: Int32Array, i: number, j: number) {
   idx[j] = x;
 }
 
+/** Le segment de drapeaux `f` bloque-t-il l'observateur du côté `o` (sens unique : gauche si o < 0) ? */
+function blocksFrom(f: number, o: number): boolean {
+  if ((f & FLAG_LEFT) !== 0) return o < 0;
+  if ((f & FLAG_RIGHT) !== 0) return o > 0;
+  return true;
+}
+
+/** Pseudo-angle du sommet v (en x, y) autour de O, calculé une fois par requête. */
+function stampVertex(walls: WallSet, v: number, x: number, y: number): void {
+  if (walls.vStamp[v] === cq) return;
+  walls.vStamp[v] = cq;
+  walls.vAngle[v] = pseudoAngle(x - cox, y - coy);
+  walls.usedList[nUsed++] = v;
+}
+
+/** Retient le segment s s'il bloque la vue depuis O et couvre un intervalle d'angles non nul. */
+function consider(walls: WallSet, s: number): void {
+  const segStamp = walls.segStamp;
+  if (segStamp[s] === cq) return;
+  segStamp[s] = cq;
+  const vx = walls.vx;
+  const vy = walls.vy;
+  const a = walls.segA[s]!;
+  const b = walls.segB[s]!;
+  const ax = vx[a]!;
+  const ay = vy[a]!;
+  const bx = vx[b]!;
+  const by = vy[b]!;
+  const o = orient(ax, ay, bx, by, cox, coy);
+  if (!blocksFrom(walls.segFlags[s]!, o)) return;
+  stampVertex(walls, a, ax, ay);
+  stampVertex(walls, b, bx, by);
+  const vAngle = walls.vAngle;
+  const pa = vAngle[a]!;
+  const pb = vAngle[b]!;
+  let d = pb - pa;
+  if (d > 2) d -= 4;
+  else if (d < -2) d += 4;
+  // De profil (d nul) ou passant par O (d = ±2) : aucune surface à couvrir.
+  if (d === 0 || d >= 2 || d <= -2) return;
+  const st = d > 0 ? a : b;
+  const en = d > 0 ? b : a;
+  walls.segStart[s] = st;
+  walls.segEnd[s] = en;
+  walls.segO[s] = o;
+  walls.segInc[s] = cq;
+  if (vAngle[en]! < vAngle[st]!) walls.wrapList[nWrap++] = s;
+}
+
+/** Segments qui touchent le carré de rayon `maxRadius` autour de O, plus les bords de la carte. */
+function considerNear(walls: WallSet, maxRadius: number): void {
+  const g = walls.grid;
+  const c1 = g.col(cox - maxRadius);
+  const c2 = g.col(cox + maxRadius);
+  const r1 = g.row(coy - maxRadius);
+  const r2 = g.row(coy + maxRadius);
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      const cell = r * g.cols + c;
+      for (let k = g.start[cell]!, end = g.start[cell + 1]!; k < end; k++) {
+        consider(walls, g.items[k]!);
+      }
+    }
+  }
+  const borders = walls.borderSegs;
+  for (let k = 0; k < borders.length; k++) consider(walls, borders[k]!);
+}
+
+/** Sommets retenus triés par angle (à égalité, par indice : ordre unique, donc déterministe). */
+function sortUsedVertices(walls: WallSet): void {
+  const keys = walls.sortKey;
+  const idx = walls.sortIdx;
+  const used = walls.usedList;
+  const vAngle = walls.vAngle;
+  for (let k = 0; k < nUsed; k++) {
+    const v = used[k]!;
+    keys[k] = vAngle[v]!;
+    idx[k] = v;
+  }
+  sortPairs(keys, idx, 0, nUsed - 1);
+}
+
+/**
+ * Tas initial : segments qui chevauchent l'angle 0 (actifs avant le premier lot). Rayon de
+ * référence : milieu de l'intervalle qui va du dernier lot au premier.
+ */
+function initHeap(walls: WallSet): void {
+  const keys = walls.sortKey;
+  const idx = walls.sortIdx;
+  let lastStart = nUsed - 1;
+  while (lastStart > 0 && keys[lastStart - 1] === keys[nUsed - 1]) lastStart--;
+  setReference(idx[lastStart]!, idx[0]!);
+  for (let k = 0; k < nWrap; k++) heapInsert(walls.wrapList[k]!);
+}
+
+/** Retraits du lot [i, j) : segments retenus qui finissent en l'un de ses sommets. */
+function removeEnding(walls: WallSet, i: number, j: number): void {
+  const idx = walls.sortIdx;
+  const vertStart = walls.vertStart;
+  const vertSegs = walls.vertSegs;
+  for (let k = i; k < j; k++) {
+    const v = idx[k]!;
+    for (let e = vertStart[v]!, end = vertStart[v + 1]!; e < end; e++) {
+      const s = vertSegs[e]!;
+      if (walls.segInc[s] === cq && walls.segEnd[s] === v) heapRemove(s);
+    }
+  }
+}
+
+/** Ajouts du lot [i, j) : segments retenus qui commencent en l'un de ses sommets. */
+function insertStarting(walls: WallSet, i: number, j: number): void {
+  const idx = walls.sortIdx;
+  const vertStart = walls.vertStart;
+  const vertSegs = walls.vertSegs;
+  for (let k = i; k < j; k++) {
+    const v = idx[k]!;
+    for (let e = vertStart[v]!, end = vertStart[v + 1]!; e < end; e++) {
+      const s = vertSegs[e]!;
+      if (walls.segInc[s] === cq && walls.segStart[s] === v) heapInsert(s);
+    }
+  }
+}
+
+/**
+ * Changement du segment le plus proche à l'angle `theta` (lot commençant au sommet `rep`) :
+ * point de l'ancien puis du nouveau. Rend le nombre de points émis.
+ */
+function emitChange(
+  walls: WallSet,
+  prev: number,
+  cur: number,
+  rep: number,
+  theta: number,
+  n: number,
+): number {
+  const rdx = walls.vx[rep]! - cox;
+  const rdy = walls.vy[rep]! - coy;
+  const out = walls.outPts;
+  const outAng = walls.outAng;
+  let nOut = n;
+  if (prev >= 0) nOut = emitHit(walls, prev, theta, rdx, rdy, cox, coy, out, outAng, nOut);
+  if (cur >= 0) nOut = emitHit(walls, cur, theta, rdx, rdy, cox, coy, out, outAng, nOut);
+  return nOut;
+}
+
+/** Balayage des lots d'angle : rend le nombre de points du polygone. */
+function sweepBatches(walls: WallSet): number {
+  const keys = walls.sortKey;
+  const idx = walls.sortIdx;
+  initHeap(walls);
+  let nOut = 0;
+  let prev = hsize > 0 ? heap[0]! : -1;
+  let i = 0;
+  while (i < nUsed) {
+    const theta = keys[i]!;
+    let j = i + 1;
+    while (j < nUsed && keys[j] === theta) j++;
+    removeEnding(walls, i, j);
+    // Ajouts comparés au milieu de l'intervalle qui commence ici.
+    setReference(idx[i]!, j < nUsed ? idx[j]! : idx[0]!);
+    insertStarting(walls, i, j);
+    const cur = hsize > 0 ? heap[0]! : -1;
+    if (cur !== prev) {
+      nOut = emitChange(walls, prev, cur, idx[i]!, theta, nOut);
+      prev = cur;
+    }
+    i = j;
+  }
+  // Remise à zéro des positions du tas pour la requête suivante.
+  for (let k = 0; k < hsize; k++) hpos[heap[k]!] = -1;
+  hsize = 0;
+  return nOut;
+}
+
 /**
  * Polygone de vue depuis (px, py). `maxRadius` fini : seuls les segments qui touchent le carré
  * de ce rayon (plus les bords de la carte) sont pris ; le polygone n'est alors exact que dans le
@@ -297,168 +504,34 @@ export function computeStar(
   effectiveOrigin(walls, px, py);
   const ox = originX;
   const oy = originY;
-  const q = walls.nextStamp();
-  const vx = walls.vx;
-  const vy = walls.vy;
-  const segA = walls.segA;
-  const segB = walls.segB;
-  const segFlags = walls.segFlags;
-  const vAngle = walls.vAngle;
-  const vStamp = walls.vStamp;
-  const segStamp = walls.segStamp;
-  const segInc = walls.segInc;
-  const segStart = walls.segStart;
-  const segEnd = walls.segEnd;
-  const segO = walls.segO;
-  const wrapList = walls.wrapList;
-  const used = walls.usedList;
-  let nWrap = 0;
-  let nUsed = 0;
-
-  // Retient le segment s s'il bloque la vue depuis O et couvre un intervalle d'angles non nul.
-  const consider = (s: number) => {
-    if (segStamp[s] === q) return;
-    segStamp[s] = q;
-    const a = segA[s]!;
-    const b = segB[s]!;
-    const ax = vx[a]!;
-    const ay = vy[a]!;
-    const bx = vx[b]!;
-    const by = vy[b]!;
-    const o = orient(ax, ay, bx, by, ox, oy);
-    const f = segFlags[s]!;
-    // Sens unique : bloque seulement l'observateur du côté indiqué (gauche : o < 0).
-    if ((f & FLAG_LEFT) !== 0) {
-      if (!(o < 0)) return;
-    } else if ((f & FLAG_RIGHT) !== 0) {
-      if (!(o > 0)) return;
-    }
-    if (vStamp[a] !== q) {
-      vStamp[a] = q;
-      vAngle[a] = pseudoAngle(ax - ox, ay - oy);
-      used[nUsed++] = a;
-    }
-    if (vStamp[b] !== q) {
-      vStamp[b] = q;
-      vAngle[b] = pseudoAngle(bx - ox, by - oy);
-      used[nUsed++] = b;
-    }
-    const pa = vAngle[a]!;
-    const pb = vAngle[b]!;
-    let d = pb - pa;
-    if (d > 2) d -= 4;
-    else if (d < -2) d += 4;
-    // De profil (d nul) ou passant par O (d = ±2) : aucune surface à couvrir.
-    if (d === 0 || d >= 2 || d <= -2) return;
-    const st = d > 0 ? a : b;
-    const en = d > 0 ? b : a;
-    segStart[s] = st;
-    segEnd[s] = en;
-    segO[s] = o;
-    segInc[s] = q;
-    if (vAngle[en]! < vAngle[st]!) wrapList[nWrap++] = s;
-  };
-
-  if (Number.isFinite(maxRadius) && maxRadius > 0) {
-    const g = walls.grid;
-    const c1 = g.col(ox - maxRadius);
-    const c2 = g.col(ox + maxRadius);
-    const r1 = g.row(oy - maxRadius);
-    const r2 = g.row(oy + maxRadius);
-    for (let r = r1; r <= r2; r++) {
-      for (let c = c1; c <= c2; c++) {
-        const cell = r * g.cols + c;
-        for (let k = g.start[cell]!, end = g.start[cell + 1]!; k < end; k++) consider(g.items[k]!);
-      }
-    }
-    const borders = walls.borderSegs;
-    for (let k = 0; k < borders.length; k++) consider(borders[k]!);
-  } else {
-    for (let s = 0, n = walls.segCount; s < n; s++) consider(s);
-  }
-
-  // Sommets triés par angle (à égalité, par indice : ordre unique, donc déterministe).
-  const keys = walls.sortKey;
-  const idx = walls.sortIdx;
-  for (let k = 0; k < nUsed; k++) {
-    const v = used[k]!;
-    keys[k] = vAngle[v]!;
-    idx[k] = v;
-  }
-  sortPairs(keys, idx, 0, nUsed - 1);
-
-  // Contexte du comparateur.
-  cvx = vx;
-  cvy = vy;
-  csa = segA;
-  csb = segB;
-  cso = segO;
+  cq = walls.nextStamp();
   cox = ox;
   coy = oy;
+  nUsed = 0;
+  nWrap = 0;
+  if (Number.isFinite(maxRadius) && maxRadius > 0) considerNear(walls, maxRadius);
+  else for (let s = 0, n = walls.segCount; s < n; s++) consider(walls, s);
+  sortUsedVertices(walls);
+
+  // Contexte du comparateur.
+  cvx = walls.vx;
+  cvy = walls.vy;
+  csa = walls.segA;
+  csb = walls.segB;
+  cso = walls.segO;
   heap = walls.heap;
   hpos = walls.heapPos;
   hsize = 0;
 
   const out = walls.outPts;
-  const outAng = walls.outAng;
-  let nOut = 0;
-
-  if (nUsed > 0) {
-    // Tas initial : segments qui chevauchent l'angle 0 (actifs avant le premier lot). Rayon de
-    // référence : milieu de l'intervalle qui va du dernier lot au premier.
-    let lastStart = nUsed - 1;
-    while (lastStart > 0 && keys[lastStart - 1] === keys[nUsed - 1]) lastStart--;
-    setReference(idx[lastStart]!, idx[0]!);
-    for (let k = 0; k < nWrap; k++) heapInsert(wrapList[k]!);
-
-    const vertStart = walls.vertStart;
-    const vertSegs = walls.vertSegs;
-    let prev = hsize > 0 ? heap[0]! : -1;
-    let i = 0;
-    while (i < nUsed) {
-      const theta = keys[i]!;
-      let j = i + 1;
-      while (j < nUsed && keys[j] === theta) j++;
-      // Retraits du lot.
-      for (let k = i; k < j; k++) {
-        const v = idx[k]!;
-        for (let e = vertStart[v]!, end = vertStart[v + 1]!; e < end; e++) {
-          const s = vertSegs[e]!;
-          if (segInc[s] === q && segEnd[s] === v) heapRemove(s);
-        }
-      }
-      // Ajouts du lot, comparés au milieu de l'intervalle qui commence ici.
-      setReference(idx[i]!, j < nUsed ? idx[j]! : idx[0]!);
-      for (let k = i; k < j; k++) {
-        const v = idx[k]!;
-        for (let e = vertStart[v]!, end = vertStart[v + 1]!; e < end; e++) {
-          const s = vertSegs[e]!;
-          if (segInc[s] === q && segStart[s] === v) heapInsert(s);
-        }
-      }
-      const cur = hsize > 0 ? heap[0]! : -1;
-      if (cur !== prev) {
-        const rep = idx[i]!;
-        const rdx = vx[rep]! - ox;
-        const rdy = vy[rep]! - oy;
-        if (prev >= 0) nOut = emitHit(walls, prev, theta, rdx, rdy, ox, oy, out, outAng, nOut);
-        if (cur >= 0) nOut = emitHit(walls, cur, theta, rdx, rdy, ox, oy, out, outAng, nOut);
-        prev = cur;
-      }
-      i = j;
-    }
-    // Remise à zéro des positions du tas pour la requête suivante.
-    for (let k = 0; k < hsize; k++) hpos[heap[k]!] = -1;
-    hsize = 0;
-  }
-
+  let nOut = nUsed > 0 ? sweepBatches(walls) : 0;
   // Dernier point égal au premier : retiré.
   if (nOut > 1 && out[0] === out[2 * nOut - 2] && out[1] === out[2 * nOut - 1]) nOut--;
   return {
     ox,
     oy,
     points: out.slice(0, 2 * nOut),
-    angles: outAng.slice(0, nOut),
+    angles: walls.outAng.slice(0, nOut),
     count: nOut,
   };
 }
@@ -485,6 +558,45 @@ function computeReference() {
     cry = x1;
   }
   refReady = true;
+}
+
+/** `v` ramené entre `a` et `b` (dans un ordre quelconque). */
+function clampBetween(v: number, a: number, b: number): number {
+  const lo = a < b ? a : b;
+  const hi = a < b ? b : a;
+  if (v < lo) return lo;
+  if (v > hi) return hi;
+  return v;
+}
+
+/**
+ * Intersection du rayon (rdx, rdy) depuis O avec la droite du segment [a, b], bornée à sa boîte ;
+ * rayon parallèle (quasi de profil) : l'extrémité la plus proche. Résultat dans `hitX`, `hitY`.
+ */
+function rayHit(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  rdx: number,
+  rdy: number,
+  ox: number,
+  oy: number,
+): void {
+  const ex = bx - ax;
+  const ey = by - ay;
+  const den = rdx * ey - rdy * ex;
+  if (den !== 0) {
+    const t = ((ax - ox) * ey - (ay - oy) * ex) / den;
+    // Arrondis : le point reste sur le segment.
+    hitX = clampBetween(ox + t * rdx, ax, bx);
+    hitY = clampBetween(oy + t * rdy, ay, by);
+  } else {
+    const da = (ax - ox) * (ax - ox) + (ay - oy) * (ay - oy);
+    const db = (bx - ox) * (bx - ox) + (by - oy) * (by - oy);
+    hitX = da <= db ? ax : bx;
+    hitY = da <= db ? ay : by;
+  }
 }
 
 /**
@@ -517,33 +629,9 @@ function emitHit(
     x = vx[en]!;
     y = vy[en]!;
   } else {
-    const ax = vx[st]!;
-    const ay = vy[st]!;
-    const bx = vx[en]!;
-    const by = vy[en]!;
-    const ex = bx - ax;
-    const ey = by - ay;
-    const den = rdx * ey - rdy * ex;
-    if (den !== 0) {
-      const t = ((ax - ox) * ey - (ay - oy) * ex) / den;
-      x = ox + t * rdx;
-      y = oy + t * rdy;
-      // Arrondis : le point reste sur le segment.
-      const minX = ax < bx ? ax : bx;
-      const maxX = ax < bx ? bx : ax;
-      const minY = ay < by ? ay : by;
-      const maxY = ay < by ? by : ay;
-      if (x < minX) x = minX;
-      else if (x > maxX) x = maxX;
-      if (y < minY) y = minY;
-      else if (y > maxY) y = maxY;
-    } else {
-      // Rayon parallèle au segment (quasi de profil) : son extrémité la plus proche.
-      const da = (ax - ox) * (ax - ox) + (ay - oy) * (ay - oy);
-      const db = (bx - ox) * (bx - ox) + (by - oy) * (by - oy);
-      x = da <= db ? ax : bx;
-      y = da <= db ? ay : by;
-    }
+    rayHit(vx[st]!, vy[st]!, vx[en]!, vy[en]!, rdx, rdy, ox, oy);
+    x = hitX;
+    y = hitY;
   }
   if (n > 0 && out[2 * n - 2] === x && out[2 * n - 1] === y) return n;
   out[2 * n] = x;
