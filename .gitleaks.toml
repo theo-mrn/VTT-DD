@@ -1,0 +1,11 @@
+# Règles par défaut de gitleaks, plus une exception : les secrets factices des tests
+# (« secret-… »), seulement dans les fichiers de test
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Secrets factices des tests"
+condition = "AND"
+paths = ['''\.test\.tsx?$''', '''(^|/)src/test/''']
+regexTarget = "line"
+regexes = ['''=\s*['"]secret[-_a-zA-Z0-9]*['"]''']
