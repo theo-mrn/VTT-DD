@@ -71,9 +71,8 @@ export function apercuFormule(
         const nb = calcule(n.nombre);
         const faces = calcule(n.faces);
         const k = n.garder ? calcule(n.garder.n) : undefined;
-        const garder = n.garder
-          ? `k${n.garder.sens === 'bas' ? 'l' : ''}${k ?? ecrire(n.garder.n)}`
-          : '';
+        const sens = n.garder?.sens === 'bas' ? 'kl' : 'k';
+        const garder = n.garder ? `${sens}${k ?? ecrire(n.garder.n)}` : '';
         return `${nb ?? `(${ecrire(n.nombre)})`}d${faces ?? `(${ecrire(n.faces)})`}${garder}${n.explose ? '!' : ''}`;
       }
       case 'unaire':

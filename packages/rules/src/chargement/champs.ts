@@ -173,7 +173,7 @@ export function variablesObjet(
     const c = sorte.champs.find((x) => x.id === nom.slice('source.'.length));
     if (!c || c.type === 'formule' || c.type === 'entrees') return undefined;
     const v = valeurChamp(entree, c, ex);
-    return v ?? (c.type === 'booleen' ? false : c.type === 'nombre' ? 0 : '');
+    return v ?? VIDE_PAR_TYPE[c.type] ?? '';
   };
 }
 
@@ -260,3 +260,6 @@ export function verifierChampsExemplaire(
   }
   return { champs: r, erreurs };
 }
+
+/** Valeur d'un champ absent, selon son type (texte vide par défaut). */
+const VIDE_PAR_TYPE: Partial<Record<string, number | boolean>> = { nombre: 0, booleen: false };

@@ -1130,10 +1130,8 @@ export function executer(
         valeur,
       });
     }
-    const op =
-      c.operation === 'fixer'
-        ? `fixé à ${valeur}`
-        : signe(c.operation === 'ajouter' ? valeur : -valeur);
+    const delta = c.operation === 'ajouter' ? valeur : -valeur;
+    const op = c.operation === 'fixer' ? `fixé à ${valeur}` : signe(delta);
     explications.push(`${qui} : ${nom} ${op}`);
   });
 

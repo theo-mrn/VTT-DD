@@ -219,10 +219,7 @@ export async function registerOAuth(app: ServiceApp, deps: Deps, clients: Client
         const cause =
           err instanceof EchecOAuth || err instanceof ErreurFournisseur
             ? err.message
-            : // Erreur inattendue (base…) : son message peut citer une donnée, on n'en garde que la nature
-              `erreur inattendue (${(err as Error)?.name ?? 'inconnue'}${
-                (err as { code?: string })?.code ? ` ${(err as { code?: string }).code}` : ''
-              })`;
+            : natureErreur(err);
         req.log.warn({ provider: fournisseur, cause }, 'échec de connexion OAuth');
         return reply.redirect(urlDuFront(appUrl, CHEMIN_ERREUR), 302);
       }
@@ -234,3 +231,10 @@ export async function registerOAuth(app: ServiceApp, deps: Deps, clients: Client
 export const register: Module = async (app, deps) => {
   await registerOAuth(app, deps, clientsDepuisConfig(deps.config));
 };
+
+/** Erreur inattendue (base…) : son message peut citer une donnée, on n'en garde que la nature. */
+function natureErreur(err: unknown): string {
+  const code = (err as { code?: string } | null)?.code;
+  const nom = (err as Error | null)?.name ?? 'inconnue';
+  return code ? `erreur inattendue (${nom} ${code})` : `erreur inattendue (${nom})`;
+}

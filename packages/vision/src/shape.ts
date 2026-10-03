@@ -61,7 +61,7 @@ export class PolygonShape {
       const bandHeight = (maxY - minY) / bandCount;
       const band = (y: number) => {
         const k = Math.floor((y - minY) / bandHeight);
-        return k < 0 ? 0 : k >= bandCount ? bandCount - 1 : k;
+        return Math.min(Math.max(k, 0), bandCount - 1);
       };
       const start = new Int32Array(bandCount + 1);
       for (let i = 0, j = n - 1; i < n; j = i++) {

@@ -64,17 +64,16 @@ function effectiveOrigin(walls: WallSet, px: number, py: number) {
   const e = walls.eps;
   const W = walls.width;
   const H = walls.height;
-  const clampX = (x: number) =>
-    W <= 4 * e ? W / 2 : x < 2 * e ? 2 * e : x > W - 2 * e ? W - 2 * e : x;
-  const clampY = (y: number) =>
-    H <= 4 * e ? H / 2 : y < 2 * e ? 2 * e : y > H - 2 * e ? H - 2 * e : y;
-  let x = Number.isFinite(px) ? clampX(px) : W / 2;
-  let y = Number.isFinite(py) ? clampY(py) : H / 2;
+  // Ramené à 2e des bords ; au centre si la scène est trop étroite pour cette marge
+  const clampAxis = (v: number, size: number) =>
+    size <= 4 * e ? size / 2 : Math.min(Math.max(v, 2 * e), size - 2 * e);
+  let x = Number.isFinite(px) ? clampAxis(px, W) : W / 2;
+  let y = Number.isFinite(py) ? clampAxis(py, H) : H / 2;
   if (walls.isNear(x, y, e)) {
     for (let k = 0; k < 16; k++) {
       const m = 4 * e * (1 + (k >> 3));
-      const cx = clampX(x + m * SHIFT_COS[k]!);
-      const cy = clampY(y + m * SHIFT_SIN[k]!);
+      const cx = clampAxis(x + m * SHIFT_COS[k]!, W);
+      const cy = clampAxis(y + m * SHIFT_SIN[k]!, H);
       if (!walls.isNear(cx, cy, e)) {
         x = cx;
         y = cy;
@@ -166,7 +165,8 @@ function front(s: number, t: number): number {
   }
   const ds = rayParam(s);
   const dt = rayParam(t);
-  return ds < dt ? -1 : ds > dt ? 1 : 0;
+  if (ds < dt) return -1;
+  return ds > dt ? 1 : 0;
 }
 
 /** Ordre total du tas : devant d'abord, puis plus petit indice. */

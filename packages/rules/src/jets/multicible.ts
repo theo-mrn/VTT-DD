@@ -153,11 +153,10 @@ export function executerMulticible(
     };
 
   const jet = demande.jet ?? modeDeJet(action);
-  const source = estSource(demande.aleatoire)
-    ? demande.aleatoire
-    : jet === 'commun'
-      ? partagerGenerateur(demande.aleatoire)
-      : generateurParCible(demande.aleatoire);
+  let source;
+  if (estSource(demande.aleatoire)) source = demande.aleatoire;
+  else if (jet === 'commun') source = partagerGenerateur(demande.aleatoire);
+  else source = generateurParCible(demande.aleatoire);
 
   // Les paramètres de la cible viennent de sa réaction, jamais de l'acteur
   const deCible = new Set(action.parametres.filter((p) => p.par === 'cible').map((p) => p.id));

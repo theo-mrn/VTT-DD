@@ -463,11 +463,10 @@ export function createHub(o: HubOptions): Hub {
       if (!role) return;
       if (Buffer.byteLength(JSON.stringify(data ?? null)) > limits.ephemeralMaxBytes) return;
       // MJ seulement ; sinon les destinataires nommés abonnés à la campagne et les MJ ; sinon tous
-      const audience = gmOnly
-        ? [rooms.gm(campaignId)]
-        : toUsers
-          ? [rooms.gm(campaignId), ...toUsers.map((u) => rooms.member(campaignId, u))]
-          : [rooms.campaign(campaignId)];
+      let audience = [rooms.campaign(campaignId)];
+      if (gmOnly) audience = [rooms.gm(campaignId)];
+      else if (toUsers)
+        audience = [rooms.gm(campaignId), ...toUsers.map((u) => rooms.member(campaignId, u))];
       socket.to(audience).volatile.emit('ephemeral', {
         campaignId,
         kind,

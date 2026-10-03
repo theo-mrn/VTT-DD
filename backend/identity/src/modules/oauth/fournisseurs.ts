@@ -271,10 +271,11 @@ export function clientDiscord(o: OptionsClient): ClientFournisseur {
       if (!u.success) throw new ErreurFournisseur('profil discord : réponse inattendue');
 
       const { id, avatar } = u.data;
-      const avatarUrl =
-        avatar && /^(a_)?[0-9a-f]{32}$/.test(avatar)
-          ? `https://cdn.discordapp.com/avatars/${id}/${avatar}.${avatar.startsWith('a_') ? 'gif' : 'png'}`
-          : null;
+      let avatarUrl: string | null = null;
+      if (avatar && /^(a_)?[0-9a-f]{32}$/.test(avatar)) {
+        const extension = avatar.startsWith('a_') ? 'gif' : 'png';
+        avatarUrl = `https://cdn.discordapp.com/avatars/${id}/${avatar}.${extension}`;
+      }
 
       return {
         providerAccountId: id,

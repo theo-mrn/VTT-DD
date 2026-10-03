@@ -81,12 +81,7 @@ export async function loadImportedAccounts(
       if (!contrainte) throw err;
       rapport.conflits.push({
         legacyUid: c.legacyUid,
-        raison:
-          contrainte === 'users_email_unique'
-            ? 'e-mail déjà utilisé sur la nouvelle plateforme'
-            : contrainte === 'oauth_accounts_pkey'
-              ? 'compte Google déjà rattaché à un autre utilisateur'
-              : `contrainte ${contrainte}`,
+        raison: RAISONS_CONTRAINTE[contrainte] ?? `contrainte ${contrainte}`,
       });
     }
   }
@@ -101,3 +96,8 @@ export async function lireUuidParUid(db: Db): Promise<Map<string, string>> {
     .where(eq(legacyIds.kind, LEGACY_KIND));
   return new Map(lignes.map((l) => [l.uid, l.id]));
 }
+
+const RAISONS_CONTRAINTE: Partial<Record<string, string>> = {
+  users_email_unique: 'e-mail déjà utilisé sur la nouvelle plateforme',
+  oauth_accounts_pkey: 'compte Google déjà rattaché à un autre utilisateur',
+};

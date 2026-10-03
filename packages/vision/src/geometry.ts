@@ -19,7 +19,8 @@ export function orient(ax: number, ay: number, bx: number, by: number, px: numbe
  */
 export function sideOf(a: Vec, b: Vec, p: Vec): Side | null {
   const o = orient(a.x, a.y, b.x, b.y, p.x, p.y);
-  return o < 0 ? 'left' : o > 0 ? 'right' : null;
+  if (o < 0) return 'left';
+  return o > 0 ? 'right' : null;
 }
 
 /**

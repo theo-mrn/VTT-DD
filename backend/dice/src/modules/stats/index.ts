@@ -93,7 +93,10 @@ export function streakOf(
   faces: number,
 ): { direction: 'high' | 'low' | null; length: number } {
   const mean = (faces + 1) / 2;
-  const side = (v: number) => (v > mean ? 'high' : v < mean ? 'low' : null);
+  const side = (v: number) => {
+    if (v > mean) return 'high';
+    return v < mean ? 'low' : null;
+  };
   const direction = values.length ? side(values[0]!) : null;
   if (!direction) return { direction: null, length: 0 };
   let length = 0;

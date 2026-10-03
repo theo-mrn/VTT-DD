@@ -70,7 +70,8 @@ export function afficher(n: Noeud): string {
       const fa = simple(n.faces);
       const gk = n.garder && simple(n.garder.n);
       if (nb !== null && fa !== null && (!n.garder || gk !== null)) {
-        const garder = n.garder ? `k${n.garder.sens === 'bas' ? 'l' : ''}${gk}` : '';
+        const sens = n.garder?.sens === 'bas' ? 'kl' : 'k';
+        const garder = n.garder ? `${sens}${gk}` : '';
         return `${nb}d${fa}${garder}${n.explose ? '!' : ''}`;
       }
       const args = [afficher(n.nombre), afficher(n.faces)];
