@@ -13,7 +13,7 @@
 import type * as Pixi from 'pixi.js';
 import type { Container, ParticleContainer, Sprite, TilingSprite } from 'pixi.js';
 import { destroyDisplay } from '../../engine/destroy-display';
-import { MAX_BANDS, type EmitterState, type WeatherSim } from './simulation';
+import { MAX_BANDS, type EmitterState, type WeatherFrame, type WeatherSim } from './simulation';
 import { createWeatherTextures, type WeatherTextures } from './textures';
 
 /** Taille de la vue, en pixels CSS. */
@@ -138,6 +138,25 @@ export class WeatherRenderer {
     }
 
     this.syncStructure(sim);
+    this.drawEmitters(sim);
+
+    const f = sim.frame;
+    this.veil.visible = f.veil.alpha > 0.001;
+    this.veil.tint = f.veil.color;
+    this.veil.alpha = f.veil.alpha;
+    this.drawMists(f);
+    this.drawStatic(f, view.width);
+
+    this.vignette.visible = f.vignette.alpha > 0.001;
+    this.vignette.tint = f.vignette.color;
+    this.vignette.alpha = f.vignette.alpha;
+    this.flash.visible = f.flash.alpha > 0.001;
+    this.flash.tint = f.flash.color;
+    this.flash.alpha = f.flash.alpha;
+  }
+
+  /** Particules de chaque émetteur ; propriétés fixes renvoyées quand elles ont changé. */
+  private drawEmitters(sim: WeatherSim) {
     const atlas = this.textures.atlas;
     const emitters = sim.emitters;
     for (let i = 0; i < emitters.length; i++) {
@@ -153,12 +172,10 @@ export class WeatherRenderer {
         e.staticDirty = false;
       }
     }
+  }
 
-    const f = sim.frame;
-    this.veil.visible = f.veil.alpha > 0.001;
-    this.veil.tint = f.veil.color;
-    this.veil.alpha = f.veil.alpha;
-
+  /** Nappes de brume. */
+  private drawMists(f: WeatherFrame) {
     for (let i = 0; i < this.mists.length; i++) {
       const mist = this.mists[i]!;
       const m = f.mists[i];
@@ -169,7 +186,10 @@ export class WeatherRenderer {
       mist.tileScale.set(m.scale);
       mist.tilePosition.set(m.x, m.y);
     }
+  }
 
+  /** Grain, lignes et bandes de brouillage. */
+  private drawStatic(f: WeatherFrame, width: number) {
     this.grain.visible = f.noise.alpha > 0.001;
     this.grain.alpha = f.noise.alpha;
     this.grain.tilePosition.set(f.noise.x, f.noise.y);
@@ -182,17 +202,10 @@ export class WeatherRenderer {
       band.visible = i < f.bandCount;
       if (!band.visible) continue;
       band.position.set(b.shift, b.y);
-      band.width = view.width;
+      band.width = width;
       band.height = b.h;
       band.alpha = b.alpha;
     }
-
-    this.vignette.visible = f.vignette.alpha > 0.001;
-    this.vignette.tint = f.vignette.color;
-    this.vignette.alpha = f.vignette.alpha;
-    this.flash.visible = f.flash.alpha > 0.001;
-    this.flash.tint = f.flash.color;
-    this.flash.alpha = f.flash.alpha;
   }
 
   /** Taille de la vue : les couches pleines la couvrent. */
