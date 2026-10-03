@@ -35,8 +35,7 @@ import { compareCodeUnits } from '@vtt/contracts';
 
 const EMPTY: ReadonlyMap<string, unknown> = new Map();
 
-const dataOf = (results: readonly { data?: FichePersonnage | undefined }[]) =>
-  results.map((r) => r.data);
+const dataOf = (results: readonly { data?: FichePersonnage }[]) => results.map((r) => r.data);
 
 export function CombatMapFeed({ engine }: { engine: MapEngine }) {
   const mod = combatModuleOf(engine);

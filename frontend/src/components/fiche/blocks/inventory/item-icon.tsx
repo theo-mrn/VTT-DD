@@ -94,7 +94,7 @@ export const ICONES: Record<IconeObjet, LucideIcon> = {
  */
 export function iconeObjet(
   regles: readonly RegleIconeObjet[],
-  objet: { entree: Entree; sorte: Sorte; possession?: Possession | undefined },
+  objet: { entree: Entree; sorte: Sorte; possession?: Possession },
 ): LucideIcon {
   for (const r of regles) {
     if (r.sorte !== undefined && r.sorte !== objet.sorte.id) continue;
@@ -122,8 +122,8 @@ export function ItemIcon({
 }: Readonly<{
   sorte: FormeSorte;
   /** Icône choisie par la présentation ; absente : celle de la sorte. */
-  icone?: LucideIcon | undefined;
-  image?: string | undefined;
+  icone?: LucideIcon;
+  image?: string;
   className?: string;
 }>) {
   const Icone = icone ?? iconeSorte(sorte);

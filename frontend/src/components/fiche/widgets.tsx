@@ -325,7 +325,7 @@ function ValeurChiffree({
 }: Readonly<{
   ctx: ContexteFiche;
   cle: string;
-  onAjuster?: ((delta: number) => void) | undefined;
+  onAjuster?: (delta: number) => void;
 }>) {
   const a = ctx.fiche.entite.attributs.get(cle);
   const v = ctx.fiche.valeurs.get(cle);

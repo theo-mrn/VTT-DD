@@ -42,10 +42,10 @@ export function ResourceDialog({
 }: Readonly<{
   nom: string;
   valeur: number;
-  min?: number | undefined;
-  max?: number | undefined;
-  couleur?: string | undefined;
-  Icone?: LucideIcon | null | undefined;
+  min?: number;
+  max?: number;
+  couleur?: string;
+  Icone?: LucideIcon | null;
   onAjuster: (delta: number) => void;
   /** Déclencheur (la valeur affichée sur la fiche). */
   children: ReactNode;

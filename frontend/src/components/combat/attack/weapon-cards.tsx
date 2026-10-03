@@ -292,7 +292,7 @@ function OtherPicker({
   options: readonly EntryOption[];
   value: string;
   onChange: (v: string) => void;
-  disabled?: boolean | undefined;
+  disabled?: boolean;
   none?: boolean;
   icon?: boolean;
 }>) {

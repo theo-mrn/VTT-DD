@@ -27,7 +27,7 @@ export function EntryDetails({
   ctx: ContexteFiche;
   entry: Entree;
   /** Écritures de la fiche (absentes : lecture seule). */
-  writes?: SheetWrites | undefined;
+  writes?: SheetWrites;
   showDescription?: boolean;
 }>) {
   const { fiche } = ctx;

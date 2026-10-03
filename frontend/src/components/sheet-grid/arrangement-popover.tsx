@@ -48,9 +48,9 @@ export function ArrangementPopover({
   onChange: (next: TileArrangement | undefined) => void;
   /** Valeurs d'autres groupes qu'on peut ajouter au bloc. */
   addable?: Tile[];
-  onAdd?: ((key: string) => void) | undefined;
+  onAdd?: (key: string) => void;
   /** Retire une valeur du bloc (il en garde au moins une). */
-  onRemove?: ((key: string) => void) | undefined;
+  onRemove?: (key: string) => void;
 }>) {
   const keys = tiles.map((t) => t.key);
   const parCle = new Map(tiles.map((t) => [t.key, t]));

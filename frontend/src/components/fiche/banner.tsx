@@ -55,7 +55,7 @@ interface Stat {
   label: string;
   valeur: string;
   /** Ressource : part restante (0 à 1) et couleur déclarée par la présentation. */
-  jauge?: { part: number; couleur?: string | undefined };
+  jauge?: { part: number; couleur?: string };
 }
 
 function statsDuBandeau(ctx: ContexteFiche, widget: Details | undefined): Stat[] {

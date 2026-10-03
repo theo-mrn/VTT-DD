@@ -80,13 +80,13 @@ export function ItemPanel({
   fiche: Fiche;
   item: InventoryItem | null;
   /** Section montrée à l'ouverture (dés et formules, bonus). */
-  section?: SectionDetail | null | undefined;
-  image?: string | undefined;
+  section?: SectionDetail | null;
+  image?: string;
   mj: boolean;
   folders: InventoryFolder[];
   handlers: ItemHandlers;
   /** Absent : lecture seule. */
-  writes?: PanelWrites | undefined;
+  writes?: PanelWrites;
   onClose(): void;
 }>) {
   return (
@@ -128,11 +128,11 @@ function Contenu({
   fiche: Fiche;
   item: InventoryItem;
   section: SectionDetail | null;
-  image?: string | undefined;
+  image?: string;
   mj: boolean;
   folders: InventoryFolder[];
   handlers: ItemHandlers;
-  writes?: PanelWrites | undefined;
+  writes?: PanelWrites;
   onClose(): void;
 }>) {
   const { entree, sorte, possession } = item;
@@ -297,7 +297,7 @@ function Reglages({
   item: InventoryItem;
   folders: InventoryFolder[];
   handlers: ItemHandlers;
-  writes?: PanelWrites | undefined;
+  writes?: PanelWrites;
 }>) {
   const id = useId();
   const a = actionsDe(item, writes ? handlers : { ouvrir: handlers.ouvrir });
@@ -463,10 +463,7 @@ function Quantite({
 }
 
 /** Description propre de l'exemplaire (champ `descriptionExemplaire`), sinon celle de l'entrée. */
-function Description({
-  item,
-  writes,
-}: Readonly<{ item: InventoryItem; writes?: PanelWrites | undefined }>) {
+function Description({ item, writes }: Readonly<{ item: InventoryItem; writes?: PanelWrites }>) {
   const champ = item.sorte.descriptionExemplaire;
   const [edition, setEdition] = useState(false);
   const [texte, setTexte] = useState(item.description ?? '');
@@ -536,7 +533,7 @@ function EditeurFormule({
   fiche: Fiche;
   item: InventoryItem;
   formule: FormuleAffichee;
-  writes?: PanelWrites | undefined;
+  writes?: PanelWrites;
 }>) {
   const id = useId();
   const [edition, setEdition] = useState(false);
@@ -643,7 +640,7 @@ function Caracteristiques({
 }: Readonly<{
   fiche: Fiche;
   item: InventoryItem;
-  writes?: PanelWrites | undefined;
+  writes?: PanelWrites;
 }>) {
   const champs = champsAffiches(fiche, item.entree, item.sorte, item.possession).filter(
     (c) => c.champ.type !== 'formule' && !c.identite,
@@ -758,7 +755,7 @@ function Bonus({
   fiche: Fiche;
   item: InventoryItem;
   mj: boolean;
-  writes?: PanelWrites | undefined;
+  writes?: PanelWrites;
 }>) {
   const propres = bonusPropres(fiche, item);
   const nbPropres = item.possession?.effets.length ?? 0;

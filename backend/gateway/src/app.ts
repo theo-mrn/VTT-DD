@@ -74,7 +74,7 @@ const WEBSOCKET_PREFIXES: readonly string[] = ['/v1/realtime'];
  */
 export function estPoigneeTempsReel(
   url: string,
-  headers: { upgrade?: string | string[] | undefined },
+  headers: { upgrade?: string | string[] },
 ): boolean {
   const chemin = url.split('?')[0] ?? '';
   return (

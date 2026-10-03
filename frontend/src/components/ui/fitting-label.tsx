@@ -14,7 +14,7 @@ export function FittingLabel({
 }: Readonly<{
   long: string;
   /** Forme courte ; absente ou identique : le nom entier, tronqué s'il déborde. */
-  short?: string | undefined;
+  short?: string;
   className?: string;
 }>) {
   const box = useRef<HTMLSpanElement>(null);

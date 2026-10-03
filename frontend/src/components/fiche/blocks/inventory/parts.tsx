@@ -20,7 +20,7 @@ export function Thumbnail({
   className,
 }: Readonly<{
   nom?: string;
-  image?: string | undefined;
+  image?: string;
   sorte?: Pick<Sorte, 'champs' | 'activable' | 'quantites'>;
   className?: string;
 }>) {

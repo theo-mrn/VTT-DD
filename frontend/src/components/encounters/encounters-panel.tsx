@@ -429,7 +429,7 @@ function Range({
   onChange,
 }: Readonly<{
   label: string;
-  value: { min?: number | undefined; max?: number | undefined };
+  value: { min?: number; max?: number };
   onChange(v: { min?: number; max?: number }): void;
 }>) {
   const parse = (s: string) => (s.trim() === '' ? undefined : Number(s));

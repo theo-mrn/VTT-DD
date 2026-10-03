@@ -990,10 +990,10 @@ export function decompterDurees(
   /** Fin de combat (« Retirer les états à durée ») : tout ce qui a une durée est retiré. */
   tout = false,
 ): { etat?: EtatEntite; retirees: string[] } {
-  const aDuree = (x: { duree?: number | undefined }) => x.duree !== undefined;
+  const aDuree = (x: { duree?: number }) => x.duree !== undefined;
   if (!etat.possessions.some(aDuree) && !etat.bonus.some(aDuree)) return { retirees: [] };
   const retirees: string[] = [];
-  const decompter = <T extends { duree?: number | undefined }>(x: T, nom: string): T[] => {
+  const decompter = <T extends { duree?: number }>(x: T, nom: string): T[] => {
     if (x.duree === undefined) return [x];
     if (tout || x.duree - 1 <= 0) {
       retirees.push(nom);

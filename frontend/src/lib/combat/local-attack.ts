@@ -58,9 +58,9 @@ export interface LocalAttackInput {
   /** Paramètres de l'attaquant (situation comprise), sans valeur vide. */
   params: ActionParams;
   rollMode: AttackRollMode;
-  adjustments?: RollAdjustments | undefined;
+  adjustments?: RollAdjustments;
   /** Contexte du combat (`@combat.*`), sans l'attaque en cours ; absent : hors combat. */
-  combat?: AttackCombatContext | undefined;
+  combat?: AttackCombatContext;
 }
 
 /** Faces d'une étape : dé par dé, tirées dans le navigateur (`clientRunner`). */
@@ -398,8 +398,8 @@ export interface LocalAttackMeta {
   visibility: AttackVisibility;
   gm: boolean;
   userId: string;
-  origin?: AttackOrigin | undefined;
-  presetId?: string | null | undefined;
+  origin?: AttackOrigin;
+  presetId?: string | null;
 }
 
 /**

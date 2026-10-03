@@ -22,7 +22,7 @@ export interface KeyStat {
   label: string;
   value: string;
   /** Ressource : part restante (0 à 1) et couleur déclarée par la présentation. */
-  gauge?: { part: number; color?: string | undefined };
+  gauge?: { part: number; color?: string };
 }
 
 const shortName = (ctx: ContexteFiche, key: string) => {

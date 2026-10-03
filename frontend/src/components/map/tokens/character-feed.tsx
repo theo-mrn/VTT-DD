@@ -34,8 +34,7 @@ const ASK_AGAIN_MS = 10_000;
 const EMPTY: ReadonlyMap<string, unknown> = new Map();
 
 /** Données des fiches (fonction stable : TanStack ne recombine que si une fiche change). */
-const dataOf = (results: readonly { data?: FichePersonnage | undefined }[]) =>
-  results.map((r) => r.data);
+const dataOf = (results: readonly { data?: FichePersonnage }[]) => results.map((r) => r.data);
 
 export function TokenCharacterFeed({ engine }: { engine: MapEngine }) {
   const tokens = useTokens(engine);

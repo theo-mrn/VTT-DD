@@ -12,7 +12,7 @@ export function DieSwatch({
   color,
   className,
 }: Readonly<{
-  color?: string | undefined;
+  color?: string;
   className?: string;
 }>) {
   return (

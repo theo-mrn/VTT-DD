@@ -262,11 +262,11 @@ interface Resolue {
 
 /** Dés de l'appel : faces connues, étape soumise et ses faces lues, repli du serveur. */
 interface DesAppel {
-  faces?: Face[] | undefined;
-  step?: RollStep | undefined;
-  stepParams?: Record<string, string | number | boolean> | undefined;
-  results?: { id: string; value: number }[] | undefined;
-  serverFallback?: boolean | undefined;
+  faces?: Face[];
+  step?: RollStep;
+  stepParams?: Record<string, string | number | boolean>;
+  results?: { id: string; value: number }[];
+  serverFallback?: boolean;
 }
 
 const PHASE_ROLL: Record<Exclude<PhaseDes, 'fin'>, RollPhase> = {
@@ -297,9 +297,9 @@ function resoudre(
   deps: Pick<Deps, 'catalogue' | 'aleatoire'>,
   inst: Instantane,
   o: {
-    params?: Record<string, string | number | boolean> | undefined;
+    params?: Record<string, string | number | boolean>;
     rollMode: AttackRollMode;
-    adjustments?: z.output<typeof RollAdjustments> | undefined;
+    adjustments?: z.output<typeof RollAdjustments>;
     reactions?: z.output<typeof CorpsResoudre>['reactions'];
     forcer?: z.output<typeof CorpsResoudre>['forcer'];
   },

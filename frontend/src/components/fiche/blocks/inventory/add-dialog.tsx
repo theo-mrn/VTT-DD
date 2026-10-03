@@ -320,7 +320,7 @@ function Ligne({
 }: Readonly<{
   fiche: Fiche;
   c: CatalogueEntry;
-  image?: string | undefined;
+  image?: string;
   avecCategorie: boolean;
   ouverte: boolean;
   onBasculer(): void;

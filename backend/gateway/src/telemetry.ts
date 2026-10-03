@@ -36,7 +36,7 @@ export function forceBrowserService(body: unknown): unknown {
 
 export async function telemetryRoutes<L extends FastifyBaseLogger>(
   app: FastifyInstance<RawServerDefault, IncomingMessage, ServerResponse, L>,
-  o: { endpoint?: string | undefined; fetch?: typeof globalThis.fetch },
+  o: { endpoint?: string; fetch?: typeof globalThis.fetch },
 ) {
   const target = o.endpoint?.replace(/\/$/, '');
   const send = o.fetch ?? globalThis.fetch;

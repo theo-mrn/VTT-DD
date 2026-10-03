@@ -62,7 +62,7 @@ export function valeurBase(etat: EtatEntite, a: Attribut & { nature: 'base' }): 
 /** Attributs visés par une étape : liste explicite, puis ceux du groupe retenus par `garder`. */
 export function attributsVises(
   entite: EntiteChargee,
-  o: { attributs?: string[] | undefined; groupe?: string | undefined },
+  o: { attributs?: string[]; groupe?: string },
   garder: (a: Attribut) => boolean,
 ): Attribut[] {
   const cles = new Set(o.attributs ?? []);

@@ -76,7 +76,7 @@ export function Stepper({
   onChange: (v: number) => void;
   disabled?: boolean;
   /** Couleur de la sorte de dé (présentation du système). */
-  swatch?: string | undefined;
+  swatch?: string;
   /** Valeur forcée à la main : un point le signale. */
   marked?: boolean;
   hint?: string | null;
@@ -206,7 +206,7 @@ export function TogglePill({
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
-  disabled?: boolean | undefined;
+  disabled?: boolean;
   hint?: string | null;
   icon?: ReactNode;
 }) {
@@ -238,7 +238,7 @@ export interface SegmentOption {
   value: string;
   label: ReactNode;
   /** Précision (info-bulle), texte accessible. */
-  hint?: string | undefined;
+  hint?: string;
   /** Détail en petit (modificateur, rang). */
   meta?: ReactNode;
 }

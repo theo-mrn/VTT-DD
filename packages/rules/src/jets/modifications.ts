@@ -215,7 +215,7 @@ export function retirerEntree(
 export function appliquerTirage(
   systeme: SystemeCharge,
   etat: EtatEntite,
-  tirage: { ligne: { entree?: string | undefined } | null },
+  tirage: { ligne: { entree?: string } | null },
 ): EtatEntite {
   const id = tirage.ligne?.entree;
   if (!id || !systeme.entrees.has(id)) return etat;

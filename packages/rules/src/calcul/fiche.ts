@@ -642,8 +642,8 @@ export function calculer(
     variable: (nom: string) => Valeur;
     operation: Extract<Effet, { sur: 'attribut' }>['operation'];
     valeur: FormuleVerifiee;
-    condition?: FormuleVerifiee | undefined;
-    famille?: string | undefined;
+    condition?: FormuleVerifiee;
+    famille?: string;
     nom: string;
     /** Coupé à la main : expliqué, pas appliqué. */
     desactive?: boolean;

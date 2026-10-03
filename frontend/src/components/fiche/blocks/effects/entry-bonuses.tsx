@@ -38,7 +38,7 @@ import {
 /** Écritures possibles depuis le détail d'une entrée acquise (absentes : lecture seule). */
 export interface EntryBonusEdit {
   /** Coupe ou rétablit des effets : la même opération que le bloc Bonus. */
-  toggle?: ((cles: string[], actif: boolean) => void) | undefined;
+  toggle?: (cles: string[], actif: boolean) => void;
   /** Bonus propres : où les poser, et l'écriture qui remplace leur liste. */
   own?: {
     cible: CibleBonusPropres;
@@ -96,7 +96,7 @@ export function EntryBonuses({
   fiche: Fiche;
   entry: Entree;
   /** Interrupteurs et gestion des bonus propres (absent : lecture seule). */
-  edit?: EntryBonusEdit | undefined;
+  edit?: EntryBonusEdit;
 }>) {
   const id = useId();
   const [ajout, setAjout] = useState(false);

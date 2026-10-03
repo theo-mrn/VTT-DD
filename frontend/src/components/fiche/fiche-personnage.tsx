@@ -420,8 +420,8 @@ function MenuFiche({
   peutModifier: boolean;
   progressions: { id: string; nom: string }[];
   onProgression: (id: string) => void;
-  onValeurs?: (() => void) | undefined;
-  onPersonnaliser?: (() => void) | undefined;
+  onValeurs?: () => void;
+  onPersonnaliser?: () => void;
   onModifier: () => void;
   onSupprimer: () => void;
 }>) {

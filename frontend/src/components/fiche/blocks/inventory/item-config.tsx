@@ -142,7 +142,7 @@ function Formulaire({
   modele: ModeleLibre;
   dossierOuvert: string | null;
   mj: boolean;
-  image?: string | undefined;
+  image?: string;
   nom: string;
   onNom(nom: string): void;
   description: string;
@@ -151,7 +151,7 @@ function Formulaire({
    * Sélecteur combiné « sorte et catégorie » d'un objet personnalisé (plusieurs sortes) :
    * valeur `sorte::catégorie`, options groupées par sorte (Arme · Contact, Objet · Potions…).
    */
-  choixCategorie?: { valeur: string; onChange(v: string): void } | undefined;
+  choixCategorie?: { valeur: string; onChange(v: string): void };
   categorieInitiale: string;
   onRetour(): void;
   onAjouter(modele: ModeleLibre, saisie: SaisieLibre): void;
@@ -603,7 +603,7 @@ function Champ({
   label: string;
   htmlFor: string;
   erreur?: string | null;
-  aide?: string | undefined;
+  aide?: string;
   children: ReactNode;
 }>) {
   return (

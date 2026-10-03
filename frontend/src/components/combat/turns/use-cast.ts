@@ -222,8 +222,7 @@ export interface ParticipantSheet {
   states: TimedState[];
 }
 
-const dataOf = (results: readonly { data?: FichePersonnage | undefined }[]) =>
-  results.map((r) => r.data);
+const dataOf = (results: readonly { data?: FichePersonnage }[]) => results.map((r) => r.data);
 
 /**
  * Fiches des participants (MJ : toutes), calculées une fois par version de fiche. Le cache est

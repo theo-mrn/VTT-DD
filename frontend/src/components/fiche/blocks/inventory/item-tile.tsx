@@ -72,7 +72,7 @@ export function ItemTile({
 }: Readonly<{
   item: InventoryItem;
   icone: LucideIcon;
-  image?: string | undefined;
+  image?: string;
   meta: string | null;
   focusable: boolean;
   /** Glissable vers un dossier. */
@@ -197,7 +197,7 @@ export function FolderTile({
   deposable: boolean;
   onFocusTile(): void;
   onOpen(): void;
-  onMenu?: ((x: number, y: number) => void) | undefined;
+  onMenu?: (x: number, y: number) => void;
   onDeposer(cle: string): void;
 }>) {
   const [survol, setSurvol] = useState(false);

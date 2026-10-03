@@ -83,10 +83,7 @@ export function avecOptions(
 }
 
 /** Vrai si l'élément ne dépend d'aucune option, ou d'une option allumée. */
-export function optionPermet(
-  element: { option?: string | undefined },
-  options: ReglagesOptions,
-): boolean {
+export function optionPermet(element: { option?: string }, options: ReglagesOptions): boolean {
   return element.option === undefined || options[element.option] === true;
 }
 

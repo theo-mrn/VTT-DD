@@ -102,11 +102,11 @@ export function startOrphanSweep(o: {
   schema: string;
   prefixes: readonly string[];
   settings: StorageSettings & {
-    INTERNAL_API_SECRET?: string | undefined;
+    INTERNAL_API_SECRET?: string;
     ORPHAN_SWEEP: 'off' | 'dry-run' | 'on';
     ORPHAN_MIN_AGE_HOURS: number;
     ORPHAN_SWEEP_EVERY_MINUTES: number;
-    STORAGE_REFERENCE_URLS?: string[] | undefined;
+    STORAGE_REFERENCE_URLS?: string[];
   };
   logger: Pick<Logger, 'info' | 'warn' | 'error'>;
 }): () => Promise<void> {

@@ -35,13 +35,13 @@ import { withoutTrailingSlashes } from './strings.js';
 
 /** Variables du stockage, communes aux services. */
 export interface StorageSettings {
-  S3_ENDPOINT?: string | undefined;
-  S3_REGION?: string | undefined;
-  S3_BUCKET?: string | undefined;
-  S3_ACCESS_KEY_ID?: string | undefined;
-  S3_SECRET_ACCESS_KEY?: string | undefined;
+  S3_ENDPOINT?: string;
+  S3_REGION?: string;
+  S3_BUCKET?: string;
+  S3_ACCESS_KEY_ID?: string;
+  S3_SECRET_ACCESS_KEY?: string;
   /** Adresse publique des fichiers (domaine R2 en prod). */
-  S3_PUBLIC_URL?: string | undefined;
+  S3_PUBLIC_URL?: string;
 }
 
 export interface PutSignature {

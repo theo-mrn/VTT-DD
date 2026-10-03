@@ -43,7 +43,7 @@ export function summarize(fiche: Fiche, presentation: Presentation | null): Char
           .map((s) => s.id);
   const names: string[] = [];
   // Un objet caché aux autres joueurs n'apparaît pas dans le résumé (listes de la table)
-  const cache = (p: { exemplaires: { hidden?: boolean | undefined }[] }) =>
+  const cache = (p: { exemplaires: { hidden?: boolean }[] }) =>
     p.exemplaires.length > 0 && p.exemplaires.every((x) => x.hidden === true);
   for (const kind of kinds)
     for (const p of fiche.possessions.values())

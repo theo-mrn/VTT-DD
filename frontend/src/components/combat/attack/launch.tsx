@@ -165,7 +165,7 @@ export function SourceCard({
   mode: 'launch' | 'select';
   selected?: boolean;
   shortcut?: number | null;
-  disabled?: boolean | undefined;
+  disabled?: boolean;
   onClick: () => void;
 }>) {
   const formula = fields.find((f) => f.formula);
