@@ -42,6 +42,27 @@ import { useCharacterInfo, useTokens } from './tokens/use-tokens';
 const isSeparator = (i: MenuItem) => i.id.startsWith('sep:');
 const isHeading = (i: MenuItem) => i.id.startsWith('label:');
 
+type SelectedEntity = ReturnType<typeof useEntities>[number];
+
+/** En-tête du panneau : nom, type et vignette d'un élément, ou le nombre d'éléments choisis. */
+function selectionHeader(
+  engine: MapEngine,
+  entities: readonly SelectedEntity[],
+  single: SelectedEntity | null,
+): { title: string; subtitle: string; thumbnail: string | null } {
+  if (!single)
+    return {
+      title: `${entities.length} éléments`,
+      subtitle: [...new Set(entities.map((e) => e.kind.label))].join(', '),
+      thumbnail: null,
+    };
+  return {
+    title: single.kind.name?.(single.data, engine.kindContext()) ?? single.kind.label,
+    subtitle: single.kind.label,
+    thumbnail: single.kind.thumbnail?.(single.data) ?? null,
+  };
+}
+
 export function SelectionPanel() {
   const engine = useMapEngine();
   const ids = useSelectionIds();
@@ -81,13 +102,7 @@ export function SelectionPanel() {
   if (engine.viewer.role !== 'gm' && entities.some((e) => e.kind.id === TOKEN_KIND_ID)) return null;
 
   const single = entities.length === 1 ? entities[0]! : null;
-  const title = single
-    ? (single.kind.name?.(single.data, engine.kindContext()) ?? single.kind.label)
-    : `${entities.length} éléments`;
-  const subtitle = single
-    ? single.kind.label
-    : [...new Set(entities.map((e) => e.kind.label))].join(', ');
-  const thumbnail = single ? (single.kind.thumbnail?.(single.data) ?? null) : null;
+  const { title, subtitle, thumbnail } = selectionHeader(engine, entities, single);
 
   return (
     <MapPanel

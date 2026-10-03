@@ -168,6 +168,57 @@ export function LayersPanel() {
   );
 }
 
+/** Cacher ou montrer le calque sur mon écran seulement. */
+function LocalVisibilityButton({
+  layer,
+  hiddenLocally,
+}: Readonly<{ layer: LayerLike; hiddenLocally: boolean }>) {
+  const engine = useMapEngine();
+  return (
+    <Info texte={hiddenLocally ? 'Montrer sur mon écran' : 'Cacher sur mon écran'}>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label={
+          hiddenLocally
+            ? `Montrer ${layer.name} sur mon écran`
+            : `Cacher ${layer.name} sur mon écran`
+        }
+        aria-pressed={hiddenLocally}
+        onClick={() => engine.setLayerHiddenLocally(layer.id, !hiddenLocally)}
+      >
+        {hiddenLocally ? <EyeOff /> : <Eye />}
+      </Button>
+    </Info>
+  );
+}
+
+/** Verrouiller le calque : on clique à travers ses éléments. */
+function LockButton({ layer }: Readonly<{ layer: LayerLike }>) {
+  const engine = useMapEngine();
+  return (
+    <Info texte={layer.locked ? 'Déverrouiller' : 'Verrouiller : on clique à travers'}>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label={layer.locked ? `Déverrouiller ${layer.name}` : `Verrouiller ${layer.name}`}
+        aria-pressed={layer.locked}
+        onClick={() =>
+          void updateLayer(
+            engine,
+            layer.id,
+            { locked: !layer.locked },
+            layer.locked ? 'Déverrouiller le calque' : 'Verrouiller le calque',
+          )
+        }
+        className={cn(layer.locked && 'text-primary')}
+      >
+        {layer.locked ? <Lock /> : <LockOpen />}
+      </Button>
+    </Info>
+  );
+}
+
 function LayerRow({
   layer,
   index,
@@ -288,40 +339,8 @@ function LayerRow({
         </button>
       )}
 
-      <Info texte={hiddenLocally ? 'Montrer sur mon écran' : 'Cacher sur mon écran'}>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={
-            hiddenLocally
-              ? `Montrer ${layer.name} sur mon écran`
-              : `Cacher ${layer.name} sur mon écran`
-          }
-          aria-pressed={hiddenLocally}
-          onClick={() => engine.setLayerHiddenLocally(layer.id, !hiddenLocally)}
-        >
-          {hiddenLocally ? <EyeOff /> : <Eye />}
-        </Button>
-      </Info>
-      <Info texte={layer.locked ? 'Déverrouiller' : 'Verrouiller : on clique à travers'}>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={layer.locked ? `Déverrouiller ${layer.name}` : `Verrouiller ${layer.name}`}
-          aria-pressed={layer.locked}
-          onClick={() =>
-            void updateLayer(
-              engine,
-              layer.id,
-              { locked: !layer.locked },
-              layer.locked ? 'Déverrouiller le calque' : 'Verrouiller le calque',
-            )
-          }
-          className={cn(layer.locked && 'text-primary')}
-        >
-          {layer.locked ? <Lock /> : <LockOpen />}
-        </Button>
-      </Info>
+      <LocalVisibilityButton layer={layer} hiddenLocally={hiddenLocally} />
+      <LockButton layer={layer} />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

@@ -346,17 +346,9 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
     }
   };
 
-  const tabs: { id: Tab; label: string; count: number }[] = [
-    ...(declared
-      ? [{ id: 'system' as const, label: declared.titre ?? 'Système', count: systemCards.length }]
-      : []),
-    { id: 'campaign', label: 'Campagne', count: templateCards.length },
-  ];
+  const tabs = tabsOf(declared, systemCards.length, templateCards.length);
 
-  let etat: 'chargement' | 'echec' | 'vide' | 'grille' = 'grille';
-  if (loading) etat = 'chargement';
-  else if (failed) etat = 'echec';
-  else if (!visible.length) etat = 'vide';
+  const etat = etatBibliotheque(loading, failed, !visible.length);
 
   return (
     <MapPanel
@@ -396,66 +388,19 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
           placeholder="Rechercher…"
           className="sm:w-full"
         />
-        {categories.length > 1 && (
-          <div
-            role="group"
-            aria-label="Catégories"
-            className="-mx-3 flex items-center gap-1 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none]"
-          >
-            {[ALL, ...categories].map((c) => (
-              <button
-                key={c || 'all'}
-                type="button"
-                aria-pressed={category === c}
-                onClick={() => setCategory(c)}
-                className={cn(
-                  'h-7 shrink-0 rounded-full border px-2.5 text-xs transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                  category === c
-                    ? 'border-primary/50 bg-primary/15 text-primary-strong'
-                    : 'border-border-strong text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {categoryLabel(c)}
-              </button>
-            ))}
-          </div>
-        )}
+        <CategoryChips categories={categories} value={category} onChange={setCategory} />
       </div>
 
       <div
         ref={scrollRef}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 [scrollbar-width:thin]"
       >
-        {etat === 'chargement' && (
-          <div
-            className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5"
-            aria-label="Chargement des objets"
-          >
-            {Array.from({ length: 12 }, (_, i) => (
-              <Skeleton key={i} className="aspect-[4/5]" />
-            ))}
-          </div>
-        )}
-        {etat === 'echec' && (
-          <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
-            {current === 'system'
-              ? 'La bibliothèque d’objets n’a pas pu être chargée.'
-              : 'Les modèles d’objets n’ont pas pu être chargés.'}
-            <Button
-              variant="secondary"
-              size="xs"
-              onClick={() => void (current === 'system' ? assets.refetch() : templates.refetch())}
-            >
-              Réessayer
-            </Button>
-          </div>
-        )}
-        {etat === 'vide' && (
-          <p className="rounded-lg border border-dashed border-border-strong px-3 py-4 text-center text-[13px] text-muted-foreground">
-            {cards.length ? 'Aucun objet ne correspond.' : AUCUN_OBJET[current]}
-          </p>
-        )}
+        <EtatListe
+          etat={etat}
+          current={current}
+          hasCards={cards.length > 0}
+          onRetry={() => void (current === 'system' ? assets.refetch() : templates.refetch())}
+        />
         {etat === 'grille' && (
           <ul
             aria-label={current === 'system' ? 'Objets du système' : 'Modèles d’objets'}
@@ -594,4 +539,99 @@ const AUCUN_OBJET = {
 function categoryLabel(c: string): string {
   if (c === ALL) return 'Tout';
   return c === NO_CATEGORY ? 'Sans catégorie' : c;
+}
+
+type EtatBibliotheque = 'chargement' | 'echec' | 'vide' | 'grille';
+
+/** Ce que montre la liste : chargement, échec, aucun objet, ou la grille. */
+function etatBibliotheque(loading: boolean, failed: boolean, empty: boolean): EtatBibliotheque {
+  if (loading) return 'chargement';
+  if (failed) return 'echec';
+  return empty ? 'vide' : 'grille';
+}
+
+/** Onglets : la bibliothèque du système quand elle est déclarée, puis la campagne. */
+function tabsOf(
+  declared: { titre?: string | null } | null,
+  systemCount: number,
+  templateCount: number,
+): { id: Tab; label: string; count: number }[] {
+  return [
+    ...(declared
+      ? [{ id: 'system' as const, label: declared.titre ?? 'Système', count: systemCount }]
+      : []),
+    { id: 'campaign', label: 'Campagne', count: templateCount },
+  ];
+}
+
+/** Filtre par catégorie (« Tout », chaque catégorie, « Sans catégorie »). */
+function CategoryChips({
+  categories,
+  value,
+  onChange,
+}: Readonly<{ categories: string[]; value: string; onChange(c: string): void }>) {
+  if (categories.length <= 1) return null;
+  return (
+    <div
+      role="group"
+      aria-label="Catégories"
+      className="-mx-3 flex items-center gap-1 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none]"
+    >
+      {[ALL, ...categories].map((c) => (
+        <button
+          key={c || 'all'}
+          type="button"
+          aria-pressed={value === c}
+          onClick={() => onChange(c)}
+          className={cn(
+            'h-7 shrink-0 rounded-full border px-2.5 text-xs transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+            value === c
+              ? 'border-primary/50 bg-primary/15 text-primary-strong'
+              : 'border-border-strong text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {categoryLabel(c)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Liste sans grille : squelette, échec (et réessayer), ou aucun objet. */
+function EtatListe({
+  etat,
+  current,
+  hasCards,
+  onRetry,
+}: Readonly<{ etat: EtatBibliotheque; current: Tab; hasCards: boolean; onRetry(): void }>) {
+  if (etat === 'chargement')
+    return (
+      <div
+        className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5"
+        aria-label="Chargement des objets"
+      >
+        {Array.from({ length: 12 }, (_, i) => (
+          <Skeleton key={i} className="aspect-[4/5]" />
+        ))}
+      </div>
+    );
+  if (etat === 'echec')
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
+        {current === 'system'
+          ? 'La bibliothèque d’objets n’a pas pu être chargée.'
+          : 'Les modèles d’objets n’ont pas pu être chargés.'}
+        <Button variant="secondary" size="xs" onClick={onRetry}>
+          Réessayer
+        </Button>
+      </div>
+    );
+  if (etat === 'vide')
+    return (
+      <p className="rounded-lg border border-dashed border-border-strong px-3 py-4 text-center text-[13px] text-muted-foreground">
+        {hasCards ? 'Aucun objet ne correspond.' : AUCUN_OBJET[current]}
+      </p>
+    );
+  return null;
 }
