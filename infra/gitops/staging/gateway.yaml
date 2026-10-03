@@ -22,6 +22,7 @@ env:
   UPSTREAM_DICE_URL: http://dice.vtt-staging.svc
   # Paiements Stripe ; /v1/billing/webhook passe sans jeton (signature vérifiée par billing)
   UPSTREAM_BILLING_URL: http://billing.vtt-staging.svc
+  UPSTREAM_DISCORD_URL: http://discord.vtt-staging.svc
   # Temps réel : WebSocket Socket.IO (/v1/realtime/socket.io), jeton vérifié par realtime
   UPSTREAM_REALTIME_URL: http://realtime.vtt-staging.svc
   # Journal d'historique : timeline d'une campagne, vérification de la chaîne de hash

@@ -47,6 +47,8 @@ networkPolicy:
   enabled: true
   allowFrom:
     - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+    # Bot de dés Discord : jetons délégués et appels au nom du joueur (docs/discord.md)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: discord}}
     # character transmet les jets d'action (/internal/rolls, secret partagé)
     - podSelector: {matchLabels: {app.kubernetes.io/name: character}}
     # billing livre les achats et le premium (/internal/users/…, secret partagé)

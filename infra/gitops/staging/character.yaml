@@ -47,6 +47,8 @@ networkPolicy:
   enabled: true
   allowFrom:
     - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+    # Bot de dés Discord : jetons délégués et appels au nom du joueur (docs/discord.md)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: discord}}
     # campaign appelle les routes /internal (initiative, durées, résumé)
     - podSelector: {matchLabels: {app.kubernetes.io/name: campaign}}
     # dice lit la fiche d'un personnage pour les variables de ses jets (/internal)

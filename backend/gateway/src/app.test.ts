@@ -316,6 +316,10 @@ describe('estPublique', () => {
     expect(estPublique('GET', '/v1/systemsx')).toBe(false);
     expect(estPublique('GET', '/v1/characters')).toBe(false);
     expect(estPublique('POST', '/v1/auth/login')).toBe(true);
+    // Interactions Discord : authentifiées par leur signature, POST et chemin exact seulement
+    expect(estPublique('POST', '/v1/discord/interactions')).toBe(true);
+    expect(estPublique('GET', '/v1/discord/interactions')).toBe(false);
+    expect(estPublique('POST', '/v1/discord/autre')).toBe(false);
   });
 });
 

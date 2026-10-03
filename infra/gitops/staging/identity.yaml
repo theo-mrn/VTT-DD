@@ -30,7 +30,7 @@ secretEnv:
   NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
   REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret identity-secrets (SOPS) : DATABASE_URL (rôle identity_svc), JWT_PRIVATE_JWKS,
-# INTERNAL_API_SECRET, SMTP_URL, S3_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
+# INTERNAL_API_SECRET, SMTP_URL, R2_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
 # + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
 #   d'outbox ne traverse pas PgBouncer (sans elle : DATABASE_URL, réveil par le poll de 5 s)
 envFromSecrets:
@@ -47,6 +47,8 @@ networkPolicy:
     # audio : JWKS
     - podSelector: {matchLabels: {app.kubernetes.io/name: audio}}
     - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+    # Bot de dés Discord : jetons délégués et appels au nom du joueur (docs/discord.md)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: discord}}
     # character et campaign vérifient les jetons avec le JWKS d'identity
     - podSelector: {matchLabels: {app.kubernetes.io/name: character}}
     # campaign lit aussi les profils publics des membres (noms, avatars)

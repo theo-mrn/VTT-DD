@@ -28,9 +28,11 @@ legacy perd alors son activité et son bot), puis `yner.fr` à la bascule de la 
 Autres URL mappings, identiques partout : `/r2` → `assets.yner.fr`, `/firebase` →
 `firebasestorage.googleapis.com`, `/discord-cdn` → `cdn.discordapp.com`.
 
-Secrets (repris de `legacy/.env`) : `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` (identity),
-`DISCORD_PUBLIC_KEY` (signature des interactions) et `DISCORD_BOT_TOKEN` (`DISCORD_TOKEN` du
-legacy : enregistrement des commandes, messages du bot).
+Valeurs (reprises de `legacy/.env`) : `DISCORD_CLIENT_ID` et `DISCORD_CLIENT_SECRET` (identity,
+secrets) ; `DISCORD_APPLICATION_ID` et `DISCORD_PUBLIC_KEY` (service discord, publiques, en
+clair dans gitops) ; `DISCORD_BOT_TOKEN` (`DISCORD_TOKEN` du legacy) sert seulement à
+enregistrer les commandes depuis un poste (`pnpm --filter @vtt/discord commands:register`),
+jamais au service. Le secret interne du bot est lu dans le Secret d'identity.
 
 ## Lien compte Discord ↔ compte Yner
 
@@ -122,14 +124,14 @@ Le bot n'a aucun droit propre. Pour chaque commande :
 Le bot ne fait que des dés. Pas de compte lié → message éphémère avec le bouton de `/link` ;
 pas de salle active → message éphémère qui propose `/salle`.
 
-| Commande                | Effet                                                                                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/salle [campagne]`     | Choisit la salle active parmi ses campagnes (autocomplétion : titre et système) ; sans argument, affiche la salle active                                |
-| `/roll [dés] [caché]`   | Jet dans la salle active, avec le personnage du joueur (`POST /v1/dice/rolls`, source `api`) : visible sur la carte et dans l'historique comme tout jet |
-| `/history [joueur] [n]` | Derniers jets publics de la salle active (`GET /v1/dice/rolls`)                                                                                         |
-| `/stats [joueur]`       | Statistiques de la salle active (`GET /v1/dice/stats`)                                                                                                  |
-| `/link`                 | Bouton « Lier mon compte » (connexion Discord sur le site), message éphémère                                                                            |
-| `/unlink`               | Retire le lien Discord du compte (`DELETE /v1/auth/discord/link`) (refusé s'il n'a pas d'autre moyen de connexion)                                      |
+| Commande                | Effet                                                                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/salle [campagne]`     | Choisit la salle active parmi ses campagnes (autocomplétion : titre et système) ; sans argument, affiche la salle active                                       |
+| `/roll [dés] [caché]`   | Jet dans la salle active, avec le personnage du joueur (`POST /v1/dice/rolls`, tiré par le serveur) : visible sur la carte et dans l'historique comme tout jet |
+| `/history [joueur] [n]` | Derniers jets publics de la salle active (`GET /v1/dice/rolls`)                                                                                                |
+| `/stats [joueur]`       | Statistiques de la salle active (`GET /v1/dice/stats`)                                                                                                         |
+| `/link`                 | Bouton « Lier mon compte » (connexion Discord sur le site), message éphémère                                                                                   |
+| `/unlink`               | Retire le lien Discord du compte (`DELETE /v1/auth/discord/link`) (refusé s'il n'a pas d'autre moyen de connexion)                                             |
 
 ### Dés adaptés au système
 

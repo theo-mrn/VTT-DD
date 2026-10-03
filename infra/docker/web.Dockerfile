@@ -20,6 +20,7 @@ COPY backend/dice/package.json ./backend/dice/
 COPY backend/billing/package.json ./backend/billing/
 COPY backend/history/package.json ./backend/history/
 COPY backend/realtime/package.json ./backend/realtime/
+COPY backend/discord/package.json ./backend/discord/
 COPY backend/audio/package.json ./backend/audio/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY backend/platform/package.json ./backend/platform/

@@ -16,6 +16,7 @@ export const GatewayConfig = BaseConfig.extend({
   UPSTREAM_HISTORY_URL: z.string().url().optional(),
   UPSTREAM_REALTIME_URL: z.string().url().optional(),
   UPSTREAM_AUDIO_URL: z.string().url().optional(),
+  UPSTREAM_DISCORD_URL: z.string().url().optional(),
   /**
    * Secret partagé avec identity pour échanger les clés d'API (en-tête
    * x-internal-secret). Absent : « Authorization: ApiKey … » est refusé.
@@ -47,6 +48,8 @@ export const ROUTES = {
   '/v1/audio': 'UPSTREAM_AUDIO_URL',
   // Temps réel : WebSocket (Socket.IO) relayé, et routes HTTP du service
   '/v1/realtime': 'UPSTREAM_REALTIME_URL',
+  // Bot de dés Discord : interactions signées par Discord (docs/discord.md)
+  '/v1/discord': 'UPSTREAM_DISCORD_URL',
 } as const satisfies Record<string, keyof GatewayConfig>;
 
 /**
@@ -92,7 +95,7 @@ const PUBLIC_PREFIXES = ['/v1/auth'];
  * vérifiée par le service sur le corps brut (relayé octet pour octet, jamais
  * re-sérialisé par la gateway). Chemin exact, POST seulement.
  */
-const PUBLIC_WEBHOOKS = new Set(['/v1/billing/webhook']);
+const PUBLIC_WEBHOOKS = new Set(['/v1/billing/webhook', '/v1/discord/interactions']);
 
 /** Routes publiques en lecture seule : la liste des systèmes de jeu et leurs documents. */
 const PUBLIC_LECTURE = ['/v1/systems'];
