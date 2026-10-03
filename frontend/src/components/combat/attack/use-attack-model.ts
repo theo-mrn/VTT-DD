@@ -171,6 +171,31 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     });
   }
 
+  /** Attaque calculée dans le navigateur : rapportée aussitôt si elle est finie, sinon gardée ici. */
+  async function browserAttack(
+    session: LocalSession,
+    body: DeclareAttack,
+    key: string,
+    a: Action,
+  ): Promise<Attack> {
+    const meta: LocalAttackMeta = {
+      id: `${LOCAL_ATTACK_PREFIX}${key}`,
+      campaignId: flow.campaignId,
+      combat: ctx.combat,
+      attackerId: body.attackerId,
+      actionName: a.nom,
+      visibility: effectiveVisibility(draft, { gm: ctx.gm, settings }),
+      gm: ctx.gm,
+      userId: ctx.me.id,
+      origin: body.origin,
+      presetId: body.presetId,
+    };
+    const entry: LocalEntry = { session, meta, body, key };
+    if (isFinished(session)) return report(entry);
+    locals.current.set(meta.id, entry);
+    return localAttackOf(session, meta);
+  }
+
   /** `patch` : valeurs choisies au clic (carte du type d'attaque), gardées dans le brouillon. */
   async function submit(patch?: ActionParams) {
     if (flow.phase !== 'compose' || !action || !systeme || disabledReason) return;
@@ -198,28 +223,9 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     try {
       // Calcul dans le navigateur (Théo, 2026-09-30) ; défense active : le serveur, comme avant
       const session = await startInBrowser(body);
-      let attack: Attack;
-      if (!session) attack = await commands.declare(body, key);
-      else {
-        const meta: LocalAttackMeta = {
-          id: `${LOCAL_ATTACK_PREFIX}${key}`,
-          campaignId: flow.campaignId,
-          combat: ctx.combat,
-          attackerId: body.attackerId,
-          actionName: action.nom,
-          visibility: effectiveVisibility(draft, { gm: ctx.gm, settings }),
-          gm: ctx.gm,
-          userId: ctx.me.id,
-          origin: body.origin,
-          presetId: body.presetId,
-        };
-        const entry: LocalEntry = { session, meta, body, key };
-        if (isFinished(session)) attack = await report(entry);
-        else {
-          locals.current.set(meta.id, entry);
-          attack = localAttackOf(session, meta);
-        }
-      }
+      const attack = session
+        ? await browserAttack(session, body, key, action)
+        : await commands.declare(body, key);
       setLiveAttackId(attack.id);
       attackMenu.dispatch({ type: 'declared', attack });
       traced.end(session ? 'browser' : 'server', { 'vtt.attack.status': attack.status });

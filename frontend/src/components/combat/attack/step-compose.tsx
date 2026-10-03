@@ -67,6 +67,16 @@ function typeOptions(fiche: Fiche, param: ActionParam): TypeOption[] {
 const setParam = (id: string, value: Valeur) =>
   attackMenu.dispatch({ type: 'setParam', id, value });
 
+/** Cartes du type d'attaque, saisie bloquée (envoi, déclaration), et ce qui empêche de lancer. */
+function composeState(model: AttackModel, systeme: SystemeCharge, fiche: Fiche) {
+  const action = model.action;
+  return {
+    card: action ? typeCardParam(systeme, action, fiche) : null,
+    disabled: model.busy || !model.composing,
+    reason: !model.busy ? model.disabledReason : null,
+  };
+}
+
 export function StepCompose({
   ctx,
   model,
@@ -95,9 +105,7 @@ export function StepCompose({
       />
     );
 
-  const card = action ? typeCardParam(systeme, action, fiche) : null;
-  const disabled = model.busy || !model.composing;
-  const reason = !model.busy ? model.disabledReason : null;
+  const { card, disabled, reason } = composeState(model, systeme, fiche);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
@@ -482,6 +490,78 @@ function changedCount(
   return n;
 }
 
+/** Pastilles du bouton replié : réglages modifiés, jet caché. */
+function DisclosureBadges({ count, hidden }: Readonly<{ count: number; hidden: boolean }>) {
+  return (
+    <>
+      {count > 0 && (
+        <Badge ton="primaire" aria-label={`${count} réglé${count > 1 ? 's' : ''}`}>
+          {count}
+        </Badge>
+      )}
+      {hidden && <Badge>caché</Badge>}
+    </>
+  );
+}
+
+/** Mode de jet (plusieurs cibles) et jet caché aux joueurs (MJ). */
+function RollModeRow({
+  targets,
+  gm,
+  rollMode,
+  actionRollMode,
+  hidden,
+  disabled,
+}: Readonly<{
+  targets: number;
+  gm: boolean;
+  rollMode: AttackRollMode;
+  actionRollMode: AttackRollMode;
+  hidden: boolean;
+  disabled: boolean;
+}>) {
+  if (!(targets > 1 || gm)) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      {targets > 1 && (
+        <Segmented
+          label="Mode de jet"
+          value={rollMode}
+          onChange={(v) =>
+            attackMenu.dispatch({ type: 'setRollMode', rollMode: v as AttackRollMode })
+          }
+          disabled={disabled}
+          options={(
+            [
+              ['per_target', 'Un jet par cible'],
+              ['shared', 'Jet commun'],
+            ] as const
+          ).map(([value, label]) => ({
+            value,
+            label,
+            ...(actionRollMode === value ? { meta: 'proposé' } : {}),
+          }))}
+        />
+      )}
+      {gm && (
+        <div className="min-w-[14rem]">
+          <ToggleTile
+            label="Jet caché aux joueurs"
+            checked={hidden}
+            onChange={(h) =>
+              attackMenu.dispatch({
+                type: 'setVisibility',
+                visibility: h ? 'gm' : 'public',
+              })
+            }
+            disabled={disabled}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OptionsDisclosure({
   ctx,
   systeme,
@@ -549,12 +629,7 @@ function OptionsDisclosure({
       >
         <SlidersHorizontal className="size-4" aria-hidden />
         <span className="flex-1">Situation et options</span>
-        {count > 0 && (
-          <Badge ton="primaire" aria-label={`${count} réglé${count > 1 ? 's' : ''}`}>
-            {count}
-          </Badge>
-        )}
-        {hidden && <Badge>caché</Badge>}
+        <DisclosureBadges count={count} hidden={hidden} />
         <ChevronDown
           className={cn(
             'size-4 transition-transform duration-200 motion-reduce:transition-none',
@@ -601,45 +676,14 @@ function OptionsDisclosure({
                 />
               </div>
             )}
-            {(n > 1 || ctx.gm) && (
-              <div className="flex flex-wrap items-center gap-3">
-                {n > 1 && (
-                  <Segmented
-                    label="Mode de jet"
-                    value={rollMode}
-                    onChange={(v) =>
-                      attackMenu.dispatch({ type: 'setRollMode', rollMode: v as AttackRollMode })
-                    }
-                    disabled={disabled}
-                    options={(
-                      [
-                        ['per_target', 'Un jet par cible'],
-                        ['shared', 'Jet commun'],
-                      ] as const
-                    ).map(([value, label]) => ({
-                      value,
-                      label,
-                      ...(actionRollMode === value ? { meta: 'proposé' } : {}),
-                    }))}
-                  />
-                )}
-                {ctx.gm && (
-                  <div className="min-w-[14rem]">
-                    <ToggleTile
-                      label="Jet caché aux joueurs"
-                      checked={hidden}
-                      onChange={(h) =>
-                        attackMenu.dispatch({
-                          type: 'setVisibility',
-                          visibility: h ? 'gm' : 'public',
-                        })
-                      }
-                      disabled={disabled}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
+            <RollModeRow
+              targets={n}
+              gm={ctx.gm}
+              rollMode={rollMode}
+              actionRollMode={actionRollMode}
+              hidden={hidden}
+              disabled={disabled}
+            />
             {numericJet && (
               <DicePool
                 systeme={systeme}

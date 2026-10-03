@@ -14,7 +14,7 @@
  */
 import type { Action, Entree, Fiche, Possession, Presentation, SystemeCharge } from '@vtt/rules';
 import { Check, ChevronsUpDown, Library } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { champsAffiches } from '@/components/fiche/blocks/inventory/model';
 import { iconeObjet } from '@/components/fiche/blocks/inventory/item-icon';
 import {
@@ -89,6 +89,87 @@ function fieldsOf(fiche: Fiche, r: Resolved, refs: readonly string[]): SourceFie
     }));
 }
 
+/** Entrée simple (pas un équipement) : boutons segmentés, ou liste au-delà de quelques choix. */
+function SimpleEntryPicker({
+  title,
+  param,
+  options,
+  none,
+  value,
+  onChange,
+  disabled,
+}: Readonly<{
+  title: ReactNode;
+  param: EntryParam;
+  options: EntryOption[];
+  none: boolean | undefined;
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean | undefined;
+}>) {
+  const buttons = [
+    ...(none || !options.length
+      ? [{ value: '', label: options.length ? 'Aucune' : 'Aucune disponible' }]
+      : []),
+    ...options.map((o) => ({
+      value: o.id,
+      label: o.nom,
+      meta: o.rang > 0 ? `rang ${o.rang}` : undefined,
+    })),
+  ];
+  return (
+    <section>
+      {title}
+      {buttons.length <= MAX_BUTTONS ? (
+        <Segmented
+          label={param.nom}
+          options={buttons}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      ) : (
+        <OtherPicker
+          label={param.nom}
+          options={options}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          none={none}
+        />
+      )}
+    </section>
+  );
+}
+
+/**
+ * Tuiles d'équipement : les possédées, celles qui se passent d'être possédées (mains nues),
+ * puis le catalogue (au-delà de quelques tuiles, seulement celle choisie : le reste se cherche).
+ */
+function shownEntries(
+  fiche: Fiche,
+  waivers: ReturnType<typeof possessionWaivers>,
+  options: EntryOption[],
+  value: string,
+): {
+  shown: { o: EntryOption; note: string | null }[];
+  catalogue: EntryOption[];
+  shownOthers: EntryOption[];
+} {
+  const owned = options.filter((o) => o.owned);
+  const free = options.filter((o) => !o.owned && isWaived(fiche, waivers, o.id));
+  const catalogue = options.filter((o) => !o.owned && !free.includes(o));
+  const selectedOther = catalogue.find((o) => o.id === value);
+  let shownOthers = catalogue;
+  if (catalogue.length > CATALOGUE_CARDS) shownOthers = selectedOther ? [selectedOther] : [];
+  const shown = [
+    ...owned.map((o) => ({ o, note: null })),
+    ...free.map((o) => ({ o, note: 'Toujours disponible' })),
+    ...shownOthers.map((o) => ({ o, note: 'Catalogue' })),
+  ];
+  return { shown, catalogue, shownOthers };
+}
+
 export function EntryPicker({
   systeme,
   presentation,
@@ -138,56 +219,25 @@ export function EntryPicker({
   const refs = paramFieldRefs(systeme, action, param.id);
   const gear = looksLikeGear(systeme, param.sorte);
 
-  if (!gear && !launch) {
-    const buttons = [
-      ...(none || !options.length
-        ? [{ value: '', label: options.length ? 'Aucune' : 'Aucune disponible' }]
-        : []),
-      ...options.map((o) => ({
-        value: o.id,
-        label: o.nom,
-        meta: o.rang > 0 ? `rang ${o.rang}` : undefined,
-      })),
-    ];
+  if (!gear && !launch)
     return (
-      <section>
-        {title}
-        {buttons.length <= MAX_BUTTONS ? (
-          <Segmented
-            label={param.nom}
-            options={buttons}
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-          />
-        ) : (
-          <OtherPicker
-            label={param.nom}
-            options={options}
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-            none={none}
-          />
-        )}
-      </section>
+      <SimpleEntryPicker
+        title={title}
+        param={param}
+        options={options}
+        none={none}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
     );
-  }
 
-  const owned = options.filter((o) => o.owned);
-  // Catalogue : celles qui se passent d'être possédées (mains nues) en tuiles, les autres à
-  // chercher dans la liste
-  const waivers = possessionWaivers(systeme, action, param);
-  const free = options.filter((o) => !o.owned && isWaived(fiche, waivers, o.id));
-  const catalogue = options.filter((o) => !o.owned && !free.includes(o));
-  const selectedOther = catalogue.find((o) => o.id === value);
-  let shownOthers = catalogue;
-  if (catalogue.length > CATALOGUE_CARDS) shownOthers = selectedOther ? [selectedOther] : [];
-  const shown: { o: EntryOption; note: string | null }[] = [
-    ...owned.map((o) => ({ o, note: null })),
-    ...free.map((o) => ({ o, note: 'Toujours disponible' })),
-    ...shownOthers.map((o) => ({ o, note: 'Catalogue' })),
-  ];
+  const { shown, catalogue, shownOthers } = shownEntries(
+    fiche,
+    possessionWaivers(systeme, action, param),
+    options,
+    value,
+  );
 
   return (
     <section>

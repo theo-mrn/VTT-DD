@@ -61,6 +61,76 @@ function modificationText(systeme: SystemeCharge, m: AttackModification): string
   return `${m.operation === 'give' ? '+' : '−'} ${name}${duration}`;
 }
 
+type TargetDisplay = ReturnType<typeof targetDisplay>;
+
+/** Jet de la cible : total et dés (numérique), ou résultats et dés à symboles. */
+function RollResult({
+  roll,
+  systeme,
+  presentation,
+}: Readonly<{
+  roll: TargetDisplay['roll'];
+  systeme: SystemeCharge;
+  presentation: Presentation | null;
+}>) {
+  if (roll?.kind === 'numeric')
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="font-display text-3xl font-semibold tabular-nums leading-none">
+          {roll.total}
+        </span>
+        <DesDuJet
+          taille="xs"
+          entree
+          groupes={roll.dice.map((g) => ({
+            faces: g.faces,
+            total: g.values.filter((v) => v.kept).reduce((s, v) => s + v.value, 0),
+            dice: g.values.map((v) => ({ value: v.value, kept: v.kept, exploded: v.exploded })),
+          }))}
+        />
+      </div>
+    );
+  if (roll?.kind === 'symbols')
+    return (
+      <div className="space-y-2">
+        <ResultatsSymboles systeme={systeme} presentation={presentation} resultats={roll.results} />
+        <DesSymboles
+          systeme={systeme}
+          presentation={presentation}
+          des={roll.dice.map((x) => ({ de: x.die, face: x.face, symboles: x.symbols }))}
+        />
+      </div>
+    );
+  return null;
+}
+
+/** Vue complète : valeurs appliquées (et coûts de l'attaquant), puis tables tirées. */
+function FullEffects({
+  display: d,
+  systeme,
+}: Readonly<{ display: TargetDisplay; systeme: SystemeCharge }>) {
+  return (
+    <>
+      {d.modifications.length > 0 && (
+        <ul className="space-y-0.5 rounded-lg border border-primary/20 bg-primary/[0.05] px-2.5 py-1.5 text-[13px]">
+          {d.modifications.map((m, i) => (
+            <li key={i}>
+              {m.entity === 'actor' ? 'Attaquant : ' : ''}
+              {modificationText(systeme, m)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {d.tables.map((t, i) => (
+        <p key={i} className="text-[13px]">
+          <span className="text-muted-foreground">{t.name ?? t.table} : </span>
+          {t.line?.name ?? 'hors table'} <span className="font-mono text-subtle">({t.value})</span>
+        </p>
+      ))}
+    </>
+  );
+}
+
 export function ResultCard({
   attack,
   target,
@@ -108,36 +178,7 @@ export function ResultCard({
         </p>
       )}
 
-      {d.roll?.kind === 'numeric' && (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="font-display text-3xl font-semibold tabular-nums leading-none">
-            {d.roll.total}
-          </span>
-          <DesDuJet
-            taille="xs"
-            entree
-            groupes={d.roll.dice.map((g) => ({
-              faces: g.faces,
-              total: g.values.filter((v) => v.kept).reduce((s, v) => s + v.value, 0),
-              dice: g.values.map((v) => ({ value: v.value, kept: v.kept, exploded: v.exploded })),
-            }))}
-          />
-        </div>
-      )}
-      {d.roll?.kind === 'symbols' && (
-        <div className="space-y-2">
-          <ResultatsSymboles
-            systeme={systeme}
-            presentation={presentation}
-            resultats={d.roll.results}
-          />
-          <DesSymboles
-            systeme={systeme}
-            presentation={presentation}
-            des={d.roll.dice.map((x) => ({ de: x.die, face: x.face, symboles: x.symbols }))}
-          />
-        </div>
-      )}
+      <RollResult roll={d.roll} systeme={systeme} presentation={presentation} />
 
       {d.values.length > 0 && (
         <dl className="flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
@@ -150,24 +191,7 @@ export function ResultCard({
         </dl>
       )}
 
-      {d.full && d.modifications.length > 0 && (
-        <ul className="space-y-0.5 rounded-lg border border-primary/20 bg-primary/[0.05] px-2.5 py-1.5 text-[13px]">
-          {d.modifications.map((m, i) => (
-            <li key={i}>
-              {m.entity === 'actor' ? 'Attaquant : ' : ''}
-              {modificationText(systeme, m)}
-            </li>
-          ))}
-        </ul>
-      )}
-      {d.full &&
-        d.tables.map((t, i) => (
-          <p key={i} className="text-[13px]">
-            <span className="text-muted-foreground">{t.name ?? t.table} : </span>
-            {t.line?.name ?? 'hors table'}{' '}
-            <span className="font-mono text-subtle">({t.value})</span>
-          </p>
-        ))}
+      {d.full && <FullEffects display={d} systeme={systeme} />}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         {decision && <Badge ton={d.decision === 'applied' ? 'succes' : 'neutre'}>{decision}</Badge>}

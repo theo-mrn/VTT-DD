@@ -336,6 +336,13 @@ function AttackerSwitch({
 
 // ─── Cibles ──────────────────────────────────────────────────────────────────
 
+/** Titre du côté des cibles : aucune, son nom, ou leur nombre. */
+function targetsTitle(names: string[]): string {
+  if (names.length === 0) return 'Aucune cible';
+  if (names.length === 1) return names[0]!;
+  return `${names.length} cibles`;
+}
+
 function TargetsSide({
   ctx,
   attackerId,
@@ -361,9 +368,7 @@ function TargetsSide({
   const shown = targetIds.slice(0, n > MAX_PORTRAITS ? MAX_PORTRAITS - 1 : MAX_PORTRAITS);
   const rest = n - shown.length;
   const names = targetIds.map((id) => targetName(id, ctx.known));
-  let title = `${n} cibles`;
-  if (n === 0) title = 'Aucune cible';
-  else if (n === 1) title = names[0]!;
+  const title = targetsTitle(names);
   const self = n === 1 && targetIds[0] === attackerId;
 
   return (
