@@ -520,58 +520,72 @@ class PixiView implements EngineView {
     g.clear();
 
     const gm = engine.viewer.role === 'gm';
-    const selected = engine.selectedEntities();
-    const hovered = engine.hovered;
 
     // Masqués aux joueurs (vue du MJ) : voile blanc et badge « œil barré » (commun aux sortes
     // qui ne dessinent pas le leur, `selfHiddenMark`)
-    if (gm)
-      for (const e of engine.entities()) {
-        if (!e.state.hiddenForPlayers || !e.display?.visible || e.kind.selfHiddenMark) continue;
-        const c = e.current;
-        const corners = geometryCorners(c);
-        g.poly(
-          corners.flatMap((p) => [p.x, p.y]),
-          true,
-        ).fill({
-          color: WHITE,
-          alpha: HIDDEN_VEIL.hidden,
-        });
-        drawVisibilityBadge(g, this.theme, 'hidden', corners[1]!.x, corners[1]!.y, px);
-      }
+    if (gm) for (const e of engine.entities()) this.drawHiddenVeil(g, e, px);
 
+    this.drawOutlines(g, px, primary, muted);
+
+    // Poignées de l'entité seule sélectionnée
+    const target = engine.gizmoTarget();
+    if (target && !target.state.remote) this.drawGizmo(g, target, zoom, px, primary, background);
+  }
+
+  /** Contours du survol et de la sélection. */
+  private drawOutlines(g: Graphics, px: number, primary: number, muted: number) {
+    const hovered = this.engine.hovered;
     // Une sorte qui dessine elle-même son survol et sa sélection (mur, zone) n'a pas de contour
     if (hovered && !hovered.state.selected && hovered.display?.visible && !hovered.kind.selfOutline)
       this.outline(g, hovered.current, 1.5 * px, primary, 0.6);
-
-    for (const e of selected) {
+    for (const e of this.engine.selectedEntities()) {
       if (e.kind.selfOutline) continue;
       if (!e.display?.visible && !e.state.dragging) continue;
       this.outline(g, e.current, 1.5 * px, e.state.locked ? muted : primary, 1);
     }
+  }
 
-    // Poignées de l'entité seule sélectionnée
-    const target = engine.gizmoTarget();
-    if (target && !target.state.remote) {
-      const opts = engine.gizmoOptions(target);
-      const pos = handlePositions(target.current, zoom, opts);
-      const s = HANDLE_RADIUS * px;
-      if (pos.rotate) {
-        const top = toWorld(target.current, { x: 0, y: -target.current.height / 2 });
-        g.moveTo(top.x, top.y)
-          .lineTo(pos.rotate.x, pos.rotate.y)
-          .stroke({ width: px, color: primary });
-        g.circle(pos.rotate.x, pos.rotate.y, s * 0.8)
-          .fill({ color: background })
-          .stroke({ width: 1.5 * px, color: primary });
-      }
-      for (const corner of CORNERS) {
-        const p = pos[corner];
-        if (!p) continue;
-        g.rect(p.x - s * 0.7, p.y - s * 0.7, s * 1.4, s * 1.4)
-          .fill({ color: background })
-          .stroke({ width: 1.5 * px, color: primary });
-      }
+  /** Voile et badge d'une entité masquée aux joueurs (sauf sorte qui dessine le sien). */
+  private drawHiddenVeil(g: Graphics, e: MapEntity, px: number) {
+    if (!e.state.hiddenForPlayers || !e.display?.visible || e.kind.selfHiddenMark) return;
+    const corners = geometryCorners(e.current);
+    g.poly(
+      corners.flatMap((p) => [p.x, p.y]),
+      true,
+    ).fill({
+      color: WHITE,
+      alpha: HIDDEN_VEIL.hidden,
+    });
+    drawVisibilityBadge(g, this.theme, 'hidden', corners[1]!.x, corners[1]!.y, px);
+  }
+
+  /** Poignées de rotation et de taille. */
+  private drawGizmo(
+    g: Graphics,
+    target: MapEntity,
+    zoom: number,
+    px: number,
+    primary: number,
+    background: number,
+  ) {
+    const opts = this.engine.gizmoOptions(target);
+    const pos = handlePositions(target.current, zoom, opts);
+    const s = HANDLE_RADIUS * px;
+    if (pos.rotate) {
+      const top = toWorld(target.current, { x: 0, y: -target.current.height / 2 });
+      g.moveTo(top.x, top.y)
+        .lineTo(pos.rotate.x, pos.rotate.y)
+        .stroke({ width: px, color: primary });
+      g.circle(pos.rotate.x, pos.rotate.y, s * 0.8)
+        .fill({ color: background })
+        .stroke({ width: 1.5 * px, color: primary });
+    }
+    for (const corner of CORNERS) {
+      const p = pos[corner];
+      if (!p) continue;
+      g.rect(p.x - s * 0.7, p.y - s * 0.7, s * 1.4, s * 1.4)
+        .fill({ color: background })
+        .stroke({ width: 1.5 * px, color: primary });
     }
   }
 
