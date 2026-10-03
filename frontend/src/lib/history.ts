@@ -23,6 +23,7 @@ import {
   useQueryClient,
   type InfiniteData,
   type QueryClient,
+  type QueryKey,
 } from '@tanstack/react-query';
 import { compareCodeUnits } from '@vtt/contracts';
 import { useCallback, useEffect, useRef } from 'react';
@@ -219,36 +220,50 @@ async function rattraper(client: QueryClient, campaignId: string): Promise<Set<s
   for (const [cle, donnees] of requetes) {
     if (!donnees?.pages.length) continue;
     const characterId = cle[2] === 'tous' ? undefined : (cle[2] as string);
-    let curseur = maxSeq(donnees.pages.flatMap((p) => p.events)) ?? 0;
-    const nouveaux: HistoryEvent[] = [];
-    for (;;) {
-      const page = await listHistory({
-        campaignId,
-        characterId,
-        afterSeq: curseur,
-        types: JOURNAL_TYPES,
-        limit: HISTORY_MAX_LIMIT,
-        order: 'asc',
-      });
-      nouveaux.push(...page.events);
-      curseur = Math.max(curseur, maxSeq(page.events) ?? 0);
-      if (!page.hasMore || !page.events.length) break;
-    }
+    const depuis = maxSeq(donnees.pages.flatMap((p) => p.events)) ?? 0;
+    const nouveaux = await evenementsApres(campaignId, characterId, depuis);
     for (const e of nouveaux) trouves.add(e.id);
-    if (!nouveaux.length) continue;
-    client.setQueryData<DonneesFlux>(cle, (d) =>
-      d && d.pages.length
-        ? {
-            ...d,
-            pages: [
-              { ...d.pages[0]!, events: mergeHistory(d.pages[0]!.events, nouveaux) },
-              ...d.pages.slice(1),
-            ],
-          }
-        : d,
-    );
+    if (nouveaux.length) ajouterEnTete(client, cle, nouveaux);
   }
   return trouves;
+}
+
+/** Tous les événements du journal postérieurs à `depuis`, page après page. */
+async function evenementsApres(
+  campaignId: string,
+  characterId: string | undefined,
+  depuis: number,
+): Promise<HistoryEvent[]> {
+  let curseur = depuis;
+  const nouveaux: HistoryEvent[] = [];
+  for (;;) {
+    const page = await listHistory({
+      campaignId,
+      characterId,
+      afterSeq: curseur,
+      types: JOURNAL_TYPES,
+      limit: HISTORY_MAX_LIMIT,
+      order: 'asc',
+    });
+    nouveaux.push(...page.events);
+    curseur = Math.max(curseur, maxSeq(page.events) ?? 0);
+    if (!page.hasMore || !page.events.length) return nouveaux;
+  }
+}
+
+/** Ajoute des événements en tête de la première page d'une chronique en cache. */
+function ajouterEnTete(client: QueryClient, cle: QueryKey, nouveaux: HistoryEvent[]) {
+  client.setQueryData<DonneesFlux>(cle, (d) =>
+    d && d.pages.length
+      ? {
+          ...d,
+          pages: [
+            { ...d.pages[0]!, events: mergeHistory(d.pages[0]!.events, nouveaux) },
+            ...d.pages.slice(1),
+          ],
+        }
+      : d,
+  );
 }
 
 /**

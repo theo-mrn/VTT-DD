@@ -30,7 +30,12 @@ import { Crosshair, Focus, MousePointer2, Radio } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type * as Pixi from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import { CURSOR_KEEPALIVE_MS, LIVE_EXPIRE_MS, type LiveChannel } from '../live/live-channel';
+import {
+  CURSOR_KEEPALIVE_MS,
+  LIVE_EXPIRE_MS,
+  type LiveChannel,
+  type RemotePose,
+} from '../live/live-channel';
 import {
   arrangeCommand,
   createCommand,
@@ -1627,31 +1632,37 @@ export class MapEngine {
       // Élément inconnu, ou que je tiens moi-même : ignoré
       if (!e || e.state.dragging) continue;
       seen.add(e.id);
-      if (!e.state.remote) {
-        e.state.remote = true;
-        this.view?.updateEntity(e, { state: true });
-      }
-      const g = e.geometry;
-      this.setPreview(e, {
-        x: pose.x,
-        y: pose.y,
-        rotation: pose.rotation ?? g.rotation,
-        width: pose.width ?? g.width,
-        height: pose.height ?? g.height,
-      });
+      this.applyPose(e, pose);
     }
-    for (const id of [...this.remoteIds]) {
-      if (seen.has(id)) continue;
-      const e = this.entityMap.get(id);
-      if (e && !e.state.dragging) {
-        e.state.remote = false;
-        this.setPreview(e, null);
-        this.view?.updateEntity(e, { state: true });
-      }
-    }
+    for (const id of [...this.remoteIds]) if (!seen.has(id)) this.releaseRemote(id);
     this.remoteIds.clear();
     for (const id of seen) this.remoteIds.add(id);
     return live.animating(now);
+  }
+
+  /** Fantôme d'un autre : l'entité, marquée « au loin », suit sa position. */
+  private applyPose(e: MapEntity, pose: RemotePose) {
+    if (!e.state.remote) {
+      e.state.remote = true;
+      this.view?.updateEntity(e, { state: true });
+    }
+    const g = e.geometry;
+    this.setPreview(e, {
+      x: pose.x,
+      y: pose.y,
+      rotation: pose.rotation ?? g.rotation,
+      width: pose.width ?? g.width,
+      height: pose.height ?? g.height,
+    });
+  }
+
+  /** Fantôme disparu : l'entité revient à sa place (sauf si je la tiens). */
+  private releaseRemote(id: string) {
+    const e = this.entityMap.get(id);
+    if (!e || e.state.dragging) return;
+    e.state.remote = false;
+    this.setPreview(e, null);
+    this.view?.updateEntity(e, { state: true });
   }
 
   /** Audience du direct d'une entité (§ 8) : jamais de fuite d'un élément caché. */
