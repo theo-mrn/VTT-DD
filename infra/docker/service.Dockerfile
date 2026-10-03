@@ -27,6 +27,7 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY backend/platform/package.json ./backend/platform/
 COPY packages/rules/package.json ./packages/rules/
 COPY packages/systemes/package.json ./packages/systemes/
+COPY packages/vision/package.json ./packages/vision/
 COPY tools/firebase-export/package.json ./tools/firebase-export/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@vtt/${SERVICE}..." --ignore-scripts

@@ -20,16 +20,21 @@ COPY backend/dice/package.json ./backend/dice/
 COPY backend/billing/package.json ./backend/billing/
 COPY backend/history/package.json ./backend/history/
 COPY backend/realtime/package.json ./backend/realtime/
+COPY backend/audio/package.json ./backend/audio/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY backend/platform/package.json ./backend/platform/
 COPY packages/rules/package.json ./packages/rules/
 COPY packages/systemes/package.json ./packages/systemes/
+COPY packages/vision/package.json ./packages/vision/
 COPY tools/firebase-export/package.json ./tools/firebase-export/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@vtt/web..."
-# Le front calcule les fiches avec le moteur de règles et lit les systèmes de référence
+# Le front calcule les fiches avec le moteur de règles, lit les systèmes de référence, partage
+# les contrats d'API et le calcul de visibilité de la carte avec le back
+COPY packages/contracts ./packages/contracts
 COPY packages/rules ./packages/rules
 COPY packages/systemes ./packages/systemes
+COPY packages/vision ./packages/vision
 COPY frontend ./frontend
 # Les réécritures /v1/* sont figées au build : URL interne de la gateway dans le cluster.
 # « @vtt/web... » construit d'abord ses dépendances du workspace (rules, systemes).
