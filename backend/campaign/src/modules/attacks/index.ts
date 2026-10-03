@@ -40,6 +40,8 @@ import {
   uuidv7,
   type ActionParams,
   type AttackChange,
+  type AttackVisibility,
+  type CombatSettings,
   type RollStep,
   compareCodeUnits,
 } from '@vtt/contracts';
@@ -51,7 +53,9 @@ import { z } from 'zod';
 import type {
   ActionResolution,
   AttackRollsInput,
+  CallOrigin,
   KnownFace,
+  PreparedAction,
   ResolvedAction,
   ResolveInput,
 } from '../../clients/character.js';
@@ -59,9 +63,16 @@ import type { EventContext, Tx } from '../../db/outbox.js';
 import type { Deps, Module } from '../../deps.js';
 import { access, lockCampaign, type Access } from '../campaigns/repository.js';
 import { settingsOf, stateOf } from '../combat/api.js';
-import { loadCombat, logTurn, saveState, turnChanged } from '../combat/repository.js';
+import {
+  loadCombat,
+  logTurn,
+  saveState,
+  turnChanged,
+  type LoadedCombat,
+} from '../combat/repository.js';
 import { combatContextOf, rowsOfDeclaration, type TallyRow } from '../combat/tally.js';
 import { snapshotOf } from '../combat/turn-log.js';
+import type { CombatState } from '../combat/turns.js';
 import { CampaignId, currentUser, eventContext, Uuid } from '../schemas.js';
 import {
   applyDecisions,
@@ -353,6 +364,327 @@ export const register: Module = async (app, deps) => {
   );
 };
 
+/** Ce que partagent les étapes d'une déclaration. */
+interface DeclareContext {
+  deps: Deps;
+  req: FastifyRequest;
+  a: Access;
+  userId: string;
+  v: AttackViewer;
+  mode: { autoRoll: boolean };
+  keys: string[] | null;
+  origin: CallOrigin;
+  /** Jets des attaques calculées par le navigateur, relayés à l'historique après l'écriture. */
+  forwards: AttackRollsInput[];
+}
+
+/** Situation du combat à la déclaration. */
+interface CombatSituation {
+  state: CombatState | null;
+  settings: CombatSettings;
+  /** Décompte des attaques déjà déclarées, celles du lot comprises (§ 5.7). */
+  tallies: TallyRow[];
+}
+
+/** Paramètres communs à la préparation et à la résolution d'une attaque. */
+type CommonInput = Pick<ResolveInput, 'params' | 'adjustments' | 'dice' | 'diceHistory'>;
+
+/**
+ * Attaque déjà calculée par le navigateur de l'attaquant (Théo, 2026-09-30) : le rapport
+ * est rangé tel quel, en attente du MJ ; rien n'est demandé à character.
+ */
+function preparedFromReport(
+  ctx: DeclareContext,
+  situation: CombatSituation,
+  body: Declaration,
+  attackId: string,
+  visibility: AttackVisibility,
+): Prepared {
+  const resolution = reportOf(body);
+  const valid = resolution.targets.filter((t) => t.status !== 'failed');
+  if (situation.state)
+    situation.tallies.push(
+      ...rowsOfDeclaration(
+        situation.state.round,
+        body.attackerId,
+        valid.map((t) => t.characterId),
+      ),
+    );
+  if (valid.length)
+    ctx.forwards.push({
+      campaignId: ctx.a.campaign.id,
+      authorId: ctx.userId,
+      characterId: body.attackerId,
+      visibility,
+      action: body.action,
+      rollMode: body.rollMode ?? 'per_target',
+      views: valid.flatMap((t) => (t.view ? [t.view] : [])),
+    });
+  return {
+    body,
+    attackId,
+    targetIds: body.targets,
+    action: { id: body.action, name: body.resolved!.actionName },
+    rollMode: body.rollMode ?? 'per_target',
+    snapshot: null,
+    visibility,
+    targets: reportedTargets(body.targets, resolution),
+    resolution,
+    step: null,
+    faces: [],
+  };
+}
+
+/** Résolution d'un coup par character : tout est tiré par le serveur. */
+async function resolveAtOnce(
+  ctx: DeclareContext,
+  p: PreparedAction,
+  common: CommonInput,
+): Promise<Pick<Prepared, 'resolution' | 'step' | 'faces'>> {
+  try {
+    const resolved = await ctx.deps.character.resolveAction(
+      {
+        snapshot: p.snapshot,
+        rollMode: p.rollMode,
+        reactions: [],
+        serverFallback: true,
+        ...common,
+      },
+      ctx.origin,
+    );
+    return {
+      resolution: resolved.step ? null : resolved.resolution,
+      step: resolved.step,
+      faces: resolved.faces,
+    };
+  } catch (e) {
+    throw characterFailure(e, ctx.req.log, 'résolution d’une attaque');
+  }
+}
+
+/**
+ * Première étape d'une attaque préparée. Lot du MJ : tout est tiré d'un coup ; sinon
+ * l'attaquant lance la première étape (ou les cibles réagissent d'abord).
+ */
+async function firstStep(
+  ctx: DeclareContext,
+  p: PreparedAction,
+  common: CommonInput,
+): Promise<Pick<Prepared, 'resolution' | 'step' | 'faces'>> {
+  const resolution = p.resolution;
+  const step = resolution ? null : p.step;
+  const reacting = p.targets.some((t) => !t.error && t.reactionParams.length);
+  if (!resolution && !reacting && (ctx.mode.autoRoll || !step))
+    return resolveAtOnce(ctx, p, common);
+  return { resolution, step, faces: [] };
+}
+
+/** Préparation par character (règles, instantané, réactions), puis résolution si rien n'est attendu. */
+async function preparedByCharacter(
+  ctx: DeclareContext,
+  situation: CombatSituation,
+  body: Declaration,
+  attackId: string,
+  visibility: AttackVisibility,
+  common: CommonInput,
+): Promise<Prepared> {
+  const { deps, req, a, userId } = ctx;
+  const { state, tallies } = situation;
+  const combatContext = combatContextOf(state, tallies, body.attackerId, body.targets);
+  let p: PreparedAction;
+  try {
+    p = await deps.character.prepareAction(
+      {
+        actorId: body.attackerId,
+        action: body.action,
+        targetIds: body.targets,
+        ...(body.rollMode ? { rollMode: body.rollMode } : {}),
+        userId,
+        campaignId: a.campaign.id,
+        ...common,
+        ...(combatContext ? { combat: combatContext } : {}),
+      },
+      ctx.origin,
+    );
+  } catch (e) {
+    throw characterFailure(e, req.log, 'préparation d’une attaque');
+  }
+  if (state)
+    tallies.push(
+      ...rowsOfDeclaration(
+        state.round,
+        body.attackerId,
+        p.targets.filter((t) => !t.error).map((t) => t.characterId),
+      ),
+    );
+  const { resolution, step, faces } = await firstStep(ctx, p, common);
+  return {
+    body,
+    attackId,
+    targetIds: body.targets,
+    action: p.action,
+    rollMode: p.rollMode,
+    snapshot: resolution ? null : p.snapshot,
+    visibility,
+    targets: preparedTargets(body.targets, p, resolution),
+    resolution,
+    step,
+    faces,
+  };
+}
+
+/** Prépare une attaque du lot. */
+async function prepareOne(
+  ctx: DeclareContext,
+  situation: CombatSituation,
+  body: Declaration,
+  attackId: string,
+): Promise<Prepared> {
+  const { a, userId, v } = ctx;
+  const visibility = defaultVisibility(body.visibility, v.isGm, situation.settings);
+  const diceHistory = { campaignId: a.campaign.id, authorId: userId, visibility };
+  const dice = effectiveDice(body.dice, situation.settings);
+  const common: CommonInput = {
+    params: body.params ?? {},
+    ...(body.adjustments ? { adjustments: body.adjustments } : {}),
+    dice,
+    diceHistory,
+  };
+  if (body.resolved) return preparedFromReport(ctx, situation, body, attackId, visibility);
+  return preparedByCharacter(ctx, situation, body, attackId, visibility, common);
+}
+
+/** Droits, cibles et tour vérifiés, puis préparation de chaque attaque du lot. */
+async function prepareAll(ctx: DeclareContext, bodies: Declaration[]): Promise<Prepared[]> {
+  const { deps, a, v } = ctx;
+  for (const b of bodies) checkDeclaration(v, b.attackerId, b.targets);
+  const combat = await loadCombat(deps.db, a.campaign.id);
+  const state = combat ? stateOf(combat.combat, combat.participants) : null;
+  // Situation du combat (§ 5.7) : décompte des attaques déjà déclarées, celles du lot comprises
+  const tallies: TallyRow[] = [...(combat?.tallies ?? [])];
+  const settings = combat ? settingsOf(combat.combat) : DEFAULT_COMBAT_SETTINGS;
+  if (!v.isGm && !settings.playersActOutsideTurn)
+    for (const b of bodies)
+      if (outOfTurnOf(state, b.attackerId))
+        throw HttpError.conflict('Ce n’est pas le tour de ce personnage', 'not_their_turn');
+
+  const situation: CombatSituation = { state, settings, tallies };
+  const prepared: Prepared[] = [];
+  // Identifiants croissants dans l'ordre du lot (UUIDv7 d'une même milliseconde)
+  const attackIds = bodies.map(() => uuidv7()).sort(compareCodeUnits);
+  for (const [i, body] of bodies.entries())
+    prepared.push(await prepareOne(ctx, situation, body, attackIds[i]!));
+  return prepared;
+}
+
+/** Mode slots : la première attaque d'un participant du camp le désigne acteur. */
+async function designateSlotActor(
+  tx: Tx,
+  ev: EventContext,
+  actor: EventActor,
+  userId: string,
+  current: LoadedCombat | null,
+  attackerId: string,
+): Promise<{ current: LoadedCombat | null; state: CombatState | null }> {
+  const state = current ? stateOf(current.combat, current.participants) : null;
+  if (!current || !state || !implicitSlotActor(state, attackerId)) return { current, state };
+  await logTurn(tx, current.combat, {
+    reason: 'slot_actor',
+    before: snapshotOf(state),
+    userId,
+  });
+  const next = { ...state, currentActorId: attackerId, turn: state.turn + 1 };
+  const saved = await saveState(tx, { combat: current.combat, canGoBack: true }, next);
+  await turnChanged(tx, ev, saved, actor, { reason: 'slot_actor' });
+  return { current: saved, state: next };
+}
+
+/** Enregistre une attaque préparée, avec son événement. */
+async function insertPrepared(
+  ctx: DeclareContext,
+  tx: Tx,
+  ev: EventContext,
+  actor: EventActor,
+  combat: { current: LoadedCombat | null; state: CombatState | null },
+  p: Prepared,
+  idempotencyKey: string | null,
+): Promise<LoadedAttack> {
+  const { a, userId, mode } = ctx;
+  const { current, state } = combat;
+  const resolved = p.resolution !== null;
+  const status = resolved ? statusAfterResolution(p.targets) : statusBeforeResolution(p.targets);
+  const l = await insertAttack(
+    tx,
+    {
+      id: p.attackId,
+      campaignId: a.campaign.id,
+      combatId: current?.combat.id ?? null,
+      round: current?.combat.round ?? null,
+      turn: current?.combat.turn ?? null,
+      attackerId: p.body.attackerId,
+      actionId: p.action.id,
+      actionName: p.action.name,
+      params: p.body.params ?? {},
+      rollMode: p.rollMode,
+      dice: 'server',
+      visibility: p.visibility,
+      status,
+      outOfTurn: outOfTurnOf(state, p.body.attackerId),
+      selfTarget: p.targetIds.includes(p.body.attackerId),
+      origin: p.body.origin ?? null,
+      presetId: p.body.presetId ?? null,
+      adjustments: p.body.adjustments ?? null,
+      actor: p.resolution
+        ? {
+            modifications: p.resolution.actor.modifications,
+            decision: 'pending',
+            applied: null,
+          }
+        : null,
+      snapshot: p.snapshot ?? null,
+      faces: p.faces,
+      pendingSteps: p.step ? [p.step] : [],
+      autoRoll: mode.autoRoll,
+      idempotencyKey,
+      createdBy: userId,
+      resolvedAt: resolved ? new Date() : null,
+    },
+    p.targets,
+  );
+  if (resolved) {
+    await attackUpdated(tx, ev, l, actor, status === 'failed' ? 'failed' : 'resolved');
+    await attackResolved(tx, ev, l, actor);
+  } else
+    await attackUpdated(
+      tx,
+      ev,
+      l,
+      actor,
+      status === 'awaiting_reactions' ? 'reaction_requested' : 'dice_requested',
+    );
+  return l;
+}
+
+/** Écrit toutes les attaques préparées, dans la transaction reçue. */
+async function writeAttacks(
+  ctx: DeclareContext,
+  prepared: Prepared[],
+  tx: Tx,
+): Promise<LoadedAttack[]> {
+  const { req, a, userId, keys } = ctx;
+  const ev = eventContext(req);
+  const actor: EventActor = { userId, role: a.role };
+  await lockCampaign(tx, a.campaign.id);
+  let current = await loadCombat(tx, a.campaign.id, true);
+  const out: LoadedAttack[] = [];
+  for (const [i, p] of prepared.entries()) {
+    const combat = await designateSlotActor(tx, ev, actor, userId, current, p.body.attackerId);
+    current = combat.current;
+    out.push(await insertPrepared(ctx, tx, ev, actor, combat, p, keys?.[i] ?? null));
+  }
+  return out;
+}
+
 /**
  * Déclare des attaques (une, ou un lot du MJ) : droits et cibles, tour, préparation par
  * character (première étape de dés, ou résolution d'une action sans dé), puis écriture de
@@ -372,220 +704,26 @@ async function declare(
 ): Promise<LoadedAttack[]> {
   requireActor(v);
   const keys = key ? bodies.map((_, i) => (bodies.length > 1 ? `${key}#${i}` : key)) : null;
-  /** Jets des attaques calculées par le navigateur, relayés à l'historique après l'écriture. */
-  const forwards: AttackRollsInput[] = [];
+  const ctx: DeclareContext = {
+    deps,
+    req,
+    a,
+    userId,
+    v,
+    mode,
+    keys,
+    origin: { userId, campaignId: a.campaign.id, correlationId: req.ctx.correlationId },
+    forwards: [],
+  };
   const run = async (outer: Tx | null) => {
     if (keys) {
       const existing = await findByKeys(outer ?? deps.db, a.campaign.id, userId, keys);
       if (existing.length) return existing;
     }
-    for (const b of bodies) checkDeclaration(v, b.attackerId, b.targets);
-    const combat = await loadCombat(deps.db, a.campaign.id);
-    const state = combat ? stateOf(combat.combat, combat.participants) : null;
-    // Situation du combat (§ 5.7) : décompte des attaques déjà déclarées, celles du lot comprises
-    const tallies: TallyRow[] = [...(combat?.tallies ?? [])];
-    const settings = combat ? settingsOf(combat.combat) : DEFAULT_COMBAT_SETTINGS;
-    if (!v.isGm && !settings.playersActOutsideTurn)
-      for (const b of bodies)
-        if (outOfTurnOf(state, b.attackerId))
-          throw HttpError.conflict('Ce n’est pas le tour de ce personnage', 'not_their_turn');
-
-    // Préparation (règles, instantané, réactions) puis résolution si rien n'est attendu
-    const origin = { userId, campaignId: a.campaign.id, correlationId: req.ctx.correlationId };
-    const prepared: Prepared[] = [];
-    // Identifiants croissants dans l'ordre du lot (UUIDv7 d'une même milliseconde)
-    const attackIds = bodies.map(() => uuidv7()).sort(compareCodeUnits);
-    for (const [i, body] of bodies.entries()) {
-      const visibility = defaultVisibility(body.visibility, v.isGm, settings);
-      const diceHistory = { campaignId: a.campaign.id, authorId: userId, visibility };
-      const dice = effectiveDice(body.dice, settings);
-      const common = {
-        params: body.params ?? {},
-        ...(body.adjustments ? { adjustments: body.adjustments } : {}),
-        dice,
-        diceHistory,
-      };
-      // Attaque déjà calculée par le navigateur de l'attaquant (Théo, 2026-09-30) : le
-      // rapport est rangé tel quel, en attente du MJ ; rien n'est demandé à character
-      if (body.resolved) {
-        const resolution = reportOf(body);
-        const valid = resolution.targets.filter((t) => t.status !== 'failed');
-        if (state)
-          tallies.push(
-            ...rowsOfDeclaration(
-              state.round,
-              body.attackerId,
-              valid.map((t) => t.characterId),
-            ),
-          );
-        prepared.push({
-          body,
-          attackId: attackIds[i]!,
-          targetIds: body.targets,
-          action: { id: body.action, name: body.resolved.actionName },
-          rollMode: body.rollMode ?? 'per_target',
-          snapshot: null,
-          visibility,
-          targets: reportedTargets(body.targets, resolution),
-          resolution,
-          step: null,
-          faces: [],
-        });
-        if (valid.length)
-          forwards.push({
-            campaignId: a.campaign.id,
-            authorId: userId,
-            characterId: body.attackerId,
-            visibility,
-            action: body.action,
-            rollMode: body.rollMode ?? 'per_target',
-            views: valid.flatMap((t) => (t.view ? [t.view] : [])),
-          });
-        continue;
-      }
-      const combatContext = combatContextOf(state, tallies, body.attackerId, body.targets);
-      let p;
-      try {
-        p = await deps.character.prepareAction(
-          {
-            actorId: body.attackerId,
-            action: body.action,
-            targetIds: body.targets,
-            ...(body.rollMode ? { rollMode: body.rollMode } : {}),
-            userId,
-            campaignId: a.campaign.id,
-            ...common,
-            ...(combatContext ? { combat: combatContext } : {}),
-          },
-          origin,
-        );
-      } catch (e) {
-        throw characterFailure(e, req.log, 'préparation d’une attaque');
-      }
-      if (state)
-        tallies.push(
-          ...rowsOfDeclaration(
-            state.round,
-            body.attackerId,
-            p.targets.filter((t) => !t.error).map((t) => t.characterId),
-          ),
-        );
-      let resolution = p.resolution;
-      let step = resolution ? null : p.step;
-      let faces: KnownFace[] = [];
-      const reacting = p.targets.some((t) => !t.error && t.reactionParams.length);
-      // Lot du MJ : tout est tiré d'un coup ; sinon l'attaquant lance la première étape
-      if (!resolution && !reacting && (mode.autoRoll || !step)) {
-        try {
-          const resolved = await deps.character.resolveAction(
-            {
-              snapshot: p.snapshot,
-              rollMode: p.rollMode,
-              reactions: [],
-              serverFallback: true,
-              ...common,
-            },
-            origin,
-          );
-          resolution = resolved.step ? null : resolved.resolution;
-          step = resolved.step;
-          faces = resolved.faces;
-        } catch (e) {
-          throw characterFailure(e, req.log, 'résolution d’une attaque');
-        }
-      }
-      prepared.push({
-        body,
-        attackId: attackIds[i]!,
-        targetIds: body.targets,
-        action: p.action,
-        rollMode: p.rollMode,
-        snapshot: resolution ? null : p.snapshot,
-        visibility,
-        targets: preparedTargets(body.targets, p, resolution),
-        resolution,
-        step,
-        faces,
-      });
-    }
-
-    const write = async (tx: Tx) => {
-      const ctx = eventContext(req);
-      const actor: EventActor = { userId, role: a.role };
-      await lockCampaign(tx, a.campaign.id);
-      let current = await loadCombat(tx, a.campaign.id, true);
-      const out: LoadedAttack[] = [];
-      for (const [i, p] of prepared.entries()) {
-        let state = current ? stateOf(current.combat, current.participants) : null;
-        // Mode slots : la première attaque d'un participant du camp le désigne acteur
-        if (current && state && implicitSlotActor(state, p.body.attackerId)) {
-          await logTurn(tx, current.combat, {
-            reason: 'slot_actor',
-            before: snapshotOf(state),
-            userId,
-          });
-          state = { ...state, currentActorId: p.body.attackerId, turn: state.turn + 1 };
-          current = await saveState(tx, { combat: current.combat, canGoBack: true }, state);
-          await turnChanged(tx, ctx, current, actor, { reason: 'slot_actor' });
-        }
-        const resolved = p.resolution !== null;
-        const status = resolved
-          ? statusAfterResolution(p.targets)
-          : statusBeforeResolution(p.targets);
-        const l = await insertAttack(
-          tx,
-          {
-            id: p.attackId,
-            campaignId: a.campaign.id,
-            combatId: current?.combat.id ?? null,
-            round: current?.combat.round ?? null,
-            turn: current?.combat.turn ?? null,
-            attackerId: p.body.attackerId,
-            actionId: p.action.id,
-            actionName: p.action.name,
-            params: p.body.params ?? {},
-            rollMode: p.rollMode,
-            dice: 'server',
-            visibility: p.visibility,
-            status,
-            outOfTurn: outOfTurnOf(state, p.body.attackerId),
-            selfTarget: p.targetIds.includes(p.body.attackerId),
-            origin: p.body.origin ?? null,
-            presetId: p.body.presetId ?? null,
-            adjustments: p.body.adjustments ?? null,
-            actor: p.resolution
-              ? {
-                  modifications: p.resolution.actor.modifications,
-                  decision: 'pending',
-                  applied: null,
-                }
-              : null,
-            snapshot: p.snapshot ?? null,
-            faces: p.faces,
-            pendingSteps: p.step ? [p.step] : [],
-            autoRoll: mode.autoRoll,
-            idempotencyKey: keys?.[i] ?? null,
-            createdBy: userId,
-            resolvedAt: resolved ? new Date() : null,
-          },
-          p.targets,
-        );
-        if (resolved) {
-          await attackUpdated(tx, ctx, l, actor, status === 'failed' ? 'failed' : 'resolved');
-          await attackResolved(tx, ctx, l, actor);
-        } else
-          await attackUpdated(
-            tx,
-            ctx,
-            l,
-            actor,
-            status === 'awaiting_reactions' ? 'reaction_requested' : 'dice_requested',
-          );
-        out.push(l);
-      }
-      return out;
-    };
-    return outer ? write(outer) : deps.db.transaction(write);
+    const prepared = await prepareAll(ctx, bodies);
+    return outer
+      ? writeAttacks(ctx, prepared, outer)
+      : deps.db.transaction((tx) => writeAttacks(ctx, prepared, tx));
   };
   const loaded = !keys
     ? await run(null)
@@ -598,7 +736,7 @@ async function declare(
       });
   // Historique des dés : jamais bloquant, une panne est journalisée (l'attaque est enregistrée)
   const origin = { userId, campaignId: a.campaign.id, correlationId: req.ctx.correlationId };
-  for (const f of forwards)
+  for (const f of ctx.forwards)
     void deps.character
       .forwardAttackRolls(f, origin)
       .catch((e: unknown) => req.log.warn({ err: e }, 'jet d’attaque non transmis à dice'));
@@ -714,6 +852,45 @@ async function react(
 }
 
 /**
+ * Lanceur permis d'une étape : le MJ, l'auteur ou le joueur qui incarne l'attaquant, ou
+ * pour une étape `roller: target` le joueur de la cible.
+ */
+function canRollStep(
+  l: LoadedAttack,
+  v: AttackViewer,
+  userId: string,
+  step: RollStep | undefined,
+): boolean {
+  if (v.isGm) return true;
+  if ((step?.roller ?? 'author') === 'author')
+    return l.attack.createdBy === userId || v.played.has(l.attack.attackerId);
+  return !!step?.targetId && v.played.has(step.targetId);
+}
+
+/** Paramètres et faces soumis : tous les paramètres de l'étape, des faces de ses dés. */
+function checkStepSubmission(step: RollStep, body: z.output<typeof SubmitRollDice>): void {
+  // Paramètres de l'étape (l'arme, une fois une cible touchée) : tous ceux qu'elle demande
+  const asked = step.params ?? [];
+  const given = Object.keys(body.params ?? {});
+  if (given.some((k) => !asked.includes(k)) || asked.some((k) => !given.includes(k)))
+    throw HttpError.badRequest(
+      `Paramètres attendus pour cette étape : ${asked.join(', ') || 'aucun'}`,
+      'invalid_step_params',
+    );
+  const dice = new Map(step.dice.map((d) => [d.id, d]));
+  for (const r of body.results) {
+    const d = dice.get(r.id);
+    if (!d)
+      throw HttpError.badRequest(`Dé inconnu de l’étape : ${r.id}`, 'invalid_physical_result');
+    if (r.value > d.faces)
+      throw HttpError.badRequest(
+        `Face ${r.value} hors de 1..${d.faces} (dé ${r.id})`,
+        'invalid_physical_result',
+      );
+  }
+}
+
+/**
  * Étape de dés lancée (`…/dice`) : par l'auteur (ou le joueur qui incarne l'attaquant), le MJ
  * à sa place, ou pour une étape `roller: target` le joueur de la cible. Faces lues sur les dés
  * 3D (`results`) ; un dé absent est tiré par le serveur ; `serverFallback` : tout le reste
@@ -735,12 +912,8 @@ async function rollStep(
     const l = await loadAttack(tx, a.campaign.id, attackId, true);
     if (!l || !attackFor(l, v)) throw attackNotFound();
     const step = l.attack.pendingSteps.find((s) => s.id === body.stepId);
-    const allowed =
-      v.isGm ||
-      ((step?.roller ?? 'author') === 'author'
-        ? l.attack.createdBy === userId || v.played.has(l.attack.attackerId)
-        : !!step?.targetId && v.played.has(step.targetId));
-    if (!allowed) throw HttpError.forbidden('Seuls le lanceur de l’étape et le MJ lancent ces dés');
+    if (!canRollStep(l, v, userId, step))
+      throw HttpError.forbidden('Seuls le lanceur de l’étape et le MJ lancent ces dés');
     if (l.attack.status !== 'awaiting_dice' || !step)
       throw HttpError.conflict('Cette étape de dés est déjà passée', 'step_outdated');
     if (isResolving(l.attack))
@@ -748,25 +921,7 @@ async function rollStep(
         'Les dés précédents sont en cours de résolution',
         'resolution_in_progress',
       );
-    // Paramètres de l'étape (l'arme, une fois une cible touchée) : tous ceux qu'elle demande
-    const asked = step.params ?? [];
-    const given = Object.keys(body.params ?? {});
-    if (given.some((k) => !asked.includes(k)) || asked.some((k) => !given.includes(k)))
-      throw HttpError.badRequest(
-        `Paramètres attendus pour cette étape : ${asked.join(', ') || 'aucun'}`,
-        'invalid_step_params',
-      );
-    const dice = new Map(step.dice.map((d) => [d.id, d]));
-    for (const r of body.results) {
-      const d = dice.get(r.id);
-      if (!d)
-        throw HttpError.badRequest(`Dé inconnu de l’étape : ${r.id}`, 'invalid_physical_result');
-      if (r.value > d.faces)
-        throw HttpError.badRequest(
-          `Face ${r.value} hors de 1..${d.faces} (dé ${r.id})`,
-          'invalid_physical_result',
-        );
-    }
+    checkStepSubmission(step, body);
     return { marked: await saveAttack(tx, l, { resolvingSince: new Date() }), step };
   });
   return resolveNext(deps, req, a, actor, marked, {
