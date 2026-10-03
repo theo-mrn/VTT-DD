@@ -1,16 +1,17 @@
-# Règles par défaut de gitleaks, plus une exception : les secrets factices des tests
-# (« secret-… »), seulement dans les fichiers de test
+# Règles par défaut de gitleaks, plus des exceptions. Gitleaks 8.24 (celui de la CI) ne lit que
+# la forme [allowlist] : une seule liste, chaque entrée suffit (chemins OU lignes).
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Secrets factices des tests"
-condition = "AND"
-paths = ['''\.test\.tsx?$''', '''(^|/)src/test/''']
-regexTarget = "line"
-regexes = ['''=\s*['"]secret[-_a-zA-Z0-9]*['"]''']
-
-# Gitleaks 8.24 (celui de la CI) ne lit que la forme [allowlist] ; les [[allowlists]] sont plus récentes
 [allowlist]
-description = "Secrets scellés (Sealed Secrets) : valeurs chiffrées, lisibles par le seul cluster"
+description = "Faux positifs connus"
+# Secrets scellés (Sealed Secrets) : valeurs chiffrées, lisibles par le seul cluster
 paths = ['''infra/cluster/secrets/staging/[^/]+\.yaml$''']
+regexTarget = "line"
+regexes = [
+  # Secrets factices des tests (« secret-… »)
+  '''=\s*['"]secret[-_a-zA-Z0-9]*['"]''',
+  '''['"]secret-interne-de-test-[0-9a-f]+['"]''',
+  # Clé publique d'une application Discord (signature des interactions) : publique par nature
+  '''^\s*DISCORD_PUBLIC_KEY:\s*'[0-9a-f]{64}'\s*$''',
+]

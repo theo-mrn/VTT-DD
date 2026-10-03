@@ -20,6 +20,9 @@ const EXCEPTIONS: Record<string, string> = {
   'DELETE /v1/campaigns/:id/storage/files':
     'Supprime du stockage un fichier que plus rien ne cite (docs/stockage.md) et sa ligne ' +
     'd’inventaire : aucune donnée de la campagne ne change, personne d’autre ne le voit.',
+  'PUT /v1/campaigns/active':
+    'Salle active du joueur (docs/discord.md) : préférence personnelle, lue par ses jets ' +
+    'Discord et par l’activité ; aucune donnée de la campagne ne change, personne d’autre ne la voit.',
 };
 
 describe('garde-fou : chaque route d’écriture émet un événement', () => {
