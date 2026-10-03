@@ -78,28 +78,39 @@ interface GroupeSource {
   lignes: LigneEffet[];
 }
 
+/** Clé du groupe d'un effet : un seul exemplaire rejoint son entrée, sinon la source propre. */
+function cleSource(e: EffetListe): string {
+  const p = e.possession;
+  const propre =
+    e.genre === 'bonus' || !p || (e.genre === 'exemplaire' && p.exemplaires.length > 1);
+  return propre ? e.source : p.entree.id;
+}
+
+/** Groupe d'une source, tel que son premier effet le décrit. */
+function nouveauGroupe(e: EffetListe, cle: string): GroupeSource {
+  const p = e.possession;
+  return {
+    cle,
+    nom: e.nom,
+    sorte: sorteDe(e),
+    famille: familleDe(e),
+    raison: e.statut === 'inactif' ? raisonInactif(e) : null,
+    ...(e.bonus ? { bonus: e.bonus } : {}),
+    ...(e.genre !== 'bonus' && p?.sorte.activable
+      ? { activation: { entree: p.entree.id, actif: p.actif } }
+      : {}),
+    lignes: [],
+  };
+}
+
 function grouper(ctx: ContexteFiche, effets: EffetListe[]): GroupeSource[] {
   const groupes = new Map<string, GroupeSource>();
   for (const e of effets) {
-    const p = e.possession;
     // Un seul exemplaire : ses effets propres rejoignent ceux de l'entrée
-    const propre =
-      e.genre === 'bonus' || !p || (e.genre === 'exemplaire' && p.exemplaires.length > 1);
-    const cle = propre ? e.source : p.entree.id;
+    const cle = cleSource(e);
     let g = groupes.get(cle);
     if (!g) {
-      g = {
-        cle,
-        nom: e.nom,
-        sorte: sorteDe(e),
-        famille: familleDe(e),
-        raison: e.statut === 'inactif' ? raisonInactif(e) : null,
-        ...(e.bonus ? { bonus: e.bonus } : {}),
-        ...(e.genre !== 'bonus' && p?.sorte.activable
-          ? { activation: { entree: p.entree.id, actif: p.actif } }
-          : {}),
-        lignes: [],
-      };
+      g = nouveauGroupe(e, cle);
       groupes.set(cle, g);
     }
     // Nom propre d'un exemplaire (objet personnalisé) plutôt que celui de l'entrée
@@ -335,9 +346,7 @@ function Source({
   onRetirer: (b: BonusLibre) => void;
 }>) {
   const b = g.bonus;
-  const act = g.activation;
   const eteinte = g.raison !== null;
-  const basculables = g.lignes.filter((l) => l.e.basculable).map((l) => l.e.cle);
   const coupes = g.lignes.filter((l) => l.e.statut === 'desactive').length;
   // Interrupteur de la source : allumé si au moins un effet n'est pas coupé
   const allume = b ? b.actif : coupes < g.lignes.length;
@@ -345,8 +354,6 @@ function Source({
     .filter((l) => l.e.statut !== 'desactive')
     .map((l) => l.libelle)
     .join(' · ');
-  const duree = b?.duree === undefined ? null : `${b.duree} round(s)`;
-  const meta = b ? [b.source, duree].filter(Boolean).join(' · ') : null;
   const idDetail = `bonus-${g.cle.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   return (
     <li className="border-b border-border last:border-b-0">
@@ -378,89 +385,149 @@ function Source({
           </span>
           {g.raison && <span className="shrink-0 text-[11px] text-subtle">{g.raison}</span>}
         </button>
-        {b && (
-          <>
-            <Switch
-              className="scale-90"
-              checked={b.actif}
-              disabled={!ecriture}
-              onCheckedChange={() => onBonus(b)}
-              aria-label={`${b.actif ? 'Désactiver' : 'Activer'} le bonus ${b.nom}`}
-            />
-            {ecriture && (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => onRetirer(b)}
-                aria-label={`Retirer le bonus ${b.nom}`}
-              >
-                <Trash2 />
-              </Button>
-            )}
-          </>
-        )}
-        {!b && act && (
-          <Switch
-            className="scale-90"
-            checked={act.actif}
-            disabled={!onActiver}
-            onCheckedChange={(v) => onActiver?.(act.entree, v)}
-            aria-label={`${act.actif ? 'Désactiver' : 'Activer'} ${g.nom}`}
-          />
-        )}
-        {!b && !act && basculables.length > 0 && (
-          <Switch
-            className="scale-90"
-            checked={allume && !eteinte}
-            disabled={!peutBasculer || eteinte}
-            onCheckedChange={(v) => onEffets(basculables, v)}
-            aria-label={`${allume ? 'Désactiver' : 'Activer'} les bonus de ${g.nom}${
-              g.raison ? `, ${g.raison}` : ''
-            }`}
-          />
-        )}
+        <InterrupteurSource
+          g={g}
+          allume={allume}
+          ecriture={ecriture}
+          peutBasculer={peutBasculer}
+          onEffets={onEffets}
+          onActiver={onActiver}
+          onBonus={onBonus}
+          onRetirer={onRetirer}
+        />
       </div>
       {ouvert && (
-        <ul id={idDetail} className="pb-1.5 pl-6">
-          {meta && <li className="pb-0.5 text-[11px] text-subtle">{meta}</li>}
-          {g.sorte && !b && <li className="pb-0.5 text-[11px] text-subtle">{g.sorte}</li>}
-          {g.lignes.map(({ e, libelle, precision }) => {
-            const coupe = e.statut === 'desactive';
-            return (
-              <li
-                key={e.cle}
-                className={cn(
-                  'flex h-7 items-center gap-2',
-                  e.statut === 'actif' ? 'text-foreground' : 'text-subtle',
-                )}
-              >
-                <span
-                  className={cn(
-                    'size-1.5 shrink-0 rounded-full',
-                    e.statut === 'actif' ? 'bg-primary' : 'bg-surface-3',
-                  )}
-                  aria-hidden
-                />
-                <span className="min-w-0 flex-1 truncate text-xs">
-                  <span className={cn(coupe && 'line-through')}>{libelle}</span>
-                  {precision && <span className="text-[11px] text-subtle"> · {precision}</span>}
-                  {coupe && <span className="text-[11px] text-subtle"> · désactivé</span>}
-                </span>
-                {e.basculable && (
-                  <Switch
-                    className="scale-75"
-                    checked={!coupe && !eteinte}
-                    disabled={!peutBasculer || eteinte}
-                    onCheckedChange={(v) => onEffets([e.cle], v)}
-                    aria-label={`${coupe ? 'Activer' : 'Désactiver'} ${libelle} (${g.nom})`}
-                  />
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <DetailSource id={idDetail} g={g} peutBasculer={peutBasculer} onEffets={onEffets} />
       )}
     </li>
+  );
+}
+
+/** Interrupteur d'une source : bonus libre (et sa corbeille), source activable, ou ses effets. */
+function InterrupteurSource({
+  g,
+  allume,
+  ecriture,
+  peutBasculer,
+  onEffets,
+  onActiver,
+  onBonus,
+  onRetirer,
+}: Readonly<{
+  g: GroupeSource;
+  allume: boolean;
+  ecriture: boolean;
+  peutBasculer: boolean;
+  onEffets: (cles: string[], actif: boolean) => void;
+  onActiver: ((entree: string, actif: boolean) => void) | undefined;
+  onBonus: (b: BonusLibre) => void;
+  onRetirer: (b: BonusLibre) => void;
+}>) {
+  const b = g.bonus;
+  const act = g.activation;
+  const eteinte = g.raison !== null;
+  const basculables = g.lignes.filter((l) => l.e.basculable).map((l) => l.e.cle);
+  if (b)
+    return (
+      <>
+        <Switch
+          className="scale-90"
+          checked={b.actif}
+          disabled={!ecriture}
+          onCheckedChange={() => onBonus(b)}
+          aria-label={`${b.actif ? 'Désactiver' : 'Activer'} le bonus ${b.nom}`}
+        />
+        {ecriture && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => onRetirer(b)}
+            aria-label={`Retirer le bonus ${b.nom}`}
+          >
+            <Trash2 />
+          </Button>
+        )}
+      </>
+    );
+  if (act)
+    return (
+      <Switch
+        className="scale-90"
+        checked={act.actif}
+        disabled={!onActiver}
+        onCheckedChange={(v) => onActiver?.(act.entree, v)}
+        aria-label={`${act.actif ? 'Désactiver' : 'Activer'} ${g.nom}`}
+      />
+    );
+  if (basculables.length === 0) return null;
+  return (
+    <Switch
+      className="scale-90"
+      checked={allume && !eteinte}
+      disabled={!peutBasculer || eteinte}
+      onCheckedChange={(v) => onEffets(basculables, v)}
+      aria-label={`${allume ? 'Désactiver' : 'Activer'} les bonus de ${g.nom}${
+        g.raison ? `, ${g.raison}` : ''
+      }`}
+    />
+  );
+}
+
+/** Détail déplié d'une source : provenance du bonus libre ou sorte, puis chaque effet. */
+function DetailSource({
+  id,
+  g,
+  peutBasculer,
+  onEffets,
+}: Readonly<{
+  id: string;
+  g: GroupeSource;
+  peutBasculer: boolean;
+  onEffets: (cles: string[], actif: boolean) => void;
+}>) {
+  const b = g.bonus;
+  const eteinte = g.raison !== null;
+  const duree = b?.duree === undefined ? null : `${b.duree} round(s)`;
+  const meta = b ? [b.source, duree].filter(Boolean).join(' · ') : null;
+  return (
+    <ul id={id} className="pb-1.5 pl-6">
+      {meta && <li className="pb-0.5 text-[11px] text-subtle">{meta}</li>}
+      {g.sorte && !b && <li className="pb-0.5 text-[11px] text-subtle">{g.sorte}</li>}
+      {g.lignes.map(({ e, libelle, precision }) => {
+        const coupe = e.statut === 'desactive';
+        return (
+          <li
+            key={e.cle}
+            className={cn(
+              'flex h-7 items-center gap-2',
+              e.statut === 'actif' ? 'text-foreground' : 'text-subtle',
+            )}
+          >
+            <span
+              className={cn(
+                'size-1.5 shrink-0 rounded-full',
+                e.statut === 'actif' ? 'bg-primary' : 'bg-surface-3',
+              )}
+              aria-hidden
+            />
+            <span className="min-w-0 flex-1 truncate text-xs">
+              <span className={cn(coupe && 'line-through')}>{libelle}</span>
+              {precision && <span className="text-[11px] text-subtle"> · {precision}</span>}
+              {coupe && <span className="text-[11px] text-subtle"> · désactivé</span>}
+            </span>
+            {e.basculable && (
+              <Switch
+                className="scale-75"
+                checked={!coupe && !eteinte}
+                disabled={!peutBasculer || eteinte}
+                onCheckedChange={(v) => onEffets([e.cle], v)}
+                aria-label={`${coupe ? 'Activer' : 'Désactiver'} ${libelle} (${g.nom})`}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

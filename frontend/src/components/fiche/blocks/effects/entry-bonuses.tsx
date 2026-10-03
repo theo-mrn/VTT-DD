@@ -88,6 +88,37 @@ function lignes(fiche: Fiche, entry: Entree, sourcePropre: string | null): Ligne
 /** Titre d'une section du détail (même style que les autres titres du détail). */
 const TITRE = 'text-sm font-semibold text-foreground';
 
+/** Pourquoi un bonus propre ne peut pas être ajouté (cible refusée, aucun attribut), sinon null. */
+function ajoutBloque(own: EntryBonusEdit['own'], peutAjouter: boolean): string | null {
+  if (own && !own.cible.ok) return own.cible.raison;
+  if (own && !peutAjouter) return 'Aucun attribut du personnage ne peut recevoir de bonus.';
+  return null;
+}
+
+/** « 2 actifs / 3 » : effets de l'entrée possédée qui s'appliquent. */
+function CompteActifs({ actifs, total }: Readonly<{ actifs: number; total: number }>) {
+  return (
+    <span className="font-mono text-xs tabular text-subtle">
+      {actifs} actif{actifs > 1 ? 's' : ''} / {total}
+    </span>
+  );
+}
+
+/** Effets qui ne sont pas des bonus : rangs offerts, marques d'entrées. */
+function EffetsMarques({ marques }: Readonly<{ marques: string[] }>) {
+  if (marques.length === 0) return null;
+  return (
+    <section className="space-y-2">
+      <h3 className={TITRE}>Effets</h3>
+      <ul className="space-y-0.5 text-[13px] text-muted-foreground">
+        {marques.map((t, i) => (
+          <li key={`${t}-${i}`}>{t}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function EntryBonuses({
   fiche,
   entry,
@@ -120,9 +151,7 @@ export function EntryBonuses({
   if (!liste.length && !marques.length && !own) return null;
 
   const propres = possession?.effets ?? [];
-  let bloque: string | null = null;
-  if (own && !own.cible.ok) bloque = own.cible.raison;
-  else if (own && !peutAjouter) bloque = 'Aucun attribut du personnage ne peut recevoir de bonus.';
+  const bloque = ajoutBloque(own, peutAjouter);
   const retirer = (index: number) => own?.set(propres.filter((_, i) => i !== index));
   const fermerAjout = () => {
     setAjout(false);
@@ -175,11 +204,7 @@ export function EntryBonuses({
             <h3 id={`${id}-titre`} className={TITRE}>
               Bonus
             </h3>
-            {possedee && liste.length > 0 && (
-              <span className="font-mono text-xs tabular text-subtle">
-                {actifs} actif{actifs > 1 ? 's' : ''} / {liste.length}
-              </span>
-            )}
+            {possedee && liste.length > 0 && <CompteActifs actifs={actifs} total={liste.length} />}
           </div>
           {bloque && (
             <p id={`${id}-bloque`} className="sr-only">
@@ -220,16 +245,7 @@ export function EntryBonuses({
           )}
         </section>
       )}
-      {marques.length > 0 && (
-        <section className="space-y-2">
-          <h3 className={TITRE}>Effets</h3>
-          <ul className="space-y-0.5 text-[13px] text-muted-foreground">
-            {marques.map((t, i) => (
-              <li key={`${t}-${i}`}>{t}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <EffetsMarques marques={marques} />
     </div>
   );
 }

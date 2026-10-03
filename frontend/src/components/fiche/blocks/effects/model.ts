@@ -171,57 +171,73 @@ function cibleJet(fiche: Fiche, e: Extract<Effet, { sur: 'jet' }>): string {
   return morceaux.join(' ');
 }
 
+/** Effet sur un attribut : « FOR +2 », « DEF ×2 », « PV au moins 1 ». */
+function libelleAttribut(
+  fiche: Fiche,
+  e: Extract<Effet, { sur: 'attribut' }>,
+  valeur: EffetListe['valeur'],
+): string {
+  const nom = attribut(fiche, e.attribut);
+  const v = nombre(valeur, e.valeur);
+  switch (e.operation) {
+    case 'ajouter':
+      return `${nom} ${signe(v)}`;
+    case 'multiplier':
+      return `${nom} ×${v}`;
+    case 'fixer':
+      return `${nom} = ${v}`;
+    case 'minimum':
+      return `${nom} au moins ${v}`;
+    case 'maximum':
+      return `${nom} au plus ${v}`;
+  }
+  return nom;
+}
+
+/** Effet sur un jet : dés, variable ou bonus, suivi de ce qu'il vise. */
+function libelleJet(
+  fiche: Fiche,
+  e: Extract<Effet, { sur: 'jet' }>,
+  valeur: EffetListe['valeur'],
+): string {
+  const a = e.ajout;
+  const cible = cibleJet(fiche, e);
+  const avec = (base: string) => (cible ? `${base} ${cible}` : base);
+  if (!a) return e.description ?? avec('Modifie le jet');
+  if ('de' in a) {
+    const n = nombre(valeur, a.nombre);
+    return avec(`${signe(n)} ${de(fiche, a.de, n)}`);
+  }
+  if ('ameliorer' in a) {
+    const n = nombre(valeur, a.nombre);
+    return avec(`Améliore ${n} ${de(fiche, a.ameliorer, n)} en ${de(fiche, a.vers, 1)}`);
+  }
+  if ('retrograder' in a) {
+    const n = nombre(valeur, a.nombre);
+    return avec(`Rétrograde ${n} ${de(fiche, a.retrograder, n)} en ${de(fiche, a.vers, 1)}`);
+  }
+  if ('retirer' in a) {
+    const n = nombre(valeur, a.nombre);
+    return avec(`−${n} ${de(fiche, a.retirer, n)}`);
+  }
+  if ('variable' in a) return avec(`${a.variable} ${signe(nombre(valeur, a.ajouter))}`);
+  const bonus = signe(nombre(valeur, a.bonus));
+  return cible.startsWith('au') ? `${bonus} ${cible}` : avec(`${bonus} au jet`);
+}
+
 /** Libellé principal d'un effet : sa cible et sa valeur évaluée. */
 export function libelleEffet(fiche: Fiche, x: Pick<EffetListe, 'effet' | 'valeur'>): string {
   const e = x.effet;
   switch (e.sur) {
-    case 'attribut': {
-      const nom = attribut(fiche, e.attribut);
-      const v = nombre(x.valeur, e.valeur);
-      switch (e.operation) {
-        case 'ajouter':
-          return `${nom} ${signe(v)}`;
-        case 'multiplier':
-          return `${nom} ×${v}`;
-        case 'fixer':
-          return `${nom} = ${v}`;
-        case 'minimum':
-          return `${nom} au moins ${v}`;
-        case 'maximum':
-          return `${nom} au plus ${v}`;
-      }
-      return nom;
-    }
+    case 'attribut':
+      return libelleAttribut(fiche, e, x.valeur);
     case 'rang': {
       const cible = fiche.systeme.entrees.get(e.entree)?.nom ?? e.entree;
       const v = nombre(x.valeur, e.valeur);
       return v === 1 ? `+1 rang en ${cible}` : `${signe(v)} rangs en ${cible}`;
     }
-    case 'jet': {
-      const a = e.ajout;
-      const cible = cibleJet(fiche, e);
-      const avec = (base: string) => (cible ? `${base} ${cible}` : base);
-      if (!a) return e.description ?? avec('Modifie le jet');
-      if ('de' in a) {
-        const n = nombre(x.valeur, a.nombre);
-        return avec(`${signe(n)} ${de(fiche, a.de, n)}`);
-      }
-      if ('ameliorer' in a) {
-        const n = nombre(x.valeur, a.nombre);
-        return avec(`Améliore ${n} ${de(fiche, a.ameliorer, n)} en ${de(fiche, a.vers, 1)}`);
-      }
-      if ('retrograder' in a) {
-        const n = nombre(x.valeur, a.nombre);
-        return avec(`Rétrograde ${n} ${de(fiche, a.retrograder, n)} en ${de(fiche, a.vers, 1)}`);
-      }
-      if ('retirer' in a) {
-        const n = nombre(x.valeur, a.nombre);
-        return avec(`−${n} ${de(fiche, a.retirer, n)}`);
-      }
-      if ('variable' in a) return avec(`${a.variable} ${signe(nombre(x.valeur, a.ajouter))}`);
-      const bonus = signe(nombre(x.valeur, a.bonus));
-      return cible.startsWith('au') ? `${bonus} ${cible}` : avec(`${bonus} au jet`);
-    }
+    case 'jet':
+      return libelleJet(fiche, e, x.valeur);
     case 'degats': {
       const types = e.types?.length ? ` (${e.types.join(', ')})` : '';
       const v = nombre(x.valeur, e.valeur);

@@ -91,6 +91,23 @@ function egalite(n: Noeud): { variable: string; valeur: string; egal: boolean } 
   return { variable: v.nom, valeur: t.v, egal: n.op === '==' };
 }
 
+type Binaire = Extract<Noeud, { t: 'binaire' }>;
+type Appel = Extract<Noeud, { t: 'appel' }>;
+type Unaire = Extract<Noeud, { t: 'unaire' }>;
+
+/** Compte ou somme des entrées en usage d'une sorte (« nombre d’armes en usage »). */
+function operandeAppel(fiche: Fiche, n: Appel): string {
+  const [a, b] = n.args;
+  const sorte = a?.t === 'texte' ? fiche.systeme.sortes.get(a.v) : undefined;
+  if (n.fn === 'compte_actifs' && sorte) {
+    const nom = (sorte.nomPluriel ?? sorte.nom).toLowerCase();
+    return `nombre ${/^[aeéèêiîoôuyh]/.test(nom) ? 'd’' : 'de '}${nom} en usage`;
+  }
+  if (n.fn === 'somme_actifs' && sorte && b?.t === 'texte')
+    return `${champ(fiche, sorte.id, b.v)?.nom ?? b.v} en usage`;
+  return afficher(n);
+}
+
 function operande(fiche: Fiche, n: Noeud): string {
   switch (n.t) {
     case 'variable':
@@ -103,76 +120,94 @@ function operande(fiche: Fiche, n: Noeud): string {
       if (ARITHMETIQUE.has(n.op))
         return `${operande(fiche, n.g)} ${n.op === '*' ? '×' : n.op} ${operande(fiche, n.d)}`;
       return afficher(n);
-    case 'appel': {
-      const [a, b] = n.args;
-      const sorte = a?.t === 'texte' ? fiche.systeme.sortes.get(a.v) : undefined;
-      if (n.fn === 'compte_actifs' && sorte) {
-        const nom = (sorte.nomPluriel ?? sorte.nom).toLowerCase();
-        return `nombre ${/^[aeéèêiîoôuyh]/.test(nom) ? 'd’' : 'de '}${nom} en usage`;
-      }
-      if (n.fn === 'somme_actifs' && sorte && b?.t === 'texte')
-        return `${champ(fiche, sorte.id, b.v)?.nom ?? b.v} en usage`;
-      return afficher(n);
-    }
+    case 'appel':
+      return operandeAppel(fiche, n);
     default:
       return afficher(n);
   }
 }
 
-function decrire(fiche: Fiche, n: Noeud): string {
-  if (n.t === 'binaire' && n.op === 'ou') {
-    // Égalités sur une même variable regroupées : « Action : A, B, C »
-    const groupes = new Map<string, string[]>();
-    const autres: string[] = [];
-    for (const f of chaine(n, 'ou')) {
-      const e = egalite(f);
-      if (e?.egal) {
-        const nom = nomVariable(fiche, e.variable);
-        groupes.set(nom, [...(groupes.get(nom) ?? []), nomValeur(fiche, e.variable, e.valeur)]);
-      } else autres.push(decrire(fiche, f));
-    }
-    // Variables aux mêmes valeurs fusionnées : « Compétence ou Talent · Compétence : X »
-    const parValeurs = new Map<string, string[]>();
-    for (const [nom, vs] of groupes) {
-      const cle = vs.join(', ');
-      parValeurs.set(cle, [...(parValeurs.get(cle) ?? []), nom]);
-    }
-    return [...[...parValeurs].map(([vs, noms]) => `${noms.join(' ou ')} : ${vs}`), ...autres].join(
-      ' ou ',
-    );
+/** Alternatives : égalités sur une même variable regroupées (« Action : A, B, C »). */
+function decrireOu(fiche: Fiche, n: Binaire): string {
+  const groupes = new Map<string, string[]>();
+  const autres: string[] = [];
+  for (const f of chaine(n, 'ou')) {
+    const e = egalite(f);
+    if (e?.egal) {
+      const nom = nomVariable(fiche, e.variable);
+      groupes.set(nom, [...(groupes.get(nom) ?? []), nomValeur(fiche, e.variable, e.valeur)]);
+    } else autres.push(decrire(fiche, f));
   }
-  if (n.t === 'binaire' && n.op === 'et')
-    return chaine(n, 'et')
-      .map((f) => {
-        const t = decrire(fiche, f);
-        return f.t === 'binaire' && f.op === 'ou' ? `(${t})` : t;
-      })
-      .join(' et ');
+  // Variables aux mêmes valeurs fusionnées : « Compétence ou Talent · Compétence : X »
+  const parValeurs = new Map<string, string[]>();
+  for (const [nom, vs] of groupes) {
+    const cle = vs.join(', ');
+    parValeurs.set(cle, [...(parValeurs.get(cle) ?? []), nom]);
+  }
+  return [...[...parValeurs].map(([vs, noms]) => `${noms.join(' ou ')} : ${vs}`), ...autres].join(
+    ' ou ',
+  );
+}
 
-  const e = egalite(n);
-  if (e) {
-    const nom = nomVariable(fiche, e.variable);
-    if (e.valeur === '') return e.egal ? `sans ${nom}` : `avec ${nom}`;
-    const v = nomValeur(fiche, e.variable, e.valeur);
-    return e.egal ? `${nom} : ${v}` : `${nom} autre que ${v}`;
-  }
-  if (n.t === 'binaire' && n.op === '>' && n.d.t === 'nombre' && n.d.v === 0 && n.g.t === 'appel')
+/** Conjonction : chaque membre, les alternatives entre parenthèses. */
+function decrireEt(fiche: Fiche, n: Binaire): string {
+  return chaine(n, 'et')
+    .map((f) => {
+      const t = decrire(fiche, f);
+      return f.t === 'binaire' && f.op === 'ou' ? `(${t})` : t;
+    })
+    .join(' et ');
+}
+
+/** `variable == "texte"` : « Nom : valeur », « Nom autre que valeur », « sans Nom ». */
+function decrireEgalite(
+  fiche: Fiche,
+  e: { variable: string; valeur: string; egal: boolean },
+): string {
+  const nom = nomVariable(fiche, e.variable);
+  if (e.valeur === '') return e.egal ? `sans ${nom}` : `avec ${nom}`;
+  const v = nomValeur(fiche, e.variable, e.valeur);
+  return e.egal ? `${nom} : ${v}` : `${nom} autre que ${v}`;
+}
+
+/** Comparaison : « nombre d’armes en usage » pour `appel > 0`, sinon les deux membres. */
+function decrireComparaison(fiche: Fiche, n: Binaire): string | null {
+  if (n.op === '>' && n.d.t === 'nombre' && n.d.v === 0 && n.g.t === 'appel')
     return operande(fiche, n.g);
-  if (n.t === 'binaire' && n.op in COMPARAISONS)
+  if (n.op in COMPARAISONS)
     return `${operande(fiche, n.g)} ${COMPARAISONS[n.op]} ${operande(fiche, n.d)}`;
-  if (n.t === 'unaire' && n.op === 'non')
-    return n.arg.t === 'appel' && n.arg.fn === 'possede' && n.arg.args[0]?.t === 'texte'
-      ? `sans ${fiche.systeme.entrees.get(n.arg.args[0].v)?.nom ?? n.arg.args[0].v}`
-      : `pas ${decrire(fiche, n.arg)}`;
-  if (n.t === 'appel') {
-    const [a, b] = n.args;
-    const texte = b?.t === 'texte' ? b.v : undefined;
-    if (n.fn === 'a_etiquette' && a && texte) return `${operande(fiche, a)} « ${lisible(texte)} »`;
-    if ((n.fn === 'marquee' || n.fn === 'marque') && a && texte)
-      return `${operande(fiche, a)} de ${lisible(texte)}`;
-    if (n.fn === 'possede' && a?.t === 'texte')
-      return `possède ${fiche.systeme.entrees.get(a.v)?.nom ?? a.v}`;
-  }
+  return null;
+}
+
+/** Négation : « sans X » pour une possession, sinon « pas … ». */
+function decrireNon(fiche: Fiche, n: Unaire): string {
+  return n.arg.t === 'appel' && n.arg.fn === 'possede' && n.arg.args[0]?.t === 'texte'
+    ? `sans ${fiche.systeme.entrees.get(n.arg.args[0].v)?.nom ?? n.arg.args[0].v}`
+    : `pas ${decrire(fiche, n.arg)}`;
+}
+
+/** Appels lisibles : étiquette, marque, possession. */
+function decrireAppel(fiche: Fiche, n: Appel): string | null {
+  const [a, b] = n.args;
+  const texte = b?.t === 'texte' ? b.v : undefined;
+  if (n.fn === 'a_etiquette' && a && texte) return `${operande(fiche, a)} « ${lisible(texte)} »`;
+  if ((n.fn === 'marquee' || n.fn === 'marque') && a && texte)
+    return `${operande(fiche, a)} de ${lisible(texte)}`;
+  if (n.fn === 'possede' && a?.t === 'texte')
+    return `possède ${fiche.systeme.entrees.get(a.v)?.nom ?? a.v}`;
+  return null;
+}
+
+function decrire(fiche: Fiche, n: Noeud): string {
+  if (n.t === 'binaire' && n.op === 'ou') return decrireOu(fiche, n);
+  if (n.t === 'binaire' && n.op === 'et') return decrireEt(fiche, n);
+  const e = egalite(n);
+  if (e) return decrireEgalite(fiche, e);
+  const comparaison = n.t === 'binaire' ? decrireComparaison(fiche, n) : null;
+  if (comparaison !== null) return comparaison;
+  if (n.t === 'unaire' && n.op === 'non') return decrireNon(fiche, n);
+  const appel = n.t === 'appel' ? decrireAppel(fiche, n) : null;
+  if (appel !== null) return appel;
   if (n.t === 'variable') return nomVariable(fiche, n.nom);
   return afficher(n);
 }
