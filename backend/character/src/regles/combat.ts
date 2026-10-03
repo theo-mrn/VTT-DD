@@ -22,6 +22,7 @@ import {
   vueActeur,
   type BonusLibre,
   type CoteJet,
+  type EntiteChargee,
   type EtatEntite,
   type JetDes,
   type JetNumeriqueResultat,
@@ -189,6 +190,84 @@ export function vueCible(systeme: SystemeCharge, r: ResultatAction): AttackTarge
 
 // ─── Décisions du MJ → moteur ─────────────────────────────────────────────────
 
+/** Vérification en cours des modifications décidées pour un type d'entité. */
+interface Verification {
+  systeme: SystemeCharge;
+  type: string;
+  entite: EntiteChargee;
+  erreurs: string[];
+  sortie: Modification[];
+}
+
+/** Refus d'une entrée que le personnage touché ne peut pas posséder ; null si elle l'est. */
+function refusPossession(v: Verification, id: string): string | null {
+  const e = v.systeme.entrees.get(id);
+  if (!e) return `Entrée inconnue du système : ${id}`;
+  if (!v.systeme.sortes.get(e.sorte)?.pour.includes(v.type))
+    return `${e.nom} n’est pas possédable par ${v.entite.type.nom}`;
+  return null;
+}
+
+/** Modification d'un attribut de base ou d'une ressource. */
+function modificationAttribut(
+  v: Verification,
+  m: Extract<AttackModificationInput, { kind: 'attribute' }>,
+): void {
+  const a = v.entite.attributs.get(m.attribute);
+  if (!a || (a.nature !== 'base' && a.nature !== 'ressource')) {
+    v.erreurs.push(`Attribut de base ou ressource attendu : ${m.attribute}`);
+    return;
+  }
+  if (
+    m.damageType !== undefined &&
+    !v.systeme.source.typesDegats.some((t) => t.id === m.damageType)
+  )
+    v.erreurs.push(`Type de dégâts inconnu : ${m.damageType}`);
+  v.sortie.push({
+    entite: 'cible',
+    attribut: m.attribute,
+    operation: OPERATION_FRANCAISE[m.operation] ?? 'fixer',
+    valeur: m.value,
+    ...(m.damageType !== undefined ? { type: m.damageType } : {}),
+  });
+}
+
+/** Entrée donnée ou retirée. */
+function modificationEntree(
+  v: Verification,
+  m: Exclude<AttackModificationInput, { kind: 'attribute' }>,
+): void {
+  const refus = refusPossession(v, m.entry);
+  if (refus) {
+    v.erreurs.push(refus);
+    return;
+  }
+  v.sortie.push({
+    entite: 'cible',
+    entree: m.entry,
+    operation: m.operation === 'give' ? 'donner' : 'retirer',
+    rangs: m.ranks,
+    ...(m.duration !== undefined ? { duree: m.duration } : {}),
+    ...(m.instance !== undefined ? { exemplaire: m.instance } : {}),
+  });
+}
+
+/** Table tirée : son entrée, si elle est celle d'une de ses lignes, est donnée. */
+function modificationTable(v: Verification, t: { table: string; entry: string | null }): void {
+  if (!v.systeme.tables.has(t.table)) {
+    v.erreurs.push(`Table inconnue : ${t.table}`);
+    return;
+  }
+  if (t.entry === null) return;
+  if (!ligneDeTable(v.systeme, t.table, t.entry)) {
+    v.erreurs.push(`${t.entry} n’est l’entrée d’aucune ligne de la table ${t.table}`);
+    return;
+  }
+  const refus = refusPossession(v, t.entry);
+  if (refus) v.erreurs.push(refus);
+  else v.sortie.push({ entite: 'cible', entree: t.entry, operation: 'donner', rangs: 1 });
+}
+
 /**
  * Modifications décidées (contrat) → moteur, vérifiées contre le type d'entité du personnage
  * touché : attribut de base ou ressource, entrée connue et possédable ; tables : l'entrée d'une
@@ -204,64 +283,12 @@ export function modificationsDecidees(
   const erreurs: string[] = [];
   const sortie: Modification[] = [];
   if (!entite) return { modifications: [], erreurs: [`Type d’entité inconnu : ${type}`] };
-  const possedable = (id: string) => {
-    const e = systeme.entrees.get(id);
-    if (!e) return `Entrée inconnue du système : ${id}`;
-    if (!systeme.sortes.get(e.sorte)?.pour.includes(type))
-      return `${e.nom} n’est pas possédable par ${entite.type.nom}`;
-    return null;
-  };
-
+  const v: Verification = { systeme, type, entite, erreurs, sortie };
   for (const m of modifications) {
-    if (m.kind === 'attribute') {
-      const a = entite.attributs.get(m.attribute);
-      if (!a || (a.nature !== 'base' && a.nature !== 'ressource')) {
-        erreurs.push(`Attribut de base ou ressource attendu : ${m.attribute}`);
-        continue;
-      }
-      if (
-        m.damageType !== undefined &&
-        !systeme.source.typesDegats.some((t) => t.id === m.damageType)
-      )
-        erreurs.push(`Type de dégâts inconnu : ${m.damageType}`);
-      sortie.push({
-        entite: 'cible',
-        attribut: m.attribute,
-        operation: OPERATION_FRANCAISE[m.operation] ?? 'fixer',
-        valeur: m.value,
-        ...(m.damageType !== undefined ? { type: m.damageType } : {}),
-      });
-      continue;
-    }
-    const refus = possedable(m.entry);
-    if (refus) {
-      erreurs.push(refus);
-      continue;
-    }
-    sortie.push({
-      entite: 'cible',
-      entree: m.entry,
-      operation: m.operation === 'give' ? 'donner' : 'retirer',
-      rangs: m.ranks,
-      ...(m.duration !== undefined ? { duree: m.duration } : {}),
-      ...(m.instance !== undefined ? { exemplaire: m.instance } : {}),
-    });
+    if (m.kind === 'attribute') modificationAttribut(v, m);
+    else modificationEntree(v, m);
   }
-
-  for (const t of tables) {
-    if (!systeme.tables.has(t.table)) {
-      erreurs.push(`Table inconnue : ${t.table}`);
-      continue;
-    }
-    if (t.entry === null) continue;
-    if (!ligneDeTable(systeme, t.table, t.entry)) {
-      erreurs.push(`${t.entry} n’est l’entrée d’aucune ligne de la table ${t.table}`);
-      continue;
-    }
-    const refus = possedable(t.entry);
-    if (refus) erreurs.push(refus);
-    else sortie.push({ entite: 'cible', entree: t.entry, operation: 'donner', rangs: 1 });
-  }
+  for (const t of tables) modificationTable(v, t);
   return { modifications: sortie, erreurs };
 }
 
