@@ -93,81 +93,9 @@ export const sceneName = (ctx: Pick<PortalContext, 'scenes'>, id: string | null)
 
 /** Entrées du menu d'un portail (MJ) et « Emprunter » (joueur). */
 export function portalActions(ctx: PortalContext, entities: readonly MapEntity[]): MenuItem[] {
-  const { engine, travel } = ctx;
   const single = entities.length === 1 ? entities[0]! : null;
-  if (!isGm(engine.viewer)) {
-    if (!single) return [];
-    const p = portalOf(single);
-    const mine = travel.charactersInside(p);
-    return [
-      {
-        id: 'portal:use',
-        label: mine.length ? 'Emprunter' : 'Trop loin',
-        icon: LogIn,
-        primary: true,
-        forPlayers: true,
-        disabled: !mine.length,
-        run: () => void travel.use(p, { characterIds: mine }),
-      },
-    ];
-  }
-  const items: MenuItem[] = [];
-  if (single) {
-    const p = portalOf(single);
-    const inside = travel.charactersInside(p);
-    const ready = hasDestination(p);
-    items.push(
-      {
-        id: 'portal:party',
-        label: 'Faire passer tout le groupe',
-        icon: Users,
-        disabled: !ready,
-        run: () => void travel.use(p, { party: true }),
-      },
-      {
-        id: 'portal:zone',
-        label: inside.length
-          ? `Faire passer la zone (${inside.length})`
-          : 'Faire passer la zone (personne)',
-        icon: UsersRound,
-        disabled: !ready || !inside.length,
-        run: () => void travel.use(p, { characterIds: inside }),
-      },
-    );
-    if (p.kind === 'same_map' && p.target) {
-      const twin = p.linkedPortalId ? engine.entity(p.linkedPortalId) : undefined;
-      items.push({
-        id: 'portal:goto',
-        label: twin ? 'Aller au retour' : 'Aller à l’arrivée',
-        icon: Focus,
-        run: () => {
-          if (twin) engine.selection.replace([twin.id]);
-          engine.focusOn(p.target!);
-        },
-      });
-    } else if (p.kind === 'scene_change' && p.targetMapId && ctx.openScene)
-      items.push({
-        id: 'portal:open',
-        label: `Ouvrir « ${sceneName(ctx, p.targetMapId)} »`,
-        icon: MapPinned,
-        run: () => ctx.openScene?.(p.targetMapId),
-      });
-    if (p.linkedPortalId)
-      items.push({
-        id: 'portal:unlink',
-        label: 'Délier le retour',
-        icon: Link2Off,
-        run: () =>
-          void patchPortals(ctx, [single], () => ({ linkedPortalId: null }), 'Délier le retour'),
-      });
-    else if (ready)
-      items.push({
-        id: 'portal:return',
-        label: 'Poser le retour',
-        icon: ArrowRightLeft,
-        run: () => ctx.placeReturn(p),
-      });
-  }
+  if (!isGm(ctx.engine.viewer)) return single ? [useItem(ctx, single)] : [];
+  const items: MenuItem[] = single ? singlePortalItems(ctx, single) : [];
   const allAuto = entities.every((e) => portalOf(e).auto);
   items.push({
     id: 'portal:auto',
@@ -183,6 +111,104 @@ export function portalActions(ctx: PortalContext, entities: readonly MapEntity[]
       ),
   });
   return items;
+}
+
+/** « Emprunter » (joueur) : ses personnages dans la zone passent. */
+function useItem(ctx: PortalContext, single: MapEntity): MenuItem {
+  const p = portalOf(single);
+  const mine = ctx.travel.charactersInside(p);
+  return {
+    id: 'portal:use',
+    label: mine.length ? 'Emprunter' : 'Trop loin',
+    icon: LogIn,
+    primary: true,
+    forPlayers: true,
+    disabled: !mine.length,
+    run: () => void ctx.travel.use(p, { characterIds: mine }),
+  };
+}
+
+/** Menu du MJ pour un seul portail : passages, arrivée ou scène, retour. */
+function singlePortalItems(ctx: PortalContext, single: MapEntity): MenuItem[] {
+  const { travel } = ctx;
+  const p = portalOf(single);
+  const inside = travel.charactersInside(p);
+  const ready = hasDestination(p);
+  const items: MenuItem[] = [
+    {
+      id: 'portal:party',
+      label: 'Faire passer tout le groupe',
+      icon: Users,
+      disabled: !ready,
+      run: () => void travel.use(p, { party: true }),
+    },
+    {
+      id: 'portal:zone',
+      label: inside.length
+        ? `Faire passer la zone (${inside.length})`
+        : 'Faire passer la zone (personne)',
+      icon: UsersRound,
+      disabled: !ready || !inside.length,
+      run: () => void travel.use(p, { characterIds: inside }),
+    },
+  ];
+  const destination = destinationItem(ctx, p);
+  if (destination) items.push(destination);
+  items.push(...returnItems(ctx, single, p, ready));
+  return items;
+}
+
+/** Aller à l'arrivée (même carte) ou ouvrir la scène d'arrivée. */
+function destinationItem(ctx: PortalContext, p: PortalData): MenuItem | null {
+  const { engine } = ctx;
+  if (p.kind === 'same_map' && p.target) {
+    const twin = p.linkedPortalId ? engine.entity(p.linkedPortalId) : undefined;
+    return {
+      id: 'portal:goto',
+      label: twin ? 'Aller au retour' : 'Aller à l’arrivée',
+      icon: Focus,
+      run: () => {
+        if (twin) engine.selection.replace([twin.id]);
+        engine.focusOn(p.target!);
+      },
+    };
+  }
+  if (p.kind === 'scene_change' && p.targetMapId && ctx.openScene)
+    return {
+      id: 'portal:open',
+      label: `Ouvrir « ${sceneName(ctx, p.targetMapId)} »`,
+      icon: MapPinned,
+      run: () => ctx.openScene?.(p.targetMapId),
+    };
+  return null;
+}
+
+/** Délier le retour, ou le poser (destination choisie). */
+function returnItems(
+  ctx: PortalContext,
+  single: MapEntity,
+  p: PortalData,
+  ready: boolean,
+): MenuItem[] {
+  if (p.linkedPortalId)
+    return [
+      {
+        id: 'portal:unlink',
+        label: 'Délier le retour',
+        icon: Link2Off,
+        run: () =>
+          void patchPortals(ctx, [single], () => ({ linkedPortalId: null }), 'Délier le retour'),
+      },
+    ];
+  if (!ready) return [];
+  return [
+    {
+      id: 'portal:return',
+      label: 'Poser le retour',
+      icon: ArrowRightLeft,
+      run: () => ctx.placeReturn(p),
+    },
+  ];
 }
 
 const samplesCache = new WeakMap<MapDto, Float64Array>();
