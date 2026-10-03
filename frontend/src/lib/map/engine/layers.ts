@@ -112,30 +112,46 @@ export function assignZ(
     const lo = prevFixed;
     const hi = nextFixed;
 
-    const current = run.map((r) => zOf.get(r));
-    const inPlace = current.every(
-      (z, k) =>
-        z !== undefined &&
-        (lo === null || z > lo) &&
-        (hi === null || z < hi) &&
-        (k === 0 || z > current[k - 1]!),
-    );
-    if (!inPlace) {
-      const k = run.length;
-      let values: number[];
-      if (lo === null && hi === null) values = run.map((_, j) => j);
-      else if (lo === null) values = run.map((_, j) => hi! - (k - j));
-      else if (hi === null) values = run.map((_, j) => lo + j + 1);
-      else {
-        const step = (hi - lo) / (k + 1);
-        if (!(step > Z_EPSILON)) return renumber(order, zOf);
-        values = run.map((_, j) => lo + step * (j + 1));
-      }
+    if (
+      !runInPlace(
+        run.map((r) => zOf.get(r)),
+        lo,
+        hi,
+      )
+    ) {
+      const values = runValues(run.length, lo, hi);
+      if (!values) return renumber(order, zOf);
       run.forEach((r, j) => out.set(r, values[j]!));
     }
     if (nextId !== undefined) prevFixed = nextFixed;
   }
   return out;
+}
+
+/** Les `z` d'une suite déplacée sont déjà croissants et entre ses voisins fixes. */
+function runInPlace(
+  current: readonly (number | undefined)[],
+  lo: number | null,
+  hi: number | null,
+): boolean {
+  return current.every(
+    (z, k) =>
+      z !== undefined &&
+      (lo === null || z > lo) &&
+      (hi === null || z < hi) &&
+      (k === 0 || z > current[k - 1]!),
+  );
+}
+
+/** `z` de `k` éléments entre deux voisins fixes ; null si l'écart est épuisé. */
+function runValues(k: number, lo: number | null, hi: number | null): number[] | null {
+  const run = Array.from({ length: k });
+  if (lo === null && hi === null) return run.map((_, j) => j);
+  if (lo === null) return run.map((_, j) => hi! - (k - j));
+  if (hi === null) return run.map((_, j) => lo + j + 1);
+  const step = (hi - lo) / (k + 1);
+  if (!(step > Z_EPSILON)) return null;
+  return run.map((_, j) => lo + step * (j + 1));
 }
 
 /** Renumérote toute la pile (0, 1, 2…), en n'écrivant que ce qui change. */
