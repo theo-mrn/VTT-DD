@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stack complète des tests de bout en bout (CI) : la même que `pnpm dev`, mais compilée.
-#   1. infra (Postgres, NATS, Valkey, S3, Mailpit), rôles, migrations et .env : up.sh --preparer
+#   1. infra (Postgres, NATS, Valkey, S3, Mailpit, Kourrier), rôles, migrations et .env : up.sh --preparer
 #   2. services compilés, lancés depuis dist/ avec leur .env
 #   3. front construit en build de test (NEXT_PUBLIC_E2E : état de la carte exposé aux tests),
 #      servi par `next start` ; la WebSocket vise la gateway directement

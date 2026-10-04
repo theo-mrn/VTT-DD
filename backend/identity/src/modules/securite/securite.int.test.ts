@@ -52,10 +52,10 @@ async function listerSessions(t: Contexte, auth: Record<string, string>, refresh
 function jetonRecu(t: Contexte, email: string, page: string): string {
   const mail = t.mailer.envoyes.filter((m) => m.to === email).at(-1);
   if (!mail) throw new Error(`aucun e-mail pour ${email}`);
-  const m = new RegExp(`http://front\\.test${page}\\?jeton=([A-Za-z0-9_-]{43})$`, 'm').exec(
-    mail.text,
+  const m = new RegExp(`^http://front\\.test${page}\\?jeton=([A-Za-z0-9_-]{43})$`).exec(
+    mail.donnees.lien,
   );
-  if (!m) throw new Error(`lien introuvable dans : ${mail.text}`);
+  if (!m) throw new Error(`lien inattendu : ${mail.donnees.lien}`);
   return m[1]!;
 }
 
@@ -303,7 +303,7 @@ describe.skipIf(!TEST_DATABASE_URL)('mot de passe', () => {
 
     expect(t.mailer.envoyes.some((m) => m.to === inconnue)).toBe(false);
     const mail = t.mailer.envoyes.filter((m) => m.to === u.email).at(-1)!;
-    expect(mail.subject).toBe('Réinitialisation de votre mot de passe');
+    expect(mail.modele).toBe('reinitialisation');
     const jeton = jetonRecu(t, u.email, '/reset-password');
 
     // Seule l'empreinte est stockée, valable une heure

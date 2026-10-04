@@ -54,10 +54,37 @@ services:
   # ── Optionnels : `pnpm dev -- --mails --observabilite` ou `--tout` ──
 
   mailpit:
-    # Capture les e-mails (Resend en prod) : http://localhost:8025
+    # Capture les e-mails livrés par Kourrier (AWS SES en cluster) : http://localhost:8025
     profiles: [mails]
     image: axllent/mailpit:v1.31.2@sha256:74d609a42ec279aa63c6b4622a6fa9b5408d1ad5b1d76a1c4be40a265ce0863d
     ports: ['127.0.0.1:1025:1025', '127.0.0.1:8025:8025']
+
+  kourrier:
+    # Service d'envoi d'e-mails, le même qu'en cluster : identity lui envoie un nom de
+    # template et ses données (KOURRIER_URL), il rend infra/mails/templates/ et livre à
+    # Mailpit. Les templates sont relus à chaque envoi : une modification est visible
+    # au mail suivant, sans redémarrage. API : http://localhost:8090
+    profiles: [mails]
+    image: ghcr.io/theo-mrn/kourrier:sha-6dbf57e
+    depends_on: [mailpit, valkey]
+    environment:
+      KOURRIER_LOG_FORMAT: text
+      KOURRIER_TENANTS_FILE: /etc/kourrier/tenants.yaml
+      # Base 1 de Valkey : la base 0 appartient aux services
+      KOURRIER_REDIS_ADDR: valkey:6379
+      KOURRIER_REDIS_DB: '1'
+      KOURRIER_STORAGE_PROVIDER: filesystem
+      KOURRIER_STORAGE_DIR: /templates
+      KOURRIER_TEMPLATES_CACHE_TTL: 0s
+      KOURRIER_TEMPLATES_DEFAULT_LOCALE: fr
+      KOURRIER_MAILER_PROVIDER: smtp
+      KOURRIER_MAILER_SMTP_HOST: mailpit
+      KOURRIER_MAILER_SMTP_PORT: '1025'
+      KOURRIER_RATE_LIMIT_PER_SECOND: '0'
+    ports: ['127.0.0.1:8090:8080']
+    volumes:
+      - ../mails/templates:/templates:ro
+      - ../mails/dev-tenants.yaml:/etc/kourrier/tenants.yaml:ro
 
   lgtm:
     # Collecteur OTLP + Grafana, Loki, Tempo, Prometheus en un conteneur

@@ -1,0 +1,8 @@
+Bonjour,
+
+Vous avez demandé à réinitialiser le mot de passe de votre compte YNER.
+
+Choisissez un nouveau mot de passe : {{.lien}}
+
+Ce lien est valable une heure et ne peut servir qu’une seule fois.
+Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail : votre mot de passe reste inchangé.

@@ -54,4 +54,8 @@ spec:
         {{- range .Values.networkPolicy.extraEgressPorts }}
         - { port: {{ . }} }
         {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    # Sorties propres au service, vers d'autres namespaces du cluster
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 {{- end }}

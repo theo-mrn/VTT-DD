@@ -79,21 +79,22 @@ describe('jetons envoyés par e-mail', () => {
 });
 
 describe('e-mails de sécurité', () => {
-  it('le mail de réinitialisation est en français et contient le lien', () => {
+  it('la réinitialisation désigne son template et transmet le lien', () => {
     const lien = 'https://yner.fr/reset-password?jeton=abc';
-    const mail = mailReinitialisation('alice@exemple.fr', lien);
-    expect(mail.to).toBe('alice@exemple.fr');
-    expect(mail.subject).toBe('Réinitialisation de votre mot de passe');
-    expect(mail.text).toContain(lien);
-    expect(mail.text).toContain('une heure');
-    expect(mail.html).toContain(`href="${lien}"`);
+    expect(mailReinitialisation('alice@exemple.fr', lien)).toEqual({
+      to: 'alice@exemple.fr',
+      modele: 'reinitialisation',
+      donnees: { lien },
+    });
   });
 
-  it('le mail de vérification contient le lien et échappe le HTML', () => {
-    const mail = mailVerification('alice@exemple.fr', 'https://yner.fr/v?jeton=a&b="c"');
-    expect(mail.subject).toBe('Vérifiez votre adresse e-mail');
-    expect(mail.text).toContain('24 heures');
-    expect(mail.html).toContain('href="https://yner.fr/v?jeton=a&amp;b=&quot;c&quot;"');
-    expect(mail.html).not.toContain('"c"');
+  it('la vérification désigne son template et transmet le lien tel quel', () => {
+    // L'échappement HTML est fait par Kourrier (html/template), pas ici
+    const lien = 'https://yner.fr/v?jeton=a&b="c"';
+    expect(mailVerification('alice@exemple.fr', lien)).toEqual({
+      to: 'alice@exemple.fr',
+      modele: 'verification',
+      donnees: { lien },
+    });
   });
 });

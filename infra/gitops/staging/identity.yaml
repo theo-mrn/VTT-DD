@@ -20,6 +20,9 @@ env:
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
   APP_URL: https://staging.yner.fr
+  # E-mails : envoyés par Kourrier (namespace kourrier, AWS SES derrière), avec la
+  # clé KOURRIER_API_KEY du secret ci-dessous. Templates : infra/mails/templates/.
+  KOURRIER_URL: http://kourrier.kourrier.svc:8080
   MAIL_FROM: 'YNER <contact@yner.fr>'
   R2_REGION: auto
   STORAGE_REFERENCE_URLS: http://character.vtt-staging.svc,http://campaign.vtt-staging.svc,http://dice.vtt-staging.svc
@@ -32,7 +35,7 @@ secretEnv:
   NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
   REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret identity-secrets (SOPS) : DATABASE_URL (rôle identity_svc), JWT_PRIVATE_JWKS,
-# INTERNAL_API_SECRET, SMTP_URL, R2_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
+# INTERNAL_API_SECRET, KOURRIER_API_KEY, R2_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
 # + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
 #   d'outbox ne traverse pas PgBouncer (sans elle : DATABASE_URL, réveil par le poll de 5 s)
 envFromSecrets:
@@ -62,8 +65,11 @@ networkPolicy:
     - podSelector: {matchLabels: {app.kubernetes.io/name: dice}}
     # billing : JWKS et statut premium du profil (/internal/users/:id/premium)
     - podSelector: {matchLabels: {app.kubernetes.io/name: billing}}
-  # SMTP (Resend) en plus du HTTPS
-  extraEgressPorts: [587]
+  # Kourrier : envoi des e-mails (la NetworkPolicy du namespace kourrier autorise
+  # identity en retour, dans argocd_registry)
+  extraEgress:
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kourrier } } }]
+      ports: [{ port: 8080 }]
 migrations:
   enabled: true
   image:

@@ -71,7 +71,12 @@ export async function buildIdentity(
     firebase,
     mailer:
       mailerFourni ??
-      createMailer({ smtpUrl: config.SMTP_URL, from: config.MAIL_FROM, log: app.log }),
+      createMailer({
+        kourrierUrl: config.KOURRIER_URL,
+        kourrierApiKey: config.KOURRIER_API_KEY,
+        from: config.MAIL_FROM,
+        log: app.log,
+      }),
   };
 
   await registerAuthRoutes(app, {

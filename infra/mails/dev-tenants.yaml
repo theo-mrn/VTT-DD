@@ -1,0 +1,11 @@
+# Tenant de développement de Kourrier (infra/local/docker-compose.yml, profil mails).
+# JAMAIS utilisé hors de la machine locale : la clé est publique.
+#
+# Clé d'API correspondante (KOURRIER_API_KEY de backend/identity/.env) :
+#   kr_dev_local_insecure_key
+tenants:
+  - id: yner
+    api_keys:
+      - sha256: abc72e3414170f76323af144375ac7509f30f7d0bd98e8d6b9bdc5e4104d1115
+    default_sender: { email: contact@yner.fr, name: YNER }
+    allowed_senders: ['*@yner.fr']

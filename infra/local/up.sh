@@ -21,7 +21,7 @@ if ! docker info >/dev/null 2>&1; then
   docker info >/dev/null 2>&1 || { echo "Docker ne répond pas. Démarre-le puis relance pnpm dev." >&2; exit 1; }
 fi
 
-# Toujours démarrés : Postgres, NATS, Valkey, Mailpit (e-mails). Fichiers : R2 (R2_* des .env).
+# Toujours démarrés : Postgres, NATS, Valkey, Kourrier et Mailpit (e-mails). Fichiers : R2 (R2_* des .env).
 # Option : --observabilite (Grafana), --tout
 # --preparer : infra, migrations et .env seulement, sans lancer les apps (CI, vérification)
 # Mails (identity) par défaut ; Grafana à la demande
@@ -105,6 +105,6 @@ etape "Services et front (Ctrl+C pour tout arrêter)"
 echo "  front    http://localhost:3000"
 echo "  gateway  http://localhost:8080"
 echo "  temps réel ws://localhost:8080/v1/realtime/socket.io (service realtime :3006)"
-echo "  e-mails  http://localhost:8025"
+echo "  e-mails  http://localhost:8025 (Mailpit ; envoi par Kourrier sur :8090)"
 echo "  son      service audio :3008, worker ffmpeg :3009 (brew install ffmpeg)"
 exec pnpm turbo run dev --concurrency=20 --filter='./backend/*' --filter=@vtt/web
