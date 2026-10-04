@@ -174,7 +174,9 @@ describe('POST /v1/discord/interactions', () => {
       interaction(2, { name: 'roll', options: [{ name: 'dice', type: 3, value: '1d20+3' }] }),
     );
     expect(res.json()).toEqual({ type: 5, data: { flags: 64 } });
-    await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['followUp', 'delete']));
+    await vi.waitFor(() =>
+      expect(f.sent.map((s) => s.kind)).toEqual(['edit', 'followUp', 'delete']),
+    );
     expect(f.rolls[0]).toMatchObject({
       campaignId: CAMPAIGN.id,
       systemId: 'dnd-classic',
@@ -182,7 +184,7 @@ describe('POST /v1/discord/interactions', () => {
       notation: '1d20+3',
       hidden: false,
     });
-    expect(f.sent[0]!.message!.embeds![0]!.description).toContain('**17**');
+    expect(f.sent[1]!.message!.embeds![0]!.description).toContain('**17**');
   });
 
   it('/roll caché : résultat éphémère, visibilité privée', async () => {
@@ -269,8 +271,10 @@ describe('POST /v1/discord/interactions', () => {
     await post(
       interaction(2, { name: 'history', options: [{ name: 'player', type: 3, value: 'ald' }] }),
     );
-    await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['followUp', 'delete']));
-    const description = f.sent[0]!.message!.embeds![0]!.description!;
+    await vi.waitFor(() =>
+      expect(f.sent.map((s) => s.kind)).toEqual(['edit', 'followUp', 'delete']),
+    );
+    const description = f.sent[1]!.message!.embeds![0]!.description!;
     expect(description).toContain('**Aldo** · **15** · `1d20`');
     expect(description).not.toContain('Bria');
     expect(description).not.toContain('MJ');
@@ -338,7 +342,9 @@ describe('POST /v1/discord/interactions', () => {
     await post(
       interaction(2, { name: 'roll', options: [{ name: 'dice', type: 3, value: '1d20' }] }),
     );
-    await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['followUp', 'delete']));
+    await vi.waitFor(() =>
+      expect(f.sent.map((s) => s.kind)).toEqual(['edit', 'followUp', 'delete']),
+    );
     expect(f.rolls.at(-1)).toMatchObject({ characterId: null, notation: '1d20' });
   });
 });

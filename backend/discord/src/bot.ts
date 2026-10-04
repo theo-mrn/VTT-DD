@@ -126,6 +126,9 @@ export function bot(deps: BotDeps) {
   /** Publie un résultat : message public de suite, ou éphémère pour un jet caché. */
   async function publish(token: string, message: Message, isPublic: boolean) {
     if (isPublic) {
+      // Tant que la réponse différée attend, Discord fait du premier message de suite son
+      // remplaçant (éphémère, puis supprimé avec elle) : on la clôt d'abord, puis on publie
+      await discord.editOriginal(token, ephemeral('Lancé.'));
       await discord.followUp(token, message);
       await discord.deleteOriginal(token);
     } else {
