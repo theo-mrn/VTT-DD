@@ -4,6 +4,8 @@
 #   infra/cluster/backup/pitr.sh "2026-10-04 14:59"          heure de Paris
 #   infra/cluster/backup/pitr.sh "2026-10-04 14:59" --essai  vérifications et modification
 #                                                             montrée, rien de poussé ni supprimé
+#   infra/cluster/backup/pitr.sh "2026-10-04 14:59" --apercu ce que la restauration changerait
+#                                                             dans les données (base temporaire)
 #
 # Postgres ne recule pas une base en marche : on la recrée depuis la sauvegarde de base, puis on
 # rejoue le WAL jusqu'à l'instant voulu. Étapes :
@@ -24,10 +26,12 @@ CLUSTER_FILE=infra/cluster/data/postgres-cluster.yaml
 RESTORE_TEST=infra/cluster/backup/restore-test.yaml
 ARGO_APP=vtt-data
 
-[ $# -ge 1 ] || { sed -n '2,6p' "$0" >&2; exit 2; }
+[ $# -ge 1 ] || { sed -n '2,8p' "$0" >&2; exit 2; }
 quand=$1
 essai=0
+apercu=0
 [ "${2:-}" = --essai ] && essai=1
+[ "${2:-}" = --apercu ] && apercu=1
 
 etape() { printf '\n\033[1;33m▶ %s\033[0m\n' "$1"; }
 echec() { printf '\033[1;31m✗ %s\033[0m\n' "$1" >&2; exit 1; }
@@ -83,6 +87,95 @@ for _ in $(seq 1 30); do
 done
 [ "$archive" = t ] || echec "le WAL de $cible n'est pas encore archivé (réessayer dans une minute)"
 echo "WAL archivé au-delà de $cible"
+
+# ─── Aperçu : l'instant visé restauré à part, comparé à la base actuelle ──────────────────
+if [ $apercu = 1 ]; then
+  etape "Aperçu : restauration temporaire (quelques minutes)"
+  APERCU=$CLUSTER-apercu
+  image=$(kubectl -n $NS get cluster $CLUSTER -o jsonpath='{.spec.imageName}')
+  trap 'kubectl -n $NS delete cluster $APERCU --ignore-not-found --wait=false >/dev/null' EXIT
+  kubectl apply -f - >/dev/null <<EOF2
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata: { name: $APERCU, namespace: $NS }
+spec:
+  instances: 1
+  imageName: $image
+  storage: { size: 5Gi, storageClass: local-path }
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { memory: 1Gi }
+  bootstrap:
+    recovery:
+      source: origin
+      recoveryTarget: { targetTime: '$cible' }
+  externalClusters:
+    - name: origin
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters: { barmanObjectName: $objet, serverName: $lignee }
+EOF2
+  for _ in $(seq 1 90); do
+    [ "$(kubectl -n $NS get cluster $APERCU -o jsonpath='{.status.phase}' 2>/dev/null)" = "Cluster in healthy state" ] && break
+    sleep 10
+  done
+  [ "$(kubectl -n $NS get cluster $APERCU -o jsonpath='{.status.phase}')" = "Cluster in healthy state" ] ||
+    echec "base temporaire pas prête après 15 min : kubectl -n $NS get cluster $APERCU"
+  pod_apercu=$(kubectl -n $NS get pods -l cnpg.io/cluster=$APERCU,role=primary -o name | head -1)
+  psql_apercu() { kubectl -n $NS exec "${pod_apercu#pod/}" -c postgres -- psql -d vtt -Atc "$1"; }
+
+  etape "Comparaison avec la base actuelle"
+  # Tables des services (partitions comprises dans leur table mère), avec leurs horodatages
+  tables=$(psql_q "select n.nspname || '.' || c.relname,
+      bool_or(a.attname = 'created_at'), bool_or(a.attname = 'updated_at')
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    join pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+    where n.nspname in ('identity','billing','campaign','characters','dice','history','audio')
+      and c.relkind in ('r','p') and not c.relispartition and c.relname not like 'databasechangelog%'
+    group by 1 order by 1")
+  requetes=$(python3 - "$cible" "$tables" <<'PY'
+import sys
+cible, lignes = sys.argv[1], sys.argv[2].splitlines()
+actuel, alors = [], []
+for l in lignes:
+    t, cree, maj = l.split("|")
+    c = f"count(*) filter (where created_at > '{cible}')" if cree == "t" else "null"
+    m = f"count(*) filter (where updated_at > '{cible}' and created_at <= '{cible}')" if maj == "t" and cree == "t" else (
+        f"count(*) filter (where updated_at > '{cible}')" if maj == "t" else "null")
+    actuel.append(f"select '{t}', count(*), {c}, {m} from {t}")
+    alors.append(f"select '{t}', count(*) from {t}")
+print(" union all ".join(actuel)); print(" union all ".join(alors))
+PY
+)
+  maintenant=$(psql_q "$(echo "$requetes" | sed -n 1p)")
+  a_l_instant=$(psql_apercu "$(echo "$requetes" | sed -n 2p)")
+  python3 - "$maintenant" "$a_l_instant" "$quand" <<'PY'
+import sys
+maint = {l.split("|")[0]: l.split("|")[1:] for l in sys.argv[1].splitlines()}
+alors = {l.split("|")[0]: int(l.split("|")[1]) for l in sys.argv[2].splitlines()}
+lignes = []
+for t, (n, cree, maj) in maint.items():
+    n = int(n); a = alors.get(t, 0)
+    cree = int(cree) if cree else None
+    maj = int(maj) if maj else None
+    supprimees = a - (n - cree) if cree is not None else (a - n if a > n else 0)
+    perdues = cree if cree is not None else (n - a if n > a else 0)
+    if n != a or perdues or maj or supprimees > 0:
+        lignes.append((t, n, a, perdues, maj or 0, max(supprimees, 0)))
+if not lignes:
+    print(f"Aucune différence : la base est déjà dans l'état de {sys.argv[3]}.")
+    sys.exit()
+print(f"{'table':38} {'maintenant':>10} {'après':>8} {'perdues':>8} {'remises':>8} {'reviennent':>10}")
+for t, n, a, p, m, s in sorted(lignes):
+    print(f"{t:38} {n:>10} {a:>8} {p:>8} {m:>8} {s:>10}")
+print()
+print("perdues : lignes créées après l'instant visé · remises : modifiées depuis, reviennent à")
+print("leur état d'alors · reviennent : supprimées depuis, restaurées")
+PY
+  echo
+  echo "Aperçu seulement : la base actuelle n'a pas été touchée (base temporaire supprimée)."
+  exit 0
+fi
 
 # ─── 3. Restauration écrite dans le dépôt ─────────────────────────────────────────────────
 etape "Dépôt"

@@ -28,8 +28,11 @@ hors du cluster : sans elle, les dumps sont illisibles.
 
 ## A. Retour dans le temps (PITR) — incident grave
 
-Une commande, l'heure en heure de Paris (on peut d'abord la lancer avec `--essai`, qui vérifie
-tout et montre la modification du dépôt sans rien pousser ni supprimer) :
+Une commande, l'heure en heure de Paris. Avant, deux modes sans risque :
+
+- `--apercu` restaure l'instant dans une base temporaire et liste, table par table, les lignes
+  perdues, remises à leur état d'alors ou restaurées, puis supprime la base temporaire ;
+- `--essai` vérifie tout et montre la modification du dépôt sans rien pousser ni supprimer.
 
 ```bash
 infra/cluster/backup/pitr.sh "2026-10-04 14:59"
