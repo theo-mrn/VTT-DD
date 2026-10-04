@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-billing
-  digest: 'sha256:30531a3565f8cf433f9ed909987686dcc8472850ef8986c222616bcab6563fd0'
+  digest: 'sha256:dae2ae896422f34f8fe893f35a4069704ae67433916ee94594e00da0ae6337b3'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -51,7 +51,7 @@ migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-billing-migrations
-    digest: 'sha256:b7483a6a4dcd60fd696488482d0b2ca5f8ccbd1166cfa1a9451499e669c2c3b9'
+    digest: 'sha256:a6843f5097511a0c12283236226268d202984b977154babb24010371dcdddc71'
     tag: 'main'
   schema: billing
   # Secret généré par CloudNativePG pour le rôle billing_owner

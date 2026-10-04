@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-campaign
-  digest: 'sha256:5d9a255570ffd400abeb61e0ce6fe47217450118f3074cecd55c453815693fc7'
+  digest: 'sha256:d6a1a09544a85d9b09a44d013f2fbe08474f2d44bc4bd795b0f489f2bf8c9ff0'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -71,7 +71,7 @@ migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-campaign-migrations
-    digest: 'sha256:dce70e934a6ff6708281f4b349d1ffc82aca9636ca58789c4a11e7d1f21158ec'
+    digest: 'sha256:cb6c28751bc217e6c2368bc4d21fab1dfdfecbd8e838fb9b1a147262610a742c'
     tag: 'main'
   schema: campaign
   # Secret généré par CloudNativePG pour le rôle campaign_owner

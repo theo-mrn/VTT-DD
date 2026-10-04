@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-identity
-  digest: 'sha256:b21a8468d25c171636e070609059045481ebe88a85cc80e28f29bb4fc5d9d4ea'
+  digest: 'sha256:c3af28603004788dc0afc3719c5ebf8bf943d3072f6d050e9a2626394e744c89'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -74,7 +74,7 @@ migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-identity-migrations
-    digest: 'sha256:41e1fb6ef64ce24b341ab1b56fdd8f4dfe6b655b308aa6211a839a3abb1f533a'
+    digest: 'sha256:e04733b399b083c7c56a82c4e05684bbf728cce662b2401a78f9dd16fed6fcd5'
     tag: 'main'
   schema: identity
   # Secret généré par CloudNativePG pour le rôle identity_owner
