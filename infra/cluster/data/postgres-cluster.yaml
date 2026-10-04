@@ -34,14 +34,23 @@ spec:
       # Un segment WAL partiel est archivé au plus tard après 5 min : perte maximale en PITR
       archive_timeout: '5min'
 
+  # Création depuis l'archive (PITR du 2026-10-04, retour à 14:59 heure de Paris). Ne sert qu'à
+  # la création du cluster : sans effet tant qu'il existe. Une base neuve partirait de initdb
+  # (database vtt, owner vtt_owner, configmap vtt-pg-init / schemas.sql).
   bootstrap:
-    initdb:
-      database: vtt
-      owner: vtt_owner
-      postInitApplicationSQLRefs:
-        configMapRefs:
-          - name: vtt-pg-init
-            key: schemas.sql
+    recovery:
+      source: origin
+      recoveryTarget:
+        targetTime: '2026-10-04 12:59:00+00'
+
+  # Archive d'origine (serverName vtt-pg), lue seulement pour la restauration
+  externalClusters:
+    - name: origin
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: vtt-pg-wal
+          serverName: vtt-pg
 
   # Un rôle par service ; mots de passe générés et stockés dans des Secrets
   managed:
@@ -111,6 +120,8 @@ spec:
       isWALArchiver: true
       parameters:
         barmanObjectName: vtt-pg-wal
+        # Nouvelle lignée après la restauration : n'écrase pas l'archive d'origine (vtt-pg)
+        serverName: vtt-pg-pitr1
 
   storage:
     size: 20Gi
