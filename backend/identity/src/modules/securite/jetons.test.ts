@@ -30,10 +30,10 @@ describe('jetons envoyés par e-mail', () => {
 
   it('construit les liens du front, avec ou sans barre finale dans APP_URL', () => {
     expect(lienJeton('https://yner.fr', 'password_reset', 'abc_-')).toBe(
-      'https://yner.fr/reset-password?jeton=abc_-',
+      'https://yner.fr/reinitialisation?jeton=abc_-',
     );
     expect(lienJeton('https://yner.fr/', 'email_verification', 'xyz')).toBe(
-      'https://yner.fr/verify-email?jeton=xyz',
+      'https://yner.fr/verification-email?jeton=xyz',
     );
   });
 
@@ -80,7 +80,7 @@ describe('jetons envoyés par e-mail', () => {
 
 describe('e-mails de sécurité', () => {
   it('la réinitialisation désigne son template et transmet le lien', () => {
-    const lien = 'https://yner.fr/reset-password?jeton=abc';
+    const lien = 'https://yner.fr/reinitialisation?jeton=abc';
     expect(mailReinitialisation('alice@exemple.fr', lien)).toEqual({
       to: 'alice@exemple.fr',
       modele: 'reinitialisation',

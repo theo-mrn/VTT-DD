@@ -7,6 +7,7 @@
  *   l'adresse à laquelle il a été envoyé.
  */
 import { createHash, randomBytes } from 'node:crypto';
+import { PAGES_FRONT } from '@vtt/contracts';
 import { withoutTrailingSlashes } from '@vtt/platform';
 
 const HEURE_MS = 3600 * 1000;
@@ -19,10 +20,10 @@ export const DUREE_JETON_MS: Record<ObjetJeton, number> = {
   email_verification: 24 * HEURE_MS,
 };
 
-/** Page du front qui reçoit le jeton. */
+/** Page du front qui reçoit le jeton (lien de l'e-mail). */
 const PAGE: Record<ObjetJeton, string> = {
-  password_reset: '/reset-password',
-  email_verification: '/verify-email',
+  password_reset: PAGES_FRONT.reinitialisation,
+  email_verification: PAGES_FRONT.verificationEmail,
 };
 
 export function empreinteJeton(jeton: string): Buffer {
