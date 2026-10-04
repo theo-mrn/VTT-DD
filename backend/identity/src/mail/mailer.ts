@@ -26,14 +26,20 @@ export interface Mailer {
   envoyer(mail: Mail): Promise<void>;
 }
 
-/** Refus définitif de Kourrier (requête invalide, clé refusée, expéditeur non autorisé). */
+/** Échec d'un envoi à Kourrier. */
 export class ErreurKourrier extends Error {
-  constructor(
-    readonly statut: number,
-    /** Code journalisable, sans donnée personnelle (ex. kourrier_422). */
-    readonly code: string,
-  ) {
-    super(`Kourrier a refusé l'e-mail (HTTP ${statut})`);
+  /** Code journalisable, sans donnée personnelle : kourrier_503, kourrier_injoignable… */
+  readonly code: string;
+
+  /** @param statut statut HTTP de la réponse, null si Kourrier n'a pas répondu */
+  constructor(readonly statut: number | null) {
+    super(statut === null ? 'Kourrier injoignable' : `Kourrier a refusé l'e-mail (HTTP ${statut})`);
+    this.code = statut === null ? 'kourrier_injoignable' : `kourrier_${statut}`;
+  }
+
+  /** Réessayer a un sens : Kourrier injoignable, surchargé (429) ou en erreur (5xx). */
+  get transitoire(): boolean {
+    return this.statut === null || this.statut === 429 || this.statut >= 500;
   }
 }
 
@@ -46,15 +52,17 @@ const TENTATIVES = 3;
 const DELAI_INITIAL_MS = 200;
 const TIMEOUT_MS = 5_000;
 
+const attendre = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 export function createMailer(opts: {
   kourrierUrl: string | undefined;
   kourrierApiKey: string | undefined;
   /** Expéditeur, ex. `YNER <contact@yner.fr>` : doit être autorisé pour la clé. */
   from: string;
   log: Journal;
-  /** Injectés par les tests. */
-  fetch?: typeof fetch;
-  attendre?: (ms: number) => Promise<void>;
 }): Mailer {
   if (!opts.kourrierUrl) {
     return {
@@ -71,8 +79,26 @@ export function createMailer(opts: {
   const url = new URL('/v1/emails', opts.kourrierUrl).toString();
   const cle = opts.kourrierApiKey;
   const from = adresse(opts.from);
-  const appeler = opts.fetch ?? fetch;
-  const attendre = opts.attendre ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+
+  /** Une tentative d'envoi : null si Kourrier a accepté l'e-mail, l'échec sinon. */
+  async function tenter(corps: string, idempotence: string): Promise<ErreurKourrier | null> {
+    try {
+      const reponse = await fetch(url, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${cle}`,
+          'content-type': 'application/json',
+          'idempotency-key': idempotence,
+        },
+        body: corps,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      return reponse.status === 202 ? null : new ErreurKourrier(reponse.status);
+    } catch {
+      // Réseau coupé, DNS ou timeout : Kourrier n'a pas répondu
+      return new ErreurKourrier(null);
+    }
+  }
 
   return {
     async envoyer(mail) {
@@ -88,45 +114,33 @@ export function createMailer(opts: {
         .update(`${mail.modele}\n${mail.donnees.lien}`)
         .digest('hex');
 
-      let derniere: unknown;
-      for (let tentative = 1; tentative <= TENTATIVES; tentative++) {
-        try {
-          const res = await appeler(url, {
-            method: 'POST',
-            headers: {
-              authorization: `Bearer ${cle}`,
-              'content-type': 'application/json',
-              'idempotency-key': idempotence,
-            },
-            body: corps,
-            signal: AbortSignal.timeout(TIMEOUT_MS),
-          });
-          if (res.status === 202) return;
-          // 4xx (hors 429) : la requête est fausse, la renvoyer ne changera rien
-          if (res.status < 500 && res.status !== 429) {
-            throw new ErreurKourrier(res.status, `kourrier_${res.status}`);
-          }
-          derniere = new ErreurKourrier(res.status, `kourrier_${res.status}`);
-        } catch (err) {
-          if (err instanceof ErreurKourrier) throw err;
-          derniere = err; // réseau, timeout : Kourrier injoignable
-        }
-        if (tentative < TENTATIVES) {
-          opts.log.warn({ modele: mail.modele, tentative }, 'Kourrier indisponible, nouvel essai');
-          await attendre(DELAI_INITIAL_MS * 2 ** (tentative - 1));
-        }
+      let tentative = 1;
+      let echec = await tenter(corps, idempotence);
+      while (echec) {
+        // Une requête refusée (4xx) le sera encore : inutile de la renvoyer
+        if (!echec.transitoire || tentative === TENTATIVES) throw echec;
+        opts.log.warn(
+          { modele: mail.modele, tentative, code: echec.code },
+          'Kourrier indisponible, nouvel essai',
+        );
+        await attendre(DELAI_INITIAL_MS * 2 ** (tentative - 1));
+        tentative++;
+        echec = await tenter(corps, idempotence);
       }
-      throw derniere;
     },
   };
 }
 
-/** `YNER <contact@yner.fr>` → `{ name: 'YNER', email: 'contact@yner.fr' }`. */
+/** `YNER <contact@yner.fr>` → `{ email: 'contact@yner.fr', name: 'YNER' }`. */
 export function adresse(brut: string): { email: string; name?: string } {
-  const m = /^\s*(.*?)\s*<([^<>\s]+@[^<>\s]+)>\s*$/.exec(brut);
-  if (!m) return { email: brut.trim() };
-  const nom = m[1]!.replace(/^"|"$/g, '');
-  return nom ? { email: m[2]!, name: nom } : { email: m[2]! };
+  const texte = brut.trim();
+  const debut = texte.lastIndexOf('<');
+  if (debut === -1 || !texte.endsWith('>')) return { email: texte };
+
+  const email = texte.slice(debut + 1, -1).trim();
+  let nom = texte.slice(0, debut).trim();
+  if (nom.length >= 2 && nom.startsWith('"') && nom.endsWith('"')) nom = nom.slice(1, -1);
+  return nom ? { email, name: nom } : { email };
 }
 
 /** Boîte aux lettres en mémoire pour les tests. */

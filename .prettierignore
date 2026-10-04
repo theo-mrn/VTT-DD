@@ -2,6 +2,8 @@
 legacy/
 pnpm-lock.yaml
 infra/helm/**/templates/
+# Templates d'e-mails de Kourrier (html/template de Go) : Prettier ne lit pas {{ }}
+infra/mails/templates/
 # Réécrits par yq à chaque release (digests des images) : le format de yq fait foi
 infra/gitops/
 README.md

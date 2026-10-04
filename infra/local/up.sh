@@ -21,7 +21,7 @@ if ! docker info >/dev/null 2>&1; then
   docker info >/dev/null 2>&1 || { echo "Docker ne répond pas. Démarre-le puis relance pnpm dev." >&2; exit 1; }
 fi
 
-# Toujours démarrés : Postgres, NATS, Valkey, Mailpit (e-mails). Fichiers : R2 (R2_* des .env).
+# Toujours démarrés : Postgres, NATS, Valkey, Kourrier et Mailpit (e-mails). Fichiers : R2 (R2_* des .env).
 # Option : --observabilite (Grafana), --tout
 # --preparer : infra, migrations et .env seulement, sans lancer les apps (CI, vérification)
 # Mails (identity) par défaut ; Grafana à la demande
