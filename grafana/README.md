@@ -1,7 +1,9 @@
 # Tableaux de bord Grafana
 
-Fichiers JSON à importer dans Grafana (https://grafana.cluster.afflair.app) : **Dashboards >
-New > Import**, puis déposer le fichier. La source Loki se choisit à l'import (variable `loki`).
+Tableaux de bord chargés automatiquement dans Grafana (https://grafana.cluster.afflair.app),
+dossier **VTT** : `kustomization.yaml` en fait une ConfigMap étiquetée `grafana_dashboard=1`,
+déployée par l'application Argo `vtt-observability`. Un tableau de bord ajouté ici doit aussi
+être listé dans `kustomization.yaml`. Modifier = commit, pas d'édition dans Grafana.
 
 | Fichier          | Contenu                                                                          |
 | ---------------- | -------------------------------------------------------------------------------- |

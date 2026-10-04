@@ -1,0 +1,18 @@
+# Tableaux de bord Grafana du VTT (dossier grafana/ du dépôt), chargés automatiquement par Grafana.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vtt-observability
+  namespace: argocd
+spec:
+  project: vtt
+  source:
+    repoURL: https://github.com/theo-mrn/VTT-DD.git
+    targetRevision: main
+    path: grafana
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vtt-staging
+  syncPolicy:
+    # Une seule ConfigMap, propre à cette application : on peut la retirer avec son fichier
+    automated: { prune: true, selfHeal: true }

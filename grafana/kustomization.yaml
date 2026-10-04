@@ -1,0 +1,14 @@
+# Tableaux de bord chargés automatiquement par Grafana (sidecar du chart kube-prometheus-stack :
+# toute ConfigMap étiquetée grafana_dashboard=1, dossier donné par l'annotation grafana_folder).
+# Déployé par l'application Argo vtt-observability (infra/argocd/observability.yaml).
+namespace: vtt-staging
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: '1'
+  annotations:
+    grafana_folder: VTT
+configMapGenerator:
+  - name: vtt-grafana-dashboards
+    files:
+      - vtt-logs.json
