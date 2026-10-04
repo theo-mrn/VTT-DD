@@ -11,6 +11,8 @@ pdb:
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth

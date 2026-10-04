@@ -11,6 +11,8 @@ pdb:
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
   # Bus d'événements : relais d'outbox et consommateur campaign.deleted (NATS JetStream)
   NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222

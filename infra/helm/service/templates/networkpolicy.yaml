@@ -39,7 +39,8 @@ spec:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: messaging } }
       ports: [{ port: 4222 }, { port: 6379 }]
     - to:
-        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+        # OTLP (traces, métriques) vers Alloy, dans le namespace du monitoring
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace }} } }
       ports: [{ port: 4317 }, { port: 4318 }]
     - to:
         - podSelector: {}

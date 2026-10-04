@@ -19,6 +19,8 @@ autoscaling:
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   # Cache des droits (campaign) et adaptateur Socket.IO entre réplicas
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
   # Bus d'événements : diffusion en direct et rejeu après reconnexion (NATS JetStream)
