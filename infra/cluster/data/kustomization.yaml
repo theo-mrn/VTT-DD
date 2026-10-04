@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: data
 resources:
   - postgres-cluster.yaml
+  - podmonitor.yaml
 configMapGenerator:
   - name: vtt-pg-init
     files:
