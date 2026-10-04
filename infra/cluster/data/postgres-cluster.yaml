@@ -120,7 +120,7 @@ spec:
       isWALArchiver: true
       parameters:
         barmanObjectName: vtt-pg-wal
-        # Nouvelle lignée après la restauration : n'écrase pas l'archive d'origine (vtt-pg)
+        # Lignée d'archive : une nouvelle à chaque restauration (pitr.sh), jamais réécrite
         serverName: vtt-pg-pitr1
 
   storage:

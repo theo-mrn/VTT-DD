@@ -28,33 +28,25 @@ hors du cluster : sans elle, les dumps sont illisibles.
 
 ## A. Retour dans le temps (PITR) — incident grave
 
-1. Geler les écritures : `kubectl -n vtt-staging scale deploy --all --replicas=0` (`vtt-prod` en prod).
-2. Créer un nouveau cluster depuis la sauvegarde, à l'instant voulu (UTC) :
+Une commande, l'heure en heure de Paris (on peut d'abord la lancer avec `--essai`, qui vérifie
+tout et montre la modification du dépôt sans rien pousser ni supprimer) :
 
-   ```yaml
-   apiVersion: postgresql.cnpg.io/v1
-   kind: Cluster
-   metadata: { name: vtt-pg-restored, namespace: data }
-   spec:
-     instances: 1 # 3 en prod
-     imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
-     storage: { size: 20Gi, storageClass: local-path }
-     bootstrap:
-       recovery:
-         source: origin
-         recoveryTarget: { targetTime: '2026-09-25 14:00:00+00' }
-     externalClusters:
-       - name: origin
-         plugin:
-           name: barman-cloud.cloudnative-pg.io
-           parameters: { barmanObjectName: vtt-pg-wal, serverName: vtt-pg }
-   ```
+```bash
+infra/cluster/backup/pitr.sh "2026-10-04 14:59"
+```
 
-3. Vérifier la chaîne de hash de l'historique (chaque campagne, puis les événements globaux) :
-   `SELECT count(*) FROM (SELECT DISTINCT campaign_id FROM history.events) r, LATERAL history.verify_chain(r.campaign_id);`
-   doit renvoyer 0 (même requête que le test de restauration hebdomadaire).
-4. Basculer les services vers `vtt-pg-restored-rw` (valeurs GitOps), relancer, puis
-   supprimer l'ancien cluster une fois la situation stable.
+Elle vérifie que l'instant est couvert, force l'archivage du WAL, écrit la restauration dans le
+dépôt (`bootstrap.recovery`) avec une **nouvelle lignée d'archive** (`vtt-pg-pitrN` : l'ancienne
+reste intacte dans R2), demande confirmation, supprime le cluster (Argo le recrée depuis
+l'archive), redémarre PgBouncer, puis lance la première sauvegarde de base de la nouvelle lignée.
+Tout ce qui a été écrit après l'instant choisi est perdu.
+
+Pourquoi recréer la base : Postgres ne sait pas reculer une base en marche, son journal ne se lit
+que vers l'avant. On repart de la sauvegarde de base et on rejoue le WAL jusqu'à l'instant voulu.
+
+Après la restauration, vérifier la chaîne de hash de l'historique :
+`SELECT count(*) FROM (SELECT DISTINCT campaign_id FROM history.events) r, LATERAL history.verify_chain(r.campaign_id);`
+doit renvoyer 0 (même requête que le test de restauration hebdomadaire).
 
 ## B. Restaurer un seul schéma depuis le dump logique
 
