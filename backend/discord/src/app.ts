@@ -20,6 +20,7 @@ import {
   EPHEMERAL,
   Interaction,
   InteractionType,
+  option,
   ResponseType,
 } from './discord/types.js';
 import { TRAY_PREFIX } from './tray.js';
@@ -29,6 +30,11 @@ const BODY_LIMIT = 64 * 1024;
 
 /** Commandes dont la réponse est lue par tout le salon. */
 const PUBLIC_COMMANDS = new Set(['roll', 'history']);
+
+/** Réponse publique ? Un jet caché répond à son auteur seul (le salon en est averti à part). */
+function isPublicResponse(i: Interaction): boolean {
+  return PUBLIC_COMMANDS.has(i.data?.name ?? '') && option(i, 'hidden') !== true;
+}
 
 export async function buildDiscord(
   config: DiscordConfig,
@@ -117,7 +123,7 @@ export async function buildDiscord(
             // Jets et historique : publics, sous la commande lancée ; le reste : pour l'auteur
             return reply.send({
               type: ResponseType.DeferredChannelMessage,
-              data: PUBLIC_COMMANDS.has(i.data?.name ?? '') ? {} : { flags: EPHEMERAL },
+              data: isPublicResponse(i) ? {} : { flags: EPHEMERAL },
             });
 
           case InteractionType.Autocomplete: {

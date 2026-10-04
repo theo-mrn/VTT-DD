@@ -171,6 +171,7 @@ export function bot(deps: BotDeps) {
     if (!active) return discord.editOriginal(i.token, noActive());
     const set = await diceSetFor(active);
     const typed = option(i, 'dice');
+    const hidden = option(i, 'hidden') === true;
     if (typeof typed !== 'string' || !typed.trim()) {
       if (!set) return discord.editOriginal(i.token, ephemeral('Système de jeu inconnu.'));
       return discord.editOriginal(i.token, trayMessage(set, active.name));
@@ -180,9 +181,12 @@ export function bot(deps: BotDeps) {
       systemId: active.system.id,
       characterId: active.playedCharacterId,
       notation: typed.trim(),
-      hidden: false,
+      hidden,
     });
     await publish(i.token, { embeds: [resultEmbed(set, active, result)] });
+    // Jet caché : résultat pour l'auteur seul (le MJ le voit dans Yner), le salon en est averti
+    if (hidden)
+      await discord.followUp(i.token, { content: `**${result.userName}** a fait un jet caché.` });
   }
 
   async function history(i: Interaction, token: string): Promise<void> {

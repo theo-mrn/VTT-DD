@@ -4,6 +4,7 @@
  */
 const STRING = 3;
 const INTEGER = 4;
+const BOOLEAN = 5;
 
 /** Utilisables sur un serveur et en message privé avec le bot. */
 const contexts = { contexts: [0, 1], integration_types: [0] };
@@ -34,6 +35,12 @@ export const COMMANDS = [
         required: true,
         autocomplete: true,
         max_length: 200,
+      },
+      {
+        type: BOOLEAN,
+        name: 'hidden',
+        description:
+          'Résultat visible de toi et du MJ (dans Yner) ; le salon voit seulement le jet',
       },
     ],
     ...contexts,
