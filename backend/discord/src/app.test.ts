@@ -173,10 +173,8 @@ describe('POST /v1/discord/interactions', () => {
     const res = await post(
       interaction(2, { name: 'roll', options: [{ name: 'dice', type: 3, value: '1d20+3' }] }),
     );
-    expect(res.json()).toEqual({ type: 5, data: { flags: 64 } });
-    await vi.waitFor(() =>
-      expect(f.sent.map((s) => s.kind)).toEqual(['edit', 'followUp', 'delete']),
-    );
+    expect(res.json()).toEqual({ type: 5, data: {} });
+    await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['edit']));
     expect(f.rolls[0]).toMatchObject({
       campaignId: CAMPAIGN.id,
       systemId: 'dnd-classic',
@@ -184,23 +182,7 @@ describe('POST /v1/discord/interactions', () => {
       notation: '1d20+3',
       hidden: false,
     });
-    expect(f.sent[1]!.message!.embeds![0]!.description).toContain('**17**');
-  });
-
-  it('/roll caché : résultat éphémère, visibilité privée', async () => {
-    await post(
-      interaction(2, {
-        name: 'roll',
-        options: [
-          { name: 'dice', type: 3, value: '1d20' },
-          { name: 'hidden', type: 5, value: true },
-        ],
-      }),
-    );
-    await settle();
-    expect(f.rolls[0]!.hidden).toBe(true);
-    expect(f.sent).toHaveLength(1);
-    expect(f.sent[0]).toMatchObject({ kind: 'edit', message: { flags: 64 } });
+    expect(f.sent[0]!.message!.embeds![0]!.description).toContain('**17**');
   });
 
   it('/tray : plateau des dés du système, puis lancer depuis le plateau', async () => {
@@ -271,10 +253,8 @@ describe('POST /v1/discord/interactions', () => {
     await post(
       interaction(2, { name: 'history', options: [{ name: 'player', type: 3, value: 'ald' }] }),
     );
-    await vi.waitFor(() =>
-      expect(f.sent.map((s) => s.kind)).toEqual(['edit', 'followUp', 'delete']),
-    );
-    const description = f.sent[1]!.message!.embeds![0]!.description!;
+    await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['edit']));
+    const description = f.sent[0]!.message!.embeds![0]!.description!;
     expect(description).toContain('**Aldo** · **15** · `1d20`');
     expect(description).not.toContain('Bria');
     expect(description).not.toContain('MJ');
@@ -342,9 +322,7 @@ describe('POST /v1/discord/interactions', () => {
     await post(
       interaction(2, { name: 'roll', options: [{ name: 'dice', type: 3, value: '1d20' }] }),
     );
-    await vi.waitFor(() =>
-      expect(f.sent.map((s) => s.kind)).toEqual(['edit', 'followUp', 'delete']),
-    );
+    await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['edit']));
     expect(f.rolls.at(-1)).toMatchObject({ characterId: null, notation: '1d20' });
   });
 });

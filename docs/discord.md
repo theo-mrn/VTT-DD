@@ -132,14 +132,16 @@ Le bot n'a aucun droit propre. Pour chaque commande :
 
 ### Commandes
 
-Le bot ne fait que des dés. Commandes et options en anglais (noms du legacy) ; descriptions et
+Le bot ne fait que des dés. `/roll` et `/history` répondent en public, sous la commande
+lancée ; `/room`, `/me`, `/stats`, `/link`, `/unlink` et le plateau `/tray` ne sont vus que de
+leur auteur (le jet lancé depuis le plateau, lui, est public). Commandes et options en anglais (noms du legacy) ; descriptions et
 messages en français. Pas de compte lié → message éphémère avec le bouton de `/link` ;
 pas de salle active → message éphémère qui propose `/room`.
 
 | Commande                    | Effet                                                                                                                                                          |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/room [campaign]`          | Choisit la salle active parmi ses campagnes (autocomplétion : titre et système) ; sans argument, affiche la salle active                                       |
-| `/roll dice [hidden]`       | Jet dans la salle active, avec le personnage du joueur (`POST /v1/dice/rolls`, tiré par le serveur) : visible sur la carte et dans l'historique comme tout jet |
+| `/roll dice`                | Jet dans la salle active, avec le personnage du joueur (`POST /v1/dice/rolls`, tiré par le serveur) : visible sur la carte et dans l'historique comme tout jet |
 | `/tray`                     | Plateau à boutons des dés du système de la salle active                                                                                                        |
 | `/history [player] [count]` | Derniers jets publics de la salle active (`GET /v1/dice/rolls`)                                                                                                |
 | `/stats [player]`           | Statistiques de la salle active (`GET /v1/dice/stats`)                                                                                                         |

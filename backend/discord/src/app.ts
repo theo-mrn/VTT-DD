@@ -27,6 +27,9 @@ import { ynerClient, type YnerClient } from './yner.js';
 
 const BODY_LIMIT = 64 * 1024;
 
+/** Commandes dont la réponse est lue par tout le salon. */
+const PUBLIC_COMMANDS = new Set(['roll', 'history']);
+
 export async function buildDiscord(
   config: DiscordConfig,
   extra: Omit<ServiceOptions, 'config'> & { yner?: YnerClient; discord?: DiscordApi } = {},
@@ -111,9 +114,10 @@ export async function buildDiscord(
         switch (i.type) {
           case InteractionType.ApplicationCommand:
             later(req, () => bot.command(i, author));
+            // Jets et historique : publics, sous la commande lancée ; le reste : pour l'auteur
             return reply.send({
               type: ResponseType.DeferredChannelMessage,
-              data: { flags: EPHEMERAL },
+              data: PUBLIC_COMMANDS.has(i.data?.name ?? '') ? {} : { flags: EPHEMERAL },
             });
 
           case InteractionType.Autocomplete: {

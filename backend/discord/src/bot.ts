@@ -123,17 +123,9 @@ export function bot(deps: BotDeps) {
     }
   }
 
-  /** Publie un résultat : message public de suite, ou éphémère pour un jet caché. */
-  async function publish(token: string, message: Message, isPublic: boolean) {
-    if (isPublic) {
-      // Tant que la réponse différée attend, Discord fait du premier message de suite son
-      // remplaçant (éphémère, puis supprimé avec elle) : on la clôt d'abord, puis on publie
-      await discord.editOriginal(token, ephemeral('Lancé.'));
-      await discord.followUp(token, message);
-      await discord.deleteOriginal(token);
-    } else {
-      await discord.editOriginal(token, { ...message, flags: EPHEMERAL });
-    }
+  /** Publie un résultat sous la commande lancée (réponse différée publique). */
+  async function publish(token: string, message: Message) {
+    await discord.editOriginal(token, message);
   }
 
   /** Erreur d'un service : message éphémère lisible, jamais de trace. */
@@ -183,15 +175,14 @@ export function bot(deps: BotDeps) {
       if (!set) return discord.editOriginal(i.token, ephemeral('Système de jeu inconnu.'));
       return discord.editOriginal(i.token, trayMessage(set, active.name));
     }
-    const hidden = option(i, 'hidden') === true;
     const result = await rollWithCharacter(token, {
       campaignId: active.id,
       systemId: active.system.id,
       characterId: active.playedCharacterId,
       notation: typed.trim(),
-      hidden,
+      hidden: false,
     });
-    await publish(i.token, { embeds: [resultEmbed(set, active, result)] }, !hidden);
+    await publish(i.token, { embeds: [resultEmbed(set, active, result)] });
   }
 
   async function history(i: Interaction, token: string): Promise<void> {
@@ -210,11 +201,9 @@ export function bot(deps: BotDeps) {
       const value = r.symbolResult ?? (r.total === null ? r.output : `**${r.total}**`);
       return `**${r.userName}** · ${value}${r.notation ? ` · \`${r.notation}\`` : ''}`;
     });
-    await publish(
-      i.token,
-      { embeds: [{ title: active.name, description: lines.join('\n').slice(0, 4000) }] },
-      true,
-    );
+    await publish(i.token, {
+      embeds: [{ title: active.name, description: lines.join('\n').slice(0, 4000) }],
+    });
   }
 
   async function stats(i: Interaction, token: string): Promise<Message> {
