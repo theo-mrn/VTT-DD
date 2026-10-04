@@ -184,9 +184,6 @@ export function bot(deps: BotDeps) {
       hidden,
     });
     await publish(i.token, { embeds: [resultEmbed(set, active, result)] });
-    // Jet caché : résultat pour l'auteur seul (le MJ le voit dans Yner), le salon en est averti
-    if (hidden)
-      await discord.followUp(i.token, { content: `**${result.userName}** a fait un jet caché.` });
   }
 
   async function history(i: Interaction, token: string): Promise<void> {

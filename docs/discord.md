@@ -134,9 +134,8 @@ Le bot n'a aucun droit propre. Pour chaque commande :
 
 Le bot ne fait que des dés. `/roll` et `/history` répondent en public, sous la commande
 lancée ; `/room`, `/me`, `/stats`, `/link`, `/unlink` et le plateau `/tray` ne sont vus que de
-leur auteur (le jet lancé depuis le plateau, lui, est public). Jet caché (`hidden`) : résultat pour son
-auteur seul, le salon voit « X a fait un jet caché », le MJ lit le résultat dans Yner (jet
-privé : auteur et MJ). Commandes et options en anglais (noms du legacy) ; descriptions et
+leur auteur (le jet lancé depuis le plateau, lui, est public). Jet caché (`hidden`) : rien dans le salon,
+résultat pour son auteur seul ; le MJ le lit dans Yner (jet privé : auteur et MJ). Commandes et options en anglais (noms du legacy) ; descriptions et
 messages en français. Pas de compte lié → message éphémère avec le bouton de `/link` ;
 pas de salle active → message éphémère qui propose `/room`.
 
