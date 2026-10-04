@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-identity
-  digest: 'sha256:0df58518f1640731d0a023c1fb559d500c9b99938d612a62516513ca8c7c5981'
+  digest: 'sha256:b21a8468d25c171636e070609059045481ebe88a85cc80e28f29bb4fc5d9d4ea'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -68,13 +68,13 @@ networkPolicy:
   # Kourrier : envoi des e-mails (la NetworkPolicy du namespace kourrier autorise
   # identity en retour, dans argocd_registry)
   extraEgress:
-    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kourrier } } }]
-      ports: [{ port: 8080 }]
+    - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kourrier}}}]
+      ports: [{port: 8080}]
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-identity-migrations
-    digest: 'sha256:f397b09c5bc8bea33009c254f17ca1a45752157ef996d3ee61a8dddf29e7cc08'
+    digest: 'sha256:41e1fb6ef64ce24b341ab1b56fdd8f4dfe6b655b308aa6211a839a3abb1f533a'
     tag: 'main'
   schema: identity
   # Secret généré par CloudNativePG pour le rôle identity_owner
