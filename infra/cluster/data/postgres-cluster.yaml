@@ -115,7 +115,9 @@ spec:
     topologyKey: kubernetes.io/hostname
 
   monitoring:
-    enablePodMonitor: true
+    # PodMonitor générée par CNPG sans l'étiquette que lit Prometheus : remplacée par
+    # podmonitor.yaml (vtt-pg-metrics)
+    enablePodMonitor: false
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Pooler

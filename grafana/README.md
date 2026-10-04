@@ -8,6 +8,7 @@ déployée par l'application Argo `vtt-observability`. Un tableau de bord ajout�
 | Fichier          | Contenu                                                                          |
 | ---------------- | -------------------------------------------------------------------------------- |
 | `vtt-logs.json`  | Logs du namespace `vtt-staging` : volume, erreurs, 5xx, latence p95, refus par code métier, événements métier, recherche |
+| `vtt-postgres.json` | Base `vtt-pg` (CloudNativePG) : tableau officiel du projet (cloudnative-pg/grafana-dashboards), connexions, transactions, réplication, disque, sauvegardes |
 
 Les requêtes suivent la forme des logs décrite dans `docs/observabilite.md` § 2 (JSON pino :
 `level`, `message`, `res.statusCode`, `responseTime`, `code`, `eventId`, `type`).

@@ -9,6 +9,10 @@ generatorOptions:
   annotations:
     grafana_folder: VTT
 configMapGenerator:
-  - name: vtt-grafana-dashboards
+  # Une ConfigMap par tableau de bord : le tableau officiel de CloudNativePG pèse près de 250 Ko
+  - name: vtt-grafana-dashboard-logs
     files:
       - vtt-logs.json
+  - name: vtt-grafana-dashboard-postgres
+    files:
+      - vtt-postgres.json

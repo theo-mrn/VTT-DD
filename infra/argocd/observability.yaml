@@ -16,3 +16,5 @@ spec:
   syncPolicy:
     # Une seule ConfigMap, propre à cette application : on peut la retirer avec son fichier
     automated: { prune: true, selfHeal: true }
+    # Pas d'annotation last-applied (limitée à 256 Ko) : les tableaux de bord sont gros
+    syncOptions: [ServerSideApply=true]
