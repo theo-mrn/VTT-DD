@@ -1,0 +1,8 @@
+Bonjour,
+
+Confirmez que cette adresse e-mail est bien la vôtre pour sécuriser votre compte YNER.
+
+Confirmer mon adresse : {{.lien}}
+
+Ce lien est valable 24 heures et ne peut servir qu’une seule fois.
+Si vous n’avez pas demandé cette vérification, ignorez cet e-mail.

@@ -105,6 +105,6 @@ etape "Services et front (Ctrl+C pour tout arrêter)"
 echo "  front    http://localhost:3000"
 echo "  gateway  http://localhost:8080"
 echo "  temps réel ws://localhost:8080/v1/realtime/socket.io (service realtime :3006)"
-echo "  e-mails  http://localhost:8025"
+echo "  e-mails  http://localhost:8025 (Mailpit ; envoi par Kourrier sur :8090)"
 echo "  son      service audio :3008, worker ffmpeg :3009 (brew install ffmpeg)"
 exec pnpm turbo run dev --concurrency=20 --filter='./backend/*' --filter=@vtt/web

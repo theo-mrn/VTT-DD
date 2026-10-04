@@ -42,7 +42,8 @@ namespace vtt-pr-<n> : Postgres (CNPG, 1 instance, 1 Gi), NATS, Valkey, 11 servi
 - **Fichiers** : la copie référence les fichiers du staging (mêmes URL publiques). Une preview
   écrit sous un préfixe à elle (`previews/pr-<n>/`) et n'a jamais le nettoyage des orphelins
   actif (`ORPHAN_SWEEP: off`), sinon elle supprimerait des fichiers du staging.
-- **E-mails** : `SMTP_URL` absent (aucun e-mail réel depuis une preview).
+- **E-mails** : `KOURRIER_URL` absent (aucun e-mail réel depuis une preview) ; la NetworkPolicy
+  de Kourrier n'admet de toute façon que `vtt-staging`.
 - **OAuth** : les fournisseurs n'acceptent pas de joker dans les URL de retour ; connexion par
   e-mail et mot de passe seulement (comptes du staging copiés).
 - **Paiements** : Stripe absent.

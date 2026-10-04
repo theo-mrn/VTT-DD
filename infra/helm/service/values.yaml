@@ -53,6 +53,10 @@ networkPolicy:
   monitoringNamespace: monitoring
   # Ports sortants supplémentaires vers Internet (ex. 587 pour le SMTP)
   extraEgressPorts: []
+  # Règles de sortie supplémentaires vers le cluster, au format NetworkPolicy
+  extraEgress: []
+  #  - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kourrier } } }]
+  #    ports: [{ port: 8080 }]
   # Namespaces autorisés à appeler ce service (en plus de l'ingress)
   allowFrom: []
   #  - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }

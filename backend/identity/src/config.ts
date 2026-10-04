@@ -53,8 +53,14 @@ export const IdentityConfig = BaseConfig.extend({
   /** URL publique du front : liens des e-mails et retour après connexion Google/Discord. */
   APP_URL: z.string().url().default('http://localhost:3000'),
 
-  /** Envoi des e-mails : smtp://… (Mailpit en dev, Resend en prod). Absent : e-mails journalisés. */
-  SMTP_URL: facultatif(z.string().url()),
+  /**
+   * Envoi des e-mails par Kourrier (http://localhost:8090 en dev, Mailpit derrière ;
+   * http://kourrier.kourrier.svc:8080 en cluster, AWS SES derrière). Absent : e-mails journalisés.
+   */
+  KOURRIER_URL: facultatif(z.string().url()),
+  /** Clé d'API du tenant yner chez Kourrier (kr_…). Obligatoire avec KOURRIER_URL. */
+  KOURRIER_API_KEY: facultatif(z.string().startsWith('kr_')),
+  /** Expéditeur : doit être autorisé pour la clé (allowed_senders du tenant, *@yner.fr). */
   MAIL_FROM: z.string().default('YNER <contact@yner.fr>'),
 
   /** Stockage des avatars et bannières (R2). */

@@ -60,7 +60,8 @@ synchronise.
    - R2 applicatif : `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
      `R2_PUBLIC_URL` (domaine public du bucket) ;
    - facultatif : `GOOGLE_CLIENT_ID/SECRET` et `DISCORD_CLIENT_ID/SECRET` (retours sur
-     `https://api.staging.yner.fr/v1/auth/oauth/<fournisseur>/callback`), `SMTP_URL`,
+     `https://api.staging.yner.fr/v1/auth/oauth/<fournisseur>/callback`), `KOURRIER_API_KEY`
+     (envoi des e-mails : voir `infra/mails/README.md`),
      `STRIPE_*` (mode test), `FIREBASE_SCRYPT_*` (comptes importés) ;
    - sauvegarde : `BACKUP_R2_ACCESS_KEY_ID/SECRET_ACCESS_KEY` (bucket `vtt-logical-backups`,
      clé distincte), `BACKUP_VAULT_PASSWORD` et `BACKUP_VAULT_SALT` (chiffrement ; à garder
