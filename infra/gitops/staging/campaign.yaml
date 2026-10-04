@@ -54,6 +54,9 @@ networkPolicy:
     # audio demande le rôle de l'appelant (/internal, secret partagé)
     - podSelector: {matchLabels: {app.kubernetes.io/name: audio}}
     - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+    # Temps réel et historique : vérification des jetons (JWKS) et droits dans la campagne
+    - podSelector: {matchLabels: {app.kubernetes.io/name: realtime}}
+    - podSelector: {matchLabels: {app.kubernetes.io/name: history}}
     # Bot de dés Discord : jetons délégués et appels au nom du joueur (docs/discord.md)
     - podSelector: {matchLabels: {app.kubernetes.io/name: discord}}
     # character demande les droits des campagnes (/internal, secret partagé)
