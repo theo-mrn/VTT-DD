@@ -35,7 +35,7 @@ spec:
                 - |
                   stamp=$(date -u +%Y-%m-%dT%H%MZ)
                   mkdir -p /backup/$stamp
-                  for schema in identity billing campaign characters history; do
+                  for schema in identity billing campaign characters dice history audio; do
                     pg_dump --format=custom --compress=zstd:6 --schema="$schema" \
                       --file="/backup/$stamp/$schema.dump" vtt
                   done

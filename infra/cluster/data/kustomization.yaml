@@ -4,6 +4,7 @@ namespace: data
 resources:
   - postgres-cluster.yaml
   - podmonitor.yaml
+  - backup.yaml
 configMapGenerator:
   - name: vtt-pg-init
     files:

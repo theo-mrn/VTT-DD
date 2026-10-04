@@ -134,25 +134,8 @@ secret vtt-staging audio-secrets Opaque \
   "INTERNAL_API_SECRET=$interne" "AUDIO_UPLOAD_SECRET=$(pw)" "${r2[@]}"
 secret vtt-staging realtime-secrets Opaque "INTERNAL_API_SECRET=$interne"
 
-# ─── Sauvegarde logique (pg_dump chiffré vers un autre bucket R2) ─────────────────────────
-# rclone obscure : rclone local, sinon son image Docker
-obscure() {
-  if command -v rclone >/dev/null; then rclone obscure "$1"
-  else docker run --rm rclone/rclone:1.71 obscure "$1"; fi
-}
-if [ -n "${BACKUP_R2_ACCESS_KEY_ID:-}" ]; then
-  for v in BACKUP_R2_SECRET_ACCESS_KEY BACKUP_VAULT_PASSWORD BACKUP_VAULT_SALT; do
-    [ -n "${!v:-}" ] || { echo "Variable manquante : $v" >&2; exit 1; }
-  done
-  secret data logical-backup-rclone Opaque \
-    "RCLONE_CONFIG_R2_TYPE=s3" "RCLONE_CONFIG_R2_PROVIDER=Cloudflare" \
-    "RCLONE_CONFIG_R2_ENDPOINT=$R2_ENDPOINT" \
-    "RCLONE_CONFIG_R2_ACCESS_KEY_ID=$BACKUP_R2_ACCESS_KEY_ID" \
-    "RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=$BACKUP_R2_SECRET_ACCESS_KEY" \
-    "RCLONE_CONFIG_VAULT_TYPE=crypt" "RCLONE_CONFIG_VAULT_REMOTE=r2:vtt-logical-backups/pg" \
-    "RCLONE_CONFIG_VAULT_PASSWORD=$(obscure "$BACKUP_VAULT_PASSWORD")" \
-    "RCLONE_CONFIG_VAULT_PASSWORD2=$(obscure "$BACKUP_VAULT_SALT")"
-fi
+# ─── Sauvegardes de la base : secrets à part, rejouables seuls ───────────────────────────
+# logical-backup-rclone et pg-wal-r2 : voir seal-backups.sh
 
 echo "Secrets scellés dans $sortie :" >&2
 ls "$sortie" >&2

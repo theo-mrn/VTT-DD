@@ -4,7 +4,7 @@ Deux niveaux de sauvegarde, indépendants :
 
 | Niveau                                  | Quoi                                 | Où                                             | Rétention | Sert à                                                              |
 | --------------------------------------- | ------------------------------------ | ---------------------------------------------- | --------- | ------------------------------------------------------------------- |
-| Physique continu (CNPG + Barman Cloud)  | Base complète + WAL                  | `r2:vtt-pg-backups`                            | 30 jours  | Revenir à la seconde près (PITR), perte du cluster                  |
+| Physique continu (CNPG + Barman Cloud)  | Base complète chaque nuit + WAL      | `r2:vtt-pg-wal`                                | 7 jours   | Revenir à la seconde près (PITR, perte ≤ 5 min), perte du cluster   |
 | Logique quotidien (`pg-logical-backup`) | `pg_dump` par schéma, chiffré rclone | `r2:vtt-logical-backups` (autres identifiants) | 30 jours  | Restaurer un seul service, une erreur humaine, perte du bucket CNPG |
 
 Valkey (cache) et NATS ne sont pas sauvegardés : le cache se reconstruit, et les
@@ -13,9 +13,22 @@ Valkey (cache) et NATS ne sont pas sauvegardés : le cache se reconstruit, et le
 Le test automatique `pg-restore-test` restaure chaque dimanche la dernière sauvegarde
 physique et vérifie la chaîne de hash de l'historique.
 
+## État des sauvegardes
+
+```bash
+kubectl -n data get backups                      # sauvegardes de base (une par nuit, 4 h UTC)
+kubectl -n data get scheduledbackup vtt-pg-daily
+kubectl -n data get cluster vtt-pg -o jsonpath='{.status.conditions[?(@.type=="ContinuousArchiving")]}'
+kubectl -n data get cronjob pg-logical-backup pg-restore-test   # dump nocturne, test du dimanche
+```
+
+Secrets des deux sauvegardes (jetons R2 limités à leur bucket, clé de chiffrement des dumps) :
+`infra/cluster/secrets/seal-backups.sh`. La clé `BACKUP_VAULT_PASSWORD`/`SALT` est aussi rangée
+hors du cluster : sans elle, les dumps sont illisibles.
+
 ## A. Retour dans le temps (PITR) — incident grave
 
-1. Geler les écritures : `kubectl -n vtt-prod scale deploy --all --replicas=0` (le front affiche la maintenance).
+1. Geler les écritures : `kubectl -n vtt-staging scale deploy --all --replicas=0` (`vtt-prod` en prod).
 2. Créer un nouveau cluster depuis la sauvegarde, à l'instant voulu (UTC) :
 
    ```yaml
@@ -23,7 +36,7 @@ physique et vérifie la chaîne de hash de l'historique.
    kind: Cluster
    metadata: { name: vtt-pg-restored, namespace: data }
    spec:
-     instances: 3
+     instances: 1 # 3 en prod
      imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
      storage: { size: 20Gi, storageClass: local-path }
      bootstrap:
@@ -34,7 +47,7 @@ physique et vérifie la chaîne de hash de l'historique.
        - name: origin
          plugin:
            name: barman-cloud.cloudnative-pg.io
-           parameters: { barmanObjectName: r2-backups, serverName: vtt-pg }
+           parameters: { barmanObjectName: vtt-pg-wal, serverName: vtt-pg }
    ```
 
 3. Vérifier la chaîne de hash de l'historique (chaque campagne, puis les événements globaux) :

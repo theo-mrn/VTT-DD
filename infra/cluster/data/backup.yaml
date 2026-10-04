@@ -1,0 +1,44 @@
+# Sauvegardes physiques et PITR (plugin Barman Cloud de CloudNativePG, infra/cluster/backup/RESTORE.md) :
+# WAL archivés en continu et sauvegarde de base chaque nuit vers le bucket R2 vtt-pg-wal (jeton
+# limité à ce bucket, secret pg-wal-r2 : seal-backups.sh). Restauration à la seconde près sur
+# 7 jours ; perte maximale ~5 min (archive_timeout du cluster).
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: vtt-pg-wal
+  namespace: data
+spec:
+  retentionPolicy: 7d
+  # Conteneur du plugin ajouté au pod Postgres (archivage des WAL)
+  instanceSidecarConfiguration:
+    resources:
+      requests: { cpu: 10m, memory: 64Mi }
+      limits: { memory: 256Mi }
+  configuration:
+    destinationPath: s3://vtt-pg-wal/
+    endpointURL: https://f00be9d5ebfccacba59c27991e8a41b5.r2.cloudflarestorage.com
+    s3Credentials:
+      accessKeyId: { name: pg-wal-r2, key: ACCESS_KEY_ID }
+      secretAccessKey: { name: pg-wal-r2, key: ACCESS_SECRET_KEY }
+    wal:
+      compression: gzip
+      maxParallel: 2
+    data:
+      compression: gzip
+      jobs: 2
+---
+# Sauvegarde de base chaque nuit à 4 h UTC (CNPG ne gère pas de fuseau), une fois au premier déploiement
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: vtt-pg-daily
+  namespace: data
+spec:
+  schedule: '0 0 4 * * *'
+  immediate: true
+  backupOwnerReference: self
+  cluster:
+    name: vtt-pg
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io

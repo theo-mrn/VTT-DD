@@ -36,6 +36,10 @@ data:
       instances: 1
       imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
       storage: { size: 20Gi, storageClass: local-path }
+      # Restauration de contrôle : petite empreinte, supprimée à la fin du test
+      resources:
+        requests: { cpu: 100m, memory: 512Mi }
+        limits: { memory: 1Gi }
       bootstrap:
         recovery:
           source: origin
@@ -44,7 +48,7 @@ data:
           plugin:
             name: barman-cloud.cloudnative-pg.io
             parameters:
-              barmanObjectName: r2-backups
+              barmanObjectName: vtt-pg-wal
               serverName: vtt-pg
   run.sh: |
     set -euo pipefail
@@ -53,8 +57,9 @@ data:
     kubectl -n data wait cluster/vtt-pg-restore-test --for=condition=Ready --timeout=40m
     pod=$(kubectl -n data get pods -l cnpg.io/cluster=vtt-pg-restore-test,cnpg.io/instanceRole=primary -o name | head -1)
     q() { kubectl -n data exec "$pod" -c postgres -- psql -d vtt -Atc "$1"; }
-    echo "schémas : $(q "select count(*) from pg_namespace where nspname in ('identity','billing','campaign','characters','history')")"
-    test "$(q "select count(*) from pg_namespace where nspname in ('identity','billing','campaign','characters','history')")" = 5
+    schemas="'identity','billing','campaign','characters','dice','history','audio'"
+    echo "schémas : $(q "select count(*) from pg_namespace where nspname in ($schemas)")"
+    test "$(q "select count(*) from pg_namespace where nspname in ($schemas)")" = 7
     q "select postgis_full_version()" > /dev/null
     # Journal d'historique : la chaîne de hash doit être intacte après restauration
     if [ "$(q "select to_regproc('history.verify_chain') is not null")" = t ]; then

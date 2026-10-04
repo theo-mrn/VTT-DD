@@ -31,6 +31,8 @@ spec:
       log_min_duration_statement: '250ms'
       pg_stat_statements.track: all
       idle_in_transaction_session_timeout: '30s'
+      # Un segment WAL partiel est archivé au plus tard après 5 min : perte maximale en PITR
+      archive_timeout: '5min'
 
   bootstrap:
     initdb:
@@ -102,6 +104,13 @@ spec:
           inRoles: [pg_read_all_data],
           passwordSecret: { name: pg-backup-ro },
         }
+
+  # Archivage continu des WAL et sauvegardes de base (plugin Barman Cloud, backup.yaml)
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: vtt-pg-wal
 
   storage:
     size: 20Gi

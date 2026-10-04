@@ -13,12 +13,12 @@ spec:
     - repoURL: https://github.com/theo-mrn/VTT-DD.git
       targetRevision: main
       path: infra/cluster/data
-    # pg_dump chiffré quotidien vers R2 (secret logical-backup-rclone, voir seal-staging.sh) ;
-    # restore-test.yaml reste manuel (docs dans infra/cluster/backup/RESTORE.md)
+    # pg_dump chiffré quotidien vers R2 (secret logical-backup-rclone, voir seal-backups.sh) et
+    # test de restauration hebdomadaire de la sauvegarde physique (infra/cluster/backup/RESTORE.md)
     - repoURL: https://github.com/theo-mrn/VTT-DD.git
       targetRevision: main
       path: infra/cluster/backup
-      directory: { include: logical-backup.yaml }
+      directory: { include: '{logical-backup.yaml,restore-test.yaml}' }
   destination:
     server: https://kubernetes.default.svc
     namespace: data
