@@ -97,6 +97,15 @@ describe('client des services Yner', () => {
     });
   });
 
+  it('personnage : son nom, null s’il est introuvable', async () => {
+    const { yner, calls } = client((c) =>
+      c.url.endsWith('/p1') ? { status: 200, body: { id: 'p1', nom: 'Aldo' } } : { status: 404 },
+    );
+    expect(await yner.characterName('t', 'p1')).toBe('Aldo');
+    expect(await yner.characterName('t', 'supprime')).toBeNull();
+    expect(calls[0]).toMatchObject({ url: 'http://character.test/v1/characters/p1' });
+  });
+
   it('compte lié : nom et e-mail du profil', async () => {
     const { yner, calls } = client(() => ({
       status: 200,

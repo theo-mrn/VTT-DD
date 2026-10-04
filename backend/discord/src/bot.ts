@@ -239,13 +239,20 @@ export function bot(deps: BotDeps) {
 
   async function me(token: string): Promise<Message> {
     const [account, active] = await Promise.all([yner.me(token), yner.activeCampaign(token)]);
+    const character = active?.playedCharacterId
+      ? await yner.characterName(token, active.playedCharacterId)
+      : null;
     return ephemeral(
       [
         `Compte Yner : **${account.name}**${account.email ? ` · ${account.email}` : ''}`,
         active
           ? `Salle active : **${active.name}** · ${ROLE_LABEL[active.role] ?? active.role}`
           : 'Aucune salle active : `/room` pour en choisir une.',
-      ].join('\n'),
+        // Le personnage joué donne les valeurs des jets (1d20+CON) ; sans lui, jet à ton nom
+        active ? `Personnage : ${character ? `**${character}**` : 'aucun'}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n'),
     );
   }
 

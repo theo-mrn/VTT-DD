@@ -93,6 +93,8 @@ export interface YnerClient {
   /** Compte Yner lié (nom, e-mail). */
   me(token: string): Promise<Me>;
   myCampaigns(token: string): Promise<Campaign[]>;
+  /** Nom d'un personnage ; null s'il est introuvable (supprimé) ou illisible pour le joueur. */
+  characterName(token: string, characterId: string): Promise<string | null>;
   activeCampaign(token: string): Promise<Campaign | null>;
   setActiveCampaign(token: string, campaignId: string): Promise<Campaign | null>;
   roll(token: string, input: RollInput): Promise<Roll>;
@@ -170,6 +172,14 @@ export function ynerClient(o: YnerUrls): YnerClient {
         headers: { 'x-internal-secret': o.internalSecret },
       });
       return (await json(res, z.object({ token: z.string() }))).token;
+    },
+
+    async characterName(token, characterId) {
+      const res = await call(o.character, `/v1/characters/${encodeURIComponent(characterId)}`, {
+        token,
+      });
+      if (res.status === 404 || res.status === 403) return null;
+      return (await json(res, z.object({ nom: z.string() }))).nom;
     },
 
     async myCampaigns(token) {

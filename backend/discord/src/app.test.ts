@@ -55,6 +55,7 @@ function fakes() {
     linkToken: async (id, name) => `liaison-${id}-${name}`,
     me: async () => ({ name: 'Théo', email: 'theo@exemple.fr' }),
     myCampaigns: async () => [CAMPAIGN],
+    characterName: async (_t, id) => (id === 'perso-1' ? 'Aldo' : null),
     activeCampaign: async () => active,
     setActiveCampaign: async (_t, id) => (id === CAMPAIGN.id ? (active = CAMPAIGN) : null),
     roll: async (_t, input) => {
@@ -307,7 +308,7 @@ describe('POST /v1/discord/interactions', () => {
     await post(interaction(2, { name: 'me' }));
     await settle();
     expect(f.sent[0]!.message!.content).toBe(
-      'Compte Yner : **Théo** · theo@exemple.fr\nSalle active : **La Table** · Joueur',
+      'Compte Yner : **Théo** · theo@exemple.fr\nSalle active : **La Table** · Joueur\nPersonnage : **Aldo**',
     );
     expect(f.sent[0]!.message!.flags).toBe(64);
 
