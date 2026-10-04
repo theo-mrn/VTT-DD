@@ -16,6 +16,11 @@ spec:
   # les nœuds k3s qui portent Postgres doivent être en x86_64.
   imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
   primaryUpdateStrategy: unsupervised
+  # Réservées : sans elles, la base tombe la première quand son nœud sature (sondes en retard,
+  # redémarrage, tous les services sans base). Mémoire : shared_buffers + connexions + marge.
+  resources:
+    requests: { cpu: 250m, memory: 1Gi }
+    limits: { memory: 2Gi }
 
   postgresql:
     shared_preload_libraries: [pg_stat_statements]
