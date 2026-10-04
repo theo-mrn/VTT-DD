@@ -326,7 +326,7 @@ describe('POST /v1/discord/interactions', () => {
     expect(f.rolls.at(-1)).toMatchObject({ characterId: null, notation: '1d20' });
   });
 
-  it('/roll caché : résultat pour l’auteur seul, le salon voit seulement le jet', async () => {
+  it('/roll caché : résultat pour l’auteur seul, rien dans le salon', async () => {
     const res = await post(
       interaction(2, {
         name: 'roll',
@@ -337,9 +337,9 @@ describe('POST /v1/discord/interactions', () => {
       }),
     );
     expect(res.json()).toEqual({ type: 5, data: { flags: 64 } });
-    await vi.waitFor(() => expect(f.sent.map((s) => s.kind)).toEqual(['edit', 'followUp']));
+    await settle();
+    expect(f.sent.map((s) => s.kind)).toEqual(['edit']);
     expect(f.rolls.at(-1)).toMatchObject({ hidden: true });
     expect(f.sent[0]!.message!.embeds![0]!.description).toContain('**17**');
-    expect(f.sent[1]!.message).toEqual({ content: '**Aldo** a fait un jet caché.' });
   });
 });

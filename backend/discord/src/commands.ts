@@ -39,8 +39,7 @@ export const COMMANDS = [
       {
         type: BOOLEAN,
         name: 'hidden',
-        description:
-          'Résultat visible de toi et du MJ (dans Yner) ; le salon voit seulement le jet',
+        description: 'Visible de toi seul ici, et du MJ dans Yner',
       },
     ],
     ...contexts,

@@ -31,7 +31,7 @@ const BODY_LIMIT = 64 * 1024;
 /** Commandes dont la réponse est lue par tout le salon. */
 const PUBLIC_COMMANDS = new Set(['roll', 'history']);
 
-/** Réponse publique ? Un jet caché répond à son auteur seul (le salon en est averti à part). */
+/** Réponse publique ? Un jet caché ne s'affiche que pour son auteur. */
 function isPublicResponse(i: Interaction): boolean {
   return PUBLIC_COMMANDS.has(i.data?.name ?? '') && option(i, 'hidden') !== true;
 }
