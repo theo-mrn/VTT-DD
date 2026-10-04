@@ -4,7 +4,7 @@
   "tags": ["vtt", "logs"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "30s",
   "time": {
@@ -447,7 +447,7 @@
     },
     {
       "id": 9,
-      "type": "barchart",
+      "type": "bargauge",
       "title": "Refus par code métier",
       "datasource": {
         "type": "loki",
@@ -473,19 +473,27 @@
       ],
       "options": {
         "orientation": "horizontal",
-        "showValue": "always",
-        "legend": {
-          "showLegend": false
-        }
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "namePlacement": "left"
       },
-      "transformations": [
-        {
-          "id": "reduce",
-          "options": {
-            "reducers": ["sum"]
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
           }
-        }
-      ]
+        },
+        "overrides": []
+      }
     },
     {
       "id": 10,
@@ -543,7 +551,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 49,
         "w": 24,
         "h": 10
       },
@@ -576,7 +584,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 39,
+        "y": 59,
         "w": 24,
         "h": 12
       },
@@ -597,6 +605,105 @@
         "sortOrder": "Descending",
         "enableLogDetails": true,
         "prettifyLogMessage": false
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Requêtes récentes",
+      "description": "Traces des requêtes HTTP (spans serveur), sans les requêtes de fond du relais d'outbox. Clic sur une trace : sa cascade de services.",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ kind = server && resource.service.name =~ \"${app:regex}\" }",
+          "limit": 20,
+          "tableType": "traces"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Requêtes lentes (> 500 ms)",
+      "description": "Requêtes HTTP de plus de 500 ms.",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ kind = server && resource.service.name =~ \"${app:regex}\" && duration > 500ms }",
+          "limit": 20,
+          "tableType": "traces"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "Requêtes en erreur",
+      "description": "Spans en erreur (exceptions, réponses 5xx).",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 39,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ status = error && resource.service.name =~ \"${app:regex}\" }",
+          "limit": 20,
+          "tableType": "traces"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
       }
     }
   ]
