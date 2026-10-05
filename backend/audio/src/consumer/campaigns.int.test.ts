@@ -1,9 +1,9 @@
 /** campaign.deleted : bibliothèque retirée, livrée deux fois sans effet. */
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { assets, channels, inbox, jobs, playlists } from '../db/schema.js';
+import { assets, channels, inbox, jobs, mixerPreferences, playlists } from '../db/schema.js';
 import { helpers, TEST_DATABASE_URL, testApp, type TestContext } from '../test/test-app.js';
-import { handleCampaignDeleted } from './campaigns.js';
+import { handleCampaignDeleted, handleUserDeleted } from './campaigns.js';
 
 describe.skipIf(!TEST_DATABASE_URL)('suppression de campagne', () => {
   let t: TestContext;
@@ -51,5 +51,20 @@ describe.skipIf(!TEST_DATABASE_URL)('suppression de campagne', () => {
     const purge = await t.db!.select().from(jobs).where(eq(jobs.assetId, a.id));
     expect(purge.map((j) => j.kind)).toEqual(['purge']);
     await t.db!.delete(inbox).where(eq(inbox.eventId, event.id));
+  });
+
+  it('compte supprimé : ses réglages du mixeur retirés, doublon ignoré', async () => {
+    const userId = crypto.randomUUID();
+    await t.db!.insert(mixerPreferences).values({ userId, volumes: { music: 0.5 } });
+    const event = {
+      id: crypto.randomUUID(),
+      type: 'identity.user_deleted',
+      aggregate: { type: 'user', id: userId },
+    };
+    expect(await handleUserDeleted(t.db!, event)).toBe(true);
+    expect(
+      await t.db!.select().from(mixerPreferences).where(eq(mixerPreferences.userId, userId)),
+    ).toHaveLength(0);
+    expect(await handleUserDeleted(t.db!, event)).toBe(false);
   });
 });
