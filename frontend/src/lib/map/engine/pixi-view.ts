@@ -699,7 +699,9 @@ class PixiView implements EngineView {
     const gl = (this.app.renderer as unknown as { gl?: WebGLRenderingContext }).gl;
     // Textures du cache Assets : libérées par `unload`, pas par la destruction de la scène
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
-    for (const url of this.textures.keys()) void Assets.unload(url).catch(() => undefined);
+    // Même clé que le chargement (texture())
+    for (const url of this.textures.keys())
+      void Assets.unload(pourWebgl(url)).catch(() => undefined);
     this.textures.clear();
     for (const t of this.ownTextures) {
       const bitmap = t.source.resource as ImageBitmap | undefined;
