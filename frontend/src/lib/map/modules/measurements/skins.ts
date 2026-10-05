@@ -233,7 +233,7 @@ export class SkinTextures {
     }
     const video = (src: string) =>
       pixi.Assets.load<Pixi.Texture>({
-        src: pourWebgl(src),
+        src,
         parser: 'video',
         data: {
           autoPlay: false,
@@ -246,14 +246,16 @@ export class SkinTextures {
       });
     try {
       // Variante 512 px (VP9 avec transparence) d'abord ; absente ou illisible : l'original
-      let src = effectVariant(url) ?? url;
+      // Adresses CORS (pourWebgl) dès ici : chargement, déchargement et clé de Pixi identiques
+      const original = pourWebgl(url);
+      let src = pourWebgl(effectVariant(url) ?? url);
       let texture: Pixi.Texture;
       try {
         texture = await video(src);
       } catch (err) {
-        if (src === url) throw err;
-        src = url;
-        texture = await video(url);
+        if (src === original) throw err;
+        src = original;
+        texture = await video(original);
       }
       if (this.disposed) {
         void pixi.Assets.unload(src).catch(() => undefined);
