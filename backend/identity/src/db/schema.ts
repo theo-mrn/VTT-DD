@@ -221,3 +221,12 @@ export const apiKeys = identity.table('api_keys', {
   lastUsedAt: horodatage('last_used_at'),
   revokedAt: horodatage('revoked_at'),
 });
+
+/** Dernière version des droits reçue de billing, par compte. */
+export const billingRights = identity.table('billing_rights', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  version: bigint('version', { mode: 'number' }).notNull(),
+  updatedAt: horodatage('updated_at').notNull().defaultNow(),
+});

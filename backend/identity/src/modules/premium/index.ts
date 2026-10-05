@@ -1,95 +1,104 @@
 /**
- * Module « premium » : statut premium affiché sur le profil (badge, bordures),
- * posé par le service billing, seule source de vérité de l'abonnement Stripe
- * (ancien champ users/{uid}.premium, écrit par le webhook Stripe).
+ * Statut premium affiché sur le profil (badge, bordures), appliqué depuis les
+ * droits publiés par billing, seule source de vérité de l'abonnement
+ * (billing.entitlements_changed : état complet et version).
  *
- *   PUT /internal/users/:userId/premium   { premium }
- *       réservé aux services (en-tête x-internal-secret, comparé à temps
- *       constant), jamais relayé par la gateway. Idempotent : sans changement,
- *       ni écriture ni événement. 404 si le compte n'existe pas. Absent si
- *       INTERNAL_API_SECRET n'est pas configuré.
+ * Consommateur durable `identity-rights` : une version déjà appliquée (ou plus
+ * ancienne) est ignorée, l'ordre de livraison et les doublons sont donc sans
+ * effet. Compte inconnu (supprimé) : acquitté sans effet. Remplace l'ancienne
+ * route interne PUT /internal/users/:userId/premium.
  */
-import { HttpError } from '@vtt/platform';
-import { eq, sql } from 'drizzle-orm';
-import type { FastifyRequest } from 'fastify';
-import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { z } from 'zod';
+import { EntitlementsChanged, ENTITLEMENTS_CHANGED, type EventEnvelope } from '@vtt/contracts';
+import { consumeEvents, type Bus, type ConsumeOptions } from '@vtt/platform';
+import { eq, lt, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
-import { appendEvent, type EventContext } from '../../db/outbox.js';
-import { profiles } from '../../db/schema.js';
-import type { Module } from '../../deps.js';
-import { secretsEgaux } from '../cles-api/cles.js';
-import { EN_TETE_SECRET_INTERNE } from '../cles-api/index.js';
+import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
+import { billingRights, profiles } from '../../db/schema.js';
 
-const eventContext = (req: FastifyRequest): EventContext => ({
-  correlationId: req.ctx.correlationId,
-  traceparent: (req.headers.traceparent as string | undefined) ?? null,
-});
+export const RIGHTS_CONSUMER = 'identity-rights';
 
-/** Pose le statut premium ; null si le compte n'existe pas. */
+export type RightsOutcome = 'applied' | 'stale' | 'ignored';
+
+/** Pose le statut premium dans la transaction ; null si le compte n'existe pas. */
 export async function setPremium(
-  db: Db,
+  tx: Tx,
   ctx: EventContext,
   userId: string,
   premium: boolean,
 ): Promise<{ userId: string; premium: boolean } | null> {
+  const [row] = await tx
+    .select({ premium: profiles.premium })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .for('update');
+  if (!row) return null;
+  if (row.premium !== premium) {
+    await tx
+      .update(profiles)
+      .set({ premium, updatedAt: sql`now()` })
+      .where(eq(profiles.userId, userId));
+    await appendEvent(tx, ctx, {
+      type: 'identity.premium_changed',
+      actor: { userId: null, role: 'system', characterId: null },
+      aggregate: { type: 'user', id: userId },
+      visibility: 'owner',
+      payload: { premium },
+    });
+  }
+  return { userId, premium };
+}
+
+/** Traite un événement du bus ; une erreur (base) fait relivrer le message. */
+export async function handleRightsEvent(db: Db, event: EventEnvelope): Promise<RightsOutcome> {
+  if (event.type !== ENTITLEMENTS_CHANGED) return 'ignored';
+  const parsed = EntitlementsChanged.safeParse(event.payload);
+  if (!parsed.success) return 'ignored';
+  const { userId, version, premium } = parsed.data;
+  const ctx: EventContext = {
+    correlationId: event.correlationId,
+    traceparent: event.traceparent,
+    causationId: event.id,
+  };
+
   return db.transaction(async (tx) => {
-    const [row] = await tx
-      .select({ premium: profiles.premium })
+    const [profile] = await tx
+      .select({ userId: profiles.userId })
       .from(profiles)
-      .where(eq(profiles.userId, userId))
-      .for('update');
-    if (!row) return null;
-    if (row.premium !== premium) {
-      await tx
-        .update(profiles)
-        .set({ premium, updatedAt: sql`now()` })
-        .where(eq(profiles.userId, userId));
-      await appendEvent(tx, ctx, {
-        type: 'identity.premium_changed',
-        actor: { userId: null, role: 'system', characterId: null },
-        aggregate: { type: 'user', id: userId },
-        visibility: 'owner',
-        payload: { premium },
-      });
-    }
-    return { userId, premium };
+      .where(eq(profiles.userId, userId));
+    if (!profile) return 'ignored';
+    // Version strictement plus récente seulement (verrou de ligne : un seul à la fois)
+    const [fresh] = await tx
+      .insert(billingRights)
+      .values({ userId, version })
+      .onConflictDoUpdate({
+        target: billingRights.userId,
+        set: { version, updatedAt: sql`now()` },
+        setWhere: lt(billingRights.version, version),
+      })
+      .returning({ version: billingRights.version });
+    if (!fresh) return 'stale';
+    await setPremium(tx, ctx, userId, premium);
+    return 'applied';
   });
 }
 
-export const register: Module = async (app, deps) => {
-  const secret = deps.config.INTERNAL_API_SECRET;
-  if (!secret) return;
-  const r = app.withTypeProvider<ZodTypeProvider>();
-
-  r.put(
-    '/internal/users/:userId/premium',
-    {
-      // Appels de billing (peu d'IP) : limite large
-      config: { rateLimit: { max: 3000, timeWindow: '1 minute' } },
-      // Secret vérifié avant la validation : rien ne fuit sans lui
-      preValidation: async (req) => {
-        const received = req.headers[EN_TETE_SECRET_INTERNE];
-        if (!secretsEgaux(typeof received === 'string' ? received : undefined, secret)) {
-          throw HttpError.unauthorized('Secret interne invalide');
-        }
-      },
-      schema: {
-        hide: true,
-        params: z.object({ userId: z.uuid().transform((s) => s.toLowerCase()) }),
-        body: z.object({ premium: z.boolean() }),
-        response: { 200: z.object({ userId: z.string(), premium: z.boolean() }) },
-      },
+/**
+ * Démarre le consommateur durable sur `bus` ; renvoie la fonction d'arrêt. À
+ * sa création, il relit tout le flux (7 jours) : les versions écartent ce qui
+ * est déjà appliqué.
+ */
+export function startRightsConsumer(opts: {
+  bus: Bus;
+  db: Db;
+  logger?: ConsumeOptions['logger'];
+}): Promise<() => Promise<void>> {
+  return consumeEvents(opts.bus, {
+    durable: RIGHTS_CONSUMER,
+    subjects: [`vtt.global.${ENTITLEMENTS_CHANGED}`],
+    deliver: 'all',
+    ...(opts.logger ? { logger: opts.logger } : {}),
+    handler: async (event) => {
+      await handleRightsEvent(opts.db, event);
     },
-    async (req) => {
-      const result = await setPremium(
-        deps.db,
-        eventContext(req),
-        req.params.userId,
-        req.body.premium,
-      );
-      if (!result) throw new HttpError(404, 'Ressource introuvable', 'user_not_found');
-      return result;
-    },
-  );
-};
+  });
+}

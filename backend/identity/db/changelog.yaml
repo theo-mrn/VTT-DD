@@ -11,5 +11,6 @@ databaseChangeLog:
   - include: { file: changes/0008-premium.sql, relativeToChangelogFile: true }
   - include: { file: changes/0009-title-progress.sql, relativeToChangelogFile: true }
   - include: { file: changes/0010-discord-bot-links.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0011-billing-rights.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

@@ -7,7 +7,7 @@
  * `inventory` : skins possédés en propre, c'est-à-dire les skins gratuits du
  * catalogue et ceux débloqués (import de l'ancienne app, plus tard boutique et
  * défis), dans l'ordre du catalogue. `allSkins` : accès à tous les skins
- * (ancien premium, plus tard abonnement du service billing), qui s'ajoute à
+ * (premium, publié par le service billing), qui s'ajoute à
  * l'inventaire sans le remplacer. Un skin est possédé si `allSkins` est vrai
  * ou s'il est dans `inventory` (comme `ownsDice = isPremium || inventaire` de
  * l'ancienne boutique) ; un skin choisi doit être possédé.
@@ -17,7 +17,7 @@ import { eq, sql } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Db } from '../../db/client.js';
-import { appendEvent, type EventContext } from '../../db/outbox.js';
+import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
 import { inventory, preferences } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { DEFAULT_SKIN, SKINS, skin } from '../../skins/catalog.js';
@@ -80,43 +80,39 @@ const eventPayload = (userId: string, p: Preferences) => ({
 });
 
 /**
- * Accorde ou retire l'accès à tous les skins (route interne, plus tard
- * événements d'abonnement de billing). Idempotent : sans changement, aucune
+ * Accorde ou retire l'accès à tous les skins (premium, droits publiés par
+ * billing), dans la transaction de l'appelant. Sans changement, aucune
  * écriture ni événement. Le skin choisi est conservé ; s'il n'est plus
  * possédé, les préférences renvoient le skin par défaut.
  */
-export async function setAllSkins(
-  db: Db,
+export async function applyAllSkins(
+  tx: Tx,
   ctx: EventContext,
   userId: string,
   allSkins: boolean,
-): Promise<Preferences> {
-  return db.transaction(async (tx) => {
-    const [row] = await tx
-      .select({ allSkins: preferences.allSkins })
-      .from(preferences)
-      .where(eq(preferences.userId, userId))
-      .for('update');
-    if ((row?.allSkins ?? false) !== allSkins) {
-      await tx
-        .insert(preferences)
-        .values({ userId, skinId: DEFAULT_SKIN, allSkins })
-        .onConflictDoUpdate({
-          target: preferences.userId,
-          set: { allSkins, updatedAt: sql`now()` },
-        });
-      const next = await preferencesOf(tx, userId);
-      await appendEvent(tx, ctx, {
-        type: 'dice.preferences_updated',
-        actor: { userId: null, role: 'system', characterId: null },
-        aggregate: { type: 'dice_preferences', id: userId },
-        payload: eventPayload(userId, next),
-        visibility: 'owner',
-      });
-      return next;
-    }
-    return preferencesOf(tx, userId);
+): Promise<boolean> {
+  const [row] = await tx
+    .select({ allSkins: preferences.allSkins })
+    .from(preferences)
+    .where(eq(preferences.userId, userId))
+    .for('update');
+  if ((row?.allSkins ?? false) === allSkins) return false;
+  await tx
+    .insert(preferences)
+    .values({ userId, skinId: DEFAULT_SKIN, allSkins })
+    .onConflictDoUpdate({
+      target: preferences.userId,
+      set: { allSkins, updatedAt: sql`now()` },
+    });
+  const next = await preferencesOf(tx, userId);
+  await appendEvent(tx, ctx, {
+    type: 'dice.preferences_updated',
+    actor: { userId: null, role: 'system', characterId: null },
+    aggregate: { type: 'dice_preferences', id: userId },
+    payload: eventPayload(userId, next),
+    visibility: 'owner',
   });
+  return true;
 }
 
 export const register: Module = async (app, deps) => {

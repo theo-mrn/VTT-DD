@@ -247,17 +247,20 @@ Les calculs de l'ancien composant `dice-stats.tsx`, faits côté serveur sur tou
 ```
 
 - Par défaut : `skinId: "gold"` (skin par défaut de l'ancienne app), `animation3d: true`, `sound: true`, `allSkins: false`.
-- `inventory` : skins possédés **en propre**, dans l'ordre du catalogue — les skins **gratuits** (prix 0 dans l'ancienne app : `gold`, `silver`, `pierre_donjon`, et `steampunk_copper` qu'elle donnait à tous) et ceux débloqués (import de l'ancien `dice_inventory`, plus tard boutique du service billing et défis). Ils restent acquis quand `allSkins` repasse à `false`.
-- `allSkins` : accès à **tous** les skins du catalogue — l'ancien premium (`ownsDice = isPremium || dice_inventory.includes(id)` de la boutique), plus tard l'abonnement du service billing. Il s'ajoute à `inventory` sans le remplacer : `inventory` ne liste pas les skins obtenus par cet accès.
+- `inventory` : skins possédés **en propre**, dans l'ordre du catalogue — les skins **gratuits** (prix 0 dans l'ancienne app : `gold`, `silver`, `pierre_donjon`, et `steampunk_copper` qu'elle donnait à tous) et ceux débloqués (import de l'ancien `dice_inventory`, achats publiés par billing, plus tard défis). Ils restent acquis quand `allSkins` repasse à `false`.
+- `allSkins` : accès à **tous** les skins du catalogue — l'ancien premium (`ownsDice = isPremium || dice_inventory.includes(id)` de la boutique), désormais le premium publié par billing. Il s'ajoute à `inventory` sans le remplacer : `inventory` ne liste pas les skins obtenus par cet accès.
 - **Un skin est possédé si `allSkins` est vrai ou s'il figure dans `inventory`** : c'est la règle à appliquer côté front (boutique, sélecteur) et celle de PATCH.
 - PATCH : 422 `unknown_skin` (hors catalogue), 403 `skin_not_owned` (skin non possédé), 400 si le corps est vide. Un skin qui n'est plus possédé (retiré de l'inventaire, fin de l'accès à tous les skins) redevient `gold` ; le choix est conservé et revient si l'accès est rendu.
 - `GET /v1/dice/skins` : les 71 skins de `dice-definitions.ts`, `[{ id, free }]` ; leur rendu (couleurs, matériaux) reste au front.
 
-### Accès à tous les skins (route interne)
+### Droits venus de billing (bus)
 
-- `PUT /internal/users/:userId/all-skins` (en-tête `x-internal-secret`, jamais relayée par la gateway) : `{ allSkins: boolean }` → 200, les préférences de l'utilisateur (forme de `GET /v1/dice/me/preferences`). 401 sans le bon secret, 400 pour un `userId` qui n'est pas un UUID ou un corps invalide.
-- Destinée au service **billing**, qui la pilotera selon les événements d'abonnement (activation, fin de période, résiliation). Idempotente : sans changement, rien n'est écrit ni publié ; sinon `dice.preferences_updated` (acteur `system`). Un utilisateur sans préférences les reçoit avec les valeurs par défaut.
-- En attendant billing, seul l'import Firebase pose ce drapeau (premium de l'ancienne app).
+- Consommateur durable `dice-rights` sur `vtt.global.billing.entitlements_changed` (état complet
+  des droits et version, voir [paiement.md](paiement.md)) : `premium` pose `allSkins`, `diceSkins`
+  aligne l'inventaire de source `purchase` (ajout, retrait après un remboursement). Les skins
+  importés de l'ancienne app, offerts ou gagnés ne sont jamais touchés.
+- Une version déjà appliquée ou plus ancienne (`dice.billing_rights`) est ignorée ; pas de route
+  interne.
 
 ## Événements
 
@@ -267,7 +270,8 @@ Les calculs de l'ancien composant `dice-stats.tsx`, faits côté serveur sur tou
 | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `dice.rolled`                                                                   | le jet complet (sans masquage), `results`, `output`, `userName`, `authorId`… | `public` ; `private` et `gm` → `gm_only` (l'auteur est `actor.userId`) ; `self` et jet personnel → `owner`  |
 | `dice.roll_deleted`, `dice.history_cleared` (`{ campaignId, deleted, userId }`) | `{ id, campaignId, authorId }`                                               | celle du jet ; vidage d'une campagne : `public` ; vidage personnel : `owner`, sans campagne, agrégat `user` |
-| `dice.preferences_updated`                                                      | `{ userId, skinId, animation3d, sound, allSkins }` (préférences effectives)  | `owner` ; acteur `user` (PATCH) ou `system` (route interne all-skins, `actor.userId` null)                  |
+| `dice.preferences_updated`                                                      | `{ userId, skinId, animation3d, sound, allSkins }` (préférences effectives)  | `owner` ; acteur `user` (PATCH) ou `system` (droits de billing, `actor.userId` null)                        |
+| `dice.skin_granted`, `dice.skin_revoked`                                        | `{ userId, skinId, source: 'purchase' }`                                     | `owner` ; acteur `system` (droits de billing)                                                               |
 
 `roomId` de l'enveloppe = la campagne (sujet `vtt.<campagne>.dice.rolled`). Les titres de l'ancienne app débloqués par un 1 ou un 20 naturel (« Maudit des dés », « Béni des Dieux ») seront attribués par identity en écoutant `dice.rolled` (dés et `outcome` dans la charge utile).
 

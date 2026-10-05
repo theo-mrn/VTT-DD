@@ -2,7 +2,10 @@
 import { HttpError } from '@vtt/platform';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import type { PriceResolver } from '../catalog/prices.js';
+import type { BillingConfig } from '../config.js';
 import type { Deps } from '../deps.js';
+import type { PaymentDeps } from '../payments/common.js';
 import type { StripeApi } from '../stripe/client.js';
 
 /**
@@ -79,3 +82,45 @@ export async function callStripe<T>(req: FastifyRequest, call: () => Promise<T>)
 
 /** Date en secondes Unix (format de l'ancienne app pour cancelAt). */
 export const unixSeconds = (d: Date | null | undefined) => (d ? Math.floor(d.getTime() / 1000) : 0);
+
+/** Prix Stripe configurés, sinon 503 comme requireStripe. */
+export function requirePrices(deps: Deps): PriceResolver {
+  requireStripe(deps);
+  return deps.prices!;
+}
+
+/** Ce dont les traitements de paiement ont besoin, Stripe compris (sinon 503). */
+export function paymentDeps(deps: Deps): PaymentDeps {
+  return { db: deps.db, stripe: requireStripe(deps) };
+}
+
+/** Pages du front au retour de Checkout (lot 4 : à ajouter à PAGES_FRONT). */
+export const CHECKOUT_PAGES = { success: '/paiement/succes', cancel: '/paiement/annule' } as const;
+
+/** URLs de retour de Checkout ; `returnUrl` : page où renvoyer ensuite l'utilisateur. */
+export function checkoutUrls(config: BillingConfig, returnUrl: string) {
+  const ret = encodeURIComponent(returnUrl);
+  return {
+    success_url: `${config.APP_URL}${CHECKOUT_PAGES.success}?session_id={CHECKOUT_SESSION_ID}&retour=${ret}`,
+    cancel_url: `${config.APP_URL}${CHECKOUT_PAGES.cancel}?retour=${ret}`,
+  };
+}
+
+/**
+ * Réglages communs des sessions Checkout : adresse de facturation demandée si
+ * nécessaire, TVA par Stripe Tax si STRIPE_TAX=on (l'adresse d'un client
+ * existant est alors mise à jour depuis la session, exigé par Stripe).
+ */
+export function taxParams(config: BillingConfig, existingCustomer: boolean) {
+  return {
+    billing_address_collection: 'auto' as const,
+    ...(config.STRIPE_TAX === 'on'
+      ? {
+          automatic_tax: { enabled: true },
+          ...(existingCustomer
+            ? { customer_update: { address: 'auto' as const, name: 'auto' as const } }
+            : {}),
+        }
+      : {}),
+  };
+}

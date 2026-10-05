@@ -262,3 +262,38 @@ describe.skipIf(!TEST_DATABASE_URL)('relais d’outbox (Postgres réel)', () => 
     });
   });
 });
+
+describe.skipIf(!TEST_DATABASE_URL || !NATS_URL)(
+  'relais d’outbox et consommateurs (NATS réel)',
+  () => {
+    it('démarre les consommateurs sur la même connexion, retente un échec, arrête tout', async () => {
+      const log = { info: () => {}, warn: () => {}, error: () => {} };
+      const started: string[] = [];
+      const stoppedNames: string[] = [];
+      let failures = 1;
+      const consumer = (name: string, failFirst = false) => ({
+        name,
+        start: async (bus: Bus) => {
+          expect(bus.js).toBeDefined();
+          if (failFirst && failures-- > 0) throw new Error('durable indisponible');
+          started.push(name);
+          return async () => void stoppedNames.push(name);
+        },
+      });
+      const stop = startOutboxRelayWithBus({
+        // Outbox absente de cette connexion : le relais ne publie rien, seuls les consommateurs comptent
+        schema: SCHEMA,
+        natsUrl: NATS_URL!,
+        name: 'test-consumers',
+        connectionString: TEST_DATABASE_URL!,
+        pollMs: 60_000,
+        logger: log as never,
+        consumers: [consumer('premier'), consumer('second', true)],
+      });
+      await waitFor(() => started.length === 2, 5_000);
+      expect(started).toEqual(['premier', 'second']);
+      await stop();
+      expect(stoppedNames.sort()).toEqual(['premier', 'second']);
+    });
+  },
+);

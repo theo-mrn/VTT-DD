@@ -30,19 +30,19 @@ export const BillingConfig = BaseConfig.extend({
   /** Secret de signature du webhook (whsec_…). Absent : le webhook répond 503. */
   STRIPE_WEBHOOK_SECRET: optional(z.string().regex(/^whsec_/, 'secret whsec_… attendu')),
   /**
-   * Prix récurrent de l'abonnement premium (price_…), créé dans le tableau de
-   * bord Stripe. Absent : prix de l'ancienne app (4,99 €/mois) décrit dans la session.
+   * TVA calculée par Stripe Tax (automatic_tax) : à activer avec Stripe Tax dans
+   * le tableau de bord, le jour où le statut fiscal l'exige. Les prix sont TTC
+   * (tax_behavior inclusive) : le montant payé ne change pas.
    */
-  STRIPE_PREMIUM_PRICE_ID: optional(z.string().regex(/^price_/, 'identifiant price_… attendu')),
+  STRIPE_TAX: z.enum(['on', 'off']).default('off'),
 
   /**
-   * Secret partagé entre services (en-tête x-internal-secret) : accompagne
-   * les appels de billing vers dice (skins) et identity (statut premium).
+   * Bus d'événements : le relais d'outbox y publie les droits
+   * (billing.entitlements_changed), appliqués par dice et identity. Absent :
+   * les événements restent dans l'outbox.
    */
-  INTERNAL_API_SECRET: optional(z.string().min(32)),
-  /** Service dice : skins achetés et accès à tous les skins (premium). */
-  DICE_URL: optional(z.string().url()),
-  /** Service identity : statut premium du profil. */
-  IDENTITY_URL: optional(z.string().url()),
+  NATS_URL: optional(z.string().min(1)),
+  /** Connexion directe (hors PgBouncer) pour le LISTEN du relais d'outbox. */
+  DATABASE_DIRECT_URL: optional(z.string().min(1)),
 });
 export type BillingConfig = z.infer<typeof BillingConfig>;

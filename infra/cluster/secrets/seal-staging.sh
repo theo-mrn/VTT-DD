@@ -18,7 +18,7 @@
 # Facultatives (absentes : fonction coupée) :
 #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET
 #   KOURRIER_API_KEY (kr_…, tenant yner de Kourrier : envoi des e-mails ; absente, e-mails
-#     seulement journalisés), STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PREMIUM_PRICE_ID
+#     seulement journalisés), STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 #   FIREBASE_SCRYPT_SIGNER_KEY, FIREBASE_SCRYPT_SALT_SEPARATOR, FIREBASE_SCRYPT_ROUNDS,
 #   FIREBASE_SCRYPT_MEM_COST (comptes importés de l'ancienne app)
 #   BACKUP_R2_ACCESS_KEY_ID, BACKUP_R2_SECRET_ACCESS_KEY (bucket vtt-logical-backups, clé à part)
@@ -116,9 +116,8 @@ secret vtt-staging identity-secrets Opaque \
   "FIREBASE_SCRYPT_ROUNDS=${FIREBASE_SCRYPT_ROUNDS:-}" \
   "FIREBASE_SCRYPT_MEM_COST=${FIREBASE_SCRYPT_MEM_COST:-}"
 secret vtt-staging billing-secrets Opaque \
-  "DATABASE_URL=$url_billing" "INTERNAL_API_SECRET=$interne" \
-  "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}" "STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}" \
-  "STRIPE_PREMIUM_PRICE_ID=${STRIPE_PREMIUM_PRICE_ID:-}"
+  "DATABASE_URL=$url_billing" "DATABASE_DIRECT_URL=$direct_billing" \
+  "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}" "STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}"
 secret vtt-staging campaign-secrets Opaque \
   "DATABASE_URL=$url_campaign" "DATABASE_DIRECT_URL=$direct_campaign" \
   "INTERNAL_API_SECRET=$interne" "${r2[@]}"

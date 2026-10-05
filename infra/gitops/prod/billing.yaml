@@ -13,21 +13,23 @@ env:
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
   JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
-  # Retours de Stripe Checkout (/checkout/success, /checkout/cancel) et du portail
+  # Retours de Stripe Checkout (/paiement/succes, /paiement/annule) et du portail
   APP_URL: https://yner.fr
-  # Livraison des paiements : skins et premium (dice), badge premium (identity)
-  DICE_URL: http://dice.vtt-prod.svc
-  IDENTITY_URL: http://identity.vtt-prod.svc
-# Mot de passe de valkey-prod (secret messaging-credentials), substitué dans REDIS_URL :
+  # Bus d'événements : droits publiés pour dice et identity (billing.entitlements_changed)
+  NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
+# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+# substitués dans NATS_URL et REDIS_URL :
 # voir « Déploiement » dans docs/bus.md
 secretEnv:
+  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
   REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
 # Secret billing-secrets (SOPS) :
 #   DATABASE_URL             rôle billing_svc
-#   INTERNAL_API_SECRET      même valeur que dice et identity
 #   STRIPE_SECRET_KEY        sk_… (ou clé restreinte rk_…) ; mode test en staging
+#   DATABASE_DIRECT_URL      même rôle vers vtt-pg-rw.data.svc en direct (LISTEN du relais
+#                            d'outbox, hors PgBouncer ; sans elle : réveil par le poll de 5 s)
 #   STRIPE_WEBHOOK_SECRET    whsec_… de l'endpoint https://api.yner.fr/v1/billing/webhook
-#   STRIPE_PREMIUM_PRICE_ID  price_… de l'abonnement mensuel (facultatif : 4,99 €/mois décrit)
+# Prix : `catalog:sync --apply` avec la même clé ; événements de l'endpoint : docs/paiement.md
 envFromSecrets:
   - name: billing-secrets
 probes:

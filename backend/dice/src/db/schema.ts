@@ -4,6 +4,7 @@
  * fichier doit lui correspondre colonne pour colonne.
  */
 import {
+  bigint,
   boolean,
   doublePrecision,
   integer,
@@ -120,6 +121,13 @@ export const inventory = diceSchema.table(
   },
   (t) => [primaryKey({ columns: [t.userId, t.skinId] })],
 );
+
+/** Dernière version des droits reçue de billing, par utilisateur. */
+export const billingRights = diceSchema.table('billing_rights', {
+  userId: uuid('user_id').primaryKey(),
+  version: bigint('version', { mode: 'number' }).notNull(),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
 
 export const outbox = diceSchema.table('outbox', {
   id: uuid('id').primaryKey(),

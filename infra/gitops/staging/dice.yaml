@@ -53,8 +53,6 @@ networkPolicy:
     - podSelector: {matchLabels: {app.kubernetes.io/name: discord}}
     # character transmet les jets d'action (/internal/rolls, secret partagé)
     - podSelector: {matchLabels: {app.kubernetes.io/name: character}}
-    # billing livre les achats et le premium (/internal/users/…, secret partagé)
-    - podSelector: {matchLabels: {app.kubernetes.io/name: billing}}
     # campaign et identity demandent quels fichiers ses tables référencent
     - podSelector: {matchLabels: {app.kubernetes.io/name: campaign}}
     - podSelector: {matchLabels: {app.kubernetes.io/name: identity}}

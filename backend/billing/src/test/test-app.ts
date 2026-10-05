@@ -1,7 +1,7 @@
 /**
  * Service billing complet pour les tests : jetons signés par une clé générée
- * pour le test (comme ceux d'identity), faux Stripe en mémoire, faux dice et
- * identity (serveur HTTP local). Branché sur le PostgreSQL de
+ * pour le test (comme ceux d'identity), faux Stripe en mémoire. Les droits
+ * publiés se lisent dans l'outbox (rights). Branché sur le PostgreSQL de
  * TEST_DATABASE_URL (rôle billing_svc) pour les tests d'intégration. Chaque
  * test utilise des utilisateurs neufs et supprime ensuite leurs données : les
  * tests peuvent tourner en même temps sur la même base.
@@ -12,13 +12,19 @@ import { generateKeyPair, SignJWT } from 'jose';
 import { buildBilling } from '../app.js';
 import { BillingConfig } from '../config.js';
 import { createDb } from '../db/client.js';
-import { customers, outbox, processedEvents, purchases } from '../db/schema.js';
-import { fakeServices } from './fake-services.js';
+import {
+  customers,
+  entitlements,
+  invoices,
+  outbox,
+  processedEvents,
+  purchases,
+  rightsVersions,
+  subscriptions,
+} from '../db/schema.js';
 import { fakeStripe, signedEvent, WEBHOOK_SECRET } from './fake-stripe.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
-
-export const SECRET = 'secret-interne-de-test-0123456789abcdef';
 
 const ISSUER = 'https://auth.test.local';
 const AUDIENCE = 'vtt-api';
@@ -29,7 +35,6 @@ export async function testApp(
 ) {
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
   const connection = TEST_DATABASE_URL ? createDb(TEST_DATABASE_URL) : undefined;
-  const services = await fakeServices(SECRET);
   const stripe = fakeStripe();
 
   const app = await buildBilling(
@@ -41,9 +46,6 @@ export async function testApp(
       JWT_AUDIENCE: AUDIENCE,
       APP_URL: 'http://front.test/',
       STRIPE_WEBHOOK_SECRET: WEBHOOK_SECRET,
-      INTERNAL_API_SECRET: SECRET,
-      DICE_URL: services.url,
-      IDENTITY_URL: services.url,
       ...overrides,
     }),
     {
@@ -54,7 +56,7 @@ export async function testApp(
   );
 
   const users: string[] = [];
-  const events: string[] = [];
+  const stripeEvents: string[] = [];
 
   const sign = (id: string, roles: string[]) =>
     new SignJWT({ roles })
@@ -74,7 +76,7 @@ export async function testApp(
 
   /** Livre un événement Stripe signé au webhook. */
   async function deliver(event: ReturnType<typeof signedEvent>) {
-    events.push(event.id);
+    stripeEvents.push(event.id);
     return app.inject({
       method: 'POST',
       url: '/v1/billing/webhook',
@@ -85,11 +87,14 @@ export async function testApp(
 
   async function close() {
     await app.close();
-    await services.close();
     if (connection) {
       const db = connection.db;
       if (users.length) {
         await db.delete(purchases).where(inArray(purchases.userId, users));
+        await db.delete(entitlements).where(inArray(entitlements.userId, users));
+        await db.delete(invoices).where(inArray(invoices.userId, users));
+        await db.delete(subscriptions).where(inArray(subscriptions.userId, users));
+        await db.delete(rightsVersions).where(inArray(rightsVersions.userId, users));
         await db.delete(customers).where(inArray(customers.userId, users));
         await db
           .delete(outbox)
@@ -100,13 +105,44 @@ export async function testApp(
             ),
           );
       }
-      if (events.length)
-        await db.delete(processedEvents).where(inArray(processedEvents.stripeEventId, events));
+      if (stripeEvents.length)
+        await db
+          .delete(processedEvents)
+          .where(inArray(processedEvents.stripeEventId, stripeEvents));
     }
     await connection?.pool.end();
   }
 
-  return { app, db: connection?.db, stripe, services, user, deliver, close };
+  /** Événements de l'outbox d'un utilisateur (charge utile ou acteur), dans l'ordre. */
+  async function events(userId: string) {
+    const rows = await connection!.db
+      .select()
+      .from(outbox)
+      .where(
+        or(
+          sql`${outbox.envelope}->'payload'->>'userId' = ${userId}`,
+          sql`${outbox.envelope}->'actor'->>'userId' = ${userId}`,
+        ),
+      )
+      .orderBy(outbox.createdAt, outbox.id);
+    return rows.map(
+      (r) =>
+        r.envelope as {
+          type: string;
+          actor: { role: string; userId: string | null };
+          payload: Record<string, unknown>;
+        },
+    );
+  }
+
+  /** Droits publiés pour un utilisateur (billing.entitlements_changed), dans l'ordre. */
+  async function rights(userId: string) {
+    return (await events(userId))
+      .filter((e) => e.type === 'billing.entitlements_changed')
+      .map((e) => e.payload);
+  }
+
+  return { app, db: connection?.db, stripe, user, deliver, events, rights, close };
 }
 
 export type TestContext = Awaited<ReturnType<typeof testApp>>;

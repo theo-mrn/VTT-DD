@@ -346,10 +346,23 @@ export async function startOutboxRelay(opts: OutboxRelayOptions): Promise<() => 
   };
 }
 
+/** Consommateur démarré sur la connexion du relais (même bus, même cycle de vie). */
+export interface BusConsumer {
+  /** Nom journalisé, en général celui du durable NATS. */
+  name: string;
+  /** Démarre la consommation ; renvoie la fonction d'arrêt. */
+  start(bus: Bus): Promise<() => Promise<void>>;
+}
+
 export interface OutboxRelayServiceOptions extends Omit<OutboxRelayOptions, 'bus'> {
   natsUrl: string;
   /** Nom de la connexion NATS (monitoring), en général le nom du service. */
   name: string;
+  /**
+   * Consommateurs du service, démarrés après le relais. Un consommateur qui ne
+   * démarre pas (durable impossible à créer…) est retenté avec un délai croissant.
+   */
+  consumers?: BusConsumer[];
 }
 
 /**
@@ -359,14 +372,48 @@ export interface OutboxRelayServiceOptions extends Omit<OutboxRelayOptions, 'bus
  * Renvoie la fonction d'arrêt (relais puis bus).
  */
 export function startOutboxRelayWithBus(opts: OutboxRelayServiceOptions): () => Promise<void> {
-  const { natsUrl, name, logger, ...relay } = opts;
+  const { natsUrl, name, logger, consumers = [], ...relay } = opts;
   // Erreur de configuration : on échoue tout de suite, pas dans la boucle de reconnexion
   checkOptions(relay);
   let stopped = false;
   let bus: Bus | undefined;
   let stopRelay: (() => Promise<void>) | undefined;
-  let timer: NodeJS.Timeout | undefined;
+  const stopConsumers: (() => Promise<void>)[] = [];
+  const timers = new Set<NodeJS.Timeout>();
   let failures = 0;
+  const pendings = new Set<Promise<void>>();
+
+  const later = (delay: number, next: () => Promise<void>) => {
+    const timer = setTimeout(() => {
+      timers.delete(timer);
+      track(next());
+    }, delay);
+    timer.unref();
+    timers.add(timer);
+  };
+  const track = (p: Promise<void>) => {
+    pendings.add(p);
+    void p.finally(() => pendings.delete(p));
+  };
+  const backoff = (n: number) => Math.min(MAX_RETRY_MS, 1000 * 2 ** n);
+
+  const startConsumer = async (consumer: BusConsumer, attempt = 0): Promise<void> => {
+    if (stopped || !bus) return;
+    try {
+      const stop = await consumer.start(bus);
+      if (stopped) return void (await stop());
+      stopConsumers.push(stop);
+      logger?.info({ consumer: consumer.name }, `consommateur ${consumer.name} démarré`);
+    } catch (err) {
+      if (stopped) return;
+      const delay = backoff(attempt);
+      logger?.error(
+        { consumer: consumer.name, error: errorMessage(err), retryInMs: delay },
+        `consommateur ${consumer.name} : démarrage impossible, nouvel essai`,
+      );
+      later(delay, () => startConsumer(consumer, attempt + 1));
+    }
+  };
 
   const attempt = async (): Promise<void> => {
     let connected: Bus;
@@ -375,14 +422,13 @@ export function startOutboxRelayWithBus(opts: OutboxRelayServiceOptions): () => 
       connected = await connectBus({ url: natsUrl, name, logger: logger as Logger });
     } catch (err) {
       if (stopped) return;
-      const delay = Math.min(MAX_RETRY_MS, 1000 * 2 ** failures);
+      const delay = backoff(failures);
       failures += 1;
       logger?.warn(
         { error: errorMessage(err), retryInMs: delay },
         'bus NATS injoignable : événements en attente dans l’outbox, nouvel essai',
       );
-      timer = setTimeout(() => void (pending = attempt()), delay);
-      timer.unref();
+      later(delay, attempt);
       return;
     }
     if (stopped) {
@@ -396,13 +442,15 @@ export function startOutboxRelayWithBus(opts: OutboxRelayServiceOptions): () => 
     } catch (err) {
       logger?.error({ error: errorMessage(err) }, 'relais d’outbox : démarrage impossible');
     }
+    await Promise.all(consumers.map((c) => startConsumer(c)));
   };
-  let pending = attempt();
+  track(attempt());
 
   return async () => {
     stopped = true;
-    clearTimeout(timer);
-    await pending;
+    for (const timer of timers) clearTimeout(timer);
+    await Promise.all(pendings);
+    for (const stop of stopConsumers) await stop().catch(() => undefined);
     await stopRelay?.();
     await bus?.close().catch(() => undefined);
   };

@@ -7,14 +7,14 @@
  *
  *   --export   dossier des exports NDJSON de tools/firebase-export (users)
  *   --report   rapport : une ligne par utilisateur ayant eu un premium ou un client Stripe
- *   --dry-run  convertit et produit le rapport sans rien écrire (ni base, ni effets)
+ *   --dry-run  convertit et produit le rapport sans rien écrire (ni base, ni événement)
  *
  * Environnement :
  *   DATABASE_URL           rôle billing_svc (écriture)
  *   IDENTITY_DATABASE_URL  rôle identity_svc (lecture) : compte migré de chaque UID Firebase
- *   INTERNAL_API_SECRET, DICE_URL, IDENTITY_URL (facultatifs) : effets du premium en
- *                          cours (badge dans identity, tous les skins dans dice), par
- *                          les routes internes idempotentes, rejoués à chaque import
+ *
+ * Le premium importé est publié sur le bus (billing.entitlements_changed, par
+ * l'outbox) : dice et identity l'appliquent dès que billing tourne.
  *
  * Rejouable : un utilisateur déjà présent dans billing n'est pas modifié.
  */
@@ -22,11 +22,8 @@ import { createReadStream, createWriteStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { parseArgs } from 'node:util';
-import { eq } from 'drizzle-orm';
 import pg from 'pg';
-import { EffectFailed, httpEffects } from '../clients/effects.js';
 import { createDb } from '../db/client.js';
-import { customers } from '../db/schema.js';
 import type { FirestoreDoc, LegacyUser } from './legacy.js';
 import { loadCustomer } from './loading.js';
 import { transformCustomer } from './transform.js';
@@ -46,9 +43,6 @@ const dryRun = values['dry-run'];
 const env = {
   billing: process.env.DATABASE_URL || undefined,
   identity: process.env.IDENTITY_DATABASE_URL || undefined,
-  secret: process.env.INTERNAL_API_SECRET || undefined,
-  diceUrl: process.env.DICE_URL || undefined,
-  identityUrl: process.env.IDENTITY_URL || undefined,
 };
 if (!dryRun) {
   const missing = [
@@ -104,14 +98,6 @@ console.log(`Comptes migrés : ${accounts.size}`);
 // ─── Clients ─────────────────────────────────────────────────────────────────
 
 const base = env.billing && !dryRun ? createDb(env.billing) : null;
-const effects =
-  env.secret && env.diceUrl && env.identityUrl
-    ? httpEffects({ diceUrl: env.diceUrl, identityUrl: env.identityUrl, secret: env.secret })
-    : null;
-if (!dryRun && !effects)
-  console.warn(
-    '  (effets du premium non appliqués : INTERNAL_API_SECRET, DICE_URL ou IDENTITY_URL absent)',
-  );
 
 const report = createWriteStream(values.report, { mode: 0o600 });
 const write = (line: Record<string, unknown>) => report.write(JSON.stringify(line) + '\n');
@@ -124,8 +110,6 @@ const totals = {
   imported: 0,
   alreadyImported: 0,
   noAccount: 0,
-  effectsApplied: 0,
-  effectsFailed: 0,
   errors: 0,
   warnings: 0,
 };
@@ -166,22 +150,6 @@ for await (const doc of read(usersFile)) {
     out.status = await loadCustomer(base!.db, userId, c);
     if (out.status === 'imported') totals.imported++;
     else totals.alreadyImported++;
-    // Effets du premium tel qu'il est dans billing (import précédent compris) : rejoués sans risque
-    const [row] = await base!.db
-      .select({ premium: customers.premium })
-      .from(customers)
-      .where(eq(customers.userId, userId));
-    if (row?.premium && effects) {
-      try {
-        await effects.setAllSkins(userId, true);
-        await effects.setPremium(userId, true);
-        totals.effectsApplied++;
-        out.effects = 'applied';
-      } catch (e) {
-        totals.effectsFailed++;
-        out.effects = e instanceof EffectFailed ? e.message : 'échec';
-      }
-    }
   } catch (err) {
     totals.errors++;
     out.status = 'error';
@@ -202,8 +170,8 @@ console.log(
     : `Clients importés : ${totals.imported}, déjà importés : ${totals.alreadyImported}, ` +
         `sans compte migré : ${totals.noAccount}, erreurs : ${totals.errors} ` +
         `(${totals.customers} client(s) dont ${totals.premium} premium en cours, ` +
-        `${totals.withStripe} avec un client Stripe). Premium appliqué dans dice et identity : ` +
-        `${totals.effectsApplied}, en échec : ${totals.effectsFailed}.`,
+        `${totals.withStripe} avec un client Stripe). Premium publié sur le bus pour dice ` +
+        `et identity.`,
 );
 console.log(`Rapport : ${values.report}`);
-if (totals.errors || totals.effectsFailed) process.exitCode = 1;
+if (totals.errors) process.exitCode = 1;

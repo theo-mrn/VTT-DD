@@ -2,7 +2,8 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createDb } from '../db/client.js';
-import { customers } from '../db/schema.js';
+import { sql } from 'drizzle-orm';
+import { customers, entitlements, outbox, rightsVersions, subscriptions } from '../db/schema.js';
 import { TEST_DATABASE_URL } from '../test/test-app.js';
 import { loadCustomer } from './loading.js';
 import { transformCustomer } from './transform.js';
@@ -14,6 +15,10 @@ describe.skipIf(!TEST_DATABASE_URL)('chargement de l’import billing', () => {
   const suffix = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 
   afterAll(async () => {
+    await db!.delete(entitlements).where(eq(entitlements.userId, userId));
+    await db!.delete(rightsVersions).where(eq(rightsVersions.userId, userId));
+    await db!.delete(outbox).where(sql`${outbox.envelope}->'payload'->>'userId' = ${userId}`);
+    await db!.delete(subscriptions).where(eq(subscriptions.userId, userId));
     await db!.delete(customers).where(eq(customers.userId, userId));
     await connection!.pool.end();
   });
@@ -32,12 +37,31 @@ describe.skipIf(!TEST_DATABASE_URL)('chargement de l’import billing', () => {
     expect(await loadCustomer(db!, userId, c)).toBe('imported');
     expect(await loadCustomer(db!, userId, { ...c, premium: false })).toBe('already-imported');
     const [row] = await db!.select().from(customers).where(eq(customers.userId, userId));
-    expect(row).toMatchObject({
-      stripeCustomerId: `cus_${suffix}`,
-      subscriptionId: `sub_${suffix}`,
-      premium: true,
-      premiumSince: new Date('2026-01-15T10:00:00.000Z'),
-      cancelAtPeriodEnd: false,
-    });
+    expect(row).toMatchObject({ stripeCustomerId: `cus_${suffix}` });
+    expect(await db!.select().from(subscriptions).where(eq(subscriptions.userId, userId))).toEqual([
+      expect.objectContaining({
+        id: `sub_${suffix}`,
+        plan: 'legacy',
+        status: 'active',
+        cancelAt: null,
+        createdAt: new Date('2026-01-15T10:00:00.000Z'),
+      }),
+    ]);
+    expect(await db!.select().from(entitlements).where(eq(entitlements.userId, userId))).toEqual([
+      expect.objectContaining({
+        kind: 'premium',
+        source: 'subscription',
+        sourceId: `sub_${suffix}`,
+        revokedAt: null,
+      }),
+    ]);
+    // Premium publié une fois pour dice et identity
+    const published = await db!
+      .select()
+      .from(outbox)
+      .where(sql`${outbox.envelope}->'payload'->>'userId' = ${userId}`);
+    expect(published.map((r) => (r.envelope as { type: string }).type)).toEqual([
+      'billing.entitlements_changed',
+    ]);
   });
 });

@@ -13,3 +13,4 @@ export * from './portrait.js';
 export * from './trash.js';
 export * from './order.js';
 export * from './pages.js';
+export * from './billing.js';
