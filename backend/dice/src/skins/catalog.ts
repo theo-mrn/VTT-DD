@@ -4,9 +4,11 @@
  * matériaux, particules) appartient au front ; le service ne connaît que
  * l'identifiant et la gratuité.
  *
- * Gratuits : prix 0 dans l'ancienne app (gold, silver, pierre_donjon) et
- * steampunk_copper, que l'ancienne boutique donnait à tous
- * (DEFAULT_DICE_INVENTORY). Les autres s'obtiennent par la boutique ou les défis.
+ * Tous les skins sont ouverts à tous : Yner ne vend rien (décision du
+ * 2026-10-05, soutien par dons). SKINS_FOR_SALE=on rétablit la règle de
+ * l'ancienne app : gratuits ceux à prix 0 (gold, silver, pierre_donjon) et
+ * steampunk_copper (DEFAULT_DICE_INVENTORY), les autres par la boutique
+ * (service billing, docs/paiement.md) ou les défis.
  */
 export interface Skin {
   id: string;
@@ -103,7 +105,13 @@ const IDS = [
   'marbre_ambre',
 ] as const;
 
-export const SKINS: readonly Skin[] = IDS.map((id) => ({ id, free: FREE.has(id) }));
+/** Vente des skins activée (boutique billing) ; sinon tous gratuits. */
+export const SKINS_FOR_SALE = process.env.SKINS_FOR_SALE === 'on';
+
+export const SKINS: readonly Skin[] = IDS.map((id) => ({
+  id,
+  free: !SKINS_FOR_SALE || FREE.has(id),
+}));
 
 /** Skin par défaut d'un utilisateur sans préférence (DEFAULT_SKIN de l'ancienne app). */
 export const DEFAULT_SKIN = 'gold';

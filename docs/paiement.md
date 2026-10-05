@@ -3,6 +3,13 @@
 Conception du paiement de Yner : abonnement premium, achats à l'unité, factures, e-mails,
 droits. Ce document fait foi ; le code de `backend/billing` le suit.
 
+> **Décision du 2026-10-05 : Yner ne vend rien.** Sans entreprise déclarée (SIRET), pas de vente
+> légale à des particuliers : dés, bordures et cadres sont ouverts à tous, et le projet se
+> soutient par dons (Buy Me a Coffee). Tout ce qui suit reste en place, en sommeil et testé :
+> pour vendre un jour, `SKINS_FOR_SALE=on` (dice), `PAIEMENTS = true`
+> (`frontend/src/lib/soutien.ts`), clés Stripe live, `catalog:sync --apply`, page `/cgv` et
+> `STRIPE_TERMS=on`.
+
 ## Ce qui est vendu
 
 | Offre           | Mode Stripe                                              | Droit donné                                                           |
