@@ -1,16 +1,19 @@
 import type { MetadataRoute } from 'next';
 import { LEGAL_PAGES } from '@/lib/legal';
-import { requestSite } from '@/lib/site';
+import { PUBLIC_HOST } from '@/lib/site';
 
-/** Pages publiques : la landing, la connexion et les pages légales. */
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const { indexed, origin } = await requestSite();
-  if (!indexed) return [];
+const ORIGIN = `https://${PUBLIC_HOST}`;
+
+/**
+ * Pages publiques de yner.fr : la landing, la connexion et les pages légales. Mêmes adresses
+ * quel que soit l'hôte (le staging est de toute façon exclu par robots.txt).
+ */
+export default function sitemap(): MetadataRoute.Sitemap {
   return [
-    { url: `${origin}/`, changeFrequency: 'weekly', priority: 1 },
-    { url: `${origin}/connexion`, changeFrequency: 'yearly', priority: 0.5 },
+    { url: `${ORIGIN}/`, changeFrequency: 'weekly', priority: 1 },
+    { url: `${ORIGIN}/connexion`, changeFrequency: 'yearly', priority: 0.5 },
     ...Object.values(LEGAL_PAGES).map((path) => ({
-      url: `${origin}${path}`,
+      url: `${ORIGIN}${path}`,
       changeFrequency: 'yearly' as const,
       priority: 0.2,
     })),
