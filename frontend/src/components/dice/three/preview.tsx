@@ -5,7 +5,7 @@
  * `(dices)/dice-preview.tsx` : un seul canevas, monté au clic sur un dé et
  * démonté au retour, jamais au survol (le survol 3D faisait planter Chrome
  * sous Windows : création de contexte WebGL en rafale). La grille de la
- * boutique n'affiche que les vignettes pré-calculées (`public/dice/<skin>.png`).
+ * boutique n'affiche que les vignettes pré-calculées (`public/dice/<skin>.webp`).
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';

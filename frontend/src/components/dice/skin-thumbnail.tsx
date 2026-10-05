@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Vignette pré-calculée d'un skin (`public/dice/<skin>.png`) : une simple
- * image, aucun canevas WebGL (la grille de la boutique en affiche des dizaines,
- * et le survol 3D fait planter Chrome sous Windows). Image absente : silhouette
- * neutre. En petit (`small`, jusqu'à 64 px affichés), la variante WebP de 128 px
- * (`public/dice/thumbs/<skin>.webp`, quelques Ko) au lieu du PNG de 512 px.
+ * Vignette pré-calculée d'un skin (`public/dice/<skin>.webp`, 512 px, cuite par
+ * `dice:bake`) : une simple image, aucun canevas WebGL (la grille de la boutique en
+ * affiche des dizaines, et le survol 3D fait planter Chrome sous Windows). Image
+ * absente : silhouette neutre. En petit (`small`, jusqu'à 64 px affichés), la
+ * variante de 128 px (`public/dice/thumbs/<skin>.webp`, quelques Ko).
  */
 export function SkinThumbnail({
   skinId,
@@ -42,7 +42,7 @@ export function SkinThumbnail({
       src={
         small
           ? `/dice/thumbs/${encodeURIComponent(skinId)}.webp`
-          : `/dice/${encodeURIComponent(skinId)}.png`
+          : `/dice/${encodeURIComponent(skinId)}.webp`
       }
       alt={alt}
       loading="lazy"
