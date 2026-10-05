@@ -1,50 +1,64 @@
 /**
  * Module « checkout » : achat à l'unité d'un skin de dés ou d'un cadre de
- * jeton (ancienne route /api/checkout).
+ * jeton, et liste des achats.
  *
- *   POST /v1/billing/checkout   { skinId, returnUrl? }  →  { url }
- *       session Stripe Checkout (paiement unique) ; le prix vient du
- *       catalogue du service, l'acheteur du jeton. skinId : identifiant du
- *       skin (`bismuth`) ou du cadre préfixé (`token_Token3`). 404
- *       item_not_found, 400 item_free, 409 already_owned.
+ *   POST /v1/billing/checkout   { itemId, returnUrl? }  →  { url }
+ *       session Stripe Checkout (paiement unique) au prix Stripe de l'article
+ *       (lookup_key), acheteur pris du jeton. itemId : skin (`bismuth`) ou
+ *       cadre préfixé (`token_Token3`). 404 item_not_found, 400 item_free,
+ *       409 already_owned.
  *
  *   GET /v1/billing/checkout/sessions/:sessionId  →  { status, kind, itemId }
- *       état d'une session de l'appelant au retour de Checkout (pages
- *       /checkout/success et /checkout/subscribe-success). Une session payée
- *       dont le webhook n'est pas encore arrivé est livrée ici (mêmes effets
- *       idempotents) : l'ancienne page de succès livrait elle-même l'achat.
+ *       état d'une session de l'appelant au retour de Checkout. Une session
+ *       payée dont le webhook n'est pas encore arrivé est confirmée ici (mêmes
+ *       traitements idempotents).
+ *
+ *   GET /v1/billing/purchases  →  { purchases: [...] }   achats payés ou remboursés
  */
 import { uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { CURRENCY, findItem, lineName } from '../../catalog/catalog.js';
+import { CURRENCY, findItem, itemOf, lineName, lookupKeyOf } from '../../catalog/catalog.js';
 import { EffectFailed } from '../../clients/effects.js';
 import { purchases } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import {
-  customerOf,
-  fulfillCheckoutSession,
-  PREMIUM_TYPE,
-  purchaseOf,
-  userActor,
-} from '../../payments/fulfillment.js';
+import { fulfillCheckoutSession } from '../../payments/checkout.js';
+import { customerOf, PREMIUM_TYPE, userActor } from '../../payments/common.js';
+import { hasPremium, owns } from '../../payments/entitlements.js';
+import { purchaseOf } from '../../payments/purchases.js';
 import type { CheckoutSessionParams } from '../../stripe/client.js';
 import {
   callStripe,
+  checkoutUrls,
   currentUser,
   eventContext,
   isMissing,
   PAYMENT_RATE_LIMIT,
+  paymentDeps,
+  requirePrices,
   requireStripe,
   ReturnUrl,
+  taxParams,
 } from '../common.js';
 
 const SessionStatus = z.object({
   status: z.enum(['pending', 'completed', 'expired']),
   kind: z.enum(['premium', 'dice', 'token']),
   itemId: z.string().nullable(),
+});
+
+const Purchase = z.object({
+  id: z.string(),
+  kind: z.enum(['dice', 'token']),
+  itemId: z.string(),
+  name: z.string(),
+  amount: z.number(),
+  currency: z.string(),
+  status: z.enum(['completed', 'refunded']),
+  completedAt: z.string(),
+  refundedAt: z.string().nullable(),
 });
 
 export const register: Module = async (app, deps) => {
@@ -58,67 +72,41 @@ export const register: Module = async (app, deps) => {
       ...auth,
       config: PAYMENT_RATE_LIMIT,
       schema: {
-        body: z.object({
-          skinId: z.string().min(1).max(80),
-          returnUrl: ReturnUrl,
-        }),
+        body: z.object({ itemId: z.string().min(1).max(80), returnUrl: ReturnUrl }),
         response: { 200: z.object({ url: z.string() }) },
       },
     },
     async (req) => {
       const userId = currentUser(req);
       const stripe = requireStripe(deps);
-      const item = findItem(req.body.skinId);
+      const item = findItem(req.body.itemId);
       if (!item) throw new HttpError(404, 'Article introuvable', 'item_not_found');
       if (item.price <= 0)
         throw HttpError.badRequest('Cet article est gratuit, il est déjà à vous', 'item_free');
 
-      const customer = await customerOf(db, userId);
-      const [owned] = await db
-        .select({ id: purchases.id })
-        .from(purchases)
-        .where(
-          and(
-            eq(purchases.userId, userId),
-            eq(purchases.kind, item.kind),
-            eq(purchases.itemId, item.id),
-            eq(purchases.status, 'completed'),
-          ),
-        )
-        .limit(1);
+      const kind = item.kind === 'dice' ? 'dice_skin' : 'token_frame';
       // Premium : tous les dés sont déjà possédés
-      if (owned || (item.kind === 'dice' && customer?.premium))
+      if (
+        (await owns(db, userId, kind, item.id)) ||
+        (item.kind === 'dice' && (await hasPremium(db, userId)))
+      )
         throw HttpError.conflict('Vous possédez déjà cet article', 'already_owned');
 
-      const ret = encodeURIComponent(req.body.returnUrl);
+      const price = await callStripe(req, () => requirePrices(deps)(lookupKeyOf(item)));
+      const customer = await customerOf(db, userId);
       const params: CheckoutSessionParams = {
-        payment_method_types: ['card'],
         mode: 'payment',
-        line_items: [
-          {
-            price_data: {
-              currency: CURRENCY,
-              product_data: {
-                name: lineName(item),
-                ...(item.description ? { description: item.description } : {}),
-                ...(item.image ? { images: [item.image] } : {}),
-              },
-              unit_amount: item.price,
-            },
-            quantity: 1,
-          },
-        ],
-        invoice_creation: { enabled: true },
+        line_items: [{ price, quantity: 1 }],
+        invoice_creation: { enabled: true, invoice_data: { metadata: { userId } } },
         // Un seul client Stripe par utilisateur : factures et portail regroupés
         ...(customer?.stripeCustomerId
           ? { customer: customer.stripeCustomerId }
           : { customer_creation: 'always' as const }),
+        ...taxParams(config, !!customer?.stripeCustomerId),
         client_reference_id: userId,
-        success_url:
-          `${config.APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}` +
-          `&skin_id=${encodeURIComponent(item.id)}&type=${item.kind}&returnUrl=${ret}`,
-        cancel_url: `${config.APP_URL}/checkout/cancel?returnUrl=${ret}`,
+        ...checkoutUrls(config, req.body.returnUrl),
         metadata: { skinId: item.id, type: item.kind, userId },
+        payment_intent_data: { metadata: { userId, itemId: item.id, type: item.kind } },
       };
       const session = await callStripe(req, () => stripe.createCheckoutSession(params));
       if (!session.url) throw new HttpError(502, 'Paiement indisponible', 'stripe_error');
@@ -158,12 +146,16 @@ export const register: Module = async (app, deps) => {
       const purchase = await purchaseOf(db, sessionId);
       if (purchase && purchase.userId !== userId) throw notFound();
       if (purchase && purchase.status !== 'pending')
-        return { status: purchase.status, kind: purchase.kind, itemId: purchase.itemId };
+        return {
+          status: purchase.status === 'expired' ? ('expired' as const) : ('completed' as const),
+          kind: purchase.kind,
+          itemId: purchase.itemId,
+        };
 
-      const stripe = requireStripe(deps);
+      const pd = paymentDeps(deps);
       const session = await callStripe(req, async () => {
         try {
-          return await stripe.retrieveCheckoutSession(sessionId);
+          return await pd.stripe.retrieveCheckoutSession(sessionId);
         } catch (e) {
           if (isMissing(e)) throw notFound();
           throw e;
@@ -171,29 +163,57 @@ export const register: Module = async (app, deps) => {
       });
       const m = session.metadata ?? {};
       if (typeof m.userId !== 'string' || m.userId.toLowerCase() !== userId) throw notFound();
-      const type = m.type;
       let kind: 'premium' | 'dice' | 'token' | null = null;
-      if (type === PREMIUM_TYPE) kind = 'premium';
-      else if (type === 'dice' || type === 'token') kind = type;
+      if (m.type === PREMIUM_TYPE) kind = 'premium';
+      else if (m.type === 'dice' || m.type === 'token') kind = m.type;
       if (!kind) throw notFound();
       const itemId = kind === 'premium' ? null : (m.skinId ?? null);
 
       try {
-        const outcome = await fulfillCheckoutSession(
-          deps,
-          eventContext(req),
-          userActor(userId),
-          session,
+        const outcome = await callStripe(req, () =>
+          fulfillCheckoutSession(pd, eventContext(req), userActor(userId), session),
         );
         if (outcome === 'ignored') throw notFound();
         return { status: outcome, kind, itemId };
       } catch (e) {
-        // Livraison impossible pour l'instant (dice ou identity en panne) : le
-        // webhook la refera ; la page de succès affiche « en cours ».
+        // Droits pas encore appliqués (dice ou identity en panne) : le webhook
+        // les appliquera ; la page de retour affiche « en cours ».
         if (!(e instanceof EffectFailed)) throw e;
-        req.log.warn({ error: e.message }, 'livraison différée au webhook');
+        req.log.warn({ error: e.message }, 'confirmation différée au webhook');
         return { status: 'pending' as const, kind, itemId };
       }
+    },
+  );
+
+  r.get(
+    '/v1/billing/purchases',
+    { ...auth, schema: { response: { 200: z.object({ purchases: z.array(Purchase) }) } } },
+    async (req, reply) => {
+      const userId = currentUser(req);
+      const rows = await db
+        .select()
+        .from(purchases)
+        .where(
+          and(eq(purchases.userId, userId), inArray(purchases.status, ['completed', 'refunded'])),
+        )
+        .orderBy(desc(purchases.completedAt));
+      reply.header('cache-control', 'no-store');
+      return {
+        purchases: rows.map((p) => {
+          const item = itemOf(p.kind, p.itemId);
+          return {
+            id: p.id,
+            kind: p.kind,
+            itemId: p.itemId,
+            name: item ? lineName(item) : p.itemId,
+            amount: p.amountCents,
+            currency: p.currency,
+            status: p.status as 'completed' | 'refunded',
+            completedAt: p.completedAt!.toISOString(),
+            refundedAt: p.refundedAt?.toISOString() ?? null,
+          };
+        }),
+      };
     },
   );
 };

@@ -3,6 +3,7 @@
  * (src/modules/<nom>/index.ts) reçoit l'instance Fastify et ces dépendances.
  */
 import type { createService } from '@vtt/platform';
+import type { PriceResolver } from './catalog/prices.js';
 import type { Effects } from './clients/effects.js';
 import type { BillingConfig } from './config.js';
 import type { Db } from './db/client.js';
@@ -16,6 +17,8 @@ export interface Deps {
   db: Db;
   /** API Stripe ; null sans STRIPE_SECRET_KEY (routes de paiement : 503 billing_unconfigured). */
   stripe: StripeApi | null;
+  /** Prix Stripe par lookup_key ; null sans Stripe. */
+  prices: PriceResolver | null;
   /** Effets des paiements dans dice et identity (routes internes). */
   effects: Effects;
 }

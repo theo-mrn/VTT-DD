@@ -9,6 +9,10 @@ export type CheckoutSession = Stripe.Checkout.Session;
 export type CheckoutSessionParams = Stripe.Checkout.SessionCreateParams;
 export type Subscription = Stripe.Subscription;
 export type Invoice = Stripe.Invoice;
+export type Charge = Stripe.Charge;
+export type Customer = Stripe.Customer;
+export type Price = Stripe.Price;
+export type Product = Stripe.Product;
 export type StripeEvent = Stripe.Event;
 
 export interface StripeApi {
@@ -16,35 +20,55 @@ export interface StripeApi {
     params: CheckoutSessionParams,
     idempotencyKey?: string,
   ): Promise<Pick<CheckoutSession, 'id' | 'url'>>;
+  /** Session avec son abonnement développé. */
   retrieveCheckoutSession(id: string): Promise<CheckoutSession>;
   createPortalSession(customer: string, returnUrl: string): Promise<{ url: string }>;
-  /** Résiliation en fin de période (cancel_at_period_end), comme l'ancienne route /api/unsubscribe. */
-  cancelAtPeriodEnd(subscriptionId: string): Promise<Subscription>;
-  activeSubscriptions(customer: string): Promise<Subscription[]>;
+  /** État le plus récent d'un abonnement (prix développé : lookup_key de la formule). */
+  retrieveSubscription(id: string): Promise<Subscription>;
+  /** Résiliation en fin de période (true) ou reprise (false). */
+  setCancelAtPeriodEnd(id: string, cancel: boolean): Promise<Subscription>;
+  /** Abonnements d'un client, tous statuts (rattrapage). */
+  listSubscriptions(customer: string): Promise<Subscription[]>;
+  retrieveInvoice(id: string): Promise<Invoice>;
   listInvoices(customer: string, limit: number): Promise<Invoice[]>;
+  retrieveCharge(id: string): Promise<Charge>;
+  retrieveCustomer(id: string): Promise<Customer | { id: string; deleted: true }>;
+  /** Prix actifs par lookup_key (absents : pas encore créés par catalog:sync). */
+  pricesByLookupKeys(keys: string[]): Promise<Price[]>;
 }
 
 export function stripeApi(secretKey: string): StripeApi {
-  const stripe = new Stripe(secretKey, {
-    maxNetworkRetries: 2,
-    timeout: 10_000,
-    appInfo: { name: 'vtt-billing' },
-  });
+  const stripe = stripeClient(secretKey);
   return {
     createCheckoutSession: (params, idempotencyKey) =>
       stripe.checkout.sessions.create(params, idempotencyKey ? { idempotencyKey } : undefined),
-    // Abonnement développé : son statut dit si une vieille session peut encore activer le premium
     retrieveCheckoutSession: (id) =>
       stripe.checkout.sessions.retrieve(id, { expand: ['subscription'] }),
     createPortalSession: async (customer, returnUrl) => {
       const s = await stripe.billingPortal.sessions.create({ customer, return_url: returnUrl });
       return { url: s.url };
     },
-    cancelAtPeriodEnd: (id) => stripe.subscriptions.update(id, { cancel_at_period_end: true }),
-    activeSubscriptions: async (customer) =>
-      (await stripe.subscriptions.list({ customer, status: 'active', limit: 10 })).data,
+    retrieveSubscription: (id) => stripe.subscriptions.retrieve(id),
+    setCancelAtPeriodEnd: (id, cancel) =>
+      stripe.subscriptions.update(id, { cancel_at_period_end: cancel }),
+    listSubscriptions: async (customer) =>
+      (await stripe.subscriptions.list({ customer, status: 'all', limit: 100 })).data,
+    retrieveInvoice: (id) => stripe.invoices.retrieve(id),
     listInvoices: async (customer, limit) => (await stripe.invoices.list({ customer, limit })).data,
+    retrieveCharge: (id) => stripe.charges.retrieve(id),
+    retrieveCustomer: (id) => stripe.customers.retrieve(id),
+    pricesByLookupKeys: async (keys) =>
+      (await stripe.prices.list({ lookup_keys: keys, active: true, limit: 100 })).data,
   };
+}
+
+/** Client Stripe du service (aussi utilisé par les scripts catalog:sync et stripe:backfill). */
+export function stripeClient(secretKey: string) {
+  return new Stripe(secretKey, {
+    maxNetworkRetries: 2,
+    timeout: 10_000,
+    appInfo: { name: 'vtt-billing' },
+  });
 }
 
 /**
@@ -71,6 +95,14 @@ export function periodEnd(sub: Subscription): number | null {
   const fromItems = sub.items?.data?.[0]?.current_period_end;
   if (typeof fromItems === 'number') return fromItems;
   const legacy = (sub as unknown as { current_period_end?: unknown }).current_period_end;
+  return typeof legacy === 'number' ? legacy : null;
+}
+
+/** Début de la période en cours (même déplacement que periodEnd). */
+export function periodStart(sub: Subscription): number | null {
+  const fromItems = sub.items?.data?.[0]?.current_period_start;
+  if (typeof fromItems === 'number') return fromItems;
+  const legacy = (sub as unknown as { current_period_start?: unknown }).current_period_start;
   return typeof legacy === 'number' ? legacy : null;
 }
 

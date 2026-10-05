@@ -22,11 +22,10 @@ import { createReadStream, createWriteStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { parseArgs } from 'node:util';
-import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import { EffectFailed, httpEffects } from '../clients/effects.js';
 import { createDb } from '../db/client.js';
-import { customers } from '../db/schema.js';
+import { hasPremium, pushRights } from '../payments/entitlements.js';
 import type { FirestoreDoc, LegacyUser } from './legacy.js';
 import { loadCustomer } from './loading.js';
 import { transformCustomer } from './transform.js';
@@ -166,15 +165,10 @@ for await (const doc of read(usersFile)) {
     out.status = await loadCustomer(base!.db, userId, c);
     if (out.status === 'imported') totals.imported++;
     else totals.alreadyImported++;
-    // Effets du premium tel qu'il est dans billing (import précédent compris) : rejoués sans risque
-    const [row] = await base!.db
-      .select({ premium: customers.premium })
-      .from(customers)
-      .where(eq(customers.userId, userId));
-    if (row?.premium && effects) {
+    // Droits tels qu'ils sont dans billing (import précédent compris) : rejoués sans risque
+    if (effects && (await hasPremium(base!.db, userId))) {
       try {
-        await effects.setAllSkins(userId, true);
-        await effects.setPremium(userId, true);
+        await pushRights({ db: base!.db, effects }, userId);
         totals.effectsApplied++;
         out.effects = 'applied';
       } catch (e) {

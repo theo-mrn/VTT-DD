@@ -27,7 +27,7 @@ secretEnv:
 #   INTERNAL_API_SECRET      même valeur que dice et identity
 #   STRIPE_SECRET_KEY        sk_… (ou clé restreinte rk_…) ; mode test en staging
 #   STRIPE_WEBHOOK_SECRET    whsec_… de l'endpoint https://api.yner.fr/v1/billing/webhook
-#   STRIPE_PREMIUM_PRICE_ID  price_… de l'abonnement mensuel (facultatif : 4,99 €/mois décrit)
+# Prix : `catalog:sync --apply` avec la même clé ; événements de l'endpoint : docs/paiement.md
 envFromSecrets:
   - name: billing-secrets
 probes:

@@ -1,5 +1,5 @@
 /**
- * Module « webhook » : événements Stripe (ancienne route /api/stripe-webhook).
+ * Module « webhook » : événements Stripe.
  *
  *   POST /v1/billing/webhook   corps brut + en-tête stripe-signature
  *
@@ -9,33 +9,33 @@
  *
  * Idempotent : Stripe livre au moins une fois. Un événement déjà traité
  * (table processed_events) est acquitté sans aucun effet. Un traitement en
- * échec (dice ou identity injoignable…) répond 500 SANS marquer l'événement :
- * Stripe le relivre (jusqu'à 3 jours) et les effets, tous idempotents, sont
- * refaits. L'événement n'est marqué qu'une fois tout réussi.
+ * échec (Stripe, dice ou identity injoignable…) répond 500 SANS marquer
+ * l'événement : Stripe le relivre (jusqu'à 3 jours) et tout est refait.
  *
- *   checkout.session.completed, checkout.session.async_payment_succeeded
- *       achat payé (skin ajouté à l'inventaire) ou abonnement payé (premium)
- *   checkout.session.expired        achat en attente abandonné
- *   customer.subscription.updated   résiliation programmée ou annulée (portail)
- *   customer.subscription.deleted   fin du premium
- *   invoice.paid                    événement billing.invoice_paid (e-mail de facture à venir)
- *   invoice.payment_failed          journalisé
+ * Stripe ne garantit pas l'ordre : abonnements, factures et paiements sont
+ * relus chez Stripe, seul leur identifiant est pris dans l'événement.
+ *
+ *   checkout.session.completed, …async_payment_succeeded   achat livré ou abonnement synchronisé
+ *   checkout.session.async_payment_failed, …expired        achat abandonné
+ *   customer.subscription.created/updated/deleted/paused/resumed   abonnement synchronisé
+ *   invoice.paid, invoice.payment_failed, invoice.finalized, invoice.voided,
+ *   invoice.marked_uncollectible                           facture recopiée
+ *   charge.refunded                                        achat remboursé : droit retiré
+ *   charge.dispute.created                                 achat contesté : droit retiré
+ *   customer.updated                                       e-mail de facturation
  */
 import { HttpError } from '@vtt/platform';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import type { Db } from '../../db/client.js';
-import { appendEvent, type EventContext } from '../../db/outbox.js';
-import { processedEvents } from '../../db/schema.js';
-import type { Deps, Module } from '../../deps.js';
-import {
-  customerByStripeId,
-  endSubscription,
-  expirePurchase,
-  fulfillCheckoutSession,
-  SYSTEM,
-  syncSubscription,
-} from '../../payments/fulfillment.js';
+import type { EventContext } from '../../db/outbox.js';
+import { customers, processedEvents } from '../../db/schema.js';
+import type { Module } from '../../deps.js';
+import { fulfillCheckoutSession } from '../../payments/checkout.js';
+import { SYSTEM, type PaymentDeps } from '../../payments/common.js';
+import { syncInvoice, type InvoiceTrigger } from '../../payments/invoices.js';
+import { expirePurchase, withdrawPurchase } from '../../payments/purchases.js';
+import { syncSubscription } from '../../payments/subscriptions.js';
 import { idOf, verifyWebhook, type StripeEvent } from '../../stripe/client.js';
 import { eventContext } from '../common.js';
 
@@ -57,52 +57,62 @@ async function markProcessed(db: Db, event: StripeEvent) {
 }
 
 /** Traite un événement vérifié ; renvoie ce qui a été fait (journal). */
-async function handle(deps: Deps, ctx: EventContext, event: StripeEvent): Promise<string> {
+async function handle(deps: PaymentDeps, ctx: EventContext, event: StripeEvent): Promise<string> {
   switch (event.type) {
     case 'checkout.session.completed':
     case 'checkout.session.async_payment_succeeded':
       return fulfillCheckoutSession(deps, ctx, SYSTEM, event.data.object);
 
+    case 'checkout.session.async_payment_failed':
     case 'checkout.session.expired':
       await expirePurchase(deps.db, event.data.object.id);
       return 'expired';
 
+    case 'customer.subscription.created':
     case 'customer.subscription.updated':
-      return syncSubscription(deps, ctx, event.data.object);
-
     case 'customer.subscription.deleted':
-      return endSubscription(deps, ctx, event.data.object);
+    case 'customer.subscription.paused':
+    case 'customer.subscription.resumed':
+      return syncSubscription(deps, ctx, SYSTEM, event.data.object.id);
 
-    case 'invoice.paid': {
-      const invoice = event.data.object;
-      const customerId = idOf(invoice.customer);
-      const row = customerId ? await customerByStripeId(deps.db, customerId) : undefined;
-      if (!row || !invoice.id) return 'unknown';
-      await deps.db.transaction((tx) =>
-        appendEvent(tx, ctx, {
-          type: 'billing.invoice_paid',
-          actor: SYSTEM,
-          aggregate: { type: 'billing_customer', id: row.userId },
-          // TODO(worker) : e-mail de facture (ancien InvoiceEmail) ; le worker relit
-          // la facture chez Stripe (lien, PDF) : aucune URL de facture sur le bus
-          payload: {
-            userId: row.userId,
-            invoiceId: invoice.id,
-            number: invoice.number ?? null,
-            amountPaid: invoice.amount_paid ?? 0,
-            currency: invoice.currency,
-          },
-        }),
-      );
-      return 'recorded';
+    case 'invoice.paid':
+      return invoice(deps, ctx, event.data.object.id, 'paid');
+    case 'invoice.payment_failed':
+      return invoice(deps, ctx, event.data.object.id, 'payment_failed');
+    case 'invoice.finalized':
+    case 'invoice.voided':
+    case 'invoice.marked_uncollectible':
+      return invoice(deps, ctx, event.data.object.id, 'updated');
+
+    case 'charge.refunded':
+      return withdrawPurchase(deps, ctx, SYSTEM, event.data.object.id, 'refund');
+    case 'charge.dispute.created': {
+      const charge = idOf(event.data.object.charge);
+      if (!charge) return 'ignored';
+      return withdrawPurchase(deps, ctx, SYSTEM, charge, 'dispute');
     }
 
-    case 'invoice.payment_failed':
-      return 'payment_failed';
+    case 'customer.updated': {
+      const c = event.data.object;
+      await deps.db
+        .update(customers)
+        .set({ email: c.email ?? null, updatedAt: sql`now()` })
+        .where(eq(customers.stripeCustomerId, c.id));
+      return 'customer_updated';
+    }
 
     default:
       return 'ignored';
   }
+}
+
+function invoice(
+  deps: PaymentDeps,
+  ctx: EventContext,
+  id: string | undefined,
+  trigger: InvoiceTrigger,
+): Promise<string> {
+  return id ? syncInvoice(deps, ctx, SYSTEM, id, trigger) : Promise.resolve('ignored');
 }
 
 export const register: Module = async (app, deps) => {
@@ -128,6 +138,7 @@ export const register: Module = async (app, deps) => {
       async (req, reply) => {
         if (!secret || !deps.stripe)
           throw new HttpError(503, 'Paiement indisponible', 'billing_unconfigured');
+        const pd: PaymentDeps = { db: deps.db, stripe: deps.stripe, effects: deps.effects };
         const signature = req.headers['stripe-signature'];
         const raw = req.body;
         if (typeof signature !== 'string' || !Buffer.isBuffer(raw))
@@ -147,7 +158,7 @@ export const register: Module = async (app, deps) => {
 
         let outcome: string;
         try {
-          outcome = await handle(deps, eventContext(req), event);
+          outcome = await handle(pd, eventContext(req), event);
         } catch (e) {
           // Pas marqué : Stripe relivrera, et tout sera refait (effets idempotents)
           req.log.error(
