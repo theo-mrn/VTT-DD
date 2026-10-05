@@ -11,6 +11,7 @@
  * neuve sont renvoyées au GPU. Pixi est pris sur le moteur.
  */
 import type * as Pixi from 'pixi.js';
+import { pourWebgl } from '@/lib/assets';
 import { prefersEconomy } from '@/lib/perf/device';
 import type { MapEngine } from '../../engine/map-engine';
 import { WHITE } from '../../engine/visibility-badge';
@@ -232,7 +233,7 @@ export class SkinTextures {
     }
     const video = (src: string) =>
       pixi.Assets.load<Pixi.Texture>({
-        src,
+        src: pourWebgl(src),
         parser: 'video',
         data: {
           autoPlay: false,

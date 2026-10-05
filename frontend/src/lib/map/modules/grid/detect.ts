@@ -19,6 +19,8 @@
  * Fonction pure sur des pixels (testée) ; `detectGrid` lit l'image dans le navigateur.
  */
 
+import { pourWebgl } from '@/lib/assets';
+
 export interface DetectedGrid {
   /** Côté d'une case, en pixels de l'image d'origine. */
   size: number;
@@ -209,7 +211,7 @@ export async function detectGrid(
 }
 
 async function imageBitmap(url: string): Promise<ImageBitmap | null> {
-  const res = await fetch(url, { mode: 'cors', credentials: 'omit', cache: 'no-store' });
+  const res = await fetch(pourWebgl(url), { mode: 'cors', credentials: 'omit', cache: 'no-store' });
   if (!res.ok) return null;
   return createImageBitmap(await res.blob());
 }
@@ -233,6 +235,6 @@ function videoFrame(url: string): Promise<ImageBitmap | null> {
       createImageBitmap(v).then(done, () => done(null));
     });
     v.addEventListener('error', () => done(null));
-    v.src = url;
+    v.src = pourWebgl(url);
   });
 }

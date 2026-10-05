@@ -17,7 +17,7 @@
  */
 import * as PIXI from 'pixi.js';
 import { Application, Assets, Container, Graphics, ImageSource, Text, Texture } from 'pixi.js';
-import { surCdn, vignette } from '@/lib/assets';
+import { pourWebgl, surCdn, vignette } from '@/lib/assets';
 import { prefersEconomy } from '@/lib/perf/device';
 import { MapBackground } from './background';
 import { backgroundPrefs } from './background-prefs';
@@ -273,14 +273,16 @@ class PixiView implements EngineView {
 
   /**
    * Texture réduite d'une image : redimensionnée par le CDN quand il la sert, sinon décodée
-   * ici au plus `size` pixels de petit côté (mipmaps compris). L'original en cas d'échec.
+   * ici au plus `size` pixels de petit côté (mipmaps compris). L'original en cas d'échec : une
+   * vignette du CDN refusée par WebGL (réponse sans en-tête CORS) ne laisse pas le token vide.
    */
   thumbnail(url: string, size: number): Promise<Texture> {
-    if (surCdn(url)) return this.texture(vignette(url, size));
     const key = `${size}:${url}`;
     let t = this.thumbnails.get(key);
     if (!t) {
-      t = this.decodeThumbnail(url, size).catch(() => this.texture(url));
+      t = (surCdn(url) ? this.texture(vignette(url, size)) : this.decodeThumbnail(url, size)).catch(
+        () => this.texture(url),
+      );
       this.thumbnails.set(key, t);
     }
     return t;
@@ -323,7 +325,7 @@ class PixiView implements EngineView {
   texture(url: string): Promise<Texture> {
     let t = this.textures.get(url);
     if (!t) {
-      t = Assets.load<Texture>({ src: url, parser: 'texture' });
+      t = Assets.load<Texture>({ src: pourWebgl(url), parser: 'texture' });
       this.textures.set(url, t);
       t.catch(() => this.textures.delete(url));
     }
