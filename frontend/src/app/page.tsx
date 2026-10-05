@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Appel } from '@/components/landing/appel';
+import { DeFlottant } from '@/components/landing/de-flottant';
 import { Des } from '@/components/landing/des';
 import { Fonctionnalites } from '@/components/landing/fonctionnalites';
 import { Hero } from '@/components/landing/hero';
@@ -25,6 +26,7 @@ export default function Accueil() {
         <Appel />
       </main>
       <Pied />
+      <DeFlottant />
     </div>
   );
 }
