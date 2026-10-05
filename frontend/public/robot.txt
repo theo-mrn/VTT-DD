@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Disallow: /v1/
+Disallow: /accueil
+Disallow: /campagnes
+Disallow: /personnages
+Disallow: /des
+Disallow: /notes
+Disallow: /resources
+Disallow: /profil
+Disallow: /amis
+Disallow: /joueurs
+Disallow: /paiement
+Disallow: /bienvenue
+Disallow: /join
+Disallow: /discord
+Disallow: /reinitialisation
+Disallow: /verification-email
+Disallow: /healthz
+
+Sitemap: https://yner.fr/sitemap.xml
