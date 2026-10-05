@@ -1,7 +1,7 @@
 /**
  * Service billing complet pour les tests : jetons signés par une clé générée
- * pour le test (comme ceux d'identity), faux Stripe en mémoire, faux dice et
- * identity (serveur HTTP local). Branché sur le PostgreSQL de
+ * pour le test (comme ceux d'identity), faux Stripe en mémoire. Les droits
+ * publiés se lisent dans l'outbox (rights). Branché sur le PostgreSQL de
  * TEST_DATABASE_URL (rôle billing_svc) pour les tests d'intégration. Chaque
  * test utilise des utilisateurs neufs et supprime ensuite leurs données : les
  * tests peuvent tourner en même temps sur la même base.
@@ -19,14 +19,12 @@ import {
   outbox,
   processedEvents,
   purchases,
+  rightsVersions,
   subscriptions,
 } from '../db/schema.js';
-import { fakeServices } from './fake-services.js';
 import { fakeStripe, signedEvent, WEBHOOK_SECRET } from './fake-stripe.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
-
-export const SECRET = 'secret-interne-de-test-0123456789abcdef';
 
 const ISSUER = 'https://auth.test.local';
 const AUDIENCE = 'vtt-api';
@@ -37,7 +35,6 @@ export async function testApp(
 ) {
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
   const connection = TEST_DATABASE_URL ? createDb(TEST_DATABASE_URL) : undefined;
-  const services = await fakeServices(SECRET);
   const stripe = fakeStripe();
 
   const app = await buildBilling(
@@ -49,9 +46,6 @@ export async function testApp(
       JWT_AUDIENCE: AUDIENCE,
       APP_URL: 'http://front.test/',
       STRIPE_WEBHOOK_SECRET: WEBHOOK_SECRET,
-      INTERNAL_API_SECRET: SECRET,
-      DICE_URL: services.url,
-      IDENTITY_URL: services.url,
       ...overrides,
     }),
     {
@@ -93,7 +87,6 @@ export async function testApp(
 
   async function close() {
     await app.close();
-    await services.close();
     if (connection) {
       const db = connection.db;
       if (users.length) {
@@ -101,6 +94,7 @@ export async function testApp(
         await db.delete(entitlements).where(inArray(entitlements.userId, users));
         await db.delete(invoices).where(inArray(invoices.userId, users));
         await db.delete(subscriptions).where(inArray(subscriptions.userId, users));
+        await db.delete(rightsVersions).where(inArray(rightsVersions.userId, users));
         await db.delete(customers).where(inArray(customers.userId, users));
         await db
           .delete(outbox)
@@ -141,7 +135,14 @@ export async function testApp(
     );
   }
 
-  return { app, db: connection?.db, stripe, services, user, deliver, events, close };
+  /** Droits publiés pour un utilisateur (billing.entitlements_changed), dans l'ordre. */
+  async function rights(userId: string) {
+    return (await events(userId))
+      .filter((e) => e.type === 'billing.entitlements_changed')
+      .map((e) => e.payload);
+  }
+
+  return { app, db: connection?.db, stripe, user, deliver, events, rights, close };
 }
 
 export type TestContext = Awaited<ReturnType<typeof testApp>>;

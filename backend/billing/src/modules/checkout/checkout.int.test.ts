@@ -133,16 +133,14 @@ describe.skipIf(!TEST_DATABASE_URL)('achat à l’unité', () => {
     const status = () => h.ok(alice, 'GET', `/v1/billing/checkout/sessions/${id}`);
 
     expect(await status()).toEqual({ status: 'pending', kind: 'dice', itemId: 'onyx_dore' });
-    expect(t.services.calls).toHaveLength(0);
+    expect(await t.rights(alice.id)).toEqual([]);
 
     // Payé, webhook pas encore reçu : la confirmation livre elle-même (idempotent)
     t.stripe.pay(id);
     expect(await status()).toEqual({ status: 'completed', kind: 'dice', itemId: 'onyx_dore' });
     expect(await status()).toEqual({ status: 'completed', kind: 'dice', itemId: 'onyx_dore' });
-    expect(t.services.callsFor(alice.id)).toEqual([
-      { 'all-skins': { allSkins: false } },
-      { premium: { premium: false } },
-      { 'inventory/onyx_dore': { source: 'purchase' } },
+    expect(await t.rights(alice.id)).toEqual([
+      { userId: alice.id, version: 1, premium: false, diceSkins: ['onyx_dore'], tokenFrames: [] },
     ]);
     const [purchase] = await t.db!.select().from(purchases).where(eq(purchases.userId, alice.id));
     expect(purchase).toMatchObject({ status: 'completed', consentAt: expect.any(Date) });
@@ -174,18 +172,6 @@ describe.skipIf(!TEST_DATABASE_URL)('achat à l’unité', () => {
     expect([other.statusCode, other.json().code]).toEqual([404, 'session_not_found']);
     const unknown = await h.request(alice, 'GET', '/v1/billing/checkout/sessions/cs_test_inconnue');
     expect(unknown.statusCode).toBe(404);
-  });
-
-  it('droits non appliqués au retour (dice en panne) : « en attente », le webhook finira', async () => {
-    const { url } = await h.ok<{ url: string }>(alice, 'POST', '/v1/billing/checkout', {
-      itemId: 'eclipse',
-    });
-    const id = h.sessionIdOf(url);
-    t.stripe.pay(id);
-    t.services.setDown(true);
-    expect(await h.ok(alice, 'GET', `/v1/billing/checkout/sessions/${id}`)).toMatchObject({
-      status: 'pending',
-    });
   });
 
   it('Stripe injoignable : 502 stripe_error', async () => {

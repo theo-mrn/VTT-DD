@@ -5,11 +5,14 @@
  *
  * Premium de l'ancienne app : droit premium de source `subscription` s'il est
  * porté par un abonnement Stripe (stripe:backfill en recopie ensuite l'état
- * réel), sinon `legacy` (premium offert ou sans abonnement connu).
+ * réel), sinon `legacy` (premium offert ou sans abonnement connu). Il est
+ * publié sur le bus (billing.entitlements_changed) pour dice et identity.
  */
 import { customers, subscriptions } from '../db/schema.js';
 import type { Db } from '../db/client.js';
-import { grant } from '../payments/entitlements.js';
+import { uuidv7 } from '@vtt/contracts';
+import { SYSTEM } from '../payments/common.js';
+import { grant, publishRights } from '../payments/entitlements.js';
 import type { ImportedCustomer } from './transform.js';
 
 export async function loadCustomer(
@@ -37,13 +40,15 @@ export async function loadCustomer(
           createdAt: c.premiumSince ?? new Date(),
         })
         .onConflictDoNothing();
-    if (c.premium)
-      await grant(tx, {
+    const granted =
+      c.premium &&
+      (await grant(tx, {
         userId,
         kind: 'premium',
         source: c.subscriptionId ? 'subscription' : 'legacy',
         sourceId: c.subscriptionId ?? '',
-      });
+      }));
+    if (granted) await publishRights(tx, { correlationId: uuidv7() }, SYSTEM, userId);
     return 'imported';
   });
 }

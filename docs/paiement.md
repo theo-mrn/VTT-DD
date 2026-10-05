@@ -103,20 +103,26 @@ encore la carte : on laisse le premium pendant les relances). `unpaid`, `cancele
 ## Droits par événements
 
 ```
-billing : entitlements + INSERT outbox (même transaction)
-   └─► bus  billing.entitlements_changed { userId, premium, diceSkins[], tokenFrames[], version }
-          ├─► dice      (durable dice-entitlements)      inventaire, accès à tous les skins
-          └─► identity  (durable identity-entitlements)  badge et bordures premium
+billing : entitlements + rights_versions + INSERT outbox (même transaction)
+   └─► bus  vtt.global.billing.entitlements_changed
+            { userId, version, premium, diceSkins[], tokenFrames[] }   (@vtt/contracts)
+          ├─► dice      (durable dice-rights)      accès à tous les skins, inventaire « purchase »
+          └─► identity  (durable identity-rights)  badge et bordures premium
 ```
 
-- L'événement porte **l'état complet** des droits de l'utilisateur et une `version` croissante,
-  pas un « +1 skin » : un consommateur applique le dernier état reçu et ignore une version plus
-  ancienne. L'ordre et les doublons ne posent plus de problème.
-- Relais d'outbox branché dans `main.ts` de billing, comme les autres services.
-- Rattrapage : `GET /internal/billing/users/:userId/entitlements` pour qu'un service resynchronise
-  un utilisateur, et une réconciliation nocturne (voir plus bas).
-- Les routes internes actuelles de dice et identity (`PUT /internal/users/…`) sont retirées une fois
-  les consommateurs en place.
+- L'événement porte **l'état complet** des droits de l'utilisateur et une `version` croissante
+  (`billing.rights_versions`), pas un « +1 skin » : un consommateur applique le dernier état reçu
+  et ignore une version plus ancienne ou égale (`dice.billing_rights`,
+  `identity.billing_rights`). L'ordre et les doublons sont sans effet.
+- Publié seulement quand un droit change, dans la transaction du changement : pas de droit sans
+  événement, ni d'événement sans droit.
+- dice n'aligne que l'inventaire de source `purchase` : les skins importés de l'ancienne app,
+  offerts ou gagnés ne sont jamais retirés. Un skin remboursé est retiré (`dice.skin_revoked`).
+- Les consommateurs relisent tout le flux (7 jours) à leur création ; un service arrêté rattrape
+  à son retour.
+- Réalignement manuel (base de dice ou d'identity restaurée…) :
+  `pnpm --filter @vtt/billing rights:republish [--user <uuid>]`, qui republie l'état de chacun.
+- Les routes internes `PUT /internal/users/…` de dice et identity sont supprimées.
 
 ## E-mails
 
@@ -213,8 +219,8 @@ Destinataire : l'e-mail du client Stripe, renseigné à sa création avec l'e-ma
 1. **Données et abonnement** (fait le 2026-10-05) : migrations (`subscriptions`, `invoices`, `entitlements`), catalogue
    Stripe et `catalog:sync`, abonnement mensuel et annuel, webhook refondu (relecture chez Stripe,
    remboursements, contestations), résiliation et reprise.
-2. **Droits par événements** : relais d'outbox de billing, consommateurs dans dice et identity,
-   route de resynchronisation, retrait des appels HTTP.
+2. **Droits par événements** (fait le 2026-10-05) : relais d'outbox de billing, consommateurs
+   dans dice et identity, `rights:republish`, retrait des appels HTTP.
 3. **E-mails** : templates Kourrier, consommateur `billing-mails`.
 4. **Front** : page Abonnement, boutique active, retours de Checkout.
 5. **Légal et mise en ligne** : CGV, consentement, rappel de reconduction, réconciliation,

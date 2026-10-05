@@ -31,7 +31,11 @@ describe.skipIf(!TEST_DATABASE_URL)('webhook Stripe', () => {
     await t.close();
   });
 
-  const types = async (userId: string) => (await t.events(userId)).map((e) => e.type);
+  /** Événements métier (hors droits publiés, vérifiés à part). */
+  const types = async (userId: string) =>
+    (await t.events(userId))
+      .map((e) => e.type)
+      .filter((type) => type !== 'billing.entitlements_changed');
 
   /** Achat de `itemId` : session créée par le service puis payée chez (le faux) Stripe. */
   async function paidPurchase(u: TestUser, itemId: string) {
@@ -69,7 +73,7 @@ describe.skipIf(!TEST_DATABASE_URL)('webhook Stripe', () => {
     res = await post(event.headers, JSON.stringify(JSON.parse(event.payload), null, 2));
     expect(res.statusCode).toBe(400);
 
-    expect(t.services.calls).toHaveLength(0);
+    expect(await t.rights(alice.id)).toEqual([]);
     const [purchase] = await t.db!.select().from(purchases).where(eq(purchases.userId, alice.id));
     expect(purchase!.status).toBe('pending');
   });
@@ -80,9 +84,9 @@ describe.skipIf(!TEST_DATABASE_URL)('webhook Stripe', () => {
 
     let res = await t.deliver(event);
     expect([res.statusCode, res.json()]).toEqual([200, { received: true }]);
-    expect(t.services.callsFor(alice.id)).toContainEqual({
-      'inventory/bismuth': { source: 'purchase' },
-    });
+    expect(await t.rights(alice.id)).toEqual([
+      { userId: alice.id, version: 1, premium: false, diceSkins: ['bismuth'], tokenFrames: [] },
+    ]);
     const [purchase] = await t.db!.select().from(purchases).where(eq(purchases.userId, alice.id));
     expect(purchase).toMatchObject({
       status: 'completed',
@@ -97,16 +101,15 @@ describe.skipIf(!TEST_DATABASE_URL)('webhook Stripe', () => {
     });
 
     // Même événement relivré : acquitté, rien de plus
-    const calls = t.services.calls.length;
     res = await t.deliver(event);
     expect(res.json()).toEqual({ received: true, duplicate: true });
-    expect(t.services.calls).toHaveLength(calls);
-    // Autre événement pour la même session : achat déjà livré, droits seulement réappliqués
+    // Autre événement pour la même session : achat déjà livré, rien de plus
     res = await t.deliver(signedEvent('checkout.session.async_payment_succeeded', session));
     expect(res.statusCode).toBe(200);
     expect(await types(alice.id)).toEqual(['billing.purchase_completed']);
     const active = await t.db!.select().from(entitlements).where(eq(entitlements.userId, alice.id));
     expect(active).toHaveLength(1);
+    expect(await t.rights(alice.id)).toHaveLength(1);
     const processed = await t
       .db!.select()
       .from(processedEvents)
@@ -114,25 +117,26 @@ describe.skipIf(!TEST_DATABASE_URL)('webhook Stripe', () => {
     expect(processed).toHaveLength(1);
   });
 
-  it('dice injoignable : 500 sans marquer l’événement, puis relivraison qui applique', async () => {
-    const session = await paidPurchase(alice, 'magma');
-    const event = signedEvent('checkout.session.completed', session);
+  it('Stripe injoignable pendant le traitement : 500 sans marquer, puis relivraison', async () => {
+    const sub = await subscribed(alice);
+    const canceling = t.stripe.updateSubscription(sub.id, {
+      cancel_at_period_end: true,
+      cancel_at: Math.floor(Date.now() / 1000) + 3600,
+    });
+    const event = signedEvent('customer.subscription.updated', canceling);
 
-    t.services.setDown(true);
+    t.stripe.setDown(true);
     let res = await t.deliver(event);
     expect([res.statusCode, res.json().code]).toEqual([500, 'webhook_retry']);
     const marked = () =>
       t.db!.select().from(processedEvents).where(eq(processedEvents.stripeEventId, event.id));
     expect(await marked()).toHaveLength(0);
 
-    t.services.setDown(false);
+    t.stripe.setDown(false);
     res = await t.deliver(event);
     expect(res.statusCode).toBe(200);
     expect(await marked()).toHaveLength(1);
-    expect(t.services.callsFor(alice.id)).toContainEqual({
-      'inventory/magma': { source: 'purchase' },
-    });
-    expect(await types(alice.id)).toEqual(['billing.purchase_completed']);
+    expect((await types(alice.id)).at(-1)).toBe('billing.subscription_cancellation_scheduled');
   });
 
   it('cycle d’un abonnement : début, résiliation au portail, fin ; relivraison sans effet', async () => {
@@ -166,9 +170,9 @@ describe.skipIf(!TEST_DATABASE_URL)('webhook Stripe', () => {
       subscription: { status: 'canceled', cancelAt: null },
       hasCustomer: true,
     });
-    expect(t.services.callsFor(alice.id).slice(-2)).toEqual([
-      { 'all-skins': { allSkins: false } },
-      { premium: { premium: false } },
+    expect(await t.rights(alice.id)).toEqual([
+      expect.objectContaining({ version: 1, premium: true }),
+      expect.objectContaining({ version: 2, premium: false }),
     ]);
     await t.deliver(deleted);
     expect(await types(alice.id)).toEqual([
@@ -214,7 +218,9 @@ describe.skipIf(!TEST_DATABASE_URL)('webhook Stripe', () => {
       premium: true,
       subscription: { status: 'past_due', paymentIssue: true },
     });
-    const events = await t.events(alice.id);
+    const events = (await t.events(alice.id)).filter(
+      (e) => e.type !== 'billing.entitlements_changed',
+    );
     expect(events.map((e) => e.type).slice(2)).toEqual([
       'billing.subscription_plan_changed',
       'billing.subscription_past_due',

@@ -72,6 +72,11 @@ describe.skipIf(!TEST_DATABASE_URL)('rattrapage depuis Stripe', () => {
       ]),
     );
     expect(await db.select().from(invoices).where(eq(invoices.userId, userId))).toHaveLength(2);
-    expect(await t.events(userId)).toEqual([]);
+    // Aucun événement métier ni e-mail ; les droits, eux, sont publiés (premium gardé)
+    expect((await t.events(userId)).map((e) => e.type)).toEqual([
+      'billing.entitlements_changed',
+      'billing.entitlements_changed',
+    ]);
+    expect((await t.rights(userId)).at(-1)).toMatchObject({ premium: true });
   });
 });

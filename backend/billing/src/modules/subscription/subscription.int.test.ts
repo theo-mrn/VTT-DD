@@ -71,9 +71,8 @@ describe.skipIf(!TEST_DATABASE_URL)('abonnement premium', () => {
 
   it('abonné : premium, formule et échéance ; nouvel abonnement et achat de dés refusés', async () => {
     await subscribe(alice, 'annual');
-    expect(t.services.callsFor(alice.id)).toEqual([
-      { 'all-skins': { allSkins: true } },
-      { premium: { premium: true } },
+    expect(await t.rights(alice.id)).toEqual([
+      { userId: alice.id, version: 1, premium: true, diceSkins: [], tokenFrames: [] },
     ]);
     expect(await h.ok(alice, 'GET', '/v1/billing/me')).toEqual({
       configured: true,
@@ -94,6 +93,7 @@ describe.skipIf(!TEST_DATABASE_URL)('abonnement premium', () => {
     res = await h.request(alice, 'POST', '/v1/billing/checkout', { itemId: 'ruby' });
     expect([res.statusCode, res.json().code]).toEqual([409, 'already_owned']);
     expect((await t.events(alice.id)).map((e) => e.type)).toEqual([
+      'billing.entitlements_changed',
       'billing.subscription_started',
       'billing.premium_activated',
     ]);
@@ -127,7 +127,10 @@ describe.skipIf(!TEST_DATABASE_URL)('abonnement premium', () => {
     const again = await h.request(alice, 'POST', '/v1/billing/subscription/resume');
     expect([again.statusCode, again.json().code]).toEqual([409, 'not_cancelled']);
 
-    expect((await t.events(alice.id)).map((e) => e.type)).toEqual([
+    const business = (await t.events(alice.id)).filter(
+      (e) => e.type !== 'billing.entitlements_changed',
+    );
+    expect(business.map((e) => e.type)).toEqual([
       'billing.subscription_started',
       'billing.premium_activated',
       'billing.subscription_cancellation_scheduled',
@@ -148,10 +151,7 @@ describe.skipIf(!TEST_DATABASE_URL)('abonnement premium', () => {
     });
     await h.ok(alice, 'GET', `/v1/billing/checkout/sessions/${session.id}`);
     expect((await h.ok(alice, 'GET', '/v1/billing/me')).premium).toBe(false);
-    expect(t.services.callsFor(alice.id).slice(-2)).toEqual([
-      { 'all-skins': { allSkins: false } },
-      { premium: { premium: false } },
-    ]);
+    expect((await t.rights(alice.id)).at(-1)).toMatchObject({ version: 2, premium: false });
   });
 
   it('premium de l’ancienne app (sans abonnement Stripe) : résiliation immédiate', async () => {
@@ -164,12 +164,13 @@ describe.skipIf(!TEST_DATABASE_URL)('abonnement premium', () => {
     expect(await h.ok(alice, 'POST', '/v1/billing/subscription/cancel')).toEqual({
       cancelAt: null,
     });
-    expect(t.services.callsFor(alice.id)).toEqual([
-      { 'all-skins': { allSkins: false } },
-      { premium: { premium: false } },
+    expect(await t.rights(alice.id)).toEqual([
+      { userId: alice.id, version: 1, premium: false, diceSkins: [], tokenFrames: [] },
     ]);
     expect((await h.ok(alice, 'GET', '/v1/billing/me')).premium).toBe(false);
-    expect(await t.events(alice.id)).toEqual([
+    expect(
+      (await t.events(alice.id)).filter((e) => e.type !== 'billing.entitlements_changed'),
+    ).toEqual([
       expect.objectContaining({
         type: 'billing.premium_deactivated',
         actor: expect.objectContaining({ role: 'user', userId: alice.id }),

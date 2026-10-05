@@ -19,7 +19,7 @@ import { appendEvent } from '../../db/outbox.js';
 import { SUBSCRIPTION_STATUSES } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { customerAggregate, customerOf, PREMIUM_TYPE, userActor } from '../../payments/common.js';
-import { activeOf, hasPremium, pushRights, revoke } from '../../payments/entitlements.js';
+import { activeOf, hasPremium, publishRights, revoke } from '../../payments/entitlements.js';
 import { currentSubscription, isLive, syncSubscription } from '../../payments/subscriptions.js';
 import type { CheckoutSessionParams } from '../../stripe/client.js';
 import {
@@ -32,7 +32,6 @@ import {
   requirePrices,
   ReturnUrl,
   taxParams,
-  tolerateEffects,
 } from '../common.js';
 
 const Me = z.object({
@@ -152,7 +151,7 @@ export const register: Module = async (app, deps) => {
         if (sub.cancelAt) return { cancelAt: sub.cancelAt.toISOString() };
         const pd = paymentDeps(deps);
         await callStripe(req, () => pd.stripe.setCancelAtPeriodEnd(sub.id, true));
-        await tolerateEffects(req, () =>
+        await callStripe(req, () =>
           syncSubscription(pd, eventContext(req), userActor(userId), sub.id),
         );
         const after = await currentSubscription(db, userId);
@@ -170,6 +169,7 @@ export const register: Module = async (app, deps) => {
             { userId, kind: 'premium', source: 'legacy', sourceId: e.sourceId },
             'unsubscribed',
           );
+        await publishRights(tx, eventContext(req), userActor(userId), userId);
         if (!(await hasPremium(tx, userId)))
           await appendEvent(tx, eventContext(req), {
             type: 'billing.premium_deactivated',
@@ -178,7 +178,6 @@ export const register: Module = async (app, deps) => {
             payload: { userId, status: 'unsubscribed' },
           });
       });
-      await tolerateEffects(req, () => pushRights(deps, userId));
       return { cancelAt: null };
     },
   );
@@ -197,7 +196,7 @@ export const register: Module = async (app, deps) => {
         throw HttpError.conflict('Aucune résiliation à annuler', 'not_cancelled');
       const pd = paymentDeps(deps);
       await callStripe(req, () => pd.stripe.setCancelAtPeriodEnd(sub.id, false));
-      await tolerateEffects(req, () =>
+      await callStripe(req, () =>
         syncSubscription(pd, eventContext(req), userActor(userId), sub.id),
       );
       return { resumed: true };

@@ -9,7 +9,7 @@
  *
  * Idempotent : Stripe livre au moins une fois. Un événement déjà traité
  * (table processed_events) est acquitté sans aucun effet. Un traitement en
- * échec (Stripe, dice ou identity injoignable…) répond 500 SANS marquer
+ * échec (Stripe ou base injoignable…) répond 500 SANS marquer
  * l'événement : Stripe le relivre (jusqu'à 3 jours) et tout est refait.
  *
  * Stripe ne garantit pas l'ordre : abonnements, factures et paiements sont
@@ -138,7 +138,7 @@ export const register: Module = async (app, deps) => {
       async (req, reply) => {
         if (!secret || !deps.stripe)
           throw new HttpError(503, 'Paiement indisponible', 'billing_unconfigured');
-        const pd: PaymentDeps = { db: deps.db, stripe: deps.stripe, effects: deps.effects };
+        const pd: PaymentDeps = { db: deps.db, stripe: deps.stripe };
         const signature = req.headers['stripe-signature'];
         const raw = req.body;
         if (typeof signature !== 'string' || !Buffer.isBuffer(raw))

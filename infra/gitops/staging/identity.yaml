@@ -63,7 +63,7 @@ networkPolicy:
     - podSelector: {matchLabels: {app.kubernetes.io/name: campaign}}
     # dice : JWKS et profils publics des lanceurs
     - podSelector: {matchLabels: {app.kubernetes.io/name: dice}}
-    # billing : JWKS et statut premium du profil (/internal/users/:id/premium)
+    # billing : JWKS (vérification des jetons)
     - podSelector: {matchLabels: {app.kubernetes.io/name: billing}}
   # Kourrier : envoi des e-mails (la NetworkPolicy du namespace kourrier autorise
   # identity en retour, dans argocd_registry)

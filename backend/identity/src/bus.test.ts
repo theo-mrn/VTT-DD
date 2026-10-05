@@ -9,9 +9,11 @@ const fakes = vi.hoisted(() => ({
   connect: vi.fn(),
   relay: vi.fn(),
   titles: vi.fn(),
+  rights: vi.fn(),
   close: vi.fn(async () => undefined),
   stopRelay: vi.fn(async () => undefined),
   stopTitles: vi.fn(async () => undefined),
+  stopRights: vi.fn(async () => undefined),
 }));
 
 vi.mock('@vtt/platform', async (importOriginal) => ({
@@ -20,6 +22,10 @@ vi.mock('@vtt/platform', async (importOriginal) => ({
   startOutboxRelay: fakes.relay,
 }));
 vi.mock('./modules/titres/consumer.js', () => ({ startTitlesConsumer: fakes.titles }));
+vi.mock('./modules/premium/index.js', () => ({
+  RIGHTS_CONSUMER: 'identity-rights',
+  startRightsConsumer: fakes.rights,
+}));
 
 import { startIdentityBus } from './bus.js';
 
@@ -41,6 +47,7 @@ beforeEach(() => {
   fakes.connect.mockResolvedValue({ close: fakes.close });
   fakes.relay.mockResolvedValue(fakes.stopRelay);
   fakes.titles.mockResolvedValue(fakes.stopTitles);
+  fakes.rights.mockResolvedValue(fakes.stopRights);
   fakes.close.mockResolvedValue(undefined);
 });
 afterEach(() => vi.useRealTimers());
@@ -53,9 +60,12 @@ describe('bus d’identity', () => {
       expect.objectContaining({ schema: 'identity', applicationName: 'identity-outbox-relay' }),
     );
     expect(fakes.titles).toHaveBeenCalledTimes(1);
+    expect(fakes.rights).toHaveBeenCalledTimes(1);
     expect(log.info).toHaveBeenCalledWith('consommateur identity-titles démarré');
+    expect(log.info).toHaveBeenCalledWith('consommateur identity-rights démarré');
     await stop();
     expect(fakes.stopTitles).toHaveBeenCalled();
+    expect(fakes.stopRights).toHaveBeenCalled();
     expect(fakes.stopRelay).toHaveBeenCalled();
     expect(fakes.close).toHaveBeenCalled();
   });

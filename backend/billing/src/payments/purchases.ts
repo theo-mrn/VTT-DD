@@ -11,7 +11,7 @@ import { appendEvent, type EventContext } from '../db/outbox.js';
 import { purchases, type PurchaseRow } from '../db/schema.js';
 import { idOf, type CheckoutSession } from '../stripe/client.js';
 import { isUuid, rememberCustomer, type PaymentDeps } from './common.js';
-import { grant, pushRights, revoke } from './entitlements.js';
+import { grant, publishRights, revoke } from './entitlements.js';
 
 const entitlementOf = (p: PurchaseRow) => ({
   userId: p.userId,
@@ -64,7 +64,7 @@ export async function completePurchase(
       .returning();
     if (!row) return purchase;
     await rememberCustomer(tx, row.userId, idOf(session.customer), session.customer_details?.email);
-    await grant(tx, entitlementOf(row));
+    if (await grant(tx, entitlementOf(row))) await publishRights(tx, ctx, actor, row.userId);
     await appendEvent(tx, ctx, {
       type: 'billing.purchase_completed',
       actor,
@@ -73,7 +73,6 @@ export async function completePurchase(
     });
     return row;
   });
-  if (done.status === 'completed') await pushRights(deps, done.userId);
   return done;
 }
 
@@ -140,6 +139,7 @@ export async function withdrawPurchase(
 
   await deps.db.transaction(async (tx) => {
     const revoked = await revoke(tx, entitlementOf(purchase), reason);
+    if (revoked) await publishRights(tx, ctx, actor, purchase.userId);
     if (reason === 'refund')
       await tx
         .update(purchases)
@@ -153,6 +153,5 @@ export async function withdrawPurchase(
         payload: purchasePayload(purchase),
       });
   });
-  await pushRights(deps, purchase.userId);
   return 'withdrawn';
 }

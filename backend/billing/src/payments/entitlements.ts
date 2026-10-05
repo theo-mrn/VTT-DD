@@ -3,18 +3,21 @@
  * possède. Un droit est accordé par une source (abonnement, achat, ancienne
  * app, cadeau) et révoqué par elle, jamais supprimé.
  *
- * Application dans les autres services : `pushRights` envoie l'état complet
- * (premium, skins) à dice et identity par leurs routes internes idempotentes.
- * Elle est appelée après chaque transaction, même sans changement : un envoi
- * qui a échoué est refait à la relivraison de l'événement Stripe. Le lot 2
- * (docs/paiement.md) la remplace par un événement billing.entitlements_changed.
+ * Application dans les autres services : `publishRights` écrit dans l'outbox,
+ * dans la transaction du changement, l'état complet des droits et une version
+ * croissante (billing.entitlements_changed). dice et identity l'appliquent ;
+ * un service arrêté rattrape au redémarrage (bus durable).
  */
-import { uuidv7 } from '@vtt/contracts';
+import { ENTITLEMENTS_CHANGED, uuidv7, type Actor } from '@vtt/contracts';
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import type { Effects } from '../clients/effects.js';
 import type { Db } from '../db/client.js';
-import type { Tx } from '../db/outbox.js';
-import { entitlements, type EntitlementKind, type EntitlementSource } from '../db/schema.js';
+import { appendEvent, type EventContext, type Tx } from '../db/outbox.js';
+import {
+  entitlements,
+  rightsVersions,
+  type EntitlementKind,
+  type EntitlementSource,
+} from '../db/schema.js';
 
 export interface EntitlementRef {
   userId: string;
@@ -111,13 +114,31 @@ export async function rightsOf(db: Db | Tx, userId: string): Promise<Rights> {
 }
 
 /**
- * Applique l'état des droits dans dice et identity (routes idempotentes).
- * Lève EffectFailed si un service ne répond pas : l'appelant laisse Stripe
- * relivrer. Un skin révoqué (remboursement) reste dans dice jusqu'au lot 2.
+ * Publie l'état complet des droits de `userId` (événement dans l'outbox, même
+ * transaction que le changement). La version, propre à l'utilisateur, croît
+ * sous verrou de ligne : deux publications concurrentes sont ordonnées.
  */
-export async function pushRights(deps: { db: Db; effects: Effects }, userId: string) {
-  const rights = await rightsOf(deps.db, userId);
-  await deps.effects.setAllSkins(userId, rights.premium);
-  await deps.effects.setPremium(userId, rights.premium);
-  for (const skin of rights.diceSkins) await deps.effects.grantSkin(userId, skin);
+export async function publishRights(
+  tx: Tx,
+  ctx: EventContext,
+  actor: Actor,
+  userId: string,
+): Promise<number> {
+  const [row] = await tx
+    .insert(rightsVersions)
+    .values({ userId, version: 1 })
+    .onConflictDoUpdate({
+      target: rightsVersions.userId,
+      set: { version: sql`${rightsVersions.version} + 1`, updatedAt: sql`now()` },
+    })
+    .returning({ version: rightsVersions.version });
+  const version = row!.version;
+  const rights = await rightsOf(tx, userId);
+  await appendEvent(tx, ctx, {
+    type: ENTITLEMENTS_CHANGED,
+    actor,
+    aggregate: { type: 'billing_customer', id: userId },
+    payload: { userId, version, ...rights },
+  });
+  return version;
 }

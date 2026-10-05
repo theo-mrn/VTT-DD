@@ -2,7 +2,8 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createDb } from '../db/client.js';
-import { customers, entitlements, subscriptions } from '../db/schema.js';
+import { sql } from 'drizzle-orm';
+import { customers, entitlements, outbox, rightsVersions, subscriptions } from '../db/schema.js';
 import { TEST_DATABASE_URL } from '../test/test-app.js';
 import { loadCustomer } from './loading.js';
 import { transformCustomer } from './transform.js';
@@ -15,6 +16,8 @@ describe.skipIf(!TEST_DATABASE_URL)('chargement de l’import billing', () => {
 
   afterAll(async () => {
     await db!.delete(entitlements).where(eq(entitlements.userId, userId));
+    await db!.delete(rightsVersions).where(eq(rightsVersions.userId, userId));
+    await db!.delete(outbox).where(sql`${outbox.envelope}->'payload'->>'userId' = ${userId}`);
     await db!.delete(subscriptions).where(eq(subscriptions.userId, userId));
     await db!.delete(customers).where(eq(customers.userId, userId));
     await connection!.pool.end();
@@ -51,6 +54,14 @@ describe.skipIf(!TEST_DATABASE_URL)('chargement de l’import billing', () => {
         sourceId: `sub_${suffix}`,
         revokedAt: null,
       }),
+    ]);
+    // Premium publié une fois pour dice et identity
+    const published = await db!
+      .select()
+      .from(outbox)
+      .where(sql`${outbox.envelope}->'payload'->>'userId' = ${userId}`);
+    expect(published.map((r) => (r.envelope as { type: string }).type)).toEqual([
+      'billing.entitlements_changed',
     ]);
   });
 });

@@ -14,7 +14,7 @@ import { buildDice } from '../app.js';
 import type { ProfilesClient } from '../clients/profiles.js';
 import { DiceConfig } from '../config.js';
 import { createDb } from '../db/client.js';
-import { inventory, outbox, preferences, rolls } from '../db/schema.js';
+import { billingRights, inventory, outbox, preferences, rolls } from '../db/schema.js';
 import { fakeServices } from './fake-services.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -112,11 +112,12 @@ export async function testApp(overrides: Record<string, string> = {}) {
       await db.delete(rolls).where(inArray(rolls.authorId, users));
       await db.delete(preferences).where(inArray(preferences.userId, users));
       await db.delete(inventory).where(inArray(inventory.userId, users));
+      await db.delete(billingRights).where(inArray(billingRights.userId, users));
       await db.delete(outbox).where(
         or(
           inArray(sql`${outbox.envelope}->'actor'->>'userId'`, users),
           inArray(sql`${outbox.envelope}->'payload'->>'authorId'`, users),
-          // Événements système (route interne all-skins) : l'utilisateur est dans la charge utile
+          // Événements système (droits de billing) : l'utilisateur est dans la charge utile
           inArray(sql`${outbox.envelope}->'payload'->>'userId'`, users),
         ),
       );

@@ -11,7 +11,7 @@
  *   GET /v1/billing/checkout/sessions/:sessionId  →  { status, kind, itemId }
  *       état d'une session de l'appelant au retour de Checkout. Une session
  *       payée dont le webhook n'est pas encore arrivé est confirmée ici (mêmes
- *       traitements idempotents).
+ *       traitements idempotents) ; les droits partent sur le bus dans la foulée.
  *
  *   GET /v1/billing/purchases  →  { purchases: [...] }   achats payés ou remboursés
  */
@@ -21,7 +21,6 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { CURRENCY, findItem, itemOf, lineName, lookupKeyOf } from '../../catalog/catalog.js';
-import { EffectFailed } from '../../clients/effects.js';
 import { purchases } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { fulfillCheckoutSession } from '../../payments/checkout.js';
@@ -169,19 +168,11 @@ export const register: Module = async (app, deps) => {
       if (!kind) throw notFound();
       const itemId = kind === 'premium' ? null : (m.skinId ?? null);
 
-      try {
-        const outcome = await callStripe(req, () =>
-          fulfillCheckoutSession(pd, eventContext(req), userActor(userId), session),
-        );
-        if (outcome === 'ignored') throw notFound();
-        return { status: outcome, kind, itemId };
-      } catch (e) {
-        // Droits pas encore appliqués (dice ou identity en panne) : le webhook
-        // les appliquera ; la page de retour affiche « en cours ».
-        if (!(e instanceof EffectFailed)) throw e;
-        req.log.warn({ error: e.message }, 'confirmation différée au webhook');
-        return { status: 'pending' as const, kind, itemId };
-      }
+      const outcome = await callStripe(req, () =>
+        fulfillCheckoutSession(pd, eventContext(req), userActor(userId), session),
+      );
+      if (outcome === 'ignored') throw notFound();
+      return { status: outcome, kind, itemId };
     },
   );
 

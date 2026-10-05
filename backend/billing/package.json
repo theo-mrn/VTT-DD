@@ -11,7 +11,8 @@
     "test": "vitest run",
     "lint": "prettier --check src",
     "catalog:sync": "tsx --env-file-if-exists=.env src/catalog/sync-cli.ts",
-    "stripe:backfill": "tsx --env-file-if-exists=.env src/stripe/backfill-cli.ts"
+    "stripe:backfill": "tsx --env-file-if-exists=.env src/stripe/backfill-cli.ts",
+    "rights:republish": "tsx --env-file-if-exists=.env src/payments/republish-cli.ts"
   },
   "dependencies": {
     "@vtt/contracts": "workspace:*",

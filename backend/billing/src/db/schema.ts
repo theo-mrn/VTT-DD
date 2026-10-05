@@ -3,7 +3,7 @@
  * La source de vérité est le changelog Liquibase (backend/billing/db) ; ce
  * fichier doit lui correspondre colonne pour colonne.
  */
-import { integer, jsonb, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { bigint, integer, jsonb, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const billingSchema = pgSchema('billing');
 
@@ -114,6 +114,12 @@ export const purchases = billingSchema.table('purchases', {
   consentAt: timestampTz('consent_at'),
 });
 export type PurchaseRow = typeof purchases.$inferSelect;
+
+export const rightsVersions = billingSchema.table('rights_versions', {
+  userId: uuid('user_id').primaryKey(),
+  version: bigint('version', { mode: 'number' }).notNull(),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
 
 export const processedEvents = billingSchema.table('processed_events', {
   stripeEventId: text('stripe_event_id').primaryKey(),

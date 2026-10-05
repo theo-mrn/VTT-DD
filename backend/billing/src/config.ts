@@ -37,13 +37,12 @@ export const BillingConfig = BaseConfig.extend({
   STRIPE_TAX: z.enum(['on', 'off']).default('off'),
 
   /**
-   * Secret partagé entre services (en-tête x-internal-secret) : accompagne
-   * les appels de billing vers dice (skins) et identity (statut premium).
+   * Bus d'événements : le relais d'outbox y publie les droits
+   * (billing.entitlements_changed), appliqués par dice et identity. Absent :
+   * les événements restent dans l'outbox.
    */
-  INTERNAL_API_SECRET: optional(z.string().min(32)),
-  /** Service dice : skins achetés et accès à tous les skins (premium). */
-  DICE_URL: optional(z.string().url()),
-  /** Service identity : statut premium du profil. */
-  IDENTITY_URL: optional(z.string().url()),
+  NATS_URL: optional(z.string().min(1)),
+  /** Connexion directe (hors PgBouncer) pour le LISTEN du relais d'outbox. */
+  DATABASE_DIRECT_URL: optional(z.string().min(1)),
 });
 export type BillingConfig = z.infer<typeof BillingConfig>;

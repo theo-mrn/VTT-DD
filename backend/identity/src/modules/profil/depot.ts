@@ -94,7 +94,7 @@ export async function lireProfilPublic(db: Db, userId: string): Promise<ProfilPu
       bio: profiles.bio,
       bannerUrl: profiles.bannerUrl,
       borderType: profiles.borderType,
-      // Posé par le service billing (PUT /internal/users/:userId/premium)
+      // Posé par les droits publiés par billing (modules/premium, consommateur identity-rights)
       premium: profiles.premium,
       showPremiumBadge: profiles.showPremiumBadge,
       timeSpentMinutes: profiles.timeSpentMinutes,

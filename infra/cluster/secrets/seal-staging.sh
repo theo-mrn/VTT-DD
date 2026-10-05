@@ -116,7 +116,7 @@ secret vtt-staging identity-secrets Opaque \
   "FIREBASE_SCRYPT_ROUNDS=${FIREBASE_SCRYPT_ROUNDS:-}" \
   "FIREBASE_SCRYPT_MEM_COST=${FIREBASE_SCRYPT_MEM_COST:-}"
 secret vtt-staging billing-secrets Opaque \
-  "DATABASE_URL=$url_billing" "INTERNAL_API_SECRET=$interne" \
+  "DATABASE_URL=$url_billing" "DATABASE_DIRECT_URL=$direct_billing" \
   "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}" "STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}"
 secret vtt-staging campaign-secrets Opaque \
   "DATABASE_URL=$url_campaign" "DATABASE_DIRECT_URL=$direct_campaign" \

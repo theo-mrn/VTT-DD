@@ -4,13 +4,11 @@
  *   pnpm --filter @vtt/billing stripe:backfill                  tous les clients
  *   pnpm --filter @vtt/billing stripe:backfill --user <uuid>    un seul utilisateur
  *
- * Variables : DATABASE_URL (rôle billing_svc), STRIPE_SECRET_KEY ; pour
- * appliquer les droits dans dice et identity : DICE_URL, IDENTITY_URL,
- * INTERNAL_API_SECRET (sinon --sans-effets).
+ * Variables : DATABASE_URL (rôle billing_svc), STRIPE_SECRET_KEY. Les droits
+ * modifiés sont publiés sur le bus par l'outbox de billing.
  */
 import { parseArgs } from 'node:util';
 import { eq, isNotNull } from 'drizzle-orm';
-import { httpEffects, type Effects } from '../clients/effects.js';
 import { createDb } from '../db/client.js';
 import { customers } from '../db/schema.js';
 import { backfillCustomer } from './backfill.js';
@@ -19,7 +17,6 @@ import { stripeApi } from './client.js';
 const { values } = parseArgs({
   options: {
     user: { type: 'string' },
-    'sans-effets': { type: 'boolean', default: false },
   },
 });
 const { DATABASE_URL, STRIPE_SECRET_KEY } = process.env;
@@ -28,21 +25,8 @@ if (!DATABASE_URL || !STRIPE_SECRET_KEY) {
   process.exit(2);
 }
 
-const noEffects: Effects = {
-  grantSkin: async () => {},
-  setAllSkins: async () => {},
-  setPremium: async () => {},
-};
-const effects = values['sans-effets']
-  ? noEffects
-  : httpEffects({
-      diceUrl: process.env.DICE_URL,
-      identityUrl: process.env.IDENTITY_URL,
-      secret: process.env.INTERNAL_API_SECRET,
-    });
-
 const { db, pool } = createDb(DATABASE_URL);
-const deps = { db, stripe: stripeApi(STRIPE_SECRET_KEY), effects };
+const deps = { db, stripe: stripeApi(STRIPE_SECRET_KEY) };
 const rows = await db
   .select({ userId: customers.userId, customerId: customers.stripeCustomerId })
   .from(customers)

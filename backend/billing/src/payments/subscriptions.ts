@@ -30,7 +30,7 @@ import {
   rememberCustomer,
   type PaymentDeps,
 } from './common.js';
-import { grant, hasPremium, pushRights, revoke } from './entitlements.js';
+import { grant, hasPremium, publishRights, revoke } from './entitlements.js';
 
 /** Statuts qui donnent le premium (past_due : Stripe relance encore la carte). */
 export const LIVE_STATUSES: ReadonlySet<SubscriptionStatus> = new Set([
@@ -73,7 +73,6 @@ export async function syncSubscription(
   if (!userId) return 'unknown';
 
   await deps.db.transaction((tx) => recordSubscription(tx, ctx, actor, userId, sub, opts));
-  await pushRights(deps, userId);
   return 'synced';
 }
 
@@ -134,9 +133,12 @@ async function recordSubscription(
     source: 'subscription' as const,
     sourceId: sub.id,
   };
-  if (isLive(status)) await grant(tx, ref);
-  else await revoke(tx, ref, `subscription_${status}`);
+  const changed = isLive(status)
+    ? await grant(tx, ref)
+    : await revoke(tx, ref, `subscription_${status}`);
   const premiumAfter = await hasPremium(tx, userId);
+  // Droits publiés même en rattrapage (quiet) : dice et identity doivent suivre
+  if (changed) await publishRights(tx, ctx, actor, userId);
 
   if (opts.quiet) return;
   const emit = (type: string, payload: Record<string, unknown>) =>

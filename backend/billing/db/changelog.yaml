@@ -5,5 +5,6 @@ databaseChangeLog:
   - include: { file: changes/0001-customers.sql, relativeToChangelogFile: true }
   - include: { file: changes/0002-outbox.sql, relativeToChangelogFile: true }
   - include: { file: changes/0003-subscriptions.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0004-rights-versions.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-liquibase-journal.sql, relativeToChangelogFile: true }

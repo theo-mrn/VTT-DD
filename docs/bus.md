@@ -13,7 +13,10 @@ le même flux (voir « Le tunnel d'historique » dans [refacto.md](refacto.md)).
 - Un seul flux, `VTT_EVENTS`, sur `vtt.>` : stockage fichier, rétention 7 jours (rejeu après une
   panne), fenêtre de dédoublonnage 10 minutes. `connectBus` le crée ou le met à jour.
 - Consommateurs (`consumeEvents`) : history en durable (tout rejouer, ack explicite), realtime en
-  éphémère ordonné (seulement le nouveau), identity en durable `identity-titles` (voir plus bas).
+  éphémère ordonné (seulement le nouveau), identity en durable `identity-titles` (voir plus bas) ; dice
+  (`dice-rights`) et identity (`identity-rights`) en durable sur
+  `vtt.global.billing.entitlements_changed` (droits publiés par billing, voir
+  [paiement.md](paiement.md)).
 
 ## Relais d'outbox (`@vtt/platform`, `outbox-relay.ts`)
 
@@ -23,9 +26,10 @@ transaction du service : donnée + INSERT INTO <schéma>.outbox
   → relais (LISTEN) : lot FOR UPDATE SKIP LOCKED → publishEvent → published_at = now()
 ```
 
-- Branché dans `main.ts` d'identity, character, campaign et dice via `startOutboxRelayWithBus`,
+- Branché dans `main.ts` d'identity, character, campaign, dice et billing via `startOutboxRelayWithBus`,
   après le démarrage HTTP, seulement si `NATS_URL` est définie. Canaux : `identity_outbox`,
-  `characters_outbox`, `campaign_outbox`, `dice_outbox`.
+  `characters_outbox`, `campaign_outbox`, `dice_outbox`, `billing_outbox`. Option `consumers` :
+  consommateurs démarrés sur la même connexion (retentés s'ils ne démarrent pas).
 - Réveil : `LISTEN` sur un client pg dédié (reconnexion de 1 à 30 s), et relecture toutes les
   5 s en filet de sécurité. `LISTEN` ne traverse pas PgBouncer en mode transaction : en cluster,
   `DATABASE_DIRECT_URL` pointe sur `vtt-pg-rw.data.svc` (sans elle, `DATABASE_URL` est utilisée et

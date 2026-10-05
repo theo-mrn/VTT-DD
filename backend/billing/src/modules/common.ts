@@ -3,7 +3,6 @@ import { HttpError } from '@vtt/platform';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { PriceResolver } from '../catalog/prices.js';
-import { EffectFailed } from '../clients/effects.js';
 import type { BillingConfig } from '../config.js';
 import type { Deps } from '../deps.js';
 import type { PaymentDeps } from '../payments/common.js';
@@ -67,8 +66,7 @@ export async function callStripe<T>(req: FastifyRequest, call: () => Promise<T>)
   try {
     return await call();
   } catch (e) {
-    // Refus déjà lisible, ou droits non appliqués (traité par l'appelant)
-    if (e instanceof HttpError || e instanceof EffectFailed) throw e;
+    if (e instanceof HttpError) throw e;
     req.log.warn(
       { stripe: { type: (e as { type?: string }).type, code: (e as { code?: string }).code } },
       'appel Stripe en échec',
@@ -93,7 +91,7 @@ export function requirePrices(deps: Deps): PriceResolver {
 
 /** Ce dont les traitements de paiement ont besoin, Stripe compris (sinon 503). */
 export function paymentDeps(deps: Deps): PaymentDeps {
-  return { db: deps.db, stripe: requireStripe(deps), effects: deps.effects };
+  return { db: deps.db, stripe: requireStripe(deps) };
 }
 
 /** Pages du front au retour de Checkout (lot 4 : à ajouter à PAGES_FRONT). */
@@ -125,17 +123,4 @@ export function taxParams(config: BillingConfig, existingCustomer: boolean) {
         }
       : {}),
   };
-}
-
-/**
- * Droits non appliqués dans dice ou identity (service en panne) : la base est
- * à jour, l'événement Stripe qui suit les réappliquera. La route répond quand même.
- */
-export async function tolerateEffects(req: FastifyRequest, work: () => Promise<unknown>) {
-  try {
-    await work();
-  } catch (e) {
-    if (!(e instanceof EffectFailed)) throw e;
-    req.log.warn({ error: e.message }, 'droits non appliqués, repris au prochain événement Stripe');
-  }
 }

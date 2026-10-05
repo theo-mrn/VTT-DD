@@ -1,4 +1,4 @@
-/** Routes internes : jets d'action transmis par character, accès à tous les skins (billing). */
+/** Route interne : jets d'action transmis par character. */
 import { and, eq, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { outbox } from '../../db/schema.js';
@@ -109,107 +109,6 @@ describe.skipIf(!TEST_DATABASE_URL)('route interne /internal/rolls', () => {
       diceCount: 1,
       diceFaces: 8,
     });
-  });
-
-  it('accès à tous les skins (billing) : secret exigé, idempotent, événement', async () => {
-    const url = `/internal/users/${alice.id}/all-skins`;
-    const put = (allSkins: unknown, headers: Record<string, string> = internal) =>
-      t.app.inject({ method: 'PUT', url, headers, payload: { allSkins } });
-    const events = async () =>
-      (
-        await t
-          .db!.select()
-          .from(outbox)
-          .where(
-            and(
-              eq(sql`${outbox.envelope}->>'type'`, 'dice.preferences_updated'),
-              eq(sql`${outbox.envelope}->'payload'->>'userId'`, alice.id),
-            ),
-          )
-      ).map((e) => e.envelope as { actor: { role: string }; payload: Record<string, unknown> });
-
-    expect((await put(true, {})).statusCode).toBe(401);
-    expect((await put('oui')).statusCode).toBe(400);
-    expect(
-      (
-        await t.app.inject({
-          method: 'PUT',
-          url: '/internal/users/pas-un-uuid/all-skins',
-          headers: internal,
-          payload: { allSkins: true },
-        })
-      ).statusCode,
-    ).toBe(400);
-
-    let res = await put(true);
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ skinId: 'gold', allSkins: true });
-    await h.ok(alice, 'PATCH', '/v1/dice/me/preferences', { skinId: 'bismuth' });
-    expect(await h.ok(alice, 'GET', '/v1/dice/me/preferences')).toMatchObject({
-      skinId: 'bismuth',
-      allSkins: true,
-    });
-    // Rejoué : aucune écriture, aucun événement
-    await put(true);
-    expect((await events()).filter((e) => e.actor.role === 'system')).toHaveLength(1);
-
-    // Fin d'abonnement : le skin choisi n'est plus possédé, retour au skin par défaut
-    res = await put(false);
-    expect(res.json()).toMatchObject({ skinId: 'gold', allSkins: false });
-    const system = (await events()).filter((e) => e.actor.role === 'system');
-    expect(system.map((e) => e.payload)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ userId: alice.id, skinId: 'gold', allSkins: false }),
-      ]),
-    );
-    expect(system).toHaveLength(2);
-  });
-
-  it('skin acheté (billing) : secret exigé, ajouté une fois, événement, skin inconnu refusé', async () => {
-    const grant = (
-      skinId: string,
-      source: unknown = 'purchase',
-      headers: Record<string, string> = internal,
-    ) =>
-      t.app.inject({
-        method: 'PUT',
-        url: `/internal/users/${alice.id}/inventory/${skinId}`,
-        headers,
-        payload: { source },
-      });
-    const granted = async () =>
-      (
-        await t
-          .db!.select()
-          .from(outbox)
-          .where(
-            and(
-              eq(sql`${outbox.envelope}->>'type'`, 'dice.skin_granted'),
-              eq(sql`${outbox.envelope}->'payload'->>'userId'`, alice.id),
-            ),
-          )
-      ).map((e) => (e.envelope as { payload: Record<string, unknown> }).payload);
-
-    expect((await grant('bismuth', 'purchase', {})).statusCode).toBe(401);
-    expect((await grant('bismuth', 'vol')).statusCode).toBe(400);
-    expect((await grant('Pas Un Skin')).statusCode).toBe(400);
-    const unknown = await grant('skin_inexistant');
-    expect([unknown.statusCode, unknown.json().code]).toEqual([422, 'unknown_skin']);
-
-    let res = await grant('bismuth');
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ allSkins: false });
-    expect(res.json().inventory).toContain('bismuth');
-    // Le skin acheté peut être équipé
-    await h.ok(alice, 'PATCH', '/v1/dice/me/preferences', { skinId: 'bismuth' });
-
-    // Rejoué (webhook Stripe relivré) : aucune écriture, aucun nouvel événement
-    res = await grant('bismuth');
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ skinId: 'bismuth' });
-    // Skin gratuit : toujours possédé, rien à écrire
-    expect((await grant('gold')).statusCode).toBe(200);
-    expect(await granted()).toEqual([{ userId: alice.id, skinId: 'bismuth', source: 'purchase' }]);
   });
 
   it('sans INTERNAL_API_SECRET configuré, la route n’existe pas', async () => {

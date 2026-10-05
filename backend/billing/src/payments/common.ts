@@ -4,7 +4,6 @@
  */
 import type { Actor } from '@vtt/contracts';
 import { eq, sql } from 'drizzle-orm';
-import type { Effects } from '../clients/effects.js';
 import type { Db } from '../db/client.js';
 import type { Tx } from '../db/outbox.js';
 import { customers } from '../db/schema.js';
@@ -14,7 +13,6 @@ import type { StripeApi } from '../stripe/client.js';
 export interface PaymentDeps {
   db: Db;
   stripe: StripeApi;
-  effects: Effects;
 }
 
 export const SYSTEM: Actor = { userId: null, role: 'system', characterId: null };

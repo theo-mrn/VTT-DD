@@ -11,13 +11,9 @@
  *       du personnage. L'auteur doit être membre (non spectateur) de la
  *       campagne indiquée ; sans campagne, le jet est personnel.
  *
- *   PUT /internal/users/:userId/all-skins   { allSkins }
- *       accès à tous les skins (ancien premium) : piloté par le service
- *       billing selon l'abonnement premium. Idempotent.
  *
- *   PUT /internal/users/:userId/inventory/:skinId   { source }
- *       ajoute un skin à l'inventaire (achat Stripe confirmé par billing,
- *       plus tard cadeau ou défi). Idempotent ; skin inconnu : 422 unknown_skin.
+ * Les droits venus de billing (premium, skins achetés) n'ont plus de route :
+ * ils arrivent par le bus (modules/rights/consumer.ts).
  */
 import { HttpError } from '@vtt/platform';
 import type { FastifyContextConfig } from 'fastify';
@@ -26,8 +22,6 @@ import { z } from 'zod';
 import type { Module } from '../../deps.js';
 import { requireInternalSecret } from '../../internal/secret.js';
 import { firstGroup, formatDice, formatSymbolResult } from '../../engine/roll.js';
-import { Preferences, setAllSkins } from '../preferences/index.js';
-import { grantSkin } from './inventory.js';
 import { memberRole } from '../rolls/index.js';
 import { actorRole, insertRoll, type Viewer } from '../rolls/repository.js';
 import {
@@ -47,7 +41,7 @@ import {
 export const register: Module = async (app, deps) => {
   const secret = deps.config.INTERNAL_API_SECRET;
   if (!secret) {
-    app.log.warn('INTERNAL_API_SECRET absent : routes internes (character, billing) désactivées');
+    app.log.warn('INTERNAL_API_SECRET absent : route interne des jets (character) désactivée');
     return;
   }
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -144,39 +138,5 @@ export const register: Module = async (app, deps) => {
       reply.code(201);
       return { id: row.id };
     },
-  );
-
-  r.put(
-    '/internal/users/:userId/all-skins',
-    {
-      preValidation: requireInternalSecret(secret),
-      config: { rateLimit: { max: 6000, timeWindow: '1 minute' } } as FastifyContextConfig,
-      schema: {
-        hide: true,
-        params: z.object({ userId: UserId }),
-        body: z.object({ allSkins: z.boolean() }),
-        response: { 200: Preferences },
-      },
-    },
-    async (req) => setAllSkins(db, eventContext(req), req.params.userId, req.body.allSkins),
-  );
-
-  r.put(
-    '/internal/users/:userId/inventory/:skinId',
-    {
-      preValidation: requireInternalSecret(secret),
-      config: { rateLimit: { max: 6000, timeWindow: '1 minute' } } as FastifyContextConfig,
-      schema: {
-        hide: true,
-        params: z.object({
-          userId: UserId,
-          skinId: z.string().regex(/^[a-z0-9_]{1,64}$/, 'Identifiant de skin invalide'),
-        }),
-        body: z.object({ source: z.enum(['purchase', 'gift', 'challenge']) }),
-        response: { 200: Preferences },
-      },
-    },
-    async (req) =>
-      grantSkin(db, eventContext(req), req.params.userId, req.params.skinId, req.body.source),
   );
 };
