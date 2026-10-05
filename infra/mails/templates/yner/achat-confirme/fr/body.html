@@ -1,0 +1,8 @@
+{{template "layout" .}}
+{{define "title"}}Merci pour votre achat{{end}}
+{{define "content"}}
+<h1 style="font-size:20px;margin:0 0 16px;">Merci pour votre achat</h1>
+<p>Votre paiement de <strong>{{.montant}}</strong> est confirmé : <strong>{{.article}}</strong> est désormais dans votre collection.</p>
+<p style="font-size:14px;">Facture {{.numero}} : <a href="{{.lien_facture}}" style="color:#7a4b2a;">voir en ligne</a> · <a href="{{.lien_pdf}}" style="color:#7a4b2a;">PDF</a></p>
+<p style="margin:24px 0;"><a href="{{.lien_collection}}" style="display:inline-block;padding:10px 16px;background:#7a4b2a;color:#ffffff;text-decoration:none;border-radius:6px;">Voir ma collection</a></p>
+{{end}}

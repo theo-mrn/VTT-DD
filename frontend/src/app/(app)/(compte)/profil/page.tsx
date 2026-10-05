@@ -36,6 +36,7 @@ import { useRessource } from '@/lib/ressource';
 import { envoyerVerificationEmail } from '@/lib/securite';
 import { useProfil, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
+import { PAIEMENTS } from '@/lib/soutien';
 
 const LONGUEUR_MAX_NOM = 64;
 const LONGUEUR_MAX_BIO = 500;
@@ -446,6 +447,8 @@ function PastilleTitre({
 // ─── Bordure et badge premium ────────────────────────────────────────────────
 
 function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium: boolean }>) {
+  // Sans paiement (lib/soutien.ts), toutes les bordures sont ouvertes à tous
+  const ouvert = premium || !PAIEMENTS;
   const [bordure, setBordure] = useState(profil.borderType);
   const [badge, setBadge] = useState(profil.showPremiumBadge);
   const { enregistrer, envoi, erreur, succes, effacer } = useEnregistrement();
@@ -473,7 +476,7 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
       }
     >
       <div className="space-y-4">
-        {!premium && (
+        {!ouvert && (
           <p className="flex items-center gap-2 text-xs text-subtle">
             <Crown className="h-3.5 w-3.5 text-primary" />
             Les bordures animées sont réservées aux membres Premium.
@@ -481,7 +484,7 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
         )}
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {BORDURES.map((b) => {
-            const verrou = !premium && b.id !== 'none' && b.id !== profil.borderType;
+            const verrou = !ouvert && b.id !== 'none' && b.id !== profil.borderType;
             return (
               <button
                 key={b.id}
@@ -519,19 +522,21 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
             );
           })}
         </div>
-        <Interrupteur
-          actif={badge}
-          onChange={(v) => {
-            setBadge(v);
-            effacer();
-          }}
-          label="Afficher le badge Premium"
-          description={
-            premium
-              ? 'Visible à côté de votre nom sur votre profil public.'
-              : 'Le badge ne s’affiche que pour les membres Premium.'
-          }
-        />
+        {PAIEMENTS && (
+          <Interrupteur
+            actif={badge}
+            onChange={(v) => {
+              setBadge(v);
+              effacer();
+            }}
+            label="Afficher le badge Premium"
+            description={
+              premium
+                ? 'Visible à côté de votre nom sur votre profil public.'
+                : 'Le badge ne s’affiche que pour les membres Premium.'
+            }
+          />
+        )}
         {erreur && <Message>{erreur}</Message>}
         {succes && !modifie && <Message ton="succes">Apparence enregistrée.</Message>}
         <Bouton onClick={valider} chargement={envoi} disabled={!modifie}>

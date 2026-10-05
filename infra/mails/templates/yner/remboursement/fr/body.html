@@ -1,0 +1,7 @@
+{{template "layout" .}}
+{{define "title"}}Votre remboursement est effectué{{end}}
+{{define "content"}}
+<h1 style="font-size:20px;margin:0 0 16px;">Votre remboursement est effectué</h1>
+<p>Nous vous avons remboursé <strong>{{.montant}}</strong> pour <strong>{{.article}}</strong>. L’article est retiré de votre collection.</p>
+<p>Le montant apparaît sur votre relevé sous 5 à 10 jours selon votre banque.</p>
+{{end}}

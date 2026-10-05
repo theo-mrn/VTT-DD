@@ -1,4 +1,5 @@
 /** Outils partagés par les routes du service. */
+import { PAGES_FRONT } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -94,26 +95,37 @@ export function paymentDeps(deps: Deps): PaymentDeps {
   return { db: deps.db, stripe: requireStripe(deps) };
 }
 
-/** Pages du front au retour de Checkout (lot 4 : à ajouter à PAGES_FRONT). */
-export const CHECKOUT_PAGES = { success: '/paiement/succes', cancel: '/paiement/annule' } as const;
-
 /** URLs de retour de Checkout ; `returnUrl` : page où renvoyer ensuite l'utilisateur. */
 export function checkoutUrls(config: BillingConfig, returnUrl: string) {
   const ret = encodeURIComponent(returnUrl);
   return {
-    success_url: `${config.APP_URL}${CHECKOUT_PAGES.success}?session_id={CHECKOUT_SESSION_ID}&retour=${ret}`,
-    cancel_url: `${config.APP_URL}${CHECKOUT_PAGES.cancel}?retour=${ret}`,
+    success_url: `${config.APP_URL}${PAGES_FRONT.paiementSucces}?session_id={CHECKOUT_SESSION_ID}&retour=${ret}`,
+    cancel_url: `${config.APP_URL}${PAGES_FRONT.paiementAnnule}?retour=${ret}`,
   };
 }
 
 /**
  * Réglages communs des sessions Checkout : adresse de facturation demandée si
- * nécessaire, TVA par Stripe Tax si STRIPE_TAX=on (l'adresse d'un client
+ * nécessaire, CGV et renonciation au droit de rétractation si STRIPE_TERMS=on,
+ * TVA par Stripe Tax si STRIPE_TAX=on (l'adresse d'un client
  * existant est alors mise à jour depuis la session, exigé par Stripe).
  */
 export function taxParams(config: BillingConfig, existingCustomer: boolean) {
   return {
     billing_address_collection: 'auto' as const,
+    ...(config.STRIPE_TERMS === 'on'
+      ? {
+          consent_collection: { terms_of_service: 'required' as const },
+          custom_text: {
+            terms_of_service_acceptance: {
+              message:
+                `J’accepte les [conditions générales de vente](${config.APP_URL}/cgv) et ` +
+                'demande l’accès immédiat au contenu numérique, en renonçant à mon droit de ' +
+                'rétractation.',
+            },
+          },
+        }
+      : {}),
     ...(config.STRIPE_TAX === 'on'
       ? {
           automatic_tax: { enabled: true },

@@ -1,0 +1,5 @@
+Bonjour,
+
+Votre abonnement YNER Premium ne sera pas renouvelé. Vous gardez tous vos avantages jusqu’au {{.date_fin}}.
+
+Vous avez changé d’avis ? Reprenez votre abonnement avant cette date : {{.lien_abonnement}}

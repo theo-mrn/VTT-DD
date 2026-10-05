@@ -35,6 +35,13 @@ export const BillingConfig = BaseConfig.extend({
    * (tax_behavior inclusive) : le montant payé ne change pas.
    */
   STRIPE_TAX: z.enum(['on', 'off']).default('off'),
+  /**
+   * Acceptation des CGV et renonciation au droit de rétractation (contenu
+   * numérique livré tout de suite, art. L221-28 13° du Code de la consommation)
+   * cochées dans Checkout. À activer une fois la page /cgv en ligne et son URL
+   * déclarée dans Stripe (Settings → Public details → Terms of service).
+   */
+  STRIPE_TERMS: z.enum(['on', 'off']).default('off'),
 
   /**
    * Bus d'événements : le relais d'outbox y publie les droits
@@ -42,6 +49,15 @@ export const BillingConfig = BaseConfig.extend({
    * les événements restent dans l'outbox.
    */
   NATS_URL: optional(z.string().min(1)),
+  /**
+   * Kourrier, service d'envoi des e-mails du cluster (infra/mails/README.md).
+   * Absent : les e-mails de paiement sont seulement journalisés.
+   */
+  KOURRIER_URL: optional(z.string().url()),
+  /** Clé d'API du tenant yner chez Kourrier (kr_…). Obligatoire avec KOURRIER_URL. */
+  KOURRIER_API_KEY: optional(z.string().startsWith('kr_')),
+  /** Expéditeur des e-mails : une adresse @yner.fr autorisée pour la clé. */
+  MAIL_FROM: z.string().default('YNER <contact@yner.fr>'),
   /** Connexion directe (hors PgBouncer) pour le LISTEN du relais d'outbox. */
   DATABASE_DIRECT_URL: optional(z.string().min(1)),
 });

@@ -32,7 +32,7 @@ describe.skipIf(!TEST_DATABASE_URL)('abonnement premium', () => {
   async function subscribe(u: TestUser, plan: 'monthly' | 'annual' = 'monthly') {
     const { url } = await h.ok<{ url: string }>(u, 'POST', '/v1/billing/subscribe', {
       plan,
-      returnUrl: '/abonnement',
+      returnUrl: '/profil/abonnement',
     });
     const id = h.sessionIdOf(url);
     const session = t.stripe.pay(id);
@@ -92,10 +92,11 @@ describe.skipIf(!TEST_DATABASE_URL)('abonnement premium', () => {
     expect([res.statusCode, res.json().code]).toEqual([409, 'already_premium']);
     res = await h.request(alice, 'POST', '/v1/billing/checkout', { itemId: 'ruby' });
     expect([res.statusCode, res.json().code]).toEqual([409, 'already_owned']);
-    expect((await t.events(alice.id)).map((e) => e.type)).toEqual([
+    // Même transaction : ordre des événements non garanti
+    expect((await t.events(alice.id)).map((e) => e.type).sort()).toEqual([
       'billing.entitlements_changed',
-      'billing.subscription_started',
       'billing.premium_activated',
+      'billing.subscription_started',
     ]);
   });
 
@@ -187,9 +188,11 @@ describe.skipIf(!TEST_DATABASE_URL)('abonnement premium', () => {
 
     const session = await subscribe(alice);
     const customer = session.customer as string;
-    res = await h.request(alice, 'POST', '/v1/billing/portal', { returnUrl: '/abonnement' });
+    res = await h.request(alice, 'POST', '/v1/billing/portal', { returnUrl: '/profil/abonnement' });
     expect(res.json()).toEqual({ url: `https://billing.stripe.test/p/session/${customer}` });
-    expect(t.stripe.portals).toEqual([{ customer, returnUrl: 'http://front.test/abonnement' }]);
+    expect(t.stripe.portals).toEqual([
+      { customer, returnUrl: 'http://front.test/profil/abonnement' },
+    ]);
 
     const invoice = t.stripe.invoice(customer);
     await t.deliver(signedEvent('invoice.paid', invoice));

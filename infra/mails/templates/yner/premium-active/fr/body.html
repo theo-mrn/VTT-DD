@@ -1,0 +1,9 @@
+{{template "layout" .}}
+{{define "title"}}Bienvenue dans YNER Premium{{end}}
+{{define "content"}}
+<h1 style="font-size:20px;margin:0 0 16px;">Bienvenue dans YNER Premium</h1>
+<p>Votre abonnement <strong>{{.formule}}</strong> est actif : tous les dés, présents et à venir, sont à vous, avec le badge et les bordures premium.</p>
+<p>Montant réglé : <strong>{{.montant}}</strong>. Prochaine échéance : {{.prochaine_echeance}}.</p>
+<p style="font-size:14px;">Facture {{.numero}} : <a href="{{.lien_facture}}" style="color:#7a4b2a;">voir en ligne</a> · <a href="{{.lien_pdf}}" style="color:#7a4b2a;">PDF</a></p>
+<p style="margin:24px 0;"><a href="{{.lien_abonnement}}" style="display:inline-block;padding:10px 16px;background:#7a4b2a;color:#ffffff;text-decoration:none;border-radius:6px;">Gérer mon abonnement</a></p>
+{{end}}

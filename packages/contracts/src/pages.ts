@@ -12,4 +12,12 @@ export const PAGES_FRONT = {
   reinitialisation: '/reinitialisation',
   /** Confirmation de l'adresse e-mail, `?jeton=…` (e-mail de vérification). */
   verificationEmail: '/verification-email',
+  /** Abonnement, factures et achats (liens des e-mails de paiement, portail Stripe). */
+  abonnement: '/profil/abonnement',
+  /** Retour de Stripe Checkout après paiement, `?session_id=…&retour=…`. */
+  paiementSucces: '/paiement/succes',
+  /** Retour de Stripe Checkout sans paiement, `?retour=…`. */
+  paiementAnnule: '/paiement/annule',
+  /** Table de dés : la collection (lien de l'e-mail d'achat). */
+  des: '/des',
 } as const;

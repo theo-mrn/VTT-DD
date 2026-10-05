@@ -87,11 +87,20 @@ describe.skipIf(!TEST_DATABASE_URL)('achat à l’unité', () => {
       line_items: [{ price: 'price_token_Token5', quantity: 1 }],
     });
 
-    const taxed = await testApp({ STRIPE_TAX: 'on' });
+    expect(t.stripe.created[0]).not.toHaveProperty('consent_collection');
+    const taxed = await testApp({ STRIPE_TAX: 'on', STRIPE_TERMS: 'on' });
     try {
       const u = await taxed.user();
       await helpers(taxed).ok(u, 'POST', '/v1/billing/checkout', { itemId: 'ruby' });
-      expect(taxed.stripe.created[0]).toMatchObject({ automatic_tax: { enabled: true } });
+      expect(taxed.stripe.created[0]).toMatchObject({
+        automatic_tax: { enabled: true },
+        consent_collection: { terms_of_service: 'required' },
+        custom_text: {
+          terms_of_service_acceptance: {
+            message: expect.stringContaining('(http://front.test/cgv)'),
+          },
+        },
+      });
     } finally {
       await taxed.close();
     }

@@ -279,6 +279,11 @@ export function subscriptionObject(
 ): Subscription {
   const now = Math.floor(Date.now() / 1000);
   const { price, ...rest } = patch;
+  // Comme Stripe : la période suit l'intervalle du prix (un an pour la formule annuelle)
+  const days =
+    (price as { recurring?: { interval?: string } } | undefined)?.recurring?.interval === 'year'
+      ? 365
+      : 30;
   return {
     id,
     object: 'subscription',
@@ -295,7 +300,7 @@ export function subscriptionObject(
         {
           id: `si_${id}`,
           current_period_start: now,
-          current_period_end: now + 30 * 24 * 3600,
+          current_period_end: now + days * 24 * 3600,
           price: price ?? { id: 'price_ancien', lookup_key: null },
         },
       ],

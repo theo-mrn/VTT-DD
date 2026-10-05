@@ -3,7 +3,16 @@
  * La source de vérité est le changelog Liquibase (backend/billing/db) ; ce
  * fichier doit lui correspondre colonne pour colonne.
  */
-import { bigint, integer, jsonb, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  integer,
+  jsonb,
+  pgSchema,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 export const billingSchema = pgSchema('billing');
 
@@ -120,6 +129,21 @@ export const rightsVersions = billingSchema.table('rights_versions', {
   version: bigint('version', { mode: 'number' }).notNull(),
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),
 });
+
+export const jobRuns = billingSchema.table('job_runs', {
+  name: text('name').primaryKey(),
+  lastRunAt: timestampTz('last_run_at').notNull(),
+});
+
+export const renewalReminders = billingSchema.table(
+  'renewal_reminders',
+  {
+    subscriptionId: text('subscription_id').notNull(),
+    periodEnd: timestampTz('period_end').notNull(),
+    sentAt: timestampTz('sent_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.subscriptionId, t.periodEnd] })],
+);
 
 export const processedEvents = billingSchema.table('processed_events', {
   stripeEventId: text('stripe_event_id').primaryKey(),
