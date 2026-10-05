@@ -440,3 +440,14 @@
     transform: translateY(-10px) rotate(2deg);
   }
 }
+
+/* Landing : barres de l'égaliseur de l'ambiance sonore */
+@keyframes egaliseur {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.35);
+  }
+}

@@ -1,8 +1,15 @@
+import { EyeOff, Palette, Shapes } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Apparition } from './apparition';
 
 /** Une rangée de dés de la collection, cuits par le moteur 3D (public/dice). */
+const POINTS = [
+  { Icone: EyeOff, texte: 'Jets publics, privés ou réservés au MJ' },
+  { Icone: Shapes, texte: 'Dés à symboles pour Star Wars' },
+  { Icone: Palette, texte: 'Chaque joueur choisit son skin' },
+];
+
 const DES = ['kyber_violet', 'beholder_orb', 'gold', 'magma', 'resine_jade', 'singularite', 'ruby'];
 
 /** Les dés 3D : la collection, en rangée flottante. */
@@ -44,6 +51,16 @@ export function Des() {
                   sizes="(min-width: 1024px) 180px, 30vw"
                   className="h-auto w-full drop-shadow-[0_24px_30px_rgba(0,0,0,0.6)]"
                 />
+              </li>
+            ))}
+          </ul>
+        </Apparition>
+        <Apparition delai={0.15}>
+          <ul className="mt-14 flex flex-wrap justify-center gap-x-10 gap-y-4 text-[15px] text-muted-foreground">
+            {POINTS.map(({ Icone, texte }) => (
+              <li key={texte} className="flex items-center gap-2.5">
+                <Icone className="size-4 text-primary" aria-hidden />
+                {texte}
               </li>
             ))}
           </ul>
