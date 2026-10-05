@@ -40,6 +40,10 @@ ingress:
   # Connexions WebSocket longues (realtime)
   websocket: true
   host: api.staging.yner.fr
+  # Bouncer CrowdSec : hote expose publiquement. Traefik interroge le bouncer
+  # a chaque requete (forwardAuth) et renvoie 403 si l'IP porte une decision.
+  middlewares:
+    - crowdsec-crowdsec-traefik-bouncer@kubernetescrd
 networkPolicy:
   enabled: true
 autoscaling:

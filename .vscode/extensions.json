@@ -1,0 +1,4 @@
+{
+  // Coloration et vérification des gabarits Helm (langage « helm »)
+  "recommendations": ["ms-kubernetes-tools.vscode-kubernetes-tools"]
+}

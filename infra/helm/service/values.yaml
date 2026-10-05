@@ -45,6 +45,10 @@ ingress:
   extraPaths: []
   # true pour realtime (WebSocket) : désactive le timeout de lecture côté Traefik
   websocket: false
+  # Middlewares Traefik, format <namespace>-<nom>@kubernetescrd. Vide par
+  # défaut : un hôte public y branche le bouncer CrowdSec avec
+  # ["crowdsec-crowdsec-traefik-bouncer@kubernetescrd"]
+  middlewares: []
 
 networkPolicy:
   enabled: true
