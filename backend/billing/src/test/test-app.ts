@@ -12,7 +12,15 @@ import { generateKeyPair, SignJWT } from 'jose';
 import { buildBilling } from '../app.js';
 import { BillingConfig } from '../config.js';
 import { createDb } from '../db/client.js';
-import { customers, outbox, processedEvents, purchases } from '../db/schema.js';
+import {
+  customers,
+  entitlements,
+  invoices,
+  outbox,
+  processedEvents,
+  purchases,
+  subscriptions,
+} from '../db/schema.js';
 import { fakeServices } from './fake-services.js';
 import { fakeStripe, signedEvent, WEBHOOK_SECRET } from './fake-stripe.js';
 
@@ -54,7 +62,7 @@ export async function testApp(
   );
 
   const users: string[] = [];
-  const events: string[] = [];
+  const stripeEvents: string[] = [];
 
   const sign = (id: string, roles: string[]) =>
     new SignJWT({ roles })
@@ -74,7 +82,7 @@ export async function testApp(
 
   /** Livre un événement Stripe signé au webhook. */
   async function deliver(event: ReturnType<typeof signedEvent>) {
-    events.push(event.id);
+    stripeEvents.push(event.id);
     return app.inject({
       method: 'POST',
       url: '/v1/billing/webhook',
@@ -90,6 +98,9 @@ export async function testApp(
       const db = connection.db;
       if (users.length) {
         await db.delete(purchases).where(inArray(purchases.userId, users));
+        await db.delete(entitlements).where(inArray(entitlements.userId, users));
+        await db.delete(invoices).where(inArray(invoices.userId, users));
+        await db.delete(subscriptions).where(inArray(subscriptions.userId, users));
         await db.delete(customers).where(inArray(customers.userId, users));
         await db
           .delete(outbox)
@@ -100,13 +111,37 @@ export async function testApp(
             ),
           );
       }
-      if (events.length)
-        await db.delete(processedEvents).where(inArray(processedEvents.stripeEventId, events));
+      if (stripeEvents.length)
+        await db
+          .delete(processedEvents)
+          .where(inArray(processedEvents.stripeEventId, stripeEvents));
     }
     await connection?.pool.end();
   }
 
-  return { app, db: connection?.db, stripe, services, user, deliver, close };
+  /** Événements de l'outbox d'un utilisateur (charge utile ou acteur), dans l'ordre. */
+  async function events(userId: string) {
+    const rows = await connection!.db
+      .select()
+      .from(outbox)
+      .where(
+        or(
+          sql`${outbox.envelope}->'payload'->>'userId' = ${userId}`,
+          sql`${outbox.envelope}->'actor'->>'userId' = ${userId}`,
+        ),
+      )
+      .orderBy(outbox.createdAt, outbox.id);
+    return rows.map(
+      (r) =>
+        r.envelope as {
+          type: string;
+          actor: { role: string; userId: string | null };
+          payload: Record<string, unknown>;
+        },
+    );
+  }
+
+  return { app, db: connection?.db, stripe, services, user, deliver, events, close };
 }
 
 export type TestContext = Awaited<ReturnType<typeof testApp>>;

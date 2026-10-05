@@ -1,11 +1,13 @@
 import { createService, type ServiceOptions } from '@vtt/platform';
 import { sql } from 'drizzle-orm';
+import { priceResolver } from './catalog/prices.js';
 import { httpEffects, type Effects } from './clients/effects.js';
 import type { BillingConfig } from './config.js';
 import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
 import { register as checkout } from './modules/checkout/index.js';
 import { register as invoices } from './modules/invoices/index.js';
+import { register as plans } from './modules/plans/index.js';
 import { register as subscription } from './modules/subscription/index.js';
 import { register as webhook } from './modules/webhook/index.js';
 import { stripeApi, type StripeApi } from './stripe/client.js';
@@ -39,10 +41,12 @@ export async function buildBilling(
     onShutdown: [...(options.onShutdown ?? []), async () => connection?.pool.end()],
   });
 
+  const stripeApiOrNull = stripe === undefined ? defaultStripe(config.STRIPE_SECRET_KEY) : stripe;
   const deps: Deps = {
     config,
     db,
-    stripe: stripe === undefined ? defaultStripe(config.STRIPE_SECRET_KEY) : stripe,
+    stripe: stripeApiOrNull,
+    prices: stripeApiOrNull ? priceResolver(stripeApiOrNull) : null,
     effects:
       effects ??
       httpEffects({
@@ -61,7 +65,7 @@ export async function buildBilling(
     );
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [checkout, subscription, invoices, webhook]) {
+  for (const module of [plans, checkout, subscription, invoices, webhook]) {
     await module(app, deps);
   }
 

@@ -42,14 +42,63 @@ export function itemOf(kind: ItemKind, id: string): CatalogItem | undefined {
   return kind === 'token' ? TOKENS.get(id) : DICE.get(id);
 }
 
-/** Libellé de la ligne Stripe Checkout (ancienne route /api/checkout). */
+/** Libellé du produit Stripe (ligne de facture), comme l'ancienne route /api/checkout. */
 export const lineName = (item: CatalogItem) =>
   item.kind === 'dice' ? `Dés : ${item.name}` : `Cadre : ${item.name}`;
 
-/** Abonnement premium de l'ancienne route /api/subscribe. */
+/**
+ * Produit et prix Stripe d'un article. Le produit porte un identifiant fixe
+ * (créé par catalog:sync) ; le prix est retrouvé par sa `lookup_key`, reprise
+ * par un nouveau prix quand le montant change (un prix Stripe est immuable).
+ */
+export const productIdOf = (item: CatalogItem) => `yner_${item.kind}_${item.id}`;
+export const lookupKeyOf = (item: CatalogItem) => `${item.kind}_${item.id}`;
+
+/** Articles payants : ceux qui existent chez Stripe. */
+export const SOLD_ITEMS: readonly CatalogItem[] = [...DICE.values(), ...TOKENS.values()].filter(
+  (i) => i.price > 0,
+);
+
+// ─── Premium ─────────────────────────────────────────────────────────────────
+
 export const PREMIUM = {
-  name: 'Abonnement Premium VTT-DD',
-  description: 'Accès à tous les dés, badge exclusif, soutien au développeur.',
-  /** 4,99 € par mois, prix de l'ancienne app (si STRIPE_PREMIUM_PRICE_ID est absent). */
-  monthlyPriceCents: 499,
+  productId: 'yner_premium',
+  name: 'Yner Premium',
+  description: 'Tous les dés, présents et à venir, badge et bordures premium.',
 } as const;
+
+export type PlanId = 'monthly' | 'annual';
+
+export interface PlanEntry {
+  id: PlanId;
+  name: string;
+  /** Prix TTC en centimes d'euro, par période. */
+  amount: number;
+  interval: 'month' | 'year';
+  lookupKey: string;
+}
+
+/** Formules vendues : prix TTC (tax_behavior inclusive), TVA ou pas. */
+export const PLANS: Readonly<Record<PlanId, PlanEntry>> = {
+  monthly: {
+    id: 'monthly',
+    name: 'Mensuel',
+    amount: 499,
+    interval: 'month',
+    lookupKey: 'premium_monthly',
+  },
+  annual: {
+    id: 'annual',
+    name: 'Annuel',
+    amount: 4990,
+    interval: 'year',
+    lookupKey: 'premium_annual',
+  },
+};
+
+/** Formule d'un prix Stripe, par sa lookup_key ; legacy : prix de l'ancienne app. */
+export function planOfLookupKey(key: string | null | undefined): 'monthly' | 'annual' | 'legacy' {
+  if (key === PLANS.monthly.lookupKey) return 'monthly';
+  if (key === PLANS.annual.lookupKey) return 'annual';
+  return 'legacy';
+}

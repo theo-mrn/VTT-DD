@@ -30,10 +30,11 @@ export const BillingConfig = BaseConfig.extend({
   /** Secret de signature du webhook (whsec_…). Absent : le webhook répond 503. */
   STRIPE_WEBHOOK_SECRET: optional(z.string().regex(/^whsec_/, 'secret whsec_… attendu')),
   /**
-   * Prix récurrent de l'abonnement premium (price_…), créé dans le tableau de
-   * bord Stripe. Absent : prix de l'ancienne app (4,99 €/mois) décrit dans la session.
+   * TVA calculée par Stripe Tax (automatic_tax) : à activer avec Stripe Tax dans
+   * le tableau de bord, le jour où le statut fiscal l'exige. Les prix sont TTC
+   * (tax_behavior inclusive) : le montant payé ne change pas.
    */
-  STRIPE_PREMIUM_PRICE_ID: optional(z.string().regex(/^price_/, 'identifiant price_… attendu')),
+  STRIPE_TAX: z.enum(['on', 'off']).default('off'),
 
   /**
    * Secret partagé entre services (en-tête x-internal-secret) : accompagne

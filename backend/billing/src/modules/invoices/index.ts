@@ -1,17 +1,18 @@
 /**
- * Module « invoices » : factures Stripe de l'appelant (ancienne route
- * /api/invoices, qui recevait le client Stripe dans le corps : ici, il est
- * lu dans la base à partir du jeton).
+ * Module « invoices » : factures de l'appelant, lues dans la copie locale
+ * (alimentée par le webhook et stripe:backfill), sans appel à Stripe.
  *
  *   GET /v1/billing/invoices  →  { invoices: [{ id, number, date, amount,
  *       currency, status, description, hostedUrl, pdfUrl }] }
- *   24 dernières factures ; date en secondes Unix, montants en centimes.
+ *   Factures finalisées (brouillons exclus), les plus récentes d'abord ;
+ *   date en secondes Unix, montants en centimes.
  */
+import { and, desc, eq, ne } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { invoices } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import { customerOf } from '../../payments/fulfillment.js';
-import { callStripe, currentUser, requireStripe } from '../common.js';
+import { currentUser } from '../common.js';
 
 const Invoice = z.object({
   id: z.string(),
@@ -19,13 +20,13 @@ const Invoice = z.object({
   date: z.number(),
   amount: z.number(),
   currency: z.string(),
-  status: z.string().nullable(),
+  status: z.string(),
   description: z.string().nullable(),
   hostedUrl: z.string().nullable(),
   pdfUrl: z.string().nullable(),
 });
 
-const LIMIT = 24;
+const LIMIT = 100;
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -37,22 +38,24 @@ export const register: Module = async (app, deps) => {
       schema: { response: { 200: z.object({ invoices: z.array(Invoice) }) } },
     },
     async (req, reply) => {
-      const row = await customerOf(deps.db, currentUser(req));
+      const rows = await deps.db
+        .select()
+        .from(invoices)
+        .where(and(eq(invoices.userId, currentUser(req)), ne(invoices.status, 'draft')))
+        .orderBy(desc(invoices.issuedAt))
+        .limit(LIMIT);
       reply.header('cache-control', 'no-store');
-      if (!row?.stripeCustomerId) return { invoices: [] };
-      const stripe = requireStripe(deps);
-      const list = await callStripe(req, () => stripe.listInvoices(row.stripeCustomerId!, LIMIT));
       return {
-        invoices: list.map((inv) => ({
-          id: inv.id ?? '',
-          number: inv.number ?? null,
-          date: inv.created,
-          amount: inv.amount_paid ?? 0,
+        invoices: rows.map((inv) => ({
+          id: inv.id,
+          number: inv.number,
+          date: Math.floor(inv.issuedAt.getTime() / 1000),
+          amount: inv.status === 'paid' ? inv.amountPaid : inv.amountDue,
           currency: inv.currency,
-          status: inv.status ?? null,
-          description: inv.lines?.data?.[0]?.description ?? null,
-          hostedUrl: inv.hosted_invoice_url ?? null,
-          pdfUrl: inv.invoice_pdf ?? null,
+          status: inv.status,
+          description: inv.description,
+          hostedUrl: inv.hostedUrl,
+          pdfUrl: inv.pdfUrl,
         })),
       };
     },
