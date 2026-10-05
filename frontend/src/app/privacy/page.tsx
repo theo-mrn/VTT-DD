@@ -96,8 +96,8 @@ export default function PrivacyPage() {
             : {RETENTION.tracesDays} jours.
           </li>
           <li>
-            <strong>Liens envoyés par e-mail</strong> (vérification, mot de passe) : jusqu’à leur
-            utilisation ou leur expiration.
+            <strong>Liens envoyés par e-mail</strong> (vérification, mot de passe) : 24 heures après
+            leur utilisation ou leur expiration.
           </li>
         </LegalList>
       </LegalSection>

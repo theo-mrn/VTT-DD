@@ -1,18 +1,44 @@
-import { loadConfig, start, startOrphanSweep } from '@vtt/platform';
+import { loadConfig, periodic, start, startOrphanSweep, withAdvisoryLock } from '@vtt/platform';
 import { buildIdentity } from './app.js';
 import { startIdentityBus } from './bus.js';
 import { IdentityConfig } from './config.js';
 import { createDb } from './db/client.js';
+import { purgeExpired } from './maintenance/retention.js';
 
 const config = loadConfig(IdentityConfig);
 let stopBus: (() => Promise<void>) | undefined;
 let stopSweep: (() => Promise<void>) | undefined;
-// Le bus (relais, consommateur des titres) et le balayage s'arrêtent avant la fermeture du pool du
-// service (onShutdown passe en premier)
+let stopRetention: (() => Promise<void>) | undefined;
+// Le bus (relais, consommateur des titres), le balayage et la purge s'arrêtent avant la fermeture
+// du pool du service (onShutdown passe en premier)
 const app = await buildIdentity(config, {
-  onShutdown: [async () => stopBus?.(), async () => stopSweep?.()],
+  onShutdown: [async () => stopBus?.(), async () => stopSweep?.(), async () => stopRetention?.()],
 });
 await start(app, config);
+
+{
+  // Durées de conservation (sessions, jetons d'e-mail) : une instance à la fois, toutes les 6 h
+  const retention = createDb(config.DATABASE_URL, {
+    max: 1,
+    applicationName: `${config.SERVICE_NAME}-retention`,
+  });
+  const stop = periodic({
+    name: 'identity-retention',
+    everyMs: 6 * 3_600_000,
+    logger: app.log,
+    run: async () => {
+      await withAdvisoryLock(retention.pool, 'identity-retention', async () => {
+        const purged = await purgeExpired(retention.db);
+        if (purged.sessions || purged.emailTokens)
+          app.log.info({ purged }, 'sessions et jetons expirés supprimés');
+      });
+    },
+  });
+  stopRetention = async () => {
+    await stop();
+    await retention.pool.end().catch(() => undefined);
+  };
+}
 
 if (config.ORPHAN_SWEEP !== 'off') {
   // Fichiers orphelins des avatars et bannières (docs/nettoyage.md) : essai par défaut
