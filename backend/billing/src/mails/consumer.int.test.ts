@@ -90,7 +90,7 @@ describe.skipIf(!TEST_DATABASE_URL)('e-mails de paiement', () => {
         montant: '49,90 €',
         formule: 'annuel',
         prochaine_echeance: expect.stringMatching(/^\d{1,2} \S+ \d{4}$/),
-        lien_abonnement: 'http://front.test/abonnement',
+        lien_abonnement: 'http://front.test/profil/abonnement',
       },
     });
     expect(sent[2]!.data.date_fin).toMatch(/^\d{1,2} \S+ \d{4}$/);
@@ -147,7 +147,7 @@ describe.skipIf(!TEST_DATABASE_URL)('e-mails de paiement', () => {
           montant: '49,90 €',
           lien_paiement: failed.hosted_invoice_url,
           prochaine_tentative: expect.stringMatching(/\d{4}$/),
-          lien_abonnement: 'http://front.test/abonnement',
+          lien_abonnement: 'http://front.test/profil/abonnement',
         },
       }),
     ]);

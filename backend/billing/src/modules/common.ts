@@ -1,4 +1,5 @@
 /** Outils partagés par les routes du service. */
+import { PAGES_FRONT } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -94,15 +95,12 @@ export function paymentDeps(deps: Deps): PaymentDeps {
   return { db: deps.db, stripe: requireStripe(deps) };
 }
 
-/** Pages du front au retour de Checkout (lot 4 : à ajouter à PAGES_FRONT). */
-export const CHECKOUT_PAGES = { success: '/paiement/succes', cancel: '/paiement/annule' } as const;
-
 /** URLs de retour de Checkout ; `returnUrl` : page où renvoyer ensuite l'utilisateur. */
 export function checkoutUrls(config: BillingConfig, returnUrl: string) {
   const ret = encodeURIComponent(returnUrl);
   return {
-    success_url: `${config.APP_URL}${CHECKOUT_PAGES.success}?session_id={CHECKOUT_SESSION_ID}&retour=${ret}`,
-    cancel_url: `${config.APP_URL}${CHECKOUT_PAGES.cancel}?retour=${ret}`,
+    success_url: `${config.APP_URL}${PAGES_FRONT.paiementSucces}?session_id={CHECKOUT_SESSION_ID}&retour=${ret}`,
+    cancel_url: `${config.APP_URL}${PAGES_FRONT.paiementAnnule}?retour=${ret}`,
   };
 }
 

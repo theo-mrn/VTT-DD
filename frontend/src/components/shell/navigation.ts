@@ -1,4 +1,5 @@
 import {
+  CreditCard,
   Dices,
   Home,
   KeyRound,
@@ -37,6 +38,7 @@ export const LIENS_COMPTE: LienNav[] = [
   { href: '/profil', label: 'Profil', icone: User, exact: true },
   { href: '/profil/securite', label: 'Sécurité', icone: Shield },
   { href: '/profil/cles-api', label: "Clés d'API", icone: KeyRound },
+  { href: '/profil/abonnement', label: 'Abonnement', icone: CreditCard },
 ];
 
 export function estActif(lien: LienNav, chemin: string) {
@@ -59,5 +61,9 @@ export const LIBELLES_SEGMENTS: Record<string, string> = {
   profil: 'Profil',
   securite: 'Sécurité',
   'cles-api': "Clés d'API",
+  abonnement: 'Abonnement',
+  paiement: 'Paiement',
+  succes: 'Confirmé',
+  annule: 'Annulé',
   joueurs: 'Joueurs',
 };

@@ -11,16 +11,13 @@
  *   billing.subscription_ended      → premium-termine
  *   billing.purchase_refunded       → remboursement
  */
-import type { EventEnvelope } from '@vtt/contracts';
+import { PAGES_FRONT, type EventEnvelope } from '@vtt/contracts';
 import { eq } from 'drizzle-orm';
 import { itemOf, lineName } from '../catalog/catalog.js';
 import type { Db } from '../db/client.js';
 import { invoices, subscriptions, type InvoiceRow, type ItemKind } from '../db/schema.js';
 import { customerOf } from '../payments/common.js';
 import type { Mail, MailTemplate } from './kourrier.js';
-
-/** Pages du front visées par les e-mails. */
-export const MAIL_PAGES = { subscription: '/abonnement', collection: '/des' } as const;
 
 const TIME_ZONE = 'Europe/Paris';
 
@@ -63,8 +60,8 @@ async function contentFor(
   p: Record<string, unknown>,
 ): Promise<Content | null> {
   const links = {
-    lien_abonnement: `${appUrl}${MAIL_PAGES.subscription}`,
-    lien_collection: `${appUrl}${MAIL_PAGES.collection}`,
+    lien_abonnement: `${appUrl}${PAGES_FRONT.abonnement}`,
+    lien_collection: `${appUrl}${PAGES_FRONT.des}`,
   };
   switch (type) {
     case 'billing.invoice_paid': {

@@ -167,13 +167,19 @@ consommateur ne lit que les événements à venir : un déploiement n'envoie rie
 
 ## Front
 
-- **Compte → Abonnement** (`/abonnement`) : formule et statut, prochain prélèvement, bandeau si le
-  paiement a échoué, Résilier / Reprendre, Gérer le paiement (portail), liste des factures et des
-  achats avec liens PDF.
-- **Boutique de dés** : boutons Acheter et Devenir premium actifs, choix mensuel ou annuel.
-- **Retour de Checkout** : `/paiement/succes` (attend la confirmation, puis renvoie là où
-  l'utilisateur était) et `/paiement/annule`.
-- **`/cgv`** : conditions générales de vente.
+- **Compte → Abonnement** (`/profil/abonnement`, onglet du compte) : sans premium, choix mensuel ou
+  annuel (économie affichée) et « Devenir Premium » ; avec premium, formule, prochain prélèvement
+  ou date de fin, alerte si le paiement a échoué (« Mettre à jour ma carte »), Résilier (dialogue
+  de confirmation) ou Reprendre, Gérer le paiement (portail Stripe) ; factures (lien en ligne et
+  PDF) et achats (remboursés barrés).
+- **Boutique de dés** : bouton d'achat au prix de l'article (Stripe Checkout, retour sur la page
+  courante) ; onglet Premium vers la page Abonnement.
+- **Retour de Checkout** : `/paiement/succes` interroge billing jusqu'à la confirmation (le
+  webhook peut arriver après le retour), rafraîchit les dés possédés, puis « Continuer » ramène à
+  la page d'origine ; `/paiement/annule`.
+- Chemins partagés avec le backend par `PAGES_FRONT` (`@vtt/contracts`) : retours de Checkout,
+  liens des e-mails.
+- **`/cgv`** : lot 5.
 
 ## Tâches planifiées (dans billing, verrou consultatif : un seul réplica)
 
@@ -227,6 +233,6 @@ consommateur ne lit que les événements à venir : un déploiement n'envoie rie
 2. **Droits par événements** (fait le 2026-10-05) : relais d'outbox de billing, consommateurs
    dans dice et identity, `rights:republish`, retrait des appels HTTP.
 3. **E-mails** (fait le 2026-10-05) : templates Kourrier, consommateur `billing-mails`.
-4. **Front** : page Abonnement, boutique active, retours de Checkout.
+4. **Front** (fait le 2026-10-05) : page Abonnement, boutique active, retours de Checkout.
 5. **Légal et mise en ligne** : CGV, consentement, rappel de reconduction, réconciliation,
    configuration du portail, clés live.
