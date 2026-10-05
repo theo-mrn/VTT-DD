@@ -3,7 +3,7 @@ import { LegalLink, LegalList, LegalPage, LegalSection } from '@/components/lega
 import { LEGAL_PAGES, PUBLISHER } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Conditions d’utilisation · Yner',
+  title: 'Conditions d’utilisation',
   description: 'Les règles du jeu de Yner : compte, contenus, signalement, responsabilités.',
 };
 

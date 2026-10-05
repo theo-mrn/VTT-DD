@@ -3,7 +3,7 @@ import { LegalLink, LegalList, LegalPage, LegalSection } from '@/components/lega
 import { PUBLISHER } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Crédits et licences · Yner',
+  title: 'Crédits et licences',
   description: 'Contenus de jeu, illustrations, polices et logiciels utilisés par Yner.',
 };
 

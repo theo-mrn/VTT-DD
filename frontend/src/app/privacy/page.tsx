@@ -9,7 +9,7 @@ import {
 import { HOST, LEGAL_PAGES, PUBLISHER, RETENTION } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Politique de confidentialité · Yner',
+  title: 'Politique de confidentialité',
   description: 'Les données que Yner traite, pourquoi, combien de temps, et vos droits.',
 };
 

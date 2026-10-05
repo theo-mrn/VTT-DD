@@ -6,6 +6,7 @@
  */
 import type { ChannelState, PlaybackAsset } from '@vtt/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setYoutubeConsent } from '@/lib/consent/youtube';
 import { ServerClock } from '../sync/clock';
 import { FakeAudioContext, FakeElement } from '../test/fake-audio';
 import { AudioEngine } from './engine';
@@ -113,6 +114,8 @@ describe('YouTube : ce que reçoit un joueur', () => {
   beforeEach(async () => {
     FakePlayer.all = [];
     (window as unknown as { YT: unknown }).YT = { Player: FakePlayer };
+    // Le joueur a accepté le lecteur YouTube (sinon rien ne se charge, voir lib/consent)
+    setYoutubeConsent('granted');
     serverNow.t = 1_000_000;
     engine = new AudioEngine({
       createContext: () => new FakeAudioContext() as unknown as BaseAudioContext,

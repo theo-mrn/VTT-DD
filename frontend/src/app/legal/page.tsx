@@ -3,7 +3,7 @@ import { LegalLink, LegalList, LegalPage, LegalSection } from '@/components/lega
 import { HOST, LEGAL_PAGES, PUBLISHER } from '@/lib/legal';
 
 export const metadata: Metadata = {
-  title: 'Mentions légales · Yner',
+  title: 'Mentions légales',
   description: 'Éditeur, hébergeur et contact du site Yner.',
 };
 

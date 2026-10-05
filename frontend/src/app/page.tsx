@@ -9,7 +9,7 @@ import { Outils } from '@/components/landing/outils';
 import { Pied } from '@/components/landing/pied';
 
 export const metadata: Metadata = {
-  title: 'Yner · Table de jeu de rôle en ligne',
+  title: { absolute: 'Yner · Table de jeu de rôle en ligne' },
   description:
     'Cartes vivantes, brouillard de guerre, fiches automatiques et dés 3D : la table de jeu de rôle en ligne, gratuite et sans installation.',
 };
