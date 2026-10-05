@@ -46,10 +46,11 @@ export default function TermsPage() {
             profil et prévenez-nous.
           </li>
           <li>
-            Vous pouvez supprimer votre compte à tout moment (voir la{' '}
+            Vous pouvez supprimer votre compte à tout moment depuis votre profil : il l’est 7 jours
+            plus tard, sauf si vous vous reconnectez d’ici là (voir la{' '}
             <LegalLink href={LEGAL_PAGES.privacy}>politique de confidentialité</LegalLink>). Les
-            campagnes dont vous êtes le maître du jeu sont alors supprimées avec lui, ainsi que vos
-            personnages dans les campagnes des autres.
+            campagnes dont vous êtes le maître du jeu sont alors supprimées avec lui, pour tous
+            leurs joueurs, ainsi que vos personnages dans les campagnes des autres.
           </li>
         </LegalList>
       </LegalSection>

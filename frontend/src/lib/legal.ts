@@ -36,4 +36,10 @@ export const RETENTION = {
   tracesDays: 3,
   /** Sauvegardes de la base (CloudNativePG vers R2). */
   backupsDays: 7,
+  /** Suppression demandée → effacement définitif (identity, DELETION_GRACE_DAYS). */
+  deletionGraceDays: 7,
+  /** Sans connexion → e-mail de prévenance (identity, INACTIVE_AFTER_DAYS). */
+  inactiveYears: 3,
+  /** Prévenance → mise en suppression (identity, INACTIVITY_NOTICE_DAYS). */
+  inactivityNoticeDays: 30,
 } as const;

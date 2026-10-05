@@ -83,9 +83,16 @@ export default function PrivacyPage() {
       <LegalSection title="Combien de temps">
         <LegalList>
           <li>
-            <strong>Compte et contenus de jeu</strong> : tant que votre compte existe. À sa
-            suppression, ils sont effacés ; ils disparaissent des sauvegardes au bout de{' '}
-            {RETENTION.backupsDays} jours.
+            <strong>Compte et contenus de jeu</strong> : tant que votre compte existe. Supprimé à
+            votre demande, il est effacé {RETENTION.deletionGraceDays} jours plus tard (une
+            reconnexion d’ici là annule), avec vos campagnes de maître du jeu, vos personnages et
+            vos notes ; puis il disparaît des sauvegardes au bout de {RETENTION.backupsDays} jours.
+            Vos jets dans les campagnes des autres y restent, sous « Joueur supprimé ».
+          </li>
+          <li>
+            <strong>Compte inactif</strong> : sans connexion pendant {RETENTION.inactiveYears} ans,
+            un e-mail vous prévient ; sans retour sous {RETENTION.inactivityNoticeDays} jours, le
+            compte est supprimé de la même façon.
           </li>
           <li>
             <strong>Sessions</strong> (IP, navigateur) : jusqu’à la déconnexion ou l’expiration de
@@ -194,12 +201,13 @@ export default function PrivacyPage() {
         </p>
         <LegalList>
           <li>
-            Une partie se fait directement depuis votre profil : nom, photo, bannière,
-            notifications, sessions et appareils connectés.
+            Depuis votre profil, onglet Sécurité : télécharger une copie de vos données (JSON),
+            supprimer votre compte, voir et déconnecter vos appareils. Nom, photo, bannière et
+            notifications se règlent dans le profil.
           </li>
           <li>
-            Pour changer d’adresse e-mail, obtenir une copie de vos données, supprimer votre compte
-            ou toute autre demande, écrivez à {mail}. Une réponse vous est apportée sous un mois.
+            Pour changer d’adresse e-mail ou toute autre demande, écrivez à {mail}. Une réponse vous
+            est apportée sous un mois.
           </li>
         </LegalList>
         <p>

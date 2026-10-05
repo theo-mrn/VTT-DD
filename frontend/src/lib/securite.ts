@@ -66,13 +66,17 @@ export function verifierEmail(jeton: string) {
   });
 }
 
-/** Supprime définitivement le compte (mot de passe exigé s'il en a un). */
+/**
+ * Demande la suppression du compte (mot de passe exigé s'il en a un) : sessions coupées, purge
+ * définitive à `purgeAt`, annulée par une reconnexion d'ici là.
+ */
 export async function supprimerCompte(motDePasse?: string) {
-  await api<void>('/v1/users/me', {
+  const r = await api<{ purgeAt: string }>('/v1/users/me', {
     method: 'DELETE',
     body: JSON.stringify(motDePasse ? { password: motDePasse } : {}),
   });
   setAccessToken(null);
+  return r;
 }
 
 export const LONGUEUR_MIN_MDP = 8;
