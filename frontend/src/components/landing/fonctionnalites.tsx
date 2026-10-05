@@ -36,10 +36,10 @@ const BLOCS: Bloc[] = [
       'Pluie, neige, braises, tempête',
     ],
     image: {
-      src: '/landing/vision-joueur.webp',
-      alt: 'La vue d’une joueuse : seule la clairière éclairée par le feu de camp est visible, le reste de la forêt est sous le brouillard.',
-      width: 1440,
-      height: 1180,
+      src: '/landing/vision-cimetiere.webp',
+      alt: 'La vue d’une joueuse dans un cimetière : la chapelle et les tombes visibles, l’ombre d’un tombeau qui cache ce qui se trouve derrière, le brouillard sur le côté.',
+      width: 1800,
+      height: 1301,
     },
   },
   {
@@ -53,10 +53,10 @@ const BLOCS: Bloc[] = [
       'Capacités, inventaire et progression',
     ],
     image: {
-      src: '/landing/fiche-personnage.webp',
-      alt: 'La fiche d’Aelwen, rôdeuse elfe : portrait, caractéristiques, défense et voies de capacités.',
+      src: '/landing/fiche-aelwen.webp',
+      alt: 'La fiche d’Aelwen, rôdeuse elfe : portrait, caractéristiques, points de vie, défense, attaques et voies de capacités.',
       width: 1800,
-      height: 824,
+      height: 1218,
     },
   },
 ];
