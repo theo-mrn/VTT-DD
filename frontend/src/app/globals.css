@@ -429,3 +429,14 @@
   padding-left: 1rem;
   list-style: disc;
 }
+
+/* Landing : dés qui flottent doucement (désactivé si l'utilisateur réduit les animations) */
+@keyframes flotter {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
