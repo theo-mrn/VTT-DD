@@ -3,8 +3,8 @@
 #  - le rôle du service (history_svc) ajoute et lit le journal, chaîne comprise ;
 #  - les contraintes protègent les événements ;
 #  - le journal est en ajout seul : ni history_svc ni même history_owner ne modifient,
-#    sauf par erase_campaign / erase_user (effacement, docs/legal.md),
-#    suppriment ou vident un événement ; une altération faite en contournant les
+#    suppriment ou vident un événement, hors effacement par erase_campaign / erase_user
+#    (docs/legal.md) ; une altération faite en contournant les
 #    triggers est détectée par history.verify_chain ;
 #  - history_svc crée les partitions mensuelles (ensure_partitions) sans droit CREATE,
 #    ne lit les partitions qu'à travers history.events, ne modifie pas son schéma, ni le
