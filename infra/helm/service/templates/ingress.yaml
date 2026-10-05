@@ -10,6 +10,9 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
     traefik.ingress.kubernetes.io/router.tls.certresolver: {{ .Values.ingress.certResolver }}
+    {{- with .Values.ingress.middlewares }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ join "," . | quote }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   tls:
