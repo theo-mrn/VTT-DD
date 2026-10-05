@@ -101,7 +101,7 @@ export async function lireProfilPublic(db: Db, userId: string): Promise<ProfilPu
     })
     .from(users)
     .innerJoin(profiles, eq(profiles.userId, users.id))
-    .where(and(eq(users.id, userId), isNull(users.disabledAt)))
+    .where(and(eq(users.id, userId), isNull(users.disabledAt), isNull(users.deletionRequestedAt)))
     .limit(1);
   return ligne ?? null;
 }
@@ -128,6 +128,7 @@ export async function rechercherProfils(
         sql`${profiles.name} ilike ${motif} escape '\\'`,
         ne(users.id, userId),
         isNull(users.disabledAt),
+        isNull(users.deletionRequestedAt),
       ),
     )
     .orderBy(sql`lower(${profiles.name})`, asc(users.id))

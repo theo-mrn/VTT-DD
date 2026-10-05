@@ -5,6 +5,7 @@ import { MotionConfig as LegacyMotionConfig } from 'framer-motion';
 import { MotionConfig } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
+import { YoutubeConsentBanner } from '@/components/audio/youtube-consent';
 import { DiceThrowerHost } from '@/components/dice/thrower-host';
 import { PerfOverlay } from '@/components/perf/perf-overlay';
 import { Telemetry } from '@/components/telemetry';
@@ -36,6 +37,7 @@ export function Fournisseurs({ children }: Readonly<{ children: ReactNode }>) {
             <DiceThrowerHost />
             <PerfOverlay />
             <Telemetry />
+            <YoutubeConsentBanner />
           </LegacyMotionConfig>
         </MotionConfig>
       </SessionProvider>

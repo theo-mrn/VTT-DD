@@ -2,6 +2,7 @@ import { loadConfig, start, startOrphanSweep, startOutboxRelayWithBus } from '@v
 import { buildCampaign } from './app.js';
 import { CampaignConfig } from './config.js';
 import { createDb } from './db/client.js';
+import { ACCOUNTS_CONSUMER, startAccountsConsumer } from './modules/accounts/consumer.js';
 import { startStorageInventory } from './modules/storage/runtime.js';
 
 const config = loadConfig(CampaignConfig);
@@ -35,7 +36,9 @@ if (config.ORPHAN_SWEEP !== 'off') {
 stopInventory = startStorageInventory(config, app.log);
 
 if (config.NATS_URL) {
-  // Après le démarrage : NATS injoignable ne bloque pas le service, le relais réessaie
+  // Après le démarrage : NATS injoignable ne bloque pas le service, le relais réessaie. Le
+  // consommateur des comptes a son propre pool
+  const accountsDb = createDb(config.DATABASE_URL);
   stopRelay = startOutboxRelayWithBus({
     natsUrl: config.NATS_URL,
     name: config.SERVICE_NAME,
@@ -44,6 +47,13 @@ if (config.NATS_URL) {
     listenConnectionString: config.DATABASE_DIRECT_URL,
     applicationName: `${config.SERVICE_NAME}-outbox-relay`,
     logger: app.log,
+    consumers: [
+      {
+        // Comptes supprimés (docs/legal.md) : campagnes de MJ, adhésions, notes, messages
+        name: ACCOUNTS_CONSUMER,
+        start: (bus) => startAccountsConsumer({ bus, db: accountsDb.db, logger: app.log }),
+      },
+    ],
   });
 } else {
   app.log.warn('NATS_URL absent : les événements restent dans l’outbox, non publiés');

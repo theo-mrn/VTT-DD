@@ -6,6 +6,7 @@
  * synchronisation est grossière (seek au-delà de 2 s d'écart). Publicités et
  * vidéos non intégrables échappent à notre contrôle (`onError`).
  */
+import { whenYoutubeAllowed } from '@/lib/consent/youtube';
 import {
   registerVoice,
   trackYoutubeBox,
@@ -52,10 +53,18 @@ const STALL_AFTER_MS = 2_000;
 
 let apiPromise: Promise<YTNamespace> | null = null;
 
-/** Charge l'API IFrame de YouTube une seule fois. */
+/**
+ * Charge l'API IFrame de YouTube une seule fois, et seulement après l'accord de la personne
+ * (`whenYoutubeAllowed`) : sans lui, les lecteurs restent en attente, muets.
+ */
 function loadApi(): Promise<YTNamespace> {
   if (apiPromise) return apiPromise;
-  apiPromise = new Promise((resolve, reject) => {
+  apiPromise = whenYoutubeAllowed().then(() => injectApi());
+  return apiPromise;
+}
+
+function injectApi(): Promise<YTNamespace> {
+  return new Promise((resolve, reject) => {
     const w = window as unknown as { YT?: YTNamespace; onYouTubeIframeAPIReady?: () => void };
     if (w.YT?.Player) return resolve(w.YT);
     const previous = w.onYouTubeIframeAPIReady;
@@ -72,7 +81,6 @@ function loadApi(): Promise<YTNamespace> {
     };
     document.head.appendChild(script);
   });
-  return apiPromise;
 }
 
 /** Conteneur caché des lecteurs (hors de l'arbre React). */

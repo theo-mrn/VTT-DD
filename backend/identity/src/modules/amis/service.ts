@@ -89,7 +89,11 @@ export async function listerAmis(db: Db, moi: string): Promise<Ami[]> {
     .innerJoin(users, eq(users.id, autre))
     .innerJoin(profiles, eq(profiles.userId, users.id))
     .where(
-      and(or(eq(friendships.userA, moi), eq(friendships.userB, moi)), isNull(users.disabledAt)),
+      and(
+        or(eq(friendships.userA, moi), eq(friendships.userB, moi)),
+        isNull(users.disabledAt),
+        isNull(users.deletionRequestedAt),
+      ),
     )
     .orderBy(asc(profiles.name), asc(users.id));
   return lignes.map((l) => ({ ...l, since: l.since.toISOString() }));
@@ -117,7 +121,7 @@ async function demandes(db: Db, moi: string, sens: 'received' | 'sent'): Promise
     .from(friendRequests)
     .innerJoin(users, eq(users.id, autre))
     .innerJoin(profiles, eq(profiles.userId, users.id))
-    .where(and(eq(cote, moi), isNull(users.disabledAt)))
+    .where(and(eq(cote, moi), isNull(users.disabledAt), isNull(users.deletionRequestedAt)))
     .orderBy(desc(friendRequests.createdAt), asc(users.id));
   return lignes.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() }));
 }
@@ -147,7 +151,7 @@ export async function envoyerDemande(
     const [compte] = await tx
       .select({ id: users.id })
       .from(users)
-      .where(and(eq(users.id, cible), isNull(users.disabledAt)))
+      .where(and(eq(users.id, cible), isNull(users.disabledAt), isNull(users.deletionRequestedAt)))
       .limit(1);
     if (!compte) throw HttpError.notFound('Joueur introuvable');
 

@@ -3,7 +3,8 @@
 #  - le rôle du service (history_svc) ajoute et lit le journal, chaîne comprise ;
 #  - les contraintes protègent les événements ;
 #  - le journal est en ajout seul : ni history_svc ni même history_owner ne modifient,
-#    suppriment ou vident un événement ; une altération faite en contournant les
+#    suppriment ou vident un événement, hors effacement par erase_campaign / erase_user
+#    (docs/legal.md) ; une altération faite en contournant les
 #    triggers est détectée par history.verify_chain ;
 #  - history_svc crée les partitions mensuelles (ensure_partitions) sans droit CREATE,
 #    ne lit les partitions qu'à travers history.events, ne modifie pas son schéma, ni le
@@ -123,6 +124,20 @@ r=$(su "BEGIN; SET search_path = history, public; $chaine
         SELECT string_agg(seq || ':' || reason, ',') FROM verify_chain('$campagne');
         ROLLBACK;")
 echo "$r" | grep -q "3:head" && echo "  fin de chaîne retirée signalée ($r)" || ko "suppression non détectée : $r"
+
+echo "== effacement (docs/legal.md) : seulement par les fonctions du propriétaire =="
+r=$(svc "BEGIN; $(ajout "$e1" 1) SELECT set_config('history.erasure', 'on', true);
+         DELETE FROM events WHERE campaign_id = '$campagne'; ROLLBACK;")
+echo "$r" | grep -qi "permission denied" && echo "  history_svc refusé même en levant le réglage" \
+  || ko "réglage contourné : $r"
+r=$(svc "BEGIN; $(ajout "$e1" 1) $(ajout "$e2" 2) SELECT erase_campaign('$campagne');
+         SELECT count(*) FROM events WHERE campaign_id = '$campagne';
+         SELECT count(*) FROM campaign_heads WHERE campaign_id = '$campagne'; ROLLBACK;")
+echo "$r" | tr '\n' ' ' | grep -q "^2 0 0" && echo "  erase_campaign : chaîne et tête effacées" \
+  || ko "erase_campaign : $r"
+r=$(svc "SELECT has_function_privilege('history_svc', 'history.erase_user(uuid)', 'EXECUTE'),
+                has_function_privilege('public', 'history.erase_user(uuid)', 'EXECUTE')")
+[ "$r" = "t|f" ] && echo "  erase_user : history_svc seulement" || ko "droits erase_user : $r"
 
 echo "== partitions =="
 r=$(svc "BEGIN; SELECT ensure_partitions('2001-01-15', 2);

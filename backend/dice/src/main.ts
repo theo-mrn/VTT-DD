@@ -2,6 +2,7 @@ import { loadConfig, start, startOutboxRelayWithBus } from '@vtt/platform';
 import { buildDice } from './app.js';
 import { DiceConfig } from './config.js';
 import { createDb } from './db/client.js';
+import { LIFECYCLE_CONSUMER, startLifecycleConsumer } from './modules/lifecycle/consumer.js';
 import { RIGHTS_CONSUMER, startRightsConsumer } from './modules/rights/consumer.js';
 
 const config = loadConfig(DiceConfig);
@@ -29,6 +30,11 @@ if (config.NATS_URL) {
       {
         name: RIGHTS_CONSUMER,
         start: (bus) => startRightsConsumer({ bus, db: rightsDb.db, logger: app.log as never }),
+      },
+      {
+        // Comptes et campagnes supprimés (docs/legal.md) : préférences, inventaire, jets
+        name: LIFECYCLE_CONSUMER,
+        start: (bus) => startLifecycleConsumer({ bus, db: rightsDb.db, logger: app.log as never }),
       },
     ],
   });

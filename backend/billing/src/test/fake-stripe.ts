@@ -149,6 +149,10 @@ export function fakeStripe() {
       if (!c) throw missing('customer');
       return c;
     },
+    async deleteCustomer(id) {
+      guard();
+      if (!customers.delete(id)) throw missing('customer');
+    },
     async pricesByLookupKeys(keys) {
       guard();
       return keys.flatMap((k) => (prices.has(k) ? [prices.get(k)!] : []));

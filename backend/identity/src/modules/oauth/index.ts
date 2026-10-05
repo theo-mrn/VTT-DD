@@ -21,6 +21,7 @@ import { z } from 'zod';
 import type { Deps, Module, ServiceApp } from '../../deps.js';
 import { REFRESH_COOKIE } from '../../routes/auth.js';
 import { startSession } from '../../tokens/refresh.js';
+import { cancelDeletion, touchLastSeen } from '../securite/account-lifecycle.js';
 import { journaliserConnexion, resoudreCompte } from './comptes.js';
 import {
   cheminDeRetour,
@@ -200,6 +201,9 @@ export async function registerOAuth(app: ServiceApp, deps: Deps, clients: Client
         if (compte.disabled) throw new EchecOAuth('compte désactivé');
 
         await journaliserConnexion(deps.db, contexte(req), fournisseur, compte.userId);
+        // Se reconnecter annule une suppression demandée (docs/legal.md)
+        await cancelDeletion(deps.db, contexte(req), compte.userId);
+        await touchLastSeen(deps.db, compte.userId);
         const refresh = await startSession(deps.sessions, compte.userId, {
           userAgent: req.headers['user-agent']?.slice(0, 512) ?? null,
           ip: req.ip,

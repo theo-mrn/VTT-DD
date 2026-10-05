@@ -32,6 +32,11 @@ export const users = identity.table('users', {
   createdAt: horodatage('created_at').notNull().defaultNow(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),
   disabledAt: horodatage('disabled_at'),
+  /** Suppression demandée : purge 7 jours plus tard, annulée par une reconnexion. */
+  deletionRequestedAt: horodatage('deletion_requested_at'),
+  /** Dernière visite, au plus une mise à jour par jour (comptes inactifs). */
+  lastSeenAt: horodatage('last_seen_at'),
+  inactivityWarnedAt: horodatage('inactivity_warned_at'),
 });
 
 export const profiles = identity.table('profiles', {

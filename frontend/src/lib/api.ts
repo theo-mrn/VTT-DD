@@ -42,6 +42,8 @@ interface TokenResponse {
   accessToken: string;
   expiresIn: number;
   user: { id: string };
+  /** Connexion qui annule une suppression de compte demandée (identity, docs/legal.md). */
+  deletionCancelled?: boolean;
 }
 
 let jetonAcces: string | null = null;
@@ -126,7 +128,7 @@ export async function connexion(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
   jetonAcces = r.accessToken;
-  return r.user;
+  return { ...r.user, deletionCancelled: r.deletionCancelled === true };
 }
 
 export async function inscription(email: string, password: string, name: string) {

@@ -1,0 +1,9 @@
+{{template "layout" .}}
+{{define "title"}}Suppression de votre compte programmée{{end}}
+{{define "content"}}
+<h1 style="font-size:20px;margin:0 0 16px;">Suppression de votre compte programmée</h1>
+<p>Votre compte YNER sera supprimé définitivement le <strong>{{.date}}</strong>, avec vos personnages, vos notes et les campagnes dont vous êtes le maître du jeu.</p>
+<p>Vous avez changé d’avis, ou vous n’êtes pas à l’origine de cette demande ? Reconnectez-vous avant cette date : la suppression sera annulée.</p>
+<p style="margin:24px 0;"><a href="{{.lien}}" style="display:inline-block;padding:10px 16px;background:#7a4b2a;color:#ffffff;text-decoration:none;border-radius:6px;">Me reconnecter</a></p>
+<p style="font-size:12px;color:#666;">Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>{{.lien}}</p>
+{{end}}

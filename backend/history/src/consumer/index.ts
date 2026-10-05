@@ -13,6 +13,7 @@
 import { consumeEvents, type Bus, type ConsumeOptions } from '@vtt/platform';
 import type { Db } from '../db/client.js';
 import { appendEvents, dbErrorCode, isPermanentDbError } from '../journal/append.js';
+import { eraseFor } from '../journal/erase.js';
 
 /** Logger pino (celui de Fastify). */
 export type Logger = NonNullable<ConsumeOptions['logger']>;
@@ -41,6 +42,10 @@ export async function startConsumer(o: ConsumerOptions): Promise<() => Promise<v
           { eventId: event.id, type: event.type, status: r?.status, seq: r?.seq },
           'événement journalisé',
         );
+        // Compte ou campagne supprimés : effacement (docs/legal.md), rejouable sans effet
+        const erased = await eraseFor(o.db, event);
+        if (erased !== null)
+          o.logger.info({ eventId: event.id, type: event.type, erased }, 'journal effacé');
       } catch (err) {
         // L'erreur de Drizzle cite la requête et ses paramètres (charge utile, auteur) :
         // seuls l'id de l'événement et le code SQLSTATE partent dans les logs

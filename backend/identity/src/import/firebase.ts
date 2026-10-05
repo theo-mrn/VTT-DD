@@ -63,6 +63,7 @@ export interface ImportedAccount {
     emailVerified: boolean;
     createdAt: Date;
     disabledAt: Date | null;
+    lastSeenAt: Date;
   };
   profile: {
     name: string;
@@ -224,6 +225,8 @@ export function transformFirebaseUsers(
         emailVerified: u.emailVerified === true,
         createdAt: creation,
         disabledAt: u.disabled ? now : null,
+        // Dernière visite inconnue : l'horloge d'inactivité part de l'import, pas de la création
+        lastSeenAt: now,
       },
       profile: profilDe(u, doc),
       password,
