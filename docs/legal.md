@@ -17,9 +17,9 @@
 | Purge des sessions et jetons d'e-mail (identity)        | Fait (toutes les 6 h)                                                             |
 | Journaux Loki 30 jours                                  | Prêt dans `argocd_registry` (compacteur), à pousser                               |
 | `robots.txt`, sitemap                                   | Fait : indexé sur `yner.fr` seulement                                             |
-| Suppression de compte propagée à tous les services      | **À faire** : conception ci-dessous, à valider                                    |
-| Export des données                                      | **À faire** : conception ci-dessous, à valider                                    |
-| Comptes inactifs                                        | **À faire** : conception ci-dessous, à valider                                    |
+| Suppression de compte propagée à tous les services      | Fait sauf history (question ouverte ci-dessous)                                   |
+| Export des données                                      | Fait (Profil › Sécurité, JSON assemblé dans le navigateur)                        |
+| Comptes inactifs                                        | Fait (identity, passe toutes les 6 h)                                             |
 | Liens légaux dans les consoles Google, Discord, X       | **Théo** : URL de `/privacy` et `/terms` dans l'écran de consentement et les apps |
 | Images du bestiaire venues de dnd5eapi.co               | **À vérifier** : licence des images non documentée par 5e-bits                    |
 
@@ -51,57 +51,59 @@ Paris) ; Google, Discord, X et YouTube seulement à l'initiative de l'utilisateu
    e-mail, avec ce qu'elles doivent faire.
 5. Noter l'incident ici (date, nature, mesures), même sans notification.
 
-## Conception à valider : suppression de compte
+## Suppression de compte (validée le 2026-10-05)
 
-**Constat** : `DELETE /v1/users/me` (identity, Profil › Sécurité) supprime le compte et émet
-`identity.user_deleted`, mais **aucun service ne l'écoute**. Campagnes, personnages, notes, jets,
-audio, historique et fichiers restent, alors que la fenêtre promet « toutes ses données ». Et
-`campaign.deleted` n'est écouté que par audio et realtime : supprimer une campagne laisse ses
-PNJ, modèles, jets et son historique.
+1. `DELETE /v1/users/me` (identity) **programme** la suppression : sessions et clés d'API coupées,
+   compte masqué des autres (amis, profils publics, bot Discord), e-mail `suppression-programmee`
+   avec la date. Toute connexion (mot de passe, Google, Discord, activité Discord) l'**annule**.
+2. Sept jours plus tard, la passe d'identity (toutes les 6 h) **purge** le compte et publie
+   `identity.user_deleted` (`USER_DELETED` dans `@vtt/contracts`). Chaque service efface ce qui
+   lui appartient par un consommateur durable, au moins une fois, inbox comprise :
 
-**Décidé avec Théo** : les campagnes dont la personne est MJ sont supprimées avec le compte ; ses
-personnages dans les campagnes des autres aussi.
+| Service   | Consommateur          | `identity.user_deleted`                                                                                                                                                                  | `campaign.deleted`                                |
+| --------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| campaign  | `campaign-accounts`   | campagnes de MJ supprimées (`campaign.deleted`) ; départ des autres avec ses personnages ; messages, notes, épingles, tracés, mesures, notes de carte, invitations reçues, bannissements | cascade SQL (existait)                            |
+| character | `character-lifecycle` | ses personnages purgés sans corbeille ; applications                                                                                                                                     | PNJ posés, modèles de PNJ et d'objets, catégories |
+| dice      | `dice-lifecycle`      | préférences, inventaire, droits, jets personnels ; jets de campagne sous « Joueur supprimé », sans avatar                                                                                | jets de la campagne                               |
+| audio     | `audio-campaigns`     | réglages du mixeur                                                                                                                                                                       | existait                                          |
+| billing   | `billing-accounts`    | client Stripe supprimé si Stripe configuré, puis toutes les données de paiement                                                                                                          | —                                                 |
+| history   | —                     | **question ouverte**                                                                                                                                                                     | **question ouverte**                              |
 
-**Principe** : le chemin de [nettoyage.md](nettoyage.md) — chaque service supprime ses propres
-données en réaction à un événement, jamais sur appel direct ; les fichiers partent avec le
-balayage des orphelins, une fois plus référencés.
+Les fichiers partent avec le balayage des orphelins ([nettoyage.md](nettoyage.md)), une fois plus
+référencés. Les modèles de PNJ et d'objets ne partent que par un geste du MJ : supprimer sa
+campagne ou son compte.
 
-| Service   | Sur `identity.user_deleted`                                                                                                                                                                                                                                       | Sur `campaign.deleted` (manque aujourd'hui) |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| campaign  | supprime ses campagnes de MJ (même chemin que `DELETE /v1/campaigns/:id`, un `campaign.deleted` par campagne) ; retire ses adhésions, invitations, bannissements, notes personnelles, épingles, campagne active ; ses tracés et mesures sur les cartes des autres | — (cascade SQL existante)                   |
-| character | purge immédiate de ses personnages, sans corbeille ; candidatures                                                                                                                                                                                                 | PNJ, modèles, catégories de la campagne     |
-| dice      | préférences, inventaire, jets personnels                                                                                                                                                                                                                          | jets de la campagne                         |
-| audio     | réglages du mixeur                                                                                                                                                                                                                                                | existe déjà                                 |
-| history   | événements sans campagne dont il est l'auteur                                                                                                                                                                                                                     | événements de la campagne                   |
-| billing   | client, droits ; client Stripe supprimé (service éteint aujourd'hui)                                                                                                                                                                                              | —                                           |
-| identity  | déjà fait (cascade : profil, sessions, amis, clés, liaison du bot Discord)                                                                                                                                                                                        | —                                           |
+### Question ouverte : history
 
-À valider :
+Le journal est immuable par construction (trigger `events_immutable`, même pour le propriétaire)
+et chaîné par campagne (`prev_hash`). Or il garde :
 
-1. **Délai** — (a) suppression immédiate, comme aujourd'hui ; (b) **recommandé** : compte
-   désactivé tout de suite (sessions coupées, invisible), purge définitive à 7 jours, annulable
-   en se reconnectant, comme la corbeille des personnages. Protège d'une erreur ou d'un compte
-   volé.
-2. **Historique dans les campagnes des autres** — chaque campagne a une chaîne d'empreintes
-   (`prev_hash`) : effacer des événements la casse. **Recommandé** : les garder, l'auteur n'étant
-   plus qu'un identifiant sans compte, affiché « Joueur supprimé » ; vérifier qu'aucun payload ne
-   recopie un nom ou un e-mail de compte. Sinon : supprimer et recalculer la chaîne.
-3. **La fenêtre de suppression** liste ce qui part : « 3 campagnes de MJ et leurs 7 joueurs,
-   4 personnages ». Le bouton n'est réactivé qu'avec la propagation en place.
+- les événements de compte (`identity.*`, sans campagne) ;
+- l'historique entier des campagnes supprimées ;
+- `dice.rolled` recopie `userName` : le pseudo resterait dans les campagnes des autres.
 
-## Conception à valider : export des données
+Proposition : deux fonctions `SECURITY DEFINER` du propriétaire, seules autorisées à lever
+l'immuabilité (réglage local à la transaction, vérifié par le trigger) :
+`erase_campaign(id)` (supprime la chaîne et sa tête) et `erase_user(id)` (supprime ses
+événements sans campagne, remplace `userName` par « Joueur supprimé » dans ses événements de
+campagne et recalcule la chaîne à partir du premier modifié ; `verify_chain` reste vraie).
 
-**Recommandé** : un bouton « Télécharger mes données » (Profil › Sécurité) qui appelle
-`GET /v1/<service>/me/export` sur chaque service avec la session de la personne, et assemble un
-seul fichier JSON dans le navigateur. Pas d'orchestrateur côté serveur, chaque service sait ce
-qui lui appartient. Les fichiers (images) y figurent par leur adresse, pas en pièces jointes.
+## Export des données (fait)
 
-## Conception à valider : comptes inactifs
+Profil › Sécurité › « Télécharger » : `lib/data-export.ts` lit les API de chaque service avec la
+session de la personne et assemble `yner-donnees-AAAA-MM-JJ.json` (profil, titres, sessions,
+amis, clés d'API, campagnes, personnages complets, ses notes complètes, jets personnels,
+réglages des dés et du mixeur). Une rubrique illisible est notée `{ error }` sans bloquer les
+autres.
 
-**Recommandé** : sans connexion depuis 3 ans, un e-mail prévient 30 jours avant, puis le compte
-suit le chemin de suppression. Demande une colonne `users.last_seen_at` (les sessions sont
-purgées, elles ne disent plus la dernière visite), mise à jour au rafraîchissement du jeton,
-au plus une fois par jour.
+## Comptes inactifs (fait)
+
+Dernière visite `users.last_seen_at`, au plus une écriture par jour (connexion, rafraîchissement) ;
+partie du déploiement pour les comptes existants et importés (sinon les anciens comptes Firebase
+seraient tous prévenus d'un coup). Sans visite depuis 3 ans : e-mail `inactivite` ; sans retour
+sous 30 jours : suppression programmée comme ci-dessus.
+
+Modèles Kourrier ajoutés : `suppression-programmee`, `inactivite` (`infra/mails/publier.sh`).
 
 ## Licences des contenus
 
