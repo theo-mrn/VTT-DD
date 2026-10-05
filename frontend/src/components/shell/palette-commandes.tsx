@@ -3,22 +3,16 @@
 import { LogIn, Plus, Swords, UserRound } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { Illustration } from '@/components/commun/illustration';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from '@/components/ui/command';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Kbd } from '@/components/ui/kbd';
+import { SearchPalette } from '@/components/search/search-palette';
+import { useRulesSearch } from '@/components/search/use-rules-search';
+import { CommandEmpty, CommandGroup, CommandItem, CommandShortcut } from '@/components/ui/command';
+import { SelectField } from '@/components/ui/select';
 import { useCampagnes } from '@/lib/campagnes';
 import { iconeNote, useNotes } from '@/lib/notes';
 import { lienPersonnage, usePersonnages } from '@/lib/personnages';
+import { usePreferenceLocale } from '@/lib/preference-locale';
+import { useSystemes } from '@/lib/systemes';
 import { LIENS_COMPTE, NAV_PRINCIPALE, NAV_SOCIALE } from './navigation';
 
 // Moteur de règles (jets) : chargé seulement quand la saisie ressemble à une formule de dés
@@ -26,7 +20,11 @@ const GroupeLancer = dynamic(() => import('./palette-jet').then((m) => m.GroupeL
   ssr: false,
 });
 
-/** Palette ⌘K : aller partout, créer, et lancer une formule de dés directement. */
+/**
+ * Palette ⌘K de l'accueil (docs/recherche.md) : aller partout, créer, lancer une formule de
+ * dés, et chercher dans les règles d'un système (celui de la dernière campagne par défaut,
+ * au choix ensuite, gardé dans ce navigateur).
+ */
 export function PaletteCommandes({
   ouverte,
   onOuverte,
@@ -35,45 +33,45 @@ export function PaletteCommandes({
   onOuverte: (v: boolean) => void;
 }>) {
   const router = useRouter();
-  const [saisie, setSaisie] = useState('');
   const campagnes = useCampagnes();
   const personnages = usePersonnages();
   const notes = useNotes();
-  const formuleProbable = /d\d/i.test(saisie);
-
-  function aller(href: string) {
-    onOuverte(false);
-    setSaisie('');
-    router.push(href);
-  }
+  const systemes = useSystemes();
+  const [choisi, setChoisi] = usePreferenceLocale<string | null>('recherche-systeme', null);
+  const liste = systemes.data ?? [];
+  const systemId =
+    liste.find((s) => s.id === choisi)?.id ?? campagnes.data?.[0]?.system ?? liste[0]?.id ?? null;
+  const rules = useRulesSearch({ systemId, campaignId: null, gm: false, enabled: ouverte });
 
   return (
-    <Dialog open={ouverte} onOpenChange={onOuverte}>
-      <DialogContent
-        unstyled
-        showCloseButton={false}
-        className="top-[16%] max-w-xl translate-y-0 overflow-hidden rounded-2xl border border-border-strong bg-popover shadow-elevated data-[state=open]:slide-in-from-top-4 sm:max-w-xl"
-      >
-        <DialogTitle className="sr-only">Palette de commandes</DialogTitle>
-        <Command loop>
-          <CommandInput
-            value={saisie}
-            onValueChange={setSaisie}
-            placeholder="Chercher une page, une campagne… ou lancer « 2d6+3 »"
-            apres={<Kbd>Échap</Kbd>}
+    <SearchPalette
+      open={ouverte}
+      onOpenChange={onOuverte}
+      rules={{ ...rules, inventory: null, engine: null }}
+      systemPicker={
+        liste.length > 1 && systemId ? (
+          <SelectField
+            value={systemId}
+            onValueChange={setChoisi}
+            aria-label="Système de jeu"
+            className="h-7 w-40 shrink-0 text-xs"
+            options={liste.map((sys) => ({ valeur: sys.id, nom: sys.nom }))}
           />
-          <CommandList>
-            <CommandEmpty>Aucun résultat.</CommandEmpty>
+        ) : undefined
+      }
+      navigation={({ query, close, rulesPreview }) => {
+        const aller = (href: string) => {
+          close();
+          router.push(href);
+        };
+        return (
+          <>
+            {/* Les règles trouvées ne comptent pas pour cmdk (montées de force) */}
+            {!rulesPreview && <CommandEmpty>Aucun résultat.</CommandEmpty>}
 
-            {formuleProbable && (
-              <GroupeLancer
-                saisie={saisie}
-                onLance={() => {
-                  onOuverte(false);
-                  setSaisie('');
-                }}
-              />
-            )}
+            {/d\d/i.test(query) && <GroupeLancer saisie={query} onLance={close} />}
+
+            {rulesPreview}
 
             <CommandGroup heading="Actions">
               <CommandItem onSelect={() => aller('/campagnes/nouvelle')}>
@@ -160,9 +158,9 @@ export function PaletteCommandes({
                 ))}
               </CommandGroup>
             )}
-          </CommandList>
-        </Command>
-      </DialogContent>
-    </Dialog>
+          </>
+        );
+      }}
+    />
   );
 }

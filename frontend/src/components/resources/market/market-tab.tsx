@@ -297,7 +297,8 @@ function MarketTable({
   );
 }
 
-function AddButton({
+/** « Ajouter » (ligne) ou « Ajouter à l'inventaire de … » (fiche), refus expliqué en info-bulle. */
+export function AddButton({
   target,
   entry,
   large = false,

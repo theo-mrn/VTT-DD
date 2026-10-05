@@ -7,7 +7,7 @@
  */
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { AlertTriangle, SearchX, Skull } from 'lucide-react';
-import { useDeferredValue, useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -344,8 +344,17 @@ function CreatureCard({ item, onOpen }: Readonly<{ item: BestiaryItem; onOpen():
   );
 }
 
-/** Fiche d'une créature : en-tête, statistiques par groupe, description, actions. */
-function CreatureSheet({ item }: Readonly<{ item: BestiaryItem }>) {
+/**
+ * Fiche d'une créature : en-tête, statistiques par groupe, description, actions. Dans une
+ * fenêtre (bestiaire), son titre est celui de la fenêtre ; ailleurs (recherche), un titre simple.
+ */
+export function CreatureSheet({
+  item,
+  inDialog = true,
+  actions,
+}: Readonly<{ item: BestiaryItem; inDialog?: boolean; actions?: ReactNode }>) {
+  const Title = inDialog ? DialogTitle : 'h2';
+  const Description = inDialog ? DialogDescription : 'p';
   return (
     <article className="flex flex-col">
       <header className="flex gap-4 border-b border-border p-5 pr-12">
@@ -361,14 +370,17 @@ function CreatureSheet({ item }: Readonly<{ item: BestiaryItem }>) {
           </span>
         )}
         <div className="min-w-0 space-y-1.5">
-          <DialogTitle>{item.name}</DialogTitle>
-          <DialogDescription>{item.subtitle ?? item.category ?? 'Créature'}</DialogDescription>
+          <Title className="text-lg font-semibold leading-tight">{item.name}</Title>
+          <Description className="text-sm text-muted-foreground">
+            {item.subtitle ?? item.category ?? 'Créature'}
+          </Description>
           <div className="flex flex-wrap gap-1.5">
             <Badge ton={item.source === 'campaign' ? 'primaire' : 'neutre'}>
               {item.source === 'campaign' ? 'Modèle de la campagne' : 'Référence du système'}
             </Badge>
             {item.category && item.subtitle && <Badge>{item.category}</Badge>}
           </div>
+          {actions && <div className="pt-1">{actions}</div>}
         </div>
       </header>
       <div className="space-y-5 p-5">
