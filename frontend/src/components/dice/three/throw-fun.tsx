@@ -5,6 +5,7 @@ import React, {
   useRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useImperativeHandle,
   forwardRef,
 } from 'react';
@@ -83,6 +84,8 @@ const REST_SPEED = 0.3;
 const REST_SPIN = 0.5;
 const REST_CHECKS = 2;
 const REST_CHECK_MS = 150;
+/** Délai sans aucune donnée du moteur physique avant de le considérer mort (voir `onStall`). */
+const STALL_TIMEOUT_MS = 1500;
 
 const FunDie = ({
   type,
@@ -91,6 +94,7 @@ const FunDie = ({
   angularVelocity,
   skin,
   onStopped,
+  onStall,
 }: {
   type: string;
   position: [number, number, number];
@@ -98,6 +102,8 @@ const FunDie = ({
   angularVelocity: [number, number, number];
   skin: DiceSkin;
   onStopped: () => void;
+  /** Aucune donnée du moteur physique (worker mort) : le lanceur le relance. */
+  onStall: () => void;
 }) => {
   const { hull } = dieShape(type);
   const lastImpactTime = useRef(0);
@@ -164,8 +170,33 @@ const FunDie = ({
   useEffect(() => {
     onStoppedRef.current = onStopped;
   });
-  useEffect(() => api.velocity.subscribe((v) => (velocity.current = v)), [api]);
-  useEffect(() => api.angularVelocity.subscribe((v) => (spin.current = v)), [api]);
+  // Vrai dès que le worker de cannon a envoyé une donnée pour ce dé : sans elle, le dé reste
+  // figé à son point de départ (en bas de l'écran) et ne roulera jamais.
+  const physicsAlive = useRef(false);
+  // Abonnements en effets de mise en page, déclarés après `useConvexPolyhedron` : au démontage,
+  // le désabonnement part dans la même tâche que le retrait du corps. Le worker ne retire
+  // qu'UN abonnement par corps ; avec un effet passif, un pas de calcul glissé entre les deux
+  // lit le corps disparu, lève une erreur et ne rend jamais ses tampons : toute la physique
+  // reste figée (le dé suivant apparaît en bas sans rouler).
+  useLayoutEffect(
+    () =>
+      api.velocity.subscribe((v) => {
+        velocity.current = v;
+        physicsAlive.current = true;
+      }),
+    [api],
+  );
+  const onStallRef = useRef(onStall);
+  useEffect(() => {
+    onStallRef.current = onStall;
+  });
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      if (!physicsAlive.current) onStallRef.current();
+    }, STALL_TIMEOUT_MS);
+    return () => window.clearTimeout(t);
+  }, [api]);
+  useLayoutEffect(() => api.angularVelocity.subscribe((v) => (spin.current = v)), [api]);
   useEffect(() => {
     if (stopped) return;
     let calm = 0;
@@ -316,6 +347,23 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
     // (un dé qui apparaît en pleine compilation la rallonge d'autant).
     const pendingRolls = useRef<{ skinId: string; diceType: string }[]>([]);
     const [economy] = useState(() => prefersEconomy());
+
+    // Le worker de @react-three/cannon ne survit pas à un remontage de <Physics> pendant un pas
+    // de calcul : le nouveau ne calcule plus rien, et chaque dé lancé ensuite apparaît figé à
+    // son point de départ. <Physics> reste donc monté (en pause quand rien ne roule) ; si un dé
+    // ne reçoit aucune donnée, le moteur est relancé (nouvelle clé) et les dés en cours repartent
+    // de leur position de départ. Même garde que le lanceur de la table (`thrower.tsx`).
+    const [physicsEpoch, setPhysicsEpoch] = useState(0);
+    const stalledEpochRef = useRef(-1);
+    const handleStall = useCallback(() => {
+      setPhysicsEpoch((epoch) => {
+        if (stalledEpochRef.current === epoch) return epoch;
+        stalledEpochRef.current = epoch;
+        console.warn('Moteur physique des dés sans réponse : relance');
+        return epoch + 1;
+      });
+      setStoppedIds(new Set());
+    }, []);
 
     const startWarm = useCallback((skinId: string, type: string) => {
       setCanvasOn(true);
@@ -494,27 +542,28 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
               {(moving || warmTarget) && <ContinuousFrames />}
               {dice.length > 0 && !moving && <RestTicker fps={economy ? 12 : 24} />}
 
-              {dice.length > 0 && (
-                <Physics
-                  gravity={[0, -60, 0]}
-                  defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }}
-                  allowSleep={true}
-                  iterations={7}
-                >
-                  <Table />
-                  {dice.map((d) => (
-                    <FunDie
-                      key={d.id}
-                      type={d.type}
-                      position={d.pos}
-                      impulse={d.imp}
-                      angularVelocity={d.ang}
-                      skin={getSkinById(d.skinId)}
-                      onStopped={() => markStopped(d.id)}
-                    />
-                  ))}
-                </Physics>
-              )}
+              <Physics
+                key={physicsEpoch}
+                gravity={[0, -60, 0]}
+                defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }}
+                allowSleep={true}
+                iterations={7}
+                isPaused={!moving}
+              >
+                <Table />
+                {dice.map((d) => (
+                  <FunDie
+                    key={d.id}
+                    type={d.type}
+                    position={d.pos}
+                    impulse={d.imp}
+                    angularVelocity={d.ang}
+                    skin={getSkinById(d.skinId)}
+                    onStopped={() => markStopped(d.id)}
+                    onStall={handleStall}
+                  />
+                ))}
+              </Physics>
             </Canvas>
           </div>
         )}
