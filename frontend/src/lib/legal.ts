@@ -1,0 +1,39 @@
+/**
+ * Informations légales communes aux pages /legal, /privacy, /terms et /credits
+ * (docs/legal.md). Une seule source : une adresse qui change se corrige ici.
+ */
+
+export const LEGAL_UPDATED_AT = '5 octobre 2026';
+
+export const PUBLISHER = {
+  name: 'Théo MORIN',
+  status: 'particulier, à titre non professionnel',
+  email: 'contact@yner.fr',
+} as const;
+
+export const HOST = {
+  name: 'Hostinger International Ltd',
+  address: '61 Lordou Vironos Street, 6023 Larnaca, Chypre',
+  contact: 'https://www.hostinger.fr/contact',
+  /** Lieu des serveurs du cluster (données de la base comprises). */
+  location: 'Paris, France',
+} as const;
+
+export const LEGAL_PAGES = {
+  notice: '/legal',
+  privacy: '/privacy',
+  terms: '/terms',
+  credits: '/credits',
+} as const;
+
+/** Durées de conservation annoncées dans /privacy : à tenir alignées avec le code et l'infra. */
+export const RETENTION = {
+  /** Sessions (IP, navigateur) après expiration ou déconnexion : purge d'identity. */
+  sessionsDays: 30,
+  /** Journaux techniques (Loki). */
+  logsDays: 30,
+  /** Traces (Tempo). */
+  tracesDays: 3,
+  /** Sauvegardes de la base (CloudNativePG vers R2). */
+  backupsDays: 7,
+} as const;

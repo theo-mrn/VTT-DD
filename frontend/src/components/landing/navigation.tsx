@@ -16,7 +16,7 @@ export function Navigation() {
         </Link>
         <div className="flex items-center gap-2">
           <a
-            href="#fonctionnalites"
+            href="/#fonctionnalites"
             className="hidden rounded-full px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:block"
           >
             Fonctionnalités
