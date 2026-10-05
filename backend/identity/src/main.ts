@@ -3,7 +3,8 @@ import { buildIdentity } from './app.js';
 import { startIdentityBus } from './bus.js';
 import { IdentityConfig } from './config.js';
 import { createDb } from './db/client.js';
-import { purgeExpired } from './maintenance/retention.js';
+import { createMailer } from './mail/mailer.js';
+import { purgeExpired, runAccountLifecycle } from './maintenance/retention.js';
 
 const config = loadConfig(IdentityConfig);
 let stopBus: (() => Promise<void>) | undefined;
@@ -17,7 +18,14 @@ const app = await buildIdentity(config, {
 await start(app, config);
 
 {
-  // Durées de conservation (sessions, jetons d'e-mail) : une instance à la fois, toutes les 6 h
+  // Durées de conservation (sessions, jetons d'e-mail) et cycle de vie des comptes (suppressions
+  // à échéance, inactivité) : une instance à la fois, toutes les 6 h
+  const mailer = createMailer({
+    kourrierUrl: config.KOURRIER_URL,
+    kourrierApiKey: config.KOURRIER_API_KEY,
+    from: config.MAIL_FROM,
+    log: app.log,
+  });
   const retention = createDb(config.DATABASE_URL, {
     max: 1,
     applicationName: `${config.SERVICE_NAME}-retention`,
@@ -31,6 +39,14 @@ await start(app, config);
         const purged = await purgeExpired(retention.db);
         if (purged.sessions || purged.emailTokens)
           app.log.info({ purged }, 'sessions et jetons expirés supprimés');
+        const accounts = await runAccountLifecycle({
+          db: retention.db,
+          mailer,
+          appUrl: config.APP_URL,
+          log: app.log,
+        });
+        if (accounts.purged || accounts.expired || accounts.warned)
+          app.log.info({ accounts }, 'comptes supprimés, mis en suppression ou prévenus');
       });
     },
   });

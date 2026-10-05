@@ -1,0 +1,10 @@
+{{template "layout" .}}
+{{define "title"}}Votre compte n’a pas servi depuis 3 ans{{end}}
+{{define "content"}}
+<h1 style="font-size:20px;margin:0 0 16px;">Votre compte n’a pas servi depuis 3 ans</h1>
+<p>Pour ne pas garder vos données plus longtemps que nécessaire, les comptes YNER sans connexion depuis 3 ans sont supprimés.</p>
+<p>Sans connexion de votre part d’ici le <strong>{{.date}}</strong>, la suppression de votre compte sera programmée, avec vos personnages, vos notes et vos campagnes.</p>
+<p>Pour le garder, il suffit de vous reconnecter une fois.</p>
+<p style="margin:24px 0;"><a href="{{.lien}}" style="display:inline-block;padding:10px 16px;background:#7a4b2a;color:#ffffff;text-decoration:none;border-radius:6px;">Garder mon compte</a></p>
+<p style="font-size:12px;color:#666;">Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>{{.lien}}</p>
+{{end}}

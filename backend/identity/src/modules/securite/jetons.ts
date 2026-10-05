@@ -40,6 +40,11 @@ export function echeanceJeton(objet: ObjetJeton, maintenant: Date = new Date()):
 }
 
 /** Lien envoyé par e-mail : {APP_URL}/<page>?jeton=<jeton>. */
+/** Page de connexion du front (e-mails de suppression et d'inactivité : se reconnecter annule). */
+export function lienConnexion(appUrl: string): string {
+  return `${withoutTrailingSlashes(appUrl)}${PAGES_FRONT.connexion}`;
+}
+
 export function lienJeton(appUrl: string, objet: ObjetJeton, jeton: string): string {
   return `${withoutTrailingSlashes(appUrl)}${PAGE[objet]}?jeton=${encodeURIComponent(jeton)}`;
 }

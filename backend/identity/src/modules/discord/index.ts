@@ -31,6 +31,7 @@ import { ACCESS_TOKEN_TTL_SECONDS } from '../../tokens/jwt.js';
 import { secretsEgaux } from '../cles-api/cles.js';
 import { EN_TETE_SECRET_INTERNE } from '../cles-api/index.js';
 import { journaliserConnexion, resoudreCompte } from '../oauth/comptes.js';
+import { cancelDeletion, touchLastSeen } from '../securite/account-lifecycle.js';
 import {
   clientsDepuisConfig,
   ErreurFournisseur,
@@ -75,7 +76,13 @@ export async function botAccount(db: Db, discordUserId: string): Promise<string 
       ? db
           .select({ id: users.id })
           .from(users)
-          .where(and(eq(users.id, explicit.userId), isNull(users.disabledAt)))
+          .where(
+            and(
+              eq(users.id, explicit.userId),
+              isNull(users.disabledAt),
+              isNull(users.deletionRequestedAt),
+            ),
+          )
       : null
     : db
         .select({ id: users.id })
@@ -86,6 +93,7 @@ export async function botAccount(db: Db, discordUserId: string): Promise<string 
             eq(oauthAccounts.provider, 'discord'),
             eq(oauthAccounts.providerAccountId, discordUserId),
             isNull(users.disabledAt),
+            isNull(users.deletionRequestedAt),
           ),
         );
   if (!query) return null;
@@ -167,6 +175,9 @@ export async function registerDiscord(
       const compte = await resoudreCompte(db, eventContext(req), 'discord', echange.profil);
       if (compte.disabled) throw HttpError.forbidden('Compte désactivé');
       await journaliserConnexion(db, eventContext(req), 'discord', compte.userId);
+      // Se reconnecter annule une suppression demandée (docs/legal.md)
+      await cancelDeletion(db, eventContext(req), compte.userId);
+      await touchLastSeen(db, compte.userId);
       req.log.info({ userId: compte.userId, issue: compte.issue }, 'connexion activité Discord');
 
       return {

@@ -23,6 +23,7 @@ import type { Db } from '../db/client.js';
 import { appendEvent } from '../db/outbox.js';
 import type { ClientFirebase } from '../import/firebase-jit.js';
 import { migrerALaConnexion } from '../import/jit.js';
+import { cancelDeletion, touchLastSeen } from '../modules/securite/account-lifecycle.js';
 import type { FirebaseScryptParams } from '../passwords/firebase-scrypt.js';
 import { hashPassword, verifyPassword } from '../passwords/passwords.js';
 import { ACCESS_TOKEN_TTL_SECONDS, type JwtSigner } from '../tokens/jwt.js';
@@ -61,6 +62,8 @@ const TokenResponse = z.object({
   tokenType: z.literal('Bearer'),
   expiresIn: z.number(),
   user: z.object({ id: z.string() }),
+  /** Connexion qui annule une suppression de compte demandée (le front le signale). */
+  deletionCancelled: z.boolean().optional(),
 });
 
 const MESSAGE_ECHEC = 'E-mail ou mot de passe incorrect';
@@ -113,6 +116,9 @@ export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
   }
 
   async function ouvrirSession(req: FastifyRequest, reply: FastifyReply, userId: string) {
+    // Se reconnecter annule une suppression demandée (docs/legal.md)
+    const deletionCancelled = await cancelDeletion(deps.db, contexte(req), userId);
+    await touchLastSeen(deps.db, userId);
     const refresh = await startSession(deps.sessions, userId, client(req));
     poserCookie(reply, refresh);
     return {
@@ -120,6 +126,7 @@ export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
       tokenType: 'Bearer' as const,
       expiresIn: ACCESS_TOKEN_TTL_SECONDS,
       user: { id: userId },
+      ...(deletionCancelled ? { deletionCancelled } : {}),
     };
   }
 
@@ -259,6 +266,7 @@ export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
         throw HttpError.unauthorized('Session expirée, reconnectez-vous');
       }
       poserCookie(reply, resultat);
+      await touchLastSeen(deps.db, resultat.userId);
       return {
         accessToken: await deps.signer.sign({
           userId: resultat.userId,

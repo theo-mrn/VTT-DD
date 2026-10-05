@@ -1,0 +1,7 @@
+Bonjour,
+
+Votre compte YNER sera supprimé définitivement le {{.date}}, avec vos personnages, vos notes et les campagnes dont vous êtes le maître du jeu.
+
+Vous avez changé d’avis, ou vous n’êtes pas à l’origine de cette demande ? Reconnectez-vous avant cette date : la suppression sera annulée.
+
+Me reconnecter : {{.lien}}

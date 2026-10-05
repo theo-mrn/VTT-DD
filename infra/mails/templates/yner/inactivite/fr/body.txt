@@ -1,0 +1,7 @@
+Bonjour,
+
+Pour ne pas garder vos données plus longtemps que nécessaire, les comptes YNER sans connexion depuis 3 ans sont supprimés.
+
+Sans connexion de votre part d’ici le {{.date}}, la suppression de votre compte sera programmée, avec vos personnages, vos notes et vos campagnes.
+
+Pour le garder, il suffit de vous reconnecter une fois : {{.lien}}

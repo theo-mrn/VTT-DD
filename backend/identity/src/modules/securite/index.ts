@@ -26,17 +26,18 @@ import {
   reinitialiserMotDePasse,
   revoquerFamille,
   revoquerToutes,
-  supprimerCompte,
   verifierEmail,
 } from './depot.js';
 import {
   attendrePlancher,
   echeanceJeton,
   empreinteJeton,
+  lienConnexion,
   lienJeton,
   nouveauJeton,
 } from './jetons.js';
-import { mailReinitialisation, mailVerification } from './mails.js';
+import { requestDeletion } from './account-lifecycle.js';
+import { mailReinitialisation, mailSuppressionProgrammee, mailVerification } from './mails.js';
 
 /** Même chemin que le cookie posé par routes/auth.ts. */
 const COOKIE_PATH = '/v1/auth';
@@ -317,10 +318,21 @@ export const register: Module = async (app, deps) => {
         }
         await verifierActuel(stocke, saisi);
       }
-      const ok = await supprimerCompte(deps.db, contexte(req), userId);
-      if (!ok) throw HttpError.notFound('Compte introuvable');
+      // Suppression différée (docs/legal.md) : sessions coupées tout de suite, purge à 7 jours,
+      // annulée par une reconnexion ; l'e-mail prévient aussi d'une demande faite par un tiers
+      const demande = await requestDeletion(deps.db, contexte(req), userId);
+      if (!demande) throw HttpError.notFound('Compte introuvable');
+      if (demande.email) {
+        const email = demande.email;
+        envoyerEnArrierePlan(req, userId, () =>
+          deps.mailer.envoyer(
+            mailSuppressionProgrammee(email, lienConnexion(deps.config.APP_URL), demande.purgeAt),
+          ),
+        );
+      }
       effacerCookie(reply);
-      reply.code(204);
+      reply.code(202);
+      return { purgeAt: demande.purgeAt.toISOString() };
     },
   );
 };
