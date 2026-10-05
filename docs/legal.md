@@ -113,5 +113,5 @@ au plus une fois par jour.
 - **Illustrations** : achetées sur Etsy sous licence d'usage commercial (intégration dans un
   produit, pas de revente des fichiers seuls) ; d'autres générées. La bibliothèque n'a pas de
   bouton de téléchargement : à garder ainsi.
-- **Polices** : Google Fonts (OFL, Apache 2.0) ; `HobbitonBrushHand.ttf` et `Aurebesh-Italic.ttf`
-  (systèmes de jeu) : licences à vérifier.
+- **Polices** : Google Fonts (OFL, Apache 2.0) ; Hobbiton Brush Hand (Nancy Lorenz, « 100 %
+  gratuite » sur dafont) et Aurebesh : gratuites, confirmé par Théo le 2026-10-05.

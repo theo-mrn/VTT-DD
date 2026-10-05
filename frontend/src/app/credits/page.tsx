@@ -71,6 +71,9 @@ export default function CreditsPage() {
           et les autres) sont des polices libres, distribuées sous licence SIL Open Font License 1.1
           ou Apache 2.0, pour la plupart via Google Fonts.
         </p>
+        <p>
+          Systèmes de jeu : Hobbiton Brush Hand, de Nancy Lorenz, et Aurebesh, polices gratuites.
+        </p>
       </LegalSection>
 
       <LegalSection title="Logiciels libres">
