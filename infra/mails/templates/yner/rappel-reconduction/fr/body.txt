@@ -1,0 +1,7 @@
+Bonjour,
+
+Votre abonnement annuel YNER Premium sera renouvelé automatiquement le {{.date_renouvellement}}, pour {{.montant}}.
+
+Vous n’avez rien à faire pour le garder. Si vous ne souhaitez pas le renouveler, résiliez-le avant cette date : vous garderez vos avantages jusqu’au bout de la période en cours.
+
+Gérer mon abonnement : {{.lien_abonnement}}

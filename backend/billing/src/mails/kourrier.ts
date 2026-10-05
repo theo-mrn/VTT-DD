@@ -15,7 +15,8 @@ export type MailTemplate =
   | 'paiement-echoue'
   | 'resiliation-programmee'
   | 'premium-termine'
-  | 'remboursement';
+  | 'remboursement'
+  | 'rappel-reconduction';
 
 export interface Mail {
   to: string;

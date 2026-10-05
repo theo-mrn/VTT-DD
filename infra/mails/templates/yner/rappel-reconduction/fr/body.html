@@ -1,0 +1,8 @@
+{{template "layout" .}}
+{{define "title"}}Renouvellement de votre abonnement{{end}}
+{{define "content"}}
+<h1 style="font-size:20px;margin:0 0 16px;">Renouvellement de votre abonnement</h1>
+<p>Votre abonnement annuel YNER Premium sera renouvelé automatiquement le <strong>{{.date_renouvellement}}</strong>, pour <strong>{{.montant}}</strong>.</p>
+<p>Vous n’avez rien à faire pour le garder. Si vous ne souhaitez pas le renouveler, résiliez-le avant cette date : vous garderez vos avantages jusqu’au bout de la période en cours.</p>
+<p style="margin:24px 0;"><a href="{{.lien_abonnement}}" style="display:inline-block;padding:10px 16px;background:#7a4b2a;color:#ffffff;text-decoration:none;border-radius:6px;">Gérer mon abonnement</a></p>
+{{end}}

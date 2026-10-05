@@ -4,16 +4,28 @@ import { BillingConfig } from './config.js';
 import { createDb } from './db/client.js';
 import { MAILS_CONSUMER, startMailsConsumer } from './mails/consumer.js';
 import { kourrierMailer } from './mails/kourrier.js';
+import { startJobs } from './jobs/jobs.js';
+import { stripeApi } from './stripe/client.js';
 
 const config = loadConfig(BillingConfig);
-// Pool à part pour le consommateur des e-mails, fermé après le relais et lui
-const mailsDb = createDb(config.DATABASE_URL);
+// Pool à part pour le travail de fond (e-mails, tâches planifiées), fermé après eux
+const background = createDb(config.DATABASE_URL);
 let stopRelay: (() => Promise<void>) | undefined;
-// Le relais s'arrête avant la fermeture du pool du service (onShutdown passe en premier)
+let stopJobs: (() => Promise<void>) | undefined;
+// Relais et tâches s'arrêtent avant la fermeture des pools (onShutdown passe en premier)
 const app = await buildBilling(config, {
-  onShutdown: [async () => stopRelay?.(), async () => mailsDb.pool.end()],
+  onShutdown: [
+    async () => stopRelay?.(),
+    async () => stopJobs?.(),
+    async () => background.pool.end(),
+  ],
 });
 await start(app, config);
+
+// Réconciliation avec Stripe et rappels de reconduction, une fois par jour
+if (config.STRIPE_SECRET_KEY) {
+  stopJobs = startJobs({ db: background.db, stripe: stripeApi(config.STRIPE_SECRET_KEY) }, app.log);
+}
 
 if (config.NATS_URL) {
   const mailer = kourrierMailer({
@@ -38,7 +50,7 @@ if (config.NATS_URL) {
         start: (bus) =>
           startMailsConsumer({
             bus,
-            db: mailsDb.db,
+            db: background.db,
             mailer,
             appUrl: config.APP_URL,
             log: app.log,

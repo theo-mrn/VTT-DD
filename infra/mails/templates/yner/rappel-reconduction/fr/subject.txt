@@ -1,0 +1,1 @@
+Votre abonnement YNER Premium sera renouvelé le {{.date_renouvellement}}

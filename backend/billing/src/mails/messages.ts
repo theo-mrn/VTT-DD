@@ -10,6 +10,7 @@
  *   billing.subscription_cancellation_scheduled → resiliation-programmee
  *   billing.subscription_ended      → premium-termine
  *   billing.purchase_refunded       → remboursement
+ *   billing.renewal_reminder_due    → rappel-reconduction (abonnement annuel, loi Chatel)
  */
 import { PAGES_FRONT, type EventEnvelope } from '@vtt/contracts';
 import { eq } from 'drizzle-orm';
@@ -128,6 +129,16 @@ async function contentFor(
 
     case 'billing.subscription_ended':
       return { template: 'premium-termine', data: { lien_abonnement: links.lien_abonnement } };
+
+    case 'billing.renewal_reminder_due':
+      return {
+        template: 'rappel-reconduction',
+        data: {
+          date_renouvellement: day(p.renewalDate as string),
+          montant: money(Number(p.amountCents)),
+          lien_abonnement: links.lien_abonnement,
+        },
+      };
 
     case 'billing.purchase_refunded': {
       const item = itemOf(p.kind as ItemKind, String(p.itemId));

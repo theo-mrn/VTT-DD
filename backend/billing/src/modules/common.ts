@@ -106,12 +106,26 @@ export function checkoutUrls(config: BillingConfig, returnUrl: string) {
 
 /**
  * Réglages communs des sessions Checkout : adresse de facturation demandée si
- * nécessaire, TVA par Stripe Tax si STRIPE_TAX=on (l'adresse d'un client
+ * nécessaire, CGV et renonciation au droit de rétractation si STRIPE_TERMS=on,
+ * TVA par Stripe Tax si STRIPE_TAX=on (l'adresse d'un client
  * existant est alors mise à jour depuis la session, exigé par Stripe).
  */
 export function taxParams(config: BillingConfig, existingCustomer: boolean) {
   return {
     billing_address_collection: 'auto' as const,
+    ...(config.STRIPE_TERMS === 'on'
+      ? {
+          consent_collection: { terms_of_service: 'required' as const },
+          custom_text: {
+            terms_of_service_acceptance: {
+              message:
+                `J’accepte les [conditions générales de vente](${config.APP_URL}/cgv) et ` +
+                'demande l’accès immédiat au contenu numérique, en renonçant à mon droit de ' +
+                'rétractation.',
+            },
+          },
+        }
+      : {}),
     ...(config.STRIPE_TAX === 'on'
       ? {
           automatic_tax: { enabled: true },

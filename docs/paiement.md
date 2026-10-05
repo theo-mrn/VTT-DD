@@ -51,6 +51,8 @@ required`, URL déclarée dans Stripe). Texte à fournir ou valider par Théo.
   « Tâches planifiées »).
 - **Résiliation en trois clics** : bouton « Résilier » directement dans le compte, sans passer par
   le portail.
+- Acceptation des CGV et renonciation dans Checkout : `STRIPE_TERMS=on`, une fois `/cgv` en ligne
+  et son URL déclarée dans Stripe (_Settings → Public details → Terms of service_).
 
 ## Modèle de données (schéma `billing`)
 
@@ -181,12 +183,17 @@ consommateur ne lit que les événements à venir : un déploiement n'envoie rie
   liens des e-mails.
 - **`/cgv`** : lot 5.
 
-## Tâches planifiées (dans billing, verrou consultatif : un seul réplica)
+## Tâches planifiées (dans billing)
 
-- **Réconciliation** (chaque nuit) : relit chez Stripe les abonnements non terminés et les compare
-  à la base ; corrige et journalise tout écart (webhook perdu).
-- **Rappel de reconduction** (chaque jour) : abonnements annuels qui se renouvellent dans 30 jours,
-  e-mail une seule fois par période.
+Lancées une minute après le démarrage puis toutes les heures ; chacune ne tourne qu'**une fois
+par jour** (heure de Paris), réservée dans `billing.job_runs` : avec plusieurs réplicas, un seul
+l'exécute.
+
+- **Réconciliation** : relit chez Stripe les abonnements en cours et recopie leur état ; un
+  webhook perdu est rattrapé avec ses effets (droits, événements, e-mails).
+- **Rappel de reconduction** (loi Chatel) : abonnements annuels en cours, non résiliés, qui se
+  renouvellent dans les 45 jours ; un `billing.renewal_reminder_due` par échéance
+  (`billing.renewal_reminders`), e-mail `rappel-reconduction`.
 
 ## Exploitation
 

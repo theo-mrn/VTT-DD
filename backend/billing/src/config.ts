@@ -35,6 +35,13 @@ export const BillingConfig = BaseConfig.extend({
    * (tax_behavior inclusive) : le montant payé ne change pas.
    */
   STRIPE_TAX: z.enum(['on', 'off']).default('off'),
+  /**
+   * Acceptation des CGV et renonciation au droit de rétractation (contenu
+   * numérique livré tout de suite, art. L221-28 13° du Code de la consommation)
+   * cochées dans Checkout. À activer une fois la page /cgv en ligne et son URL
+   * déclarée dans Stripe (Settings → Public details → Terms of service).
+   */
+  STRIPE_TERMS: z.enum(['on', 'off']).default('off'),
 
   /**
    * Bus d'événements : le relais d'outbox y publie les droits
