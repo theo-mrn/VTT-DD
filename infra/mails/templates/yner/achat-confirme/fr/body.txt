@@ -1,0 +1,8 @@
+Bonjour,
+
+Votre paiement de {{.montant}} est confirmé : {{.article}} est désormais dans votre collection.
+
+Facture {{.numero}} : {{.lien_facture}}
+PDF : {{.lien_pdf}}
+
+Voir ma collection : {{.lien_collection}}

@@ -1,14 +1,27 @@
 import { loadConfig, start, startOutboxRelayWithBus } from '@vtt/platform';
 import { buildBilling } from './app.js';
 import { BillingConfig } from './config.js';
+import { createDb } from './db/client.js';
+import { MAILS_CONSUMER, startMailsConsumer } from './mails/consumer.js';
+import { kourrierMailer } from './mails/kourrier.js';
 
 const config = loadConfig(BillingConfig);
+// Pool à part pour le consommateur des e-mails, fermé après le relais et lui
+const mailsDb = createDb(config.DATABASE_URL);
 let stopRelay: (() => Promise<void>) | undefined;
 // Le relais s'arrête avant la fermeture du pool du service (onShutdown passe en premier)
-const app = await buildBilling(config, { onShutdown: [async () => stopRelay?.()] });
+const app = await buildBilling(config, {
+  onShutdown: [async () => stopRelay?.(), async () => mailsDb.pool.end()],
+});
 await start(app, config);
 
 if (config.NATS_URL) {
+  const mailer = kourrierMailer({
+    url: config.KOURRIER_URL,
+    apiKey: config.KOURRIER_API_KEY,
+    from: config.MAIL_FROM,
+    log: app.log,
+  });
   // Après le démarrage : NATS injoignable ne bloque pas le service, le relais réessaie
   stopRelay = startOutboxRelayWithBus({
     natsUrl: config.NATS_URL,
@@ -18,7 +31,22 @@ if (config.NATS_URL) {
     listenConnectionString: config.DATABASE_DIRECT_URL,
     applicationName: `${config.SERVICE_NAME}-outbox-relay`,
     logger: app.log,
+    // E-mails de paiement (achat, facture, échec, résiliation…), à partir des événements
+    consumers: [
+      {
+        name: MAILS_CONSUMER,
+        start: (bus) =>
+          startMailsConsumer({
+            bus,
+            db: mailsDb.db,
+            mailer,
+            appUrl: config.APP_URL,
+            log: app.log,
+            logger: app.log as never,
+          }),
+      },
+    ],
   });
 } else {
-  app.log.warn('NATS_URL absent : les droits restent dans l’outbox, non publiés');
+  app.log.warn('NATS_URL absent : droits et e-mails restent dans l’outbox, non publiés');
 }

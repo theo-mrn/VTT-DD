@@ -8,7 +8,7 @@ livre.
 
 ```
 identity ──POST /v1/emails──► Kourrier ──► Mailpit (dev) / AWS SES (cluster)
-           { template: "reinitialisation", data: { lien } }
+billing  ─┘ { template: "reinitialisation", data: { lien } }
                                  │
                        templates : ce dossier (dev), R2 (cluster)
 ```
@@ -31,7 +31,10 @@ templates/yner/<modele>/fr/body.txt          texte brut (toujours le fournir)
 ```
 
 `yner` est le tenant de Kourrier ; `<modele>` correspond au type `ModeleMail` de
-`backend/identity/src/mail/mailer.ts`. Les données sont accessibles par `{{.lien}}`.
+`backend/identity/src/mail/mailer.ts` (compte) ou `MailTemplate` de
+`backend/billing/src/mails/kourrier.ts` (paiement : achat-confirme, premium-active, facture,
+paiement-echoue, resiliation-programmee, premium-termine, remboursement ; données décrites dans
+`backend/billing/src/mails/messages.ts`). Les données sont accessibles par `{{.lien}}`.
 Dans `body.html`, Go échappe tout automatiquement : une donnée ne peut pas injecter de
 HTML. La syntaxe complète est décrite dans l'ADR 010 de Kourrier.
 
@@ -42,6 +45,9 @@ HTML. La syntaxe complète est décrite dans l'ADR 010 de Kourrier.
    `npx wrangler login`). Le staging l'utilise en moins d'une minute, sans redéploiement.
 
 ### Ajouter un e-mail
+
+En dev, Kourrier ne voit un **nouveau dossier** de template qu'après un redémarrage :
+`docker restart vtt-kourrier-1` (les modifications de fichiers existants, elles, sont immédiates).
 
 1. Créer `templates/yner/<modele>/fr/` (les trois fichiers).
 2. Ajouter `<modele>` au type `ModeleMail` et une fonction dans le module concerné

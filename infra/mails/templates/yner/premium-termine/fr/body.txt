@@ -1,0 +1,4 @@
+Bonjour,
+
+Votre abonnement YNER Premium a pris fin. Les dés achetés à l’unité restent à vous.
+Merci de nous avoir soutenus. Vous pouvez revenir quand vous le souhaitez : {{.lien_abonnement}}

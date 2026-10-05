@@ -1,0 +1,8 @@
+{{template "layout" .}}
+{{define "title"}}Votre résiliation est enregistrée{{end}}
+{{define "content"}}
+<h1 style="font-size:20px;margin:0 0 16px;">Votre résiliation est enregistrée</h1>
+<p>Votre abonnement YNER Premium ne sera pas renouvelé. Vous gardez tous vos avantages jusqu’au <strong>{{.date_fin}}</strong>.</p>
+<p>Vous avez changé d’avis ? Vous pouvez reprendre votre abonnement à tout moment avant cette date.</p>
+<p style="margin:24px 0;"><a href="{{.lien_abonnement}}" style="display:inline-block;padding:10px 16px;background:#7a4b2a;color:#ffffff;text-decoration:none;border-radius:6px;">Reprendre mon abonnement</a></p>
+{{end}}

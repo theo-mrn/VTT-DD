@@ -20,6 +20,9 @@ env:
   JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json
   # Retours de Stripe Checkout (/paiement/succes, /paiement/annule) et du portail
   APP_URL: https://staging.yner.fr
+  # E-mails de paiement envoyés par Kourrier (namespace kourrier), avec la clé
+  # KOURRIER_API_KEY du secret ci-dessous. Templates : infra/mails/templates/yner/.
+  KOURRIER_URL: http://kourrier.kourrier.svc:8080
   # Bus d'événements : droits publiés pour dice et identity (billing.entitlements_changed)
   NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
 # Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
@@ -30,6 +33,7 @@ secretEnv:
   REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret billing-secrets (SOPS) :
 #   DATABASE_URL             rôle billing_svc
+#   KOURRIER_API_KEY         kr_… du tenant yner (même clé qu'identity)
 #   STRIPE_SECRET_KEY        sk_… (ou clé restreinte rk_…) ; mode test en staging
 #   DATABASE_DIRECT_URL      même rôle vers vtt-pg-rw.data.svc en direct (LISTEN du relais
 #                            d'outbox, hors PgBouncer ; sans elle : réveil par le poll de 5 s)
@@ -47,8 +51,13 @@ networkPolicy:
   enabled: true
   allowFrom:
     - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
-      # Sortie HTTPS (443) vers api.stripe.com : déjà ouverte par le chart (Internet
-      # public hors plages privées ; une NetworkPolicy ne filtre pas par nom de domaine)
+  # Sortie HTTPS (443) vers api.stripe.com : déjà ouverte par le chart (Internet
+  # public hors plages privées ; une NetworkPolicy ne filtre pas par nom de domaine).
+  # Kourrier : envoi des e-mails (la NetworkPolicy du namespace kourrier autorise
+  # billing en retour, dans argocd_registry)
+  extraEgress:
+    - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kourrier}}}]
+      ports: [{port: 8080}]
 migrations:
   enabled: true
   image:

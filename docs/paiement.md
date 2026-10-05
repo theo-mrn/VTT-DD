@@ -126,23 +126,28 @@ billing : entitlements + rights_versions + INSERT outbox (même transaction)
 
 ## E-mails
 
-billing consomme ses propres événements (durable `billing-mails`) et envoie à Kourrier avec
-`idempotency-key = id de l'événement` : un e-mail n'est jamais envoyé deux fois, et un e-mail
-part même si Kourrier était coupé au moment du paiement.
+billing consomme ses propres événements (durable `billing-mails`, sur `vtt.global.billing.>`) et
+envoie à Kourrier avec `idempotency-key = id de l'événement` : un e-mail n'est jamais envoyé deux
+fois, et un e-mail part même si Kourrier était coupé au moment du paiement (message relivré). Un
+refus définitif de Kourrier (template absent…) est journalisé et abandonné. À sa création, le
+consommateur ne lit que les événements à venir : un déploiement n'envoie rien pour le passé.
 
-| Template (`yner/<nom>/fr/`) | Déclencheur                                                         |
-| --------------------------- | ------------------------------------------------------------------- |
-| `achat-confirme`            | achat payé : article, montant, lien de la facture                   |
-| `premium-active`            | premier paiement d'un abonnement                                    |
-| `facture`                   | chaque renouvellement payé : montant, période, liens facture et PDF |
-| `paiement-echoue`           | échec d'un prélèvement : lien pour mettre à jour la carte           |
-| `resiliation-programmee`    | résiliation : date de fin du premium                                |
-| `premium-termine`           | fin effective du premium                                            |
-| `rappel-reconduction`       | abonnement annuel, 30 jours avant le renouvellement                 |
-| `remboursement`             | achat ou abonnement remboursé                                       |
+| Template (`yner/<nom>/fr/`) | Déclencheur                                                                 |
+| --------------------------- | --------------------------------------------------------------------------- |
+| `premium-active`            | facture payée, création d'abonnement (`billing_reason` subscription_create) |
+| `facture`                   | facture payée, renouvellement ou changement de formule (montant > 0)        |
+| `achat-confirme`            | facture payée d'un achat à l'unité (facture créée par Checkout)             |
+| `paiement-echoue`           | `billing.invoice_payment_failed` : lien pour régler la facture              |
+| `resiliation-programmee`    | `billing.subscription_cancellation_scheduled` : date de fin                 |
+| `premium-termine`           | `billing.subscription_ended`                                                |
+| `remboursement`             | `billing.purchase_refunded`                                                 |
+| `rappel-reconduction`       | abonnement annuel, 30 jours avant le renouvellement (lot 5)                 |
 
-Destinataire : l'e-mail du client Stripe, renseigné à sa création avec l'e-mail du compte Yner
-(lu chez identity) et resynchronisé par `customer.updated`.
+- Les confirmations partent sur la **facture payée** (et non sur l'achat) : chaque e-mail porte le
+  numéro de facture et ses liens (en ligne et PDF), relus dans `billing.invoices`.
+- Destinataire : `customers.email`, l'e-mail du client Stripe saisi dans Checkout, suivi par
+  `customer.updated`. Sans e-mail connu (premium importé), rien n'est envoyé.
+- Templates à publier sur R2 (`bash infra/mails/publier.sh`) **avant** de déployer billing.
 
 ## API (via la gateway)
 
@@ -221,7 +226,7 @@ Destinataire : l'e-mail du client Stripe, renseigné à sa création avec l'e-ma
    remboursements, contestations), résiliation et reprise.
 2. **Droits par événements** (fait le 2026-10-05) : relais d'outbox de billing, consommateurs
    dans dice et identity, `rights:republish`, retrait des appels HTTP.
-3. **E-mails** : templates Kourrier, consommateur `billing-mails`.
+3. **E-mails** (fait le 2026-10-05) : templates Kourrier, consommateur `billing-mails`.
 4. **Front** : page Abonnement, boutique active, retours de Checkout.
 5. **Légal et mise en ligne** : CGV, consentement, rappel de reconduction, réconciliation,
    configuration du portail, clés live.

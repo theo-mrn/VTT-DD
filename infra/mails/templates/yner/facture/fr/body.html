@@ -1,0 +1,9 @@
+{{template "layout" .}}
+{{define "title"}}Votre abonnement est renouvelé{{end}}
+{{define "content"}}
+<h1 style="font-size:20px;margin:0 0 16px;">Votre abonnement est renouvelé</h1>
+<p>Le prélèvement de <strong>{{.montant}}</strong> pour votre abonnement YNER Premium a bien été effectué.</p>
+<p>Prochaine échéance : {{.prochaine_echeance}}.</p>
+<p style="font-size:14px;">Facture {{.numero}} : <a href="{{.lien_facture}}" style="color:#7a4b2a;">voir en ligne</a> · <a href="{{.lien_pdf}}" style="color:#7a4b2a;">PDF</a></p>
+<p style="margin:24px 0;"><a href="{{.lien_abonnement}}" style="display:inline-block;padding:10px 16px;background:#7a4b2a;color:#ffffff;text-decoration:none;border-radius:6px;">Gérer mon abonnement</a></p>
+{{end}}

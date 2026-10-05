@@ -1,0 +1,9 @@
+Bonjour,
+
+Le prélèvement de {{.montant}} pour votre abonnement YNER Premium a bien été effectué.
+Prochaine échéance : {{.prochaine_echeance}}.
+
+Facture {{.numero}} : {{.lien_facture}}
+PDF : {{.lien_pdf}}
+
+Gérer mon abonnement : {{.lien_abonnement}}

@@ -1,0 +1,10 @@
+Bonjour,
+
+Votre abonnement {{.formule}} est actif : tous les dés, présents et à venir, sont à vous, avec le badge et les bordures premium.
+
+Montant réglé : {{.montant}}. Prochaine échéance : {{.prochaine_echeance}}.
+
+Facture {{.numero}} : {{.lien_facture}}
+PDF : {{.lien_pdf}}
+
+Gérer mon abonnement : {{.lien_abonnement}}

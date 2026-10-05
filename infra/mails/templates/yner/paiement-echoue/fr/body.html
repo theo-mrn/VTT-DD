@@ -1,0 +1,10 @@
+{{template "layout" .}}
+{{define "title"}}Votre paiement n’a pas abouti{{end}}
+{{define "content"}}
+<h1 style="font-size:20px;margin:0 0 16px;">Votre paiement n’a pas abouti</h1>
+<p>Le prélèvement de <strong>{{.montant}}</strong> pour votre abonnement YNER Premium a échoué. Votre premium reste actif pendant que nous réessayons.</p>
+{{if .prochaine_tentative}}<p>Prochaine tentative : {{.prochaine_tentative}}.</p>{{end}}
+<p>Pour éviter l’interruption, réglez la facture ou mettez à jour votre carte :</p>
+<p style="margin:24px 0;"><a href="{{.lien_paiement}}" style="display:inline-block;padding:10px 16px;background:#7a4b2a;color:#ffffff;text-decoration:none;border-radius:6px;">Régler ma facture</a></p>
+<p style="font-size:14px;">Ou depuis votre compte : <a href="{{.lien_abonnement}}" style="color:#7a4b2a;">gérer mon abonnement</a>.</p>
+{{end}}

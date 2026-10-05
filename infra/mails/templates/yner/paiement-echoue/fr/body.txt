@@ -1,0 +1,8 @@
+Bonjour,
+
+Le prélèvement de {{.montant}} pour votre abonnement YNER Premium a échoué. Votre premium reste actif pendant que nous réessayons.
+{{if .prochaine_tentative}}Prochaine tentative : {{.prochaine_tentative}}.
+{{end}}
+Pour éviter l’interruption, réglez la facture ou mettez à jour votre carte : {{.lien_paiement}}
+
+Gérer mon abonnement : {{.lien_abonnement}}

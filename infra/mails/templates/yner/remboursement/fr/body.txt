@@ -1,0 +1,4 @@
+Bonjour,
+
+Nous vous avons remboursé {{.montant}} pour {{.article}}. L’article est retiré de votre collection.
+Le montant apparaît sur votre relevé sous 5 à 10 jours selon votre banque.
