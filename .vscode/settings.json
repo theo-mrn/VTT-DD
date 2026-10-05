@@ -1,0 +1,7 @@
+{
+  // Gabarits Helm : du Go template, pas du YAML. L'extension YAML les soulignerait en entier.
+  "files.associations": {
+    "**/helm/**/templates/*.yaml": "helm",
+    "**/helm/**/templates/*.tpl": "helm"
+  }
+}
