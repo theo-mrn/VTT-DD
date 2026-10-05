@@ -17,7 +17,7 @@
 | Purge des sessions et jetons d'e-mail (identity)        | Fait (toutes les 6 h)                                                             |
 | Journaux Loki 30 jours                                  | Prêt dans `argocd_registry` (compacteur), à pousser                               |
 | `robots.txt`, sitemap                                   | Fait : indexé sur `yner.fr` seulement                                             |
-| Suppression de compte propagée à tous les services      | Fait sauf history (question ouverte ci-dessous)                                   |
+| Suppression de compte propagée à tous les services      | Fait, history compris                                                             |
 | Export des données                                      | Fait (Profil › Sécurité, JSON assemblé dans le navigateur)                        |
 | Comptes inactifs                                        | Fait (identity, passe toutes les 6 h)                                             |
 | Liens légaux dans les consoles Google, Discord, X       | **Théo** : URL de `/privacy` et `/terms` dans l'écran de consentement et les apps |
@@ -73,20 +73,14 @@ Les fichiers partent avec le balayage des orphelins ([nettoyage.md](nettoyage.md
 référencés. Les modèles de PNJ et d'objets ne partent que par un geste du MJ : supprimer sa
 campagne ou son compte.
 
-### Question ouverte : history
+### History (validé le 2026-10-05)
 
-Le journal est immuable par construction (trigger `events_immutable`, même pour le propriétaire)
-et chaîné par campagne (`prev_hash`). Or il garde :
-
-- les événements de compte (`identity.*`, sans campagne) ;
-- l'historique entier des campagnes supprimées ;
-- `dice.rolled` recopie `userName` : le pseudo resterait dans les campagnes des autres.
-
-Proposition : deux fonctions `SECURITY DEFINER` du propriétaire, seules autorisées à lever
-l'immuabilité (réglage local à la transaction, vérifié par le trigger) :
-`erase_campaign(id)` (supprime la chaîne et sa tête) et `erase_user(id)` (supprime ses
-événements sans campagne, remplace `userName` par « Joueur supprimé » dans ses événements de
-campagne et recalcule la chaîne à partir du premier modifié ; `verify_chain` reste vraie).
+Le journal reste immuable pour le service. Seules exceptions : `erase_campaign` et `erase_user`
+(0002-erasure), `SECURITY DEFINER` du propriétaire, qui lèvent l'immuabilité le temps de leur
+transaction (réglage `history.erasure`, vérifié par le trigger ; `history_svc` n'a toujours ni
+UPDATE ni DELETE). `erase_user` remplace `payload.userName` par « Joueur supprimé » et recalcule
+chaque chaîne touchée à partir du premier événement modifié : `verify_chain` reste vraie. Le
+consommateur appelle la fonction juste après avoir ajouté l'événement ; rejouée, elle ne fait rien.
 
 ## Export des données (fait)
 
