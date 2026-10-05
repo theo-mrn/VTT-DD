@@ -15,6 +15,7 @@ import {
   Message,
   TitrePage,
 } from '@/components/compte/elements';
+import { useYoutubeConsent } from '@/components/audio/youtube-consent';
 import { useEnvoiImage } from '@/components/compte/envoi-image';
 import { styleChamp, styleLabel } from '@/components/compte/styles';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { messageErreur } from '@/lib/api';
+import { setYoutubeConsent } from '@/lib/consent/youtube';
 import {
   choisirTitre,
   lireJoueur,
@@ -549,6 +551,19 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
 
 // ─── Préférences ─────────────────────────────────────────────────────────────
 
+/** Accord au lecteur YouTube, propre à ce navigateur (stockage local). */
+function ReglageYoutube() {
+  const consent = useYoutubeConsent();
+  return (
+    <Interrupteur
+      actif={consent === 'granted'}
+      onChange={(v) => setYoutubeConsent(v ? 'granted' : 'denied')}
+      label="Musique YouTube"
+      description="Lecteur YouTube et ses traceurs, sur ce navigateur."
+    />
+  );
+}
+
 function CartePreferences({ profil }: Readonly<{ profil: Profil }>) {
   const { enregistrer, envoi, erreur } = useEnregistrement();
 
@@ -562,6 +577,7 @@ function CartePreferences({ profil }: Readonly<{ profil: Profil }>) {
           label="Notifications par e-mail"
           description="Rappels de session et nouvelles de vos campagnes."
         />
+        <ReglageYoutube />
         <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
           <div>
             <p className="text-sm font-medium">Accueil de l'application</p>

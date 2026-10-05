@@ -2,6 +2,7 @@ import { loadConfig, start, startOutboxRelayWithBus } from '@vtt/platform';
 import { buildBilling } from './app.js';
 import { BillingConfig } from './config.js';
 import { createDb } from './db/client.js';
+import { ACCOUNTS_CONSUMER, startAccountsConsumer } from './accounts/consumer.js';
 import { MAILS_CONSUMER, startMailsConsumer } from './mails/consumer.js';
 import { kourrierMailer } from './mails/kourrier.js';
 import { startJobs } from './jobs/jobs.js';
@@ -45,6 +46,17 @@ if (config.NATS_URL) {
     logger: app.log,
     // E-mails de paiement (achat, facture, échec, résiliation…), à partir des événements
     consumers: [
+      {
+        // Comptes supprimés (docs/legal.md) : client Stripe et données de paiement
+        name: ACCOUNTS_CONSUMER,
+        start: (bus) =>
+          startAccountsConsumer({
+            bus,
+            db: background.db,
+            stripe: config.STRIPE_SECRET_KEY ? stripeApi(config.STRIPE_SECRET_KEY) : null,
+            logger: app.log as never,
+          }),
+      },
       {
         name: MAILS_CONSUMER,
         start: (bus) =>

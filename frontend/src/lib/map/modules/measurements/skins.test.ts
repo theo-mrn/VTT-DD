@@ -147,7 +147,7 @@ describe('textures vidéo partagées', () => {
     textures.acquire('Cone/cone2.webm');
     await flush();
     expect(t.load).toHaveBeenCalledTimes(1);
-    expect(t.load.mock.calls[0]![0].src).toBe(`${LIB}/Cone/512/cone2.webm`);
+    expect(t.load.mock.calls[0]![0].src).toBe(`${LIB}/Cone/512/cone2.webm?cors=1`);
     expect(ready).toHaveBeenCalled();
     expect(textures.peek('Cone/cone2.webm')).not.toBeNull();
     const video = t.videos[0]!;
@@ -166,7 +166,7 @@ describe('textures vidéo partagées', () => {
     expect(video.pause).toHaveBeenCalled();
     textures.release('inconnu');
     textures.dispose();
-    expect(t.unload).toHaveBeenCalledWith(`${LIB}/Cone/512/cone2.webm`);
+    expect(t.unload).toHaveBeenCalledWith(`${LIB}/Cone/512/cone2.webm?cors=1`);
   });
 
   it('variante illisible : l’original ; tout illisible : échec sans texture', async () => {
@@ -175,8 +175,8 @@ describe('textures vidéo partagées', () => {
     textures.acquire('Fireballs/explosion1.webm');
     await flush();
     expect(t.load.mock.calls.map((c) => c[0].src)).toEqual([
-      `${LIB}/Fireballs/512/explosion1.webm`,
-      `${LIB}/Fireballs/explosion1.webm`,
+      `${LIB}/Fireballs/512/explosion1.webm?cors=1`,
+      `${LIB}/Fireballs/explosion1.webm?cors=1`,
     ]);
     expect(textures.peek('Fireballs/explosion1.webm')).not.toBeNull();
     const broken = setup({ failAll: true });
@@ -240,7 +240,7 @@ describe('textures vidéo partagées', () => {
     textures.dispose();
     arrive();
     await flush();
-    expect(t.unload).toHaveBeenCalledWith(`${LIB}/Cone/512/cone2.webm`);
+    expect(t.unload).toHaveBeenCalledWith(`${LIB}/Cone/512/cone2.webm?cors=1`);
     const early = setup();
     const closed = new mod.SkinTextures(early.engine);
     closed.acquire('Cone/cone2.webm');

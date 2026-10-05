@@ -2,6 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   createContext,
   useCallback,
@@ -80,8 +81,9 @@ export function SessionProvider({ children }: Readonly<{ children: ReactNode }>)
       profil,
       sortieVolontaire,
       async seConnecter(email, motDePasse) {
-        await connexion(email, motDePasse);
+        const { deletionCancelled } = await connexion(email, motDePasse);
         await chargerProfil();
+        if (deletionCancelled) toast.success('Suppression du compte annulée');
       },
       async sInscrire(email, motDePasse, nom) {
         await inscription(email, motDePasse, nom);

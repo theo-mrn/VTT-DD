@@ -13,13 +13,17 @@
 import { createHash } from 'node:crypto';
 
 /** Templates disponibles côté Kourrier, dans yner/<modele>/<locale>/. */
-export type ModeleMail = 'reinitialisation' | 'verification';
+export type ModeleMail =
+  'reinitialisation' | 'verification' | 'suppression-programmee' | 'inactivite';
 
 export interface Mail {
   to: string;
   modele: ModeleMail;
-  /** Données du template. Le lien est à usage unique : jamais dans les logs. */
-  donnees: { lien: string };
+  /**
+   * Données du template. Le lien peut être à usage unique : jamais dans les logs. `date` :
+   * échéance déjà mise en forme (suppression programmée, inactivité).
+   */
+  donnees: { lien: string; date?: string };
 }
 
 export interface Mailer {
@@ -110,8 +114,10 @@ export function createMailer(opts: {
       });
       // Même clé à chaque tentative : si Kourrier a accepté un envoi dont la réponse
       // s'est perdue, la tentative suivante ne crée pas de doublon.
+      // Le destinataire en fait partie : deux comptes peuvent recevoir le même lien
+      // (connexion, profil) sans que le second passe pour un doublon.
       const idempotence = createHash('sha256')
-        .update(`${mail.modele}\n${mail.donnees.lien}`)
+        .update(`${mail.modele}\n${mail.to}\n${mail.donnees.lien}\n${mail.donnees.date ?? ''}`)
         .digest('hex');
 
       let tentative = 1;

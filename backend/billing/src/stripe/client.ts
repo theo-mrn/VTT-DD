@@ -33,6 +33,8 @@ export interface StripeApi {
   listInvoices(customer: string, limit: number): Promise<Invoice[]>;
   retrieveCharge(id: string): Promise<Charge>;
   retrieveCustomer(id: string): Promise<Customer | { id: string; deleted: true }>;
+  /** Supprime le client (ses abonnements en cours sont résiliés aussitôt par Stripe). */
+  deleteCustomer(id: string): Promise<void>;
   /** Prix actifs par lookup_key (absents : pas encore créés par catalog:sync). */
   pricesByLookupKeys(keys: string[]): Promise<Price[]>;
 }
@@ -57,6 +59,9 @@ export function stripeApi(secretKey: string): StripeApi {
     listInvoices: async (customer, limit) => (await stripe.invoices.list({ customer, limit })).data,
     retrieveCharge: (id) => stripe.charges.retrieve(id),
     retrieveCustomer: (id) => stripe.customers.retrieve(id),
+    deleteCustomer: async (id) => {
+      await stripe.customers.del(id);
+    },
     pricesByLookupKeys: async (keys) =>
       (await stripe.prices.list({ lookup_keys: keys, active: true, limit: 100 })).data,
   };

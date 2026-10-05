@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { memo, useEffect, useMemo, type ReactNode } from 'react';
 import { EtatVide } from '@/components/commun/page';
 import { TableAudio } from '@/components/audio/table-audio';
+import { TableSearch } from './table-search';
 import { useDicePreferences } from '@/lib/dice-preferences';
 import { prepareDice3D } from '@/lib/dice-throw';
 import { Projection } from '@/components/handouts/projection';
@@ -195,6 +196,8 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
       <PanelHost panels={panels} />
       {/* Son de la campagne : canaux synchronisés, effets, mixeur, bandeau d'activation */}
       <TableAudio campaignId={table.campagne.id} gm={table.gm} />
+      {/* Recherche dans les règles : ⌘K / Ctrl+K (docs/recherche.md) */}
+      <TableSearch />
       {/* Document projeté par le MJ : plein écran au-dessus de tout (docs/projection.md) */}
       <Projection campaignId={table.campagne.id} gm={table.gm} />
     </div>

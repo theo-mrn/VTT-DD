@@ -1,6 +1,7 @@
 'use client';
 
-import { LogOut, Monitor, Smartphone, Trash2 } from 'lucide-react';
+import { Download, LogOut, Monitor, Smartphone, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useState, type FormEvent } from 'react';
 import {
   Bouton,
@@ -24,6 +25,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { messageErreur } from '@/lib/api';
+import { useCampagnes } from '@/lib/campagnes';
+import { downloadMyData } from '@/lib/data-export';
+import { usePersonnages } from '@/lib/personnages';
 import type { Profil } from '@/lib/profil';
 import { useRessource } from '@/lib/ressource';
 import {
@@ -55,6 +59,7 @@ export default function PageSecurite() {
         <CarteComptesLies profil={profil} />
       </div>
       <CarteSessions />
+      <CarteDonnees profil={profil} />
       <CarteSuppression profil={profil} />
     </div>
   );
@@ -385,12 +390,46 @@ function CarteSessions() {
   );
 }
 
+// ─── Mes données ─────────────────────────────────────────────────────────────
+
+function CarteDonnees({ profil }: Readonly<{ profil: Profil }>) {
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  async function telecharger() {
+    setEnvoi(true);
+    setErreur(null);
+    try {
+      await downloadMyData(profil.id);
+    } catch (err) {
+      setErreur(messageErreur(err));
+    } finally {
+      setEnvoi(false);
+    }
+  }
+  return (
+    <Carte titre="Mes données" description="Une copie de vos données, au format JSON.">
+      {erreur && <Message>{erreur}</Message>}
+      <Bouton ton="secondaire" onClick={() => void telecharger()} chargement={envoi}>
+        <Download />
+        Télécharger
+      </Bouton>
+    </Carte>
+  );
+}
+
 // ─── Suppression du compte ───────────────────────────────────────────────────
+
+/** Délai avant la suppression définitive (identity, docs/legal.md). */
+const DELAI_SUPPRESSION_JOURS = 7;
 
 const MOT_CONFIRMATION = 'SUPPRIMER';
 
 function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
   const { oublierSession } = useSession();
+  const campagnes = useCampagnes();
+  const mesPersonnages = usePersonnages();
+  const campagnesMj = campagnes.data?.filter((c) => c.role === 'gm').length ?? 0;
+  const nbPersonnages = mesPersonnages.data?.length ?? 0;
   const [ouvert, setOuvert] = useState(false);
   const [confirmation, setConfirmation] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -416,7 +455,11 @@ function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
     setEnvoi(true);
     setErreur(null);
     try {
-      await supprimerCompte(profil.hasPassword ? motDePasse : undefined);
+      const { purgeAt } = await supprimerCompte(profil.hasPassword ? motDePasse : undefined);
+      toast.info(`Compte supprimé le ${formaterDate(purgeAt)}`, {
+        description: 'Reconnectez-vous d’ici là pour annuler.',
+        duration: 15_000,
+      });
       oublierSession();
     } catch (err) {
       setErreur(messageErreur(err));
@@ -427,7 +470,7 @@ function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
   return (
     <Carte
       titre="Supprimer le compte"
-      description="Supprime définitivement votre compte, votre profil et vos amitiés. Cette action est irréversible."
+      description={`Votre compte et toutes vos données, ${DELAI_SUPPRESSION_JOURS} jours après la demande.`}
       className="border-destructive/20"
     >
       <Bouton ton="danger" onClick={() => setOuvert(true)}>
@@ -441,8 +484,25 @@ function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
             <DialogHeader>
               <DialogTitle className="text-destructive">Supprimer définitivement ?</DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Votre compte « {profil.name} » et toutes ses données seront supprimés. Impossible de
-                revenir en arrière.
+                Votre compte « {profil.name} » sera supprimé le{' '}
+                {formaterDate(
+                  new Date(Date.now() + DELAI_SUPPRESSION_JOURS * 86_400_000).toISOString(),
+                )}
+                , avec toutes ses données. Reconnectez-vous d’ici là pour annuler.
+                {(campagnesMj > 0 || nbPersonnages > 0) && (
+                  <span className="mt-2 block text-foreground">
+                    Partiront aussi :{' '}
+                    {[
+                      campagnesMj > 0 &&
+                        `${campagnesMj} campagne${campagnesMj > 1 ? 's' : ''} dont vous êtes MJ, pour tous ses joueurs`,
+                      nbPersonnages > 0 &&
+                        `${nbPersonnages} personnage${nbPersonnages > 1 ? 's' : ''}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' et ')}
+                    .
+                  </span>
+                )}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">

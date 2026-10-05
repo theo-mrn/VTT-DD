@@ -51,6 +51,18 @@ export function vignette(url: string, largeur: number): string {
   return `${CDN}cdn-cgi/image/width=${Math.round(largeur)},format=auto/${url.slice(CDN.length)}`;
 }
 
+/**
+ * Adresse d'une image du CDN pour un chargement CORS (WebGL : textures de la carte). Cloudflare
+ * met une réponse en cache sans tenir compte de l'en-tête Origin : une image d'abord affichée
+ * par une simple balise `<img>` (bestiaire, fiche) y reste sans `Access-Control-Allow-Origin`,
+ * et la carte la reçoit ainsi, refusée par WebGL. Un paramètre à part donne aux chargements
+ * CORS leur propre entrée du cache, toujours remplie par une requête CORS.
+ */
+export function pourWebgl(url: string): string {
+  if (!surCdn(url)) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}cors=1`;
+}
+
 /** L'adresse est servie par le CDN, qui sait la redimensionner. */
 export function surCdn(url: string): boolean {
   return url.startsWith(CDN);

@@ -2,15 +2,32 @@
  * Consommateur durable `audio-campaigns` : une campagne supprimée
  * (`campaign.deleted`) emporte sa bibliothèque. Suppression logique des
  * assets (fichiers purgés PURGE_AFTER_DAYS plus tard par le worker),
- * suppression des playlists, des effets et arrêt des canaux.
+ * suppression des playlists, des effets et arrêt des canaux. Un compte
+ * supprimé (`identity.user_deleted`, docs/legal.md) emporte ses réglages du
+ * mixeur ; ses sons, rangés par campagne, partent avec ses campagnes.
  *
  * Au moins une fois : l'inbox écarte un événement déjà traité (livré deux fois).
  */
 import { consumeEvents, type Bus } from '@vtt/platform';
-import { uuidv7, type EventEnvelope } from '@vtt/contracts';
+import {
+  CAMPAIGN_DELETED_SUBJECT,
+  USER_DELETED,
+  USER_DELETED_SUBJECT,
+  uuidv7,
+  type EventEnvelope,
+} from '@vtt/contracts';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { assets, channels, cues, inbox, jobs, playlists, soundboards } from '../db/schema.js';
+import {
+  assets,
+  channels,
+  cues,
+  inbox,
+  jobs,
+  mixerPreferences,
+  playlists,
+  soundboards,
+} from '../db/schema.js';
 
 export const CONSUMER = 'audio-campaigns';
 
@@ -57,6 +74,24 @@ export async function handleCampaignDeleted(
   });
 }
 
+/** Traite une suppression de compte ; false si ignorée ou déjà traitée (doublon). */
+export async function handleUserDeleted(
+  db: Db,
+  event: Pick<EventEnvelope, 'id' | 'type' | 'aggregate'>,
+): Promise<boolean> {
+  if (event.type !== USER_DELETED) return false;
+  return db.transaction(async (tx) => {
+    const [fresh] = await tx
+      .insert(inbox)
+      .values({ eventId: event.id, consumer: CONSUMER })
+      .onConflictDoNothing()
+      .returning();
+    if (!fresh) return false;
+    await tx.delete(mixerPreferences).where(eq(mixerPreferences.userId, event.aggregate.id));
+    return true;
+  });
+}
+
 export function startCampaignConsumer(o: {
   bus: Bus;
   db: Db;
@@ -67,10 +102,15 @@ export function startCampaignConsumer(o: {
 }): Promise<() => Promise<void>> {
   return consumeEvents(o.bus, {
     durable: o.durable,
-    subjects: ['vtt.*.campaign.deleted'],
+    subjects: [CAMPAIGN_DELETED_SUBJECT, USER_DELETED_SUBJECT],
     deliver: 'all',
     logger: o.logger,
     async handler(event) {
+      if (event.type === USER_DELETED) {
+        const done = await handleUserDeleted(o.db, event);
+        o.logger.info({ eventId: event.id, done }, 'compte supprimé : réglages audio retirés');
+        return;
+      }
       const done = await handleCampaignDeleted(o.db, event, {
         nowMs: o.now(),
         purgeAfterDays: o.purgeAfterDays,

@@ -159,3 +159,19 @@ qu'on veuille d'abord alléger le rendu ou supprimer la bascule.
 6. **Skins texturés** (rubis, bois…) lancés depuis la boutique : texture présente après un bref
    aplat de couleur au premier lancer de chaque skin (elle n'est plus préchargée).
 7. **Orbes à modèle** : cœur lumineux à la place du modèle tant que P8 n'est pas fait.
+
+## Images des dés (boutique, réglages)
+
+La grille de la boutique et les réglages n'affichent que des images pré-calculées, jamais de
+canevas WebGL : `frontend/public/dice/<skin>.webp` (512 px) et `public/dice/thumbs/<skin>.webp`
+(128 px). Elles sont cuites par le vrai moteur 3D (d20, face 20 de face, fond transparent) :
+
+```bash
+pnpm --filter @vtt/web dice:bake            # skins sans image (dé ajouté au catalogue)
+pnpm --filter @vtt/web dice:bake --all      # tous (rendu, matière ou éclairage modifié)
+pnpm --filter @vtt/web dice:bake gold ruby  # ces skins seulement
+```
+
+Chromium sans interface et WebGL logiciel, sans serveur de dev (`frontend/scripts/dice-bake`),
+environ trois secondes par dé. La CI échoue si un skin de `dice-definitions.ts` n'a pas ses deux
+images (`frontend/src/lib/dice-images.test.ts`).

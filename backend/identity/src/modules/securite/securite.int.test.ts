@@ -4,10 +4,12 @@
  * les limites de débit (10 appels par minute et par route) ne se cumulent pas.
  */
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { credentials, emailTokens, outbox, users } from '../../db/schema.js';
 import { CSRF_HEADER, REFRESH_COOKIE } from '../../routes/auth.js';
 import { appDeTest, TEST_DATABASE_URL } from '../../test/app-de-test.js';
+import { runAccountLifecycle } from '../../maintenance/retention.js';
+import { purgeRequestedDeletions } from './account-lifecycle.js';
 import { empreinteJeton } from './jetons.js';
 
 type Contexte = Awaited<ReturnType<typeof appDeTest>>;
@@ -458,7 +460,11 @@ describe.skipIf(!TEST_DATABASE_URL)('suppression du compte', () => {
       ...(payload ? { payload } : {}),
     });
 
-  it('exige le mot de passe, puis supprime le compte et tout ce qui en dépend', async () => {
+  const DAY = 86_400_000;
+  const ctx = { correlationId: 'test-suppression' };
+  const compte = async (id: string) => (await t.db.select().from(users).where(eq(users.id, id)))[0];
+
+  it('exige le mot de passe, puis programme la suppression à 7 jours et coupe les sessions', async () => {
     const u = await t.inscrire();
 
     const sans = await supprimer(u.auth);
@@ -467,36 +473,62 @@ describe.skipIf(!TEST_DATABASE_URL)('suppression du compte', () => {
     expect((await supprimer(u.auth, { password: 'pas-le-bon' })).statusCode).toBe(403);
 
     const res = await supprimer(u.auth, { password: u.motDePasse });
-    expect(res.statusCode).toBe(204);
+    expect(res.statusCode).toBe(202);
+    const purgeAt = new Date(res.json().purgeAt).getTime();
+    expect(Math.abs(purgeAt - (Date.now() + 7 * DAY))).toBeLessThan(60_000);
     const efface = cookieDe(res);
     expect(efface?.value).toBe('');
     expect(efface?.path).toBe('/v1/auth');
 
-    expect(await t.db.select().from(users).where(eq(users.id, u.id))).toHaveLength(0);
-    expect(await t.db.select().from(credentials).where(eq(credentials.userId, u.id))).toHaveLength(
-      0,
-    );
+    // Compte encore là, sessions coupées, e-mail avec la date et le lien de connexion
+    expect((await compte(u.id))?.deletionRequestedAt).toBeInstanceOf(Date);
     expect((await renouveler(t, u.refresh)).statusCode).toBe(401);
-    expect((await connecter(t, u.email, u.motDePasse)).statut).toBe(401);
+    await vi.waitFor(() =>
+      expect(
+        t.mailer.envoyes.find((m) => m.to === u.email && m.modele === 'suppression-programmee'),
+      ).toMatchObject({ donnees: { lien: 'http://front.test/connexion' } }),
+    );
 
     const evts = await evenements(t, u.id);
-    const suppression = evts.find((e) => e.type === 'identity.user_deleted');
-    expect(suppression?.visibility).toBe('owner');
+    expect(evts.find((e) => e.type === 'identity.user_deletion_requested')?.visibility).toBe(
+      'owner',
+    );
+    expect(evts.some((e) => e.type === 'identity.user_deleted')).toBe(false);
     expect(JSON.stringify(evts)).not.toContain(u.motDePasse);
 
-    // Jeton d'accès encore valable quelques minutes, mais plus de compte
-    expect((await supprimer(u.auth, { password: u.motDePasse })).statusCode).toBe(404);
+    // Redemander garde la même échéance
+    const encore = await supprimer(u.auth, { password: u.motDePasse });
+    expect(encore.statusCode).toBe(202);
+    expect(new Date(encore.json().purgeAt).getTime()).toBe(purgeAt);
   });
 
-  it('supprime sans mot de passe un compte qui n’en a pas (Google/Discord seul)', async () => {
+  it('se reconnecter annule la suppression', async () => {
+    const u = await t.inscrire();
+    await supprimer(u.auth, { password: u.motDePasse });
+
+    const res = await t.app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      payload: { email: u.email, password: u.motDePasse },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().deletionCancelled).toBe(true);
+    expect((await compte(u.id))?.deletionRequestedAt).toBeNull();
+    const evts = await evenements(t, u.id);
+    expect(evts.some((e) => e.type === 'identity.user_deletion_cancelled')).toBe(true);
+
+    // Connexion ordinaire : rien à annuler
+    const ensuite = await connecter(t, u.email, u.motDePasse);
+    expect(ensuite.statut).toBe(200);
+  });
+
+  it('programme sans mot de passe pour un compte qui n’en a pas (Google/Discord seul)', async () => {
     const u = await t.inscrire();
     await t.db.delete(credentials).where(eq(credentials.userId, u.id));
-    const res = await supprimer(u.auth);
-    expect(res.statusCode).toBe(204);
-    expect(await t.db.select().from(users).where(eq(users.id, u.id))).toHaveLength(0);
+    expect((await supprimer(u.auth)).statusCode).toBe(202);
   });
 
-  it('supprime les jetons en attente avec le compte', async () => {
+  it('purge à échéance le compte et tout ce qui en dépend', async () => {
     const u = await t.inscrire();
     await t.app.inject({
       method: 'POST',
@@ -504,17 +536,75 @@ describe.skipIf(!TEST_DATABASE_URL)('suppression du compte', () => {
       payload: { email: u.email },
     });
     const jeton = jetonRecu(t, u.email, '/reinitialisation');
-    await t.app.inject({
-      method: 'DELETE',
-      url: '/v1/users/me',
-      headers: u.auth,
-      payload: { password: u.motDePasse },
-    });
-    const restants = await t.db
-      .select()
-      .from(emailTokens)
-      .where(eq(emailTokens.tokenHash, empreinteJeton(jeton)));
-    expect(restants).toHaveLength(0);
+    await supprimer(u.auth, { password: u.motDePasse });
+
+    // Pas encore à échéance
+    expect(await purgeRequestedDeletions(t.db, ctx)).toBeGreaterThanOrEqual(0);
+    expect(await compte(u.id)).toBeDefined();
+
+    await t.db
+      .update(users)
+      .set({ deletionRequestedAt: new Date(Date.now() - 8 * DAY) })
+      .where(eq(users.id, u.id));
+    await purgeRequestedDeletions(t.db, ctx);
+
+    expect(await compte(u.id)).toBeUndefined();
+    expect(await t.db.select().from(credentials).where(eq(credentials.userId, u.id))).toHaveLength(
+      0,
+    );
+    expect(
+      await t.db
+        .select()
+        .from(emailTokens)
+        .where(eq(emailTokens.tokenHash, empreinteJeton(jeton))),
+    ).toHaveLength(0);
+    expect((await connecter(t, u.email, u.motDePasse)).statut).toBe(401);
+    const evts = await evenements(t, u.id);
+    expect(evts.find((e) => e.type === 'identity.user_deleted')?.visibility).toBe('owner');
+  });
+
+  it('prévient un compte inactif depuis 3 ans, puis le met en suppression', async () => {
+    const u = await t.inscrire();
+    const now = new Date();
+    await t.db
+      .update(users)
+      .set({ lastSeenAt: new Date(now.getTime() - 3 * 366 * DAY) })
+      .where(eq(users.id, u.id));
+    const lifecycle = () =>
+      runAccountLifecycle({
+        db: t.db,
+        mailer: t.mailer,
+        appUrl: 'http://front.test',
+        log: console,
+        now,
+      });
+
+    await lifecycle();
+    expect(
+      t.mailer.envoyes.filter((m) => m.to === u.email && m.modele === 'inactivite'),
+    ).toHaveLength(1);
+    expect((await compte(u.id))?.inactivityWarnedAt).toBeInstanceOf(Date);
+    await lifecycle();
+    expect(
+      t.mailer.envoyes.filter((m) => m.to === u.email && m.modele === 'inactivite'),
+    ).toHaveLength(1);
+
+    // 31 jours sans revenir : suppression demandée, e-mail avec la date
+    await t.db
+      .update(users)
+      .set({ inactivityWarnedAt: new Date(now.getTime() - 31 * DAY) })
+      .where(eq(users.id, u.id));
+    await lifecycle();
+    expect((await compte(u.id))?.deletionRequestedAt).toBeInstanceOf(Date);
+    expect(
+      t.mailer.envoyes.some((m) => m.to === u.email && m.modele === 'suppression-programmee'),
+    ).toBe(true);
+
+    // Il revient : suppression annulée, avertissement levé
+    expect((await connecter(t, u.email, u.motDePasse)).statut).toBe(200);
+    const apres = await compte(u.id);
+    expect(apres?.deletionRequestedAt).toBeNull();
+    expect(apres?.inactivityWarnedAt).toBeNull();
   });
 });
 

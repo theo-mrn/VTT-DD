@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { InputGroup } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { messageErreur } from '@/lib/api';
+import { LEGAL_PAGES } from '@/lib/legal';
 import type { Fournisseur } from '@/lib/profil';
 import {
   LONGUEUR_MAX_MDP,
@@ -187,8 +188,21 @@ export function FormulaireConnexion({
 
         {inscription && (
           <p className="text-center text-xs leading-relaxed text-subtle">
-            En créant un compte, vous acceptez que vos campagnes et personnages soient conservés
-            pour vous et vos groupes de jeu.
+            En créant un compte, vous acceptez les{' '}
+            <Link
+              href={LEGAL_PAGES.terms}
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              conditions d&apos;utilisation
+            </Link>{' '}
+            et la{' '}
+            <Link
+              href={LEGAL_PAGES.privacy}
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              politique de confidentialité
+            </Link>
+            .
           </p>
         )}
       </form>

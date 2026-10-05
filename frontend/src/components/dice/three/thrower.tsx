@@ -24,7 +24,7 @@
  * - pas de confettis sur un 20 naturel (bibliothèque absente du front) :
  *   l'effet critique du dé et la carte de résultat le signalent.
  */
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Physics, useConvexPolyhedron } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
@@ -299,7 +299,12 @@ const Die = React.forwardRef(
     // face donnerait toujours la même (le « 20 » en boucle quand le worker est
     // mort, par exemple après un rechargement à chaud).
     const physicsAlive = useRef(false);
-    useEffect(
+    // Abonnements en effets de mise en page, déclarés après `useConvexPolyhedron` : au
+    // démontage, le désabonnement part dans la même tâche que le retrait du corps. Le worker
+    // ne retire qu'UN abonnement par corps ; avec un effet passif, un pas de calcul glissé
+    // entre les deux (nouveau lancer qui remplace les dés) lit le corps disparu, lève une
+    // erreur et ne rend jamais ses tampons : toute la physique reste figée.
+    useLayoutEffect(
       () =>
         api.velocity.subscribe((v) => {
           velocity.current = v;
@@ -316,10 +321,13 @@ const Die = React.forwardRef(
     }, [api, onStall]);
 
     const angularVelocity = useRef([0, 0, 0]);
-    useEffect(() => api.angularVelocity.subscribe((v) => (angularVelocity.current = v)), [api]);
+    useLayoutEffect(
+      () => api.angularVelocity.subscribe((v) => (angularVelocity.current = v)),
+      [api],
+    );
 
     const quaternion = useRef([0, 0, 0, 1]);
-    useEffect(() => api.quaternion.subscribe((q) => (quaternion.current = q)), [api]);
+    useLayoutEffect(() => api.quaternion.subscribe((q) => (quaternion.current = q)), [api]);
 
     // Rappels lus par référence : l'intervalle de lecture n'est pas recréé
     // quand le lanceur se rend à nouveau.
