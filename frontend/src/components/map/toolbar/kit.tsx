@@ -82,7 +82,7 @@ export function ActionButton({ action }: Readonly<{ action: MapAction }>) {
   const engine = useMapEngine();
   const useStatus = action.useStatus ?? NO_STATUS;
   const status = useStatus(engine);
-  const Icon = action.icon;
+  const Icon = status.icon ?? action.icon;
   return (
     <ToolbarButton
       label={status.label ?? action.label}
@@ -108,7 +108,7 @@ export function MenuButton({ entry }: Readonly<{ entry: MenuEntry }>) {
   const useStatus = entry.useStatus ?? NO_STATUS;
   const status = useStatus(engine);
   const label = status.label ?? entry.label;
-  const Icon = entry.icon;
+  const Icon = status.icon ?? entry.icon;
   const Content = entry.content;
   return (
     <Popover open={open} onOpenChange={setOpen}>

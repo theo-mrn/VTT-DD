@@ -134,9 +134,9 @@ frontend/src/lib/map/
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
     weather/             météo de la scène (pluie, neige, brouillard…), son canvas, espace écran
     combat/              anneaux du tour et des cibles, visée, « Attaquer »
-    history/ layers/ scene-display/ snap/ presence/ camera/ bubbles/ party/
+    history/ layers/ scene-display/ snap/ presence/ camera/ fullscreen/ bubbles/ party/
                          socle de la barre (annuler, calques, fond, aimantation, curseur,
-                         recadrer), bulles, barre du groupe
+                         recadrer, plein écran), bulles, barre du groupe
 frontend/src/components/map/
   table-map.tsx          la carte à la table : choix de la scène, montage dans MapStage
   use-table-map.ts       quelle scène afficher (joueur : celle de son personnage ; MJ : `?scene=`)

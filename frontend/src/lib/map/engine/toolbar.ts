@@ -30,6 +30,8 @@ export interface ActionStatus {
   active?: boolean;
   /** Libellé du moment (« Annuler « Déplacer » »), à la place de `label`. */
   label?: string;
+  /** Icône du moment (plein écran : Réduire), à la place de `icon`. */
+  icon?: Icon;
 }
 
 /** Geste nommé d'un module : bouton de la barre, touche, ou les deux. */

@@ -91,10 +91,11 @@ import { snapFeature } from './snap';
 import { presenceFeature } from './presence';
 import { cameraFeature } from './camera';
 import { partyFeature } from './party';
+import { fullscreenFeature } from './fullscreen';
 
 export const MAP_FEATURES: readonly MapFeature[] = [
   // Socle de la barre : annuler et refaire, bulle du joueur, calques (K), fond et affichage de la
-  // scène, aimantation, curseur partagé, recadrer
+  // scène, aimantation, curseur partagé, recadrer, plein écran
   historyFeature,
   bubblesFeature,
   layersFeature,
@@ -102,6 +103,7 @@ export const MAP_FEATURES: readonly MapFeature[] = [
   snapFeature,
   presenceFeature,
   cameraFeature,
+  fullscreenFeature,
   // Barre du groupe, dans le HUD gauche de la table
   partyFeature,
   // Moteur : point d'apparition de la scène
