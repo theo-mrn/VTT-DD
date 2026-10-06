@@ -20,11 +20,11 @@ import {
   widgetsDe,
   type ContexteFiche,
 } from '@/components/fiche/widgets';
-import { mainResource } from '@/components/map/tokens/resource';
+import { mainResource } from '@/lib/map/features/tokens/ui/resource';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { campagnes, clePersonnagesCampagne } from '@/lib/campagnes';
 import { stateIconOf, stateIconsOf } from '@/lib/combat/state-icons';
-import type { ResourceGauge } from '@/lib/map/modules/tokens/model';
+import type { ResourceGauge } from '@/lib/map/features/tokens/engine/model';
 import { clesPersonnages, personnages, type FichePersonnage } from '@/lib/personnages';
 import { calculerMemo } from '@/lib/rules-cache';
 

@@ -8,7 +8,7 @@
 import { useSyncExternalStore } from 'react';
 import { useActiveMap } from '@/lib/map/active-map';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { TOKENS_COLLECTION, type TokenData } from '@/lib/map/modules/tokens/model';
+import { TOKENS_COLLECTION, type TokenData } from '@/lib/map/features/tokens/engine/model';
 import type { MapDto } from '@/lib/map/store/map-store';
 import type { SceneToken } from './model';
 

@@ -1,6 +1,6 @@
 /**
  * Règles de visibilité du serveur (vision-rules.ts), sans base : mêmes cas que le miroir du
- * client (frontend/src/lib/map/modules/vision/rules.test.ts).
+ * client (frontend/src/lib/map/features/vision/engine/rules.test.ts).
  */
 import { prepareScene, withLights } from '@vtt/vision';
 import { describe, expect, it } from 'vitest';

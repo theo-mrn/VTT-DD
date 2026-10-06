@@ -20,7 +20,7 @@ import { Kbd } from '@/components/ui/kbd';
 import { Info } from '@/components/ui/tooltip';
 import { targetName } from '@/lib/combat/view';
 import { useActiveMap } from '@/lib/map/active-map';
-import { aimDistanceText } from '@/lib/map/modules/combat/aim-distance';
+import { aimDistanceText } from '@/lib/map/features/combat/engine/aim-distance';
 import type { AttackContext } from './use-attack-context';
 
 /** Distance de l'attaquant aux cibles, suivie quand les tokens bougent. */

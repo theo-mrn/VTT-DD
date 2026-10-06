@@ -7,14 +7,14 @@
  * fonctionne « à blanc », ce qui permet de le tester sans WebGL et de le construire côté
  * serveur sans rien casser.
  *
- * Cycle de vie : `new MapEngine(…)`, `use(module)` pour chaque module (`modules/index.ts`),
+ * Cycle de vie : `new MapEngine(…)`, `use(module)` pour chaque module (`features/index.ts`),
  * `mount(host)`, puis `destroy()` au démontage (aucun contexte WebGL ne survit, HMR compris).
  *
  * Rendu à la demande : une image n'est rendue que si quelque chose l'a demandée
  * (`invalidate()`) ; la boucle ne tourne en continu que pendant un geste, une animation de
  * caméra, le direct des autres, ou un fond vidéo (30 i/s au plus).
  *
- * API des modules (voir `modules/index.ts` pour un exemple complet) :
+ * API des modules (voir `features/index.ts` pour un exemple complet) :
  * - `registerKind(kind)` : une sorte d'entité (`EntityKind`) ;
  * - `registerTool(def)` : un outil et son entrée de barre d'outils (`ToolDefinition`) ;
  * - `registerInspectorSection(section)` : une section de l'inspecteur ;

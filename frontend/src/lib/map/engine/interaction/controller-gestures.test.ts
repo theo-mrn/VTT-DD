@@ -7,7 +7,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Point } from '../geometry';
-import { layersPanelOf } from '../../modules/layers/panel';
+import { layersPanelOf } from '@/lib/map/features/layers/engine/panel';
 import { GM, mountMap, type MapHarness } from '../../test/map-harness';
 
 let h: MapHarness | null = null;

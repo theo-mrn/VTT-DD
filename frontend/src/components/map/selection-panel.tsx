@@ -23,8 +23,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Kbd } from '@/components/ui/kbd';
 import type { MenuItem } from '@/lib/map/engine/entities/entity-kind';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { TOKEN_KIND_ID } from '@/lib/map/modules/tokens/edit';
-import type { TokenData } from '@/lib/map/modules/tokens/model';
+import { TOKEN_KIND_ID } from '@/lib/map/features/tokens/engine/edit';
+import type { TokenData } from '@/lib/map/features/tokens/engine/model';
 import { cn } from '@/lib/utils';
 import {
   useEntities,
@@ -36,8 +36,8 @@ import {
 } from './engine-context';
 import { sameIds } from './inspector';
 import { MapPanel } from './map-panel';
-import { ResourceEditor } from './tokens/resource-editor';
-import { useCharacterInfo, useTokens } from './tokens/use-tokens';
+import { ResourceEditor } from '@/lib/map/features/tokens/ui/resource-editor';
+import { useCharacterInfo, useTokens } from '@/lib/map/features/tokens/ui/use-tokens';
 
 const isSeparator = (i: MenuItem) => i.id.startsWith('sep:');
 const isHeading = (i: MenuItem) => i.id.startsWith('label:');

@@ -22,7 +22,7 @@ import type { MapViewer } from '@/lib/map/engine/entities/entity-kind';
 import { bindDomInput } from '@/lib/map/engine/interaction/dom-input';
 import { MapEngine, type MapDirectory, type MapPlayer } from '@/lib/map/engine/map-engine';
 import { LIVE_KIND, LiveChannel, PING_KIND } from '@/lib/map/live/live-channel';
-import { MAP_MODULES } from '@/lib/map/modules';
+import { MAP_MODULES } from '@/lib/map/features';
 import { CommandManager, historyFor } from '@/lib/map/store/commands';
 import { createMapStore, type MapStore } from '@/lib/map/store/map-store';
 import { useMapSync, type MapSync } from '@/lib/map/store/sync';

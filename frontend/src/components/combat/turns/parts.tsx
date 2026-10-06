@@ -5,7 +5,7 @@
  * fiche détaillée : puces de situation, jauge de la ressource principale, valeurs clés de la
  * présentation, ressources ± en fenêtre surgissante (l'ancien « + » de la ligne).
  */
-import type { ResourceGauge } from '@/lib/map/modules/tokens/model';
+import type { ResourceGauge } from '@/lib/map/features/tokens/engine/model';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useFicheCalculee } from '@/components/fiche/fiche-personnage';

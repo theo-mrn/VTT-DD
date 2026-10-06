@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { messageErreur } from '@/lib/api';
 import type { useSoundboard, useSoundCues } from '@/lib/audio';
-import { canDragSound, startSoundDrag } from '@/lib/map/modules/sounds/model';
+import { canDragSound, startSoundDrag } from '@/lib/map/features/sounds/engine/model';
 import { cn } from '@/lib/utils';
 import { formatTime, KIND_ICONS, SectionTitle } from './parts';
 

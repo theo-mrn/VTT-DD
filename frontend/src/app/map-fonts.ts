@@ -3,7 +3,7 @@
  * (src/app/fonts, sous-ensemble latin de Google Fonts) : ni le build ni la partie n'appellent
  * Google. `preload: false` : aucune n'est téléchargée tant qu'un texte ne l'utilise pas. Chacune
  * pose sa variable CSS sur <html> (`--font-map-<id>`) ; le catalogue (libellés, groupes) est dans
- * `lib/map/modules/drawings/palette.ts`, sans dépendre de ce fichier (testable sans Next).
+ * `lib/map/features/drawings/engine/palette.ts`, sans dépendre de ce fichier (testable sans Next).
  *
  * `next/font` exige des options écrites en toutes lettres : une déclaration par police.
  */

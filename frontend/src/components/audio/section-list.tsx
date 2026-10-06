@@ -38,7 +38,7 @@ import { Input } from '@/components/ui/input';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
 import { usePreview, type useAudioLibrary, type useChannel, type useSoundboard } from '@/lib/audio';
-import { canDragSound, startSoundDrag } from '@/lib/map/modules/sounds/model';
+import { canDragSound, startSoundDrag } from '@/lib/map/features/sounds/engine/model';
 import { cn } from '@/lib/utils';
 import { formatTime } from './parts';
 

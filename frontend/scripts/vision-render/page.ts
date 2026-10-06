@@ -7,8 +7,8 @@ import type { EntityKind } from '@/lib/map/engine/entities/entity-kind';
 import { MapEngine } from '@/lib/map/engine/map-engine';
 import { CommandHistory, CommandManager } from '@/lib/map/store/commands';
 import { createMapStore, type MapDto } from '@/lib/map/store/map-store';
-import { VisionRenderer } from '@/lib/map/modules/vision/renderer';
-import { VisionState } from '@/lib/map/modules/vision/vision-state';
+import { VisionRenderer } from '@/lib/map/features/vision/engine/renderer';
+import { VisionState } from '@/lib/map/features/vision/engine/vision-state';
 
 const persistence = {
   create: async (d: MapDto[]) => d,

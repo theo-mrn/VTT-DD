@@ -18,7 +18,7 @@ import type { Point } from '../engine/geometry';
 import type { MapKey, MapPointer } from '../engine/tools/tool';
 import { fakeBackend, spyPersistence } from '../engine/test-kit';
 import { LiveChannel, LIVE_KIND, PING_KIND, type LiveMessage } from '../live/live-channel';
-import { MAP_MODULES } from '../modules';
+import { MAP_MODULES } from '@/lib/map/features';
 import { CommandHistory, CommandManager } from '../store/commands';
 import { createMapStore, type MapDto } from '../store/map-store';
 

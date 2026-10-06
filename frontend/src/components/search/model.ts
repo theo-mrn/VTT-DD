@@ -5,7 +5,7 @@
  * viennent du système, une rubrique vide n'existe pas.
  */
 import type { Entree, Presentation, SystemeCharge } from '@vtt/rules';
-import type { PlacementSource } from '@/lib/map/modules/tokens/state';
+import type { PlacementSource } from '@/lib/map/features/tokens/engine/state';
 import { imageEntree } from '@/lib/systemes';
 import type { BestiaryItem } from '../resources/model/bestiary';
 import { normaliser, searchEntry, sectionEntries } from '../resources/model/catalogue';

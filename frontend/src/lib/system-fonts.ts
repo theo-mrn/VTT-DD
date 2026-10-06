@@ -8,7 +8,7 @@
 
 import type { Presentation } from '@vtt/rules';
 import { useEffect, useMemo } from 'react';
-import { fontsChanged } from '@/lib/map/modules/drawings/text-layout';
+import { fontsChanged } from '@/lib/map/features/drawings/engine/text-layout';
 
 const declared = new Set<string>();
 

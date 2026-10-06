@@ -2,7 +2,7 @@
  * Règles de visibilité de la carte sur `@vtt/vision` (docs/carte.md § 9), sans base de données :
  * conversion des éléments de la carte en scène de visibilité, observateurs d'un joueur, et ce
  * qu'il voit (tokens, objets). Le client en a le miroir exact
- * (`frontend/src/lib/map/modules/vision/rules.ts`) : mêmes entrées, mêmes réponses, mêmes tests.
+ * (`frontend/src/lib/map/features/vision/engine/rules.ts`) : mêmes entrées, mêmes réponses, mêmes tests.
  *
  * Ce qu'un joueur voit :
  * - ses observateurs : ses tokens (possédés ou incarnés, sauf `invisible`) et les tokens `ally`

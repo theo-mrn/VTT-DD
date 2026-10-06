@@ -57,7 +57,7 @@ import { useTable } from '@/components/table/contexte';
 import { usePanels } from '@/components/table/panels/navigation';
 import { messageErreur } from '@/lib/api';
 import { useActiveMap } from '@/lib/map/active-map';
-import { SPAWN_TOOL_ID } from '@/lib/map/modules/scene';
+import { SPAWN_TOOL_ID } from '@/lib/map/features/scene';
 import { usePersonnagesCampagne } from '@/lib/personnages';
 import { videoVariant } from '@/lib/map/engine/background-prefs';
 import { cn } from '@/lib/utils';
