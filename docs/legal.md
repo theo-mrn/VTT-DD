@@ -87,7 +87,7 @@ consommateur appelle la fonction juste après avoir ajouté l'événement ; rejo
 Profil › Sécurité › « Télécharger » : `lib/data-export.ts` lit les API de chaque service avec la
 session de la personne et assemble `yner-donnees-AAAA-MM-JJ.json` (profil, titres, sessions,
 amis, clés d'API, campagnes, personnages complets, ses notes complètes, jets personnels,
-réglages des dés, du mixeur et de la barre de la carte). Une rubrique illisible est notée `{ error }` sans bloquer les
+réglages des dés, du mixeur, de la barre de la carte et des raccourcis). Une rubrique illisible est notée `{ error }` sans bloquer les
 autres.
 
 ## Comptes inactifs (fait)

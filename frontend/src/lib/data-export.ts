@@ -80,7 +80,7 @@ export async function exportMyData(userId: string) {
     section(() => api('/v1/friends/requests')),
     section(() => api('/v1/api-keys')),
   ]);
-  const [campaigns, characters, notes, rolls, dicePreferences, mixer, mapToolbar] =
+  const [campaigns, characters, notes, rolls, dicePreferences, mixer, mapToolbar, shortcuts] =
     await Promise.all([
       section(() => api('/v1/campaigns')),
       section(myCharacters),
@@ -89,6 +89,7 @@ export async function exportMyData(userId: string) {
       section(() => api('/v1/dice/me/preferences')),
       section(() => api('/v1/audio/me/mixer')),
       section(() => api('/v1/users/me/map-toolbar')),
+      section(() => api('/v1/users/me/shortcuts')),
     ]);
   return {
     exportedAt: new Date().toISOString(),
@@ -102,6 +103,7 @@ export async function exportMyData(userId: string) {
       dicePreferences,
       mixer,
       mapToolbar,
+      shortcuts,
     },
   };
 }

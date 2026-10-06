@@ -1,5 +1,6 @@
 'use client';
 
+import { ShortcutsRoot } from '@/components/shortcuts/shortcuts-root';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig as LegacyMotionConfig } from 'framer-motion';
 import { MotionConfig } from 'motion/react';
@@ -35,6 +36,8 @@ export function Fournisseurs({ children }: Readonly<{ children: ReactNode }>) {
             {/* Dés 3D de toute l'app, montés une seule fois (contexte WebGL, shaders et moteur
                 physique gardés entre l'app et la table), chargés au premier lancer */}
             <DiceThrowerHost />
+            {/* Raccourcis du compte, aide-mémoire (?) et éditeur, partout dans l'app */}
+            <ShortcutsRoot />
             <PerfOverlay />
             <Telemetry />
             <YoutubeConsentBanner />

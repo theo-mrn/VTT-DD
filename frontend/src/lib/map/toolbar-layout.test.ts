@@ -82,3 +82,19 @@ describe('ToolbarLayoutStore', () => {
     expect(state.server).toEqual({ order: [], hidden: [], version: 2 });
   });
 });
+
+describe('événement d’un autre appareil', () => {
+  it('état complet : adopté ; version seule : relecture ; plus ancien : ignoré', async () => {
+    const { client, state } = fakeClient({ order: ['a'], hidden: [], version: 2 });
+    const store = new ToolbarLayoutStore(client, 0);
+    await store.load();
+    store.receive({ order: ['b'], hidden: [], version: 3 });
+    expect(store.state.order).toEqual(['b']);
+    state.server = { order: ['c'], hidden: [], version: 4 };
+    store.receive({ version: 4 });
+    await store.refresh();
+    expect(store.state.order).toEqual(['c']);
+    store.receive({ order: ['vieux'], hidden: [], version: 1 });
+    expect(store.state.order).toEqual(['c']);
+  });
+});

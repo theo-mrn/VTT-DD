@@ -105,6 +105,26 @@ export class AccountPrefsStore<T extends object> {
     this.emit();
   }
 
+  /**
+   * Événement d'un autre appareil : l'état s'il le porte, sinon (version seule : texte libre
+   * gardé hors du journal) une relecture du serveur.
+   */
+  receive(payload: unknown) {
+    const p = (payload ?? {}) as Record<string, unknown>;
+    if (typeof p.version !== 'number' || p.version <= this.version) return;
+    const complete = Object.keys(this.options.empty).every((k) => k in p);
+    if (complete) this.adopt(p as Versioned<T>);
+    else void this.refresh();
+  }
+
+  /** Relit le serveur. */
+  refresh(): Promise<void> {
+    return this.client
+      .get()
+      .then((p) => this.adopt(p))
+      .catch(() => undefined);
+  }
+
   set(next: T) {
     this.state = next;
     this.pending = next;
@@ -149,8 +169,12 @@ export function useAccountPrefs<T extends object>(store: AccountPrefsStore<T> | 
     () => null,
   );
   useEffect(() => void store?.load(), [store]);
-  useCampaignEvents(null, store ? [store.options.event] : [], (e) =>
-    store?.adopt(e.event.payload as unknown as Versioned<T>),
+  // Sans magasin (visiteur, rendu serveur) : aucune connexion temps réel ouverte pour rien
+  useCampaignEvents(
+    null,
+    store ? [store.options.event] : [],
+    (e) => store?.receive(e.event.payload),
+    { enabled: Boolean(store) },
   );
   return state;
 }

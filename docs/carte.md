@@ -521,6 +521,9 @@ interface MapAction {
 - `engine.registerAction(action)` : la touche est branchée par le contrôleur (après celles des
   outils), et le bouton posé si l'action a `toolbar`. `registerShortcut` n'existe plus : une
   touche sans bouton est une action sans `toolbar` (Q : quadrillage, Y : attaquer).
+- La touche déclarée n'est qu'un défaut : l'utilisateur la change dans l'éditeur des raccourcis
+  ([raccourcis.md](raccourcis.md) § 7). Un outil ou une action ajouté prend sa ligne dans
+  `lib/map/shortcuts.ts` (`MAP_SHORTCUTS`), vérifiée par `map-shortcuts.test.ts`.
 - ⌘Z, ⌘⇧Z, ⌘Y, ⌘D, Suppr, flèches et R restent des gestes communs du contrôleur : ils
   marchent sans aucun module ; l'action Annuler ne fait qu'afficher ⌘Z (`hint`).
 - Une même touche peut servir deux rôles (K : calques du MJ, bulle du joueur). Un test

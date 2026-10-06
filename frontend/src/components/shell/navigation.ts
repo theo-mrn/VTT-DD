@@ -2,6 +2,7 @@ import {
   CreditCard,
   Dices,
   Home,
+  Keyboard,
   KeyRound,
   Library,
   Shield,
@@ -37,6 +38,7 @@ export const NAV_SOCIALE: LienNav[] = [{ href: '/amis', label: 'Amis', icone: Us
 export const LIENS_COMPTE: LienNav[] = [
   { href: '/profil', label: 'Profil', icone: User, exact: true },
   { href: '/profil/securite', label: 'Sécurité', icone: Shield },
+  { href: '/profil/raccourcis', label: 'Raccourcis', icone: Keyboard },
   { href: '/profil/cles-api', label: "Clés d'API", icone: KeyRound },
   { href: '/profil/abonnement', label: 'Abonnement', icone: CreditCard },
 ];
