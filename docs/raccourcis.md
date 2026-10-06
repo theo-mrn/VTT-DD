@@ -143,8 +143,14 @@ type UserShortcut = {
 ```
 
 - Formule libre, ou copiée d'une macro de dés (`profil.settings.macrosDes`) ; `@FOR` lit le
-  personnage incarné, comme les macros. Commande `custom.<id>`, portée `dice` : lancée par la
-  table de dés affichée (page Dés, panneau Dés de la table), comme les macros 1 à 9.
+  personnage incarné, comme les macros. Commande `custom.<id>`, portée `dice`, comme les
+  macros 1 à 9, relancer et lancer 1dN.
+- **Où les dés répondent** : sur la page Dés, et **partout à la table**, panneau des dés fermé
+  compris (`components/des/raccourcis-table.tsx`, monté par la table) : héros incarné,
+  visibilité choisie dans le panneau (relue à chaque jet), résultat annoncé par une
+  notification ; relancer reprend mon dernier jet de la campagne. Panneau ouvert, ses propres
+  raccourcis répondent à la place (formule en cours, résultat dans le panneau) : jamais les
+  deux branchés à la fois.
 - « Toute action existante » n'est pas un raccourci créé : chaque commande du registre est
   dans la liste, avec ou sans touche par défaut, et reçoit la sienne.
 - Au plus 50 raccourcis créés.

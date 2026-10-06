@@ -1,5 +1,6 @@
 'use client';
 
+import { TableDiceShortcuts } from '@/components/des/raccourcis-table';
 import { useQuery } from '@tanstack/react-query';
 import { DoorOpen, RotateCw } from 'lucide-react';
 import Link from 'next/link';
@@ -20,13 +21,13 @@ import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfilRequis } from '@/lib/session';
 import { useSystemTypography } from '@/lib/system-fonts';
 import { useSysteme } from '@/lib/systemes';
-import { FournisseurHeros, FournisseurTable, type Table } from './contexte';
+import { FournisseurHeros, FournisseurTable, useTableHeros, type Table } from './contexte';
 import { HudCombat, HudExit } from './hud';
 import { TABLE_HUD_LEFT } from './hud-slots';
 import { PanelLocationSync } from './panels/navigation';
 import { PanelHost } from './panels/panel-host';
 import { panelsFor, type TableRole } from './panels/registry';
-import { PanelStoreProvider } from './panels/store';
+import { PanelStoreProvider, usePanelStore } from './panels/store';
 import { useActivityBadges } from './panels/use-activity-badges';
 import { useTableShortcuts } from './panels/use-table-shortcuts';
 import { useRailLayout } from './rail/rail-preferences';
@@ -198,8 +199,17 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
       <TableAudio campaignId={table.campagne.id} gm={table.gm} />
       {/* Recherche dans les règles : ⌘K / Ctrl+K (docs/recherche.md) */}
       <TableSearch />
+      {/* Raccourcis de dés (macros, relancer…), panneau des dés fermé compris */}
+      <RaccourcisDes campagneId={table.campagne.id} />
       {/* Document projeté par le MJ : plein écran au-dessus de tout (docs/projection.md) */}
       <Projection campaignId={table.campagne.id} gm={table.gm} />
     </div>
   );
 });
+
+/** Raccourcis de dés à la table, tant que le panneau des dés n'est pas ouvert (il prend le relais). */
+function RaccourcisDes({ campagneId }: Readonly<{ campagneId: string }>) {
+  const heros = useTableHeros();
+  const panneauOuvert = usePanelStore((s) => s.active === 'des');
+  return <TableDiceShortcuts campagneId={campagneId} personnage={heros} enabled={!panneauOuvert} />;
+}
