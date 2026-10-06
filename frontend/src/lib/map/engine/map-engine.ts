@@ -101,6 +101,8 @@ import { displayOf, isDisplayed, PLANE_RANK, type PlaneId } from './planes';
 import { ScreenSpace } from './screen-space';
 import { SpatialIndex } from './spatial-index';
 import { SelectTool } from './tools/select-tool';
+import type { BindingResolver } from '@/lib/shortcuts/dispatcher';
+import { mapActionShortcut } from '../shortcuts';
 import type { MapAction, ToolbarEntry } from './toolbar';
 import type { ToolDefinition } from './tools/tool';
 import { SELECT_TOOL_ID, ToolManager } from './tools/tool-manager';
@@ -581,10 +583,24 @@ export class MapEngine {
     };
   }
 
-  /** Action dont la touche est cette lettre, si ce viewer peut la déclencher. */
-  actionForKey(code: string): MapAction | null {
+  /**
+   * Touche effective d'un outil ou d'une action (docs/raccourcis.md § 7) : celle déclarée, ou
+   * celle choisie par l'utilisateur (`setBindingResolver`, branché par la carte montée).
+   */
+  bindingOf: BindingResolver = (d) => d.defaultBinding;
+
+  setBindingResolver(resolve: BindingResolver | null) {
+    this.bindingOf = resolve ?? ((d) => d.defaultBinding);
+  }
+
+  /** Action dont la touche est celle-ci (`KeyY`, `Shift+KeyY`), si ce viewer peut la déclencher. */
+  actionForKey(chord: string): MapAction | null {
     for (const a of this.actions.values())
-      if (a.shortcut?.code === code && (!a.available || a.available(this.viewer))) return a;
+      if (
+        this.bindingOf(mapActionShortcut(a)) === chord &&
+        (!a.available || a.available(this.viewer))
+      )
+        return a;
     return null;
   }
 

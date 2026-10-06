@@ -1,5 +1,8 @@
 'use client';
 
+import { JetRapidePersonnel } from '@/components/des/jet-rapide';
+import { GENERAL_SHORTCUTS } from '@/lib/shortcuts/catalog';
+import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import { Bell, ChevronRight, Dices, Menu, Search } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -56,7 +59,7 @@ export function BarreHaute({
         >
           <Search className="size-3.5" />
           Rechercher
-          <Kbd>⌘K</Kbd>
+          <ToucheRecherche />
         </button>
         <Button
           variant="ghost"
@@ -68,6 +71,8 @@ export function BarreHaute({
           <Search />
         </Button>
 
+        {/* Jet rapide (Espace puis Entrée) : un champ, la notation, Entrée */}
+        <JetRapidePersonnel />
         <Popover open={des} onOpenChange={setDes}>
           <Info texte="Lancer des dés">
             <PopoverTrigger asChild>
@@ -172,4 +177,10 @@ function FilAriane() {
       })}
     </nav>
   );
+}
+
+/** Touche de la recherche (celle choisie par l'utilisateur). */
+function ToucheRecherche() {
+  const touche = useBindingLabel(GENERAL_SHORTCUTS.search);
+  return touche.label ? <Kbd>{touche.label}</Kbd> : null;
 }

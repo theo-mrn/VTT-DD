@@ -12,6 +12,8 @@
  * - « Sélectionner le contenu », supprimer (le contenu descend, après confirmation).
  * Tout ce qui est enregistré passe par des commandes annulables.
  */
+import { mapActionShortcutOf } from '@/lib/map/shortcuts';
+import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import {
   ArrowDown,
   ArrowUp,
@@ -71,6 +73,7 @@ export function LayersPanel() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<number | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const touche = useBindingLabel(mapActionShortcutOf('layers.panel'));
 
   const layersMap = collections.layers;
   const layers = useMemo(
@@ -112,7 +115,7 @@ export function LayersPanel() {
       label="Calques"
       icon={Layers}
       title="Calques"
-      shortcut="K"
+      shortcut={touche.label}
       closeLabel="Fermer les calques"
       onClose={() => toggleLayersPanel(engine, false)}
       className="w-72"

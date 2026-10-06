@@ -1,5 +1,7 @@
 'use client';
 
+import { useBindingLabel } from '@/lib/shortcuts/hooks';
+import { shortcutOfPanel } from './shortcuts';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { X } from 'lucide-react';
 import { memo, Suspense, useEffect, useMemo, useRef, type KeyboardEvent } from 'react';
@@ -164,11 +166,7 @@ function PanelFrame({ panel, visible }: Readonly<{ panel: TablePanel; visible: b
           <h2 id={titreId} className="min-w-0 flex-1 truncate text-[15px] font-semibold">
             {panel.label}
           </h2>
-          {panel.shortcut && (
-            <Kbd className="hidden lg:inline-flex" aria-hidden>
-              {panel.shortcut.label}
-            </Kbd>
-          )}
+          <ToucheDuPanneau id={panel.id} />
           <Info
             texte={
               <span className="flex items-center gap-2">
@@ -221,3 +219,14 @@ const PanelFrameMemo = memo(
   PanelFrame,
   (a, b) => a.panel.id === b.panel.id && a.visible === b.visible,
 );
+
+/** Touche du panneau dans son en-tête (celle choisie par l'utilisateur). */
+function ToucheDuPanneau({ id }: Readonly<{ id: TablePanel['id'] }>) {
+  const touche = useBindingLabel(shortcutOfPanel(id));
+  if (!touche.label) return null;
+  return (
+    <Kbd className="hidden lg:inline-flex" aria-hidden>
+      {touche.label}
+    </Kbd>
+  );
+}

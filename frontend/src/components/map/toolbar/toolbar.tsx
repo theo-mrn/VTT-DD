@@ -6,6 +6,9 @@
  * l'utilisateur, un séparateur entre deux groupes. Elle ne connaît aucune fonction. Les
  * réglages de l'outil actif s'affichent au-dessus ; un clic droit la personnalise.
  */
+import { mapToolShortcut } from '@/lib/map/shortcuts';
+import type { ToolDefinition } from '@/lib/map/engine/tools/tool';
+import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import { Fragment, useMemo, useState } from 'react';
 import { PillGroup } from '@/components/ui/active-pill';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
@@ -103,26 +106,8 @@ export function MapToolbar() {
 function Slot({ slot, activeId }: Readonly<{ slot: ToolbarSlot; activeId: string }>) {
   const engine = useMapEngine();
   switch (slot.kind) {
-    case 'tool': {
-      const Icon = slot.tool.icon;
-      return (
-        <ToolbarButton
-          label={slot.tool.label}
-          shortcut={slot.tool.shortcut?.label}
-          active={slot.id === activeId}
-          glide
-          onClick={() => {
-            // Recliquer sur l'outil actif le referme (son menu avec) : retour à la sélection
-            engine.tools.activate(
-              slot.id === activeId && slot.id !== SELECT_TOOL_ID ? SELECT_TOOL_ID : slot.id,
-            );
-            focusMap(engine);
-          }}
-        >
-          <Icon />
-        </ToolbarButton>
-      );
-    }
+    case 'tool':
+      return <ToolButton tool={slot.tool} activeId={activeId} />;
     case 'action':
       return <ActionButton action={slot.action} />;
     case 'menu':
@@ -130,4 +115,27 @@ function Slot({ slot, activeId }: Readonly<{ slot: ToolbarSlot; activeId: string
     case 'custom':
       return <slot.component engine={engine} />;
   }
+}
+
+function ToolButton({ tool, activeId }: Readonly<{ tool: ToolDefinition; activeId: string }>) {
+  const engine = useMapEngine();
+  const touche = useBindingLabel(mapToolShortcut(tool));
+  const Icon = tool.icon;
+  return (
+    <ToolbarButton
+      label={tool.label}
+      shortcut={touche.label}
+      active={tool.id === activeId}
+      glide
+      onClick={() => {
+        // Recliquer sur l'outil actif le referme (son menu avec) : retour à la sélection
+        engine.tools.activate(
+          tool.id === activeId && tool.id !== SELECT_TOOL_ID ? SELECT_TOOL_ID : tool.id,
+        );
+        focusMap(engine);
+      }}
+    >
+      <Icon />
+    </ToolbarButton>
+  );
 }

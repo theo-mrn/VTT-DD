@@ -10,6 +10,7 @@
  * compris) et remonte une carte neuve. La pile d'annulation, elle, est gardée par utilisateur
  * et par carte le temps de la session.
  */
+import { effectiveBinding } from '@/lib/shortcuts/store';
 import { AlertTriangle, MapPinOff, RotateCw } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -103,6 +104,8 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
       notify: (message) => toast(message),
     });
     engineRef.current = engine;
+    // Touches des outils et actions : celles choisies par l'utilisateur (docs/raccourcis.md)
+    engine.setBindingResolver(effectiveBinding);
     for (const feature of MAP_FEATURES) engine.use(feature);
     const release = setActiveMap(campaignId, mapId, engine);
     setRuntime({ store, api, commands, live, engine, sync });

@@ -15,6 +15,7 @@
  *   ⌘/Ctrl+↑↓ (ordre ; ⇧ : premier plan, arrière-plan ; ⌥ : calque), lettres des outils et
  *   des actions des modules (K : calques, Q : quadrillage).
  */
+import { chordFromEvent } from '@/lib/shortcuts/chord';
 import { wheelZoomFactor } from '../camera';
 import type { Point } from '../geometry';
 import type { MapEngine } from '../map-engine';
@@ -318,11 +319,13 @@ export class InteractionController {
     if (k.code === 'Space' && !k.ctrl && !k.meta) return this.holdSpace();
     if (k.key === 'Escape') return this.escape();
     if (engine.tools.active.key?.(k, engine)) return true;
-    if (k.ctrl || k.meta) return this.modifiedKey(k);
-    if (k.alt) return false;
+    // Gestes communs d'abord (⌘Z, Suppr, flèches, R…) : non modifiables (docs/raccourcis.md)
+    if ((k.ctrl || k.meta) && this.modifiedKey(k)) return true;
     // Pendant un geste, pas de raccourci qui modifierait ce qu'on tient
     if (this.mode !== 'none') return false;
-    return this.plainKey(k);
+    if (!k.ctrl && !k.meta && !k.alt && this.plainKey(k)) return true;
+    if (k.repeat) return false;
+    return this.shortcutKey(k);
   }
 
   /** Espace enfoncé : la vue se déplace au glisser. */
@@ -386,7 +389,7 @@ export class InteractionController {
     return true;
   }
 
-  /** Raccourcis sans modificateur : suppression, flèches, rotation, outils, actions. */
+  /** Gestes sans modificateur : suppression, flèches, rotation de la sélection. */
   private plainKey(k: MapKey): boolean {
     const engine = this.engine;
     const selected = engine.selection.size > 0;
@@ -406,7 +409,6 @@ export class InteractionController {
       void engine.rotateEntities(engine.selectedEntities(), k.shift ? -ROTATE_STEP : ROTATE_STEP);
       return true;
     }
-    if (!k.shift && !k.repeat) return this.shortcutKey(k.code);
     return false;
   }
 
@@ -419,12 +421,21 @@ export class InteractionController {
     return true;
   }
 
-  /** Lettre d'un outil, sinon action d'un module (K : calques, Q : quadrillage). */
-  private shortcutKey(code: string): boolean {
+  /** Touche d'un outil, sinon d'une action (K : calques, Q : quadrillage), choisie ou par défaut. */
+  private shortcutKey(k: MapKey): boolean {
+    const chord = chordFromEvent({
+      key: k.key,
+      code: k.code,
+      metaKey: k.meta,
+      ctrlKey: k.ctrl,
+      altKey: k.alt,
+      shiftKey: k.shift,
+    });
+    if (!chord) return false;
     const tools = this.engine.tools;
-    const def = tools.byShortcut(code);
+    const def = tools.byShortcut(chord);
     if (def) return tools.activate(def.id);
-    const action = this.engine.actionForKey(code);
+    const action = this.engine.actionForKey(chord);
     if (action) {
       action.run(this.engine);
       return true;

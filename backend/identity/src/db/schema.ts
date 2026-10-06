@@ -245,3 +245,15 @@ export const mapToolbarLayouts = identity.table('map_toolbar_layouts', {
   version: bigint('version', { mode: 'number' }).notNull(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),
 });
+
+/** Raccourcis clavier de l'utilisateur (docs/raccourcis.md § 4). */
+export const shortcutPreferences = identity.table('shortcut_preferences', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  preferences: jsonb('preferences')
+    .$type<{ bindings: Record<string, string | null>; custom: unknown[] }>()
+    .notNull(),
+  version: bigint('version', { mode: 'number' }).notNull(),
+  updatedAt: horodatage('updated_at').notNull().defaultNow(),
+});

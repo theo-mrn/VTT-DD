@@ -5,6 +5,8 @@
  * éphémère, bulles au-dessus des tokens, et K pour ouvrir le sélecteur du joueur (bouton « Bulle » de la
  * barre d'outils, `BubbleToolbarButton`).
  */
+import { BUBBLE_SHORTCUT } from '@/lib/map/shortcuts';
+import { useShortcut } from '@/lib/shortcuts/hooks';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   useCallback,
@@ -23,10 +25,6 @@ import { useCampaignEphemeral } from '@/lib/realtime';
 import { useMapEngine, useMapHost, useMapState } from '@/components/map/engine-context';
 import { trackOverlay } from '@/components/map/overlay-tracker';
 import { bubbleControlOf } from './bubble-control';
-
-const editable = (t: EventTarget | null) =>
-  t instanceof HTMLElement &&
-  (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
 
 export function MapBubbles() {
   const engine = useMapEngine();
@@ -66,18 +64,10 @@ export function MapBubbles() {
   }, [control, board, speaker]);
   useEffect(() => control.setState({ active }), [control, active]);
 
-  // K : ouvrir ou fermer le sélecteur (hors saisie)
-  useEffect(() => {
-    if (!speaker) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code !== 'KeyK' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-      if (editable(e.target)) return;
-      e.preventDefault();
-      control.setState((s) => ({ open: !s.open }));
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [control, speaker]);
+  // K : ouvrir ou fermer le sélecteur (hors saisie), sur toute la table
+  useShortcut(BUBBLE_SHORTCUT, () => control.setState((s) => ({ open: !s.open })), {
+    enabled: Boolean(speaker),
+  });
 
   return <BubblesLayer engine={engine} board={board} hostRef={hostRef} />;
 }

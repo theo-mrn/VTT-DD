@@ -437,9 +437,9 @@ definePanel({
 ```
 
 Chaque panneau est enveloppé dans un `AsyncBoundary` (§ 3.11). Le panneau ouvert est rangé dans le
-store de la session. Les raccourcis passent par `shared/shortcuts` : un seul écouteur `keydown`,
-des portées (global, table, carte, dés), des surcharges persistées sous les clés actuelles
-`vtt-dd-shortcuts-v2` et `vtt-dd-custom-shortcuts`. L'API d'extension des bundles
+store de la session. Les raccourcis passent par `lib/shortcuts` : un seul écouteur `keydown`,
+des portées (global, table, carte, dés, notes), des surcharges **sur le compte** (identity),
+les réglages du legacy repris une fois ([raccourcis.md](raccourcis.md), qui fait foi). L'API d'extension des bundles
 ([front-star-wars.md](front-star-wars.md), R) est hors lot.
 
 ### 3.9 Design system

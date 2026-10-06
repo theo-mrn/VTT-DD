@@ -5,6 +5,8 @@
  * avec info-bulle et touche, séparateur, bouton à menu, bouton d'une action. Une entrée
  * `custom` d'un module s'en sert : elle ne refait pas son bouton.
  */
+import { mapActionShortcut } from '@/lib/map/shortcuts';
+import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import { useState, type ReactNode } from 'react';
 import { ActivePill } from '@/components/ui/active-pill';
 import { Button } from '@/components/ui/button';
@@ -82,11 +84,12 @@ export function ActionButton({ action }: Readonly<{ action: MapAction }>) {
   const engine = useMapEngine();
   const useStatus = action.useStatus ?? NO_STATUS;
   const status = useStatus(engine);
-  const Icon = action.icon;
+  const Icon = status.icon ?? action.icon;
+  const touche = useBindingLabel(mapActionShortcut(action));
   return (
     <ToolbarButton
       label={status.label ?? action.label}
-      shortcut={action.shortcut?.label ?? action.hint}
+      shortcut={touche.label ?? action.hint}
       active={status.active}
       disabled={status.enabled === false}
       onClick={() => {
@@ -108,7 +111,7 @@ export function MenuButton({ entry }: Readonly<{ entry: MenuEntry }>) {
   const useStatus = entry.useStatus ?? NO_STATUS;
   const status = useStatus(engine);
   const label = status.label ?? entry.label;
-  const Icon = entry.icon;
+  const Icon = status.icon ?? entry.icon;
   const Content = entry.content;
   return (
     <Popover open={open} onOpenChange={setOpen}>

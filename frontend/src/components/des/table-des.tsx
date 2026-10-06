@@ -1,5 +1,6 @@
 'use client';
 
+import { useDiceShortcuts } from './raccourcis-des';
 import { MotionConfig } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -27,16 +28,6 @@ const PLATEAU_INITIAL: EtatPlateau = {
   personnageId: null,
   version: 2,
 };
-
-/** Vrai si la frappe vise un champ ou une fenêtre : les raccourcis se taisent alors. */
-function frappeAilleurs(e: KeyboardEvent): boolean {
-  const cible = e.target instanceof Element ? e.target : null;
-  return Boolean(
-    cible?.closest(
-      'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"]',
-    ),
-  );
-}
 
 /** Table fixée sur une campagne (espace de jeu) : campagne et héros imposés. */
 export interface ContexteTableDes {
@@ -217,27 +208,8 @@ export function TableDes({
       ? lancerFormule(affiche.formula, affiche.label)
       : lancerFormule(etat.formule, etat.libelle);
 
-  // Raccourcis : R relance le dernier jet, 1 à 9 lancent les macros
-  const actions = useRef({ relancer, macros, lancerFormule, raccourcis });
-  actions.current = { relancer, macros, lancerFormule, raccourcis };
-  useEffect(() => {
-    function clavier(e: KeyboardEvent) {
-      if (!actions.current.raccourcis) return;
-      if (e.defaultPrevented || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (frappeAilleurs(e)) return;
-      if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault();
-        void actions.current.relancer();
-      } else if (/^[1-9]$/.test(e.key)) {
-        const macro = actions.current.macros[Number(e.key) - 1];
-        if (!macro) return;
-        e.preventDefault();
-        void actions.current.lancerFormule(macro.formula, macro.name);
-      }
-    }
-    window.addEventListener('keydown', clavier);
-    return () => window.removeEventListener('keydown', clavier);
-  }, []);
+  // Raccourcis : R relance le dernier jet, 1 à 9 lancent les macros, et ceux du joueur
+  useDiceShortcuts(raccourcis, { relancer, lancerFormule, macros });
 
   const journal = (
     <PanneauJets
