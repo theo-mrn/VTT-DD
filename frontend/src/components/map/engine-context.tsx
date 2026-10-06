@@ -6,7 +6,7 @@
  * sélecteurs, avec des instantanés stables, et ne se re-rendent que si la valeur choisie
  * change. Un `mousemove` ne re-rend jamais React.
  */
-import { createContext, useContext, useRef, useSyncExternalStore } from 'react';
+import { createContext, useContext, useRef, useSyncExternalStore, type RefObject } from 'react';
 import { useStore } from 'zustand';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import type { EngineExtensions, MapEngine, MapUiState } from '@/lib/map/engine/map-engine';
@@ -17,6 +17,18 @@ import type { MapStoreState } from '@/lib/map/store/map-store';
 const EngineContext = createContext<MapEngine | null>(null);
 
 export const MapEngineProvider = EngineContext.Provider;
+
+const HostContext = createContext<RefObject<HTMLElement | null> | null>(null);
+
+/** Élément qui porte la carte (gestes, dépôt de fichiers, position des bulles). */
+export const MapHostProvider = HostContext.Provider;
+
+/** Élément hôte de la carte ; n'existe que sous `MapCanvas`. */
+export function useMapHost(): RefObject<HTMLElement | null> {
+  const host = useContext(HostContext);
+  if (!host) throw new Error('useMapHost hors de la carte');
+  return host;
+}
 
 /** Le moteur de la carte affichée ; n'existe que sous `MapCanvas`. */
 export function useMapEngine(): MapEngine {

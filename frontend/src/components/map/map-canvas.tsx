@@ -30,13 +30,9 @@ import { useCampaignEphemeral } from '@/lib/realtime';
 import { MapConfirmDialog } from './confirm-dialog';
 import { MapContextMenu } from './context-menu';
 import { EntityPicker } from './entity-picker';
-import { MapEngineProvider } from './engine-context';
+import { MapEngineProvider, MapHostProvider } from './engine-context';
 import { MapInspector } from './inspector';
-import { LayersPanel } from './layers/layers-panel';
-import { MapBubbles } from './bubbles/map-bubbles';
-import { MapOverlays } from './overlays';
-import { PartyBarHost } from './party/party-bar';
-import { MapSounds } from './sounds/map-sounds';
+import { MapOverlays, OverlaySlot } from './overlays';
 import { SelectionPanel } from './selection-panel';
 import { MapToolbar } from './toolbar/toolbar';
 
@@ -200,68 +196,67 @@ function MapRuntime({
   const mounted = useStore(engine.ui, (s) => s.mounted);
 
   return (
-    <div className="absolute inset-0">
-      <div
-        ref={hostRef}
-        tabIndex={0}
-        role="application"
-        aria-roledescription="carte"
-        aria-label="Carte de la scène"
-        aria-keyshortcuts="V K Escape Delete Control+Z"
-        className="absolute inset-0 touch-none select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40"
-      />
+    <MapHostProvider value={hostRef}>
+      <div className="absolute inset-0">
+        <div
+          ref={hostRef}
+          tabIndex={0}
+          role="application"
+          aria-roledescription="carte"
+          aria-label="Carte de la scène"
+          aria-keyshortcuts="V K Escape Delete Control+Z"
+          className="absolute inset-0 touch-none select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40"
+        />
 
-      {(status === 'loading' || (!mounted && !failure)) && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <p className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2 text-sm text-muted-foreground">
-            <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden />
-            Chargement de la scène…
-          </p>
-        </div>
-      )}
-
-      {(failure || status === 'error' || status === 'gone') && (
-        <div className="absolute inset-0 grid place-items-center p-6">
-          <EtatVide
-            icone={status === 'gone' ? MapPinOff : AlertTriangle}
-            titre={titreEchec(Boolean(failure), status === 'gone')}
-            description={
-              failure ??
-              (status === 'gone'
-                ? 'Elle a été supprimée, ou le MJ l’a cachée.'
-                : 'Le service de la carte ne répond pas.')
-            }
-            className="w-full max-w-md bg-background/95"
-            action={
-              status === 'error' ? (
-                <Button variant="secondary" onClick={() => void sync.load()}>
-                  <RotateCw />
-                  Réessayer
-                </Button>
-              ) : undefined
-            }
-          />
-        </div>
-      )}
-
-      {status === 'ready' && !failure && (
-        <>
-          <MapToolbar />
-          <MapOverlays />
-          <MapBubbles campaignId={campaignId} hostRef={hostRef} />
-          <MapSounds campaignId={campaignId} hostRef={hostRef} />
-          <PartyBarHost />
-          <div className="pointer-events-none absolute bottom-24 right-3 top-20 z-10 flex items-start justify-end gap-3">
-            <MapInspector />
-            <SelectionPanel />
-            <LayersPanel />
+        {(status === 'loading' || (!mounted && !failure)) && (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <p className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2 text-sm text-muted-foreground">
+              <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden />
+              Chargement de la scène…
+            </p>
           </div>
-        </>
-      )}
-      <MapContextMenu hostRef={hostRef} />
-      <EntityPicker hostRef={hostRef} />
-      <MapConfirmDialog />
-    </div>
+        )}
+
+        {(failure || status === 'error' || status === 'gone') && (
+          <div className="absolute inset-0 grid place-items-center p-6">
+            <EtatVide
+              icone={status === 'gone' ? MapPinOff : AlertTriangle}
+              titre={titreEchec(Boolean(failure), status === 'gone')}
+              description={
+                failure ??
+                (status === 'gone'
+                  ? 'Elle a été supprimée, ou le MJ l’a cachée.'
+                  : 'Le service de la carte ne répond pas.')
+              }
+              className="w-full max-w-md bg-background/95"
+              action={
+                status === 'error' ? (
+                  <Button variant="secondary" onClick={() => void sync.load()}>
+                    <RotateCw />
+                    Réessayer
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+        )}
+
+        {status === 'ready' && !failure && (
+          <>
+            <MapToolbar />
+            <MapOverlays />
+            <div className="pointer-events-none absolute bottom-24 right-3 top-20 z-10 flex items-start justify-end gap-3">
+              <MapInspector />
+              <SelectionPanel />
+              <OverlaySlot slot="right" />
+            </div>
+          </>
+        )}
+        <MapContextMenu hostRef={hostRef} />
+        <EntityPicker hostRef={hostRef} />
+        <MapConfirmDialog />
+      </div>
+    </MapHostProvider>
   );
 }
 

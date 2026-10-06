@@ -6,9 +6,7 @@
  * Elle ne connaît aucune fonction. Les réglages de l'outil actif s'affichent au-dessus.
  */
 import { Fragment, useMemo } from 'react';
-import { useStore } from 'zustand';
 import { PillGroup } from '@/components/ui/active-pill';
-import { attackMenuStore } from '@/lib/combat/attack-menu-store';
 import { toolbarGroups, type ToolbarSlot } from '@/lib/map/engine/toolbar';
 import { SELECT_TOOL_ID } from '@/lib/map/engine/tools/tool-manager';
 import { cn } from '@/lib/utils';
@@ -16,6 +14,7 @@ import {
   useActiveToolId,
   useExtensions,
   useMapEngine,
+  useMapUi,
   useToolDefinitions,
 } from '../engine-context';
 import { ActionButton, focusMap, MenuButton, ToolbarButton, ToolbarSeparator } from './kit';
@@ -34,21 +33,17 @@ export function MapToolbar() {
   const active = definitions.find((d) => d.id === activeId);
   const Options = active?.options;
 
-  // Attaque en cours (menu ouvert, visée, dés) : la barre s'efface, elle revient à la fin
-  const campaignId = engine.store.getState().campaignId;
-  const attacking = useStore(
-    attackMenuStore,
-    (s) => s.flow.phase !== 'closed' && s.flow.campaignId === campaignId,
-  );
+  // Un module l'efface (combat : attaque en cours) ; elle revient quand il la rend
+  const hidden = useMapUi((s) => s.toolbarHiddenBy.length > 0);
 
   return (
     <div
-      inert={attacking}
-      aria-hidden={attacking || undefined}
+      inert={hidden}
+      aria-hidden={hidden || undefined}
       className={cn(
         'pointer-events-none absolute inset-x-0 bottom-3 z-10 flex flex-col items-center gap-2 px-3',
         'transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none',
-        attacking && 'translate-y-6 opacity-0',
+        hidden && 'translate-y-6 opacity-0',
       )}
     >
       {Options && (

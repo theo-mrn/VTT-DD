@@ -86,6 +86,12 @@ export function registerCombat(
     } else if (!aiming() && active) engine.tools.activate(SELECT_TOOL_ID);
   };
 
+  // ── Barre d'outils : effacée pendant une attaque (menu ouvert, visée, dés) ──
+  const syncToolbar = () => {
+    const f = menu.getState().flow;
+    engine.setToolbarHidden('combat', f.phase !== 'closed' && f.campaignId === campaignId);
+  };
+
   // ── Anneaux : état du combat + brouillon du menu ──
   const listeners = new Set<() => void>();
   const notify = () => {
@@ -151,8 +157,10 @@ export function registerCombat(
     }),
     menu.subscribe(() => {
       syncTool();
+      syncToolbar();
       notify();
     }),
+    () => engine.setToolbarHidden('combat', false),
     state.subscribe((s, prev) => {
       // Les badges d'états ont leur propre abonnement : les anneaux ne se refont pas pour eux
       if (
@@ -180,6 +188,7 @@ export function registerCombat(
     ...(ui.overlays ?? []).map((o) => engine.registerOverlay(o)),
   ];
   syncTool();
+  syncToolbar();
 
   return () => {
     for (const c of cleanups.toReversed()) c();

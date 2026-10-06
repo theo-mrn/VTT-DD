@@ -7,6 +7,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Point } from '../geometry';
+import { layersPanelOf } from '../../modules/layers/panel';
 import { GM, mountMap, type MapHarness } from '../../test/map-harness';
 
 let h: MapHarness | null = null;
@@ -216,9 +217,9 @@ describe('raccourcis', () => {
   it('K : panneau des calques ; touche d’outil ; raccourci de module (Q) ; touche inconnue', async () => {
     h = await mountMap({ viewer: GM });
     const c = h.engine.controller;
-    const open = h.engine.ui.getState().layersPanel;
+    const open = layersPanelOf(h.engine).getState().open;
     expect(c.keyDown(h.key('k'))).toBe(true);
-    expect(h.engine.ui.getState().layersPanel).toBe(!open);
+    expect(layersPanelOf(h.engine).getState().open).toBe(!open);
     expect(c.keyDown(h.key('w'))).toBe(true);
     expect(h.engine.tools.getActiveId()).toBe('obstacles');
     // Outil murs : les chiffres choisissent son mode

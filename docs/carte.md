@@ -135,7 +135,7 @@ frontend/src/components/map/
   context-menu.tsx       menu contextuel commun (Radix), ancré au point de l'écran
   inspector.tsx          panneau d'inspection de la sélection (sections fournies par les modules)
   confirm-dialog.tsx     confirmations demandées par le moteur
-  overlays.tsx           surcouches des modules (`registerOverlay`) : colonne de gauche, composants sans rendu
+  overlays.tsx           surcouches des modules (`registerOverlay`) : colonnes de gauche et de droite, sans emplacement
   layers/                panneau des calques du MJ (K)
   scenes/                panneau Scènes (E) : liste, dossiers, fond, groupe (ex-CitiesManager)
   <module>/              UI propre à un module (bibliothèque de PNJ, propriétés d'un objet…)
@@ -465,8 +465,9 @@ Règles de ces gestes :
 
 ### Fonctions branchables et barre d'outils déclarative
 
-> Chantier « barre d'outils » (2026-10-06). Lot 1 livré (actions, barre déclarative, modules
-> socle) ; le paragraphe « La barre d'outils porte aussi… » ci-dessus n'est plus à jour.
+> Chantier « barre d'outils » (2026-10-06). Lots 1 et 2 livrés (actions, barre déclarative,
+> modules socle, surcouches) ; le paragraphe « La barre d'outils porte aussi… » ci-dessus n'est
+> plus à jour.
 
 **But.** Ajouter un bouton = une déclaration ; retirer une fonction = une ligne dans
 `modules/index.ts` ; chacun masque ou réordonne ses boutons. Aucun bouton écrit en dur dans
@@ -536,8 +537,9 @@ type ToolbarEntry =
   `ActionButton`, `MenuButton`, `focusMap`. Une entrée `custom` s'en sert, elle ne refait pas
   son bouton.
 - `components/map/toolbar/toolbar.tsx` ne connaît aucune fonction : il rend les groupes (au
-  lot 3, après la disposition de l'utilisateur). Seul reste l'effacement pendant une attaque
-  (`attackMenuStore`), à sortir au lot 2.
+  lot 3, après la disposition de l'utilisateur). Un module l'efface le temps qu'il faut
+  (`engine.setToolbarHidden(owner, hidden)`, `ui.toolbarHiddenBy`) : le combat pendant une
+  attaque.
 
 Exemple, un bouton de plus :
 
@@ -583,8 +585,17 @@ Ce qui est en dur devient des modules comme les autres, dans `modules/` :
 | Q (grid), Y (combat)         | inchangés       | `registerShortcut` → action sans bouton |
 
 Le moteur garde l'aimantation, la caméra et l'historique (le glisser et les commandes en ont
-besoin) ; seuls leurs boutons sortent. Ce qui n'est qu'un état d'interface (panneau des calques
-ouvert, curseur partagé) sort du moteur avec son module.
+besoin) ; seuls leurs boutons sortent. L'ouverture du panneau des calques sort avec son module
+(`modules/layers/panel.ts`) ; la pile, le calque actif, l'œil local et l'isolement restent au
+moteur (rendu et toucher). Le curseur partagé reste aussi au moteur : le contrôleur l'envoie
+à chaque déplacement du pointeur, sur le canal du direct.
+
+**Surcouches** (`registerOverlay`) : emplacements `left` (colonne de gauche), `right` (colonne
+de droite, après l'inspecteur et le panneau de la sélection) et `none` (rendu libre, portail,
+composant sans rendu). Une surcouche lit l'élément hôte de la carte par `useMapHost()` (dépôt de
+fichiers, position des bulles) et la campagne par `useMapState`. `map-canvas.tsx` ne monte que
+le moteur et ses hôtes génériques : barre, surcouches, inspecteur, panneau de la sélection,
+menu contextuel, choix dans une pile, confirmations.
 
 #### Personnalisation de la barre
 
@@ -625,9 +636,9 @@ sans interface `ui` injectée.
    `layers`, `scene-display`, `snap`, `presence`, `camera`. Seul changement visible : chez un
    joueur, la bulle passe après le séparateur qui suit Refaire. Tests : ordre, groupes, droits,
    unicité des touches.
-2. **Surcouches en dur** : `map-canvas.tsx` ne monte plus que le moteur et ses hôtes génériques
-   (barre, surcouches, inspecteur, menu) ; `sounds`, `party`, `layers`, `bubbles` passent par
-   `registerOverlay`.
+2. **Surcouches en dur** (livré) : `map-canvas.tsx` ne monte plus que le moteur et ses hôtes
+   génériques ; `sounds`, `party` (nouveau), `layers`, `bubbles` passent par `registerOverlay` ;
+   la barre ne lit plus le menu d'attaque. Aucun changement visible.
 3. **Personnalisation** : contrat, route et table (identity, sa doc d'API), magasin de la
    disposition, panneau « Personnaliser la barre ».
 4. **Dossiers** : `features/<id>/`, `MapFeature`, règle d'import, cette section et § 3 mises à

@@ -88,6 +88,7 @@ import { sceneDisplayModule } from './scene-display';
 import { snapModule } from './snap';
 import { presenceModule } from './presence';
 import { cameraModule } from './camera';
+import { partyModule } from './party';
 
 export const MAP_MODULES: readonly MapModule[] = [
   // Socle de la barre : annuler et refaire, bulle du joueur, calques (K), fond et affichage de la
@@ -99,6 +100,8 @@ export const MAP_MODULES: readonly MapModule[] = [
   snapModule,
   presenceModule,
   cameraModule,
+  // Barre du groupe, dans le HUD gauche de la table
+  partyModule,
   // Moteur : point d'apparition de la scène
   sceneModule,
   // Quadrillages de la scène et leur calibrage sur l'image

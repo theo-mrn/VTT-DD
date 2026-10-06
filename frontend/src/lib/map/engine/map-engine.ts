@@ -139,8 +139,11 @@ export interface InspectorSection {
  */
 export interface MapOverlay {
   id: string;
-  /** `left` : colonne de gauche de la carte ; `none` : sans emplacement (rendu libre ou nul). */
-  slot: 'left' | 'none';
+  /**
+   * `left` : colonne de gauche ; `right` : colonne de droite, après l'inspecteur et le panneau de
+   * la sélection ; `none` : sans emplacement (rendu libre, portail, ou composant sans rendu).
+   */
+  slot: 'left' | 'right' | 'none';
   order?: number;
   available?(viewer: MapViewer): boolean;
   component: ComponentType<{ engine: MapEngine }>;
@@ -214,8 +217,6 @@ export interface MapUiState {
    */
   selectionPanel: boolean;
   confirm: ConfirmRequest | null;
-  /** Panneau des calques (MJ, touche K). */
-  layersPanel: boolean;
   /** Calque actif : ce qui est posé y va. */
   activeLayerId: string | null;
   /** Calques cachés sur mon écran seulement (œil local). */
@@ -228,6 +229,8 @@ export interface MapUiState {
   viewAs: string | null;
   /** Aimantation des gestes (libre par défaut). */
   snap: SnapStep;
+  /** Modules qui effacent la barre d'outils (combat : attaque en cours) ; vide : affichée. */
+  toolbarHiddenBy: readonly string[];
 }
 
 const NO_LAYERS: ReadonlySet<string> = new Set();
@@ -459,13 +462,13 @@ export class MapEngine {
       inspector: null,
       selectionPanel: false,
       confirm: null,
-      layersPanel: false,
       activeLayerId: null,
       hiddenLayers: NO_LAYERS,
       isolatedLayer: null,
       shareCursor: false,
       viewAs: null,
       snap: opts.snap ?? readSnap(),
+      toolbarHiddenBy: [],
     }));
     this.tools = new ToolManager(this);
     this.controller = new InteractionController(this, opts.timers);
@@ -2183,10 +2186,19 @@ export class MapEngine {
     });
   }
 
-  // ─── Calques : état local (panneau) ────────────────────────────────────────
+  // ─── Barre d'outils et calques : état local ────────────────────────────────
 
-  toggleLayersPanel(open?: boolean) {
-    this.ui.setState((s) => ({ layersPanel: open ?? !s.layersPanel }));
+  /** Efface la barre d'outils tant qu'un module le demande (`owner` : son identifiant). */
+  setToolbarHidden(owner: string, hidden: boolean) {
+    this.ui.setState((s) => {
+      const has = s.toolbarHiddenBy.includes(owner);
+      if (has === hidden) return s;
+      return {
+        toolbarHiddenBy: hidden
+          ? [...s.toolbarHiddenBy, owner]
+          : s.toolbarHiddenBy.filter((o) => o !== owner),
+      };
+    });
   }
 
   setActiveLayer(id: string | null) {

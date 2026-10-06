@@ -31,6 +31,7 @@ import {
   UserRoundX,
 } from 'lucide-react';
 import { useMemo, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -54,6 +55,7 @@ import {
   updateLayer,
 } from '@/lib/map/engine/layer-operations';
 import { sortLayers, type LayerLike } from '@/lib/map/engine/layers';
+import { layersPanelOf, toggleLayersPanel } from '@/lib/map/modules/layers/panel';
 import { STACKED_COLLECTIONS } from '@/lib/map/store/collections';
 import { cn } from '@/lib/utils';
 import { useMapEngine, useMapState, useMapUi } from '../engine-context';
@@ -61,7 +63,7 @@ import { MapPanel } from '../map-panel';
 
 export function LayersPanel() {
   const engine = useMapEngine();
-  const open = useMapUi((s) => s.layersPanel);
+  const open = useStore(layersPanelOf(engine), (s) => s.open);
   const activeId = useMapUi((s) => s.activeLayerId);
   const hidden = useMapUi((s) => s.hiddenLayers);
   const isolated = useMapUi((s) => s.isolatedLayer);
@@ -112,7 +114,7 @@ export function LayersPanel() {
       title="Calques"
       shortcut="K"
       closeLabel="Fermer les calques"
-      onClose={() => engine.toggleLayersPanel(false)}
+      onClose={() => toggleLayersPanel(engine, false)}
       className="w-72"
     >
       {layers.length ? (

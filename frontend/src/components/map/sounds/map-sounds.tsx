@@ -27,19 +27,15 @@ import {
   type SoundZoneData,
 } from '@/lib/map/modules/sounds/model';
 import { soundContextOf } from '@/lib/map/modules/sounds/register';
-import { useMapEngine, useMapState } from '../engine-context';
+import { useMapEngine, useMapHost, useMapState } from '../engine-context';
 
 /** Écart minimal entre deux positions transmises au moteur audio. */
 const LISTENER_GAP_MS = 66;
 
-export function MapSounds({
-  campaignId,
-  hostRef,
-}: {
-  campaignId: string;
-  hostRef: RefObject<HTMLElement | null>;
-}) {
+export function MapSounds() {
   const engine = useMapEngine();
+  const hostRef = useMapHost();
+  const campaignId = useMapState((s) => s.campaignId);
   const listener = useListener(engine);
   const zones = useMapState((s) => s.collections[SOUND_ZONES]);
   const obstacles = useMapState((s) => s.collections.obstacles);

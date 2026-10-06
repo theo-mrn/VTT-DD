@@ -26,7 +26,7 @@ import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { TOKENS_COLLECTION, type TokenData } from '@/lib/map/modules/tokens/model';
 import { tokensStateOf } from '@/lib/map/modules/tokens/state';
 import { useCampaignEphemeral } from '@/lib/realtime';
-import { useMapEngine } from '../engine-context';
+import { useMapEngine, useMapHost, useMapState } from '../engine-context';
 import { trackOverlay } from '../overlay-tracker';
 import { bubbleControlOf } from './bubble-control';
 
@@ -34,14 +34,10 @@ const editable = (t: EventTarget | null) =>
   t instanceof HTMLElement &&
   (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
 
-export function MapBubbles({
-  campaignId,
-  hostRef,
-}: Readonly<{
-  campaignId: string;
-  hostRef: RefObject<HTMLElement | null>;
-}>) {
+export function MapBubbles() {
   const engine = useMapEngine();
+  const hostRef = useMapHost();
+  const campaignId = useMapState((s) => s.campaignId);
   const board = useMemo(
     () => new BubbleBoard((id) => tokensStateOf(engine)?.directory.get(id)),
     [engine],

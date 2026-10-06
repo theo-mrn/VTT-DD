@@ -108,6 +108,16 @@ describe('entrées « Attaquer » de la carte', () => {
     expect(find(t.items('g1'), 'combat:attack')).toBeUndefined();
   });
 
+  it('attaque en cours : la barre d’outils s’efface, puis revient', () => {
+    const t = setup();
+    expect(t.engine.ui.getState().toolbarHiddenBy).toEqual([]);
+    t.engine.selection.replace(['g1']);
+    t.engine.actionForKey('KeyY')!.run(t.engine);
+    expect(t.engine.ui.getState().toolbarHiddenBy).toEqual(['combat']);
+    t.menu.port.dispatch({ type: 'close' });
+    expect(t.engine.ui.getState().toolbarHiddenBy).toEqual([]);
+  });
+
   it('touche Y : la sélection devient les cibles', () => {
     const t = setup();
     t.engine.selection.replace(['g1', 'l1']);

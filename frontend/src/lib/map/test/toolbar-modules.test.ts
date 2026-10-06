@@ -58,6 +58,19 @@ describe('barre d’outils, modules de l’app', () => {
     expect(bar.assist).toEqual(['camera.fit']);
   });
 
+  it('surcouches des modules : bulles, sons, groupe, calques (colonne de droite)', async () => {
+    h = await mountMap({ viewer: GM });
+    const slots = Object.fromEntries(
+      h.engine.getExtensions().overlays.map((o) => [o.id, o.slot] as const),
+    );
+    expect(slots).toMatchObject({
+      'bubbles.layer': 'none',
+      'sounds.listen': 'none',
+      'party.bar': 'none',
+      'layers.panel': 'right',
+    });
+  });
+
   it.each([GM, ALICE, SPECTATOR])('touches uniques ($role)', async (viewer) => {
     h = await mountMap({ viewer });
     const keys = [
