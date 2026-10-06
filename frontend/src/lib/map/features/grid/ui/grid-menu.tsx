@@ -8,6 +8,8 @@
  * « Ajuster sur l'image » : glisser sur des cases dessinées dans le fond pour caler case et
  * origine. Chaque changement est une commande annulable (`PATCH /maps/:mapId`).
  */
+import { mapActionShortcutOf } from '@/lib/map/shortcuts';
+import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import { MAP_GRIDS_MAX, type MapGrid } from '@vtt/contracts';
 import { Check, ChevronUp, Grid3x3, Plus, Ruler, Trash2 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -22,13 +24,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Info } from '@/components/ui/tooltip';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import {
-  calibrateSettings,
-  gridDisplay,
-  GRID_TOGGLE_SHORTCUT,
-  saveGrids,
-  setGridShown,
-} from '../engine/state';
+import { calibrateSettings, gridDisplay, saveGrids, setGridShown } from '../engine/state';
 import {
   CALIBRATE_CELLS,
   GRID_CALIBRATE_TOOL_ID,
@@ -50,6 +46,7 @@ export function GridControls({ engine }: Readonly<{ engine: MapEngine }>) {
   const grids = useMapState((s) => (s.scene?.grids as MapGrid[] | undefined) ?? NO_GRIDS);
   const mine = gm ? grids : grids.filter((g) => g.visibleToPlayers);
   const shown = useStore(gridDisplay, (s) => s.shown);
+  const touche = useBindingLabel(mapActionShortcutOf('grid.toggle'));
   if (!gm && !mine.length) return null;
   return (
     <div className="flex items-center">
@@ -58,7 +55,7 @@ export function GridControls({ engine }: Readonly<{ engine: MapEngine }>) {
           texte={
             <span className="flex items-center gap-2">
               {shown ? 'Masquer le quadrillage' : 'Afficher le quadrillage'}
-              <Kbd>{GRID_TOGGLE_SHORTCUT.label}</Kbd>
+              {touche.label && <Kbd>{touche.label}</Kbd>}
             </span>
           }
         >
@@ -67,7 +64,7 @@ export function GridControls({ engine }: Readonly<{ engine: MapEngine }>) {
             size="icon-sm"
             aria-label={shown ? 'Masquer le quadrillage' : 'Afficher le quadrillage'}
             aria-pressed={shown}
-            aria-keyshortcuts={GRID_TOGGLE_SHORTCUT.label}
+            aria-keyshortcuts={touche.aria}
             onClick={() => setGridShown(!shown)}
             className={cn(shown && 'bg-primary/10 text-primary')}
           >
@@ -124,8 +121,8 @@ function GridSettings({
         <p className="text-sm font-semibold">Quadrillage</p>
         <p className="mb-3 text-xs text-muted-foreground">
           Aligné sur l’image : le même pour tous, à tous les zooms. La grille de jeu donne la case
-          de la scène (taille des jetons, rayons, aimantation). <Kbd>Q</Kbd> l’affiche ou le masque
-          sur votre écran.
+          de la scène (taille des jetons, rayons, aimantation). Le bouton l’affiche ou le masque sur
+          votre écran.
         </p>
         <div className="space-y-3">
           {grids.map((grid) => (

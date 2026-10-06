@@ -1,5 +1,7 @@
 'use client';
 
+import { GENERAL_SHORTCUTS } from '@/lib/shortcuts/catalog';
+import { useShortcut } from '@/lib/shortcuts/hooks';
 import { ChevronsRight } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -34,16 +36,7 @@ export function CadreApp({ children }: Readonly<{ children: ReactNode }>) {
     if (aOnboarder) router.replace(`/bienvenue?${new URLSearchParams({ suite: chemin })}`);
   }, [aOnboarder, router, chemin]);
 
-  useEffect(() => {
-    const clavier = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setPalette((v) => !v);
-      }
-    };
-    window.addEventListener('keydown', clavier);
-    return () => window.removeEventListener('keydown', clavier);
-  }, []);
+  useShortcut(GENERAL_SHORTCUTS.search, () => setPalette((v) => !v));
 
   if (!profil || aOnboarder) return <EcranChargement />;
 

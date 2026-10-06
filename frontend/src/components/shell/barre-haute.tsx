@@ -1,5 +1,7 @@
 'use client';
 
+import { GENERAL_SHORTCUTS } from '@/lib/shortcuts/catalog';
+import { useBindingLabel, useShortcut } from '@/lib/shortcuts/hooks';
 import { Bell, ChevronRight, Dices, Menu, Search } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -31,6 +33,7 @@ export function BarreHaute({
   onRecherche: () => void;
 }>) {
   const [des, setDes] = useState(false);
+  useShortcut(GENERAL_SHORTCUTS.quickRoll, () => setDes((v) => !v));
   const demandes = useDemandesAmis();
   const recues = demandes.data?.received ?? [];
 
@@ -56,7 +59,7 @@ export function BarreHaute({
         >
           <Search className="size-3.5" />
           Rechercher
-          <Kbd>⌘K</Kbd>
+          <ToucheRecherche />
         </button>
         <Button
           variant="ghost"
@@ -172,4 +175,10 @@ function FilAriane() {
       })}
     </nav>
   );
+}
+
+/** Touche de la recherche (celle choisie par l'utilisateur). */
+function ToucheRecherche() {
+  const touche = useBindingLabel(GENERAL_SHORTCUTS.search);
+  return touche.label ? <Kbd>{touche.label}</Kbd> : null;
 }

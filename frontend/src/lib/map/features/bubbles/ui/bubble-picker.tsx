@@ -5,6 +5,8 @@
  * (sélecteur Frimousse : recherche et noms en français, catégories collantes, couleur de peau)
  * ou une réplique de 40 caractères ; durée de 1 à 60 s ; retrait de la bulle en cours.
  */
+import { BUBBLE_SHORTCUT } from '@/lib/map/shortcuts';
+import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import {
   BUBBLE_DURATION_DEFAULT_MS,
   BUBBLE_DURATION_MAX_MS,
@@ -64,6 +66,7 @@ export function BubbleToolbarButton() {
   const speaker = useStore(control, (s) => s.speaker);
   const open = useStore(control, (s) => s.open);
   const active = useStore(control, (s) => s.active);
+  const touche = useBindingLabel(BUBBLE_SHORTCUT);
   if (!speaker) return null;
 
   const close = () => control.setState({ open: false });
@@ -73,7 +76,7 @@ export function BubbleToolbarButton() {
       <Info
         texte={
           <span className="flex items-center gap-2">
-            Bulle <Kbd>K</Kbd>
+            Bulle {touche.label && <Kbd>{touche.label}</Kbd>}
           </span>
         }
       >
@@ -82,7 +85,7 @@ export function BubbleToolbarButton() {
             variant="ghost"
             size="icon-sm"
             aria-label="Bulle"
-            aria-keyshortcuts="K"
+            aria-keyshortcuts={touche.aria}
             className={cn(
               (open || active) &&
                 'bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary',

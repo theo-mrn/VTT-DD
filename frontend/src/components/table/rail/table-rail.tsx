@@ -19,7 +19,8 @@ import { cn } from '@/lib/utils';
 import { panelDomId } from '../panels/panel-host';
 import type { TablePanel } from '../panels/registry';
 import { usePanelStore } from '../panels/store';
-import { QUICK_NOTE_SHORTCUT } from '../panels/use-table-shortcuts';
+import { shortcutOfPanel, TABLE_SHORTCUTS } from '../panels/shortcuts';
+import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import type { RailItem, useRailLayout } from './rail-preferences';
 
 type RailLayout = ReturnType<typeof useRailLayout>;
@@ -87,6 +88,7 @@ function RailButton({
   const badge = usePanelStore((s) => s.badges[panel.id] ?? 0);
   const toggle = usePanelStore((s) => s.toggle);
   const Icone = panel.icon;
+  const touche = useBindingLabel(shortcutOfPanel(panel.id));
   let nouveautes = '';
   if (badge === 1) nouveautes = ' (1 nouveauté)';
   else if (badge > 1) nouveautes = ` (${badge} nouveautés)`;
@@ -97,7 +99,7 @@ function RailButton({
       onClick={() => toggle(panel.id)}
       aria-expanded={actif}
       aria-controls={monte ? panelDomId(panel.id) : undefined}
-      aria-keyshortcuts={panel.shortcut?.label}
+      aria-keyshortcuts={touche.aria}
       aria-label={`${panel.label}${nouveautes}`}
       className={cn(
         'relative isolate flex shrink-0 items-center justify-center transition-[color,background-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 active:scale-95',
@@ -127,7 +129,7 @@ function RailButton({
       texte={
         <span className="flex items-center gap-2">
           {panel.label}
-          {panel.shortcut && <Kbd>{panel.shortcut.label}</Kbd>}
+          {touche.label && <Kbd>{touche.label}</Kbd>}
         </span>
       }
     >
@@ -198,9 +200,7 @@ function RailCustomizer({ layout, cote }: Readonly<{ layout: RailLayout; cote: '
           ))}
         </ul>
         <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2.5">
-          <span className="flex items-center gap-1.5 text-xs text-subtle">
-            Note rapide <Kbd>{QUICK_NOTE_SHORTCUT.label}</Kbd>
-          </span>
+          <ToucheNoteRapide />
           <Button variant="ghost" size="xs" onClick={reset} disabled={!customized}>
             <RotateCcw />
             Réinitialiser
@@ -227,6 +227,7 @@ function LigneCustomizer({
   onHidden: (hidden: boolean) => void;
 }>) {
   const Icone = panel.icon;
+  const touche = useBindingLabel(shortcutOfPanel(panel.id));
   return (
     <li className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2">
       <Icone
@@ -236,7 +237,7 @@ function LigneCustomizer({
       <span className={cn('min-w-0 flex-1 truncate text-sm', hidden && 'text-subtle line-through')}>
         {panel.label}
       </span>
-      {panel.shortcut && <Kbd aria-hidden>{panel.shortcut.label}</Kbd>}
+      {touche.label && <Kbd aria-hidden>{touche.label}</Kbd>}
       <Button
         variant="ghost"
         size="icon-xs"
@@ -266,5 +267,16 @@ function LigneCustomizer({
         {hidden ? <EyeOff /> : <Eye />}
       </Button>
     </li>
+  );
+}
+
+/** Rappel de la note rapide, avec la touche choisie (rien si elle n'en a plus). */
+function ToucheNoteRapide() {
+  const touche = useBindingLabel(TABLE_SHORTCUTS.quickNote);
+  if (!touche.label) return <span />;
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-subtle">
+      Note rapide <Kbd>{touche.label}</Kbd>
+    </span>
   );
 }

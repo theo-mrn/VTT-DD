@@ -1,5 +1,7 @@
 'use client';
 
+import { NOTES_SHORTCUTS } from '@/lib/shortcuts/catalog';
+import { useShortcut } from '@/lib/shortcuts/hooks';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -38,16 +40,6 @@ import { SynchroNotes } from './notes-sync';
 import { grouper, indexer, termes } from './outils';
 
 const URL_NOTES = '/notes';
-
-/** Vrai si la touche part d'un champ, d'un menu ou d'une fenêtre : pas de raccourci alors. */
-function estSaisie(cible: EventTarget | null): boolean {
-  if (!(cible instanceof HTMLElement)) return false;
-  return (
-    cible.isContentEditable ||
-    ['INPUT', 'TEXTAREA', 'SELECT'].includes(cible.tagName) ||
-    cible.closest('[role="dialog"],[role="alertdialog"],[role="menu"]') !== null
-  );
-}
 
 const grandEcran = () => window.matchMedia('(min-width: 1024px)').matches;
 
@@ -331,27 +323,17 @@ export function EspaceNotes({
     };
   });
 
-  useEffect(() => {
-    const clavier = (e: KeyboardEvent) => {
-      if (!actions.current.raccourcis || e.defaultPrevented || e.repeat) return;
-      // ⌘⌥N / Ctrl+Alt+N partout, même en pleine saisie (code : ⌥N produit « ˜ » sur Mac)
-      if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === 'KeyN') {
-        e.preventDefault();
-        actions.current.creer();
-        return;
-      }
-      if (e.metaKey || e.ctrlKey || e.altKey || estSaisie(e.target)) return;
-      if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault();
-        actions.current.creer();
-      } else if (e.key === '/') {
-        e.preventDefault();
-        actions.current.chercher();
-      }
-    };
-    window.addEventListener('keydown', clavier);
-    return () => window.removeEventListener('keydown', clavier);
-  }, []);
+  // N : nouvelle note ; / : chercher ; ⌘⌥N / Ctrl+Alt+N partout, même en pleine saisie
+  const raccourcisActifs = raccourcis;
+  useShortcut(NOTES_SHORTCUTS.create, () => actions.current.creer(), {
+    enabled: raccourcisActifs,
+  });
+  useShortcut(NOTES_SHORTCUTS.createAnywhere, () => actions.current.creer(), {
+    enabled: raccourcisActifs,
+  });
+  useShortcut(NOTES_SHORTCUTS.search, () => actions.current.chercher(), {
+    enabled: raccourcisActifs,
+  });
 
   const consommerFocus = useCallback(() => setFocus(null), []);
 

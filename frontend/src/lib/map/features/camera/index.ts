@@ -1,6 +1,19 @@
-/** Module « caméra » (docs/carte.md § 4) : « Recadrer la vue », la carte entière à l'écran. */
-import { Focus } from 'lucide-react';
-import type { MapFeature } from '@/lib/map/engine/map-engine';
+/**
+ * Module « caméra » (docs/carte.md § 4) : « Recadrer la vue » (la carte entière à l'écran), et
+ * zoomer ou dézoomer d'un cran au centre de la vue (+ et −).
+ */
+import { Focus, ZoomIn, ZoomOut } from 'lucide-react';
+import type { MapEngine, MapFeature } from '@/lib/map/engine/map-engine';
+
+/** Un cran de zoom au clavier (comme un cran de molette). */
+export const ZOOM_STEP = 1.25;
+
+/** Zoom au centre de la vue. */
+export function zoomCenter(engine: MapEngine, factor: number) {
+  const { width, height } = engine.camera.viewport;
+  engine.camera.zoomAt({ x: width / 2, y: height / 2 }, factor);
+  engine.cameraSettled();
+}
 
 export const cameraFeature: MapFeature = {
   id: 'camera',
@@ -11,6 +24,20 @@ export const cameraFeature: MapFeature = {
       icon: Focus,
       run: (e) => e.fitView(),
       toolbar: { group: 'assist', order: 30 },
+    }),
+    engine.registerAction({
+      id: 'camera.zoom-in',
+      label: 'Zoomer',
+      icon: ZoomIn,
+      shortcut: { code: 'Char:+', label: '+' },
+      run: (e) => zoomCenter(e, ZOOM_STEP),
+    }),
+    engine.registerAction({
+      id: 'camera.zoom-out',
+      label: 'Dézoomer',
+      icon: ZoomOut,
+      shortcut: { code: 'Char:-', label: '−' },
+      run: (e) => zoomCenter(e, 1 / ZOOM_STEP),
     }),
   ],
 };

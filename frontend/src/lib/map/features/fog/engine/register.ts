@@ -2,7 +2,7 @@
  * Branchement du module brouillard sur le moteur, sans React : sorte `fog-zone`, outil G,
  * « Tout couvrir » et « Tout découvrir ». L'interface est ajoutée par `index.ts`.
  */
-import { CloudFog } from 'lucide-react';
+import { CloudFog, Sun } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
 import type { InspectorSectionProps, MapEngine } from '@/lib/map/engine/map-engine';
@@ -67,6 +67,21 @@ export function registerFog(engine: MapEngine, ui: FogUi = {}): () => void {
       available: isGm,
       create: () => new FogTool(ctx),
       options: ui.options,
+    }),
+    // Sans bouton : touches à choisir (docs/raccourcis.md § 6)
+    engine.registerAction({
+      id: 'fog.cover',
+      label: 'Tout couvrir de brouillard',
+      icon: CloudFog,
+      available: isGm,
+      run: (e) => void setFogFull(e, true),
+    }),
+    engine.registerAction({
+      id: 'fog.reveal',
+      label: 'Tout découvrir',
+      icon: Sun,
+      available: isGm,
+      run: (e) => void setFogFull(e, false),
     }),
   ];
   if (ui.inspector)

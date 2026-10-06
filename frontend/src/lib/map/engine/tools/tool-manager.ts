@@ -5,6 +5,7 @@
  */
 import type { MapViewer } from '../entities/entity-kind';
 import type { MapEngine } from '../map-engine';
+import { mapToolShortcut } from '../../shortcuts';
 import type { Tool, ToolDefinition } from './tool';
 
 export const SELECT_TOOL_ID = 'select';
@@ -102,9 +103,11 @@ export class ToolManager {
     return true;
   }
 
-  /** Outil dont le raccourci est cette touche (sans modificateur). */
-  byShortcut(code: string): ToolDefinition | undefined {
-    return this.listSnapshot.find((d) => d.shortcut?.code === code);
+  /** Outil de ce viewer dont la touche effective est celle-ci (`KeyP`, `Shift+KeyP`). */
+  byShortcut(chord: string): ToolDefinition | undefined {
+    return this.availableFor(this.engine.viewer).find(
+      (d) => !d.hidden && this.engine.bindingOf(mapToolShortcut(d)) === chord,
+    );
   }
 
   /** Démontage : chaque outil instancié revient à un état sûr. */
