@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { GENERAL_SHORTCUTS } from '@/lib/shortcuts/catalog';
 import { shortcuts } from '@/lib/shortcuts/dispatcher';
 import { useShortcut } from '@/lib/shortcuts/hooks';
 import { TABLE_PARAMS, type TablePanel } from './registry';
@@ -31,11 +30,6 @@ export function useTableShortcuts(panels: TablePanel[]) {
     },
     { available: () => liste.current.some((p) => p.id === 'notes') },
   );
-
-  // Lanceur rapide : à la table, le panneau des dés
-  useShortcut(GENERAL_SHORTCUTS.quickRoll, () => store.getState().open('des'), {
-    available: () => liste.current.some((p) => p.id === 'des'),
-  });
 
   const ids = panels.map((p) => p.id).join('|');
   useEffect(() => {

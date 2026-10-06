@@ -22,7 +22,7 @@ export const GENERAL_SHORTCUTS = {
   },
   quickRoll: {
     id: 'dice.quick-roll',
-    label: 'Lanceur rapide',
+    label: 'Jet rapide',
     scope: 'global',
     defaultBinding: 'Space Enter',
   },

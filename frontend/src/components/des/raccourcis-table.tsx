@@ -2,19 +2,22 @@
 
 /**
  * Raccourcis de dés à la table, panneau des dés fermé (docs/raccourcis.md) : relancer, macros
- * 1 à 9, lancer un dé, raccourcis créés. Les dés roulent avec le héros incarné et la visibilité
+ * 1 à 9, lancer un dé, raccourcis créés, et le jet rapide (toujours). Les dés roulent avec le héros incarné et la visibilité
  * choisie dans le panneau ; le résultat s'annonce d'une notification. Panneau ouvert, ses
  * propres raccourcis passent devant (formule en cours, résultat affiché dans le panneau).
  */
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useFichePersonnage } from '@/components/des/contexte-jet';
 import { useMacros } from '@/components/des/macros';
 import { visibiliteDuBrouillon } from '@/components/des/visibilite';
 import { ApiError, messageErreur } from '@/lib/api';
-import { useJets, useLancer, verifierFormule, type Jet } from '@/lib/jets';
+import { useJets, useLancer, verifierFormule } from '@/lib/jets';
 import type { Personnage } from '@/lib/personnages';
 import { useSession } from '@/lib/session';
+import { GENERAL_SHORTCUTS } from '@/lib/shortcuts/catalog';
+import { useShortcut } from '@/lib/shortcuts/hooks';
+import { annoncerJet, JetRapide } from './jet-rapide';
 import { useDiceShortcuts } from './raccourcis-des';
 
 /** Visibilité choisie dans le panneau des dés de cette campagne, relue à chaque jet. */
@@ -26,12 +29,6 @@ export function visibiliteChoisie(campagneId: string) {
   } catch {
     return visibiliteDuBrouillon(undefined, undefined);
   }
-}
-
-function annoncer(jet: Jet) {
-  const titre = jet.label?.trim() || jet.formula;
-  const resultat = jet.symbolResult ?? (jet.total === null ? 'Jet caché' : String(jet.total));
-  toast(`${titre} : ${resultat}`, { description: jet.total === null ? undefined : jet.output });
 }
 
 export function TableDiceShortcuts({
@@ -69,7 +66,7 @@ export function TableDiceShortcuts({
         characterId: personnage?.id ?? null,
         fiche: fiche.fiche,
       });
-      annoncer(jet);
+      annoncerJet(jet);
     } catch (err) {
       toast.error('Le jet n’a pas pu être lancé', {
         description:
@@ -87,5 +84,16 @@ export function TableDiceShortcuts({
   };
 
   useDiceShortcuts(enabled, { relancer, lancerFormule, macros });
-  return null;
+
+  // Jet rapide : un champ, la notation, Entrée (panneau des dés ouvert ou non)
+  const [rapide, setRapide] = useState(false);
+  useShortcut(GENERAL_SHORTCUTS.quickRoll, () => setRapide((o) => !o));
+  return (
+    <JetRapide
+      open={rapide}
+      onOpenChange={setRapide}
+      fiche={fiche.fiche}
+      onRoll={(formule) => void lancerFormule(formule, null)}
+    />
+  );
 }

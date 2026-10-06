@@ -1,7 +1,8 @@
 'use client';
 
+import { JetRapidePersonnel } from '@/components/des/jet-rapide';
 import { GENERAL_SHORTCUTS } from '@/lib/shortcuts/catalog';
-import { useBindingLabel, useShortcut } from '@/lib/shortcuts/hooks';
+import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import { Bell, ChevronRight, Dices, Menu, Search } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -33,7 +34,6 @@ export function BarreHaute({
   onRecherche: () => void;
 }>) {
   const [des, setDes] = useState(false);
-  useShortcut(GENERAL_SHORTCUTS.quickRoll, () => setDes((v) => !v));
   const demandes = useDemandesAmis();
   const recues = demandes.data?.received ?? [];
 
@@ -71,6 +71,8 @@ export function BarreHaute({
           <Search />
         </Button>
 
+        {/* Jet rapide (Espace puis Entrée) : un champ, la notation, Entrée */}
+        <JetRapidePersonnel />
         <Popover open={des} onOpenChange={setDes}>
           <Info texte="Lancer des dés">
             <PopoverTrigger asChild>

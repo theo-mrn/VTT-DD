@@ -145,6 +145,11 @@ type UserShortcut = {
 - Formule libre, ou copiée d'une macro de dés (`profil.settings.macrosDes`) ; `@FOR` lit le
   personnage incarné, comme les macros. Commande `custom.<id>`, portée `dice`, comme les
   macros 1 à 9, relancer et lancer 1dN.
+- **Jet rapide** (`dice.quick-roll`, Espace puis Entrée comme le legacy) : un champ flottant,
+  la notation, Entrée lance et ferme, Échap ferme, ↑ ↓ rappellent les 20 dernières formules
+  (ce navigateur). Formule invalide : le message sous le champ, qui reste ouvert. À la table,
+  avec le héros, la visibilité choisie et sa fiche (`@FOR`) ; ailleurs, un jet personnel
+  (`components/des/jet-rapide.tsx`). Résultat en notification.
 - **Où les dés répondent** : sur la page Dés, et **partout à la table**, panneau des dés fermé
   compris (`components/des/raccourcis-table.tsx`, monté par la table) : héros incarné,
   visibilité choisie dans le panneau (relue à chaque jet), résultat annoncé par une
