@@ -20,10 +20,21 @@ import { useDiceThrowStore } from '@/lib/dice-throw';
  * Dé qui tourne lentement sur lui-même. Le canevas est en `demand` : chaque
  * image en demande une suivante tant qu'il est actif (frameloop `never` sinon).
  */
-const AutoRotatingDie = ({ type, skinId }: { type: string; skinId: string }) => {
+const AutoRotatingDie = ({
+  type,
+  skinId,
+  onReady,
+}: {
+  type: string;
+  skinId: string;
+  onReady?: React.RefObject<(() => void) | undefined>;
+}) => {
   const groupRef = useRef<THREE.Group>(null);
+  const frames = useRef(0);
   const skin = getSkinById(skinId);
   useFrame((state, delta) => {
+    // Deuxième image : la première est dessinée (environnement et shaders prêts)
+    if (frames.current < 2 && ++frames.current === 2) onReady?.current?.();
     if (groupRef.current) {
       groupRef.current.rotation.y += delta * 0.5;
       groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.5) * 0.2;
@@ -71,12 +82,19 @@ export function DicePreview({
   skinId,
   type = 'd20',
   className = '',
+  onReady,
 }: Readonly<{
   skinId: string;
   type?: string;
   className?: string;
+  /** Appelé une fois, quand le dé est dessiné pour la première fois. */
+  onReady?: () => void;
 }>) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const readyRef = useRef(onReady);
+  useEffect(() => {
+    readyRef.current = onReady;
+  });
   const onScreen = useOnScreen(hostRef);
   // « Essayer un lancer » : l'aperçu se fige tant que des dés roulent, le GPU
   // va au lanceur.
@@ -94,7 +112,7 @@ export function DicePreview({
         {/* Pas de projecteur : à 17 unités, en unités physiques, il n'éclairait presque rien */}
         <ambientLight intensity={0.9} />
         <Environment files={DICE_ENVIRONMENT} environmentIntensity={0.6} />
-        <AutoRotatingDie type={type} skinId={skinId} />
+        <AutoRotatingDie type={type} skinId={skinId} onReady={readyRef} />
         <OrbitControls enableZoom={false} enablePan={false} />
       </Canvas>
     </div>

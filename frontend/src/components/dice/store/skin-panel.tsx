@@ -60,6 +60,8 @@ export function SkinPanel({
 }>) {
   const r = RARETES[rareteDe(skin)];
   const stable = useStable(skin.id, DELAI_3D_MS);
+  // Skin dont le dé 3D est dessiné : la vignette s'efface (fond du canevas transparent)
+  const [pret, setPret] = useState<string | null>(null);
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
       <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-2xl border border-border bg-[radial-gradient(circle_at_50%_45%,hsl(var(--surface-3)),hsl(var(--surface))_75%)]">
@@ -67,11 +69,25 @@ export function SkinPanel({
           key={skin.id}
           skinId={skin.id}
           alt=""
-          className="absolute inset-0 size-full p-10"
+          className={cn(
+            'absolute inset-0 size-full p-10 transition-opacity duration-300',
+            pret === skin.id && 'opacity-0',
+          )}
         />
         {stable === skin.id && (
-          <div className="absolute inset-0 animate-in fade-in duration-500">
-            <DicePreview key={skin.id} skinId={skin.id} type="d20" className="size-full" />
+          <div
+            className={cn(
+              'absolute inset-0 transition-opacity duration-300',
+              pret === skin.id ? 'opacity-100' : 'opacity-0',
+            )}
+          >
+            <DicePreview
+              key={skin.id}
+              skinId={skin.id}
+              type="d20"
+              className="size-full"
+              onReady={() => setPret(skin.id)}
+            />
           </div>
         )}
         <span className={cn('absolute inset-x-0 bottom-0 h-1', r.teinte)} aria-hidden />
