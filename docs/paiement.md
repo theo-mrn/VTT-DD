@@ -198,7 +198,8 @@ l'exécute.
 
 ## Exploitation
 
-- Staging en mode test Stripe, prod en mode live ; une configuration de portail par mode.
+- Depuis le 2026-10-06, le staging encaisse en **live**, sur un compte Stripe neuf (distinct de
+  celui de l'ancienne app) ; le dev reste en mode test. Une configuration de portail par mode.
 - Catalogue : `pnpm --filter @vtt/billing catalog:sync` crée ou met à jour produits et prix
   (`lookup_key` = identifiant du catalogue). Un prix Stripe ne change jamais : un nouveau prix
   reprend la `lookup_key`, les abonnés existants gardent l'ancien tarif.

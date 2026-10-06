@@ -34,7 +34,7 @@ secretEnv:
 # Secret billing-secrets (SOPS) :
 #   DATABASE_URL             rôle billing_svc
 #   KOURRIER_API_KEY         kr_… du tenant yner (même clé qu'identity)
-#   STRIPE_SECRET_KEY        sk_… (ou clé restreinte rk_…) ; mode test en staging
+#   STRIPE_SECRET_KEY        rk_live_… (clé restreinte) : le staging encaisse en live (2026-10-06)
 #   DATABASE_DIRECT_URL      même rôle vers vtt-pg-rw.data.svc en direct (LISTEN du relais
 #                            d'outbox, hors PgBouncer ; sans elle : réveil par le poll de 5 s)
 #   STRIPE_WEBHOOK_SECRET    whsec_… de l'endpoint https://api.staging.yner.fr/v1/billing/webhook
