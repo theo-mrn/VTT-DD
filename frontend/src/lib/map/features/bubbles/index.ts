@@ -6,9 +6,9 @@
 import { MessageCircle } from 'lucide-react';
 import { BubbleToolbarButton } from './ui/bubble-picker';
 import { MapBubbles } from './ui/map-bubbles';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 
-export const bubblesModule: MapModule = {
+export const bubblesFeature: MapFeature = {
   id: 'bubbles',
   register: (engine) => [
     engine.registerToolbarEntry({

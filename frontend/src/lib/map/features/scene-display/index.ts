@@ -5,9 +5,9 @@
 import { ImageIcon, SlidersHorizontal } from 'lucide-react';
 import { BackgroundButton, DisplayMenu } from './ui/scene-display';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 
-export const sceneDisplayModule: MapModule = {
+export const sceneDisplayFeature: MapFeature = {
   id: 'scene-display',
   register: (engine) => [
     engine.registerToolbarEntry({

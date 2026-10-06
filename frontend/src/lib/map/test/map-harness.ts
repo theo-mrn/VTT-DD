@@ -1,6 +1,6 @@
 /**
  * Banc d'essai de la carte complète (tests seulement, environnement jsdom) : le vrai moteur, les
- * modules de l'app (`MAP_MODULES`) et la vraie scène PixiJS. Seul le GPU est simulé : l'`Application`
+ * modules de l'app (`MAP_FEATURES`) et la vraie scène PixiJS. Seul le GPU est simulé : l'`Application`
  * reçoit un faux rendu (chaque image est notée, rien n'est dessiné) et les canevas de jsdom un
  * faux contexte 2D. Tout le reste s'exécute : rendu des sortes, vues, interactions, outils, menus.
  *
@@ -18,7 +18,7 @@ import type { Point } from '../engine/geometry';
 import type { MapKey, MapPointer } from '../engine/tools/tool';
 import { fakeBackend, spyPersistence } from '../engine/test-kit';
 import { LiveChannel, LIVE_KIND, PING_KIND, type LiveMessage } from '../live/live-channel';
-import { MAP_MODULES } from '@/lib/map/features';
+import { MAP_FEATURES } from '@/lib/map/features';
 import { CommandHistory, CommandManager } from '../store/commands';
 import { createMapStore, type MapDto } from '../store/map-store';
 
@@ -517,7 +517,7 @@ export async function mountMap(opts: MapHarnessOptions = {}) {
     },
   });
   engineRef.current = engine;
-  for (const module of MAP_MODULES) engine.use(module);
+  for (const feature of MAP_FEATURES) engine.use(feature);
   const host = document.createElement('div');
   Object.defineProperty(host, 'clientWidth', { value: 1000 });
   Object.defineProperty(host, 'clientHeight', { value: 800 });

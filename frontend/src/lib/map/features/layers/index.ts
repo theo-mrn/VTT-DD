@@ -7,10 +7,10 @@ import { Layers } from 'lucide-react';
 import { useStore } from 'zustand';
 import { LayersPanel } from './ui/layers-panel';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { layersPanelOf, toggleLayersPanel } from './engine/panel';
 
-export const layersModule: MapModule = {
+export const layersFeature: MapFeature = {
   id: 'layers',
   register: (engine) => [
     engine.registerAction({

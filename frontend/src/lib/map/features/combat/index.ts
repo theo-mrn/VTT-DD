@@ -7,10 +7,10 @@
  * (`components/combat/attack/attack-menu-host.tsx`) : la carte ne sert qu'à viser.
  */
 import { CombatMapFeed } from './ui/combat-feed';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { registerCombat } from './engine/register';
 
-export const combatModule: MapModule = {
+export const combatFeature: MapFeature = {
   id: 'combat',
   register: (engine) =>
     registerCombat(engine, {

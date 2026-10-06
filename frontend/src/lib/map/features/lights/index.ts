@@ -9,12 +9,12 @@
  */
 import { LightInspector } from './ui/light-inspector';
 import { LightOptions } from './ui/light-options';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { registerLights } from './engine/register';
 
 export { lightPosition, lightRadiusPx } from './engine/model';
 
-export const lightsModule: MapModule = {
+export const lightsFeature: MapFeature = {
   id: 'lights',
   register: (engine) =>
     registerLights(engine, { options: LightOptions, inspector: LightInspector }),

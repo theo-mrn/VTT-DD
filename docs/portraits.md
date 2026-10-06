@@ -45,7 +45,7 @@ n'est enregistré à moitié).
 
 ## Sur la carte
 
-Image d'un token (`tokenImage`, `lib/map/modules/tokens/model.ts`) : le token du Studio de son
+Image d'un token (`tokenImage`, `lib/map/features/tokens/engine/model.ts`) : le token du Studio de son
 personnage d'abord, sinon l'image propre au token (tokens importés de l'ancienne version, image
 choisie à la pose), sinon le portrait. Le token du Studio passe devant : un token importé garde
 l'ancienne image de son personnage, qui ne doit plus s'afficher une fois le Studio utilisé. Il est affiché **entier** (forme et cadre compris) ; un portrait brut reste découpé en rond. Pas d'anneau

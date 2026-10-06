@@ -20,7 +20,7 @@
  * `renderer.ts` ; canvas : `overlay.ts`.
  */
 import { CloudSun } from 'lucide-react';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { WeatherControls } from './ui/weather-menu';
 import { prefersEconomy } from '@/lib/perf/device';
 import { browserEnv, WeatherDriver } from './engine/driver';
@@ -36,7 +36,7 @@ export const DEGRADE_MS = 8;
 const DEGRADE_WINDOW = 60;
 const MIN_BUDGET = 1 / 8;
 
-export const weatherModule: MapModule = {
+export const weatherFeature: MapFeature = {
   id: 'weather',
   register(engine) {
     const prefs = weatherPrefs(engine);

@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setup } from '@/lib/map/engine/test-kit';
-import { weatherModule } from '../index';
+import { weatherFeature } from '../index';
 
 const fake = vi.hoisted(() => ({
   viewRender: null as null | ReturnType<typeof vi.fn>,
@@ -118,7 +118,7 @@ afterEach(() => {
 
 async function mounted() {
   const t = setup();
-  t.engine.use(weatherModule);
+  t.engine.use(weatherFeature);
   engines.push(t.engine);
   const host = document.createElement('div');
   await t.engine.mount(host);

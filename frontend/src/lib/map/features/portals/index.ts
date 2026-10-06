@@ -10,10 +10,10 @@ import { PortalInspector } from './ui/portal-inspector';
 import { PortalOptions } from './ui/portal-options';
 import { PortalsHost } from './ui/portals-host';
 import { openScene } from '@/components/map/use-table-map';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { registerPortals } from './engine/register';
 
-export const portalsModule: MapModule = {
+export const portalsFeature: MapFeature = {
   id: 'portals',
   register: (engine) =>
     registerPortals(engine, {

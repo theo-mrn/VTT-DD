@@ -1,14 +1,16 @@
 /**
- * Modules chargés par le moteur de la carte (docs/carte.md § 3, § 6, § 10), une ligne par
- * module : retirer une ligne retire la fonction, sa touche et ses boutons.
+ * Fonctions de la carte chargées par le moteur (docs/carte.md § 3, § 6, § 10), une ligne par
+ * fonction : retirer une ligne retire la fonction, ses touches, ses boutons et ses panneaux.
  *
- * Un module exporte un `MapModule` : `register(engine)` y enregistre ses sortes d'entités, ses
- * outils, ses actions (bouton et/ou touche), ses entrées de barre d'outils, ses sections
+ * Une fonction vit dans `features/<id>/` : `index.ts` (le manifeste, un `MapFeature`), `engine/`
+ * (sortes, outils, rendu, logique, testés sans React, qui n'importent jamais `ui/`) et `ui/`
+ * (composants React). `register(engine)` y enregistre ses sortes d'entités, ses outils, ses
+ * actions (bouton et/ou touche), ses entrées de barre d'outils, ses surcouches, ses sections
  * d'inspecteur, ses entrées de menu et ses abonnements, et renvoie son nettoyage (une fonction
- * ou une liste). Un bouton de plus (module `camera`) :
+ * ou une liste). Un bouton de plus (`camera/index.ts`) :
  *
  * ```ts
- * export const cameraModule: MapModule = {
+ * export const cameraFeature: MapFeature = {
  *   id: 'camera',
  *   register: (engine) => [
  *     engine.registerAction({ id: 'camera.fit', label: 'Recadrer la vue', icon: Focus,
@@ -17,15 +19,15 @@
  * };
  * ```
  *
- * Exemple complet (module `objects`) :
+ * Exemple complet (`objects`) :
  *
  * ```ts
  * import { Box } from 'lucide-react';
- * import { field, gmOnly, type EntityKind } from '../../engine/entities/entity-kind';
- * import type { MapModule } from '../../engine/map-engine';
+ * import { field, gmOnly, type EntityKind } from '@/lib/map/engine/entities/entity-kind';
+ * import type { MapFeature } from '@/lib/map/engine/map-engine';
  * import type { MapObject } from '@vtt/contracts';
  *
- * export const objectsModule: MapModule = {
+ * export const objectsFeature: MapFeature = {
  *   id: 'objects',
  *   register(engine) {
  *     const kind: EntityKind<MapObject & MapDto> = {
@@ -66,68 +68,68 @@
  * };
  * ```
  */
-import type { MapModule } from '@/lib/map/engine/map-engine';
-import { gridModule } from '@/lib/map/features/grid';
-import { sceneModule } from '@/lib/map/features/scene';
-import { drawingsModule } from '@/lib/map/features/drawings';
-import { tokensModule } from '@/lib/map/features/tokens';
-import { objectsModule } from '@/lib/map/features/objects';
-import { obstaclesModule } from '@/lib/map/features/obstacles';
-import { fogModule } from '@/lib/map/features/fog';
-import { lightsModule } from '@/lib/map/features/lights';
-import { portalsModule } from '@/lib/map/features/portals';
-import { soundsModule } from '@/lib/map/features/sounds';
-import { measurementsModule } from '@/lib/map/features/measurements';
-import { visionModule } from '@/lib/map/features/vision';
-import { weatherModule } from '@/lib/map/features/weather';
-import { combatModule } from '@/lib/map/features/combat';
-import { historyModule } from '@/lib/map/features/history';
-import { bubblesModule } from '@/lib/map/features/bubbles';
-import { layersModule } from '@/lib/map/features/layers';
-import { sceneDisplayModule } from '@/lib/map/features/scene-display';
-import { snapModule } from '@/lib/map/features/snap';
-import { presenceModule } from '@/lib/map/features/presence';
-import { cameraModule } from '@/lib/map/features/camera';
-import { partyModule } from '@/lib/map/features/party';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
+import { gridFeature } from './grid';
+import { sceneFeature } from './scene';
+import { drawingsFeature } from './drawings';
+import { tokensFeature } from './tokens';
+import { objectsFeature } from './objects';
+import { obstaclesFeature } from './obstacles';
+import { fogFeature } from './fog';
+import { lightsFeature } from './lights';
+import { portalsFeature } from './portals';
+import { soundsFeature } from './sounds';
+import { measurementsFeature } from './measurements';
+import { visionFeature } from './vision';
+import { weatherFeature } from './weather';
+import { combatFeature } from './combat';
+import { historyFeature } from './history';
+import { bubblesFeature } from './bubbles';
+import { layersFeature } from './layers';
+import { sceneDisplayFeature } from './scene-display';
+import { snapFeature } from './snap';
+import { presenceFeature } from './presence';
+import { cameraFeature } from './camera';
+import { partyFeature } from './party';
 
-export const MAP_MODULES: readonly MapModule[] = [
+export const MAP_FEATURES: readonly MapFeature[] = [
   // Socle de la barre : annuler et refaire, bulle du joueur, calques (K), fond et affichage de la
   // scène, aimantation, curseur partagé, recadrer
-  historyModule,
-  bubblesModule,
-  layersModule,
-  sceneDisplayModule,
-  snapModule,
-  presenceModule,
-  cameraModule,
+  historyFeature,
+  bubblesFeature,
+  layersFeature,
+  sceneDisplayFeature,
+  snapFeature,
+  presenceFeature,
+  cameraFeature,
   // Barre du groupe, dans le HUD gauche de la table
-  partyModule,
+  partyFeature,
   // Moteur : point d'apparition de la scène
-  sceneModule,
+  sceneFeature,
   // Quadrillages de la scène et leur calibrage sur l'image
-  gridModule,
+  gridFeature,
   // Lot 2 « Dessins » : main levée, formes, gomme, textes (P, T)
-  drawingsModule,
+  drawingsFeature,
   // Lot 2 « Personnages » : tokens, PNJ, bibliothèque du MJ
-  tokensModule,
+  tokensFeature,
   // Lot 2 « Objets » : objets, fouille
-  objectsModule,
+  objectsFeature,
   // Lot 2 « Outils de visibilité » : murs, portes, fenêtres, sens unique, pièces (W)
-  obstaclesModule,
+  obstaclesFeature,
   // Lot 2 « Outils de visibilité » : zones de brouillard (G)
-  fogModule,
+  fogFeature,
   // Lot 2 « Outils de visibilité » : lumières (L)
-  lightsModule,
+  lightsFeature,
   // Portails : même carte, autre scène, aller-retour, emprunt (X)
-  portalsModule,
+  portalsFeature,
   // Zones sonores : posées par le MJ (F, glisser un son), entendues selon le token du joueur
-  soundsModule,
+  soundsFeature,
   // Mesures : distance au clic, outil Mesurer (Z), gabarits épinglés
-  measurementsModule,
+  measurementsFeature,
   // Lot 2 « Rendu de la visibilité » : ombres, brouillard, lueurs, masquage, sélecteur « Vue »
-  visionModule,
+  visionFeature,
   // Météo de la scène : pluie, neige, brouillard… (plan weather, espace écran)
-  weatherModule,
+  weatherFeature,
   // Combat : anneaux du tour et des cibles, visée, entrées « Attaquer », menu d'attaque
-  combatModule,
+  combatFeature,
 ];

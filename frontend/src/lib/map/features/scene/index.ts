@@ -16,7 +16,7 @@ import type { Container, Graphics, Text } from 'pixi.js';
 import { isGm, type EntityKind, type RenderContext } from '@/lib/map/engine/entities/entity-kind';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import type { Point } from '@/lib/map/engine/geometry';
-import type { MapEngine, MapModule } from '@/lib/map/engine/map-engine';
+import type { MapEngine, MapFeature } from '@/lib/map/engine/map-engine';
 import type { MapPointer, Tool } from '@/lib/map/engine/tools/tool';
 import { SELECT_TOOL_ID } from '@/lib/map/engine/tools/tool-manager';
 import type { Persistence } from '@/lib/map/store/commands';
@@ -217,7 +217,7 @@ export class SpawnTool implements Tool {
   }
 }
 
-export const sceneModule: MapModule = {
+export const sceneFeature: MapFeature = {
   id: 'scene',
   register(engine) {
     const cleanups = [

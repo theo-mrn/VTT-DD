@@ -7,10 +7,10 @@
 import { MapSounds } from './ui/map-sounds';
 import { SoundInspector } from './ui/sound-inspector';
 import { SoundOptions } from './ui/sound-options';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { registerSounds } from './engine/register';
 
-export const soundsModule: MapModule = {
+export const soundsFeature: MapFeature = {
   id: 'sounds',
   register: (engine) => [
     registerSounds(engine, { options: SoundOptions, inspector: SoundInspector }),

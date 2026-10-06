@@ -5,7 +5,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MapViewer } from '@/lib/map/engine/entities/entity-kind';
 import { setup } from '@/lib/map/engine/test-kit';
-import { SPAWN_COLLECTION, sceneModule } from '../index';
+import { SPAWN_COLLECTION, sceneFeature } from '../index';
 
 function bench(viewer?: MapViewer) {
   const t = setup(viewer ? { viewer } : {});
@@ -17,7 +17,7 @@ function bench(viewer?: MapViewer) {
   });
   const scene = t.store.getState().scene!;
   t.store.getState().setScene({ ...scene, version: 1, spawn: { x: 500, y: 500 } }, { force: true });
-  t.engine.use(sceneModule);
+  t.engine.use(sceneFeature);
   const spawn = () => t.store.getState().scene?.spawn as { x: number; y: number } | null;
   return { ...t, spawn };
 }

@@ -4,13 +4,13 @@
  */
 import { describe, expect, it } from 'vitest';
 import { setup } from '@/lib/map/engine/test-kit';
-import { objectsModule } from '../index';
+import { objectsFeature } from '../index';
 import { PLAYER, SPECTATOR, GM } from './objects-test-kit';
 
 describe('module objets', () => {
   it('surcouche « objects-host » sans emplacement, pour le MJ et les joueurs', () => {
     const t = setup();
-    t.engine.use(objectsModule);
+    t.engine.use(objectsFeature);
     const { overlays, toolbarEntries } = t.engine.getExtensions();
     const host = overlays.find((o) => o.id === 'objects-host');
     expect(host?.slot).toBe('none');

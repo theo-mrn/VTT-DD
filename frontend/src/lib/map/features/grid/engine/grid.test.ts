@@ -6,7 +6,7 @@ import type { MapGrid } from '@vtt/contracts';
 import { describe, expect, it } from 'vitest';
 import { box, setup } from '@/lib/map/engine/test-kit';
 import { SELECT_TOOL_ID } from '@/lib/map/engine/tools/tool-manager';
-import { CalibrateTool, gridModule } from '../index';
+import { CalibrateTool, gridFeature } from '../index';
 import {
   calibrate,
   densityFade,
@@ -111,7 +111,7 @@ describe('quadrillage dans le moteur', () => {
 
   it('Q affiche ou masque le quadrillage sur mon écran, pour tous les rôles', () => {
     const t = setup({ viewer: { userId: 'joueur', role: 'player', characterIds: [] } });
-    t.engine.use(gridModule);
+    t.engine.use(gridFeature);
     setGridShown(true);
     expect(t.engine.controller.keyDown(t.key('q', { code: 'KeyQ' }))).toBe(true);
     expect(gridDisplay.getState().shown).toBe(false);

@@ -6,10 +6,10 @@
 import { ObstacleInspector } from './ui/obstacle-inspector';
 import { ObstacleOptions } from './ui/obstacle-options';
 import { RoomInspector } from './ui/room-inspector';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { registerObstacles } from './engine/register';
 
-export const obstaclesModule: MapModule = {
+export const obstaclesFeature: MapFeature = {
   id: 'obstacles',
   register: (engine) =>
     registerObstacles(engine, {

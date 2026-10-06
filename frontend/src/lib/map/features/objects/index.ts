@@ -18,7 +18,7 @@ import { ObjectsHost } from './ui/objects-host';
 import { PlayerSearchSection } from './ui/player-search-section';
 import { SearchInspector } from './ui/search-inspector';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import type { Persistence } from '@/lib/map/store/commands';
 import type { MapDto } from '@/lib/map/store/map-store';
 import { createSearchApi } from './engine/api';
@@ -34,7 +34,7 @@ const readOnly: Persistence<MapDto> = {
   update: () => Promise.reject(new Error('Carte en lecture seule')),
 };
 
-export const objectsModule: MapModule = {
+export const objectsFeature: MapFeature = {
   id: 'objects',
   register(engine) {
     const { campaignId, mapId } = engine.store.getState();

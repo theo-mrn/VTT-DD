@@ -2,9 +2,9 @@
 import { Magnet } from 'lucide-react';
 import { useStore } from 'zustand';
 import { SNAP_LABELS, SnapMenu } from './ui/snap-menu';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 
-export const snapModule: MapModule = {
+export const snapFeature: MapFeature = {
   id: 'snap',
   register: (engine) => [
     engine.registerToolbarEntry({

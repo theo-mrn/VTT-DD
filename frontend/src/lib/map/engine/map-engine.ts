@@ -7,14 +7,14 @@
  * fonctionne « à blanc », ce qui permet de le tester sans WebGL et de le construire côté
  * serveur sans rien casser.
  *
- * Cycle de vie : `new MapEngine(…)`, `use(module)` pour chaque module (`features/index.ts`),
+ * Cycle de vie : `new MapEngine(…)`, `use(feature)` pour chaque fonction (`features/index.ts`),
  * `mount(host)`, puis `destroy()` au démontage (aucun contexte WebGL ne survit, HMR compris).
  *
  * Rendu à la demande : une image n'est rendue que si quelque chose l'a demandée
  * (`invalidate()`) ; la boucle ne tourne en continu que pendant un geste, une animation de
  * caméra, le direct des autres, ou un fond vidéo (30 i/s au plus).
  *
- * API des modules (voir `features/index.ts` pour un exemple complet) :
+ * API des fonctions (`features/<id>/index.ts`, exemple complet dans `features/index.ts`) :
  * - `registerKind(kind)` : une sorte d'entité (`EntityKind`) ;
  * - `registerTool(def)` : un outil et son entrée de barre d'outils (`ToolDefinition`) ;
  * - `registerInspectorSection(section)` : une section de l'inspecteur ;
@@ -105,16 +105,16 @@ import type { MapAction, ToolbarEntry } from './toolbar';
 import type { ToolDefinition } from './tools/tool';
 import { SELECT_TOOL_ID, ToolManager } from './tools/tool-manager';
 
-// ─── Extensions des modules ──────────────────────────────────────────────────
+// ─── Extensions des fonctions ────────────────────────────────────────────────
 
-/** Nettoyage d'un module : une fonction, ou une liste défaite dans l'ordre inverse. */
-export type ModuleCleanup = void | (() => void) | readonly (() => void)[];
+/** Nettoyage d'une fonction : un rappel, ou une liste défaite dans l'ordre inverse. */
+export type FeatureCleanup = void | (() => void) | readonly (() => void)[];
 
-/** Un module de la carte (`modules/<nom>/index.ts`). */
-export interface MapModule {
+/** Une fonction de la carte (`features/<id>/index.ts`). */
+export interface MapFeature {
   readonly id: string;
   /** Enregistre sortes, outils, actions, sections… ; renvoie son nettoyage. */
-  register(engine: MapEngine): ModuleCleanup;
+  register(engine: MapEngine): FeatureCleanup;
 }
 
 export interface InspectorSectionProps {
@@ -383,7 +383,7 @@ export class MapEngine {
   /** Éléments mis de côté après un choix dans une pile, et l'élément choisi. */
   private readonly sidelined = new Set<string>();
   private chosenId: string | null = null;
-  private readonly moduleCleanups: (() => void)[] = [];
+  private readonly featureCleanups: (() => void)[] = [];
 
   // Extensions
   private inspectorSections: InspectorSection[] = [];
@@ -522,13 +522,13 @@ export class MapEngine {
 
   // ─── Modules et extensions ─────────────────────────────────────────────────
 
-  /** Charge un module (une fois). */
-  use(module: MapModule) {
-    const cleanup = module.register(this);
-    if (typeof cleanup === 'function') this.moduleCleanups.push(cleanup);
+  /** Charge une fonction (une fois). */
+  use(feature: MapFeature) {
+    const cleanup = feature.register(this);
+    if (typeof cleanup === 'function') this.featureCleanups.push(cleanup);
     else if (cleanup) {
       const list = [...cleanup];
-      this.moduleCleanups.push(() => {
+      this.featureCleanups.push(() => {
         for (const c of list.toReversed()) c();
       });
     }
@@ -718,7 +718,7 @@ export class MapEngine {
     }
     this.controller.dispose();
     this.tools.dispose();
-    for (const c of this.moduleCleanups.splice(0)) c();
+    for (const c of this.featureCleanups.splice(0)) c();
     for (const c of this.cleanups.splice(0)) c();
     for (const e of this.entityMap.values()) e.kind.dispose?.(e);
     for (const entry of this.mountedCallbacks) entry.cleanup?.();

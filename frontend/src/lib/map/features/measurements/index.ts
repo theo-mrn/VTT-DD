@@ -7,10 +7,10 @@
 import { MeasureHost } from './ui/measure-host';
 import { MeasureInspector } from './ui/measure-inspector';
 import { MeasureOptions } from './ui/measure-options';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { registerMeasurements } from './engine/register';
 
-export const measurementsModule: MapModule = {
+export const measurementsFeature: MapFeature = {
   id: 'measurements',
   register: (engine) =>
     registerMeasurements(engine, {

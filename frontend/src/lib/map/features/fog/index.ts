@@ -5,10 +5,10 @@
  */
 import { FogInspector } from './ui/fog-inspector';
 import { FogOptions } from './ui/fog-options';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { registerFog } from './engine/register';
 
-export const fogModule: MapModule = {
+export const fogFeature: MapFeature = {
   id: 'fog',
   register: (engine) => registerFog(engine, { options: FogOptions, inspector: FogInspector }),
 };

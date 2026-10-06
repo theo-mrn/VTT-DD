@@ -1051,7 +1051,7 @@ onglets. Entrée du registre `combat` (touche M, rôles `gm`, largeur `full`) ; 
 
 ### 12.5 Carte
 
-Nouveau module `lib/map/modules/combat/` (surcouches, sans entité) :
+Nouveau module `lib/map/features/combat/` (surcouches, sans entité) :
 
 - anneau du tour sur le token du participant qui agit, pour tous s'il est vu ;
 - anneau des cibles de toute attaque ouverte (non décidée), MJ, **toujours visible** (même bordures
@@ -1063,7 +1063,7 @@ Nouveau module `lib/map/modules/combat/` (surcouches, sans entité) :
 
 Entrées de menu (écart du lot 3) : elles ne sont pas écrites dans les menus des tokens, de la barre
 de la sélection et des mesures, mais données par un **fournisseur de menu du module combat**
-(`engine.registerMenuProvider`, `lib/map/modules/combat/menu.ts`) : le moteur les ajoute au menu
+(`engine.registerMenuProvider`, `lib/map/features/combat/engine/menu.ts`) : le moteur les ajoute au menu
 contextuel comme à la barre de la sélection (`engine.menuItems`), sans que les modules `tokens` et
 `measurements` connaissent le combat. Token : « Attaquer (n) » (dans la barre du MJ ; au clic
 droit seulement pour un joueur) ; MJ : « Attaquer avec », « Attaquer avec la sélection (n) » ;
@@ -1378,9 +1378,9 @@ Réalisé par le lot 1 (étapes A et B), précisions et écarts :
   `action-picker.tsx`, `params-form.tsx` (champ de paramètre partagé, repris de
   `components/fiche/lanceur-action.tsx`), `targets.tsx`, `roll-options.tsx`, `result-card.tsx`,
   `my-attacks.tsx`, `weapon-sound.tsx`.
-- Carte : `frontend/src/lib/map/modules/combat/` (nouveau module : surcouches, outil de visée),
-  une ligne dans `lib/map/modules/index.ts` ; entrées dans `lib/map/modules/tokens/menu.ts`,
-  `components/map/selection-bar.tsx`, `lib/map/modules/measurements/kind.ts`.
+- Carte : `frontend/src/lib/map/features/combat/` (nouveau module : surcouches, outil de visée),
+  une ligne dans `lib/map/features/index.ts` ; entrées dans `lib/map/features/tokens/engine/menu.ts`,
+  `components/map/selection-bar.tsx`, `lib/map/features/measurements/engine/kind.ts`.
 - Fiche : `components/fiche/widgets.tsx` (bouton « Attaquer » du bloc Actions),
   `components/fiche/lanceur-action.tsx` (export du champ de paramètre).
 

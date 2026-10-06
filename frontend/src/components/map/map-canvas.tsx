@@ -22,7 +22,7 @@ import type { MapViewer } from '@/lib/map/engine/entities/entity-kind';
 import { bindDomInput } from '@/lib/map/engine/interaction/dom-input';
 import { MapEngine, type MapDirectory, type MapPlayer } from '@/lib/map/engine/map-engine';
 import { LIVE_KIND, LiveChannel, PING_KIND } from '@/lib/map/live/live-channel';
-import { MAP_MODULES } from '@/lib/map/features';
+import { MAP_FEATURES } from '@/lib/map/features';
 import { CommandManager, historyFor } from '@/lib/map/store/commands';
 import { createMapStore, type MapStore } from '@/lib/map/store/map-store';
 import { useMapSync, type MapSync } from '@/lib/map/store/sync';
@@ -103,7 +103,7 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
       notify: (message) => toast(message),
     });
     engineRef.current = engine;
-    for (const module of MAP_MODULES) engine.use(module);
+    for (const feature of MAP_FEATURES) engine.use(feature);
     const release = setActiveMap(campaignId, mapId, engine);
     setRuntime({ store, api, commands, live, engine, sync });
     return () => {

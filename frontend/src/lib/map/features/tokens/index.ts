@@ -16,7 +16,7 @@ import { TokenLibraryPanel } from './ui/token-library';
 import { TokenCharacterSection, TokenSettingsSection } from './ui/token-inspector';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
-import type { MapEngine, MapModule } from '@/lib/map/engine/map-engine';
+import type { MapEngine, MapFeature } from '@/lib/map/engine/map-engine';
 import { createNpcApi, type NpcApi } from './engine/api';
 import { TOKEN_KIND_ID } from './engine/edit';
 import { ownsToken, type TokenData } from './engine/model';
@@ -26,7 +26,9 @@ import { createTokenKind, watchDirectory } from './engine/token-kind';
 
 const isToken = (e: MapEntity) => e.kind.id === TOKEN_KIND_ID;
 
-export function createTokensModule(opts: { api?: (engine: MapEngine) => NpcApi } = {}): MapModule {
+export function createTokensFeature(
+  opts: { api?: (engine: MapEngine) => NpcApi } = {},
+): MapFeature {
   return {
     id: 'tokens',
     register(engine) {
@@ -97,4 +99,4 @@ export function createTokensModule(opts: { api?: (engine: MapEngine) => NpcApi }
   };
 }
 
-export const tokensModule = createTokensModule();
+export const tokensFeature = createTokensFeature();

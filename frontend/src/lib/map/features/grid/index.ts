@@ -21,7 +21,7 @@ import { ScaleMenu } from './ui/scale-menu';
 import { isGm, type RenderContext } from '@/lib/map/engine/entities/entity-kind';
 import { destroyDisplay } from '@/lib/map/engine/destroy-display';
 import type { Point } from '@/lib/map/engine/geometry';
-import type { MapEngine, MapModule } from '@/lib/map/engine/map-engine';
+import type { MapEngine, MapFeature } from '@/lib/map/engine/map-engine';
 import type { MapPointer, Tool } from '@/lib/map/engine/tools/tool';
 import { SELECT_TOOL_ID } from '@/lib/map/engine/tools/tool-manager';
 import { stepZoom, zoomStep } from '@/lib/map/features/obstacles/engine/overlay';
@@ -266,7 +266,7 @@ function mountGridRenderer(engine: MapEngine, plane: Container): () => void {
   };
 }
 
-export const gridModule: MapModule = {
+export const gridFeature: MapFeature = {
   id: 'grid',
   register(engine) {
     const settings = calibrateSettings(engine);

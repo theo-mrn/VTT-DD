@@ -7,10 +7,10 @@ import { DrawOptions } from './ui/draw-options';
 import { DrawingInspector, NoteInspector } from './ui/drawing-inspector';
 import { NoteEditorOverlay } from './ui/note-editor-overlay';
 import { TextOptions } from './ui/text-options';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { registerDrawings } from './engine/register';
 
-export const drawingsModule: MapModule = {
+export const drawingsFeature: MapFeature = {
   id: 'drawings',
   register: (engine) =>
     registerDrawings(engine, {

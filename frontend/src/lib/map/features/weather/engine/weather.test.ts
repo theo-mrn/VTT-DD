@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setup } from '@/lib/map/engine/test-kit';
 import { FRAME_TARGET_MS, MAX_STEP_S, WeatherDriver, type DriverEnv } from './driver';
 import { WEATHER_EFFECTS, WEATHER_TYPES } from './effects';
-import { weatherModule } from '../index';
+import { weatherFeature } from '../index';
 import {
   densityFactor,
   isWindowsPlatform,
@@ -547,7 +547,7 @@ describe('météo dans le moteur', () => {
 
   it('sans rendu monté, le module ne fait pas tourner la boucle', () => {
     const t = setup();
-    t.engine.use(weatherModule);
+    t.engine.use(weatherFeature);
     expect(t.engine.getExtensions().toolbarEntries.map((i) => i.id)).toContain('weather:menu');
     t.store
       .getState()

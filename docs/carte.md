@@ -112,9 +112,16 @@ frontend/src/lib/map/
     live-channel.ts      canal éphémère : émission cadencée, réception, interpolation
   api.ts                 client REST typé (@vtt/contracts)
   active-map.ts          carte affichée dans l'onglet (pour les panneaux hors de la carte)
-  modules/
-    index.ts             liste des modules chargés par le moteur
-    scene/               moteur : point d'apparition (outil lancé par le panneau Scènes)
+  toolbar-layout.ts      disposition de la barre de l'utilisateur (§ 6, Personnalisation)
+  features/
+    index.ts             fonctions chargées par le moteur, une ligne par fonction
+    imports.test.ts      règle d'import : engine/ n'importe ni ui/ ni manifeste
+    <id>/
+      index.ts           le manifeste (`MapFeature`) : branche engine/ et ui/ sur le moteur
+      engine/            sortes, outils, rendu Pixi, logique, testés sans React
+      ui/                composants React (options, inspecteur, panneaux)
+    scene/               point d'apparition (outil lancé par le panneau Scènes)
+    grid/                quadrillages de la scène et leur calibrage
     drawings/            dessins et textes
     tokens/              personnages et PNJ
     objects/             objets
@@ -122,27 +129,31 @@ frontend/src/lib/map/
     fog/                 zones de brouillard
     lights/              lumières
     portals/             portails : même carte, autre scène, aller-retour, outil X, emprunter
+    sounds/              zones sonores, écoute et dépôt
     measurements/        distance au clic, outil Mesurer (Z), gabarits épinglés, effets animés
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
     weather/             météo de la scène (pluie, neige, brouillard…), son canvas, espace écran
+    combat/              anneaux du tour et des cibles, visée, « Attaquer »
+    history/ layers/ scene-display/ snap/ presence/ camera/ bubbles/ party/
+                         socle de la barre (annuler, calques, fond, aimantation, curseur,
+                         recadrer), bulles, barre du groupe
 frontend/src/components/map/
   table-map.tsx          la carte à la table : choix de la scène, montage dans MapStage
   use-table-map.ts       quelle scène afficher (joueur : celle de son personnage ; MJ : `?scene=`)
   map-canvas.tsx         monte le moteur (client seulement, `next/dynamic`) et ses surcouches
   engine-context.tsx     hooks React du moteur (sélecteurs à instantané stable)
   character-choice.tsx   choix de personnages « Visible pour… » (objets, tokens), depuis l'annuaire
-  toolbar/               barre d'outils déclarative (toolbar.tsx) et ses briques (kit.tsx)
+  toolbar/               barre d'outils déclarative (toolbar.tsx), ses briques (kit.tsx), sa
+                         personnalisation (customize.tsx)
   context-menu.tsx       menu contextuel commun (Radix), ancré au point de l'écran
   inspector.tsx          panneau d'inspection de la sélection (sections fournies par les modules)
   confirm-dialog.tsx     confirmations demandées par le moteur
-  overlays.tsx           surcouches des modules (`registerOverlay`) : colonnes de gauche et de droite, sans emplacement
-  layers/                panneau des calques du MJ (K)
+  overlays.tsx           surcouches des fonctions (`registerOverlay`) : colonnes de gauche et de droite, sans emplacement
   scenes/                panneau Scènes (E) : liste, dossiers, fond, groupe (ex-CitiesManager)
-  <module>/              UI propre à un module (bibliothèque de PNJ, propriétés d'un objet…)
 packages/vision/         géométrie de la visibilité (§ 9), sans DOM
 ```
 
-Un module exporte un `MapModule` : `register(engine: MapEngine)` y enregistre ses `EntityKind`
+Une fonction exporte un `MapFeature` : `register(engine: MapEngine)` y enregistre ses `EntityKind`
 (`registerKind`), ses `Tool` (`registerTool`), ses sections d'inspecteur
 (`registerInspectorSection`), ses actions et entrées de barre d'outils (`registerAction`,
 `registerToolbarEntry`, § 6, Fonctions branchables), ses
@@ -150,7 +161,7 @@ surcouches React (`registerOverlay` : panneau de la colonne de gauche, ou compos
 qui relie des données React au module), ses entrées de menu (`registerMenuProvider`), ses
 animations (`onFrame`), ses objets Pixi (`whenMounted`, `plane(id)`, `pixi`, `theme`) et ses
 abonnements au store, et renvoie son nettoyage.
-`modules/index.ts` les liste, une ligne par module, avec un exemple complet.
+`features/index.ts` les liste, une ligne par fonction, avec un exemple complet.
 
 ## 4. Coordonnées, caméra, échelle
 
@@ -465,12 +476,12 @@ Règles de ces gestes :
 
 ### Fonctions branchables et barre d'outils déclarative
 
-> Chantier « barre d'outils » (2026-10-06). Lots 1 à 3 livrés (actions, barre déclarative,
-> modules socle, surcouches, personnalisation) ; le paragraphe « La barre d'outils porte
-> aussi… » ci-dessus n'est plus à jour.
+> Chantier « barre d'outils » (2026-10-06), livré : actions, barre déclarative, fonctions
+> socle, surcouches, personnalisation, une fonction par dossier. Le paragraphe « La barre
+> d'outils porte aussi… » ci-dessus n'est plus à jour.
 
 **But.** Ajouter un bouton = une déclaration ; retirer une fonction = une ligne dans
-`modules/index.ts` ; chacun masque ou réordonne ses boutons. Aucun bouton écrit en dur dans
+`features/index.ts` ; chacun masque ou réordonne ses boutons. Aucun bouton écrit en dur dans
 `toolbar.tsx`, aucun panneau monté en dur dans `map-canvas.tsx`.
 
 **Constat (avant le chantier).** Le contrat `MapModule` est sain et reste la base : sortes,
@@ -544,7 +555,7 @@ type ToolbarEntry =
 Exemple, un bouton de plus :
 
 ```ts
-export const pingModule: MapModule = {
+export const pingFeature: MapFeature = {
   id: 'ping',
   register: (engine) => [
     engine.registerAction({
@@ -560,14 +571,14 @@ export const pingModule: MapModule = {
 };
 ```
 
-puis une ligne `pingModule,` dans `modules/index.ts`.
+dans `features/ping/index.ts`, puis une ligne `pingFeature,` dans `features/index.ts`.
 
 `register` peut renvoyer un tableau de nettoyages (le moteur les défait dans l'ordre inverse),
 ce qui supprime le `cleanups.toReversed()` répété dans chaque module.
 
 #### Fonctions socle
 
-Ce qui est en dur devient des modules comme les autres, dans `modules/` :
+Ce qui est en dur devient des fonctions comme les autres, dans `features/` :
 
 | Aujourd'hui (en dur)         | Module          | Entrée                                  |
 | ---------------------------- | --------------- | --------------------------------------- |
@@ -586,7 +597,7 @@ Ce qui est en dur devient des modules comme les autres, dans `modules/` :
 
 Le moteur garde l'aimantation, la caméra et l'historique (le glisser et les commandes en ont
 besoin) ; seuls leurs boutons sortent. L'ouverture du panneau des calques sort avec son module
-(`modules/layers/panel.ts`) ; la pile, le calque actif, l'œil local et l'isolement restent au
+(`features/layers/engine/panel.ts`) ; la pile, le calque actif, l'œil local et l'isolement restent au
 moteur (rendu et toucher). Le curseur partagé reste aussi au moteur : le contrôleur l'envoie
 à chaque déplacement du pointeur, sur le canal du direct.
 
@@ -630,9 +641,10 @@ jsonb`, `version`), migration `0013-map-toolbar-layouts.sql` ;
     repart de la version de l'autre appareil et notre geste est renvoyé : le dernier gagne.
   - export des données (`lib/data-export.ts`) : `game.mapToolbar`.
 
-#### Arborescence (dernier lot)
+#### Arborescence
 
-Une fonction dans un seul dossier, renommage `MapModule` → `MapFeature` dans le même lot :
+Une fonction dans un seul dossier (`MapModule` est devenu `MapFeature`, `MAP_MODULES`
+`MAP_FEATURES`) :
 
 ```
 frontend/src/lib/map/features/<id>/
@@ -641,8 +653,16 @@ frontend/src/lib/map/features/<id>/
   ui/           composants React (options, inspecteur, panneaux)
 ```
 
-Une règle `no-restricted-imports` interdit `engine/ → ui/` : le cœur reste testable sans React,
-sans interface `ui` injectée.
+- Le front n'a pas d'ESLint (le lint, c'est Prettier) : la règle est un test,
+  `features/imports.test.ts`. Un fichier de `engine/` n'importe ni `ui/`, ni `@/components/…`,
+  ni un manifeste (`features/<id>`) ; les imports de type (`import type`) et les tests, bancs et
+  kits de test y échappent.
+- Imports : relatifs dans une fonction, `@/lib/map/…` pour en sortir.
+- Les manifestes de grid, weather, vision, objects et tokens portent encore de la logique à
+  côté du branchement de l'interface (lot de déplacements seuls) : à descendre dans `engine/`
+  quand on y touche.
+- `components/map/` ne garde que l'hôte de la carte (montage, barre, inspecteur, menus,
+  surcouches) et le panneau Scènes, qui n'est pas une fonction de la carte.
 
 #### Lots
 
@@ -656,8 +676,8 @@ sans interface `ui` injectée.
    la barre ne lit plus le menu d'attaque. Aucun changement visible.
 3. **Personnalisation** (livré) : contrat, route, table et événement (identity), magasin de la
    disposition, panneau de personnalisation, export des données.
-4. **Dossiers** : `features/<id>/`, `MapFeature`, règle d'import, cette section et § 3 mises à
-   jour. Déplacements seuls, dans un commit à part.
+4. **Dossiers** (livré) : `features/<id>/`, `MapFeature`, règle d'import (test), cette section
+   et § 3 mises à jour. Déplacements seuls dans un commit, renommage et règle dans le suivant.
 
 Chaque lot se termine par typecheck, lint, tests unitaires et build, et Théo le valide avant le
 suivant.
@@ -722,7 +742,7 @@ de messages seulement.
   seulement (bouton « Bulle » de la barre d'outils ou K : sélecteur Frimousse en français,
   recherche, catégories collantes, couleur de peau ; ou une réplique) : acceptée à la réception de
   celui qui incarne le personnage (à défaut, son propriétaire), jamais pour un PNJ ; cachée avec
-  son token (vision, calque). `lib/map/bubbles`, `components/map/bubbles`.
+  son token (vision, calque). `lib/map/features/bubbles/`.
 - Tampon de 100 ms, puis interpolation linéaire : un fantôme glisse sans à-coups.
 - Élément inconnu du destinataire : ignoré.
 - Plus rien pendant 2 s : le fantôme disparaît.
@@ -801,7 +821,7 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
   (brume, lueurs), jamais la règle.
 - **Une seule écriture des règles** : `packages/vision` pour la géométrie ; conversion et règles
   des entités dans `backend/campaign/src/modules/maps/vision-rules.ts`, dont
-  `frontend/src/lib/map/modules/vision/rules.ts` est la copie exacte (un test compare les deux
+  `frontend/src/lib/map/features/vision/engine/rules.ts` est la copie exacte (un test compare les deux
   fichiers et rejoue les mêmes cas des deux côtés).
 - **Personnages joueurs** : toujours vus. Hors de ma vue, ils sont dans le plan `allies` à 60 %
   (moteur : `setPlaneOverride`), comme les alliés, mes propres tokens et les `custom` qui me
@@ -974,7 +994,7 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
     (`scenePixelsPerUnit`, client et serveur), jamais une taille fixe : une même carte en deux
     résolutions garde des tokens à la même échelle. Le réglage de campagne `pixelsPerUnit` ne
     sert que sans taille connue. Pour un fond sans grille de jeu, le client du MJ cherche une
-    fois le quadrillage dessiné dans l'image (`modules/grid/detect.ts` : profils des contours,
+    fois le quadrillage dessiné dans l'image (`features/grid/engine/detect.ts` : profils des contours,
     peigne au plus petit pas significatif, cases carrées, blocs de compression écartés ; 19
     cartes quadrillées sur 20 et aucun faux positif sur 16 sans grille dans la bibliothèque) :
     trouvé, il devient la grille de jeu cachée aux joueurs (commande annulable, « Ajuster ») ;
@@ -1273,16 +1293,16 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
   - « Attacher à un token » (torche) : la lumière est là où est le token, à chaque image, aperçu
     du glisser et direct compris ; attachée, elle ne se déplace pas seule ; « Détacher » la
     laisse à la dernière place du token. Le module vision lit `lightPosition(engine, light)`
-    (`modules/lights`) : une seule règle ;
+    (`features/lights`) : une seule règle ;
   - éteinte : le serveur ne l'envoie pas aux joueurs, son direct reste chez le MJ ;
   - dessin MJ : icône teintée de sa couleur (taille constante), cercle du rayon, tirets à la
     limite du plein éclairage (`falloff`) ; éteinte : cercle gris en tirets.
 
 ### Vision (`vision`)
 
-- Rendu du § 9 (`modules/vision/renderer.ts`), état testable à blanc (`vision-state.ts`),
+- Rendu du § 9 (`features/vision/engine/renderer.ts`), état testable à blanc (`vision-state.ts`),
   masquage et plan `allies`, audience du direct, sélecteur « Vue » (MJ : vue du MJ ou
-  « Vue de … » ; tous : « Animer la brume »), `components/map/vision/view-menu.tsx`.
+  « Vue de … » ; tous : « Animer la brume »), `features/vision/ui/view-menu.tsx`.
 - Branchement du serveur sur `@vtt/vision`, filtrage et événements ciblés (§ 9, Serveur).
 
 ### Météo (`weather`)
@@ -1306,7 +1326,7 @@ de météo ne redessine pas la carte), plafonné, et arrêté dès qu'il ne sert
   - écriture : `PATCH /maps/:mapId { weather }` par une commande annulable
     (`engine.updateScene`), diffusée à tous par `map.updated`. Même effet, même intensité, même
     vent chez chacun ; seules les particules, tirées au hasard, diffèrent d'un écran à l'autre.
-- **Effets** (données, `modules/weather/effects.ts`) :
+- **Effets** (données, `features/weather/engine/effects.ts`) :
 
   | Type        | Nom                | Contenu                                                                                       |
   | ----------- | ------------------ | --------------------------------------------------------------------------------------------- |
@@ -1324,7 +1344,7 @@ de météo ne redessine pas la carte), plafonné, et arrêté dès qu'il ne sert
   `alert` et `static` venaient du bundle Star Wars de l'ancienne app. Ils sont offerts à toutes
   les campagnes, rangés à part (« Science-fiction ») dans le choix : aucune clé de système en dur.
 
-- **Canvas à part** (`modules/weather/overlay.ts`), au-dessus de celui de la carte : un second
+- **Canvas à part** (`features/weather/engine/overlay.ts`), au-dessus de celui de la carte : un second
   rendu WebGL, transparent, de même taille et de même résolution, `pointer-events: none` (le
   toucher reste celui de la carte). Une image de météo ne rend que ce canvas : ni le fond, ni la
   grille, ni le contenu, ni la vision ne sont redessinés, et la carte ne se redessine qu'à ses
@@ -1401,7 +1421,7 @@ de météo ne redessine pas la carte), plafonné, et arrêté dès qu'il ne sert
 - **Préférences locales** (confort de chacun, `localStorage`) : « Animer la météo » et
   « Éclairs et clignotements », éteintes par défaut avec « mouvement réduit ».
 - **Réglage du MJ** : bouton « Météo » (emplacement `view` de la barre, icône de la météo en
-  cours, allumé quand il y en a une), popover `components/map/weather/weather-menu.tsx` :
+  cours, allumé quand il y en a une), popover `features/weather/ui/weather-menu.tsx` :
   - vignettes des effets (icône et nom), « Aucune » en tête, « Science-fiction » à part ; choisir
     un effet garde l'intensité en cours (le milieu du curseur depuis « Aucune ») ;
   - intensité : curseur de 5 à 100 %, où 50 % est l'intensité 1 et 100 % l'intensité 2 ; aperçu
@@ -1528,7 +1548,7 @@ Refonte des mesures de l'ancienne carte (`MeasurementPanel`, `MeasurementShapeSe
 distance au clic pour chacun, et un outil « Mesurer » (règle, cône, cercle, carré) dont la
 mesure se voit chez tous pendant le geste, s'efface ensuite, ou s'épingle en gabarit durable.
 
-- **Unités** (`modules/measurements/model.ts`, testé) :
+- **Unités** (`features/measurements/engine/model.ts`, testé) :
   - distance **euclidienne** entre deux points du monde, divisée par la case de la scène
     (`pixelsPerUnit`, § 4), arrondie à la demi-unité, écrite avec `unitName` : « 12 m »,
     « 4,5 m ». Aucune règle de jeu dans le code ;
@@ -1650,7 +1670,7 @@ son attaché à un token pour l'instant (`token.audio` reste en base). Moteur et
   icône de note à taille constante ; tirets et icône grisée si la zone est arrêtée ou sans son.
   Les joueurs ne voient rien.
 - **Menu et inspecteur** : Arrêter / Lancer ; nom, son (bibliothèque, préécoute), volume, rayon.
-- **Écoute** (`components/map/sounds/map-sounds.tsx`) :
+- **Écoute** (`features/sounds/ui/map-sounds.tsx`) :
   - auditeur : mon token sélectionné, sinon celui du personnage que j'incarne (en tête de
     `viewer.characterIds`), sinon mon premier token de la scène ; position affichée (glisser
     compris), relue à 15 Hz au plus ; MJ et spectateur : aucun ;
@@ -1662,7 +1682,7 @@ son attaché à un token pour l'instant (`token.audio` reste en base). Moteur et
   segment traversé, volume × 0,5 ; passe-bas à 1 200 Hz pour un, 500 Hz au-delà ; transitions
   lissées sur 50 ms. Le son ne contourne pas : une porte ouverte à côté ne l'éclaircit pas.
 
-### Barre du groupe (`components/map/party/party-bar.tsx`)
+### Barre du groupe (`features/party/ui/party-bar.tsx`)
 
 En haut à gauche de la table, la sortie (retour au salon) en tête, à la place des anciens blocs
 « campagne » et « héros / Maître du jeu » (sans scène : la sortie seule) : les
@@ -1812,17 +1832,17 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
 
 ## 13. Découpage du chantier
 
-| Lot | Agent                           | Possède                                                                                                                                                   |
-| --- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Moteur                          | `lib/map/{engine,store,live,api.ts,modules/index.ts}`, `components/map/*.tsx`, `components/map/{scenes,layers}/`, `table/map-stage.tsx`, page de la table |
-| 1   | Vision (paquet)                 | `packages/vision/**`                                                                                                                                      |
-| 1   | Backend                         | `packages/contracts/src/map.ts`, `backend/campaign/**` (carte), `backend/character/**` (instances de PNJ, don d'objet), `backend/realtime/**`, docs d'API |
-| 2   | Dessins                         | `modules/drawings`, `components/map/drawings`                                                                                                             |
-| 2   | Personnages                     | `modules/tokens`, `components/map/tokens`                                                                                                                 |
-| 2   | Objets                          | `modules/objects`, `components/map/objects`                                                                                                               |
-| 2   | Outils de visibilité            | `modules/{obstacles,fog,lights}`, `components/map/{obstacles,fog,lights}`                                                                                 |
-| 2   | Rendu de la visibilité, serveur | `modules/vision`, `components/map/vision`, filtrage de campaign sur `@vtt/vision`                                                                         |
-| 3   | Intégration                     | revue, typecheck, lint, tests, build, performances                                                                                                        |
+| Lot | Agent                           | Possède                                                                                                                                                              |
+| --- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Moteur                          | `lib/map/{engine,store,live,api.ts,features/index.ts}`, `components/map/*.tsx`, `components/map/scenes/`, `features/layers`, `table/map-stage.tsx`, page de la table |
+| 1   | Vision (paquet)                 | `packages/vision/**`                                                                                                                                                 |
+| 1   | Backend                         | `packages/contracts/src/map.ts`, `backend/campaign/**` (carte), `backend/character/**` (instances de PNJ, don d'objet), `backend/realtime/**`, docs d'API            |
+| 2   | Dessins                         | `features/drawings`                                                                                                                                                  |
+| 2   | Personnages                     | `features/tokens`                                                                                                                                                    |
+| 2   | Objets                          | `features/objects`                                                                                                                                                   |
+| 2   | Outils de visibilité            | `features/{obstacles,fog,lights}`                                                                                                                                    |
+| 2   | Rendu de la visibilité, serveur | `features/vision`, filtrage de campaign sur `@vtt/vision`                                                                                                            |
+| 3   | Intégration                     | revue, typecheck, lint, tests, build, performances                                                                                                                   |
 
 Règles pour tous :
 

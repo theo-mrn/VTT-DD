@@ -1,9 +1,9 @@
 /** Module « présence » (docs/carte.md § 8) : « Montrer mon curseur » aux autres. */
 import { MousePointerClick } from 'lucide-react';
 import { useStore } from 'zustand';
-import type { MapModule } from '@/lib/map/engine/map-engine';
+import type { MapFeature } from '@/lib/map/engine/map-engine';
 
-export const presenceModule: MapModule = {
+export const presenceFeature: MapFeature = {
   id: 'presence',
   register: (engine) => [
     engine.registerAction({

@@ -5,7 +5,7 @@
 import { Redo2, Undo2 } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import type { MapViewer } from '@/lib/map/engine/entities/entity-kind';
-import type { MapEngine, MapModule } from '@/lib/map/engine/map-engine';
+import type { MapEngine, MapFeature } from '@/lib/map/engine/map-engine';
 import { MOD } from '@/lib/map/engine/toolbar';
 
 const canEdit = (viewer: MapViewer) => viewer.role !== 'spectator';
@@ -16,7 +16,7 @@ function useHistory(engine: MapEngine) {
   return useSyncExternalStore(commands.subscribe, commands.getSnapshot, commands.getSnapshot);
 }
 
-export const historyModule: MapModule = {
+export const historyFeature: MapFeature = {
   id: 'history',
   register: (engine) => [
     engine.registerAction({

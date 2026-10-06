@@ -18,7 +18,7 @@
  * État sans Pixi : `vision-state.ts` (testé à blanc) ; rendu : `renderer.ts`.
  */
 import { Eye } from 'lucide-react';
-import type { MapEngine, MapModule } from '@/lib/map/engine/map-engine';
+import type { MapEngine, MapFeature } from '@/lib/map/engine/map-engine';
 import { VisionViewMenu } from './ui/view-menu';
 import { Fades, VISION_MASK } from './engine/fades';
 import { VisionRings } from './engine/radius-rings';
@@ -51,7 +51,7 @@ export function applyDecisions(engine: MapEngine, state: VisionState, fades: Fad
   fades.prune(alive);
 }
 
-export const visionModule: MapModule = {
+export const visionFeature: MapFeature = {
   id: 'vision',
   register(engine) {
     const stats = new VisionStats();

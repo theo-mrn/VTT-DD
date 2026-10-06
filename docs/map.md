@@ -85,7 +85,7 @@ Chaque ligne a un `version` (verrou optimiste facultatif, `409 version_conflict`
 Le MJ voit tout. Pour un joueur ou un spectateur, le service filtre avec `@vtt/vision`, le même
 paquet que le rendu du navigateur ([carte.md](carte.md) § 9 ; règles :
 `backend/campaign/src/modules/maps/vision-rules.ts`, miroir exact de
-`frontend/src/lib/map/modules/vision/rules.ts`) :
+`frontend/src/lib/map/features/vision/engine/rules.ts`) :
 
 - calques masqués aux joueurs (`visible_to_players = false`) : ni le calque ni son contenu
   (tokens, objets, dessins, textes) ne sont envoyés, en REST, sur le bus ou au rejeu ; exception :
