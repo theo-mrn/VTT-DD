@@ -131,7 +131,7 @@ frontend/src/components/map/
   map-canvas.tsx         monte le moteur (client seulement, `next/dynamic`) et ses surcouches
   engine-context.tsx     hooks React du moteur (sélecteurs à instantané stable)
   character-choice.tsx   choix de personnages « Visible pour… » (objets, tokens), depuis l'annuaire
-  toolbar.tsx            barre d'outils (outils fournis par les modules)
+  toolbar/               barre d'outils déclarative (toolbar.tsx) et ses briques (kit.tsx)
   context-menu.tsx       menu contextuel commun (Radix), ancré au point de l'écran
   inspector.tsx          panneau d'inspection de la sélection (sections fournies par les modules)
   confirm-dialog.tsx     confirmations demandées par le moteur
@@ -144,7 +144,8 @@ packages/vision/         géométrie de la visibilité (§ 9), sans DOM
 
 Un module exporte un `MapModule` : `register(engine: MapEngine)` y enregistre ses `EntityKind`
 (`registerKind`), ses `Tool` (`registerTool`), ses sections d'inspecteur
-(`registerInspectorSection`), ses entrées de barre d'outils (`registerToolbarItem`), ses
+(`registerInspectorSection`), ses actions et entrées de barre d'outils (`registerAction`,
+`registerToolbarEntry`, § 6, Fonctions branchables), ses
 surcouches React (`registerOverlay` : panneau de la colonne de gauche, ou composant sans rendu
 qui relie des données React au module), ses entrées de menu (`registerMenuProvider`), ses
 animations (`onFrame`), ses objets Pixi (`whenMounted`, `plane(id)`, `pixi`, `theme`) et ses
@@ -461,6 +462,179 @@ Règles de ces gestes :
   de mur déjà posés restent), puis ce que l'outil tient (objet ou PNJ armé, chaîne de murs),
   puis le menu et l'inspecteur, puis retour à la sélection, enfin la sélection vidée. Un panneau
   de la table ouvert se ferme avant.
+
+### Fonctions branchables et barre d'outils déclarative
+
+> Chantier « barre d'outils » (2026-10-06). Lot 1 livré (actions, barre déclarative, modules
+> socle) ; le paragraphe « La barre d'outils porte aussi… » ci-dessus n'est plus à jour.
+
+**But.** Ajouter un bouton = une déclaration ; retirer une fonction = une ligne dans
+`modules/index.ts` ; chacun masque ou réordonne ses boutons. Aucun bouton écrit en dur dans
+`toolbar.tsx`, aucun panneau monté en dur dans `map-canvas.tsx`.
+
+**Constat (avant le chantier).** Le contrat `MapModule` est sain et reste la base : sortes,
+outils, sections d'inspecteur, menus et surcouches passent déjà par le moteur. Ce qui coince :
+
+- Annuler, Refaire, Bulle, Calques, Fond, Affichage, Aimantation, Curseur et Recadrer sont écrits
+  dans `toolbar.tsx` ; seuls les outils et deux emplacements (`view`, `end`) viennent des modules.
+- Pas de notion d'action : un bouton qui fait une chose demande un composant React complet, son
+  raccourci se déclare à part (`registerShortcut`), et `ToolbarButton` n'est pas exporté (grid,
+  weather et vision refont le leur).
+- Bulles, zones sonores, barre du groupe et panneau des calques sont montés en dur dans
+  `map-canvas.tsx`.
+- Une fonction vit dans deux arbres (`lib/map/modules/x` et `components/map/x`), reliés par une
+  interface `ui` injectée.
+
+#### Actions
+
+Une action est un geste nommé, sans état propre, que la barre, le clavier et (plus tard) le menu
+contextuel ou une palette de commandes déclenchent de la même façon.
+
+```ts
+interface MapAction {
+  // lib/map/engine/toolbar.ts
+  id: string; // 'camera.fit', 'history.undo' : « module.action »
+  label: string; // info-bulle, liste de personnalisation
+  icon: ComponentType<{ className?: string }>;
+  shortcut?: { code: string; label: string }; // lettre seule, branchée par le moteur
+  hint?: string; // touche affichée seulement (⌘Z : geste du contrôleur)
+  available?(viewer: MapViewer): boolean; // qui la voit (défaut : tous)
+  run(engine: MapEngine): void;
+  /** État affiché, lu dans React par le bouton seul : grisé, enfoncé, libellé du moment. */
+  useStatus?(engine: MapEngine): { enabled?: boolean; active?: boolean; label?: string };
+  toolbar?: { group: ToolbarGroup; order?: number }; // absent : touche seule
+}
+```
+
+- `engine.registerAction(action)` : la touche est branchée par le contrôleur (après celles des
+  outils), et le bouton posé si l'action a `toolbar`. `registerShortcut` n'existe plus : une
+  touche sans bouton est une action sans `toolbar` (Q : quadrillage, Y : attaquer).
+- ⌘Z, ⌘⇧Z, ⌘Y, ⌘D, Suppr, flèches et R restent des gestes communs du contrôleur : ils
+  marchent sans aucun module ; l'action Annuler ne fait qu'afficher ⌘Z (`hint`).
+- Une même touche peut servir deux rôles (K : calques du MJ, bulle du joueur). Un test
+  (`lib/map/test/toolbar-modules.test.ts`) charge tous les modules et prouve, rôle par rôle,
+  qu'aucune touche n'est prise deux fois.
+- `useStatus` est un hook appelé par le seul bouton : Annuler suit l'historique sans redessiner
+  la barre.
+
+#### Entrées de la barre
+
+```ts
+type ToolbarEntry =
+  // engine.registerToolbarEntry
+  | { kind: 'action'; action: MapAction } // posée par registerAction
+  | { kind: 'menu'; label; icon; content: ComponentType<{ engine }>; useStatus? } // popover
+  | { kind: 'custom'; component: ComponentType<{ engine }> }; // bouton et fenêtre à soi
+// communs : id, group, order, available(viewer) ; les outils (registerTool) ont la leur d'office
+```
+
+- **Groupes**, dans cet ordre, séparateur automatique entre deux groupes non vides :
+  `tools` (pastille glissante), `history` (annuler, refaire), `view` (bulle, Vue, météo,
+  quadrillage, échelle, calques, fond, affichage), `assist` (aimantation, curseur, recadrer).
+- `toolbarGroups(tools, entries, viewer)` (pur, testé) calcule la barre d'un viewer.
+- `components/map/toolbar/kit.tsx` exporte les briques : `ToolbarButton`, `ToolbarSeparator`,
+  `ActionButton`, `MenuButton`, `focusMap`. Une entrée `custom` s'en sert, elle ne refait pas
+  son bouton.
+- `components/map/toolbar/toolbar.tsx` ne connaît aucune fonction : il rend les groupes (au
+  lot 3, après la disposition de l'utilisateur). Seul reste l'effacement pendant une attaque
+  (`attackMenuStore`), à sortir au lot 2.
+
+Exemple, un bouton de plus :
+
+```ts
+export const pingModule: MapModule = {
+  id: 'ping',
+  register: (engine) => [
+    engine.registerAction({
+      id: 'ping.center',
+      label: 'Signaler',
+      icon: Radio,
+      shortcut: { code: 'KeyN', label: 'N' },
+      available: notSpectator,
+      run: (e) => e.ping(e.camera.center),
+      toolbar: { group: 'view', order: 40 },
+    }),
+  ],
+};
+```
+
+puis une ligne `pingModule,` dans `modules/index.ts`.
+
+`register` peut renvoyer un tableau de nettoyages (le moteur les défait dans l'ordre inverse),
+ce qui supprime le `cleanups.toReversed()` répété dans chaque module.
+
+#### Fonctions socle
+
+Ce qui est en dur devient des modules comme les autres, dans `modules/` :
+
+| Aujourd'hui (en dur)         | Module          | Entrée                                  |
+| ---------------------------- | --------------- | --------------------------------------- |
+| Annuler, Refaire             | `history`       | 2 actions (`history`), ⌘Z, ⌘⇧Z affichés |
+| Bulle (joueur), `MapBubbles` | `bubbles`       | `custom` (`view`) + surcouche           |
+| Calques (K), `LayersPanel`   | `layers`        | action bascule (`view`) + surcouche     |
+| Fond de la scène             | `scene-display` | `custom` (`view`), ouvre le sélecteur   |
+| Affichage                    | `scene-display` | `menu` (`view`)                         |
+| Aimantation                  | `snap`          | `menu` (`assist`)                       |
+| Montrer mon curseur          | `presence`      | action bascule (`assist`)               |
+| Recadrer la vue              | `camera`        | action (`assist`)                       |
+| `MapSounds`                  | `sounds`        | surcouche (déjà un module)              |
+| `PartyBarHost`               | `party`         | surcouche                               |
+| grid, weather, vision        | inchangés       | `registerToolbarItem` → `custom`        |
+| Q (grid), Y (combat)         | inchangés       | `registerShortcut` → action sans bouton |
+
+Le moteur garde l'aimantation, la caméra et l'historique (le glisser et les commandes en ont
+besoin) ; seuls leurs boutons sortent. Ce qui n'est qu'un état d'interface (panneau des calques
+ouvert, curseur partagé) sort du moteur avec son module.
+
+#### Personnalisation de la barre
+
+- **Par utilisateur, toutes campagnes** : `{ order: string[], hidden: string[], version }`, ids
+  d'entrées. Une entrée absente de `order` (fonction ajoutée depuis) prend sa place par défaut :
+  ajouter une fonction ne demande jamais de migrer les préférences. Un id inconnu est ignoré.
+  Une seule disposition pour les deux rôles : une entrée réservée au MJ n'apparaît pas chez un
+  joueur, quelle que soit la disposition.
+- **Réordonner dans son groupe** seulement : la barre garde sa structure.
+- **Masquer** retire le bouton, pas la fonction : le raccourci marche toujours. La sélection (V)
+  ne se masque pas.
+- **Interface** : clic droit sur la barre → « Personnaliser la barre » : liste par groupe,
+  poignée pour glisser, œil pour masquer, « Rétablir ». Pas de texte d'aide.
+- **Stockage**, sur le modèle du mixeur audio : contrat `MapToolbarLayout` dans
+  `packages/contracts/src/map.ts`, `GET/PUT /v1/users/me/map-toolbar` (service identity, à côté
+  du profil : la disposition suit le compte, pas une campagne ; table `map_toolbar_layouts`,
+  `user_id` clé, `layout jsonb`, `version` optimiste), copie dans `localStorage` pour un
+  affichage immédiat, relue au chargement.
+
+#### Arborescence (dernier lot)
+
+Une fonction dans un seul dossier, renommage `MapModule` → `MapFeature` dans le même lot :
+
+```
+frontend/src/lib/map/features/<id>/
+  index.ts      le manifeste : register(engine), actions, entrées, surcouches, inspecteur
+  engine/       sortes, outils, rendu Pixi, logique ; jamais d'import de ui/
+  ui/           composants React (options, inspecteur, panneaux)
+```
+
+Une règle `no-restricted-imports` interdit `engine/ → ui/` : le cœur reste testable sans React,
+sans interface `ui` injectée.
+
+#### Lots
+
+1. **Actions et barre déclarative** (livré) : `registerAction`, `registerToolbarEntry`,
+   briques exportées, `toolbar.tsx` sans fonction en dur, modules socle `history`, `bubbles`,
+   `layers`, `scene-display`, `snap`, `presence`, `camera`. Seul changement visible : chez un
+   joueur, la bulle passe après le séparateur qui suit Refaire. Tests : ordre, groupes, droits,
+   unicité des touches.
+2. **Surcouches en dur** : `map-canvas.tsx` ne monte plus que le moteur et ses hôtes génériques
+   (barre, surcouches, inspecteur, menu) ; `sounds`, `party`, `layers`, `bubbles` passent par
+   `registerOverlay`.
+3. **Personnalisation** : contrat, route et table (identity, sa doc d'API), magasin de la
+   disposition, panneau « Personnaliser la barre ».
+4. **Dossiers** : `features/<id>/`, `MapFeature`, règle d'import, cette section et § 3 mises à
+   jour. Déplacements seuls, dans un commit à part.
+
+Chaque lot se termine par typecheck, lint, tests unitaires et build, et Théo le valide avant le
+suivant.
 
 ## 7. Données, synchronisation, annuler
 
