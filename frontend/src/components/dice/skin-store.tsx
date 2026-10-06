@@ -2,12 +2,12 @@
 
 /**
  * Boutique des dés : vitrine à gauche, fiche du dé sélectionné à droite (en
- * plein écran sur mobile). Un seul filtre de possession (Tous, Possédés, À
- * débloquer) remplace les onglets ; raretés en puces, tri, recherche sans
- * accents. Code (service billing) et Premium dans l'en-tête.
+ * plein écran sur mobile). Onglets Tous / Ma collection / À débloquer, puces
+ * de rareté nommées, tri, recherche sans accents. Code (service billing) et
+ * Premium dans l'en-tête.
  *
- * - Possession : règle du service dice (`ownsSkin`) ; avec `allSkins`, tout
- *   est possédé et le filtre de possession disparaît.
+ * - Possession (store/catalogue.ts) : « Ma collection » = dés à soi en propre,
+ *   premium ou non ; « À débloquer » disparaît avec `allSkins` (tout équipable).
  * - Performances : la vitrine n'affiche que des vignettes WebP pré-calculées
  *   (aucun canevas, jamais de 3D au survol : elle faisait planter Chrome sous
  *   Windows), rendues à la demande (`content-visibility`). Un seul canevas 3D,
@@ -19,16 +19,20 @@
 import {
   ArrowDownWideNarrow,
   ArrowLeft,
+  Backpack,
   Check,
   Crown,
+  LayoutGrid,
+  Lock,
   Package,
   Search,
+  type LucideIcon,
   Store,
   X,
 } from 'lucide-react';
 import { PAGES_FRONT } from '@vtt/contracts';
 import Link from 'next/link';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { Badge } from '@/components/ui/badge';
@@ -74,10 +78,10 @@ import { SkinPanel } from './store/skin-panel';
 import { SkinTile } from './store/skin-tile';
 import { getSkinById } from './three/dice-definitions';
 
-const POSSESSIONS: { id: Possession; libelle: string }[] = [
-  { id: 'tous', libelle: 'Tous' },
-  { id: 'possedes', libelle: 'Possédés' },
-  { id: 'a-debloquer', libelle: 'À débloquer' },
+const POSSESSIONS: { id: Possession; libelle: string; Icone: LucideIcon }[] = [
+  { id: 'tous', libelle: 'Tous', Icone: LayoutGrid },
+  { id: 'collection', libelle: 'Ma collection', Icone: Backpack },
+  { id: 'a-debloquer', libelle: 'À débloquer', Icone: Lock },
 ];
 const TRIS: Record<Tri, string> = { rarete: 'Rareté', prix: 'Prix', nom: 'Nom' };
 
@@ -247,7 +251,8 @@ function Vitrine({
       <Filtres
         recherche={recherche}
         onRecherche={setRecherche}
-        possession={p.allSkins ? null : possession}
+        possession={possession}
+        premium={p.allSkins}
         onPossession={setPossession}
         compte={compte}
         rarete={rarete}
@@ -305,6 +310,7 @@ function Filtres({
   recherche,
   onRecherche,
   possession,
+  premium,
   onPossession,
   compte,
   rarete,
@@ -314,8 +320,9 @@ function Filtres({
 }: Readonly<{
   recherche: string;
   onRecherche: (v: string) => void;
-  /** null : tout est possédé (premium), pas de filtre. */
-  possession: Possession | null;
+  possession: Possession;
+  /** Tout est équipable : pas d'onglet « À débloquer ». */
+  premium: boolean;
   onPossession: (v: Possession) => void;
   compte: Record<Possession, number>;
   rarete: Rarete | null;
@@ -323,100 +330,107 @@ function Filtres({
   tri: Tri;
   onTri: (v: Tri) => void;
 }>) {
+  const onglets = POSSESSIONS.filter((o) => !(premium && o.id === 'a-debloquer'));
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface/40 px-4 py-2.5 sm:px-5">
-      <div className="relative w-full sm:w-56">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle"
-          aria-hidden
-        />
-        <Input
-          value={recherche}
-          onChange={(e) => onRecherche(e.target.value)}
-          placeholder="Chercher…"
-          aria-label="Chercher un dé"
-          className="h-9 pl-9"
-        />
-      </div>
-
-      {possession && (
+    <div className="shrink-0 border-b border-border">
+      <div className="flex flex-wrap items-center gap-3 px-4 pt-3 sm:px-5">
         <PillGroup>
-          <div
-            role="radiogroup"
-            aria-label="Possession"
-            className="flex rounded-lg border border-border bg-surface-2/60 p-0.5"
-          >
-            {POSSESSIONS.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                role="radio"
-                aria-checked={possession === o.id}
-                onClick={() => onPossession(o.id)}
-                className={cn(
-                  'relative isolate flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors',
-                  possession === o.id
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {possession === o.id && <ActivePill className="bg-surface-3 shadow-sm" />}
-                {o.libelle}
-                <span className="tabular-nums text-subtle">{compte[o.id]}</span>
-              </button>
-            ))}
+          <div role="tablist" aria-label="Dés affichés" className="flex gap-1">
+            {onglets.map(({ id, libelle, Icone }) => {
+              const actif = possession === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={actif}
+                  onClick={() => onPossession(id)}
+                  className={cn(
+                    'relative isolate flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
+                    actif ? 'text-primary-strong' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {actif && <ActivePill className="border border-primary/30 bg-primary/10" />}
+                  <Icone className="size-4" aria-hidden />
+                  {libelle}
+                  <span
+                    className={cn(
+                      'rounded-full px-1.5 text-xs tabular-nums',
+                      actif ? 'bg-primary/15' : 'bg-surface-3 text-subtle',
+                    )}
+                  >
+                    {compte[id]}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </PillGroup>
-      )}
-
-      <div role="radiogroup" aria-label="Rareté" className="flex items-center gap-1">
-        {ORDRE_RARETES.map((r) => {
-          const actif = rarete === r;
-          return (
-            <Info key={r} texte={RARETES[r].libelle}>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={actif}
-                aria-label={RARETES[r].libelle}
-                onClick={() => onRarete(actif ? null : r)}
-                className={cn(
-                  'flex size-8 items-center justify-center rounded-lg border transition-colors',
-                  actif
-                    ? 'border-border-strong bg-surface-3'
-                    : 'border-transparent hover:bg-surface-2',
-                )}
-              >
-                <span
-                  className={cn(
-                    'size-2.5 rounded-full transition-opacity',
-                    RARETES[r].teinte,
-                    rarete && !actif && 'opacity-35',
-                  )}
-                />
-              </button>
-            </Info>
-          );
-        })}
+        <div className="relative w-full sm:ml-auto sm:w-60">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle"
+            aria-hidden
+          />
+          <Input
+            value={recherche}
+            onChange={(e) => onRecherche(e.target.value)}
+            placeholder="Chercher un dé…"
+            aria-label="Chercher un dé"
+            className="h-9 pl-9"
+          />
+        </div>
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="ml-auto text-muted-foreground">
-            <ArrowDownWideNarrow aria-hidden />
-            {TRIS[tri]}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
-          {(Object.keys(TRIS) as Tri[]).map((t) => (
-            <DropdownMenuItem key={t} onSelect={() => onTri(t)}>
-              <span className="flex-1">{TRIS[t]}</span>
-              {tri === t && <Check className="text-primary" aria-hidden />}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center gap-1.5 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] sm:px-5">
+        <Puce actif={rarete === null} onClick={() => onRarete(null)}>
+          Toutes raretés
+        </Puce>
+        {ORDRE_RARETES.map((r) => (
+          <Puce key={r} actif={rarete === r} onClick={() => onRarete(rarete === r ? null : r)}>
+            <span className={cn('size-2 rounded-full', RARETES[r].teinte)} aria-hidden />
+            {RARETES[r].libelle}
+          </Puce>
+        ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="ml-auto shrink-0 text-muted-foreground">
+              <ArrowDownWideNarrow aria-hidden />
+              {TRIS[tri]}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            {(Object.keys(TRIS) as Tri[]).map((t) => (
+              <DropdownMenuItem key={t} onSelect={() => onTri(t)}>
+                <span className="flex-1">{TRIS[t]}</span>
+                {tri === t && <Check className="text-primary" aria-hidden />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
+  );
+}
+
+function Puce({
+  actif,
+  onClick,
+  children,
+}: Readonly<{ actif: boolean; onClick: () => void; children: ReactNode }>) {
+  return (
+    <button
+      type="button"
+      aria-pressed={actif}
+      onClick={onClick}
+      className={cn(
+        'flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors',
+        actif
+          ? 'border-border-strong bg-surface-3 text-foreground'
+          : 'border-border text-muted-foreground hover:border-border-strong hover:text-foreground',
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

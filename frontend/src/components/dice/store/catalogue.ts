@@ -1,13 +1,17 @@
 /**
  * Catalogue de la boutique : raretés, prix, filtres et tris, sans React (testé
- * dans catalogue.test.ts). La possession suit la règle du service dice
- * (`ownsSkin` : `allSkins`, ou skin dans l'inventaire).
+ * dans catalogue.test.ts).
+ *
+ * - « Ma collection » : les dés à soi en propre (inventaire du service dice :
+ *   gratuits, achetés, offerts par code), premium ou non ;
+ * - « À débloquer » : ceux qu'on ne peut pas équiper (`ownsSkin` faux) ; vide
+ *   avec `allSkins` (premium).
  */
 import { ownsSkin, type DicePreferences } from '@/lib/dice-preferences';
 import { DICE_SKINS, type DiceSkin } from '../three/dice-definitions';
 
 export type Rarete = NonNullable<DiceSkin['rarity']>;
-export type Possession = 'tous' | 'possedes' | 'a-debloquer';
+export type Possession = 'tous' | 'collection' | 'a-debloquer';
 export type Tri = 'rarete' | 'prix' | 'nom';
 
 /** Couleur d'une rareté : jeton de thème (pastille, liseré, badge). */
@@ -67,15 +71,21 @@ export function filtrer(
   return catalogue
     .filter((s) => {
       if (f.rarete && rareteDe(s) !== f.rarete) return false;
-      if (f.possession !== 'tous' && ownsSkin(prefs, s.id) !== (f.possession === 'possedes'))
-        return false;
+      if (f.possession === 'collection' && !prefs.inventory.includes(s.id)) return false;
+      if (f.possession === 'a-debloquer' && ownsSkin(prefs, s.id)) return false;
       return !q || plier(s.name).includes(q);
     })
     .sort((a, b) => COMPARER[f.tri](a, b) || parNom(a, b));
 }
 
-/** Compteurs du sélecteur Tous / Possédés / À débloquer, sur tout le catalogue. */
-export function compter(catalogue: readonly DiceSkin[], prefs: DicePreferences) {
-  const possedes = catalogue.filter((s) => ownsSkin(prefs, s.id)).length;
-  return { tous: catalogue.length, possedes, 'a-debloquer': catalogue.length - possedes };
+/** Compteurs du sélecteur Tous / Ma collection / À débloquer, sur tout le catalogue. */
+export function compter(
+  catalogue: readonly DiceSkin[],
+  prefs: DicePreferences,
+): Record<Possession, number> {
+  return {
+    tous: catalogue.length,
+    collection: catalogue.filter((s) => prefs.inventory.includes(s.id)).length,
+    'a-debloquer': catalogue.filter((s) => !ownsSkin(prefs, s.id)).length,
+  };
 }
