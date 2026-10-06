@@ -100,7 +100,9 @@ export async function recordInvoice(
       number: values.number,
       currency: values.currency,
     };
-    if (trigger === 'paid' && values.status === 'paid' && prev?.status !== 'paid')
+    // Facture devenue payée, quel que soit l'événement qui l'apprend : celle d'un achat est
+    // créée déjà payée, et invoice.finalized arrive avant invoice.paid
+    if (values.status === 'paid' && prev?.status !== 'paid')
       await appendEvent(tx, ctx, {
         type: 'billing.invoice_paid',
         actor,

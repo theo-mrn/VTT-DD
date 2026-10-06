@@ -267,6 +267,18 @@ describe.skipIf(!TEST_DATABASE_URL)('webhook Stripe', () => {
     expect(await t.db!.select().from(invoices).where(eq(invoices.id, stranger.id!))).toEqual([]);
   });
 
+  it('facture d’un achat, déjà payée à invoice.finalized : un seul invoice_paid', async () => {
+    const inv = t.stripe.invoice('cus_achat', {
+      metadata: { userId: alice.id },
+      billing_reason: 'manual',
+    });
+    expect((await t.deliver(signedEvent('invoice.finalized', inv))).statusCode).toBe(200);
+    expect((await t.deliver(signedEvent('invoice.paid', inv))).statusCode).toBe(200);
+    const paid = (await t.events(alice.id)).filter((e) => e.type === 'billing.invoice_paid');
+    expect(paid).toHaveLength(1);
+    expect(paid[0]!.payload).toMatchObject({ invoiceId: inv.id, billingReason: 'manual' });
+  });
+
   it('remboursement total : droit retiré, achat remboursé ; partiel : rien', async () => {
     const session = await paidPurchase(alice, 'ruby');
     await t.deliver(signedEvent('checkout.session.completed', session));
