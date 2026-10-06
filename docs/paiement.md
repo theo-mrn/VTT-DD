@@ -3,13 +3,6 @@
 Conception du paiement de Yner : abonnement premium, achats à l'unité, factures, e-mails,
 droits. Ce document fait foi ; le code de `backend/billing` le suit.
 
-> **Décision du 2026-10-05 : Yner ne vend rien.** Sans entreprise déclarée (SIRET), pas de vente
-> légale à des particuliers : dés, bordures et cadres sont ouverts à tous, et le projet se
-> soutient par dons (Buy Me a Coffee). Tout ce qui suit reste en place, en sommeil et testé :
-> pour vendre un jour, `SKINS_FOR_SALE=on` (dice), `PAIEMENTS = true`
-> (`frontend/src/lib/soutien.ts`), clés Stripe live, `catalog:sync --apply`, page `/cgv` et
-> `STRIPE_TERMS=on`.
-
 ## Ce qui est vendu
 
 | Offre           | Mode Stripe                                              | Droit donné                                                           |
@@ -250,3 +243,8 @@ l'exécute.
 4. **Front** (fait le 2026-10-05) : page Abonnement, boutique active, retours de Checkout.
 5. **Légal et mise en ligne** : CGV, consentement, rappel de reconduction, réconciliation,
    configuration du portail, clés live.
+6. **Retour de la vente** (2026-10-06) : la mise en sommeil du 2026-10-05 est retirée (skins
+   payants dans dice, onglet Abonnement, premium de la boutique, bordures réservées), recette sur
+   Stripe en mode test.
+7. **Cadres de jetons** : vendus par billing (`token_<id>`, `tokenFrames` du droit publié) mais
+   sans contrôle de possession dans le studio de portraits du nouveau front.

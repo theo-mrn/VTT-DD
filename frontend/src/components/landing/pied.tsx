@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { LogoYner } from '@/components/commun/logo-yner';
 import { LEGAL_PAGES } from '@/lib/legal';
-import { SOUTIEN_URL } from '@/lib/soutien';
 
 const LIENS_LEGAUX = [
   { href: LEGAL_PAGES.notice, libelle: 'Mentions légales' },
@@ -10,7 +9,7 @@ const LIENS_LEGAUX = [
   { href: LEGAL_PAGES.credits, libelle: 'Crédits' },
 ];
 
-/** Pied de page : la marque, les pages légales, le soutien s'il existe, l'année. */
+/** Pied de page : la marque, les pages légales, l'année. */
 export function Pied() {
   return (
     <footer className="border-t border-white/[0.06]">
@@ -25,16 +24,6 @@ export function Pied() {
               {l.libelle}
             </Link>
           ))}
-          {SOUTIEN_URL && (
-            <a
-              href={SOUTIEN_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="transition-colors hover:text-foreground"
-            >
-              Soutenir le projet
-            </a>
-          )}
           <span>© {new Date().getFullYear()} Yner</span>
         </div>
       </div>
