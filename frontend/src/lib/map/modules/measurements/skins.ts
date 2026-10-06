@@ -11,7 +11,6 @@
  * neuve sont renvoyées au GPU. Pixi est pris sur le moteur.
  */
 import type * as Pixi from 'pixi.js';
-import { pourWebgl } from '@/lib/assets';
 import { prefersEconomy } from '@/lib/perf/device';
 import type { MapEngine } from '../../engine/map-engine';
 import { WHITE } from '../../engine/visibility-badge';
@@ -246,16 +245,14 @@ export class SkinTextures {
       });
     try {
       // Variante 512 px (VP9 avec transparence) d'abord ; absente ou illisible : l'original
-      // Adresses CORS (pourWebgl) dès ici : chargement, déchargement et clé de Pixi identiques
-      const original = pourWebgl(url);
-      let src = pourWebgl(effectVariant(url) ?? url);
+      let src = effectVariant(url) ?? url;
       let texture: Pixi.Texture;
       try {
         texture = await video(src);
       } catch (err) {
-        if (src === original) throw err;
-        src = original;
-        texture = await video(original);
+        if (src === url) throw err;
+        src = url;
+        texture = await video(url);
       }
       if (this.disposed) {
         void pixi.Assets.unload(src).catch(() => undefined);
