@@ -12,7 +12,7 @@
  *   commande annulable). Échap annule.
  */
 import type { MapGrid } from '@vtt/contracts';
-import { Ruler } from 'lucide-react';
+import { Grid3x3, Ruler } from 'lucide-react';
 import type { Container, Graphics } from 'pixi.js';
 import type { StoreApi } from 'zustand/vanilla';
 import { GridControls } from '@/components/map/grid/grid-menu';
@@ -280,16 +280,18 @@ export const gridModule: MapModule = {
         create: () => new CalibrateTool(settings),
       }),
       // Afficher ou masquer (tous, sur son écran) ; réglages à côté (MJ)
-      engine.registerToolbarItem({
+      engine.registerToolbarEntry({
+        kind: 'custom',
         id: 'grid:menu',
-        slot: 'view',
+        group: 'view',
         order: 20,
         component: GridControls,
       }),
       // Échelle de la scène (MJ) : case, taille des tokens, détecter, calibrer
-      engine.registerToolbarItem({
+      engine.registerToolbarEntry({
+        kind: 'custom',
         id: 'grid:scale',
-        slot: 'view',
+        group: 'view',
         order: 21,
         available: isGm,
         component: ScaleMenu,
@@ -301,8 +303,11 @@ export const gridModule: MapModule = {
         available: isGm,
         component: GridScaleAssistant,
       }),
-      engine.registerShortcut({
-        code: GRID_TOGGLE_SHORTCUT.code,
+      engine.registerAction({
+        id: 'grid.toggle',
+        label: 'Quadrillage',
+        icon: Grid3x3,
+        shortcut: GRID_TOGGLE_SHORTCUT,
         run: () => setGridShown(!gridDisplay.getState().shown),
       }),
       engine.whenMounted(() => {

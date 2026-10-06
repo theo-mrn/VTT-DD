@@ -18,7 +18,8 @@
  * - `registerKind(kind)` : une sorte d'entité (`EntityKind`) ;
  * - `registerTool(def)` : un outil et son entrée de barre d'outils (`ToolDefinition`) ;
  * - `registerInspectorSection(section)` : une section de l'inspecteur ;
- * - `registerToolbarItem(item)` : un composant dans la barre (emplacement « Vue » ou fin) ;
+ * - `registerAction(action)` : un geste nommé, bouton de la barre et/ou touche (`toolbar.ts`) ;
+ * - `registerToolbarEntry(entry)` : un menu ou un composant libre dans la barre ;
  * - `registerOverlay(overlay)` : une surcouche React (panneau flottant, composant sans rendu) ;
  * - `registerMenuProvider(provider)` : des entrées du menu contextuel (vide ou sélection) ;
  * - `onFrame(cb)` : une animation (renvoyer vrai tant qu'elle continue) ;
@@ -100,16 +101,20 @@ import { displayOf, isDisplayed, PLANE_RANK, type PlaneId } from './planes';
 import { ScreenSpace } from './screen-space';
 import { SpatialIndex } from './spatial-index';
 import { SelectTool } from './tools/select-tool';
+import type { MapAction, ToolbarEntry } from './toolbar';
 import type { ToolDefinition } from './tools/tool';
 import { SELECT_TOOL_ID, ToolManager } from './tools/tool-manager';
 
 // ─── Extensions des modules ──────────────────────────────────────────────────
 
+/** Nettoyage d'un module : une fonction, ou une liste défaite dans l'ordre inverse. */
+export type ModuleCleanup = void | (() => void) | readonly (() => void)[];
+
 /** Un module de la carte (`modules/<nom>/index.ts`). */
 export interface MapModule {
   readonly id: string;
-  /** Enregistre sortes, outils, sections… ; peut renvoyer un nettoyage. */
-  register(engine: MapEngine): void | (() => void);
+  /** Enregistre sortes, outils, actions, sections… ; renvoie son nettoyage. */
+  register(engine: MapEngine): ModuleCleanup;
 }
 
 export interface InspectorSectionProps {
@@ -125,25 +130,6 @@ export interface InspectorSection {
   /** La section s'applique à cette sélection. */
   appliesTo(entities: readonly MapEntity[], viewer: MapViewer): boolean;
   component: ComponentType<InspectorSectionProps>;
-}
-
-/**
- * Raccourci clavier d'un module (hors outil) : une lettre, sans ⇧ ni répétition, quand la carte a
- * le focus (« Q » : quadrillage). `code` : `KeyX`, la lettre tapée (`shortcutCode`).
- */
-export interface MapShortcut {
-  code: string;
-  available?(viewer: MapViewer): boolean;
-  run(): void;
-}
-
-export interface ToolbarItem {
-  id: string;
-  /** `view` : emplacement « Vue » (module vision) ; `end` : après les outils. */
-  slot: 'view' | 'end';
-  order?: number;
-  available?(viewer: MapViewer): boolean;
-  component: ComponentType<{ engine: MapEngine }>;
 }
 
 /**
@@ -173,7 +159,7 @@ export type MenuProvider = (ctx: MenuContext) => MenuItem[];
 /** Extensions enregistrées, observables par React (instantané stable). */
 export interface EngineExtensions {
   inspectorSections: readonly InspectorSection[];
-  toolbarItems: readonly ToolbarItem[];
+  toolbarEntries: readonly ToolbarEntry[];
   overlays: readonly MapOverlay[];
 }
 
@@ -398,13 +384,13 @@ export class MapEngine {
 
   // Extensions
   private inspectorSections: InspectorSection[] = [];
-  private toolbarItems: ToolbarItem[] = [];
+  private toolbarEntries: ToolbarEntry[] = [];
   private overlays: MapOverlay[] = [];
   private readonly menuProviders = new Set<MenuProvider>();
-  private readonly shortcuts = new Set<MapShortcut>();
+  private readonly actions = new Map<string, MapAction>();
   private extensionsSnapshot: EngineExtensions = {
     inspectorSections: [],
-    toolbarItems: [],
+    toolbarEntries: [],
     overlays: [],
   };
   private readonly extensionListeners = new Set<() => void>();
@@ -537,6 +523,12 @@ export class MapEngine {
   use(module: MapModule) {
     const cleanup = module.register(this);
     if (typeof cleanup === 'function') this.moduleCleanups.push(cleanup);
+    else if (cleanup) {
+      const list = [...cleanup];
+      this.moduleCleanups.push(() => {
+        for (const c of list.toReversed()) c();
+      });
+    }
   }
 
   registerKind<D extends MapDto>(kind: EntityKind<D>): () => void {
@@ -564,27 +556,47 @@ export class MapEngine {
     };
   }
 
-  registerToolbarItem(item: ToolbarItem): () => void {
-    this.toolbarItems = [...this.toolbarItems, item].sort(
-      (a, b) => (a.order ?? 100) - (b.order ?? 100),
-    );
-    this.extensionsChanged();
+  /** Une action : sa touche est branchée, et son bouton posé si elle a `toolbar`. */
+  registerAction(action: MapAction): () => void {
+    if (this.actions.has(action.id)) throw new Error(`Action déjà enregistrée : ${action.id}`);
+    this.actions.set(action.id, action);
+    const unEntry = action.toolbar
+      ? this.registerToolbarEntry({
+          kind: 'action',
+          id: action.id,
+          group: action.toolbar.group,
+          order: action.toolbar.order,
+          available: action.available,
+          action,
+        })
+      : null;
     return () => {
-      this.toolbarItems = this.toolbarItems.filter((i) => i !== item);
-      this.extensionsChanged();
+      unEntry?.();
+      this.actions.delete(action.id);
     };
   }
 
-  registerShortcut(shortcut: MapShortcut): () => void {
-    this.shortcuts.add(shortcut);
-    return () => void this.shortcuts.delete(shortcut);
+  /** Action dont la touche est cette lettre, si ce viewer peut la déclencher. */
+  actionForKey(code: string): MapAction | null {
+    for (const a of this.actions.values())
+      if (a.shortcut?.code === code && (!a.available || a.available(this.viewer))) return a;
+    return null;
   }
 
-  /** Raccourci d'un module pour cette touche, s'il vaut pour ce viewer. */
-  shortcutFor(code: string): MapShortcut | null {
-    for (const s of this.shortcuts)
-      if (s.code === code && (!s.available || s.available(this.viewer))) return s;
-    return null;
+  /** Actions enregistrées (tests, personnalisation de la barre). */
+  allActions(): MapAction[] {
+    return [...this.actions.values()];
+  }
+
+  registerToolbarEntry(entry: ToolbarEntry): () => void {
+    if (this.toolbarEntries.some((e) => e.id === entry.id))
+      throw new Error(`Entrée de barre déjà enregistrée : ${entry.id}`);
+    this.toolbarEntries = [...this.toolbarEntries, entry];
+    this.extensionsChanged();
+    return () => {
+      this.toolbarEntries = this.toolbarEntries.filter((e) => e !== entry);
+      this.extensionsChanged();
+    };
   }
 
   registerMenuProvider(provider: MenuProvider): () => void {
@@ -611,7 +623,7 @@ export class MapEngine {
   private extensionsChanged() {
     this.extensionsSnapshot = {
       inspectorSections: this.inspectorSections,
-      toolbarItems: this.toolbarItems,
+      toolbarEntries: this.toolbarEntries,
       overlays: this.overlays,
     };
     for (const l of this.extensionListeners) l();

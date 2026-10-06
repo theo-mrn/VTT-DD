@@ -38,7 +38,7 @@ import { MapOverlays } from './overlays';
 import { PartyBarHost } from './party/party-bar';
 import { MapSounds } from './sounds/map-sounds';
 import { SelectionPanel } from './selection-panel';
-import { MapToolbar } from './toolbar';
+import { MapToolbar } from './toolbar/toolbar';
 
 export interface MapCanvasProps {
   campaignId: string;

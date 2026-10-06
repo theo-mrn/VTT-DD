@@ -12,8 +12,8 @@
  *   sélection) ;
  * - clavier (carte focalisée, jamais pendant la saisie) : Échap (geste, puis outil, puis
  *   sélection), ⌘/Ctrl+Z et ⌘/Ctrl+⇧+Z, ⌘/Ctrl+D, Suppr, flèches (⇧ : 5 cases), R et ⇧R,
- *   ⌘/Ctrl+↑↓ (ordre ; ⇧ : premier plan, arrière-plan ; ⌥ : calque), K (calques), lettres des
- *   outils.
+ *   ⌘/Ctrl+↑↓ (ordre ; ⇧ : premier plan, arrière-plan ; ⌥ : calque), lettres des outils et
+ *   des actions des modules (K : calques, Q : quadrillage).
  */
 import { wheelZoomFactor } from '../camera';
 import type { Point } from '../geometry';
@@ -386,7 +386,7 @@ export class InteractionController {
     return true;
   }
 
-  /** Raccourcis sans modificateur : suppression, flèches, rotation, calques, outils. */
+  /** Raccourcis sans modificateur : suppression, flèches, rotation, outils, actions. */
   private plainKey(k: MapKey): boolean {
     const engine = this.engine;
     const selected = engine.selection.size > 0;
@@ -406,11 +406,6 @@ export class InteractionController {
       void engine.rotateEntities(engine.selectedEntities(), k.shift ? -ROTATE_STEP : ROTATE_STEP);
       return true;
     }
-    // K : panneau des calques (MJ)
-    if (k.code === 'KeyK' && !k.shift && !k.repeat && engine.viewer.role === 'gm') {
-      engine.toggleLayersPanel();
-      return true;
-    }
     if (!k.shift && !k.repeat) return this.shortcutKey(k.code);
     return false;
   }
@@ -424,14 +419,14 @@ export class InteractionController {
     return true;
   }
 
-  /** Lettre d'un outil, sinon raccourci d'un module (Q : quadrillage). */
+  /** Lettre d'un outil, sinon action d'un module (K : calques, Q : quadrillage). */
   private shortcutKey(code: string): boolean {
     const tools = this.engine.tools;
     const def = tools.byShortcut(code);
     if (def) return tools.activate(def.id);
-    const shortcut = this.engine.shortcutFor(code);
-    if (shortcut) {
-      shortcut.run();
+    const action = this.engine.actionForKey(code);
+    if (action) {
+      action.run(this.engine);
       return true;
     }
     return false;

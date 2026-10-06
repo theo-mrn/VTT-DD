@@ -11,10 +11,10 @@ describe('module objets', () => {
   it('surcouche « objects-host » sans emplacement, pour le MJ et les joueurs', () => {
     const t = setup();
     t.engine.use(objectsModule);
-    const { overlays, toolbarItems } = t.engine.getExtensions();
+    const { overlays, toolbarEntries } = t.engine.getExtensions();
     const host = overlays.find((o) => o.id === 'objects-host');
     expect(host?.slot).toBe('none');
-    expect(toolbarItems.map((i) => i.id)).not.toContain('objects-host');
+    expect(toolbarEntries.map((i) => i.id)).not.toContain('objects-host');
     expect(host?.available?.(GM)).toBe(true);
     expect(host?.available?.(PLAYER)).toBe(true);
     expect(host?.available?.(SPECTATOR)).toBe(false);

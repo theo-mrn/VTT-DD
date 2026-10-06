@@ -548,7 +548,7 @@ describe('météo dans le moteur', () => {
   it('sans rendu monté, le module ne fait pas tourner la boucle', () => {
     const t = setup();
     t.engine.use(weatherModule);
-    expect(t.engine.getExtensions().toolbarItems.map((i) => i.id)).toContain('weather:menu');
+    expect(t.engine.getExtensions().toolbarEntries.map((i) => i.id)).toContain('weather:menu');
     t.store
       .getState()
       .setScene(

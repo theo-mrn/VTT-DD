@@ -256,9 +256,10 @@ export const weatherModule: MapModule = {
 
     const cleanups: (() => void)[] = [
       exposeWeatherStats(stats),
-      engine.registerToolbarItem({
+      engine.registerToolbarEntry({
+        kind: 'custom',
         id: 'weather:menu',
-        slot: 'view',
+        group: 'view',
         order: 15,
         component: WeatherControls,
       }),

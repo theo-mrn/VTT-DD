@@ -111,7 +111,7 @@ describe('entrées « Attaquer » de la carte', () => {
   it('touche Y : la sélection devient les cibles', () => {
     const t = setup();
     t.engine.selection.replace(['g1', 'l1']);
-    t.engine.shortcutFor('KeyY')!.run();
+    t.engine.actionForKey('KeyY')!.run(t.engine);
     expect(t.menu.opened.at(-1)).toMatchObject({
       origin: 'selection',
       targetIds: ['gobelin', 'loup'],

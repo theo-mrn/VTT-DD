@@ -1,10 +1,23 @@
 /**
- * Modules chargés par le moteur de la carte (docs/carte.md § 3, § 10), une ligne par module.
- * Chaque agent du lot 2 décommente la sienne quand son module est prêt.
+ * Modules chargés par le moteur de la carte (docs/carte.md § 3, § 6, § 10), une ligne par
+ * module : retirer une ligne retire la fonction, sa touche et ses boutons.
  *
  * Un module exporte un `MapModule` : `register(engine)` y enregistre ses sortes d'entités, ses
- * outils, ses sections d'inspecteur, ses entrées de barre d'outils, ses entrées de menu et ses
- * abonnements, et renvoie son nettoyage. Exemple (module `objects`) :
+ * outils, ses actions (bouton et/ou touche), ses entrées de barre d'outils, ses sections
+ * d'inspecteur, ses entrées de menu et ses abonnements, et renvoie son nettoyage (une fonction
+ * ou une liste). Un bouton de plus (module `camera`) :
+ *
+ * ```ts
+ * export const cameraModule: MapModule = {
+ *   id: 'camera',
+ *   register: (engine) => [
+ *     engine.registerAction({ id: 'camera.fit', label: 'Recadrer la vue', icon: Focus,
+ *       run: (e) => e.fitView(), toolbar: { group: 'assist', order: 30 } }),
+ *   ],
+ * };
+ * ```
+ *
+ * Exemple complet (module `objects`) :
  *
  * ```ts
  * import { Box } from 'lucide-react';
@@ -68,8 +81,24 @@ import { measurementsModule } from './measurements';
 import { visionModule } from './vision';
 import { weatherModule } from './weather';
 import { combatModule } from './combat';
+import { historyModule } from './history';
+import { bubblesModule } from './bubbles';
+import { layersModule } from './layers';
+import { sceneDisplayModule } from './scene-display';
+import { snapModule } from './snap';
+import { presenceModule } from './presence';
+import { cameraModule } from './camera';
 
 export const MAP_MODULES: readonly MapModule[] = [
+  // Socle de la barre : annuler et refaire, bulle du joueur, calques (K), fond et affichage de la
+  // scène, aimantation, curseur partagé, recadrer
+  historyModule,
+  bubblesModule,
+  layersModule,
+  sceneDisplayModule,
+  snapModule,
+  presenceModule,
+  cameraModule,
   // Moteur : point d'apparition de la scène
   sceneModule,
   // Quadrillages de la scène et leur calibrage sur l'image

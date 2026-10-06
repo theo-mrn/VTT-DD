@@ -101,9 +101,10 @@ export const visionModule: MapModule = {
           mounted: engine.ui.getState().mounted,
         };
       }),
-      engine.registerToolbarItem({
+      engine.registerToolbarEntry({
+        kind: 'custom',
         id: 'vision:view',
-        slot: 'view',
+        group: 'view',
         order: 10,
         component: VisionViewMenu,
       }),
