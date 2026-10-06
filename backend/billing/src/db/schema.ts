@@ -45,7 +45,7 @@ export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export const ENTITLEMENT_KINDS = ['premium', 'dice_skin', 'token_frame'] as const;
 export type EntitlementKind = (typeof ENTITLEMENT_KINDS)[number];
 
-export const ENTITLEMENT_SOURCES = ['subscription', 'purchase', 'legacy', 'gift'] as const;
+export const ENTITLEMENT_SOURCES = ['subscription', 'purchase', 'legacy', 'gift', 'code'] as const;
 export type EntitlementSource = (typeof ENTITLEMENT_SOURCES)[number];
 
 export const customers = billingSchema.table('customers', {
@@ -103,8 +103,35 @@ export const entitlements = billingSchema.table('entitlements', {
   grantedAt: timestampTz('granted_at').notNull().defaultNow(),
   revokedAt: timestampTz('revoked_at'),
   revokeReason: text('revoke_reason'),
+  /** Droit à durée limitée (premium d'un code) ; retiré par la tâche horaire. */
+  expiresAt: timestampTz('expires_at'),
 });
 export type EntitlementRow = typeof entitlements.$inferSelect;
+
+export const codes = billingSchema.table('codes', {
+  /** Normalisé : majuscules, sans espace ni tiret (normalizeCode). */
+  code: text('code').primaryKey(),
+  kind: text('kind', { enum: ENTITLEMENT_KINDS }).notNull(),
+  itemId: text('item_id').notNull().default(''),
+  durationDays: integer('duration_days'),
+  maxUses: integer('max_uses').notNull().default(1),
+  uses: integer('uses').notNull().default(0),
+  validUntil: timestampTz('valid_until'),
+  note: text('note'),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+});
+export type CodeRow = typeof codes.$inferSelect;
+
+export const codeRedemptions = billingSchema.table(
+  'code_redemptions',
+  {
+    code: text('code').notNull(),
+    userId: uuid('user_id').notNull(),
+    entitlementId: uuid('entitlement_id').notNull(),
+    redeemedAt: timestampTz('redeemed_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.code, t.userId] })],
+);
 
 export const purchases = billingSchema.table('purchases', {
   id: uuid('id').primaryKey(),

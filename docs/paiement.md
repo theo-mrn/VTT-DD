@@ -66,8 +66,10 @@ purchases       (existe) + status refunded, refunded_at, consent_at
 invoices        id (= in_… Stripe, pk), user_id, subscription_id, number, status,
                 amount_paid, currency, hosted_url, pdf_url, period_start, period_end, created_at
 entitlements    id, user_id, kind (premium | dice_skin | token_frame), item_id,
-                source (subscription | purchase | legacy | gift), source_id,
-                granted_at, revoked_at, revoke_reason
+                source (subscription | purchase | legacy | gift | code), source_id,
+                granted_at, revoked_at, revoke_reason, expires_at
+codes           code (pk), kind, item_id, duration_days, max_uses, uses, valid_until, note
+code_redemptions code, user_id (pk ensemble), entitlement_id, redeemed_at
 processed_events, outbox, inbox   (existent)
 ```
 
@@ -166,6 +168,7 @@ consommateur ne lit que les événements à venir : un déploiement n'envoie rie
 | `GET  /v1/billing/invoices`              | factures (miroir local)                                         |
 | `GET  /v1/billing/purchases`             | achats                                                          |
 | `GET  /v1/billing/token-frames`          | cadres du catalogue, prix et possession (premium : tous)        |
+| `POST /v1/billing/codes/redeem { code }` | échange d'un code (voir « Codes »)                              |
 | `POST /v1/billing/webhook`               | Stripe (public, signé)                                          |
 
 ## Front
@@ -183,6 +186,38 @@ consommateur ne lit que les événements à venir : un déploiement n'envoie rie
 - Chemins partagés avec le backend par `PAGES_FRONT` (`@vtt/contracts`) : retours de Checkout,
   liens des e-mails.
 - **`/cgv`** : lot 5.
+
+## Codes
+
+Un code s'échange contre un droit : **premium pendant N jours**, ou **un skin de dés ou un cadre
+à vie**. Il n'y a pas de rôle admin : les codes se créent en ligne de commande.
+
+- Tables `codes` (récompense, `max_uses`, `uses`, `valid_until`, note) et `code_redemptions`
+  (un échange par compte et par code). Le droit accordé a la source `code` ; celui du premium
+  porte `expires_at`.
+- Saisie souple : majuscules, espaces et tirets ignorés (`yner-ab12 cd34` = `YNERAB12CD34`).
+- Refus **sans consommer le code** : inconnu (404 `code_invalid`), expiré, épuisé, déjà utilisé
+  par ce compte, compte déjà premium (code premium) ou article déjà possédé.
+- Le premium d'un code n'empêche ni l'abonnement ni l'achat d'un skin ou d'un cadre : il
+  s'arrête seul, l'achat reste.
+- Expiration : la tâche horaire retire les droits arrivés à terme (`revoke_reason = expired`) et
+  republie les droits. Pas d'e-mail : un compte qui n'a jamais payé n'a pas d'adresse dans billing.
+- Front : carte « Code » de la page Abonnement, préremplie par `?code=…`
+  (`https://staging.yner.fr/profil/abonnement?code=YNER-XXXX-XXXX`).
+- Limite : 10 essais par minute.
+
+```sh
+# En local (DATABASE_URL de backend/billing/.env)
+pnpm --filter @vtt/billing codes:create --premium 30                    # 1 compte
+pnpm --filter @vtt/billing codes:create --dice bismuth --uses 20 --note "Discord"
+pnpm --filter @vtt/billing codes:create --frame Token5 --code NOEL2026 --until 2026-12-31
+pnpm --filter @vtt/billing codes:create --premium 30 --count 10          # 10 codes uniques
+pnpm --filter @vtt/billing codes:list
+
+# Staging (image distroless : node est l'entrypoint)
+kubectl -n vtt-staging exec deploy/billing -- /nodejs/bin/node dist/payments/codes-cli.js create --premium 30
+kubectl -n vtt-staging exec deploy/billing -- /nodejs/bin/node dist/payments/codes-cli.js list
+```
 
 ## Tâches planifiées (dans billing)
 
@@ -253,3 +288,5 @@ l'exécute.
    (cadres hors catalogue compris), achat refusé au premium. Le studio de portraits grise les
    cadres verrouillés et propose l'achat (Checkout) ou le premium. Le cadre est posé dans l'image
    du jeton par le navigateur : pas de contrôle côté serveur, comme avant.
+8. **Codes** (2026-10-06) : premium à durée limitée, skin ou cadre à vie, commande
+   `codes:create`, carte « Code » de la page Abonnement (voir « Codes »).

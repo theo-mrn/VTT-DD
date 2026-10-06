@@ -12,7 +12,9 @@
     "lint": "prettier --check src",
     "catalog:sync": "tsx --env-file-if-exists=.env src/catalog/sync-cli.ts",
     "stripe:backfill": "tsx --env-file-if-exists=.env src/stripe/backfill-cli.ts",
-    "rights:republish": "tsx --env-file-if-exists=.env src/payments/republish-cli.ts"
+    "rights:republish": "tsx --env-file-if-exists=.env src/payments/republish-cli.ts",
+    "codes:create": "tsx --env-file-if-exists=.env src/payments/codes-cli.ts create",
+    "codes:list": "tsx --env-file-if-exists=.env src/payments/codes-cli.ts list"
   },
   "dependencies": {
     "@vtt/contracts": "workspace:*",

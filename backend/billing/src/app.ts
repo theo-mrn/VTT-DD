@@ -5,6 +5,7 @@ import type { BillingConfig } from './config.js';
 import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
 import { register as checkout } from './modules/checkout/index.js';
+import { register as codes } from './modules/codes/index.js';
 import { register as invoices } from './modules/invoices/index.js';
 import { register as plans } from './modules/plans/index.js';
 import { register as subscription } from './modules/subscription/index.js';
@@ -52,7 +53,7 @@ export async function buildBilling(
     app.log.warn('STRIPE_WEBHOOK_SECRET absent : webhook Stripe désactivé (503)');
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [plans, checkout, subscription, invoices, webhook]) {
+  for (const module of [plans, checkout, subscription, invoices, codes, webhook]) {
     await module(app, deps);
   }
 
