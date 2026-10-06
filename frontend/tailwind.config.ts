@@ -15,6 +15,8 @@ const config: Config = {
   content: [
     './src/components/**/*.{ts,tsx}',
     './src/app/**/*.{ts,tsx}',
+    // Fonctions de la carte : interface (ui/) et manifestes (classes des menus de la barre)
+    './src/lib/map/features/**/*.{ts,tsx}',
     '!./src/**/*.test.{ts,tsx}',
   ],
   theme: {
