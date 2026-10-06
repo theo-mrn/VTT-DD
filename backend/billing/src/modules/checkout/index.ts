@@ -14,18 +14,30 @@
  *       traitements idempotents) ; les droits partent sur le bus dans la foulée.
  *
  *   GET /v1/billing/purchases  →  { purchases: [...] }   achats payés ou remboursés
+ *
+ *   GET /v1/billing/token-frames  →  { all, frames: [{ id, name, price, owned }] }
+ *       cadres du catalogue et possession, règle de l'ancienne app : premium,
+ *       tous (`all`, cadres hors catalogue compris) ; sinon les gratuits et les
+ *       achetés. Un cadre hors catalogue n'est ouvert que par le premium.
  */
 import { uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { CURRENCY, findItem, itemOf, lineName, lookupKeyOf } from '../../catalog/catalog.js';
+import {
+  CURRENCY,
+  findItem,
+  itemOf,
+  lineName,
+  lookupKeyOf,
+  TOKEN_FRAMES,
+} from '../../catalog/catalog.js';
 import { purchases } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { fulfillCheckoutSession } from '../../payments/checkout.js';
 import { customerOf, PREMIUM_TYPE, userActor } from '../../payments/common.js';
-import { hasPremium, owns } from '../../payments/entitlements.js';
+import { hasPremium, owns, rightsOf } from '../../payments/entitlements.js';
 import { purchaseOf } from '../../payments/purchases.js';
 import type { CheckoutSessionParams } from '../../stripe/client.js';
 import {
@@ -46,6 +58,20 @@ const SessionStatus = z.object({
   status: z.enum(['pending', 'completed', 'expired']),
   kind: z.enum(['premium', 'dice', 'token']),
   itemId: z.string().nullable(),
+});
+
+const TokenFrames = z.object({
+  /** Premium : tous les cadres, ceux du catalogue comme les autres. */
+  all: z.boolean(),
+  frames: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      /** Centimes TTC ; 0 : gratuit. */
+      price: z.number(),
+      owned: z.boolean(),
+    }),
+  ),
 });
 
 const Purchase = z.object({
@@ -84,11 +110,8 @@ export const register: Module = async (app, deps) => {
         throw HttpError.badRequest('Cet article est gratuit, il est déjà à vous', 'item_free');
 
       const kind = item.kind === 'dice' ? 'dice_skin' : 'token_frame';
-      // Premium : tous les dés sont déjà possédés
-      if (
-        (await owns(db, userId, kind, item.id)) ||
-        (item.kind === 'dice' && (await hasPremium(db, userId)))
-      )
+      // Premium : tous les dés et tous les cadres sont déjà possédés
+      if ((await owns(db, userId, kind, item.id)) || (await hasPremium(db, userId)))
         throw HttpError.conflict('Vous possédez déjà cet article', 'already_owned');
 
       const price = await callStripe(req, () => requirePrices(deps)(lookupKeyOf(item)));
@@ -204,6 +227,25 @@ export const register: Module = async (app, deps) => {
             refundedAt: p.refundedAt?.toISOString() ?? null,
           };
         }),
+      };
+    },
+  );
+
+  r.get(
+    '/v1/billing/token-frames',
+    { ...auth, schema: { response: { 200: TokenFrames } } },
+    async (req, reply) => {
+      const rights = await rightsOf(db, currentUser(req));
+      const bought = new Set(rights.tokenFrames);
+      reply.header('cache-control', 'no-store');
+      return {
+        all: rights.premium,
+        frames: TOKEN_FRAMES.map(({ id, name, price }) => ({
+          id,
+          name,
+          price,
+          owned: rights.premium || price <= 0 || bought.has(id),
+        })),
       };
     },
   );

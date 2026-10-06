@@ -17,7 +17,7 @@
  */
 import * as PIXI from 'pixi.js';
 import { Application, Assets, Container, Graphics, ImageSource, Text, Texture } from 'pixi.js';
-import { pourWebgl, surCdn, vignette } from '@/lib/assets';
+import { surCdn, vignette } from '@/lib/assets';
 import { prefersEconomy } from '@/lib/perf/device';
 import { MapBackground } from './background';
 import { backgroundPrefs } from './background-prefs';
@@ -325,7 +325,7 @@ class PixiView implements EngineView {
   texture(url: string): Promise<Texture> {
     let t = this.textures.get(url);
     if (!t) {
-      t = Assets.load<Texture>({ src: pourWebgl(url), parser: 'texture' });
+      t = Assets.load<Texture>({ src: url, parser: 'texture' });
       this.textures.set(url, t);
       t.catch(() => this.textures.delete(url));
     }
@@ -699,9 +699,7 @@ class PixiView implements EngineView {
     const gl = (this.app.renderer as unknown as { gl?: WebGLRenderingContext }).gl;
     // Textures du cache Assets : libérées par `unload`, pas par la destruction de la scène
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
-    // Même clé que le chargement (texture())
-    for (const url of this.textures.keys())
-      void Assets.unload(pourWebgl(url)).catch(() => undefined);
+    for (const url of this.textures.keys()) void Assets.unload(url).catch(() => undefined);
     this.textures.clear();
     for (const t of this.ownTextures) {
       const bitmap = t.source.resource as ImageBitmap | undefined;

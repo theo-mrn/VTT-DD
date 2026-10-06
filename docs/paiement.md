@@ -3,21 +3,14 @@
 Conception du paiement de Yner : abonnement premium, achats à l'unité, factures, e-mails,
 droits. Ce document fait foi ; le code de `backend/billing` le suit.
 
-> **Décision du 2026-10-05 : Yner ne vend rien.** Sans entreprise déclarée (SIRET), pas de vente
-> légale à des particuliers : dés, bordures et cadres sont ouverts à tous, et le projet se
-> soutient par dons (Buy Me a Coffee). Tout ce qui suit reste en place, en sommeil et testé :
-> pour vendre un jour, `SKINS_FOR_SALE=on` (dice), `PAIEMENTS = true`
-> (`frontend/src/lib/soutien.ts`), clés Stripe live, `catalog:sync --apply`, page `/cgv` et
-> `STRIPE_TERMS=on`.
-
 ## Ce qui est vendu
 
-| Offre           | Mode Stripe                                              | Droit donné                                                           |
-| --------------- | -------------------------------------------------------- | --------------------------------------------------------------------- |
-| Premium mensuel | abonnement, 4,99 €/mois                                  | tous les skins de dés (présents et futurs), badge et bordures premium |
-| Premium annuel  | abonnement, prix annuel réduit (à fixer, ex. 49,90 €/an) | idem                                                                  |
-| Skin de dés     | paiement unique                                          | le skin, à vie                                                        |
-| Cadre de jeton  | paiement unique                                          | le cadre, à vie                                                       |
+| Offre           | Mode Stripe                                              | Droit donné                                                          |
+| --------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
+| Premium mensuel | abonnement, 4,99 €/mois                                  | tous les skins de dés et cadres de jetons, badge et bordures premium |
+| Premium annuel  | abonnement, prix annuel réduit (à fixer, ex. 49,90 €/an) | idem                                                                 |
+| Skin de dés     | paiement unique                                          | le skin, à vie                                                       |
+| Cadre de jeton  | paiement unique                                          | le cadre, à vie                                                      |
 
 Les fonctionnalités de l'ancienne app sont toutes gardées : achat d'un skin ou d'un cadre,
 abonnement, résiliation, portail client, liste des factures, import des premiums et clients
@@ -172,6 +165,7 @@ consommateur ne lit que les événements à venir : un déploiement n'envoie rie
 | `GET  /v1/billing/checkout/sessions/:id` | état au retour de Checkout                                      |
 | `GET  /v1/billing/invoices`              | factures (miroir local)                                         |
 | `GET  /v1/billing/purchases`             | achats                                                          |
+| `GET  /v1/billing/token-frames`          | cadres du catalogue, prix et possession (premium : tous)        |
 | `POST /v1/billing/webhook`               | Stripe (public, signé)                                          |
 
 ## Front
@@ -204,7 +198,8 @@ l'exécute.
 
 ## Exploitation
 
-- Staging en mode test Stripe, prod en mode live ; une configuration de portail par mode.
+- Depuis le 2026-10-06, le staging encaisse en **live**, sur un compte Stripe neuf (distinct de
+  celui de l'ancienne app) ; le dev reste en mode test. Une configuration de portail par mode.
 - Catalogue : `pnpm --filter @vtt/billing catalog:sync` crée ou met à jour produits et prix
   (`lookup_key` = identifiant du catalogue). Un prix Stripe ne change jamais : un nouveau prix
   reprend la `lookup_key`, les abonnés existants gardent l'ancien tarif.
@@ -250,3 +245,11 @@ l'exécute.
 4. **Front** (fait le 2026-10-05) : page Abonnement, boutique active, retours de Checkout.
 5. **Légal et mise en ligne** : CGV, consentement, rappel de reconduction, réconciliation,
    configuration du portail, clés live.
+6. **Retour de la vente** (2026-10-06) : la mise en sommeil du 2026-10-05 est retirée (skins
+   payants dans dice, onglet Abonnement, premium de la boutique, bordures réservées), recette sur
+   Stripe en mode test.
+7. **Cadres de jetons** (2026-10-06) : règle de l'ancienne app, lue dans billing par
+   `GET /v1/billing/token-frames` : gratuits (Token1, Token2) et achetés possédés, premium tous
+   (cadres hors catalogue compris), achat refusé au premium. Le studio de portraits grise les
+   cadres verrouillés et propose l'achat (Checkout) ou le premium. Le cadre est posé dans l'image
+   du jeton par le navigateur : pas de contrôle côté serveur, comme avant.

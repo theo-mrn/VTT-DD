@@ -21,7 +21,6 @@ import { ImageSource, Sprite, Texture, type Container } from 'pixi.js';
 import type { StoreApi } from 'zustand/vanilla';
 import { prefersEconomy } from '@/lib/perf/device';
 import { isVideoUrl, videoVariant, type BackgroundPrefs } from './background-prefs';
-import { pourWebgl } from '@/lib/assets';
 
 export { isVideoUrl };
 /** Côté maximal de l'image de fond sur une machine économe (au-delà : réduite). */
@@ -116,7 +115,7 @@ export class MapBackground {
       return { texture, width: texture.width, height: texture.height, owned: false };
     };
     if (typeof createImageBitmap !== 'function') return fallback();
-    const res = await fetch(pourWebgl(url));
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`Fond illisible (${res.status})`);
     const blob = await res.blob();
     let bitmap: ImageBitmap;

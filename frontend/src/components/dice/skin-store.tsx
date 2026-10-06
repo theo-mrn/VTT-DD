@@ -2,8 +2,7 @@
 
 /**
  * Boutique des dés, reprise de l'ancienne app (`store-modal.tsx`) dans l'UI
- * actuelle : catalogue, collection, premium (ou « Soutenir » tant que Yner ne
- * vend rien, lib/soutien.ts) ; recherche, rareté, pages ; page
+ * actuelle : catalogue, collection, premium ; recherche, rareté, pages ; page
  * de détail avec le dé en 3D et « Essayer un lancer ».
  *
  * - Possession : règle du service dice, `allSkins` (tout le catalogue) ou
@@ -57,7 +56,6 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { acheter as lancerAchat } from '@/lib/abonnement';
-import { PAIEMENTS, SOUTIEN_URL } from '@/lib/soutien';
 import { messageErreur } from '@/lib/api';
 import {
   ownsSkin,
@@ -225,18 +223,10 @@ export default function SkinStore({
                   <Backpack aria-hidden />
                   Ma collection
                 </TabsTrigger>
-                {PAIEMENTS && (
-                  <TabsTrigger value="premium">
-                    <Crown aria-hidden />
-                    Premium
-                  </TabsTrigger>
-                )}
-                {!PAIEMENTS && SOUTIEN_URL && (
-                  <TabsTrigger value="premium">
-                    <Heart aria-hidden />
-                    Soutenir
-                  </TabsTrigger>
-                )}
+                <TabsTrigger value="premium">
+                  <Crown aria-hidden />
+                  Premium
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -296,8 +286,7 @@ export default function SkinStore({
               Préférences de dés indisponibles : {messageErreur(prefs.error)}
             </p>
           )}
-          {vue === 'premium' && p && PAIEMENTS && <Premium tousLesDes={p.allSkins} />}
-          {vue === 'premium' && !PAIEMENTS && SOUTIEN_URL && <Soutien url={SOUTIEN_URL} />}
+          {vue === 'premium' && p && <Premium tousLesDes={p.allSkins} />}
           {vue === 'detail' && p && detail && (
             <Detail
               skin={detail}
@@ -635,26 +624,6 @@ function Premium({ tousLesDes }: Readonly<{ tousLesDes: boolean }>) {
             </Button>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/** Yner ne vend rien : lien de dons à la place de l'abonnement. */
-function Soutien({ url }: Readonly<{ url: string }>) {
-  return (
-    <div className="mx-auto max-w-md">
-      <div className="flex flex-col items-center gap-5 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card p-8 text-center">
-        <span className="flex size-14 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10">
-          <Heart className="size-7 text-primary" aria-hidden />
-        </span>
-        <h3 className="text-2xl font-semibold tracking-tight">Tous les dés sont à vous</h3>
-        <Button size="lg" asChild>
-          <a href={url} target="_blank" rel="noreferrer">
-            <Heart aria-hidden />
-            Soutenir Yner
-          </a>
-        </Button>
       </div>
     </div>
   );
