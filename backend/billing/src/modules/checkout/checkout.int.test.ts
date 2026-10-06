@@ -6,6 +6,7 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { entitlements, purchases } from '../../db/schema.js';
+import { grant } from '../../payments/entitlements.js';
 import {
   helpers,
   TEST_DATABASE_URL,
@@ -211,5 +212,31 @@ describe.skipIf(!TEST_DATABASE_URL)('achat à l’unité', () => {
     } finally {
       await bare.close();
     }
+  });
+
+  it('cadres : gratuits et achetés possédés, premium tous, achat refusé au premium', async () => {
+    const frames = async (u: TestUser) =>
+      h.ok<{ all: boolean; frames: { id: string; price: number; owned: boolean }[] }>(
+        u,
+        'GET',
+        '/v1/billing/token-frames',
+      );
+    const owned = (r: Awaited<ReturnType<typeof frames>>) =>
+      r.frames.filter((f) => f.owned).map((f) => f.id);
+
+    const before = await frames(alice);
+    expect(before.all).toBe(false);
+    expect(owned(before)).toEqual(['Token1', 'Token2']);
+    expect(before.frames.find((f) => f.id === 'Token3')).toMatchObject({ price: 399 });
+
+    await buy(alice, 'token_Token3');
+    expect(owned(await frames(alice))).toEqual(['Token1', 'Token2', 'Token3']);
+
+    await grant(t.db!, { userId: bob.id, kind: 'premium', source: 'gift' });
+    const premium = await frames(bob);
+    expect(premium.all).toBe(true);
+    expect(premium.frames.every((f) => f.owned)).toBe(true);
+    const res = await h.request(bob, 'POST', '/v1/billing/checkout', { itemId: 'token_Token4' });
+    expect([res.statusCode, res.json().code]).toEqual([409, 'already_owned']);
   });
 });

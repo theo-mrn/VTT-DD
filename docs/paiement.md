@@ -5,12 +5,12 @@ droits. Ce document fait foi ; le code de `backend/billing` le suit.
 
 ## Ce qui est vendu
 
-| Offre           | Mode Stripe                                              | Droit donné                                                           |
-| --------------- | -------------------------------------------------------- | --------------------------------------------------------------------- |
-| Premium mensuel | abonnement, 4,99 €/mois                                  | tous les skins de dés (présents et futurs), badge et bordures premium |
-| Premium annuel  | abonnement, prix annuel réduit (à fixer, ex. 49,90 €/an) | idem                                                                  |
-| Skin de dés     | paiement unique                                          | le skin, à vie                                                        |
-| Cadre de jeton  | paiement unique                                          | le cadre, à vie                                                       |
+| Offre           | Mode Stripe                                              | Droit donné                                                          |
+| --------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
+| Premium mensuel | abonnement, 4,99 €/mois                                  | tous les skins de dés et cadres de jetons, badge et bordures premium |
+| Premium annuel  | abonnement, prix annuel réduit (à fixer, ex. 49,90 €/an) | idem                                                                 |
+| Skin de dés     | paiement unique                                          | le skin, à vie                                                       |
+| Cadre de jeton  | paiement unique                                          | le cadre, à vie                                                      |
 
 Les fonctionnalités de l'ancienne app sont toutes gardées : achat d'un skin ou d'un cadre,
 abonnement, résiliation, portail client, liste des factures, import des premiums et clients
@@ -165,6 +165,7 @@ consommateur ne lit que les événements à venir : un déploiement n'envoie rie
 | `GET  /v1/billing/checkout/sessions/:id` | état au retour de Checkout                                      |
 | `GET  /v1/billing/invoices`              | factures (miroir local)                                         |
 | `GET  /v1/billing/purchases`             | achats                                                          |
+| `GET  /v1/billing/token-frames`          | cadres du catalogue, prix et possession (premium : tous)        |
 | `POST /v1/billing/webhook`               | Stripe (public, signé)                                          |
 
 ## Front
@@ -246,5 +247,8 @@ l'exécute.
 6. **Retour de la vente** (2026-10-06) : la mise en sommeil du 2026-10-05 est retirée (skins
    payants dans dice, onglet Abonnement, premium de la boutique, bordures réservées), recette sur
    Stripe en mode test.
-7. **Cadres de jetons** : vendus par billing (`token_<id>`, `tokenFrames` du droit publié) mais
-   sans contrôle de possession dans le studio de portraits du nouveau front.
+7. **Cadres de jetons** (2026-10-06) : règle de l'ancienne app, lue dans billing par
+   `GET /v1/billing/token-frames` : gratuits (Token1, Token2) et achetés possédés, premium tous
+   (cadres hors catalogue compris), achat refusé au premium. Le studio de portraits grise les
+   cadres verrouillés et propose l'achat (Checkout) ou le premium. Le cadre est posé dans l'image
+   du jeton par le navigateur : pas de contrôle côté serveur, comme avant.

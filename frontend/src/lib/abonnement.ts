@@ -75,7 +75,15 @@ export interface EtatSession {
   itemId: string | null;
 }
 
+/** GET /v1/billing/token-frames */
+export interface CadresJeton {
+  /** Premium : tous les cadres, ceux du catalogue comme les autres. */
+  all: boolean;
+  frames: { id: string; name: string; price: number; owned: boolean }[];
+}
+
 export const lireAbonnement = () => api<EtatAbonnement>('/v1/billing/me');
+export const lireCadres = () => api<CadresJeton>('/v1/billing/token-frames');
 export const lireFormules = () => api<Formules>('/v1/billing/plans');
 export const lireFactures = () =>
   api<{ invoices: Facture[] }>('/v1/billing/invoices').then((r) => r.invoices);

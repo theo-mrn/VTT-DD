@@ -4,12 +4,15 @@
  * Studio du portrait d'un personnage (docs/portraits.md) : une image d'origine (déposée, collée,
  * choisie dans la bibliothèque), deux cadrages (token carré, portrait 3:4), le token réglé
  * (cadre parmi ceux de la bibliothèque, arrondi du carré au cercle, marge), aperçus en direct.
+ * Cadres verrouillés selon les droits du service billing (gratuits, achetés, ou tous en premium),
+ * achetés depuis la galerie par Stripe Checkout.
  * L'image est chargée une fois (copie locale) : elle sert au cadrage, aux aperçus et à la
  * fabrication. « Enregistrer » fabrique les images, les envoie et les enregistre avec les
  * réglages, pour rouvrir le Studio tel qu'il était.
  */
 import {
   DEFAULT_PORTRAIT_STUDIO,
+  PAGES_FRONT,
   type PortraitStudio as Studio,
   type StudioCrop,
 } from '@vtt/contracts';
@@ -17,17 +20,21 @@ import {
   Ban,
   Circle,
   CloudUpload,
+  Crown,
   ImageOff,
   Link2,
   Library,
   Loader2,
+  Lock,
   RotateCcw,
+  ShoppingCart,
   Square,
   Unlink2,
   UserSquare2,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Cropper from 'react-easy-crop';
 import { toast } from 'sonner';
@@ -35,6 +42,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
+import { acheter, lireCadres, montant } from '@/lib/abonnement';
 import { messageErreur } from '@/lib/api';
 import { portraitsParDossier, useAssets, vignette, type Asset } from '@/lib/assets';
 import {
@@ -49,6 +57,7 @@ import {
 } from '@/lib/portraits/compose';
 import { MAX_SIDE, prepareImage } from '@/lib/uploads/image';
 import { importFile, uploadFile } from '@/lib/uploads/uploader';
+import { useRessource } from '@/lib/ressource';
 import { cn } from '@/lib/utils';
 import { DotsBackdrop } from '../combat/backdrop';
 
@@ -766,7 +775,13 @@ function SliderRow({
   );
 }
 
-/** Galerie des cadres de la bibliothèque, chargés à mesure du défilement. */
+/** Nom du fichier d'un cadre sans extension : son identifiant au catalogue (`Token3`). */
+const frameId = (a: Asset) => a.name.replace(/\.[^.]+$/, '');
+
+/**
+ * Galerie des cadres de la bibliothèque, chargés à mesure du défilement. Un cadre verrouillé
+ * propose son achat (catalogue) ou le premium (cadre hors catalogue).
+ */
 function FrameGallery({
   value,
   onChange,
@@ -776,6 +791,16 @@ function FrameGallery({
 }>) {
   const assets = useAssets();
   const frames = useMemo(() => framesOf(assets.data ?? []), [assets.data]);
+  const rights = useRessource('cadres-jetons', lireCadres);
+  const catalog = useMemo(
+    () => new Map((rights.donnees?.frames ?? []).map((f) => [f.id, f])),
+    [rights.donnees],
+  );
+  const [offer, setOffer] = useState<string | null>(null);
+  // Le cadre déjà enregistré reste utilisable, possédé ou non
+  const locked = (f: Asset) =>
+    f.path !== value && !rights.donnees?.all && !catalog.get(frameId(f))?.owned;
+  const offered = offer ? (catalog.get(offer) ?? null) : null;
   return (
     <div className="space-y-2.5">
       <div className="flex items-center text-xs">
@@ -783,28 +808,82 @@ function FrameGallery({
         <span className="ml-auto tabular-nums text-subtle">{frames.length}</span>
       </div>
       <div className="grid grid-cols-5 gap-1.5">
-        <FrameTile selected={value === null} onClick={() => onChange(null)} label="Aucun cadre">
+        <FrameTile
+          selected={value === null}
+          onClick={() => {
+            setOffer(null);
+            onChange(null);
+          }}
+          label="Aucun cadre"
+        >
           <Ban className="size-5 text-subtle" aria-hidden />
         </FrameTile>
-        {frames.map((f) => (
-          <FrameTile
-            key={f.path}
-            selected={value === f.path}
-            onClick={() => onChange(f.path)}
-            label={f.name.replace(/\.[^.]+$/, '')}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={vignette(f.path, 128)}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-              className="size-full object-contain"
-            />
-          </FrameTile>
-        ))}
+        {frames.map((f) => {
+          const id = frameId(f);
+          const item = catalog.get(id);
+          const lock = locked(f);
+          let label = item?.name ?? id;
+          if (lock) label += item ? ` · ${montant(item.price)}` : ' · Premium';
+          return (
+            <FrameTile
+              key={f.path}
+              selected={value === f.path || (lock && offer === id)}
+              onClick={() => {
+                setOffer(lock ? id : null);
+                if (!lock) onChange(f.path);
+              }}
+              label={label}
+              locked={lock}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={vignette(f.path, 128)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+                className="size-full object-contain"
+              />
+            </FrameTile>
+          );
+        })}
       </div>
+      {offer && <FrameOffer id={offer} item={offered} />}
+    </div>
+  );
+}
+
+/** Achat d'un cadre verrouillé, ou premium s'il n'est pas vendu à l'unité. */
+function FrameOffer({
+  id,
+  item,
+}: Readonly<{ id: string; item: { name: string; price: number } | null }>) {
+  const [pending, setPending] = useState(false);
+  const buy = async () => {
+    setPending(true);
+    try {
+      await acheter(`token_${id}`);
+    } catch (err) {
+      toast.error(messageErreur(err));
+      setPending(false);
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-border bg-background/40 p-2 pl-3 text-sm">
+      <span className="min-w-0 flex-1 truncate font-medium">{item?.name ?? id}</span>
+      {item ? (
+        <Button size="sm" onClick={buy} loading={pending}>
+          {!pending && <ShoppingCart aria-hidden />}
+          {montant(item.price)}
+        </Button>
+      ) : (
+        <Button size="sm" asChild>
+          <Link href={PAGES_FRONT.abonnement}>
+            <Crown aria-hidden />
+            Premium
+          </Link>
+        </Button>
+      )}
     </div>
   );
 }
@@ -813,11 +892,13 @@ function FrameTile({
   selected,
   onClick,
   label,
+  locked = false,
   children,
 }: Readonly<{
   selected: boolean;
   onClick(): void;
   label: string;
+  locked?: boolean;
   children: ReactNode;
 }>) {
   return (
@@ -828,11 +909,15 @@ function FrameTile({
       title={label}
       onClick={onClick}
       className={cn(
-        'grid aspect-square place-items-center rounded-xl border bg-background/40 p-1 transition-[border-color,box-shadow,transform] duration-150 hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+        'relative grid aspect-square place-items-center rounded-xl border bg-background/40 p-1 transition-[border-color,box-shadow,transform] duration-150 hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
         selected ? 'border-primary shadow-glow' : 'border-border hover:border-border-strong',
+        locked && '[&>img]:opacity-40 [&>img]:grayscale',
       )}
     >
       {children}
+      {locked && (
+        <Lock className="absolute bottom-1 right-1 size-3 text-muted-foreground" aria-hidden />
+      )}
     </button>
   );
 }

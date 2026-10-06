@@ -54,6 +54,9 @@ export const lineName = (item: CatalogItem) =>
 export const productIdOf = (item: CatalogItem) => `yner_${item.kind}_${item.id}`;
 export const lookupKeyOf = (item: CatalogItem) => `${item.kind}_${item.id}`;
 
+/** Cadres de jetons du catalogue, gratuits compris. */
+export const TOKEN_FRAMES: readonly CatalogItem[] = [...TOKENS.values()];
+
 /** Articles payants : ceux qui existent chez Stripe. */
 export const SOLD_ITEMS: readonly CatalogItem[] = [...DICE.values(), ...TOKENS.values()].filter(
   (i) => i.price > 0,
