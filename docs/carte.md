@@ -465,9 +465,9 @@ Règles de ces gestes :
 
 ### Fonctions branchables et barre d'outils déclarative
 
-> Chantier « barre d'outils » (2026-10-06). Lots 1 et 2 livrés (actions, barre déclarative,
-> modules socle, surcouches) ; le paragraphe « La barre d'outils porte aussi… » ci-dessus n'est
-> plus à jour.
+> Chantier « barre d'outils » (2026-10-06). Lots 1 à 3 livrés (actions, barre déclarative,
+> modules socle, surcouches, personnalisation) ; le paragraphe « La barre d'outils porte
+> aussi… » ci-dessus n'est plus à jour.
 
 **But.** Ajouter un bouton = une déclaration ; retirer une fonction = une ligne dans
 `modules/index.ts` ; chacun masque ou réordonne ses boutons. Aucun bouton écrit en dur dans
@@ -607,13 +607,28 @@ menu contextuel, choix dans une pile, confirmations.
 - **Réordonner dans son groupe** seulement : la barre garde sa structure.
 - **Masquer** retire le bouton, pas la fonction : le raccourci marche toujours. La sélection (V)
   ne se masque pas.
-- **Interface** : clic droit sur la barre → « Personnaliser la barre » : liste par groupe,
-  poignée pour glisser, œil pour masquer, « Rétablir ». Pas de texte d'aide.
-- **Stockage**, sur le modèle du mixeur audio : contrat `MapToolbarLayout` dans
-  `packages/contracts/src/map.ts`, `GET/PUT /v1/users/me/map-toolbar` (service identity, à côté
-  du profil : la disposition suit le compte, pas une campagne ; table `map_toolbar_layouts`,
-  `user_id` clé, `layout jsonb`, `version` optimiste), copie dans `localStorage` pour un
-  affichage immédiat, relue au chargement.
+- **Interface** (`components/map/toolbar/customize.tsx`) : clic droit sur la barre → panneau
+  « Barre d'outils » au-dessus d'elle : entrées de ce viewer par groupe (masquées comprises),
+  glisser pour réordonner (ou Alt+↑↓), œil pour masquer, « Rétablir ». Pas de texte d'aide.
+  Chaque entrée porte un `label` et une `icon` pour cette liste (`custom` compris).
+- **Calcul** (pur, `lib/map/engine/toolbar.ts`) : `toolbarGroups(…, layout, withHidden)`,
+  `arrange` (les entrées citées se rangent entre elles dans leurs places par défaut, les autres
+  gardent la leur), `moveEntry` (le groupe entier est noté dans `order`), `hideEntry`.
+- **Stockage**, sur le modèle du mixeur audio :
+  - contrat `MapToolbarLayout` / `MapToolbarLayoutUpdate` dans `packages/contracts/src/map.ts`
+    (ids `^[a-z0-9][a-z0-9:._-]*$`, 64 caractères, 100 par liste) ;
+  - `GET/PUT /v1/users/me/map-toolbar`, service identity (`src/modules/map-toolbar`) : la
+    disposition suit le compte, pas une campagne. Sans ligne : `{ order: [], hidden: [],
+version: 0 }`. Le PUT envoie la disposition entière, doublons retirés ; `version` lue,
+    sinon 409 `version_conflict` avec `current` ; même disposition : rien n'est réécrit ;
+  - table `identity.map_toolbar_layouts` (`user_id` clé, supprimée avec le compte, `layout
+jsonb`, `version`), migration `0013-map-toolbar-layouts.sql` ;
+  - événement `identity.map_toolbar_updated` (`owner`, hors campagne, la disposition en charge
+    utile : des ids d'entrées, aucune donnée personnelle), adopté par les autres appareils ;
+  - front : `lib/map/toolbar-layout.ts`, copie dans `localStorage` (`vtt-map-toolbar`) pour un
+    affichage immédiat, relue au chargement, enregistrée par lot (400 ms). Sur un 409, on
+    repart de la version de l'autre appareil et notre geste est renvoyé : le dernier gagne.
+  - export des données (`lib/data-export.ts`) : `game.mapToolbar`.
 
 #### Arborescence (dernier lot)
 
@@ -639,8 +654,8 @@ sans interface `ui` injectée.
 2. **Surcouches en dur** (livré) : `map-canvas.tsx` ne monte plus que le moteur et ses hôtes
    génériques ; `sounds`, `party` (nouveau), `layers`, `bubbles` passent par `registerOverlay` ;
    la barre ne lit plus le menu d'attaque. Aucun changement visible.
-3. **Personnalisation** : contrat, route et table (identity, sa doc d'API), magasin de la
-   disposition, panneau « Personnaliser la barre ».
+3. **Personnalisation** (livré) : contrat, route, table et événement (identity), magasin de la
+   disposition, panneau de personnalisation, export des données.
 4. **Dossiers** : `features/<id>/`, `MapFeature`, règle d'import, cette section et § 3 mises à
    jour. Déplacements seuls, dans un commit à part.
 

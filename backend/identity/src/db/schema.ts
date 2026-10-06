@@ -235,3 +235,13 @@ export const billingRights = identity.table('billing_rights', {
   version: bigint('version', { mode: 'number' }).notNull(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),
 });
+
+/** Disposition de la barre d'outils de la carte, par compte (docs/carte.md § 6). */
+export const mapToolbarLayouts = identity.table('map_toolbar_layouts', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  layout: jsonb('layout').$type<{ order: string[]; hidden: string[] }>().notNull(),
+  version: bigint('version', { mode: 'number' }).notNull(),
+  updatedAt: horodatage('updated_at').notNull().defaultNow(),
+});

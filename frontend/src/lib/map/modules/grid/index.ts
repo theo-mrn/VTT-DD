@@ -283,6 +283,8 @@ export const gridModule: MapModule = {
       engine.registerToolbarEntry({
         kind: 'custom',
         id: 'grid:menu',
+        label: 'Quadrillage',
+        icon: Grid3x3,
         group: 'view',
         order: 20,
         component: GridControls,
@@ -291,6 +293,8 @@ export const gridModule: MapModule = {
       engine.registerToolbarEntry({
         kind: 'custom',
         id: 'grid:scale',
+        label: 'Échelle de la scène',
+        icon: Ruler,
         group: 'view',
         order: 21,
         available: isGm,

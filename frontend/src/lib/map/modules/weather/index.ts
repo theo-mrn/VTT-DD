@@ -19,6 +19,7 @@
  * État sans Pixi : `simulation.ts`, `driver.ts`, `model.ts` (testés à blanc) ; rendu :
  * `renderer.ts` ; canvas : `overlay.ts`.
  */
+import { CloudSun } from 'lucide-react';
 import type { MapModule } from '../../engine/map-engine';
 import { WeatherControls } from '@/components/map/weather/weather-menu';
 import { prefersEconomy } from '@/lib/perf/device';
@@ -259,6 +260,8 @@ export const weatherModule: MapModule = {
       engine.registerToolbarEntry({
         kind: 'custom',
         id: 'weather:menu',
+        label: 'Météo',
+        icon: CloudSun,
         group: 'view',
         order: 15,
         component: WeatherControls,

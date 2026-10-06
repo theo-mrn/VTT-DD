@@ -80,19 +80,29 @@ export async function exportMyData(userId: string) {
     section(() => api('/v1/friends/requests')),
     section(() => api('/v1/api-keys')),
   ]);
-  const [campaigns, characters, notes, rolls, dicePreferences, mixer] = await Promise.all([
-    section(() => api('/v1/campaigns')),
-    section(myCharacters),
-    section(() => myNotes(userId)),
-    section(personalRolls),
-    section(() => api('/v1/dice/me/preferences')),
-    section(() => api('/v1/audio/me/mixer')),
-  ]);
+  const [campaigns, characters, notes, rolls, dicePreferences, mixer, mapToolbar] =
+    await Promise.all([
+      section(() => api('/v1/campaigns')),
+      section(myCharacters),
+      section(() => myNotes(userId)),
+      section(personalRolls),
+      section(() => api('/v1/dice/me/preferences')),
+      section(() => api('/v1/audio/me/mixer')),
+      section(() => api('/v1/users/me/map-toolbar')),
+    ]);
   return {
     exportedAt: new Date().toISOString(),
     service: 'Yner',
     account: { profile, titles, sessions, friends, friendRequests, apiKeys },
-    game: { campaigns, characters, notes, personalRolls: rolls, dicePreferences, mixer },
+    game: {
+      campaigns,
+      characters,
+      notes,
+      personalRolls: rolls,
+      dicePreferences,
+      mixer,
+      mapToolbar,
+    },
   };
 }
 

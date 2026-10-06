@@ -6,7 +6,14 @@ import { Box } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 import { setup, GM } from './test-kit';
 import type { MapViewer } from './entities/entity-kind';
-import { toolbarGroups, type ToolbarEntry } from './toolbar';
+import {
+  arrange,
+  hideEntry,
+  moveEntry,
+  toolbarGroups,
+  type ToolbarEntry,
+  type ToolbarLayout,
+} from './toolbar';
 import type { ToolDefinition } from './tools/tool';
 
 const PLAYER: MapViewer = { userId: 'p', role: 'player', characterIds: [] };
@@ -25,6 +32,8 @@ const custom = (id: string, group: ToolbarEntry['group'], order?: number, gmOnly
   ({
     kind: 'custom',
     id,
+    label: id,
+    icon: Box,
     group,
     order,
     component: Nothing,
@@ -52,6 +61,40 @@ describe('toolbarGroups', () => {
       ['tools', ['tous']],
       ['view', ['libre']],
     ]);
+  });
+});
+
+describe('disposition de l’utilisateur', () => {
+  const tools = [tool('select', 0, { available: () => true }), tool('p', 10), tool('t', 11)];
+  const entries = [custom('a', 'view', 1), custom('b', 'view', 2), custom('c', 'view', 3)];
+
+  it('ordre voulu ; une entrée absente de l’ordre garde sa place', () => {
+    const slots = ['a', 'b', 'c', 'd'].map((id) => ({ id }));
+    expect(arrange(slots, ['c', 'a']).map((s) => s.id)).toEqual(['c', 'b', 'a', 'd']);
+    expect(arrange(slots, ['inconnu']).map((s) => s.id)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('masquées retirées, sauf la sélection ; toutes avec `withHidden`', () => {
+    const layout: ToolbarLayout = { order: ['t', 'p'], hidden: ['select', 'b'] };
+    expect(ids(toolbarGroups(tools, entries, GM, layout))).toEqual([
+      ['tools', ['select', 't', 'p']],
+      ['view', ['a', 'c']],
+    ]);
+    expect(ids(toolbarGroups(tools, entries, GM, layout, true))[1]).toEqual([
+      'view',
+      ['a', 'b', 'c'],
+    ]);
+  });
+
+  it('déplacer dans un groupe, masquer, remontrer', () => {
+    let layout: ToolbarLayout = { order: ['t', 'p'], hidden: [] };
+    layout = moveEntry(layout, ['a', 'b', 'c'], 'c', 0);
+    expect(layout.order).toEqual(['t', 'p', 'c', 'a', 'b']);
+    expect(moveEntry(layout, ['a', 'b', 'c'], 'c', 9)).toBe(layout);
+    layout = hideEntry(layout, 'b', true);
+    expect(hideEntry(layout, 'select', true)).toBe(layout);
+    expect(ids(toolbarGroups(tools, entries, GM, layout))[1]).toEqual(['view', ['c', 'a']]);
+    expect(hideEntry(layout, 'b', false).hidden).toEqual([]);
   });
 });
 

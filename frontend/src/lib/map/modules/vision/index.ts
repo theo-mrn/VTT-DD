@@ -17,6 +17,7 @@
  *
  * État sans Pixi : `vision-state.ts` (testé à blanc) ; rendu : `renderer.ts`.
  */
+import { Eye } from 'lucide-react';
 import type { MapEngine, MapModule } from '../../engine/map-engine';
 import { VisionViewMenu } from '@/components/map/vision/view-menu';
 import { Fades, VISION_MASK } from './fades';
@@ -104,6 +105,8 @@ export const visionModule: MapModule = {
       engine.registerToolbarEntry({
         kind: 'custom',
         id: 'vision:view',
+        label: 'Vue',
+        icon: Eye,
         group: 'view',
         order: 10,
         component: VisionViewMenu,

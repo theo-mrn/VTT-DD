@@ -3,6 +3,7 @@
  * et `MapBubbles` (réception et envoi sur le canal éphémère, bulles au-dessus des tokens, touche
  * K du joueur, écoutée sur toute la table et pas seulement sur la carte).
  */
+import { MessageCircle } from 'lucide-react';
 import { BubbleToolbarButton } from '@/components/map/bubbles/bubble-picker';
 import { MapBubbles } from '@/components/map/bubbles/map-bubbles';
 import type { MapModule } from '../../engine/map-engine';
@@ -13,6 +14,8 @@ export const bubblesModule: MapModule = {
     engine.registerToolbarEntry({
       kind: 'custom',
       id: 'bubbles',
+      label: 'Bulle',
+      icon: MessageCircle,
       group: 'view',
       order: 0,
       available: (viewer) => viewer.role === 'player',

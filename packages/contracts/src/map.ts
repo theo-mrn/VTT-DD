@@ -1471,3 +1471,39 @@ export const MapBubbleMessage = z.object({
     .nullable(),
 });
 export type MapBubbleMessage = z.infer<typeof MapBubbleMessage>;
+
+// ─── Disposition de la barre d'outils (docs/carte.md § 6, Personnalisation) ───
+
+/** Identifiant d'une entrée de la barre (`select`, `history.undo`, `grid:menu`…). */
+export const MapToolbarEntryId = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9][a-z0-9:._-]*$/i);
+
+/** Au plus autant d'entrées dans une liste : bien au-delà de ce que fournissent les modules. */
+export const MAP_TOOLBAR_MAX_ENTRIES = 100;
+
+const toolbarIds = z.array(MapToolbarEntryId).max(MAP_TOOLBAR_MAX_ENTRIES);
+
+/**
+ * Disposition de la barre d'outils, par compte (toutes campagnes, tous rôles). `order` : ordre
+ * voulu (une entrée absente garde sa place par défaut) ; `hidden` : entrées masquées (leur touche
+ * marche toujours). Un id inconnu est ignoré. Sans ligne : `{ order: [], hidden: [], version: 0 }`.
+ */
+export const MapToolbarLayout = z.object({
+  order: toolbarIds,
+  hidden: toolbarIds,
+  version: z.number().int().nonnegative(),
+});
+export type MapToolbarLayout = z.infer<typeof MapToolbarLayout>;
+
+/** Corps du PUT : la disposition entière ; `version` lue, pour refuser une écriture concurrente. */
+export const MapToolbarLayoutUpdate = z.object({
+  order: toolbarIds,
+  hidden: toolbarIds,
+  version: z.number().int().nonnegative().optional(),
+});
+export type MapToolbarLayoutUpdate = z.infer<typeof MapToolbarLayoutUpdate>;
+
+export const DEFAULT_MAP_TOOLBAR_LAYOUT: MapToolbarLayout = { order: [], hidden: [], version: 0 };

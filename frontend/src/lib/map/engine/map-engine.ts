@@ -567,6 +567,8 @@ export class MapEngine {
       ? this.registerToolbarEntry({
           kind: 'action',
           id: action.id,
+          label: action.label,
+          icon: action.icon,
           group: action.toolbar.group,
           order: action.toolbar.order,
           available: action.available,
