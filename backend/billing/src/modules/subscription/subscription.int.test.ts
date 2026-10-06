@@ -79,6 +79,7 @@ describe.skipIf(!TEST_DATABASE_URL)('abonnement premium', () => {
       premium: true,
       premiumSource: 'subscription',
       premiumSince: expect.any(String),
+      premiumUntil: null,
       subscription: {
         plan: 'annual',
         status: 'active',

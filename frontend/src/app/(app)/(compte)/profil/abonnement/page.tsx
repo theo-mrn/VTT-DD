@@ -5,7 +5,9 @@
  * Abonnement de l'ancienne app (SubscriptionTab) : statut, résiliation,
  * portail Stripe, historique des factures ; ajoute le choix mensuel/annuel,
  * la reprise d'une résiliation, l'alerte de paiement échoué et les achats.
+ * Champ « Code » : premium offert, skin ou cadre (`?code=…` le préremplit).
  */
+import { useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   Crown,
@@ -14,10 +16,11 @@ import {
   ExternalLink,
   Heart,
   Receipt,
+  Ticket,
   ShoppingBag,
   WalletCards,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   Bouton,
   Carte,
@@ -28,6 +31,7 @@ import {
   Vide,
 } from '@/components/compte/elements';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -46,11 +50,14 @@ import {
   reprendre,
   resilier,
   souscrire,
+  utiliserCode,
+  type CodeUtilise,
   type EtatAbonnement,
   type Formule,
   type Formules,
 } from '@/lib/abonnement';
 import { messageErreur } from '@/lib/api';
+import { dicePreferencesKey } from '@/lib/dice-preferences';
 import { useRessource } from '@/lib/ressource';
 import { cn } from '@/lib/utils';
 
@@ -93,15 +100,17 @@ export default function PageAbonnement() {
               {!e.configured && (
                 <Message ton="info">Paiements indisponibles pour le moment.</Message>
               )}
-              {e.premium ? (
-                <Statut etat={e} onChange={() => void etat.recharger()} />
-              ) : (
+              {e.premium && <Statut etat={e} onChange={() => void etat.recharger()} />}
+              {/* Premium offert par un code : il s'arrête seul, l'abonnement reste proposé */}
+              {(!e.premium || e.premiumUntil) && (
                 <Offre formules={formules.donnees} disponible={e.configured} />
               )}
             </>
           )
         }
       </ParEtat>
+
+      <CarteCode onUtilise={() => void etat.recharger()} />
 
       <Carte titre="Factures">
         <ParEtat
@@ -203,7 +212,9 @@ function Statut({ etat, onChange }: Readonly<{ etat: EtatAbonnement; onChange():
   }
 
   let echeance: string | null = null;
-  if (enCours && sub.cancelAt) echeance = `Se termine le ${formaterDate(sub.cancelAt)}`;
+  if (!enCours && etat.premiumUntil)
+    echeance = `Offert jusqu’au ${formaterDate(etat.premiumUntil)}`;
+  else if (enCours && sub.cancelAt) echeance = `Se termine le ${formaterDate(sub.cancelAt)}`;
   else if (enCours && sub.currentPeriodEnd)
     echeance = `Prochain prélèvement le ${formaterDate(sub.currentPeriodEnd)}`;
 
@@ -264,6 +275,75 @@ function Statut({ etat, onChange }: Readonly<{ etat: EtatAbonnement; onChange():
         onFermer={() => setResiliation(false)}
         onResilie={onChange}
       />
+    </Carte>
+  );
+}
+
+const RECOMPENSE: Record<CodeUtilise['kind'], string> = {
+  premium: 'Premium activé',
+  dice_skin: 'Dés débloqués',
+  token_frame: 'Cadre débloqué',
+};
+
+/** Code à échanger : premium offert, skin de dés ou cadre. */
+function CarteCode({ onUtilise }: Readonly<{ onUtilise(): void }>) {
+  const client = useQueryClient();
+  const [code, setCode] = useState('');
+  const [envoi, setEnvoi] = useState(false);
+  const [resultat, setResultat] = useState<{ ok: boolean; texte: string } | null>(null);
+
+  useEffect(() => {
+    const prerempli = new URLSearchParams(window.location.search).get('code');
+    if (prerempli) setCode(prerempli);
+  }, []);
+
+  async function valider(ev: FormEvent) {
+    ev.preventDefault();
+    setEnvoi(true);
+    setResultat(null);
+    try {
+      const r = await utiliserCode(code);
+      const fin = r.expiresAt ? ` jusqu’au ${formaterDate(r.expiresAt)}` : '';
+      setResultat({ ok: true, texte: `${RECOMPENSE[r.kind]}${fin}.` });
+      setCode('');
+      onUtilise();
+      // Droits appliqués par le service dice à réception de l'événement : relus un peu après
+      const relire = () => void client.invalidateQueries({ queryKey: dicePreferencesKey });
+      relire();
+      setTimeout(relire, 2000);
+    } catch (err) {
+      setResultat({ ok: false, texte: messageErreur(err) });
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  return (
+    <Carte titre="Code">
+      <form onSubmit={valider} className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          aria-label="Code"
+          placeholder="YNER-XXXX-XXXX"
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={64}
+          value={code}
+          onChange={(ev) => {
+            setCode(ev.target.value);
+            setResultat(null);
+          }}
+          className="font-mono uppercase sm:max-w-xs"
+        />
+        <Bouton type="submit" chargement={envoi} disabled={!code.trim()}>
+          <Ticket />
+          Utiliser
+        </Bouton>
+      </form>
+      {resultat && (
+        <Message className="mt-3" ton={resultat.ok ? 'succes' : 'erreur'}>
+          {resultat.texte}
+        </Message>
+      )}
     </Carte>
   );
 }

@@ -37,7 +37,7 @@ import { purchases } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { fulfillCheckoutSession } from '../../payments/checkout.js';
 import { customerOf, PREMIUM_TYPE, userActor } from '../../payments/common.js';
-import { hasPremium, owns, rightsOf } from '../../payments/entitlements.js';
+import { activeOf, owns, rightsOf } from '../../payments/entitlements.js';
 import { purchaseOf } from '../../payments/purchases.js';
 import type { CheckoutSessionParams } from '../../stripe/client.js';
 import {
@@ -110,8 +110,10 @@ export const register: Module = async (app, deps) => {
         throw HttpError.badRequest('Cet article est gratuit, il est déjà à vous', 'item_free');
 
       const kind = item.kind === 'dice' ? 'dice_skin' : 'token_frame';
-      // Premium : tous les dés et tous les cadres sont déjà possédés
-      if ((await owns(db, userId, kind, item.id)) || (await hasPremium(db, userId)))
+      // Premium : tous les dés et tous les cadres sont déjà possédés ; celui d'un code
+      // s'arrête, l'article acheté reste
+      const lasting = (await activeOf(db, userId, 'premium')).some((e) => e.source !== 'code');
+      if (lasting || (await owns(db, userId, kind, item.id)))
         throw HttpError.conflict('Vous possédez déjà cet article', 'already_owned');
 
       const price = await callStripe(req, () => requirePrices(deps)(lookupKeyOf(item)));

@@ -39,8 +39,10 @@ const Me = z.object({
   configured: z.boolean(),
   premium: z.boolean(),
   /** Origine du premium actif : abonnement, ancienne app, cadeau. */
-  premiumSource: z.enum(['subscription', 'legacy', 'gift', 'purchase']).nullable(),
+  premiumSource: z.enum(['subscription', 'legacy', 'gift', 'purchase', 'code']).nullable(),
   premiumSince: z.string().nullable(),
+  /** Premium à durée limitée seulement (code) : sa fin ; null s'il ne s'arrête pas seul. */
+  premiumUntil: z.string().nullable(),
   /** Abonnement en cours, ou le dernier terminé. */
   subscription: z
     .object({
@@ -66,11 +68,17 @@ async function meOf(db: Db, userId: string, configured: boolean): Promise<z.infe
     customerOf(db, userId),
   ]);
   const first = premium.toSorted((a, b) => a.grantedAt.getTime() - b.grantedAt.getTime())[0];
+  const ends = premium.map((e) => e.expiresAt);
+  const until =
+    ends.length && ends.every((d) => d)
+      ? new Date(Math.max(...ends.map((d) => d!.getTime())))
+      : null;
   return {
     configured,
     premium: premium.length > 0,
     premiumSource: first?.source ?? null,
     premiumSince: iso(first?.grantedAt),
+    premiumUntil: iso(until),
     subscription: sub
       ? {
           plan: sub.plan,
@@ -109,7 +117,9 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const userId = currentUser(req);
       const pd = paymentDeps(deps);
-      if (await hasPremium(db, userId))
+      // Le premium offert par un code n'empêche pas de s'abonner : il expire de lui-même
+      const premium = await activeOf(db, userId, 'premium');
+      if (premium.some((e) => e.source !== 'code'))
         throw HttpError.conflict('Vous êtes déjà premium', 'already_premium');
       // Abonnement encore en vie sans premium (impayé en cours de relance…) : portail
       const sub = await currentSubscription(db, userId);

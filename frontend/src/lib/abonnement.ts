@@ -23,8 +23,10 @@ export interface EtatAbonnement {
   /** Stripe configuré sur ce serveur (sinon paiements indisponibles). */
   configured: boolean;
   premium: boolean;
-  premiumSource: 'subscription' | 'legacy' | 'gift' | 'purchase' | null;
+  premiumSource: 'subscription' | 'legacy' | 'gift' | 'purchase' | 'code' | null;
   premiumSince: string | null;
+  /** Premium offert par un code : sa fin ; null s'il ne s'arrête pas seul. */
+  premiumUntil: string | null;
   subscription: {
     plan: Formule | 'legacy';
     status: StatutAbonnement;
@@ -128,6 +130,16 @@ export async function ouvrirPortail(returnUrl = pageActuelle()) {
   const { url } = await post<{ url: string }>('/v1/billing/portal', { returnUrl });
   window.location.assign(url);
 }
+
+/** POST /v1/billing/codes/redeem */
+export interface CodeUtilise {
+  kind: 'premium' | 'dice_skin' | 'token_frame';
+  itemId: string | null;
+  expiresAt: string | null;
+}
+
+export const utiliserCode = (code: string) =>
+  post<CodeUtilise>('/v1/billing/codes/redeem', { code });
 
 export const resilier = () => post<{ cancelAt: string | null }>('/v1/billing/subscription/cancel');
 export const reprendre = () => post<{ resumed: boolean }>('/v1/billing/subscription/resume');

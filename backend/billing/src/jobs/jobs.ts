@@ -4,7 +4,9 @@
  *  - réconciliation : chaque jour, les abonnements en cours sont relus chez
  *    Stripe ; un webhook perdu est ainsi rattrapé (droits, événements, e-mails) ;
  *  - rappel de reconduction (loi Chatel) : un abonnement annuel est prévenu
- *    entre 45 et 30 jours avant son renouvellement, une fois par échéance.
+ *    entre 45 et 30 jours avant son renouvellement, une fois par échéance ;
+ *  - expiration : à chaque passage (toutes les heures), les droits à durée
+ *    limitée arrivés à terme (premium d'un code) sont retirés et republiés.
  *
  * Une tâche quotidienne ne tourne qu'une fois par jour (heure de Paris), même
  * avec plusieurs réplicas : chacun tente de la « réserver » dans job_runs, un
@@ -16,6 +18,7 @@ import { PLANS } from '../catalog/catalog.js';
 import type { Db } from '../db/client.js';
 import { appendEvent } from '../db/outbox.js';
 import { jobRuns, renewalReminders, subscriptions } from '../db/schema.js';
+import { expireEntitlements } from '../payments/codes.js';
 import { customerAggregate, SYSTEM, type PaymentDeps } from '../payments/common.js';
 import { LIVE_STATUSES, syncSubscription } from '../payments/subscriptions.js';
 
@@ -121,6 +124,8 @@ export function startJobs(deps: PaymentDeps, log: Log, everyMs = HOUR_MS): () =>
   const tick = () => {
     running = (async () => {
       try {
+        const expired = await expireEntitlements(deps.db);
+        if (expired) log.info({ expired }, 'droits expirés retirés');
         if (await claimDaily(deps.db, 'reconcile')) {
           const r = await reconcile(deps, log);
           log.info(r, 'réconciliation des abonnements avec Stripe');

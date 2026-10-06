@@ -13,6 +13,7 @@ import { buildBilling } from '../app.js';
 import { BillingConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import {
+  codeRedemptions,
   customers,
   entitlements,
   invoices,
@@ -90,6 +91,7 @@ export async function testApp(
     if (connection) {
       const db = connection.db;
       if (users.length) {
+        await db.delete(codeRedemptions).where(inArray(codeRedemptions.userId, users));
         await db.delete(purchases).where(inArray(purchases.userId, users));
         await db.delete(entitlements).where(inArray(entitlements.userId, users));
         await db.delete(invoices).where(inArray(invoices.userId, users));
