@@ -16,7 +16,16 @@
  *
  * Module chargé à la demande, à la première ouverture.
  */
-import { ArrowDownWideNarrow, ArrowLeft, Check, Crown, Package, Search, Store } from 'lucide-react';
+import {
+  ArrowDownWideNarrow,
+  ArrowLeft,
+  Check,
+  Crown,
+  Package,
+  Search,
+  Store,
+  X,
+} from 'lucide-react';
 import { PAGES_FRONT } from '@vtt/contracts';
 import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
@@ -24,7 +33,13 @@ import { toast } from 'sonner';
 import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,6 +102,7 @@ export default function SkinStore({
       }}
     >
       <DialogContent
+        showCloseButton={false}
         className="flex h-[min(900px,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"
         onEscapeKeyDown={(e) => {
           // Échap ferme d'abord la fiche plein écran (mobile)
@@ -99,7 +115,7 @@ export default function SkinStore({
         <DialogDescription className="sr-only">
           Vitrine des dés : équiper, acheter, essayer.
         </DialogDescription>
-        <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3 pr-12 sm:px-5">
+        <header className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3 sm:px-5">
           <Store className="size-5 shrink-0 text-primary" aria-hidden />
           <DialogTitle className="mr-auto truncate text-base">Boutique de dés</DialogTitle>
           <CodeButton
@@ -127,6 +143,11 @@ export default function SkinStore({
               </Link>
             </Button>
           )}
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Fermer" className="-mr-1.5">
+              <X aria-hidden />
+            </Button>
+          </DialogClose>
         </header>
 
         {prefs.isPending && <Chargement />}
