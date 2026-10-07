@@ -185,6 +185,8 @@ Modèles Kourrier ajoutés : `suppression-programmee`, `inactivite` (`infra/mail
 - Nouveau traitement « Marketplace » : profil de créateur (nom public, présentation),
   acquisitions, installations, avis, signalements (texte libre conservé hors du journal) ;
   base légale : contrat ; durée : vie du compte (signalements gardés sans auteur).
+- Export des données (fait) : profil de créateur, packs acquis et packs publiés ajoutés à
+  `yner-donnees-….json` (`lib/data-export.ts`, rubrique `marketplace`).
 - Paiement des créateurs : données d'identité et bancaires collectées **par Stripe** (Stripe
   responsable de traitement pour la vérification KYC) ; Yner ne garde que l'identifiant du
   compte et son état.
