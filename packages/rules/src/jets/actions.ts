@@ -31,6 +31,7 @@ import {
   valeurCombat,
   type ContexteCombatSaisi,
   type Action,
+  type DecompteDonne,
   type Effet,
   type Entree,
   type Parametre,
@@ -61,6 +62,7 @@ import {
 } from './symboles.js';
 import { tirerTable, type TirageTable } from './tables.js';
 import { DesRequis, ParametresRequis } from './planification.js';
+import { dureeDonnee, libelleDuree } from './durees.js';
 import { etapesAction } from './etapes.js';
 
 export interface DemandeAction {
@@ -1141,19 +1143,44 @@ function consequenceEntree(
     return;
   }
   const rangs = Number(d.ev(`${ou}/rangs`, 1));
-  const duree = c.duree === undefined ? undefined : Number(d.ev(`${ou}/duree`, 0));
+  const calculee = c.duree === undefined ? undefined : Number(d.ev(`${ou}/duree`, 0));
+  // Durée de la conséquence, sinon celle de l'entrée (docs/combat.md § 18.2)
+  const { duree, decompte } =
+    c.operation === 'donner'
+      ? dureeDonnee(calculee, c.decompte, donnee.duree)
+      : { duree: calculee, decompte: undefined };
   modifications.push({
     entite: c.entite,
     entree: id,
     operation: c.operation,
     rangs,
     ...(duree !== undefined ? { duree } : {}),
+    ...(decompte
+      ? {
+          decompte: {
+            moment: decompte.moment,
+            ...(decompte.de === 'source' ? { source: true } : {}),
+          },
+        }
+      : {}),
   });
-  const pendant = duree !== undefined ? ` pendant ${duree} round(s)` : '';
+  const pendant = duree !== undefined ? ` (${libelleDureeDonnee(duree, decompte)})` : '';
   d.explications.push(
     `${qui} : ${c.operation === 'donner' ? 'reçoit' : 'perd'} ${donnee.nom}${pendant}`,
   );
 }
+
+/** Durée d'une entrée donnée, pour le déroulé : la source est l'acteur de l'action. */
+function libelleDureeDonnee(duree: number, decompte: DecompteDonne | undefined): string {
+  if (!decompte) return libelleDuree({ duree });
+  const de = decompte.de === 'source' ? { de: ACTEUR } : {};
+  const attente = decompte.moment === 'fin-tour' ? { attente: true } : {};
+  return libelleDuree(
+    { duree, decompte: { moment: decompte.moment, ...de, ...attente } },
+    { nomDe: () => 'l’acteur' },
+  );
+}
+const ACTEUR = 'acteur';
 
 /** Type de dégâts d'une conséquence : fixe, calculé, ou celui de l'action (`degats: true`). */
 function typeDegatsDe(
