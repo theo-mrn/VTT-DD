@@ -7,6 +7,7 @@
 import { compareVersions, type LibraryItem } from '@vtt/contracts';
 import { ArrowUpCircle, Download, Library, Store } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { Message } from '@/components/compte/elements';
 import { EtatVide, Page } from '@/components/commun/page';
@@ -28,6 +29,8 @@ export function outdated(item: Pick<LibraryItem, 'latestVersion' | 'installs'>) 
 }
 
 export function LibraryPage() {
+  const t = useTranslations('marketplace.shop.library');
+  const tm = useTranslations('marketplace.common');
   const library = useLibrary();
   const campaigns = useCampagnes();
   const names = useMemo(
@@ -39,7 +42,7 @@ export function LibraryPage() {
   return (
     <Page large>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">Bibliothèque</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{t('title')}</h1>
         <MarketplaceTabs />
       </header>
 
@@ -54,12 +57,12 @@ export function LibraryPage() {
       {library.data?.length === 0 && (
         <EtatVide
           icone={Library}
-          titre="Aucun pack"
+          titre={t('empty')}
           action={
             <Button asChild>
               <Link href="/marketplace">
                 <Store />
-                Parcourir le catalogue
+                {t('browse')}
               </Link>
             </Button>
           }
@@ -89,8 +92,10 @@ export function LibraryPage() {
                     >
                       {item.listing.title}
                     </Link>
-                    {item.latestVersion && <Badge>v{item.latestVersion.number}</Badge>}
-                    {!item.available && <Badge ton="danger">Retiré</Badge>}
+                    {item.latestVersion && (
+                      <Badge>{tm('version', { number: item.latestVersion.number })}</Badge>
+                    )}
+                    {!item.available && <Badge ton="danger">{t('unavailable')}</Badge>}
                   </div>
                   <p className="text-[13px] text-muted-foreground">
                     {item.listing.creator.displayName}
@@ -105,15 +110,18 @@ export function LibraryPage() {
                             key={i.id}
                             texte={
                               i.status === 'started'
-                                ? 'Installation interrompue'
+                                ? t('interrupted')
                                 : isLate
-                                  ? `Version ${i.versionNumber} installée`
+                                  ? t('installedVersion', { version: i.versionNumber })
                                   : undefined
                             }
                           >
                             <span>
                               <Badge ton={isLate || i.status === 'started' ? 'alerte' : 'neutre'}>
-                                {names.get(i.campaignId) ?? 'Campagne'} · v{i.versionNumber}
+                                {t('install', {
+                                  campaign: names.get(i.campaignId) ?? t('unknownCampaign'),
+                                  version: i.versionNumber,
+                                })}
                               </Badge>
                             </span>
                           </Info>
@@ -129,7 +137,7 @@ export function LibraryPage() {
                   className="shrink-0"
                 >
                   {late.length ? <ArrowUpCircle aria-hidden /> : <Download aria-hidden />}
-                  {late.length ? 'Mettre à jour' : 'Installer'}
+                  {late.length ? t('update') : t('installAction')}
                 </Button>
               </li>
             );

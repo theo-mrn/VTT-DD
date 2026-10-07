@@ -7,6 +7,7 @@
 import type { ListingCard } from '@vtt/contracts';
 import { Check } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { memo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +19,7 @@ export const ListingTile = memo(function ListingTile({
   listing,
   href = `/marketplace/${listing.slug}`,
 }: Readonly<{ listing: ListingCard; href?: string }>) {
+  const t = useTranslations('marketplace.shop.tile');
   const systemName = useSystemName();
   const system = systemName(listing.systemId);
   return (
@@ -39,7 +41,7 @@ export const ListingTile = memo(function ListingTile({
           {listing.owned ? (
             <Badge ton="succes" taille="md" className="backdrop-blur">
               <Check aria-hidden />
-              Possédé
+              {t('owned')}
             </Badge>
           ) : (
             <Badge ton="verre" taille="md" className="tabular-nums backdrop-blur">

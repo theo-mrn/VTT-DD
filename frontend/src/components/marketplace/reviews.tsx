@@ -7,6 +7,7 @@
 import type { ListingDetail, Review } from '@vtt/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck, ChevronLeft, ChevronRight, Star, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -20,8 +21,9 @@ import { cn } from '@/lib/utils';
 import { StarInput } from './elements';
 
 function Stars({ value }: Readonly<{ value: number }>) {
+  const t = useTranslations('marketplace.common.rating');
   return (
-    <span className="inline-flex text-warning" aria-label={`${value} sur 5`}>
+    <span className="inline-flex text-warning" aria-label={t('outOfFive', { value })}>
       {[1, 2, 3, 4, 5].map((n) => (
         <Star key={n} className={cn('size-3.5', n <= value ? 'fill-current' : 'opacity-30')} />
       ))}
@@ -30,13 +32,14 @@ function Stars({ value }: Readonly<{ value: number }>) {
 }
 
 function Reviewer({ userId }: Readonly<{ userId: string }>) {
+  const t = useTranslations('marketplace.shop.reviews');
   const player = useQuery({
     queryKey: ['users', userId],
     queryFn: () => lireJoueur(userId),
     staleTime: 10 * 60_000,
     retry: false,
   });
-  return <span className="font-medium">{player.data?.name ?? 'Joueur'}</span>;
+  return <span className="font-medium">{player.data?.name ?? t('unknownPlayer')}</span>;
 }
 
 function ReviewItem({ review }: Readonly<{ review: Review }>) {
@@ -57,6 +60,7 @@ function ReviewItem({ review }: Readonly<{ review: Review }>) {
 }
 
 function MyReview({ listing }: Readonly<{ listing: ListingDetail }>) {
+  const t = useTranslations('marketplace.shop.reviews');
   const current = listing.myReview;
   const [rating, setRating] = useState(current?.rating ?? 0);
   const [comment, setComment] = useState(current?.comment ?? '');
@@ -75,7 +79,7 @@ function MyReview({ listing }: Readonly<{ listing: ListingDetail }>) {
             variant="ghost"
             size="icon-xs"
             className="ml-auto"
-            aria-label="Retirer mon avis"
+            aria-label={t('remove')}
             onClick={() =>
               remove.mutate(undefined, {
                 onSuccess: () => {
@@ -95,8 +99,8 @@ function MyReview({ listing }: Readonly<{ listing: ListingDetail }>) {
         onChange={(e) => setComment(e.target.value)}
         maxLength={1000}
         rows={3}
-        placeholder="Votre avis"
-        aria-label="Votre avis"
+        placeholder={t('placeholder')}
+        aria-label={t('placeholder')}
       />
       <div className="flex justify-end">
         <Button
@@ -105,12 +109,12 @@ function MyReview({ listing }: Readonly<{ listing: ListingDetail }>) {
           loading={save.isPending}
           onClick={() =>
             save.mutate(undefined, {
-              onSuccess: () => toast.success('Avis enregistré'),
+              onSuccess: () => toast.success(t('saved')),
               onError: (e) => toast.error(messageErreur(e)),
             })
           }
         >
-          {current ? 'Modifier' : 'Publier'}
+          {current ? t('edit') : t('publish')}
         </Button>
       </div>
     </div>
@@ -118,6 +122,7 @@ function MyReview({ listing }: Readonly<{ listing: ListingDetail }>) {
 }
 
 export function ReviewsSection({ listing }: Readonly<{ listing: ListingDetail }>) {
+  const t = useTranslations('marketplace.shop.reviews');
   const [page, setPage] = useState(1);
   const reviews = useReviews(listing.id, page);
   const others = (reviews.data?.items ?? []).filter((r) => r.userId !== listing.myReview?.userId);
@@ -127,9 +132,9 @@ export function ReviewsSection({ listing }: Readonly<{ listing: ListingDetail }>
   return (
     <section className="space-y-3">
       <h2 className="flex items-center gap-2 text-sm font-semibold">
-        Avis
-        <Info texte="Seuls les membres qui ont obtenu le pack peuvent le noter">
-          <BadgeCheck className="size-4 text-success" aria-label="Avis vérifiés" />
+        {t('title')}
+        <Info texte={t('verifiedTip')}>
+          <BadgeCheck className="size-4 text-success" aria-label={t('verified')} />
         </Info>
         {listing.ratingCount > 0 && (
           <span className="rounded-full bg-surface-3 px-1.5 py-px text-[11px] font-medium text-muted-foreground">
@@ -145,14 +150,14 @@ export function ReviewsSection({ listing }: Readonly<{ listing: ListingDetail }>
           ))}
         </ul>
       ) : (
-        !canReview && <p className="py-4 text-[13px] text-subtle">Aucun avis</p>
+        !canReview && <p className="py-4 text-[13px] text-subtle">{t('empty')}</p>
       )}
       {(more || page > 1) && (
-        <nav aria-label="Pages d’avis" className="flex items-center gap-2">
+        <nav aria-label={t('pages')} className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Avis précédents"
+            aria-label={t('previous')}
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
           >
@@ -162,7 +167,7 @@ export function ReviewsSection({ listing }: Readonly<{ listing: ListingDetail }>
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Avis suivants"
+            aria-label={t('next')}
             disabled={!more}
             onClick={() => setPage((p) => p + 1)}
           >

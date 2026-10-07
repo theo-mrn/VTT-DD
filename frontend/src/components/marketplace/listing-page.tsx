@@ -5,10 +5,11 @@
  * l'action (obtenir, acheter, installer, gérer). Au retour d'un achat (`?purchased=1`), la
  * fiche se relit jusqu'à ce que l'acquisition arrive (le paiement passe par le bus).
  */
-import { LICENSE_LABELS, PAGES_FRONT, type ListingDetail } from '@vtt/contracts';
+import { PAGES_FRONT, type ListingDetail } from '@vtt/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Download, Flag, Library, Loader2, Pencil, Scale, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -29,6 +30,7 @@ import {
 import {
   countsLabel,
   dateLabel,
+  LICENSE_LABELS,
   LISTING_STATUS_LABELS,
   priceLabel,
 } from '@/lib/marketplace/format';
@@ -50,11 +52,12 @@ const PURCHASE_POLL_MS = 2_000;
 const PURCHASE_POLL_MAX = 15;
 
 export function ListingPage({ slug }: Readonly<{ slug: string }>) {
+  const t = useTranslations('marketplace.shop.listing');
   const listing = useListing(slug);
   return (
     <Page large>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="sr-only">{listing.data?.title ?? 'Pack'}</h1>
+        <h1 className="sr-only">{listing.data?.title ?? t('fallbackTitle')}</h1>
         <MarketplaceTabs className="ml-auto" />
       </header>
       {listing.isError && <Message>{messageErreur(listing.error)}</Message>}
@@ -65,6 +68,8 @@ export function ListingPage({ slug }: Readonly<{ slug: string }>) {
 }
 
 function Listing({ listing }: Readonly<{ listing: ListingDetail }>) {
+  const t = useTranslations('marketplace.shop.listing');
+  const tm = useTranslations('marketplace.common');
   const images = [listing.coverUrl, ...listing.gallery].filter((u): u is string => Boolean(u));
   const [shown, setShown] = useState(0);
   const latest = listing.versions[0] ?? null;
@@ -83,7 +88,7 @@ function Listing({ listing }: Readonly<{ listing: ListingDetail }>) {
                 <button
                   key={url}
                   type="button"
-                  aria-label={`Image ${i + 1}`}
+                  aria-label={t('image', { index: i + 1 })}
                   aria-pressed={i === shown}
                   onClick={() => setShown(i)}
                   className={cn(
@@ -100,7 +105,7 @@ function Listing({ listing }: Readonly<{ listing: ListingDetail }>) {
 
         {listing.description && (
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold">Description</h2>
+            <h2 className="text-sm font-semibold">{t('description')}</h2>
             <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
               {listing.description}
             </p>
@@ -109,12 +114,14 @@ function Listing({ listing }: Readonly<{ listing: ListingDetail }>) {
 
         {listing.versions.length > 0 && (
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold">Versions</h2>
+            <h2 className="text-sm font-semibold">{t('versions')}</h2>
             <ol className="space-y-3">
               {listing.versions.map((v) => (
                 <li key={v.id} className="rounded-xl border border-border bg-card p-4">
                   <div className="flex flex-wrap items-center gap-2 text-[13px]">
-                    <span className="font-semibold tabular-nums">v{v.number}</span>
+                    <span className="font-semibold tabular-nums">
+                      {tm('version', { number: v.number })}
+                    </span>
                     <span className="text-muted-foreground">{countsLabel(v.counts)}</span>
                     <span className="ml-auto text-xs text-subtle">{dateLabel(v.publishedAt)}</span>
                   </div>
@@ -166,28 +173,28 @@ function Listing({ listing }: Readonly<{ listing: ListingDetail }>) {
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
             {listing.systemId && (
               <>
-                <dt className="text-subtle">Système</dt>
+                <dt className="text-subtle">{t('system')}</dt>
                 <dd>{systemName(listing.systemId)}</dd>
               </>
             )}
             {latest && (
               <>
-                <dt className="text-subtle">Contenu</dt>
+                <dt className="text-subtle">{t('content')}</dt>
                 <dd>{countsLabel(latest.counts)}</dd>
               </>
             )}
-            <dt className="text-subtle">Licence</dt>
+            <dt className="text-subtle">{t('license')}</dt>
             <dd className="flex items-center gap-1.5">
               {LICENSE_LABELS[listing.license]}
               {listing.attribution && (
                 <Info texte={listing.attribution}>
-                  <Scale className="size-3.5 text-subtle" aria-label="Crédits" />
+                  <Scale className="size-3.5 text-subtle" aria-label={t('credits')} />
                 </Info>
               )}
             </dd>
             {listing.ratingCount > 0 && (
               <>
-                <dt className="text-subtle">Note</dt>
+                <dt className="text-subtle">{t('rating')}</dt>
                 <dd>
                   <RatingSummary rating={listing.rating} count={listing.ratingCount} />
                 </dd>
@@ -195,7 +202,7 @@ function Listing({ listing }: Readonly<{ listing: ListingDetail }>) {
             )}
             {listing.tags.length > 0 && (
               <>
-                <dt className="text-subtle">Étiquettes</dt>
+                <dt className="text-subtle">{t('tags')}</dt>
                 <dd className="text-muted-foreground">{listing.tags.join(', ')}</dd>
               </>
             )}
@@ -209,6 +216,7 @@ function Listing({ listing }: Readonly<{ listing: ListingDetail }>) {
 }
 
 function ListingActions({ listing }: Readonly<{ listing: ListingDetail }>) {
+  const t = useTranslations('marketplace.shop.listing');
   const client = useQueryClient();
   const params = useSearchParams();
   const config = useMarketplaceConfig();
@@ -239,7 +247,7 @@ function ListingActions({ listing }: Readonly<{ listing: ListingDetail }>) {
       );
       window.location.assign(url);
     } catch (err) {
-      toast.error('Paiement indisponible', { description: messageErreur(err) });
+      toast.error(t('paymentUnavailable'), { description: messageErreur(err) });
       setPaying(false);
     }
   }
@@ -252,7 +260,7 @@ function ListingActions({ listing }: Readonly<{ listing: ListingDetail }>) {
       <Button asChild className="w-full">
         <Link href={`/marketplace/studio/${listing.id}`}>
           <Pencil aria-hidden />
-          Gérer
+          {t('manage')}
         </Link>
       </Button>
     );
@@ -260,14 +268,14 @@ function ListingActions({ listing }: Readonly<{ listing: ListingDetail }>) {
     main = (
       <Button className="w-full" disabled={removed} onClick={() => setInstalling(true)}>
         <Download aria-hidden />
-        Installer
+        {t('install')}
       </Button>
     );
   else if (waitingPurchase)
     main = (
       <Button className="w-full" disabled>
         <Loader2 className="animate-spin" aria-hidden />
-        Confirmation du paiement
+        {t('confirmingPayment')}
       </Button>
     );
   else if (forSale && listing.priceCents === 0)
@@ -277,20 +285,20 @@ function ListingActions({ listing }: Readonly<{ listing: ListingDetail }>) {
         loading={acquire.isPending}
         onClick={() =>
           acquire.mutate(undefined, {
-            onSuccess: () => toast.success('Ajouté à votre bibliothèque'),
+            onSuccess: () => toast.success(t('addedToLibrary')),
             onError: (e) => toast.error(messageErreur(e)),
           })
         }
       >
         <Library aria-hidden />
-        Obtenir gratuitement
+        {t('getFree')}
       </Button>
     );
   else if (forSale && config.data?.paidListings)
     main = (
       <Button className="w-full" loading={paying} onClick={() => void buy()}>
         <ShoppingBag aria-hidden />
-        Acheter {priceLabel(listing.priceCents, listing.currency)}
+        {t('buy', { price: priceLabel(listing.priceCents, listing.currency) })}
       </Button>
     );
 
@@ -299,7 +307,7 @@ function ListingActions({ listing }: Readonly<{ listing: ListingDetail }>) {
       {listing.owned && !listing.mine && (
         <p className="flex items-center gap-1.5 text-[13px] text-success">
           <Check className="size-4" aria-hidden />
-          Dans votre bibliothèque
+          {t('inLibrary')}
         </p>
       )}
       {!listing.owned && !listing.mine && (
@@ -316,7 +324,7 @@ function ListingActions({ listing }: Readonly<{ listing: ListingDetail }>) {
           disabled={removed || listing.versions.length === 0}
         >
           <Download aria-hidden />
-          Installer
+          {t('install')}
         </Button>
       )}
       {!listing.mine && (
@@ -327,7 +335,7 @@ function ListingActions({ listing }: Readonly<{ listing: ListingDetail }>) {
           onClick={() => setReporting(true)}
         >
           <Flag aria-hidden />
-          Signaler
+          {t('report')}
         </Button>
       )}
       <InstallDialog

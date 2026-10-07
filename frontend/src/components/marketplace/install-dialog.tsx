@@ -9,6 +9,7 @@ import type { InstallCreated, InstallStart } from '@vtt/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Download, Loader2, RotateCcw, Swords } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useMemo, useRef, useState } from 'react';
 import { Message } from '@/components/compte/elements';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +56,9 @@ export function InstallDialog({
   /** Campagnes où le pack est déjà installé, et en quelle version. */
   installed?: { campaignId: string; versionNumber: string }[];
 }>) {
+  const t = useTranslations('marketplace.shop.install');
+  const tc = useTranslations('common.actions');
+  const tm = useTranslations('marketplace.common');
   const client = useQueryClient();
   const campaigns = useCampagnes();
   const systemName = useSystemName();
@@ -114,10 +118,8 @@ export function InstallDialog({
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Installer « {title} »</DialogTitle>
-          <DialogDescription className="sr-only">
-            Choisissez la campagne où ajouter le contenu du pack.
-          </DialogDescription>
+          <DialogTitle>{t('title', { title })}</DialogTitle>
+          <DialogDescription className="sr-only">{t('description')}</DialogDescription>
         </DialogHeader>
 
         {phase.kind === 'done' ? (
@@ -125,17 +127,15 @@ export function InstallDialog({
             <span className="flex size-11 items-center justify-center rounded-full bg-success/10 text-success">
               <Check className="size-5" aria-hidden />
             </span>
-            <p className="text-sm font-medium">{countsLabel(phase.created) || 'Installé'}</p>
+            <p className="text-sm font-medium">{countsLabel(phase.created) || t('done')}</p>
             {phase.created.skipped > 0 && (
-              <Badge ton="alerte">
-                {phase.created.skipped} PNJ ignoré{phase.created.skipped > 1 ? 's' : ''}
-              </Badge>
+              <Badge ton="alerte">{t('npcsSkipped', { count: phase.created.skipped })}</Badge>
             )}
           </div>
         ) : mine.length === 0 && !campaigns.isPending ? (
           <div className="flex flex-col items-center gap-3 py-6 text-center text-sm text-muted-foreground">
             <Swords className="size-6 text-subtle" aria-hidden />
-            Aucune campagne dont vous êtes le MJ
+            {t('noCampaign')}
           </div>
         ) : (
           <ul className="-mx-1 max-h-72 space-y-1 overflow-y-auto px-1" role="radiogroup">
@@ -163,11 +163,11 @@ export function InstallDialog({
                         {systemName(c.system)}
                       </span>
                     </span>
-                    {already && <Badge>v{already.versionNumber}</Badge>}
+                    {already && <Badge>{tm('version', { number: already.versionNumber })}</Badge>}
                     {npcsSkipped && (
-                      <Info texte="Autre système : les PNJ du pack ne seront pas ajoutés">
+                      <Info texte={t('otherSystemTip')}>
                         <span>
-                          <Badge ton="alerte">Sans PNJ</Badge>
+                          <Badge ton="alerte">{t('otherSystem')}</Badge>
                         </span>
                       </Info>
                     )}
@@ -179,7 +179,7 @@ export function InstallDialog({
         )}
 
         {phase.kind === 'running' && (
-          <Progress valeur={(phase.done / Math.max(1, phase.total)) * 100} label="Installation" />
+          <Progress valeur={(phase.done / Math.max(1, phase.total)) * 100} label={t('progress')} />
         )}
         {phase.kind === 'error' && <Message>{phase.message}</Message>}
 
@@ -187,10 +187,10 @@ export function InstallDialog({
           {phase.kind === 'done' ? (
             <>
               <Button variant="secondary" onClick={() => close(false)}>
-                Fermer
+                {tc('close')}
               </Button>
               <Button asChild>
-                <Link href={`/campagnes/${phase.campaignId}`}>Ouvrir la campagne</Link>
+                <Link href={`/campagnes/${phase.campaignId}`}>{t('openCampaign')}</Link>
               </Button>
             </>
           ) : (
@@ -202,7 +202,7 @@ export function InstallDialog({
               ) : (
                 <Download aria-hidden />
               )}
-              {phase.kind === 'error' && phase.resumable ? 'Reprendre' : 'Installer'}
+              {phase.kind === 'error' && phase.resumable ? t('resume') : t('install')}
             </Button>
           )}
         </DialogFooter>

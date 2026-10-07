@@ -2,6 +2,7 @@
 
 /** Page publique d'un créateur : présentation et packs en vente. */
 import { PackageSearch } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Message } from '@/components/compte/elements';
 import { EtatVide, Page } from '@/components/commun/page';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,6 +12,7 @@ import { MarketplaceTabs } from './elements';
 import { ListingTile } from './listing-tile';
 
 export function CreatorPage({ slug }: Readonly<{ slug: string }>) {
+  const t = useTranslations('marketplace.shop.creator');
   const page = useCreatorPage(slug);
   return (
     <Page large>
@@ -33,7 +35,7 @@ export function CreatorPage({ slug }: Readonly<{ slug: string }>) {
         </p>
       )}
       {page.data && page.data.listings.length === 0 && (
-        <EtatVide icone={PackageSearch} titre="Aucun pack en vente" />
+        <EtatVide icone={PackageSearch} titre={t('empty')} />
       )}
       {page.data && page.data.listings.length > 0 && (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

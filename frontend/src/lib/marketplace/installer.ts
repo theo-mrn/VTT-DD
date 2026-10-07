@@ -45,8 +45,11 @@ export interface InstallPlan {
   counts: Omit<InstallCreated, 'skipped'>;
 }
 
-/** Catégorie des modèles de PNJ d'un pack : le titre, borné à la taille d'un nom. */
-export const categoryName = (title: string) => title.trim().slice(0, 100) || 'Pack';
+/**
+ * Catégorie des modèles de PNJ d'un pack : le titre, borné à la taille d'un nom. Le repli est
+ * écrit dans les données (docs/i18n.md § 12.1) et se dit pareil dans toutes les langues.
+ */
+export const categoryName = (title: string) => title.trim().slice(0, 100) || 'Pack'; // i18n-ignore
 
 export function planInstall(
   content: PackContent,
