@@ -2,7 +2,7 @@
  * Module « profil » : profil du compte connecté (lecture, modification,
  * envoi d'images), profils publics, recherche de joueurs et temps de jeu.
  */
-import { FileUploadRequest, FileUploadTicket } from '@vtt/contracts';
+import { AccountLocale, FileUploadRequest, FileUploadTicket } from '@vtt/contracts';
 import { HttpError, Uploads } from '@vtt/platform';
 import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -39,6 +39,7 @@ const MonProfilReponse = z.object({
   showPremiumBadge: z.boolean(),
   timeSpentMinutes: z.number(),
   emailNotifications: z.boolean(),
+  locale: AccountLocale,
   settings: z.record(z.string(), z.unknown()),
   hasPassword: z.boolean(),
   providers: z.array(z.enum(['google', 'discord'])),
