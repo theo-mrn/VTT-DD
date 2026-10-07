@@ -44,7 +44,10 @@ describe('menu Capacités', () => {
     ]);
     expect(soins?.usages).toMatchObject({ max: 1, par: 'jour' });
     const rage = jeu(f, 'barbare-rage-rage-du-berserk');
-    expect(rage).toMatchObject({ jeu: { type: 'activer' }, active: false });
+    expect(rage).toMatchObject({
+      jeu: { type: 'activer', generique: { action: { id: 'utiliser-capacite-active' } } },
+      active: false,
+    });
     expect(groupeDe(rage!)).toBe('aActiver');
     const dechainement = jeu(f, 'barbare-pourfendeur-dechainement-d-acier');
     expect(dechainement?.jeu).toMatchObject({

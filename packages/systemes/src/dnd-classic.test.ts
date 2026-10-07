@@ -1250,7 +1250,12 @@ describe('dnd-classic : toutes les actions', () => {
       const parametres: Record<string, Valeur> = {};
       for (const p of action.parametres) {
         if (p.type === 'entree' && (!p.facultatif || p.sorte === 'arme'))
-          parametres[p.id] = p.sorte === 'arme' ? 'epee-longue' : 'necromancien-sang-saignements';
+          parametres[p.id] =
+            p.sorte === 'arme'
+              ? 'epee-longue'
+              : p.sorte === 'capacite_active'
+                ? 'barbare-rage-rage-du-berserk'
+                : 'necromancien-sang-saignements';
         if (p.type === 'attribut') parametres[p.id] = p.attributs?.[0] ?? 'FOR';
         // Attaque sournoise : contre une cible surprise ou prise à revers
         if (p.id === 'cibleSurprise') parametres[p.id] = true;

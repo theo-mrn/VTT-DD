@@ -1823,7 +1823,8 @@ actions:
   # ── Sorts et attaques magiques (1d20 + Magie contre la Défense) ──
   # Rituel de puissance (magicien) : d12 au lieu du d20, +2d6 DM.
 
-  # Menu Capacités du combat (docs/combat.md § 19) : une capacité sans action dédiée. Ses dés
+  # Menu Capacités du combat (docs/combat.md § 19) : une capacité sans action dédiée (et sa
+  # jumelle pour les capacités à activer, jouées une fois activées). Ses dés
   # (champ « jet ») sont lancés et montrés ; le rapport au MJ porte son texte, il applique.
   - id: utiliser-capacite
     nom: Utiliser une capacité
@@ -1837,6 +1838,45 @@ actions:
     typeDegatsCalcule: 'si(capacite.typeDegats == "", "physique", capacite.typeDegats)'
     parametres:
       - { id: capacite, nom: Capacité, type: entree, sorte: capacite }
+    variables: *vars-degats
+    jet: { type: numerique, formule: capacite.jet }
+    apres:
+      - { cle: soin, nom: Soins, visibilite: acteur, formule: 'max(0, capacite.soins)' }
+      - { cle: degats, nom: Dégâts, visibilite: acteur, formule: 'max(0, capacite.degats)' }
+      - *brut
+      - *subis
+      - {
+          cle: dureeEffets,
+          nom: Durée des effets,
+          visibilite: acteur,
+          formule: capacite.dureeDonne,
+        }
+    consequences:
+      - { condition: 'soin > 0', entite: cible, attribut: PV, operation: ajouter, valeur: soin }
+      - *retirer-pv
+      # Effets donnés : pour leur durée, sinon jusqu'au retrait
+      - condition: 'dureeEffets > 0'
+        entite: cible
+        entreeCalculee: capacite.donne
+        operation: donner
+        duree: dureeEffets
+      - condition: 'dureeEffets <= 0'
+        entite: cible
+        entreeCalculee: capacite.donne
+        operation: donner
+
+  - id: utiliser-capacite-active
+    nom: Utiliser une capacité à activer
+    description: >-
+      La capacité à activer est jouée (elle s'active d'abord) : ses dés sont lancés s'il y en a,
+      le MJ lit son texte ; ses effets s'appliquent à qui l'active.
+    pour: [personnage]
+    cible: personnage
+    situation: false
+    multicible: { jet: commun }
+    typeDegatsCalcule: 'si(capacite.typeDegats == "", "physique", capacite.typeDegats)'
+    parametres:
+      - { id: capacite, nom: Capacité, type: entree, sorte: capacite_active }
     variables: *vars-degats
     jet: { type: numerique, formule: capacite.jet }
     apres:

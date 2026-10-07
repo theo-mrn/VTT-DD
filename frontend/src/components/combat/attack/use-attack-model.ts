@@ -57,7 +57,7 @@ import { combatSettings, currentActorId } from '@/lib/combat/use-combat';
 import { clesPersonnages, personnages } from '@/lib/personnages';
 import { calculerMemo } from '@/lib/rules-cache';
 import { useComputedSheet, type AttackContext } from './use-attack-context';
-import { actionGenerique } from '@/lib/combat/capacities';
+import { actionsGeneriques } from '@/lib/combat/capacities';
 import { useUsagesPersonnages } from '@/lib/personnages';
 import { messageErreur } from '@/lib/api';
 import { toast } from 'sonner';
@@ -124,18 +124,18 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     [systeme, fiche],
   );
   // L'action générique du menu Capacités ne se joue qu'avec une capacité : hors de la liste
-  const generique = actionGenerique(ctx.presentation);
+  const generiques = useMemo(() => actionsGeneriques(ctx.presentation), [ctx.presentation]);
   const groups = useMemo(
     () =>
       groupActions(
-        actions.filter((a) => a.id !== generique),
+        actions.filter((a) => !generiques.has(a.id)),
         ctx.presentation,
       ),
-    [actions, ctx.presentation, generique],
+    [actions, ctx.presentation, generiques],
   );
   const action = actions.find((a) => a.id === draft.actionId) ?? null;
   const remembered = memory
-    ? (actions.find((a) => a.id === memory.actionId && a.id !== generique) ?? null)
+    ? (actions.find((a) => a.id === memory.actionId && !generiques.has(a.id)) ?? null)
     : null;
 
   // Action indisponible pour cet attaquant (ou aucune) : sa dernière, sinon la première ;
@@ -256,7 +256,7 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
       traced.end(session ? 'browser' : 'server', { 'vtt.attack.status': attack.status });
       // Capacité jouée depuis le menu Capacités : une utilisation consommée
       if (draft.usage) void consumeUsage(body.attackerId, draft.usage);
-      if (action.id !== generique)
+      if (!generiques.has(action.id))
         rememberAttack(browserMemory(), flow.campaignId, body.attackerId, {
           actionId: action.id,
           params,

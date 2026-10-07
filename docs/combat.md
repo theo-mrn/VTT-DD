@@ -1652,14 +1652,16 @@ bonus donné à d'autres est fait d'**effets écrits sur la capacité** ; **phas
   1. elle a une **action dédiée** du système (`exige` qui lit `possede("<capacité>")` : Charge,
      Soins légers, Attaque sournoise…) : le menu d'attaque s'ouvre sur cette action, déroulé
      habituel (cibles, dés 3D, rapport, application) ;
-  2. c'est une **capacité à activer** (Rage, Bénédiction) : elle s'active (usage consommé, durée
-     lancée, § « Durée d'une activation » et « Usages limités » de docs/regles.md), et l'acte
-     part au MJ ;
+  2. c'est une **capacité à activer** (Rage, Masque du prédateur) : « Utiliser » l'active (usage
+     consommé, durée lancée, § « Durée d'une activation » et « Usages limités » de
+     docs/regles.md), puis la joue par l'action générique de sa sorte : l'acte compte pour le
+     tour et son texte part au MJ ; un interrupteur la coupe ;
   3. sinon, **action générique** « Utiliser une capacité » du système (déclarée par la
-     présentation, `combat.capacites.action`, et retirée du menu d'attaque) : le menu d'attaque
+     présentation, `combat.capacites.actions` : une par sorte, trouvée par la sorte de son
+     paramètre, retirées du menu d'attaque) : le menu d'attaque
      s'ouvre sur elle, la capacité en paramètre ; cibles au choix (soi par défaut) ; si la
      capacité déclare des **dés** (champ `jet` : « 2d20 », « 1d6 + mod(@CHA) »), ils sont lancés
-     en 3D et montrés ; l'usage est consommé ; le **rapport au MJ porte le texte de la
+     en 3D et montrés (sans dés, l'acte compte simplement pour le tour) ; l'usage est consommé ; le **rapport au MJ porte le texte de la
      capacité**, le MJ applique à la main.
 - Aucun nom de capacité dans le code : action dédiée trouvée par son `exige`, action générique et
   champs (`jet`, `cibles`) nommés par la présentation et la sorte.

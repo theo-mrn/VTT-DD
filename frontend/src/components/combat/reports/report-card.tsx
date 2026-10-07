@@ -11,7 +11,7 @@
  * à donner ou à passer, dés à tirer par le serveur, abandon. Les coûts de l'attaquant ont leur
  * propre ligne (`ActorCostCard`).
  */
-import { capacitesDeLaPresentation } from '@/lib/combat/capacities';
+import { capaciteJouee } from '@/lib/combat/capacities';
 import { translate } from '@/i18n/runtime';
 import { useTranslations } from 'next-intl';
 import type { Attack, AttackTarget } from '@vtt/contracts';
@@ -223,10 +223,8 @@ function texteCapacite(
   presentation: ReportCardProps['presentation'],
   attack: Attack,
 ): string | null {
-  const decl = capacitesDeLaPresentation(presentation);
-  if (!decl?.action || attack.action.id !== decl.action) return null;
-  const id = attack.params?.[decl.parametre];
-  const entree = typeof id === 'string' ? systeme?.entrees.get(id) : undefined;
+  const id = capaciteJouee(presentation, attack.action.id, attack.params);
+  const entree = id ? systeme?.entrees.get(id) : undefined;
   return entree?.description?.trim() || null;
 }
 

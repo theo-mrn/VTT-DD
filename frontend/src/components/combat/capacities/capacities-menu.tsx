@@ -4,10 +4,12 @@
  * Menu « Capacités » du combat (docs/combat.md § 19.1) : les capacités utilisables de l'acteur,
  * rangées comme la vue Capacités de la fiche (actives, à activer, usages limités, autres), avec
  * leurs usages et leur durée ; le texte de la règle au survol. Jouer une capacité :
- * - à activer : l'interrupteur l'active sur la fiche (usage consommé, durée lancée) ;
+ * - à activer : « Utiliser » l'active (usage consommé, durée lancée) puis la joue par l'action
+ *   générique de sa sorte (l'acte compte pour le tour, texte au MJ) ; l'interrupteur la coupe ;
  * - action dédiée : le menu d'attaque s'ouvre sur elle ;
  * - sinon : le menu d'attaque s'ouvre sur l'action générique, la capacité en paramètre (ses dés
- *   lancés, son texte au MJ). L'usage est consommé à la déclaration.
+ *   lancés s'il y en a ; sans dés, l'acte compte pour le tour ; son texte au MJ). L'usage est
+ *   consommé à la déclaration.
  */
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
@@ -29,7 +31,9 @@ import {
   type CapacitiesMenuRequest,
   type GroupeCapacites,
 } from '@/lib/combat/capacities';
+import { messageErreur } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const GROUPES: readonly GroupeCapacites[] = ['actives', 'aActiver', 'limitees', 'autres'];
 
@@ -46,7 +50,7 @@ export function CapacitiesMenu({ campaignId }: Readonly<{ campaignId: string }>)
 
 function Contenu({ request }: Readonly<{ request: CapacitiesMenuRequest }>) {
   const t = useTranslations('combat.capacities');
-  const { ctx } = useFicheCalculee(request.actorId);
+  const { ctx, ecritures } = useFicheCalculee(request.actorId);
   const capacites = useMemo(
     () => (ctx ? capacitesDeCombat(ctx.systeme, ctx.presentation, ctx.fiche) : []),
     [ctx],
@@ -59,15 +63,35 @@ function Contenu({ request }: Readonly<{ request: CapacitiesMenuRequest }>) {
   function jouer(c: CapaciteCombat, actionId: string, params?: Record<string, string>) {
     closeCapacitiesMenu();
     const soi = c.entree.champs.cibles === 'soi' || !c.entree.champs.cibles;
+    // Une capacité à activer a déjà consommé son usage en s'activant
+    const usage = c.usages && c.jeu.type !== 'activer' ? { usage: c.entree.id } : {};
     openAttackMenu({
       campaignId: request.campaignId,
       origin: request.origin,
       attackerId: request.actorId,
       actionId,
       ...(params ? { params } : {}),
-      ...(c.usages ? { usage: c.entree.id } : {}),
-      ...(soi && c.jeu.type === 'generique' ? { targetIds: [request.actorId] } : {}),
+      ...usage,
+      ...(soi && c.jeu.type !== 'actions' ? { targetIds: [request.actorId] } : {}),
     });
+  }
+
+  /**
+   * Capacité à activer : elle s'active (usage consommé, durée lancée, refus s'il n'en reste
+   * plus), puis se joue par l'action générique de sa sorte : l'acte compte pour le tour et son
+   * texte part au MJ.
+   */
+  async function activerPuisJouer(c: CapaciteCombat) {
+    if (c.jeu.type !== 'activer') return;
+    try {
+      if (!c.active) await ecritures.possession({ entree: c.entree.id, actif: true });
+    } catch (e) {
+      toast.error(messageErreur(e));
+      return;
+    }
+    if (c.jeu.generique)
+      jouer(c, c.jeu.generique.action.id, { [c.jeu.generique.parametre]: c.entree.id });
+    else closeCapacitiesMenu();
   }
 
   return (
@@ -93,6 +117,7 @@ function Contenu({ request }: Readonly<{ request: CapacitiesMenuRequest }>) {
                   modifiable={Boolean(writes)}
                   onActiver={(v) => writes?.setActive(c.entree.id, v)}
                   onJouer={jouer}
+                  onActiverPuisJouer={() => void activerPuisJouer(c)}
                 />
               ))}
             </ul>
@@ -108,10 +133,12 @@ function Ligne({
   modifiable,
   onActiver,
   onJouer,
+  onActiverPuisJouer,
 }: Readonly<{
   c: CapaciteCombat;
   modifiable: boolean;
   onActiver: (actif: boolean) => void;
+  onActiverPuisJouer: () => void;
   onJouer: (c: CapaciteCombat, actionId: string, params?: Record<string, string>) => void;
 }>) {
   const t = useTranslations('combat.capacities');
@@ -143,12 +170,24 @@ function Ligne({
       {minuterie && <DurationChip timer={minuterie} />}
       {c.usages && <UsesChip uses={c.usages} />}
       {c.jeu.type === 'activer' && (
-        <Switch
-          checked={c.active}
-          disabled={!modifiable || (!c.active && c.epuisee)}
-          onCheckedChange={onActiver}
-          aria-label={t(c.active ? 'deactivate' : 'activate', { name: c.entree.nom })}
-        />
+        <>
+          <Button
+            size="xs"
+            variant="secondary"
+            disabled={!modifiable || (!c.active && c.epuisee)}
+            onClick={onActiverPuisJouer}
+          >
+            {t('use')}
+          </Button>
+          {c.active && (
+            <Switch
+              checked
+              disabled={!modifiable}
+              onCheckedChange={onActiver}
+              aria-label={t('deactivate', { name: c.entree.nom })}
+            />
+          )}
+        </>
       )}
       {c.jeu.type === 'actions' &&
         c.jeu.actions.map((d) => (

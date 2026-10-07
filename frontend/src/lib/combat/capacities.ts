@@ -4,10 +4,12 @@
  * - **Action dédiée** : une action à cible du système dont l'`exige` lit `possede("<capacité>")`
  *   (Charge, Soins légers…), ou qui reçoit les capacités de son étiquette en paramètre (Sort :
  *   capacités « sort ») : le menu d'attaque s'ouvre sur elle.
- * - **À activer** (sorte activable) : elle s'active sur la fiche (usage consommé, durée lancée).
- * - Sinon, **action générique** de la présentation (`combat.capacites.action`) : le menu
- *   d'attaque s'ouvre sur elle, la capacité en paramètre ; ses dés sont lancés, le MJ lit son
- *   texte et applique.
+ * - **À activer** (sorte activable) : elle s'active sur la fiche (usage consommé, durée lancée),
+ *   puis se joue par l'action générique de sa sorte : l'acte compte pour le tour, le MJ lit son
+ *   texte.
+ * - Sinon, **action générique** de sa sorte (`combat.capacites.actions`) : le menu d'attaque
+ *   s'ouvre sur elle, la capacité en paramètre ; ses dés sont lancés, le MJ lit son texte et
+ *   applique. Sans dés, l'acte compte pour le tour et le texte part au MJ.
  * Capacités retenues : possédées, des sortes déclarées (`combat.capacites.sortes`), sauf les
  * passives pures (valeur de `passives.champ` parmi `passives.valeurs`, sans usages limités ni
  * action dédiée).
@@ -47,8 +49,15 @@ export interface ActionDediee {
 
 export type JeuCapacite =
   | { type: 'actions'; actions: ActionDediee[] }
-  | { type: 'activer' }
-  | { type: 'generique'; action: Action; parametre: string };
+  /** S'active d'abord, puis se joue par l'action générique de sa sorte (texte au MJ). */
+  | { type: 'activer'; generique: Generique | null }
+  | ({ type: 'generique' } & Generique);
+
+/** Action générique d'une sorte, et son paramètre qui reçoit la capacité. */
+export interface Generique {
+  action: Action;
+  parametre: string;
+}
 
 export interface CapaciteCombat {
   entree: Entree;
@@ -83,8 +92,14 @@ export function capacitesDeCombat(
   const decl = capacitesDeLaPresentation(presentation);
   if (!decl) return [];
   const dediees = actionsParCapacite(systeme);
-  const generique = decl.action ? (systeme.actions.get(decl.action) ?? null) : null;
-  const lus = generique ? champsLus(generique, decl.parametre) : [];
+  // Action générique de chaque sorte (celle dont le paramètre la reçoit)
+  const generiques = new Map<string, Generique>();
+  for (const { action, parametre } of decl.actions) {
+    const a = systeme.actions.get(action);
+    const p = a?.parametres.find((x) => x.id === parametre);
+    if (a && p?.type === 'entree') generiques.set(p.sorte, { action: a, parametre });
+  }
+  const ids = new Set([...generiques.values()].map((g) => g.action.id));
   const sortie: CapaciteCombat[] = [];
   for (const p of fiche.possessions.values()) {
     if (!decl.sortes.includes(p.sorte.id)) continue;
@@ -100,7 +115,7 @@ export function capacitesDeCombat(
       ...(dediees.get(p.entree.id) ?? []).filter(jouable).map((action) => ({ action })),
       // Action qui reçoit les capacités d'une étiquette (Sort : capacités « sort »)
       ...[...systeme.actions.values()].flatMap((a) => {
-        if (a.id === generique?.id || !jouable(a)) return [];
+        if (ids.has(a.id) || !jouable(a)) return [];
         const param = a.parametres.find(
           (x) =>
             x.type === 'entree' &&
@@ -111,12 +126,13 @@ export function capacitesDeCombat(
         return param ? [{ action: a, params: { [param.id]: p.entree.id } }] : [];
       }),
     ];
+    const generique = generiques.get(p.sorte.id) ?? null;
     const jeu: JeuCapacite | null = actions.length
       ? { type: 'actions', actions }
       : p.sorte.activable
-        ? { type: 'activer' }
-        : generique && accepteCapacite(generique, decl.parametre, p.sorte.id)
-          ? { type: 'generique', action: generique, parametre: decl.parametre }
+        ? { type: 'activer', generique }
+        : generique
+          ? { type: 'generique', ...generique }
           : null;
     if (!jeu) continue;
     // Passive pure : écartée, sauf si elle a de quoi se jouer (usages, dés, effets donnés…)
@@ -125,7 +141,7 @@ export function capacitesDeCombat(
       !usages &&
       jeu.type === 'generique' &&
       !p.entree.donne &&
-      !lus.some((c) => valeurRenseignee(p.entree.champs[c]))
+      !champsLus(jeu.action, jeu.parametre).some((c) => valeurRenseignee(p.entree.champs[c]))
     )
       continue;
     sortie.push({
@@ -152,12 +168,6 @@ function champsLus(action: Action, parametre: string): string[] {
 const valeurRenseignee = (v: unknown) =>
   v !== undefined && v !== '' && v !== 0 && !(Array.isArray(v) && !v.length);
 
-/** Le paramètre de l'action générique reçoit une entrée de cette sorte. */
-function accepteCapacite(action: Action, parametre: string, sorte: string): boolean {
-  const p = action.parametres.find((x) => x.id === parametre);
-  return p?.type === 'entree' && p.sorte === sorte;
-}
-
 /** Groupes du menu, comme la vue Capacités de la fiche. */
 export type GroupeCapacites = 'actives' | 'aActiver' | 'limitees' | 'autres';
 
@@ -166,9 +176,20 @@ export function groupeDe(c: CapaciteCombat): GroupeCapacites {
   return c.usages ? 'limitees' : 'autres';
 }
 
-/** Action générique hors du menu d'attaque (elle ne se joue qu'avec une capacité). */
-export function actionGenerique(presentation: Presentation | null | undefined): string | null {
-  return capacitesDeLaPresentation(presentation)?.action ?? null;
+/** Actions génériques, hors du menu d'attaque (elles ne se jouent qu'avec une capacité). */
+export function actionsGeneriques(presentation: Presentation | null | undefined): Set<string> {
+  return new Set((capacitesDeLaPresentation(presentation)?.actions ?? []).map((a) => a.action));
+}
+
+/** Capacité jouée par une action générique (son paramètre), sinon null. */
+export function capaciteJouee(
+  presentation: Presentation | null | undefined,
+  actionId: string,
+  params: Record<string, unknown> | undefined,
+): string | null {
+  const a = capacitesDeLaPresentation(presentation)?.actions.find((x) => x.action === actionId);
+  const v = a ? params?.[a.parametre] : undefined;
+  return typeof v === 'string' ? v : null;
 }
 
 // ─── Ouverture du menu ───────────────────────────────────────────────────────

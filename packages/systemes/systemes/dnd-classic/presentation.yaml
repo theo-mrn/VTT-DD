@@ -266,7 +266,9 @@ combat:
   # Menu Capacités (docs/combat.md § 19) : capacités et capacités à activer qui s'utilisent
   capacites:
     sortes: [capacite, capacite_active]
-    action: utiliser-capacite
+    actions:
+      - { action: utiliser-capacite }
+      - { action: utiliser-capacite-active }
     passives: { champ: activation, valeurs: [Capacité passive] }
   # Icônes des paramètres de situation du menu d'attaque
   situation:

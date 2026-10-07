@@ -254,16 +254,17 @@ export const PresentationCombat = z.object({
   /**
    * Menu « Capacités » du combat (docs/combat.md § 19) : capacités possédées de ces sortes qui
    * s'utilisent. Une capacité s'utilise par son action dédiée (une action dont l'`exige` lit
-   * `possede("<capacité>")`), en s'activant (sorte activable), ou par l'action générique
-   * `action`, qui la reçoit dans son paramètre `parametre` et n'est pas dans le menu d'attaque.
+   * `possede("<capacité>")`), sinon par l'action générique de sa sorte (`actions` : celle dont le
+   * paramètre `parametre` reçoit la sorte), qui n'est pas dans le menu d'attaque ; une capacité
+   * à activer s'active d'abord.
    * `passives` : le champ qui dit comment elle s'active, et ses valeurs qui l'écartent (passive
    * pure, sans usages limités ni action dédiée).
    */
   capacites: z
     .object({
       sortes: z.array(Cle).min(1),
-      action: Id.optional(),
-      parametre: Id.default('capacite'),
+      /** Actions génériques, une par sorte : celle dont le paramètre reçoit la sorte joue la capacité. */
+      actions: z.array(z.object({ action: Id, parametre: Id.default('capacite') })).default([]),
       passives: z.object({ champ: Cle, valeurs: z.array(z.string().min(1)).min(1) }).optional(),
     })
     .optional(),
@@ -613,17 +614,17 @@ function erreursCapacites(
   const erreurs: [string, string][] = [];
   for (const so of c.sortes)
     if (!systeme.sortes.has(so)) erreurs.push(['capacites/sortes', `Sorte inconnue : ${so}`]);
-  if (c.action) {
-    const a = systeme.actions.get(c.action);
-    const p = a?.parametres.find((x) => x.id === c.parametre);
-    if (!a) erreurs.push(['capacites/action', `Action inconnue : ${c.action}`]);
-    else if (!a.cible) erreurs.push(['capacites/action', `${c.action} n’a pas de cible`]);
+  c.actions.forEach(({ action, parametre }, i) => {
+    const a = systeme.actions.get(action);
+    const p = a?.parametres.find((x) => x.id === parametre);
+    if (!a) erreurs.push([`capacites/actions/${i}`, `Action inconnue : ${action}`]);
+    else if (!a.cible) erreurs.push([`capacites/actions/${i}`, `${action} n’a pas de cible`]);
     else if (p?.type !== 'entree' || !c.sortes.includes(p.sorte))
       erreurs.push([
-        'capacites/parametre',
-        `${c.action} : ${c.parametre} doit recevoir une entrée de ${c.sortes.join(', ')}`,
+        `capacites/actions/${i}`,
+        `${action} : ${parametre} doit recevoir une entrée de ${c.sortes.join(', ')}`,
       ]);
-  }
+  });
   if (
     c.passives &&
     !c.sortes.some((so) => systeme.sortes.get(so)?.champs.some((x) => x.id === c.passives!.champ))

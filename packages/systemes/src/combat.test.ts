@@ -45,8 +45,7 @@ describe.each(SYSTEMES)('%s : combat en données', (id) => {
 
   it('le menu d’attaque range toutes les actions à cible, sauf celle du menu Capacités', () => {
     const rangees = new Set(presentation.combat?.groupes.flatMap((g) => g.actions) ?? []);
-    const capacites = presentation.combat?.capacites?.action;
-    if (capacites) rangees.add(capacites);
+    for (const a of presentation.combat?.capacites?.actions ?? []) rangees.add(a.action);
     const aCible = systeme.source.actions.filter((a) => a.cible).map((a) => a.id);
     expect(aCible.filter((a) => !rangees.has(a))).toEqual([]);
   });
@@ -54,8 +53,8 @@ describe.each(SYSTEMES)('%s : combat en données', (id) => {
   it('menu Capacités : déclaration valide, action générique hors du menu d’attaque', () => {
     const c = presentation.combat?.capacites;
     if (!c) return;
-    if (c.action)
-      expect(presentation.combat?.groupes.some((g) => g.actions.includes(c.action!))).toBe(false);
+    for (const { action } of c.actions)
+      expect(presentation.combat?.groupes.some((g) => g.actions.includes(action))).toBe(false);
     expect(erreursCombat(systeme, presentation.combat!)).toEqual([]);
   });
 
