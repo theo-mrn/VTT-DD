@@ -74,6 +74,21 @@ echo "$r" | grep -q purchases_refunded && echo "  achat remboursé : date du rem
 r=$(svc "INSERT INTO processed_events (stripe_event_id, type) VALUES ('evt_$suffixe', 'x');")
 echo "$r" | grep -qi "unique\|duplicate" && echo "  un événement Stripe traité une seule fois" || ko "événement : $r"
 
+echo "== marketplace : comptes connectés et ventes =="
+vendeur=$(uuid)
+r=$(svc "INSERT INTO connected_accounts (user_id, stripe_account_id) VALUES ('$vendeur', 'acct_$suffixe');
+         INSERT INTO marketplace_sales (id, buyer_id, seller_id, listing_id, title, amount_cents, fee_cents, stripe_account_id, stripe_session_id)
+         VALUES (gen_random_uuid(), '$client', '$vendeur', gen_random_uuid(), 'Pack', 499, 75, 'acct_$suffixe', 'cs_test_m$suffixe');
+         SELECT count(*) FROM marketplace_sales WHERE seller_id = '$vendeur';") \
+  && echo "  compte connecté et vente : $r" || ko "marketplace : $r"
+r=$(svc "INSERT INTO connected_accounts (user_id, stripe_account_id) VALUES (gen_random_uuid(), 'pas-un-compte');")
+echo "$r" | grep -q connected_accounts_stripe_id && echo "  compte Stripe : acct_…" || ko "acct : $r"
+vente() { svc "INSERT INTO marketplace_sales (id, buyer_id, seller_id, listing_id, title, amount_cents, fee_cents, stripe_account_id, stripe_session_id) VALUES (gen_random_uuid(), $1, gen_random_uuid(), 'Pack', $2, 'acct_$suffixe', 'cs_test_$(uuid | cut -c1-8)');"; }
+r=$(vente "'$client', '$vendeur'" "499, 600")
+echo "$r" | grep -q marketplace_sales_fee && echo "  commission au plus le prix" || ko "commission : $r"
+r=$(vente "'$vendeur', '$vendeur'" "499, 75")
+echo "$r" | grep -q marketplace_sales_buyer && echo "  pas de vente à soi-même" || ko "vente à soi : $r"
+
 echo "== outbox : notification sur le canal billing_outbox =="
 r=$(PGPASSWORD="${BILLING_SVC_PASSWORD:-billing-dev}" psql -U billing_svc -tA -v ON_ERROR_STOP=1 2>&1 <<'SQL'
 LISTEN billing_outbox;
@@ -105,6 +120,8 @@ for q in \
 done
 
 svc "DELETE FROM outbox WHERE subject = 'vtt.global.billing.test';
+     DELETE FROM marketplace_sales WHERE seller_id = '$vendeur';
+     DELETE FROM connected_accounts WHERE user_id = '$vendeur';
      DELETE FROM purchases WHERE user_id = '$client';
      DELETE FROM entitlements WHERE user_id = '$client';
      DELETE FROM rights_versions WHERE user_id = '$client';
