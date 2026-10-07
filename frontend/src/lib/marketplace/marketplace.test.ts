@@ -34,6 +34,7 @@ function snapshot(): MapSnapshot {
       weather: null,
       display: { fog: true },
       fogFull: true,
+      exploration: 'off',
       grids: [],
       version: 3,
       updatedAt: '',
