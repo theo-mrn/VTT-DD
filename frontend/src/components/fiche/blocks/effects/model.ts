@@ -5,6 +5,7 @@
  * des sortes (exemplaires ou quantités : objets ; unique : profil ; le reste : capacités),
  * les libellés des attributs, dés, entrées et actions déclarés par le système.
  */
+import { formatter, translate } from '@/i18n/runtime';
 import {
   basculerEffets,
   listerEffets,
@@ -32,16 +33,15 @@ export function familleDe(e: EffetListe): FamilleEffet {
 export function libelleFamille(f: FamilleEffet, sortes: readonly Sorte[] = []): string {
   switch (f) {
     case 'objets':
-      return 'Objets';
+      return translate('sheet.effects.families.objets');
     case 'capacites':
-      return 'Compétences et capacités';
+      return translate('sheet.effects.families.capacites');
     case 'libres':
-      return 'Bonus libres';
+      return translate('sheet.effects.families.libres');
     case 'profil': {
       const noms = [...new Set(sortes.map((s) => s.nom))];
-      if (!noms.length) return 'Profil';
-      const texte =
-        noms.length === 1 ? noms[0]! : `${noms.slice(0, -1).join(', ')} et ${noms.at(-1)!}`;
+      if (!noms.length) return translate('sheet.effects.families.profil');
+      const texte = formatter().list(noms, 'and');
       return texte.charAt(0).toUpperCase() + texte.slice(1).toLowerCase();
     }
   }
@@ -80,13 +80,13 @@ export function famillesDuSysteme(fiche: Fiche): { familles: FamilleEffet[]; pro
 export function ongletFamille(f: FamilleEffet, profil: readonly Sorte[]): string {
   switch (f) {
     case 'objets':
-      return 'Objets';
+      return translate('sheet.effects.tabs.objets');
     case 'capacites':
-      return 'Capacités';
+      return translate('sheet.effects.tabs.capacites');
     case 'libres':
-      return 'Libres';
+      return translate('sheet.effects.tabs.libres');
     case 'profil':
-      return profil[0]?.nom ?? 'Profil';
+      return profil[0]?.nom ?? translate('sheet.effects.families.profil');
   }
 }
 
@@ -117,11 +117,15 @@ export function effetsDuPersonnage(fiche: Fiche): EffetListe[] {
 export function raisonInactif(e: EffetListe): string | null {
   switch (e.raison) {
     case 'inactive':
-      return familleDe(e) === 'objets' ? 'objet rangé' : 'inactif';
+      return translate(
+        familleDe(e) === 'objets'
+          ? 'sheet.effects.inactive.stowed'
+          : 'sheet.effects.inactive.inactive',
+      );
     case 'non-effective':
-      return 'aucun rang';
+      return translate('sheet.effects.inactive.noRank');
     case 'bonus-inactif':
-      return 'bonus désactivé';
+      return translate('sheet.effects.inactive.disabled');
     default:
       return null;
   }
@@ -146,7 +150,7 @@ function attribut(fiche: Fiche, cle: string): string {
 function de(fiche: Fiche, id: string, n: number | string): string {
   const d = fiche.systeme.source.des?.sortes.find((x) => x.id === id);
   const nom = d?.nom ?? id;
-  return n === 1 ? `dé ${nom}` : `dés ${nom}`;
+  return translate('sheet.effects.dice', { count: n === 1 ? 1 : 2, name: nom });
 }
 
 /** Ce que vise un effet de jet : « au jet de Pilotage », « en défense », actions nommées. */
@@ -154,10 +158,10 @@ function cibleJet(fiche: Fiche, e: Extract<Effet, { sur: 'jet' }>): string {
   const morceaux: string[] = [];
   if (e.implique?.entree) {
     const nom = fiche.systeme.entrees.get(e.implique.entree)?.nom ?? e.implique.entree;
-    morceaux.push(`au jet de ${nom}`);
+    morceaux.push(translate('sheet.effects.toRollOf', { name: nom }));
   } else if (e.implique?.attribut) {
     const a = fiche.entite.attributs.get(e.implique.attribut);
-    morceaux.push(`aux jets de ${a?.nom ?? e.implique.attribut}`);
+    morceaux.push(translate('sheet.effects.toRollsOf', { name: a?.nom ?? e.implique.attribut }));
   }
   if (e.actions?.length) {
     const noms = e.actions.map((id) => fiche.systeme.actions.get(id)?.nom ?? id);
@@ -165,10 +169,16 @@ function cibleJet(fiche: Fiche, e: Extract<Effet, { sur: 'jet' }>): string {
   }
   if (!e.implique && e.si !== undefined) {
     const vises = jetsVises(fiche, e.si);
-    if (vises) morceaux.push(`aux jets de ${vises.join(', ')}`);
+    if (vises) morceaux.push(translate('sheet.effects.toRollsOf', { name: vises.join(', ') }));
   }
-  if (e.cote === 'cible') morceaux.push('en défense');
+  if (e.cote === 'cible') morceaux.push(translate('sheet.effects.onDefense'));
   return morceaux.join(' ');
+}
+
+/** La cible de l'effet commence par le jet visé (« au jet de Pilotage »), comme `cibleJet`. */
+function visesJetEnTete(fiche: Fiche, e: Extract<Effet, { sur: 'jet' }>): boolean {
+  if (e.implique?.entree || e.implique?.attribut) return true;
+  return !e.implique && e.si !== undefined && !e.actions?.length && !!jetsVises(fiche, e.si);
 }
 
 /** Effet sur un attribut : « FOR +2 », « DEF ×2 », « PV au moins 1 ». */
@@ -187,9 +197,9 @@ function libelleAttribut(
     case 'fixer':
       return `${nom} = ${v}`;
     case 'minimum':
-      return `${nom} au moins ${v}`;
+      return translate('sheet.effects.atLeast', { name: nom, value: String(v) });
     case 'maximum':
-      return `${nom} au plus ${v}`;
+      return translate('sheet.effects.atMost', { name: nom, value: String(v) });
   }
   return nom;
 }
@@ -203,18 +213,30 @@ function libelleJet(
   const a = e.ajout;
   const cible = cibleJet(fiche, e);
   const avec = (base: string) => (cible ? `${base} ${cible}` : base);
-  if (!a) return e.description ?? avec('Modifie le jet');
+  if (!a) return e.description ?? avec(translate('sheet.effects.changesRoll'));
   if ('de' in a) {
     const n = nombre(valeur, a.nombre);
     return avec(`${signe(n)} ${de(fiche, a.de, n)}`);
   }
   if ('ameliorer' in a) {
     const n = nombre(valeur, a.nombre);
-    return avec(`Améliore ${n} ${de(fiche, a.ameliorer, n)} en ${de(fiche, a.vers, 1)}`);
+    return avec(
+      translate('sheet.effects.upgrade', {
+        count: String(n),
+        from: de(fiche, a.ameliorer, n),
+        to: de(fiche, a.vers, 1),
+      }),
+    );
   }
   if ('retrograder' in a) {
     const n = nombre(valeur, a.nombre);
-    return avec(`Rétrograde ${n} ${de(fiche, a.retrograder, n)} en ${de(fiche, a.vers, 1)}`);
+    return avec(
+      translate('sheet.effects.downgrade', {
+        count: String(n),
+        from: de(fiche, a.retrograder, n),
+        to: de(fiche, a.vers, 1),
+      }),
+    );
   }
   if ('retirer' in a) {
     const n = nombre(valeur, a.nombre);
@@ -222,7 +244,10 @@ function libelleJet(
   }
   if ('variable' in a) return avec(`${a.variable} ${signe(nombre(valeur, a.ajouter))}`);
   const bonus = signe(nombre(valeur, a.bonus));
-  return cible.startsWith('au') ? `${bonus} ${cible}` : avec(`${bonus} au jet`);
+  // « +2 au jet de Pilotage » ; sans jet nommé en tête : « +2 au jet (…) »
+  return visesJetEnTete(fiche, e)
+    ? `${bonus} ${cible}`
+    : avec(translate('sheet.inventory.toRoll', { value: bonus }));
 }
 
 /** Libellé principal d'un effet : sa cible et sa valeur évaluée. */
@@ -234,16 +259,21 @@ export function libelleEffet(fiche: Fiche, x: Pick<EffetListe, 'effet' | 'valeur
     case 'rang': {
       const cible = fiche.systeme.entrees.get(e.entree)?.nom ?? e.entree;
       const v = nombre(x.valeur, e.valeur);
-      return v === 1 ? `+1 rang en ${cible}` : `${signe(v)} rangs en ${cible}`;
+      return translate('sheet.effects.ranks', {
+        count: v === 1 ? 1 : 2,
+        value: signe(v),
+        name: cible,
+      });
     }
     case 'jet':
       return libelleJet(fiche, e, x.valeur);
     case 'degats': {
       const types = e.types?.length ? ` (${e.types.join(', ')})` : '';
       const v = nombre(x.valeur, e.valeur);
-      if (e.operation === 'annuler') return `Immunité aux dégâts${types}`;
-      if (e.operation === 'multiplier') return `Dégâts reçus ×${v}${types}`;
-      return `Dégâts reçus −${v}${types}`;
+      if (e.operation === 'annuler') return translate('sheet.effects.damageImmunity', { types });
+      if (e.operation === 'multiplier')
+        return translate('sheet.effects.damageTaken', { value: `×${v}`, types });
+      return translate('sheet.effects.damageTaken', { value: `−${v}`, types });
     }
     case 'marque':
       return e.entrees.map((id) => fiche.systeme.entrees.get(id)?.nom ?? id).join(', ');

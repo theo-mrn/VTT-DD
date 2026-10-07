@@ -5,6 +5,7 @@
  * améliorés…), filtres par la valeur d'un champ de la sorte, et progression (achats qui visent
  * la sorte, directement ou par une voie ou un arbre qui en accorde les entrées).
  */
+import { compareText, translate } from '@/i18n/runtime';
 import {
   achatsPossibles,
   type Effet,
@@ -192,7 +193,9 @@ export function rollEffectText(fiche: Fiche, e: Effet, rank: number): string | n
   let base = a ? diceChange(s, a, n) : null;
   // Condition qui ne fait que choisir la caractéristique : « aux jets de DEX »
   const vises = !e.implique && e.si !== undefined ? jetsVises(fiche, e.si) : null;
-  const jets = vises ? `aux jets de ${vises.join(', ')}` : 'au jet';
+  const jets = vises
+    ? translate('sheet.effects.toRollsOf', { name: vises.join(', ') })
+    : translate('sheet.skills.toTheRoll');
   if (a && 'bonus' in a) base = `${/^[-−]/.test(a.bonus) ? '' : '+'}${n(a.bonus)} ${jets}`;
   if (!base) return null;
   const cible = rollTarget(fiche, e, vises ? jets : null, !!a && 'bonus' in a);
@@ -219,7 +222,9 @@ function filterOf(
 ): FilterValue | undefined {
   if (!filtreChamp) return undefined;
   const v = fieldValue(fiche.systeme, fiche, sorte, entry, filtreChamp);
-  return v === undefined ? { key: '', label: 'Non précisé' } : { key: v, label: v };
+  return v === undefined
+    ? { key: '', label: translate('notes.quest.unspecified') }
+    : { key: v, label: v };
 }
 
 /** Étiquette lisible : identifiant du système, première lettre en capitale, tirets en espaces. */
@@ -427,12 +432,13 @@ function filtersOf(sorte: Sorte, cards: SkillCard[], filtreChamp: string | undef
   let filterLabel: string | undefined;
   if (filtreChamp) {
     filterLabel = sorte.champs.find((c) => c.id === filtreChamp)?.nom;
-    for (const c of cards) add(c.filter ?? { key: '', label: 'Non précisé' });
+    for (const c of cards)
+      add(c.filter ?? { key: '', label: translate('notes.quest.unspecified') });
   } else {
     for (const c of cards) for (const t of c.entry.etiquettes) add({ key: t, label: tagLabel(t) });
-    if (counts.size) filterLabel = 'Étiquettes';
+    if (counts.size) filterLabel = translate('notes.props.tags');
   }
-  const filters = [...counts.values()].sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  const filters = [...counts.values()].sort((a, b) => compareText(a.label, b.label));
   return { filters, filterLabel };
 }
 

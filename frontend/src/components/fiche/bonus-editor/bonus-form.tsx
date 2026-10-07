@@ -4,6 +4,7 @@
  * Saisie d'un bonus propre (objet de l'inventaire, compétence, talent) : un attribut
  * numérique du personnage et une valeur, vérifiés par le moteur comme le fera le service.
  */
+import { useTranslations } from 'next-intl';
 import type { Effet, Fiche, Sorte } from '@vtt/rules';
 import { Plus } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
@@ -33,6 +34,7 @@ export function BonusForm({
   /** Cadre du formulaire (par défaut : encadré, sous la liste des bonus). */
   className?: string;
 }>) {
+  const t = useTranslations();
   const id = useId();
   const attributs = useMemo(() => attributsBonus(fiche, mj), [fiche, mj]);
   const [attribut, setAttribut] = useState(attributs[0]?.cle ?? '');
@@ -55,7 +57,7 @@ export function BonusForm({
     // Pas de <form> : ce formulaire vit aussi dans celui de l'ajout d'un objet
     <div
       role="group"
-      aria-label="Nouveau bonus"
+      aria-label={t('sheet.effects.newBonus')}
       {...ECHAP_LOCAL}
       className={className}
       onKeyDown={(e) => {
@@ -73,7 +75,7 @@ export function BonusForm({
       <div className="grid gap-2 sm:grid-cols-[1fr_7rem]">
         <div className="space-y-1">
           <label htmlFor={`${id}-a`} className="text-xs text-muted-foreground">
-            Attribut
+            {t('sheet.formula.attribute')}
           </label>
           <SelectField
             id={`${id}-a`}
@@ -90,7 +92,7 @@ export function BonusForm({
         </div>
         <div className="space-y-1">
           <label htmlFor={`${id}-v`} className="text-xs text-muted-foreground">
-            Valeur
+            {t('combat.attack.value')}
           </label>
           <Input
             id={`${id}-v`}
@@ -120,10 +122,10 @@ export function BonusForm({
       </p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onAnnuler}>
-          Annuler
+          {t('common.actions.cancel')}
         </Button>
         <Button type="button" size="sm" disabled={!effet || erreurs.length > 0} onClick={valider}>
-          <Plus /> Ajouter le bonus
+          <Plus /> {t('sheet.bonus.add')}
         </Button>
       </div>
     </div>

@@ -5,6 +5,8 @@
  * tout (description assainie, bonus avec leur interrupteur et leur gestion, origine,
  * actions : activation, rang suivant) et renvoie au bloc Bonus.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import { Plus, Route } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,7 +49,10 @@ export function RankMarks({ rank, max }: Readonly<{ rank: number; max: number }>
 export function offerText(ctx: ContexteFiche, card: SkillCard): string {
   const o = card.offer!;
   return o.possible
-    ? `Rang ${o.cible} pour ${o.cout} ${currencyName(ctx.systeme, o.monnaie)}`
+    ? translate('sheet.skills.rankFor', {
+        rank: o.cible,
+        price: `${o.cout} ${currencyName(ctx.systeme, o.monnaie)}`,
+      })
     : o.blocages.map((b) => b.message).join(' · ');
 }
 
@@ -62,6 +67,7 @@ export function SkillDialog({
   writes: SheetWrites | undefined;
   onClose: () => void;
 }>) {
+  const t = useTranslations();
   const sorte = card ? ctx.systeme.sortes.get(card.entry.sorte) : undefined;
   const on = !!card && card.activable && card.active;
   return (
@@ -98,7 +104,9 @@ export function SkillDialog({
                   </Badge>
                 )}
                 {card.activable && (
-                  <Badge ton={on ? 'succes' : 'neutre'}>{on ? 'Active' : 'Inactive'}</Badge>
+                  <Badge ton={on ? 'succes' : 'neutre'}>
+                    {on ? t('sheet.skills.active') : t('sheet.skills.inactive')}
+                  </Badge>
                 )}
                 {card.origins.length > 0 && (
                   <Badge>
@@ -113,7 +121,7 @@ export function SkillDialog({
 
             <DialogFooter>
               <Button variant="ghost" onClick={onClose}>
-                Fermer
+                {t('common.actions.close')}
               </Button>
               {writes && card.offer && (
                 <Info texte={card.offer.possible ? undefined : offerText(ctx, card)}>

@@ -99,14 +99,15 @@ function SousMenuRanger({
   ranger(item: InventoryItem, folder: string | null): void;
   nouveauDossierPour: ItemHandlers['nouveauDossierPour'];
 }>) {
+  const t = useTranslations();
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger>
-        <FolderInput /> Déplacer vers
+        <FolderInput /> {t('sheet.inventory.moveTo')}
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent className="w-52">
         <DropdownMenuItem disabled={!item.folder} onSelect={() => ranger(item, null)}>
-          <Folder className="opacity-40" /> Sans dossier
+          <Folder className="opacity-40" /> {t('map.scenes.noFolder')}
         </DropdownMenuItem>
         {folders.map((f) => (
           <DropdownMenuItem
@@ -121,7 +122,7 @@ function SousMenuRanger({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => nouveauDossierPour(item)}>
-              <FolderPlus /> Nouveau dossier…
+              <FolderPlus /> {t('sheet.inventory.newFolderEllipsis')}
             </DropdownMenuItem>
           </>
         )}
@@ -147,12 +148,12 @@ function EntreesOrganiser({
     <>
       {a.renommer && (
         <DropdownMenuItem onSelect={() => a.renommer!(item)}>
-          <Pencil /> Renommer…
+          <Pencil /> {t('sheet.inventory.renameEllipsis')}
         </DropdownMenuItem>
       )}
       {a.quantite && (
         <DropdownMenuItem onSelect={() => a.quantite!(item)}>
-          <Hash /> Modifier la quantité…
+          <Hash /> {t('sheet.inventory.editQuantity')}
         </DropdownMenuItem>
       )}
       {a.cacher && (
@@ -171,7 +172,7 @@ function EntreesOrganiser({
       )}
       {a.exemplaire && (
         <DropdownMenuItem onSelect={() => a.exemplaire!(item)}>
-          <Copy /> Nouvel exemplaire distinct
+          <Copy /> {t('sheet.inventory.newDistinctCopy')}
         </DropdownMenuItem>
       )}
     </>
@@ -208,23 +209,23 @@ export function ItemMenuItems({
       )}
       {a.consommer && (
         <DropdownMenuItem onSelect={() => a.consommer!(item)}>
-          <Minus /> Consommer une unité
+          <Minus /> {t('sheet.inventory.consumeOne')}
         </DropdownMenuItem>
       )}
       {a.donner && (
         <DropdownMenuItem onSelect={() => a.donner!(item)}>
-          <Gift /> Donner…
+          <Gift /> {t('sheet.inventory.giveEllipsis')}
         </DropdownMenuItem>
       )}
       {regler && <DropdownMenuSeparator />}
       {a.formules && (
         <DropdownMenuItem onSelect={() => a.formules!(item, 'formules')}>
-          <Dices /> Dés et formule…
+          <Dices /> {t('sheet.inventory.diceFormula')}
         </DropdownMenuItem>
       )}
       {a.bonus && (
         <DropdownMenuItem onSelect={() => a.bonus!(item, 'bonus')}>
-          <BadgePlus /> Bonus…
+          <BadgePlus /> {t('sheet.inventory.bonusEllipsis')}
         </DropdownMenuItem>
       )}
       {organiser && <DropdownMenuSeparator />}
@@ -241,7 +242,7 @@ export function ItemMenuItems({
             onSelect={() => a.supprimer!(item)}
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"
           >
-            <Trash2 /> Supprimer…
+            <Trash2 /> {t('notes.editor.deleteEllipsis')}
             <span className="ml-auto text-[10px] opacity-70">{t('sheet.inventory.delKey')}</span>
           </DropdownMenuItem>
         </>

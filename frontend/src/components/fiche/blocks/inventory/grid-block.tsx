@@ -979,25 +979,26 @@ function MenuDossier({
   onDeplacer(sens: -1 | 1): void;
   onSupprimer(): void;
 }>) {
+  const t = useTranslations();
   return (
     <>
       <DropdownMenuLabel className="truncate text-xs font-medium text-muted-foreground">
         {folder.name}
       </DropdownMenuLabel>
       <DropdownMenuItem onSelect={onOuvrir}>
-        <ArrowRight /> Ouvrir
+        <ArrowRight /> {t('common.actions.open')}
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={onRenommer}>
-        <Pencil /> Renommer…
+        <Pencil /> {t('sheet.inventory.renameEllipsis')}
       </DropdownMenuItem>
       {folders[0]?.id !== folder.id && (
         <DropdownMenuItem onSelect={() => onDeplacer(-1)}>
-          <ArrowLeft /> Placer avant
+          <ArrowLeft /> {t('sheet.inventory.placeBefore')}
         </DropdownMenuItem>
       )}
       {folders.at(-1)?.id !== folder.id && (
         <DropdownMenuItem onSelect={() => onDeplacer(1)}>
-          <ArrowRight /> Placer après
+          <ArrowRight /> {t('sheet.inventory.placeAfter')}
         </DropdownMenuItem>
       )}
       <DropdownMenuSeparator />
@@ -1005,7 +1006,7 @@ function MenuDossier({
         onSelect={onSupprimer}
         className="text-destructive focus:bg-destructive/10 focus:text-destructive"
       >
-        <Trash2 /> Supprimer…
+        <Trash2 /> {t('notes.editor.deleteEllipsis')}
       </DropdownMenuItem>
     </>
   );

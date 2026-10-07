@@ -7,6 +7,7 @@
  * liens déclarés sont dessinés. Zoom (boutons, Ctrl + molette), ajustement au cadre, et
  * défilement ou glisser pour se déplacer.
  */
+import { useTranslations } from 'next-intl';
 import type { Presentation } from '@vtt/rules';
 import { Check, Lock, Maximize2, Minus, Plus } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -83,6 +84,7 @@ export function GridTree({
   currencyName: (id: string | undefined) => string;
   onSelect: (node: NodeView) => void;
 }>) {
+  const t = useTranslations();
   const g = geometry ?? DEFAULT_GEOMETRY;
   const width = (view.columns - 1) * g.colonne + g.noeud.largeur + PAD * 2;
   const height = (view.rows - 1) * g.ligne + g.noeud.hauteur + PAD * 2;
@@ -228,13 +230,15 @@ export function GridTree({
                     {n.state === 'owned' && (
                       <span className="flex items-center gap-1 text-primary">
                         <Check className="size-3" />
-                        {n.entryRank > 1 ? `Rang ${n.entryRank}` : 'Acquis'}
+                        {n.entryRank > 1 ? `Rang ${n.entryRank}` : t('sheet.tree.owned')}
                       </span>
                     )}
                     {n.state === 'locked' && <Lock className="size-3 text-subtle" />}
                     {n.state !== 'owned' && n.state !== 'locked' && (
                       <span className={n.state === 'available' ? 'text-success' : 'text-warning'}>
-                        {n.state === 'available' ? 'Achetable' : 'Bloqué'}
+                        {n.state === 'available'
+                          ? t('sheet.tree.available')
+                          : t('sheet.tree.blocked')}
                       </span>
                     )}
                     {n.cost !== undefined && (
@@ -258,7 +262,7 @@ export function GridTree({
             variant="ghost"
             size="icon-xs"
             onClick={() => changeZoom(-0.1)}
-            aria-label="Dézoomer"
+            aria-label={t('sheet.tree.zoomOut')}
           >
             <Minus />
           </Button>
@@ -266,7 +270,7 @@ export function GridTree({
             type="button"
             onClick={() => setAuto(true)}
             className="min-w-11 rounded-md px-1 font-mono text-[11px] tabular text-muted-foreground hover:text-foreground"
-            title="Ajuster au cadre"
+            title={t('sheet.tree.fit')}
           >
             {Math.round(zoom * 100)} %
           </button>
@@ -274,7 +278,7 @@ export function GridTree({
             variant="ghost"
             size="icon-xs"
             onClick={() => changeZoom(0.1)}
-            aria-label="Zoomer"
+            aria-label={t('sheet.tree.zoomIn')}
           >
             <Plus />
           </Button>
@@ -282,7 +286,7 @@ export function GridTree({
             variant="ghost"
             size="icon-xs"
             onClick={() => setAuto(true)}
-            aria-label="Ajuster au cadre"
+            aria-label={t('sheet.tree.fit')}
             className={auto ? 'text-primary' : undefined}
           >
             <Maximize2 />

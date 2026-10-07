@@ -207,7 +207,7 @@ function Catalogue({
           />
           {modeles.length > 0 && (
             <Button variant="secondary" size="sm" className="shrink-0" onClick={() => libre(terme)}>
-              <PenLine /> Objet personnalisé
+              <PenLine /> {t('sheet.inventory.customItem')}
             </Button>
           )}
           {soldes.map((s) => (

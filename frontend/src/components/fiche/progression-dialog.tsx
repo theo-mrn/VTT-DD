@@ -7,6 +7,7 @@
  * conséquences, et le MJ voit le jet dans l'historique. La fenêtre montre le jet puis ce
  * qui a changé sur la fiche. Rien n'est propre à un jeu : l'action vient des règles.
  */
+import { useTranslations } from 'next-intl';
 import { calculer, type Action, type Fiche, type ResultatAction } from '@vtt/rules';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Dices, TrendingUp } from 'lucide-react';
@@ -51,6 +52,7 @@ export function ProgressionDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }>) {
+  const t = useTranslations();
   const requetes = useQueryClient();
   const [envoi, setEnvoi] = useState(false);
   const [fait, setFait] = useState<{ resultat: ResultatAction; diff: Difference[] } | null>(null);
@@ -104,16 +106,13 @@ export function ProgressionDialog({
         </DialogHeader>
 
         {!fait ? (
-          <p className="text-sm text-muted-foreground">
-            Le dé est lancé et le résultat appliqué à la fiche aussitôt ; le jet apparaît dans
-            l’historique des dés.
-          </p>
+          <p className="text-sm text-muted-foreground">{t('sheet.progression.hint')}</p>
         ) : (
           <div className="space-y-4">
             {total !== null && (
               <div className="flex items-baseline gap-3">
                 <span className="text-xs font-medium uppercase tracking-wider text-subtle">
-                  Jet
+                  {t('combat.stages.roll')}
                 </span>
                 <span className="font-mono text-4xl font-semibold tabular-nums">{total}</span>
               </div>
@@ -130,22 +129,24 @@ export function ProgressionDialog({
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucune valeur visible n’a changé.</p>
+              <p className="text-sm text-muted-foreground">
+                {t('sheet.progression.nothingChanged')}
+              </p>
             )}
           </div>
         )}
 
         <DialogFooter>
           {fait ? (
-            <Button onClick={() => fermer(false)}>Fermer</Button>
+            <Button onClick={() => fermer(false)}>{t('common.actions.close')}</Button>
           ) : (
             <>
               <Button variant="ghost" onClick={() => fermer(false)}>
-                Annuler
+                {t('common.actions.cancel')}
               </Button>
               <Button onClick={() => void lancer()} loading={envoi}>
                 <Dices />
-                Lancer et appliquer
+                {t('sheet.progression.rollApply')}
               </Button>
             </>
           )}

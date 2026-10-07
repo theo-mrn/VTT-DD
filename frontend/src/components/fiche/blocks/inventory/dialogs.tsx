@@ -289,7 +289,7 @@ function Don({
           {t('common.actions.cancel')}
         </Button>
         <Button type="submit" disabled={!valide}>
-          <Gift /> Donner
+          <Gift /> {t('sheet.inventory.give')}
         </Button>
       </DialogFooter>
     </form>

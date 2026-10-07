@@ -4,6 +4,7 @@
  * le fera le service. Partagé par l'inventaire et le détail des compétences ; rien n'est
  * propre à un jeu.
  */
+import { translate } from '@/i18n/runtime';
 import {
   compilerEffets,
   variablesSource,
@@ -81,12 +82,12 @@ export type CibleBonusPropres =
  */
 export function cibleBonusPropres(fiche: Fiche, entree: string): CibleBonusPropres {
   const p = fiche.possessions.get(entree);
-  if (!p) return { ok: false, raison: 'Entrée non possédée.' };
+  if (!p) return { ok: false, raison: translate('sheet.bonus.notOwned') };
   if (p.possession) return { ok: true, sorte: p.sorte, possession: p.possession, actif: p.actif };
   if (!p.sorte.rangs)
     return {
       ok: false,
-      raison: `${p.entree.nom} est obtenu sans possession propre : un bonus ajouté resterait après la perte de sa source.`,
+      raison: translate('sheet.bonus.noOwnPossession', { name: p.entree.nom }),
     };
   const n = fiche.etat.possessions.filter(
     (x) => fiche.systeme.entrees.get(x.entree)?.sorte === p.sorte.id,
@@ -94,7 +95,10 @@ export function cibleBonusPropres(fiche: Fiche, entree: string): CibleBonusPropr
   if (p.sorte.maximum !== undefined && n >= p.sorte.maximum)
     return {
       ok: false,
-      raison: `Maximum de ${p.sorte.maximum} ${p.sorte.nomPluriel ?? p.sorte.nom} atteint.`,
+      raison: translate('sheet.bonus.maxReached', {
+        max: p.sorte.maximum,
+        kind: p.sorte.nomPluriel ?? p.sorte.nom,
+      }),
     };
   return { ok: true, sorte: p.sorte, actif: p.actif };
 }

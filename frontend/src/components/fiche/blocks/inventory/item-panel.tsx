@@ -217,17 +217,18 @@ function PiedActions({
   a,
   onClose,
 }: Readonly<{ item: InventoryItem; a: Actions; onClose(): void }>) {
+  const t = useTranslations();
   if (!(a.exemplaire || a.donner || a.supprimer)) return null;
   return (
     <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-popover px-5 py-3">
       {a.exemplaire && (
         <Button variant="ghost" size="sm" onClick={() => a.exemplaire!(item)}>
-          <Copy /> Nouvel exemplaire
+          <Copy /> {t('sheet.inventory.newCopy')}
         </Button>
       )}
       {a.donner && (
         <Button variant="secondary" size="sm" onClick={() => a.donner!(item)}>
-          <Gift /> Donner…
+          <Gift /> {t('sheet.inventory.giveEllipsis')}
         </Button>
       )}
       {a.supprimer && (
@@ -240,7 +241,7 @@ function PiedActions({
             onClose();
           }}
         >
-          <Trash2 /> Supprimer…
+          <Trash2 /> {t('notes.editor.deleteEllipsis')}
         </Button>
       )}
     </footer>
@@ -524,7 +525,7 @@ function Description({ item, writes }: Readonly<{ item: InventoryItem; writes?: 
         action={
           modifiable && !edition ? (
             <Button variant="ghost" size="xs" onClick={() => setEdition(true)}>
-              <Pencil /> Modifier
+              <Pencil /> {t('common.actions.edit')}
             </Button>
           ) : undefined
         }
@@ -628,7 +629,7 @@ function EditeurFormule({
               setEdition(true);
             }}
           >
-            <Pencil /> Modifier
+            <Pencil /> {t('common.actions.edit')}
           </Button>
         )}
         {writes && !edition && formule.propre && (
@@ -728,7 +729,7 @@ function Caracteristiques({
         action={
           modifiables && !edition ? (
             <Button variant="ghost" size="xs" onClick={() => setEdition(true)}>
-              <Pencil /> Modifier
+              <Pencil /> {t('common.actions.edit')}
             </Button>
           ) : undefined
         }
@@ -828,7 +829,7 @@ function Bonus({
         action={
           writes && !ajout && peutAjouter ? (
             <Button variant="ghost" size="xs" onClick={() => setAjout(true)}>
-              <Plus /> Ajouter un bonus
+              <Plus /> {t('sheet.inventory.addBonus')}
             </Button>
           ) : undefined
         }

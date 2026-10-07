@@ -470,7 +470,7 @@ function SectionBonus({
         action={
           !ajoutBonus && peutBonus ? (
             <Button type="button" variant="ghost" size="xs" onClick={() => onAjoutBonus(true)}>
-              <Plus /> Ajouter un bonus
+              <Plus /> {t('sheet.inventory.addBonus')}
             </Button>
           ) : undefined
         }

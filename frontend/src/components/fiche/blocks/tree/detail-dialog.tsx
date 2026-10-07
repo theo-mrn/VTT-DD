@@ -4,6 +4,8 @@
  * Détail d'un rang de voie ou d'un nœud d'arbre : entrées obtenues, coût, raisons d'un
  * blocage (moteur), achat et remboursement par les opérations de la fiche.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import type { ContexteFiche } from '../../widgets';
 import type { ObjetAchetable } from '@vtt/rules';
 import { AlertTriangle, Check, Lock, Undo2 } from 'lucide-react';
@@ -45,6 +47,7 @@ export function TreeDetailDialog({
   selection: TreeSelection | null;
   onClose: () => void;
 }>) {
+  const t = useTranslations();
   const { systeme } = ctx;
   const cur = (id: string | undefined) => currencyName(systeme, id);
 
@@ -63,7 +66,7 @@ export function TreeDetailDialog({
         currency: rank.offer?.monnaie,
         refundIndex: isTop ? path.refundIndex : undefined,
         locked: !rank.owned && !rank.offer,
-        lockedText: `Débloquez d’abord le rang ${path.rank + 1}.`,
+        lockedText: translate('sheet.tree.unlockFirst', { rank: path.rank + 1 }),
       };
     }
     const { tree, node } = selection;
@@ -111,14 +114,16 @@ export function TreeDetailDialog({
                 {info.owned && (
                   <Badge ton="primaire">
                     <Check />
-                    Acquis
+                    {t('sheet.tree.owned')}
                   </Badge>
                 )}
-                {!info.owned && offer?.possible && <Badge ton="succes">Achetable</Badge>}
+                {!info.owned && offer?.possible && (
+                  <Badge ton="succes">{t('sheet.tree.available')}</Badge>
+                )}
                 {!info.owned && !offer?.possible && (
                   <Badge>
                     <Lock />
-                    Verrouillé
+                    {t('sheet.tree.locked')}
                   </Badge>
                 )}
                 {info.cost !== undefined && (
@@ -132,7 +137,7 @@ export function TreeDetailDialog({
 
             <div className="space-y-5">
               {info.entries.length === 0 && (
-                <p className="text-sm text-muted-foreground">Ce rang n’accorde aucune entrée.</p>
+                <p className="text-sm text-muted-foreground">{t('sheet.tree.noEntry')}</p>
               )}
               {info.entries.map((e) => (
                 <div key={e.id} className="space-y-2">
@@ -158,10 +163,10 @@ export function TreeDetailDialog({
 
             <DialogFooter>
               <Button variant="ghost" onClick={onClose}>
-                Fermer
+                {t('common.actions.close')}
               </Button>
               {writes?.refund && info.refundIndex !== undefined && refundCheck && (
-                <Info texte={refundCheck.ok ? 'Rend son coût' : refundCheck.erreur}>
+                <Info texte={refundCheck.ok ? t('sheet.tree.refundHint') : refundCheck.erreur}>
                   <span>
                     <Button
                       variant="destructive"
@@ -172,7 +177,7 @@ export function TreeDetailDialog({
                       }}
                     >
                       <Undo2 />
-                      Rembourser
+                      {t('sheet.tree.refund')}
                     </Button>
                   </span>
                 </Info>
