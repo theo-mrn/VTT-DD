@@ -366,7 +366,8 @@ function ecarts<T>(avant: readonly T[], apres: readonly T[], cle: (x: T) => stri
 }
 
 export function deltaEtat(avant: EtatEntite, apres: EtatEntite): DeltaEtat {
-  const usages = ecartsCles(avant.usages, apres.usages);
+  // États enregistrés avant les usages limités : sans `usages`
+  const usages = ecartsCles(avant.usages ?? {}, apres.usages ?? {});
   return {
     valeurs: ecartsCles(avant.valeurs, apres.valeurs),
     possessions: ecarts(avant.possessions, apres.possessions, clePossession),
@@ -404,7 +405,7 @@ export function annuler(
   for (const e of delta.valeurs) {
     if (!deepEqual(valeurs[e.cle] ?? null, e.apres)) conflits.push(`etat.valeurs.${e.cle}`);
   }
-  const usages = { ...actuel.usages };
+  const usages = { ...(actuel.usages ?? {}) };
   for (const e of delta.usages ?? []) {
     if ((usages[e.cle] ?? null) !== e.apres) conflits.push(`etat.usages.${e.cle}`);
   }

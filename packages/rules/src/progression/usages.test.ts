@@ -85,4 +85,12 @@ describe('usages limités', () => {
     const etat = { ...fiche().etat, usages: { disparue: 2 } };
     expect(remettreUsages(s, etat, [])?.usages).toEqual({});
   });
+
+  it('un état enregistré avant les usages limités (sans `usages`) ne casse rien', () => {
+    const ancien = { ...fiche().etat, usages: undefined } as unknown as EtatEntite;
+    expect(remettreUsages(s, ancien, PERIODES_REPOS)).toBeUndefined();
+    expect(usagesDe(calculer(s, ancien), 'second-souffle')?.utilises).toBe(0);
+    const u = utiliser(calculer(s, ancien), 'second-souffle');
+    expect(u.ok && u.etat.usages).toEqual({ 'second-souffle': 1 });
+  });
 });

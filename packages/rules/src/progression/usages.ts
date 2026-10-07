@@ -30,7 +30,8 @@ export function usagesDe(fiche: Fiche, entree: string): Usages | undefined {
   if (!e?.usages) return undefined;
   const f = fiche.systeme.formules.get(chemins.usages(entree));
   const max = Math.max(0, Math.floor(Number(f ? fiche.evaluer(f, {}, 1) : 1)) || 0);
-  const utilises = fiche.etat.usages[entree] ?? 0;
+  // Un état enregistré avant les usages limités n'a pas de `usages`
+  const utilises = fiche.etat.usages?.[entree] ?? 0;
   return { max, utilises, restants: Math.max(0, max - utilises), par: e.usages.par };
 }
 
@@ -50,7 +51,7 @@ export function utiliser(fiche: Fiche, entree: string, rendre = false): Resultat
       erreur: `${nom} : plus d’utilisation (${u.max} ${LIBELLES_PERIODE[u.par]})`,
     };
   const n = rendre ? Math.max(0, Math.min(u.utilises, u.max) - 1) : u.utilises + 1;
-  const usages = { ...fiche.etat.usages };
+  const usages = { ...(fiche.etat.usages ?? {}) };
   if (n > 0) usages[entree] = n;
   else delete usages[entree];
   return { ok: true, etat: { ...fiche.etat, usages } };
@@ -78,7 +79,7 @@ export function remettreUsages(
   const closes = new Set(periodes);
   const usages: Record<string, number> = {};
   let change = false;
-  for (const [id, n] of Object.entries(etat.usages)) {
+  for (const [id, n] of Object.entries(etat.usages ?? {})) {
     const par = systeme.entrees.get(id)?.usages?.par;
     if (!par || closes.has(par)) change = true;
     else usages[id] = n;
