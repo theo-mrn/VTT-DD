@@ -1690,11 +1690,20 @@
     Dans cette zone les personnages doivent à chaque tour faire un test de Dextérité de difficulté 10, s’y déplacer ou combattre est aussi difficile (test de difficulté 15). Un échec signifie que la créature est au sol, se relever nécessite un nouveau test de Dextérité 15 et prend un tour. Ramper en dehors de la zone demande un tour complet.
 
 - id: prestige-ensorceleur-gel-fils-des-glaces
-  sorte: capacite
+  sorte: capacite_active
   nom: Fils des Glaces
   champs: { voie: prestige-ensorceleur-gel, rangVoie: 2, activation: Action limitée }
   description: |-
     Effet : Vous divisez par 2 tous les DM de Froid subis par le personnage pour le reste du combat (10 tours hors combat).
+  effets:
+    - {
+        sur: degats,
+        types: [froid],
+        operation: multiplier,
+        valeur: 0.5,
+        famille: resistance-froid,
+        description: 'Fils des glaces : DM de froid divisés par 2',
+      }
 
 - id: prestige-ensorceleur-gel-cone-de-froid
   sorte: capacite

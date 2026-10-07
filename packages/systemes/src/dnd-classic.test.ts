@@ -1127,6 +1127,37 @@ describe('dnd-classic : capacités codées', () => {
     expect([val(moine(5), 'Defense'), val(moine(5), 'RD')]).toEqual([18, 5]);
   });
 
+  it('résistances des voies : naturelles, élémentaires, à activer', () => {
+    const druide = nu([{ entree: 'druide-nature', rang: 3 }]); // Résistant : 2 × rang
+    expect(reduireDegats(druide, 12, 'froid', 'PV').valeur).toBe(6);
+    expect(reduireDegats(druide, 12, 'physique', 'PV').valeur).toBe(12);
+    const moine = nu([{ entree: 'moine-energie-vitale', rang: 3 }]); // Invulnérable
+    expect(reduireDegats(moine, 12, 'feu', 'PV').valeur).toBe(6);
+    expect(reduireDegats(moine, 8, 'poison', 'PV').valeur).toBe(0);
+    expect(reduireDegats(moine, 8, 'physique', 'PV').valeur).toBe(8);
+    const glaces = (actif: boolean) =>
+      nu([
+        { entree: 'prestige-ensorceleur-gel', rang: 2 },
+        { entree: 'prestige-ensorceleur-gel-fils-des-glaces', actif },
+      ]);
+    expect(reduireDegats(glaces(false), 10, 'froid', 'PV').valeur).toBe(10);
+    expect(reduireDegats(glaces(true), 10, 'froid', 'PV').valeur).toBe(5);
+    const protege = nu([
+      { entree: 'magicien-magie-elementaire', rang: 3 },
+      { entree: 'magicien-magie-elementaire-protection-contre-les-elements', actif: true },
+    ]);
+    expect(reduireDegats(protege, 10, 'acide', 'PV').valeur).toBe(4);
+  });
+
+  it('Détection de la magie : +2 par rang de la voie, invoqué au test', () => {
+    const mage = nu([{ entree: 'magicien-magie-universelle', rang: 3 }]);
+    const r = executer('test', mage, [10], undefined, {
+      caracteristique: 'INT',
+      atout: 'magicien-magie-universelle-detection-de-la-magie',
+    });
+    expect(r.ok && r.resultat.variables.total).toBe(10 + 6);
+  });
+
   it('bilan : plus de la moitié des capacités ont une mécanique', () => {
     const texte = JSON.stringify(lireSysteme('dnd-classic'));
     const caps = [...systeme.entrees.values()].filter((e) => e.sorte.startsWith('capacite'));

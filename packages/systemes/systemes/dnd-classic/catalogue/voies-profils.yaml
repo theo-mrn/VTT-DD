@@ -1251,6 +1251,14 @@
     Effet : réduction de [2 x rang] DM.
 
     Le druide obtient une réduction de DM égal à son [Rang x 2] contre toutes les sources de dégâts « naturels » : froid, chaleur, chutes, poisons... mais aussi aux DM provoqués par les animaux ou les insectes (même géants).
+  effets:
+    - {
+        sur: degats,
+        types: [feu, froid, poison],
+        operation: reduire,
+        valeur: '2 * rang("druide-nature")',
+        description: 'Résistant : DM naturels (froid, chaleur, poison) réduits',
+      }
 
 - id: druide-nature-baton-de-druide
   sorte: capacite
@@ -3414,7 +3422,7 @@
     Si le magicien réussit son test d’attaque magique (avec une portée de 20 m), la créature ciblée est privée d’air. La victime étouffe progressivement et subit 1d6 DM par tour pendant [1 + Mod. d'INT] tours.
 
 - id: magicien-magie-elementaire-protection-contre-les-elements
-  sorte: capacite
+  sorte: capacite_active
   nom: Protection contre les éléments
   champs: { voie: magicien-magie-elementaire, rangVoie: 2, activation: 'Action limitée, sortilège' }
   description: |-
@@ -3422,6 +3430,14 @@
     Durée : [5 + Mod. d'INT] tours.
 
     Pendant [5 + Mod. d'INT] tours, le magicien retranche à tous les DM de feu, de froid, d’électricité ou d’acide subis un montant égal à 2 fois son Rang dans cette Voie.
+  effets:
+    - {
+        sur: degats,
+        types: [feu, froid, electricite, acide],
+        operation: reduire,
+        valeur: '2 * rang("magicien-magie-elementaire")',
+        description: 'Protection contre les éléments',
+      }
 
 - id: magicien-magie-elementaire-arme-enflammee
   sorte: capacite_active
@@ -3603,7 +3619,14 @@
 - id: magicien-magie-universelle-detection-de-la-magie
   sorte: capacite
   nom: Détection de la magie
-  champs: { voie: magicien-magie-universelle, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  etiquettes: [test]
+  champs:
+    {
+      voie: magicien-magie-universelle,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      bonusTest: '2 * rang("magicien-magie-universelle")',
+    }
   description: |-
     Effet : détecte la présence de magie, +2 par rang aux tests d'INT en connaissance et érudition.
 
@@ -3968,6 +3991,21 @@
     Effet : subit 1/2 DM élémentaires, immunisé contre poison et maladie.
 
     Le Moine ne reçoit que la moitié des DM de toutes les sources « élémentaires » : feu, froid, foudre, acide… Il ne subit aucun DM des poisons ou des maladies.
+  effets:
+    - {
+        sur: degats,
+        types: [feu, froid, electricite, acide],
+        operation: multiplier,
+        valeur: 0.5,
+        description: 'Invulnérable : DM élémentaires divisés par 2',
+      }
+    - {
+        sur: degats,
+        types: [poison],
+        operation: annuler,
+        famille: immunite-poison,
+        description: 'Invulnérable : immunisé au poison',
+      }
 
 - id: moine-energie-vitale-projection-du-ki
   sorte: capacite
