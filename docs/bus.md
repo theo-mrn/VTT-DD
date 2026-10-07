@@ -16,7 +16,9 @@ le même flux (voir « Le tunnel d'historique » dans [refacto.md](refacto.md)).
   éphémère ordonné (seulement le nouveau), identity en durable `identity-titles` (voir plus bas) ; dice
   (`dice-rights`) et identity (`identity-rights`) en durable sur
   `vtt.global.billing.entitlements_changed` (droits publiés par billing, voir
-  [paiement.md](paiement.md)).
+  [paiement.md](paiement.md)) ; marketplace en durable `marketplace-events` sur les ventes de
+  packs, les comptes Connect des créateurs et les comptes supprimés (voir
+  [marketplace.md](marketplace.md)).
 
 ## Relais d'outbox (`@vtt/platform`, `outbox-relay.ts`)
 
@@ -26,9 +28,10 @@ transaction du service : donnée + INSERT INTO <schéma>.outbox
   → relais (LISTEN) : lot FOR UPDATE SKIP LOCKED → publishEvent → published_at = now()
 ```
 
-- Branché dans `main.ts` d'identity, character, campaign, dice et billing via `startOutboxRelayWithBus`,
-  après le démarrage HTTP, seulement si `NATS_URL` est définie. Canaux : `identity_outbox`,
-  `characters_outbox`, `campaign_outbox`, `dice_outbox`, `billing_outbox`. Option `consumers` :
+- Branché dans `main.ts` d'identity, character, campaign, dice, billing et marketplace via
+  `startOutboxRelayWithBus`, après le démarrage HTTP, seulement si `NATS_URL` est définie. Canaux :
+  `identity_outbox`, `characters_outbox`, `campaign_outbox`, `dice_outbox`, `billing_outbox`,
+  `marketplace_outbox`. Option `consumers` :
   consommateurs démarrés sur la même connexion (retentés s'ils ne démarrent pas).
 - Réveil : `LISTEN` sur un client pg dédié (reconnexion de 1 à 30 s), et relecture toutes les
   5 s en filet de sécurité. `LISTEN` ne traverse pas PgBouncer en mode transaction : en cluster,
@@ -238,7 +241,7 @@ description, système, image, options). Utilitaire générique : `changesPayload
 
 ## Garde-fou : chaque route d'écriture émet un événement
 
-`src/event-guard.test.ts` dans character, campaign, identity et dice (sans base de données) : il
+`src/event-guard.test.ts` dans character, campaign, identity, dice, audio et marketplace (sans base de données) : il
 échoue si une route publique `POST`, `PUT`, `PATCH` ou `DELETE` (hors `/internal/`) n'a aucun chemin
 vers `appendEvent` et ne figure pas dans ses `EXCEPTIONS` commentées.
 

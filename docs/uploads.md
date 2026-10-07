@@ -49,17 +49,19 @@ Refus : 422 `address_not_allowed`, 422 `import_failed` (introuvable, trop lent),
 Déclarés une fois dans `UPLOAD_USAGES` : formats, taille maximale, dossier, format du recadrage.
 Le serveur s'en sert pour refuser, le front pour prévenir et recadrer (mêmes valeurs).
 
-| Usage            | Formats                  | Max                           | Dossier      | Recadrage |
-| ---------------- | ------------------------ | ----------------------------- | ------------ | --------- |
-| `avatar`         | PNG, JPEG, WebP, GIF     | 5 Mo                          | `avatars`    | carré     |
-| `banner`         | PNG, JPEG, WebP, GIF     | 5 Mo                          | `banners`    | 4:1       |
-| `campaign-image` | PNG, JPEG, WebP, GIF     | 5 Mo                          | `campaigns`  | 16:9      |
-| `note-image`     | PNG, JPEG, WebP, GIF     | 10 Mo                         | `campaigns`  | libre     |
-| `map-background` | images + AVIF, WebM, MP4 | 10 Mo (image), 100 Mo (vidéo) | `campaigns`  | libre     |
-| `map-object`     | images + AVIF            | 10 Mo                         | `campaigns`  | libre     |
-| `npc-image`      | PNG, JPEG, WebP, GIF     | 5 Mo                          | `campaigns`  | carré     |
-| `portrait`       | PNG, JPEG, WebP, GIF     | 5 Mo                          | `characters` | 3:4       |
-| `token`          | PNG, JPEG, WebP, GIF     | 5 Mo                          | `characters` | carré     |
+| Usage               | Formats                  | Max                           | Dossier       | Recadrage |
+| ------------------- | ------------------------ | ----------------------------- | ------------- | --------- |
+| `avatar`            | PNG, JPEG, WebP, GIF     | 5 Mo                          | `avatars`     | carré     |
+| `banner`            | PNG, JPEG, WebP, GIF     | 5 Mo                          | `banners`     | 4:1       |
+| `campaign-image`    | PNG, JPEG, WebP, GIF     | 5 Mo                          | `campaigns`   | 16:9      |
+| `note-image`        | PNG, JPEG, WebP, GIF     | 10 Mo                         | `campaigns`   | libre     |
+| `map-background`    | images + AVIF, WebM, MP4 | 10 Mo (image), 100 Mo (vidéo) | `campaigns`   | libre     |
+| `map-object`        | images + AVIF            | 10 Mo                         | `campaigns`   | libre     |
+| `npc-image`         | PNG, JPEG, WebP, GIF     | 5 Mo                          | `campaigns`   | carré     |
+| `portrait`          | PNG, JPEG, WebP, GIF     | 5 Mo                          | `characters`  | 3:4       |
+| `token`             | PNG, JPEG, WebP, GIF     | 5 Mo                          | `characters`  | carré     |
+| `marketplace-cover` | PNG, JPEG, WebP, GIF     | 5 Mo                          | `marketplace` | 16:9      |
+| `marketplace-image` | PNG, JPEG, WebP, GIF     | 10 Mo                         | `marketplace` | 16:9      |
 
 Clé : `<dossier>/<propriétaire>/<uuidv7>.<ext>` (propriétaire : utilisateur, campagne ou
 personnage). Jamais réutilisée, jamais tirée du nom envoyé. Le type et la taille sont **signés** :

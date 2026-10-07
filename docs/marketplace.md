@@ -239,7 +239,7 @@ POST /v1/marketplace/listings/:id/checkout  (acheteur)
     session Checkout, ligne marketplace_sales « pending » → { url }
 Stripe Checkout → webhook checkout.session.completed (billing)
   → marketplace_sales « completed » + billing.marketplace_sale_completed (outbox)
-  → bus → marketplace (durable marketplace-billing) : acquisition « purchase »
+  → bus → marketplace (durable marketplace-events) : acquisition « purchase »
 ```
 
 Le retour de l'acheteur peut précéder le webhook : la fiche interroge marketplace jusqu'à
@@ -289,7 +289,7 @@ l'acquisition (comme la boutique de dés).
 | `POST /moderation/listings/:id/remove`                  | `marketplace.listing_removed`                 |
 | `POST /moderation/listings/:id/recheck`                 | `marketplace.listing_rechecked`               |
 | `POST /moderation/reviews/:listingId/:userId/delete`    | `marketplace.review_deleted`                  |
-| `POST /moderation/reports/:id/resolve`                  | `marketplace.report_resolved`                 |
+| `POST /moderation/reports/:id/dismiss`                  | `marketplace.report_resolved`                 |
 
 Exception justifiée : `POST /studio/listings/:id/uploads` (URL d'envoi signée, rien d'écrit ; la
 couverture est enregistrée ensuite par `PATCH`, tracé).
@@ -355,8 +355,8 @@ qu'un pack reste petit (20 scènes au plus).
   fiche produit, bibliothèque, studio du créateur (fiches, éditeur, composeur, versions, ventes),
   file de modération.
 - Routes : `/marketplace`, `/marketplace/[slug]`, `/marketplace/library`, `/marketplace/studio`,
-  `/marketplace/studio/[id]`, `/marketplace/moderation` ; entrée « Marketplace » dans la barre
-  latérale.
+  `/marketplace/studio/[id]`, `/marketplace/moderation`, `/marketplace/creators/[slug]` ;
+  entrée « Marketplace » dans la barre latérale.
 - Aucun texte d'aide visible (infobulles), pas d'icône `Sparkles`, couleurs par variables.
 
 ## 9. Comptes supprimés
@@ -386,3 +386,60 @@ le vendeur gardent son identifiant (sans donnée personnelle) pour la comptabili
 | Recherche      | `tsvector` généré (configuration `simple`) sur un texte sans accents tenu par le service ; préfixes                             |
 | Catalogue      | Réservé aux comptes connectés (comme le reste de l'app) ; public en v2                                                          |
 | Classement     | Populaires = acquisitions, mieux notés = moyenne bayésienne (5 avis à 3,5 de base), récents = date de publication               |
+
+## 11. Mise en route
+
+### Local
+
+1. Rôles et migrations : `pnpm dev` (ou, à la main, `infra/postgres/init/10-schemas-and-roles.sql`
+   dans psql, puis `bash infra/postgres/liquibase/migrate.sh marketplace update` et
+   `… billing update`).
+2. `backend/marketplace/.env` (copié depuis `.env.example`) : valeurs `R2_*` du staging comme
+   les autres services ; son identifiant de compte dans `MARKETPLACE_MODERATORS` pour voir
+   l'onglet « Modération ».
+3. Gateway : `UPSTREAM_MARKETPLACE_URL=http://localhost:3011` (dans `.env.example`, complété
+   par `pnpm dev`).
+
+### Parcours à l'écran (gratuit)
+
+1. **Marketplace › Studio** : « Créer mon profil de créateur », puis « Nouveau pack ».
+2. Dans l'éditeur : titre, résumé, couverture (exigée pour soumettre), « Enregistrer ».
+3. **Versions › Nouvelle version**, « Composer » : choisir une campagne dont on est MJ, cocher
+   des scènes et des modèles, « Envoyer » (les fichiers sont copiés dans `marketplace/`).
+4. Cocher « Je détiens les droits sur tout ce contenu », « Soumettre à la revue ».
+5. Avec un compte modérateur : **Modération › En revue**, « Contenu », « Publier ».
+6. Avec un autre compte : **Catalogue**, ouvrir la fiche, « Obtenir gratuitement »,
+   « Installer » dans une de ses campagnes : scènes (murs, lumières, objets) et modèles
+   apparaissent dans la campagne ; **Bibliothèque** montre la version installée.
+7. Avis, « Signaler », puis en modération « Retirer » (motif « Droits non établis » : fichiers
+   purgés).
+
+### Vente
+
+Voir [paiement.md](paiement.md), « Marketplace : vente des packs par Stripe Connect ». Tests :
+`backend/billing/src/modules/connect/connect.int.test.ts` (Stripe et Connect simulés).
+
+### Tests
+
+```sh
+TEST_DATABASE_URL=postgres://marketplace_svc:marketplace-dev@localhost:5432/vtt \
+  pnpm --filter @vtt/marketplace test
+TEST_DATABASE_URL=postgres://billing_svc:billing-dev@localhost:5432/vtt \
+  pnpm --filter @vtt/billing test
+bash infra/postgres/tests/marketplace-droits.sh
+```
+
+## 12. Déploiement (à faire par Théo)
+
+- `infra/gitops/<env>/marketplace.yaml` (chart commun, sur le modèle d'audio) : port 3011,
+  `DATABASE_URL` (secret `pg-marketplace`), job de migrations (`marketplace-migrations`, secret
+  `pg-marketplace-owner`), `NATS_URL`, `REDIS_URL`, `JWT_*`, `JWKS_URL`, `INTERNAL_API_SECRET`,
+  `CAMPAIGN_URL`, `BILLING_URL`, `R2_*`, `MARKETPLACE_MODERATORS`,
+  `MARKETPLACE_PAID_LISTINGS=off`. NetworkPolicies : gateway → marketplace ; marketplace →
+  campaign et billing (routes internes).
+- Gateway : `UPSTREAM_MARKETPLACE_URL`. billing : `INTERNAL_API_SECRET`, `STRIPE_CONNECT=off`.
+- Secrets scellés `pg-marketplace` et `pg-marketplace-owner` (`infra/cluster/secrets`) ; rôles
+  déclarés dans `infra/cluster/data/postgres-cluster.yaml` ; sur une base existante, appliquer
+  `infra/cluster/data/schemas.sql` (idempotent) pour créer le schéma.
+- La release met à jour l'image de marketplace dès que son fichier GitOps existe (sinon elle
+  l'ignore, `release.yml`).
