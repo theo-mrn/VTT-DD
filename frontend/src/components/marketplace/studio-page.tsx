@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Wand2,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -45,21 +46,17 @@ import {
   useSales,
   useStudio,
 } from '@/lib/marketplace/api';
-import {
-  dateLabel,
-  LISTING_STATUS_LABELS,
-  priceLabel,
-  VERSION_STATUS_LABELS,
-} from '@/lib/marketplace/format';
 import { Cover, MarketplaceTabs } from './elements';
+import { useStudioLabels } from './studio-labels';
 
 export function StudioPage() {
+  const t = useTranslations('marketplace.studio.page');
   const me = useMarketplaceMe();
   const creator = me.data?.creator ?? null;
   return (
     <Page large>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">Studio</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{t('title')}</h1>
         <MarketplaceTabs />
       </header>
       {me.isError && <Message>{messageErreur(me.error)}</Message>}
@@ -72,11 +69,12 @@ export function StudioPage() {
 
 /** Première visite : nom public et présentation. */
 function CreatorSetup() {
+  const t = useTranslations('marketplace.studio.page');
   return (
     <EtatVide
       icone={Wand2}
-      titre="Publiez vos créations"
-      action={<CreatorDialogButton creator={null} label="Créer mon profil de créateur" />}
+      titre={t('setupTitle')}
+      action={<CreatorDialogButton creator={null} label={t('setupAction')} />}
     />
   );
 }
@@ -85,6 +83,8 @@ function CreatorDialogButton({
   creator,
   label,
 }: Readonly<{ creator: CreatorProfile | null; label: string }>) {
+  const t = useTranslations('marketplace.studio.creator');
+  const tc = useTranslations('common.actions');
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(creator?.displayName ?? '');
   const [bio, setBio] = useState(creator?.bio ?? '');
@@ -101,7 +101,7 @@ function CreatorDialogButton({
     save.mutate(undefined, {
       onSuccess: () => {
         setOpen(false);
-        toast.success('Profil enregistré');
+        toast.success(t('saved'));
       },
     });
   }
@@ -115,13 +115,11 @@ function CreatorDialogButton({
         <DialogContent className="sm:max-w-md">
           <form onSubmit={submit} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Profil de créateur</DialogTitle>
-              <DialogDescription className="sr-only">
-                Nom et présentation affichés sur vos packs.
-              </DialogDescription>
+              <DialogTitle>{t('title')}</DialogTitle>
+              <DialogDescription className="sr-only">{t('description')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-1.5">
-              <Label htmlFor="creator-name">Nom public</Label>
+              <Label htmlFor="creator-name">{t('name')}</Label>
               <Input
                 id="creator-name"
                 value={name}
@@ -132,7 +130,7 @@ function CreatorDialogButton({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="creator-bio">Présentation</Label>
+              <Label htmlFor="creator-bio">{t('bio')}</Label>
               <Textarea
                 id="creator-bio"
                 value={bio}
@@ -144,7 +142,7 @@ function CreatorDialogButton({
             {save.isError && <Message>{messageErreur(save.error)}</Message>}
             <DialogFooter>
               <Button type="submit" loading={save.isPending} disabled={name.trim().length < 2}>
-                Enregistrer
+                {tc('save')}
               </Button>
             </DialogFooter>
           </form>
@@ -155,11 +153,12 @@ function CreatorDialogButton({
 }
 
 function Studio({ creator }: Readonly<{ creator: CreatorProfile }>) {
+  const t = useTranslations('marketplace.studio.page');
   const router = useRouter();
   const studio = useStudio();
   const config = useMarketplaceConfig();
   const create = useMarketplaceMutation(() =>
-    marketplaceApi.createListing({ title: 'Nouveau pack' }),
+    marketplaceApi.createListing({ title: t('newPackTitle') }),
   );
 
   function newListing() {
@@ -173,15 +172,15 @@ function Studio({ creator }: Readonly<{ creator: CreatorProfile }>) {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <section className="min-w-0 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">Mes packs</h2>
+          <h2 className="text-sm font-semibold">{t('myPacks')}</h2>
           <Button size="sm" onClick={newListing} loading={create.isPending}>
             <PackagePlus aria-hidden />
-            Nouveau pack
+            {t('newPack')}
           </Button>
         </div>
         {studio.isError && <Message>{messageErreur(studio.error)}</Message>}
         {studio.isPending && <Skeleton className="h-24 w-full rounded-2xl" />}
-        {studio.data?.length === 0 && <EtatVide icone={PackagePlus} titre="Aucun pack" />}
+        {studio.data?.length === 0 && <EtatVide icone={PackagePlus} titre={t('noPacks')} />}
         <ul className="space-y-2">
           {studio.data?.map((l) => (
             <StudioRow key={l.id} listing={l} />
@@ -192,7 +191,7 @@ function Studio({ creator }: Readonly<{ creator: CreatorProfile }>) {
       <aside className="space-y-4">
         <Panneau
           titre={creator.displayName}
-          action={<CreatorDialogButton creator={creator} label="Modifier" />}
+          action={<CreatorDialogButton creator={creator} label={t('editProfile')} />}
         >
           <p className="line-clamp-4 whitespace-pre-line text-[13px] text-muted-foreground">
             {creator.bio || '—'}
@@ -201,7 +200,7 @@ function Studio({ creator }: Readonly<{ creator: CreatorProfile }>) {
             href={`/marketplace/creators/${creator.slug}`}
             className="mt-3 inline-flex items-center gap-1 text-[13px] text-primary hover:underline"
           >
-            Page publique
+            {t('publicPage')}
             <ExternalLink className="size-3.5" aria-hidden />
           </Link>
         </Panneau>
@@ -212,6 +211,8 @@ function Studio({ creator }: Readonly<{ creator: CreatorProfile }>) {
 }
 
 function StudioRow({ listing }: Readonly<{ listing: StudioListing }>) {
+  const t = useTranslations('marketplace.studio.row');
+  const labels = useStudioLabels();
   const open = listing.versions.find((v) => v.status === 'draft' || v.status === 'in_review');
   const rejected = listing.versions[0]?.status === 'rejected' ? listing.versions[0] : null;
   return (
@@ -235,21 +236,28 @@ function StudioRow({ listing }: Readonly<{ listing: StudioListing }>) {
                     : 'neutre'
               }
             >
-              {LISTING_STATUS_LABELS[listing.status]}
+              {labels.listingStatus(listing.status)}
             </Badge>
             {open && (
               <Badge ton={open.status === 'in_review' ? 'info' : 'neutre'}>
-                v{open.number} · {VERSION_STATUS_LABELS[open.status]}
+                {t('openVersion', {
+                  number: open.number,
+                  status: labels.versionStatus(open.status),
+                })}
               </Badge>
             )}
-            {rejected && <Badge ton="danger">v{rejected.number} refusée</Badge>}
+            {rejected && (
+              <Badge ton="danger">{t('rejectedVersion', { number: rejected.number })}</Badge>
+            )}
           </span>
         </span>
         <span className="hidden shrink-0 text-right text-[12px] text-muted-foreground sm:block">
           <span className="block tabular-nums">
-            {priceLabel(listing.priceCents, listing.currency)}
+            {labels.price(listing.priceCents, listing.currency)}
           </span>
-          <span className="block tabular-nums">{listing.acquisitionsCount} acquéreurs</span>
+          <span className="block tabular-nums">
+            {t('buyers', { count: listing.acquisitionsCount })}
+          </span>
         </span>
       </Link>
     </li>
@@ -258,6 +266,8 @@ function StudioRow({ listing }: Readonly<{ listing: StudioListing }>) {
 
 /** Compte de paiement (Stripe Connect) et ventes. */
 function PayoutsPanel({ creator }: Readonly<{ creator: CreatorProfile }>) {
+  const t = useTranslations('marketplace.studio.payouts');
+  const labels = useStudioLabels();
   const params = useSearchParams();
   const connect = useConnect();
   const account = connect.data?.account ?? null;
@@ -284,7 +294,7 @@ function PayoutsPanel({ creator }: Readonly<{ creator: CreatorProfile }>) {
           : await connectApi.dashboard();
       window.location.assign(url);
     } catch (err) {
-      toast.error('Paiement indisponible', { description: messageErreur(err) });
+      toast.error(t('paymentUnavailable'), { description: messageErreur(err) });
       setBusy(false);
     }
   }
@@ -292,14 +302,14 @@ function PayoutsPanel({ creator }: Readonly<{ creator: CreatorProfile }>) {
   const status = account?.status ?? null;
   return (
     <Panneau
-      titre="Ventes"
+      titre={t('title')}
       action={
         account && (
-          <Info texte="Relire le compte">
+          <Info texte={t('refresh')}>
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Relire le compte"
+              aria-label={t('refresh')}
               onClick={() => refresh.mutate(undefined)}
               disabled={refresh.isPending}
             >
@@ -312,22 +322,22 @@ function PayoutsPanel({ creator }: Readonly<{ creator: CreatorProfile }>) {
       {connect.isPending ? (
         <Loader2 className="size-4 animate-spin text-primary" aria-hidden />
       ) : !connect.data?.enabled ? (
-        <p className="text-[13px] text-subtle">Vente indisponible</p>
+        <p className="text-[13px] text-subtle">{t('unavailable')}</p>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <CircleDollarSign className="size-4 text-primary" aria-hidden />
             <Badge ton={status === 'active' ? 'succes' : status ? 'alerte' : 'neutre'}>
               {status === 'active'
-                ? 'Compte actif'
+                ? t('active')
                 : status
-                  ? `${account!.requirementsDue} information${account!.requirementsDue > 1 ? 's' : ''} à fournir`
-                  : 'Aucun compte'}
+                  ? t('requirementsDue', { count: account!.requirementsDue })
+                  : t('noAccount')}
             </Badge>
           </div>
           {status !== 'active' ? (
             <Button className="w-full" loading={busy} onClick={() => void go('onboarding')}>
-              {status ? 'Compléter mon compte' : 'Activer les ventes'}
+              {status ? t('complete') : t('activate')}
             </Button>
           ) : (
             <Button
@@ -337,7 +347,7 @@ function PayoutsPanel({ creator }: Readonly<{ creator: CreatorProfile }>) {
               onClick={() => void go('dashboard')}
             >
               <ExternalLink aria-hidden />
-              Versements et factures
+              {t('dashboard')}
             </Button>
           )}
           {sales.data && sales.data.length > 0 && (
@@ -345,9 +355,12 @@ function PayoutsPanel({ creator }: Readonly<{ creator: CreatorProfile }>) {
               {sales.data.slice(0, 10).map((s) => (
                 <li key={s.id} className="flex items-center gap-2 py-1.5">
                   <span className="min-w-0 flex-1 truncate">{s.title}</span>
-                  <span className="text-subtle">{dateLabel(s.completedAt)}</span>
+                  <span className="text-subtle">{labels.date(s.completedAt)}</span>
                   <Info
-                    texte={`Prix ${priceLabel(s.amount, s.currency)}, commission ${priceLabel(s.fee, s.currency)}`}
+                    texte={t('saleDetail', {
+                      price: labels.price(s.amount, s.currency),
+                      fee: labels.price(s.fee, s.currency),
+                    })}
                   >
                     <span
                       className={
@@ -356,7 +369,7 @@ function PayoutsPanel({ creator }: Readonly<{ creator: CreatorProfile }>) {
                           : 'tabular-nums text-subtle line-through'
                       }
                     >
-                      {priceLabel(s.net, s.currency)}
+                      {labels.price(s.net, s.currency)}
                     </span>
                   </Info>
                 </li>
