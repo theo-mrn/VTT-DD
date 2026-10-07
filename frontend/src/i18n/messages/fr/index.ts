@@ -22,6 +22,7 @@ import landing from './landing';
 import legal from './legal';
 import locale from './locale';
 import map from './map';
+import marketplace from './marketplace';
 import meta from './meta';
 import notes from './notes';
 import onboarding from './onboarding';
@@ -55,6 +56,7 @@ const fr = {
   legal,
   locale,
   map,
+  marketplace,
   meta,
   notes,
   onboarding,
