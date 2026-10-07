@@ -138,6 +138,8 @@ export function champsLisibles(
   const sorte = systeme.sortes.get(e.sorte);
   const r: { nom: string; valeur: string }[] = [];
   for (const c of sorte?.champs ?? []) {
+    // Champ technique des effets donnés (identifiant de l'état qui les porte)
+    if (c.id === systeme.source.effetsDonnes?.champ) continue;
     const valeur = valeurLisible(systeme, c, e.champs[c.id]);
     if (valeur !== null) r.push({ nom: c.nom, valeur });
   }

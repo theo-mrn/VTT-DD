@@ -2,7 +2,8 @@
  * Menu « Capacités » du combat (docs/combat.md § 19.1) : les capacités qui s'utilisent, et
  * comment chacune se joue, sans aucun nom de capacité dans le code.
  * - **Action dédiée** : une action à cible du système dont l'`exige` lit `possede("<capacité>")`
- *   (Charge, Soins légers…) : le menu d'attaque s'ouvre sur elle.
+ *   (Charge, Soins légers…), ou qui reçoit les capacités de son étiquette en paramètre (Sort :
+ *   capacités « sort ») : le menu d'attaque s'ouvre sur elle.
  * - **À activer** (sorte activable) : elle s'active sur la fiche (usage consommé, durée lancée).
  * - Sinon, **action générique** de la présentation (`combat.capacites.action`) : le menu
  *   d'attaque s'ouvre sur elle, la capacité en paramètre ; ses dés sont lancés, le MJ lit son
@@ -38,8 +39,14 @@ export function capacitesDeLaPresentation(
 }
 
 /** Comment une capacité se joue. */
+/** Action dédiée, avec la capacité en paramètre quand l'action la reçoit (Sort). */
+export interface ActionDediee {
+  action: Action;
+  params?: Record<string, string>;
+}
+
 export type JeuCapacite =
-  | { type: 'actions'; actions: Action[] }
+  | { type: 'actions'; actions: ActionDediee[] }
   | { type: 'activer' }
   | { type: 'generique'; action: Action; parametre: string };
 
@@ -86,9 +93,23 @@ export function capacitesDeCombat(
     const activation = typeof v === 'string' && v.trim() ? v.trim() : null;
     const passive = activation !== null && !!decl.passives?.valeurs.includes(activation);
     const usages = usagesDe(fiche, p.entree.id) ?? null;
-    const actions = (dediees.get(p.entree.id) ?? []).filter(
-      (a) => isTargeted(a) && a.pour.includes(fiche.etat.type) && actionAllowed(systeme, a, fiche),
-    );
+    const jouable = (a: Action) =>
+      isTargeted(a) && a.pour.includes(fiche.etat.type) && actionAllowed(systeme, a, fiche);
+    const actions: ActionDediee[] = [
+      ...(dediees.get(p.entree.id) ?? []).filter(jouable).map((action) => ({ action })),
+      // Action qui reçoit les capacités d'une étiquette (Sort : capacités « sort »)
+      ...[...systeme.actions.values()].flatMap((a) => {
+        if (a.id === generique?.id || !jouable(a)) return [];
+        const param = a.parametres.find(
+          (x) =>
+            x.type === 'entree' &&
+            x.sorte === p.sorte.id &&
+            x.etiquette !== undefined &&
+            p.entree.etiquettes.includes(x.etiquette),
+        );
+        return param ? [{ action: a, params: { [param.id]: p.entree.id } }] : [];
+      }),
+    ];
     const jeu: JeuCapacite | null = actions.length
       ? { type: 'actions', actions }
       : p.sorte.activable

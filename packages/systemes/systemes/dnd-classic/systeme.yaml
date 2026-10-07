@@ -277,6 +277,9 @@ entites:
         condition: option("encombrement") et @surcharge
         description: Surcharge
 
+# Effets donnés par les capacités (docs/combat.md § 19.2) : un « effet de capacité » chacun
+effetsDonnes: { sorte: effet, champ: donne }
+
 sortes:
   - id: race
     nom: Race
@@ -316,8 +319,13 @@ sortes:
       - { id: activation, nom: Activation, type: texte }
       # Durée d'une capacité à activer, en tours, lue à l'activation (dés compris)
       - { id: duree, nom: Durée (tours), type: formule, des: true }
-      # Combat (docs/combat.md § 19) : dés lancés quand on l'utilise, cibles proposées
+      # Combat (docs/combat.md § 19) : dés lancés quand on l'utilise, cibles proposées, soins,
+      # dégâts (type : typeDegats), effets donnés aux cibles (« donne » de l'entrée) et leur durée
       - { id: jet, nom: Dés de la capacité, type: formule, des: true }
+      - { id: soins, nom: Soins, type: formule, des: true }
+      - { id: degats, nom: Dégâts, type: formule, des: true }
+      - { id: dureeDonne, nom: Durée des effets donnés (tours), type: formule, des: true }
+      - { id: donne, nom: Effets donnés, type: texte, defaut: '' }
       - id: cibles
         nom: Cibles
         type: choix
@@ -441,6 +449,13 @@ sortes:
       - { id: description, nom: Description propre, type: texte }
   - id: etat
     nom: État
+    pour: [personnage]
+  - id: effet
+    nom: Effet de capacité
+    nomPluriel: Effets de capacité
+    description: >-
+      Effets donnés par une capacité jouée en combat (« donne » de la capacité), portés par
+      ses cibles pour leur durée.
     pour: [personnage]
   - id: type_creature
     nom: Type de créature
@@ -1813,15 +1828,41 @@ actions:
   - id: utiliser-capacite
     nom: Utiliser une capacité
     description: >-
-      La capacité choisie est jouée : ses dés sont lancés s'il y en a, le MJ lit son texte
-      et applique ce qu'elle fait.
+      La capacité choisie est jouée : ses dés sont lancés s'il y en a, ses soins, ses dégâts
+      et les effets qu'elle donne s'appliquent aux cibles ; le MJ lit son texte pour le reste.
     pour: [personnage]
     cible: personnage
     situation: false
     multicible: { jet: commun }
+    typeDegatsCalcule: 'si(capacite.typeDegats == "", "physique", capacite.typeDegats)'
     parametres:
       - { id: capacite, nom: Capacité, type: entree, sorte: capacite }
+    variables: *vars-degats
     jet: { type: numerique, formule: capacite.jet }
+    apres:
+      - { cle: soin, nom: Soins, visibilite: acteur, formule: 'max(0, capacite.soins)' }
+      - { cle: degats, nom: Dégâts, visibilite: acteur, formule: 'max(0, capacite.degats)' }
+      - *brut
+      - *subis
+      - {
+          cle: dureeEffets,
+          nom: Durée des effets,
+          visibilite: acteur,
+          formule: capacite.dureeDonne,
+        }
+    consequences:
+      - { condition: 'soin > 0', entite: cible, attribut: PV, operation: ajouter, valeur: soin }
+      - *retirer-pv
+      # Effets donnés : pour leur durée, sinon jusqu'au retrait
+      - condition: 'dureeEffets > 0'
+        entite: cible
+        entreeCalculee: capacite.donne
+        operation: donner
+        duree: dureeEffets
+      - condition: 'dureeEffets <= 0'
+        entite: cible
+        entreeCalculee: capacite.donne
+        operation: donner
 
   - id: sort
     nom: Sort d’attaque

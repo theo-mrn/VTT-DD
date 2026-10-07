@@ -39,7 +39,7 @@ describe('menu Capacités', () => {
     ]);
     const soins = jeu(f, 'pretre-soins-soins-legers');
     expect(soins?.jeu).toMatchObject({ type: 'actions' });
-    expect(soins?.jeu.type === 'actions' && soins.jeu.actions.map((a) => a.id)).toEqual([
+    expect(soins?.jeu.type === 'actions' && soins.jeu.actions.map((d) => d.action.id)).toEqual([
       'soins-legers',
     ]);
     expect(soins?.usages).toMatchObject({ max: 1, par: 'jour' });

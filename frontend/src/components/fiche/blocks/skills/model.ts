@@ -122,8 +122,10 @@ export function fieldValue(
 
 function fieldsOf(fiche: Fiche, sorte: Sorte, entry: Entree, skip?: string) {
   const r: { name: string; value: string }[] = [];
+  // Champ technique des effets donnés (identifiant de l'état qui les porte) : jamais montré
+  const technique = fiche.systeme.source.effetsDonnes?.champ;
   for (const c of sorte.champs) {
-    if (c.id === skip || entry.champs[c.id] === undefined) continue;
+    if (c.id === skip || c.id === technique || entry.champs[c.id] === undefined) continue;
     const v = fieldValue(fiche.systeme, fiche, sorte, entry, c.id);
     if (v === undefined || v === 'non') continue;
     r.push({ name: c.nom, value: v });

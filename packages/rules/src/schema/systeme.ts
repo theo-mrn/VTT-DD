@@ -427,6 +427,13 @@ export const Entree = z.object({
    * `combat` : rendu à la fin du combat ; `jour` : rendu au repos (qui rend aussi les autres).
    */
   usages: z.object({ max: Formule.default('1'), par: PeriodeUsages }).optional(),
+  /**
+   * Effets donnés aux cibles quand l'entrée est jouée (capacité : « +3 FOR à tout le groupe »,
+   * docs/combat.md § 19.2). Au chargement, une entrée de la sorte `effetsDonnes.sorte` les porte,
+   * nommée comme celle-ci ; son identifiant est écrit dans le champ `effetsDonnes.champ`, que
+   * l'action lit pour la donner (`entreeCalculee`), avec sa durée.
+   */
+  donne: z.array(Effet).min(1).optional(),
 });
 export type Entree = z.output<typeof Entree>;
 
@@ -952,6 +959,12 @@ export const Systeme = z.object({
   entites: z.array(TypeEntite).min(1),
   sortes: z.array(Sorte).default([]),
   catalogue: z.array(Entree).default([]),
+  /**
+   * Effets donnés par les entrées (`Entree.donne`) : la sorte des entrées qui les portent (un
+   * état, donné pour un temps), et le champ texte où chaque entrée reçoit l'identifiant de la
+   * sienne.
+   */
+  effetsDonnes: z.object({ sorte: Cle, champ: Cle }).optional(),
   monnaies: z.array(Monnaie).default([]),
   achats: z.array(Achat).default([]),
   creation: z.array(Creation).default([]),

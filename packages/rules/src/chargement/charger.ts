@@ -152,7 +152,51 @@ export function charger(saisi: unknown): ResultatChargement {
       })),
     };
   }
-  return new Chargeur(forme.data).charger();
+  const deplie = deplierEffetsDonnes(forme.data);
+  if (!deplie.ok) return { ok: false, erreurs: deplie.erreurs };
+  return new Chargeur(deplie.systeme).charger();
+}
+
+/** Identifiant de l'entrée qui porte les effets donnés par `id`. */
+export const idEffetsDonnes = (id: string) => `${id}--effets`;
+
+/**
+ * Effets donnés (`Entree.donne`) dépliés : pour chaque entrée qui en déclare, une entrée de la
+ * sorte `effetsDonnes.sorte` (même nom, même description, ces effets), et son identifiant dans
+ * le champ `effetsDonnes.champ` de l'entrée. Le reste du chargement les vérifie comme toutes.
+ */
+function deplierEffetsDonnes(
+  s: Systeme,
+): { ok: true; systeme: Systeme } | { ok: false; erreurs: ErreurChargement[] } {
+  const avec = s.catalogue.filter((e) => e.donne);
+  if (!avec.length) return { ok: true, systeme: s };
+  const decl = s.effetsDonnes;
+  if (!decl)
+    return {
+      ok: false,
+      erreurs: [
+        {
+          chemin: `catalogue/${avec[0]!.id}/donne`,
+          message: 'Effets donnés sans `effetsDonnes` (sorte et champ) déclaré par le système',
+        },
+      ],
+    };
+  const portees: Entree[] = avec.map((e) => ({
+    id: idEffetsDonnes(e.id),
+    sorte: decl.sorte,
+    nom: e.nom,
+    ...(e.description !== undefined ? { description: e.description } : {}),
+    etiquettes: [],
+    libre: false,
+    champs: {},
+    effets: e.donne!,
+    choix: [],
+    choixAttributs: [],
+  }));
+  const catalogue = s.catalogue.map((e) =>
+    e.donne ? { ...e, champs: { ...e.champs, [decl.champ]: idEffetsDonnes(e.id) } } : e,
+  );
+  return { ok: true, systeme: { ...s, catalogue: [...catalogue, ...portees] } };
 }
 
 class Chargeur {

@@ -151,15 +151,15 @@ function Ligne({
         />
       )}
       {c.jeu.type === 'actions' &&
-        c.jeu.actions.map((a) => (
+        c.jeu.actions.map((d) => (
           <Button
-            key={a.id}
+            key={d.action.id}
             size="xs"
             variant="secondary"
             disabled={c.epuisee}
-            onClick={() => onJouer(c, a.id)}
+            onClick={() => onJouer(c, d.action.id, d.params)}
           >
-            {c.jeu.type === 'actions' && c.jeu.actions.length > 1 ? a.nom : t('use')}
+            {c.jeu.type === 'actions' && c.jeu.actions.length > 1 ? d.action.nom : t('use')}
           </Button>
         ))}
       {c.jeu.type === 'generique' && (
