@@ -432,10 +432,13 @@ function BigRoll({
         />
       </div>
     );
+  // Jet sans dé ni valeur (capacité jouée sans dés, docs/combat.md § 19.1) : rien à montrer
+  const groupes = rollGroups(figure.roll);
+  if (!groupes.length && figure.total === 0 && !figure.bonuses.length) return null;
   return (
     <div className="flex flex-col items-center gap-3">
       <Label>{t('combat.stages.roll')}</Label>
-      <DesDuJet taille="md" entree={!quick} groupes={rollGroups(figure.roll)} />
+      <DesDuJet taille="md" entree={!quick} groupes={groupes} />
       <div aria-label={t('combat.attack.rollTotal', { total: figure.total })}>
         <TotalJet total={figure.total} critique={critique} taille="xl" cle={cle} sansBadge />
       </div>

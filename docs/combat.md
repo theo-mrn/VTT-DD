@@ -1664,6 +1664,15 @@ bonus donné à d'autres est fait d'**effets écrits sur la capacité** ; **phas
 - Aucun nom de capacité dans le code : action dédiée trouvée par son `exige`, action générique et
   champs (`jet`, `cibles`) nommés par la présentation et la sorte.
 
+Réalisé le 2026-10-07 : présentation `combat.capacites` (sortes, action générique, paramètre,
+champ des passives) vérifiée au chargement ; D&D : action `utiliser-capacite`, champs `jet` et
+`cibles` des capacités ; front : `lib/combat/capacities.ts` (capacités jouables, action dédiée
+trouvée par l'`exige`), menu `components/combat/capacities/`, entrées « Capacités » de la fiche
+(bloc Actions) et du menu du token ; le menu d'attaque reçoit les paramètres et la capacité dont
+l'usage est consommé à la déclaration, cache l'action générique ; le rapport du MJ porte le texte
+de la capacité ; un jet sans dé ni valeur n'est pas montré. Les champs `jet` et `cibles` restent à
+remplir capacité par capacité.
+
 ### 19.2 Phase 2 : automatiser par les données
 
 L'action générique lit ce que la capacité déclare, et le rapport propose l'application en un

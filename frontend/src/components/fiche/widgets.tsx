@@ -17,7 +17,7 @@ import {
   type Widget,
   nouvellePossession,
 } from '@vtt/rules';
-import { ChevronRight, Coins, Dices, Pencil, Plus, Swords } from 'lucide-react';
+import { ChevronRight, Coins, Dices, ListChecks, Pencil, Plus, Swords } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { JaugeRessource, TuileAttribut } from '@/components/creation/apercu-fiche';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,7 @@ import { FittingLabel } from '@/components/ui/fitting-label';
 import { Info } from '@/components/ui/tooltip';
 import { targetedActions } from '@/lib/combat/actions';
 import { openAttackMenu, useAttackHost } from '@/lib/combat/attack-menu-store';
+import { capacitesDeCombat, openCapacitiesMenu } from '@/lib/combat/capacities';
 import { afficherValeur, champsLisibles, explication, groupesAttributs } from '@/lib/creation';
 import type {
   DemandeBonus,
@@ -729,28 +730,56 @@ export function BlocActions({
   const attaque =
     aLaTable &&
     Boolean(campagne && ctx.operations && targetedActions(ctx.systeme, ctx.fiche).length);
+  // Capacités jouables en combat (docs/combat.md § 19), à la table aussi
+  const capacites =
+    aLaTable &&
+    Boolean(
+      campagne &&
+      ctx.operations &&
+      capacitesDeCombat(ctx.systeme, ctx.presentation, ctx.fiche).length,
+    );
   // Le service tire les jets d'action pour qui peut modifier le personnage
-  if ((actions.length === 0 && !attaque) || !ctx.operations) return null;
+  if ((actions.length === 0 && !attaque && !capacites) || !ctx.operations) return null;
   const operations = ctx.operations;
   const choisie = actions.find((a) => a.id === ouverte);
   return (
     <Bloc
       titre={widget.titre}
       action={
-        attaque ? (
-          <Button
-            size="xs"
-            onClick={() =>
-              openAttackMenu({
-                campaignId: campagne!,
-                origin: 'sheet',
-                attackerId: ctx.personnage.id,
-              })
-            }
-          >
-            <Swords />
-            {t('combat.character.attack')}
-          </Button>
+        attaque || capacites ? (
+          <span className="flex items-center gap-1.5">
+            {capacites && (
+              <Button
+                size="xs"
+                variant="secondary"
+                onClick={() =>
+                  openCapacitiesMenu({
+                    campaignId: campagne!,
+                    origin: 'sheet',
+                    actorId: ctx.personnage.id,
+                  })
+                }
+              >
+                <ListChecks />
+                {t('combat.capacities.open')}
+              </Button>
+            )}
+            {attaque && (
+              <Button
+                size="xs"
+                onClick={() =>
+                  openAttackMenu({
+                    campaignId: campagne!,
+                    origin: 'sheet',
+                    attackerId: ctx.personnage.id,
+                  })
+                }
+              >
+                <Swords />
+                {t('combat.character.attack')}
+              </Button>
+            )}
+          </span>
         ) : undefined
       }
     >

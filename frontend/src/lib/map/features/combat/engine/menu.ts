@@ -8,13 +8,15 @@
  *   cesse son propre token pour le déplacer, sans qu'aucune barre ne s'ouvre.
  * - MJ : « Attaquer avec » (le personnage du token attaque) et « Attaquer avec la sélection »
  *   (plusieurs PNJ à la suite, § 8.2).
+ * - Capacités : le menu Capacités de son personnage (joueur, son token), ou du personnage du
+ *   token (MJ).
  * - Gabarit : « Attaquer la zone (n) » (tokens vus dans la forme), à côté de « Sélectionner les
  *   personnages dans la zone ».
  * - Clavier : Y, la sélection devient les cibles.
  */
 import { translate } from '@/i18n/runtime';
 import type { AttackOrigin } from '@vtt/contracts';
-import { Swords, Target } from 'lucide-react';
+import { ListChecks, Swords, Target } from 'lucide-react';
 import type { MenuItem } from '@/lib/map/engine/entities/entity-kind';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import type { MapClick, MapEngine, MenuContext } from '@/lib/map/engine/map-engine';
@@ -40,7 +42,14 @@ export interface AttackOpener {
   }): void;
 }
 
-export function combatMenu(ctx: MenuContext, open: AttackOpener): MenuItem[] {
+/** Ce que la carte demande au menu Capacités (docs/combat.md § 19.1) : ce personnage joue. */
+export type CapacitiesOpener = (actorId: string, origin: AttackOrigin) => void;
+
+export function combatMenu(
+  ctx: MenuContext,
+  open: AttackOpener,
+  openCapacities?: CapacitiesOpener,
+): MenuItem[] {
   const { entities, viewer, engine } = ctx;
   if (viewer.role === 'spectator' || !entities.length) return [];
 
@@ -65,6 +74,17 @@ export function combatMenu(ctx: MenuContext, open: AttackOpener): MenuItem[] {
     primary: gm,
     run: () => open({ origin, targetIds: characters }),
   });
+
+  // Capacités : celles de mon personnage (joueur), ou du personnage du token (MJ)
+  const own = entities.length === 1 && (gm || ownsToken(entities[0]!.data as TokenData, viewer));
+  if (openCapacities && own && characters.length === 1)
+    items.push({
+      id: 'combat:capacities',
+      label: translate('combat.capacities.open'),
+      icon: ListChecks,
+      forPlayers: true,
+      run: () => openCapacities(characters[0]!, origin),
+    });
 
   if (gm && characters.length === 1)
     items.push({

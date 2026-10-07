@@ -57,6 +57,10 @@ import { combatSettings, currentActorId } from '@/lib/combat/use-combat';
 import { clesPersonnages, personnages } from '@/lib/personnages';
 import { calculerMemo } from '@/lib/rules-cache';
 import { useComputedSheet, type AttackContext } from './use-attack-context';
+import { actionGenerique } from '@/lib/combat/capacities';
+import { useUsagesPersonnages } from '@/lib/personnages';
+import { messageErreur } from '@/lib/api';
+import { toast } from 'sonner';
 import { startBusinessSpan } from '@/lib/telemetry/tracer';
 
 /** Faces tirées dans le navigateur, étape par étape. */
@@ -92,6 +96,7 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
   /** Attaque déclarée depuis ce menu (son résultat se dévoile ; une attaque rouverte non). */
   const [liveAttackId, setLiveAttackId] = useState<string | null>(null);
   const client = useQueryClient();
+  const usages = useUsagesPersonnages();
   /** Attaques calculées ici, pas encore envoyées (entre le jet et les dégâts). */
   const locals = useRef(new Map<string, LocalEntry>());
 
@@ -118,12 +123,20 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     () => (fiche && systeme ? targetedActions(systeme, fiche) : []),
     [systeme, fiche],
   );
+  // L'action générique du menu Capacités ne se joue qu'avec une capacité : hors de la liste
+  const generique = actionGenerique(ctx.presentation);
   const groups = useMemo(
-    () => groupActions(actions, ctx.presentation),
-    [actions, ctx.presentation],
+    () =>
+      groupActions(
+        actions.filter((a) => a.id !== generique),
+        ctx.presentation,
+      ),
+    [actions, ctx.presentation, generique],
   );
   const action = actions.find((a) => a.id === draft.actionId) ?? null;
-  const remembered = memory ? (actions.find((a) => a.id === memory.actionId) ?? null) : null;
+  const remembered = memory
+    ? (actions.find((a) => a.id === memory.actionId && a.id !== generique) ?? null)
+    : null;
 
   // Action indisponible pour cet attaquant (ou aucune) : sa dernière, sinon la première ;
   // paramètres gardés s'ils restent valides (PNJ suivant, changement d'attaquant)
@@ -199,6 +212,15 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     return localAttackOf(session, meta);
   }
 
+  /** Une utilisation de la capacité jouée, sur la fiche de l'acteur (refus : signalé). */
+  async function consumeUsage(characterId: string, entree: string) {
+    try {
+      await usages.consume(characterId, entree);
+    } catch (err) {
+      toast.error(messageErreur(err));
+    }
+  }
+
   /** `patch` : valeurs choisies au clic (carte du type d'attaque), gardées dans le brouillon. */
   async function submit(patch?: ActionParams) {
     if (flow.phase !== 'compose' || !action || !systeme || disabledReason) return;
@@ -232,10 +254,13 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
       setLiveAttackId(attack.id);
       attackMenu.dispatch({ type: 'declared', attack });
       traced.end(session ? 'browser' : 'server', { 'vtt.attack.status': attack.status });
-      rememberAttack(browserMemory(), flow.campaignId, body.attackerId, {
-        actionId: action.id,
-        params,
-      });
+      // Capacité jouée depuis le menu Capacités : une utilisation consommée
+      if (draft.usage) void consumeUsage(body.attackerId, draft.usage);
+      if (action.id !== generique)
+        rememberAttack(browserMemory(), flow.campaignId, body.attackerId, {
+          actionId: action.id,
+          params,
+        });
     } catch (err) {
       if (err instanceof LocalRefusal) traced.end('refused');
       else traced.fail(err);

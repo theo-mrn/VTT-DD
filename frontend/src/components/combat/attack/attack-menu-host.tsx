@@ -9,6 +9,7 @@
  * le menu, le panneau de la table qui la couvre (fiche, panneau Combat) se ferme pour laisser
  * cliquer les tokens. Les panneaux flottants (dés) restent.
  */
+import { CapacitiesMenu } from '@/components/combat/capacities/capacities-menu';
 import { useEffect } from 'react';
 import { usePanelStoreApi } from '@/components/table/panels/store';
 import { panelRegistry } from '@/components/table/panels/registry';
@@ -22,10 +23,13 @@ export function AttackMenuHost({ campaignId }: Readonly<{ campaignId: string }>)
   useEffect(() => registerAttackHost(campaignId), [campaignId]);
   useCloseCoveringPanelOnAim(campaignId);
   return (
-    <AttackMenu
-      campaignId={campaignId}
-      canAim={Boolean(engine) && engine?.viewer.role !== 'spectator'}
-    />
+    <>
+      <AttackMenu
+        campaignId={campaignId}
+        canAim={Boolean(engine) && engine?.viewer.role !== 'spectator'}
+      />
+      <CapacitiesMenu campaignId={campaignId} />
+    </>
   );
 }
 

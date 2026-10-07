@@ -49,6 +49,13 @@ export interface AttackMenuRequest {
   attackers?: readonly string[];
   targetIds?: readonly string[];
   actionId?: string | null;
+  /** Paramètres de l'action demandée (menu Capacités : la capacité jouée). */
+  params?: ActionParams;
+  /**
+   * Capacité jouée depuis le menu Capacités : une utilisation en est consommée quand l'acte
+   * est déclaré (docs/combat.md § 19.1).
+   */
+  usage?: string | null;
   /**
    * Visée rapide (joueur, clic sur un PNJ) : le menu s'ouvre réduit à la pastille de visée,
    * ces cibles déjà prises ; « Valider » l'ouvre à l'étape « Action », Échap l'annule.
@@ -85,6 +92,8 @@ export interface AttackDraft {
   /** null : le défaut (MJ : cachée si `gmRollsHidden`, joueur : publique). */
   visibility: AttackVisibility | null;
   adjustments: FreeAdjustments;
+  /** Capacité dont une utilisation est consommée à la déclaration (menu Capacités). */
+  usage: string | null;
 }
 
 /** Étape de la composition (§ 12.1) : choisir l'action, puis la préparer. */
@@ -177,12 +186,13 @@ function emptyDraft(request: AttackMenuRequest, attackerId: string | null): Atta
     attackerId,
     actionId: request.actionId ?? null,
     presetId: null,
-    params: {},
+    params: request.params ?? {},
     targetIds: unique(request.targetIds ?? []).slice(0, ATTACK_TARGETS_MAX),
     rollMode: null,
     dice: null,
     visibility: null,
     adjustments: NO_ADJUSTMENTS,
+    usage: request.usage ?? null,
   };
 }
 

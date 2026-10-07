@@ -316,6 +316,17 @@ sortes:
       - { id: activation, nom: Activation, type: texte }
       # Durée d'une capacité à activer, en tours, lue à l'activation (dés compris)
       - { id: duree, nom: Durée (tours), type: formule, des: true }
+      # Combat (docs/combat.md § 19) : dés lancés quand on l'utilise, cibles proposées
+      - { id: jet, nom: Dés de la capacité, type: formule, des: true }
+      - id: cibles
+        nom: Cibles
+        type: choix
+        options:
+          - { valeur: soi, nom: Soi }
+          - { valeur: allies, nom: Alliés }
+          - { valeur: ennemis, nom: Ennemis }
+          - { valeur: tous, nom: Tous }
+        defaut: soi
       # Bonus situationnel invoqué au test (« +2 par rang aux tests de survie »)
       - { id: bonusTest, nom: Bonus au test invoqué, type: formule }
       - { id: avantageTest, nom: Avantage au test invoqué, type: nombre, defaut: 0 }
@@ -1796,6 +1807,21 @@ actions:
 
   # ── Sorts et attaques magiques (1d20 + Magie contre la Défense) ──
   # Rituel de puissance (magicien) : d12 au lieu du d20, +2d6 DM.
+
+  # Menu Capacités du combat (docs/combat.md § 19) : une capacité sans action dédiée. Ses dés
+  # (champ « jet ») sont lancés et montrés ; le rapport au MJ porte son texte, il applique.
+  - id: utiliser-capacite
+    nom: Utiliser une capacité
+    description: >-
+      La capacité choisie est jouée : ses dés sont lancés s'il y en a, le MJ lit son texte
+      et applique ce qu'elle fait.
+    pour: [personnage]
+    cible: personnage
+    situation: false
+    multicible: { jet: commun }
+    parametres:
+      - { id: capacite, nom: Capacité, type: entree, sorte: capacite }
+    jet: { type: numerique, formule: capacite.jet }
 
   - id: sort
     nom: Sort d’attaque

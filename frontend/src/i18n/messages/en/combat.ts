@@ -274,6 +274,20 @@ export default {
     slot: 'Slot {n, number}: {side}',
     slotCurrent: 'Slot {n, number}: {side} (current)',
   },
+  capacities: {
+    title: 'Abilities',
+    open: 'Abilities',
+    none: 'No ability to play.',
+    use: 'Use',
+    activate: 'Activate {name}',
+    deactivate: 'Turn off {name}',
+    groups: {
+      actives: 'Active',
+      aActiver: 'To activate',
+      limitees: 'Limited uses',
+      autres: 'Others',
+    },
+  },
   attack: {
     abandonShort: 'Abandon',
     skipDefenses: 'Skip the defenses',

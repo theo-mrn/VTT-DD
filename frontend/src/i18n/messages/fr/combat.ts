@@ -273,6 +273,20 @@ export default {
     slot: 'Créneau {n, number} : {side}',
     slotCurrent: 'Créneau {n, number} : {side} (en cours)',
   },
+  capacities: {
+    title: 'Capacités',
+    open: 'Capacités',
+    none: 'Aucune capacité à jouer.',
+    use: 'Utiliser',
+    activate: 'Activer {name}',
+    deactivate: 'Couper {name}',
+    groups: {
+      actives: 'Actives',
+      aActiver: 'À activer',
+      limitees: 'Usages limités',
+      autres: 'Autres',
+    },
+  },
   attack: {
     abandonShort: 'Abandonner',
     skipDefenses: 'Passer les défenses',

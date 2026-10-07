@@ -251,6 +251,22 @@ export const PresentationCombat = z.object({
    * icône de certains d'entre eux, par identifiant (couvert, cible à terre…) ; absente : aucune.
    */
   situation: z.object({ icones: z.record(z.string(), IconeEtat).default({}) }).optional(),
+  /**
+   * Menu « Capacités » du combat (docs/combat.md § 19) : capacités possédées de ces sortes qui
+   * s'utilisent. Une capacité s'utilise par son action dédiée (une action dont l'`exige` lit
+   * `possede("<capacité>")`), en s'activant (sorte activable), ou par l'action générique
+   * `action`, qui la reçoit dans son paramètre `parametre` et n'est pas dans le menu d'attaque.
+   * `passives` : le champ qui dit comment elle s'active, et ses valeurs qui l'écartent (passive
+   * pure, sans usages limités ni action dédiée).
+   */
+  capacites: z
+    .object({
+      sortes: z.array(Cle).min(1),
+      action: Id.optional(),
+      parametre: Id.default('capacite'),
+      passives: z.object({ champ: Cle, valeurs: z.array(z.string().min(1)).min(1) }).optional(),
+    })
+    .optional(),
 });
 export type PresentationCombat = z.output<typeof PresentationCombat>;
 
@@ -569,6 +585,8 @@ export function erreursCombat(systeme: SystemeCharge, c: PresentationCombat): Er
   });
   if (c.etats)
     for (const [chemin, message] of erreursEtats(systeme, c.etats)) erreur(chemin, message);
+  if (c.capacites)
+    for (const [chemin, message] of erreursCapacites(systeme, c.capacites)) erreur(chemin, message);
   if (c.situation) {
     // Paramètres rangés en situation : ceux du système et ceux propres à une action
     const situation = new Set(
@@ -581,6 +599,36 @@ export function erreursCombat(systeme: SystemeCharge, c: PresentationCombat): Er
       if (!situation.has(id))
         erreur('situation/icones', `${id} n’est pas un paramètre de situation d’une action`);
   }
+  return erreurs;
+}
+
+/**
+ * Menu Capacités : sortes connues ; action générique connue, à cible, hors des groupes du menu
+ * d'attaque, dont le paramètre est une entrée d'une de ces sortes ; champ des passives connu.
+ */
+function erreursCapacites(
+  systeme: SystemeCharge,
+  c: NonNullable<PresentationCombat['capacites']>,
+): [string, string][] {
+  const erreurs: [string, string][] = [];
+  for (const so of c.sortes)
+    if (!systeme.sortes.has(so)) erreurs.push(['capacites/sortes', `Sorte inconnue : ${so}`]);
+  if (c.action) {
+    const a = systeme.actions.get(c.action);
+    const p = a?.parametres.find((x) => x.id === c.parametre);
+    if (!a) erreurs.push(['capacites/action', `Action inconnue : ${c.action}`]);
+    else if (!a.cible) erreurs.push(['capacites/action', `${c.action} n’a pas de cible`]);
+    else if (p?.type !== 'entree' || !c.sortes.includes(p.sorte))
+      erreurs.push([
+        'capacites/parametre',
+        `${c.action} : ${c.parametre} doit recevoir une entrée de ${c.sortes.join(', ')}`,
+      ]);
+  }
+  if (
+    c.passives &&
+    !c.sortes.some((so) => systeme.sortes.get(so)?.champs.some((x) => x.id === c.passives!.champ))
+  )
+    erreurs.push(['capacites/passives', `Champ inconnu des sortes : ${c.passives.champ}`]);
   return erreurs;
 }
 

@@ -623,6 +623,28 @@ export interface OperationsPersonnage {
   ): Promise<{ resultat: ResultatAction; fiche: FichePersonnage | null }>;
 }
 
+/**
+ * Usages limités de n'importe quel personnage (menu Capacités du combat : l'acteur n'est pas
+ * forcément la fiche ouverte) : consommer une utilisation d'une entrée.
+ */
+export function useUsagesPersonnages() {
+  const client = useQueryClient();
+  return useMemo(
+    () => ({
+      consume: async (id: string, entree: string) =>
+        (
+          await ecrire(client, id, (version) =>
+            api<CharacterApi>(url(id, '/usages'), {
+              method: 'POST',
+              ...json({ version, entree, rendre: false }),
+            }),
+          )
+        ).fiche,
+    }),
+    [client],
+  );
+}
+
 /** Écritures sur un personnage, par les routes du service character. */
 export function useOperationsPersonnage(id: string): OperationsPersonnage {
   const client = useQueryClient();
