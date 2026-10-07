@@ -4,7 +4,7 @@
  * Briques communes des écrans de la marketplace : onglets de navigation, nom d'un système,
  * étoiles, badges de contenu, couverture. Même langage visuel que la boutique de dés.
  */
-import { CONTENT_WARNING_LABELS, type ContentWarning, type ListingKind } from '@vtt/contracts';
+import type { ContentWarning, ListingKind } from '@vtt/contracts';
 import {
   Box,
   ImageOff,
@@ -17,22 +17,23 @@ import {
   Wand2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Info } from '@/components/ui/tooltip';
-import { KIND_LABELS, ratingLabel } from '@/lib/marketplace/format';
+import { CONTENT_WARNING_LABELS, KIND_LABELS, ratingLabel } from '@/lib/marketplace/format';
 import { useMarketplaceMe } from '@/lib/marketplace/api';
 import { useSystemes } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 
 type Section = 'catalog' | 'library' | 'studio' | 'moderation';
 
-const TABS: { section: Section; href: string; label: string; icon: typeof Store }[] = [
-  { section: 'catalog', href: '/marketplace', label: 'Catalogue', icon: Store },
-  { section: 'library', href: '/marketplace/library', label: 'Bibliothèque', icon: Library },
-  { section: 'studio', href: '/marketplace/studio', label: 'Studio', icon: Wand2 },
-  { section: 'moderation', href: '/marketplace/moderation', label: 'Modération', icon: Shield },
+const TABS: { section: Section; href: string; icon: typeof Store }[] = [
+  { section: 'catalog', href: '/marketplace', icon: Store },
+  { section: 'library', href: '/marketplace/library', icon: Library },
+  { section: 'studio', href: '/marketplace/studio', icon: Wand2 },
+  { section: 'moderation', href: '/marketplace/moderation', icon: Shield },
 ];
 
 /** Partie de la marketplace d'une adresse : fiches et créateurs relèvent du catalogue. */
@@ -43,33 +44,34 @@ export function sectionOf(path: string): Section {
 
 /** Onglets de la marketplace ; « Modération » pour les modérateurs. */
 export function MarketplaceTabs({ className }: Readonly<{ className?: string }>) {
+  const t = useTranslations('marketplace.common.tabs');
   const path = usePathname();
   const me = useMarketplaceMe();
-  const tabs = TABS.filter((t) => t.section !== 'moderation' || me.data?.moderator);
+  const tabs = TABS.filter((tab) => tab.section !== 'moderation' || me.data?.moderator);
   const current = sectionOf(path);
-  const active = (t: (typeof tabs)[number]) => t.section === current;
+  const active = (tab: (typeof tabs)[number]) => tab.section === current;
   return (
     <nav
-      aria-label="Marketplace"
+      aria-label={t('label')}
       className={cn(
         'inline-flex items-center gap-1 rounded-xl border border-border bg-surface-2 p-1',
         className,
       )}
     >
-      {tabs.map((t) => (
+      {tabs.map((tab) => (
         <Link
-          key={t.href}
-          href={t.href}
-          aria-current={active(t) ? 'page' : undefined}
+          key={tab.href}
+          href={tab.href}
+          aria-current={active(tab) ? 'page' : undefined}
           className={cn(
             'flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium transition-colors',
-            active(t)
+            active(tab)
               ? 'bg-card text-foreground shadow-surface'
               : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          <t.icon className="size-4" aria-hidden />
-          <span className="hidden sm:inline">{t.label}</span>
+          <tab.icon className="size-4" aria-hidden />
+          <span className="hidden sm:inline">{t(tab.section)}</span>
         </Link>
       ))}
     </nav>
@@ -124,14 +126,15 @@ export function RatingSummary({
   count,
   className,
 }: Readonly<{ rating: number | null; count: number; className?: string }>) {
+  const t = useTranslations('marketplace.common.rating');
   const label = ratingLabel(rating);
   if (!label) return null;
   return (
-    <Info texte={`${count} avis`}>
+    <Info texte={t('count', { count })}>
       <span className={cn('inline-flex items-center gap-1 tabular-nums', className)}>
         <Star className="size-3.5 fill-current text-warning" aria-hidden />
         {label}
-        <span className="sr-only">sur 5, {count} avis</span>
+        <span className="sr-only"> {t('summary', { count })}</span>
       </span>
     </Info>
   );
@@ -142,15 +145,16 @@ export function StarInput({
   value,
   onChange,
 }: Readonly<{ value: number; onChange: (v: number) => void }>) {
+  const t = useTranslations('marketplace.common.rating');
   return (
-    <div className="flex items-center gap-0.5" role="radiogroup" aria-label="Note">
+    <div className="flex items-center gap-0.5" role="radiogroup" aria-label={t('label')}>
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
           type="button"
           role="radio"
           aria-checked={value === n}
-          aria-label={`${n} sur 5`}
+          aria-label={t('outOfFive', { value: n })}
           onClick={() => onChange(n)}
           className="rounded-md p-0.5 text-warning transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
         >
