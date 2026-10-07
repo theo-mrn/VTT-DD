@@ -53,6 +53,16 @@ sideOf(a: Vec, b: Vec, p: Vec): 'left' | 'right' | null
 sampleCircle(center: Vec, radius: number): Float64Array // centre + 8 points à 0,7 r
 sampleRect(x, y, width, height, rotation?): Float64Array  // centre, coins, milieux des bords
 isEntityVisible(view: View, samples: Float64Array | Vec[]): boolean
+
+// Mémoire de l'exploration (docs/exploration.md)
+explorationGrid(width, height, pixelsPerUnit): { cols; rows } // ¼ de case, 512 par côté au plus
+new ExplorationMask(cols, rows, cells?)                       // une valeur (0, 1) par case
+markView(mask, prep, view, stats?): CellRect | null            // cases dont le centre est vu
+rasterizeShape(grid, bounds, shape): CellWindow | null         // cercle ou polygone du MJ
+applyWindow(mask, window, 'reveal' | 'forget' | 'set'): CellRect | null
+effectiveWindow(mask, window, op): CellWindow | null           // ce qu'un geste change vraiment
+encodeWindow / decodeWindow / encodeMask / decodeMask          // plages LEB128 en base64
+packBits / unpackBits                                          // stockage, 8 cases par octet
 ```
 
 `Polygon` est un `Float64Array` à plat `[x0, y0, x1, y1, …]`, sans répéter le premier point.
@@ -93,13 +103,26 @@ isEntityVisible(view: View, samples: Float64Array | Vec[]): boolean
 ## Côté navigateur
 
 ```ts
-import { playerView, prepareScene, sampleCircle, segmentsFromPolyline, withLights, type VisionScene } from '@vtt/vision';
+import {
+  playerView,
+  prepareScene,
+  sampleCircle,
+  segmentsFromPolyline,
+  withLights,
+  type VisionScene,
+} from '@vtt/vision';
 
 const scene: VisionScene = {
   bounds: { width: map.width, height: map.height },
   segments: obstacles.flatMap((o) =>
     segmentsFromPolyline(
-      { id: o.id, kind: o.kind, open: o.isOpen, blocksFrom: o.blocksFrom ?? 'left', opacity: o.opacity },
+      {
+        id: o.id,
+        kind: o.kind,
+        open: o.isOpen,
+        blocksFrom: o.blocksFrom ?? 'left',
+        opacity: o.opacity,
+      },
       o.points,
     ),
   ),
@@ -112,7 +135,13 @@ const scene: VisionScene = {
         ? { id: z.id, mode: z.mode, shape: 'circle', center: z.center!, radius: z.radius! }
         : { id: z.id, mode: z.mode, shape: z.shape, points: z.points },
     ),
-  lights: lights.map((l) => ({ id: l.id, pos: l.pos, radius: l.radius * settings.pixelsPerUnit, falloff: l.falloff, on: l.visible })),
+  lights: lights.map((l) => ({
+    id: l.id,
+    pos: l.pos,
+    radius: l.radius * settings.pixelsPerUnit,
+    falloff: l.falloff,
+    on: l.visible,
+  })),
 };
 
 // Quand un mur, une porte, une pièce ou une zone change (quelques ms) :
@@ -121,7 +150,14 @@ let prep = prepareScene(scene);
 prep = withLights(prep, movedLights);
 
 // À chaque image où un observateur bouge :
-const view = playerView(prep, myTokens.map((t) => ({ id: t.id, pos: t.pos, visionRadius: t.visionBoost ? 3 * t.visionRadius : t.visionRadius })));
+const view = playerView(
+  prep,
+  myTokens.map((t) => ({
+    id: t.id,
+    pos: t.pos,
+    visionRadius: t.visionBoost ? 3 * t.visionRadius : t.visionRadius,
+  })),
+);
 for (const v of view.viewers) {
   // masque : v.los en blanc, ∩ v.clipRoom, − v.subtractRooms (ERASE) ; disque v.visionRadius
 }
@@ -138,7 +174,9 @@ npc.display.visible = view.containsAny(sampleCircle(npc.pos, npcRadius));
 const prep = cache.get(`${mapId}:${version}`) ?? prepareScene(await loadVisionScene(mapId));
 const view = playerView(prep, viewersOf(userId));
 const visibleTokens = tokens.filter((t) => view.containsAny(sampleCircle(t.pos, radiusOf(t))));
-const visibleObjects = objects.filter((o) => view.containsAny(sampleRect(o.pos.x, o.pos.y, o.width, o.height, o.rotation)));
+const visibleObjects = objects.filter((o) =>
+  view.containsAny(sampleRect(o.pos.x, o.pos.y, o.width, o.height, o.rotation)),
+);
 ```
 
 ## Performances
@@ -146,11 +184,20 @@ const visibleObjects = objects.filter((o) => view.containsAny(sampleRect(o.pos.x
 `pnpm --filter @vtt/vision bench` (donjon de 2 000 segments, 85 pièces, 20 zones de
 brouillard, 20 lumières ; Apple Silicon, Node 24, moyennes) :
 
-| Opération                                   | Budget   | Mesuré  |
-| ------------------------------------------- | -------- | ------- |
-| `prepareScene`, 2 000 segments              | < 5 ms   | 1,7 ms |
-| `visibilityPolygon`, 2 000 segments         | < 1,5 ms | 0,45 ms |
-| `contains` × 10 000, joueur à 3 observateurs | < 5 ms   | 1,2 ms |
+| Opération                                    | Budget   | Mesuré  |
+| -------------------------------------------- | -------- | ------- |
+| `prepareScene`, 2 000 segments               | < 5 ms   | 1,7 ms  |
+| `visibilityPolygon`, 2 000 segments          | < 1,5 ms | 0,45 ms |
+| `contains` × 10 000, joueur à 3 observateurs | < 5 ms   | 1,2 ms  |
+
+Exploration (`exploration.bench.ts`, même donjon, 4 800 px, case de 100 px : 192 × 192 cases) :
+
+| Opération                                         | Budget   | Mesuré  |
+| ------------------------------------------------- | -------- | ------- |
+| `markView`, groupe de 4, régime établi            | < 0,5 ms | 0,20 ms |
+| `markView`, groupe de 4, premier passage          | < 3 ms   | 0,25 ms |
+| traînée de 32 points (une vue par point)          | < 30 ms  | 16,5 ms |
+| `encodeMask`, masque en taches (2 380 caractères) | —        | 0,24 ms |
 
 À titre indicatif, 2 000 segments courts jetés au hasard (un millier de croisements, 3 943
 segments après découpe) : 4,7 ms et 1,25 ms. Une lumière de rayon 300 px (`maxRadius`) :
