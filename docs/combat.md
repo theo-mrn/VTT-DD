@@ -1631,3 +1631,55 @@ Reste :
 - états posés hors combat puis combat démarré sans initiative : le premier début de tour n'est
   annoncé qu'au tirage (décision 11) ;
 - durées « de rencontre » ou « de scène » (hors combat) : à concevoir avec les rencontres.
+
+## 19. Capacités en combat
+
+Demande de Théo (2026-10-07) : en combat, le joueur choisit une capacité à la place d'une
+attaque (action, type d'attaque, soin, bonus donné au groupe…). Le MJ en voit le texte ; ce que
+les données décrivent s'applique tout seul (« +3 FOR à tout le monde », « lancer 2d20 »).
+
+Choix de Théo : un **menu « Capacités » à part** ; on y trouve **toutes les capacités qui
+s'utilisent** (activation d'action, sortilège, ou usages limités ; pas les passives pures) ; un
+bonus donné à d'autres est fait d'**effets écrits sur la capacité** ; **phase 1 puis phase 2**.
+
+### 19.1 Phase 1 : tout jouable, texte au MJ
+
+- **Menu « Capacités »** (joueur et MJ, à côté d'« Attaquer » : fiche, panneau Combat, menu du
+  token, touche dédiée) : les capacités utilisables de l'acteur, rangées comme la vue Capacités
+  de la fiche (actives, à activer, usages limités, autres), avec la pastille des usages et la
+  durée restante. Épuisée : grisée. Le texte de la capacité en infobulle.
+- **Utiliser**, selon ce que la capacité permet, sans rien deviner :
+  1. elle a une **action dédiée** du système (`exige` qui lit `possede("<capacité>")` : Charge,
+     Soins légers, Attaque sournoise…) : le menu d'attaque s'ouvre sur cette action, déroulé
+     habituel (cibles, dés 3D, rapport, application) ;
+  2. c'est une **capacité à activer** (Rage, Bénédiction) : elle s'active (usage consommé, durée
+     lancée, § « Durée d'une activation » et « Usages limités » de docs/regles.md), et l'acte
+     part au MJ ;
+  3. sinon, **action générique** « Utiliser une capacité » du système (déclarée par la
+     présentation, `combat.capacites.action`, et retirée du menu d'attaque) : le menu d'attaque
+     s'ouvre sur elle, la capacité en paramètre ; cibles au choix (soi par défaut) ; si la
+     capacité déclare des **dés** (champ `jet` : « 2d20 », « 1d6 + mod(@CHA) »), ils sont lancés
+     en 3D et montrés ; l'usage est consommé ; le **rapport au MJ porte le texte de la
+     capacité**, le MJ applique à la main.
+- Aucun nom de capacité dans le code : action dédiée trouvée par son `exige`, action générique et
+  champs (`jet`, `cibles`) nommés par la présentation et la sorte.
+
+### 19.2 Phase 2 : automatiser par les données
+
+L'action générique lit ce que la capacité déclare, et le rapport propose l'application en un
+clic, comme une attaque :
+
+- `cibles` : `soi`, `allies`, `ennemis`, `tous` (cibles proposées par défaut) ;
+- `jet` : dés lancés (déjà en phase 1), avec, s'il y a lieu, une réussite contre une défense ;
+- `donne` : effets posés sur chaque cible, écrits comme tout effet (`FOR +3`), avec leur durée
+  (formule, en tours) : un bonus libre au nom de la capacité, qui s'éteint seul ; brique de
+  moteur nouvelle (conséquence « poser des effets » lue sur la capacité choisie) ;
+- `soins` et `degats` : formules (et type de dégâts), conséquences habituelles des PV.
+
+Les capacités se remplissent ensuite par lots, en commençant par celles qui donnent un bonus au
+groupe et les soins.
+
+### 19.3 Après
+
+Jets de sauvegarde imposés aux cibles, réactions sur événement, auras liées aux positions de la
+carte, invocations et compagnons (docs/feuille-de-route.md, § 3).
