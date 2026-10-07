@@ -45,6 +45,7 @@
 - id: race-ame-forgee-camouflage
   sorte: capacite
   nom: Camouflage
+  usages: { par: jour }
   champs: { voie: race-ame-forgee, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet: humain pour 1 heure, 1 x par jour.
@@ -54,6 +55,7 @@
 - id: race-ame-forgee-forge-dans-la-bataille
   sorte: capacite
   nom: Forgé dans la bataille
+  usages: { par: combat }
   champs: { voie: race-ame-forgee, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : ignore les DM subits 1x par combat.
@@ -359,6 +361,7 @@
 - id: race-humain-increvable
   sorte: capacite
   nom: Increvable
+  usages: { par: tour }
   champs: { voie: race-humain, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : esquive sur coup mortel
@@ -516,6 +519,7 @@
 - id: race-minotaure-encorner
   sorte: capacite
   nom: Encorner
+  usages: { par: tour }
   champs: { voie: race-minotaure, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : 🗡️ attaque de corne 1x par tour.
@@ -554,6 +558,7 @@
 - id: race-halfelin-petit-veinard
   sorte: capacite
   nom: Petit veinard
+  usages: { par: combat }
   champs: { voie: race-halfelin, rangVoie: 1, activation: Capacité passive }
   description: |-
     Effet : relance 1 dé de son choix 1x par combat.
@@ -576,6 +581,7 @@
 - id: race-halfelin-bon-pour-le-moral
   sorte: capacite
   nom: Bon pour le moral
+  usages: { par: jour }
   champs: { voie: race-halfelin, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : régén sur bon repas 1d6 PV ou sieste [2d6 + niveau] PV.
@@ -898,6 +904,7 @@
 - id: race-ogre-vorace
   sorte: capacite
   nom: Vorace
+  usages: { par: jour }
   champs: { voie: race-ogre, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : [3d6 + niveau] PV repris avec un festin
@@ -977,6 +984,7 @@
 - id: race-wolfer-corps-de-loup
   sorte: capacite
   nom: Corps de loup
+  usages: { par: jour }
   champs: { voie: race-wolfer, rangVoie: 4, activation: Action limitée }
   description: |-
     Effet : transformation Male Alpha Init 17, 🛡️15, DM 1d6+3, FOR+3, DEX+1 capacité : Embuscade - Voie du prédateur.

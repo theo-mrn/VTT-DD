@@ -92,6 +92,7 @@
 - id: barbare-rage-cri-de-guerre
   sorte: capacite_active
   nom: Cri de guerre
+  usages: { par: combat }
   champs: { voie: barbare-rage, rangVoie: 1, activation: Action limitée }
   description: |-
     Effet : effraie les adversaires, -2 contact sur le barbare.
@@ -335,6 +336,7 @@
 - id: barbare-pourfendeur-attaque-tourbillon
   sorte: capacite
   nom: Attaque tourbillon
+  usages: { par: combat }
   champs: { voie: barbare-pourfendeur, rangVoie: 5, activation: Action limitée }
   description: |-
     Effet : contact sur 5 mètres autour du barbare.
@@ -409,6 +411,7 @@
 - id: barbare-primitif-resistance-a-la-magie
   sorte: capacite
   nom: Résistance à la magie
+  usages: { par: tour }
   champs: { voie: barbare-primitif, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : résiste à la magie sur test de magie opposé au lanceur de sort une fois par tour.
@@ -477,6 +480,7 @@
 - id: barde-seduction-arme-secrete
   sorte: capacite
   nom: Arme secrète
+  usages: { par: combat }
   champs: { voie: barde-seduction, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : subterfuge, la cible subit -10 contact, distance, magie, defense:
@@ -487,6 +491,7 @@
 - id: barde-seduction-suggestion
   sorte: capacite
   nom: Suggestion
+  usages: { par: jour }
   etiquettes: [sort]
   champs:
     {
@@ -717,6 +722,7 @@
 - id: barde-saltimbanque-lanceur-de-couteau
   sorte: capacite
   nom: Lanceur de couteau
+  usages: { par: tour }
   champs: { voie: barde-saltimbanque, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : action gratuite : esquive une attaque sur test de Distance.
@@ -726,6 +732,7 @@
 - id: barde-saltimbanque-esquive-acrobatique
   sorte: capacite
   nom: Esquive acrobatique
+  usages: { par: tour }
   champs: { voie: barde-saltimbanque, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : action gratuite : esquive une attaque sur test de Contact.
@@ -1045,6 +1052,7 @@
 - id: chevalier-cavalier-monture-fantastique
   sorte: capacite
   nom: Monture fantastique
+  usages: { par: tour }
   champs: { voie: chevalier-cavalier, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet : Pégase : Init 15, DEF 16,PV [5* niveau], Contact+8, DM 1d6+4.
@@ -1071,6 +1079,7 @@
 - id: chevalier-heros-ignorer-la-douleur
   sorte: capacite
   nom: Ignorer la douleur
+  usages: { par: combat }
   champs: { voie: chevalier-heros, rangVoie: 1, activation: Capacité passive }
   description: |-
     Effet : applique les DM en fin de combat.
@@ -1163,6 +1172,7 @@
 - id: chevalier-meneur-d-homme-intercepter
   sorte: capacite
   nom: Intercepter
+  usages: { par: tour }
   champs: { voie: chevalier-meneur-d-homme, rangVoie: 2, activation: Capacité passive }
   description: |-
     Effet: encaisse un coup à la place d'un allié, -rang DM subit
@@ -1172,6 +1182,7 @@
 - id: chevalier-meneur-d-homme-exemplaire
   sorte: capacite
   nom: Exemplaire
+  usages: { par: tour }
   champs: { voie: chevalier-meneur-d-homme, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : relance le test d'attaque raté d'un allié.
@@ -1181,6 +1192,7 @@
 - id: chevalier-meneur-d-homme-ordre-de-bataille
   sorte: capacite
   nom: Ordre de bataille
+  usages: { par: tour }
   champs: { voie: chevalier-meneur-d-homme, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : un allié gagne une action gratuite (mouvement ou attaque).
@@ -1190,6 +1202,7 @@
 - id: chevalier-meneur-d-homme-charge-fantastique
   sorte: capacite
   nom: Charge fantastique
+  usages: { par: combat }
   champs: { voie: chevalier-meneur-d-homme, rangVoie: 5, activation: Action limitée }
   description: |-
     Effet: +3 Contact,Disatnce,Magie, +1d6 DM à tous le groupe.
@@ -1501,6 +1514,7 @@
 - id: druide-vegetaux-animation-d-un-arbre
   sorte: capacite
   nom: Animation d’un arbre
+  usages: { par: combat }
   champs: { voie: druide-vegetaux, rangVoie: 3, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : Arbre animé : Init 7,DEF 13, [rang x 10] PV, Contact 1d6+3 DMdéplacement 10 mètres, RD 10 DM sauf feu et Contact.
@@ -1511,6 +1525,7 @@
 - id: druide-vegetaux-gland-de-pouvoir
   sorte: capacite
   nom: Gland de pouvoir
+  usages: { par: combat }
   etiquettes: [sort]
   champs: { voie: druide-vegetaux, rangVoie: 4, activation: 'Action limitée, sortilège', nbDes: 0 }
   description: |-
@@ -1522,6 +1537,7 @@
 - id: druide-vegetaux-porte-vegetale
   sorte: capacite
   nom: Porte végétale
+  usages: { par: jour }
   champs: { voie: druide-vegetaux, rangVoie: 5, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : en forêt, téléporte à [mod. SAG] x 10 Km.
@@ -1548,6 +1564,7 @@
 - id: druide-protecteur-baies-magiques
   sorte: capacite
   nom: Baies magiques
+  usages: { par: jour }
   champs: { voie: druide-protecteur, rangVoie: 1, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : fait pousser [1d6 + mod. SAG] fruits, rend [1d6 + niveau du druide] PV.
@@ -1567,6 +1584,7 @@
 - id: druide-protecteur-regeneration
   sorte: capacite
   nom: Régénération
+  usages: { par: jour }
   champs: { voie: druide-protecteur, rangVoie: 3, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : guérit 3 PV par tour.
@@ -1577,6 +1595,7 @@
 - id: druide-protecteur-forme-d-arbre
   sorte: capacite
   nom: Forme d’arbre
+  usages: { par: combat }
   champs: { voie: druide-protecteur, rangVoie: 4, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : transformation Arbdre animé : Init 7, DEF 13, [rang x 10] PV, Contact 1d6+3 DMdéplacement 10 mètres, RD 10 DM sauf feu et Contact
@@ -1667,6 +1686,7 @@
 - id: ensorceleur-divination-prescience
   sorte: capacite
   nom: Prescience
+  usages: { par: combat }
   champs: { voie: ensorceleur-divination, rangVoie: 4, activation: 'Capacité passive, sortilège' }
   description: |-
     Effet : rejoue le dernier tour, +10 🛡️, +10 Init.
@@ -1828,6 +1848,7 @@
 - id: ensorceleur-envouteur-amitie
   sorte: capacite
   nom: Amitié
+  usages: { par: jour }
   etiquettes: [sort]
   champs:
     {
@@ -1908,6 +1929,7 @@
 - id: ensorceleur-illusions-dedoublement
   sorte: capacite
   nom: Dédoublement
+  usages: { par: combat }
   etiquettes: [sort]
   champs:
     { voie: ensorceleur-illusions, rangVoie: 4, activation: 'Action limitée, sortilège', nbDes: 0 }
@@ -1920,6 +1942,7 @@
 - id: ensorceleur-illusions-tueur-fantasmagorique
   sorte: capacite
   nom: Tueur fantasmagorique
+  usages: { par: jour }
   champs: { voie: ensorceleur-illusions, rangVoie: 5, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : mort de la cible sur test Magie en opposition si test de SAG [10 + mod. CHA] de la cible raté, sinon renversée.
@@ -2165,6 +2188,7 @@
 - id: forgesort-runes-rune-d-energie
   sorte: capacite
   nom: Rune d’énergie
+  usages: { par: combat }
   champs: { voie: forgesort-runes, rangVoie: 2, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : enchante un bijoux permettant la relance de 🗡️ FOR, DEX ou CON.
@@ -2174,6 +2198,7 @@
 - id: forgesort-runes-rune-de-protection
   sorte: capacite
   nom: Rune de protection
+  usages: { par: combat }
   champs: { voie: forgesort-runes, rangVoie: 3, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : enchante une armure qui ignore les DM une fois par combat.
@@ -2183,6 +2208,7 @@
 - id: forgesort-runes-rune-de-puissance
   sorte: capacite
   nom: Rune de puissance
+  usages: { par: combat }
   champs: { voie: forgesort-runes, rangVoie: 4, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : enchante une arme qui inflige DM max une fois par combat.
@@ -2192,6 +2218,7 @@
 - id: forgesort-runes-rune-de-pouvoir
   sorte: capacite
   nom: Rune de pouvoir
+  usages: { max: '3', par: jour }
   champs: { voie: forgesort-runes, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet : lie un sort à un objet.
@@ -2249,6 +2276,7 @@
 - id: forgesort-golem-protecteur
   sorte: capacite
   nom: Protecteur
+  usages: { par: tour }
   champs: { voie: forgesort-golem, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : le golem prend les DM d’un autre
@@ -2447,6 +2475,7 @@
 - id: guerrier-resistance-second-souffle
   sorte: capacite
   nom: Second souffle
+  usages: { par: combat }
   champs: { voie: guerrier-resistance, rangVoie: 3, activation: Action limitée }
   description: |-
     Effet : [1d10 + niveau + mod. CON] PV récupéré 1 fois par combat.
@@ -2698,6 +2727,7 @@
 - id: guerrier-maitre-d-armes-riposte
   sorte: capacite
   nom: Riposte
+  usages: { par: tour }
   champs: { voie: guerrier-maitre-d-armes, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet : +1 attaque 🗡️ si l’adversaire rate son attaque.
@@ -2742,6 +2772,7 @@
 - id: guerrier-soldat-prouesse
   sorte: capacite
   nom: Prouesse
+  usages: { par: tour }
   champs: { voie: guerrier-soldat, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : sacrifie -1d4 PV contre +5 FOR ou +5 DEX.
@@ -2814,6 +2845,7 @@
 - id: invocateur-conjuration-conjuration-de-predateur
   sorte: capacite
   nom: Conjuration de prédateur
+  usages: { par: combat }
   champs: { voie: invocateur-conjuration, rangVoie: 1, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : prédateur:
@@ -2841,6 +2873,7 @@
 - id: invocateur-conjuration-conjuration-d-armee
   sorte: capacite
   nom: Conjuration d'armée
+  usages: { par: jour }
   champs: { voie: invocateur-conjuration, rangVoie: 3, activation: 'Action limitée, sortilège' }
   description: |-
     Effet: armée 1d6 DM par tour à chaque cible, 1d10 DM au rang 4, 2D6 DM au rang 5
@@ -2931,6 +2964,7 @@
 - id: invocateur-entite-protecteur
   sorte: capacite
   nom: Protecteur
+  usages: { par: tour }
   champs: { voie: invocateur-entite, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : au contact de l'entité, +2 Défense si allié, +4 Défense si l'invocateur.
@@ -3108,6 +3142,7 @@
 - id: invocateur-portes-engloutissement-lointain
   sorte: capacite
   nom: Engloutissement lointain
+  usages: { par: combat }
   champs: { voie: invocateur-portes, rangVoie: 4, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : téléporte la cible Une fois par combat
@@ -3599,6 +3634,7 @@
 - id: magicien-magie-protectrice-cercle-de-protection
   sorte: capacite
   nom: Cercle de protection
+  usages: { par: tour }
   champs: { voie: magicien-magie-protectrice, rangVoie: 4, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : Annule le sort adverse
@@ -3769,6 +3805,7 @@
 - id: moine-maitrise-fureur-du-dragon
   sorte: capacite
   nom: Fureur du dragon
+  usages: { par: combat }
   champs: { voie: moine-maitrise, rangVoie: 4, activation: Action limitée }
   description: |-
     Effet : [2d6 + mod. FOR] DM
@@ -3778,6 +3815,7 @@
 - id: moine-maitrise-moment-de-perfection
   sorte: capacite
   nom: Moment de perfection
+  usages: { par: combat }
   champs: { voie: moine-maitrise, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet : réussite automatique d'attaques et esquives pendant le tour
@@ -3888,6 +3926,7 @@
 - id: moine-poing-parade-de-projectiles
   sorte: capacite
   nom: Parade de projectiles
+  usages: { par: tour }
   champs: { voie: moine-poing, rangVoie: 2, activation: Capacité passive }
   description: |-
     Effet : dévit un projectile une fois par tour
@@ -4329,6 +4368,7 @@
 - id: necromancien-demon-invocation-d-un-demon
   sorte: capacite
   nom: Invocation d’un démon
+  usages: { par: combat }
   champs: { voie: necromancien-demon, rangVoie: 5, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : sacrifie 1d6 PV, invoque un démon : FOR +5, DEX +2, CON +4, INT -2, SAG +2, CHA 0 Init 16, Defdense 7, PV [niveau x 15], Contact [Niveau du nécro], DM 1d8+5
@@ -4376,6 +4416,7 @@
 - id: necromancien-outre-tombe-peur
   sorte: capacite
   nom: Peur
+  usages: { par: combat }
   etiquettes: [sort]
   champs:
     {
@@ -4414,6 +4455,7 @@
 - id: necromancien-outre-tombe-ensevelissement
   sorte: capacite
   nom: Ensevelissement
+  usages: { par: combat }
   etiquettes: [sort]
   champs:
     {
@@ -4430,6 +4472,7 @@
 - id: necromancien-outre-tombe-armee-des-morts
   sorte: capacite
   nom: Armée des morts
+  usages: { par: jour }
   champs: { voie: necromancien-outre-tombe, rangVoie: 5, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : 3d6 DM par tour par cible dans la zone.
@@ -4677,6 +4720,7 @@
 - id: pretre-guerre-sainte-mot-de-pouvoir
   sorte: capacite
   nom: Mot de pouvoir
+  usages: { par: combat }
   champs: { voie: pretre-guerre-sainte, rangVoie: 5, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : alliés +5 Contact, Distance, Magie, paralysie ennemies
@@ -4754,6 +4798,7 @@
 - id: pretre-priere-intervention-divine
   sorte: capacite
   nom: Intervention divine
+  usages: { par: combat }
   champs: { voie: pretre-priere, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet: décide de la réussite ou de l'échec Le prêtre fait appel à son dieu pour changer le cours des événements.
@@ -4834,6 +4879,7 @@
 - id: pretre-spiritualite-marche-des-plans
   sorte: capacite
   nom: Marche des plans
+  usages: { par: jour }
   champs: { voie: pretre-spiritualite, rangVoie: 4, activation: 'Action limitée, sortilège' }
   description: |-
     Effet: déplacement 10 Km par tour
@@ -4870,6 +4916,7 @@
 - id: pretre-soins-soins-legers
   sorte: capacite
   nom: Soins légers
+  usages: { max: 'rang("pretre-soins")', par: jour }
   champs: { voie: pretre-soins, rangVoie: 1, activation: 'Action limitée, sortilège' }
   description: |-
     Effet: soigne [1d8 + niveau du prêtre] PV ([rang] x par jour)
@@ -4879,6 +4926,7 @@
 - id: pretre-soins-soins-moderes
   sorte: capacite
   nom: Soins modérés
+  usages: { max: 'rang("pretre-soins")', par: jour }
   champs: { voie: pretre-soins, rangVoie: 2, activation: 'Action limitée, sortilège' }
   description: |-
     Effet: soigne [2d8 + niveau du prêtre] PV ([rang] x par jour)
@@ -4888,6 +4936,7 @@
 - id: pretre-soins-soins-de-groupe
   sorte: capacite
   nom: Soins de groupe
+  usages: { par: combat }
   champs: { voie: pretre-soins, rangVoie: 3, activation: 'Action limitée, sortilège' }
   description: |-
     Effet: soigne le groupe [1d8 + niveau du prêtre] PV (1x par combat)
@@ -4897,6 +4946,7 @@
 - id: pretre-soins-guerison
   sorte: capacite
   nom: Guérison
+  usages: { par: jour }
   champs: { voie: pretre-soins, rangVoie: 4, activation: 'Action limitée, sortilège' }
   description: |-
     Effet: soigne PV max et état anormaux
@@ -4906,6 +4956,7 @@
 - id: pretre-soins-rappel-a-la-vie
   sorte: capacite
   nom: Rappel à la vie
+  usages: { par: jour }
   champs: { voie: pretre-soins, rangVoie: 5, activation: 'Capacité passive, sortilège' }
   description: |-
     Effet :Magie , ressucite pour 1d6 PV Une fois par jour,
@@ -4978,6 +5029,7 @@
 - id: psionique-telekinesie-onde-de-choc
   sorte: capacite
   nom: Onde de choc
+  usages: { par: combat }
   champs: { voie: psionique-telekinesie, rangVoie: 3, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : [2d6 + mod. CHA] DM sur 10 mètres.
@@ -5065,6 +5117,7 @@
 - id: psionique-telepathie-suggestion
   sorte: capacite
   nom: Suggestion
+  usages: { par: jour }
   etiquettes: [sort]
   champs:
     {
@@ -5190,6 +5243,7 @@
 - id: psionique-attaque-mentale-attaque-psionique
   sorte: capacite
   nom: Attaque psionique
+  usages: { par: combat }
   champs: { voie: psionique-attaque-mentale, rangVoie: 4, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : attaque mentale sur (3 + mod. CHA) cibles
@@ -5352,6 +5406,7 @@
 - id: psionique-envouteur-amitie
   sorte: capacite
   nom: Amitié
+  usages: { par: jour }
   etiquettes: [sort]
   champs:
     {
@@ -5867,6 +5922,7 @@
 - id: samourai-ki-kiai
   sorte: capacite
   nom: Kiai
+  usages: { max: 'si(rang("samourai-ki") >= 5, 2, 1)', par: combat }
   champs: { voie: samourai-ki, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet: DM max à (distance/combat) 1x par combat.
@@ -6115,6 +6171,7 @@
 - id: voleur-assassin-ouverture-mortelle
   sorte: capacite
   nom: Ouverture mortelle
+  usages: { par: combat }
   champs: { voie: voleur-assassin, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet: critique automatique 1x par combat.
@@ -6141,6 +6198,7 @@
 - id: voleur-aventurier-sprint
   sorte: capacite
   nom: Sprint
+  usages: { par: combat }
   champs: { voie: voleur-aventurier, rangVoie: 1, activation: Capacité passive }
   description: |-
     Effet: déplacement gratuit de 20 mètres, 1x par combat.
@@ -6173,6 +6231,7 @@
 - id: voleur-aventurier-feindre-la-mort
   sorte: capacite
   nom: Feindre la mort
+  usages: { par: combat }
   champs: { voie: voleur-aventurier, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : feint la mort, + 1d6 PV +1 mouvement lorsque se relève.
@@ -6323,6 +6382,7 @@
 - id: voleur-roublard-attaque-paralysante
   sorte: capacite
   nom: Attaque paralysante
+  usages: { par: combat }
   champs: { voie: voleur-roublard, rangVoie: 4, activation: Action limitée }
   description: |-
     Effet : 1x par combat: paralyse la cible, elle ne peut encaisser de DM
@@ -6333,6 +6393,7 @@
 - id: voleur-roublard-attaque-en-traitre
   sorte: capacite
   nom: Attaque en traître
+  usages: { par: tour }
   champs: { voie: voleur-roublard, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet: attaque gratuite sur ouverture d'un allié.
@@ -6373,6 +6434,7 @@
 - id: voleur-spadassin-esquive-fatale
   sorte: capacite
   nom: Esquive fatale
+  usages: { par: combat }
   champs: { voie: voleur-spadassin, rangVoie: 2, activation: Capacité passive }
   description: |-
     Effet : transfert une attaque subit sur un adversaire.

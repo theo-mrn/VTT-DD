@@ -394,6 +394,10 @@ export const DureeEntree = DecompteDonne.extend({
 });
 export type DureeEntree = z.output<typeof DureeEntree>;
 
+/** Période après laquelle les usages d'une entrée reviennent. */
+export const PeriodeUsages = z.enum(['tour', 'combat', 'jour']);
+export type PeriodeUsages = z.output<typeof PeriodeUsages>;
+
 export const Entree = z.object({
   id: Id,
   sorte: Cle,
@@ -417,6 +421,12 @@ export const Entree = z.object({
   choixAttributs: z.array(ChoixAttribut).default([]),
   /** Condition pour pouvoir prendre l'entrée. */
   exige: Formule.optional(),
+  /**
+   * Usages limités (« une fois par combat ») : nombre d'utilisations (formule sur le porteur,
+   * 1 par défaut) par période. `tour` : un tour de combat, rendu à chaque fin de round ;
+   * `combat` : rendu à la fin du combat ; `jour` : rendu au repos (qui rend aussi les autres).
+   */
+  usages: z.object({ max: Formule.default('1'), par: PeriodeUsages }).optional(),
 });
 export type Entree = z.output<typeof Entree>;
 

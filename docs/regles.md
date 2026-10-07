@@ -348,6 +348,30 @@ durée.
   l'entrée **s'éteint** (`actif: false`, sans durée) au lieu d'être retirée : elle reste possédée,
   et figure dans les durées expirées. La fiche montre le temps restant à côté de l'interrupteur.
 
+#### Usages limités
+
+« Une fois par combat », « trois fois par jour » : l'entrée le déclare, la fiche compte.
+
+- **Déclaration.** `usages: { max, par }` sur l'entrée : `max` est une formule sur le porteur
+  (1 par défaut ; `rang("pretre-soins")`, `1 + mod(@INT)`), `par` la période : `tour` (un tour
+  de combat, c'est-à-dire un round), `combat` ou `jour`. Compilée au chargement comme `exige`.
+- **État.** `etat.usages` compte les utilisations consommées, par entrée (absent : aucune).
+  `usagesDe(fiche, entree)` donne `max`, `utilises`, `restants` et `par`.
+- **Consommer.** `utiliser(fiche, entree, rendre?)` en consomme une, refusé quand il n'en reste
+  plus (« Second souffle : plus d'utilisation (1 par combat) »), ou en rend une (correction).
+  Le service character l'expose par `POST /v1/characters/:id/usages` (`{ version, entree,
+rendre? }`, opération `usage`, code `usages_epuises` au refus). Activer une entrée à usages
+  limités en consomme une (`apresActivation`, refusé à l'épuisement) ; réactiver une entrée déjà
+  active, non.
+- **Rendre.** `remettreUsages(systeme, etat, periodes)` : la fin d'un round rend les usages
+  `tour`, la fin du combat ceux `tour` et `combat` (`periodesCloses(evenements)`, appliquée avec
+  le décompte des durées), le repos complet (`POST /repos` sans liste d'attributs) tous
+  (`PERIODES_REPOS`). Une entrée qui n'a plus d'usages limités est oubliée. Les usages
+  entrent dans le delta d'une écriture du combat : annuler une fin de round les reconsomme.
+- **Fiche.** Pastille « 1/1 » sur la capacité (survol : « 1 sur 1 par combat ») : un clic en
+  consomme une pour une capacité qui ne s'active pas ; le détail permet d'en rendre une. Le menu
+  « … » de la fiche propose « Repos complet ».
+
 ### Paramètres choisis après le jet (`etape: apres`)
 
 On ne choisit pas son arme pour savoir si l'on touche : le jet d'attaque se lance sur le type

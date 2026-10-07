@@ -117,6 +117,7 @@ export const chemins = {
   effetEntite: (entite: string, i: number, champ: string) =>
     `entites/${entite}/effets/${i}/${champ}`,
   exige: (entree: string) => `catalogue/${entree}/exige`,
+  usages: (entree: string) => `catalogue/${entree}/usages/max`,
   champ: (entree: string, champ: string) => `catalogue/${entree}/champs/${champ}`,
   choix: (entree: string, choix: string) => `catalogue/${entree}/choix/${choix}/valeur`,
   choixNombre: (entree: string, choix: string) => `catalogue/${entree}/choix/${choix}/nombre`,
@@ -724,6 +725,7 @@ class Chargeur {
 
     if (e.exige !== undefined)
       this.compiler(chemins.exige(e.id), e.exige, { entite: porteurs }, 'booleen');
+    if (e.usages) this.compiler(chemins.usages(e.id), e.usages.max, { entite: porteurs }, 'nombre');
   }
 
   private contexteEffets(): ContexteEffets {

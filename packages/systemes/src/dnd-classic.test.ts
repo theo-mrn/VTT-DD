@@ -17,6 +17,7 @@ import {
   initiative,
   reduireDegats,
   dureeActivation,
+  usagesDe,
   tirerEtape,
   type EtatEntiteSaisi,
   type Fiche,
@@ -1160,6 +1161,15 @@ describe('dnd-classic : capacités codées', () => {
     // Rage du berserk : tant qu'il reste des ennemis, sans durée
     const barbare = nu([{ entree: 'barbare-rage', rang: 3 }]);
     expect(dureeActivation(barbare, 'barbare-rage-rage-du-berserk')).toBeUndefined();
+  });
+
+  it('usages limités : par combat, par jour, nombre selon la voie', () => {
+    const pretre = nu([{ entree: 'pretre-soins', rang: 3 }]);
+    expect(usagesDe(pretre, 'pretre-soins-soins-legers')).toMatchObject({ max: 3, par: 'jour' });
+    const samourai = (rang: number) => nu([{ entree: 'samourai-ki', rang }]);
+    expect(usagesDe(samourai(3), 'samourai-ki-kiai')).toMatchObject({ max: 1, par: 'combat' });
+    expect(usagesDe(samourai(5), 'samourai-ki-kiai')?.max).toBe(2);
+    expect(usagesDe(pretre, 'barbare-brute-argument-de-taille')).toBeUndefined();
   });
 
   it('Détection de la magie : +2 par rang de la voie, invoqué au test', () => {

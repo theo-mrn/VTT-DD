@@ -70,6 +70,10 @@ export interface OperationsFiche {
   effet?(effets: string[], actif: boolean, apercu: EtatEntite): void;
   /** Annule l'achat de la ligne `index` du journal et rend son coût. */
   rembourser?(index: number, apercu: EtatEntite): void;
+  /** Consomme une utilisation d'une entrée à usages limités, ou en rend une (`rendre`). */
+  usage?(entree: string, rendre: boolean, apercu: EtatEntite): void;
+  /** Repos complet : ressources récupérées, utilisations rendues. */
+  repos?(apercu: EtatEntite): void;
   /** Action du système : jet tiré par le service, conséquences appliquées s'il le faut. */
   action: OperationsPersonnage['action'];
 }

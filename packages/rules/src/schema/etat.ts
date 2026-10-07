@@ -226,6 +226,11 @@ export const EtatEntite = z.object({
    * et effets propres d'un exemplaire ; un bonus libre s'active, lui, par son `actif`.
    */
   effetsDesactives: z.array(CleEffet).max(MAX_EFFETS_DESACTIVES).default([]),
+  /**
+   * Utilisations consommées des entrées à usages limités (`entree.usages`), par entrée ;
+   * remises à zéro à la fin de leur période (`remettreUsages`). Absente : aucune.
+   */
+  usages: z.record(Id, z.number().int().nonnegative().max(1000)).default({}),
   /** Vrai tant que la création n'est pas terminée. */
   creation: z.boolean().default(false),
 });

@@ -599,6 +599,10 @@ export interface OperationsPersonnage {
    * sans toucher à leur source : l'objet reste équipé.
    */
   effet(effets: string[], actif: boolean, apercu?: EtatEntite): Promise<FichePersonnage>;
+  /** Consomme une utilisation d'une entrée à usages limités, ou en rend une (`rendre`). */
+  usage(entree: string, rendre: boolean, apercu?: EtatEntite): Promise<FichePersonnage>;
+  /** Repos complet : ressources à leur borne de récupération, utilisations rendues. */
+  repos(apercu?: EtatEntite): Promise<FichePersonnage>;
   /**
    * Mise en page de la fiche (null : disposition par défaut), montrée tout de suite ;
    * elle appartient au personnage, toute la table la voit.
@@ -709,6 +713,9 @@ export function useOperationsPersonnage(id: string): OperationsPersonnage {
             apercu,
           )
         ).fiche,
+      usage: async (entree, rendre, apercu) =>
+        (await w((version) => post('/usages', { version, entree, rendre }), apercu)).fiche,
+      repos: async (apercu) => (await w((version) => post('/repos', { version }), apercu)).fiche,
       retirerBonus: async (bonusId, apercu) =>
         (
           await w(

@@ -10,6 +10,8 @@ import {
   rembourser,
   reporterEffetsDesactives,
   sourceExemplaire,
+  usagesDe,
+  utiliser,
   type Effet,
   type EtatEntite,
   type ResultatRemboursement,
@@ -32,6 +34,11 @@ export interface SheetWrites {
     run(index: number): void;
   };
   setActive(entree: string, actif: boolean): void;
+  /**
+   * Consomme une utilisation d'une entrée à usages limités, ou en rend une (`rendre`).
+   * Absent : la page ne fournit pas l'opération.
+   */
+  use?(entree: string, rendre: boolean): void;
   /**
    * Active ou coupe des effets (clés `<source>/<index>`) : la même opération que le bloc
    * Bonus. Absent : la page ne fournit pas l'opération.
@@ -69,6 +76,14 @@ export function sheetWrites(ctx: ContexteFiche, mode: 'read' | 'edit'): SheetWri
         }
       : {}),
     setActive(entree, actif) {
+      const avant = ctx.fiche.possessions.get(entree);
+      const u = usagesDe(ctx.fiche, entree);
+      // Activer consomme une utilisation : plus aucune, le service refuserait
+      if (actif && !avant?.actif && u && u.restants <= 0) {
+        const r = utiliser(ctx.fiche, entree);
+        if (!r.ok) toast.error(r.erreur);
+        return;
+      }
       const existe = etat.possessions.some((p) => p.entree === entree);
       ops.possession(
         { entree, actif },
@@ -80,6 +95,15 @@ export function sheetWrites(ctx: ContexteFiche, mode: 'read' | 'edit'): SheetWri
         },
       );
     },
+    ...(ops.usage
+      ? {
+          use(entree: string, rendre: boolean) {
+            const r = utiliser(ctx.fiche, entree, rendre);
+            if (r.ok) ops.usage?.(entree, rendre, r.etat);
+            else toast.error(r.erreur);
+          },
+        }
+      : {}),
     ...(ops.effet
       ? {
           toggleEffects: (cles: string[], actif: boolean) =>

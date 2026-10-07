@@ -279,6 +279,7 @@
 - id: prestige-voleur-maitre-des-poisons-poisons-virulents
   sorte: capacite
   nom: Poisons virulents
+  usages: { max: '1 + mod(@INT)', par: jour }
   champs: { voie: prestige-voleur-maitre-des-poisons, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet : Le voleur sait fabriquer en petites quantités les poisons « lent » et « violent », il peut en utiliser [1 + Mod. d’INT] doses par jour (cumul des 2 sortes de poisons).
@@ -373,6 +374,7 @@
 - id: prestige-rodeur-archer-arcanique-fleche-chercheuse
   sorte: capacite
   nom: Flèche chercheuse
+  usages: { par: jour }
   champs: { voie: prestige-rodeur-archer-arcanique, rangVoie: 5, activation: Action limitée }
   description: |-
     Effet : Une fois par jour, le rôdeur peut enchanter une flèche afin qu’elle trouve sa cible de façon infaillible.
@@ -461,6 +463,7 @@
 - id: prestige-rodeur-chasseur-de-corruption-resister-a-la-corruption
   sorte: capacite
   nom: Résister à la corruption
+  usages: { par: combat }
   champs:
     { voie: prestige-rodeur-chasseur-de-corruption, rangVoie: 5, activation: Capacité passive }
   description: |-
@@ -667,6 +670,7 @@
 - id: prestige-pretre-archange-protection-divine
   sorte: capacite
   nom: Protection divine
+  usages: { par: jour }
   champs: { voie: prestige-pretre-archange, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : Sous sa forme d’ange, le prêtre, sous la protection de son dieu, bénéficie d’un bonus de +3 en DEF.
@@ -750,6 +754,7 @@
 - id: prestige-pretre-commerce-touche-d-or
   sorte: capacite
   nom: Touché d’or
+  usages: { par: jour }
   champs: { voie: prestige-pretre-commerce, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet : Une fois par jour le personnage peut en le touchant transformer un objet ordinaire en objet de qualité exceptionnelle.
@@ -818,6 +823,7 @@
 - id: prestige-pretre-guerisseur-zone-de-vie
   sorte: capacite
   nom: Zone de vie
+  usages: { max: '3', par: jour }
   champs: { voie: prestige-pretre-guerisseur, rangVoie: 4, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : Trois fois par jour, le prêtre peut enchanter une surface de 10 mètres de rayon autour de lui pour une durée de [1d6 + Mod. de SAG] tours.
@@ -827,6 +833,7 @@
 - id: prestige-pretre-guerisseur-phenix
   sorte: capacite
   nom: Phénix
+  usages: { par: combat }
   champs: { voie: prestige-pretre-guerisseur, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet : Une fois par combat, lorsque le prêtre tombe à 0 PV, il se relève imbibé d’une aura de lumière et feu prenant la forme d’un phénix.
@@ -1002,6 +1009,7 @@
 - id: prestige-moine-contact-mortel-paume-mortelle
   sorte: capacite
   nom: Paume mortelle
+  usages: { par: jour }
   champs: { voie: prestige-moine-contact-mortel, rangVoie: 4, activation: Action limitée }
   description: |-
     Effet : Une fois par jour, le moine peut porter une attaque capable de tuer net un adversaire.
@@ -1640,6 +1648,7 @@
 - id: prestige-ensorceleur-sang-dragon-souffle-du-dragon
   sorte: capacite
   nom: Souffle du dragon
+  usages: { par: combat }
   champs: { voie: prestige-ensorceleur-sang-dragon, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : Une fois par combat, par une action d’attaque, l’ensorceleur peut produire un souffle létal correspondant à son ascendance.
@@ -1848,6 +1857,7 @@
 - id: prestige-druide-elements-forme-elementaire
   sorte: capacite_active
   nom: Forme élémentaire
+  usages: { par: jour }
   champs: { voie: prestige-druide-elements, rangVoie: 5, activation: Capacité passive }
   description: |-
     Effet : Le druide peut transformer son corps en chacun des différents éléments une fois par jour pendant [5 + Mod. de SAG] minutes.
@@ -2411,6 +2421,7 @@
 - id: prestige-barde-conteur-souhait
   sorte: capacite
   nom: Souhait
+  usages: { par: jour }
   champs: { voie: prestige-barde-conteur, rangVoie: 5, activation: 'Action limitée, sortilège' }
   description: |-
     Effet : Le barde modifie la réalité par la force de ses mots et émet un souhait qui est exécuté.
@@ -2463,6 +2474,7 @@
 - id: prestige-barde-voix-hourras
   sorte: capacite
   nom: Hourras
+  usages: { par: tour }
   champs: { voie: prestige-barde-voix, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : Le barde peut utiliser cette capacité une fois par tour lorsqu’un événement positif pour lui et ses alliés se produit.
@@ -2641,6 +2653,7 @@
 - id: prestige-barbare-beornide-metamorphose
   sorte: capacite
   nom: Métamorphose
+  usages: { par: jour }
   champs: { voie: prestige-barbare-beornide, rangVoie: 3, activation: Action limitée }
   description: |-
     Effet : Une fois par jour, le barbare peut dorénavant prendre la forme de son totem pendant [1d6 + Mod. de CON] minutes.
@@ -2650,6 +2663,7 @@
 - id: prestige-barbare-beornide-etreinte-de-l-ours
   sorte: capacite
   nom: Étreinte de l’ours
+  usages: { par: combat }
   champs: { voie: prestige-barbare-beornide, rangVoie: 4, activation: Action limitée }
   description: |-
     Effet : Une fois par combat, le personnage peut se saisir d’un adversaire au score de FOR inférieur et l’écraser entre ses bras puissants.
@@ -2659,6 +2673,7 @@
 - id: prestige-barbare-beornide-metamorphose-superieure
   sorte: capacite
   nom: Métamorphose supérieure
+  usages: { max: '3', par: jour }
   champs: { voie: prestige-barbare-beornide, rangVoie: 5, activation: Action limitée }
   description: |-
     Effet : Les plus puissants guerriers-ours peuvent prendre la forme de leur totem jusqu’à 3 fois par jour.
@@ -2726,6 +2741,7 @@
 - id: prestige-arquebusier-flibustier-coup-de-crosse
   sorte: capacite
   nom: Coup de crosse
+  usages: { par: tour }
   champs: { voie: prestige-arquebusier-flibustier, rangVoie: 2, activation: Capacité passive }
   description: |-
     Effet : Une fois par tour, le personnage peut, au moment de son choix, accomplir une attaque gratuite avec la crosse d’une pétoire qu’il a utilisée précédemment lors du tour pour une attaque à distance.
@@ -3124,6 +3140,7 @@
 - id: prestige-necromancien-magie-primitive-gris-gris
   sorte: capacite
   nom: Gris-gris
+  usages: { par: jour }
   champs: { voie: prestige-necromancien-magie-primitive, rangVoie: 1, activation: Action limitée }
   description: |-
     Effet : Le nécromancien utilise un petit fétiche (crâne d’oiseau, petite pierre, statuette) sur lequel il fait couler un peu de son sang afin de lui conférer du pouvoir.

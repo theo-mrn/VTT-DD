@@ -295,6 +295,7 @@ export default {
     computing: 'Computing the sheet…',
     actions: 'Sheet actions',
     values: 'Values',
+    rest: 'Full rest',
     customize: 'Customize the sheet',
     editIdentity: 'Edit identity',
     appearance: 'Appearance',
@@ -309,6 +310,13 @@ export default {
     left: '{name} left the adventure',
   },
   skills: {
+    uses: {
+      left: '{left, number}/{max, number}',
+      tooltip: '{left, number} of {max, number} {period}',
+      use: 'Use',
+      giveBack: 'Give back a use',
+      per: { tour: 'per round', combat: 'per combat', jour: 'per day' },
+    },
     buyRank: 'Buy rank {rank, number} of {name}: {offer}',
     bonusWhenActive: 'Its bonuses only apply while it’s active.',
     active: 'Active',

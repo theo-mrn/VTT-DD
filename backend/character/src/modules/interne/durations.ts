@@ -13,7 +13,13 @@
  */
 import { DurationEvent, ExpiredDuration, compareCodeUnits } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { decompterDurees, type EtatEntite, type EvenementDuree } from '@vtt/rules';
+import {
+  decompterDurees,
+  periodesCloses,
+  remettreUsages,
+  type EtatEntite,
+  type EvenementDuree,
+} from '@vtt/rules';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -90,11 +96,16 @@ async function decompterFiche(
   const { catalogue } = c.deps;
   const options = c.options.get(ligne.id);
   const systeme = systemeDe(catalogue, ligne, options);
-  const { etat, expirees } = decompterDurees(ligne.etat, evenements, {
+  const decompte = decompterDurees(ligne.etat, evenements, {
     porteur: ligne.id,
     participants: corps.characterIds,
     systeme,
   });
+  const { expirees } = decompte;
+  // Usages limités : ceux de la période close (round, combat) reviennent
+  const etat =
+    remettreUsages(systeme, decompte.etat ?? ligne.etat, periodesCloses(evenements)) ??
+    decompte.etat;
   if (!etat) return null;
   const suivante = await enregistrer(
     tx,

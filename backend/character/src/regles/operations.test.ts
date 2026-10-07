@@ -20,7 +20,7 @@ import {
   acheterObjet,
   appliquerEtape,
   etatInitial,
-  minuterActivation,
+  apresActivation,
   modifierValeurs,
   poserPossession,
   rembourserLigne,
@@ -28,6 +28,7 @@ import {
   resoudreAction,
   retirerPossession,
   terminer,
+  utiliserEntree,
   verifierEtat,
 } from './operations.js';
 
@@ -599,7 +600,7 @@ describe('durées', () => {
     const entree = 'pretre-priere-benediction';
     const poser = (etat: EtatEntite, actif: boolean) => {
       const d = { entree, actif };
-      return minuterActivation(dnd, etat, poserPossession(dnd, etat, d), d, aleatoireGraine('g'));
+      return apresActivation(dnd, etat, poserPossession(dnd, etat, d), d, aleatoireGraine('g'));
     };
     const benediction = (etat: EtatEntite) => etat.possessions.find((p) => p.entree === entree);
     const pretre = verifierEtat(dnd, {
@@ -615,6 +616,36 @@ describe('durées', () => {
     const coupee = poser(entamee, false);
     expect(benediction(coupee)).toMatchObject({ actif: false });
     expect(benediction(coupee)).not.toHaveProperty('duree');
+  });
+
+  it('usages limités : activer consomme, refus à l’épuisement, le repos complet les rend', () => {
+    const cri = 'barbare-rage-cri-de-guerre'; // une fois par combat, à activer
+    const activer = (etat: EtatEntite, actif: boolean) => {
+      const d = { entree: cri, actif };
+      return apresActivation(dnd, etat, poserPossession(dnd, etat, d), d, aleatoireGraine('g'));
+    };
+    const barbare = verifierEtat(dnd, {
+      type: 'personnage',
+      systeme: { id: 'dnd-classic', version: dnd.source.version },
+      valeurs: { niveau: 1 },
+      possessions: [{ entree: 'barbare-rage', rang: 1 }],
+    }).etat;
+    const active = activer(barbare, true);
+    expect(active.usages).toEqual({ [cri]: 1 });
+    const coupee = activer(active, false);
+    expect(erreur(() => activer(coupee, true))).toMatchObject({
+      status: 422,
+      code: 'usages_epuises',
+    });
+    // Bouton de la fiche : rendre, puis consommer à la main
+    const rendue = utiliserEntree(dnd, coupee, cri, true);
+    expect(rendue.usages).toEqual({});
+    expect(utiliserEntree(dnd, rendue, cri, false).usages).toEqual({ [cri]: 1 });
+    expect(erreur(() => utiliserEntree(dnd, rendue, 'barbare-rage', false)).status).toBe(422);
+    // Repos : complet, les utilisations reviennent ; partiel (ressources listées), non
+    const fiche = verifierEtat(dnd, coupee).fiche;
+    expect(reposer(fiche).usages).toEqual({});
+    expect(reposer(fiche, ['PV']).usages).toEqual({ [cri]: 1 });
   });
 
   it('exemplaires : chacun décompte sa durée, le retrait vise l’exemplaire exact', () => {

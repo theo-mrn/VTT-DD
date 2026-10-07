@@ -29,6 +29,9 @@ import {
   choisirEtape,
   creationDe,
   dureeActivation,
+  PERIODES_REPOS,
+  remettreUsages,
+  utiliser,
   EtatEntite,
   executerAction,
   MAX_INVENTORY_FOLDERS,
@@ -698,34 +701,59 @@ export function poserPossession(
 }
 
 /**
- * Durée d'une activation (sorte à `dureeActivation`, docs/regles.md « Durées ») après une
- * pose : l'entrée qui passe de coupée à active reçoit la durée lue sur le porteur (dés tirés
- * ici), sauf durée demandée ; coupée, elle la perd. Le reste de la pose ne change pas.
+ * Suites d'une activation après une pose (docs/regles.md « Durée d'une activation », « Usages
+ * limités ») : l'entrée qui passe de coupée à active consomme une utilisation si elle a des
+ * usages limités (refusé s'il n'en reste plus) et reçoit sa durée d'activation, lue sur le
+ * porteur (dés tirés ici), sauf durée demandée ; coupée, elle perd sa durée. Réactiver une
+ * entrée déjà active ne change rien.
  */
-export function minuterActivation(
+export function apresActivation(
   systeme: SystemeCharge,
   avant: EtatEntite,
   pose: PossessionPosee,
   d: DemandePossession,
   aleatoire: Generateur,
 ): EtatEntite {
-  const sorte = systeme.sortes.get(systeme.entrees.get(d.entree)?.sorte ?? '');
-  if (d.actif === undefined || !sorte?.activable || !sorte.dureeActivation) return pose.etat;
+  const entree = systeme.entrees.get(d.entree);
+  const sorte = systeme.sortes.get(entree?.sorte ?? '');
+  if (d.actif === undefined || !sorte?.activable) return pose.etat;
   const vise = (p: Possession) => estExemplaire(p, d.entree, pose.exemplaire);
   const etaitActive = avant.possessions.find(vise)?.actif ?? sorte.actifParDefaut;
-  let minuterie: { duree?: number; decompte?: Decompte } = {};
-  if (d.actif) {
-    if (etaitActive || d.duree !== undefined) return pose.etat;
-    minuterie = dureeActivation(calculer(systeme, pose.etat), d.entree, aleatoire) ?? {};
+  if (d.actif && etaitActive) return pose.etat;
+  let etat = pose.etat;
+  if (d.actif && entree?.usages) {
+    const u = utiliser(calculer(systeme, etat), d.entree);
+    if (!u.ok) throw refus(u.erreur, 'usages_epuises');
+    etat = u.etat;
   }
+  if (!sorte.dureeActivation || (d.actif && d.duree !== undefined)) return etat;
+  const minuterie = d.actif
+    ? (dureeActivation(calculer(systeme, etat), d.entree, aleatoire) ?? {})
+    : {};
   return {
-    ...pose.etat,
-    possessions: pose.etat.possessions.map((p) => {
+    ...etat,
+    possessions: etat.possessions.map((p) => {
       if (!vise(p)) return p;
       const { duree: _d, decompte: _c, ...reste } = p;
       return { ...reste, ...minuterie };
     }),
   };
+}
+
+/**
+ * Consomme une utilisation d'une entrée à usages limités, ou en rend une (`rendre`) : bouton de
+ * la fiche, correction du MJ. Refusé sans usages limités, ou s'il n'en reste plus.
+ */
+export function utiliserEntree(
+  systeme: SystemeCharge,
+  etat: EtatEntite,
+  entree: string,
+  rendre: boolean,
+): EtatEntite {
+  if (!systeme.entrees.has(entree)) throw refus(`Entrée inconnue : ${entree}`);
+  const u = utiliser(calculer(systeme, etat), entree, rendre);
+  if (!u.ok) throw refus(u.erreur, 'usages_epuises');
+  return u.etat;
 }
 
 /**
@@ -1052,13 +1080,19 @@ export function basculerEffetPersonnage(
 
 // ─── Repos ────────────────────────────────────────────────────────────────────
 
-/** Ramène les ressources (toutes, ou celles listées) à leur borne de récupération. */
+/**
+ * Ramène les ressources (toutes, ou celles listées) à leur borne de récupération ; un repos
+ * complet (sans liste) rend aussi toutes les utilisations des usages limités.
+ */
 export function reposer(fiche: Fiche, attributs?: string[]): EtatEntite {
   for (const cle of attributs ?? []) {
     if (fiche.entite.attributs.get(cle)?.nature !== 'ressource')
       throw refus(`${cle} n’est pas une ressource de ${fiche.entite.type.nom}`);
   }
-  return recuperer(fiche, attributs);
+  const etat = recuperer(fiche, attributs);
+  // Repos complet : toutes les utilisations reviennent (par tour, par combat, par jour)
+  if (attributs) return etat;
+  return remettreUsages(fiche.systeme, etat, PERIODES_REPOS) ?? etat;
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────

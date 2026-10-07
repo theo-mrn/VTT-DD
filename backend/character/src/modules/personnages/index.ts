@@ -39,10 +39,11 @@ import {
   etatInitial,
   modifierValeurs,
   poserBonus,
-  minuterActivation,
+  apresActivation,
   poserPossession,
   rembourserLigne,
   reposer,
+  utiliserEntree,
   retirerBonus,
   retirerPossession,
   saisieReserveeMj,
@@ -621,7 +622,7 @@ export const register: Module = async (app, deps) => {
       const { version, ...demande } = req.body;
       const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => {
         const r = poserPossession(systeme, l.etat, demande);
-        const etat = minuterActivation(systeme, l.etat, r, demande, deps.aleatoire());
+        const etat = apresActivation(systeme, l.etat, r, demande, deps.aleatoire());
         return {
           changement: { etat },
           operation: 'possession',
@@ -815,6 +816,34 @@ export const register: Module = async (app, deps) => {
         const r = basculerEffetPersonnage(systeme, l.etat, demande);
         return { changement: { etat: r.etat }, operation: 'effet', details: r.details };
       });
+      return api(ligne);
+    },
+  );
+
+  // ─── Usages limités ────────────────────────────────────────────────────────
+
+  r.post(
+    '/v1/characters/:id/usages',
+    {
+      ...auth,
+      schema: {
+        params: Params,
+        body: z.object({
+          version: Version,
+          entree: Id,
+          /** Rend une utilisation au lieu d'en consommer une (correction). */
+          rendre: z.boolean().default(false),
+        }),
+        response: { 200: Personnage },
+      },
+    },
+    async (req) => {
+      const { version, entree, rendre } = req.body;
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => ({
+        changement: { etat: utiliserEntree(systeme, l.etat, entree, rendre) },
+        operation: 'usage',
+        details: { entree, rendre },
+      }));
       return api(ligne);
     },
   );

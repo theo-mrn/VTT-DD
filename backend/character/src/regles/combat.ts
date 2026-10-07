@@ -343,6 +343,8 @@ export interface DeltaEtat {
   valeurs: Ecart<Valeur>[];
   possessions: Ecart<Possession>[];
   bonus: Ecart<BonusLibre>[];
+  /** Utilisations consommées (`etat.usages`) ; absent des deltas enregistrés avant elles. */
+  usages?: Ecart<number>[];
 }
 
 export const DELTA_VIDE: DeltaEtat = { valeurs: [], possessions: [], bonus: [] };
@@ -364,21 +366,28 @@ function ecarts<T>(avant: readonly T[], apres: readonly T[], cle: (x: T) => stri
 }
 
 export function deltaEtat(avant: EtatEntite, apres: EtatEntite): DeltaEtat {
-  const valeurs: Ecart<Valeur>[] = [];
-  for (const k of new Set([...Object.keys(avant.valeurs), ...Object.keys(apres.valeurs)])) {
-    const x = avant.valeurs[k] ?? null;
-    const y = apres.valeurs[k] ?? null;
-    if (!deepEqual(x, y)) valeurs.push({ cle: k, index: -1, avant: x, apres: y });
-  }
+  const usages = ecartsCles(avant.usages, apres.usages);
   return {
-    valeurs,
+    valeurs: ecartsCles(avant.valeurs, apres.valeurs),
     possessions: ecarts(avant.possessions, apres.possessions, clePossession),
     bonus: ecarts(avant.bonus, apres.bonus, (b) => b.id),
+    ...(usages.length ? { usages } : {}),
   };
 }
 
+/** Écarts entre deux dictionnaires (valeurs, usages) : absent devient null. */
+function ecartsCles<T>(avant: Record<string, T>, apres: Record<string, T>): Ecart<T>[] {
+  const sortie: Ecart<T>[] = [];
+  for (const k of new Set([...Object.keys(avant), ...Object.keys(apres)])) {
+    const x = avant[k] ?? null;
+    const y = apres[k] ?? null;
+    if (!deepEqual(x, y)) sortie.push({ cle: k, index: -1, avant: x, apres: y });
+  }
+  return sortie;
+}
+
 export const deltaVide = (d: DeltaEtat) =>
-  !d.valeurs.length && !d.possessions.length && !d.bonus.length;
+  !d.valeurs.length && !d.possessions.length && !d.bonus.length && !d.usages?.length;
 
 /**
  * Annulation d'une écriture sur l'état actuel : chaque élément qu'elle a changé revient à sa
@@ -394,6 +403,10 @@ export function annuler(
   const valeurs = { ...actuel.valeurs };
   for (const e of delta.valeurs) {
     if (!deepEqual(valeurs[e.cle] ?? null, e.apres)) conflits.push(`etat.valeurs.${e.cle}`);
+  }
+  const usages = { ...actuel.usages };
+  for (const e of delta.usages ?? []) {
+    if ((usages[e.cle] ?? null) !== e.apres) conflits.push(`etat.usages.${e.cle}`);
   }
   const rendre = <T>(
     liste: readonly T[],
@@ -422,7 +435,11 @@ export function annuler(
     if (e.avant === null) delete valeurs[e.cle];
     else valeurs[e.cle] = e.avant;
   }
-  return { etat: { ...actuel, valeurs, possessions, bonus }, conflits };
+  for (const e of delta.usages ?? []) {
+    if (e.avant === null) delete usages[e.cle];
+    else usages[e.cle] = e.avant;
+  }
+  return { etat: { ...actuel, valeurs, possessions, bonus, usages }, conflits };
 }
 
 /** Opérations du moteur (français) ↔ du contrat de combat (anglais). */

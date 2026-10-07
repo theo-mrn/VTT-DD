@@ -298,6 +298,7 @@ export default {
     computing: 'Calcul de la fiche…',
     actions: 'Actions de la fiche',
     values: 'Valeurs',
+    rest: 'Repos complet',
     customize: 'Personnaliser la fiche',
     editIdentity: 'Modifier l’identité',
     appearance: 'Apparence',
@@ -313,6 +314,13 @@ export default {
     left: '{name} a quitté l’aventure',
   },
   skills: {
+    uses: {
+      left: '{left, number}/{max, number}',
+      tooltip: '{left, number} sur {max, number} {period}',
+      use: 'Utiliser',
+      giveBack: 'Rendre une utilisation',
+      per: { tour: 'par tour', combat: 'par combat', jour: 'par jour' },
+    },
     buyRank: 'Acheter le rang {rank, number} de {name} : {offer}',
     bonusWhenActive: 'Ses bonus ne s’appliquent que lorsqu’elle est active.',
     active: 'Active',

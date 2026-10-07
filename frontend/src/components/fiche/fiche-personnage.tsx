@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import {
+  BedDouble,
   Crop,
   Hammer,
   LayoutGrid,
@@ -18,6 +19,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { PERIODES_REPOS, recuperer, remettreUsages } from '@vtt/rules';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
 import { EtatVide, Page } from '@/components/commun/page';
@@ -110,6 +112,9 @@ export function useFicheCalculee(id: string | null | undefined) {
       retirerBonus: (b, apercu) => void ecritures.retirerBonus(b, apercu).catch(signaler),
       effet: (cle, actif, apercu) => void ecritures.effet(cle, actif, apercu).catch(signaler),
       rembourser: (index, apercu) => void ecritures.rembourser(index, apercu).catch(signaler),
+      usage: (entree, rendre, apercu) =>
+        void ecritures.usage(entree, rendre, apercu).catch(signaler),
+      repos: (apercu) => void ecritures.repos(apercu).catch(signaler),
       action: ecritures.action,
     };
   }, [ecritures]);
@@ -284,6 +289,12 @@ function EnTeteFiche({
   // qui l'incarne, MJ), comme toutes les écritures (`ctx.operations`)
   const progressions = useMemo(() => (ctx?.operations ? actionsProgression(ctx) : []), [ctx]);
   const peutValeurs = Boolean(ctx?.operations);
+  // Repos complet : ressources à leur borne, utilisations des usages limités rendues
+  const repos = useCallback(() => {
+    if (!ctx?.operations?.repos) return;
+    const recupere = recuperer(ctx.fiche);
+    ctx.operations.repos(remettreUsages(ctx.systeme, recupere, PERIODES_REPOS) ?? recupere);
+  }, [ctx]);
   const details = useMemo(
     () => (ctx ? widgetsDe(ctx).find((w) => w.type === 'details') : undefined),
     [ctx],
@@ -352,6 +363,7 @@ function EnTeteFiche({
               progressions={progressions}
               onProgression={setProgression}
               onValeurs={peutValeurs ? () => setValeurs(true) : undefined}
+              onRepos={ctx?.operations?.repos ? repos : undefined}
               onPersonnaliser={personnaliser}
               onModifier={() => setEdition(true)}
               onSupprimer={() => setSuppression(true)}
@@ -414,6 +426,7 @@ function MenuFiche({
   progressions,
   onProgression,
   onValeurs,
+  onRepos,
   onPersonnaliser,
   onModifier,
   onSupprimer,
@@ -424,6 +437,7 @@ function MenuFiche({
   progressions: { id: string; nom: string }[];
   onProgression: (id: string) => void;
   onValeurs?: () => void;
+  onRepos?: () => void;
   onPersonnaliser?: () => void;
   onModifier: () => void;
   onSupprimer: () => void;
@@ -431,7 +445,14 @@ function MenuFiche({
   const t = useTranslations();
   const dates = useDates();
   const creation = proprietaire && p.inCreation && p.roomId;
-  if (!progressions.length && !onValeurs && !onPersonnaliser && !peutModifier && !proprietaire)
+  if (
+    !progressions.length &&
+    !onValeurs &&
+    !onRepos &&
+    !onPersonnaliser &&
+    !peutModifier &&
+    !proprietaire
+  )
     return null;
   return (
     <DropdownMenu>
@@ -459,6 +480,12 @@ function MenuFiche({
           <DropdownMenuItem onSelect={onValeurs}>
             <SlidersHorizontal />
             {t('sheet.page.values')}
+          </DropdownMenuItem>
+        )}
+        {onRepos && (
+          <DropdownMenuItem onSelect={onRepos}>
+            <BedDouble />
+            {t('sheet.page.rest')}
           </DropdownMenuItem>
         )}
         {onPersonnaliser && (

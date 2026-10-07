@@ -8,11 +8,12 @@
  * propres.
  */
 import { useTranslations } from 'next-intl';
-import type { Entree } from '@vtt/rules';
+import { usagesDe, type Entree } from '@vtt/rules';
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { PossessionDuration } from '@/components/combat/duration-chip';
+import { UsesControl } from './uses';
 import { cibleBonusPropres } from '../../bonus-editor/model';
 import type { ContexteFiche } from '../../widgets';
 import { EntryBonuses, type EntryBonusEdit } from '../effects/entry-bonuses';
@@ -38,6 +39,7 @@ export function EntryDetails({
   // Entrée acquise à activer (capacité à activer…) : ses bonus ne s'appliquent qu'active
   const p = fiche.possessions.get(entry.id);
   const activable = p?.sorte.activable && (!p.sorte.rangs || p.rang > 0) ? p : null;
+  const uses = usagesDe(fiche, entry.id);
   const edit = useMemo((): EntryBonusEdit | undefined => {
     if (!writes) return undefined;
     return {
@@ -69,7 +71,7 @@ export function EntryDetails({
         <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2">
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-2 text-sm font-medium">
-              {activable.actif ? 'Active' : 'Inactive'}
+              {activable.actif ? t('sheet.skills.active') : t('sheet.skills.inactive')}
               {activable.actif && <PossessionDuration exemplaires={activable.exemplaires} />}
             </p>
             <p className="text-xs text-subtle">{t('sheet.skills.bonusWhenActive')}</p>
@@ -81,6 +83,13 @@ export function EntryDetails({
             aria-label={`${activable.actif ? t('sheet.effects.disable') : t('sheet.effects.enable')} ${entry.nom}`}
           />
         </div>
+      )}
+      {uses && p && (
+        <UsesControl
+          uses={uses}
+          activable={!!activable}
+          {...(writes?.use ? { onUse: (rendre: boolean) => writes.use?.(entry.id, rendre) } : {})}
+        />
       )}
       <EntryBonuses fiche={fiche} entry={entry} edit={edit} />
     </div>

@@ -4,7 +4,8 @@
  * Vue « Capacités » : les entrées acquises de toutes les sortes du bloc, en liste dense. Nom,
  * provenance (voie et rang), activation (valeur du champ de filtre), rang, un indicateur
  * discret de bonus (ils se gèrent dans le bloc Bonus), le temps restant d'une activation à
- * durée et un interrupteur pour celles qui s'activent. Le détail s'ouvre au clic sur le nom.
+ * durée, les utilisations restantes d'un usage limité et un interrupteur pour celles qui
+ * s'activent. Le détail s'ouvre au clic sur le nom.
  */
 import { useTranslations } from 'next-intl';
 import { BadgePlus } from 'lucide-react';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 import type { SheetWrites } from '../tree/writes';
 import type { OwnedItem } from './abilities';
 import { RankMarks } from './parts';
+import { UsesChip } from './uses';
 
 export function OwnedList({
   items,
@@ -74,6 +76,14 @@ export function OwnedList({
               )}
               {on && card.possession && (
                 <PossessionDuration exemplaires={card.possession.exemplaires} />
+              )}
+              {card.uses && (
+                <UsesChip
+                  uses={card.uses}
+                  {...(writes?.use && !card.activable
+                    ? { onUse: () => writes.use?.(card.entry.id, false) }
+                    : {})}
+                />
               )}
               {card.maxRank !== undefined && card.maxRank > 1 && (
                 <RankMarks rank={card.rank} max={card.maxRank} />

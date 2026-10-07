@@ -65,6 +65,22 @@ describe('delta et annulation', () => {
   });
 });
 
+describe('delta et annulation : usages limités', () => {
+  it('une fin de combat qui rend les usages s’annule : ils redeviennent consommés', () => {
+    const avant = etat({ usages: { 'guerrier-resistance-second-souffle': 1, riposte: 2 } });
+    const apres = etat({ usages: {} });
+    const d = deltaEtat(avant, apres);
+    expect(d.usages?.map((u) => u.cle)).toEqual(['guerrier-resistance-second-souffle', 'riposte']);
+    expect(deltaVide(d)).toBe(false);
+    expect(annuler(apres, d).etat.usages).toEqual(avant.usages);
+    // Consommé depuis : conflit
+    const depuis = etat({ usages: { riposte: 1 } });
+    expect(annuler(depuis, d).conflits).toEqual(['etat.usages.riposte']);
+    // Delta enregistré avant les usages : rien à rendre
+    expect(deltaVide({ valeurs: [], possessions: [], bonus: [] })).toBe(true);
+  });
+});
+
 describe('conversions vers le contrat', () => {
   it('une entrée donnée garde ses rangs et sa durée dans les bornes du contrat', () => {
     expect(

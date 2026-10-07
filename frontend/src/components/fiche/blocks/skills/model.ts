@@ -8,6 +8,7 @@
 import { compareText, translate } from '@/i18n/runtime';
 import {
   achatsPossibles,
+  usagesDe,
   type Effet,
   type Entree,
   type Fiche,
@@ -15,6 +16,7 @@ import {
   type PossessionEffective,
   type Sorte,
   type SystemeCharge,
+  type Usages,
   type Valeur,
 } from '@vtt/rules';
 import { texteEffet } from '@/lib/creation';
@@ -56,6 +58,8 @@ export interface SkillCard {
   offer?: ObjetAchetable;
   /** D'où vient la possession (voie, nœud, espèce…), noms lisibles. */
   origins: string[];
+  /** Usages limités (« une fois par combat ») : utilisations restantes. */
+  uses?: Usages;
 }
 
 export interface Progress {
@@ -388,6 +392,7 @@ function cardOf(scope: CardScope, entry: Entree): SkillCard {
   ];
   const filter = filterOf(fiche, sorte, entry, filtreChamp);
   const offer = scope.offers.get(entry.id);
+  const uses = usagesDe(fiche, entry.id);
   const origins = (p?.sources ?? [])
     .filter((s) => s !== entry.id)
     .map((s) => sourceName(fiche.systeme, s))
@@ -409,6 +414,7 @@ function cardOf(scope: CardScope, entry: Entree): SkillCard {
     ...(filter ? { filter } : {}),
     ...(offer ? { offer } : {}),
     origins: [...new Set(origins)],
+    ...(uses ? { uses } : {}),
   };
 }
 
