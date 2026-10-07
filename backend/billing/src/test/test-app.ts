@@ -14,15 +14,18 @@ import { BillingConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import {
   codeRedemptions,
+  connectedAccounts,
   customers,
   entitlements,
   invoices,
+  marketplaceSales,
   outbox,
   processedEvents,
   purchases,
   rightsVersions,
   subscriptions,
 } from '../db/schema.js';
+import { fakeConnect, type signedAccountEvent } from './fake-connect.js';
 import { fakeStripe, signedEvent, WEBHOOK_SECRET } from './fake-stripe.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -37,6 +40,7 @@ export async function testApp(
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
   const connection = TEST_DATABASE_URL ? createDb(TEST_DATABASE_URL) : undefined;
   const stripe = fakeStripe();
+  const connect = fakeConnect();
 
   const app = await buildBilling(
     loadConfig(BillingConfig, {
@@ -52,6 +56,7 @@ export async function testApp(
     {
       authKeyResolver: async () => publicKey,
       stripe: opts.withoutStripe ? null : stripe.api,
+      connect: opts.withoutStripe ? null : connect.api,
       ...(connection ? { db: connection.db } : {}),
     },
   );
@@ -86,11 +91,28 @@ export async function testApp(
     });
   }
 
+  /** Livre un événement signé à l'endpoint des comptes connectés. */
+  async function deliverConnect(event: ReturnType<typeof signedAccountEvent>) {
+    stripeEvents.push(event.id);
+    return app.inject({
+      method: 'POST',
+      url: '/v1/billing/connect/webhook',
+      headers: event.headers,
+      payload: event.payload,
+    });
+  }
+
   async function close() {
     await app.close();
     if (connection) {
       const db = connection.db;
       if (users.length) {
+        await db
+          .delete(marketplaceSales)
+          .where(
+            or(inArray(marketplaceSales.buyerId, users), inArray(marketplaceSales.sellerId, users)),
+          );
+        await db.delete(connectedAccounts).where(inArray(connectedAccounts.userId, users));
         await db.delete(codeRedemptions).where(inArray(codeRedemptions.userId, users));
         await db.delete(purchases).where(inArray(purchases.userId, users));
         await db.delete(entitlements).where(inArray(entitlements.userId, users));
@@ -144,7 +166,18 @@ export async function testApp(
       .map((e) => e.payload);
   }
 
-  return { app, db: connection?.db, stripe, user, deliver, events, rights, close };
+  return {
+    app,
+    db: connection?.db,
+    stripe,
+    connect,
+    user,
+    deliver,
+    deliverConnect,
+    events,
+    rights,
+    close,
+  };
 }
 
 export type TestContext = Awaited<ReturnType<typeof testApp>>;

@@ -33,11 +33,12 @@ import {
   lookupKeyOf,
   TOKEN_FRAMES,
 } from '../../catalog/catalog.js';
-import { purchases } from '../../db/schema.js';
+import { marketplaceSales, purchases } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { fulfillCheckoutSession } from '../../payments/checkout.js';
 import { customerOf, PREMIUM_TYPE, userActor } from '../../payments/common.js';
 import { activeOf, owns, rightsOf } from '../../payments/entitlements.js';
+import { saleOf } from '../../payments/marketplace.js';
 import { purchaseOf } from '../../payments/purchases.js';
 import type { CheckoutSessionParams } from '../../stripe/client.js';
 import {
@@ -56,7 +57,8 @@ import {
 
 const SessionStatus = z.object({
   status: z.enum(['pending', 'completed', 'expired']),
-  kind: z.enum(['premium', 'dice', 'token']),
+  kind: z.enum(['premium', 'dice', 'token', 'marketplace']),
+  /** Skin, cadre, ou fiche de la marketplace achetée. */
   itemId: z.string().nullable(),
 });
 
@@ -76,7 +78,8 @@ const TokenFrames = z.object({
 
 const Purchase = z.object({
   id: z.string(),
-  kind: z.enum(['dice', 'token']),
+  /** `marketplace` : pack d'un créateur (itemId : la fiche). */
+  kind: z.enum(['dice', 'token', 'marketplace']),
   itemId: z.string(),
   name: z.string(),
   amount: z.number(),
@@ -167,6 +170,32 @@ export const register: Module = async (app, deps) => {
       const { sessionId } = req.params;
       const notFound = () => new HttpError(404, 'Session introuvable', 'session_not_found');
 
+      // Vente d'un pack de la marketplace
+      const sale = await saleOf(db, sessionId);
+      if (sale) {
+        if (sale.buyerId !== userId) throw notFound();
+        if (sale.status === 'pending') {
+          const pd = paymentDeps(deps);
+          const session = await callStripe(req, () => pd.stripe.retrieveCheckoutSession(sessionId));
+          const outcome = await fulfillCheckoutSession(
+            pd,
+            eventContext(req),
+            userActor(userId),
+            session,
+          );
+          return {
+            status: outcome === 'ignored' ? ('pending' as const) : outcome,
+            kind: 'marketplace' as const,
+            itemId: sale.listingId,
+          };
+        }
+        return {
+          status: sale.status === 'expired' ? ('expired' as const) : ('completed' as const),
+          kind: 'marketplace' as const,
+          itemId: sale.listingId,
+        };
+      }
+
       const purchase = await purchaseOf(db, sessionId);
       if (purchase && purchase.userId !== userId) throw notFound();
       if (purchase && purchase.status !== 'pending')
@@ -206,16 +235,27 @@ export const register: Module = async (app, deps) => {
     { ...auth, schema: { response: { 200: z.object({ purchases: z.array(Purchase) }) } } },
     async (req, reply) => {
       const userId = currentUser(req);
-      const rows = await db
-        .select()
-        .from(purchases)
-        .where(
-          and(eq(purchases.userId, userId), inArray(purchases.status, ['completed', 'refunded'])),
-        )
-        .orderBy(desc(purchases.completedAt));
+      const [rows, sales] = await Promise.all([
+        db
+          .select()
+          .from(purchases)
+          .where(
+            and(eq(purchases.userId, userId), inArray(purchases.status, ['completed', 'refunded'])),
+          )
+          .orderBy(desc(purchases.completedAt)),
+        db
+          .select()
+          .from(marketplaceSales)
+          .where(
+            and(
+              eq(marketplaceSales.buyerId, userId),
+              inArray(marketplaceSales.status, ['completed', 'refunded', 'disputed']),
+            ),
+          ),
+      ]);
       reply.header('cache-control', 'no-store');
-      return {
-        purchases: rows.map((p) => {
+      const items = [
+        ...rows.map((p) => {
           const item = itemOf(p.kind, p.itemId);
           return {
             id: p.id,
@@ -229,7 +269,20 @@ export const register: Module = async (app, deps) => {
             refundedAt: p.refundedAt?.toISOString() ?? null,
           };
         }),
-      };
+        // Packs de la marketplace ; une vente contestée apparaît comme remboursée
+        ...sales.map((s) => ({
+          id: s.id,
+          kind: 'marketplace' as const,
+          itemId: s.listingId,
+          name: s.title,
+          amount: s.amountCents,
+          currency: s.currency,
+          status: s.status === 'completed' ? ('completed' as const) : ('refunded' as const),
+          completedAt: s.completedAt!.toISOString(),
+          refundedAt: s.refundedAt?.toISOString() ?? null,
+        })),
+      ];
+      return { purchases: items.sort((a, b) => b.completedAt.localeCompare(a.completedAt)) };
     },
   );
 

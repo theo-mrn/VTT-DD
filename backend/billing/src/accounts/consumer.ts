@@ -14,10 +14,12 @@ import { consumeEvents, type Bus, type ConsumeOptions } from '@vtt/platform';
 import { eq, inArray } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
+  connectedAccounts,
   customers,
   entitlements,
   inbox,
   invoices,
+  marketplaceSales,
   purchases,
   renewalReminders,
   rightsVersions,
@@ -76,6 +78,10 @@ export async function handleUserDeleted(
     await tx.delete(subscriptions).where(eq(subscriptions.userId, userId));
     await tx.delete(rightsVersions).where(eq(rightsVersions.userId, userId));
     await tx.delete(customers).where(eq(customers.userId, userId));
+    // Marketplace (docs/marketplace.md § 9) : ses achats de packs et son compte connecté (à
+    // clôturer dans Stripe) ; les ventes dont il est le vendeur gardent son identifiant seul
+    await tx.delete(marketplaceSales).where(eq(marketplaceSales.buyerId, userId));
+    await tx.delete(connectedAccounts).where(eq(connectedAccounts.userId, userId));
     return true;
   });
 }
