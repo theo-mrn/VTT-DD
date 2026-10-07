@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Plus, X } from 'lucide-react';
 import { useId, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,7 @@ export function ChampEtiquettes({
   /** Étiquettes déjà utilisées ailleurs, proposées à la saisie. */
   suggestions: string[];
 }>) {
+  const t = useTranslations();
   const [saisie, setSaisie] = useState('');
   const [focus, setFocus] = useState(false);
   const [actif, setActif] = useState(0);
@@ -51,17 +53,17 @@ export function ChampEtiquettes({
 
   return (
     <div className="relative flex min-h-8 flex-wrap items-center gap-1.5 py-1">
-      {valeur.map((t) => (
+      {valeur.map((tag) => (
         <span
-          key={t}
+          key={tag}
           className="group/etiquette inline-flex h-6 items-center gap-0.5 rounded-md border border-border-strong bg-surface-2 pl-1.5 pr-0.5 text-xs text-muted-foreground animate-in fade-in-0 zoom-in-95"
         >
           <span className="text-subtle">#</span>
-          <span className="max-w-[160px] truncate text-foreground/85">{t}</span>
+          <span className="max-w-[160px] truncate text-foreground/85">{tag}</span>
           <button
             type="button"
-            onClick={() => retirer(t)}
-            aria-label={`Retirer l'étiquette ${t}`}
+            onClick={() => retirer(tag)}
+            aria-label={t('notes.tags.remove', { tag })}
             className="ml-0.5 flex size-4 items-center justify-center rounded text-subtle transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <X className="size-3" />
@@ -112,8 +114,8 @@ export function ChampEtiquettes({
                 e.currentTarget.blur();
               }
             }}
-            placeholder={valeur.length ? 'Ajouter…' : 'Ajouter une étiquette'}
-            aria-label="Ajouter une étiquette"
+            placeholder={valeur.length ? t('notes.tags.addPlaceholder') : t('notes.tags.add')}
+            aria-label={t('notes.tags.add')}
             role="combobox"
             aria-expanded={listeVisible}
             aria-controls={idListe}

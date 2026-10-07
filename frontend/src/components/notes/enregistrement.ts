@@ -1,5 +1,6 @@
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -92,7 +93,7 @@ export function useEnregistrementAuto(
         recente = await notes.lire(id);
       } catch (err) {
         setEtat('erreur');
-        toast.error(messageErreur(err, 'La note n’a pas pu être relue.'), {
+        toast.error(messageErreur(err, translate('notes.saving.rereadFailed')), {
           id: 'enregistrement-note',
         });
         return;
@@ -151,18 +152,15 @@ export function useEnregistrementAuto(
           actif.current = false;
           attente.current = {};
           setEtat('erreur');
-          toast.error(
-            'Cette note n’est plus disponible : vos dernières modifications sont perdues.',
-            {
-              id: 'enregistrement-note',
-            },
-          );
+          toast.error(translate('notes.saving.gone'), {
+            id: 'enregistrement-note',
+          });
           return;
         }
         // Rien n'est perdu : le lot refusé repasse sous les saisies plus récentes
         attente.current = refusees;
         setEtat('erreur');
-        toast.error(messageErreur(err, "La note n'a pas pu être enregistrée."), {
+        toast.error(messageErreur(err, translate('notes.saving.saveFailed')), {
           id: 'enregistrement-note',
         });
       },

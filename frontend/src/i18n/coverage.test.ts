@@ -56,6 +56,8 @@ export const TRANSLATED_AREAS = [
   'lib/uploads',
   'components/ui',
   'components/perf',
+  'components/notes',
+  'components/resources',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {

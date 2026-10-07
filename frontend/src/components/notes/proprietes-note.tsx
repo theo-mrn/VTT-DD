@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import {
   Check,
@@ -34,21 +35,15 @@ import { ChampEtiquettes } from './champ-etiquettes';
 import { typeNote } from './outils';
 import { Ligne, styleDeclencheur } from './property-row';
 
+/** Visibilités ; nom et explication : `notes.visibility.<id>.label|hint`. */
 export const VISIBILITES: {
   id: VisibiliteNote;
-  label: string;
   icone: LucideIcon;
-  aide: string;
 }[] = [
-  { id: 'private', label: 'Privée', icone: Lock, aide: 'Vous seul pouvez la lire.' },
-  { id: 'gm', label: 'MJ', icone: Crown, aide: 'Vous et le maître du jeu de la campagne.' },
-  { id: 'room', label: 'Table', icone: Users, aide: 'Tous les membres de la campagne.' },
-  {
-    id: 'characters',
-    label: 'Ciblée',
-    icone: UserRoundCheck,
-    aide: 'Les joueurs des personnages choisis (et le MJ si vous le cochez).',
-  },
+  { id: 'private', icone: Lock },
+  { id: 'gm', icone: Crown },
+  { id: 'room', icone: Users },
+  { id: 'characters', icone: UserRoundCheck },
 ];
 
 /** Partage choisi : visibilité et, pour « Ciblée », les personnages et le MJ. */
@@ -88,6 +83,7 @@ export function ProprietesNote({
   onPartage: (p: Partage) => void;
   onTags: (t: string[]) => void;
 }>) {
+  const t = useTranslations();
   const type = typeNote(kind);
   const lecture = !permissions.edit;
   const campagne = campagnes.find((c) => c.id === roomId);
@@ -99,35 +95,34 @@ export function ProprietesNote({
   return (
     <div className="space-y-px">
       {auteur && (
-        <Ligne icone={PenLine} label="Auteur">
+        <Ligne icone={PenLine} label={t('notes.props.author')}>
           <span className="truncate text-[13px] text-foreground">{auteur}</span>
         </Ligne>
       )}
 
-      <Ligne icone={Shapes} label="Type">
+      <Ligne icone={Shapes} label={t('notes.props.type')}>
         <DropdownMenu>
           <DropdownMenuTrigger className={styleDeclencheur} disabled={lecture}>
             <span className="text-base leading-none">{type.icone}</span>
-            {type.label}
+            {t(`notes.types.${type.id}`)}
             {!lecture && <ChevronDown className="size-3.5 text-subtle" />}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">
-            {TYPES_NOTE.map((t) => (
-              <DropdownMenuItem key={t.id} onSelect={() => onKind(t.id)}>
-                <span className="w-5 text-center text-base leading-none">{t.icone}</span>
-                <span className={cn('flex-1', t.id === kind && 'text-foreground')}>{t.label}</span>
-                {t.id === kind && <Check className="text-primary" />}
+            {TYPES_NOTE.map((option) => (
+              <DropdownMenuItem key={option.id} onSelect={() => onKind(option.id)}>
+                <span className="w-5 text-center text-base leading-none">{option.icone}</span>
+                <span className={cn('flex-1', option.id === kind && 'text-foreground')}>
+                  {t(`notes.types.${option.id}`)}
+                </span>
+                {option.id === kind && <Check className="text-primary" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </Ligne>
 
-      <Ligne icone={Swords} label="Campagne">
-        <Info
-          texte={permissions.move ? null : 'Seul l’auteur change la note de campagne.'}
-          cote="top"
-        >
+      <Ligne icone={Swords} label={t('notes.props.campaign')}>
+        <Info texte={permissions.move ? null : t('notes.props.moveOnlyAuthor')} cote="top">
           <span className="inline-flex max-w-full">
             <DropdownMenu>
               <DropdownMenuTrigger className={styleDeclencheur} disabled={!permissions.move}>
@@ -138,16 +133,16 @@ export function ProprietesNote({
                   initiale={false}
                   className="size-5 shrink-0 rounded-[5px] ring-1 ring-white/10"
                 />
-                <span className="truncate">{campagne?.name ?? 'Campagne'}</span>
+                <span className="truncate">{campagne?.name ?? t('notes.props.campaign')}</span>
                 {jeSuisMj && (
                   <span className="rounded bg-primary/10 px-1 text-[10px] font-medium uppercase tracking-wide text-primary">
-                    MJ
+                    {t('common.roles.gm')}
                   </span>
                 )}
                 {permissions.move && <ChevronDown className="size-3.5 shrink-0 text-subtle" />}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-64">
-                <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('notes.props.moveTo')}</DropdownMenuLabel>
                 {destinations.map((c) => (
                   <DropdownMenuItem key={c.id} onSelect={() => onCampagne(c.id)}>
                     <Illustration
@@ -160,7 +155,7 @@ export function ProprietesNote({
                     <span className="flex-1 truncate">{c.name}</span>
                     {c.role === 'gm' && (
                       <span className="text-[10px] font-medium uppercase tracking-wide text-subtle">
-                        MJ
+                        {t('common.roles.gm')}
                       </span>
                     )}
                     {c.id === roomId && <Check className="text-primary" />}
@@ -168,7 +163,7 @@ export function ProprietesNote({
                 ))}
                 {!destinations.length && (
                   <p className="px-2.5 pb-1.5 pt-1 text-xs text-subtle">
-                    Aucune autre campagne où vous écrivez.
+                    {t('notes.props.noOtherCampaign')}
                   </p>
                 )}
               </DropdownMenuContent>
@@ -177,7 +172,7 @@ export function ProprietesNote({
         </Info>
       </Ligne>
 
-      <Ligne icone={Eye} label="Visibilité">
+      <Ligne icone={Eye} label={t('notes.props.visibility')}>
         <SelecteurVisibilite
           partage={partage}
           roomId={roomId}
@@ -188,14 +183,14 @@ export function ProprietesNote({
         />
       </Ligne>
 
-      <Ligne icone={Hash} label="Étiquettes">
+      <Ligne icone={Hash} label={t('notes.props.tags')}>
         {lecture ? (
           <span className="flex min-w-0 flex-wrap gap-1 text-[13px]">
             {tags.length ? (
-              tags.map((t) => (
-                <span key={t} className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs">
+              tags.map((tag) => (
+                <span key={tag} className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs">
                   <span className="text-subtle/70">#</span>
-                  {t}
+                  {tag}
                 </span>
               ))
             ) : (
@@ -229,6 +224,7 @@ function SelecteurVisibilite({
   jeSuisMj: boolean;
   onChange: (p: Partage) => void;
 }>) {
+  const t = useTranslations();
   const desactive = !modifiable;
   const [ciblage, setCiblage] = useState(false);
   // Personnages des joueurs (sauf les miens), chargés à l'ouverture du choix
@@ -261,7 +257,7 @@ function SelecteurVisibilite({
   const groupe = (
     <div
       role="radiogroup"
-      aria-label="Visibilité"
+      aria-label={t('notes.props.visibility')}
       aria-disabled={desactive || undefined}
       tabIndex={desactive ? 0 : undefined}
       className={cn(
@@ -273,13 +269,11 @@ function SelecteurVisibilite({
       {VISIBILITES.map((v) => {
         const actif = v.id === partage.visibility;
         const aide =
-          v.id === 'gm' && jeSuisMj
-            ? 'Vous êtes le MJ de cette campagne : vous seul la verrez.'
-            : v.aide;
+          v.id === 'gm' && jeSuisMj ? t('notes.props.gmAlone') : t(`notes.visibility.${v.id}.hint`);
         const contenu = (
           <>
             <v.icone className={cn('size-3.5', actif && v.id !== 'private' && 'text-primary')} />
-            {v.label}
+            {t(`notes.visibility.${v.id}.label`)}
             {v.id === 'characters' && actif && partage.sharedWith.length > 0 && (
               <span className="tabular text-subtle">{partage.sharedWith.length}</span>
             )}
@@ -297,13 +291,15 @@ function SelecteurVisibilite({
                 {contenu}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel>Partager avec</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('notes.props.shareWith')}</DropdownMenuLabel>
                 {engages.isPending && (
-                  <p className="px-2.5 py-1.5 text-xs text-subtle">Chargement des personnages…</p>
+                  <p className="px-2.5 py-1.5 text-xs text-subtle">
+                    {t('notes.props.loadingCharacters')}
+                  </p>
                 )}
                 {!engages.isPending && !cibles.length && (
                   <p className="px-2.5 py-1.5 text-xs text-subtle">
-                    Aucun personnage d’un autre joueur dans cette campagne.
+                    {t('notes.props.noOtherCharacter')}
                   </p>
                 )}
                 {cibles.map((p) => (
@@ -322,7 +318,7 @@ function SelecteurVisibilite({
                       )
                     }
                   >
-                    <span className="truncate">{p.name ?? 'Personnage'}</span>
+                    <span className="truncate">{p.name ?? t('map.common.character')}</span>
                   </DropdownMenuCheckboxItem>
                 ))}
                 <DropdownMenuSeparator />
@@ -331,7 +327,7 @@ function SelecteurVisibilite({
                   onSelect={(e) => e.preventDefault()}
                   onCheckedChange={(coche) => cibler(partage.sharedWith, coche === true)}
                 >
-                  Le MJ aussi
+                  {t('notes.props.gmToo')}
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -377,7 +373,7 @@ function SelecteurVisibilite({
   );
 
   if (!desactive) return groupe;
-  return <Info texte="Seul l’auteur de la note change sa visibilité.">{groupe}</Info>;
+  return <Info texte={t('notes.props.visibilityOnlyAuthor')}>{groupe}</Info>;
 }
 
 /** Partage sans personnage : aux MJ seuls, ou privé. */

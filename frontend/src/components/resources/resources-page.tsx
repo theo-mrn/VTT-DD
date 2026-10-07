@@ -5,6 +5,7 @@
  * dans l'adresse avec l'onglet ouvert). Hors campagne : pas de bestiaire de campagne, pas
  * d'ajout à l'inventaire ; le bestiaire de référence du système reste consultable.
  */
+import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { EnTetePage, Page } from '@/components/commun/page';
@@ -18,6 +19,7 @@ import { ResourcesBrowser, type ResourceTab } from './resources-browser';
 const PARAMS = { system: 'system', tab: 'onglet' } as const;
 
 export function ResourcesPage() {
+  const t = useTranslations();
   const systemes = useSystemes();
   const params = useSearchParams();
   const router = useRouter();
@@ -44,15 +46,15 @@ export function ResourcesPage() {
   return (
     <Page large>
       <EnTetePage
-        surtitre="Bibliothèque"
-        titre="Ressources"
-        description="Capacités, équipement, bestiaire et images de chaque système de jeu, à consulter avant ou pendant la partie."
+        surtitre={t('resources.library')}
+        titre={t('resources.title')}
+        description={t('resources.lead')}
         actions={
           liste.length > 0 && choisi ? (
             <SelectField
               value={choisi.id}
               onValueChange={(id) => naviguer({ [PARAMS.system]: id, [PARAMS.tab]: null })}
-              aria-label="Système de jeu"
+              aria-label={t('resources.system')}
               className="h-9 w-full sm:w-64"
               options={liste.map((s) => ({ valeur: s.id, nom: s.nom }))}
             />
@@ -65,24 +67,21 @@ export function ResourcesPage() {
         <Notice
           tone="error"
           icon={AlertTriangle}
-          title="Système indisponible"
-          description={messageErreur(
-            systemes.error ?? systeme.error,
-            'Les règles du système n’ont pas pu être chargées.',
-          )}
+          title={t('resources.systemUnavailable')}
+          description={messageErreur(systemes.error ?? systeme.error, t('resources.systemFailed'))}
           action={
             <Button
               variant="secondary"
               size="sm"
               onClick={() => void (systemes.isError ? systemes.refetch() : systeme.refetch())}
             >
-              Réessayer
+              {t('common.actions.retry')}
             </Button>
           }
         />
       )}
       {etat === 'pret' && (!choisi || !systeme.data) && (
-        <Notice icon={AlertTriangle} title="Aucun système de jeu disponible" />
+        <Notice icon={AlertTriangle} title={t('resources.noSystem')} />
       )}
       {etat === 'pret' && choisi && systeme.data && (
         <ResourcesBrowser

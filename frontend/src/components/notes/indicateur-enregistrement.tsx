@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, CircleAlert, GitCompareArrows, RotateCw } from 'lucide-react';
 import type { EtatEnregistrement } from './enregistrement';
@@ -12,6 +13,7 @@ export function IndicateurEnregistrement({
   etat: EtatEnregistrement;
   onReessayer: () => void;
 }>) {
+  const t = useTranslations();
   // En attente et en cours se confondent à l'écran : pas de clignotement entre les deux
   const cle = etat === 'en-cours' ? 'en-attente' : etat;
 
@@ -29,7 +31,7 @@ export function IndicateurEnregistrement({
           {cle === 'enregistre' && (
             <>
               <Check className="size-3.5 text-success/80" aria-hidden />
-              <span className="text-subtle">Enregistré</span>
+              <span className="text-subtle">{t('common.states.saved')}</span>
             </>
           )}
           {cle === 'en-attente' && (
@@ -38,26 +40,26 @@ export function IndicateurEnregistrement({
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/50 motion-reduce:hidden" />
                 <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
               </span>
-              <span className="text-muted-foreground">Enregistrement…</span>
+              <span className="text-muted-foreground">{t('common.states.saving')}</span>
             </>
           )}
           {cle === 'conflit' && (
             <>
               <GitCompareArrows className="size-3.5 text-warning" aria-hidden />
-              <span className="text-warning">Modifiée ailleurs</span>
+              <span className="text-warning">{t('notes.saving.conflict')}</span>
             </>
           )}
           {cle === 'erreur' && (
             <>
               <CircleAlert className="size-3.5 text-destructive" aria-hidden />
-              <span className="text-destructive">Non enregistré</span>
+              <span className="text-destructive">{t('notes.saving.failed')}</span>
               <button
                 type="button"
                 onClick={onReessayer}
                 className="ml-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-foreground transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 <RotateCw className="size-3" />
-                Réessayer
+                {t('common.actions.retry')}
               </button>
             </>
           )}

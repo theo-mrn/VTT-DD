@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { CloudOff, FileQuestion, NotebookPen, Plus, RotateCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { EtatVide } from '@/components/commun/page';
@@ -8,9 +9,10 @@ import { Kbd } from '@/components/ui/kbd';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MODELES_NOTE, type ModeleNote } from './modeles';
 
-const RACCOURCIS: { touches: ReactNode; label: string }[] = [
-  { touches: <Kbd>N</Kbd>, label: 'Nouvelle note' },
-  { touches: <Kbd>/</Kbd>, label: 'Rechercher' },
+/** Raccourcis de l'accueil ; libellé : `notes.shortcuts.<id>`. */
+const RACCOURCIS: { id: 'new' | 'search' | 'browse' | 'open'; touches: ReactNode }[] = [
+  { id: 'new', touches: <Kbd>N</Kbd> },
+  { id: 'search', touches: <Kbd>/</Kbd> },
   {
     touches: (
       <>
@@ -18,12 +20,9 @@ const RACCOURCIS: { touches: ReactNode; label: string }[] = [
         <Kbd>↓</Kbd>
       </>
     ),
-    label: 'Parcourir la liste',
+    id: 'browse',
   },
-  {
-    touches: <Kbd>⏎</Kbd>,
-    label: 'Ouvrir la note',
-  },
+  { id: 'open', touches: <Kbd>⏎</Kbd> },
 ];
 
 /** Volet d'édition sans note ouverte (grand écran). */
@@ -34,6 +33,7 @@ export function AccueilEditeur({
   onNouvelle: () => void;
   enCours: boolean;
 }>) {
+  const t = useTranslations();
   return (
     <div className="relative flex h-full flex-col items-center justify-center overflow-hidden px-8 text-center">
       <div aria-hidden className="absolute inset-0 bg-dots opacity-50 mask-radial" />
@@ -42,19 +42,17 @@ export function AccueilEditeur({
         <div className="mb-5 flex size-14 items-center justify-center rounded-2xl border border-border-strong bg-surface-2 shadow-elevated">
           <NotebookPen className="size-6 text-primary" />
         </div>
-        <h2 className="text-lg font-semibold tracking-tight">Choisissez une note</h2>
-        <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
-          Ou ouvrez une nouvelle page de votre grimoire : tout s’enregistre au fil de la plume.
-        </p>
+        <h2 className="text-lg font-semibold tracking-tight">{t('notes.empty.pick')}</h2>
+        <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">{t('notes.empty.pickHint')}</p>
         <Button className="mt-6" onClick={onNouvelle} loading={enCours}>
           {!enCours && <Plus />}
-          Nouvelle note
+          {t('notes.new')}
         </Button>
         <dl className="mt-10 grid grid-cols-2 gap-x-8 gap-y-2.5 text-left text-xs">
           {RACCOURCIS.map((r) => (
-            <div key={r.label} className="flex items-center gap-2.5">
+            <div key={r.id} className="flex items-center gap-2.5">
               <dt className="flex min-w-[44px] items-center gap-1">{r.touches}</dt>
-              <dd className="text-subtle">{r.label}</dd>
+              <dd className="text-subtle">{t(`notes.shortcuts.${r.id}`)}</dd>
             </div>
           ))}
         </dl>
@@ -71,23 +69,24 @@ export function GrimoireVide({
   onNouvelle: (modele?: ModeleNote) => void;
   enCours: boolean;
 }>) {
+  const t = useTranslations();
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col justify-center px-4 py-8 sm:px-6 lg:min-h-full lg:py-12">
       <EtatVide
         icone={NotebookPen}
-        titre="Votre grimoire est vide"
-        description="Journaux de session, PNJ, lieux, quêtes, trésors… Tout ce qui fait vivre vos parties, au même endroit et rattaché à vos campagnes."
+        titre={t('notes.empty.title')}
+        description={t('notes.empty.hint')}
         className="bg-surface/30 py-12"
         action={
           <Button onClick={() => onNouvelle()} loading={enCours}>
             {!enCours && <Plus />}
-            Écrire ma première note
+            {t('notes.empty.first')}
           </Button>
         }
       />
       <div className="mt-8">
         <p className="mb-3 text-center text-xs font-medium uppercase tracking-[0.14em] text-subtle">
-          Ou partir d’un modèle
+          {t('notes.empty.fromTemplate')}
         </p>
         <div className="grid gap-2 sm:grid-cols-5">
           {MODELES_NOTE.map((m) => (
@@ -103,10 +102,10 @@ export function GrimoireVide({
               </span>
               <span className="min-w-0">
                 <span className="block text-[13px] font-medium leading-snug text-foreground">
-                  {m.label}
+                  {t(`notes.templates.${m.id}.label`)}
                 </span>
                 <span className="mt-0.5 block text-xs leading-snug text-subtle">
-                  {m.description}
+                  {t(`notes.templates.${m.id}.description`)}
                 </span>
               </span>
             </button>
@@ -125,17 +124,18 @@ export function ErreurNotes({
   message: string;
   onReessayer: () => void;
 }>) {
+  const t = useTranslations();
   return (
     <div className="flex items-center justify-center p-6 lg:h-[calc(100dvh-3.5rem)]">
       <EtatVide
         icone={CloudOff}
-        titre="Impossible de charger vos notes"
+        titre={t('notes.empty.loadFailed')}
         description={message}
         className="w-full max-w-md"
         action={
           <Button variant="secondary" onClick={onReessayer}>
             <RotateCw />
-            Réessayer
+            {t('common.actions.retry')}
           </Button>
         }
       />
@@ -145,16 +145,17 @@ export function ErreurNotes({
 
 /** Lien vers une note qui n'existe plus (supprimée, autre compte). */
 export function NoteIntrouvable({ onRetour }: Readonly<{ onRetour: () => void }>) {
+  const t = useTranslations();
   return (
     <div className="flex h-full items-center justify-center p-6">
       <EtatVide
         icone={FileQuestion}
-        titre="Note introuvable"
-        description="Elle a peut-être été supprimée, ou appartient à un autre compte."
+        titre={t('notes.empty.notFound')}
+        description={t('notes.empty.notFoundHint')}
         className="w-full max-w-md"
         action={
           <Button variant="secondary" onClick={onRetour}>
-            Retour aux notes
+            {t('notes.empty.back')}
           </Button>
         }
       />

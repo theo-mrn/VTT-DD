@@ -3,6 +3,7 @@
  * tenir compte des accents), regroupement par campagne et formats de date.
  * La recherche elle-même est faite par le service (plein texte).
  */
+import { activeLocale, translate } from '@/i18n/runtime';
 import { TYPES_NOTE, type ResumeNote, type TypeNote } from '@/lib/notes';
 
 // ─── Recherche ───────────────────────────────────────────────────────────────
@@ -113,22 +114,35 @@ function debutDuJour(ms: number): number {
   return d.getTime();
 }
 
-const HEURE = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
-const JOUR_SEMAINE = new Intl.DateTimeFormat('fr-FR', { weekday: 'long' });
-const JOUR_MOIS = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
-const JOUR_MOIS_AN = new Intl.DateTimeFormat('fr-FR', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-});
-const DATE_LONGUE = new Intl.DateTimeFormat('fr-FR', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-const RELATIF = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
+/** Formats de date dans la langue de la page, créés une fois par langue. */
+const formats = new Map<string, Intl.DateTimeFormat | Intl.RelativeTimeFormat>();
+function format<T extends Intl.DateTimeFormat | Intl.RelativeTimeFormat>(
+  nom: string,
+  creer: (langue: string) => T,
+): T {
+  const cle = `${activeLocale()}:${nom}`;
+  let f = formats.get(cle) as T | undefined;
+  if (!f) {
+    f = creer(activeLocale());
+    formats.set(cle, f);
+  }
+  return f;
+}
+const date = (nom: string, options: Intl.DateTimeFormatOptions) =>
+  format(nom, (l) => new Intl.DateTimeFormat(l, options));
+const HEURE = () => date('heure', { hour: '2-digit', minute: '2-digit' });
+const JOUR_SEMAINE = () => date('jourSemaine', { weekday: 'long' });
+const JOUR_MOIS = () => date('jourMois', { day: 'numeric', month: 'short' });
+const JOUR_MOIS_AN = () => date('jourMoisAn', { day: 'numeric', month: 'short', year: 'numeric' });
+const DATE_LONGUE = () =>
+  date('longue', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+const RELATIF = () => format('relatif', (l) => new Intl.RelativeTimeFormat(l, { numeric: 'auto' }));
 
 const majuscule = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -137,12 +151,12 @@ export function dateCourte(iso: string, maintenant: number): string {
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return '';
   const jour = debutDuJour(maintenant);
-  if (maintenant - t < 60_000) return "À l'instant";
-  if (t >= jour) return HEURE.format(t);
-  if (t >= jour - 86_400_000) return 'Hier';
-  if (t >= jour - 6 * 86_400_000) return majuscule(JOUR_SEMAINE.format(t));
+  if (maintenant - t < 60_000) return majuscule(translate('common.time.justNow'));
+  if (t >= jour) return HEURE().format(t);
+  if (t >= jour - 86_400_000) return translate('chat.yesterday');
+  if (t >= jour - 6 * 86_400_000) return majuscule(JOUR_SEMAINE().format(t));
   const memeAnnee = new Date(t).getFullYear() === new Date(maintenant).getFullYear();
-  return (memeAnnee ? JOUR_MOIS : JOUR_MOIS_AN).format(t);
+  return (memeAnnee ? JOUR_MOIS : JOUR_MOIS_AN)().format(t);
 }
 
 /** « à l'instant », « il y a 5 minutes », « hier »… */
@@ -150,7 +164,7 @@ export function depuis(iso: string, maintenant: number): string {
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return '';
   const s = Math.round((t - maintenant) / 1000);
-  if (Math.abs(s) < 45) return "à l'instant";
+  if (Math.abs(s) < 45) return translate('common.time.justNow');
   const unites: [Intl.RelativeTimeFormatUnit, number][] = [
     ['year', 31_536_000],
     ['month', 2_592_000],
@@ -160,13 +174,13 @@ export function depuis(iso: string, maintenant: number): string {
     ['minute', 60],
   ];
   for (const [unite, duree] of unites)
-    if (Math.abs(s) >= duree) return RELATIF.format(Math.round(s / duree), unite);
-  return RELATIF.format(s, 'second');
+    if (Math.abs(s) >= duree) return RELATIF().format(Math.round(s / duree), unite);
+  return RELATIF().format(s, 'second');
 }
 
 export function dateLongue(iso: string): string {
   const t = new Date(iso).getTime();
-  return Number.isNaN(t) ? '' : DATE_LONGUE.format(t);
+  return Number.isNaN(t) ? '' : DATE_LONGUE().format(t);
 }
 
 // ─── Divers ──────────────────────────────────────────────────────────────────
@@ -188,7 +202,7 @@ export function nettoyerEtiquette(s: string): string {
 }
 
 export function typeNote(id: TypeNote) {
-  return TYPES_NOTE.find((t) => t.id === id) ?? TYPES_NOTE[0];
+  return TYPES_NOTE.find((type) => type.id === id) ?? TYPES_NOTE[0];
 }
 
 /** Icône affichée : celle choisie, sinon celle du type (partagée avec la palette et l'accueil). */

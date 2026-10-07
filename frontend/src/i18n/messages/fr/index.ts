@@ -20,8 +20,10 @@ import legal from './legal';
 import locale from './locale';
 import map from './map';
 import meta from './meta';
+import notes from './notes';
 import onboarding from './onboarding';
 import portraits from './portraits';
+import resources from './resources';
 import search from './search';
 import shell from './shell';
 import shortcuts from './shortcuts';
@@ -47,8 +49,10 @@ const fr = {
   locale,
   map,
   meta,
+  notes,
   onboarding,
   portraits,
+  resources,
   search,
   shell,
   shortcuts,

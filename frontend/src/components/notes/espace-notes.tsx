@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { NOTES_SHORTCUTS } from '@/lib/shortcuts/catalog';
 import { useShortcut } from '@/lib/shortcuts/hooks';
 import { motion } from 'framer-motion';
@@ -98,6 +99,7 @@ export function EspaceNotes({
   /** Raccourcis clavier actifs (faux quand l'espace est monté mais masqué, panneau fermé). */
   raccourcis?: boolean;
 } = {}) {
+  const t = useTranslations();
   const params = useSearchParams();
   const idUrl = params.get('note');
   const demandeNouvelle = params.has('nouvelle');
@@ -244,7 +246,7 @@ export function EspaceNotes({
         naviguer(n.id, idSelection ? 'replace' : 'push');
         if (message) toast.success(message);
       },
-      onError: (err) => toast.error(messageErreur(err, 'La note n’a pas pu être créée.')),
+      onError: (err) => toast.error(messageErreur(err, t('notes.space.createFailed'))),
     });
   };
 
@@ -276,7 +278,7 @@ export function EspaceNotes({
           window.history.replaceState(null, '', urlNote(n.id));
         },
         onError: (err) => {
-          toast.error(messageErreur(err, 'La note n’a pas pu être créée.'));
+          toast.error(messageErreur(err, t('notes.space.createFailed')));
           window.history.replaceState(null, '', base);
         },
       },
@@ -286,7 +288,8 @@ export function EspaceNotes({
 
   // ─── Suppression ─────────────────────────────────────────────────────────
   // Annuler : la note est recréée à l'identique (nouvel identifiant)
-  const restaurer = (n: Note) => creerNote({ champs: copieComplete(n), message: 'Note restaurée' });
+  const restaurer = (n: Note) =>
+    creerNote({ champs: copieComplete(n), message: t('notes.space.restored') });
 
   const supprimerNote = (n: Note) => {
     const i = ordre.indexOf(n.id);
@@ -297,13 +300,13 @@ export function EspaceNotes({
     else retour();
     supprimer.mutate(n.id, {
       onSuccess: () =>
-        toast('Note supprimée', {
-          description: n.title.trim() || 'Sans titre',
-          action: { label: 'Annuler', onClick: () => restaurer(n) },
+        toast(t('notes.space.deleted'), {
+          description: n.title.trim() || t('common.states.untitled'),
+          action: { label: t('common.actions.cancel'), onClick: () => restaurer(n) },
         }),
       onError: (err) => {
         setEnSuppression(null);
-        toast.error(messageErreur(err, 'La note n’a pas pu être supprimée.'));
+        toast.error(messageErreur(err, t('notes.space.deleteFailed')));
       },
     });
   };
@@ -434,7 +437,7 @@ export function EspaceNotes({
       </div>
 
       <section
-        aria-label="Éditeur de note"
+        aria-label={t('notes.space.editor')}
         className={cn('min-w-0 flex-1 lg:h-full', ouverte ? 'block' : 'hidden lg:block')}
       >
         <EtatEditeur
@@ -463,7 +466,7 @@ export function EspaceNotes({
               listeMasquee={masquee}
               onBasculerListe={() => setListeMasquee(!listeMasquee)}
               onRetour={retour}
-              onDupliquer={(champs) => creerNote({ champs, message: 'Note dupliquée' })}
+              onDupliquer={(champs) => creerNote({ champs, message: t('notes.space.duplicated') })}
               onSupprimer={supprimerNote}
             />
           </motion.div>
@@ -531,6 +534,7 @@ function useDonneesNotes({
   facettes: ReturnType<typeof useFacettesNotes>['data'];
   campagneFixe: string | null;
 }) {
+  const t = useTranslations();
   // Notes des pages chargées (sans doublon), encore dans les filtres après une modification locale
   const chargees = useMemo(() => {
     const vues = new Set<string>();
@@ -541,7 +545,8 @@ function useDonneesNotes({
   const index = useMemo(() => indexer(chargees), [chargees]);
   const mots = useMemo(() => termes(rechercheRetardee), [rechercheRetardee]);
   const groupes = useMemo(
-    () => grouper(index, (id) => campagnes.find((c) => c.id === id)?.name ?? 'Campagne'),
+    () =>
+      grouper(index, (id) => campagnes.find((c) => c.id === id)?.name ?? t('notes.props.campaign')),
     [index, campagnes],
   );
   const ordre = useMemo(() => groupes.flatMap((g) => g.notes.map((n) => n.note.id)), [groupes]);

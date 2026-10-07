@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Crown, Swords } from 'lucide-react';
 import Link from 'next/link';
 import { Illustration } from '@/components/commun/illustration';
@@ -33,6 +34,7 @@ export function ChoixCampagne({
   onChoix: (id: string) => void;
   onFermer: () => void;
 }>) {
+  const t = useTranslations();
   return (
     <Dialog open={ouvert} onOpenChange={(o) => !o && onFermer()}>
       <DialogContent className="sm:max-w-md">
@@ -40,11 +42,9 @@ export function ChoixCampagne({
           <div className="mb-2 flex size-10 items-center justify-center rounded-xl border border-border-strong bg-surface-2">
             <Swords className="size-4 text-primary" />
           </div>
-          <DialogTitle>Dans quelle campagne ?</DialogTitle>
+          <DialogTitle>{t('notes.picker.title')}</DialogTitle>
           <DialogDescription>
-            {campagnes.length
-              ? 'La note y restera privée tant que vous ne la partagez pas.'
-              : 'Les notes s’écrivent dans une campagne : rejoignez-en une ou créez la vôtre.'}
+            {campagnes.length ? t('notes.picker.private') : t('notes.picker.none')}
           </DialogDescription>
         </DialogHeader>
         {campagnes.length ? (
@@ -67,7 +67,7 @@ export function ChoixCampagne({
                     <span className="block truncate text-sm font-medium">{c.name}</span>
                     <span className="flex items-center gap-1 text-xs text-subtle">
                       {c.role === 'gm' && <Crown className="size-3" aria-hidden />}
-                      {c.role === 'gm' ? 'Maître du jeu' : 'Joueur'}
+                      {c.role === 'gm' ? t('common.roles.gmLong') : t('common.roles.player')}
                     </span>
                   </span>
                 </button>
@@ -76,7 +76,7 @@ export function ChoixCampagne({
           </ul>
         ) : (
           <Button asChild className="w-full" onClick={onFermer}>
-            <Link href="/campagnes">Voir les campagnes</Link>
+            <Link href="/campagnes">{t('notes.picker.seeCampaigns')}</Link>
           </Button>
         )}
       </DialogContent>

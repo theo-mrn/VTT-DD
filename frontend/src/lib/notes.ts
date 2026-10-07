@@ -227,13 +227,14 @@ export interface PageNotes {
   total: number | null;
 }
 
-export const TYPES_NOTE: { id: TypeNote; label: string; icone: string }[] = [
-  { id: 'libre', label: 'Note', icone: '📝' },
-  { id: 'journal', label: 'Journal', icone: '📖' },
-  { id: 'quete', label: 'Quête', icone: '🧭' },
-  { id: 'personnage', label: 'Personnage', icone: '🧙' },
-  { id: 'lieu', label: 'Lieu', icone: '🏰' },
-  { id: 'objet', label: 'Objet', icone: '🗝️' },
+/** Types de note ; nom affiché : `notes.types.<id>`. */
+export const TYPES_NOTE: { id: TypeNote; icone: string }[] = [
+  { id: 'libre', icone: '📝' },
+  { id: 'journal', icone: '📖' },
+  { id: 'quete', icone: '🧭' },
+  { id: 'personnage', icone: '🧙' },
+  { id: 'lieu', icone: '🏰' },
+  { id: 'objet', icone: '🗝️' },
 ];
 
 /** Bornes du service (docs/api-notes.md). */
