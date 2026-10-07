@@ -2,8 +2,11 @@
  * Profils, titres et envoi d'images (service identity).
  * Les composants passent par ces fonctions typées, jamais par fetch directement.
  */
-import { checkUpload, UPLOAD_USAGES, type Locale } from '@vtt/contracts';
+import { UPLOAD_USAGES, type Locale } from '@vtt/contracts';
+import { dates } from '@/i18n/dates';
+import { translate } from '@/i18n/runtime';
 import { api } from './api';
+import { uploadRefusal } from './uploads/check';
 import { MAX_SIDE, prepareImage } from './uploads/image';
 import { uploadFile, type UploadProgress } from './uploads/uploader';
 
@@ -96,9 +99,7 @@ export const TAILLE_MAX_IMAGE = UPLOAD_USAGES.avatar.maxBytes;
 
 /** Vérifie le fichier avant envoi ; renvoie un message d'erreur ou null. */
 export function verifierImage(fichier: File): string | null {
-  return (
-    checkUpload({ usage: 'avatar', contentType: fichier.type, size: fichier.size })?.message ?? null
-  );
+  return uploadRefusal('avatar', fichier);
 }
 
 /**
@@ -131,14 +132,12 @@ export type ConditionTitre =
 
 /** Phrase lisible pour une condition de déblocage. */
 export function texteCondition(c: ConditionTitre | null, description?: string | null): string {
-  if (!c) return description ?? 'Attribué par un maître du jeu';
-  if (c.type === 'time' && typeof c.minutes === 'number') {
-    const m = c.minutes;
-    return `Jouer ${duree(m)}`;
-  }
+  if (!c) return description ?? translate('account.titles.byGm');
+  if (c.type === 'time' && typeof c.minutes === 'number')
+    return translate('account.titles.play', { duration: dates().duration(c.minutes) });
   if (c.type === 'event' && typeof c.description === 'string') return c.description;
-  if (c.type === 'premium') return 'Réservé aux membres premium';
-  return description ?? 'Condition particulière';
+  if (c.type === 'premium') return translate('account.titles.premium');
+  return description ?? translate('account.titles.special');
 }
 
 export interface Titre {
@@ -169,11 +168,4 @@ export function choisirTitre(slug: string | null) {
     method: 'PUT',
     body: JSON.stringify({ slug }),
   });
-}
-
-/** « 45 min », « 2 h » ou « 1 h 30 min ». */
-function duree(m: number): string {
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  return m % 60 ? `${h} h ${m % 60} min` : `${h} h`;
 }

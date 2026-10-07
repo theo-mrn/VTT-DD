@@ -33,6 +33,9 @@ export const TRANSLATED_AREAS = [
   'app/(app)/campagnes',
   'app/(focus)/join',
   'app/(focus)/campagnes',
+  'app/(app)/(compte)',
+  'components/compte',
+  'app/(app)/paiement',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {

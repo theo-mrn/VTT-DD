@@ -49,6 +49,14 @@ const TECHNICAL = new Set([
   'Mod',
   'Inter',
   'Geist',
+  'Android',
+  'Windows',
+  'Linux',
+  'Chrome',
+  'Firefox',
+  'Safari',
+  'Edge',
+  'Opera',
 ]);
 
 const FRENCH_WORDS =

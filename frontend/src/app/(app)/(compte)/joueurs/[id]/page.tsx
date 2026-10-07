@@ -1,16 +1,11 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import {
-  AvatarJoueur,
-  Bouton,
-  Carte,
-  Chargement,
-  Message,
-  formaterDuree,
-} from '@/components/compte/elements';
+import { AvatarJoueur, Bouton, Carte, Chargement, Message } from '@/components/compte/elements';
 import { styleLien } from '@/components/compte/styles';
+import { useDates } from '@/i18n/dates';
 import {
   accepterDemande,
   demanderEnAmi,
@@ -25,6 +20,8 @@ import { cn } from '@/lib/utils';
 
 /** Profil public d'un joueur (GET /v1/users/:id), avec la relation d'amitié. */
 export default function PageJoueur() {
+  const t = useTranslations('account');
+  const dates = useDates();
   const { id } = useParams<{ id: string }>();
   const moi = useProfil();
   const joueur = useRessource(id ? `joueur-${id}` : null, () => lireJoueur(id));
@@ -34,9 +31,9 @@ export default function PageJoueur() {
   if (joueur.erreur || !joueur.donnees) {
     return (
       <Carte>
-        <Message>{joueur.erreur ?? 'Joueur introuvable.'}</Message>
+        <Message>{joueur.erreur ?? t('player.notFound')}</Message>
         <Link href="/amis" className={cn('mt-4 inline-block', styleLien)}>
-          Retour aux amis
+          {t('player.backToFriends')}
         </Link>
       </Carte>
     );
@@ -65,12 +62,12 @@ export default function PageJoueur() {
             <div className="flex gap-2">
               {lien === 'moi' && (
                 <Bouton asChild ton="secondaire">
-                  <Link href="/profil">Modifier mon profil</Link>
+                  <Link href="/profil">{t('player.editProfile')}</Link>
                 </Bouton>
               )}
               {lien === 'aucune' && (
                 <Bouton chargement={occupe} onClick={() => agir(p.id, demanderEnAmi)}>
-                  Ajouter en ami
+                  {t('player.addFriend')}
                 </Bouton>
               )}
               {lien === 'envoyee' && (
@@ -79,26 +76,26 @@ export default function PageJoueur() {
                   chargement={occupe}
                   onClick={() => agir(p.id, supprimerDemande)}
                 >
-                  Annuler la demande
+                  {t('player.cancelRequest')}
                 </Bouton>
               )}
               {lien === 'recue' && (
                 <>
                   <Bouton chargement={occupe} onClick={() => agir(p.id, accepterDemande)}>
-                    Accepter
+                    {t('friends.accept')}
                   </Bouton>
                   <Bouton
                     ton="secondaire"
                     disabled={occupe}
                     onClick={() => agir(p.id, supprimerDemande)}
                   >
-                    Refuser
+                    {t('friends.decline')}
                   </Bouton>
                 </>
               )}
               {lien === 'ami' && (
                 <Bouton ton="danger" chargement={occupe} onClick={() => agir(p.id, retirerAmi)}>
-                  Retirer des amis
+                  {t('player.removeFriend')}
                 </Bouton>
               )}
             </div>
@@ -107,8 +104,10 @@ export default function PageJoueur() {
           {erreur && <Message>{erreur}</Message>}
           {p.bio && <p className="whitespace-pre-line text-foreground/85">{p.bio}</p>}
           <p className="text-sm text-muted-foreground">
-            Temps de jeu :{' '}
-            <span className="text-foreground">{formaterDuree(p.timeSpentMinutes)}</span>
+            {t.rich('player.playTime', {
+              duration: dates.duration(p.timeSpentMinutes),
+              b: (chunks) => <span className="text-foreground">{chunks}</span>,
+            })}
           </p>
         </div>
       </div>

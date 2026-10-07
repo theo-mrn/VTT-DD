@@ -1,6 +1,7 @@
 'use client';
 
 import { Camera, Check, Clock, Crown, ImagePlus, Lock, Mail, CalendarDays } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
@@ -9,8 +10,6 @@ import {
   Bouton,
   Carte,
   Chargement,
-  formaterDate,
-  formaterDuree,
   Interrupteur,
   Message,
   TitrePage,
@@ -22,6 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { LocaleSwitcher } from '@/components/i18n/locale-switcher';
+import { useDates } from '@/i18n/dates';
 import { messageErreur } from '@/lib/api';
 import { setYoutubeConsent } from '@/lib/consent/youtube';
 import {
@@ -43,6 +44,7 @@ const LONGUEUR_MAX_NOM = 64;
 const LONGUEUR_MAX_BIO = 500;
 
 export default function PageProfil() {
+  const t = useTranslations('account.profile');
   const profil = useProfil();
   // Le statut premium n'est exposé que par le profil public
   const premium = useRessource(`premium:${profil.id}`, () =>
@@ -51,9 +53,7 @@ export default function PageProfil() {
 
   return (
     <div className="space-y-6">
-      <TitrePage sousTitre="Ce que les autres joueurs voient de vous, et vos préférences.">
-        Mon profil
-      </TitrePage>
+      <TitrePage sousTitre={t('lead')}>{t('title')}</TitrePage>
       {profil.email && !profil.emailVerified && <BandeauVerification email={profil.email} />}
       <EnTete profil={profil} />
       <div className="grid gap-6 lg:grid-cols-2">
@@ -95,6 +95,7 @@ function useEnregistrement() {
 // ─── Bandeau « e-mail non vérifié » ──────────────────────────────────────────
 
 function BandeauVerification({ email }: Readonly<{ email: string }>) {
+  const t = useTranslations('account.profile');
   const [etat, setEtat] = useState<'repos' | 'envoi' | 'envoye'>('repos');
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -115,11 +116,9 @@ function BandeauVerification({ email }: Readonly<{ email: string }>) {
       <div className="flex items-start gap-3">
         <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div className="min-w-0 text-sm">
-          <p className="text-primary-strong">Votre adresse e-mail n&apos;est pas vérifiée.</p>
+          <p className="text-primary-strong">{t('unverified')}</p>
           <p className="break-all text-muted-foreground">
-            {etat === 'envoye'
-              ? `Lien envoyé à ${email} : ouvrez-le pour confirmer votre adresse.`
-              : `Confirmez ${email} pour sécuriser votre compte.`}
+            {etat === 'envoye' ? t('linkSent', { email }) : t('confirm', { email })}
           </p>
           {erreur && <p className="mt-1 text-destructive">{erreur}</p>}
         </div>
@@ -130,7 +129,7 @@ function BandeauVerification({ email }: Readonly<{ email: string }>) {
         onClick={envoyer}
         className="shrink-0"
       >
-        {etat === 'envoye' ? 'Renvoyer le lien' : 'Envoyer le lien'}
+        {etat === 'envoye' ? t('resendLink') : t('sendLink')}
       </Bouton>
     </div>
   );
@@ -139,6 +138,9 @@ function BandeauVerification({ email }: Readonly<{ email: string }>) {
 // ─── En-tête : bannière, avatar, résumé ──────────────────────────────────────
 
 function EnTete({ profil }: Readonly<{ profil: Profil }>) {
+  const t = useTranslations('account.profile');
+  const tc = useTranslations('common.actions');
+  const dates = useDates();
   const banniere = useEnvoiImage('banner');
   const avatar = useEnvoiImage('avatar');
   const urlBanniere = banniere.apercu ?? profil.bannerUrl;
@@ -155,16 +157,16 @@ function EnTete({ profil }: Readonly<{ profil: Profil }>) {
           {banniere.enAttente ? (
             <>
               <Bouton ton="secondaire" size="sm" className="bg-black/60" onClick={banniere.annuler}>
-                Annuler
+                {tc('cancel')}
               </Bouton>
               <Bouton size="sm" chargement={banniere.envoi} onClick={banniere.enregistrer}>
-                Enregistrer la bannière
+                {t('saveBanner')}
               </Bouton>
             </>
           ) : (
             <Bouton ton="secondaire" size="sm" className="bg-black/60" onClick={banniere.ouvrir}>
               <ImagePlus />
-              <span className="hidden sm:inline">Changer la bannière</span>
+              <span className="hidden sm:inline">{t('changeBanner')}</span>
             </Bouton>
           )}
         </div>
@@ -183,7 +185,7 @@ function EnTete({ profil }: Readonly<{ profil: Profil }>) {
               <button
                 type="button"
                 onClick={avatar.ouvrir}
-                aria-label="Changer l'avatar"
+                aria-label={t('changeAvatar')}
                 className="absolute bottom-1 right-1 rounded-full border border-border-strong bg-surface-2 p-2 text-foreground transition-colors hover:border-primary hover:text-primary"
               >
                 <Camera className="h-4 w-4" />
@@ -200,19 +202,19 @@ function EnTete({ profil }: Readonly<{ profil: Profil }>) {
 
         {avatar.enAttente && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-muted-foreground">Aperçu du nouvel avatar :</span>
+            <span className="text-sm text-muted-foreground">{t('avatarPreview')}</span>
             <Bouton ton="secondaire" size="sm" onClick={avatar.annuler}>
-              Annuler
+              {tc('cancel')}
             </Bouton>
             <Bouton size="sm" chargement={avatar.envoi} onClick={avatar.enregistrer}>
-              Enregistrer l&apos;avatar
+              {t('saveAvatar')}
             </Bouton>
           </div>
         )}
         {(avatar.erreur || banniere.erreur) && (
           <div className="mt-4 space-y-2">
-            {banniere.erreur && <Message>Bannière : {banniere.erreur}</Message>}
-            {avatar.erreur && <Message>Avatar : {avatar.erreur}</Message>}
+            {banniere.erreur && <Message>{t('bannerError', { error: banniere.erreur })}</Message>}
+            {avatar.erreur && <Message>{t('avatarError', { error: avatar.erreur })}</Message>}
           </div>
         )}
 
@@ -223,17 +225,17 @@ function EnTete({ profil }: Readonly<{ profil: Profil }>) {
         <dl className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
           <Statistique
             icone={Clock}
-            label="Temps de jeu"
-            valeur={formaterDuree(profil.timeSpentMinutes)}
+            label={t('playTime')}
+            valeur={dates.duration(profil.timeSpentMinutes)}
           />
           <Statistique
             icone={CalendarDays}
-            label="Membre depuis"
-            valeur={formaterDate(profil.createdAt)}
+            label={t('memberSince')}
+            valeur={dates.date(profil.createdAt)}
           />
-          <Statistique icone={Mail} label="E-mail" valeur={profil.email ?? '—'} />
+          <Statistique icone={Mail} label={t('email')} valeur={profil.email ?? '—'} />
         </dl>
-        <p className="mt-3 text-xs text-subtle">Images PNG, JPEG, WebP ou GIF, 5 Mo maximum.</p>
+        <p className="mt-3 text-xs text-subtle">{t('imageHint')}</p>
       </div>
     </section>
   );
@@ -262,6 +264,8 @@ function Statistique({
 // ─── Nom et bio ──────────────────────────────────────────────────────────────
 
 function CarteIdentite({ profil }: Readonly<{ profil: Profil }>) {
+  const t = useTranslations('account.profile');
+  const tc = useTranslations('common.actions');
   const [nom, setNom] = useState(profil.name);
   const [bio, setBio] = useState(profil.bio ?? '');
   const { enregistrer, envoi, erreur, succes, effacer } = useEnregistrement();
@@ -277,11 +281,11 @@ function CarteIdentite({ profil }: Readonly<{ profil: Profil }>) {
   }
 
   return (
-    <Carte titre="Identité" description="Votre nom d'aventurier et quelques mots sur vous.">
+    <Carte titre={t('identity')} description={t('identityLead')}>
       <form onSubmit={valider} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="nom" className={styleLabel}>
-            Nom
+            {t('name')}
           </Label>
           <Input
             id="nom"
@@ -298,10 +302,10 @@ function CarteIdentite({ profil }: Readonly<{ profil: Profil }>) {
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
             <Label htmlFor="bio" className={styleLabel}>
-              Bio
+              {t('bio')}
             </Label>
             <span className="text-xs text-subtle">
-              {bio.length} / {LONGUEUR_MAX_BIO}
+              {t('bioCount', { length: bio.length, max: LONGUEUR_MAX_BIO })}
             </span>
           </div>
           <Textarea
@@ -312,14 +316,14 @@ function CarteIdentite({ profil }: Readonly<{ profil: Profil }>) {
               setBio(e.target.value);
               effacer();
             }}
-            placeholder="Rôliste depuis…, joue plutôt MJ…"
+            placeholder={t('bioPlaceholder')}
             className={cn(styleChamp, 'h-auto min-h-[110px] resize-y py-2')}
           />
         </div>
         {erreur && <Message>{erreur}</Message>}
-        {succes && !modifie && <Message ton="succes">Profil enregistré.</Message>}
+        {succes && !modifie && <Message ton="succes">{t('saved')}</Message>}
         <Bouton type="submit" chargement={envoi} disabled={!modifie || !nom.trim()}>
-          Enregistrer
+          {tc('save')}
         </Bouton>
       </form>
     </Carte>
@@ -329,6 +333,7 @@ function CarteIdentite({ profil }: Readonly<{ profil: Profil }>) {
 // ─── Titre affiché ───────────────────────────────────────────────────────────
 
 function CarteTitre({ profil }: Readonly<{ profil: Profil }>) {
+  const t = useTranslations('account.profile');
   const { remplacerProfil } = useSession();
   const debloques = useRessource('mes-titres', lireMesTitres);
   const chargeTitres = debloques.chargement && !debloques.donnees;
@@ -338,9 +343,9 @@ function CarteTitre({ profil }: Readonly<{ profil: Profil }>) {
 
   const liste = debloques.donnees ?? [];
   const actuel =
-    liste.find((t) => t.label === profil.title || t.slug === profil.title)?.slug ?? null;
+    liste.find((x) => x.label === profil.title || x.slug === profil.title)?.slug ?? null;
   const verrouilles = (catalogue.donnees ?? []).filter(
-    (t) => !liste.some((d) => d.slug === t.slug),
+    (x) => !liste.some((d) => d.slug === x.slug),
   );
 
   async function choisir(slug: string | null) {
@@ -358,49 +363,44 @@ function CarteTitre({ profil }: Readonly<{ profil: Profil }>) {
   }
 
   return (
-    <Carte
-      titre="Titre"
-      description="Le titre affiché sous votre nom, parmi ceux que vous avez débloqués."
-    >
+    <Carte titre={t('titleCard')} description={t('titleLead')}>
       {chargeTitres && <Chargement />}
       {!chargeTitres && debloques.erreur && <Message>{debloques.erreur}</Message>}
       {!chargeTitres && !debloques.erreur && (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Titre affiché">
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('titleShown')}>
             <PastilleTitre
-              label="Aucun titre"
+              label={t('noTitle')}
               actif={actuel === null && !profil.title}
               chargement={envoi === ''}
               onClick={() => choisir(null)}
             />
-            {liste.map((t) => (
+            {liste.map((x) => (
               <PastilleTitre
-                key={t.slug}
-                label={t.label}
-                actif={actuel === t.slug}
-                chargement={envoi === t.slug}
-                onClick={() => choisir(t.slug)}
+                key={x.slug}
+                label={x.label}
+                actif={actuel === x.slug}
+                chargement={envoi === x.slug}
+                onClick={() => choisir(x.slug)}
               />
             ))}
           </div>
-          {liste.length === 0 && (
-            <p className="text-sm text-subtle">Aucun titre débloqué pour l&apos;instant.</p>
-          )}
+          {liste.length === 0 && <p className="text-sm text-subtle">{t('noUnlocked')}</p>}
           {erreur && <Message>{erreur}</Message>}
           {verrouilles.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-wider text-subtle">À débloquer</p>
+              <p className="text-xs uppercase tracking-wider text-subtle">{t('toUnlock')}</p>
               <ul className="space-y-2">
-                {verrouilles.map((t) => (
+                {verrouilles.map((x) => (
                   <li
-                    key={t.slug}
+                    key={x.slug}
                     className="flex items-start gap-3 rounded-lg border border-border px-3 py-2 text-sm"
                   >
                     <Lock className="mt-0.5 h-4 w-4 shrink-0 text-subtle" />
                     <div className="min-w-0">
-                      <p className="text-foreground/85">{t.label}</p>
+                      <p className="text-foreground/85">{x.label}</p>
                       <p className="text-xs text-subtle">
-                        {texteCondition(t.condition, t.description)}
+                        {texteCondition(x.condition, x.description)}
                       </p>
                     </div>
                   </li>
@@ -448,6 +448,8 @@ function PastilleTitre({
 // ─── Bordure et badge premium ────────────────────────────────────────────────
 
 function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium: boolean }>) {
+  const t = useTranslations('account');
+  const tc = useTranslations('common.actions');
   const [bordure, setBordure] = useState(profil.borderType);
   const [badge, setBadge] = useState(profil.showPremiumBadge);
   const { enregistrer, envoi, erreur, succes, effacer } = useEnregistrement();
@@ -468,8 +470,8 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
 
   return (
     <Carte
-      titre="Apparence"
-      description="La bordure de votre avatar, visible par les autres joueurs."
+      titre={t('profile.appearance')}
+      description={t('profile.appearanceLead')}
       action={
         <AvatarJoueur nom={profil.name} url={profil.avatarUrl} bordure={bordure} taille="md" />
       }
@@ -478,7 +480,7 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
         {!premium && (
           <p className="flex items-center gap-2 text-xs text-subtle">
             <Crown className="h-3.5 w-3.5 text-primary" />
-            Les bordures animées sont réservées aux membres Premium.
+            {t('profile.premiumBorders')}
           </p>
         )}
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -516,7 +518,7 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
                 >
                   {verrou && <Lock className="absolute inset-0 m-auto h-3 w-3 text-white" />}
                 </span>
-                <span className="text-center">{b.label}</span>
+                <span className="text-center">{t(`borders.${b.id}`)}</span>
               </button>
             );
           })}
@@ -527,17 +529,13 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
             setBadge(v);
             effacer();
           }}
-          label="Afficher le badge Premium"
-          description={
-            premium
-              ? 'Visible à côté de votre nom sur votre profil public.'
-              : 'Le badge ne s’affiche que pour les membres Premium.'
-          }
+          label={t('profile.premiumBadge')}
+          description={premium ? t('profile.premiumBadgeOn') : t('profile.premiumBadgeOff')}
         />
         {erreur && <Message>{erreur}</Message>}
-        {succes && !modifie && <Message ton="succes">Apparence enregistrée.</Message>}
+        {succes && !modifie && <Message ton="succes">{t('profile.appearanceSaved')}</Message>}
         <Bouton onClick={valider} chargement={envoi} disabled={!modifie}>
-          Enregistrer
+          {tc('save')}
         </Bouton>
       </div>
     </Carte>
@@ -548,40 +546,45 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
 
 /** Accord au lecteur YouTube, propre à ce navigateur (stockage local). */
 function ReglageYoutube() {
+  const t = useTranslations('account.profile');
   const consent = useYoutubeConsent();
   return (
     <Interrupteur
       actif={consent === 'granted'}
       onChange={(v) => setYoutubeConsent(v ? 'granted' : 'denied')}
-      label="Musique YouTube"
-      description="Lecteur YouTube et ses traceurs, sur ce navigateur."
+      label={t('youtube')}
+      description={t('youtubeText')}
     />
   );
 }
 
 function CartePreferences({ profil }: Readonly<{ profil: Profil }>) {
+  const t = useTranslations('account.profile');
   const { enregistrer, envoi, erreur } = useEnregistrement();
 
   return (
-    <Carte titre="Préférences">
+    <Carte titre={t('preferences')}>
       <div className="space-y-4">
+        {/* Langue : ce navigateur et le compte (docs/i18n.md § 3) */}
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm text-foreground">{t('language')}</p>
+          <LocaleSwitcher className="w-40" />
+        </div>
         <Interrupteur
           actif={profil.emailNotifications}
           disabled={envoi}
           onChange={(v) => void enregistrer({ emailNotifications: v })}
-          label="Notifications par e-mail"
-          description="Rappels de session et nouvelles de vos campagnes."
+          label={t('emailNotifications')}
+          description={t('emailNotificationsText')}
         />
         <ReglageYoutube />
         <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
           <div>
-            <p className="text-sm font-medium">Accueil de l'application</p>
-            <p className="text-[13px] text-muted-foreground">
-              Revoir les premiers pas : profil, puis rejoindre ou créer une campagne.
-            </p>
+            <p className="text-sm font-medium">{t('welcome')}</p>
+            <p className="text-[13px] text-muted-foreground">{t('welcomeText')}</p>
           </div>
           <Button variant="secondary" size="sm" asChild>
-            <Link href="/bienvenue">Revoir l'accueil</Link>
+            <Link href="/bienvenue">{t('welcomeAgain')}</Link>
           </Button>
         </div>
         {erreur && <Message>{erreur}</Message>}

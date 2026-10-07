@@ -26,6 +26,13 @@ export default {
     invalid_image_url: 'Image refusée.',
     validation_failed: 'Données invalides.',
   },
+  /** Fichier refusé avant l'envoi. */
+  upload: {
+    unsupportedType: 'Format non accepté ({formats})',
+    tooLarge: 'Fichier trop lourd : {max, number} Mo au plus',
+    storageUnavailable:
+      'L’envoi d’images n’est pas encore disponible : le stockage n’est pas configuré sur ce serveur.',
+  },
   /** Par statut HTTP, quand le code n'a pas de texte. */
   status: {
     badRequest: 'Requête invalide.',

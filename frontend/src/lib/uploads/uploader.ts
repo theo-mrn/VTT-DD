@@ -10,13 +10,9 @@
  * Uppy n'est chargé qu'au premier envoi (import dynamique) : ce module est importé par la
  * session, donc par toutes les pages, et doit rester léger.
  */
-import {
-  checkUpload,
-  type FileImport,
-  type FileUploadTicket,
-  type UploadUsageId,
-} from '@vtt/contracts';
+import { type FileImport, type FileUploadTicket, type UploadUsageId } from '@vtt/contracts';
 import { api } from '../api';
+import { uploadRefusal } from './check';
 
 /** À qui appartient le fichier (le service qui le signe). */
 export type UploadTarget =
@@ -82,8 +78,8 @@ export async function uploadFile(
   file: File,
   o: { onProgress?: (p: UploadProgress) => void; signal?: AbortSignal } = {},
 ): Promise<string> {
-  const refus = checkUpload({ usage, contentType: file.type, size: file.size });
-  if (refus) throw new Error(refus.message);
+  const refus = uploadRefusal(usage, file);
+  if (refus) throw new Error(refus);
 
   const [{ default: Uppy }, { default: AwsS3 }] = await Promise.all([
     import('@uppy/core'),

@@ -20,7 +20,8 @@ import { toast } from 'sonner';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
 import { EtatVide, Page } from '@/components/commun/page';
-import { Chargement, formaterDepuis, Message } from '@/components/compte/elements';
+import { Chargement, Message } from '@/components/compte/elements';
+import { useDates } from '@/i18n/dates';
 import { PortraitStudio } from '@/components/portraits/portrait-studio';
 import { SheetGrid } from '@/components/sheet-grid/sheet-grid';
 import { Button } from '@/components/ui/button';
@@ -425,6 +426,7 @@ function MenuFiche({
   onModifier: () => void;
   onSupprimer: () => void;
 }>) {
+  const dates = useDates();
   const creation = proprietaire && p.inCreation && p.roomId;
   if (!progressions.length && !onValeurs && !onPersonnaliser && !peutModifier && !proprietaire)
     return null;
@@ -472,7 +474,7 @@ function MenuFiche({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled className="text-xs">
-              Modifié {formaterDepuis(p.updatedAt)}
+              Modifié {dates.since(p.updatedAt)}
             </DropdownMenuItem>
           </>
         )}

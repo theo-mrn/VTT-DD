@@ -7,6 +7,7 @@
  */
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Clock, Crown, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -29,6 +30,7 @@ export default function PagePaiementSucces() {
 }
 
 function Confirmation() {
+  const t = useTranslations('account.payment');
   const params = useSearchParams();
   const sessionId = params.get('session_id');
   const retour = retourSur(params.get('retour'));
@@ -69,8 +71,8 @@ function Confirmation() {
 
   const termine = session?.status === 'completed';
   let contenu;
-  if (!sessionId || erreur) contenu = <Message>{erreur ?? 'Paiement introuvable.'}</Message>;
-  else if (session?.status === 'expired') contenu = <Message>Ce paiement a expiré.</Message>;
+  if (!sessionId || erreur) contenu = <Message>{erreur ?? t('notFound')}</Message>;
+  else if (session?.status === 'expired') contenu = <Message>{t('expired')}</Message>;
   else if (termine)
     contenu = (
       <div className="flex flex-col items-center gap-3 text-center">
@@ -80,7 +82,7 @@ function Confirmation() {
           <CheckCircle2 className="size-10 text-success" aria-hidden />
         )}
         <h1 className="text-xl font-semibold tracking-tight">
-          {session.kind === 'premium' ? 'Bienvenue dans Premium' : 'Merci pour votre achat'}
+          {session.kind === 'premium' ? t('welcomePremium') : t('thanks')}
         </h1>
       </div>
     );
@@ -88,16 +90,14 @@ function Confirmation() {
     contenu = (
       <div className="flex flex-col items-center gap-3 text-center">
         <Clock className="size-10 text-primary" aria-hidden />
-        <h1 className="text-xl font-semibold tracking-tight">
-          Paiement reçu, confirmation en cours
-        </h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t('pending')}</h1>
       </div>
     );
   else
     contenu = (
       <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin text-primary" />
-        Confirmation du paiement…
+        {t('confirming')}
       </div>
     );
 
@@ -107,11 +107,11 @@ function Confirmation() {
         {contenu}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Bouton asChild>
-            <Link href={retour}>Continuer</Link>
+            <Link href={retour}>{t('continue')}</Link>
           </Bouton>
           {retour !== PAGES_FRONT.abonnement && (
             <Bouton ton="secondaire" asChild>
-              <Link href={PAGES_FRONT.abonnement}>Mon abonnement</Link>
+              <Link href={PAGES_FRONT.abonnement}>{t('mySubscription')}</Link>
             </Bouton>
           )}
         </div>

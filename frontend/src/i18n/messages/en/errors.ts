@@ -24,6 +24,12 @@ export default {
     invalid_image_url: 'Image rejected.',
     validation_failed: 'Invalid data.',
   },
+  upload: {
+    unsupportedType: 'Unsupported format ({formats})',
+    tooLarge: 'File too large: {max, number} MB at most',
+    storageUnavailable:
+      'Image uploads are not available yet: storage is not configured on this server.',
+  },
   status: {
     badRequest: 'Invalid request.',
     unauthorized: 'Your session has expired: please sign in again.',

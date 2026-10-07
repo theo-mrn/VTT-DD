@@ -1,5 +1,6 @@
 /** Catalogue anglais : mêmes espaces que `../fr/index.ts`, vérifiés par le typage et par le test. */
 import type { Messages, Translation } from '../../types';
+import account from './account';
 import auth from './auth';
 import campaigns from './campaigns';
 import common from './common';
@@ -13,6 +14,7 @@ import search from './search';
 import shell from './shell';
 
 const en = {
+  account,
   auth,
   campaigns,
   common,

@@ -1,18 +1,10 @@
 'use client';
 
 import { Download, LogOut, Monitor, Smartphone, Trash2 } from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { useState, type FormEvent } from 'react';
-import {
-  Bouton,
-  Carte,
-  Chargement,
-  formaterDate,
-  formaterDepuis,
-  Message,
-  TitrePage,
-  Vide,
-} from '@/components/compte/elements';
+import { Bouton, Carte, Chargement, Message, TitrePage, Vide } from '@/components/compte/elements';
 import { styleChamp, styleLabel } from '@/components/compte/styles';
 import {
   Dialog,
@@ -24,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useDates } from '@/i18n/dates';
 import { messageErreur } from '@/lib/api';
 import { useCampagnes } from '@/lib/campagnes';
 import { downloadMyData } from '@/lib/data-export';
@@ -47,13 +40,12 @@ import { cn } from '@/lib/utils';
 const NOMS_FOURNISSEURS = { google: 'Google', discord: 'Discord' } as const;
 
 export default function PageSecurite() {
+  const t = useTranslations('account.security');
   const profil = useProfil();
 
   return (
     <div className="space-y-6">
-      <TitrePage sousTitre="Mot de passe, appareils connectés et suppression du compte.">
-        Sécurité
-      </TitrePage>
+      <TitrePage sousTitre={t('lead')}>{t('title')}</TitrePage>
       <div className="grid gap-6 lg:grid-cols-2">
         {profil.hasPassword ? <CarteMotDePasse /> : <CarteSansMotDePasse profil={profil} />}
         <CarteComptesLies profil={profil} />
@@ -68,6 +60,7 @@ export default function PageSecurite() {
 // ─── Mot de passe ────────────────────────────────────────────────────────────
 
 function CarteMotDePasse() {
+  const t = useTranslations('account.security');
   const [actuel, setActuel] = useState('');
   const [nouveau, setNouveau] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -79,7 +72,7 @@ function CarteMotDePasse() {
     e.preventDefault();
     setSucces(false);
     if (nouveau !== confirmation) {
-      setErreur('Les deux nouveaux mots de passe ne correspondent pas.');
+      setErreur(t('mismatch'));
       return;
     }
     setErreur(null);
@@ -98,11 +91,11 @@ function CarteMotDePasse() {
   }
 
   return (
-    <Carte titre="Mot de passe" description={`${LONGUEUR_MIN_MDP} caractères minimum.`}>
+    <Carte titre={t('password')} description={t('passwordMin', { min: LONGUEUR_MIN_MDP })}>
       <form onSubmit={valider} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="mdp-actuel" className={styleLabel}>
-            Mot de passe actuel
+            {t('current')}
           </Label>
           <Input
             id="mdp-actuel"
@@ -116,7 +109,7 @@ function CarteMotDePasse() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="mdp-nouveau" className={styleLabel}>
-            Nouveau mot de passe
+            {t('new')}
           </Label>
           <Input
             id="mdp-nouveau"
@@ -132,7 +125,7 @@ function CarteMotDePasse() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="mdp-confirmation" className={styleLabel}>
-            Confirmation
+            {t('confirmation')}
           </Label>
           <Input
             id="mdp-confirmation"
@@ -145,9 +138,9 @@ function CarteMotDePasse() {
           />
         </div>
         {erreur && <Message>{erreur}</Message>}
-        {succes && <Message ton="succes">Mot de passe modifié.</Message>}
+        {succes && <Message ton="succes">{t('changed')}</Message>}
         <Bouton type="submit" chargement={envoi}>
-          Changer le mot de passe
+          {t('change')}
         </Bouton>
       </form>
     </Carte>
@@ -156,6 +149,7 @@ function CarteMotDePasse() {
 
 /** Compte créé via Google / Discord : un mot de passe se définit par le lien de réinitialisation. */
 function CarteSansMotDePasse({ profil }: Readonly<{ profil: Profil }>) {
+  const t = useTranslations('account.security');
   const [etat, setEtat] = useState<'repos' | 'envoi' | 'envoye'>('repos');
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -173,28 +167,21 @@ function CarteSansMotDePasse({ profil }: Readonly<{ profil: Profil }>) {
   }
 
   return (
-    <Carte
-      titre="Mot de passe"
-      description="Votre compte n'a pas de mot de passe : vous vous connectez avec Google ou Discord."
-    >
+    <Carte titre={t('password')} description={t('noPassword')}>
       <div className="space-y-4">
         {profil.email ? (
           <>
-            <p className="text-sm text-muted-foreground">
-              Pour pouvoir aussi vous connecter par e-mail, recevez un lien permettant de définir un
-              mot de passe.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('noPasswordText')}</p>
             {erreur && <Message>{erreur}</Message>}
-            {etat === 'envoye' && <Message ton="succes">Lien envoyé à {profil.email}.</Message>}
+            {etat === 'envoye' && (
+              <Message ton="succes">{t('linkSent', { email: profil.email })}</Message>
+            )}
             <Bouton chargement={etat === 'envoi'} onClick={envoyer}>
-              {etat === 'envoye' ? 'Renvoyer le lien' : 'Recevoir un lien'}
+              {etat === 'envoye' ? t('resendLink') : t('getLink')}
             </Bouton>
           </>
         ) : (
-          <Message ton="info">
-            Aucune adresse e-mail n&apos;est associée à votre compte : impossible de définir un mot
-            de passe pour l&apos;instant.
-          </Message>
+          <Message ton="info">{t('noEmail')}</Message>
         )}
       </div>
     </Carte>
@@ -202,10 +189,11 @@ function CarteSansMotDePasse({ profil }: Readonly<{ profil: Profil }>) {
 }
 
 function CarteComptesLies({ profil }: Readonly<{ profil: Profil }>) {
+  const t = useTranslations('account.security');
   return (
-    <Carte titre="Comptes liés" description="Services avec lesquels vous pouvez vous connecter.">
+    <Carte titre={t('linked')} description={t('linkedLead')}>
       <ul className="space-y-2 text-sm">
-        <LigneConnexion label="E-mail et mot de passe" actif={profil.hasPassword} />
+        <LigneConnexion label={t('emailPassword')} actif={profil.hasPassword} />
         {(['google', 'discord'] as const).map((f) => (
           <LigneConnexion
             key={f}
@@ -219,11 +207,12 @@ function CarteComptesLies({ profil }: Readonly<{ profil: Profil }>) {
 }
 
 function LigneConnexion({ label, actif }: Readonly<{ label: string; actif: boolean }>) {
+  const t = useTranslations('account.security');
   return (
     <li className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
       <span className="text-foreground">{label}</span>
       <span className={cn('text-xs', actif ? 'text-success' : 'text-subtle')}>
-        {actif ? 'Activé' : 'Non lié'}
+        {actif ? t('enabled') : t('notLinked')}
       </span>
     </li>
   );
@@ -251,18 +240,24 @@ const SYSTEMES: readonly [RegExp, string][] = [
 ];
 
 /** « Chrome sur macOS » à partir de l'user-agent. */
-function decrireAppareil(ua: string | null) {
-  if (!ua) return { nom: 'Appareil inconnu', mobile: false };
+function decrireAppareil(
+  ua: string | null,
+  t: ReturnType<typeof useTranslations<'account.security'>>,
+) {
+  if (!ua) return { nom: t('unknownDevice'), mobile: false };
   const navigateur = NAVIGATEURS.find(([motif]) => motif.test(ua))?.[1] ?? null;
   const systeme = SYSTEMES.find(([motif]) => motif.test(ua))?.[1] ?? null;
   const nom =
     navigateur && systeme
-      ? `${navigateur} sur ${systeme}`
+      ? t('deviceOn', { browser: navigateur, os: systeme })
       : (navigateur ?? systeme ?? ua.slice(0, 60));
   return { nom, mobile: /Mobile|iPhone|Android/.test(ua) };
 }
 
 function CarteSessions() {
+  const t = useTranslations('account.security');
+  const tc = useTranslations('common.actions');
+  const dates = useDates();
   const { seDeconnecter, oublierSession } = useSession();
   const sessions = useRessource('sessions', lireSessions);
   const [enCours, setEnCours] = useState<string | null>(null);
@@ -313,22 +308,22 @@ function CarteSessions() {
 
   return (
     <Carte
-      titre="Appareils connectés"
-      description="Déconnectez un appareil que vous ne reconnaissez pas."
+      titre={t('devices')}
+      description={t('devicesLead')}
       action={
         <Bouton ton="danger" size="sm" onClick={() => setConfirmer(true)}>
           <LogOut />
-          Déconnecter tous les appareils
+          {t('signOutAll')}
         </Bouton>
       }
     >
       {etat === 'chargement' && <Chargement />}
       {etat === 'erreur' && <Message>{sessions.erreur}</Message>}
-      {etat === 'vide' && <Vide>Aucune session active.</Vide>}
+      {etat === 'vide' && <Vide>{t('noSession')}</Vide>}
       {etat === 'liste' && (
         <ul className="divide-y divide-border">
           {liste.map((s) => {
-            const appareil = decrireAppareil(s.userAgent);
+            const appareil = decrireAppareil(s.userAgent, t);
             const Icone = appareil.mobile ? Smartphone : Monitor;
             return (
               <li key={s.id} className="flex flex-wrap items-center gap-3 py-3">
@@ -338,13 +333,16 @@ function CarteSessions() {
                     <span className="truncate">{appareil.nom}</span>
                     {s.current && (
                       <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary-strong">
-                        Cet appareil
+                        {t('thisDevice')}
                       </span>
                     )}
                   </p>
                   <p className="text-xs text-subtle">
-                    {s.ip ? `${s.ip} · ` : ''}active {formaterDepuis(s.lastUsedAt)} · ouverte le{' '}
-                    {formaterDate(s.createdAt)}
+                    {s.ip ? `${s.ip} · ` : ''}
+                    {t('sessionLine', {
+                      since: dates.since(s.lastUsedAt),
+                      date: dates.date(s.createdAt),
+                    })}
                   </p>
                 </div>
                 <Bouton
@@ -353,7 +351,7 @@ function CarteSessions() {
                   chargement={enCours === s.id}
                   onClick={() => revoquer(s)}
                 >
-                  {s.current ? 'Se déconnecter' : 'Révoquer'}
+                  {s.current ? t('signOut') : t('revoke')}
                 </Bouton>
               </li>
             );
@@ -365,15 +363,14 @@ function CarteSessions() {
       <Dialog open={confirmer} onOpenChange={(o) => !partout && setConfirmer(o)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Déconnecter tous les appareils ?</DialogTitle>
+            <DialogTitle>{t('signOutAllTitle')}</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Toutes vos sessions seront fermées, y compris celle-ci. Il faudra vous reconnecter
-              partout.
+              {t('signOutAllText')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6">
             <Bouton ton="secondaire" onClick={() => setConfirmer(false)} disabled={partout}>
-              Annuler
+              {tc('cancel')}
             </Bouton>
             <Bouton
               ton="danger"
@@ -381,7 +378,7 @@ function CarteSessions() {
               chargement={partout}
               onClick={toutDeconnecter}
             >
-              Tout déconnecter
+              {t('signOutAllButton')}
             </Bouton>
           </DialogFooter>
         </DialogContent>
@@ -393,6 +390,7 @@ function CarteSessions() {
 // ─── Mes données ─────────────────────────────────────────────────────────────
 
 function CarteDonnees({ profil }: Readonly<{ profil: Profil }>) {
+  const t = useTranslations('account.security');
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   async function telecharger() {
@@ -407,11 +405,11 @@ function CarteDonnees({ profil }: Readonly<{ profil: Profil }>) {
     }
   }
   return (
-    <Carte titre="Mes données" description="Une copie de vos données, au format JSON.">
+    <Carte titre={t('data')} description={t('dataLead')}>
       {erreur && <Message>{erreur}</Message>}
       <Bouton ton="secondaire" onClick={() => void telecharger()} chargement={envoi}>
         <Download />
-        Télécharger
+        {t('download')}
       </Bouton>
     </Carte>
   );
@@ -422,9 +420,12 @@ function CarteDonnees({ profil }: Readonly<{ profil: Profil }>) {
 /** Délai avant la suppression définitive (identity, docs/legal.md). */
 const DELAI_SUPPRESSION_JOURS = 7;
 
-const MOT_CONFIRMATION = 'SUPPRIMER';
-
 function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
+  const t = useTranslations('account.security');
+  const tc = useTranslations('common.actions');
+  const format = useFormatter();
+  const dates = useDates();
+  const motConfirmation = t('deleteKeyword');
   const { oublierSession } = useSession();
   const campagnes = useCampagnes();
   const mesPersonnages = usePersonnages();
@@ -437,7 +438,7 @@ function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
   const [erreur, setErreur] = useState<string | null>(null);
 
   const pret =
-    confirmation.trim().toUpperCase() === MOT_CONFIRMATION && (!profil.hasPassword || motDePasse);
+    confirmation.trim().toUpperCase() === motConfirmation && (!profil.hasPassword || motDePasse);
 
   function fermer(o: boolean) {
     if (envoi) return;
@@ -456,8 +457,8 @@ function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
     setErreur(null);
     try {
       const { purgeAt } = await supprimerCompte(profil.hasPassword ? motDePasse : undefined);
-      toast.info(`Compte supprimé le ${formaterDate(purgeAt)}`, {
-        description: 'Reconnectez-vous d’ici là pour annuler.',
+      toast.info(t('deleted', { date: dates.date(purgeAt) }), {
+        description: t('deletedText'),
         duration: 15_000,
       });
       oublierSession();
@@ -469,45 +470,45 @@ function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
 
   return (
     <Carte
-      titre="Supprimer le compte"
-      description={`Votre compte et toutes vos données, ${DELAI_SUPPRESSION_JOURS} jours après la demande.`}
+      titre={t('deleteTitle')}
+      description={t('deleteLead', { days: DELAI_SUPPRESSION_JOURS })}
       className="border-destructive/20"
     >
       <Bouton ton="danger" onClick={() => setOuvert(true)}>
         <Trash2 />
-        Supprimer mon compte
+        {t('deleteButton')}
       </Bouton>
 
       <Dialog open={ouvert} onOpenChange={fermer}>
         <DialogContent className="sm:max-w-md">
           <form onSubmit={supprimer} className="space-y-4">
             <DialogHeader>
-              <DialogTitle className="text-destructive">Supprimer définitivement ?</DialogTitle>
+              <DialogTitle className="text-destructive">{t('deleteConfirmTitle')}</DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Votre compte « {profil.name} » sera supprimé le{' '}
-                {formaterDate(
-                  new Date(Date.now() + DELAI_SUPPRESSION_JOURS * 86_400_000).toISOString(),
-                )}
-                , avec toutes ses données. Reconnectez-vous d’ici là pour annuler.
+                {t('deleteConfirmText', {
+                  name: profil.name,
+                  date: dates.date(
+                    new Date(Date.now() + DELAI_SUPPRESSION_JOURS * 86_400_000).toISOString(),
+                  ),
+                })}
                 {(campagnesMj > 0 || nbPersonnages > 0) && (
                   <span className="mt-2 block text-foreground">
-                    Partiront aussi :{' '}
-                    {[
-                      campagnesMj > 0 &&
-                        `${campagnesMj} campagne${campagnesMj > 1 ? 's' : ''} dont vous êtes MJ, pour tous ses joueurs`,
-                      nbPersonnages > 0 &&
-                        `${nbPersonnages} personnage${nbPersonnages > 1 ? 's' : ''}`,
-                    ]
-                      .filter(Boolean)
-                      .join(' et ')}
-                    .
+                    {t('alsoGone', {
+                      items: format.list(
+                        [
+                          campagnesMj > 0 ? t('gmCampaigns', { count: campagnesMj }) : null,
+                          nbPersonnages > 0 ? t('characters', { count: nbPersonnages }) : null,
+                        ].filter((x): x is string => x !== null),
+                        'and',
+                      ),
+                    })}
                   </span>
                 )}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
               <Label htmlFor="confirmation-suppression" className={styleLabel}>
-                Tapez {MOT_CONFIRMATION} pour confirmer
+                {t('typeToConfirm', { word: motConfirmation })}
               </Label>
               <Input
                 id="confirmation-suppression"
@@ -520,7 +521,7 @@ function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
             {profil.hasPassword && (
               <div className="space-y-2">
                 <Label htmlFor="mdp-suppression" className={styleLabel}>
-                  Mot de passe
+                  {t('password')}
                 </Label>
                 <Input
                   id="mdp-suppression"
@@ -535,7 +536,7 @@ function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
             {erreur && <Message>{erreur}</Message>}
             <DialogFooter>
               <Bouton type="button" ton="secondaire" onClick={() => fermer(false)} disabled={envoi}>
-                Annuler
+                {tc('cancel')}
               </Bouton>
               <Bouton
                 type="submit"
@@ -544,7 +545,7 @@ function CarteSuppression({ profil }: Readonly<{ profil: Profil }>) {
                 chargement={envoi}
                 disabled={!pret}
               >
-                Supprimer mon compte
+                {t('deleteButton')}
               </Bouton>
             </DialogFooter>
           </form>
