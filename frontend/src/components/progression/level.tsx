@@ -1,16 +1,18 @@
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 /** Pastille « Niv. 7 » (profil public, listes). */
 export function LevelBadge({ level, className }: Readonly<{ level: number; className?: string }>) {
+  const t = useTranslations();
   return (
     <span
       className={cn(
         'inline-flex h-6 items-center rounded-full border border-primary/30 bg-primary/10 px-2.5 text-xs font-semibold tabular-nums text-primary-strong',
         className,
       )}
-      aria-label={`Niveau ${level}`}
+      aria-label={t('progression.level', { level })}
     >
-      Niv. {level}
+      {t('progression.levelShort', { level })}
     </span>
   );
 }

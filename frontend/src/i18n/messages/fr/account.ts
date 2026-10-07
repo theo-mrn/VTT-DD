@@ -22,6 +22,8 @@ export default {
     level: 'Atteindre le niveau {level} du compte',
   },
   profile: {
+    levelOrPremium: 'Niveau {level, number} ou Premium',
+    premiumOnly: 'Premium',
     title: 'Mon profil',
     lead: 'Ce que les autres joueurs voient de vous, et vos préférences.',
     unverified: 'Votre adresse e-mail n’est pas vérifiée.',

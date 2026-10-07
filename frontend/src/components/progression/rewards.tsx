@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { Award, Circle, Lock } from 'lucide-react';
 import { BORDURES } from '@/components/compte/elements';
 import { translate } from '@/i18n/runtime';
@@ -7,15 +8,18 @@ import { cn } from '@/lib/utils';
 
 /** « Titre « Héros Accompli » », « Bordure Azur ». */
 export function rewardText(r: Pick<LevelReward, 'type' | 'id' | 'label'>): string {
-  if (r.type === 'title') return `Titre « ${r.label ?? r.id} »`;
+  if (r.type === 'title') return translate('progression.rewardTitle', { name: r.label ?? r.id });
   const bordure = BORDURES.find((b) => b.id === r.id);
-  return `Bordure ${bordure ? translate(`account.borders.${bordure.id}`) : r.id}`;
+  return translate('progression.rewardBorder', {
+    name: bordure ? translate(`account.borders.${bordure.id}`) : r.id,
+  });
 }
 
 /** Paliers du niveau : atteints en couleur, les suivants verrouillés. */
 export function RewardTrack({ rewards }: Readonly<{ rewards: LevelReward[] }>) {
+  const t = useTranslations();
   return (
-    <ol className="flex flex-wrap gap-2" aria-label="Récompenses de niveau">
+    <ol className="flex flex-wrap gap-2" aria-label={t('progression.rewards')}>
       {rewards.map((r) => {
         const Icon = r.reached ? (r.type === 'title' ? Award : Circle) : Lock;
         return (

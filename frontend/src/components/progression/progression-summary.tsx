@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
@@ -14,6 +15,7 @@ import { rewardText } from './rewards';
  * guidé et défis du jour (docs/progression.md § 8.3).
  */
 export function ProgressionSummary() {
+  const t = useTranslations();
   const { data: p, isLoading } = useProgression();
 
   if (isLoading) return <Skeleton className="mb-8 h-44 rounded-2xl" />;
@@ -33,35 +35,38 @@ export function ProgressionSummary() {
           <LevelRing level={p.level} percent={levelPercent(p)} />
           <div className="min-w-0 flex-1 space-y-1.5 lg:w-full">
             <p className="flex items-center gap-1.5 font-semibold">
-              Niveau {p.level}
+              {t('progression.level', { level: p.level })}
               <ArrowRight className="size-3.5 text-subtle transition-colors group-hover:text-primary" />
             </p>
-            <Progress valeur={levelPercent(p)} label={`Niveau ${p.level}`} />
+            <Progress valeur={levelPercent(p)} label={t('progression.level', { level: p.level })} />
             <p className="text-xs tabular-nums text-subtle">
-              {formatXp(p.nextLevelXp - p.xp)} XP avant le niveau {p.level + 1}
+              {t('progression.toNext', { xp: formatXp(p.nextLevelXp - p.xp), level: p.level + 1 })}
             </p>
             {p.nextReward && (
               <p className="truncate text-xs text-muted-foreground">
-                Niveau {p.nextReward.level} : {rewardText(p.nextReward)}
+                {t('progression.levelReward', {
+                  level: p.nextReward.level,
+                  reward: rewardText(p.nextReward),
+                })}
               </p>
             )}
           </div>
         </Link>
 
         <div className="min-w-0 space-y-2">
-          <p className="text-[13px] font-semibold">Prochaines étapes</p>
+          <p className="text-[13px] font-semibold">{t('progression.nextSteps')}</p>
           {p.steps.length > 0 ? (
             <ChallengeList challenges={p.steps} links compact />
           ) : (
-            <p className="text-[13px] text-subtle">Tous les jalons sont atteints.</p>
+            <p className="text-[13px] text-subtle">{t('progression.allDone')}</p>
           )}
         </div>
 
         <div className="min-w-0 space-y-2">
           <p className="flex items-baseline justify-between gap-2 text-[13px] font-semibold">
-            Défis du jour
+            {t('progression.dailyChallenges')}
             <span className="text-xs font-normal tabular-nums text-subtle">
-              +{formatXp(p.todayXp)} XP aujourd’hui
+              {t('progression.today', { xp: formatXp(p.todayXp) })}
             </span>
           </p>
           <ChallengeList challenges={p.challenges.daily} compact />

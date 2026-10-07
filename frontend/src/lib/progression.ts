@@ -3,6 +3,7 @@
  * paliers, défis et prochaines étapes, lus sur identity ; temps de jeu envoyé
  * par lots. Les composants passent par ces fonctions et hooks.
  */
+import { formatter, translate } from '@/i18n/runtime';
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
 
@@ -87,7 +88,7 @@ export function challengePercent(c: Pick<Challenge, 'progress' | 'target' | 'com
 
 /** « 1 240 » : nombres à la française (espace fine insécable). */
 export function formatXp(n: number): string {
-  return new Intl.NumberFormat('fr-FR').format(n);
+  return formatter().number(n);
 }
 
 /** Temps restant jusqu'à `until` : « 3 h 12 min », « 2 j 4 h », « 12 min ». */
@@ -96,9 +97,15 @@ export function timeLeft(until: string, now: Date = new Date()): string {
   const days = Math.floor(minutes / 1440);
   const hours = Math.floor((minutes % 1440) / 60);
   const rest = minutes % 60;
-  if (days > 0) return hours ? `${days} j ${hours} h` : `${days} j`;
-  if (hours > 0) return rest ? `${hours} h ${rest} min` : `${hours} h`;
-  return `${rest} min`;
+  if (days > 0)
+    return hours
+      ? translate('progression.time.daysHours', { days, hours })
+      : translate('progression.time.days', { days });
+  if (hours > 0)
+    return rest
+      ? translate('progression.time.hoursMinutes', { hours, minutes: rest })
+      : translate('progression.time.hours', { hours });
+  return translate('progression.time.minutes', { minutes: rest });
 }
 
 /** Lien d'action d'une étape du parcours guidé (défi permanent). */

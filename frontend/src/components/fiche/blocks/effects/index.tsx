@@ -683,7 +683,7 @@ function AjoutBonus({
           </div>
           <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3">
             <div className="space-y-2">
-              <Label htmlFor="bonus-duree">Durée</Label>
+              <Label htmlFor="bonus-duree">{t('combat.states.durationTitle')}</Label>
               <Input
                 id="bonus-duree"
                 type="number"
@@ -696,7 +696,7 @@ function AjoutBonus({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bonus-decompte">Décompte</Label>
+              <Label htmlFor="bonus-decompte">{t('combat.states.countdown')}</Label>
               <SelectField
                 id="bonus-decompte"
                 value={moment}

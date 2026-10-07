@@ -3,6 +3,7 @@ import type { Translation } from '../../types';
 
 export default {
   lines: {
+    noLongerBare: '{who} is no longer {name}',
     character: 'Character',
     aPlayer: 'A player',
     object: 'item',

@@ -6,6 +6,9 @@
  * un défi accompli (événements personnels du temps réel), et envoi du temps de
  * jeu par lots (§ 8.4).
  */
+import { useChallengeLabel } from './challenge-list';
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -42,6 +45,8 @@ export function ProgressionRoot() {
 
 function useProgressionNotifications(enabled: boolean) {
   const client = useQueryClient();
+  const t = useTranslations();
+  const challengeLabel = useChallengeLabel();
 
   useCampaignEvents<Record<string, unknown>>(
     null,
@@ -57,14 +62,20 @@ function useProgressionNotifications(enabled: boolean) {
             label: known?.rewards.find((k) => k.id === r.id)?.label ?? null,
           }),
         );
-        toast(`Niveau ${p.level}`, rewards.length ? { description: rewards.join(' · ') } : {});
+        toast(
+          t('progression.level', { level: p.level }),
+          rewards.length ? { description: rewards.join(' · ') } : {},
+        );
       } else {
         const p = e.event.payload as unknown as ChallengeCompleted;
         const all = known
           ? [...known.challenges.daily, ...known.challenges.weekly, ...known.challenges.permanent]
           : [];
-        const label = all.find((c) => c.id === p.challengeId)?.label;
-        toast('Défi accompli', { description: `${label ? `${label} · ` : ''}+${p.xp} XP` });
+        const found = all.find((c) => c.id === p.challengeId);
+        const label = found ? challengeLabel(found) : null;
+        toast(t('progression.challengeDone'), {
+          description: `${label ? `${label} · ` : ''}+${p.xp} XP`,
+        });
       }
       void client.invalidateQueries({ queryKey: progressionKeys.root });
     },
@@ -89,7 +100,7 @@ function usePlayTime(enabled: boolean) {
       sending = true;
       try {
         const { unlockedTitles } = await addPlayTime(minutes);
-        if (unlockedTitles.length) toast('Nouveau titre débloqué');
+        if (unlockedTitles.length) toast(translate('progression.newTitle'));
       } catch {
         c.restore(minutes);
       } finally {

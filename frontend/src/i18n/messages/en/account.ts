@@ -24,6 +24,8 @@ export default {
     level: 'Reach account level {level}',
   },
   profile: {
+    levelOrPremium: 'Level {level, number} or Premium',
+    premiumOnly: 'Premium',
     title: 'My profile',
     lead: 'What other players see of you, and your preferences.',
     unverified: 'Your email address is not verified.',

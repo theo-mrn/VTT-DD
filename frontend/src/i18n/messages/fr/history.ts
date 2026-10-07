@@ -1,6 +1,7 @@
 /** Chronique de la campagne : lignes du journal, vues (docs/historique.md). */
 export default {
   lines: {
+    noLongerBare: "{who} n'est plus {name}",
     character: 'Personnage',
     aPlayer: 'Un joueur',
     object: 'objet',

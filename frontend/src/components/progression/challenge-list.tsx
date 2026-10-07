@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { ArrowRight, Check } from 'lucide-react';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
@@ -42,6 +43,7 @@ function ChallengeRow({
   compact,
   link = false,
 }: Readonly<{ challenge: Challenge; compact: boolean; link?: boolean }>) {
+  const label = useChallengeLabel();
   return (
     <div className={cn('flex items-center gap-3 px-3', compact ? 'py-2' : 'py-2.5')}>
       <span
@@ -62,7 +64,7 @@ function ChallengeRow({
               c.completed ? 'text-subtle line-through decoration-subtle/50' : 'text-foreground',
             )}
           >
-            {c.label}
+            {label(c)}
           </p>
           {c.target > 1 && !c.completed && (
             <span className="shrink-0 text-[11px] tabular-nums text-subtle">
@@ -71,7 +73,7 @@ function ChallengeRow({
           )}
         </div>
         {c.target > 1 && !c.completed && (
-          <Progress valeur={challengePercent(c)} className="mt-1.5 h-1" label={c.label} />
+          <Progress valeur={challengePercent(c)} className="mt-1.5 h-1" label={label(c)} />
         )}
       </div>
       <span
@@ -87,4 +89,13 @@ function ChallengeRow({
       )}
     </div>
   );
+}
+
+/**
+ * Libellé d'un défi dans la langue de la page, par son identifiant ; un défi que le front ne
+ * connaît pas encore garde le libellé envoyé par identity.
+ */
+export function useChallengeLabel(): (c: Pick<Challenge, 'id' | 'label'>) => string {
+  const t = useTranslations('progression.challenges');
+  return (c) => (t.has(c.id as never) ? t(c.id as never) : c.label);
 }

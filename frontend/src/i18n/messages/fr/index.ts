@@ -26,6 +26,7 @@ import meta from './meta';
 import notes from './notes';
 import onboarding from './onboarding';
 import portraits from './portraits';
+import progression from './progression';
 import resources from './resources';
 import search from './search';
 import sheet from './sheet';
@@ -59,6 +60,7 @@ const fr = {
   notes,
   onboarding,
   portraits,
+  progression,
   resources,
   search,
   sheet,

@@ -534,7 +534,12 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
             );
             if (!verrou) return bouton;
             return (
-              <Info key={b.id} texte={palier ? `Niveau ${palier} ou Premium` : 'Premium'}>
+              <Info
+                key={b.id}
+                texte={
+                  palier ? t('profile.levelOrPremium', { level: palier }) : t('profile.premiumOnly')
+                }
+              >
                 <span
                   tabIndex={0}
                   className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"

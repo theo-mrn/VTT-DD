@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Clock, Info as InfoIcon } from 'lucide-react';
 import { Carte, Chargement, Message } from '@/components/compte/elements';
 import { Progress } from '@/components/ui/progress';
@@ -18,23 +19,20 @@ import { ChallengeList } from './challenge-list';
 import { LevelRing } from './level';
 import { RewardTrack, rewardText } from './rewards';
 
-const RULES =
-  'Jets, séances, messages, campagnes, personnages, amis et temps de jeu rapportent de l’XP, ' +
-  'plafonnée chaque jour par activité. Les défis donnent leur XP en plus.';
-
 /** Carte « Progression » du profil : niveau, paliers et défis. */
 export function ProgressionCard() {
+  const t = useTranslations();
   const progression = useProgression();
 
   return (
     <Carte
-      titre="Progression"
+      titre={t('progression.title')}
       className="lg:col-span-2"
       action={
-        <Info texte={RULES} cote="left">
+        <Info texte={t('progression.rules')} cote="left">
           <button
             type="button"
-            aria-label="Comment gagner de l’XP"
+            aria-label={t('progression.howToEarn')}
             className="rounded-md p-1 text-subtle transition-colors hover:bg-surface-3 hover:text-foreground"
           >
             <InfoIcon className="size-4" />
@@ -50,6 +48,7 @@ export function ProgressionCard() {
 }
 
 function ProgressionBody({ p }: Readonly<{ p: Progression }>) {
+  const t = useTranslations();
   const first = p.challenges.permanent.filter((c) => c.group === 'first_steps');
   const milestones = p.challenges.permanent.filter((c) => c.group === 'milestone');
   const done = (list: Challenge[]) => list.filter((c) => c.completed).length;
@@ -60,17 +59,26 @@ function ProgressionBody({ p }: Readonly<{ p: Progression }>) {
         <LevelRing level={p.level} percent={levelPercent(p)} size="lg" />
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <p className="text-lg font-semibold">Niveau {p.level}</p>
+            <p className="text-lg font-semibold">{t('progression.level', { level: p.level })}</p>
             <p className="text-[13px] tabular-nums text-muted-foreground">
               {formatXp(p.xp - p.levelXp)} / {formatXp(p.nextLevelXp - p.levelXp)} XP
             </p>
           </div>
-          <Progress valeur={levelPercent(p)} label={`Niveau ${p.level}`} className="h-2" />
+          <Progress
+            valeur={levelPercent(p)}
+            label={t('progression.level', { level: p.level })}
+            className="h-2"
+          />
           <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-subtle">
-            <span className="tabular-nums">+{formatXp(p.todayXp)} XP aujourd’hui</span>
+            <span className="tabular-nums">
+              {t('progression.today', { xp: formatXp(p.todayXp) })}
+            </span>
             {p.nextReward && (
               <span>
-                Niveau {p.nextReward.level} : {rewardText(p.nextReward)}
+                {t('progression.levelReward', {
+                  level: p.nextReward.level,
+                  reward: rewardText(p.nextReward),
+                })}
               </span>
             )}
           </div>
@@ -82,13 +90,22 @@ function ProgressionBody({ p }: Readonly<{ p: Progression }>) {
       <Tabs defaultValue="daily">
         <TabsList>
           <TabsTrigger value="daily">
-            Quotidiens {done(p.challenges.daily)}/{p.challenges.daily.length}
+            {t('progression.daily', {
+              done: done(p.challenges.daily),
+              total: p.challenges.daily.length,
+            })}
           </TabsTrigger>
           <TabsTrigger value="weekly">
-            Hebdomadaires {done(p.challenges.weekly)}/{p.challenges.weekly.length}
+            {t('progression.weekly', {
+              done: done(p.challenges.weekly),
+              total: p.challenges.weekly.length,
+            })}
           </TabsTrigger>
           <TabsTrigger value="permanent">
-            Permanents {done(p.challenges.permanent)}/{p.challenges.permanent.length}
+            {t('progression.permanent', {
+              done: done(p.challenges.permanent),
+              total: p.challenges.permanent.length,
+            })}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="daily" className="mt-4 space-y-3">
@@ -100,8 +117,8 @@ function ProgressionBody({ p }: Readonly<{ p: Progression }>) {
           <ChallengeList challenges={p.challenges.weekly} />
         </TabsContent>
         <TabsContent value="permanent" className="mt-4 space-y-5">
-          <Group title="Premiers pas" challenges={first} links />
-          <Group title="Jalons" challenges={milestones} />
+          <Group title={t('progression.firstSteps')} challenges={first} links />
+          <Group title={t('progression.milestones')} challenges={milestones} />
         </TabsContent>
       </Tabs>
     </div>
@@ -109,10 +126,11 @@ function ProgressionBody({ p }: Readonly<{ p: Progression }>) {
 }
 
 function Renewal({ until }: Readonly<{ until: string }>) {
+  const t = useTranslations();
   return (
     <p className="flex items-center gap-1.5 text-xs text-subtle">
       <Clock className="size-3.5" />
-      Nouveaux défis dans {timeLeft(until)}
+      {t('progression.renewal', { time: timeLeft(until) })}
     </p>
   );
 }

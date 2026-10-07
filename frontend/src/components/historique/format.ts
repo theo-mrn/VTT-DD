@@ -966,7 +966,15 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
         .map((entry) => str(obj(entry)?.name))
         .filter((n): n is string => Boolean(n));
       return id && names.length
-        ? [{ id, text: `${bold(characterName(ctx, id))} n'est plus ${names.map(bold).join(', ')}` }]
+        ? [
+            {
+              id,
+              text: translate('history.lines.noLongerBare', {
+                who: bold(characterName(ctx, id)),
+                name: names.map(bold).join(', '),
+              }),
+            },
+          ]
         : [];
     });
     if (!parts.length) return null;
