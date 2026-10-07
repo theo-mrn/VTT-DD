@@ -906,8 +906,8 @@ ActionResolution = {
 { tickId,                 // tick:<combatId>:<round>:<passage>, tick:<combatId>:end, …
   campaignId, userId?,
   characterIds,           // participants (1..100) : les fiches décomptées, et les ancres valides
-  events,                 // DurationEvent[] : turn_start, turn_end, round_end, combat_end
-  clear? }                // fin de combat : tout ce qui a une durée est retiré
+  events }                // DurationEvent[] : turn_start, turn_end, round_end, combat_end
+                          // (fin de combat : tout ce qui a une durée est retiré)
 → 200 { tickId, replayed,
         items: [{ characterId, version, expired: [{ key, name }] }] }  // fiches réécrites
 ```
@@ -1529,7 +1529,7 @@ avant le combat attend le premier passage).
 
 - **Un décompte par passage**, identifiant `tick:<combatId>:<round>:<passage>` (le passage est
   l'entrée du journal des tours, § 4.3). Une route interne de character, par lot :
-  `POST /internal/durations/tick { tickId, campaignId, userId?, characterIds, events, clear? }` ;
+  `POST /internal/durations/tick { tickId, campaignId, userId?, characterIds, events }` ;
   une transaction, fiches verrouillées dans l'ordre des identifiants ; en-tête `applications`
   (`kind: tick`) inséré d'abord : une reprise ou une requête concurrente du même `tickId` attend
   puis rend la réponse d'origine (`replayed: true`) ; rien n'est décompté deux fois. Une fiche sans
@@ -1556,7 +1556,7 @@ Règle : **une durée de combat finit avec le combat.** « Terminer le combat »
 une durée chez les participants (`clearTimedStates`, désormais vrai par défaut ; case cochée dans
 le dialogue) ; décochée, les durées restent figées hors combat et reprennent au combat suivant.
 Les décomptes en retard sont rejoués avant. Le retrait passe par le même lot (`events:
-[combat_end]`, `clear: true`, `tickId = tick:<combatId>:end`) et s'annonce comme une expiration.
+[combat_end]`, `tickId = tick:<combatId>:end`) et s'annonce comme une expiration.
 
 ### 18.7 Annonce, historique
 

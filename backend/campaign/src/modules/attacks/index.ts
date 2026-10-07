@@ -63,15 +63,9 @@ import type { EventContext, Tx } from '../../db/outbox.js';
 import type { Deps, Module } from '../../deps.js';
 import { access, lockCampaign, type Access } from '../campaigns/repository.js';
 import { settingsOf, stateOf } from '../combat/api.js';
-import {
-  loadCombat,
-  logTurn,
-  saveState,
-  turnChanged,
-  type LoadedCombat,
-} from '../combat/repository.js';
+import { loadCombat, saveState, turnChanged, type LoadedCombat } from '../combat/repository.js';
 import { combatContextOf, rowsOfDeclaration, type TallyRow } from '../combat/tally.js';
-import { snapshotOf } from '../combat/turn-log.js';
+import { logPassage, settleTicks, tickContext } from '../combat/durations.js';
 import type { CombatState } from '../combat/turns.js';
 import { CampaignId, currentUser, eventContext, Uuid } from '../schemas.js';
 import {
@@ -376,6 +370,8 @@ interface DeclareContext {
   origin: CallOrigin;
   /** Jets des attaques calculées par le navigateur, relayés à l'historique après l'écriture. */
   forwards: AttackRollsInput[];
+  /** Un acteur de créneau a été désigné : son début de tour se décompte après l'écriture. */
+  passage: boolean;
 }
 
 /** Situation du combat à la déclaration. */
@@ -579,21 +575,25 @@ async function prepareAll(ctx: DeclareContext, bodies: Declaration[]): Promise<P
 
 /** Mode slots : la première attaque d'un participant du camp le désigne acteur. */
 async function designateSlotActor(
+  ctx: DeclareContext,
   tx: Tx,
   ev: EventContext,
   actor: EventActor,
-  userId: string,
   current: LoadedCombat | null,
   attackerId: string,
 ): Promise<{ current: LoadedCombat | null; state: CombatState | null }> {
   const state = current ? stateOf(current.combat, current.participants) : null;
   if (!current || !state || !implicitSlotActor(state, attackerId)) return { current, state };
-  await logTurn(tx, current.combat, {
-    reason: 'slot_actor',
-    before: snapshotOf(state),
-    userId,
-  });
   const next = { ...state, currentActorId: attackerId, turn: state.turn + 1 };
+  // Le tour de l'acteur commence : décompté après l'écriture (docs/combat.md § 18.3)
+  await logPassage(tx, current.combat, {
+    reason: 'slot_actor',
+    kind: 'slot_actor',
+    before: state,
+    after: next,
+    userId: ctx.userId,
+  });
+  ctx.passage = true;
   const saved = await saveState(tx, { combat: current.combat, canGoBack: true }, next);
   await turnChanged(tx, ev, saved, actor, { reason: 'slot_actor' });
   return { current: saved, state: next };
@@ -678,7 +678,7 @@ async function writeAttacks(
   let current = await loadCombat(tx, a.campaign.id, true);
   const out: LoadedAttack[] = [];
   for (const [i, p] of prepared.entries()) {
-    const combat = await designateSlotActor(tx, ev, actor, userId, current, p.body.attackerId);
+    const combat = await designateSlotActor(ctx, tx, ev, actor, current, p.body.attackerId);
     current = combat.current;
     out.push(await insertPrepared(ctx, tx, ev, actor, combat, p, keys?.[i] ?? null));
   }
@@ -714,6 +714,7 @@ async function declare(
     keys,
     origin: { userId, campaignId: a.campaign.id, correlationId: req.ctx.correlationId },
     forwards: [],
+    passage: false,
   };
   const run = async (outer: Tx | null) => {
     if (keys) {
@@ -734,6 +735,9 @@ async function declare(
         );
         return run(tx);
       });
+  // Début du tour de l'acteur désigné : durées décomptées ; une panne laisse le décompte en
+  // attente, rejoué au prochain passage (l'attaque est enregistrée)
+  if (ctx.passage) await settleTicks(tickContext(deps, req, a));
   // Historique des dés : jamais bloquant, une panne est journalisée (l'attaque est enregistrée)
   const origin = { userId, campaignId: a.campaign.id, correlationId: req.ctx.correlationId };
   for (const f of ctx.forwards)
