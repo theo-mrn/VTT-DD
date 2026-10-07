@@ -133,7 +133,7 @@ frontend/src/lib/map/
     measurements/        distance au clic, outil Mesurer (Z), gabarits épinglés, effets animés
     movement-path/       trajet d'un token glissé : chemin, cases, distance, déplacement (⇧T)
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
-    exploration/         mémoire de l'exploration (masque du groupe, outil du MJ), exploration.md
+    exploration/         mémoire de l'exploration (masque du groupe, gestes du MJ), exploration.md
     weather/             météo de la scène (pluie, neige, brouillard…), son canvas, espace écran
     combat/              anneaux du tour et des cibles, visée, « Attaquer »
     history/ layers/ scene-display/ snap/ presence/ camera/ fullscreen/ bubbles/ party/
@@ -459,7 +459,6 @@ Règles de ces gestes :
   | W      | obstacles   | `obstacles`    | MJ                      |
   | G      | brouillard  | `fog`          | MJ                      |
   | L      | lumières    | `lights`       | MJ                      |
-  | —      | exploration | `exploration`  | MJ                      |
   | K      | calques     | moteur         | MJ (panneau, pas outil) |
 
   Dans cet ordre dans la barre : sélection, outils de pose, puis outils de visibilité. Chaque
@@ -849,7 +848,8 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
   groupe, ce que ses observateurs ont déjà vu reste montré sous un voile gris (fond, décors,
   dessins des calques, murs tracés), sans PNJ ni objet hors décor (ils suivent la vue en
   direct). Masque raster d'un quart de case calculé par le serveur après chaque changement de
-  vue, outil Exploration du MJ (révéler, oublier, réinitialiser, activer par scène).
+  vue, réglée par le MJ depuis l'outil Brouillard (marquer vu, oublier, effacer, activer par
+  scène).
 - **Rayons de vision** (menu « Vue », préférence locale, montrés par défaut) : un liseré doux,
   clair et estompé vers l'intérieur, au bord du rayon de vision de chaque observateur : les siens
   pour un joueur, ceux du joueur montré en « Vue de… », tous ceux des joueurs pour le MJ. Au-dessus
@@ -1299,8 +1299,12 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
     d'écran), 4 Sélection (gestes communs : clic, glisser, poignées de taille, lasso, Suppr) ;
   - mode ajouter ou retirer (gomme de brouillard) dans la barre ; Alt inverse le temps du
     geste ; un clic sans glisser sélectionne la zone touchée ;
-  - « Tout couvrir » (`fogFull` vrai) et « Tout découvrir » (faux) : les zones posées
-    disparaissent, en une commande annulable (elles reviennent dans leur ordre) ;
+  - mémoire de l'exploration dans la même barre : interrupteur de la scène, puis Marquer vu ou
+    Oublier (mêmes formes sauf Sélection, sans zone posée ; [exploration.md](exploration.md)
+    § 5.4) ;
+  - menu « … » : « Tout couvrir » (`fogFull` vrai) et « Tout découvrir » (faux), les zones
+    posées disparaissent, en une commande annulable (elles reviennent dans leur ordre) ;
+    « Effacer la mémoire » ;
   - chaque zone est une commande ; `order` et `createdBy` viennent du serveur (le brouillon est
     posé au-dessus des autres). Une création n'envoie que les champs de sa forme ;
   - dessin MJ : contour et voile pour `fog`, hachures et contour en tirets pour `clear`. Le
@@ -1331,8 +1335,8 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
 
 Mémoire de ce que le groupe a vu, par scène ([exploration.md](exploration.md)) : masque du
 serveur et couche locale pendant un glisser (`features/exploration/engine/model.ts`), traînées
-des glisser envoyées au lâcher (`trail.ts`), outil Exploration du MJ (révéler, oublier ; formes
-1 à 3 ; activer par scène ; réinitialiser), voile gris dessiné par le shader de composition du
+des glisser envoyées au lâcher (`trail.ts`), gestes du MJ dans l'outil Brouillard (`memory.ts` :
+marquer vu, oublier ; activer par scène ; effacer), voile gris dessiné par le shader de composition du
 module vision (texture d'un texel par case, `mask-texture.ts`).
 
 ### Météo (`weather`)

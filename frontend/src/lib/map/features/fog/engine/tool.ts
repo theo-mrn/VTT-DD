@@ -5,7 +5,9 @@
  * Formes (barre contextuelle, chiffres 1 à 4) : Rectangle (aimanté à la grille si l'option est
  * active), Cercle (depuis le centre ; ⇧ : rayon en cases entières), Main levée (lasso simplifié),
  * Sélection (gestes communs : clic, glisser, poignées de taille, lasso, Suppr).
- * Mode ajouter ou retirer (barre) ; Alt inverse le mode le temps du geste.
+ * Gestes (barre) : ajouter ou retirer du brouillard ; quand la mémoire de l'exploration de la scène
+ * est allumée, marquer une zone comme déjà vue ou la faire oublier (docs/exploration.md § 5.4,
+ * mémoire surlignée pendant ces gestes). Alt inverse le geste dans sa famille le temps du geste.
  *
  * | État       | Entrée                                   | Sortie                                     |
  * | ---------- | ---------------------------------------- | ------------------------------------------ |
@@ -27,6 +29,15 @@ import type { MapKey, MapPointer, Tool } from '@/lib/map/engine/tools/tool';
 import { SelectTool } from '@/lib/map/engine/tools/select-tool';
 import { createCommand } from '@/lib/map/store/commands';
 import { dashedPolyline } from '@/lib/map/features/obstacles/engine/overlay';
+import {
+  editMemory,
+  invertOp,
+  memoryEnabled,
+  memoryReady,
+  MemoryHighlight,
+  type EditOp,
+  type ExplorationShape,
+} from '@/lib/map/features/exploration/engine/memory';
 import { circlePolygon, hatchPolygon, lassoPolygon } from './geometry';
 import type { FogContext } from './kind';
 import {
@@ -44,7 +55,7 @@ import {
 
 export type FogShape = 'rect' | 'circle' | 'lasso' | 'select';
 
-/** Formes de l'outil ; nom et aide : `map.fog.shapes.<id>.label|hint`. */
+/** Formes de l'outil ; nom : `map.fog.shapes.<id>.label`. */
 export const FOG_SHAPES: readonly { id: FogShape; key: string }[] = [
   { id: 'rect', key: '1' },
   { id: 'circle', key: '2' },
@@ -52,9 +63,27 @@ export const FOG_SHAPES: readonly { id: FogShape; key: string }[] = [
   { id: 'select', key: '4' },
 ];
 
+/** Geste de l'outil : le brouillard du MJ, ou la mémoire des joueurs. */
+export type FogToolMode = FogMode | EditOp;
+
+/** Ordre des gestes dans la barre ; nom et infobulle : `map.fog.modes.<id>`. */
+export const FOG_TOOL_MODES: readonly FogToolMode[] = ['fog', 'clear', 'reveal', 'forget'];
+
+export const isMemoryMode = (m: FogToolMode): m is EditOp => m === 'reveal' || m === 'forget';
+
+/** Alt : l'autre geste de la même famille. */
+const invertToolMode = (m: FogToolMode): FogToolMode =>
+  isMemoryMode(m) ? invertOp(m) : invertMode(m);
+
+/** Forme du brouillard pour la mémoire (un rectangle y est un polygone). */
+const memoryShape = (g: FogGeometry): ExplorationShape =>
+  g.shape === 'circle'
+    ? { shape: 'circle', center: g.center, radius: g.radius }
+    : { shape: 'polygon', points: g.points };
+
 export interface FogSettings {
   shape: FogShape;
-  mode: FogMode;
+  mode: FogToolMode;
 }
 
 export type FogState = 'idle' | 'pressing' | 'drawing' | 'select';
@@ -77,8 +106,9 @@ export class FogTool implements Tool {
   private start: MapPointer | null = null;
   /** Aperçu du geste en cours. */
   draft: FogGeometry | null = null;
-  /** Mode du geste en cours (Alt l'inverse). */
-  gestureMode: FogMode = 'fog';
+  /** Geste en cours (Alt l'inverse). */
+  gestureMode: FogToolMode = 'fog';
+  private readonly highlight = new MemoryHighlight();
   private lasso: Point[] = [];
   private lastScreen: Point | null = null;
 
@@ -88,18 +118,34 @@ export class FogTool implements Tool {
     return this.settings.getState().shape;
   }
 
+  get mode(): FogToolMode {
+    return this.settings.getState().mode;
+  }
+
+  /** Change de geste ; la Sélection ne vaut que pour les zones de brouillard. */
+  setMode(mode: FogToolMode) {
+    if (mode === this.mode) return;
+    this.cancel(this.ctx.engine);
+    const shape = isMemoryMode(mode) && this.shape === 'select' ? 'rect' : this.shape;
+    this.settings.setState({ mode, shape });
+    this.ctx.engine.refreshCursor();
+    this.ctx.engine.invalidate();
+  }
+
   setShape(shape: FogShape) {
     if (shape === this.shape) return;
+    if (shape === 'select' && isMemoryMode(this.mode)) return;
     this.cancel(this.ctx.engine);
     this.settings.setState({ shape });
     this.ctx.engine.refreshCursor();
   }
 
   targets(e: MapEntity): boolean {
-    return isZone(e);
+    return !isMemoryMode(this.mode) && isZone(e);
   }
 
   cursor(engine: MapEngine): string | null {
+    if (isMemoryMode(this.mode)) return memoryEnabled(engine) ? 'crosshair' : 'not-allowed';
     if (this.shape === 'select' || this.state === 'select') return this.select.cursor(engine);
     return 'crosshair';
   }
@@ -115,6 +161,7 @@ export class FogTool implements Tool {
     const zones = engine.selectedEntities().filter(isZone);
     if (zones.length) engine.selection.remove(zones.map((e) => e.id));
     this.gfx?.clear();
+    this.highlight.hide();
     this.drawn.draft = null;
     this.drawn.lasso = null;
     engine.invalidate();
@@ -132,15 +179,16 @@ export class FogTool implements Tool {
 
   down(e: MapPointer, engine: MapEngine): boolean {
     if (e.button !== 0) return false;
+    const memory = isMemoryMode(this.mode);
+    // Mémoire coupée : pas de geste sur elle
+    if (memory && !memoryReady(engine)) return false;
     // Sélection, ou poignée de taille de la zone sélectionnée : gestes communs
-    if (this.shape === 'select' || engine.gizmoAt(e.world)) {
+    if (!memory && (this.shape === 'select' || engine.gizmoAt(e.world))) {
       this.state = 'select';
       return this.select.down(e, engine);
     }
     this.start = e;
-    this.gestureMode = e.alt
-      ? invertMode(this.settings.getState().mode)
-      : this.settings.getState().mode;
+    this.gestureMode = this.modeOf(e);
     this.state = 'pressing';
     this.lasso = [e.world];
     this.lastScreen = e.screen;
@@ -160,9 +208,7 @@ export class FogTool implements Tool {
       this.state = 'drawing';
       engine.selection.clear();
     }
-    this.gestureMode = e.alt
-      ? invertMode(this.settings.getState().mode)
-      : this.settings.getState().mode;
+    this.gestureMode = this.modeOf(e);
     this.draft = this.geometryOf(e, engine);
     engine.invalidate();
   }
@@ -176,13 +222,13 @@ export class FogTool implements Tool {
     const state = this.state;
     const start = this.start;
     if (state === 'drawing') {
-      this.gestureMode = e.alt
-        ? invertMode(this.settings.getState().mode)
-        : this.settings.getState().mode;
+      this.gestureMode = this.modeOf(e);
       const g = this.geometryOf(e, engine);
+      const mode = this.gestureMode;
       this.reset();
-      if (g) this.create(engine, g, this.gestureMode);
-    } else if (state === 'pressing' && start) {
+      if (g && isMemoryMode(mode)) editMemory(engine, memoryShape(g), mode);
+      else if (g) this.create(engine, g, mode as FogMode);
+    } else if (state === 'pressing' && start && !isMemoryMode(this.mode)) {
       // Clic sans glisser : sélectionne la zone touchée
       this.reset();
       const hit = engine.hitTest(e.world);
@@ -194,6 +240,10 @@ export class FogTool implements Tool {
 
   doubleClick(e: MapPointer, engine: MapEngine): boolean {
     return this.select.doubleClick(e, engine);
+  }
+
+  private modeOf(e: { alt: boolean }): FogToolMode {
+    return e.alt ? invertToolMode(this.mode) : this.mode;
   }
 
   key(k: MapKey, engine: MapEngine): boolean {
@@ -277,7 +327,7 @@ export class FogTool implements Tool {
     draft: FogGeometry | null;
     lasso: unknown;
     zoom: number;
-    mode: FogMode;
+    mode: FogToolMode;
   } = {
     draft: null,
     lasso: null,
@@ -292,6 +342,8 @@ export class FogTool implements Tool {
       this.root.addChild(this.gfx);
     }
     if (this.root.parent !== layer) layer.addChild(this.root);
+    // Gestes sur la mémoire : elle est surlignée, sous l'aperçu
+    this.highlight.render(this.root, rc, this.ctx.engine, isMemoryMode(this.mode));
     const d = this.state === 'drawing' ? this.draft : null;
     const lasso = this.select.lasso;
     const drawn = this.drawn;
@@ -315,6 +367,20 @@ export class FogTool implements Tool {
         .fill({ color: rc.theme.primary, alpha: 0.08 })
         .stroke({ width: u, color: rc.theme.primary, alpha: 0.9 });
     if (!d) return;
+    if (isMemoryMode(this.gestureMode)) {
+      const outline = d.shape === 'circle' ? circlePolygon(d.center, d.radius, 64) : d.points;
+      if (this.gestureMode === 'forget') {
+        dashedPolyline(g, outline, 8 * u, 5 * u, true);
+        g.stroke({ width: 2 * u, color: rc.theme.foreground });
+      } else
+        g.poly(
+          outline.flatMap((p) => [p.x, p.y]),
+          true,
+        )
+          .fill({ color: rc.theme.primary, alpha: 0.18 })
+          .stroke({ width: 2 * u, color: rc.theme.primary });
+      return;
+    }
     const clear = this.gestureMode === 'clear';
     const color = clear ? rc.theme.primary : rc.theme.foreground;
     const outline = d.shape === 'circle' ? circlePolygon(d.center, d.radius, 64) : d.points;
@@ -331,6 +397,10 @@ export class FogTool implements Tool {
         .fill({ color: rc.theme.background, alpha: 0.35 })
         .stroke({ width: 2 * u, color });
     }
+  }
+
+  destroy() {
+    this.highlight.destroy();
   }
 }
 

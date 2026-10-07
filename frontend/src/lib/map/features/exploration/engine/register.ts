@@ -1,21 +1,19 @@
 /**
  * Branchement de la mémoire de l'exploration sur le moteur, sans React (docs/exploration.md
- * § 5) : la mémoire (`explorationOf`), les traînées des glisser, l'outil Exploration (MJ) et ses
- * actions. L'interface (barre de l'outil, écoute des événements) est ajoutée par `index.ts`.
+ * § 5) : la mémoire (`explorationOf`), les traînées des glisser et les actions du MJ (allumer ou
+ * couper, effacer). Les gestes du MJ sur la mémoire passent par l'outil Brouillard
+ * (`memory.ts`) ; l'écoute des événements est ajoutée par `index.ts`.
  */
 import { translate } from '@/i18n/runtime';
-import { Footprints, RotateCcw, ToggleRight } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { RotateCcw, ToggleRight } from 'lucide-react';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { createExplorationApi, type ExplorationApi } from './api';
 import { resetCommand } from './commands';
 import { attachExploration, type ExplorationModel } from './model';
-import { ExplorationTool, EXPLORATION_TOOL_ID } from './tool';
 import { TrailRecorder } from './trail';
 
 export interface ExplorationUi {
-  options?: ComponentType<{ engine: MapEngine }>;
   /** Client REST (défaut : celui de la carte ; tests : un faux). */
   api?: ExplorationApi | null;
 }
@@ -67,19 +65,9 @@ export function registerExploration(engine: MapEngine, ui: ExplorationUi = {}): 
   const model = attached.model;
   modules.set(engine, { engine, model, api });
   const trails = new TrailRecorder(engine, model, api);
-  let tool: ExplorationTool | null = null;
   const unregister = [
     engine.onFrame((now) => void trails.frame(now)),
     engine.onEntitiesMoved((moves, done) => trails.moved(moves, done, performance.now())),
-    engine.registerTool({
-      id: EXPLORATION_TOOL_ID,
-      label: translate('map.tools.exploration'),
-      icon: Footprints,
-      order: 74,
-      available: isGm,
-      create: () => (tool = new ExplorationTool(model, api)),
-      options: ui.options,
-    }),
     // Sans bouton ni touche par défaut : à choisir dans l'éditeur des raccourcis
     engine.registerAction({
       id: 'exploration.toggle',
@@ -98,7 +86,6 @@ export function registerExploration(engine: MapEngine, ui: ExplorationUi = {}): 
   ];
   return () => {
     for (const u of unregister.toReversed()) u();
-    tool?.destroy();
     attached.dispose();
     modules.delete(engine);
   };

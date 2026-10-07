@@ -57,6 +57,7 @@ export function registerFog(engine: MapEngine, ui: FogUi = {}): () => void {
   };
   contexts.set(engine, ctx);
   const view = new FogView(engine);
+  let tool: FogTool | null = null;
   const unregister = [
     engine.registerKind(fogZoneKind(ctx, view)),
     engine.registerTool({
@@ -66,7 +67,7 @@ export function registerFog(engine: MapEngine, ui: FogUi = {}): () => void {
       shortcut: { code: 'KeyG', label: 'G' },
       order: 71,
       available: isGm,
-      create: () => new FogTool(ctx),
+      create: () => (tool = new FogTool(ctx)),
       options: ui.options,
     }),
     // Sans bouton : touches à choisir (docs/raccourcis.md § 6)
@@ -97,6 +98,7 @@ export function registerFog(engine: MapEngine, ui: FogUi = {}): () => void {
     );
   return () => {
     for (const u of unregister.toReversed()) u();
+    tool?.destroy();
     view.dispose();
     contexts.delete(engine);
   };

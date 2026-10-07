@@ -13,7 +13,9 @@ import type { ExplorationApi } from './api';
 import { editCommand, resetCommand, shapeCommand } from './commands';
 import { attachExploration, explorationOf, LOCAL_TTL_MS } from './model';
 import { registerExploration } from './register';
-import type { ExplorationTool } from './tool';
+import { FOG_ZONES } from '@/lib/map/features/fog/engine/model';
+import { registerFog } from '@/lib/map/features/fog/engine/register';
+import { FogTool } from '@/lib/map/features/fog/engine/tool';
 import { decimate, TrailRecorder } from './trail';
 
 const P = (x: number, y: number) => ({ x, y });
@@ -243,22 +245,28 @@ describe('gestes du MJ', () => {
   });
 });
 
-describe('outil Exploration', () => {
+describe('outil Brouillard, gestes sur la mémoire', () => {
   function toolBench(opts: { known?: boolean } = {}) {
     const kit = setup();
     const scene = kit.store.getState().scene!;
     kit.store.getState().setScene({ ...scene, exploration: 'party' }, { force: true });
     kit.store.getState().setExtra('exploration', opts.known === false ? null : exploration(1));
     const api = fakeApi();
-    const cleanup = registerExploration(kit.engine, { api });
-    kit.engine.tools.activate('exploration');
-    const tool = kit.engine.tools.active as ExplorationTool;
+    const off = registerExploration(kit.engine, { api });
+    const offFog = registerFog(kit.engine);
+    kit.engine.tools.activate('fog');
+    const tool = kit.engine.tools.active as FogTool;
+    tool.setMode('reveal');
+    const cleanup = () => {
+      offFog();
+      off();
+    };
     return { ...kit, tool, cleanup, model: explorationOf(kit.engine)! };
   }
 
   it('un rectangle révèle ses cases ; Alt oublie ; Échap n’écrit rien', async () => {
     const b = toolBench();
-    expect(b.tool.id).toBe('exploration');
+    expect(b.tool.mode).toBe('reveal');
     // Aimantation à la case (50 px) : rectangle de 100 × 100 px = 8 × 8 cases de 12,5 px
     b.drag(P(100, 100), P(200, 200));
     await b.commands.idle();
@@ -276,6 +284,8 @@ describe('outil Exploration', () => {
     b.engine.controller.pointerUp(b.pointer(P(500, 500), { buttons: 0 }));
     await b.commands.idle();
     expect(b.model.explored(35, 35)).toBe(false);
+    // Aucune zone de brouillard posée par ces gestes
+    expect(b.store.getState().collections[FOG_ZONES]?.size ?? 0).toBe(0);
     b.cleanup();
     expect(explorationOf(b.engine)).toBeNull();
   });
@@ -290,15 +300,19 @@ describe('outil Exploration', () => {
     b.cleanup();
   });
 
-  it('chiffres 1 à 3 : la forme ; exploration coupée : l’outil ne dessine rien', () => {
+  it('chiffres : la forme, sans Sélection ; mémoire coupée : pas de geste sur elle', () => {
     const b = toolBench();
+    b.tool.setShape('select');
+    expect(b.tool.shape).toBe('rect');
     b.engine.controller.keyDown(b.key('2', { code: 'Digit2' }));
     expect(b.tool.shape).toBe('circle');
     b.engine.controller.keyDown(b.key('3', { code: 'Digit3' }));
     expect(b.tool.shape).toBe('lasso');
+    b.engine.controller.keyDown(b.key('4', { code: 'Digit4' }));
+    expect(b.tool.shape).toBe('lasso');
     const scene = b.store.getState().scene!;
     b.store.getState().setScene({ ...scene, exploration: 'off', version: scene.version + 1 });
-    expect(b.tool.down(b.pointer(P(100, 100)))).toBe(false);
+    expect(b.tool.down(b.pointer(P(100, 100)), b.engine)).toBe(false);
     b.cleanup();
   });
 });

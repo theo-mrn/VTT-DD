@@ -13,5 +13,4 @@ export default {
   fog: 'Fog',
   lights: 'Lights',
   sounds: 'Sound zones',
-  exploration: 'Exploration',
 } satisfies Translation<typeof fr>;
