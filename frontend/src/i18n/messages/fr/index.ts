@@ -8,6 +8,7 @@ import auth from './auth';
 import campaigns from './campaigns';
 import characters from './characters';
 import chat from './chat';
+import combat from './combat';
 import common from './common';
 import dice from './dice';
 import diceSkins from './diceSkins';
@@ -39,6 +40,7 @@ const fr = {
   campaigns,
   characters,
   chat,
+  combat,
   common,
   dice,
   diceSkins,

@@ -5,6 +5,7 @@
  * option à bascule, choix segmenté, puce de situation. Cibles tactiles de 44 px au moins sur
  * mobile, état porté par `aria-*`, jamais par la couleur seule.
  */
+import { useTranslations } from 'next-intl';
 import { Check, Info as InfoIcon, Minus, Plus } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -82,7 +83,8 @@ export function Stepper({
   hint?: string | null;
   className?: string;
 }>) {
-  const name = accessibleName ?? (typeof label === 'string' ? label : 'Valeur');
+  const t = useTranslations();
+  const name = accessibleName ?? (typeof label === 'string' ? label : t('combat.attack.value'));
   return (
     <div
       className={cn(
@@ -104,7 +106,7 @@ export function Stepper({
           <span
             className="size-1.5 shrink-0 rounded-full bg-warning"
             role="img"
-            aria-label="Valeur forcée à la main"
+            aria-label={t('combat.attack.forced')}
           />
         )}
         {hint && <HintIcon text={hint} />}
@@ -115,7 +117,7 @@ export function Stepper({
           variant="secondary"
           size="icon-sm"
           className="max-sm:size-10"
-          aria-label={`${name} : moins un`}
+          aria-label={t('combat.attack.minusOne', { name })}
           disabled={disabled || value <= min}
           onClick={() => onChange(value - 1)}
         >
@@ -132,7 +134,7 @@ export function Stepper({
           variant="secondary"
           size="icon-sm"
           className="max-sm:size-10"
-          aria-label={`${name} : plus un`}
+          aria-label={t('combat.attack.plusOne', { name })}
           disabled={disabled || value >= max}
           onClick={() => onChange(value + 1)}
         >

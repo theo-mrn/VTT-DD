@@ -9,6 +9,8 @@
  * des clés pour des dés lancés à la table), visible, surpris, hors de combat. Actions :
  * attaquer avec, donner le tour, ouvrir la fiche, retirer du combat.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { ActionParams, CombatParticipant, CombatState } from '@vtt/contracts';
 import {
   ChevronLeft,
@@ -170,11 +172,12 @@ function DialogBody({
   onBack?: () => void;
   onClose(): void;
 }>) {
+  const t = useTranslations();
   const commands = useCombatCommands(campaignId);
   const { ctx, perso, sys, ecritures } = useFicheCalculee(characterId);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
-  const name = member?.name ?? perso.data?.name ?? 'Personnage';
+  const name = member?.name ?? perso.data?.name ?? t('map.common.character');
   const side = p?.side ?? member?.side ?? null;
 
   const run = async (key: string, label: string, work: () => Promise<unknown>) => {
@@ -238,8 +241,8 @@ function DialogBody({
         chips={chips}
         toggles={toggles}
         busy={busy}
-        onToggle={(t) =>
-          void run(t.key, 'Le changement n’a pas pu être enregistré', () => t.set(!t.on))
+        onToggle={(toggle) =>
+          void run(toggle.key, t('combat.character.changeFailed'), () => toggle.set(!toggle.on))
         }
       />
 
@@ -251,7 +254,7 @@ function DialogBody({
           ressources={ressources}
         />
 
-        <Section title="États">
+        <Section title={t('combat.character.states')}>
           {perso.data && systeme ? (
             <StatesManager
               systeme={systeme}
@@ -274,7 +277,7 @@ function DialogBody({
             tri={systeme?.source.initiative?.tri ?? []}
             busy={busy}
             onReroll={(params) =>
-              run('reroll', 'L’initiative n’a pas pu être relancée', () =>
+              run('reroll', t('combat.character.rerollFailed'), () =>
                 commands.rollParticipantInitiative(p.characterId, {
                   ...(Object.keys(params).length ? { params } : {}),
                   dice: 'server',
@@ -282,7 +285,7 @@ function DialogBody({
               )
             }
             onManual={(sortKeys) =>
-              run('manual', 'L’initiative n’a pas pu être enregistrée', () =>
+              run('manual', t('combat.character.saveFailed'), () =>
                 commands.updateParticipant(p.characterId, { sortKeys }),
               )
             }
@@ -292,19 +295,24 @@ function DialogBody({
 
       <footer className="flex items-center gap-1.5 border-t border-border px-4 py-3">
         {onBack && (
-          <Info texte="Retour aux cibles">
-            <Button variant="ghost" size="icon-sm" onClick={onBack} aria-label="Retour aux cibles">
+          <Info texte={t('combat.character.backToTargets')}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onBack}
+              aria-label={t('combat.character.backToTargets')}
+            >
               <ChevronLeft />
             </Button>
           </Info>
         )}
-        <Info texte="Ouvrir la fiche">
+        <Info texte={t('map.tokens.inspector.openSheet')}>
           <Button variant="ghost" size="icon-sm" asChild>
             <PanelLink
               panel="joueurs"
               params={{ [TABLE_PARAMS.character]: characterId }}
               onClick={onClose}
-              aria-label="Ouvrir la fiche"
+              aria-label={t('map.tokens.inspector.openSheet')}
             >
               <ExternalLink />
             </PanelLink>
@@ -316,7 +324,7 @@ function DialogBody({
             busy={busy}
             onClick={() => {
               if (!confirmRemove) return setConfirmRemove(true);
-              void run('remove', 'Le participant n’a pas pu être retiré', () =>
+              void run('remove', t('combat.character.removeFailed'), () =>
                 commands.removeParticipant(p.characterId),
               ).then((ok) => ok && onClose());
             }}
@@ -355,21 +363,21 @@ function participantToggles(
   return [
     {
       key: 'visible',
-      label: 'Caché',
+      label: translate('combat.hiddenShort'),
       icon: EyeOff,
       on: p.visibleToPlayers === false,
       set: (on) => commands.updateParticipant(p.characterId, { visibleToPlayers: !on }),
     },
     {
       key: 'surprised',
-      label: 'Surpris',
+      label: translate('combat.situation.surprised'),
       icon: Zap,
       on: p.surprised === true,
       set: (on) => commands.updateParticipant(p.characterId, { surprised: on }),
     },
     {
       key: 'defeated',
-      label: 'Hors de combat',
+      label: translate('combat.situation.defeated'),
       icon: Skull,
       on: p.defeated === true,
       danger: true,
@@ -447,13 +455,14 @@ function RemoveButton({
   onClick,
   onBlur,
 }: Readonly<{ confirm: boolean; busy: string | null; onClick(): void; onBlur(): void }>) {
+  const t = useTranslations();
   return (
-    <Info texte={confirm ? 'Cliquer encore pour confirmer' : 'Retirer du combat'}>
+    <Info texte={confirm ? t('combat.character.clickToConfirm') : t('combat.character.remove')}>
       <Button
         variant="ghost"
         size="icon-sm"
         className={cn('hover:text-destructive', confirm && 'bg-destructive/15 text-destructive')}
-        aria-label={confirm ? 'Confirmer le retrait' : 'Retirer du combat'}
+        aria-label={confirm ? t('combat.character.confirmRemove') : t('combat.character.remove')}
         disabled={busy !== null && busy !== 'remove'}
         onClick={onClick}
         onBlur={onBlur}
@@ -480,6 +489,7 @@ function TurnActions({
   actions: CharacterDialogActions;
   onClose(): void;
 }>) {
+  const t = useTranslations();
   const aimAt = actions.aimAt;
   return (
     <>
@@ -493,7 +503,7 @@ function TurnActions({
           }}
         >
           <Hand />
-          Donner le tour
+          {t('combat.character.giveTurn')}
         </Button>
       )}
       {canAttack && aimAt && aimAt.actorId !== characterId && (
@@ -518,7 +528,7 @@ function TurnActions({
           }}
         >
           <Swords />
-          Attaquer
+          {t('combat.character.attack')}
         </Button>
       )}
     </>
@@ -542,6 +552,7 @@ function InitiativeBlock({
   onReroll(params: ActionParams): Promise<boolean>;
   onManual(sortKeys: number[]): Promise<boolean>;
 }>) {
+  const t = useTranslations();
   const [params, setParams] = useState<ActionParams>(p.initiative?.params ?? {});
   const [manual, setManual] = useState<string[] | null>(null);
   const keys = Math.max(1, tri.length);
@@ -553,28 +564,34 @@ function InitiativeBlock({
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
-          Initiative
+          {t('combat.initiative.title')}
         </span>
         <span className="font-mono text-xl font-bold tabular-nums">
           {score ?? (p.initiativePending ? '…' : '—')}
         </span>
         <span className="flex-1" />
-        <Info texte={p.sortKeys.length ? 'Relancer' : 'Lancer'}>
+        <Info
+          texte={p.sortKeys.length ? t('combat.initiative.reroll') : t('combat.character.roll')}
+        >
           <Button
             size="icon-sm"
             variant="secondary"
-            aria-label={p.sortKeys.length ? 'Relancer l’initiative' : 'Lancer l’initiative'}
+            aria-label={
+              p.sortKeys.length
+                ? t('combat.character.rerollInitiative')
+                : t('combat.initiative.roll')
+            }
             disabled={busy !== null}
             onClick={() => void onReroll(params)}
           >
             {busy === 'reroll' ? <Loader2 className="animate-spin" /> : <Dices />}
           </Button>
         </Info>
-        <Info texte="Saisir le résultat">
+        <Info texte={t('combat.character.enterResult')}>
           <Button
             size="icon-sm"
             variant="ghost"
-            aria-label="Saisir l’initiative"
+            aria-label={t('combat.character.enterInitiative')}
             aria-pressed={manual !== null}
             disabled={busy !== null}
             onClick={() =>
@@ -617,7 +634,7 @@ function InitiativeBlock({
           {manual.map((v, i) => (
             <div key={i} className="flex items-center justify-between gap-3">
               <Label htmlFor={`manual-${i}`} className="font-mono text-xs">
-                {tri[i] ?? 'Initiative'}
+                {tri[i] ?? t('combat.initiative.title')}
               </Label>
               <Input
                 id={`manual-${i}`}
@@ -631,10 +648,10 @@ function InitiativeBlock({
           ))}
           <div className="flex justify-end gap-2">
             <Button type="button" size="xs" variant="ghost" onClick={() => setManual(null)}>
-              Annuler
+              {t('common.actions.cancel')}
             </Button>
             <Button type="submit" size="xs" disabled={!manualValid} loading={busy === 'manual'}>
-              Enregistrer
+              {t('common.actions.save')}
             </Button>
           </div>
         </form>

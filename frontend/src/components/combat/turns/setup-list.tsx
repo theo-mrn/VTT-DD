@@ -6,6 +6,7 @@
  * « Surpris » ; les autres personnages engagés suivent, décochés. Le démarrage est dans
  * l'en-tête (« Lancer l'initiative », « Démarrer sans initiative »).
  */
+import { useTranslations } from 'next-intl';
 import { EyeOff, MapPinned, Users, Zap } from 'lucide-react';
 import { Illustration } from '@/components/commun/illustration';
 import { Notice } from '@/components/resources/parts';
@@ -41,6 +42,7 @@ export function SetupList({
   onConsult(characterId: string): void;
   onAll(checked: boolean): void;
 }>) {
+  const t = useTranslations();
   if (loading)
     return (
       <div className="space-y-2">
@@ -54,8 +56,8 @@ export function SetupList({
     return (
       <Notice
         icon={Users}
-        title="Personne à faire combattre"
-        description="Posez des PNJ sur la carte, ou attendez que les joueurs aient choisi leur héros."
+        title={t('combat.setup.nobody')}
+        description={t('combat.setup.nobodyHint')}
       />
     );
 
@@ -66,19 +68,19 @@ export function SetupList({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2.5 px-2">
-        <CheckBox checked={all} onChange={onAll} label="Tout cocher" />
+        <CheckBox checked={all} onChange={onAll} label={t('combat.selectAll')} />
         <span className="flex-1 text-[13px] text-muted-foreground">
           {checked} au combat sur {rows.length}
         </span>
         <span className="flex items-center gap-1 text-[11px] text-subtle">
           <MapPinned className="size-3.5" aria-hidden />
-          {onMap ? `${onScene} sur la scène` : 'Aucune carte affichée'}
+          {onMap ? t('combat.setup.onScene', { count: onScene }) : t('combat.setup.noMap')}
         </span>
       </div>
-      <ol className="space-y-1" aria-label="Participants du prochain combat">
+      <ol className="space-y-1" aria-label={t('combat.setup.participants')}>
         {rows.map((r) => {
           const m = cast.get(r.characterId);
-          const name = m?.name ?? 'Personnage';
+          const name = m?.name ?? t('map.common.character');
           const gauge = sheets.get(r.characterId)?.gauge ?? null;
           return (
             <li
@@ -100,7 +102,7 @@ export function SetupList({
               <CheckBox
                 checked={r.checked}
                 onChange={(on) => onChange(r, { checked: on })}
-                label={`${name} participe au combat`}
+                label={t('combat.setup.takesPart', { name })}
                 className="relative z-10"
               />
               <Illustration
@@ -116,18 +118,18 @@ export function SetupList({
                   {r.checked && r.hidden && (
                     <EyeOff
                       className="size-3.5 shrink-0 text-info"
-                      aria-label="Caché aux joueurs"
+                      aria-label={t('combat.order.hiddenFromPlayers')}
                     />
                   )}
                 </span>
                 <span className="block text-[11px] text-muted-foreground">
                   {SIDE_LABELS[r.side].name}
-                  {r.onScene ? ' · sur la scène' : ''}
+                  {r.onScene ? ` · ${t('combat.onScene')}` : ''}
                 </span>
               </span>
               {gauge && <Gauge gauge={gauge} className="hidden xs:flex" />}
               <span className="relative z-10 flex shrink-0 items-center gap-1">
-                <Info texte="Surpris au début du combat : les règles du système en tiennent compte">
+                <Info texte={t('combat.setup.surprisedHint')}>
                   <Button
                     type="button"
                     size="xs"
@@ -138,18 +140,20 @@ export function SetupList({
                     className={cn(r.surprised && 'text-warning')}
                   >
                     <Zap />
-                    <span className="sr-only xs:not-sr-only">Surpris</span>
+                    <span className="sr-only xs:not-sr-only">
+                      {t('combat.situation.surprised')}
+                    </span>
                   </Button>
                 </Info>
                 {r.side !== 'players' && (
-                  <Info texte={r.hidden ? 'Caché aux joueurs (embuscade)' : 'Visible des joueurs'}>
+                  <Info texte={r.hidden ? t('combat.setup.ambush') : t('map.grid.visible')}>
                     <Button
                       type="button"
                       size="icon-xs"
                       variant={r.hidden ? 'secondary' : 'ghost'}
                       disabled={!r.checked}
                       aria-pressed={r.hidden}
-                      aria-label={`Cacher ${name} aux joueurs`}
+                      aria-label={t('combat.setup.hideFrom', { name })}
                       onClick={() => onChange(r, { hidden: !r.hidden })}
                       className={cn(r.hidden && 'text-info')}
                     >

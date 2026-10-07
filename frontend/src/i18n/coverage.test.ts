@@ -60,6 +60,8 @@ export const TRANSLATED_AREAS = [
   'components/resources',
   'components/audio',
   'lib/audio',
+  'components/combat',
+  'lib/combat',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {

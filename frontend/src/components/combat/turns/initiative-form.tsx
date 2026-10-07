@@ -7,6 +7,7 @@
  * et de l'étiquette demandées, attributs du groupe), et chaque champ peut rester « par défaut »
  * (non envoyé : le serveur prend la valeur de l'action, ou la meilleure pour le personnage).
  */
+import { useTranslations } from 'next-intl';
 import type { ActionParams, ActionParamValue, CampaignSide } from '@vtt/contracts';
 import type { Action, SystemeCharge } from '@vtt/rules';
 import { Label } from '@/components/ui/label';
@@ -108,15 +109,12 @@ export function InitiativeParamsForm({
   idPrefix: string;
   disabled?: boolean;
 }>) {
+  const t = useTranslations();
   const set = (key: string, v: ActionParamValue | undefined) =>
     onChange(v === undefined ? without(value, key) : { ...value, [key]: v });
 
   if (!parametres.length)
-    return (
-      <p className="text-[13px] text-muted-foreground">
-        L’initiative de ce système ne demande aucun choix.
-      </p>
-    );
+    return <p className="text-[13px] text-muted-foreground">{t('combat.initiative.noChoice')}</p>;
 
   return (
     <div className="space-y-3">
@@ -168,7 +166,7 @@ export function InitiativeParamsForm({
               disabled={disabled}
               value={typeof current === 'string' ? current : DEFAULT}
               onValueChange={(v) => set(p.id, v === DEFAULT ? undefined : v)}
-              options={[{ valeur: DEFAULT, nom: 'Par défaut' }, ...options]}
+              options={[{ valeur: DEFAULT, nom: t('combat.initiative.default') }, ...options]}
             />
           </div>
         );

@@ -10,6 +10,7 @@
  * de l'attaquant seulement s'il le connaît (liste de la campagne filtrée par le service ;
  * sinon « Un adversaire »).
  */
+import { useTranslations } from 'next-intl';
 import type { ActionParams, Attack, AttackTarget } from '@vtt/contracts';
 import type { SystemeCharge, Valeur } from '@vtt/rules';
 import { useQueries, useQuery } from '@tanstack/react-query';
@@ -43,6 +44,7 @@ export function ReactionForm({
   compact?: boolean;
   onDone?(): void;
 }>) {
+  const t = useTranslations();
   const commands = useAttackCommands(campaignId);
   const { fiche } = useComputedSheet({ systeme }, target.characterId);
   const action = systeme?.actions.get(attack.action.id) ?? null;
@@ -72,7 +74,7 @@ export function ReactionForm({
       );
       onDone?.();
     } catch (err) {
-      toast.error('La réaction n’a pas pu être envoyée', { description: combatErrorMessage(err) });
+      toast.error(t('combat.reaction.sendFailed'), { description: combatErrorMessage(err) });
     } finally {
       setBusy(null);
     }
@@ -95,7 +97,7 @@ export function ReactionForm({
         </div>
       )}
       {!fiche && params.length > 0 && (
-        <p className="text-[13px] text-muted-foreground">Chargement de la fiche…</p>
+        <p className="text-[13px] text-muted-foreground">{t('combat.reaction.loadingSheet')}</p>
       )}
       <div className="flex flex-wrap justify-end gap-2">
         <Button
@@ -105,7 +107,7 @@ export function ReactionForm({
           loading={busy === 'skip'}
           disabled={busy !== null}
         >
-          Ne pas réagir
+          {t('combat.reaction.none')}
         </Button>
         <Button
           size="sm"
@@ -114,7 +116,7 @@ export function ReactionForm({
           disabled={busy !== null || (params.length > 0 && !fiche)}
         >
           <ShieldCheck />
-          Réagir
+          {t('combat.reaction.react')}
         </Button>
       </div>
     </div>
@@ -138,6 +140,7 @@ export function ReactionPrompts({
   mine: ReadonlySet<string>;
   systeme: SystemeCharge | null;
 }>) {
+  const t = useTranslations();
   const [signaled, setSignaled] = useState<readonly string[]>([]);
   useCampaignEvents(campaignId, ['combat.attack_updated'], (e) => {
     const p = e.event.payload as { attackId?: unknown; change?: unknown };
@@ -192,8 +195,10 @@ export function ReactionPrompts({
             {reactionTitle(first.attack, first.target, names)}
           </p>
           <p className="text-[11px] text-muted-foreground">
-            {first.attack.action.name} · choisissez votre défense
-            {pending.length > 1 ? ` (${pending.length} en attente)` : ''}
+            {first.attack.action.name} · {t('combat.reaction.chooseDefense')}
+            {pending.length > 1
+              ? ` ${t('combat.reaction.pending', { count: pending.length })}`
+              : ''}
           </p>
         </div>
       </div>

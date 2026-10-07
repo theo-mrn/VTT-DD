@@ -7,6 +7,7 @@
  * (tout ou rien, par lots de 50). Une ligne décochée reste en attente. Les personnages tombés
  * sont réunis ensuite dans le dialogue « Hors de combat ».
  */
+import { useTranslations } from 'next-intl';
 import type { Attack } from '@vtt/contracts';
 import type { SystemeCharge } from '@vtt/rules';
 import { ArrowRight, CheckCheck, Minus, Plus } from 'lucide-react';
@@ -85,13 +86,14 @@ function ReviewBody({
   cast: ReadonlyMap<string, CastMember>;
   onDone(): void;
 }>) {
+  const tr = useTranslations();
   const commands = useAttackCommands(campaignId);
   // Figée à l'ouverture : un rapport arrivé pendant la revue attend la suivante
   const [snapshot] = useState(() => [...attacks]);
   const [rows, setRows] = useState<BulkRow[]>(() => bulkRows(snapshot));
   const [busy, setBusy] = useState(false);
   const selected = rows.filter((r) => r.selected).length;
-  const nameOf = (id: string) => cast.get(id)?.name ?? 'Personnage';
+  const nameOf = (id: string) => cast.get(id)?.name ?? tr('map.common.character');
 
   const update = (key: string, patch: Partial<BulkRow>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -107,15 +109,11 @@ function ReviewBody({
         applied += done.length;
         reportDefeated(done.flatMap(defeatedBy));
       }
-      toast.success(
-        `${applied} rapport${applied > 1 ? 's' : ''} appliqué${applied > 1 ? 's' : ''}`,
-      );
+      toast.success(tr('combat.bulk.applied', { count: applied }));
       onDone();
     } catch (err) {
       toast.error(
-        applied
-          ? `${applied} rapport(s) appliqué(s), la suite a échoué`
-          : 'Les rapports n’ont pas pu être appliqués',
+        applied ? tr('combat.bulk.partial', { count: applied }) : tr('combat.bulk.failed'),
         { description: combatErrorMessage(err) },
       );
     } finally {
@@ -128,10 +126,9 @@ function ReviewBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Tout appliquer</DialogTitle>
+        <DialogTitle>{tr('combat.bulk.title')}</DialogTitle>
         <DialogDescription>
-          {rows.length} cible{rows.length > 1 ? 's' : ''} dans {snapshot.length} rapport
-          {snapshot.length > 1 ? 's' : ''}. Une ligne décochée reste en attente.
+          {tr('combat.bulk.lead', { targets: rows.length, reports: snapshot.length })}
         </DialogDescription>
       </DialogHeader>
 
@@ -139,18 +136,18 @@ function ReviewBody({
         <CheckBox
           checked={all}
           onChange={(on) => setRows((rs) => rs.map((r) => ({ ...r, selected: on })))}
-          label="Tout cocher"
+          label={tr('combat.selectAll')}
         />
         <span className="flex-1 text-[13px] text-muted-foreground">
           {selected} cochée{selected > 1 ? 's' : ''}
         </span>
-        <span className="text-xs text-muted-foreground">Ajustement global</span>
+        <span className="text-xs text-muted-foreground">{tr('combat.bulk.global')}</span>
         <Button
           size="icon-sm"
           variant="secondary"
           disabled={busy || !selected}
           onClick={() => setRows((rs) => adjustSelected(rs, -1))}
-          aria-label="Un de moins sur les lignes cochées"
+          aria-label={tr('combat.bulk.minusChecked')}
         >
           <Minus />
         </Button>
@@ -159,7 +156,7 @@ function ReviewBody({
           variant="secondary"
           disabled={busy || !selected}
           onClick={() => setRows((rs) => adjustSelected(rs, 1))}
-          aria-label="Un de plus sur les lignes cochées"
+          aria-label={tr('combat.bulk.plusChecked')}
         >
           <Plus />
         </Button>
@@ -179,7 +176,7 @@ function ReviewBody({
               <CheckBox
                 checked={r.selected}
                 onChange={(on) => update(r.key, { selected: on })}
-                label={`Appliquer à ${nameOf(r.characterId)}`}
+                label={tr('combat.live.applyTo', { name: nameOf(r.characterId) })}
               />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1 text-[13px] font-medium">
@@ -211,7 +208,7 @@ function ReviewBody({
                       onClick={() =>
                         update(r.key, { modifications: adjust(r.modifications, -1, i) })
                       }
-                      aria-label="Un de moins"
+                      aria-label={tr('map.objects.search.oneLess')}
                     >
                       <Minus />
                     </Button>
@@ -227,7 +224,10 @@ function ReviewBody({
                         })
                       }
                       className="h-7 w-14 px-1 text-center font-mono tabular-nums"
-                      aria-label={`${attributeLabel(systeme, m.attribute, targetType)} pour ${nameOf(r.characterId)}`}
+                      aria-label={tr('combat.bulk.valueFor', {
+                        attribute: attributeLabel(systeme, m.attribute, targetType),
+                        name: nameOf(r.characterId),
+                      })}
                     />
                     <Button
                       size="icon-xs"
@@ -236,7 +236,7 @@ function ReviewBody({
                       onClick={() =>
                         update(r.key, { modifications: adjust(r.modifications, 1, i) })
                       }
-                      aria-label="Un de plus"
+                      aria-label={tr('map.objects.search.oneMore')}
                     >
                       <Plus />
                     </Button>
@@ -250,7 +250,7 @@ function ReviewBody({
 
       <DialogFooter>
         <Button variant="ghost" onClick={onDone} disabled={busy}>
-          Annuler
+          {tr('common.actions.cancel')}
         </Button>
         <Button onClick={() => void apply()} loading={busy} disabled={!selected}>
           <CheckCheck />

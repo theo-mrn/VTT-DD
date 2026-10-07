@@ -4,6 +4,7 @@
  * Aperçu du jet de l'attaquant (docs/combat.md § 5.2) : formule avec les valeurs de sa fiche
  * (« 1d20 + 5 »), ou pool de dés à symboles aux couleurs de la présentation (bouton « Lancer »).
  */
+import { useTranslations } from 'next-intl';
 import type { Presentation } from '@vtt/rules';
 import type { RollPreview } from '@/lib/combat/actions';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,7 @@ export function PreviewText({
   presentation: Presentation | null;
   compact?: boolean;
 }>) {
+  const t = useTranslations();
   if (preview.kind === 'numeric')
     return <span className="truncate font-mono tabular-nums">{preview.formula}</span>;
   const sorte = (id: string) => presentation?.des?.sortes[id];
@@ -45,7 +47,8 @@ export function PreviewText({
     ...preview.dice.map((d) => ({ die: d.die, name: d.name, count: d.count, up: false })),
     ...preview.upgrades.map((u) => ({ die: u.to, name: u.name, count: u.count, up: true })),
   ];
-  if (!parts.length) return <span className="text-muted-foreground">Aucun dé</span>;
+  if (!parts.length)
+    return <span className="text-muted-foreground">{t('combat.attack.noDice')}</span>;
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
       {parts.map((p, i) => (

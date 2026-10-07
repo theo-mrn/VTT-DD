@@ -10,6 +10,8 @@
  * Une cible que la liste de la campagne ne me donne pas reste « Adversaire » : rien n'est lu de
  * sa fiche.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import { Check, Crosshair, Plus, ScrollText, UserRoundCog, X } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Illustration } from '@/components/commun/illustration';
@@ -170,19 +172,21 @@ function AttackerSide({
   onAttacker: (id: string) => void;
   promptAttacker: boolean;
 }>) {
+  const t = useTranslations();
   const known = attackerId ? ctx.known.get(attackerId) : undefined;
-  const label = name ?? known?.name ?? (attackerId ? 'Personnage' : 'Qui attaque ?');
+  const label =
+    name ?? known?.name ?? (attackerId ? t('map.common.character') : t('combat.attack.whoAttacks'));
   const choosable = editable && (ctx.attackers.length > 1 || !attackerId);
 
   return (
     <div className="flex min-w-0 items-center gap-2.5 sm:gap-5">
       {attackerId && fc && (
         <Popover>
-          <Info texte="Statistiques">
+          <Info texte={t('combat.attack.stats')}>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                aria-label={`Statistiques de ${label}`}
+                aria-label={t('combat.attack.statsOf', { name: label })}
                 className={cn(
                   'group/portrait relative shrink-0 rounded-xl transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:hover:translate-y-0',
                   FOCUS,
@@ -239,7 +243,7 @@ function AttackerSide({
       )}
       <div className="min-w-0 space-y-2">
         <div className="min-w-0">
-          <Kicker className="text-primary">Attaquant</Kicker>
+          <Kicker className="text-primary">{t('combat.attack.attacker')}</Kicker>
           <div className="flex min-w-0 items-center gap-1.5">
             <h2 className="min-w-0 truncate font-display text-base font-semibold leading-tight xs:text-lg sm:text-3xl">
               {label}
@@ -276,6 +280,7 @@ function AttackerSwitch({
   prompt: boolean;
   onAttacker: (id: string) => void;
 }>) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   // Personne n'attaque encore (MJ sans PNJ qui agit) : la liste s'ouvre d'elle-même
   useEffect(() => {
@@ -289,7 +294,7 @@ function AttackerSwitch({
   const item = (c: RosterCharacter) => (
     <CommandItem
       key={c.id}
-      value={`${c.name ?? 'Personnage'} ${c.id}`}
+      value={`${c.name ?? translate('map.common.character')} ${c.id}`}
       onSelect={() => {
         onAttacker(c.id);
         setOpen(false);
@@ -301,29 +306,37 @@ function AttackerSwitch({
         largeur={24}
         className="size-6 rounded-full"
       />
-      <span className="min-w-0 flex-1 truncate">{c.name ?? 'Personnage'}</span>
+      <span className="min-w-0 flex-1 truncate">{c.name ?? t('map.common.character')}</span>
       {c.id === attackerId && <Check className="text-primary" aria-hidden />}
     </CommandItem>
   );
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Info texte="Changer d’attaquant">
+      <Info texte={t('combat.attack.changeAttacker')}>
         <PopoverTrigger asChild>
-          <button type="button" aria-label="Changer d’attaquant" className={iconButton}>
+          <button
+            type="button"
+            aria-label={t('combat.attack.changeAttacker')}
+            className={iconButton}
+          >
             <UserRoundCog className="size-3.5" aria-hidden />
           </button>
         </PopoverTrigger>
       </Info>
       <PopoverContent align="start" className="w-80 p-0">
         <Command>
-          <CommandInput placeholder="Qui attaque ?" />
+          <CommandInput placeholder={t('combat.attack.whoAttacks')} />
           <CommandList>
-            <CommandEmpty>Aucun personnage.</CommandEmpty>
+            <CommandEmpty>{t('combat.attack.noCharacter')}</CommandEmpty>
             {inCombat.length > 0 && (
-              <CommandGroup heading="Combat en cours">{inCombat.map(item)}</CommandGroup>
+              <CommandGroup heading={t('combat.attack.inCombat')}>
+                {inCombat.map(item)}
+              </CommandGroup>
             )}
             {others.length > 0 && (
-              <CommandGroup heading={inCombat.length ? 'Hors du combat' : 'Personnages'}>
+              <CommandGroup
+                heading={inCombat.length ? t('combat.situation.outside') : t('map.tools.tokens')}
+              >
                 {others.map(item)}
               </CommandGroup>
             )}
@@ -338,9 +351,9 @@ function AttackerSwitch({
 
 /** Titre du côté des cibles : aucune, son nom, ou leur nombre. */
 function targetsTitle(names: string[]): string {
-  if (names.length === 0) return 'Aucune cible';
+  if (names.length === 0) return translate('combat.attack.noTarget');
   if (names.length === 1) return names[0]!;
-  return `${names.length} cibles`;
+  return translate('combat.attack.targetsCount', { count: names.length });
 }
 
 function TargetsSide({
@@ -364,6 +377,7 @@ function TargetsSide({
   onRemove: (id: string) => void;
   onAim: () => void;
 }>) {
+  const t = useTranslations();
   const n = targetIds.length;
   const shown = targetIds.slice(0, n > MAX_PORTRAITS ? MAX_PORTRAITS - 1 : MAX_PORTRAITS);
   const rest = n - shown.length;
@@ -378,7 +392,7 @@ function TargetsSide({
           type="button"
           onClick={canAim && editable ? onAim : undefined}
           disabled={!canAim || !editable}
-          aria-label="Viser sur la carte"
+          aria-label={t('combat.attack.aimOnMap')}
           className={cn(
             PORTRAIT,
             'grid place-items-center border-2 border-dashed border-destructive/40 text-destructive/70 shadow-none transition-colors enabled:hover:border-destructive/70 enabled:hover:text-destructive',
@@ -388,7 +402,10 @@ function TargetsSide({
           <Crosshair className="size-5 sm:size-7" aria-hidden />
         </button>
       ) : (
-        <ul aria-label="Cibles" className="flex shrink-0 -space-x-6 sm:-space-x-10">
+        <ul
+          aria-label={t('combat.attack.targets')}
+          className="flex shrink-0 -space-x-6 sm:-space-x-10"
+        >
           {shown.map((id, i) => (
             <TargetPortrait
               key={id}
@@ -421,7 +438,7 @@ function TargetsSide({
       <div className="min-w-0 space-y-2 text-right">
         <div className="min-w-0">
           <Kicker className={self ? 'text-warning' : 'text-destructive'}>
-            {self ? 'Lui-même' : pluralCible(n)}
+            {self ? t('combat.situation.self') : pluralCible(n)}
           </Kicker>
           <div className="flex min-w-0 items-center justify-end gap-1.5">
             {editable && (
@@ -430,13 +447,13 @@ function TargetsSide({
                   <Info
                     texte={
                       <span className="flex items-center gap-1.5">
-                        Viser sur la carte <Kbd>V</Kbd>
+                        {t('combat.attack.aimOnMap')} <Kbd>V</Kbd>
                       </span>
                     }
                   >
                     <button
                       type="button"
-                      aria-label="Viser sur la carte"
+                      aria-label={t('combat.attack.aimOnMap')}
                       aria-keyshortcuts="V"
                       onClick={onAim}
                       className={cn(iconButton, 'max-sm:hidden')}
@@ -491,6 +508,7 @@ function TargetPortrait({
   editable: boolean;
   onRemove: () => void;
 }>) {
+  const t = useTranslations();
   const c = ctx.known.get(id);
   const name = targetName(id, ctx.known);
   const defeated = ctx.combat?.order.find((p) => p.characterId === id)?.defeated;
@@ -512,7 +530,7 @@ function TargetPortrait({
       {editable && (
         <button
           type="button"
-          aria-label={`Retirer ${name} des cibles`}
+          aria-label={t('combat.attack.removeTarget', { name })}
           onClick={onRemove}
           className={cn(
             'absolute -right-1.5 -top-1.5 grid size-7 place-items-center rounded-full border border-border-strong bg-popover text-muted-foreground opacity-0 shadow-surface transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100',
@@ -544,6 +562,7 @@ function TargetPicker({
   onToggle: (id: string) => void;
   onAim: () => void;
 }>) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const groups = targetGroups(ctx.roster, ctx.combat);
   const item = (c: RosterCharacter) => {
@@ -576,18 +595,22 @@ function TargetPicker({
           className={cn('size-6 rounded-full', p?.defeated && 'opacity-50 grayscale')}
         />
         <span className="min-w-0 flex-1 truncate">{name}</span>
-        {c.id === attackerId && <span className="text-[11px] text-warning">lui-même</span>}
-        {p?.defeated && <span className="text-[11px] text-subtle">hors de combat</span>}
+        {c.id === attackerId && (
+          <span className="text-[11px] text-warning">{t('combat.attack.selfShort')}</span>
+        )}
+        {p?.defeated && (
+          <span className="text-[11px] text-subtle">{t('combat.attack.defeatedShort')}</span>
+        )}
       </CommandItem>
     );
   };
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Info texte="Ajouter une cible">
+      <Info texte={t('combat.attack.addTarget')}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            aria-label="Ajouter une cible"
+            aria-label={t('combat.attack.addTarget')}
             className={cn(iconButton, 'border-dashed')}
           >
             <Plus className="size-4" aria-hidden />
@@ -596,17 +619,19 @@ function TargetPicker({
       </Info>
       <PopoverContent align="end" className="w-80 p-0">
         <Command>
-          <CommandInput placeholder="Chercher un personnage…" />
+          <CommandInput placeholder={t('combat.attack.searchCharacter')} />
           <CommandList>
-            <CommandEmpty>Aucun personnage connu.</CommandEmpty>
+            <CommandEmpty>{t('combat.attack.noKnown')}</CommandEmpty>
             {groups.participants.length > 0 && (
-              <CommandGroup heading="Participants du combat">
+              <CommandGroup heading={t('combat.attack.participants')}>
                 {groups.participants.map(item)}
               </CommandGroup>
             )}
             {groups.others.length > 0 && (
               <CommandGroup
-                heading={groups.participants.length ? 'Autres personnages' : 'Personnages'}
+                heading={
+                  groups.participants.length ? t('combat.attack.others') : t('map.tools.tokens')
+                }
               >
                 {groups.others.map(item)}
               </CommandGroup>
@@ -622,7 +647,7 @@ function TargetPicker({
                 }}
                 className="flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-surface-2 text-[13px] font-medium transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
               >
-                <Crosshair className="size-4" aria-hidden /> Viser sur la carte
+                <Crosshair className="size-4" aria-hidden /> {t('combat.attack.aimOnMap')}
               </button>
             </div>
           )}
@@ -632,4 +657,4 @@ function TargetPicker({
   );
 }
 
-const pluralCible = (n: number) => (n > 1 ? 'Cibles' : 'Cible');
+const pluralCible = (n: number) => translate('combat.attack.targetsTitle', { count: n });

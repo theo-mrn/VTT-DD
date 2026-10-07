@@ -9,6 +9,8 @@
  * Tout passe par `targetDisplay` : un joueur ne voit que la vue de l'attaquant envoyée par le
  * serveur, jamais une valeur de la cible.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { Attack, AttackModification, AttackTarget } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { AlertTriangle, Check, ChevronDown, Crown, Skull, Target, X } from 'lucide-react';
@@ -53,7 +55,10 @@ function modificationText(systeme: SystemeCharge, m: AttackModification): string
     const type = m.damageType
       ? ` ${systeme.source.typesDegats.find((t) => t.id === m.damageType)?.nom ?? m.damageType}`
       : '';
-    const raw = m.raw !== undefined && m.raw !== m.value ? ` (${m.raw} avant résistances)` : '';
+    const raw =
+      m.raw !== undefined && m.raw !== m.value
+        ? ` ${translate('combat.attack.beforeResistances', { raw: String(m.raw) })}`
+        : '';
     return `${attributeName(systeme, m.attribute)} ${sign}${m.value}${type}${raw}`;
   }
   const name = systeme.entrees.get(m.entry)?.nom ?? m.entry;
@@ -109,13 +114,14 @@ function FullEffects({
   display: d,
   systeme,
 }: Readonly<{ display: TargetDisplay; systeme: SystemeCharge }>) {
+  const t = useTranslations();
   return (
     <>
       {d.modifications.length > 0 && (
         <ul className="space-y-0.5 rounded-lg border border-primary/20 bg-primary/[0.05] px-2.5 py-1.5 text-[13px]">
           {d.modifications.map((m, i) => (
             <li key={i}>
-              {m.entity === 'actor' ? 'Attaquant : ' : ''}
+              {m.entity === 'actor' ? `${t('combat.attack.attackerColon')} ` : ''}
               {modificationText(systeme, m)}
             </li>
           ))}
@@ -146,6 +152,7 @@ export function ResultCard({
   presentation: Presentation | null;
   successRule: boolean;
 }>) {
+  const t = useTranslations();
   const [details, setDetails] = useState(false);
   const d = targetDisplay(attack, target);
   const name = targetName(d.characterId, known);
@@ -196,7 +203,7 @@ export function ResultCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         {decision && <Badge ton={d.decision === 'applied' ? 'succes' : 'neutre'}>{decision}</Badge>}
         {!decision && d.status === 'resolved' && (
-          <span className="text-[12px] text-subtle">En attente de la décision du MJ</span>
+          <span className="text-[12px] text-subtle">{t('combat.attack.awaitingGm')}</span>
         )}
         {!decision && d.status !== 'resolved' && <span />}
         {d.explanations.length > 0 && (
@@ -210,7 +217,7 @@ export function ResultCard({
               className={cn('size-3.5 transition-transform', details && 'rotate-180')}
               aria-hidden
             />
-            Déroulé
+            {t('combat.attack.flow')}
           </button>
         )}
       </div>
@@ -230,4 +237,4 @@ export function ResultCard({
 
 const SIGN: Partial<Record<string, string>> = { subtract: '−', set: '=' };
 
-const rounds = (n: number) => `${n} round${n > 1 ? 's' : ''}`;
+const rounds = (n: number) => translate('history.lines.rounds', { count: n });

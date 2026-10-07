@@ -6,6 +6,8 @@
  * durée en rounds ou jusqu'au retrait. Écrits par les routes de la fiche (character) : le
  * décompte de fin de round et son retour arrière restent au serveur.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import type { SystemeCharge } from '@vtt/rules';
 import { Hourglass, Minus, Plus, X } from 'lucide-react';
 import { useState } from 'react';
@@ -26,8 +28,8 @@ const FREE = '__libre__';
 
 /** « 2 rounds », « 1 round », « jusqu'au retrait ». */
 export function durationLabel(duration: number | null): string {
-  if (duration === null) return 'jusqu’au retrait';
-  return `${duration} round${duration > 1 ? 's' : ''}`;
+  if (duration === null) return translate('combat.states.untilRemoved');
+  return translate('history.lines.rounds', { count: duration });
 }
 
 /** Icône d'un état (présentation du système), dessinée par lucide. */
@@ -76,6 +78,7 @@ export function StatesManager({
   ecritures: OperationsPersonnage;
   disabled?: boolean;
 }>) {
+  const t = useTranslations();
   const catalogue = [...systeme.entrees.values()]
     .filter((e) => stateSorts.includes(e.sorte))
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
@@ -104,7 +107,7 @@ export function StatesManager({
     if (!canAdd) return;
     const ok =
       choice === FREE
-        ? await run('L’état n’a pas pu être posé', () =>
+        ? await run(t('combat.states.setFailed'), () =>
             ecritures.bonus({
               nom: freeName.trim(),
               source: FREE_STATE_SOURCE,
@@ -112,7 +115,7 @@ export function StatesManager({
               ...(rounds ? { duree: rounds } : {}),
             }),
           )
-        : await run('L’état n’a pas pu être donné', () => {
+        : await run(t('combat.states.giveFailed'), () => {
             const d: TimedPossession = { entree: choice, ...(rounds ? { duree: rounds } : {}) };
             return ecritures.possession(d);
           });
@@ -123,7 +126,7 @@ export function StatesManager({
   };
 
   const remove = (s: TimedState) =>
-    void run('L’état n’a pas pu être retiré', () =>
+    void run(t('combat.states.removeFailed'), () =>
       s.kind === 'bonus'
         ? ecritures.retirerBonus(s.bonusId!)
         : ecritures.retirerPossession(s.entry!, s.instance),
@@ -131,7 +134,7 @@ export function StatesManager({
 
   const changeDuration = (s: TimedState, next: number) => {
     if (next < 1) return;
-    void run('La durée n’a pas pu être changée', () => {
+    void run(t('combat.states.durationFailed'), () => {
       if (s.kind === 'bonus') {
         const b = sheet.state.bonus.find((x) => x.id === s.bonusId);
         if (!b) return Promise.resolve();
@@ -171,7 +174,7 @@ export function StatesManager({
                     size="icon-xs"
                     disabled={disabled || busy || s.duration <= 1}
                     onClick={() => changeDuration(s, s.duration! - 1)}
-                    aria-label={`Un round de moins pour ${s.name}`}
+                    aria-label={t('combat.states.oneLess', { name: s.name })}
                   >
                     <Minus />
                   </Button>
@@ -183,13 +186,13 @@ export function StatesManager({
                     size="icon-xs"
                     disabled={disabled || busy}
                     onClick={() => changeDuration(s, s.duration! + 1)}
-                    aria-label={`Un round de plus pour ${s.name}`}
+                    aria-label={t('combat.states.oneMore', { name: s.name })}
                   >
                     <Plus />
                   </Button>
                 </span>
               ) : (
-                <span className="text-xs text-subtle">jusqu’au retrait</span>
+                <span className="text-xs text-subtle">{t('combat.states.untilRemoved')}</span>
               )}
               <Button
                 variant="ghost"
@@ -214,7 +217,7 @@ export function StatesManager({
       >
         <div className="space-y-1.5">
           <Label htmlFor="state-choice" className="text-xs text-muted-foreground">
-            État
+            {t('combat.states.state')}
           </Label>
           <SelectField
             id="state-choice"
@@ -223,13 +226,13 @@ export function StatesManager({
             disabled={disabled || busy}
             options={[
               ...catalogue.map((e) => ({ valeur: e.id, nom: e.nom })),
-              { valeur: FREE, nom: 'État libre…' },
+              { valeur: FREE, nom: t('combat.states.free') },
             ]}
           />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="state-duration" className="text-xs text-muted-foreground">
-            Durée (rounds)
+            {t('combat.states.duration')}
           </Label>
           <Input
             id="state-duration"
@@ -245,18 +248,18 @@ export function StatesManager({
         </div>
         <Button type="submit" size="sm" disabled={disabled || busy || !canAdd} className="h-9">
           <Hourglass />
-          Ajouter
+          {t('common.actions.add')}
         </Button>
         {choice === FREE && (
           <div className="space-y-1.5 sm:col-span-3">
             <Label htmlFor="state-free" className="text-xs text-muted-foreground">
-              Nom de l’état libre
+              {t('combat.states.freeName')}
             </Label>
             <Input
               id="state-free"
               value={freeName}
               maxLength={200}
-              placeholder="Terrifié, à terre, en feu…"
+              placeholder={t('combat.states.freePlaceholder')}
               disabled={disabled || busy}
               onChange={(e) => setFreeName(e.target.value)}
             />
@@ -264,9 +267,7 @@ export function StatesManager({
         )}
       </form>
       {!catalogue.length && (
-        <p className="text-[11px] text-subtle">
-          Le système ne déclare pas d’états pour le combat : les états libres restent possibles.
-        </p>
+        <p className="text-[11px] text-subtle">{t('combat.states.noneDeclared')}</p>
       )}
     </div>
   );

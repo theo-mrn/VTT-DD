@@ -3,6 +3,7 @@
  * vues que le serveur lui envoie (combat expurgé, attaque filtrée). On n'y ajoute rien : un
  * personnage que la liste de la campagne ne donne pas au joueur reste « un adversaire ».
  */
+import { translate } from '@/i18n/runtime';
 import type { Attack, AttackTarget } from '@vtt/contracts';
 
 /** Cibles de l'attaque qui attendent la réaction de l'un de `mine` (toutes pour le MJ). */
@@ -26,6 +27,8 @@ export function reactionTitle(
   names: ReadonlyMap<string, string | null>,
 ): string {
   const attacker = names.get(attack.attackerId);
-  const victim = names.get(target.characterId) ?? 'Votre personnage';
-  return attacker ? `${attacker} attaque ${victim}` : `Un adversaire attaque ${victim}`;
+  const victim = names.get(target.characterId) ?? translate('map.objects.yourCharacter');
+  return attacker
+    ? translate('combat.reaction.attacks', { attacker, victim })
+    : translate('combat.reaction.opponentAttacks', { victim });
 }

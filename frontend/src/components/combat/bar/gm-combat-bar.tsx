@@ -9,6 +9,8 @@
  * règle, montre les rapports et leurs cibles, termine le combat. Les rapports en direct restent
  * dessous (`live-reports/`).
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { CombatState } from '@vtt/contracts';
 import {
   Crosshair,
@@ -68,9 +70,27 @@ const IN_COMBAT: ReadonlySet<BarDialog> = new Set<BarDialog>([
 ]);
 
 const ORIGINS = {
-  sheet: { label: 'Fiche de combat', icon: IdCard, tone: 'info' },
-  active: { label: 'Personnage actif', icon: Swords, tone: 'primary' },
-  target: { label: 'Cible', icon: Target, tone: 'danger' },
+  sheet: {
+    get label() {
+      return translate('combat.order.sheet');
+    },
+    icon: IdCard,
+    tone: 'info',
+  },
+  active: {
+    get label() {
+      return translate('combat.origins.active');
+    },
+    icon: Swords,
+    tone: 'primary',
+  },
+  target: {
+    get label() {
+      return translate('combat.origins.target');
+    },
+    icon: Target,
+    tone: 'danger',
+  },
 } satisfies Record<string, DialogOrigin>;
 
 export function GmCombatBar({
@@ -256,8 +276,9 @@ function OffCombatBar({
   reports: ReactNode;
   menu: ReactNode;
 }>) {
+  const t = useTranslations();
   return (
-    <section aria-label="Combat" className={HUD_BAR}>
+    <section aria-label={t('combat.bar.combat')} className={HUD_BAR}>
       <Button
         variant="ghost"
         size="sm"
@@ -268,7 +289,7 @@ function OffCombatBar({
         )}
       >
         <Swords />
-        Combat
+        {t('combat.bar.combat')}
       </Button>
       {reports}
       {menu}
@@ -288,15 +309,16 @@ function BarMenu({
   targets: number;
   onPick(dialog: BarDialog): void;
 }>) {
+  const t = useTranslations();
   return (
     <DropdownMenu>
-      <Info texte="Plus" cote="bottom">
+      <Info texte={t('combat.bar.more')} cote="bottom">
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
             size="icon-sm"
             className={cn('size-10 rounded-[14px]', TOUCH)}
-            aria-label="Plus d’actions du combat"
+            aria-label={t('combat.bar.moreActions')}
           >
             <MoreHorizontal />
           </Button>
@@ -307,22 +329,22 @@ function BarMenu({
           <>
             <DropdownMenuItem onSelect={() => onPick('add')}>
               <UserPlus />
-              Ajouter des participants…
+              {t('combat.bar.addParticipants')}
             </DropdownMenuItem>
             <DropdownMenuItem disabled={!hasInitiative} onSelect={() => onPick('initiative')}>
               <Dices />
-              Initiative…
+              {t('combat.bar.initiative')}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onPick('settings')}>
               <Settings2 />
-              Réglages du combat…
+              {t('combat.bar.settings')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
         )}
         <DropdownMenuItem onSelect={() => onPick('reports')}>
           <ScrollText />
-          Rapports d’attaque…
+          {t('combat.bar.reports')}
         </DropdownMenuItem>
         {targets > 0 && (
           <DropdownMenuItem onSelect={() => onPick('targets')}>
@@ -338,7 +360,7 @@ function BarMenu({
               onSelect={() => onPick('end')}
             >
               <Flag />
-              Terminer le combat…
+              {t('combat.bar.end')}
             </DropdownMenuItem>
           </>
         )}

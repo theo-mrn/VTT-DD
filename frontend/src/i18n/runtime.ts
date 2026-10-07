@@ -7,7 +7,7 @@
 import { createFormatter, createTranslator, type Formats } from 'next-intl';
 import { DEFAULT_LOCALE, formats, type Locale } from './config';
 import { getMessageFallback, onIntlError } from './errors';
-import type { Messages } from './types';
+import type { MessageKey, Messages } from './types';
 
 function makeTranslator(locale: Locale, messages: Messages) {
   return createTranslator({ locale, messages, onError: onIntlError, getMessageFallback });
@@ -111,4 +111,21 @@ export function compareText(a: string, b: string): number {
   const collator =
     runtime?.collator ?? new Intl.Collator(DEFAULT_LOCALE, { sensitivity: 'base', numeric: true });
   return collator.compare(a, b);
+}
+
+/**
+ * Libellés d'une constante de module, traduits à chaque lecture (docs/i18n.md § 8) : la
+ * constante garde sa forme (`SIDE_LABELS.players.name`) sans figer la langue au chargement.
+ * Client seulement, comme `translate`.
+ */
+export function lazyLabels<K extends string>(
+  keys: Readonly<Record<K, MessageKey>>,
+): Readonly<Record<K, string>> {
+  const out = {} as Record<K, string>;
+  for (const k of Object.keys(keys) as K[])
+    Object.defineProperty(out, k, {
+      enumerable: true,
+      get: () => (translate as unknown as (key: MessageKey) => string)(keys[k]),
+    });
+  return out;
 }

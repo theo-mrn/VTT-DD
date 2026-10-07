@@ -7,6 +7,7 @@
  * de la fiche, le formulaire d'initiative et la défense active ; le menu d'attaque a ses
  * propres cartes (étape « Préparer »). Aucune clé de jeu.
  */
+import { useTranslations } from 'next-intl';
 import type { Action, Fiche, SystemeCharge, Valeur } from '@vtt/rules';
 import { useId } from 'react';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ export function ParamField({
   /** Panneau étroit (menu d'attaque) : libellés plus petits. */
   compact?: boolean;
 }>) {
+  const t = useTranslations();
   const id = `param-${useId()}-${p.id}`;
   const label = cn(compact && 'text-[13px]');
   const aide = paramDescription(p);
@@ -140,7 +142,9 @@ export function ParamField({
         className="h-10 w-full rounded-lg border border-input bg-surface-2/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       >
         {(p.facultatif || !options.length) && (
-          <option value="">{options.length ? 'Aucune' : 'Aucune disponible'}</option>
+          <option value="">
+            {options.length ? t('combat.attack.none') : t('combat.attack.noneAvailable')}
+          </option>
         )}
         {options.map((o) => (
           <option key={o.id} value={o.id}>
