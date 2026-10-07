@@ -574,7 +574,8 @@ export interface CommandManagerSnapshot {
   busy: boolean;
 }
 
-export const CONFLICT_MESSAGE = translate('map.common.reloaded');
+/** Lu à l'usage : traduire au chargement du module casse le rendu serveur. */
+export const conflictMessage = () => translate('map.common.reloaded');
 
 export class CommandManager {
   readonly history: CommandHistory;
@@ -716,7 +717,7 @@ export class CommandManager {
           } catch {
             // La relecture complète suivante rattrapera
           }
-          this.opts.notify(CONFLICT_MESSAGE);
+          this.opts.notify(conflictMessage());
         } else {
           this.opts.notify(messageErreur(err));
         }

@@ -4,7 +4,7 @@ import {
   type EntityUpdate,
   CommandHistory,
   CommandManager,
-  CONFLICT_MESSAGE,
+  conflictMessage,
   createCommand,
   deleteCommand,
   diffFields,
@@ -103,7 +103,7 @@ describe('commandes', () => {
     };
     await t.manager.execute(t.move('a', 10, conflict));
     expect(t.refetch).toHaveBeenCalledWith([{ collection: 'items', id: 'a' }]);
-    expect(t.notify).toHaveBeenCalledWith(CONFLICT_MESSAGE);
+    expect(t.notify).toHaveBeenCalledWith(conflictMessage());
     expect(t.get('a')?.x).toBe(0);
   });
 
