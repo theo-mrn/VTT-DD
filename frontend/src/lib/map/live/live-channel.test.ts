@@ -305,6 +305,33 @@ describe('mesure (outil Mesurer)', () => {
   });
 });
 
+describe('glisser immobile', () => {
+  it('rappelé chaque seconde tant que le geste dure, plus après la fin', () => {
+    const { live, sent } = channel();
+    live.drag([['a', 10, 10]]);
+    vi.advanceTimersByTime(100);
+    expect(sent).toHaveLength(1);
+    // Le moteur appelle keepAlive à chaque image du geste : rien avant une seconde
+    for (let i = 0; i < 5; i++) {
+      live.keepAlive();
+      vi.advanceTimersByTime(100);
+    }
+    expect(sent).toHaveLength(1);
+    for (let i = 0; i < 6; i++) {
+      live.keepAlive();
+      vi.advanceTimersByTime(100);
+    }
+    expect(sent).toHaveLength(2);
+    expect(sent[1]!.data.drag).toEqual([['a', 10, 10]]);
+    live.end();
+    vi.advanceTimersByTime(100);
+    const after = sent.length;
+    live.keepAlive();
+    vi.advanceTimersByTime(2000);
+    expect(sent).toHaveLength(after);
+  });
+});
+
 describe('trajet d’un token glissé', () => {
   it('part quand il change, avec le glisser s’ils ont la même audience, puis la fin', () => {
     const { live, sent } = channel();

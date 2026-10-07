@@ -847,6 +847,8 @@ export class MapEngine {
       again = true;
       this.perf.camera += 1;
     }
+    // Mon glisser immobile est rappelé aux autres (sinon son fantôme expire chez eux)
+    if (this.dragRelease) this.live?.keepAlive();
     if (this.live && this.applyLive(now)) {
       again = true;
       this.perf.live += 1;

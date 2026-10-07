@@ -45,6 +45,8 @@ export const LIVE_EXPIRE_MS = 2_000;
 export const LIVE_MAX_BYTES = MAP_LIVE_MAX_BYTES - 300;
 /** Curseur immobile : rappel de sa position, pour qu'il n'expire pas chez les autres. */
 export const CURSOR_KEEPALIVE_MS = 1_000;
+/** Glisser immobile (on s'arrête pour lire un trajet) : rappel, comme un curseur. */
+export const DRAG_KEEPALIVE_MS = 1_000;
 
 /** Messages du contrat (`@vtt/contracts`, docs/carte.md § 8). */
 export type LiveMessage = MapLiveMessage;
@@ -213,6 +215,9 @@ export class LiveChannel {
 
   // Émission
   private readonly drags = new Map<string, DragEntry>();
+  /** Dernières positions du glisser en cours, rappelées s'il ne bouge plus (`keepAlive`). */
+  private readonly heldDrags = new Map<string, DragEntry>();
+  private lastDragSent = -Infinity;
   private readonly transforms = new Map<string, TransformEntry>();
   private cursorPos: [number, number] | null = null;
   private cursorDirty = false;
@@ -273,10 +278,10 @@ export class LiveChannel {
     for (const e of entries) {
       const [id, x, y] = e;
       const rotation = e[3];
-      this.drags.set(
-        id,
-        rotation === undefined ? [id, r1(x), r1(y)] : [id, r1(x), r1(y), r1(rotation)],
-      );
+      const entry: DragEntry =
+        rotation === undefined ? [id, r1(x), r1(y)] : [id, r1(x), r1(y), r1(rotation)];
+      this.drags.set(id, entry);
+      this.heldDrags.set(id, entry);
     }
     this.ending = false;
     this.request();
@@ -361,10 +366,18 @@ export class LiveChannel {
     return true;
   }
 
-  /** Rappel périodique d'un curseur immobile (appelé par le moteur à chaque image active). */
+  /**
+   * Rappel périodique d'un curseur immobile et d'un glisser immobile (appelé par le moteur), pour
+   * qu'ils n'expirent pas chez les autres.
+   */
   keepAlive() {
-    if (this.cursorPos && this.now() - this.lastCursorSent >= CURSOR_KEEPALIVE_MS) {
+    const now = this.now();
+    if (this.cursorPos && now - this.lastCursorSent >= CURSOR_KEEPALIVE_MS) {
       this.cursorDirty = true;
+      this.request();
+    }
+    if (this.heldDrags.size && !this.ending && now - this.lastDragSent >= DRAG_KEEPALIVE_MS) {
+      for (const [id, entry] of this.heldDrags) this.drags.set(id, entry);
       this.request();
     }
   }
@@ -541,6 +554,7 @@ export class LiveChannel {
       this.transport.send(LIVE_KIND, fitted.msg, sendOptions(audience));
       if (carriesGesture(fitted.msg)) this.gestureAudiences.set(audienceKey(audience), audience);
       if (fitted.msg.cursor) this.lastCursorSent = this.now();
+      if (fitted.msg.drag) this.lastDragSent = this.now();
     }
     this.lastFlush = this.now();
     // Fin : un trajet effacé chez son ancienne audience n'est pas renvoyé, la fin suffit
@@ -557,12 +571,14 @@ export class LiveChannel {
       this.gestureAudiences.clear();
       this.paths.clear();
       this.pathsSent.clear();
+      this.heldDrags.clear();
     }
     if (this.hasPending()) this.request();
   }
 
   private reset() {
     this.drags.clear();
+    this.heldDrags.clear();
     this.transforms.clear();
     this.cursorDirty = false;
     this.measureState = undefined;

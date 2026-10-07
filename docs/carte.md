@@ -756,7 +756,8 @@ de messages seulement.
   son token (vision, calque). `lib/map/features/bubbles/`.
 - Tampon de 100 ms, puis interpolation linéaire : un fantôme glisse sans à-coups.
 - Élément inconnu du destinataire : ignoré.
-- Plus rien pendant 2 s : le fantôme disparaît.
+- Plus rien pendant 2 s : le fantôme disparaît. Un glisser immobile (on s'arrête pour lire son
+  trajet) est rappelé chaque seconde par l'émetteur, comme un curseur.
 - `end`, ou l'événement durable qui suit : il se pose.
 
 **Audience** (aucune fuite).
