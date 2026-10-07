@@ -108,6 +108,23 @@ export function stripComments(code) {
       i = stop;
       continue;
     }
+    // Littéral d'expression régulière (`/"…"/`) : ses guillemets n'ouvrent pas de chaîne
+    if (c === '/' && /[=(,:;!&|?{}[]\s*$/.test(out.slice(-40))) {
+      let j = i + 1;
+      let inClass = false;
+      while (j < code.length && code[j] !== '\n') {
+        if (code[j] === '\\') j++;
+        else if (code[j] === '[') inClass = true;
+        else if (code[j] === ']') inClass = false;
+        else if (code[j] === '/' && !inClass) break;
+        j++;
+      }
+      if (code[j] === '/') {
+        out += ' '.repeat(j + 1 - i);
+        i = j + 1;
+        continue;
+      }
+    }
     if (c === "'" || c === '"' || c === '`') quote = c;
     out += c;
     i++;

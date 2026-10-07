@@ -7,6 +7,8 @@
  * (le MJ supprime ceux qu'il lit), « X écrit… », repère des nouveaux messages. Données et
  * temps réel : `lib/campaign-chat.ts`.
  */
+import { useTranslations } from 'next-intl';
+import { formatter } from '@/i18n/runtime';
 import { WifiOff } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -60,6 +62,7 @@ export const CampaignChat = memo(function CampaignChat({
   whisperTo?: string | null;
   onWhisperHandled?: () => void;
 }) {
+  const t = useTranslations();
   const me = useProfil().id;
   const gm = campaign.role === 'gm';
   const characters = usePersonnagesCampagne(campaign.id);
@@ -80,7 +83,7 @@ export const CampaignChat = memo(function CampaignChat({
     () =>
       byId.get(me) ?? {
         id: me,
-        name: 'Moi',
+        name: t('chat.me'),
         avatarUrl: null,
         role: campaign.role,
         characterName: null,
@@ -154,7 +157,8 @@ export const CampaignChat = memo(function CampaignChat({
   }, [chat.messages, outbox.pending, unreadFrom]);
 
   const nameOf = useCallback(
-    (id: string, fallback: string | null) => byId.get(id)?.name ?? fallback ?? 'Ancien membre',
+    (id: string, fallback: string | null) =>
+      byId.get(id)?.name ?? fallback ?? t('chat.formerMember'),
     [byId],
   );
 
@@ -217,7 +221,7 @@ export const CampaignChat = memo(function CampaignChat({
           className="flex shrink-0 items-center gap-1.5 border-b border-border bg-warning/10 px-4 py-1.5 text-[11px] text-warning"
         >
           <WifiOff className="size-3" aria-hidden />
-          Temps réel coupé : nouveaux messages relus toutes les 20 s.
+          {t('chat.realtimeDown')}
         </p>
       )}
       <MessageList
@@ -258,10 +262,11 @@ function TypingLabel({
   store: TypingStore;
   byId: ReadonlyMap<string, ChatPerson>;
 }) {
+  const t = useTranslations();
   const ids = useTypingIds(store);
   const names = ids.map((id) => byId.get(id)?.name).filter(Boolean) as string[];
   if (!names.length) return null;
-  if (names.length === 1) return `${names[0]} écrit…`;
-  if (names.length === 2) return `${names[0]} et ${names[1]} écrivent…`;
-  return 'Plusieurs personnes écrivent…';
+  if (names.length <= 2)
+    return t('chat.typing', { count: names.length, names: formatter().list(names, 'and') });
+  return t('chat.manyTyping');
 }

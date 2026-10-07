@@ -3,10 +3,12 @@ import type { Messages, Translation } from '../../types';
 import account from './account';
 import auth from './auth';
 import campaigns from './campaigns';
+import chat from './chat';
 import common from './common';
 import dice from './dice';
 import diceSkins from './diceSkins';
 import errors from './errors';
+import history from './history';
 import home from './home';
 import landing from './landing';
 import legal from './legal';
@@ -22,10 +24,12 @@ const en = {
   account,
   auth,
   campaigns,
+  chat,
   common,
   dice,
   diceSkins,
   errors,
+  history,
   home,
   landing,
   legal,

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { ArrowDown, Loader2, MessagesSquare, RotateCw } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,7 @@ export function MessageList({
   olderError,
   loadOlder,
 }: Readonly<MessageListProps>) {
+  const t = useTranslations();
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLOListElement>(null);
   const atBottom = useRef(true);
@@ -156,7 +158,7 @@ export function MessageList({
         role="log"
         aria-live="polite"
         aria-relevant="additions"
-        aria-label="Messages de la table"
+        aria-label={t('chat.tableMessages')}
         aria-busy={isPending || isLoadingOlder}
         tabIndex={0}
         className="h-full overflow-y-auto overscroll-contain pb-2 pt-3 outline-none [overflow-anchor:none] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40"
@@ -164,11 +166,11 @@ export function MessageList({
         {etat === 'chargement' && <ChatSkeleton />}
         {etat === 'erreur' && (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-            <p className="text-sm font-medium">Discussion indisponible</p>
+            <p className="text-sm font-medium">{t('chat.unavailable')}</p>
             <p className="text-xs text-muted-foreground">{messageErreur(error)}</p>
             <Button variant="secondary" size="sm" onClick={onRetry}>
               <RotateCw />
-              Réessayer
+              {t('common.actions.retry')}
             </Button>
           </div>
         )}
@@ -211,7 +213,7 @@ export function MessageList({
             className="pointer-events-auto rounded-full shadow-elevated"
           >
             <ArrowDown />
-            {unseen > 0 ? nouveauxMessages(unseen) : 'Revenir en bas'}
+            {unseen > 0 ? nouveauxMessages(unseen) : t('chat.backToBottom')}
           </Button>
         </div>
       )}
@@ -236,16 +238,15 @@ function ChatSkeleton() {
 }
 
 function EmptyChat() {
+  const t = useTranslations();
   return (
     <div className="flex h-full flex-col items-center justify-center px-8 text-center">
       <div className="mb-4 flex size-12 items-center justify-center rounded-xl border border-border-strong bg-surface-2 shadow-surface">
         <MessagesSquare className="size-5 text-primary" aria-hidden />
       </div>
-      <p className="text-[15px] font-semibold">Aucun message pour l’instant</p>
+      <p className="text-[15px] font-semibold">{t('chat.empty')}</p>
       <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
-        Écrivez le premier : toute la table le lira. Tapez{' '}
-        <span className="text-foreground">@</span> pour mentionner quelqu’un, ou chuchotez depuis le
-        choix des destinataires.
+        {t.rich('chat.emptyHint', { at: () => <span className="text-foreground">@</span> })}
       </p>
     </div>
   );
@@ -261,18 +262,19 @@ function OlderMessages({
   loading,
   onLoad,
 }: Readonly<{ hasOlder: boolean; failed: boolean; loading: boolean; onLoad: () => void }>) {
-  if (!hasOlder) return <p className="py-1 text-[11px] text-subtle">Début de la discussion</p>;
+  const t = useTranslations();
+  if (!hasOlder) return <p className="py-1 text-[11px] text-subtle">{t('chat.start')}</p>;
   if (failed)
     return (
       <Button variant="ghost" size="xs" onClick={onLoad}>
         <RotateCw />
-        Messages précédents indisponibles, réessayer
+        {t('chat.previousFailed')}
       </Button>
     );
   return (
     <Button variant="ghost" size="xs" onClick={onLoad} disabled={loading}>
       {loading && <Loader2 className="animate-spin" />}
-      {loading ? 'Chargement…' : 'Messages précédents'}
+      {loading ? t('common.states.loading') : t('chat.previous')}
     </Button>
   );
 }

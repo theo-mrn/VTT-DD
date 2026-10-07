@@ -1,5 +1,8 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+import { formatter } from '@/i18n/runtime';
+import type { Translator } from '@/i18n/text';
 import { ChevronDown, Lock, SendHorizontal, Users, X } from 'lucide-react';
 import {
   forwardRef,
@@ -31,12 +34,6 @@ import { mentionCandidates, mentionQuery, type ChatPerson } from './chat-format'
 /** Compteur affiché à partir de ce nombre de caractères. */
 const COUNTER_FROM = CHAT_MAX_BODY - 200;
 const MAX_HEIGHT_PX = 176;
-
-const ROLE: Record<ChatPerson['role'], string> = {
-  gm: 'MJ',
-  player: 'Joueur',
-  spectator: 'Spectateur',
-};
 
 export interface ComposerHandle {
   focus: () => void;
@@ -79,6 +76,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   },
   handle,
 ) {
+  const t = useTranslations();
   const [draft, setDraft] = useState('');
   const [caret, setCaret] = useState(0);
   const [activeMention, setActiveMention] = useState(0);
@@ -180,7 +178,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     }
   };
 
-  const whisperLabel = audience ? audienceText(audience, people) : null;
+  const whisperLabel = audience ? audienceText(t, audience, people) : null;
 
   return (
     <div className="shrink-0 border-t border-border bg-background px-3 pb-3 pt-2">
@@ -193,7 +191,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           <ul
             id={listId}
             role="listbox"
-            aria-label="Mentionner un membre"
+            aria-label={t('chat.mention')}
             className="absolute inset-x-0 bottom-full z-20 mb-2 overflow-hidden rounded-xl border border-border-strong bg-popover p-1 shadow-elevated"
           >
             {candidates.map((p, i) => (
@@ -215,7 +213,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
                 <AvatarJoueur nom={p.name} url={p.avatarUrl} taille="xs" />
                 <span className="truncate font-medium">{p.name}</span>
                 <span className="ml-auto shrink-0 text-[11px] text-subtle">
-                  {p.characterName ?? ROLE[p.role]}
+                  {p.characterName ?? t(`common.roles.${p.role}`)}
                 </span>
               </li>
             ))}
@@ -238,7 +236,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               <button
                 type="button"
                 onClick={() => onAudienceChange(null)}
-                aria-label="Écrire à toute la table"
+                aria-label={t('chat.writeToTable')}
                 className="grid size-5 place-items-center rounded text-arcane/80 hover:bg-arcane/15 hover:text-arcane"
               >
                 <X className="size-3" aria-hidden />
@@ -258,8 +256,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               }}
               onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
               onKeyDown={onKeyDown}
-              placeholder={audience ? 'Chuchoter…' : 'Écrire à la table…'}
-              aria-label={audience ? `Message, ${whisperLabel}` : 'Message à toute la table'}
+              placeholder={audience ? t('chat.whisperPlaceholder') : t('chat.tablePlaceholder')}
+              aria-label={
+                audience
+                  ? t('chat.messageTo', { audience: whisperLabel ?? '' })
+                  : t('chat.messageToTable')
+              }
               aria-describedby={`${hintId} ${statusId}`}
               aria-invalid={tooLong || undefined}
               aria-autocomplete="list"
@@ -274,7 +276,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               size="icon-sm"
               onClick={send}
               disabled={!canSend}
-              aria-label="Envoyer"
+              aria-label={t('common.actions.send')}
               className={cn(audience && 'bg-arcane text-background hover:bg-arcane/85')}
             >
               <SendHorizontal />
@@ -292,15 +294,18 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           onChange={onAudienceChange}
         />
         <span id={hintId} className="hidden min-w-0 truncate lg:inline">
-          <Kbd>Entrée</Kbd> envoyer · <Kbd>Maj</Kbd>+<Kbd>Entrée</Kbd> à la ligne · <Kbd>@</Kbd>{' '}
-          mentionner
+          {t.rich('chat.keys', {
+            enter: () => <Kbd>{t('chat.enterKey')}</Kbd>,
+            shift: () => <Kbd>{t('chat.shiftKey')}</Kbd>,
+            at: () => <Kbd>@</Kbd>,
+          })}
         </span>
         <span
           id={statusId}
           role="status"
           className={counterClass(tooLong, trimmed.length, remaining)}
         >
-          {counterText(remaining, trimmed.length)}
+          {counterText(t, remaining, trimmed.length)}
         </span>
       </div>
     </div>
@@ -328,12 +333,16 @@ function useCooldown(until: number | null): number {
   return until === null ? 0 : Math.max(0, Math.ceil((until - now) / 1000));
 }
 
-function audienceText(audience: ChatAudience, people: readonly ChatPerson[]): string {
-  const names = audience.userIds.map((id) => people.find((p) => p.id === id)?.name ?? 'un membre');
-  if (audience.gm) names.push('le MJ');
-  const liste =
-    names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} et ${names.at(-1)}`;
-  return `Chuchotement à ${liste}`;
+function audienceText(
+  t: Translator,
+  audience: ChatAudience,
+  people: readonly ChatPerson[],
+): string {
+  const names = audience.userIds.map(
+    (id) => people.find((p) => p.id === id)?.name ?? t('chat.aMember'),
+  );
+  if (audience.gm) names.push(t('chat.theGm'));
+  return t('chat.whisperTo', { names: formatter().list(names, 'and') });
 }
 
 /**
@@ -353,6 +362,7 @@ function AudiencePicker({
   audience: ChatAudience | null;
   onChange: (audience: ChatAudience | null) => void;
 }>) {
+  const t = useTranslations();
   const others = people.filter((p) => p.id !== me.id && (gm || p.role !== 'gm'));
   const hasGm = !gm && people.some((p) => p.role === 'gm' && p.id !== me.id);
 
@@ -378,27 +388,27 @@ function AudiencePicker({
             'inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-1.5 font-medium transition-colors hover:bg-surface-3 hover:text-foreground',
             audience ? 'text-arcane' : 'text-muted-foreground',
           )}
-          aria-label={audience ? 'Destinataires : chuchotement' : 'Destinataires : toute la table'}
+          aria-label={audience ? t('chat.audienceWhisper') : t('chat.audienceTable')}
         >
           {audience ? (
             <Lock className="size-3" aria-hidden />
           ) : (
             <Users className="size-3" aria-hidden />
           )}
-          {audience ? 'Chuchotement' : 'Toute la table'}
+          {audience ? t('chat.whisper') : t('chat.wholeTable')}
           <ChevronDown className="size-3" aria-hidden />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-64">
-        <DropdownMenuLabel>Qui lira ce message ?</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('chat.whoReads')}</DropdownMenuLabel>
         <DropdownMenuCheckboxItem checked={audience === null} onSelect={() => onChange(null)}>
           <Users className="mr-2 size-3.5" aria-hidden />
-          Toute la table
+          {t('chat.wholeTable')}
         </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="flex items-center gap-1.5">
           <Lock className="size-3 text-arcane" aria-hidden />
-          Chuchoter à
+          {t('chat.whisperToLabel')}
         </DropdownMenuLabel>
         {hasGm && (
           <DropdownMenuCheckboxItem
@@ -409,7 +419,7 @@ function AudiencePicker({
               toggle({ ...current, gm: !current.gm });
             }}
           >
-            Le MJ
+            {t('chat.theGmCap')}
           </DropdownMenuCheckboxItem>
         )}
         {others.map((p) => (
@@ -423,12 +433,12 @@ function AudiencePicker({
           >
             <span className="min-w-0 flex-1 truncate">{p.name}</span>
             <span className="ml-2 shrink-0 text-[11px] text-subtle">
-              {p.characterName ?? ROLE[p.role]}
+              {p.characterName ?? t(`common.roles.${p.role}`)}
             </span>
           </DropdownMenuCheckboxItem>
         ))}
         <p className="px-2.5 pb-1.5 pt-1 text-[11px] leading-snug text-subtle">
-          Seuls les destinataires cochés le liront.
+          {t('chat.onlyChecked')}
         </p>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -436,8 +446,8 @@ function AudiencePicker({
 }
 
 /** Compteur sous la saisie : attente imposée, dépassement, ou longueur près de la limite. */
-function counterText(remaining: number, length: number): string {
-  if (remaining > 0) return `Trop de messages : patientez ${remaining} s`;
-  if (length > CHAT_MAX_BODY) return `${length - CHAT_MAX_BODY} caractères en trop`;
+function counterText(t: Translator, remaining: number, length: number): string {
+  if (remaining > 0) return t('chat.cooldown', { seconds: remaining });
+  if (length > CHAT_MAX_BODY) return t('chat.tooLong', { count: length - CHAT_MAX_BODY });
   return length >= COUNTER_FROM ? `${length} / ${CHAT_MAX_BODY}` : '';
 }

@@ -12,6 +12,9 @@ import type { MessageKey } from './types';
 /** Traducteur sans vérification des arguments : clés venues de données (descriptions). */
 export type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
 
+/** Traducteur racine de `useTranslations()`, à passer aux fonctions d'un composant. */
+export type Translator = ReturnType<typeof useTranslations<never>>;
+
 export type Text = MessageKey | { text: string } | ((t: Translate) => string);
 
 export function textOf(text: Text, t: Translate): string {

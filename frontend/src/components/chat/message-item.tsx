@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Clock, Crown, Loader2, Lock, Pencil, RotateCw, Trash2, X } from 'lucide-react';
 import { memo, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
@@ -65,6 +66,7 @@ export const MessageItem = memo(
 );
 
 function MessageItemView({ item, first, ctx, editing: enCorrection }: Readonly<MessageItemProps>) {
+  const t = useTranslations();
   const m = item.message;
   const person = ctx.personOf(m.author.id);
   const name = ctx.nameOf(m.author.id, m.author.name);
@@ -119,9 +121,9 @@ function MessageItemView({ item, first, ctx, editing: enCorrection }: Readonly<M
             {m.editedAt && (
               <span
                 className="ml-1 text-[11px] text-subtle"
-                title={`Modifié le ${formatFull(new Date(m.editedAt))}`}
+                title={t('chat.editedOn', { date: formatFull(new Date(m.editedAt)) })}
               >
-                (modifié)
+                {t('chat.edited')}
               </span>
             )}
           </p>
@@ -208,18 +210,19 @@ function Rich({ segments, me }: Readonly<{ segments: readonly Segment[]; me: str
 }
 
 function PendingStatus({ item, ctx }: Readonly<{ item: ThreadMessage; ctx: MessageContext }>) {
+  const t = useTranslations();
   const p = item.pending!;
   if (p.status === 'waiting')
     return (
       <p className="flex items-center gap-1 text-[11px] text-warning">
         <Clock className="size-3" aria-hidden />
-        En attente : envoi automatique à la fin du délai.
+        {t('chat.pending')}
         <button
           type="button"
           onClick={() => ctx.onDiscardSend(item.key)}
           className="ml-1 text-subtle underline-offset-2 hover:text-foreground hover:underline"
         >
-          Abandonner
+          {t('chat.abandon')}
         </button>
       </p>
     );
@@ -227,7 +230,7 @@ function PendingStatus({ item, ctx }: Readonly<{ item: ThreadMessage; ctx: Messa
     return (
       <p className="flex items-center gap-1 text-[11px] text-subtle">
         <Loader2 className="size-3 animate-spin" aria-hidden />
-        Envoi…
+        {t('chat.sending')}
       </p>
     );
   return (
@@ -242,7 +245,7 @@ function PendingStatus({ item, ctx }: Readonly<{ item: ThreadMessage; ctx: Messa
         className="inline-flex items-center gap-1 font-medium underline-offset-2 hover:underline"
       >
         <RotateCw className="size-3" aria-hidden />
-        Réessayer
+        {t('common.actions.retry')}
       </button>
       <button
         type="button"
@@ -250,7 +253,7 @@ function PendingStatus({ item, ctx }: Readonly<{ item: ThreadMessage; ctx: Messa
         className="inline-flex items-center gap-1 text-subtle underline-offset-2 hover:text-foreground hover:underline"
       >
         <X className="size-3" aria-hidden />
-        Abandonner
+        {t('chat.abandon')}
       </button>
     </div>
   );
@@ -266,12 +269,13 @@ function MessageActions({
   mine: boolean;
   ctx: MessageContext;
 }>) {
+  const t = useTranslations();
   const [confirm, setConfirm] = useState(false);
   const remove = useDeleteChatMessage(ctx.campaignId);
   const supprimer = () =>
     remove.mutate(message.id, {
       onSuccess: () => setConfirm(false),
-      onError: (err) => toast.error(messageErreur(err, 'Suppression impossible pour le moment.')),
+      onError: (err) => toast.error(messageErreur(err, t('chat.deleteFailed'))),
     });
 
   return (
@@ -283,11 +287,11 @@ function MessageActions({
       )}
     >
       {mine && (
-        <Info texte="Modifier">
+        <Info texte={t('common.actions.edit')}>
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Modifier le message"
+            aria-label={t('chat.editMessage')}
             onClick={() => ctx.setEditingId(message.id)}
           >
             <Pencil />
@@ -299,28 +303,26 @@ function MessageActions({
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Supprimer le message"
+            aria-label={t('chat.deleteMessage')}
             className="hover:text-destructive"
           >
             <Trash2 />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-64 p-3">
-          <p className="text-sm font-medium">Supprimer ce message ?</p>
+          <p className="text-sm font-medium">{t('chat.deleteTitle')}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {message.recipients
-              ? 'Il disparaîtra pour ses destinataires.'
-              : 'Il disparaîtra pour toute la table.'}
-            {!mine && ' Son auteur ne pourra pas le récupérer.'}
+            {message.recipients ? t('chat.goneForRecipients') : t('chat.goneForTable')}
+            {!mine && ` ${t('chat.authorCantRecover')}`}
           </p>
           <div className="mt-3 flex justify-end gap-2">
             <PopoverClose asChild>
               <Button variant="ghost" size="xs">
-                Annuler
+                {t('common.actions.cancel')}
               </Button>
             </PopoverClose>
             <Button variant="destructive" size="xs" loading={remove.isPending} onClick={supprimer}>
-              Supprimer
+              {t('common.actions.delete')}
             </Button>
           </div>
         </PopoverContent>
@@ -331,6 +333,7 @@ function MessageActions({
 
 /** Correction en place : Entrée enregistre, Échap annule. */
 function EditMessage({ message, ctx }: Readonly<{ message: ChatMessage; ctx: MessageContext }>) {
+  const t = useTranslations();
   const [draft, setDraft] = useState(message.body);
   const edit = useEditChatMessage(ctx.campaignId);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -359,8 +362,7 @@ function EditMessage({ message, ctx }: Readonly<{ message: ChatMessage; ctx: Mes
       { id: message.id, body: trimmed },
       {
         onSuccess: cancel,
-        onError: (err) =>
-          toast.error(messageErreur(err, 'Modification impossible pour le moment.')),
+        onError: (err) => toast.error(messageErreur(err, t('chat.editFailed'))),
       },
     );
   };
@@ -383,25 +385,28 @@ function EditMessage({ message, ctx }: Readonly<{ message: ChatMessage; ctx: Mes
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={onKeyDown}
         rows={1}
-        aria-label="Modifier le message"
+        aria-label={t('chat.editMessage')}
         aria-invalid={tooLong || undefined}
         className="block w-full resize-none rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring/30"
       />
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-subtle">
         <span className="flex items-center gap-1">
-          <Kbd>Échap</Kbd> annuler · <Kbd>Entrée</Kbd> enregistrer
+          {t.rich('chat.editKeys', {
+            esc: () => <Kbd>{t('map.tokens.library.esc')}</Kbd>,
+            enter: () => <Kbd>{t('chat.enterKey')}</Kbd>,
+          })}
           {tooLong && (
             <span className="text-destructive">
-              · {trimmed.length - CHAT_MAX_BODY} caractères en trop
+              · {t('chat.tooLong', { count: trimmed.length - CHAT_MAX_BODY })}
             </span>
           )}
         </span>
         <span className="flex gap-1.5">
           <Button variant="ghost" size="xs" onClick={cancel}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button size="xs" onClick={save} loading={edit.isPending} disabled={!trimmed || tooLong}>
-            Enregistrer
+            {t('common.actions.save')}
           </Button>
         </span>
       </div>

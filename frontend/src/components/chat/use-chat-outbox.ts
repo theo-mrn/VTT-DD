@@ -1,5 +1,6 @@
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, messageErreur } from '@/lib/api';
@@ -70,7 +71,7 @@ export function useChatOutbox(campaignId: string, author: ChatUser): ChatOutbox 
           );
           return;
         }
-        const error = messageErreur(err, 'Serveur injoignable.');
+        const error = messageErreur(err, translate('chat.serverDown'));
         setItems((list) =>
           list.map((x) => (x.localId === p.localId ? { ...x, status: 'failed', error } : x)),
         );
