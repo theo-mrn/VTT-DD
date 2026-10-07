@@ -5,6 +5,7 @@
  * le canal direct. Chaque curseur est construit une fois ; seuls sa position et son échelle
  * changent à chaque image, la pastille n'est redessinée que si le nom change.
  */
+import { translate } from '@/i18n/runtime';
 import type * as Pixi from 'pixi.js';
 import type { Container, Graphics, Text } from 'pixi.js';
 import { destroyDisplay } from './destroy-display';
@@ -151,6 +152,6 @@ export class CursorLayer {
 
 /** Nom affiché : raccourci au-delà de `MAX_NAME` caractères. */
 export function shorten(name: string): string {
-  const n = name.trim() || 'Joueur';
+  const n = name.trim() || translate('map.common.player');
   return n.length > MAX_NAME ? `${n.slice(0, MAX_NAME - 1)}…` : n;
 }

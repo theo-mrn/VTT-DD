@@ -1,6 +1,7 @@
 'use client';
 
 /** Fond et « Affichage » de la scène (MJ), dans la barre d'outils. */
+import { translate } from '@/i18n/runtime';
 import { ImageIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
@@ -18,7 +19,11 @@ export function BackgroundButton({ engine }: Readonly<{ engine: MapEngine }>) {
   if (!scene || !campaignId) return null;
   return (
     <>
-      <ToolbarButton label="Fond de la scène" active={open} onClick={() => setOpen(true)}>
+      <ToolbarButton
+        label={translate('map.display.background')}
+        active={open}
+        onClick={() => setOpen(true)}
+      >
         <ImageIcon />
       </ToolbarButton>
       <BackgroundPicker
@@ -26,7 +31,9 @@ export function BackgroundButton({ engine }: Readonly<{ engine: MapEngine }>) {
         onOpenChange={setOpen}
         campaignId={campaignId}
         current={(scene.backgroundUrl as string | null | undefined) ?? null}
-        onPick={(url) => void engine.updateScene('Changer le fond', { backgroundUrl: url })}
+        onPick={(url) =>
+          void engine.updateScene(translate('map.display.changeBackground'), { backgroundUrl: url })
+        }
       />
     </>
   );
@@ -38,23 +45,23 @@ export function DisplayMenu({ engine }: Readonly<{ engine: MapEngine }>) {
   const display = displayOf(scene);
   return (
     <>
-      <p className="mb-1 text-sm font-semibold">Affichage</p>
-      <p className="mb-3 text-xs text-muted-foreground">
-        Familles montrées à toute la table. Les calques se gèrent à part (K).
-      </p>
+      <p className="mb-1 text-sm font-semibold">{translate('map.display.display')}</p>
+      <p className="mb-3 text-xs text-muted-foreground">{translate('map.display.displayLead')}</p>
       <ul className="space-y-2">
-        {DISPLAY_TOGGLES.map((t) => {
-          const shown = isDisplayed(display, t.key);
+        {DISPLAY_TOGGLES.map((key) => {
+          const shown = isDisplayed(display, key);
           return (
-            <li key={t.key} className="flex items-center justify-between gap-3">
-              <label htmlFor={`display-${t.key}`} className="text-[13px]">
-                {t.label}
+            <li key={key} className="flex items-center justify-between gap-3">
+              <label htmlFor={`display-${key}`} className="text-[13px]">
+                {translate(`map.display.families.${key}`)}
               </label>
               <Switch
-                id={`display-${t.key}`}
+                id={`display-${key}`}
                 checked={shown}
                 onCheckedChange={(on) =>
-                  void engine.updateScene('Affichage', { display: { ...display, [t.key]: on } })
+                  void engine.updateScene(translate('map.display.display'), {
+                    display: { ...display, [key]: on },
+                  })
                 }
               />
             </li>

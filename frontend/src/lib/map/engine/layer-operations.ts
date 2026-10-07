@@ -4,6 +4,7 @@
  * joueurs, verrouiller, opacité, supprimer). L'état local (œil, isoler, calque actif) est dans
  * `engine.ui`, jamais enregistré.
  */
+import { translate } from '@/i18n/runtime';
 import {
   arrangeCommand,
   createCommand,
@@ -33,7 +34,7 @@ export function createLayer(engine: MapEngine, name: string) {
   const draft: MapDto = {
     id: tempId(),
     version: 0,
-    name: name.trim() || 'Calque',
+    name: name.trim() || translate('map.layers.layer'),
     sortOrder: top ? Math.floor(top.sortOrder) + 1 : 0,
     visibleToPlayers: true,
     locked: false,
@@ -42,7 +43,7 @@ export function createLayer(engine: MapEngine, name: string) {
   };
   const result = engine.execute(
     createCommand({
-      label: 'Nouveau calque',
+      label: translate('map.layers.newLayer'),
       collection: LAYERS_COLLECTION,
       persistence: p,
       items: [draft],
@@ -86,7 +87,9 @@ export function updateLayer(
 }
 
 export const renameLayer = (engine: MapEngine, id: string, name: string) =>
-  name.trim() ? updateLayer(engine, id, { name: name.trim() }, 'Renommer le calque') : null;
+  name.trim()
+    ? updateLayer(engine, id, { name: name.trim() }, translate('map.layers.renameLayer'))
+    : null;
 
 /**
  * Déplace un calque dans la pile. `topDown` : l'ordre voulu, du haut vers le bas (celui du
@@ -105,7 +108,7 @@ export function reorderLayers(engine: MapEngine, movedId: string, topDown: reado
   if (!changes.length) return null;
   return engine.execute(
     updateCommand({
-      label: 'Réordonner les calques',
+      label: translate('map.layers.reorder'),
       collection: LAYERS_COLLECTION,
       persistence: p,
       changes,
@@ -136,17 +139,20 @@ export async function deleteLayer(engine: MapEngine, id: string): Promise<boolea
   const dto = layerDto(engine, id);
   if (!p || !backend || !layer || !dto) return false;
   if (layers.length <= 1) {
-    engine.notify('Le dernier calque ne se supprime pas.');
+    engine.notify(translate('map.layers.lastLayer'));
     return false;
   }
   const target = layers[index - 1] ?? layers[index + 1]!;
   const content = engine.layerContent(id).filter((e) => e.kind.stacking);
   const ok = await engine.confirm({
-    title: `Supprimer le calque « ${layer.name} » ?`,
+    title: translate('map.layers.deleteTitle', { name: layer.name }),
     message: content.length
-      ? `Son contenu (${elements(content.length)}) descend dans « ${target.name} ».`
-      : 'Il est vide.',
-    confirmLabel: 'Supprimer',
+      ? translate('map.layers.contentMoves', {
+          count: translate('map.layers.elements', { count: content.length }),
+          target: target.name,
+        })
+      : translate('map.layers.empty'),
+    confirmLabel: translate('map.common.delete'),
     danger: true,
   });
   if (!ok) return false;
@@ -162,7 +168,7 @@ export async function deleteLayer(engine: MapEngine, id: string): Promise<boolea
   }));
 
   const remove: Command = {
-    label: 'Supprimer le calque',
+    label: translate('map.layers.deleteLayer'),
     targets: (ctx) => [
       { collection: LAYERS_COLLECTION, id: ctx.resolve(id) },
       ...moves.map((m) => ({ collection: m.collection, id: ctx.resolve(m.after.id) })),
@@ -183,9 +189,9 @@ export async function deleteLayer(engine: MapEngine, id: string): Promise<boolea
       await backend.deleteLayer(ctx.resolve(id), ctx.resolve(target.id));
     },
     inverse: () =>
-      groupSequential('Supprimer le calque', [
+      groupSequential(translate('map.layers.deleteLayer'), [
         createCommand({
-          label: 'Supprimer le calque',
+          label: translate('map.layers.deleteLayer'),
           collection: LAYERS_COLLECTION,
           persistence: p,
           items: [dto],
@@ -193,7 +199,7 @@ export async function deleteLayer(engine: MapEngine, id: string): Promise<boolea
         ...(moves.length
           ? [
               arrangeCommand({
-                label: 'Supprimer le calque',
+                label: translate('map.layers.deleteLayer'),
                 send: backend.arrange,
                 changes: moves.map((m) => ({
                   ...m,
@@ -230,8 +236,4 @@ function groupSequential(label: string, commands: readonly Command[]): Command {
         [...commands].reverse().map((c) => c.inverse()),
       ),
   };
-}
-
-function elements(n: number): string {
-  return n > 1 ? `${n} éléments` : `${n} élément`;
 }

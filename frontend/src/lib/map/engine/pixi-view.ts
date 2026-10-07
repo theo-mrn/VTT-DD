@@ -15,6 +15,7 @@
  *   calque sous le canvas, transformée comme la caméra ; taille du monde).
  * - Destruction complète : scène, textures chargées, contexte WebGL rendu au navigateur.
  */
+import { translate } from '@/i18n/runtime';
 import * as PIXI from 'pixi.js';
 import { Application, Assets, Container, Graphics, ImageSource, Text, Texture } from 'pixi.js';
 import { surCdn, vignette } from '@/lib/assets';
@@ -225,7 +226,7 @@ class PixiView implements EngineView {
       onLoaded: (w, h) => engine.backgroundLoaded(w, h),
       onError: (url, err) => {
         console.warn('[carte] fond illisible', url, err);
-        engine.notify('Le fond de la carte n’a pas pu être chargé.');
+        engine.notify(translate('map.common.backgroundFailed'));
       },
       invalidate: () => engine.invalidate(),
     });
@@ -665,7 +666,7 @@ class PixiView implements EngineView {
     this.cursorLayer.sync(
       live ? live.cursorPositions(now) : NO_CURSORS,
       zoom,
-      (userId) => this.engine.directory.userName(userId) ?? 'Joueur',
+      (userId) => this.engine.directory.userName(userId) ?? translate('map.common.player'),
     );
   }
 

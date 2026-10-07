@@ -6,6 +6,7 @@
  * - anneaux et traits de visée, badges d'états des tokens (plan `adornments`).
  * L'interface (surcouches React) est ajoutée par `index.ts`.
  */
+import { translate } from '@/i18n/runtime';
 import { Crosshair, Swords } from 'lucide-react';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEngine, MapOverlay } from '@/lib/map/engine/map-engine';
@@ -115,7 +116,7 @@ export function registerCombat(
   const cleanups: (() => void)[] = [
     engine.registerTool({
       id: AIM_TOOL_ID,
-      label: 'Viser',
+      label: translate('map.combat.aim'),
       icon: Crosshair,
       hidden: true,
       available: (viewer) => viewer.role !== 'spectator',
@@ -149,7 +150,7 @@ export function registerCombat(
     engine.registerMenuProvider((ctx) => combatMenu(ctx, open)),
     engine.registerAction({
       id: 'combat.attack',
-      label: 'Attaquer',
+      label: translate('map.actions.combatAttack'),
       icon: Swords,
       shortcut: { code: 'KeyY', label: 'Y' },
       available: (viewer) => viewer.role !== 'spectator',

@@ -19,6 +19,7 @@
  * État sans Pixi : `simulation.ts`, `driver.ts`, `model.ts` (testés à blanc) ; rendu :
  * `renderer.ts` ; canvas : `overlay.ts`.
  */
+import { translate } from '@/i18n/runtime';
 import { CloudSun } from 'lucide-react';
 import type { MapFeature } from '@/lib/map/engine/map-engine';
 import { WeatherControls } from './ui/weather-menu';
@@ -260,7 +261,7 @@ export const weatherFeature: MapFeature = {
       engine.registerToolbarEntry({
         kind: 'custom',
         id: 'weather:menu',
-        label: 'Météo',
+        label: translate('map.weather.title'),
         icon: CloudSun,
         group: 'view',
         order: 15,

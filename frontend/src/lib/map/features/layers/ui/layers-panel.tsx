@@ -12,6 +12,7 @@
  * - « Sélectionner le contenu », supprimer (le contenu descend, après confirmation).
  * Tout ce qui est enregistré passe par des commandes annulables.
  */
+import { formatter, translate } from '@/i18n/runtime';
 import { mapActionShortcutOf } from '@/lib/map/shortcuts';
 import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import {
@@ -112,17 +113,17 @@ export function LayersPanel() {
   return (
     <MapPanel
       id="layers"
-      label="Calques"
+      label={translate('map.actions.layersPanel')}
       icon={Layers}
-      title="Calques"
+      title={translate('map.actions.layersPanel')}
       shortcut={touche.label}
-      closeLabel="Fermer les calques"
+      closeLabel={translate('map.layers.panel.close')}
       onClose={() => toggleLayersPanel(engine, false)}
       className="w-72"
     >
       {layers.length ? (
         <ol
-          aria-label="Pile des calques, du haut vers le bas"
+          aria-label={translate('map.layers.panel.stack')}
           className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-2"
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
@@ -154,7 +155,7 @@ export function LayersPanel() {
         </ol>
       ) : (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          Cette carte n’a pas encore de calques.
+          {translate('map.layers.panel.none')}
         </p>
       )}
 
@@ -180,14 +181,20 @@ function LocalVisibilityButton({
 }: Readonly<{ layer: LayerLike; hiddenLocally: boolean }>) {
   const engine = useMapEngine();
   return (
-    <Info texte={hiddenLocally ? 'Montrer sur mon écran' : 'Cacher sur mon écran'}>
+    <Info
+      texte={
+        hiddenLocally
+          ? translate('map.layers.panel.showLocal')
+          : translate('map.layers.panel.hideLocal')
+      }
+    >
       <Button
         variant="ghost"
         size="icon-xs"
         aria-label={
           hiddenLocally
-            ? `Montrer ${layer.name} sur mon écran`
-            : `Cacher ${layer.name} sur mon écran`
+            ? translate('map.layers.panel.showLocalOf', { name: layer.name })
+            : translate('map.layers.panel.hideLocalOf', { name: layer.name })
         }
         aria-pressed={hiddenLocally}
         onClick={() => engine.setLayerHiddenLocally(layer.id, !hiddenLocally)}
@@ -202,18 +209,26 @@ function LocalVisibilityButton({
 function LockButton({ layer }: Readonly<{ layer: LayerLike }>) {
   const engine = useMapEngine();
   return (
-    <Info texte={layer.locked ? 'Déverrouiller' : 'Verrouiller : on clique à travers'}>
+    <Info
+      texte={layer.locked ? translate('map.common.unlock') : translate('map.layers.panel.lockHint')}
+    >
       <Button
         variant="ghost"
         size="icon-xs"
-        aria-label={layer.locked ? `Déverrouiller ${layer.name}` : `Verrouiller ${layer.name}`}
+        aria-label={
+          layer.locked
+            ? translate('map.layers.panel.unlockOf', { name: layer.name })
+            : translate('map.layers.panel.lockOf', { name: layer.name })
+        }
         aria-pressed={layer.locked}
         onClick={() =>
           void updateLayer(
             engine,
             layer.id,
             { locked: !layer.locked },
-            layer.locked ? 'Déverrouiller le calque' : 'Verrouiller le calque',
+            layer.locked
+              ? translate('map.layers.panel.unlockLayer')
+              : translate('map.layers.panel.lockLayer'),
           )
         }
         className={cn(layer.locked && 'text-primary')}
@@ -309,7 +324,7 @@ function LayerRow({
         <Input
           autoFocus
           defaultValue={layer.name}
-          aria-label="Nom du calque"
+          aria-label={translate('map.layers.panel.name')}
           className="h-8 flex-1 px-2"
           onBlur={(e) => commitName(e.currentTarget.value)}
           onKeyDown={onNameKey}
@@ -318,7 +333,7 @@ function LayerRow({
         <button
           type="button"
           aria-pressed={active}
-          title="Calque actif : ce qui est posé y va. Double clic : renommer."
+          title={translate('map.layers.panel.activeHint')}
           onClick={() => engine.setActiveLayer(active ? null : layer.id)}
           onDoubleClick={() => onRename(true)}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
@@ -335,7 +350,7 @@ function LayerRow({
           {!layer.visibleToPlayers && (
             <UserRoundX
               className="size-3.5 shrink-0 text-muted-foreground"
-              aria-label="Masqué aux joueurs"
+              aria-label={translate('map.layers.panel.hiddenFromPlayers')}
             />
           )}
           <span className="shrink-0 rounded-md bg-surface-3 px-1.5 text-[11px] tabular-nums text-muted-foreground">
@@ -349,7 +364,11 @@ function LayerRow({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-xs" aria-label={`Options de ${layer.name}`}>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={translate('map.layers.panel.optionsOf', { name: layer.name })}
+          >
             <Ellipsis />
           </Button>
         </DropdownMenuTrigger>
@@ -363,36 +382,41 @@ function LayerRow({
                 layer.id,
                 { visibleToPlayers: !layer.visibleToPlayers },
                 layer.visibleToPlayers
-                  ? 'Masquer le calque aux joueurs'
-                  : 'Montrer le calque aux joueurs',
+                  ? translate('map.layers.panel.hideFromPlayers')
+                  : translate('map.layers.panel.showToPlayers'),
               )
             }
           >
-            Masqué aux joueurs
+            {translate('map.layers.panel.hiddenFromPlayers')}
           </DropdownMenuCheckboxItem>
           <div
             role="group"
-            aria-label={`Opacité de ${layer.name}`}
+            aria-label={translate('map.layers.panel.opacityOf', { name: layer.name })}
             className="px-2.5 py-2"
             onKeyDown={(e) => e.stopPropagation()}
           >
             <p className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-              Opacité
+              {translate('map.layers.panel.opacity')}
               <EditableValue
-                label={`Opacité de ${layer.name}`}
+                label={translate('map.layers.panel.opacityOf', { name: layer.name })}
                 value={opacity ?? layer.opacity}
-                format={(v) => `${Math.round(v * 100)} %`}
+                format={(v) => formatter().number(v, 'percent')}
                 min={0}
                 max={1}
                 scale={100}
                 onCommit={(v) =>
-                  void updateLayer(engine, layer.id, { opacity: v }, 'Opacité du calque')
+                  void updateLayer(
+                    engine,
+                    layer.id,
+                    { opacity: v },
+                    translate('map.layers.panel.layerOpacity'),
+                  )
                 }
                 className="tabular-nums"
               />
             </p>
             <Slider
-              aria-label={`Opacité de ${layer.name}`}
+              aria-label={translate('map.layers.panel.opacityOf', { name: layer.name })}
               min={0}
               max={100}
               step={5}
@@ -404,7 +428,7 @@ function LayerRow({
                   engine,
                   layer.id,
                   { opacity: (v ?? 100) / 100 },
-                  'Opacité du calque',
+                  translate('map.layers.panel.layerOpacity'),
                 );
               }}
             />
@@ -412,23 +436,25 @@ function LayerRow({
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => engine.setIsolatedLayer(isolated ? null : layer.id)}>
             {isolated ? <Check /> : <ScanEye />}
-            {isolated ? 'Ne plus isoler' : 'Isoler (estomper les autres)'}
+            {isolated
+              ? translate('map.layers.panel.unisolate')
+              : translate('map.layers.panel.isolate')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => selectLayerContent(engine, layer.id)} disabled={!count}>
             <SquareDashedMousePointer />
-            Sélectionner le contenu
+            {translate('map.layers.panel.selectContent')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onRename(true)}>
             <Pencil />
-            Renommer
+            {translate('map.layers.panel.rename')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onMove(index - 1)} disabled={index === 0}>
             <ArrowUp />
-            Monter
+            {translate('map.layers.panel.up')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onMove(index + 1)} disabled={index === total - 1}>
             <ArrowDown />
-            Descendre
+            {translate('map.layers.panel.down')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -437,7 +463,7 @@ function LayerRow({
             className="text-destructive focus:bg-destructive/10 focus:text-destructive [&>svg]:text-destructive"
           >
             <Trash2 />
-            Supprimer le calque
+            {translate('map.layers.deleteLayer')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

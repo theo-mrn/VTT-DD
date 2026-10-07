@@ -8,6 +8,10 @@
  * - Joueurs : le bouton n'apparaît que quand la scène a une météo (son nom, son intensité).
  * - Tous : préférences de confort, sur son écran seulement (animation, éclairs).
  */
+import { formatter, translate } from '@/i18n/runtime';
+
+type WindDirection =
+  'north' | 'northEast' | 'east' | 'southEast' | 'south' | 'southWest' | 'west' | 'northWest';
 import type { MapWeather } from '@vtt/contracts';
 import {
   ArrowRight,
@@ -40,6 +44,7 @@ import {
   WEATHER_EFFECT_LIST,
   type WeatherEffect,
   type WeatherType,
+  weatherName,
 } from '../engine/effects';
 import { clampIntensity, effectOf, MAX_INTENSITY, windOf } from '../engine/model';
 import {
@@ -66,16 +71,16 @@ const ICONS: Record<WeatherType, LucideIcon> = {
 };
 
 /** Rose des vents : où va le vent (degrés, 0 vers l'est, sens horaire), en grille 3 × 3. */
-const ROSE: readonly (readonly [number, string] | null)[] = [
-  [225, 'nord-ouest'],
-  [270, 'nord'],
-  [315, 'nord-est'],
-  [180, 'ouest'],
+const ROSE: readonly (readonly [number, WindDirection] | null)[] = [
+  [225, 'northWest'],
+  [270, 'north'],
+  [315, 'northEast'],
+  [180, 'west'],
   null,
-  [0, 'est'],
-  [135, 'sud-ouest'],
-  [90, 'sud'],
-  [45, 'sud-est'],
+  [0, 'east'],
+  [135, 'southWest'],
+  [90, 'south'],
+  [45, 'southEast'],
 ];
 
 /** Force donnée au vent quand le MJ choisit une direction depuis « sans vent ». */
@@ -99,7 +104,9 @@ export function WeatherControls({ engine }: Readonly<{ engine: MapEngine }>) {
   const active = !!effect && clampIntensity(weather?.intensity) > 0;
   if (!gm && !active) return null;
   const Icon = active ? ICONS[effect.id] : CloudSun;
-  const label = active ? `Météo : ${effect.label.toLowerCase()}` : 'Météo';
+  const label = active
+    ? translate('map.weather.current', { name: weatherName(effect.id).toLowerCase() })
+    : translate('map.weather.title');
 
   return (
     <Popover>
@@ -126,7 +133,7 @@ export function WeatherControls({ engine }: Readonly<{ engine: MapEngine }>) {
           <GmWeather engine={engine} weather={weather} />
         ) : (
           <p className="mb-3 text-sm">
-            <span className="font-semibold">{effect!.label}</span>
+            <span className="font-semibold">{weatherName(effect!.id)}</span>
             <span className="ml-1.5 text-xs text-muted-foreground">
               {percent(clampIntensity(weather!.intensity))}
             </span>
@@ -162,19 +169,26 @@ function GmWeather({
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-semibold">Météo</p>
-        <p className="text-xs text-muted-foreground">
-          La même pour toute la table. Chaque changement s’annule (⌘Z).
-        </p>
+        <p className="text-sm font-semibold">{translate('map.weather.title')}</p>
+        <p className="text-xs text-muted-foreground">{translate('map.weather.lead')}</p>
       </div>
-      <div role="radiogroup" aria-label="Météo de la scène" className="space-y-2">
+      <div
+        role="radiogroup"
+        aria-label={translate('map.weather.sceneWeather')}
+        className="space-y-2"
+      >
         <div className="grid grid-cols-3 gap-1.5">
-          <Tile label="Aucune" icon={Ban} on={!effect} onClick={() => pick(null)} />
+          <Tile
+            label={translate('map.weather.none')}
+            icon={Ban}
+            on={!effect}
+            onClick={() => pick(null)}
+          />
           {nature.map((e) => (
             <EffectTile key={e.id} effect={e} on={effect?.id === e.id} onPick={pick} />
           ))}
         </div>
-        <p className="pt-1 text-[11px] text-muted-foreground">Science-fiction</p>
+        <p className="pt-1 text-[11px] text-muted-foreground">{translate('map.weather.scifi')}</p>
         <div className="grid grid-cols-3 gap-1.5">
           {scifi.map((e) => (
             <EffectTile key={e.id} effect={e} on={effect?.id === e.id} onPick={pick} />
@@ -184,18 +198,18 @@ function GmWeather({
 
       {effect && weather && (
         <SliderRow
-          label="Intensité"
+          label={translate('map.weather.intensity')}
           value={toSlider(intensity)}
           min={5}
           max={100}
           step={5}
-          format={(v) => `${v} %`}
+          format={(v) => formatter().number(v / 100, 'percent')}
           onPreview={(v) => setWeatherPreview(engine, { ...weather, intensity: fromSlider(v) })}
           onCommit={(v) =>
             void saveWeather(
               engine,
               { ...weather, intensity: fromSlider(v) },
-              'Intensité de la météo',
+              translate('map.weather.weatherIntensity'),
             )
           }
         />
@@ -217,7 +231,12 @@ function EffectTile({
   onPick: (type: WeatherType) => void;
 }>) {
   return (
-    <Tile label={effect.label} icon={ICONS[effect.id]} on={on} onClick={() => onPick(effect.id)} />
+    <Tile
+      label={weatherName(effect.id)}
+      icon={ICONS[effect.id]}
+      on={on}
+      onClick={() => onPick(effect.id)}
+    />
   );
 }
 
@@ -266,7 +285,7 @@ function WindControls({
   const stored = weather.wind;
   const calm = (stored?.strength ?? wind.strength) === 0;
   const direction = Math.round(wind.direction / 45) % 8;
-  const save = (next: MapWeather['wind'], label = 'Vent') => {
+  const save = (next: MapWeather['wind'], label = translate('map.weather.wind')) => {
     const w: MapWeather = { type: weather.type, intensity: weather.intensity };
     if (next) w.wind = next;
     void saveWeather(engine, w, label);
@@ -276,28 +295,32 @@ function WindControls({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-muted-foreground">Vent</span>
+        <span className="text-[11px] text-muted-foreground">{translate('map.weather.wind')}</span>
         {stored && (
           <button
             type="button"
-            onClick={() => save(undefined, 'Vent de l’effet')}
+            onClick={() => save(undefined, translate('map.weather.effectWind'))}
             className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
           >
-            Vent de l’effet
+            {translate('map.weather.effectWind')}
           </button>
         )}
       </div>
       <div className="flex items-center gap-3">
-        <div role="radiogroup" aria-label="Direction du vent" className="grid grid-cols-3 gap-0.5">
+        <div
+          role="radiogroup"
+          aria-label={translate('map.weather.windDirection')}
+          className="grid grid-cols-3 gap-0.5"
+        >
           {ROSE.map((cell, i) => {
             if (!cell) {
               return (
-                <Info key="calme" texte="Sans vent">
+                <Info key={translate('map.weather.calm')} texte={translate('map.weather.noWind')}>
                   <button
                     type="button"
                     role="radio"
                     aria-checked={calm}
-                    aria-label="Sans vent"
+                    aria-label={translate('map.weather.noWind')}
                     onClick={() => save({ direction: wind.direction, strength: 0 })}
                     className={cn(
                       'grid size-7 place-items-center rounded-md transition-colors',
@@ -313,12 +336,14 @@ function WindControls({
             const [deg, name] = cell;
             const on = !calm && Math.round(deg / 45) % 8 === direction;
             return (
-              <Info key={i} texte={`Vers le ${name}`}>
+              <Info key={i} texte={translate(`map.weather.directions.${name}`)}>
                 <button
                   type="button"
                   role="radio"
                   aria-checked={on}
-                  aria-label={`Vent vers le ${name}`}
+                  aria-label={translate('map.weather.windTowards', {
+                    direction: translate(`map.weather.directions.${name}`),
+                  })}
                   onClick={() =>
                     save({
                       direction: deg,
@@ -344,12 +369,14 @@ function WindControls({
         </div>
         <div className="min-w-0 flex-1">
           <SliderRow
-            label="Force"
+            label={translate('map.weather.strength')}
             value={Math.round(strength * 100)}
             min={0}
             max={100}
             step={5}
-            format={(v) => (v === 0 ? 'calme' : `${v} %`)}
+            format={(v) =>
+              v === 0 ? translate('map.weather.calm') : formatter().number(v / 100, 'percent')
+            }
             onPreview={(v) =>
               setWeatherPreview(engine, {
                 ...weather,
@@ -357,13 +384,14 @@ function WindControls({
               })
             }
             onCommit={(v) =>
-              save({ direction: wind.direction, strength: v / 100 }, 'Force du vent')
+              save(
+                { direction: wind.direction, strength: v / 100 },
+                translate('map.weather.windStrength'),
+              )
             }
           />
           {effect.minWind !== undefined && (
-            <p className="text-[11px] text-muted-foreground">
-              Toujours un peu de vent : l’effet en a besoin.
-            </p>
+            <p className="text-[11px] text-muted-foreground">{translate('map.weather.minWind')}</p>
           )}
         </div>
       </div>
@@ -433,17 +461,17 @@ function ComfortPrefs({ engine }: Readonly<{ engine: MapEngine }>) {
   const flashes = useStore(weatherPrefs(engine), (s) => s.flashes);
   return (
     <div className="mt-3 space-y-2 border-t border-border pt-3">
-      <p className="text-[11px] text-muted-foreground">Sur votre écran</p>
+      <p className="text-[11px] text-muted-foreground">{translate('map.weather.onYourScreen')}</p>
       <PrefRow
         id="weather-animate"
-        label="Animer la météo"
-        hint={animate ? undefined : 'Image fixe et discrète'}
+        label={translate('map.weather.animate')}
+        hint={animate ? undefined : translate('map.weather.still')}
         checked={animate}
         onChange={(on) => setWeatherAnimated(engine, on)}
       />
       <PrefRow
         id="weather-flashes"
-        label="Éclairs et clignotements"
+        label={translate('map.weather.flashes')}
         checked={flashes}
         onChange={(on) => setWeatherFlashes(engine, on)}
       />
