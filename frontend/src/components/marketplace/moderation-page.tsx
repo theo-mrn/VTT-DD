@@ -86,7 +86,7 @@ function Queue({ queue }: Readonly<{ queue: ModerationQueue }>) {
         {queue.versions.map(({ listing, version }) => (
           <Row key={version.id} listing={listing}>
             <p className="text-[13px]">
-              <span className="font-semibold">v{version.number}</span>
+              <span className="font-semibold">{labels.version(version.number)}</span>
               <span className="text-muted-foreground">
                 {' '}
                 · {version.counts ? labels.counts(version.counts) : ''} ·{' '}
