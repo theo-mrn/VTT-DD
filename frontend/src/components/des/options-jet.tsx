@@ -77,13 +77,19 @@ export function OptionsJet({
   onLancerMacro: (m: Macro) => void;
   onChargerMacro: (m: Macro) => void;
   onEditerMacro: (e: EditionMacro) => void;
-  /** Sélecteurs de campagne et de personnage (page de dés seule). */
+  /**
+   * Sélecteurs de campagne et de personnage (page de dés) ; à la table, le MJ ne choisit que
+   * le personnage (sans `campagnes`).
+   */
   contexte: {
-    campagnes: { liste: Campagne[]; chargement: boolean };
+    campagnes?: {
+      liste: Campagne[];
+      chargement: boolean;
+      valeur: string | null;
+      onChange: (id: string | null) => void;
+    };
     personnages: { liste: Personnage[]; chargement: boolean };
-    campagneId: string | null;
     personnageId: string | null;
-    onCampagne: (id: string | null) => void;
     onPersonnage: (id: string | null) => void;
   } | null;
 }>) {
@@ -232,20 +238,22 @@ export function OptionsJet({
         {contexte && (
           <Section titre={t('context')}>
             <div className="flex flex-wrap gap-1.5">
-              <SelecteurContexte
-                etiquette={t('campaign')}
-                icone={ICONES_CONTEXTE.campagne}
-                aucun={t('personalRolls')}
-                vide={t('noCampaign')}
-                chargement={contexte.campagnes.chargement}
-                valeur={contexte.campagneId}
-                onChange={contexte.onCampagne}
-                options={contexte.campagnes.liste.map((c) => ({
-                  id: c.id,
-                  libelle: c.name,
-                  detail: c.pitch || undefined,
-                }))}
-              />
+              {contexte.campagnes && (
+                <SelecteurContexte
+                  etiquette={t('campaign')}
+                  icone={ICONES_CONTEXTE.campagne}
+                  aucun={t('personalRolls')}
+                  vide={t('noCampaign')}
+                  chargement={contexte.campagnes.chargement}
+                  valeur={contexte.campagnes.valeur}
+                  onChange={contexte.campagnes.onChange}
+                  options={contexte.campagnes.liste.map((c) => ({
+                    id: c.id,
+                    libelle: c.name,
+                    detail: c.pitch || undefined,
+                  }))}
+                />
+              )}
               <SelecteurContexte
                 etiquette={t('character')}
                 icone={ICONES_CONTEXTE.personnage}

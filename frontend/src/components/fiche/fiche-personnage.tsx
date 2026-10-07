@@ -130,19 +130,20 @@ export function useFicheCalculee(id: string | null | undefined) {
   const permissions = p?.permissions ?? { write: false, layout: false };
   const peutModifier = permissions.write;
   const mj = campagne.data?.role === 'gm';
-  // « Lancer » une capacité : à la table, sur la fiche de son héros (celui du panneau des dés)
+  // « Lancer » une capacité : à la table, sur la fiche de son héros (celui du panneau des dés),
+  // ou pour le MJ sans héros, sur la fiche de tout personnage (le panneau le prend)
   const table = useTableOptionnelle();
   const panneaux = usePanelStoreApiOptionnel();
   const demanderJet = useDemandeJet((s) => s.demander);
   const lancerJet = useMemo(
     () =>
-      id && panneaux && table?.herosId === id
+      id && panneaux && table && (table.herosId === id || (table.gm && !table.herosId))
         ? (d: { bonus: string[]; attributs: string[] }) => {
             demanderJet({ personnageId: id, ...d });
             panneaux.getState().open('des');
           }
         : undefined,
-    [id, panneaux, table?.herosId, demanderJet],
+    [id, panneaux, table, demanderJet],
   );
   const ctx = useMemo<ContexteFiche | null>(
     () =>

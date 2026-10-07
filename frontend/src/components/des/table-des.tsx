@@ -45,6 +45,8 @@ export interface ContexteTableDes {
   gm: boolean;
   /** Héros incarné (ses modificateurs) ; null : MJ ou spectateur sans héros. */
   personnage: Personnage | null;
+  /** MJ : personnages de la campagne, au choix (leurs modificateurs et leurs bonus). */
+  personnages?: Personnage[];
 }
 
 /** Campagne, personnage et salle du jet : ceux de la table d'une campagne, sinon les choix gardés. */
@@ -56,7 +58,7 @@ function choixActifs(
 ) {
   const campagne = campagnes?.find((c) => c.id === etat.campagneId) ?? null;
   const personnage = contexte
-    ? contexte.personnage
+    ? (contexte.personnage ?? contexte.personnages?.find((p) => p.id === etat.personnageId) ?? null)
     : (personnages?.find((p) => p.id === etat.personnageId) ?? null);
   const roomId = contexte ? contexte.campagneId : (campagne?.id ?? null);
   return { campagne, personnage, roomId };
@@ -92,10 +94,16 @@ export function TableDes({
       visibilite: visibiliteDuBrouillon(enregistre.visibilite, enregistre.version),
       version: 2,
       ...(contexte
-        ? { campagneId: contexte.campagneId, personnageId: contexte.personnage?.id ?? null }
+        ? {
+            campagneId: contexte.campagneId,
+            // Le MJ garde son choix parmi les personnages de la campagne
+            personnageId:
+              contexte.personnage?.id ??
+              (contexte.personnages ? (enregistre.personnageId ?? null) : null),
+          }
         : {}),
     }),
-    [enregistre, contexte?.campagneId, contexte?.personnage?.id], // eslint-disable-line react-hooks/exhaustive-deps
+    [enregistre, contexte?.campagneId, contexte?.personnage?.id, contexte?.personnages], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const [dernier, setDernier] = useState<Jet | null>(null);
   const refFormule = useRef<HTMLInputElement>(null);
@@ -194,12 +202,21 @@ export function TableDes({
   const demande = useDemandeJet((s) => s.demande);
   const viderDemande = useDemandeJet((s) => s.vider);
   useEffect(() => {
-    if (!demande || !personnage || demande.personnageId !== personnage.id) return;
+    if (!demande) return;
+    // Le MJ lance pour le personnage de la fiche : il devient celui du panneau
+    if (contexte?.personnages?.some((p) => p.id === demande.personnageId)) {
+      if (etatActuel.current.personnageId !== demande.personnageId)
+        return modifier({ personnageId: demande.personnageId });
+    } else if (!personnage || demande.personnageId !== personnage.id) {
+      // Personnage hors de ce panneau (PNJ…) : la demande ne sera jamais prise
+      if (contexte?.personnages) viderDemande();
+      return;
+    }
     viderDemande();
     setAllumes([...new Set([...allumes, ...demande.bonus])]);
     const formule = formuleAvecAttributs(etatActuel.current.formule, demande.attributs);
     if (formule !== etatActuel.current.formule) modifier({ formule });
-  }, [demande, personnage]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [demande, personnage, contexte?.personnages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Ramène le résultat à l'écran (mobile, ou page défilée jusqu'à l'historique). */
   function reveler() {
@@ -294,6 +311,7 @@ export function TableDes({
             verification={verification}
             fiche={fiche}
             contexteFixe={Boolean(contexte)}
+            choixPersonnage={Boolean(contexte?.personnages && !contexte.personnage)}
             sousTitre={
               contexte
                 ? (contexte.personnage?.name ?? contexte.campagneNom)
@@ -305,7 +323,11 @@ export function TableDes({
             }}
             personnages={
               contexte
-                ? { liste: contexte.personnage ? [contexte.personnage] : [], chargement: false }
+                ? {
+                    liste:
+                      contexte.personnages ?? (contexte.personnage ? [contexte.personnage] : []),
+                    chargement: false,
+                  }
                 : { liste: personnages.data ?? [], chargement: personnages.isPending }
             }
             onLancer={() => void lancerPlateau()}

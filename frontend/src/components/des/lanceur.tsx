@@ -54,6 +54,8 @@ export const Lanceur = forwardRef<
     personnages: { liste: Personnage[]; chargement: boolean };
     /** Campagne et personnage imposés (table d'une campagne) : pas de sélecteurs. */
     contexteFixe?: boolean;
+    /** Table fixée, mais le personnage se choisit (MJ : personnages de la campagne). */
+    choixPersonnage?: boolean;
     /** Nom du contexte, sous le titre (campagne ou « Jets personnels »). */
     sousTitre: string;
     onLancer: () => void;
@@ -73,6 +75,7 @@ export const Lanceur = forwardRef<
     campagnes,
     personnages,
     contexteFixe = false,
+    choixPersonnage = false,
     sousTitre,
     onLancer,
     enCours,
@@ -177,14 +180,20 @@ export const Lanceur = forwardRef<
             onChargerMacro={onChargerMacro}
             onEditerMacro={setEdition}
             contexte={
-              contexteFixe
+              contexteFixe && !choixPersonnage
                 ? null
                 : {
-                    campagnes,
+                    ...(contexteFixe
+                      ? {}
+                      : {
+                          campagnes: {
+                            ...campagnes,
+                            valeur: etat.campagneId,
+                            onChange: (id: string | null) => onModifier({ campagneId: id }),
+                          },
+                        }),
                     personnages,
-                    campagneId: etat.campagneId,
                     personnageId: etat.personnageId,
-                    onCampagne: (id) => onModifier({ campagneId: id }),
                     onPersonnage: (id) => onModifier({ personnageId: id }),
                   }
             }
