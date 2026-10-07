@@ -60,7 +60,8 @@ export interface Facture {
 
 export interface Achat {
   id: string;
-  kind: 'dice' | 'token';
+  /** `marketplace` : pack d'un créateur (itemId : la fiche). */
+  kind: 'dice' | 'token' | 'marketplace';
   itemId: string;
   name: string;
   amount: number;
@@ -73,7 +74,7 @@ export interface Achat {
 /** GET /v1/billing/checkout/sessions/:id */
 export interface EtatSession {
   status: 'pending' | 'completed' | 'expired';
-  kind: 'premium' | 'dice' | 'token';
+  kind: 'premium' | 'dice' | 'token' | 'marketplace';
   itemId: string | null;
 }
 

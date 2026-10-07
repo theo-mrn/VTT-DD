@@ -20,7 +20,11 @@ import { api } from '../api';
 
 /** À qui appartient le fichier (le service qui le signe). */
 export type UploadTarget =
-  { kind: 'user' } | { kind: 'campaign'; id: string } | { kind: 'character'; id: string };
+  | { kind: 'user' }
+  | { kind: 'campaign'; id: string }
+  | { kind: 'character'; id: string }
+  /** Fiche de la marketplace : couverture et galerie (docs/marketplace.md). */
+  | { kind: 'listing'; id: string };
 
 export function uploadRoute(t: UploadTarget): string {
   switch (t.kind) {
@@ -30,6 +34,8 @@ export function uploadRoute(t: UploadTarget): string {
       return `/v1/campaigns/${encodeURIComponent(t.id)}/uploads`;
     case 'character':
       return `/v1/characters/${encodeURIComponent(t.id)}/uploads`;
+    case 'listing':
+      return `/v1/marketplace/studio/listings/${encodeURIComponent(t.id)}/uploads`;
   }
 }
 

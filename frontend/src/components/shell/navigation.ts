@@ -5,6 +5,7 @@ import {
   Keyboard,
   KeyRound,
   Library,
+  Package,
   Shield,
   Swords,
   User,
@@ -30,6 +31,7 @@ export const NAV_PRINCIPALE: LienNav[] = [
   { href: '/personnages', label: 'Personnages', icone: UserRound },
   { href: '/resources', label: 'Ressources', icone: Library },
   { href: '/des', label: 'Dés', icone: Dices },
+  { href: '/marketplace', label: 'Marketplace', icone: Package },
 ];
 
 export const NAV_SOCIALE: LienNav[] = [{ href: '/amis', label: 'Amis', icone: Users }];
@@ -68,4 +70,9 @@ export const LIBELLES_SEGMENTS: Record<string, string> = {
   succes: 'Confirmé',
   annule: 'Annulé',
   joueurs: 'Joueurs',
+  marketplace: 'Marketplace',
+  library: 'Bibliothèque',
+  studio: 'Studio',
+  moderation: 'Modération',
+  creators: 'Créateurs',
 };
