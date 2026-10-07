@@ -2,8 +2,9 @@
  * Règles de la météo, sans Pixi ni DOM (docs/carte.md § 10, Météo) : lecture de `maps.weather`
  * (données anciennes comprises), vent effectif, budget de particules.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapWeather } from '@vtt/contracts';
-import { WEATHER_EFFECTS, type WeatherEffect, type WeatherType } from './effects';
+import { WEATHER_EFFECTS, type WeatherEffect, type WeatherType, weatherName } from './effects';
 
 /** Images par seconde demandées par la météo elle-même, au plus. */
 export const WEATHER_FPS = 30;
@@ -149,5 +150,6 @@ export function isWindowsPlatform(
 
 /** Nom lisible d'une météo enregistrée (« Pluie », « Aucune »). */
 export function weatherLabel(raw: unknown): string {
-  return effectOf(raw)?.label ?? 'Aucune';
+  const effect = effectOf(raw);
+  return effect ? weatherName(effect.id) : translate('map.weather.none');
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   type Action,
   type Fiche,
@@ -61,6 +62,7 @@ export function LanceurAction({
   /** Jet tiré par le service (voir useOperationsPersonnage). */
   onAction: OperationsPersonnage['action'];
 }>) {
+  const t = useTranslations();
   const [valeurs, setValeurs] = useState<Record<string, Valeur>>(() =>
     Object.fromEntries(action.parametres.map((p) => [p.id, defaultParamValue(fiche, p)])),
   );
@@ -97,7 +99,7 @@ export function LanceurAction({
     // Conséquences enregistrées par le service avec le jet
     const aDesConsequences = r.resultat.modifications.some((m) => m.entite === 'acteur');
     setApplique(Boolean(r.fiche) && aDesConsequences);
-    if (r.fiche && aDesConsequences) toast.success('Fiche mise à jour');
+    if (r.fiche && aDesConsequences) toast.success(t('sheet.roll.updated'));
     setNumero((n) => n + 1);
     // Le jet est transmis par le service character à l'historique des dés (service dice)
     marquerJetsPerimes(requetes);
@@ -132,7 +134,7 @@ export function LanceurAction({
 
         <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-2/40 px-3 py-2.5">
           <Label htmlFor="appliquer-consequences" className="text-[13px] font-normal">
-            Appliquer les conséquences à la fiche
+            {t('sheet.roll.applyConsequences')}
           </Label>
           <Switch id="appliquer-consequences" checked={appliquer} onCheckedChange={setAppliquer} />
         </div>
@@ -141,7 +143,7 @@ export function LanceurAction({
 
         <Button size="lg" onClick={() => void lancer()} className="w-full" loading={envoi}>
           {!envoi && <Dices />}
-          {resultat ? 'Relancer' : 'Lancer'}
+          {resultat ? t('combat.initiative.reroll') : t('combat.character.roll')}
         </Button>
 
         <AnimatePresence mode="wait">
@@ -216,10 +218,10 @@ export function LanceurAction({
                   </p>
                   {applique ? (
                     <Badge ton="succes" taille="md">
-                      <Check /> Appliqué à la fiche
+                      <Check /> {t('sheet.roll.applied')}
                     </Badge>
                   ) : (
-                    <span className="text-xs text-subtle">Non appliqué</span>
+                    <span className="text-xs text-subtle">{t('combat.decision.skipped')}</span>
                   )}
                 </div>
               )}
@@ -234,7 +236,7 @@ export function LanceurAction({
                     <ChevronDown
                       className={cn('size-3.5 transition-transform', details && 'rotate-180')}
                     />
-                    Déroulé du jet
+                    {t('sheet.roll.flow')}
                   </button>
                   {details && (
                     <ol className="mt-2 space-y-1 border-l border-border pl-3 text-xs text-muted-foreground">
@@ -259,15 +261,16 @@ export function LanceurAction({
 }
 
 function BadgeReussite({ action, reussi }: { action: Action; reussi: boolean }) {
+  const t = useTranslations();
   // Sans condition de réussite déclarée, « réussi » n'a pas de sens pour ce jet
   if (!action.jet.reussite) return null;
   return reussi ? (
     <Badge ton="succes" taille="md">
-      <Check /> Réussite
+      <Check /> {t('history.lines.success')}
     </Badge>
   ) : (
     <Badge ton="danger" taille="md">
-      <X /> Échec
+      <X /> {t('history.lines.failure')}
     </Badge>
   );
 }

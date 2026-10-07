@@ -10,9 +10,10 @@
  */
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import type { CampaignSide } from '@vtt/contracts';
-import type { Fiche, IconeEtat, Presentation, SystemeCharge } from '@vtt/rules';
+import type { Decompte, Fiche, IconeEtat, Presentation, SystemeCharge } from '@vtt/rules';
 import { useMemo, useRef } from 'react';
 import {
   estRessource,
@@ -40,7 +41,7 @@ export interface CastMember {
 }
 
 /** Nom d'un personnage que la liste ne connaît pas (encore) : jamais un identifiant brut. */
-export const UNKNOWN_NAME = 'Personnage';
+export const unknownName = () => translate('map.common.character');
 
 /** Personnages engagés de la campagne (PNJ compris pour le MJ, filtrés par le service). */
 export function useCast(campaignId: string) {
@@ -52,7 +53,7 @@ export function useCast(campaignId: string) {
     () =>
       (list.data ?? []).map((c) => ({
         id: c.characterId,
-        name: c.name ?? UNKNOWN_NAME,
+        name: c.name ?? unknownName(),
         // Sans portrait (PNJ du bestiaire, d'un modèle) : son token du Studio, sinon son image
         // sur la carte
         portraitUrl: c.avatarUrl ?? c.tokenUrl ?? c.mapImageUrl ?? null,
@@ -71,7 +72,7 @@ export function useCast(campaignId: string) {
     isLoading: list.isPending,
     isError: list.isError,
     error: list.error,
-    nameOf: (id: string) => byId.get(id)?.name ?? UNKNOWN_NAME,
+    nameOf: (id: string) => byId.get(id)?.name ?? unknownName(),
   };
 }
 
@@ -115,12 +116,14 @@ export interface TimedState {
   name: string;
   /** Icône de l'état (présentation), l'icône générique pour un état libre. */
   icon: IconeEtat;
-  /** Rounds restants ; null : jusqu'au retrait. */
+  /** Décomptes restants (rounds par défaut) ; null : jusqu'au retrait. */
   duration: number | null;
+  /** Moment du décompte (début ou fin d'un tour) ; absent : fin de round (docs/combat.md § 18). */
+  timing?: Decompte;
 }
 
 /** Source des états libres posés depuis le panneau Combat (bonus sans effet, nommé). */
-export const FREE_STATE_SOURCE = 'État';
+export const FREE_STATE_SOURCE = 'État'; // i18n-ignore : source enregistrée dans la fiche (donnée)
 
 /**
  * États d'une fiche : entrées des sortes d'états du système, possessions à durée, bonus libres
@@ -146,6 +149,7 @@ export function statesOf(
       name: entry?.nom ?? p.entree,
       icon: stateIconOf(stateIcons, p.entree),
       duration: p.duree ?? null,
+      ...(p.duree !== undefined && p.decompte ? { timing: p.decompte } : {}),
     });
   }
   for (const b of sheet.state.bonus ?? []) {
@@ -157,6 +161,7 @@ export function statesOf(
       name: b.nom,
       icon: stateIconOf(stateIcons, null),
       duration: b.duree ?? null,
+      ...(b.duree !== undefined && b.decompte ? { timing: b.decompte } : {}),
     });
   }
   return out;

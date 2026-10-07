@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { LayoutGroup, motion } from 'framer-motion';
 import {
   Check,
@@ -119,6 +120,7 @@ export function ListeNotes({
   bandeau?: ReactNode;
   className?: string;
 }>) {
+  const t = useTranslations();
   const ordre = useMemo(() => groupes.flatMap((g) => g.notes.map((n) => n.note.id)), [groupes]);
   const parCampagne = useMemo(() => new Map(campagnes.map((c) => [c.id, c])), [campagnes]);
   const nbVisibles = ordre.length;
@@ -167,13 +169,13 @@ export function ListeNotes({
 
   return (
     <aside
-      aria-label="Liste des notes"
+      aria-label={t('notes.list.label')}
       className={cn('flex min-h-0 flex-col lg:h-full', className)}
     >
       <div className="shrink-0 space-y-3 px-4 pb-3 pt-5 lg:px-3 lg:pt-4">
         <div className="flex items-center justify-between gap-2 lg:pl-1">
           <h1 className="flex items-baseline gap-2 text-2xl font-semibold tracking-tight lg:text-[15px]">
-            Notes
+            {t('notes.list.title')}
             {!chargement && (
               <span className="text-sm font-normal text-subtle tabular lg:text-xs">{total}</span>
             )}
@@ -198,8 +200,8 @@ export function ListeNotes({
               else refListe.current?.focus();
             }
           }}
-          placeholder="Rechercher titre, texte, #étiquette…"
-          aria-label="Rechercher dans les notes"
+          placeholder={t('notes.list.searchPlaceholder')}
+          aria-label={t('notes.list.search')}
           className="h-9 text-[13px] [&::-webkit-search-cancel-button]:hidden"
           avant={recherchant ? <Loader2 className="animate-spin" /> : <Search />}
           apres={
@@ -211,7 +213,7 @@ export function ListeNotes({
                   onRecherche('');
                   refRecherche.current?.focus();
                 }}
-                aria-label="Effacer la recherche"
+                aria-label={t('resources.clearSearch')}
               >
                 <X />
               </Button>
@@ -236,7 +238,7 @@ export function ListeNotes({
         layoutScroll
         role="listbox"
         tabIndex={0}
-        aria-label="Notes"
+        aria-label={t('notes.list.title')}
         aria-activedescendant={idSelection ? idElementNote(idSelection) : undefined}
         onKeyDown={clavier}
         className="group/liste relative flex-1 px-2 pb-4 outline-none lg:min-h-0 lg:overflow-y-auto"
@@ -296,7 +298,7 @@ export function ListeNotes({
               loading={suite.enCours}
               className="text-subtle"
             >
-              Charger plus de notes
+              {t('notes.list.loadMore')}
             </Button>
           </div>
         )}
@@ -304,14 +306,16 @@ export function ListeNotes({
 
       <div className="hidden h-9 shrink-0 items-center justify-between gap-2 border-t border-border/70 px-4 text-[11px] text-subtle lg:flex">
         <span className="tabular">
-          {filtree ? `${totalFiltre ?? nbVisibles} sur ${total}` : nbNotes(total)}
+          {filtree
+            ? t('notes.list.filtered', { count: totalFiltre ?? nbVisibles, total })
+            : t('notes.list.count', { count: total })}
         </span>
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd>
-          <span className="mr-2">parcourir</span>
+          <span className="mr-2">{t('notes.list.browse')}</span>
           <Kbd>N</Kbd>
-          <span>nouvelle</span>
+          <span>{t('notes.list.new')}</span>
         </span>
       </div>
     </aside>
@@ -338,6 +342,7 @@ function ElementNote({
   auteur: string | null;
   onChoix: () => void;
 }>) {
+  const t = useTranslations();
   const { note } = n;
   const apercu = n.apercu;
   const titre = note.title.trim();
@@ -386,7 +391,7 @@ function ElementNote({
                 titre ? 'text-foreground' : 'italic text-muted-foreground',
               )}
             >
-              <Surligne texte={titre || 'Sans titre'} mots={titre ? mots : []} />
+              <Surligne texte={titre || t('common.states.untitled')} mots={titre ? mots : []} />
             </p>
             <span className="shrink-0 text-[11px] leading-5 text-subtle tabular">
               <DateCourte iso={note.updatedAt} />
@@ -396,37 +401,40 @@ function ElementNote({
             {apercu ? (
               <Surligne texte={apercu} mots={mots} />
             ) : (
-              <span className="text-subtle">Aucun contenu</span>
+              <span className="text-subtle">{t('notes.list.empty')}</span>
             )}
           </p>
           {(note.pinned || note.visibility !== 'private' || note.tags.length > 0 || auteur) && (
             <div className="mt-1.5 flex min-w-0 items-center gap-2 text-[11px] text-subtle">
               {note.pinned && (
-                <Pin className="size-3 shrink-0 rotate-45 text-primary/80" aria-label="Épinglée" />
+                <Pin
+                  className="size-3 shrink-0 rotate-45 text-primary/80"
+                  aria-label={t('notes.list.pinned')}
+                />
               )}
               {note.visibility === 'gm' && (
                 <span className="flex shrink-0 items-center gap-1">
                   <Crown className="size-3 text-primary/80" aria-hidden />
-                  MJ
+                  {t('common.roles.gm')}
                 </span>
               )}
               {note.visibility === 'room' && (
                 <span className="flex shrink-0 items-center gap-1">
                   <Users className="size-3 text-primary/80" aria-hidden />
-                  Table
+                  {t('notes.visibility.room.label')}
                 </span>
               )}
               {note.visibility === 'characters' && (
                 <span className="flex shrink-0 items-center gap-1">
                   <UserRoundCheck className="size-3 text-primary/80" aria-hidden />
-                  Ciblée
+                  {t('notes.visibility.characters.label')}
                 </span>
               )}
               {auteur && <span className="max-w-[90px] shrink-0 truncate">{auteur}</span>}
-              {note.tags.slice(0, 3).map((t) => (
-                <span key={t} className="max-w-[90px] shrink-0 truncate">
+              {note.tags.slice(0, 3).map((tag) => (
+                <span key={tag} className="max-w-[90px] shrink-0 truncate">
                   <span className="text-subtle/60">#</span>
-                  <Surligne texte={t} mots={mots} />
+                  <Surligne texte={tag} mots={mots} />
                 </span>
               ))}
             </div>
@@ -495,30 +503,31 @@ function FiltresNotes({
   campagnes: Campagne[];
   campagneFixe: boolean;
 }>) {
+  const t = useTranslations();
   // Compteurs de toutes mes notes, calculés par le service
   const compte = {
     types: new Map<TypeNote, number>(Object.entries(facettes?.types ?? {}) as [TypeNote, number][]),
     salles: facettes?.campagnes ?? new Map<string, number>(),
   };
 
-  const type = filtre.type ? TYPES_NOTE.find((t) => t.id === filtre.type) : null;
+  const type = filtre.type ? TYPES_NOTE.find((option) => option.id === filtre.type) : null;
   const campagne = filtre.campagne ? campagnes.find((c) => c.id === filtre.campagne) : null;
 
   return (
     <div
       role="toolbar"
-      aria-label="Filtres"
+      aria-label={t('notes.list.filters')}
       className="-mx-4 flex items-center gap-1 overflow-x-auto px-4 no-scrollbar lg:-mx-3 lg:px-3"
     >
       <Puce actif={!filtreActif(filtre)} onClick={() => onFiltre(FILTRE_VIDE)}>
-        Toutes
+        {t('notes.list.all')}
       </Puce>
       <Puce
         actif={filtre.epinglees}
         onClick={() => onFiltre({ ...filtre, epinglees: !filtre.epinglees })}
       >
         <Pin className="rotate-45" />
-        Épinglées
+        {t('notes.list.pinnedMany')}
       </Puce>
 
       <DropdownMenu>
@@ -527,28 +536,28 @@ function FiltresNotes({
             {type ? (
               <>
                 <span className="text-[13px] leading-none">{type.icone}</span>
-                {type.label}
+                {t(`notes.types.${type.id}`)}
               </>
             ) : (
-              'Type'
+              t('notes.props.type')
             )}
             <ChevronDown className="!size-3 opacity-60" />
           </Puce>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-52">
           <ElementFiltre actif={!filtre.type} onSelect={() => onFiltre({ ...filtre, type: null })}>
-            Tous les types
+            {t('notes.list.allTypes')}
           </ElementFiltre>
           <DropdownMenuSeparator />
-          {TYPES_NOTE.map((t) => (
+          {TYPES_NOTE.map((option) => (
             <ElementFiltre
-              key={t.id}
-              actif={filtre.type === t.id}
-              compte={compte.types.get(t.id) ?? 0}
-              onSelect={() => onFiltre({ ...filtre, type: t.id })}
+              key={option.id}
+              actif={filtre.type === option.id}
+              compte={compte.types.get(option.id) ?? 0}
+              onSelect={() => onFiltre({ ...filtre, type: option.id })}
             >
-              <span className="w-5 text-center text-base leading-none">{t.icone}</span>
-              {t.label}
+              <span className="w-5 text-center text-base leading-none">{option.icone}</span>
+              {t(`notes.types.${option.id}`)}
             </ElementFiltre>
           ))}
         </DropdownMenuContent>
@@ -570,7 +579,7 @@ function FiltresNotes({
                   <span className="max-w-[110px] truncate">{campagne.name}</span>
                 </>
               ) : (
-                'Campagne'
+                t('notes.props.campaign')
               )}
               <ChevronDown className="!size-3 opacity-60" />
             </Puce>
@@ -580,12 +589,12 @@ function FiltresNotes({
               actif={!filtre.campagne}
               onSelect={() => onFiltre({ ...filtre, campagne: null })}
             >
-              Toutes les campagnes
+              {t('notes.list.allCampaigns')}
             </ElementFiltre>
             {campagnes.length > 0 && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Mes campagnes</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('notes.list.myCampaigns')}</DropdownMenuLabel>
               </>
             )}
             {campagnes.map((c) => (
@@ -635,8 +644,9 @@ function ElementFiltre({
 // ─── États ───────────────────────────────────────────────────────────────────
 
 function SqueletteListe() {
+  const t = useTranslations();
   return (
-    <div className="space-y-1 px-1 pt-4" aria-busy aria-label="Chargement des notes">
+    <div className="space-y-1 px-1 pt-4" aria-busy aria-label={t('notes.list.loading')}>
       <Skeleton className="mb-3 ml-2 h-3 w-20" />
       {Array.from({ length: 7 }, (_, i) => (
         <div key={i} className="flex gap-3 rounded-xl px-2 py-2.5">
@@ -664,24 +674,23 @@ function AucunResultat({
   filtre: FiltreNotes;
   onEffacer: () => void;
 }>) {
+  const t = useTranslations();
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center animate-in fade-in-0">
       <div className="mb-3 flex size-10 items-center justify-center rounded-xl border border-border-strong bg-surface-2">
         <SearchX className="size-4 text-subtle" />
       </div>
-      <p className="text-sm font-medium">Aucune note trouvée</p>
+      <p className="text-sm font-medium">{t('notes.list.notFound')}</p>
       <p className="mt-1 max-w-[240px] text-[13px] text-muted-foreground">
         {recherche
-          ? `Rien ne correspond à « ${recherche.trim()} »${avecFiltres(filtre)}.`
-          : 'Aucune note ne correspond à ces filtres.'}
+          ? t(filtreActif(filtre) ? 'notes.list.noMatchFiltered' : 'notes.list.noMatch', {
+              search: recherche.trim(),
+            })
+          : t('notes.list.noMatchFilters')}
       </p>
       <Button variant="secondary" size="xs" className="mt-4" onClick={onEffacer}>
-        Tout effacer
+        {t('map.obstacles.clearAll')}
       </Button>
     </div>
   );
 }
-
-const nbNotes = (n: number) => (n > 1 ? `${n} notes` : `${n} note`);
-
-const avecFiltres = (filtre: FiltreNotes) => (filtreActif(filtre) ? ' avec ces filtres' : '');

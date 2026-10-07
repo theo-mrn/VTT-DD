@@ -5,6 +5,7 @@
  * gomme ; touches 1 à 5), couleur et opacité, épaisseur, remplissage, destination (annotation
  * ou calque), et « Effacer mes dessins » / « Tout effacer » (MJ). Les réglages sont mémorisés.
  */
+import { translate } from '@/i18n/runtime';
 import {
   Circle,
   Eraser,
@@ -36,12 +37,13 @@ import { ColorDot, ColorPalette } from './color-palette';
 import { OptionButton, OptionSeparator, RangeSetting, TargetMenu } from './option-controls';
 import { useDrawingsRuntime, useDrawSettings } from './use-drawings';
 
-const SHAPES: readonly { id: DrawShape; label: string; icon: LucideIcon; key: string }[] = [
-  { id: 'pen', label: 'Main levée', icon: Pencil, key: '1' },
-  { id: 'line', label: 'Ligne (⇧ : par pas de 15°)', icon: Minus, key: '2' },
-  { id: 'rectangle', label: 'Rectangle (⇧ : carré)', icon: Square, key: '3' },
-  { id: 'circle', label: 'Ellipse (⇧ : cercle)', icon: Circle, key: '4' },
-  { id: 'eraser', label: 'Gomme', icon: Eraser, key: '5' },
+/** Formes de l'outil ; nom affiché : `map.drawings.shapes.<id>`. */
+const SHAPES: readonly { id: DrawShape; icon: LucideIcon; key: string }[] = [
+  { id: 'pen', icon: Pencil, key: '1' },
+  { id: 'line', icon: Minus, key: '2' },
+  { id: 'rectangle', icon: Square, key: '3' },
+  { id: 'circle', icon: Circle, key: '4' },
+  { id: 'eraser', icon: Eraser, key: '5' },
 ];
 
 export function DrawOptions({ engine }: Readonly<{ engine: MapEngine }>) {
@@ -59,11 +61,15 @@ export function DrawOptions({ engine }: Readonly<{ engine: MapEngine }>) {
 
   return (
     <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
-      <div role="group" aria-label="Forme" className="flex items-center gap-0.5">
+      <div
+        role="group"
+        aria-label={translate('map.fog.shape')}
+        className="flex items-center gap-0.5"
+      >
         {SHAPES.map((s) => (
           <OptionButton
             key={s.id}
-            label={s.label}
+            label={translate(`map.drawings.shapes.${s.id}`)}
             shortcut={s.key}
             active={shape === s.id}
             onClick={() => {
@@ -85,9 +91,13 @@ export function DrawOptions({ engine }: Readonly<{ engine: MapEngine }>) {
       ) : (
         <>
           <Popover>
-            <Info texte="Couleur et opacité">
+            <Info texte={translate('map.drawings.colorOpacity')}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Couleur et opacité">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={translate('map.drawings.colorOpacity')}
+                >
                   <ColorDot color={withAlpha(color, opacity)} className="size-5" />
                 </Button>
               </PopoverTrigger>
@@ -95,7 +105,7 @@ export function DrawOptions({ engine }: Readonly<{ engine: MapEngine }>) {
             <PopoverContent side="top" className="w-auto space-y-4 p-3">
               <ColorPalette value={color} onChange={(hex) => patch({ color: hex })} />
               <RangeSetting
-                label="Opacité"
+                label={translate('map.grid.opacity')}
                 value={Math.round(opacity * 100)}
                 min={OPACITY_RANGE.min * 100}
                 max={OPACITY_RANGE.max * 100}
@@ -107,9 +117,14 @@ export function DrawOptions({ engine }: Readonly<{ engine: MapEngine }>) {
           </Popover>
 
           <Popover>
-            <Info texte="Épaisseur">
+            <Info texte={translate('map.grid.thickness')}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" aria-label="Épaisseur" className="gap-1.5 px-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={translate('map.grid.thickness')}
+                  className="gap-1.5 px-2"
+                >
                   <StrokeSample width={width} color={withAlpha(color, opacity)} />
                   <span className="font-mono text-xs tabular-nums">{width}</span>
                 </Button>
@@ -117,7 +132,7 @@ export function DrawOptions({ engine }: Readonly<{ engine: MapEngine }>) {
             </Info>
             <PopoverContent side="top" className="w-64 p-3">
               <RangeSetting
-                label="Épaisseur"
+                label={translate('map.grid.thickness')}
                 value={width}
                 min={WIDTH_RANGE.min}
                 max={WIDTH_RANGE.max}
@@ -131,7 +146,7 @@ export function DrawOptions({ engine }: Readonly<{ engine: MapEngine }>) {
 
           {closedShape && (
             <OptionButton
-              label={fill ? 'Remplie' : 'Sans remplissage'}
+              label={fill ? translate('map.drawings.filled') : translate('map.drawings.noFill')}
               active={fill}
               onClick={() => patch({ fill: !fill })}
             >
@@ -179,18 +194,18 @@ function ClearMenu({ engine }: Readonly<{ engine: MapEngine }>) {
 
   return (
     <DropdownMenu>
-      <Info texte="Effacer">
+      <Info texte={translate('map.drawings.erase')}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Effacer des dessins">
+          <Button variant="ghost" size="icon-sm" aria-label={translate('map.drawings.eraseSome')}>
             <Trash2 />
           </Button>
         </DropdownMenuTrigger>
       </Info>
       <DropdownMenuContent side="top" align="end" className="w-60">
-        <DropdownMenuLabel>Effacer</DropdownMenuLabel>
+        <DropdownMenuLabel>{translate('map.drawings.erase')}</DropdownMenuLabel>
         <DropdownMenuItem disabled={!counts.mine} onSelect={() => void clearDrawings(rt, 'mine')}>
           <Eraser />
-          Effacer mes dessins
+          {translate('map.drawings.eraseMine')}
           <span className="ml-auto font-mono text-xs tabular-nums text-subtle">{counts.mine}</span>
         </DropdownMenuItem>
         {gm && (
@@ -200,7 +215,7 @@ function ClearMenu({ engine }: Readonly<{ engine: MapEngine }>) {
             className="text-destructive focus:bg-destructive/10 focus:text-destructive [&>svg]:text-destructive"
           >
             <Trash2 />
-            Tout effacer…
+            {translate('map.drawings.eraseAllEllipsis')}
             <span className="ml-auto font-mono text-xs tabular-nums">{counts.all}</span>
           </DropdownMenuItem>
         )}

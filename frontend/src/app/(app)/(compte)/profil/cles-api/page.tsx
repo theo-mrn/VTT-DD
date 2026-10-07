@@ -1,17 +1,9 @@
 'use client';
 
 import { AlertTriangle, Check, Copy, KeyRound, Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
-import {
-  Bouton,
-  Carte,
-  formaterDate,
-  formaterDepuis,
-  Message,
-  ParEtat,
-  TitrePage,
-  Vide,
-} from '@/components/compte/elements';
+import { Bouton, Carte, Message, ParEtat, TitrePage, Vide } from '@/components/compte/elements';
 import { styleChamp, styleLabel } from '@/components/compte/styles';
 import {
   Dialog,
@@ -23,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useDates } from '@/i18n/dates';
 import { messageErreur } from '@/lib/api';
 import {
   creerCleApi,
@@ -34,23 +27,23 @@ import {
 import { useRessource } from '@/lib/ressource';
 
 export default function PageClesApi() {
+  const t = useTranslations('account.apiKeys');
+  const dates = useDates();
   const cles = useRessource('cles-api', lireClesApi);
   const [creation, setCreation] = useState(false);
   const [aRevoquer, setARevoquer] = useState<CleApi | null>(null);
 
   return (
     <div className="space-y-6">
-      <TitrePage sousTitre="Pour accéder à votre compte depuis vos propres outils (scripts, bots…).">
-        Clés d&apos;API
-      </TitrePage>
+      <TitrePage sousTitre={t('lead')}>{t('title')}</TitrePage>
 
       <Carte
-        titre="Mes clés"
-        description="Une clé donne accès à votre compte : ne la partagez jamais. Révoquez-la au moindre doute."
+        titre={t('mine')}
+        description={t('mineLead')}
         action={
           <Bouton onClick={() => setCreation(true)}>
             <Plus />
-            Nouvelle clé
+            {t('new')}
           </Bouton>
         }
       >
@@ -58,7 +51,7 @@ export default function PageClesApi() {
           chargement={cles.chargement && !cles.donnees}
           erreur={cles.erreur}
           vide={!cles.donnees?.length}
-          siVide={<Vide>Aucune clé d&apos;API pour l&apos;instant.</Vide>}
+          siVide={<Vide>{t('none')}</Vide>}
         >
           {() => (
             <ul className="divide-y divide-border">
@@ -71,12 +64,14 @@ export default function PageClesApi() {
                       <code className="rounded bg-surface-3 px-1.5 py-0.5 text-foreground/85">
                         {c.prefix}…
                       </code>{' '}
-                      · créée le {formaterDate(c.createdAt)} · utilisée{' '}
-                      {c.lastUsedAt ? formaterDepuis(c.lastUsedAt) : 'jamais'}
+                      {t('line', {
+                        created: dates.date(c.createdAt),
+                        used: dates.since(c.lastUsedAt),
+                      })}
                     </p>
                   </div>
                   <Bouton ton="danger" size="sm" onClick={() => setARevoquer(c)}>
-                    Révoquer
+                    {t('revoke')}
                   </Bouton>
                 </li>
               ))}
@@ -119,6 +114,8 @@ function DialogueCreation({
   onFermer(): void;
   onCreee(cle: CleApiCreee): void;
 }>) {
+  const t = useTranslations('account.apiKeys');
+  const tc = useTranslations('common.actions');
   const [nom, setNom] = useState('');
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -157,7 +154,7 @@ function DialogueCreation({
       setCopiee(true);
       setTimeout(() => setCopiee(false), 2000);
     } catch {
-      setErreur('Copie impossible : sélectionnez la clé et copiez-la à la main.');
+      setErreur(t('copyFailed'));
     }
   }
 
@@ -167,47 +164,43 @@ function DialogueCreation({
         {creee ? (
           <div className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Clé créée</DialogTitle>
+              <DialogTitle>{t('created')}</DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                « {creee.name} »
+                {t('createdName', { name: creee.name })}
               </DialogDescription>
             </DialogHeader>
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>
-                Copiez cette clé maintenant : elle ne sera plus jamais affichée. Gardez-la en lieu
-                sûr, elle donne accès à votre compte.
-              </span>
+              <span>{t('copyNow')}</span>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <code
                 className="min-w-0 flex-1 select-all break-all rounded-lg border border-border-strong bg-primary-foreground px-3 py-2 font-mono text-sm text-primary-strong"
-                aria-label="Clé d'API"
+                aria-label={t('key')}
               >
                 {creee.key}
               </code>
               <Bouton ton="secondaire" onClick={copier} className="shrink-0">
                 {copiee ? <Check /> : <Copy />}
-                {copiee ? 'Copiée' : 'Copier'}
+                {copiee ? t('copied') : t('copy')}
               </Bouton>
             </div>
             {erreur && <Message>{erreur}</Message>}
             <DialogFooter>
-              <Bouton onClick={fermer}>J&apos;ai copié ma clé</Bouton>
+              <Bouton onClick={fermer}>{t('done')}</Bouton>
             </DialogFooter>
           </div>
         ) : (
           <form onSubmit={creer} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Nouvelle clé d&apos;API</DialogTitle>
+              <DialogTitle>{t('newTitle')}</DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Donnez-lui un nom pour la reconnaître (l&apos;outil qui l&apos;utilise, par
-                exemple).
+                {t('newLead')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
               <Label htmlFor="nom-cle" className={styleLabel}>
-                Nom
+                {t('name')}
               </Label>
               <Input
                 id="nom-cle"
@@ -215,7 +208,7 @@ function DialogueCreation({
                 maxLength={64}
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
-                placeholder="Bot Discord de la campagne"
+                placeholder={t('namePlaceholder')}
                 className={styleChamp}
                 autoFocus
               />
@@ -223,10 +216,10 @@ function DialogueCreation({
             {erreur && <Message>{erreur}</Message>}
             <DialogFooter>
               <Bouton type="button" ton="secondaire" onClick={fermer} disabled={envoi}>
-                Annuler
+                {tc('cancel')}
               </Bouton>
               <Bouton type="submit" chargement={envoi} disabled={!nom.trim()}>
-                Créer la clé
+                {t('create')}
               </Bouton>
             </DialogFooter>
           </form>
@@ -245,6 +238,8 @@ function DialogueRevocation({
   onFermer(): void;
   onRevoquee(id: string): void;
 }>) {
+  const t = useTranslations('account.apiKeys');
+  const tc = useTranslations('common.actions');
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -273,19 +268,18 @@ function DialogueRevocation({
     <Dialog open={cle !== null} onOpenChange={(o) => !o && fermer()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Révoquer cette clé ?</DialogTitle>
+          <DialogTitle>{t('revokeTitle')}</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Les outils qui utilisent « {cle?.name} » perdront immédiatement l&apos;accès à votre
-            compte.
+            {t('revokeText', { name: cle?.name ?? '' })}
           </DialogDescription>
         </DialogHeader>
         {erreur && <Message className="mt-4">{erreur}</Message>}
         <DialogFooter className="mt-6">
           <Bouton ton="secondaire" onClick={fermer} disabled={envoi}>
-            Annuler
+            {tc('cancel')}
           </Bouton>
           <Bouton ton="danger" className="bg-destructive/10" chargement={envoi} onClick={revoquer}>
-            Révoquer
+            {t('revoke')}
           </Bouton>
         </DialogFooter>
       </DialogContent>

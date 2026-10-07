@@ -1,6 +1,7 @@
 'use client';
 
 /** Confirmation demandée par le moteur (`engine.confirm`) : supprimer, adapter les éléments… */
+import { translate } from '@/i18n/runtime';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -28,7 +29,7 @@ export function MapConfirmDialog() {
         </DialogHeader>
         <DialogFooter>
           <Button variant="ghost" onClick={() => confirm?.resolve(false)}>
-            Annuler
+            {translate('common.actions.cancel')}
           </Button>
           <Button
             variant={confirm?.danger ? 'destructive' : 'default'}

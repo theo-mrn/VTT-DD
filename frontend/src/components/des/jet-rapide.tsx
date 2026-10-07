@@ -6,6 +6,8 @@
  * ↑ et ↓ rappellent les dernières formules. À la table, le jet part avec le héros incarné ;
  * ailleurs, c'est un jet personnel.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import { Dices } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
@@ -42,8 +44,12 @@ export function retenir(formule: string) {
 /** Résultat d'un jet lancé hors du panneau des dés : une notification. */
 export function annoncerJet(jet: Jet) {
   const titre = jet.label?.trim() || jet.formula;
-  const resultat = jet.symbolResult ?? (jet.total === null ? 'Jet caché' : String(jet.total));
-  toast(`${titre} : ${resultat}`, { description: jet.total === null ? undefined : jet.output });
+  const resultat =
+    jet.symbolResult ??
+    (jet.total === null ? translate('dice.launcher.hiddenRoll') : String(jet.total));
+  toast(translate('dice.launcher.rollAnnounce', { title: titre, result: resultat }), {
+    description: jet.total === null ? undefined : jet.output,
+  });
 }
 
 export function JetRapide({
@@ -58,6 +64,7 @@ export function JetRapide({
   fiche?: Fiche | null;
   onRoll(formule: string): void;
 }>) {
+  const t = useTranslations('dice.quick');
   const [formule, setFormule] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const position = useRef(-1);
@@ -110,8 +117,8 @@ export function JetRapide({
         showCloseButton={false}
         className="top-[18vh] translate-y-0 sm:max-w-sm data-[state=open]:slide-in-from-top-2"
       >
-        <DialogTitle className="sr-only">Jet rapide</DialogTitle>
-        <DialogDescription className="sr-only">Notation du jet, puis Entrée</DialogDescription>
+        <DialogTitle className="sr-only">{t('title')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('lead')}</DialogDescription>
         <div
           className={cn(
             'flex items-center gap-2 rounded-xl border bg-popover px-3.5 py-2.5 shadow-elevated',
@@ -128,13 +135,13 @@ export function JetRapide({
             }}
             onKeyDown={onKeyDown}
             placeholder="1d20 + 3"
-            aria-label="Notation du jet"
+            aria-label={t('notation')}
             aria-invalid={erreur ? true : undefined}
             spellCheck={false}
             autoComplete="off"
             className="min-w-0 flex-1 bg-transparent font-mono text-base text-foreground outline-none placeholder:text-subtle"
           />
-          <Kbd aria-hidden>Entrée</Kbd>
+          <Kbd aria-hidden>{t('enter')}</Kbd>
         </div>
         {erreur && (
           <p role="alert" className="mt-1.5 px-1 text-xs text-destructive">
@@ -157,7 +164,7 @@ export function JetRapidePersonnel() {
       .mutateAsync({ formula: formule, label: null, roomId: null })
       .then(annoncerJet)
       .catch((err: unknown) =>
-        toast.error('Le jet n’a pas pu être lancé', {
+        toast.error(translate('dice.launcher.rollFailed'), {
           description:
             err instanceof ApiError || !(err instanceof Error) ? messageErreur(err) : err.message,
         }),

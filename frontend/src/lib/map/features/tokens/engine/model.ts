@@ -9,6 +9,7 @@
  * - Pose de N exemplaires : grille serrée centrée sur le point, une case d'écart (même calcul
  *   que `gridAround` du service, pour que le fantôme tombe là où les tokens arriveront).
  */
+import { translate } from '@/i18n/runtime';
 import type {
   CampaignSide,
   MapPoint,
@@ -202,15 +203,11 @@ export function tokenCan(
 
 // ─── Visibilité ──────────────────────────────────────────────────────────────
 
-export const VISIBILITY_LABELS: Readonly<
-  Record<MapTokenVisibility, { label: string; hint: string }>
-> = {
-  visible: { label: 'Visible', hint: 'Vu des joueurs qui ont une ligne de vue' },
-  hidden: { label: 'Caché', hint: 'Vu seulement de près ou éclairé' },
-  ally: { label: 'Allié', hint: 'Toujours vu, et voit pour les joueurs' },
-  custom: { label: 'Pour certains joueurs', hint: 'Vu des personnages choisis' },
-  invisible: { label: 'Invisible', hint: 'Le MJ seul le voit' },
-};
+/** Nom et explication d'une visibilité (`map.tokens.visibility.<v>`). */
+export const visibilityLabel = (v: MapTokenVisibility) =>
+  translate(`map.tokens.visibility.${v}.label`);
+export const visibilityHint = (v: MapTokenVisibility) =>
+  translate(`map.tokens.visibility.${v}.hint`);
 
 export const VISIBILITY_ORDER: readonly MapTokenVisibility[] = [
   'visible',
@@ -233,9 +230,5 @@ export function withVisibility(
   };
 }
 
-/** Camps d'un PNJ posé depuis la bibliothèque. */
-export const SIDE_LABELS: Readonly<Record<CampaignSide, string>> = {
-  players: 'Joueurs',
-  enemies: 'Ennemis',
-  allies: 'Alliés',
-};
+/** Camp d'un PNJ posé depuis la bibliothèque (`map.tokens.sides.<camp>`). */
+export const sideLabel = (side: CampaignSide) => translate(`map.tokens.sides.${side}`);

@@ -23,6 +23,7 @@
  */
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import {
   useInfiniteQuery,
   useMutation,
@@ -218,13 +219,13 @@ export function formuleMoteur(
 function contexte(fiche: Fiche | null | undefined, aleatoire: ContexteEvaluation['aleatoire']) {
   if (fiche) return fiche.contexte({ aleatoire });
   const inconnu = (quoi: string) => () => {
-    throw new Error(`${quoi} : choisissez un personnage pour utiliser ses valeurs`);
+    throw new Error(translate('sheet.formula.pickCharacter', { what: quoi }));
   };
   return {
-    attribut: inconnu('Attribut'),
-    modificateur: inconnu('Modificateur'),
+    attribut: inconnu(translate('sheet.formula.attribute')),
+    modificateur: inconnu(translate('sheet.formula.modifier')),
     variable: (nom: string) => {
-      throw new Error(`« ${nom} » : choisissez un personnage pour utiliser ses attributs`);
+      throw new Error(translate('sheet.formula.pickCharacterFor', { name: nom }));
     },
     aleatoire,
   } satisfies ContexteEvaluation;
@@ -234,7 +235,8 @@ export type Verification = { ok: true } | { ok: false; message: string; position
 
 /** Vérifie une formule sans la lancer pour de vrai (le résultat est jeté). */
 export function verifierFormule(texte: string, fiche?: Fiche | null): Verification {
-  if (!normaliserFormule(texte)) return { ok: false, message: 'Formule vide', position: null };
+  if (!normaliserFormule(texte))
+    return { ok: false, message: translate('sheet.formula.empty'), position: null };
   const m = formuleMoteur(texte, fiche);
   if (!m.ok) return { ok: false, message: m.erreur.message, position: m.erreur.position };
   const a = analyser(m.formule);
@@ -246,12 +248,13 @@ export function verifierFormule(texte: string, fiche?: Fiche | null): Verificati
     };
   try {
     const r = evaluer(a.noeud, contexte(fiche, aleatoireCrypto()));
-    if (typeof r.valeur !== 'number') return { ok: false, message: 'Nombre attendu', position: 0 };
+    if (typeof r.valeur !== 'number')
+      return { ok: false, message: translate('sheet.formula.numberExpected'), position: 0 };
     return { ok: true };
   } catch (e) {
     return {
       ok: false,
-      message: e instanceof Error ? e.message : 'Formule invalide',
+      message: e instanceof Error ? e.message : translate('sheet.formula.invalid'),
       position: null,
     };
   }

@@ -44,6 +44,20 @@ export const BillingConfig = BaseConfig.extend({
   STRIPE_TERMS: z.enum(['on', 'off']).default('off'),
 
   /**
+   * Vente des packs de la marketplace par Stripe Connect (docs/marketplace.md § 5) : comptes
+   * des créateurs, charges de destination, commission. off : routes Connect et sessions de vente
+   * en 503 connect_disabled. Ne passer à on qu'après la configuration de Connect dans Stripe.
+   */
+  STRIPE_CONNECT: z.enum(['on', 'off']).default('off'),
+  /**
+   * Secret de l'endpoint des événements des comptes connectés (whsec_…), distinct de celui du
+   * webhook principal. Absent : POST /v1/billing/connect/webhook répond 503.
+   */
+  STRIPE_CONNECT_WEBHOOK_SECRET: optional(z.string().regex(/^whsec_/, 'secret whsec_… attendu')),
+  /** Secret partagé entre services (en-tête x-internal-secret) : sessions de vente de marketplace. */
+  INTERNAL_API_SECRET: optional(z.string().min(32)),
+
+  /**
    * Bus d'événements : le relais d'outbox y publie les droits
    * (billing.entitlements_changed), appliqués par dice et identity. Absent :
    * les événements restent dans l'outbox.

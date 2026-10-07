@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Plus, Search, Swords, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -21,6 +22,7 @@ import { cn } from '@/lib/utils';
 
 /** Galerie des personnages du joueur, filtrable par système et par campagne. */
 export default function PagePersonnages() {
+  const t = useTranslations();
   const personnages = usePersonnages();
   const campagnes = useCampagnes();
   const systemes = useSystemes();
@@ -44,9 +46,9 @@ export default function PagePersonnages() {
   return (
     <Page large>
       <EnTetePage
-        surtitre="Vos héros"
-        titre="Personnages"
-        description="Chaque fiche est calculée par les règles de son système : valeurs, bonus et jets sont toujours justes."
+        surtitre={t('characters.page.eyebrow')}
+        titre={t('characters.page.title')}
+        description={t('characters.page.lead')}
         actions={
           <div className="flex items-center gap-1.5">
             <TrashButton items={corbeille.data} />
@@ -85,9 +87,9 @@ export default function PagePersonnages() {
               avant={<Search />}
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
-              placeholder="Rechercher un héros…"
+              placeholder={t('characters.page.searchPlaceholder')}
               className="h-9"
-              aria-label="Rechercher un personnage"
+              aria-label={t('characters.page.search')}
             />
           </div>
         </div>
@@ -105,13 +107,13 @@ export default function PagePersonnages() {
       {!personnages.isLoading && personnages.data?.length === 0 && (
         <EtatVide
           icone={UserRound}
-          titre="Aucun personnage"
-          description="Créez votre premier héros : l'assistant vous guide étape par étape, selon les règles du système choisi."
+          titre={t('characters.page.none')}
+          description={t('characters.page.noneHint')}
           action={
             <Button asChild>
               <Link href="/personnages/nouveau">
                 <Plus />
-                Créer un personnage
+                {t('characters.page.create')}
               </Link>
             </Button>
           }
@@ -129,7 +131,9 @@ export default function PagePersonnages() {
                   haut={
                     <>
                       <Badge ton="verre">{nomSysteme(p.system.id)}</Badge>
-                      {p.inCreation && <Badge ton="verre">En création</Badge>}
+                      {p.inCreation && (
+                        <Badge ton="verre">{t('characters.picker.inCreation')}</Badge>
+                      )}
                     </>
                   }
                   bas={
@@ -151,12 +155,12 @@ export default function PagePersonnages() {
             <span className="flex size-11 items-center justify-center rounded-full border border-border-strong bg-surface-2 transition-colors group-hover:border-primary/40 group-hover:text-primary">
               <Plus className="size-5" />
             </span>
-            <span className="text-sm font-medium">Nouveau héros</span>
+            <span className="text-sm font-medium">{t('characters.page.newHero')}</span>
           </Link>
         </div>
       )}
       {liste.length === 0 && (personnages.data?.length ?? 0) > 0 && (
-        <p className="py-10 text-center text-sm text-subtle">Aucun personnage ne correspond.</p>
+        <p className="py-10 text-center text-sm text-subtle">{t('characters.page.noMatch')}</p>
       )}
     </Page>
   );

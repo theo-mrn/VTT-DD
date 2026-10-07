@@ -5,6 +5,7 @@
  * `order` croissant en partant de `maps.fogFull`. `order` et `createdBy` sont attribués par le
  * serveur : un brouillon porte des valeurs provisoires (en haut de la pile).
  */
+import { translate } from '@/i18n/runtime';
 import type { MapFogMode, MapFogZone } from '@vtt/contracts';
 import type { Point } from '@/lib/map/engine/geometry';
 import { tempId, type Persistence } from '@/lib/map/store/commands';
@@ -19,10 +20,8 @@ export const FOG_TOOL_ID = 'fog';
 
 export const invertMode = (m: FogMode): FogMode => (m === 'fog' ? 'clear' : 'fog');
 
-export const FOG_MODE_LABELS: Record<FogMode, string> = {
-  fog: 'Ajouter du brouillard',
-  clear: 'Retirer du brouillard',
-};
+/** Action d'un mode (`map.fog.modes.<mode>`). */
+export const fogModeLabel = (m: FogMode) => translate(`map.fog.modes.${m}`);
 
 export type FogGeometry =
   | { shape: 'circle'; center: Point; radius: number }

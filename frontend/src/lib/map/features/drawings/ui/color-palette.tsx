@@ -5,6 +5,7 @@
  * (données, `lib/map/features/drawings/engine/palette.ts`), plus une couleur personnalisée, prise à la
  * fermeture du sélecteur du navigateur (une seule modification, pas une par mouvement).
  */
+import { translate } from '@/i18n/runtime';
 import { Check, Pipette } from 'lucide-react';
 import { useEffect, useId, useRef } from 'react';
 import { Info } from '@/components/ui/tooltip';
@@ -14,7 +15,7 @@ import { cn } from '@/lib/utils';
 export function ColorPalette({
   value,
   onChange,
-  label = 'Couleur',
+  label = translate('map.grid.color'),
 }: Readonly<{
   /** `#rrggbb`. */
   value: string;
@@ -66,7 +67,7 @@ export function ColorPalette({
           </Info>
         );
       })}
-      <Info texte="Couleur personnalisée">
+      <Info texte={translate('map.obstacles.customColor')}>
         <label
           htmlFor={id}
           className={cn(
@@ -81,7 +82,7 @@ export function ColorPalette({
             ref={input}
             id={id}
             type="color"
-            aria-label="Couleur personnalisée"
+            aria-label={translate('map.obstacles.customColor')}
             defaultValue={hex}
             className="absolute inset-0 size-full cursor-pointer opacity-0"
           />

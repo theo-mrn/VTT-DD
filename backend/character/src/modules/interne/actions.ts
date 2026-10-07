@@ -426,7 +426,10 @@ function resoudre(
   const { targets, resultats } = resultatsParCible(systeme, inst, r);
   return {
     step,
-    resolution: { targets, actor: { modifications: r.acteur.map(versModification) } },
+    resolution: {
+      targets,
+      actor: { modifications: r.acteur.map((m) => versModification(m, inst.actor.id)) },
+    },
     faces: [...faces.values()],
     resultats: step ? [] : resultats,
   };
@@ -449,7 +452,7 @@ function resultatsParCible(
         characterId: id,
         status: 'awaiting_dice',
         error: null,
-        result: attente.partiel ? resultatCible(systeme, attente.partiel) : null,
+        result: attente.partiel ? resultatCible(systeme, attente.partiel, inst.actor.id) : null,
         view: attente.partiel ? vueCible(systeme, attente.partiel) : null,
       };
     const c = parCible.get(id);
@@ -466,7 +469,7 @@ function resultatsParCible(
       characterId: id,
       status: 'resolved',
       error: null,
-      result: resultatCible(systeme, c.resultat),
+      result: resultatCible(systeme, c.resultat, inst.actor.id),
       view: vueCible(systeme, c.resultat),
     };
   });

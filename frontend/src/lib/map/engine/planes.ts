@@ -43,19 +43,20 @@ export const PLANE_RANK: Readonly<Record<PlaneId, number>> = Object.fromEntries(
 /**
  * Réglage « Affichage » du MJ (`map.display`) : des familles entières masquées (lumières,
  * obstacles, brouillard…). Chaque sorte d'entité déclare sa famille (`EntityKind.display`).
+ * Nom affiché : `map.display.<clé>`.
  */
 export const DISPLAY_TOGGLES = [
-  { key: 'characters', label: 'Personnages' },
-  { key: 'objects', label: 'Objets' },
-  { key: 'drawings', label: 'Dessins' },
-  { key: 'notes', label: 'Textes' },
-  { key: 'obstacles', label: 'Obstacles' },
-  { key: 'lights', label: 'Lumières' },
-  { key: 'fog', label: 'Brouillard' },
-  { key: 'music', label: 'Zones sonores' },
+  'characters',
+  'objects',
+  'drawings',
+  'notes',
+  'obstacles',
+  'lights',
+  'fog',
+  'music',
 ] as const;
 
-export type DisplayKey = (typeof DISPLAY_TOGGLES)[number]['key'];
+export type DisplayKey = (typeof DISPLAY_TOGGLES)[number];
 
 /** Familles affichées (`map.display`) ; une clé absente vaut « affichée ». */
 export type DisplaySetting = Partial<Record<string, boolean>>;

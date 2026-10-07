@@ -242,10 +242,10 @@ d'abord, puis ordre stable (existant ; règle de l'ancienne app pour tous les sy
 - **Gestion** : fiche du participant (panneau Combat) : ajouter (liste du système, état libre),
   durée, retirer ; par les routes de character (`POST /possessions` avec `duree`, à ajouter ;
   `bonus`). Les actions en donnent aussi (conséquence `donner` avec `duree` : sort qui étourdit).
-- **Décompte** : fin de round (existant), rendu idempotent par `tickId` et annulable (§ 4.3).
-- **Fin de combat** : option « Retirer les états à durée » (`clearTimedStates`) : campaign appelle
-  le décompte de chaque participant avec `clear: true` (tout ce qui a une durée est retiré,
-  annulable comme un round).
+- **Décompte** : en fin de round, au début ou à la fin du tour du porteur ou de la source,
+  idempotent par `tickId` et annulable (§ 4.3, § 18).
+- **Fin de combat** : « Retirer les états à durée » (`clearTimedStates`, vrai par défaut depuis
+  le § 18.6) : tout ce qui a une durée chez les participants est retiré.
 - **Hors de combat** : formule `horsCombat` du type d'entité (§ 14 : D&D `@PV <= 0`, Star Wars
   `@neutralise`), évaluée par character après chaque application. Vraie : `defeated`, événement
   `combat.participant_defeated`, dialogue du MJ (§ 7.4). Sans formule dans le système, pas de
@@ -797,13 +797,13 @@ colonnes ajoutées à `campaign_combats` (`settings`, `current_actor_id`, `turn`
 
 Internes (secret `INTERNAL_API_SECRET`, appelées par campaign) :
 
-| Méthode | Route                                       | Rôle                                                                                                                                                                                                                |
-| ------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST    | `/internal/actions/prepare`                 | `{ actorId, action, params, targetIds, rollMode, adjustments?, userId, campaignId }` → règles vérifiées (422 `action_refusee`), `snapshot` (opaque), réactions par cible, première étape ou résultats (dés serveur) |
-| POST    | `/internal/actions/resolve`                 | `{ snapshot, params, reactions, faces, rollMode, serverFallback?, forcer?, diceHistory }` → étape suivante, ou résultats par cible (complet et vue de l'attaquant), coûts de l'attaquant, jet transmis à dice       |
-| POST    | `/internal/modifications/apply`             | `{ applications: [{ applicationId, userId, campaignId, items: [{ characterId, modifications, tables }] }] }` → par fiche : version, `changes`, `defeated` ; transaction unique, idempotent                          |
-| POST    | `/internal/modifications/revert`            | `{ applicationId, characterIds?, force? }` → rendues, conflits (409)                                                                                                                                                |
-| POST    | `/internal/characters/:id/durees/decompter` | existant + `tickId` : idempotent, annulable par `modifications/revert` (`applicationId = tickId`)                                                                                                                   |
+| Méthode | Route                            | Rôle                                                                                                                                                                                                                |
+| ------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST    | `/internal/actions/prepare`      | `{ actorId, action, params, targetIds, rollMode, adjustments?, userId, campaignId }` → règles vérifiées (422 `action_refusee`), `snapshot` (opaque), réactions par cible, première étape ou résultats (dés serveur) |
+| POST    | `/internal/actions/resolve`      | `{ snapshot, params, reactions, faces, rollMode, serverFallback?, forcer?, diceHistory }` → étape suivante, ou résultats par cible (complet et vue de l'attaquant), coûts de l'attaquant, jet transmis à dice       |
+| POST    | `/internal/modifications/apply`  | `{ applications: [{ applicationId, userId, campaignId, items: [{ characterId, modifications, tables }] }] }` → par fiche : version, `changes`, `defeated` ; transaction unique, idempotent                          |
+| POST    | `/internal/modifications/revert` | `{ applicationId, characterIds?, force? }` → rendues, conflits (409)                                                                                                                                                |
+| POST    | `/internal/durations/tick`       | décompte d'un passage de tour, par lot (§ 18.4) : idempotent par `tickId`, annulable par `modifications/revert` (`applicationId = tickId`)                                                                          |
 
 Publiques : `POST /possessions` accepte `duree` (états) et `soundAssetId` (son d'un exemplaire) ;
 `PUT /v1/characters/:id/presets` (attaques enregistrées) ; la fiche d'un PNJ ennemi n'est plus lisible
@@ -900,11 +900,20 @@ ActionResolution = {
   de l'attaquant) se rend en entier.
 - Un décompte de durées se rend de la même façon : `applicationId = tickId`.
 
-**`POST /internal/characters/:id/durees/decompter`** : corps existant + `tickId?` (texte,
-`tick:<combatId>:<round>:<passage>` en fin de round, `tick:<combatId>:end` pour la fin de combat,
-lot 1) et `clear?` (fin de combat : tout ce qui a une durée est retiré) ;
-réponse existante (`modifie`, `retirees`, `version`) + `replayed`. Même `tickId` et même
-personnage : rien n'est décompté une seconde fois, la réponse d'origine revient.
+**`POST /internal/durations/tick`** (remplace `…/characters/:id/durees/decompter`, § 18.4) :
+
+```
+{ tickId,                 // tick:<combatId>:<round>:<passage>, tick:<combatId>:end, …
+  campaignId, userId?,
+  characterIds,           // participants (1..100) : les fiches décomptées, et les ancres valides
+  events }                // DurationEvent[] : turn_start, turn_end, round_end, combat_end
+                          // (fin de combat : tout ce qui a une durée est retiré)
+→ 200 { tickId, replayed,
+        items: [{ characterId, version, expired: [{ key, name }] }] }  // fiches réécrites
+```
+
+Même `tickId` : rien n'est décompté une seconde fois, la réponse d'origine revient
+(`replayed: true`). Un personnage supprimé est ignoré.
 
 ### 11.3 audio (Q2)
 
@@ -1435,3 +1444,190 @@ Réalisé par le lot 1 (étapes A et B), précisions et écarts :
 | Q2  | **Son d'arme** : l'ancienne app le jouait à tous ; la décision audio Q4 réserve les effets au MJ. | **campaign le joue** à la touche (auteur système), seulement le son lié à l'exemplaire, pris dans la bibliothèque de la campagne, avec la limite de débit : le joueur ne lance rien lui-même. |
 | Q3  | Les attaques du **MJ** sont-elles **cachées** par défaut ?                                        | **Oui** : les joueurs ne voyaient jamais les jets des PNJ dans l'ancienne app ; bascule par attaque et réglage du combat.                                                                     |
 | Q4  | **Fiches de PNJ** : aujourd'hui lisibles par tout membre (character). On restreint ?              | **Levée par Théo (2026-09-30)** : l'attaque se calcule dans le navigateur, un joueur de la campagne lit la fiche du PNJ qu'il vise ; un spectateur non.                                       |
+
+## 18. Durées décomptées au nombre de tours
+
+Chantier du 2026-10-07. Jusqu'ici, une durée était un nombre de rounds décompté à chaque fin de
+round (§ 4.5). La table veut aussi les durées qui suivent le tour d'un combattant (« jusqu'à la
+fin de ton prochain tour », « jusqu'au début du tour de la cible »), une durée par défaut lue dans
+le système, l'expiration annoncée à la table, et un décompte qui reste juste quand plusieurs
+clients jouent, qu'un appel est rejoué ou que le MJ revient en arrière.
+
+### 18.1 Modèle
+
+Une durée vit sur ce qu'elle limite : une possession (état du catalogue, sort actif) ou un bonus
+libre (état libre, bénédiction), dans l'état de la fiche (character). Deux champs :
+
+| Champ      | Sens                                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `duree`    | décomptes restants (existant) ; absent : jusqu'au retrait                                                                       |
+| `decompte` | quand la durée perd un décompte (`moment`), au tour de qui (`de`), attente du tour en cours (`attente`) ; absent : fin de round |
+
+`decompte = { moment, de?, attente? }` :
+
+- **`moment`** : `fin-round` (défaut, l'existant), `debut-tour` ou `fin-tour` ;
+- **`de`** : identifiant du personnage dont le tour compte (`debut-tour`, `fin-tour`) ; absent :
+  le porteur. Le système dit `porteur` ou `source` (§ 18.2) ; la source est résolue en
+  identifiant à la pose (l'attaquant, ou le participant choisi par le MJ) ;
+- **`attente`** (`fin-tour` seulement, posée par le serveur, jamais par le client) : le prochain
+  événement du tour de `de` ne décompte pas, il lève l'attente. C'est ce qui fait « jusqu'à la fin
+  de son **prochain** tour » sans savoir qui agit au moment de la pose : posé pendant le tour de
+  `de`, la fin de ce tour lève l'attente et la fin du suivant décompte ; posé hors de son tour, le
+  début de son tour lève l'attente et sa fin décompte.
+
+Lecture : `{ duree: 2 }` = deux fins de round ; `{ duree: 1, decompte: { moment: fin-tour } }` =
+jusqu'à la fin du prochain tour du porteur ; `{ duree: 1, decompte: { moment: debut-tour, de: X } }`
+= jusqu'au début du prochain tour de X.
+
+### 18.2 Durée par défaut, données du système
+
+Zéro valeur dans le code : la durée par défaut d'un état ou d'un sort est une donnée.
+
+- **Entrée du catalogue** : `duree: { valeur, moment?, de? }` (`valeur` entier de 1 à 10 000 ;
+  `moment` : défaut `fin-round` ; `de` : `porteur` (défaut) ou `source`). Proposée quand on pose
+  l'entrée à la main, et reprise par une conséquence `donner` qui ne dit pas de durée.
+- **Conséquence `donner`** : `duree` (formule, existant) et `decompte: { moment, de }` ; sans
+  `decompte`, celui de l'entrée, sinon fin de round sur le porteur. Un sort D&D dont la durée est
+  tirée aux dés garde sa formule ; un état « jusqu'à son prochain tour » le dit une fois, dans le
+  catalogue.
+- Validé au chargement (schéma), documenté dans regles.md.
+
+Données posées par ce chantier (Star Wars) : **Manœuvre défensive** (« jusqu'à son prochain
+tour ») : 1, `debut-tour`, porteur ; **Étourdi** (blessures critiques : « étourdi jusqu'à la fin
+de son prochain tour ») : 1, `fin-tour`, porteur. Les autres états des trois systèmes n'ont pas de
+durée fixe dans leurs règles : rien n'est inventé.
+
+### 18.3 Événements de tour et moments du décompte
+
+campaign traduit chaque passage de tour en **événements**, dans l'ordre où ils arrivent à la
+table (fonction pure `passageEvents`, `backend/campaign/src/modules/combat/durations.ts`) :
+
+| Passage                                       | Événements                                                                                     |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `next` (individual)                           | `turn_end` de qui a agi ; `round_end` si le round change ; `turn_start` du suivant             |
+| `next` (slots)                                | `turn_start` de qui a agi s'il n'était pas désigné, puis son `turn_end` ; `round_end` éventuel |
+| `slot-actor` (route ou première attaque)      | `turn_start` du nouvel acteur                                                                  |
+| `turn` (donner le tour, MJ)                   | `turn_end` de qui agissait, `turn_start` de qui reçoit le tour                                 |
+| initiative de tous, démarrage avec initiative | `turn_start` du premier (mode individual)                                                      |
+| fin du combat                                 | `combat_end` (§ 18.6)                                                                          |
+
+character applique les événements dans l'ordre à chaque durée des participants
+(`decompterDurees`, `packages/rules/src/durees.ts`) :
+
+- `fin-round` : −1 à chaque `round_end` ;
+- `debut-tour` : −1 au `turn_start` de `de` ;
+- `fin-tour` : au `turn_start` de `de`, l'attente est levée ; au `turn_end` de `de`, l'attente est
+  levée sans décompte, sinon −1 ;
+- arrivée à 0 : l'entrée (ou le bonus) est retirée avec ses effets, comme un retrait à la main ;
+- `de` absent du combat (participant retiré, jamais entré) : la durée se rabat sur la fin de
+  round, pour ne jamais rester figée.
+
+Seuls les participants du combat sont décomptés ; hors combat rien ne bouge (une durée posée
+avant le combat attend le premier passage).
+
+### 18.4 Autorité, idempotence, ordre
+
+- **Un décompte par passage**, identifiant `tick:<combatId>:<round>:<passage>` (le passage est
+  l'entrée du journal des tours, § 4.3). Une route interne de character, par lot :
+  `POST /internal/durations/tick { tickId, campaignId, userId?, characterIds, events }` ;
+  une transaction, fiches verrouillées dans l'ordre des identifiants ; en-tête `applications`
+  (`kind: tick`) inséré d'abord : une reprise ou une requête concurrente du même `tickId` attend
+  puis rend la réponse d'origine (`replayed: true`) ; rien n'est décompté deux fois. Une fiche sans
+  durée touchée n'est pas réécrite. Elle remplace `…/characters/:id/durees/decompter` (un appel
+  par personnage, seulement en fin de round).
+- **Journal** : l'entrée du passage garde ses événements (`tick_events`) ; `expired` non nul
+  marque le décompte fait. Un décompte qui n'a pas abouti (character injoignable) est **rejoué au
+  passage suivant**, dans l'ordre du journal, avant le nouveau : aucune fin de tour ne se perd.
+  Les décomptes commutent (chaque événement ne touche que ses durées) : un retard ne fausse rien.
+- **Plusieurs clients** : les passages sont sérialisés par le verrou de la campagne et la version
+  du combat (§ 4.3) ; le décompte suit le passage validé, jamais un clic.
+
+### 18.5 Retour en arrière
+
+« Précédent » rend le décompte du passage annulé (`modifications/revert`, `applicationId =
+tickId`), attente comprise : un état expiré revient avec sa durée d'avant. Un décompte encore en
+vol quand le MJ revient en arrière ne s'applique plus : l'annulation d'un `tickId` inconnu pose une
+**pierre tombale** (`cancelIfMissing`), le décompte arrivé ensuite la trouve et ne fait rien. Une
+fiche modifiée depuis sur les mêmes chemins n'est pas forcée (`durationFailures`, existant).
+
+### 18.6 Fin du combat
+
+Règle : **une durée de combat finit avec le combat.** « Terminer le combat » retire tout ce qui a
+une durée chez les participants (`clearTimedStates`, désormais vrai par défaut ; case cochée dans
+le dialogue) ; décochée, les durées restent figées hors combat et reprennent au combat suivant.
+Les décomptes en retard sont rejoués avant. Le retrait passe par le même lot (`events:
+[combat_end]`, `tickId = tick:<combatId>:end`) et s'annonce comme une expiration.
+
+### 18.7 Annonce, historique
+
+- **Annonce** : un décompte qui retire quelque chose publie `combat.durations_expired`
+  (`{ tickId, round, expirations: [{ characterId, entries: [{ key, name }] }] }`, agrégat
+  `combat`) : complet aux MJ ; réduit pour les autres aux participants vus des camps `players` et
+  `allies` (les fiches dont ils voient déjà les badges), rien s'il n'en reste aucun : jamais l'état
+  d'un PNJ ennemi. La table affiche un toast discret (« Béni prend fin · Aria »).
+- **Historique** : la chronique rend `combat.durations_expired` ; la ligne `durees.decompte` de
+  `character.updated` d'un décompte de combat (avec `tickId`) n'y est plus répétée.
+  `character.updated` reste l'historique de chaque fiche.
+
+### 18.8 Poser, voir, prolonger
+
+- **Poser** (MJ : fiche de combat d'un participant ; joueur : bonus libres de sa fiche, qu'il
+  écrit déjà) : nombre, puis « fin de round », « début de tour » ou « fin de tour », et de qui
+  (le porteur ; pour le MJ un autre participant, l'acteur courant proposé quand le système dit
+  `source`). Choisir un état du catalogue remplit sa durée par défaut.
+- **Routes publiques** (character) : `POST /possessions` et `POST /bonus` acceptent `decompte`
+  (`{ moment, de? }` ; `null` le retire sur une possession) à côté de `duree` ; `attente` est
+  posée par le serveur (nouvelle durée de fin de tour, ou moment changé), gardée sinon.
+- **Attaques** : la modification d'entrée porte `timing: { moment, anchorId? }` (contrat) ; la
+  source est l'attaquant, résolue à la construction du rapport ; le MJ garde la durée en
+  modifiant le rapport.
+- **Voir** : « 2 rounds », « fin de son prochain tour », « début du tour de Gobelin » sur les
+  badges de la carte (chiffre, libellé au survol), dans l'ordre du tour, la fiche de combat et le
+  bloc Bonus de la fiche : un seul formateur (`frontend/src/lib/combat/durations.ts`).
+- **Modifier, prolonger** (MJ) : ±1, moment et ancre, « jusqu'au retrait ».
+
+### 18.9 Décisions prises
+
+1. **Compteur et moment, pas d'échéance absolue** (round et index de tour) : l'ordre change
+   (ajouts, retraits, réordonner, initiative relancée), un compteur d'événements reste juste.
+2. **`attente` posée par le serveur** pour `fin-tour`, levée par le premier événement du tour de
+   l'ancre : « fin de son prochain tour » est exact que la pose ait lieu pendant ou hors de son
+   tour, sans que le client ait à dire qui agit.
+3. **Donner le tour** termine le tour de qui agissait et commence celui de qui le reçoit ; pour
+   corriger une erreur, c'est « Précédent », qui rend le décompte.
+4. **Mode slots** : le tour d'un participant commence à sa désignation (route ou première
+   attaque) ; un créneau terminé sans désignation compte début et fin de tour au même passage.
+5. **Ancre absente du combat** : la durée retombe sur la fin de round.
+6. **Fin du combat** : les durées finissent avec lui par défaut (case décochable) ; gardées, elles
+   sont figées hors combat.
+7. **Un lot par passage** plutôt qu'un appel par personnage : une transaction, un en-tête
+   d'idempotence, un seul aller-retour même à 30 participants.
+8. **Rejeu des décomptes en retard** au passage suivant plutôt qu'une file dédiée : le journal des
+   tours suffit et garde l'ordre.
+9. **Pierre tombale à l'annulation** d'un décompte inconnu : pas de course entre « Suivant » et
+   « Précédent » rapprochés.
+10. **Annonce par campaign** (`combat.durations_expired`), filtrée comme les badges : jamais l'état
+    d'un PNJ ennemi chez un joueur.
+11. **Démarrage sans initiative** : aucun début de tour annoncé ; il l'est au tirage.
+12. **Données** : seuls les états dont la règle écrit une durée en reçoivent une par défaut.
+13. **Personnage supprimé** pendant le combat : ignoré par le décompte (les autres sont
+    décomptés), plus signalé comme un échec.
+14. **Bonus libre d'un joueur** (bloc Bonus de sa fiche) : durée et moment au tour du porteur ;
+    seul le MJ choisit l'ancre d'un autre participant (fiche de combat).
+
+### 18.10 Réalisé, reste
+
+Réalisé le 2026-10-07 : moteur (`packages/rules/src/jets/durees.ts`, schémas, validation,
+données Star Wars), character (route par lot, pierre tombale, `decompte` des routes publiques),
+campaign (`durations.ts`, journal `0031-combat-duration-ticks.sql`, rejeu, annonce, fin du combat),
+front (fiche de combat, ordre du tour, badges de la carte, blocs Bonus et Liste de la fiche,
+toast, chronique, rapports d'attaque), tests du moteur, des services (unitaires, intégration,
+bout en bout avec le vrai character) et du front.
+
+Reste :
+
+- tiroir de décision d'un rapport : le MJ change le nombre de décomptes d'un état donné, pas
+  encore son moment ni son ancre (ils sont gardés tels que l'action les a donnés) ;
+- états posés hors combat puis combat démarré sans initiative : le premier début de tour n'est
+  annoncé qu'au tirage (décision 11) ;
+- durées « de rencontre » ou « de scène » (hors combat) : à concevoir avec les rencontres.

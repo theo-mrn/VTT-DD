@@ -3,6 +3,7 @@
  * le magasin, ses deux sortes d'entités et les constantes partagées par la sorte, l'outil de
  * pose, l'inspecteur et la fouille.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapObject, MapObjectItem, MapObjectKind } from '@vtt/contracts';
 import type { MapDto } from '@/lib/map/store/map-store';
 
@@ -34,8 +35,5 @@ export const isDecor = (o: { kind?: unknown }) => o.kind === 'decor';
 export const itemsOf = (o: { items?: unknown }): readonly MapObjectItem[] =>
   Array.isArray(o.items) ? (o.items as MapObjectItem[]) : [];
 
-export const OBJECT_KIND_LABELS: Record<MapObjectKind, string> = {
-  item: 'Objet',
-  weapon: 'Arme',
-  decor: 'Décor',
-};
+/** Nom d'une sorte d'objet (`map.objects.kinds.<sorte>`). */
+export const objectKindLabel = (kind: MapObjectKind) => translate(`map.objects.kinds.${kind}`);

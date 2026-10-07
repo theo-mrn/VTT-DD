@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { ArrowRight, Box, Dices, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -32,6 +33,7 @@ export function ajouterDe(formule: string, faces: number): string {
  * s'affiche une fois qu'ils sont arrêtés.
  */
 export function LanceurRapide({ onFerme }: Readonly<{ onFerme?: () => void }>) {
+  const t = useTranslations('dice.quick');
   const [formule, setFormule] = useState('1d20');
   const [dernier, setDernier] = useState<Jet | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -68,14 +70,14 @@ export function LanceurRapide({ onFerme }: Readonly<{ onFerme?: () => void }>) {
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-2 text-sm font-medium">
           <Dices className="size-4 text-primary" />
-          Lancer rapide
+          {t('roller')}
         </p>
         <Link
           href="/des"
           onClick={onFerme}
           className="flex items-center gap-1 text-xs text-subtle transition-colors hover:text-foreground"
         >
-          Table de dés
+          {t('diceTable')}
           <ArrowRight className="size-3" />
         </Link>
       </div>
@@ -104,7 +106,7 @@ export function LanceurRapide({ onFerme }: Readonly<{ onFerme?: () => void }>) {
           autoFocus
         />
         <Button type="submit" size="sm" className="h-9" disabled={!verif.ok || lancer.isPending}>
-          {lancer.isPending ? <Loader2 className="animate-spin" /> : 'Lancer'}
+          {lancer.isPending ? <Loader2 className="animate-spin" /> : t('roll')}
         </Button>
       </form>
       {!verif.ok && formule.trim() && <p className="text-xs text-destructive">{verif.message}</p>}
@@ -119,7 +121,7 @@ export function LanceurRapide({ onFerme }: Readonly<{ onFerme?: () => void }>) {
         {lancer.isPending && (
           <p className="flex items-center justify-center gap-2 py-2 text-xs text-primary">
             <Box className="size-3.5 animate-spin [animation-duration:2.4s]" aria-hidden />
-            Les dés roulent…
+            {t('rolling')}
           </p>
         )}
         {!lancer.isPending && dernier && (

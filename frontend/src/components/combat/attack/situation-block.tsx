@@ -8,6 +8,7 @@
  * MJ : sous chaque cible, les valeurs de sa fiche que l'action lit (`@cible.X` : Défense,
  * Encaissement…), pour juger d'un coup d'œil. Un joueur ne lit jamais la fiche d'une cible.
  */
+import { useTranslations } from 'next-intl';
 import type { Action, Fiche, SystemeCharge, Valeur } from '@vtt/rules';
 import { Radar } from 'lucide-react';
 import { useMemo } from 'react';
@@ -68,6 +69,7 @@ export function SituationBlock({
   targetIds: readonly string[];
   disabled?: boolean;
 }>) {
+  const t = useTranslations();
   const situation = combatSituation(ctx.combat, attackerId, targetIds);
   const insightKeys = useMemo(
     () => (ctx.gm ? targetAttributeKeys(systeme, action) : []),
@@ -88,7 +90,7 @@ export function SituationBlock({
   return (
     <section aria-labelledby="attack-situation">
       <SectionTitle icon={<Radar aria-hidden />}>
-        <span id="attack-situation">Situation</span>
+        <span id="attack-situation">{t('combat.attack.situation')}</span>
         {situation.round !== null && (
           <span className="normal-case tracking-normal text-subtle">· round {situation.round}</span>
         )}
@@ -160,7 +162,7 @@ export function SituationBlock({
         <ul className="space-y-2.5">
           {situation.attacker.length > 0 && (
             <SituationRow
-              label="Attaquant"
+              label={t('combat.attack.attacker')}
               chips={situation.attacker}
               portrait={null}
               tone="attacker"
@@ -200,6 +202,7 @@ function SituationRow({
   tone: 'attacker' | 'target';
   children?: React.ReactNode;
 }>) {
+  const t = useTranslations();
   return (
     <li className="flex items-start gap-2.5">
       {tone === 'target' ? (
@@ -211,7 +214,7 @@ function SituationRow({
         />
       ) : (
         <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-[10px] font-bold uppercase text-primary">
-          Att.
+          {t('combat.attack.attackerShort')}
         </span>
       )}
       <div className="min-w-0 flex-1">

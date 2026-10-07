@@ -4,6 +4,7 @@
  * Carte d'un PNJ dans la bibliothèque : un clic l'arme (puis un clic sur la scène la pose),
  * un glisser la dépose sur la scène. Entrée ou Espace l'arment aussi au clavier.
  */
+import { translate } from '@/i18n/runtime';
 import { Skull } from 'lucide-react';
 import type { DragEvent } from 'react';
 import { Thumb } from '@/components/resources/parts';
@@ -38,7 +39,9 @@ export function LibraryCard({
       type="button"
       draggable
       aria-pressed={armed}
-      aria-label={`${source.name}${subtitle ? `, ${subtitle}` : ''} : choisir pour la pose`}
+      aria-label={translate('map.tokens.library.pick', {
+        name: subtitle ? `${source.name}, ${subtitle}` : source.name,
+      })}
       onClick={onArm}
       onDragStart={(e) => drag.onDragStart(e, source)}
       onDragEnd={drag.onDragEnd}

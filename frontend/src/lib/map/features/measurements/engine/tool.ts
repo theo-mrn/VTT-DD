@@ -16,6 +16,7 @@
  * La mesure elle-même (en cours, récente, aperçu de la poignée) est l'état local du module
  * (`ctx.local`), dessiné par `layer.ts` même quand l'outil n'est plus actif.
  */
+import { translate } from '@/i18n/runtime';
 import type { Container, Graphics } from 'pixi.js';
 import { createStore } from 'zustand/vanilla';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -253,10 +254,15 @@ export class MeasureTool implements Tool {
     const end = m?.phase === 'reshape' ? m.spec.end : null;
     if (end && (end.x !== r.data.end.x || end.y !== r.data.end.y)) {
       const round = (n: number) => Math.round(n * 100) / 100;
-      void updateTemplates(this.ctx, 'Modifier le gabarit', [r.entity], (d) => ({
-        ...d,
-        end: { x: round(end.x), y: round(end.y) },
-      }));
+      void updateTemplates(
+        this.ctx,
+        translate('map.measurements.editTemplate'),
+        [r.entity],
+        (d) => ({
+          ...d,
+          end: { x: round(end.x), y: round(end.y) },
+        }),
+      );
     }
     engine.live?.end();
   }

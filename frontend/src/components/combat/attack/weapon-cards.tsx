@@ -12,6 +12,8 @@
  * Une action qui prend toute arme du catalogue (`possedee: false`) propose d'abord celles du
  * personnage ; les autres se cherchent dans la liste « Autre… ».
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { Action, Entree, Fiche, Possession, Presentation, SystemeCharge } from '@vtt/rules';
 import { Check, ChevronsUpDown, Library } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -107,14 +109,20 @@ function SimpleEntryPicker({
   onChange: (v: string) => void;
   disabled: boolean | undefined;
 }>) {
+  const t = useTranslations();
   const buttons = [
     ...(none || !options.length
-      ? [{ value: '', label: options.length ? 'Aucune' : 'Aucune disponible' }]
+      ? [
+          {
+            value: '',
+            label: options.length ? t('combat.attack.none') : t('combat.attack.noneAvailable'),
+          },
+        ]
       : []),
     ...options.map((o) => ({
       value: o.id,
       label: o.nom,
-      meta: o.rang > 0 ? `rang ${o.rang}` : undefined,
+      meta: o.rang > 0 ? t('combat.attack.rank', { rank: o.rang }) : undefined,
     })),
   ];
   return (
@@ -164,8 +172,8 @@ function shownEntries(
   if (catalogue.length > CATALOGUE_CARDS) shownOthers = selectedOther ? [selectedOther] : [];
   const shown = [
     ...owned.map((o) => ({ o, note: null })),
-    ...free.map((o) => ({ o, note: 'Toujours disponible' })),
-    ...shownOthers.map((o) => ({ o, note: 'Catalogue' })),
+    ...free.map((o) => ({ o, note: translate('combat.attack.alwaysAvailable') })),
+    ...shownOthers.map((o) => ({ o, note: translate('combat.attack.catalog') })),
   ];
   return { shown, catalogue, shownOthers };
 }
@@ -198,6 +206,7 @@ export function EntryPicker({
   /** Raccourci de la première tuile (1 à 9), null : aucun. */
   firstShortcut?: number | null;
 }>) {
+  const t = useTranslations();
   const options = useMemo(() => {
     const all = entryOptions(fiche, param);
     if (!prefer) return all;
@@ -261,7 +270,7 @@ export function EntryPicker({
                 : 'border-border-strong text-muted-foreground hover:text-foreground',
             )}
           >
-            Aucune
+            {t('combat.attack.none')}
           </button>
         )}
         {shown.map(({ o, note }, i) => {
@@ -282,7 +291,9 @@ export function EntryPicker({
                     : Library
                 }
                 name={o.nom}
-                note={[o.rang > 0 ? `rang ${o.rang}` : null, note].filter(Boolean).join(' · ')}
+                note={[o.rang > 0 ? t('combat.attack.rank', { rank: o.rang }) : null, note]
+                  .filter(Boolean)
+                  .join(' · ')}
                 fields={fieldsOf(fiche, r, refs)}
                 mode={mode}
                 selected={!launch && value === o.id}
@@ -296,13 +307,13 @@ export function EntryPicker({
       </div>
       {!options.length && !launch && (
         <p className="rounded-xl border border-dashed border-border-strong px-3 py-3 text-[13px] text-muted-foreground">
-          Aucune disponible
+          {t('combat.attack.noneAvailable')}
         </p>
       )}
       {catalogue.length > shownOthers.length && (
         <div className="mt-2.5">
           <OtherPicker
-            label={`Autre ${param.nom.toLowerCase()} du catalogue`}
+            label={t('combat.attack.otherFromCatalog', { name: param.nom.toLowerCase() })}
             options={catalogue}
             value={value}
             onChange={onChange}
@@ -346,6 +357,7 @@ function OtherPicker({
   none?: boolean;
   icon?: boolean;
 }>) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.id === value);
   return (
@@ -365,9 +377,9 @@ function OtherPicker({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <Command>
-          <CommandInput placeholder="Chercher…" />
+          <CommandInput placeholder={t('combat.attack.searchPlaceholder')} />
           <CommandList>
-            <CommandEmpty>Rien trouvé.</CommandEmpty>
+            <CommandEmpty>{t('combat.attack.nothingFound')}</CommandEmpty>
             <CommandGroup>
               {none && (
                 <CommandItem
@@ -377,7 +389,7 @@ function OtherPicker({
                     setOpen(false);
                   }}
                 >
-                  Aucune
+                  {t('combat.attack.none')}
                 </CommandItem>
               )}
               {options.map((o) => (

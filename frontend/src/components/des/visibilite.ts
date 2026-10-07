@@ -3,42 +3,19 @@ import type { VisibiliteJet } from '@/lib/jets';
 
 export interface OptionVisibilite {
   valeur: VisibiliteJet;
-  libelle: string;
   icone: LucideIcon;
-  /** Explication courte (infobulle). */
-  aide: string;
 }
 
 /**
- * Qui voit un jet de campagne : libellés et icônes communs au plateau, au
- * résultat et à l'historique (valeurs du service dice). Hors campagne, un jet
- * est toujours personnel (`self`).
+ * Qui voit un jet de campagne : icônes communes au plateau, au résultat et à l'historique
+ * (valeurs du service dice) ; libellé et explication : `dice.visibility.<valeur>`. Hors
+ * campagne, un jet est toujours personnel (`self`).
  */
 export const OPTIONS_VISIBILITE: OptionVisibilite[] = [
-  {
-    valeur: 'public',
-    libelle: 'Public',
-    icone: Globe,
-    aide: 'Visible par toute la table',
-  },
-  {
-    valeur: 'self',
-    libelle: 'Privé',
-    icone: Lock,
-    aide: 'Visible par vous seul',
-  },
-  {
-    valeur: 'private',
-    libelle: 'MJ',
-    icone: Crown,
-    aide: 'Visible par vous et le MJ',
-  },
-  {
-    valeur: 'gm',
-    libelle: 'Caché',
-    icone: EyeOff,
-    aide: 'Le MJ seul voit le résultat : vous savez seulement que vous avez lancé (sans dés 3D)',
-  },
+  { valeur: 'public', icone: Globe },
+  { valeur: 'self', icone: Lock },
+  { valeur: 'private', icone: Crown },
+  { valeur: 'gm', icone: EyeOff },
 ];
 
 export function infoVisibilite(v: VisibiliteJet) {

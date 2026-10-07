@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { CadrePublic } from '@/components/compte/cadre-public';
@@ -11,6 +12,7 @@ import { messageErreur } from '@/lib/api';
 import { demanderReinitialisation } from '@/lib/securite';
 
 export default function MotDePasseOublie() {
+  const t = useTranslations('auth');
   const [email, setEmail] = useState('');
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
@@ -31,25 +33,19 @@ export default function MotDePasseOublie() {
   }
 
   return (
-    <CadrePublic
-      titre="Mot de passe oublié"
-      description="Indiquez l'e-mail de votre compte : nous vous enverrons un lien pour choisir un nouveau mot de passe."
-    >
+    <CadrePublic titre={t('forgot.title')} description={t('forgot.lead')}>
       {envoye ? (
         <div className="space-y-4">
-          <Message ton="succes">
-            Si un compte existe pour {email.trim()}, un lien de réinitialisation vient d&apos;y être
-            envoyé. Pensez à vérifier vos indésirables.
-          </Message>
+          <Message ton="succes">{t('forgot.sent', { email: email.trim() })}</Message>
           <Bouton ton="secondaire" className="w-full" onClick={() => setEnvoye(false)}>
-            Renvoyer un lien
+            {t('forgot.resend')}
           </Bouton>
         </div>
       ) : (
         <form onSubmit={valider} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className={styleLabel}>
-              E-mail
+              {t('form.email')}
             </Label>
             <Input
               id="email"
@@ -59,18 +55,18 @@ export default function MotDePasseOublie() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={styleChamp}
-              placeholder="vous@exemple.fr"
+              placeholder={t('form.emailPlaceholder')}
             />
           </div>
           {erreur && <Message>{erreur}</Message>}
           <Bouton type="submit" chargement={envoi} className="h-10 w-full">
-            Envoyer le lien
+            {t('forgot.send')}
           </Bouton>
         </form>
       )}
       <p className="text-center">
         <Link href="/connexion" className={styleLien}>
-          Retour à la connexion
+          {t('forgot.backToSignIn')}
         </Link>
       </p>
     </CadrePublic>

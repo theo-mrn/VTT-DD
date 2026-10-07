@@ -7,6 +7,8 @@
  * d'enregistrer, ce que le changement entraîne (« PV max 28 → 30 »), calculé par le moteur.
  * Le service character refait les mêmes contrôles. Les ressources ont leur propre fenêtre.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import {
   calculer,
   refusSaisie,
@@ -50,7 +52,11 @@ function groupes(ctx: ContexteFiche) {
   const parGroupe = new Map<string, { nom: string; base: Base[]; derivees: Derivee[] }>();
   for (const g of fiche.entite.type.groupes)
     parGroupe.set(g.id, { nom: g.nom, base: [], derivees: [] });
-  const autres = { nom: 'Autres', base: [] as Base[], derivees: [] as Derivee[] };
+  const autres = {
+    nom: translate('resources.bestiary.others'),
+    base: [] as Base[],
+    derivees: [] as Derivee[],
+  };
   for (const a of fiche.entite.attributs.values()) {
     if (!visiblePour(ctx, a.cle)) continue;
     const g = (a.groupe && parGroupe.get(a.groupe)) || autres;
@@ -101,9 +107,12 @@ function lireSaisie(
   bornes: { min?: number; max?: number } | undefined,
 ): { n: number } | { erreur: string } {
   const n = Number(t.replace(',', '.'));
-  if (t.trim() === '' || !Number.isFinite(n)) return { erreur: 'Nombre attendu' };
-  if (bornes?.min !== undefined && n < bornes.min) return { erreur: `Au moins ${bornes.min}` };
-  if (bornes?.max !== undefined && n > bornes.max) return { erreur: `Au plus ${bornes.max}` };
+  if (t.trim() === '' || !Number.isFinite(n))
+    return { erreur: translate('sheet.formula.numberExpected') };
+  if (bornes?.min !== undefined && n < bornes.min)
+    return { erreur: translate('sheet.values.atLeast', { min: bornes.min }) };
+  if (bornes?.max !== undefined && n > bornes.max)
+    return { erreur: translate('sheet.values.atMost', { max: bornes.max }) };
   return { n };
 }
 
@@ -119,6 +128,7 @@ export function ValuesDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }>) {
+  const t = useTranslations();
   const { fiche, systeme } = ctx;
   const etat = fiche.etat;
   const qui = { proprietaire, mj: ctx.mj === true };
@@ -132,9 +142,11 @@ export function ValuesDialog({
 
   /** Ligne d'aide sous une saisie : refus, ou valeur finale quand les bonus la changent. */
   const aide = (a: Base, refusee: boolean) => {
-    if (refusee) return qui.mj ? 'Non modifiable' : 'MJ seul';
+    if (refusee) return qui.mj ? t('sheet.values.locked') : t('sheet.values.gmOnly');
     const finale = fiche.valeurs.get(a.cle);
-    return finale && finale.valeur !== actuelle(a) ? `Avec bonus : ${afficherValeur(finale)}` : '';
+    return finale && finale.valeur !== actuelle(a)
+      ? t('sheet.values.withBonus', { value: afficherValeur(finale) })
+      : '';
   };
 
   // Valeurs changées et lisibles ; erreurs de saisie par clé
@@ -182,10 +194,8 @@ export function ValuesDialog({
     <Dialog open={open} onOpenChange={fermer}>
       <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Modifier les valeurs</DialogTitle>
-          <DialogDescription>
-            Les valeurs calculées suivent leur formule : pour les changer, ajoutez un bonus.
-          </DialogDescription>
+          <DialogTitle>{t('sheet.values.edit')}</DialogTitle>
+          <DialogDescription>{t('sheet.values.computedHint')}</DialogDescription>
         </DialogHeader>
 
         <div className="-mx-6 min-h-0 flex-1 space-y-6 overflow-y-auto px-6 [scrollbar-width:thin]">
@@ -255,7 +265,9 @@ export function ValuesDialog({
 
         {impacts.length > 0 && (
           <div className="rounded-xl border border-primary/30 bg-primary/[0.06] p-3">
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Conséquences</p>
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+              {t('sheet.values.consequences')}
+            </p>
             <ul className="grid gap-1 text-sm sm:grid-cols-2">
               {impacts.map((i) => (
                 <li key={i.cle} className="flex items-center gap-2">
@@ -271,7 +283,7 @@ export function ValuesDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => fermer(false)}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button disabled={!nbChanges || Object.keys(erreurs).length > 0} onClick={enregistrer}>
             Enregistrer{nbChanges > 0 ? ` (${nbChanges})` : ''}

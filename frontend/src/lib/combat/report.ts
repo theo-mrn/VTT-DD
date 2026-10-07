@@ -7,15 +7,16 @@
  * tout fait (docs/combat.md § 5.4). Aucune clé de jeu : attributs, entrées, tables et dés sont
  * ceux du système.
  */
-import type {
-  AttackModification,
-  AttackOutcome,
+import {
+  durationMomentOf,
+  type AttackModification,
+  type AttackOutcome,
   AttackRoll,
-  AttackTableDraw,
-  AttackTargetResult,
-  AttackTargetView,
-  EffectSide,
-  RolledDiceGroup,
+  type AttackTableDraw,
+  type AttackTargetResult,
+  type AttackTargetView,
+  type EffectSide,
+  type RolledDiceGroup,
 } from '@vtt/contracts';
 import {
   vueActeur,
@@ -103,19 +104,36 @@ function outcomeOf(r: Pick<ResultatAction, 'reussi' | 'jet'>): AttackOutcome {
 const int = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Math.round(Number.isFinite(n) ? n : min)));
 
-/** Modification du moteur → contrat (`entity` : l'attaquant ou la cible). */
-export function toModification(m: Modification): AttackModification {
+/**
+ * Décompte d'une entrée donnée → contrat : l'ancre `source` devient l'attaquant (`sourceId`) ;
+ * inconnu, le porteur (docs/combat.md § 18.8).
+ */
+function timingOf(m: Extract<Modification, { entree: string }>, sourceId?: string) {
+  if (!m.decompte || m.decompte.moment === 'fin-round') return {};
+  const anchorId = m.decompte.de ?? (m.decompte.source ? sourceId : undefined);
+  return {
+    timing: { moment: durationMomentOf(m.decompte.moment), ...(anchorId ? { anchorId } : {}) },
+  };
+}
+
+/**
+ * Modification du moteur → contrat (`entity` : l'attaquant ou la cible). `sourceId` :
+ * l'attaquant, ancre d'une durée qui se décompte à son tour.
+ */
+export function toModification(m: Modification, sourceId?: string): AttackModification {
   const entity = m.entite === 'acteur' ? ('actor' as const) : ('target' as const);
-  if ('entree' in m)
+  if ('entree' in m) {
+    const timed = m.duree !== undefined && m.duree >= 1;
     return {
       kind: 'entry',
       entity,
       entry: m.entree,
       operation: m.operation === 'donner' ? 'give' : 'remove',
       ranks: int(m.rangs, 0, 100),
-      ...(m.duree !== undefined && m.duree >= 1 ? { duration: int(m.duree, 1, 10_000) } : {}),
+      ...(timed ? { duration: int(m.duree!, 1, 10_000), ...timingOf(m, sourceId) } : {}),
       ...(m.exemplaire !== undefined ? { instance: m.exemplaire } : {}),
     };
+  }
   return {
     kind: 'attribute',
     entity,
@@ -160,13 +178,17 @@ function toTable(systeme: SystemeCharge, t: TirageTable): AttackTableDraw {
   };
 }
 
-/** Rapport complet d'une cible, pour le MJ seul. */
-export function targetResult(systeme: SystemeCharge, r: ResultatAction): AttackTargetResult {
+/** Rapport complet d'une cible, pour le MJ seul (`sourceId` : l'attaquant). */
+export function targetResult(
+  systeme: SystemeCharge,
+  r: ResultatAction,
+  sourceId?: string,
+): AttackTargetResult {
   return {
     outcome: outcomeOf(r),
     roll: toRoll(r.jet),
     variables: r.variables,
-    modifications: r.modifications.map(toModification),
+    modifications: r.modifications.map((m) => toModification(m, sourceId)),
     tables: r.tables.map((t) => toTable(systeme, t)),
     explanations: r.explications,
     errors: r.erreurs.map((e) => ({ where: e.ou, message: e.message })),

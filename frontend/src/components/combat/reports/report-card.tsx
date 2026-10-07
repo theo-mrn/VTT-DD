@@ -11,6 +11,8 @@
  * à donner ou à passer, dés à tirer par le serveur, abandon. Les coûts de l'attaquant ont leur
  * propre ligne (`ActorCostCard`).
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { Attack, AttackTarget } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import {
@@ -50,7 +52,7 @@ import {
 import { Info } from '@/components/ui/tooltip';
 import { combatErrorMessage } from '@/lib/combat/api';
 import { hasSuccessRule } from '@/lib/combat/actions';
-import { ATTACK_STATUS_LABELS, useAttackCommands } from '@/lib/combat/use-attacks';
+import { attackStatusLabel, useAttackCommands } from '@/lib/combat/use-attacks';
 import { decisionLabel, outcomeLabel, type OutcomeTone } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
 import { awaitingMyReaction } from '../player/model';
@@ -73,7 +75,7 @@ import {
   canRevert,
   decidableTargets,
   defeatedBy,
-  DICE_ORIGIN_LABELS,
+  diceOriginLabel,
   diceOrigin,
   draftOf,
   isDecidable,
@@ -112,6 +114,7 @@ function railOf(t: AttackTarget, tone: OutcomeTone | null, attack: Attack): stri
 
 /** Actions communes à toutes les cartes d'une attaque (écarter, annuler, abandonner…). */
 function useAttackActions(campaignId: string, attack: Attack) {
+  const tr = useTranslations();
   const commands = useAttackCommands(campaignId);
   const [busy, setBusy] = useState<string | null>(null);
   const [conflict, setConflict] = useState<RevertConflict[] | null>(null);
@@ -138,12 +141,12 @@ function useAttackActions(campaignId: string, attack: Attack) {
     clearConflict: () => setConflict(null),
     /** Une cible telle quelle (appliquer ou non), sans toucher aux autres. */
     decideOne: (t: AttackTarget, apply: boolean) =>
-      void run(`${t.characterId}:${apply}`, 'La décision n’a pas pu être appliquée', () =>
+      void run(`${t.characterId}:${apply}`, tr('combat.reports.decideFailed'), () =>
         commands.apply(attack.id, buildApply(attack, [{ ...draftOf(t), apply }], null)),
       ),
     /** Tout le rapport tel quel : chaque cible à décider et les coûts de l'attaquant. */
     applyAll: () =>
-      void run('all', 'Le rapport n’a pas pu être appliqué', () =>
+      void run('all', tr('combat.reports.applyFailed'), () =>
         commands.apply(
           attack.id,
           buildApply(
@@ -156,15 +159,15 @@ function useAttackActions(campaignId: string, attack: Attack) {
         ),
       ),
     decideActor: (apply: boolean) =>
-      void run(`actor:${apply}`, 'La décision n’a pas pu être appliquée', () =>
+      void run(`actor:${apply}`, tr('combat.reports.decideFailed'), () =>
         commands.apply(attack.id, { version: attack.version, targets: [], actor: { apply } }),
       ),
     dismiss: () =>
-      void run('dismiss', 'Le rapport n’a pas pu être écarté', () =>
+      void run('dismiss', tr('combat.reports.dismissFailed'), () =>
         commands.dismiss(attack.id, { version: attack.version }),
       ),
     revert: (force: boolean) =>
-      void run('revert', 'L’application n’a pas pu être annulée', () =>
+      void run('revert', tr('combat.reports.revertFailed'), () =>
         commands.revert(attack.id, {
           version: attack.version,
           ...(force ? { force: true } : {}),
@@ -173,17 +176,17 @@ function useAttackActions(campaignId: string, attack: Attack) {
     serverDice: () => {
       const step = attack.pendingSteps[0];
       if (!step) return;
-      void run('dice', 'Les dés n’ont pas pu être tirés', () =>
+      void run('dice', tr('combat.reports.diceFailed'), () =>
         commands.submitDice(attack.id, { stepId: step.id, results: [], serverFallback: true }),
       );
     },
     cancel: () =>
-      void run('cancel', 'L’attaque n’a pas pu être abandonnée', () =>
+      void run('cancel', tr('combat.reports.abandonFailed'), () =>
         commands.cancel(attack.id, { version: attack.version }),
       ),
     /** Le MJ passe la défense des cibles qui n'ont pas répondu. */
     skipReactions: (targets: readonly AttackTarget[]) =>
-      void run('skip', 'Les défenses n’ont pas pu être passées', async () => {
+      void run('skip', tr('combat.reports.skipFailed'), async () => {
         let last = attack;
         for (const t of targets)
           last = await commands.react(attack.id, { characterId: t.characterId, skip: true });
@@ -223,6 +226,7 @@ export function ReportCard({
   onOpenCharacter,
   onFilter,
 }: Readonly<ReportCardProps>) {
+  const tr = useTranslations();
   const actions = useAttackActions(campaignId, attack);
   const { busy, conflict } = actions;
   const [details, setDetails] = useState(false);
@@ -230,8 +234,8 @@ export function ReportCard({
   const [confirmDismiss, setConfirmDismiss] = useState(false);
   const attacker = cast.get(attack.attackerId);
   const member = cast.get(t.characterId);
-  const attackerName = attacker?.name ?? 'Personnage';
-  const name = member?.name ?? 'Personnage';
+  const attackerName = attacker?.name ?? tr('map.common.character');
+  const name = member?.name ?? tr('map.common.character');
   const view = targetView(systeme, attack, t);
   const { outcome } = view;
   const params = keyParams(systeme, attack.action.id, attack.params);
@@ -356,7 +360,7 @@ export function ReportCard({
           variant="ghost"
           onClick={() => setDetails((d) => !d)}
           aria-expanded={details}
-          aria-label={details ? 'Replier le détail du jet' : 'Détail du jet'}
+          aria-label={details ? tr('combat.reports.hideDetail') : tr('combat.reports.showDetail')}
         >
           <ChevronDown className={cn('transition-transform', details && 'rotate-180')} />
         </Button>
@@ -429,10 +433,13 @@ function StatusBadge({
   outcome,
   closed,
 }: Readonly<{ attack: Attack; target: AttackTarget; outcome: Outcome; closed: boolean }>) {
-  if (closed) return <Badge ton="danger">{ATTACK_STATUS_LABELS[attack.status]}</Badge>;
-  if (t.status === 'awaiting_reaction') return <Badge ton="alerte">Défense attendue</Badge>;
-  if (t.status === 'awaiting_dice') return <Badge ton="alerte">Dés attendus</Badge>;
-  if (t.status === 'failed') return <Badge ton="danger">Refusé</Badge>;
+  const tr = useTranslations();
+  if (closed) return <Badge ton="danger">{attackStatusLabel(attack.status)}</Badge>;
+  if (t.status === 'awaiting_reaction')
+    return <Badge ton="alerte">{tr('combat.live.defenseAwaited')}</Badge>;
+  if (t.status === 'awaiting_dice')
+    return <Badge ton="alerte">{tr('combat.live.diceAwaited')}</Badge>;
+  if (t.status === 'failed') return <Badge ton="danger">{tr('combat.reports.refused')}</Badge>;
   if (outcome) return <Badge ton={TONES[outcome.tone]}>{outcome.label}</Badge>;
   return null;
 }
@@ -455,16 +462,17 @@ function PeopleRow({
   count: number;
   onOpenCharacter(characterId: string): void;
 }>) {
+  const tr = useTranslations();
   return (
     <div className="flex items-center gap-1.5 pl-4 pr-3 pt-1.5 text-xs">
       <PersonChip
-        name={attacker?.name ?? 'Personnage'}
+        name={attacker?.name ?? tr('map.common.character')}
         portrait={attacker?.portraitUrl ?? null}
         onClick={() => onOpenCharacter(attack.attackerId)}
       />
       <ArrowRight className="size-3.5 shrink-0 text-subtle" aria-label="attaque" />
       <PersonChip
-        name={member?.name ?? 'Personnage'}
+        name={member?.name ?? tr('map.common.character')}
         portrait={member?.portraitUrl ?? null}
         onClick={() => onOpenCharacter(t.characterId)}
         strong
@@ -485,6 +493,7 @@ function PeopleRow({
 
 /** Marques : auto-attaque, hors tour, ajusté à la main, caché ou privé. */
 function MarkBadges({ attack, selfTarget }: Readonly<{ attack: Attack; selfTarget: boolean }>) {
+  const tr = useTranslations();
   if (!(selfTarget || attack.outOfTurn || attack.adjustments || attack.visibility !== 'public'))
     return null;
   return (
@@ -495,12 +504,12 @@ function MarkBadges({ attack, selfTarget }: Readonly<{ attack: Attack; selfTarge
           Auto-attaque
         </Badge>
       )}
-      {attack.outOfTurn && <Badge ton="alerte">Hors tour</Badge>}
-      {attack.adjustments && <Badge ton="info">Ajusté à la main</Badge>}
+      {attack.outOfTurn && <Badge ton="alerte">{tr('combat.attack.outOfTurnCap')}</Badge>}
+      {attack.adjustments && <Badge ton="info">{tr('combat.live.adjustedCap')}</Badge>}
       {attack.visibility !== 'public' && (
         <Badge>
           <EyeOff />
-          {attack.visibility === 'gm' ? 'Caché' : 'Privé'}
+          {attack.visibility === 'gm' ? tr('combat.hiddenShort') : tr('combat.live.private')}
         </Badge>
       )}
     </div>
@@ -543,20 +552,21 @@ function ReductionLine({
   systeme,
   amount,
 }: Readonly<{ systeme: SystemeCharge | null; amount: ReturnType<typeof targetAmounts>[number] }>) {
+  const tr = useTranslations();
   const r = reductionDetail(amount);
   if (!r) return null;
   return (
     <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-muted-foreground">
-      <span className="font-medium text-foreground">Réductions</span>
+      <span className="font-medium text-foreground">{tr('combat.reports.reductions')}</span>
       <span className="font-mono tabular-nums">
         {r.raw}
-        {r.damageType ? ` ${damageTypeName(systeme, r.damageType)}` : ''} brut
+        {r.damageType ? ` ${damageTypeName(systeme, r.damageType)}` : ''} {tr('combat.reports.raw')}
       </span>
       {r.lines.map((l, j) => (
         <span
           key={j}
           className={cn(l.ignored && 'line-through opacity-60')}
-          title={l.ignored ? 'Écartée : une réduction plus forte s’applique' : undefined}
+          title={l.ignored ? tr('combat.reports.ignored') : undefined}
         >
           · {l.name} <span className="font-mono">{l.effect}</span>
         </span>
@@ -578,24 +588,27 @@ function AppliedLine({
   cast: ReadonlyMap<string, CastMember>;
   memberType: string | null | undefined;
 }>) {
+  const tr = useTranslations();
   const redirected = applied.redirectedTo
-    ? ` à ${cast.get(applied.redirectedTo)?.name ?? 'Personnage'} (réattribué)`
+    ? ` ${translate('combat.reports.reassignedTo', {
+        name: cast.get(applied.redirectedTo)?.name ?? translate('map.common.character'),
+      })}`
     : '';
   return (
     <p className="rounded-lg border border-success/25 bg-success/5 px-2 py-1.5 text-muted-foreground">
       <Check className="mr-1 inline size-3.5 text-success" aria-hidden />
-      Appliqué
+      {tr('combat.decision.applied')}
       {redirected} :{' '}
       {applied.modifications.length
         ? applied.modifications
             .map((m) => modificationText(systeme, toInput(m), memberType))
             .join(', ')
-        : 'rien'}
+        : translate('combat.reports.nothing')}
       {applied.tables
         .filter((x) => x.entry)
         .map((x) => ` · ${tableName(systeme, x.table)} : ${x.entry}`)
         .join('')}
-      {applied.defeated ? ' · hors de combat' : ''}
+      {applied.defeated ? ` · ${translate('combat.attack.defeatedShort')}` : ''}
     </p>
   );
 }
@@ -618,6 +631,7 @@ function CardDetails({
   cast: ReadonlyMap<string, CastMember>;
   roll: Roll | null;
 }>) {
+  const tr = useTranslations();
   const memberType = cast.get(t.characterId)?.type;
   const result = t.result ?? null;
   const applied = t.applied ?? null;
@@ -648,11 +662,12 @@ function CardDetails({
         </p>
       )}
 
-      {nothing && <p className="text-subtle">Aucune valeur à appliquer.</p>}
+      {nothing && <p className="text-subtle">{tr('combat.reports.nothingToApply')}</p>}
 
       {situation.length > 0 && (
         <p className="text-muted-foreground">
-          <span className="font-medium text-foreground">Situation</span> : {situation.join(' · ')}
+          <span className="font-medium text-foreground">{tr('combat.attack.situation')}</span> :{' '}
+          {situation.join(' · ')}
         </p>
       )}
 
@@ -672,8 +687,8 @@ function CardDetails({
       {applied && (
         <AppliedLine applied={applied} systeme={systeme} cast={cast} memberType={memberType} />
       )}
-      {t.decision === 'skipped' && <p className="text-subtle">Non appliqué.</p>}
-      {t.decision === 'reverted' && <p className="text-info">Application annulée : à décider.</p>}
+      {t.decision === 'skipped' && <p className="text-subtle">{tr('combat.reports.notApplied')}</p>}
+      {t.decision === 'reverted' && <p className="text-info">{tr('combat.reports.reverted')}</p>}
 
       {index === 0 && attack.note && (
         <p className="italic text-muted-foreground">« {attack.note} »</p>
@@ -698,16 +713,14 @@ function ConflictAlert({
   onLeave(): void;
   onForce(): void;
 }>) {
-  const nameOf = (id: string) => cast.get(id)?.name ?? 'Personnage';
+  const tr = useTranslations();
+  const nameOf = (id: string) => cast.get(id)?.name ?? tr('map.common.character');
   return (
     <div
       role="alert"
       className="mx-3 ml-4 mt-2 space-y-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-[13px]"
     >
-      <p>
-        La fiche a changé depuis l’application : l’annuler rendrait des valeurs qui ont bougé
-        entre-temps.
-      </p>
+      <p>{tr('combat.reports.revertConflict')}</p>
       {conflict.length > 0 && (
         <ul className="text-[11px] text-muted-foreground">
           {conflict.map((c, i) => (
@@ -724,10 +737,10 @@ function ConflictAlert({
       )}
       <div className="flex justify-end gap-2">
         <Button size="xs" variant="ghost" onClick={onLeave}>
-          Laisser
+          {tr('combat.reports.leave')}
         </Button>
         <Button size="xs" variant="destructive" onClick={onForce} loading={busy === 'revert'}>
-          Annuler quand même
+          {tr('combat.reports.revertAnyway')}
         </Button>
       </div>
     </div>
@@ -754,6 +767,7 @@ function CardActions({
   onDecide(): void;
   onToggleReaction(): void;
 }>) {
+  const tr = useTranslations();
   const { busy } = actions;
   return (
     <>
@@ -767,27 +781,27 @@ function CardActions({
             disabled={busy !== null}
           >
             <Check />
-            Appliquer
+            {tr('combat.live.apply')}
           </Button>
-          <Info texte="Modifier avant d’appliquer">
+          <Info texte={tr('combat.live.editBefore')}>
             <Button
               size="icon-sm"
               variant="secondary"
               onClick={onDecide}
               disabled={busy !== null}
-              aria-label={`Modifier avant d’appliquer à ${name}`}
+              aria-label={tr('combat.reports.editBeforeFor', { name })}
             >
               <Pencil />
             </Button>
           </Info>
-          <Info texte="Ne pas appliquer">
+          <Info texte={tr('combat.live.skip')}>
             <Button
               size="icon-sm"
               variant="ghost"
               onClick={() => actions.decideOne(t, false)}
               loading={busy === `${t.characterId}:false`}
               disabled={busy !== null}
-              aria-label={`Ne pas appliquer à ${name}`}
+              aria-label={tr('combat.live.skipFor', { name })}
             >
               <X />
             </Button>
@@ -798,7 +812,7 @@ function CardActions({
         <>
           <Button size="sm" variant="secondary" className="flex-1" onClick={onToggleReaction}>
             <ShieldQuestion />
-            Répondre
+            {tr('combat.reports.answer')}
           </Button>
           <Button
             size="sm"
@@ -808,12 +822,12 @@ function CardActions({
             disabled={busy !== null}
           >
             <ShieldOff />
-            Passer
+            {tr('combat.reports.pass')}
           </Button>
         </>
       )}
       {mode === 'serveur' && (
-        <Info texte="L’auteur ne lance pas ses dés : le serveur tire la suite">
+        <Info texte={tr('combat.reports.serverHint')}>
           <Button
             size="sm"
             variant="secondary"
@@ -823,7 +837,7 @@ function CardActions({
             disabled={busy !== null}
           >
             <Dices />
-            Tirer par le serveur
+            {tr('combat.reports.serverRoll')}
           </Button>
         </Info>
       )}
@@ -842,7 +856,7 @@ function CardActions({
       )}
       {mode === 'statut' && (
         <span className="ml-auto text-[11px] text-subtle">
-          {decisionLabel(t.decision) ?? ATTACK_STATUS_LABELS[attack.status]}
+          {decisionLabel(t.decision) ?? attackStatusLabel(attack.status)}
         </span>
       )}
     </>
@@ -860,12 +874,13 @@ function PersonChip({
   onClick(): void;
   strong?: boolean;
 }>) {
+  const tr = useTranslations();
   return (
     <button
       type="button"
       onClick={onClick}
       className="flex min-w-0 items-center gap-1.5 rounded-full py-0.5 pr-1.5 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-      title={`Fiche de ${name}`}
+      title={tr('combat.reports.sheetOf', { name })}
     >
       <Illustration
         largeur={24}
@@ -929,8 +944,11 @@ type Roll = NonNullable<AttackTarget['view']>['roll'];
 
 /** Case « Jet » : le total, ou le premier résultat déclaré du pool (succès nets…). */
 function jetLabel(systeme: SystemeCharge | null, roll: Roll): string {
-  if (roll.kind === 'numeric') return 'Jet';
-  return systeme?.source.des?.resultats.find((r) => r.visible !== false)?.nom ?? 'Jet';
+  if (roll.kind === 'numeric') return translate('combat.stages.roll');
+  return (
+    systeme?.source.des?.resultats.find((r) => r.visible !== false)?.nom ??
+    translate('combat.stages.roll')
+  );
 }
 
 function jetValue(systeme: SystemeCharge | null, roll: Roll): string {
@@ -958,7 +976,7 @@ function RollDetails({
     <div className="mx-3 ml-4 mt-2 space-y-2 rounded-xl border border-border bg-background/40 p-2.5">
       <p className="flex items-center gap-1 text-[11px] text-subtle">
         <Dices className="size-3" aria-hidden />
-        {DICE_ORIGIN_LABELS[diceOrigin(attack)]}
+        {diceOriginLabel(diceOrigin(attack))}
       </p>
       {roll?.kind === 'numeric' && (
         <p className="font-mono text-xs tabular-nums">
@@ -1045,10 +1063,16 @@ function CardMenu({
   onOpenCharacter(id: string): void;
   onFilter(id: string): void;
 }>) {
+  const tr = useTranslations();
   return (
     <DropdownMenu onOpenChange={(open) => !open && setConfirmDismiss(false)}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-xs" aria-label="Actions du rapport" disabled={busy}>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={tr('combat.reports.actions')}
+          disabled={busy}
+        >
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
@@ -1056,32 +1080,32 @@ function CardMenu({
         {isPending(attack) && (
           <DropdownMenuItem onSelect={onDecide}>
             <Pencil />
-            Modifier le rapport…
+            {tr('combat.reports.edit')}
           </DropdownMenuItem>
         )}
         {isPending(attack) &&
           decidableTargets(attack).length + (actorDecidable(attack) ? 1 : 0) > 1 && (
             <DropdownMenuItem onSelect={actions.applyAll}>
               <CheckCheck />
-              Appliquer tout le rapport tel quel
+              {tr('combat.reports.applyAll')}
             </DropdownMenuItem>
           )}
         {awaiting.length > 1 && (
           <DropdownMenuItem onSelect={() => actions.skipReactions(awaiting)}>
             <ShieldOff />
-            Passer la défense de toutes les cibles
+            {tr('combat.reports.skipAll')}
           </DropdownMenuItem>
         )}
         {isOpen(attack) && attack.pendingSteps.length > 0 && (
           <DropdownMenuItem onSelect={actions.serverDice}>
             <Dices />
-            Tirer les dés par le serveur
+            {tr('combat.reports.serverDice')}
           </DropdownMenuItem>
         )}
         {canRevert(attack) && t.decision !== 'applied' && (
           <DropdownMenuItem onSelect={() => actions.revert(false)}>
             <Undo2 />
-            Annuler l’application du rapport
+            {tr('combat.reports.revert')}
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
@@ -1101,7 +1125,7 @@ function CardMenu({
         {isOpen(attack) && (
           <DropdownMenuItem onSelect={actions.cancel}>
             <Ban />
-            Abandonner l’attaque
+            {tr('combat.live.abandon')}
           </DropdownMenuItem>
         )}
         {isPending(attack) && (
@@ -1117,7 +1141,9 @@ function CardMenu({
             }}
           >
             <X />
-            {confirmDismiss ? 'Confirmer : écarter tout le rapport' : 'Écarter tout le rapport'}
+            {confirmDismiss
+              ? tr('combat.reports.confirmDismissAll')
+              : tr('combat.reports.dismissAll')}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
@@ -1137,6 +1163,7 @@ export function ActorCostCard({
   systeme: SystemeCharge | null;
   cast: ReadonlyMap<string, CastMember>;
 }>) {
+  const tr = useTranslations();
   const actions = useAttackActions(campaignId, attack);
   const attacker = cast.get(attack.attackerId);
   const actor = attack.actor;
@@ -1170,7 +1197,7 @@ export function ActorCostCard({
             disabled={actions.busy !== null}
           >
             <Check />
-            Appliquer
+            {tr('combat.live.apply')}
           </Button>
           <Button
             size="icon-xs"
@@ -1178,14 +1205,14 @@ export function ActorCostCard({
             onClick={() => actions.decideActor(false)}
             loading={actions.busy === 'actor:false'}
             disabled={actions.busy !== null}
-            aria-label="Ne pas appliquer les coûts de l’attaquant"
+            aria-label={tr('combat.reports.skipCosts')}
           >
             <X />
           </Button>
         </span>
       ) : (
         <Badge ton={actor.decision === 'applied' ? 'succes' : 'neutre'}>
-          {decisionLabel(actor.decision) ?? 'En attente'}
+          {decisionLabel(actor.decision) ?? tr('combat.turn.waiting')}
         </Badge>
       )}
     </div>

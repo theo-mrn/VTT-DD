@@ -8,6 +8,7 @@
  * déjà comptées par le serveur) ; le MJ ne fait que les corriger. Une cible laissée telle
  * quelle part sans `modifications` : le serveur applique celles de son rapport.
  */
+import { translate } from '@/i18n/runtime';
 import {
   ATTACK_APPLY_BATCH_MAX,
   type ApplyAttack,
@@ -104,11 +105,8 @@ export function diceOrigin(a: Attack): DiceOrigin {
   return sources.has('physical') ? 'physical' : 'server';
 }
 
-export const DICE_ORIGIN_LABELS: Record<DiceOrigin, string> = {
-  physical: 'Dés 3D',
-  server: 'Dés du serveur',
-  mixed: 'Dés mixtes',
-};
+/** Origine des dés d'un rapport (`combat.diceOrigin.<origine>`). */
+export const diceOriginLabel = (origin: DiceOrigin) => translate(`combat.diceOrigin.${origin}`);
 
 /** Personnages hors de combat après une application de ce rapport. */
 export function defeatedBy(a: Attack): string[] {
@@ -141,6 +139,7 @@ export function toInput(m: AttackModification): AttackModificationInput {
     ranks: m.ranks,
   };
   if (m.duration !== undefined) out.duration = m.duration;
+  if (m.duration !== undefined && m.timing) out.timing = m.timing;
   if (m.instance !== undefined) out.instance = m.instance;
   return out;
 }
@@ -311,8 +310,11 @@ export function setDuration(
 ): AttackModificationInput[] {
   return mods.map((m, i) => {
     if (i !== index || m.kind !== 'entry') return m;
-    const { duration: _old, ...rest } = m;
-    return duration && duration > 0 ? { ...rest, duration: Math.round(duration) } : rest;
+    // Jusqu'au retrait : ni nombre ni moment ; sinon le moment du décompte est gardé
+    const { duration: _old, timing, ...rest } = m;
+    return duration && duration > 0
+      ? { ...rest, duration: Math.round(duration), ...(timing ? { timing } : {}) }
+      : rest;
   });
 }
 
@@ -639,7 +641,7 @@ export function recentlyDecided(
 
 /** Effet d'une résistance, lisible : immunité, ×2, −3. */
 function resistanceEffect(operation: string, value: number): string {
-  if (operation === 'cancel') return 'immunité';
+  if (operation === 'cancel') return translate('combat.reports.immunity');
   if (operation === 'multiply') return `×${NUMBER.format(value)}`;
   return `−${NUMBER.format(value)}`;
 }

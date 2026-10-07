@@ -10,6 +10,7 @@
  * En création, les valeurs envoyées sont celles qui diffèrent du défaut ; en modification,
  * celles qui ont changé depuis l'ouverture (le reste de l'état du modèle est gardé).
  */
+import { useTranslations } from 'next-intl';
 import { MediaUrl } from '@vtt/contracts';
 import type { Attribut, EtatEntite, Presentation, SystemeCharge, Valeur } from '@vtt/rules';
 import { useId, useMemo, useState, type ReactNode } from 'react';
@@ -131,6 +132,7 @@ export function NpcForm({
   onSubmit(result: NpcFormResult): void;
   onCancel?(): void;
 }>) {
+  const t = useTranslations();
   const ids = { name: useId(), type: useId(), category: useId() };
   const types = useMemo(
     () => [...systeme.entites.values()].map((e) => ({ id: e.type.id, nom: e.type.nom })),
@@ -157,9 +159,8 @@ export function NpcForm({
   const [saisies, setSaisies] = useState<Record<string, Saisie>>({});
 
   const imageCheck = image.trim() ? MediaUrl.safeParse(image.trim()) : null;
-  const imageError =
-    imageCheck && !imageCheck.success ? 'Adresse https ou chemin du site attendu.' : null;
-  const nameError = touched && !name.trim() ? 'Donnez un nom au PNJ.' : null;
+  const imageError = imageCheck && !imageCheck.success ? t('map.tokens.inspector.urlHint') : null;
+  const nameError = touched && !name.trim() ? t('characters.npc.nameRequired') : null;
   const ready = name.trim().length > 0 && !imageError && Boolean(type);
 
   return (
@@ -191,14 +192,14 @@ export function NpcForm({
         {categories.length > 0 && (
           <div className="space-y-1.5">
             <Label htmlFor={ids.category} className="text-xs text-muted-foreground">
-              Catégorie
+              {t('characters.npc.category')}
             </Label>
             <SelectField
               id={ids.category}
               value={category}
               onValueChange={setCategory}
               options={[
-                { valeur: NONE, nom: 'Sans catégorie' },
+                { valeur: NONE, nom: t('map.objects.library.uncategorized') },
                 ...categories.map((c) => ({ valeur: c.id, nom: c.name })),
               ]}
               className="h-9"
@@ -208,7 +209,7 @@ export function NpcForm({
         {types.length > 1 && (
           <div className="space-y-1.5">
             <Label htmlFor={ids.type} className="text-xs text-muted-foreground">
-              Type d’entité
+              {t('characters.npc.entityType')}
             </Label>
             <SelectField
               id={ids.type}
@@ -226,14 +227,14 @@ export function NpcForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Image</Label>
+        <Label className="text-xs text-muted-foreground">{t('characters.npc.image')}</Label>
         <ImageDrop
           className="w-32"
           target={{ kind: 'campaign', id: campaignId }}
           usage="npc-image"
           value={image.trim() || null}
           onChange={(url) => setImage(url ?? '')}
-          label="Image du PNJ"
+          label={t('characters.npc.npcImage')}
         />
         {imageError && (
           <p role="alert" className="text-xs text-destructive">
@@ -252,7 +253,7 @@ export function NpcForm({
       <div className="flex justify-end gap-2 pt-1">
         {onCancel && (
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
         )}
         <Button type="submit" size="sm" loading={busy} className={cn(!onCancel && 'w-full')}>
@@ -278,6 +279,7 @@ function NameField({
   onChange(name: string): void;
   onBlur(): void;
 }>) {
+  const t = useTranslations();
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="text-xs text-muted-foreground">
@@ -288,7 +290,7 @@ function NameField({
         value={value}
         maxLength={100}
         required
-        placeholder="Garde du pont"
+        placeholder={t('characters.npc.namePlaceholder')}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-erreur` : undefined}
         onChange={(e) => onChange(e.target.value)}
@@ -316,11 +318,12 @@ function KeyValues({
   value(a: Attribut): Saisie;
   onChange(cle: string, v: Saisie): void;
 }>) {
+  const t = useTranslations();
   if (attributs.length === 0) return null;
   return (
     <fieldset className="space-y-2">
       <legend className="mb-1.5 text-xs font-medium uppercase tracking-[0.12em] text-subtle">
-        Valeurs clés
+        {t('characters.npc.keyValues')}
       </legend>
       <div className={cn('grid gap-2', columns === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
         {attributs.map((a) => (
@@ -332,9 +335,7 @@ function KeyValues({
           />
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Les valeurs calculées (défense, maximums…) suivent les règles du système.
-      </p>
+      <p className="text-xs text-muted-foreground">{t('characters.npc.computedHint')}</p>
     </fieldset>
   );
 }

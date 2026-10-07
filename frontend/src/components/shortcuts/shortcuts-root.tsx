@@ -5,6 +5,8 @@
  * une fois connecté, l'aide-mémoire (`?`) des touches actives là où l'on est (carte comprise),
  * et l'éditeur ouvert depuis lui, sans quitter la page ni la partie.
  */
+import { useText } from '@/i18n/text';
+import { useTranslations } from 'next-intl';
 import { Keyboard } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useStore } from 'zustand';
@@ -54,12 +56,13 @@ function useRoleTable(): ShortcutRole | null {
 }
 
 function Editeur() {
+  const t = useTranslations('shortcuts.sheet');
   const role = useRoleTable();
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Raccourcis</DialogTitle>
-        <DialogDescription className="sr-only">Changer les touches du site</DialogDescription>
+        <DialogTitle>{t('title')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('editLead')}</DialogDescription>
       </DialogHeader>
       <div className="max-h-[70vh] overflow-y-auto pr-1">
         <ShortcutsEditor role={role} />
@@ -70,6 +73,8 @@ function Editeur() {
 
 /** Touches actives ici : commandes montées, carte affichée (outils, actions, gestes). */
 function AideMemoire({ onEdit }: Readonly<{ onEdit(): void }>) {
+  const t = useTranslations('shortcuts.sheet');
+  const text = useText();
   const prefs = useShortcutPrefs();
   const engine = useStore(activeMapStore, (s) => s.engine);
   const actives = useMemo(() => {
@@ -99,29 +104,27 @@ function AideMemoire({ onEdit }: Readonly<{ onEdit(): void }>) {
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <Keyboard className="size-5 text-primary" />
-          Raccourcis
+          {t('title')}
         </DialogTitle>
-        <DialogDescription className="sr-only">
-          Les touches actives sur cette page
-        </DialogDescription>
+        <DialogDescription className="sr-only">{t('activeLead')}</DialogDescription>
       </DialogHeader>
       <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
         {SECTIONS.map(({ scope, title }) => {
           const rows = actives.flatMap((d) => {
             if (d.scope !== scope) return [];
-            const touche = d.fixedLabel ?? bindingLabel(bindingOf(prefs, d));
+            const touche = d.fixedLabel ? text(d.fixedLabel) : bindingLabel(bindingOf(prefs, d));
             return touche ? [{ d, touche }] : [];
           });
           if (!rows.length) return null;
           return (
-            <section key={scope} aria-label={title}>
+            <section key={scope} aria-label={text(title)}>
               <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                {title}
+                {text(title)}
               </h3>
               <ul className="space-y-1">
                 {rows.map(({ d, touche }) => (
                   <li key={d.id} className="flex items-center gap-3 text-[13px]">
-                    <span className="min-w-0 flex-1 truncate">{d.label}</span>
+                    <span className="min-w-0 flex-1 truncate">{text(d.label)}</span>
                     <Kbd>{touche}</Kbd>
                   </li>
                 ))}
@@ -132,7 +135,7 @@ function AideMemoire({ onEdit }: Readonly<{ onEdit(): void }>) {
       </div>
       <div className="flex justify-end">
         <Button variant="secondary" size="sm" onClick={onEdit}>
-          Personnaliser
+          {t('customize')}
         </Button>
       </div>
     </>

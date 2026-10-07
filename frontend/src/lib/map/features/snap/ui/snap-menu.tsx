@@ -4,26 +4,33 @@
  * « Aimantation » : où se posent jetons, objets, murs et zones pendant un geste. Libre par
  * défaut ; Alt inverse le réglage le temps du geste. Les extrémités des murs restent aimantées.
  */
+import { translate } from '@/i18n/runtime';
 import { Check } from 'lucide-react';
 import { SNAP_STEPS, type MapEngine, type SnapStep } from '@/lib/map/engine/map-engine';
 import { cn } from '@/lib/utils';
 import { useMapUi } from '@/components/map/engine-context';
 
-export const SNAP_LABELS: Record<`${SnapStep}`, { label: string; hint: string }> = {
-  off: { label: 'Libre', hint: 'Posé exactement sous le pointeur' },
-  '1': { label: 'Grille : une case', hint: 'Centré dans la case' },
-  '0.5': { label: 'Grille : demi-case', hint: 'Deux crans par case' },
-  '0.25': { label: 'Grille : quart de case', hint: 'Quatre crans par case' },
+/** Pas d'aimantation → clé du catalogue (`map.snap.steps.<clé>`). */
+export const SNAP_KEYS: Record<`${SnapStep}`, 'off' | 'cell' | 'half' | 'quarter'> = {
+  off: 'off',
+  '1': 'cell',
+  '0.5': 'half',
+  '0.25': 'quarter',
 };
+
+export const snapLabel = (step: SnapStep) => ({
+  label: translate(`map.snap.steps.${SNAP_KEYS[`${step}`]}.label`),
+  hint: translate(`map.snap.steps.${SNAP_KEYS[`${step}`]}.hint`),
+});
 
 export function SnapMenu({ engine }: Readonly<{ engine: MapEngine }>) {
   const snap = useMapUi((s) => s.snap);
   return (
     <>
-      <p className="px-2 pb-1 pt-1 text-sm font-semibold">Aimantation</p>
-      <div role="radiogroup" aria-label="Aimantation" className="space-y-0.5">
+      <p className="px-2 pb-1 pt-1 text-sm font-semibold">{translate('map.snap.title')}</p>
+      <div role="radiogroup" aria-label={translate('map.snap.title')} className="space-y-0.5">
         {SNAP_STEPS.map((step) => {
-          const t = SNAP_LABELS[`${step}`];
+          const t = snapLabel(step);
           const on = step === snap;
           return (
             <button
@@ -48,7 +55,7 @@ export function SnapMenu({ engine }: Readonly<{ engine: MapEngine }>) {
         })}
       </div>
       <p className="px-2 pb-1 pt-2 text-[11px] text-muted-foreground">
-        Alt pendant le geste inverse le réglage. Les extrémités des murs s’aimantent toujours.
+        {translate('map.snap.altHint')}
       </p>
     </>
   );

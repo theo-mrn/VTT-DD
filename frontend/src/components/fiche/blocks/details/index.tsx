@@ -4,6 +4,7 @@
  * Bloc Profil : portrait, concept et entrées uniques (espèce, profil, carrière…) avec les
  * attributs texte déclarés par le widget `details` de la présentation.
  */
+import { translate } from '@/i18n/runtime';
 import { Illustration } from '@/components/commun/illustration';
 import { Bloc, ChipsDetails } from '../../widgets';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
@@ -31,8 +32,12 @@ function DetailsBlock({ ctx, widget }: Readonly<SheetBlockProps<'details'>>) {
 
 export const detailsBlock: SheetBlockDefinition<'details'> = {
   type: 'details',
-  label: 'Profil',
-  description: 'Portrait, entrées uniques (espèce, profil, carrière…) et attributs texte.',
+  get label() {
+    return translate('sheet.blocks.details.label');
+  },
+  get description() {
+    return translate('sheet.blocks.details.description');
+  },
   defaultSize: { w: 6, h: 4 },
   minSize: { w: 3, h: 3 },
   Component: DetailsBlock,

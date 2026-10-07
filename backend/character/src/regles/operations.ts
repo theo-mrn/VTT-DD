@@ -31,6 +31,8 @@ import {
   EtatEntite,
   executerAction,
   MAX_INVENTORY_FOLDERS,
+  MomentDecompte,
+  poserDecompte,
   initiative,
   recuperer,
   rembourser,
@@ -40,6 +42,7 @@ import {
   terminerCreation,
   tirerEtape,
   type Attribut,
+  type Decompte,
   type Entree,
   type Fiche,
   type Generateur,
@@ -336,6 +339,30 @@ export function appliquerEtape(
   }
 }
 
+/**
+ * Décompte d'une durée demandé par le client (docs/combat.md § 18.8) : moment, et personnage
+ * dont le tour compte (absent : le porteur). L'attente d'une fin de tour est posée ici, par le
+ * serveur, jamais reçue.
+ */
+export const DemandeDecompte = z.strictObject({
+  moment: MomentDecompte,
+  de: z
+    .uuid('Identifiant de personnage invalide')
+    .transform((s) => s.toLowerCase())
+    .optional(),
+});
+export type DemandeDecompte = z.output<typeof DemandeDecompte>;
+
+/** Décompte à enregistrer : celui demandé (attente posée au besoin), sinon l'ancien. */
+function decompteApres(
+  ancien: Decompte | undefined,
+  demande: DemandeDecompte | null | undefined,
+): Decompte | undefined {
+  if (demande === null) return undefined;
+  if (demande === undefined) return ancien;
+  return poserDecompte(ancien, demande);
+}
+
 /** Termine la création si toutes les étapes sont faites. */
 export function terminer(systeme: SystemeCharge, etat: EtatEntite): EtatEntite {
   return ouRefus(terminerCreation(systeme, etat));
@@ -390,10 +417,12 @@ export const DemandePossession = z.object({
   /** Dossier d'inventaire (`folders` de l'état) ; null : retour à la racine. */
   folder: Id.nullable().optional(),
   /**
-   * Durée en rounds (état donné pour un temps), décomptée en fin de round de combat ; null la
-   * retire : la possession reste jusqu'à son retrait.
+   * Durée (état donné pour un temps) : nombre de décomptes, en fin de round de combat par
+   * défaut ; null la retire : la possession reste jusqu'à son retrait.
    */
   duree: z.number().int().min(1).max(10_000).nullable().optional(),
+  /** Moment du décompte de `duree` (début ou fin d'un tour) ; null : fin de round. */
+  decompte: DemandeDecompte.nullable().optional(),
 });
 export type DemandePossession = z.output<typeof DemandePossession>;
 
@@ -577,8 +606,15 @@ function modifierExistante(
   if (d.choix !== undefined) existante.choix = d.choix;
   if (champs !== undefined) existante.champs = { ...existante.champs, ...champs };
   if (d.quantite !== undefined) existante.quantite = d.quantite;
-  if (d.duree === null) delete existante.duree;
-  else if (d.duree !== undefined) existante.duree = d.duree;
+  if (d.duree === null) {
+    delete existante.duree;
+    delete existante.decompte;
+  } else {
+    if (d.duree !== undefined) existante.duree = d.duree;
+    const decompte = decompteApres(existante.decompte, d.decompte);
+    if (decompte && existante.duree !== undefined) existante.decompte = decompte;
+    else delete existante.decompte;
+  }
   ranger(d, existante);
   return effetsDesactives;
 }
@@ -606,6 +642,8 @@ function creerExemplaire(
     ...(d.quantite !== undefined ? { quantite: d.quantite } : {}),
     ...(d.duree != null ? { duree: d.duree } : {}),
   });
+  const decompte = d.duree != null ? decompteApres(undefined, d.decompte) : undefined;
+  if (decompte) nouvelle.decompte = decompte;
   ranger(d, nouvelle);
   return nouvelle;
 }
@@ -893,15 +931,25 @@ export function verifierInventaire(etat: EtatEntite): void {
 
 // ─── Bonus libres ─────────────────────────────────────────────────────────────
 
-/** Bonus libre reçu du client : identifiant facultatif (créé à partir du nom). */
-export const DemandeBonus = BonusLibre.extend({ id: Id.optional() });
+/**
+ * Bonus libre reçu du client : identifiant facultatif (créé à partir du nom) ; décompte de sa
+ * durée sans attente (posée par le serveur).
+ */
+export const DemandeBonus = BonusLibre.extend({
+  id: Id.optional(),
+  decompte: DemandeDecompte.optional(),
+});
 export type DemandeBonus = z.output<typeof DemandeBonus>;
 
 /** Pose un bonus libre, ou remplace celui qui a le même identifiant. */
 export function poserBonus(systeme: SystemeCharge, etat: EtatEntite, d: DemandeBonus): EtatEntite {
   const id = d.id ?? identifiantBonus(d.nom, etat);
   verifierEffetsPoses(systeme, etat, d.effets, `bonus/${id}`, { rang: 'nombre', actif: 'booleen' });
-  const bonus = { ...d, id };
+  const { decompte: demande, ...reste } = d;
+  const ancien = etat.bonus.find((b) => b.id === id)?.decompte;
+  // Le décompte n'a de sens qu'avec une durée ; même décompte : l'attente en cours est gardée
+  const decompte = d.duree !== undefined ? poserDecompte(ancien, demande) : undefined;
+  const bonus = { ...reste, id, ...(decompte ? { decompte } : {}) };
   const autres = etat.bonus.filter((b) => b.id !== id);
   if (autres.length >= 100) throw refus('100 bonus libres au plus');
   return { ...etat, bonus: [...autres, bonus] };
@@ -1001,6 +1049,8 @@ const messageErreurs = (erreurs: { parametre?: string; message: string }[]) =>
 /** Demande de résolution d'une action. */
 export interface DemandeAction {
   action: string;
+  /** Identifiant de l'acteur : la source d'une durée qui se décompte à son tour. */
+  acteurId?: string;
   acteur: Fiche;
   cible?: Fiche;
   memeEntite?: boolean;
@@ -1039,10 +1089,11 @@ function lancerAction(
 function appliquerSurFiche(
   fiche: Fiche,
   mods: ResultatAction['modifications'],
-  entite?: 'acteur' | 'cible',
+  entite: 'acteur' | 'cible' | undefined,
+  source: string | undefined,
 ): EtatEntite {
   try {
-    return appliquerModifications(fiche, mods, entite);
+    return appliquerModifications(fiche, mods, entite, source ? { source } : {});
   } catch (e) {
     throw refus(`Modification impossible : ${(e as Error).message}`, 'modification_invalide');
   }
@@ -1065,46 +1116,19 @@ export function resoudreAction(systeme: SystemeCharge, demande: DemandeAction): 
   const mods = resultat.modifications;
   const touche = (entite: 'acteur' | 'cible') => mods.some((m) => m.entite === entite);
 
+  const source = demande.acteurId;
   if (demande.memeEntite) {
-    return mods.length ? { ...base, acteur: appliquerSurFiche(demande.acteur, mods) } : base;
+    return mods.length
+      ? { ...base, acteur: appliquerSurFiche(demande.acteur, mods, undefined, source) }
+      : base;
   }
   return {
     ...base,
-    ...(touche('acteur') ? { acteur: appliquerSurFiche(demande.acteur, mods, 'acteur') } : {}),
+    ...(touche('acteur')
+      ? { acteur: appliquerSurFiche(demande.acteur, mods, 'acteur', source) }
+      : {}),
     ...(demande.cible && touche('cible')
-      ? { cible: appliquerSurFiche(demande.cible, mods, 'cible') }
+      ? { cible: appliquerSurFiche(demande.cible, mods, 'cible', source) }
       : {}),
   };
-}
-
-// ─── Durées ───────────────────────────────────────────────────────────────────
-
-/**
- * Fin de round d'un combat : chaque possession à durée (état temporaire) et
- * chaque bonus libre à durée perd un round ; ceux arrivés à 0 sont retirés,
- * exemplaire par exemplaire (`entree`, `entree#exemplaire` pour un exemplaire
- * identifié, `bonus:<id>` pour un bonus). `etat` vaut `undefined` s'il n'y a aucune
- * durée (rien à enregistrer).
- */
-export function decompterDurees(
-  etat: EtatEntite,
-  /** Fin de combat (« Retirer les états à durée ») : tout ce qui a une durée est retiré. */
-  tout = false,
-): { etat?: EtatEntite; retirees: string[] } {
-  const aDuree = (x: { duree?: number }) => x.duree !== undefined;
-  if (!etat.possessions.some(aDuree) && !etat.bonus.some(aDuree)) return { retirees: [] };
-  const retirees: string[] = [];
-  const decompter = <T extends { duree?: number }>(x: T, nom: string): T[] => {
-    if (x.duree === undefined) return [x];
-    if (tout || x.duree - 1 <= 0) {
-      retirees.push(nom);
-      return [];
-    }
-    return [{ ...x, duree: x.duree - 1 }];
-  };
-  const possessions = etat.possessions.flatMap((p) =>
-    decompter(p, p.exemplaire === undefined ? p.entree : `${p.entree}#${p.exemplaire}`),
-  );
-  const bonus = etat.bonus.flatMap((b) => decompter(b, `bonus:${b.id}`));
-  return { etat: { ...etat, possessions, bonus }, retirees };
 }

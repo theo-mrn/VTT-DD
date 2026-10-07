@@ -256,4 +256,43 @@ describe('chronique du combat', () => {
     );
     expect(round?.message).toBe('Retour au tour précédent : **Lyra** est **aveugle** (1 round).');
   });
+
+  it('fin des durées : une ligne pour toute la table, le double du MJ retiré, la fiche ne répète pas', () => {
+    const expired = (visibility: HistoryEvent['visibility'], expirations: unknown[]) => ({
+      ...event('combat.durations_expired', { tickId: 'tick:c1:2:p', round: 2, expirations }),
+      id: `d-${visibility}`,
+      aggregate: { type: 'combat', id: 'c1' },
+      visibility,
+    });
+    const lyra = { characterId: 'lyra', entries: [{ key: 'beni', name: 'Béni' }] };
+    const orc = {
+      characterId: 'orc',
+      entries: [
+        { key: 'marque', name: 'Marqué' },
+        { key: 'bonus:rage', name: 'Rage' },
+      ],
+    };
+    const full = expired('gm_only', [lyra, orc]);
+    const shared = expired('public', [lyra]);
+    expect(withoutRedactedTwins([full, shared]).map((e) => e.id)).toEqual([full.id]);
+    expect(withoutRedactedTwins([shared])).toEqual([shared]);
+    expect(formatHistoryEvent(full, ctx(true))?.message).toBe(
+      "**Lyra** n'est plus **Béni** ; **Orc** n'est plus **Marqué**, **Rage**.",
+    );
+    expect(formatHistoryEvent(shared, ctx(false))).toMatchObject({
+      type: 'combat',
+      characterId: 'lyra',
+      message: "**Lyra** n'est plus **Béni**.",
+    });
+    // Le décompte d'un passage de tour se raconte par l'événement du combat
+    const counted = {
+      ...event('character.updated', {
+        operation: 'durees.decompte',
+        retirees: ['beni'],
+        tickId: 'tick:c1:2:p',
+      }),
+      aggregate: { type: 'character', id: 'lyra' },
+    };
+    expect(formatHistoryEvent(counted, ctx(true))).toBeNull();
+  });
 });

@@ -6,6 +6,7 @@
  * `useCampaignAudio` est monté une fois par la table : état initial,
  * abonnement temps réel `audio.*`, pilotage du moteur.
  */
+import { translate } from '@/i18n/runtime';
 import type {
   Asset,
   AssetKind,
@@ -548,8 +549,8 @@ export function useAudioLibrary(campaignId: string, options: { enabled?: boolean
       if (!contentType)
         throw new ApiError({
           status: 415,
-          title: 'Format non pris en charge',
-          detail: 'Formats acceptés : mp3, m4a, aac, ogg, opus, webm, wav, flac.',
+          title: translate('audio.add.unsupported'),
+          detail: translate('audio.add.formats'),
         });
       const ticket = await audioApi.requestUpload(campaignId, {
         fileName: file.name,
@@ -674,7 +675,7 @@ export function usePreview() {
       const youtubeId = 'youtubeId' in src ? src.youtubeId : null;
       if (youtubeId) {
         const v = YoutubeVoice.create(youtubeId);
-        v.label = src.name ?? 'Écoute';
+        v.label = src.name ?? translate('audio.kinds.preview');
         v.kind = 'preview';
         v.owned = () => voice.current === v;
         v.setVolume(0.8);
@@ -688,7 +689,7 @@ export function usePreview() {
         const v = new MediaVoice(ctx, engine.pool(), src.url, engine.bus('preview'), {
           initialGain: 10 ** (gainDb / 20),
         });
-        v.label = src.name ?? 'Écoute';
+        v.label = src.name ?? translate('audio.kinds.preview');
         v.kind = 'preview';
         v.owned = () => voice.current === v;
         v.onEnded = stop;

@@ -1,0 +1,121 @@
+/** Marketplace côté acheteur : catalogue, fiche, bibliothèque, avis, installation, signalement, créateur (agent « boutique »). */
+export default {
+  catalog: {
+    title: 'Marketplace',
+    searchPlaceholder: 'Rechercher un pack, un créateur…',
+    searchLabel: 'Rechercher un pack',
+    allSystems: 'Tous les systèmes',
+    systemLabel: 'Système de jeu',
+    sorts: {
+      popular: 'Populaires',
+      recent: 'Récents',
+      rating: 'Mieux notés',
+      priceAsc: 'Prix croissant',
+      priceDesc: 'Prix décroissant',
+    },
+    /** Info-bulles des tris. */
+    sortTips: {
+      popular: 'Les plus obtenus',
+      recent: 'Les derniers publiés',
+      rating: 'Moyenne des avis, pondérée par leur nombre',
+      priceAsc: 'Du moins cher au plus cher',
+      priceDesc: 'Du plus cher au moins cher',
+    },
+    /** Filtre de type : tous les contenus. */
+    allKinds: 'Tout',
+    free: 'Gratuits',
+    paid: 'Payants',
+    safe: 'Sans avertissement',
+    safeTip: 'Masquer les packs avec un avertissement de contenu',
+    empty: 'Aucun pack',
+    clearFilters: 'Effacer les filtres',
+    pages: 'Pages',
+    previousPage: 'Page précédente',
+    nextPage: 'Page suivante',
+    pageOf: '{page, number} / {pages, number}',
+  },
+  /** Tuile du catalogue. */
+  tile: {
+    owned: 'Possédé',
+  },
+  listing: {
+    /** Titre de la page tant que la fiche n'est pas chargée. */
+    fallbackTitle: 'Pack',
+    image: 'Image {index, number}',
+    description: 'Description',
+    versions: 'Versions',
+    system: 'Système',
+    content: 'Contenu',
+    license: 'Licence',
+    credits: 'Crédits',
+    rating: 'Note',
+    tags: 'Étiquettes',
+    manage: 'Gérer',
+    install: 'Installer',
+    confirmingPayment: 'Confirmation du paiement',
+    getFree: 'Obtenir gratuitement',
+    /** Bouton d'achat : « Acheter 4,99 € ». */
+    buy: 'Acheter {price}',
+    addedToLibrary: 'Ajouté à votre bibliothèque',
+    paymentUnavailable: 'Paiement indisponible',
+    inLibrary: 'Dans votre bibliothèque',
+    report: 'Signaler',
+  },
+  library: {
+    title: 'Bibliothèque',
+    empty: 'Aucun pack',
+    browse: 'Parcourir le catalogue',
+    /** Pack retiré de la vente : il ne s'installe plus. */
+    unavailable: 'Retiré',
+    interrupted: 'Installation interrompue',
+    installedVersion: 'Version {version} installée',
+    /** Campagne et version installée : « Les Terres brisées · v1.2.0 ». */
+    install: '{campaign} · v{version}',
+    /** Campagne dont le nom n'est pas connu. */
+    unknownCampaign: 'Campagne',
+    installAction: 'Installer',
+    update: 'Mettre à jour',
+  },
+  reviews: {
+    title: 'Avis',
+    verified: 'Avis vérifiés',
+    verifiedTip: 'Seuls les membres qui ont obtenu le pack peuvent le noter',
+    /** Auteur d'un avis dont le nom n'est pas connu. */
+    unknownPlayer: 'Joueur',
+    remove: 'Retirer mon avis',
+    placeholder: 'Votre avis',
+    saved: 'Avis enregistré',
+    edit: 'Modifier',
+    publish: 'Publier',
+    empty: 'Aucun avis',
+    pages: 'Pages d’avis',
+    previous: 'Avis précédents',
+    next: 'Avis suivants',
+  },
+  install: {
+    title: 'Installer « {title} »',
+    description: 'Choisissez la campagne où ajouter le contenu du pack.',
+    /** Bilan d'une installation sans contenu compté. */
+    done: 'Installé',
+    npcsSkipped: '{count, plural, one {# PNJ ignoré} other {# PNJ ignorés}}',
+    noCampaign: 'Aucune campagne dont vous êtes le MJ',
+    otherSystem: 'Sans PNJ',
+    otherSystemTip: 'Autre système : les PNJ du pack ne seront pas ajoutés',
+    progress: 'Installation',
+    openCampaign: 'Ouvrir la campagne',
+    resume: 'Reprendre',
+    install: 'Installer',
+  },
+  report: {
+    title: 'Signaler ce pack',
+    description: 'Le signalement est examiné par la modération.',
+    reason: 'Motif',
+    choose: 'Choisir',
+    details: 'Précisions',
+    submit: 'Signaler',
+    sent: 'Signalement envoyé',
+  },
+  creator: {
+    empty: 'Aucun pack en vente',
+  },
+} as const;

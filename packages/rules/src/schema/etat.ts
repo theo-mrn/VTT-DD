@@ -3,7 +3,22 @@
  * a saisi, acheté ou tiré. Tout le reste est recalculé par le moteur.
  */
 import { z } from 'zod';
-import { Cle, Effet, Id, type Entree, type Sorte } from './systeme.js';
+import { Cle, Effet, Id, MomentDecompte, type Entree, type Sorte } from './systeme.js';
+
+/**
+ * Comment une durée posée se décompte (docs/combat.md § 18.1). Absent : à chaque fin de round.
+ */
+export const Decompte = z.object({
+  moment: MomentDecompte,
+  /** Personnage dont le tour compte (`debut-tour`, `fin-tour`) ; absent : le porteur. */
+  de: z.string().trim().min(1).max(100).optional(),
+  /**
+   * `fin-tour` : le prochain événement du tour de `de` lève l'attente sans décompter (« jusqu'à
+   * la fin de son **prochain** tour »). Posée par le serveur, jamais par le client.
+   */
+  attente: z.boolean().optional(),
+});
+export type Decompte = z.output<typeof Decompte>;
 
 /**
  * Possession d'une entrée par l'entité. Une entrée d'une sorte sans rangs
@@ -32,8 +47,10 @@ export const Possession = z.object({
    * objet enchanté, bonus saisi sur un objet. Actifs quand l'exemplaire l'est.
    */
   effets: z.array(Effet).default([]),
-  /** Rounds restants pour un état temporaire (décomptés par l'état de combat). */
+  /** Décomptes restants pour un état temporaire (rounds par défaut, voir `decompte`). */
   duree: z.number().int().nonnegative().optional(),
+  /** Moment du décompte de `duree` ; absent : chaque fin de round. */
+  decompte: Decompte.optional(),
   /**
    * Valeurs propres à cet exemplaire (points d'Obligation, munitions…). Un champ `formule`
    * y reçoit le texte d'une formule qui remplace celle de l'entrée (`formuleChamp`).
@@ -133,8 +150,10 @@ export const BonusLibre = z.object({
    */
   effets: z.array(Effet).default([]),
   actif: z.boolean().default(true),
-  /** Rounds restants (décomptés par l'état de combat) ; absent : permanent. */
+  /** Décomptes restants (rounds par défaut, voir `decompte`) ; absent : permanent. */
   duree: z.number().int().nonnegative().optional(),
+  /** Moment du décompte de `duree` ; absent : chaque fin de round. */
+  decompte: Decompte.optional(),
 });
 export type BonusLibre = z.output<typeof BonusLibre>;
 

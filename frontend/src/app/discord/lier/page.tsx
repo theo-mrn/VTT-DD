@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { CadrePublic } from '@/components/compte/cadre-public';
@@ -11,6 +12,7 @@ import { useSession } from '@/lib/session';
 
 /** Lie l'identité Discord du jeton (remis par /link dans Discord) au compte connecté. */
 function Liaison() {
+  const t = useTranslations('auth.discord');
   const jeton = useSearchParams().get('jeton');
   const { statut, profil } = useSession();
   const router = useRouter();
@@ -23,7 +25,7 @@ function Liaison() {
       router.replace(urlConnexion(`/discord/lier?${new URLSearchParams({ jeton })}`));
   }, [jeton, statut, router]);
 
-  if (!jeton) return <Message>Lien incomplet : refais /link dans Discord.</Message>;
+  if (!jeton) return <Message>{t('missingToken')}</Message>;
   if (statut !== 'connecte') return <Chargement />;
 
   const nomDiscord = nomDiscordDuJeton(jeton);
@@ -39,10 +41,7 @@ function Liaison() {
     }
   }
 
-  if (etat === 'ok')
-    return (
-      <Message ton="succes">Compte Discord lié. Retourne sur Discord : /room puis /roll.</Message>
-    );
+  if (etat === 'ok') return <Message ton="succes">{t('done')}</Message>;
 
   return (
     <div className="space-y-4">
@@ -51,15 +50,16 @@ function Liaison() {
       </p>
       {etat === 'erreur' && <Message>{erreur}</Message>}
       <Bouton className="h-10 w-full" onClick={lier} chargement={etat === 'envoi'}>
-        Lier
+        {t('link')}
       </Bouton>
     </div>
   );
 }
 
 export default function PageLiaisonDiscord() {
+  const t = useTranslations('auth.discord');
   return (
-    <CadrePublic titre="Lier Discord">
+    <CadrePublic titre={t('title')}>
       <Suspense fallback={<Chargement />}>
         <Liaison />
       </Suspense>

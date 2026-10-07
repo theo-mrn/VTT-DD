@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { type EtapeCreation, type EtatEntite, type Fiche, type Tirage } from '@vtt/rules';
 import { motion } from 'framer-motion';
 import { Dices, RefreshCw, ShieldCheck } from 'lucide-react';
@@ -42,6 +43,7 @@ export function EtapeTirer({
   /** Tirage par le service (sans affectation), ou répartition du tirage en attente. */
   onTirer: (affectation?: Record<string, number>) => Promise<TirageCreation | null>;
 }>) {
+  const t = useTranslations();
   const [tirage, setTirage] = useState<Tirage | null>(null);
   const [nombre, setNombre] = useState(0);
   const [affectation, setAffectation] = useState<Record<string, number>>({});
@@ -93,8 +95,8 @@ export function EtapeTirer({
           </p>
           <p className="text-[13px] text-muted-foreground">
             {etape.attribution === 'ordre' || attributs.length === 1
-              ? 'Les valeurs sont attribuées dans l’ordre.'
-              : 'Vous répartissez ensuite les valeurs entre les attributs.'}
+              ? t('creation.roll.inOrder')
+              : t('creation.roll.distribute')}
             {etape.contrainte && (
               <>
                 {' '}
@@ -107,7 +109,7 @@ export function EtapeTirer({
         </div>
         <Button size="lg" onClick={() => void lancer()} className="shrink-0" loading={envoi}>
           {!envoi && (nombre > 0 || dejaTire ? <RefreshCw /> : <Dices />)}
-          {nombre > 0 || dejaTire ? 'Relancer' : 'Lancer les dés'}
+          {nombre > 0 || dejaTire ? t('combat.initiative.reroll') : t('creation.roll.roll')}
         </Button>
       </div>
 
@@ -181,9 +183,9 @@ export function EtapeTirer({
                     })
                   }
                   className="mt-3 h-9 w-full rounded-lg border border-input bg-surface-2 px-2 text-sm"
-                  aria-label={`Valeur pour ${a.nom}`}
+                  aria-label={t('creation.roll.valueFor', { name: a.nom })}
                 >
-                  <option value="">Choisir une valeur…</option>
+                  <option value="">{t('creation.roll.pick')}</option>
                   {tirage.valeurs.map((val, k) => (
                     <option
                       key={k}
@@ -223,7 +225,7 @@ export function EtapeTirer({
             loading={envoi}
             disabled={Object.keys(affectation).length !== attributs.length}
           >
-            Valider la répartition
+            {t('creation.roll.validate')}
           </Button>
         </div>
       )}

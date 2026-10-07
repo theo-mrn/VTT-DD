@@ -11,6 +11,8 @@
  * Le langage est celui du lanceur de dés et du bandeau de la fiche (`live-reports/look.ts`).
  * Noms et portraits viennent de la liste des personnages de la campagne.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import type { CombatState, CombatTurnResponse } from '@vtt/contracts';
 import { ChevronLeft, ChevronRight, Dices, ListOrdered, Loader2 } from 'lucide-react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
@@ -54,15 +56,13 @@ export function upcomingRows<T extends { current: boolean; defeated: boolean }>(
   return { current, next: rest.slice(0, max), more: Math.max(0, rest.length - max) };
 }
 
-/** Durées décomptées ou rendues par un passage de tour, annoncées au MJ. */
+/**
+ * Décompte des durées qui n'a pas abouti, signalé au MJ (il sera rejoué au passage suivant) ;
+ * les fins de durée sont annoncées à toute la table par `useDurationNotices`.
+ */
 function announceDurations(r: CombatTurnResponse, nameOf: (id: string) => string) {
-  const expired = (r.durationUpdates ?? []).filter((u) => u.expired.length);
-  if (expired.length)
-    toast.info(
-      `Durées : ${expired.map((u) => `${nameOf(u.characterId)} (${u.expired.length})`).join(', ')}`,
-    );
   if (r.durationFailures?.length)
-    toast.warning('Certaines fiches n’ont pas répondu pendant le décompte des durées', {
+    toast.warning(translate('combat.durations.failed'), {
       description: r.durationFailures.map(nameOf).join(', '),
     });
 }
@@ -92,11 +92,15 @@ export function InitiativeStrip({
   onFace?(characterId: string): void;
   order?: StripOrder;
 }>) {
+  const t = useTranslations();
   const commands = useCombatCommands(campaignId);
   const cast = useCast(campaignId);
   // Stables tant que la distribution ne change pas : les portraits (mémoïsés) n'en dépendent
   const castById = cast.byId;
-  const nameOf = useCallback((id: string) => castById.get(id)?.name ?? 'Adversaire', [castById]);
+  const nameOf = useCallback(
+    (id: string) => castById.get(id)?.name ?? t('combat.opponent'),
+    [castById],
+  );
   const portraitOf = useCallback((id: string) => castById.get(id)?.portraitUrl, [castById]);
   const onFaceRef = useRef(onFace);
   onFaceRef.current = onFace;
@@ -130,7 +134,9 @@ export function InitiativeStrip({
   let headline: string | null = null;
   if (actor) headline = nameOf(actor);
   else if (currentSlot)
-    headline = `Créneau des ${SIDE_LABELS[currentSlot.side].name.toLowerCase()}`;
+    headline = t('combat.turn.slotOf', {
+      side: SIDE_LABELS[currentSlot.side].name.toLowerCase(),
+    });
 
   const toggleOrder = order ? () => order.onOpenChange(!order.open) : undefined;
 
@@ -147,7 +153,10 @@ export function InitiativeStrip({
 
       {slots.length > 0 && (
         <>
-          <ol className="hidden shrink-0 items-center gap-0.5 px-1 sm:flex" aria-label="Créneaux">
+          <ol
+            className="hidden shrink-0 items-center gap-0.5 px-1 sm:flex"
+            aria-label={t('combat.strip.slots')}
+          >
             {slots.map((s) => (
               <li
                 key={s.index}
@@ -199,10 +208,10 @@ export function InitiativeStrip({
         combat={combat}
         busy={busy}
         onRollInitiative={() =>
-          void run('init', 'L’initiative n’a pas pu être lancée', () => commands.rollInitiative())
+          void run('init', t('combat.initiative.rollFailed'), () => commands.rollInitiative())
         }
-        onPrevious={() => void turn('previous', 'Le retour arrière n’a pas pu se faire')}
-        onNext={() => void turn('next', 'Le tour n’a pas pu passer')}
+        onPrevious={() => void turn('previous', t('combat.strip.undoFailed'))}
+        onNext={() => void turn('next', t('combat.strip.nextFailed'))}
       />
 
       {reports}
@@ -249,6 +258,7 @@ function TurnControls({
   onPrevious(): void;
   onNext(): void;
 }>) {
+  const t = useTranslations();
   if (!combat.initiativeRolled)
     return (
       <Button
@@ -259,17 +269,17 @@ function TurnControls({
         aria-busy={busy === 'init' || undefined}
       >
         {busy === 'init' ? <Loader2 className="animate-spin" /> : <Dices />}
-        Lancer l’initiative
+        {t('combat.initiative.roll')}
       </Button>
     );
   return (
     <span className="flex shrink-0 items-center gap-1">
-      <Info texte="Tour précédent" cote="bottom">
+      <Info texte={t('combat.strip.previous')} cote="bottom">
         <Button
           variant="ghost"
           size="icon-sm"
           className={cn('size-10 rounded-[14px]', TOUCH)}
-          aria-label="Tour précédent"
+          aria-label={t('combat.strip.previous')}
           onClick={onPrevious}
           disabled={busy !== null || combat.canGoBack === false}
           aria-busy={busy === 'previous' || undefined}
@@ -284,7 +294,7 @@ function TurnControls({
         disabled={busy !== null || !combat.order.length}
         aria-busy={busy === 'next' || undefined}
       >
-        Suivant
+        {t('common.actions.next')}
         {busy === 'next' ? (
           <Loader2 className="animate-spin" />
         ) : (
@@ -305,6 +315,7 @@ function Headline({
   open: boolean;
   children: ReactNode;
 }>) {
+  const t = useTranslations();
   const box = 'relative hidden h-10 w-36 shrink-0 overflow-hidden px-1.5 md:block';
   if (!onClick)
     return (
@@ -313,7 +324,7 @@ function Headline({
       </span>
     );
   return (
-    <Info texte="Ordre du tour" cote="bottom">
+    <Info texte={t('combat.order.title')} cote="bottom">
       <button
         type="button"
         onClick={onClick}
@@ -338,9 +349,10 @@ function Rule() {
 
 /** Round : libellé discret, chiffre en mono qui monte à chaque nouveau round. */
 function Round({ round }: Readonly<{ round: number }>) {
+  const t = useTranslations();
   return (
     <span className="flex shrink-0 flex-col items-center gap-1 px-2 py-0.5">
-      <span className={cn(LABEL, 'text-[10px] leading-none')}>Round</span>
+      <span className={cn(LABEL, 'text-[10px] leading-none')}>{t('combat.strip.round')}</span>
       <span className="relative block h-5 overflow-hidden">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
@@ -380,10 +392,14 @@ const Portraits = memo(function Portraits({
   onMore?(): void;
   moreOpen: boolean;
 }) {
+  const t = useTranslations();
   const { current, next, more } = upcomingRows(rows);
   return (
     <LayoutGroup id="combat-turn">
-      <ol className="flex h-10 min-w-0 items-center gap-2 px-1" aria-label="Ordre du tour">
+      <ol
+        className="flex h-10 min-w-0 items-center gap-2 px-1"
+        aria-label={t('combat.order.title')}
+      >
         {current && (
           <Face
             key={current.characterId}
@@ -396,7 +412,7 @@ const Portraits = memo(function Portraits({
         )}
         {(next.length > 0 || onMore) && (
           <li className="flex items-center">
-            <ol className="flex items-center -space-x-2.5" aria-label="Ensuite">
+            <ol className="flex items-center -space-x-2.5" aria-label={t('combat.strip.next')}>
               <AnimatePresence initial={false} mode="popLayout">
                 {next.map((r, i) => (
                   <Face
@@ -411,12 +427,16 @@ const Portraits = memo(function Portraits({
               </AnimatePresence>
               {onMore && (
                 <li className="relative shrink-0" style={{ zIndex: 0 }}>
-                  <Info texte="Ordre du tour" cote="bottom">
+                  <Info texte={t('combat.order.title')} cote="bottom">
                     <button
                       type="button"
                       onClick={onMore}
                       aria-expanded={moreOpen}
-                      aria-label={more > 0 ? `Ordre du tour, ${more} de plus` : 'Ordre du tour'}
+                      aria-label={
+                        more > 0
+                          ? t('combat.strip.orderMore', { count: more })
+                          : t('combat.order.title')
+                      }
                       className={cn(
                         'grid size-7 place-items-center rounded-full font-mono text-[11px] font-semibold tabular ring-2 ring-popover transition-colors focus-visible:outline-none focus-visible:ring-ring/60',
                         moreOpen

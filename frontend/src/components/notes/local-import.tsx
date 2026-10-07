@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { HardDriveUpload } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -83,6 +84,7 @@ export function ImportNotesLocales({
   moi,
   campagnes,
 }: Readonly<{ moi: string; campagnes: Campagne[] }>) {
+  const t = useTranslations();
   const client = useQueryClient();
   const [locales, setLocales] = useState<NoteLocale[]>([]);
   const [enCours, setEnCours] = useState(false);
@@ -117,31 +119,22 @@ export function ImportNotesLocales({
     setLocales(restantes);
     setEnCours(false);
     void client.invalidateQueries({ queryKey: clesNotes.racine });
-    if (!restantes.length)
-      toast.success(
-        `${importees.size} note${importees.size > 1 ? 's' : ''} importée${importees.size > 1 ? 's' : ''}`,
-      );
+    if (!restantes.length) toast.success(t('notes.import.done', { count: importees.size }));
     else
-      toast.error(
-        `${restantes.length} note${restantes.length > 1 ? 's' : ''} n’ont pas pu être importées`,
-        {
-          description: 'Elles restent dans ce navigateur : réessayez plus tard.',
-        },
-      );
+      toast.error(t('notes.import.failed', { count: restantes.length }), {
+        description: t('notes.import.failedHint'),
+      });
   };
 
   return (
     <div className="mt-1 rounded-xl border border-dashed border-border-strong bg-surface/60 p-3 text-[13px]">
       <p className="flex items-center gap-2 font-medium text-foreground">
         <HardDriveUpload className="size-4 shrink-0 text-primary" aria-hidden />
-        {locales.length} note{locales.length > 1 ? 's' : ''} dans ce navigateur
+        {t('notes.import.local', { count: locales.length })}
       </p>
       <p className="mt-1 text-muted-foreground">
-        Écrites pendant l’aperçu local, elles ne sont pas encore sur votre compte.
-        {sansCampagne > 0 &&
-          (cible
-            ? ' Celles sans campagne iront dans la campagne choisie.'
-            : ' Rejoignez ou créez une campagne pour les importer.')}
+        {t('notes.import.notOnAccount')}
+        {sansCampagne > 0 && ` ${cible ? t('notes.import.toChosen') : t('notes.import.joinFirst')}`}
       </p>
       {cible && (
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -162,7 +155,7 @@ export function ImportNotesLocales({
             </DropdownMenu>
           )}
           <Button size="xs" onClick={() => void importer()} loading={enCours}>
-            Les importer sur mon compte
+            {t('notes.import.action')}
           </Button>
         </div>
       )}

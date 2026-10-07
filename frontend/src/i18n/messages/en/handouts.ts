@@ -1,0 +1,31 @@
+import type fr from '../fr/handouts';
+import type { Translation } from '../../types';
+
+export default {
+  document: 'Document',
+  view: 'View',
+  library: 'Library',
+  shared: 'Shared',
+  campaignDocument: 'Campaign document',
+  noneReceived: 'No documents received.',
+  notUploaded: '“{name}” not uploaded',
+  sent: '“{name}” sent',
+  shareFailed: 'Couldn’t share',
+  drop: 'Drop images or videos',
+  wholeTable: 'The whole table',
+  players: '{count, plural, one {# player} other {# players}}',
+  renameFailed: 'Couldn’t rename',
+  newName: 'New name',
+  actionsOf: 'Actions for {name}',
+  deleteFailed: 'Couldn’t delete',
+  projectHint: 'Full screen for the recipients',
+  project: 'Show',
+  sendHint: 'In their documents, without interrupting',
+  nothingShared: 'Nothing has been shared yet.',
+  shown: 'Shown',
+  sentShort: 'Sent',
+  stopFailed: 'Couldn’t stop',
+  stop: 'Stop',
+  stopForAll: 'Stop for everyone',
+  unmute: 'Unmute',
+} satisfies Translation<typeof fr>;

@@ -4,6 +4,7 @@
  * textes au zoom. L'interface React (barres contextuelles, inspecteur, éditeur en place) est
  * passée par `index.ts` : sans elle (tests), tout le reste fonctionne.
  */
+import { translate } from '@/i18n/runtime';
 import { Pencil, Type } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type { Container, Graphics } from 'pixi.js';
@@ -66,7 +67,7 @@ export function registerDrawings(engine: MapEngine, opts: RegisterOptions = {}):
     onFontsLoaded(() => engine.refreshCollection(NOTES_COLLECTION)),
     engine.registerTool({
       id: DRAW_TOOL_ID,
-      label: 'Dessin',
+      label: translate('map.drawings.drawing'),
       icon: Pencil,
       shortcut: { code: 'KeyP', label: 'P' },
       order: 10,
@@ -76,7 +77,7 @@ export function registerDrawings(engine: MapEngine, opts: RegisterOptions = {}):
     }),
     engine.registerTool({
       id: TEXT_TOOL_ID,
-      label: 'Texte',
+      label: translate('map.drawings.text'),
       icon: Type,
       shortcut: { code: 'KeyT', label: 'T' },
       order: 11,
@@ -91,14 +92,14 @@ export function registerDrawings(engine: MapEngine, opts: RegisterOptions = {}):
     cleanups.push(
       engine.registerInspectorSection({
         id: 'drawings:drawing',
-        title: 'Trait',
+        title: translate('map.drawings.stroke'),
         order: 20,
         appliesTo: (es) => es.length > 0 && es.every((e) => e.kind.id === DRAWING_KIND),
         component: ui.DrawingInspector,
       }),
       engine.registerInspectorSection({
         id: 'drawings:note',
-        title: 'Texte',
+        title: translate('map.drawings.text'),
         order: 20,
         appliesTo: (es) => es.length > 0 && es.every((e) => e.kind.id === NOTE_KIND),
         component: ui.NoteInspector,

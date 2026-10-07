@@ -2,6 +2,7 @@
  * Branchement du module brouillard sur le moteur, sans React : sorte `fog-zone`, outil G,
  * « Tout couvrir » et « Tout découvrir ». L'interface est ajoutée par `index.ts`.
  */
+import { translate } from '@/i18n/runtime';
 import { CloudFog, Sun } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
@@ -31,7 +32,7 @@ export function setFogFull(engine: MapEngine, full: boolean): Promise<boolean> |
   const ctx = contexts.get(engine);
   const scene = engine.store.getState().scene;
   if (!ctx || !scene) return null;
-  const label = full ? 'Tout couvrir' : 'Tout découvrir';
+  const label = full ? translate('map.fog.coverAll') : translate('map.fog.clearAll');
   const zones = [
     ...(engine.store.getState().collections[FOG_ZONES]?.values() ?? []),
   ] as FogZoneData[];
@@ -60,7 +61,7 @@ export function registerFog(engine: MapEngine, ui: FogUi = {}): () => void {
     engine.registerKind(fogZoneKind(ctx, view)),
     engine.registerTool({
       id: FOG_TOOL_ID,
-      label: 'Brouillard',
+      label: translate('map.fog.fog'),
       icon: CloudFog,
       shortcut: { code: 'KeyG', label: 'G' },
       order: 71,
@@ -71,14 +72,14 @@ export function registerFog(engine: MapEngine, ui: FogUi = {}): () => void {
     // Sans bouton : touches à choisir (docs/raccourcis.md § 6)
     engine.registerAction({
       id: 'fog.cover',
-      label: 'Tout couvrir de brouillard',
+      label: translate('map.fog.coverAllWithFog'),
       icon: CloudFog,
       available: isGm,
       run: (e) => void setFogFull(e, true),
     }),
     engine.registerAction({
       id: 'fog.reveal',
-      label: 'Tout découvrir',
+      label: translate('map.fog.clearAll'),
       icon: Sun,
       available: isGm,
       run: (e) => void setFogFull(e, false),
@@ -88,7 +89,7 @@ export function registerFog(engine: MapEngine, ui: FogUi = {}): () => void {
     unregister.push(
       engine.registerInspectorSection({
         id: 'fog-zone',
-        title: 'Brouillard',
+        title: translate('map.fog.fog'),
         order: 10,
         appliesTo: (es, viewer) => isGm(viewer) && es.every((e) => e.kind.id === FOG_ZONE_KIND),
         component: ui.inspector,

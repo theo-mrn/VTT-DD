@@ -7,6 +7,7 @@
  *   grille de jeu, cachée aux joueurs (l'image a déjà ses lignes), en une commande annulable ;
  * - sinon un bandeau propose de calibrer (glisser sur une case de l'image) ou de laisser le repli.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapGrid } from '@vtt/contracts';
 import { playGridOf, scenePixelsPerUnit } from '@vtt/contracts';
 import { Ruler, X } from 'lucide-react';
@@ -41,8 +42,8 @@ export function calibrateScene(engine: MapEngine) {
     if (!play) return;
     calibrateSettings(engine).setState({ gridId: play.id, cells: 1 });
     engine.tools.activate(GRID_CALIBRATE_TOOL_ID);
-    toast('Glissez d’un coin à l’autre d’une case de l’image', {
-      description: 'Échap pour annuler.',
+    toast(translate('map.grid.dragOne'), {
+      description: translate('map.grid.escapeToCancel'),
     });
   };
   if (play) return run();
@@ -50,7 +51,9 @@ export function calibrateScene(engine: MapEngine) {
   const created = newGrid(grids, scenePixelsPerUnit(s.scene as never, s.settings as never));
   if (!created) return;
   play = { ...created, visibleToPlayers: false };
-  void Promise.resolve(saveGrids(engine, 'Grille de jeu', [...grids, play])).then(run);
+  void Promise.resolve(saveGrids(engine, translate('map.grid.playGrid'), [...grids, play])).then(
+    run,
+  );
 }
 
 /**
@@ -73,17 +76,17 @@ export async function detectSceneGrid(engine: MapEngine): Promise<boolean> {
     offsetY: Math.round(found.offsetY * 100) / 100,
   };
   if (play) {
-    await saveGrids(engine, 'Quadrillage détecté', withGrid(grids, play.id, placed));
+    await saveGrids(engine, translate('map.grid.detected'), withGrid(grids, play.id, placed));
   } else {
     const created = newGrid(grids, found.size);
     if (!created) return false;
-    await saveGrids(engine, 'Quadrillage détecté', [
+    await saveGrids(engine, translate('map.grid.detected'), [
       ...grids,
       { ...created, ...placed, visibleToPlayers: false },
     ]);
   }
-  toast.success(`Quadrillage détecté : ${Math.round(found.size)} px par case`, {
-    action: { label: 'Ajuster', onClick: () => calibrateScene(engine) },
+  toast.success(translate('map.grid.detectedSize', { size: Math.round(found.size) }), {
+    action: { label: translate('map.grid.fit'), onClick: () => calibrateScene(engine) },
   });
   return true;
 }
@@ -132,7 +135,7 @@ export function GridScaleAssistant({ engine }: Readonly<{ engine: MapEngine }>) 
           role="status"
         >
           <Ruler className="size-4 text-primary" aria-hidden />
-          <span className="text-sm font-medium">Échelle de la carte</span>
+          <span className="text-sm font-medium">{translate('map.grid.mapScale')}</span>
           <Button
             size="sm"
             onClick={() => {
@@ -140,9 +143,14 @@ export function GridScaleAssistant({ engine }: Readonly<{ engine: MapEngine }>) 
               close(false);
             }}
           >
-            Calibrer
+            {translate('map.grid.calibrate')}
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={() => close(true)} aria-label="Plus tard">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => close(true)}
+            aria-label={translate('map.grid.later')}
+          >
             <X />
           </Button>
         </motion.div>

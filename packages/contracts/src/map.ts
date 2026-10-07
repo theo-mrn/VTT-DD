@@ -108,6 +108,13 @@ export type CampaignSide = z.infer<typeof CampaignSide>;
 // ─── Scènes (cartes) ─────────────────────────────────────────────────────────
 
 /**
+ * Mémoire de l'exploration d'une scène (docs/exploration.md) : `off` (coupée) ou `party` (ce
+ * que le groupe a vu reste montré, grisé, pour tous ses joueurs).
+ */
+export const MapExplorationMode = z.enum(['off', 'party']);
+export type MapExplorationMode = z.infer<typeof MapExplorationMode>;
+
+/**
  * Vent de la météo : `direction`, où va le vent, en degrés (0 vers l'est, 90 vers le sud, sens
  * horaire à l'écran) ; `strength`, 0 (calme) à 1 (tempête).
  */
@@ -222,6 +229,8 @@ export const MapScene = z.object({
   fogFull: z.boolean(),
   /** Quadrillages (MJ) ; la grille de jeu donne la case de la scène. */
   grids: z.array(MapGrid),
+  /** Mémoire de l'exploration (docs/exploration.md) : coupée, ou partagée par le groupe. */
+  exploration: MapExplorationMode,
   version: z.number().int(),
   updatedAt: Timestamp,
 });
@@ -241,6 +250,7 @@ export const MapSceneFields = z.strictObject({
   display: MapDisplaySetting,
   fogFull: z.boolean(),
   grids: MapGrids,
+  exploration: MapExplorationMode,
 });
 
 /** `width` et `height` vont ensemble. */
@@ -1152,6 +1162,114 @@ export interface MapLayerBatchResult<T> {
   deleted: string[];
 }
 
+// ─── Exploration (docs/exploration.md) ───────────────────────────────────────
+
+/** Cases d'exploration au plus par côté (miroir de `EXPLORATION_MAX_SIDE`, @vtt/vision). */
+export const MAP_EXPLORATION_MAX_SIDE = 512;
+const ExplorationSide = z.number().int().min(1).max(MAP_EXPLORATION_MAX_SIDE);
+
+/**
+ * Rectangle de cases d'exploration et son contenu, codé en plages alternées (0 d'abord) en
+ * entiers LEB128, en base64 (`encodeWindow`, @vtt/vision).
+ */
+export const MapExplorationWindow = z.object({
+  x: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAP_EXPLORATION_MAX_SIDE - 1),
+  y: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAP_EXPLORATION_MAX_SIDE - 1),
+  w: ExplorationSide,
+  h: ExplorationSide,
+  data: z
+    .string()
+    .max(400_000)
+    .regex(/^[A-Za-z0-9+/]*={0,2}$/, 'base64 attendu'),
+});
+export type MapExplorationWindow = z.infer<typeof MapExplorationWindow>;
+
+/** Portée d'un masque : `party`, le groupe (un masque par joueur viendra peut-être). */
+export const MapExplorationScope = z.enum(['party']);
+export type MapExplorationScope = z.infer<typeof MapExplorationScope>;
+
+/** Masque d'exploration d'une scène : toute la grille en une fenêtre. */
+export const MapExploration = z.object({
+  mapId: Id,
+  scope: MapExplorationScope,
+  cols: ExplorationSide,
+  rows: ExplorationSide,
+  version: z.number().int(),
+  window: MapExplorationWindow,
+});
+export type MapExploration = z.infer<typeof MapExploration>;
+
+/** `GET …/maps/:mapId/exploration` : null quand l'exploration est coupée (ou rien encore). */
+export const MapExplorationResponse = z.object({ exploration: MapExploration.nullable() });
+export type MapExplorationResponse = z.infer<typeof MapExplorationResponse>;
+
+/**
+ * `POST …/maps/:mapId/exploration` (MJ) : révéler ou oublier les cases d'une fenêtre (grille
+ * attendue : 409 `exploration_grid_changed` sinon), ou tout réinitialiser.
+ */
+export const EditMapExploration = z.discriminatedUnion('op', [
+  z.strictObject({
+    op: z.enum(['reveal', 'forget']),
+    cols: ExplorationSide,
+    rows: ExplorationSide,
+    window: MapExplorationWindow.strict(),
+  }),
+  z.strictObject({ op: z.literal('reset') }),
+]);
+export type EditMapExploration = z.input<typeof EditMapExploration>;
+
+/** Réponse d'une écriture : le masque à jour (version comprise). */
+export const MapExplorationEditResult = z.object({ exploration: MapExploration.nullable() });
+export type MapExplorationEditResult = z.infer<typeof MapExplorationEditResult>;
+
+/** Traînées d'un glisser : 20 tokens, 32 points chacun au plus. */
+export const MAP_EXPLORATION_TRAIL_TOKENS = 20;
+export const MAP_EXPLORATION_TRAIL_POINTS = 32;
+
+/**
+ * `POST …/maps/:mapId/exploration/trail` : les points du chemin d'un glisser ; le serveur
+ * explore depuis chacun, pour les tokens qui sont des observateurs du groupe.
+ */
+export const MapExplorationTrail = z.strictObject({
+  trails: z
+    .array(
+      z.strictObject({
+        tokenId: InputId('Identifiant de token invalide'),
+        points: mapPoints(1, MAP_EXPLORATION_TRAIL_POINTS),
+      }),
+    )
+    .min(1)
+    .max(MAP_EXPLORATION_TRAIL_TOKENS),
+});
+export type MapExplorationTrail = z.input<typeof MapExplorationTrail>;
+
+/** Réponse d'une traînée : version du masque après elle (null : exploration coupée). */
+export const MapExplorationTrailResult = z.object({ version: z.number().int().nullable() });
+export type MapExplorationTrailResult = z.infer<typeof MapExplorationTrailResult>;
+
+/**
+ * `map.exploration_updated` (audience de la carte) : `window` est le nouvel état du rectangle
+ * des cases changées ; une version de plus que la précédente. Toute la grille après une
+ * réinitialisation (grille peut-être neuve : `cols`, `rows`).
+ */
+export const MapExplorationUpdatedPayload = z.object({
+  mapId: Id,
+  scope: MapExplorationScope,
+  version: z.number().int(),
+  cols: ExplorationSide,
+  rows: ExplorationSide,
+  window: MapExplorationWindow,
+});
+export type MapExplorationUpdatedPayload = z.infer<typeof MapExplorationUpdatedPayload>;
+
 // ─── Chargement initial ──────────────────────────────────────────────────────
 
 /** `GET /v1/campaigns/:id/maps/:mapId?bbox=` : tout, filtré pour l'appelant. */
@@ -1170,6 +1288,8 @@ export const MapSnapshot = z.object({
   musicZones: z.array(MapMusicZone),
   portals: z.array(MapPortal),
   measurements: z.array(MapMeasurement),
+  /** Mémoire de l'exploration (null : coupée, ou rien encore). */
+  exploration: MapExploration.nullable().optional(),
 });
 export type MapSnapshot = z.infer<typeof MapSnapshot>;
 
@@ -1316,6 +1436,7 @@ export const MapEventPayloads = {
   'map.hidden': MapRefPayload,
   'map.rescaled': MapRescaledPayload,
   'map.visibility_changed': MapVisibilityChangedPayload,
+  'map.exploration_updated': MapExplorationUpdatedPayload,
   'map_group.created': MapGroup,
   'map_group.updated': MapGroup,
   'map_group.deleted': MapRefPayload,
@@ -1381,6 +1502,8 @@ export const MAP_LIVE_HZ = 15;
 export const MAP_LIVE_MAX_BYTES = 4096;
 /** Destinataires nommés d'un message éphémère (`toUsers`), au plus. */
 export const EPHEMERAL_TO_USERS_MAX = 50;
+/** Points d'un trajet (départ et points de passage) dans `map.live.path`, au plus. */
+export const MAP_PATH_MAX_POINTS = 64;
 
 const LiveNumber = z.number().finite();
 /** `[id, x, y]` ou `[id, x, y, rotation]`. */
@@ -1435,6 +1558,24 @@ export const MapLiveMessage = z.object({
       pinned: z.literal(true).optional(),
     })
     .nullable()
+    .optional(),
+  /**
+   * Trajet d'un token glissé (docs/carte.md § 10, Trajet des déplacements) : `[id, points]`,
+   * son départ puis ses points de passage, à plat (`x0, y0, x1, y1…`) ; le point courant est
+   * celui de `drag`. Envoyé quand il change, à l'audience du token à chacun de ces points ;
+   * `[id, []]` l'efface.
+   */
+  path: z
+    .array(
+      z.tuple([
+        z.string().max(64),
+        z
+          .array(LiveNumber)
+          .max(2 * MAP_PATH_MAX_POINTS)
+          .refine((points) => points.length % 2 === 0, 'Points par paires (x, y)'),
+      ]),
+    )
+    .max(20)
     .optional(),
   end: z.literal(true).optional(),
 });

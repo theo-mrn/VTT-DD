@@ -6,6 +6,7 @@
  */
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 import { MAX_SIDE, prepareImage } from './uploads/image';
@@ -296,16 +297,16 @@ const ACCENT_DE: Record<Ambiance, AccentApi> = {
 };
 
 /** Nom affiché d'un utilisateur dont identity n'a pas donné le profil. */
-const NOM_INCONNU = 'Joueur';
+const NOM_INCONNU = () => translate('common.roles.player');
 
 function versPersonne(u: UserRefApi): Personne {
-  return { id: u.id, name: u.name ?? NOM_INCONNU, avatarUrl: u.avatarUrl };
+  return { id: u.id, name: u.name ?? NOM_INCONNU(), avatarUrl: u.avatarUrl };
 }
 
 function versMembre(m: MemberApi, engagements: EngagementApi[] = []): Membre {
   return {
     userId: m.userId,
-    name: m.name ?? NOM_INCONNU,
+    name: m.name ?? NOM_INCONNU(),
     avatarUrl: m.avatarUrl,
     role: m.role,
     characterId: engagements.find((e) => e.playedBy === m.userId)?.characterId ?? null,
@@ -363,7 +364,7 @@ function versDetail(c: CampaignApi): DetailCampagne {
     memberCount: c.members.length,
     invitations: c.invitees.map((i) => ({
       userId: i.userId,
-      name: i.name ?? NOM_INCONNU,
+      name: i.name ?? NOM_INCONNU(),
       avatarUrl: i.avatarUrl,
       invitedAt: i.invitedAt,
     })),

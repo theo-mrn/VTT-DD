@@ -3,8 +3,10 @@
  * nom d'un attribut, d'une entrée, d'un type de dégâts, d'une table ; paramètres clés d'une
  * attaque (l'arme choisie…). Sans système chargé, les identifiants bruts sont montrés.
  */
+import { translate } from '@/i18n/runtime';
 import type { ActionParams, AttackModificationInput, AttackRoll } from '@vtt/contracts';
 import type { Attribut, SystemeCharge } from '@vtt/rules';
+import { durationShort, timerOfModification } from '@/lib/combat/durations';
 
 export function attributeOf(
   systeme: SystemeCharge | null,
@@ -70,9 +72,9 @@ export function modificationText(
 ): string {
   if (m.kind === 'entry') {
     const name = entryName(systeme, m.entry);
-    if (m.operation === 'remove') return `sans ${name}`;
-    if (!m.duration) return name;
-    return m.duration > 1 ? `${name}, ${m.duration} rounds` : `${name}, 1 round`;
+    if (m.operation === 'remove') return translate('history.lines.without', { name });
+    const short = durationShort(timerOfModification(m));
+    return short ? `${name}, ${short}` : name;
   }
   const type = m.damageType ? ` (${damageTypeName(systeme, m.damageType)})` : '';
   return `${SIGN[m.operation]}${m.value} ${attributeLabel(systeme, m.attribute, entityType)}${type}`;

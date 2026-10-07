@@ -9,6 +9,8 @@
  * Sources : les réponses des applications du panneau, et `combat.participant_defeated`
  * (réservé au MJ) pour une application faite ailleurs.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { CombatState } from '@vtt/contracts';
 import { Skull } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -87,11 +89,8 @@ function useDefeatedHost(): boolean {
 
 type Choice = 'keep' | 'remove' | 'delete';
 
-const CHOICES: { value: Choice; label: string }[] = [
-  { value: 'keep', label: 'Garder' },
-  { value: 'remove', label: 'Retirer du combat' },
-  { value: 'delete', label: 'Supprimer le PNJ' },
-];
+/** Choix pour un personnage tombé ; libellé : `combat.defeated.choices.<choix>`. */
+const CHOICES: readonly Choice[] = ['keep', 'remove', 'delete'];
 
 export function DefeatedDialog({
   campagne,
@@ -100,6 +99,7 @@ export function DefeatedDialog({
   campagne: DetailCampagne;
   combat: CombatState | null;
 }>) {
+  const tr = useTranslations();
   const ids = useStore(queue, (s) => s.ids);
   const host = useDefeatedHost();
   const cast = useCast(campagne.id);
@@ -144,7 +144,9 @@ export function DefeatedDialog({
     if (tokens && items.length)
       await tokens.engine.execute(
         deleteNpcsCommand({
-          label: `Supprimer ${r.member?.name ?? 'le PNJ'}`,
+          label: translate('map.tokens.deleteNamed', {
+            name: r.member?.name ?? translate('map.tokens.theNpc'),
+          }),
           api: tokens.api,
           items,
           sideOf: (id) => tokens.directory.get(id)?.side,
@@ -160,7 +162,7 @@ export function DefeatedDialog({
         await applyChoice(r);
       } catch (err) {
         failures.push(
-          `${r.member?.name ?? 'Personnage'} : ${
+          `${r.member?.name ?? translate('map.common.character')} : ${
             r.choice === 'remove' ? combatErrorMessage(err) : messageErreur(err)
           }`,
         );
@@ -168,7 +170,7 @@ export function DefeatedDialog({
     }
     setBusy(false);
     if (failures.length)
-      toast.error('Certains choix n’ont pas pu être appliqués', {
+      toast.error(tr('combat.defeated.someFailed'), {
         description: failures.join(' · '),
       });
     setChoices({});
@@ -184,17 +186,17 @@ export function DefeatedDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Skull className="size-5 text-destructive" aria-hidden />
-            Hors de combat
+            {tr('combat.situation.defeated')}
           </DialogTitle>
           <DialogDescription>
             {ids.length > 1
-              ? `${ids.length} personnages sont tombés. Que deviennent-ils ?`
-              : 'Un personnage est tombé. Que devient-il ?'}
+              ? tr('combat.defeated.many', { count: ids.length })
+              : tr('combat.defeated.one')}
           </DialogDescription>
         </DialogHeader>
         <ul className="space-y-2">
           {rows.map((r) => {
-            const name = r.member?.name ?? 'Personnage';
+            const name = r.member?.name ?? tr('map.common.character');
             return (
               <li
                 key={r.id}
@@ -210,32 +212,31 @@ export function DefeatedDialog({
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span>
                 <div
                   role="radiogroup"
-                  aria-label={`Que devient ${name} ?`}
+                  aria-label={tr('combat.defeated.whatOf', { name })}
                   className="flex overflow-hidden rounded-lg border border-border-strong"
                 >
-                  {CHOICES.filter((c) => c.value !== 'delete' || r.npc).map((c) => {
+                  {CHOICES.filter((c) => c !== 'delete' || r.npc).map((c) => {
                     const disabled =
-                      (c.value === 'delete' && !r.canDelete) ||
-                      (c.value === 'remove' && !r.canRemove);
+                      (c === 'delete' && !r.canDelete) || (c === 'remove' && !r.canRemove);
                     return (
                       <button
-                        key={c.value}
+                        key={c}
                         type="button"
                         role="radio"
-                        aria-checked={r.choice === c.value}
+                        aria-checked={r.choice === c}
                         disabled={disabled || busy}
                         title={
-                          c.value === 'delete' && !r.canDelete
-                            ? 'Son token n’est pas sur la scène affichée'
+                          c === 'delete' && !r.canDelete
+                            ? tr('combat.defeated.notOnScene')
                             : undefined
                         }
-                        onClick={() => setChoices((s) => ({ ...s, [r.id]: c.value }))}
+                        onClick={() => setChoices((s) => ({ ...s, [r.id]: c }))}
                         className={cn(
                           'px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60 disabled:opacity-40',
-                          choiceTone(r.choice === c.value, c.value === 'delete'),
+                          choiceTone(r.choice === c, c === 'delete'),
                         )}
                       >
-                        {c.label}
+                        {tr(`combat.defeated.choices.${c}`)}
                       </button>
                     );
                   })}
@@ -249,7 +250,7 @@ export function DefeatedDialog({
             Plus tard
           </Button>
           <Button onClick={() => void confirm()} loading={busy}>
-            Valider
+            {tr('common.actions.validate')}
           </Button>
         </DialogFooter>
       </DialogContent>

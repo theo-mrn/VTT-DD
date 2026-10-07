@@ -5,6 +5,7 @@
  * créée cachée au besoin), la taille des tokens (toutes les scènes, `tokenScale`), et les
  * raccourcis détecter, calibrer, revenir à l'automatique (largeur du fond / 25).
  */
+import { formatter, translate } from '@/i18n/runtime';
 import { playGridOf, type MapGrid } from '@vtt/contracts';
 import { Crosshair, Ruler, ScanSearch, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -33,10 +34,14 @@ function setCell(engine: MapEngine, size: number) {
   const play = playGridOf({ grids });
   const rounded = Math.round(size * 100) / 100;
   if (play)
-    return saveGrids(engine, 'Taille de la case', withGrid(grids, play.id, { size: rounded }));
+    return saveGrids(
+      engine,
+      translate('map.grid.cellSize'),
+      withGrid(grids, play.id, { size: rounded }),
+    );
   const created = newGrid(grids, rounded);
   if (!created) return null;
-  return saveGrids(engine, 'Taille de la case', [
+  return saveGrids(engine, translate('map.grid.cellSize'), [
     ...grids,
     { ...created, visibleToPlayers: false },
   ]);
@@ -50,7 +55,7 @@ function automatic(engine: MapEngine) {
   const next = play.visibleToPlayers
     ? withGrid(grids, play.id, { primary: false })
     : grids.filter((g) => g.id !== play.id);
-  void saveGrids(engine, 'Échelle automatique', next);
+  void saveGrids(engine, translate('map.grid.autoScale'), next);
 }
 
 export function ScaleMenu({ engine }: Readonly<{ engine: MapEngine }>) {
@@ -75,18 +80,18 @@ export function ScaleMenu({ engine }: Readonly<{ engine: MapEngine }>) {
     engine.store.getState().patchSettings({ tokenScale: v });
     mapsApi.updateSettings(campaignId, { tokenScale: v }).catch(() => {
       engine.store.getState().patchSettings({ tokenScale });
-      toast.error('La taille des tokens n’a pas pu être enregistrée');
+      toast.error(translate('map.grid.tokenSizeFailed'));
     });
   };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Info texte="Échelle de la scène">
+      <Info texte={translate('map.grid.sceneScale')}>
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Échelle de la scène"
+            aria-label={translate('map.grid.sceneScale')}
             className={cn(open && 'bg-primary/10 text-primary')}
           >
             <Ruler />
@@ -96,15 +101,17 @@ export function ScaleMenu({ engine }: Readonly<{ engine: MapEngine }>) {
       <PopoverContent side="top" className="w-80 space-y-4 p-3">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm">
-            <span className="font-semibold">Case</span>
-            <Info texte={play ? 'Grille de jeu de la scène' : 'Automatique : largeur du fond ÷ 25'}>
+            <span className="font-semibold">{translate('map.grid.cell')}</span>
+            <Info
+              texte={play ? translate('map.grid.playGridOfScene') : translate('map.grid.autoHint')}
+            >
               <span
                 className={cn(
                   'rounded-full px-2 py-0.5 text-[11px]',
                   play ? 'bg-primary/15 text-primary-strong' : 'bg-surface-3 text-muted-foreground',
                 )}
               >
-                {play ? 'Grille' : 'Auto'}
+                {play ? translate('map.grid.grid') : translate('map.grid.auto')}
               </span>
             </Info>
             <div className="ml-auto flex items-center gap-1">
@@ -120,10 +127,10 @@ export function ScaleMenu({ engine }: Readonly<{ engine: MapEngine }>) {
                 onKeyDown={(e) =>
                   e.key === 'Enter' && draft !== cell && void setCell(engine, draft)
                 }
-                aria-label="Taille de la case en pixels"
+                aria-label={translate('map.grid.cellSizePx')}
                 className="h-7 w-20 text-right tabular-nums"
               />
-              <span className="text-xs text-muted-foreground">px</span>
+              <span className="text-xs text-muted-foreground">px</span> {/* i18n-ignore */}
             </div>
           </div>
           <Slider
@@ -133,19 +140,19 @@ export function ScaleMenu({ engine }: Readonly<{ engine: MapEngine }>) {
             step={1}
             onValueChange={(v) => setDraft(v[0] ?? draft)}
             onValueCommit={(v) => void setCell(engine, v[0] ?? draft)}
-            aria-label="Taille de la case"
+            aria-label={translate('map.grid.cellSize')}
           />
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center text-sm">
-            <Info texte="Toutes les scènes de la campagne">
-              <span className="font-semibold">Taille des tokens</span>
+            <Info texte={translate('map.grid.allScenes')}>
+              <span className="font-semibold">{translate('map.grid.tokenSize')}</span>
             </Info>
             <EditableValue
-              label="Taille des tokens"
+              label={translate('map.grid.tokenSize')}
               value={scale}
-              format={(v) => `${Math.round(v * 100)} %`}
+              format={(v) => formatter().number(v, 'percent')}
               min={0.25}
               max={4}
               scale={100}
@@ -163,7 +170,7 @@ export function ScaleMenu({ engine }: Readonly<{ engine: MapEngine }>) {
             step={0.05}
             onValueChange={(v) => setScale(v[0] ?? scale)}
             onValueCommit={(v) => commitScale(v[0] ?? scale)}
-            aria-label="Taille des tokens"
+            aria-label={translate('map.grid.tokenSize')}
           />
         </div>
 
@@ -177,10 +184,10 @@ export function ScaleMenu({ engine }: Readonly<{ engine: MapEngine }>) {
               setDetecting(true);
               const found = await detectSceneGrid(engine).catch(() => false);
               setDetecting(false);
-              if (!found) toast('Aucun quadrillage trouvé dans l’image');
+              if (!found) toast(translate('map.grid.noGridFound'));
             }}
           >
-            <ScanSearch /> Détecter
+            <ScanSearch /> {translate('map.grid.detect')}
           </Button>
           <Button
             variant="secondary"
@@ -190,11 +197,11 @@ export function ScaleMenu({ engine }: Readonly<{ engine: MapEngine }>) {
               calibrateScene(engine);
             }}
           >
-            <Crosshair /> Calibrer
+            <Crosshair /> {translate('map.grid.calibrate')}
           </Button>
           {play && (
             <Button variant="ghost" size="sm" onClick={() => automatic(engine)}>
-              <Undo2 /> Auto
+              <Undo2 /> {translate('map.grid.auto')}
             </Button>
           )}
         </div>

@@ -2,6 +2,7 @@
  * Branchement du module lumières sur le moteur, sans React : sorte `light`, outil L, suivi des
  * tokens (torches). L'interface est ajoutée par `index.ts`.
  */
+import { translate } from '@/i18n/runtime';
 import { Lightbulb } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
@@ -32,7 +33,7 @@ export function registerLights(engine: MapEngine, ui: LightUi = {}): () => void 
     engine.registerKind(lightKind(ctx, view)),
     engine.registerTool({
       id: LIGHTS_TOOL_ID,
-      label: 'Lumières',
+      label: translate('map.lights.lights'),
       icon: Lightbulb,
       shortcut: { code: 'KeyL', label: 'L' },
       order: 72,
@@ -48,7 +49,7 @@ export function registerLights(engine: MapEngine, ui: LightUi = {}): () => void 
     unregister.push(
       engine.registerInspectorSection({
         id: 'light',
-        title: 'Lumière',
+        title: translate('map.lights.light'),
         order: 10,
         appliesTo: (es, viewer) => isGm(viewer) && es.every((e) => e.kind.id === LIGHT_KIND),
         component: ui.inspector,

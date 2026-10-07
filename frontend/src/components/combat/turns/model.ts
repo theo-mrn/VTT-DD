@@ -8,14 +8,28 @@
  * `currentIndex` à -1 pendant le tour d'un adversaire caché) : ces fonctions n'ajoutent rien
  * qu'elle ne contient.
  */
+import { lazyLabels, translate } from '@/i18n/runtime';
 import type { CampaignSide, CombatParticipant, CombatState } from '@vtt/contracts';
 
 // ─── Camps ───────────────────────────────────────────────────────────────────
 
+/** Noms des camps (`combat.sides.<camp>`), traduits à la lecture. */
 export const SIDE_LABELS: Record<CampaignSide, { name: string; short: string; one: string }> = {
-  players: { name: 'Joueurs', short: 'J', one: 'joueur' },
-  enemies: { name: 'Ennemis', short: 'E', one: 'ennemi' },
-  allies: { name: 'Alliés', short: 'A', one: 'allié' },
+  players: lazyLabels({
+    name: 'combat.sides.players.name',
+    short: 'combat.sides.players.short',
+    one: 'combat.sides.players.one',
+  }),
+  enemies: lazyLabels({
+    name: 'combat.sides.enemies.name',
+    short: 'combat.sides.enemies.short',
+    one: 'combat.sides.enemies.one',
+  }),
+  allies: lazyLabels({
+    name: 'combat.sides.allies.name',
+    short: 'combat.sides.allies.short',
+    one: 'combat.sides.allies.one',
+  }),
 };
 
 export const SIDES: readonly CampaignSide[] = ['players', 'enemies', 'allies'];
@@ -177,11 +191,13 @@ export function turnHeadline(state: CombatState, nameOf: (id: string) => string)
   const slot = currentSlotOf(state);
   if (slot) {
     const side = SIDE_LABELS[slot.side].name;
-    return actor ? `Créneau des ${side} : ${nameOf(actor)}` : `Créneau des ${side}`;
+    return actor
+      ? translate('combat.turn.slotOfActor', { side, name: nameOf(actor) })
+      : translate('combat.turn.slotOf', { side });
   }
-  if (actor) return `Tour de ${nameOf(actor)}`;
-  if (hiddenTurn(state)) return 'Tour d’un adversaire';
-  return state.initiativeRolled ? 'En attente' : 'Initiative à lancer';
+  if (actor) return translate('combat.turn.of', { name: nameOf(actor) });
+  if (hiddenTurn(state)) return translate('combat.turn.opponent');
+  return translate(state.initiativeRolled ? 'combat.turn.waiting' : 'combat.turn.rollInitiative');
 }
 
 // ─── Réordonner ──────────────────────────────────────────────────────────────

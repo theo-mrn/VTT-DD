@@ -5,6 +5,7 @@
  * inverse le temps du geste), aimantation du rectangle à la grille, « Tout couvrir » et « Tout
  * découvrir » (annulables).
  */
+import { translate } from '@/i18n/runtime';
 import {
   Circle,
   Cloud,
@@ -50,13 +51,17 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: FogTool }
   return (
     <div className="flex max-w-full flex-col items-center gap-1">
       <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
-        <div role="group" aria-label="Forme" className="flex items-center gap-0.5">
+        <div
+          role="group"
+          aria-label={translate('map.fog.shape')}
+          className="flex items-center gap-0.5"
+        >
           {FOG_SHAPES.map((s) => {
             const Icon = ICONS[s.id];
             return (
               <OptionButton
                 key={s.id}
-                label={s.label}
+                label={translate(`map.fog.shapes.${s.id}.label`)}
                 shortcut={s.key}
                 active={shape === s.id}
                 onClick={() => {
@@ -73,11 +78,16 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: FogTool }
         <OptionSeparator />
         <div
           role="radiogroup"
-          aria-label="Mode"
+          aria-label={translate('map.fog.mode')}
           className="flex items-center rounded-lg border border-border p-0.5"
         >
           {(['fog', 'clear'] as const).map((m) => (
-            <Info key={m} texte={m === 'fog' ? 'Ajouter du brouillard' : 'Retirer du brouillard'}>
+            <Info
+              key={m}
+              texte={
+                m === 'fog' ? translate('map.fog.modes.fog') : translate('map.fog.modes.clear')
+              }
+            >
               <button
                 type="button"
                 role="radio"
@@ -90,14 +100,14 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: FogTool }
                 )}
               >
                 {m === 'fog' ? <CloudFog className="size-3.5" /> : <Eraser className="size-3.5" />}
-                {m === 'fog' ? 'Ajouter' : 'Retirer'}
+                {m === 'fog' ? translate('map.fog.add') : translate('map.fog.remove')}
               </button>
             </Info>
           ))}
         </div>
 
         <OptionSeparator />
-        <Info texte="Toute la carte sous le brouillard (les zones posées disparaissent)">
+        <Info texte={translate('map.fog.coverAllHint')}>
           <Button
             variant="ghost"
             size="sm"
@@ -106,10 +116,10 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: FogTool }
             onClick={() => void setFogFull(engine, true)}
           >
             <Cloud />
-            Tout couvrir
+            {translate('map.fog.coverAll')}
           </Button>
         </Info>
-        <Info texte="Plus aucun brouillard (les zones posées disparaissent)">
+        <Info texte={translate('map.fog.clearAllHint')}>
           <Button
             variant="ghost"
             size="sm"
@@ -118,12 +128,12 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: FogTool }
             onClick={() => void setFogFull(engine, false)}
           >
             <CloudOff />
-            Tout découvrir
+            {translate('map.fog.clearAll')}
           </Button>
         </Info>
       </div>
       <p className="max-w-[36rem] px-2 text-center text-[11px] leading-snug text-muted-foreground">
-        {info.hint}
+        {translate(`map.fog.shapes.${info.id}.hint`)}
       </p>
     </div>
   );

@@ -5,6 +5,7 @@
  * « Lancer » (ambiance) pour toute la table, l'écoute pour soi seul, et dans « … » :
  * playlist, l'autre espace, la table d'effets, renommer, retirer de l'espace, supprimer.
  */
+import { useTranslations } from 'next-intl';
 import type { Asset, AssetSection, Playlist } from '@vtt/contracts';
 import {
   AlertTriangle,
@@ -48,26 +49,6 @@ type Board = ReturnType<typeof useSoundboard>;
 
 const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-const TEXTES: Record<
-  AssetSection,
-  { vide: string; ajouter: string; action: string; autre: string; retirer: string }
-> = {
-  music: {
-    vide: 'Pas encore de musique.',
-    ajouter: 'Ajouter une musique',
-    action: 'Jouer',
-    autre: 'Aussi en ambiance',
-    retirer: 'Retirer de la musique',
-  },
-  ambience: {
-    vide: 'Pas encore d’ambiance.',
-    ajouter: 'Ajouter une ambiance',
-    action: 'Lancer',
-    autre: 'Aussi en musique',
-    retirer: 'Retirer de l’ambiance',
-  },
-};
-
 export function SectionList({
   section,
   library,
@@ -81,9 +62,14 @@ export function SectionList({
   board: Board;
   onAdd: () => void;
 }>) {
+  const t = useTranslations();
   const [query, setQuery] = useState('');
   const preview = usePreview();
-  const t = TEXTES[section];
+  const texts = {
+    action: t(`audio.sections.${section}.action`),
+    autre: t(`audio.sections.${section}.other`),
+    retirer: t(`audio.sections.${section}.remove`),
+  };
   const other: AssetSection = section === 'music' ? 'ambience' : 'music';
   const sounds = useMemo(
     () => library.assets.filter((a) => a.sections.includes(section)),
@@ -99,7 +85,7 @@ export function SectionList({
   const run = (label: string, p: Promise<unknown>) =>
     void p.catch((e) => toast.error(label, { description: messageErreur(e) }));
   const setSections = (a: Asset, next: AssetSection[]) =>
-    run('Modification impossible', library.update(a.id, { sections: next }));
+    run(t('audio.editFailed'), library.update(a.id, { sections: next }));
 
   return (
     <div className="space-y-2">
@@ -108,8 +94,8 @@ export function SectionList({
           <SearchField
             value={query}
             onChange={setQuery}
-            placeholder="Rechercher"
-            label="Rechercher un son"
+            placeholder={t('common.actions.search')}
+            label={t('audio.searchSound')}
             className="sm:w-full"
           />
         ) : (
@@ -117,16 +103,18 @@ export function SectionList({
         )}
         <Button size="sm" onClick={onAdd} className="shrink-0">
           <Plus />
-          {t.ajouter}
+          {t(`audio.sections.${section}.add`)}
         </Button>
       </div>
 
       {library.loading && (
-        <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
+        <p className="py-6 text-center text-[13px] text-muted-foreground">
+          {t('common.states.loading')}
+        </p>
       )}
       {!library.loading && list.length === 0 && (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-[13px] text-muted-foreground">
-          {sounds.length ? 'Aucun son ne correspond à la recherche.' : t.vide}
+          {sounds.length ? t('audio.noSearchMatch') : t(`audio.sections.${section}.empty`)}
         </p>
       )}
       {!library.loading && list.length > 0 && (
@@ -136,16 +124,16 @@ export function SectionList({
               key={a.id}
               asset={a}
               section={section}
-              texts={t}
+              texts={texts}
               current={channel.state?.track?.id === a.id}
               playlists={section === 'music' ? library.playlists : []}
               onBoard={board.has(a.id)}
               previewing={preview.playingId === a.id}
-              onPlay={() => run('Lecture impossible', channel.play({ assetId: a.id }))}
+              onPlay={() => run(t('audio.playFailed'), channel.play({ assetId: a.id }))}
               onPreview={() => (preview.playingId === a.id ? preview.stop() : preview.play(a))}
               onAddToPlaylist={(p) =>
                 run(
-                  'Ajout impossible',
+                  t('map.sounds.addFailed'),
                   library.updatePlaylist(p.id, { assetIds: [...p.assetIds, a.id] }),
                 )
               }
@@ -160,18 +148,18 @@ export function SectionList({
               otherActive={a.sections.includes(other)}
               onToggleBoard={() =>
                 run(
-                  'Table d’effets non modifiée',
+                  t('audio.boardUnchanged'),
                   board.has(a.id) ? board.remove(a.id) : board.add(a.id),
                 )
               }
-              onRename={(name) => run('Renommage impossible', library.update(a.id, { name }))}
+              onRename={(name) => run(t('audio.renameFailed'), library.update(a.id, { name }))}
               onLeave={() =>
                 setSections(
                   a,
                   a.sections.filter((s) => s !== section),
                 )
               }
-              onDelete={() => run('Suppression impossible', library.remove(a.id))}
+              onDelete={() => run(t('audio.deleteFailed'), library.remove(a.id))}
             />
           ))}
         </ul>
@@ -182,9 +170,12 @@ export function SectionList({
 
 /** Ligne sous le nom d'un son : en cours, durée, YouTube, préparation ou refus. */
 function AssetInfo({ asset, current }: Readonly<{ asset: Asset; current: boolean }>) {
+  const t = useTranslations();
   return (
     <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-      {current && <span className="font-semibold text-primary-strong">En cours</span>}
+      {current && (
+        <span className="font-semibold text-primary-strong">{t('audio.nowPlaying')}</span>
+      )}
       {asset.durationMs ? (
         <span className="tabular-nums">{formatTime(asset.durationMs)}</span>
       ) : null}
@@ -192,7 +183,7 @@ function AssetInfo({ asset, current }: Readonly<{ asset: Asset; current: boolean
       {asset.status === 'processing' && (
         <span className="inline-flex items-center gap-1">
           <Loader2 className="size-3 animate-spin" aria-hidden />
-          Préparation…
+          {t('portraits.preparing')}
         </span>
       )}
       {asset.status === 'rejected' && (
@@ -201,7 +192,7 @@ function AssetInfo({ asset, current }: Readonly<{ asset: Asset; current: boolean
           title={asset.rejectReason ?? ''}
         >
           <AlertTriangle className="size-3" aria-hidden />
-          Fichier refusé
+          {t('audio.fileRejected')}
         </span>
       )}
     </p>
@@ -228,7 +219,7 @@ function Row({
 }: Readonly<{
   asset: Asset;
   section: AssetSection;
-  texts: (typeof TEXTES)[AssetSection];
+  texts: { action: string; autre: string; retirer: string };
   current: boolean;
   playlists: Playlist[];
   onBoard: boolean;
@@ -243,6 +234,7 @@ function Row({
   onLeave: () => void;
   onDelete: () => void;
 }>) {
+  const t = useTranslations();
   const [confirm, setConfirm] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const ready = asset.status === 'ready';
@@ -270,7 +262,7 @@ function Row({
             autoFocus
             value={renaming}
             maxLength={200}
-            aria-label="Nouveau nom"
+            aria-label={t('handouts.newName')}
             onChange={(e) => setRenaming(e.target.value)}
             onBlur={valider}
             onKeyDown={(e) => {
@@ -287,12 +279,16 @@ function Row({
         <AssetInfo asset={asset} current={current} />
       </div>
 
-      <Info texte={previewing ? 'Arrêter l’écoute' : 'Écouter pour moi seul'}>
+      <Info texte={previewing ? t('map.sounds.stopListening') : t('audio.listenForMeHint')}>
         <Button
           variant="ghost"
           size="icon-xs"
           disabled={!ready}
-          aria-label={previewing ? 'Arrêter l’écoute' : `Écouter ${asset.name} pour moi seul`}
+          aria-label={
+            previewing
+              ? t('map.sounds.stopListening')
+              : t('audio.listenForMe', { name: asset.name })
+          }
           aria-pressed={previewing}
           onClick={onPreview}
           className={cn(previewing && 'text-primary-strong')}
@@ -304,7 +300,7 @@ function Row({
         size="xs"
         variant={current ? 'secondary' : 'default'}
         disabled={!ready}
-        aria-label={`${texts.action} ${asset.name} pour la table`}
+        aria-label={t('audio.forTable', { action: texts.action, name: asset.name })}
         onClick={onPlay}
       >
         <ActionIcon />
@@ -313,14 +309,18 @@ function Row({
 
       <DropdownMenu onOpenChange={(o) => !o && setConfirm(false)}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-xs" aria-label={`Autres actions pour ${asset.name}`}>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={t('audio.moreActionsFor', { name: asset.name })}
+          >
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
           {playlists.length > 0 && (
             <>
-              <DropdownMenuLabel>Ajouter à une playlist</DropdownMenuLabel>
+              <DropdownMenuLabel>{t('audio.addToPlaylist')}</DropdownMenuLabel>
               {playlists.map((p) => (
                 <DropdownMenuItem
                   key={p.id}
@@ -340,11 +340,11 @@ function Row({
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onToggleBoard}>
             <Star className={cn(onBoard && 'fill-current')} />
-            {onBoard ? 'Sur la table d’effets ✓' : 'Sur la table d’effets'}
+            {onBoard ? `${t('audio.onBoard')} ✓` : t('audio.onBoard')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setRenaming(asset.name)}>
             <Pencil />
-            Renommer
+            {t('common.actions.rename')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={onLeave}>
@@ -363,7 +363,7 @@ function Row({
             }}
           >
             <Trash2 />
-            {confirm ? 'Confirmer : supprimer partout' : 'Supprimer partout'}
+            {confirm ? t('audio.deleteEverywhereConfirm') : t('audio.deleteEverywhere')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

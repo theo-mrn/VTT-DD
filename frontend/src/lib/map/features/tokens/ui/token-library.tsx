@@ -10,6 +10,7 @@
  * d'exemplaires, camp et visibilité à la pose ; un seul appel au serveur, fantômes pendant la
  * pose, message clair en cas d'échec.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapTokenVisibility } from '@vtt/contracts';
 import { AlertTriangle, Loader2, Minus, Plus, SearchX, Skull, UserRoundPlus } from 'lucide-react';
 import {
@@ -38,7 +39,7 @@ import { useCampaignSystem } from '@/lib/campaign-settings';
 import { useCampagne } from '@/lib/campagnes';
 import { SELECT_TOOL_ID } from '@/lib/map/engine/tools/tool-manager';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { clampCount, MAX_COPIES, VISIBILITY_LABELS } from '../engine/model';
+import { clampCount, MAX_COPIES, visibilityLabel } from '../engine/model';
 import { TOKENS_TOOL_ID } from '../engine/place-tool';
 import type { LibraryState, LibraryTab, PlacementSource, TokensState } from '../engine/state';
 import { cn } from '@/lib/utils';
@@ -85,11 +86,11 @@ function Library({ engine }: Readonly<{ engine: MapEngine }>) {
   return (
     <MapPanel
       id="token-library"
-      label="Bibliothèque des personnages"
+      label={translate('map.tokens.library.title')}
       icon={UserRoundPlus}
-      title="Personnages"
+      title={translate('map.tools.tokens')}
       shortcut="A"
-      closeLabel="Fermer la bibliothèque"
+      closeLabel={translate('map.tokens.library.close')}
       onClose={() => engine.tools.activate(SELECT_TOOL_ID)}
       onKeyDown={(e) => {
         // Échap dans le panneau : la carte choisie est rendue (la carte n'a pas le focus)
@@ -107,16 +108,16 @@ function Library({ engine }: Readonly<{ engine: MapEngine }>) {
       >
         <div className="space-y-2 px-3 pt-3">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="templates">Modèles</TabsTrigger>
-            <TabsTrigger value="bestiary">Bestiaire</TabsTrigger>
-            <TabsTrigger value="quick">Nouveau</TabsTrigger>
+            <TabsTrigger value="templates">{translate('map.tokens.library.templates')}</TabsTrigger>
+            <TabsTrigger value="bestiary">{translate('map.tokens.library.bestiary')}</TabsTrigger>
+            <TabsTrigger value="quick">{translate('map.tokens.library.new')}</TabsTrigger>
           </TabsList>
           {tab !== 'quick' && (
             <SearchField
               value={query}
               onChange={setQuery}
-              label="Rechercher un PNJ"
-              placeholder="Rechercher…"
+              label={translate('map.tokens.library.search')}
+              placeholder={translate('map.tokens.library.searchPlaceholder')}
               className="sm:w-full"
             />
           )}
@@ -126,11 +127,8 @@ function Library({ engine }: Readonly<{ engine: MapEngine }>) {
             <Notice
               tone="error"
               icon={AlertTriangle}
-              title="Règles indisponibles"
-              description={messageErreur(
-                sys.error,
-                'Le système de la campagne n’a pas pu être chargé.',
-              )}
+              title={translate('map.tokens.library.rulesUnavailable')}
+              description={messageErreur(sys.error, translate('map.tokens.library.systemFailed'))}
             />
           )}
           {!sys.data && !sys.isError && <ListSkeleton rows={5} />}
@@ -230,11 +228,11 @@ function TemplatesTab({
       <Notice
         tone="error"
         icon={AlertTriangle}
-        title="Modèles indisponibles"
-        description={messageErreur(templates.error, 'Réessayez dans un instant.')}
+        title={translate('map.tokens.library.templatesUnavailable')}
+        description={messageErreur(templates.error, translate('map.tokens.library.tryAgainSoon'))}
         action={
           <Button variant="secondary" size="sm" onClick={() => void templates.refetch()}>
-            Réessayer
+            {translate('map.tokens.library.retry')}
           </Button>
         }
       />
@@ -243,8 +241,8 @@ function TemplatesTab({
     return (
       <Notice
         icon={Skull}
-        title="Aucun modèle de PNJ"
-        description="Créez vos PNJ dans « Mes PNJ » (U), ou ici en quelques secondes : chacun reste un modèle, à poser autant de fois qu’il le faut."
+        title={translate('map.tokens.library.noTemplate')}
+        description={translate('map.tokens.library.noTemplateText')}
         action={
           <Button variant="secondary" size="sm" onClick={onQuick}>
             Nouveau PNJ
@@ -258,10 +256,10 @@ function TemplatesTab({
         <SelectField
           value={category}
           onValueChange={setCategory}
-          aria-label="Filtrer par catégorie"
+          aria-label={translate('map.tokens.library.filterCategory')}
           className="h-9"
           options={[
-            { valeur: ALL, nom: 'Toutes les catégories' },
+            { valeur: ALL, nom: translate('map.tokens.library.allCategories') },
             ...categories.map((c) => ({ valeur: c.id, nom: c.name })),
           ]}
         />
@@ -322,16 +320,16 @@ function BestiaryTab({
       <Notice
         tone="error"
         icon={AlertTriangle}
-        title="Bestiaire indisponible"
-        description={messageErreur(bestiary.error, 'Réessayez dans un instant.')}
+        title={translate('map.tokens.library.bestiaryUnavailable')}
+        description={messageErreur(bestiary.error, translate('map.tokens.library.tryAgainSoon'))}
       />
     );
   if (!items.length)
     return (
       <Notice
         icon={Skull}
-        title="Pas de bestiaire"
-        description="Le système de cette campagne n’a pas de créatures de référence."
+        title={translate('map.tokens.library.noBestiary')}
+        description={translate('map.tokens.library.noBestiaryText')}
       />
     );
   return (
@@ -340,10 +338,10 @@ function BestiaryTab({
         <SelectField
           value={category}
           onValueChange={setCategory}
-          aria-label="Filtrer par catégorie"
+          aria-label={translate('map.tokens.library.filterCategory')}
           className="h-9"
           options={[
-            { valeur: ALL, nom: 'Toutes les catégories' },
+            { valeur: ALL, nom: translate('map.tokens.library.allCategories') },
             ...categories.map((c) => ({ valeur: c, nom: c })),
           ]}
         />
@@ -372,8 +370,8 @@ function CardList({
     return (
       <Notice
         icon={SearchX}
-        title="Aucun résultat"
-        description={search ? `Aucun PNJ ne correspond à « ${search} ».` : undefined}
+        title={translate('map.tokens.library.noResult')}
+        description={search ? translate('map.tokens.library.noMatch', { search }) : undefined}
       />
     );
   return (
@@ -455,12 +453,14 @@ function PlacementOptions({ tokens }: Readonly<{ tokens: TokensState }>) {
   return (
     <footer className="space-y-2.5 border-t border-border px-3 py-3">
       <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2">
-        <span className="text-xs text-muted-foreground">Nombre</span>
+        <span className="text-xs text-muted-foreground">
+          {translate('map.tokens.library.count')}
+        </span>
         <div className="flex items-center gap-1.5">
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Un exemplaire de moins"
+            aria-label={translate('map.tokens.library.oneLess')}
             disabled={count <= 1}
             onClick={() => set({ count: clampCount(count - 1) })}
           >
@@ -475,53 +475,58 @@ function PlacementOptions({ tokens }: Readonly<{ tokens: TokensState }>) {
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Un exemplaire de plus"
+            aria-label={translate('map.tokens.library.oneMore')}
             disabled={count >= MAX_COPIES}
             onClick={() => set({ count: clampCount(count + 1) })}
           >
             <Plus />
           </Button>
           <span className="ml-auto text-[11px] text-subtle">
-            <Kbd>1</Kbd>–<Kbd>9</Kbd> sur la carte
+            <Kbd>1</Kbd>–<Kbd>9</Kbd> {translate('map.tokens.library.onMap')}
           </span>
         </div>
-        <span className="text-xs text-muted-foreground">Camp</span>
+        <span className="text-xs text-muted-foreground">
+          {translate('map.tokens.library.side')}
+        </span>
         <Segmented
-          label="Camp des PNJ posés"
+          label={translate('map.tokens.library.sideLabel')}
           value={side}
           onChange={(v) => set({ side: v })}
           options={[
-            { value: 'enemies', label: 'Ennemis' },
-            { value: 'allies', label: 'Alliés' },
+            { value: 'enemies', label: translate('map.tokens.sides.enemies') },
+            { value: 'allies', label: translate('map.tokens.sides.allies') },
           ]}
         />
-        <span className="text-xs text-muted-foreground">Visibilité</span>
+        <span className="text-xs text-muted-foreground">
+          {translate('map.tokens.visibilityTitle')}
+        </span>
         <SelectField
           value={visibility}
           onValueChange={(v) => set({ visibility: v as MapTokenVisibility })}
-          aria-label="Visibilité à la pose"
+          aria-label={translate('map.tokens.library.visibilityOnPlace')}
           className="h-8 text-[13px]"
-          options={PLACE_VISIBILITIES.map((v) => ({ valeur: v, nom: VISIBILITY_LABELS[v].label }))}
+          options={PLACE_VISIBILITIES.map((v) => ({ valeur: v, nom: visibilityLabel(v) }))}
         />
       </div>
       <p aria-live="polite" className="flex items-start gap-1.5 text-xs text-muted-foreground">
         {placing && (
           <>
             <Loader2 className="mt-px size-3.5 shrink-0 animate-spin" aria-hidden />
-            Pose en cours…
+            {translate('map.tokens.library.placing')}
           </>
         )}
         {!placing && armed && (
           <span>
-            Cliquez sur la scène pour poser{' '}
-            <strong className="text-foreground">{armed.name}</strong>
-            {count > 1 ? ` × ${count}` : ''}. <Kbd>⇧</Kbd> : en poser d’autres, <Kbd>Échap</Kbd> :
-            annuler.
+            {translate.rich('map.tokens.library.armed', {
+              name: armed.name,
+              count: count > 1 ? ` × ${count}` : '',
+              b: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+              shift: () => <Kbd>⇧</Kbd>,
+              esc: () => <Kbd>{translate('map.tokens.library.esc')}</Kbd>,
+            })}
           </span>
         )}
-        {!placing &&
-          !armed &&
-          'Glissez une carte sur la scène, ou choisissez-la puis cliquez sur la carte.'}
+        {!placing && !armed && translate('map.tokens.library.hint')}
       </p>
     </footer>
   );

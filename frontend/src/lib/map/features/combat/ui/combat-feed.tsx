@@ -13,6 +13,7 @@
  * - États des personnages posés (badges) : fiches que je peux lire seulement (MJ : toutes ;
  *   joueur : héros et alliés, jamais un PNJ ennemi, Q4), cache partagé avec la fiche.
  */
+import { translate } from '@/i18n/runtime';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { calculer, estHorsCombat } from '@vtt/rules';
 import { HeartPulse } from 'lucide-react';
@@ -21,6 +22,7 @@ import { combatPresentation, statesOf } from '@/components/combat/turns/use-cast
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { campagnes, clePersonnagesCampagne, useCampagne } from '@/lib/campagnes';
 import { AIM_TTL_MS, AimBoard, COMBAT_AIM_KIND } from '@/lib/combat/aim';
+import { durationText } from '@/lib/combat/durations';
 import { isOpen, useAttacks } from '@/lib/combat/use-attacks';
 import { currentActorId, useCombat, useCombatCommands } from '@/lib/combat/use-combat';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
@@ -97,17 +99,20 @@ export function CombatMapFeed({ engine }: { engine: MapEngine }) {
     const s = sys.data;
     if (!s) return out;
     const { stateSorts, stateIcons } = combatPresentation(s.presentation);
+    const names = new Map((list.data ?? []).map((c) => [c.characterId, c.name ?? undefined]));
     for (const sheet of sheets) {
       if (!sheet) continue;
-      const list = statesOf(sheet, s.systeme, stateSorts, stateIcons).map((x) => ({
+      const badges = statesOf(sheet, s.systeme, stateSorts, stateIcons).map((x) => ({
         icon: x.icon,
         name: x.name,
         duration: x.duration,
+        // Durée en toutes lettres au survol (docs/combat.md § 18)
+        label: durationText(x, { bearerId: sheet.id, nameOf: (id) => names.get(id) }),
       }));
-      if (list.length) out.set(sheet.id, list);
+      if (badges.length) out.set(sheet.id, badges);
     }
     return out;
-  }, [sheets, sys.data]);
+  }, [sheets, sys.data, list.data]);
   useEffect(() => {
     mod?.state.setState({ states });
   }, [mod, states]);
@@ -143,7 +148,7 @@ export function CombatMapFeed({ engine }: { engine: MapEngine }) {
       return [
         {
           id: 'combat:revive',
-          label: 'Relever',
+          label: translate('map.combat.revive'),
           icon: HeartPulse,
           urgent: true,
           primary: true,

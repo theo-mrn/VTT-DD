@@ -1,12 +1,13 @@
 'use client';
 
 import { Check, Mail, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
-import { formaterDepuis } from '@/components/compte/elements';
 import { Button } from '@/components/ui/button';
+import { useDates } from '@/i18n/dates';
 import { messageErreur } from '@/lib/api';
 import {
   useDeclinerInvitation,
@@ -31,13 +32,14 @@ export function InvitationsRecues({
   onRejointe?: (c: DetailCampagne) => void | Promise<void>;
   className?: string;
 }>) {
+  const t = useTranslations('campaigns.invitations');
   const invitations = useInvitationsRecues();
   if (!invitations.data?.length) return null;
   return (
-    <section className={cn('space-y-3', className)} aria-label="Invitations reçues">
+    <section className={cn('space-y-3', className)} aria-label={t('label')}>
       <p className="flex items-center gap-2 text-sm font-semibold">
         <Mail className="size-4 text-primary" />
-        Vous êtes invité à {invitations.data.length > 1 ? 'ces tables' : 'cette table'}
+        {t('title', { count: invitations.data.length })}
       </p>
       <ul className="grid gap-2">
         {invitations.data.map((i) => (
@@ -55,6 +57,8 @@ function LigneInvitation({
   invitation: InvitationRecue;
   onRejointe?: (c: DetailCampagne) => void | Promise<void>;
 }>) {
+  const t = useTranslations('campaigns');
+  const dates = useDates();
   const router = useRouter();
   const profil = useProfil();
   const nomSysteme = useNomSysteme(i.system);
@@ -66,7 +70,7 @@ function LigneInvitation({
     setEnvoi(true);
     try {
       const c = await rejoindre.mutateAsync(i.id);
-      toast.success(`Bienvenue dans « ${c.name} »`);
+      toast.success(t('join.welcome', { name: c.name }));
       if (onRejointe) await onRejointe(c);
       else router.push(`/campagnes/${c.id}/personnage`);
     } catch (err) {
@@ -90,19 +94,23 @@ function LigneInvitation({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{i.name}</p>
         <p className="truncate text-xs text-muted-foreground">
-          {nomSysteme} · invité par {i.invitedBy.name} {formaterDepuis(i.invitedAt)}
+          {t('invitations.invitedBy', {
+            system: nomSysteme,
+            name: i.invitedBy.name,
+            since: dates.since(i.invitedAt),
+          })}
         </p>
       </div>
       <div className="flex shrink-0 gap-1.5">
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={`Décliner l'invitation à ${i.name}`}
+          aria-label={t('invitations.decline', { name: i.name })}
           disabled={envoi}
           loading={decliner.isPending}
           onClick={() =>
             decliner.mutate(i.id, {
-              onSuccess: () => toast.success('Invitation déclinée'),
+              onSuccess: () => toast.success(t('invitations.declined')),
               onError: (e) => toast.error(messageErreur(e)),
             })
           }
@@ -111,7 +119,7 @@ function LigneInvitation({
         </Button>
         <Button size="sm" onClick={() => void accepter()} loading={envoi}>
           {!envoi && <Check />}
-          Rejoindre
+          {t('join.join')}
         </Button>
       </div>
     </li>

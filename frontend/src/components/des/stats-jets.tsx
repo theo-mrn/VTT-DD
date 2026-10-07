@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart3, Crown, Skull, TrendingDown, TrendingUp } from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { messageErreur } from '@/lib/api';
@@ -8,13 +9,21 @@ import type { StatsJets as Statistiques } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 
 const MOYENNE_ATTENDUE = 10.5;
-const nombre = (n: number, decimales = 1) =>
-  n.toLocaleString('fr-FR', { maximumFractionDigits: decimales });
-const pourcent = (part: number, total: number) =>
-  total ? `${nombre((part / total) * 100, 0)} %` : '—';
+
+/** Nombres et pourcentages dans la langue de la page. */
+function useNombres() {
+  const format = useFormatter();
+  const nombre = (n: number, decimales = 1) =>
+    format.number(n, { maximumFractionDigits: decimales });
+  const pourcent = (part: number, total: number) =>
+    total ? format.number(part / total, 'percent') : '—';
+  return { nombre, pourcent };
+}
 
 /** Écart de la moyenne des d20 à celle attendue, en vert au-dessus, en rouge en dessous. */
 function EcartMoyenne({ ecart }: Readonly<{ ecart: number }>) {
+  const t = useTranslations('dice.stats');
+  const { nombre } = useNombres();
   return (
     <span
       className={cn(
@@ -25,8 +34,11 @@ function EcartMoyenne({ ecart }: Readonly<{ ecart: number }>) {
     >
       {ecart > 0.05 && <TrendingUp className="size-3" aria-hidden />}
       {ecart < -0.05 && <TrendingDown className="size-3" aria-hidden />}
-      {ecart >= 0 ? '+' : '−'}
-      {nombre(Math.abs(ecart))} vs 10,5
+      {t('versus', {
+        sign: ecart >= 0 ? '+' : '−',
+        gap: nombre(Math.abs(ecart)),
+        expected: nombre(MOYENNE_ATTENDUE),
+      })}
     </span>
   );
 }
@@ -44,9 +56,11 @@ export function StatsJets({
   chargement: boolean;
   erreur: unknown;
 }>) {
+  const t = useTranslations('dice.stats');
+  const { nombre, pourcent } = useNombres();
   if (chargement)
     return (
-      <div className="space-y-5 p-4" aria-label="Chargement des statistiques">
+      <div className="space-y-5 p-4" aria-label={t('loading')}>
         <div className="grid grid-cols-2 gap-2">
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-[92px] rounded-xl" />
@@ -59,7 +73,7 @@ export function StatsJets({
   if (erreur || !stats)
     return (
       <p className="p-6 text-center text-sm text-destructive">
-        Statistiques indisponibles : {messageErreur(erreur)}
+        {t('unavailable', { error: messageErreur(erreur) })}
       </p>
     );
 
@@ -71,10 +85,8 @@ export function StatsJets({
         <div className="mb-3 flex size-11 items-center justify-center rounded-xl border border-border-strong bg-surface-2 shadow-surface">
           <BarChart3 className="size-5 text-subtle" aria-hidden />
         </div>
-        <p className="text-sm font-medium">Pas encore de statistiques</p>
-        <p className="mt-1 max-w-[240px] text-xs text-muted-foreground">
-          Lancez quelques dés : moyenne, critiques et répartition des d20 apparaîtront ici.
-        </p>
+        <p className="text-sm font-medium">{t('empty')}</p>
+        <p className="mt-1 max-w-[240px] text-xs text-muted-foreground">{t('emptyText')}</p>
       </div>
     );
 
@@ -83,28 +95,32 @@ export function StatsJets({
   return (
     <div className="space-y-5 p-4">
       <div className="grid grid-cols-2 gap-2">
-        <TuileStat libelle="Jets" valeur={nombre(stats.nombre, 0)}>
-          {nbD20 ? `${nombre(nbD20, 0)} d20 lancés` : 'Aucun d20'}
+        <TuileStat libelle={t('rolls')} valeur={nombre(stats.nombre, 0)}>
+          {t('d20Rolled', { count: nbD20 })}
         </TuileStat>
         <TuileStat
-          libelle="Moyenne d20"
+          libelle={t('d20Average')}
           valeur={stats.moyenneD20 !== null ? nombre(stats.moyenneD20) : '—'}
         >
-          {ecart === null ? 'attendue : 10,5' : <EcartMoyenne ecart={ecart} />}
+          {ecart === null ? (
+            t('expected', { value: nombre(MOYENNE_ATTENDUE) })
+          ) : (
+            <EcartMoyenne ecart={ecart} />
+          )}
         </TuileStat>
         <TuileStat
-          libelle="Critiques"
+          libelle={t('criticals')}
           icone={<Crown className="size-3.5 text-primary" aria-hidden />}
           valeur={nombre(stats.critiques, 0)}
         >
-          {pourcent(stats.critiques, stats.nombre)} des jets
+          {t('ofRolls', { percent: pourcent(stats.critiques, stats.nombre) })}
         </TuileStat>
         <TuileStat
-          libelle="Échecs critiques"
+          libelle={t('fumbles')}
           icone={<Skull className="size-3.5 text-destructive" aria-hidden />}
           valeur={nombre(stats.echecsCritiques, 0)}
         >
-          {pourcent(stats.echecsCritiques, stats.nombre)} des jets
+          {t('ofRolls', { percent: pourcent(stats.echecsCritiques, stats.nombre) })}
         </TuileStat>
       </div>
 
@@ -115,7 +131,7 @@ export function StatsJets({
         </>
       ) : (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-xs text-subtle">
-          Aucun d20 dans l’historique : la répartition apparaîtra avec votre premier d20.
+          {t('noD20')}
         </p>
       )}
     </div>
@@ -157,6 +173,8 @@ function RepartitionD20({
   repartition,
   total,
 }: Readonly<{ repartition: number[]; total: number }>) {
+  const t = useTranslations('dice.stats');
+  const { nombre, pourcent } = useNombres();
   const [survol, setSurvol] = useState<number | null>(null);
   const attendu = total / 20;
   const plafond = Math.max(...repartition, attendu) * 1.1;
@@ -166,15 +184,15 @@ function RepartitionD20({
   return (
     <figure className="space-y-3">
       <figcaption className="flex items-baseline justify-between gap-3">
-        <span className="text-[13px] font-medium">Répartition des d20</span>
+        <span className="text-[13px] font-medium">{t('distribution')}</span>
         <span className="min-h-4 text-right text-[11px] text-subtle tabular" aria-hidden>
           {detail !== null ? (
             <>
               <span className="font-mono font-semibold text-foreground">{survol}</span> ·{' '}
-              {nombre(detail, 0)} fois ({pourcent(detail, total)})
+              {t('times', { count: detail, percent: pourcent(detail, total) })}
             </>
           ) : (
-            `${nombre(total, 0)} dés · touchez une barre`
+            t('tapBar', { count: total })
           )}
         </span>
       </figcaption>
@@ -226,22 +244,22 @@ function RepartitionD20({
 
       <div aria-hidden className="flex items-center gap-4 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-[2px] bg-primary" /> 20 naturel
+          <span className="size-2 rounded-[2px] bg-primary" /> {t('natural20')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-[2px] bg-destructive/80" /> 1 naturel
+          <span className="size-2 rounded-[2px] bg-destructive/80" /> {t('natural1')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-px w-3 bg-foreground/50" /> dé équilibré ({nombre(attendu)})
+          <span className="h-px w-3 bg-foreground/50" /> {t('fairDie', { value: nombre(attendu) })}
         </span>
       </div>
 
       <table className="sr-only">
-        <caption>Répartition des d20 lancés, sur {total} dés</caption>
+        <caption>{t('caption', { count: total })}</caption>
         <thead>
           <tr>
-            <th scope="col">Face</th>
-            <th scope="col">Nombre</th>
+            <th scope="col">{t('face')}</th>
+            <th scope="col">{t('count')}</th>
           </tr>
         </thead>
         <tbody>
@@ -259,23 +277,28 @@ function RepartitionD20({
 
 /** Où tombe la moyenne des d20 entre 1 et 20, face à 10,5. */
 function JaugeChance({ moyenne, total }: Readonly<{ moyenne: number; total: number }>) {
+  const t = useTranslations('dice.stats');
+  const { nombre } = useNombres();
   const position = (v: number) => `${((v - 1) / 19) * 100}%`;
   const ecart = moyenne - MOYENNE_ATTENDUE;
   // Sous une vingtaine de dés, l'écart n'a pas de sens : on le dit plutôt que d'en tirer un verdict
-  let verdict = 'Des dés parfaitement honnêtes.';
-  if (total < 20) verdict = 'Encore trop peu de d20 pour juger.';
-  else if (ecart > 1) verdict = 'Les dés vous sourient.';
-  else if (ecart < -1) verdict = 'Les dés vous boudent.';
+  let verdict = t('fair');
+  if (total < 20) verdict = t('tooFew');
+  else if (ecart > 1) verdict = t('lucky');
+  else if (ecart < -1) verdict = t('unlucky');
 
   return (
     <div className="space-y-2.5 rounded-xl border border-border bg-surface-2/40 p-3">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[13px] font-medium">Chance</p>
+        <p className="text-[13px] font-medium">{t('luck')}</p>
         <p className="text-[11px] text-muted-foreground">{verdict}</p>
       </div>
       <div
         role="img"
-        aria-label={`Moyenne des d20 : ${nombre(moyenne)}, pour 10,5 attendu`}
+        aria-label={t('gauge', {
+          average: nombre(moyenne),
+          expected: nombre(MOYENNE_ATTENDUE),
+        })}
         className="relative h-2 rounded-full bg-gradient-to-r from-destructive/30 via-surface-3 to-primary/40"
       >
         <span
@@ -291,7 +314,7 @@ function JaugeChance({ moyenne, total }: Readonly<{ moyenne: number; total: numb
       </div>
       <div aria-hidden className="flex justify-between font-mono text-[10px] text-subtle">
         <span>1</span>
-        <span>10,5</span>
+        <span>{nombre(MOYENNE_ATTENDUE)}</span>
         <span>20</span>
       </div>
     </div>

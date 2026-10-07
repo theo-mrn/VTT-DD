@@ -9,6 +9,7 @@
  * L'état reste dans la machine (`attack-flow.ts`) : ce hook ne fait que la lire et lui envoyer
  * des événements.
  */
+import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ActionParams, Attack, DeclareAttack } from '@vtt/contracts';
 import type { Action, Fiche } from '@vtt/rules';
@@ -77,6 +78,7 @@ const sameParams = (a: Record<string, unknown>, b: Record<string, unknown>) => {
 };
 
 export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
+  const t = useTranslations();
   const systeme = ctx.systeme;
   const draft = flow.draft;
   const composing = flow.phase === 'compose';
@@ -154,10 +156,11 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
   const rollMode = effectiveRollMode(draft, multi.rollMode);
 
   let disabledReason: string | null = null;
-  if (!draft.attackerId) disabledReason = 'Choisissez qui attaque';
-  else if (blocked) disabledReason = 'Pas le tour de votre personnage';
+  if (!draft.attackerId) disabledReason = t('combat.submit.noAttacker');
+  else if (blocked) disabledReason = t('combat.attack.notYourTurn');
   else if (!check.ok) disabledReason = check.message;
-  else if (missing.length) disabledReason = `${missing[0]!.nom} : aucune disponible`;
+  else if (missing.length)
+    disabledReason = t('combat.attack.noneAvailableFor', { name: missing[0]!.nom });
 
   /** Carte d'action choisie : ses paramètres (ceux de sa dernière attaque d'abord). */
   function choose(a: Action) {
@@ -278,6 +281,7 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
         rollMode: body.rollMode ?? 'per_target',
         adjustments: body.adjustments,
         combat: combatContextOf(ctx.combat, body.attackerId, body.targets),
+        attackerId: body.attackerId,
       },
       browserDice,
     );

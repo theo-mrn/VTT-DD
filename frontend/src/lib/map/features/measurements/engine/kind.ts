@@ -11,6 +11,7 @@
  * - Dessin en coordonnées du monde (`transformDisplay: false`), redessiné quand la donnée,
  *   l'état (survol, sélection : étiquette) ou le palier de zoom change.
  */
+import { translate } from '@/i18n/runtime';
 import { Palette, Users } from 'lucide-react';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import {
@@ -29,6 +30,7 @@ import type { MeasureModule } from './context';
 import {
   MEASURE_COLORS,
   MEASURE_SHAPES,
+  measureShapeLabel,
   MEASUREMENT_KIND,
   MEASUREMENTS,
   measureLabel,
@@ -158,7 +160,7 @@ function templateActions(
     const tokens = tokensInZone(engine, specOfEntity(single));
     items.push({
       id: 'measure:zone',
-      label: `Sélectionner les personnages dans la zone (${tokens.length})`,
+      label: translate('map.measurements.selectInZone', { count: tokens.length }),
       icon: Users,
       disabled: !tokens.length,
       run: () => engine.selection.replace(tokens.map((t) => t.id)),
@@ -168,14 +170,14 @@ function templateActions(
   if (mine.length)
     items.push({
       id: 'measure:color',
-      label: 'Couleur',
+      label: translate('map.lights.color'),
       icon: Palette,
       children: MEASURE_COLORS.map((c) => ({
         id: `measure:color:${c.value}`,
-        label: c.label,
+        label: translate(`map.measurements.colors.${c.name}`),
         checked: mine.every((e) => templateOf(e).color.toLowerCase() === c.value),
         run: () =>
-          void updateTemplates(ctx, 'Couleur du gabarit', mine, (d) =>
+          void updateTemplates(ctx, translate('map.measurements.templateColor'), mine, (d) =>
             d.color === c.value ? d : { ...d, color: c.value },
           ),
       })),
@@ -188,7 +190,7 @@ export function measurementKind(ctx: MeasureModule, view: TemplateView): EntityK
   const data = (d: MapDto) => d as MeasurementData;
   return {
     id: MEASUREMENT_KIND,
-    label: 'Gabarit',
+    label: translate('map.measurements.template'),
     collection: MEASUREMENTS,
     capabilities: ['select', 'move', 'duplicate', 'delete', 'inspect'],
     plane: 'annotations',
@@ -207,7 +209,10 @@ export function measurementKind(ctx: MeasureModule, view: TemplateView): EntityK
     // Contour et origine, à 6 px d'écran (`tolerance` : 4 px d'écran)
     hitTest: (e, p, tolerance) => touchesOutline(specOfEntity(e), p, tolerance * 1.5, ppu()),
     bounds: (e) => inflateRect(outlineBounds(specOfEntity(e), ppu()), 2),
-    name: (m) => MEASURE_SHAPES.find((s) => s.value === data(m).shape)?.label ?? 'Gabarit',
+    name: (m) =>
+      MEASURE_SHAPES.some((s) => s.value === data(m).shape)
+        ? measureShapeLabel(data(m).shape)
+        : translate('map.measurements.template'),
     can: authorOrGm('createdBy'),
     render: (e, rc) => view.mount(e, rc),
     update: (e) => view.draw(e),

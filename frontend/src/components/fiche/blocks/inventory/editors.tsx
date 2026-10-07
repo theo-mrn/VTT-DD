@@ -6,6 +6,7 @@
  * vérifiée en direct, liste des bonus propres (leur saisie : bonus-editor). Tout vient de la
  * sorte et du système.
  */
+import { useTranslations } from 'next-intl';
 import type { Sorte } from '@vtt/rules';
 import { Trash2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -133,6 +134,7 @@ export function FormulaField({
   /** Boutons à droite du champ (Enregistrer, Annuler…). */
   actions?: ReactNode;
 }>) {
+  const t = useTranslations();
   const erreur = verif && !verif.ok ? verif.erreurs.join(' ; ') : null;
   const champNombre = sorte.champs.find((c) => c.type === 'nombre')?.id;
   return (
@@ -175,15 +177,15 @@ export function FormulaField({
         )}
         {!erreur && verif?.ok && (
           <p className="text-muted-foreground">
-            Pour ce personnage : <span className="font-mono text-foreground">{verif.apercu}</span>
+            {t('sheet.formula.forCharacter')}{' '}
+            <span className="font-mono text-foreground">{verif.apercu}</span>
           </p>
         )}
       </div>
       <p id={`${id}-regles`} className="text-[11px] leading-relaxed text-subtle">
-        {des ? 'Dés : 2d6, 4d6k3 (garder les 3 meilleurs). ' : ''}
-        Clés nues comme au lanceur : {cle} ajoute ce que {cle} apporte à un jet, @{cle} sa valeur
-        brute. Opérateurs + − * /, parenthèses, si(condition, alors, sinon).
-        {champNombre ? ` Champs de l’objet : source.${champNombre}.` : ''}
+        {des ? `${t('sheet.formula.diceHelp')} ` : ''}
+        {t('sheet.formula.help', { key: cle })}
+        {champNombre ? ` ${t('sheet.formula.itemFields', { field: champNombre })}` : ''}
       </p>
     </div>
   );
@@ -199,6 +201,7 @@ export function BonusPropresListe({
   onBasculer?: (index: number) => void;
   onRetirer?: (index: number) => void;
 }>) {
+  const t = useTranslations();
   if (!bonus.length) return null;
   return (
     <ul className="divide-y divide-border rounded-xl border border-border">
@@ -213,7 +216,11 @@ export function BonusPropresListe({
           {onBasculer && (
             <Switch
               checked={b.actif}
-              aria-label={b.actif ? `Désactiver ${b.texte}` : `Activer ${b.texte}`}
+              aria-label={
+                b.actif
+                  ? t('sheet.inventory.disable', { name: b.texte })
+                  : t('sheet.inventory.enable', { name: b.texte })
+              }
               onCheckedChange={() => onBasculer(b.index)}
             />
           )}

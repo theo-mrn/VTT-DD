@@ -1,6 +1,7 @@
 'use client';
 
 import { Globe, KeyRound } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
@@ -45,6 +46,7 @@ export function DialogueRejoindre({
   codeInitial?: string;
   ongletInitial?: Onglet;
 }>) {
+  const t = useTranslations('campaigns.join');
   const router = useRouter();
   const [code, setCode] = useState(codeInitial.toUpperCase().slice(0, LONGUEUR_CODE));
   const [onglet, setOnglet] = useState<Onglet>(codeInitial ? 'code' : ongletInitial);
@@ -55,7 +57,7 @@ export function DialogueRejoindre({
     if (valeur.length !== LONGUEUR_CODE || rejoindre.isPending) return;
     try {
       const c = await rejoindre.mutateAsync(valeur);
-      toast.success(`Bienvenue dans « ${c.name} »`);
+      toast.success(t('welcome', { name: c.name }));
       entrer(c.id);
     } catch {
       // L'erreur est affichée sous le code
@@ -87,11 +89,9 @@ export function DialogueRejoindre({
           <span className="mb-2 flex size-12 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary shadow-glow">
             {onglet === 'code' ? <KeyRound className="size-5" /> : <Globe className="size-5" />}
           </span>
-          <DialogTitle>Rejoindre une campagne</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
-            {onglet === 'code'
-              ? `Saisissez le code à ${LONGUEUR_CODE} caractères que votre maître du jeu vous a transmis.`
-              : 'Les campagnes publiques accueillent tous les joueurs, sans code.'}
+            {onglet === 'code' ? t('codeLead', { length: LONGUEUR_CODE }) : t('openLead')}
           </DialogDescription>
         </DialogHeader>
         <InvitationsRecues onRejointe={(c) => entrer(c.id)} />
@@ -99,11 +99,11 @@ export function DialogueRejoindre({
           <TabsList className="mx-auto w-full sm:w-auto">
             <TabsTrigger value="code" className="flex-1">
               <KeyRound />
-              Avec un code
+              {t('withCode')}
             </TabsTrigger>
             <TabsTrigger value="ouvertes" className="flex-1">
               <Globe />
-              Campagnes ouvertes
+              {t('open')}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="ouvertes" className="mt-5">
@@ -125,7 +125,7 @@ export function DialogueRejoindre({
                   rejoindre.reset();
                   if (c.length === LONGUEUR_CODE) void valider(c);
                 }}
-                aria-label="Code de la campagne"
+                aria-label={t('codeLabel')}
               >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
@@ -149,7 +149,7 @@ export function DialogueRejoindre({
                 disabled={code.length !== LONGUEUR_CODE}
                 loading={rejoindre.isPending}
               >
-                Rejoindre la table
+                {t('submit')}
               </Button>
             </form>
           </TabsContent>

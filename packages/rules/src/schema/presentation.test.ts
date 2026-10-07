@@ -58,6 +58,17 @@ describe('présentation', () => {
     expect(avec([{ famille: 'X', fichier: 'police.exe' }]).ok).toBe(false);
   });
 
+  it('carte : l’attribut du déplacement, connu d’un type d’entité', () => {
+    const avec = (attribut: string) =>
+      verifierPresentation({ ...valide, carte: { deplacement: { attribut } } }, systeme);
+    const ok = avec('agilite');
+    expect(ok.ok && ok.presentation.carte?.deplacement?.attribut).toBe('agilite');
+    const ko = avec('vitesse');
+    expect(!ko.ok && ko.erreurs).toEqual([
+      { chemin: 'carte/deplacement', message: 'Attribut inconnu : vitesse' },
+    ]);
+  });
+
   it('refuse les références inconnues', () => {
     const r = verifierPresentation(
       {

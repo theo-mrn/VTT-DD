@@ -5,6 +5,7 @@
  * combat en cours ; hors combat, la fenêtre des réglages du prochain combat (mode des tours et
  * réglages, envoyés au démarrage s'ils s'écartent du défaut).
  */
+import { useTranslations } from 'next-intl';
 import type { CombatMode, CombatSettings } from '@vtt/contracts';
 import {
   Dialog,
@@ -18,25 +19,12 @@ import { SelectField } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { DotsBackdrop } from '../backdrop';
 
-export const MODE_LABELS: Record<CombatMode, string> = {
-  individual: 'Individuel',
-  slots: 'Créneaux par camp',
-};
-
-export const SETTING_LABELS: Record<keyof CombatSettings, { name: string; hint: string }> = {
-  playersActOutsideTurn: {
-    name: 'Attaques hors du tour',
-    hint: 'Un joueur peut attaquer hors du tour de son personnage (réaction), marqué « hors tour ».',
-  },
-  gmRollsHidden: {
-    name: 'Jets du MJ cachés',
-    hint: 'Vos attaques sont cachées aux joueurs par défaut.',
-  },
-  physicalDice: {
-    name: 'Dés 3D',
-    hint: 'Les dés roulent à l’écran ; coupé : le serveur tire tous les dés du combat.',
-  },
-};
+/** Réglages du combat ; nom et explication : `combat.settings.<réglage>.name|hint`. */
+export const SETTINGS: readonly (keyof CombatSettings)[] = [
+  'playersActOutsideTurn',
+  'gmRollsHidden',
+  'physicalDice',
+];
 
 /** Interrupteurs des réglages du combat (démarrage, ou en cours par le menu). */
 export function SettingsFields({
@@ -48,15 +36,16 @@ export function SettingsFields({
   onChange(value: CombatSettings): void;
   disabled?: boolean;
 }>) {
+  const t = useTranslations();
   return (
     <>
-      {(Object.keys(SETTING_LABELS) as (keyof CombatSettings)[]).map((k) => (
+      {SETTINGS.map((k) => (
         <div key={k} className="flex items-start justify-between gap-4">
           <span className="min-w-0">
             <Label htmlFor={`setting-${k}`} className="text-[13px]">
-              {SETTING_LABELS[k].name}
+              {t(`combat.settings.${k}.name`)}
             </Label>
-            <span className="block text-[11px] text-subtle">{SETTING_LABELS[k].hint}</span>
+            <span className="block text-[11px] text-subtle">{t(`combat.settings.${k}.hint`)}</span>
           </span>
           <Switch
             id={`setting-${k}`}
@@ -90,20 +79,19 @@ export function StartSettingsDialog({
   settings: CombatSettings;
   onSettings(settings: CombatSettings): void;
 }>) {
+  const t = useTranslations();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="isolate sm:max-w-md">
         <DotsBackdrop />
         <DialogHeader>
-          <DialogTitle>Réglages du prochain combat</DialogTitle>
-          <DialogDescription>
-            Envoyés au démarrage ; modifiables ensuite pendant le combat.
-          </DialogDescription>
+          <DialogTitle>{t('combat.start.title')}</DialogTitle>
+          <DialogDescription>{t('combat.start.lead')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="start-mode" className="text-[13px]">
-              Tours
+              {t('combat.start.turns')}
             </Label>
             <SelectField
               id="start-mode"
@@ -113,10 +101,14 @@ export function StartSettingsDialog({
               options={[
                 {
                   valeur: '',
-                  nom: `Selon le système${systemMode ? ` (${MODE_LABELS[systemMode].toLowerCase()})` : ''}`,
+                  nom: systemMode
+                    ? t('combat.start.systemModeOf', {
+                        mode: t(`combat.modes.${systemMode}`).toLowerCase(),
+                      })
+                    : t('combat.start.systemMode'),
                 },
-                { valeur: 'individual', nom: MODE_LABELS.individual },
-                { valeur: 'slots', nom: MODE_LABELS.slots },
+                { valeur: 'individual', nom: t('combat.modes.individual') },
+                { valeur: 'slots', nom: t('combat.modes.slots') },
               ]}
             />
           </div>

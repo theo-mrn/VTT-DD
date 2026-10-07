@@ -6,6 +6,7 @@
  * choisie dans le panneau ; le résultat s'annonce d'une notification. Panneau ouvert, ses
  * propres raccourcis passent devant (formule en cours, résultat affiché dans le panneau).
  */
+import { translate } from '@/i18n/runtime';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useFichePersonnage } from '@/components/des/contexte-jet';
@@ -53,7 +54,7 @@ export function TableDiceShortcuts({
     if (enCours.current) return;
     const verif = verifierFormule(formule, fiche.fiche);
     if (!verif.ok) {
-      toast.error('Formule invalide', { description: verif.message });
+      toast.error(translate('dice.launcher.invalid'), { description: verif.message });
       return;
     }
     enCours.current = true;
@@ -68,7 +69,7 @@ export function TableDiceShortcuts({
       });
       annoncerJet(jet);
     } catch (err) {
-      toast.error('Le jet n’a pas pu être lancé', {
+      toast.error(translate('dice.launcher.rollFailed'), {
         description:
           err instanceof ApiError || !(err instanceof Error) ? messageErreur(err) : err.message,
       });

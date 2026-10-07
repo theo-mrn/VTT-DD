@@ -2,19 +2,22 @@
 
 import { motion } from 'framer-motion';
 import { EyeOff, History, RotateCcw } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import type { Jet } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 import { FOCUS, TACTILE } from './tactile';
 
 /** Phrase lue par les lecteurs d'écran à chaque nouveau jet. */
 function annonce(jet: Jet): string {
-  let crit = '';
-  if (jet.critical === 'success') crit = ', réussite critique';
-  else if (jet.critical === 'failure') crit = ', échec critique';
-  const resultat = jet.hidden
-    ? 'résultat caché, visible par le MJ'
-    : (jet.symbolResult ?? String(jet.total));
-  return `${jet.label ? `${jet.label} : ` : ''}${resultat}${crit} (${jet.formula})`;
+  return translate('dice.result.announce', {
+    label: jet.label ? translate('dice.result.announceLabel', { label: jet.label }) : '',
+    result: jet.hidden
+      ? translate('dice.result.announceHidden')
+      : (jet.symbolResult ?? String(jet.total)),
+    critical: jet.critical ?? 'none',
+    formula: jet.formula,
+  });
 }
 
 /** Détail du service (« 1d20+3 = [17]+3 = 20 ») sans la formule ni le total : « [17]+3 ». */
@@ -25,11 +28,12 @@ export function detailJet(jet: Jet): string {
 
 /** Total du jet (ou son résultat à symboles), coloré s'il est critique ; masqué s'il est caché. */
 function TotalAffiche({ jet, anime }: Readonly<{ jet: Jet; anime: boolean }>) {
+  const t = useTranslations('dice.result');
   if (jet.hidden || jet.total === null)
     return (
       <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-subtle">
         <EyeOff className="size-3.5" aria-hidden />
-        Résultat masqué
+        {t('hidden')}
       </span>
     );
   return (
@@ -67,6 +71,7 @@ export function LigneResultat({
   enCours: boolean;
   onRelancer: () => void;
 }>) {
+  const t = useTranslations('dice.result');
   return (
     <div className="flex min-h-7 items-center gap-2 px-1">
       <p aria-live="polite" aria-atomic className="sr-only">
@@ -75,12 +80,12 @@ export function LigneResultat({
       {(enCours || jet) && (
         <span className="flex shrink-0 items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-subtle">
           <History className="size-3" aria-hidden />
-          Dernier jet
+          {t('lastRoll')}
         </span>
       )}
       {enCours && (
         <p className="animate-pulse font-mono text-xs text-subtle motion-reduce:animate-none">
-          Lancement…
+          {t('rolling')}
         </p>
       )}
       {!enCours && jet && (
@@ -101,16 +106,16 @@ export function LigneResultat({
                   jet.critical === 'success' ? 'text-primary-strong' : 'text-destructive',
                 )}
               >
-                {jet.critical === 'success' ? 'Critique' : 'Échec critique'}
+                {jet.critical === 'success' ? t('critical') : t('fumble')}
               </span>
             )}
           </div>
           <button
             type="button"
             onClick={onRelancer}
-            aria-label="Relancer ce jet"
+            aria-label={t('reroll')}
             aria-keyshortcuts="R"
-            title="Relancer (R)"
+            title={t('rerollKey')}
             className={cn(
               'flex size-7 shrink-0 items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-foreground',
               FOCUS,

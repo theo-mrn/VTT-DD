@@ -5,6 +5,7 @@
  * dans son menu. Panneau flottant à droite ; ses sections viennent des modules (fiche d'un PNJ,
  * propriétés d'un objet…), chacune déclarant la sélection à laquelle elle s'applique.
  */
+import { translate } from '@/i18n/runtime';
 import { SlidersHorizontal } from 'lucide-react';
 import { useMemo } from 'react';
 import {
@@ -33,7 +34,7 @@ export function MapInspector() {
   const single = entities.length === 1 ? entities[0]! : null;
   const title = single
     ? (single.kind.name?.(single.data, engine.kindContext()) ?? single.kind.label)
-    : `${entities.length} éléments`;
+    : translate('map.ui.items', { count: entities.length });
   const subtitle = single
     ? single.kind.label
     : [...new Set(entities.map((e) => e.kind.label))].join(', ');
@@ -41,11 +42,11 @@ export function MapInspector() {
   return (
     <MapPanel
       id="inspector"
-      label={`Inspecteur : ${title}`}
+      label={translate('map.ui.inspectorOf', { title })}
       icon={SlidersHorizontal}
       title={title}
       subtitle={subtitle}
-      closeLabel="Fermer l’inspecteur"
+      closeLabel={translate('map.ui.closeInspector')}
       onClose={() => engine.closeInspector()}
       className="w-80"
     >
@@ -60,7 +61,7 @@ export function MapInspector() {
             </section>
           ))
         ) : (
-          <p className="text-sm text-muted-foreground">Rien à régler ici.</p>
+          <p className="text-sm text-muted-foreground">{translate('map.ui.nothing')}</p>
         )}
       </div>
     </MapPanel>

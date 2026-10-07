@@ -5,6 +5,7 @@
  * brouillard, lumières) : bouton d'option, séparateur, ligne de réglage, curseur avec sa valeur
  * (saisissable au clic), nuancier des couleurs de données (murs, lumières).
  */
+import { translate } from '@/i18n/runtime';
 import { Check, Pipette } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -163,7 +164,7 @@ export function Swatches({
   options,
   onChange,
   allowDefault,
-  label = 'Couleur',
+  label = translate('map.grid.color'),
 }: Readonly<{
   value: string | null;
   options: readonly { value: string; label: string }[];
@@ -193,12 +194,12 @@ export function Swatches({
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1.5">
       {allowDefault && (
-        <Info texte="Couleur par défaut">
+        <Info texte={translate('map.obstacles.defaultColor')}>
           <button
             type="button"
             role="radio"
             aria-checked={value === null}
-            aria-label="Couleur par défaut"
+            aria-label={translate('map.obstacles.defaultColor')}
             onClick={() => onChange(null)}
             className={cn(swatch, 'bg-foreground', value === null && ring)}
           >
@@ -224,7 +225,7 @@ export function Swatches({
           </Info>
         );
       })}
-      <Info texte="Couleur personnalisée">
+      <Info texte={translate('map.obstacles.customColor')}>
         <label
           htmlFor={id}
           className={cn(
@@ -241,7 +242,7 @@ export function Swatches({
             type="color"
             defaultValue={custom && value?.startsWith('#') ? value.slice(0, 7) : undefined}
             className="absolute inset-0 cursor-pointer opacity-0"
-            aria-label="Couleur personnalisée"
+            aria-label={translate('map.obstacles.customColor')}
           />
         </label>
       </Info>

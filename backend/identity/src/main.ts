@@ -37,8 +37,8 @@ await start(app, config);
     run: async () => {
       await withAdvisoryLock(retention.pool, 'identity-retention', async () => {
         const purged = await purgeExpired(retention.db);
-        if (purged.sessions || purged.emailTokens)
-          app.log.info({ purged }, 'sessions et jetons expirés supprimés');
+        if (purged.sessions || purged.emailTokens || purged.progressionDays)
+          app.log.info({ purged }, 'sessions, jetons et détail de progression expirés supprimés');
         const accounts = await runAccountLifecycle({
           db: retention.db,
           mailer,

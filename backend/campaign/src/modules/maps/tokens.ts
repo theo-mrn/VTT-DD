@@ -65,6 +65,7 @@ import {
   type Audience,
 } from './vision.js';
 import type { MemberVision } from './vision-rules.js';
+import { queueExploration } from './exploration-queue.js';
 
 export type TokenRow = typeof mapTokens.$inferSelect;
 
@@ -182,6 +183,9 @@ export async function tokenEvent(
     payload: tokenApi(t),
     ...eventTarget(after),
   });
+  // Un observateur peut arriver (personnage, allié) : ce qu'il voit est exploré
+  // (docs/exploration.md § 4)
+  if (type === 'token.created') await queueExploration(tx, map);
   const lost = before ? lostSight(before, after) : [];
   if (lost.length)
     await mapEvent(tx, ctx, v, {

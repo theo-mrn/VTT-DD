@@ -7,6 +7,7 @@
  * de la campagne, pas seulement ceux du participant qui agit (l'ancienne app perdait les
  * autres).
  */
+import { useTranslations } from 'next-intl';
 import type { CombatState } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { CheckCheck, EyeOff, ScrollText, X } from 'lucide-react';
@@ -59,8 +60,9 @@ export function ReportsSection({
   onReview(): void;
   onOpenCharacter(characterId: string): void;
 }>) {
+  const tr = useTranslations();
   const { progress } = data;
-  const nameOf = (id: string) => cast.get(id)?.name ?? 'Personnage';
+  const nameOf = (id: string) => cast.get(id)?.name ?? tr('map.common.character');
   const characters = [
     ...new Set([...data.characters, ...(view.characterId ? [view.characterId] : [])]),
   ];
@@ -69,7 +71,7 @@ export function ReportsSection({
 
   return (
     <section
-      aria-label="Rapports d’attaque"
+      aria-label={tr('combat.reports.title')}
       className={cn(
         'flex flex-col rounded-2xl border border-border bg-card/60 shadow-surface',
         fill && 'min-h-0 flex-1',
@@ -79,15 +81,11 @@ export function ReportsSection({
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="flex items-center gap-2 text-sm font-semibold">
             <ScrollText className="size-4 text-primary" aria-hidden />
-            Rapports d’attaque
+            {tr('combat.reports.title')}
           </h3>
           <Progression progress={progress} />
           <span className="flex-1" />
-          <Info
-            texte={
-              <span className="flex items-center gap-2">Revue groupée, valeurs modifiables</span>
-            }
-          >
+          <Info texte={<span className="flex items-center gap-2">{tr('combat.list.bulk')}</span>}>
             <Button size="sm" onClick={onReview} disabled={!data.reviewCount}>
               <CheckCheck />
               Tout appliquer ({data.reviewCount})
@@ -96,13 +94,13 @@ export function ReportsSection({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Chips
-            label="Rapports"
+            label={tr('combat.list.reports')}
             value={view.filter}
             onChange={(v) => onView({ ...view, filter: v as ReportFilter })}
             options={[
-              { value: 'pending', label: 'En attente', count: data.waiting },
-              { value: 'decided', label: 'Décidés' },
-              { value: 'all', label: 'Tous' },
+              { value: 'pending', label: tr('combat.turn.waiting'), count: data.waiting },
+              { value: 'decided', label: tr('combat.list.decided') },
+              { value: 'all', label: tr('audio.add.where.all') },
             ]}
           />
           {combat && (
@@ -110,11 +108,11 @@ export function ReportsSection({
               value={view.scope}
               onValueChange={(v) => onView({ ...view, scope: v as ReportScope })}
               className="h-8 w-36 text-xs"
-              aria-label="Combat"
+              aria-label={tr('combat.bar.combat')}
               options={[
-                { valeur: 'all', nom: 'Tout' },
-                { valeur: 'combat', nom: 'Ce combat' },
-                { valeur: 'outside', nom: 'Hors combat' },
+                { valeur: 'all', nom: tr('map.objects.library.all') },
+                { valeur: 'combat', nom: tr('combat.list.thisCombat') },
+                { valeur: 'outside', nom: tr('combat.list.outsideCombat') },
               ]}
             />
           )}
@@ -142,7 +140,7 @@ export function ReportsSection({
           <Notice
             tone="error"
             icon={ScrollText}
-            title="Rapports indisponibles"
+            title={tr('combat.list.unavailable')}
             description={combatErrorMessage(data.error)}
           />
         )}
@@ -150,7 +148,7 @@ export function ReportsSection({
         {etat === 'liste' && (
           <ul
             className={cn('grid items-start gap-2.5', columns === 2 && 'grid-cols-2')}
-            aria-label="Cartes des rapports, une par cible"
+            aria-label={tr('combat.list.cards')}
           >
             <AnimatePresence initial={false}>
               {data.items.map((item, i) => (
@@ -211,17 +209,21 @@ function etatRapports(data: ReportsData): 'chargement' | 'erreur' | 'vide' | 'li
 
 /** « x/y appliqués », avec les non appliqués et ceux en attente en info-bulle. */
 function Progression({ progress }: Readonly<{ progress: ReportsData['progress'] }>) {
+  const tr = useTranslations();
   if (progress.total <= 0) return null;
   return (
     <Info
       texte={
         progress.skipped
-          ? `${nonAppliques(progress.skipped)}, ${progress.pending} en attente`
-          : `${progress.pending} en attente`
+          ? tr('combat.list.skippedPending', {
+              skipped: progress.skipped,
+              pending: progress.pending,
+            })
+          : tr('combat.list.pending', { count: progress.pending })
       }
     >
       <span className="cursor-help font-mono text-xs tabular-nums text-muted-foreground">
-        {progress.applied}/{progress.total} appliqué{progress.applied > 1 ? 's' : ''}
+        {tr('combat.list.progress', { applied: progress.applied, total: progress.total })}
       </span>
     </Info>
   );
@@ -239,6 +241,7 @@ function FiltrePersonnage({
   nameOf(id: string): string;
   onCharacter(characterId: string | null): void;
 }>) {
+  const tr = useTranslations();
   if (!(characters.length > 1 || characterId)) return null;
   return (
     <span className="flex items-center gap-1">
@@ -246,9 +249,9 @@ function FiltrePersonnage({
         value={characterId ?? ''}
         onValueChange={(v) => onCharacter(v || null)}
         className="h-8 w-44 text-xs"
-        aria-label="Personnage"
+        aria-label={tr('map.common.character')}
         options={[
-          { valeur: '', nom: 'Tous les personnages' },
+          { valeur: '', nom: tr('combat.list.allCharacters') },
           ...characters.map((id) => ({ valeur: id, nom: nameOf(id) })),
         ]}
       />
@@ -257,7 +260,7 @@ function FiltrePersonnage({
           size="icon-xs"
           variant="ghost"
           onClick={() => onCharacter(null)}
-          aria-label="Retirer le filtre du personnage"
+          aria-label={tr('combat.list.clearCharacter')}
         >
           <X />
         </Button>
@@ -271,22 +274,16 @@ function AucunRapport({
   view,
   nameOf,
 }: Readonly<{ view: ReportView; nameOf(id: string): string }>) {
+  const tr = useTranslations();
   return (
     <Notice
       icon={ScrollText}
-      title={view.filter === 'pending' ? 'Aucune attaque enregistrée' : 'Aucun rapport'}
+      title={view.filter === 'pending' ? tr('combat.list.noAttack') : tr('combat.list.noReport')}
       description={
         view.characterId
-          ? `Rien pour ${nameOf(view.characterId)} avec ces filtres.`
-          : VIDE_PAR_FILTRE(view.filter)
+          ? tr('combat.list.nothingFor', { name: nameOf(view.characterId) })
+          : tr(view.filter === 'pending' ? 'combat.list.emptyPending' : 'combat.list.emptyDecided')
       }
     />
   );
 }
-
-const nonAppliques = (n: number) => (n > 1 ? `${n} non appliqués` : `${n} non appliqué`);
-
-const VIDE_PAR_FILTRE = (filter: string) =>
-  filter === 'pending'
-    ? 'Chaque attaque résolue arrive ici : rien n’est appliqué sans votre décision.'
-    : 'Les attaques décidées apparaîtront ici, avec ce qui a été appliqué.';

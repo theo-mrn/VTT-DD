@@ -210,6 +210,7 @@ export async function jouerAction(
     const { systeme, ficheActeur, ficheCible } = fichesAction(c, acteur, cible);
     const r = resoudreAction(systeme, {
       action,
+      acteurId: acteur.id,
       acteur: ficheActeur,
       ...(ficheCible ? { cible: ficheCible } : {}),
       memeEntite,

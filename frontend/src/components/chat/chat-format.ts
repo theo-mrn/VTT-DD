@@ -2,6 +2,7 @@
  * Mise en forme de la discussion, sans React : texte enrichi (mentions `@Nom`, liens),
  * fil groupé par jour et par auteur, libellés des destinataires, saisie des mentions.
  */
+import { activeLocale, compareText, formatter, translate } from '@/i18n/runtime';
 import type { ChatMessage, ChatRecipients } from '@/lib/campaign-chat';
 import { compareCodeUnits } from '@vtt/contracts';
 
@@ -113,16 +114,11 @@ export function mentionCandidates(
       return { p, rank };
     })
     .filter((x) => x.rank >= 0)
-    .sort((a, b) => a.rank - b.rank || a.p.name.localeCompare(b.p.name, 'fr'));
+    .sort((a, b) => a.rank - b.rank || compareText(a.p.name, b.p.name));
   return scored.slice(0, 6).map((x) => x.p);
 }
 
 // ─── Destinataires ───────────────────────────────────────────────────────────
-
-function listeFr(items: string[]): string {
-  if (items.length <= 1) return items.join('');
-  return `${items.slice(0, -1).join(', ')} et ${items.at(-1)}`;
-}
 
 /** « Chuchoté à vous et Bob », « Chuchoté au MJ »… du point de vue de `me`. */
 export function audienceLabel(
@@ -130,13 +126,16 @@ export function audienceLabel(
   me: string,
   nameOf: (id: string, fallback: string | null) => string,
 ): string {
-  const names = recipients.users.map((u) => (u.id === me ? 'vous' : nameOf(u.id, u.name)));
-  // « vous » en tête
-  names.sort((a, b) => Number(b === 'vous') - Number(a === 'vous'));
-  if (recipients.gm) names.push('MJ');
-  if (names.length === 1 && names[0] === 'MJ') return 'Chuchoté au MJ';
-  const texte = listeFr(names.map((n) => (n === 'MJ' ? 'le MJ' : n)));
-  return `Chuchoté à ${texte}`;
+  const others = recipients.users.filter((u) => u.id !== me).map((u) => nameOf(u.id, u.name));
+  if (!others.length && recipients.users.length === 0 && recipients.gm)
+    return translate('chat.whisperedToGm');
+  // « vous » en tête, le MJ à la fin
+  const names = [
+    ...(recipients.users.some((u) => u.id === me) ? [translate('chat.you')] : []),
+    ...others,
+    ...(recipients.gm ? [translate('chat.theGm')] : []),
+  ];
+  return translate('chat.whisperedTo', { names: formatter().list(names, 'and') });
 }
 
 /** Clé d'auditoire : deux messages ne se groupent que s'ils ont les mêmes destinataires. */
@@ -151,18 +150,25 @@ export function audienceKey(r: ChatRecipients | null): string {
 
 // ─── Dates ───────────────────────────────────────────────────────────────────
 
-const HEURE = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
-const JOUR = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-const JOUR_ANNEE = new Intl.DateTimeFormat('fr-FR', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-const COMPLET = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'full', timeStyle: 'short' });
+/** Formats de date dans la langue active, créés une fois par langue. */
+const cache = new Map<string, Intl.DateTimeFormat>();
+function format(name: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${activeLocale()}:${name}`;
+  let f = cache.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat(activeLocale(), options);
+    cache.set(key, f);
+  }
+  return f;
+}
+const HEURE = () => format('time', { hour: '2-digit', minute: '2-digit' });
+const JOUR = () => format('day', { weekday: 'long', day: 'numeric', month: 'long' });
+const JOUR_ANNEE = () =>
+  format('dayYear', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const COMPLET = () => format('full', { dateStyle: 'full', timeStyle: 'short' });
 
-export const formatTime = (d: Date) => HEURE.format(d);
-export const formatFull = (d: Date) => COMPLET.format(d);
+export const formatTime = (d: Date) => HEURE().format(d);
+export const formatFull = (d: Date) => COMPLET().format(d);
 
 const pad = (n: number) => String(n).padStart(2, '0');
 export const dayKey = (d: Date) =>
@@ -171,9 +177,9 @@ export const dayKey = (d: Date) =>
 export function dayLabel(d: Date, now = new Date()): string {
   const hier = new Date(now);
   hier.setDate(hier.getDate() - 1);
-  if (dayKey(d) === dayKey(now)) return 'Aujourd’hui';
-  if (dayKey(d) === dayKey(hier)) return 'Hier';
-  const texte = (d.getFullYear() === now.getFullYear() ? JOUR : JOUR_ANNEE).format(d);
+  if (dayKey(d) === dayKey(now)) return translate('chat.today');
+  if (dayKey(d) === dayKey(hier)) return translate('chat.yesterday');
+  const texte = (d.getFullYear() === now.getFullYear() ? JOUR : JOUR_ANNEE)().format(d);
   return texte.charAt(0).toUpperCase() + texte.slice(1);
 }
 

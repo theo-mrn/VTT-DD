@@ -7,6 +7,7 @@
  *   optimiste, textes et dessins confondus).
  * - Créer un dessin, un texte ; modifier, supprimer ; gommer ; effacer mes dessins ou tout (MJ).
  */
+import { translate } from '@/i18n/runtime';
 import type { Point } from '@/lib/map/engine/geometry';
 import type { LayerLike } from '@/lib/map/engine/layers';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -115,7 +116,7 @@ export function drawingDraft(
 export function createDrawing(rt: DrawingsRuntime, draft: DrawingData): Promise<boolean> {
   return rt.engine.execute(
     createCommand({
-      label: 'Dessiner',
+      label: translate('map.drawings.draw'),
       collection: DRAWINGS_COLLECTION,
       persistence: rt.drawings,
       items: [draft],
@@ -135,7 +136,7 @@ function removeCommand<D extends MapDto>(
 
 /** Gomme : les dessins touchés disparaissent en une commande. */
 export function eraseDrawings(rt: DrawingsRuntime, items: readonly DrawingData[]) {
-  const cmd = removeCommand('Gommer', DRAWINGS_COLLECTION, rt.drawings, items);
+  const cmd = removeCommand(translate('map.drawings.rub'), DRAWINGS_COLLECTION, rt.drawings, items);
   return cmd ? rt.engine.execute(cmd) : null;
 }
 
@@ -157,15 +158,15 @@ export async function clearDrawings(rt: DrawingsRuntime, scope: 'mine' | 'all'):
   if (!items.length) return false;
   if (scope === 'all') {
     const ok = await engine.confirm({
-      title: 'Tout effacer ?',
-      message: `Les ${items.length} dessins de la carte disparaissent pour toute la table, ceux des joueurs compris. ⌘Z les fait revenir.`,
-      confirmLabel: 'Tout effacer',
+      title: translate('map.obstacles.clearAllTitle'),
+      message: translate('map.drawings.eraseAllMessage', { count: items.length }),
+      confirmLabel: translate('map.obstacles.clearAll'),
       danger: true,
     });
     if (!ok) return false;
   }
   const cmd = removeCommand(
-    scope === 'all' ? 'Tout effacer' : 'Effacer mes dessins',
+    scope === 'all' ? translate('map.obstacles.clearAll') : translate('map.drawings.eraseMine'),
     DRAWINGS_COLLECTION,
     rt.drawings,
     items,
@@ -195,7 +196,7 @@ export function noteDraft(engine: MapEngine, fields: NoteFields, place: Placemen
 export function createNote(rt: DrawingsRuntime, draft: NoteData): Promise<boolean> {
   return rt.engine.execute(
     createCommand({
-      label: 'Écrire',
+      label: translate('map.drawings.write'),
       collection: NOTES_COLLECTION,
       persistence: rt.notes,
       items: [draft],
@@ -249,7 +250,7 @@ export function moveToAnnotations(engine: MapEngine, entities: readonly MapEntit
   const sorted = [...targets].sort((a, b) => engine.compareStack(a, b));
   return engine.execute(
     arrangeCommand({
-      label: 'Passer en annotation',
+      label: translate('map.drawings.toAnnotation'),
       send: engine.backend.arrange,
       changes: sorted.map((e, i) => ({
         collection: e.kind.collection,

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
 import { ListSkeleton, Notice } from '@/components/resources/parts';
 import { ResourcesBrowser } from '@/components/resources/resources-browser';
@@ -16,6 +17,7 @@ import { useTable } from '../contexte';
  * modifiable par l'utilisateur.
  */
 export function OngletResources() {
+  const t = useTranslations('table.resources');
   const { campagne, gm, herosId } = useTable();
   const systemes = useSystemes();
   const systeme = useCampaignSystem(campagne.system, campagne.id);
@@ -29,11 +31,11 @@ export function OngletResources() {
         <Notice
           tone="error"
           icon={AlertTriangle}
-          title="Système indisponible"
-          description="Les règles de la campagne n’ont pas pu être chargées."
+          title={t('unavailable')}
+          description={t('unavailableText')}
           action={
             <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
-              Recharger
+              {t('reload')}
             </Button>
           }
         />

@@ -1,3 +1,4 @@
+// i18n-ignore-file : diagnostics du moteur (copiés pour le support), volontairement en français
 /**
  * Moteur audio unique du front (docs/audio.md § 3.8, 4.5) : un seul
  * AudioContext, créé à la première demande, singleton hors React. Il porte

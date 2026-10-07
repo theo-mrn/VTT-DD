@@ -1,6 +1,7 @@
 'use client';
 
 import { optionsResolues, type OptionRegle } from '@vtt/rules';
+import { useTranslations } from 'next-intl';
 import { Panneau } from '@/components/commun/page';
 import { Interrupteur } from '@/components/compte/elements';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ export function ReglagesRegles({
   onChange: (options: Record<string, boolean>) => void;
   loading?: boolean;
 }>) {
+  const t = useTranslations('campaigns.settings');
   const { systeme, declarees, valeurs } = useReglesOptionnelles(systemId, options);
   if (systeme.data && !declarees.length) return null;
 
@@ -45,21 +47,20 @@ export function ReglagesRegles({
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label>Règles optionnelles</Label>
-        <p className="text-xs text-subtle">
-          Règles du système que la table applique ou non. Éteindre une règle ne supprime rien : les
-          valeurs saisies restent, sans effet.
-        </p>
+        <Label>{t('rules.title')}</Label>
+        <p className="text-xs text-subtle">{t('rules.lead')}</p>
       </div>
       {chargement && (
-        <div className="space-y-2" aria-label="Chargement des règles optionnelles">
+        <div className="space-y-2" aria-label={t('rules.loading')}>
           {Array.from({ length: 2 }, (_, i) => (
             <Skeleton key={i} className="h-9 w-full rounded-lg" />
           ))}
         </div>
       )}
       {!chargement && systeme.error && (
-        <p className="text-xs text-destructive">Système indisponible : {systeme.error.message}</p>
+        <p className="text-xs text-destructive">
+          {t('launcher.systemUnavailable', { error: systeme.error.message })}
+        </p>
       )}
       {!chargement && !systeme.error && (
         <div className="space-y-3">
@@ -89,6 +90,7 @@ export function PanneauReglesOptionnelles({
   campaignId: string;
   systemId: string;
 }>) {
+  const t = useTranslations('campaigns.settings.rules');
   const reglages = useCampaignSettings(campaignId);
   const { systeme, declarees, valeurs } = useReglesOptionnelles(
     systemId,
@@ -97,7 +99,7 @@ export function PanneauReglesOptionnelles({
   if (!declarees.length) return null;
 
   return (
-    <Panneau titre="Règles optionnelles" description="Choisies par le MJ pour cette table.">
+    <Panneau titre={t('title')} description={t('panelLead')}>
       {reglages.isPending || systeme.isPending ? (
         <Skeleton className="h-9 w-full rounded-lg" />
       ) : (
@@ -107,7 +109,7 @@ export function PanneauReglesOptionnelles({
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm text-foreground">{o.nom}</span>
                 <Badge ton={valeurs[o.id] ? 'primaire' : 'neutre'}>
-                  {valeurs[o.id] ? 'Appliquée' : 'Non appliquée'}
+                  {valeurs[o.id] ? t('applied') : t('notApplied')}
                 </Badge>
               </div>
               {o.description && <p className="text-xs text-subtle">{o.description}</p>}

@@ -7,6 +7,7 @@
  * par le serveur (ses dés, l'issue, les valeurs que le système lui montre), jamais une valeur
  * de la cible ; le MJ voit en plus les modifications proposées.
  */
+import { translate } from '@/i18n/runtime';
 import type { Attack, NumericRoll, RollBonus, SymbolRoll } from '@vtt/contracts';
 import {
   decisionLabel,
@@ -125,7 +126,10 @@ const valueDetail = (v: DisplayValue) => ({ label: v.name ?? v.key, value: text(
 /** Détail d'une modification : « −7 (10 avant réduction) ». */
 function modificationDetail(m: AttributeModification, attributeName: (key: string) => string) {
   const sign = m.operation === 'add' ? '+' : '−';
-  const raw = m.raw !== undefined && m.raw !== m.value ? ` (${m.raw} avant réduction)` : '';
+  const raw =
+    m.raw !== undefined && m.raw !== m.value
+      ? ` ${translate('combat.beforeReduction', { raw: String(m.raw) })}`
+      : '';
   return { label: attributeName(m.attribute), value: `${sign}${m.value}${raw}` };
 }
 

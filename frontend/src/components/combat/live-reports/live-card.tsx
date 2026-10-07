@@ -11,6 +11,8 @@
  * - `ProgressRow` : attaque en cours (défense, dés), avec Tirer et Abandonner ;
  * - `SettledRow` : confirmation d'une décision, avec Annuler.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { Attack, AttackTarget } from '@vtt/contracts';
 import { Battery, Check, CheckCheck, Dices, MoveRight, Pencil, Undo2, X } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
@@ -69,7 +71,7 @@ export function rowDecision(a: Attack): { applyLabel: string; skip: Scope; canSk
   const nothing = nothingToApply(a);
   return {
     applyLabel: costsOnly
-      ? 'Appliquer les coûts'
+      ? translate('combat.live.applyCosts')
       : decideLabel(nothing, a.targets.length === 1, decidable.length),
     skip: costsOnly ? { targets: [], actor: true } : { targets: decidable, actor: false },
     canSkip: costsOnly || (a.targets.length === 1 && !nothing),
@@ -105,6 +107,7 @@ function Versus({ attacker, versus }: Readonly<{ attacker: string; versus: strin
 // ─── Carte dépliée ───────────────────────────────────────────────────────────
 
 export function ReportCard({ attack: a, live }: Readonly<{ attack: Attack; live: Live }>) {
+  const tr = useTranslations();
   const { cast, systeme, busy } = live;
   const r = readReport(a, cast, systeme);
   const decidable = decidableTargets(a);
@@ -152,7 +155,10 @@ export function ReportCard({ attack: a, live }: Readonly<{ attack: Attack; live:
 
       {decidable.length > 0 && (
         <footer className="flex items-center gap-1.5 px-3 pb-3 pt-3">
-          <Info texte={nothing ? 'Classer (Entrée)' : 'Appliquer (Entrée)'} cote="bottom">
+          <Info
+            texte={nothing ? tr('combat.live.fileEnter') : tr('combat.live.applyEnter')}
+            cote="bottom"
+          >
             <Button
               size="sm"
               variant={nothing ? 'secondary' : 'default'}
@@ -166,20 +172,20 @@ export function ReportCard({ attack: a, live }: Readonly<{ attack: Attack; live:
               {decideLabel(nothing, single, decidable.length)}
             </Button>
           </Info>
-          <Info texte="Modifier" cote="bottom">
+          <Info texte={tr('common.actions.edit')} cote="bottom">
             <Button
               size="icon"
               variant="secondary"
               className={cn('rounded-xl', TOUCH)}
               onClick={() => live.setDeciding(a.id)}
               disabled={isBusy}
-              aria-label="Modifier avant d’appliquer"
+              aria-label={tr('combat.live.editBefore')}
             >
               <Pencil />
             </Button>
           </Info>
           {single && !nothing && (
-            <Info texte="Ne pas appliquer (Suppr)" cote="bottom">
+            <Info texte={tr('combat.live.skipDel')} cote="bottom">
               <Button
                 size="icon"
                 variant="ghost"
@@ -187,7 +193,7 @@ export function ReportCard({ attack: a, live }: Readonly<{ attack: Attack; live:
                 onClick={() => void live.decide(a, skip, false)}
                 loading={busy === scopeKey(a, skip, false)}
                 disabled={isBusy}
-                aria-label="Ne pas appliquer"
+                aria-label={tr('combat.live.skip')}
                 aria-keyshortcuts="Delete"
               >
                 <X />
@@ -210,13 +216,14 @@ function SingleTarget({
   target: AttackTarget;
   live: Live;
 }>) {
+  const tr = useTranslations();
   const { cast, systeme, presentation } = live;
   const [main] = targetAmounts(t);
   const type = cast.get(t.characterId)?.type;
   return (
     <div className="space-y-2.5 pl-4 pr-3 pt-3">
       <dl className="flex items-stretch">
-        <Figure label="Jet" className="flex-[1.4] pr-4">
+        <Figure label={tr('combat.stages.roll')} className="flex-[1.4] pr-4">
           <RollFigure attack={a} target={t} systeme={systeme} presentation={presentation} />
         </Figure>
         {main && (
@@ -248,10 +255,11 @@ function TargetRow({
   target: AttackTarget;
   live: Live;
 }>) {
+  const tr = useTranslations();
   const { cast, systeme, presentation, busy } = live;
   const r = readReport(a, cast, systeme);
   const m = cast.get(t.characterId);
-  const name = m?.name ?? 'Personnage';
+  const name = m?.name ?? tr('map.common.character');
   const decidable = isDecidable(t);
   const scope: Scope = { targets: [t], actor: false };
   const isBusy = busy?.startsWith(`${a.id}:`) === true;
@@ -282,7 +290,7 @@ function TargetRow({
       </span>
       {decidable ? (
         <span className="flex shrink-0">
-          <Info texte="Appliquer" cote="bottom">
+          <Info texte={tr('combat.live.apply')} cote="bottom">
             <Button
               size="icon-sm"
               variant="ghost"
@@ -290,12 +298,12 @@ function TargetRow({
               onClick={() => void live.decide(a, scope, true)}
               loading={busy === scopeKey(a, scope, true)}
               disabled={isBusy}
-              aria-label={`Appliquer à ${name}`}
+              aria-label={tr('combat.live.applyTo', { name })}
             >
               <Check />
             </Button>
           </Info>
-          <Info texte="Ne pas appliquer" cote="bottom">
+          <Info texte={tr('combat.live.skip')} cote="bottom">
             <Button
               size="icon-sm"
               variant="ghost"
@@ -303,7 +311,7 @@ function TargetRow({
               onClick={() => void live.decide(a, scope, false)}
               loading={busy === scopeKey(a, scope, false)}
               disabled={isBusy}
-              aria-label={`Ne pas appliquer à ${name}`}
+              aria-label={tr('combat.live.skipFor', { name })}
             >
               <X />
             </Button>
@@ -335,6 +343,7 @@ function ActorCosts({
   only: boolean;
   busy: boolean;
 }>) {
+  const tr = useTranslations();
   const attacker = live.cast.get(a.attackerId);
   const costs = a.actor!.modifications.map((m) =>
     modificationText(live.systeme, toInput(m), attacker?.type),
@@ -342,8 +351,14 @@ function ActorCosts({
   const scope: Scope = { targets: [], actor: true };
   return (
     <div className="mx-3 mt-2.5 flex items-center gap-2 rounded-xl border border-dashed border-border-strong py-1 pl-2.5 pr-1">
-      <Info texte={`Coûts de ${attacker?.name ?? 'l’attaquant'}`} cote="bottom">
-        <Battery className="size-3.5 shrink-0 text-warning" aria-label="Coûts de l’attaquant" />
+      <Info
+        texte={tr('combat.live.costsOf', { name: attacker?.name ?? tr('combat.live.theAttacker') })}
+        cote="bottom"
+      >
+        <Battery
+          className="size-3.5 shrink-0 text-warning"
+          aria-label={tr('combat.live.attackerCosts')}
+        />
       </Info>
       <span className="min-w-0 flex-1 truncate py-1 text-xs font-medium">{costs.join(', ')}</span>
       {only && (
@@ -356,16 +371,16 @@ function ActorCosts({
             disabled={busy}
           >
             <Check />
-            Appliquer
+            {tr('combat.live.apply')}
           </Button>
-          <Info texte="Ne pas appliquer" cote="bottom">
+          <Info texte={tr('combat.live.skip')} cote="bottom">
             <Button
               size="icon-xs"
               variant="ghost"
               className="hover:text-destructive"
               onClick={() => void live.decide(a, scope, false)}
               disabled={busy}
-              aria-label="Ne pas appliquer les coûts"
+              aria-label={tr('combat.live.skipCosts')}
             >
               <X />
             </Button>
@@ -402,6 +417,7 @@ function Row({
 
 /** Rapport à décider, replié : lu d'un coup d'œil, décidé d'un clic, déplié d'un clic. */
 export function ReportRow({ attack: a, live }: Readonly<{ attack: Attack; live: Live }>) {
+  const tr = useTranslations();
   const { cast, systeme, presentation, busy } = live;
   const r = readReport(a, cast, systeme);
   const single = a.targets.length === 1;
@@ -459,7 +475,7 @@ export function ReportRow({ attack: a, live }: Readonly<{ attack: Attack; live: 
           </Button>
         </Info>
         {canSkip && (
-          <Info texte="Ne pas appliquer" cote="bottom">
+          <Info texte={tr('combat.live.skip')} cote="bottom">
             <Button
               size="icon-sm"
               variant="ghost"
@@ -467,7 +483,7 @@ export function ReportRow({ attack: a, live }: Readonly<{ attack: Attack; live: 
               onClick={() => void live.decide(a, skip, false)}
               loading={busy === scopeKey(a, skip, false)}
               disabled={isBusy}
-              aria-label="Ne pas appliquer"
+              aria-label={tr('combat.live.skip')}
             >
               <X />
             </Button>
@@ -493,13 +509,14 @@ export function ProgressRow({
   onRoll(): void;
   onCancel(): void;
 }>) {
+  const tr = useTranslations();
   const { cast, systeme, busy } = live;
   const r = readReport(a, cast, systeme);
   const reacting = a.targets.some((t) => t.status === 'awaiting_reaction');
   const canRoll = a.status === 'awaiting_dice' && !a.resolving && a.pendingSteps.length > 0;
-  let status = 'Dés attendus';
-  if (reacting) status = 'Défense attendue';
-  else if (a.resolving) status = 'Résolution';
+  let status = tr('combat.live.diceAwaited');
+  if (reacting) status = tr('combat.live.defenseAwaited');
+  else if (a.resolving) status = tr('combat.live.resolution');
   const still = useReducedMotion();
   return (
     <Row
@@ -526,7 +543,7 @@ export function ProgressRow({
         </span>
       </span>
       {canRoll && (
-        <Info texte="Le serveur tire les dés restants" cote="bottom">
+        <Info texte={tr('combat.live.serverRolls')} cote="bottom">
           <Button
             size="xs"
             variant="secondary"
@@ -536,11 +553,11 @@ export function ProgressRow({
             disabled={busy !== null}
           >
             <Dices />
-            Tirer
+            {tr('combat.live.draw')}
           </Button>
         </Info>
       )}
-      <Info texte="Abandonner l’attaque" cote="bottom">
+      <Info texte={tr('combat.live.abandon')} cote="bottom">
         <Button
           size="icon-sm"
           variant="ghost"
@@ -548,7 +565,7 @@ export function ProgressRow({
           onClick={onCancel}
           loading={busy === `${a.id}:cancel`}
           disabled={busy !== null}
-          aria-label="Abandonner l’attaque"
+          aria-label={tr('combat.live.abandon')}
         >
           <X />
         </Button>
@@ -570,6 +587,7 @@ export function SettledRow({
   onUndo(): void;
   onClose(): void;
 }>) {
+  const tr = useTranslations();
   return (
     <div
       role="status"
@@ -593,7 +611,7 @@ export function SettledRow({
           loading={busy}
         >
           <Undo2 />
-          Annuler
+          {tr('common.actions.cancel')}
         </Button>
       )}
       <Button
@@ -601,7 +619,7 @@ export function SettledRow({
         variant="ghost"
         className={TOUCH}
         onClick={onClose}
-        aria-label="Fermer"
+        aria-label={tr('common.actions.close')}
       >
         <X />
       </Button>
@@ -649,6 +667,6 @@ function CheckMark({ applied }: Readonly<{ applied: boolean }>) {
 
 /** Décision d'un rapport : classer (rien à appliquer), appliquer une cible ou toutes. */
 function decideLabel(nothing: boolean, single: boolean, count: number): string {
-  if (nothing) return 'Classer';
-  return single ? 'Appliquer' : `Tout appliquer (${count})`;
+  if (nothing) return translate('combat.live.file');
+  return single ? translate('combat.live.apply') : `Tout appliquer (${count})`;
 }

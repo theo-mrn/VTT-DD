@@ -5,6 +5,7 @@
  * (sélecteur Frimousse : recherche et noms en français, catégories collantes, couleur de peau)
  * ou une réplique de 40 caractères ; durée de 1 à 60 s ; retrait de la bulle en cours.
  */
+import { activeLocale, translate } from '@/i18n/runtime';
 import { BUBBLE_SHORTCUT } from '@/lib/map/shortcuts';
 import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import {
@@ -84,7 +85,7 @@ export function BubbleToolbarButton() {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Bulle"
+            aria-label={translate('shortcuts.commands.bubble')}
             aria-keyshortcuts={touche.aria}
             className={cn(
               (open || active) &&
@@ -148,20 +149,25 @@ function BubbleComposer({
         <div role="tablist" className="flex items-center gap-0.5 rounded-lg bg-surface-2 p-0.5">
           <ModeTab
             icon={Smile}
-            label="Emoji"
+            label={translate('map.bubbles.emoji')}
             on={mode === 'emoji'}
             onClick={() => setMode('emoji')}
           />
-          <ModeTab icon={Type} label="Texte" on={mode === 'text'} onClick={() => setMode('text')} />
+          <ModeTab
+            icon={Type}
+            label={translate('map.bubbles.text')}
+            on={mode === 'text'}
+            onClick={() => setMode('text')}
+          />
         </div>
         <div className="ml-auto flex items-center gap-0.5">
           <DurationMenu seconds={seconds} onChange={setSeconds} />
           {active && (
-            <Info texte="Retirer ma bulle">
+            <Info texte={translate('map.bubbles.remove')}>
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label="Retirer ma bulle"
+                aria-label={translate('map.bubbles.remove')}
                 onClick={onClear}
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
@@ -220,7 +226,7 @@ function DurationMenu({
 }: Readonly<{ seconds: number; onChange: (s: number) => void }>) {
   return (
     <DropdownMenu>
-      <Info texte="Durée de la bulle">
+      <Info texte={translate('map.bubbles.duration')}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -228,7 +234,7 @@ function DurationMenu({
             className="gap-1 px-2 tabular-nums text-muted-foreground"
           >
             <Timer />
-            {seconds} s
+            {translate('map.bubbles.secondsShort', { count: seconds })}
             <ChevronDown className="opacity-60" />
           </Button>
         </DropdownMenuTrigger>
@@ -237,7 +243,7 @@ function DurationMenu({
         <DropdownMenuRadioGroup value={String(seconds)} onValueChange={(v) => onChange(Number(v))}>
           {DURATIONS_S.map((s) => (
             <DropdownMenuRadioItem key={s} value={String(s)} className="tabular-nums">
-              {s} secondes
+              {translate('map.bubbles.seconds', { count: s })}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
@@ -309,7 +315,7 @@ const EmojiPane = memo(function EmojiPane({
   const [skin, setSkin] = useState<SkinTone>(readSkin);
   return (
     <EmojiPicker.Root
-      locale="fr"
+      locale={activeLocale()}
       columns={COLUMNS}
       skinTone={skin}
       onEmojiSelect={({ emoji }) => onPick(emoji)}
@@ -320,8 +326,8 @@ const EmojiPane = memo(function EmojiPane({
           <Search className="size-4 shrink-0 text-subtle" aria-hidden />
           <EmojiPicker.Search
             ref={search}
-            placeholder="Rechercher un emoji…"
-            aria-label="Rechercher un emoji"
+            placeholder={translate('map.bubbles.searchEmoji')}
+            aria-label={translate('map.bubbles.searchEmojiLabel')}
             className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-subtle [&::-webkit-search-cancel-button]:hidden"
           />
         </label>
@@ -333,10 +339,10 @@ const EmojiPane = memo(function EmojiPane({
             );
             const next = skinToneVariations[(i + 1) % skinToneVariations.length];
             return (
-              <Info texte="Couleur de peau">
+              <Info texte={translate('map.bubbles.skinTone')}>
                 <button
                   type="button"
-                  aria-label="Couleur de peau"
+                  aria-label={translate('map.bubbles.skinTone')}
                   onClick={() => {
                     if (!next) return;
                     setSkin(next.skinTone);
@@ -358,10 +364,13 @@ const EmojiPane = memo(function EmojiPane({
 
       <EmojiPicker.Viewport className="relative min-h-0 flex-1 outline-none">
         <EmojiPicker.Loading className="absolute inset-0 flex items-center justify-center text-subtle">
-          <LoaderCircle className="size-5 animate-spin" aria-label="Chargement des emoji" />
+          <LoaderCircle
+            className="size-5 animate-spin"
+            aria-label={translate('map.bubbles.loadingEmoji')}
+          />
         </EmojiPicker.Loading>
         <EmojiPicker.Empty className="absolute inset-0 flex items-center justify-center text-[13px] text-subtle">
-          Aucun emoji
+          {translate('map.bubbles.noEmoji')}
         </EmojiPicker.Empty>
         <EmojiPicker.List className="select-none pb-2" components={LIST_COMPONENTS} />
       </EmojiPicker.Viewport>
@@ -407,15 +416,20 @@ function TextPane({
           value={text}
           maxLength={BUBBLE_TEXT_MAX}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Votre réplique…"
-          aria-label="Texte de la bulle"
+          placeholder={translate('map.bubbles.yourLine')}
+          aria-label={translate('map.bubbles.bubbleText')}
           className="h-9 w-full rounded-lg border border-border-strong bg-surface-2 pl-2.5 pr-10 text-sm text-foreground outline-none placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-ring/40"
         />
         <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] tabular-nums text-subtle">
           {BUBBLE_TEXT_MAX - text.length}
         </span>
       </div>
-      <Button type="submit" size="icon-sm" disabled={!text.trim()} aria-label="Envoyer">
+      <Button
+        type="submit"
+        size="icon-sm"
+        disabled={!text.trim()}
+        aria-label={translate('map.bubbles.send')}
+      >
         <SendHorizontal />
       </Button>
     </form>

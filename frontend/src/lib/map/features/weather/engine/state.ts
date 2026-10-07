@@ -2,6 +2,7 @@
  * État partagé du module « météo » : préférences locales de chacun, aperçu du MJ pendant un
  * geste, et enregistrement de la météo de la scène (commande annulable, `PATCH /maps/:mapId`).
  */
+import { translate } from '@/i18n/runtime';
 import type { MapWeather } from '@vtt/contracts';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
@@ -102,7 +103,11 @@ export function displayedWeather(engine: MapEngine): MapWeather | null {
 }
 
 /** Enregistre la météo de la scène : une commande annulable (« Météo »), l'aperçu effacé. */
-export function saveWeather(engine: MapEngine, weather: MapWeather | null, label = 'Météo') {
+export function saveWeather(
+  engine: MapEngine,
+  weather: MapWeather | null,
+  label = translate('map.weather.title'),
+) {
   setWeatherPreview(engine, undefined);
   const current = sceneWeather(engine);
   if (JSON.stringify(current) === JSON.stringify(weather)) return null;

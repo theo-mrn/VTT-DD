@@ -14,6 +14,7 @@ function fakeEngine() {
     busy: false,
     pointerDown: vi.fn((_p: MapPointer) => true),
     pointerMove: vi.fn((_p: MapPointer) => undefined),
+    pointerChord: vi.fn((_p: MapPointer) => undefined),
     pointerUp: vi.fn((_p: MapPointer) => undefined),
     pointerCancel: vi.fn((_p: MapPointer) => undefined),
     wheel: vi.fn(),
@@ -115,6 +116,15 @@ describe('pointeur', () => {
       true,
     );
     expect(down.defaultPrevented).toBe(true);
+  });
+
+  it('bouton pressé en plus pendant un appui (clic droit) : signalé, puis le déplacement', () => {
+    el.dispatchEvent(pointer('pointermove', { button: -1 }));
+    expect(f.controller.pointerChord).not.toHaveBeenCalled();
+    el.dispatchEvent(pointer('pointermove', { button: 2, buttons: 3 }));
+    expect(f.controller.pointerChord.mock.calls[0]![0]).toMatchObject({ button: 2, buttons: 3 });
+    expect(f.controller.pointerMove).toHaveBeenCalledTimes(2);
+    expect(f.controller.pointerMove.mock.calls[1]![0].button).toBe(-1);
   });
 
   it('appui sur un autre élément que la carte (panneau posé dessus) : ignoré', () => {

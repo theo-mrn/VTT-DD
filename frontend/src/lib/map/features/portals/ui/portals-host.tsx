@@ -10,6 +10,7 @@
  * - MJ : un toast quand un joueur emprunte un portail (`map_portal.used`), et, quand il fait
  *   passer quelqu'un sur une autre scène, « Y aller ».
  */
+import { formatter, translate } from '@/i18n/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { MapPortalUsedPayload } from '@vtt/contracts';
 import { LogIn, X } from 'lucide-react';
@@ -77,11 +78,21 @@ function Crossings({ ctx }: { ctx: PortalModule }) {
         if (ctx.engine.viewer.role !== 'gm') return;
         const scene = ctx.scenes().find((s) => s.id === result.mapId)?.name;
         let who = characterName(ctx, result.items[0]?.characterId);
-        if (party) who = 'Le groupe';
-        else if (result.items.length > 1) who = `${result.items.length} personnages`;
-        toast(`${who} a franchi « ${portalLabel(portal)} »${scene ? ` vers « ${scene} »` : ''}.`, {
-          action: { label: 'Y aller', onClick: () => openScene(result.mapId) },
-        });
+        if (party) who = translate('map.portals.theParty');
+        else if (result.items.length > 1)
+          who = translate('map.portals.characters', { count: result.items.length });
+        const name = portalLabel(portal);
+        toast(
+          scene
+            ? translate('map.portals.crossedTo', { who, name, scene })
+            : translate('map.portals.crossed', { who, name }),
+          {
+            action: {
+              label: translate('map.portals.goThere'),
+              onClick: () => openScene(result.mapId),
+            },
+          },
+        );
       }),
     [ctx, qc, campaignId],
   );
@@ -89,7 +100,8 @@ function Crossings({ ctx }: { ctx: PortalModule }) {
 }
 
 const characterName = (ctx: PortalModule, id: string | undefined) =>
-  ctx.engine.directory.characters().find((c) => c.id === id)?.name ?? 'Un personnage';
+  ctx.engine.directory.characters().find((c) => c.id === id)?.name ??
+  translate('map.portals.aCharacter');
 
 /** Toast du MJ : un joueur a emprunté un portail. */
 function GmNotices({ ctx }: { ctx: PortalModule }) {
@@ -102,16 +114,26 @@ function GmNotices({ ctx }: { ctx: PortalModule }) {
     const names = p.characterIds.map((id) => characterName(ctx, id));
     const who =
       names.length > 2
-        ? `${names.slice(0, 2).join(', ')} et ${names.length - 2} autres`
-        : names.join(' et ');
+        ? translate('map.portals.someAndOthers', {
+            names: names.slice(0, 2).join(', '),
+            count: names.length - 2,
+          })
+        : formatter().list(names, 'and');
     const scene = p.toMapId !== p.mapId ? ctx.scenes().find((s) => s.id === p.toMapId)?.name : null;
-    toast(`${who} ${names.length > 1 ? 'ont' : 'a'} emprunté « ${p.name || 'un portail'} ».`, {
-      description: scene ? `Vers « ${scene} ».` : undefined,
-      action:
-        p.toMapId !== p.mapId
-          ? { label: 'Y aller', onClick: () => openScene(p.toMapId) }
-          : undefined,
-    });
+    toast(
+      translate('map.portals.used', {
+        who,
+        count: names.length,
+        name: p.name || translate('map.portals.aPortal'),
+      }),
+      {
+        description: scene ? translate('map.portals.toScene', { scene }) : undefined,
+        action:
+          p.toMapId !== p.mapId
+            ? { label: translate('map.portals.goThere'), onClick: () => openScene(p.toMapId) }
+            : undefined,
+      },
+    );
   });
   return null;
 }
@@ -167,7 +189,7 @@ function Prompt({ ctx }: Readonly<{ ctx: PortalModule }>) {
     <div
       ref={ref}
       role="dialog"
-      aria-label={`Emprunter ${name}`}
+      aria-label={translate('map.portals.takeNamed', { name })}
       className="pointer-events-auto absolute left-0 top-0 z-20 flex items-center gap-2 rounded-xl border border-border bg-background py-1 pl-1.5 pr-1 shadow-elevated"
       style={{ visibility: 'hidden' }}
       onPointerDown={(e) => e.stopPropagation()}
@@ -186,12 +208,12 @@ function Prompt({ ctx }: Readonly<{ ctx: PortalModule }>) {
         onClick={() => void travel.use(portal, { characterIds: prompt.characterIds })}
       >
         <LogIn />
-        Emprunter : {name}
+        {translate('map.portals.takeColon', { name })}
       </Button>
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Rester ici"
+        aria-label={translate('map.portals.stayHere')}
         onClick={() => travel.dismiss()}
       >
         <X />

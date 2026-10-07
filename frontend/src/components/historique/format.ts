@@ -16,6 +16,7 @@
  */
 import type { Attribut, SystemeCharge } from '@vtt/rules';
 import type { HistoryEvent, LegacyPayload } from '@/lib/history';
+import { translate } from '@/i18n/runtime';
 
 // ─── Modèle d'affichage (celui de l'ancien Historique) ──────────────────────
 
@@ -107,9 +108,10 @@ function detail(p: Payload, key: string): unknown {
 
 /** Type de l'ancienne app déduit du camp (lu par le résumé : PJ, allié, PNJ). */
 export function legacyCharacterType(side: Side | null | undefined): string | undefined {
-  if (side === 'players') return 'joueurs';
-  if (side === 'allies') return 'allié';
-  if (side === 'enemies') return 'pnj';
+  // Codes de l'ancienne app (données), jamais affichés
+  if (side === 'players') return 'joueurs'; // i18n-ignore
+  if (side === 'allies') return 'allié'; // i18n-ignore
+  if (side === 'enemies') return 'pnj'; // i18n-ignore
   return undefined;
 }
 
@@ -122,11 +124,11 @@ function characterName(
   id: string | null | undefined,
   fallback?: string | null,
 ) {
-  return characterOf(ctx, id)?.name ?? fallback ?? 'Personnage';
+  return characterOf(ctx, id)?.name ?? fallback ?? translate('history.lines.character');
 }
 
 function userName(ctx: FormatContext, id: string | null | undefined) {
-  return (id && ctx.users.get(lower(id))?.name) || 'Un joueur';
+  return (id && ctx.users.get(lower(id))?.name) || translate('history.lines.aPlayer');
 }
 
 /** Champs « personnage » d'une ligne : nom, avatar et type, lus dans le contexte. */
@@ -172,7 +174,7 @@ const attributeLabel = (attr: Attribut | undefined, key: string) =>
   attr?.abrege || attr?.nom || key;
 
 function entryName(ctx: FormatContext, entree: string | null | undefined): string {
-  if (!entree) return 'objet';
+  if (!entree) return translate('history.lines.object');
   return ctx.system?.entrees.get(entree)?.nom ?? entree;
 }
 
@@ -264,7 +266,7 @@ function combine(lines: Line[]): Line | null {
 }
 
 function show(v: unknown): string {
-  if (typeof v === 'boolean') return v ? 'oui' : 'non';
+  if (typeof v === 'boolean') return translate(v ? 'history.lines.yes' : 'history.lines.no');
   if (v === null || v === undefined) return '—';
   if (typeof v === 'object') return JSON.stringify(v);
   return String(v as string | number | bigint);
@@ -274,7 +276,7 @@ function show(v: unknown): string {
 const SIGNES: Record<string, string> = { subtract: '−', add: '+' };
 
 /** « 3 rounds », « 1 round ». */
-const rounds = (n: number) => `${n} round${n > 1 ? 's' : ''}`;
+const rounds = (n: number) => translate('history.lines.rounds', { count: n });
 
 /** Ressource qui change : chiffres pour les PJ, mort quand la jauge principale tombe à 0. */
 function resourceLine(
@@ -287,20 +289,35 @@ function resourceLine(
   hasBefore: boolean,
 ): Line | null {
   if (a === null) return null;
-  if (!hasBefore || b === null) return { type: 'combat', text: `${who} : ${label} à ${bold(a)}.` };
+  if (!hasBefore || b === null)
+    return {
+      type: 'combat',
+      text: translate('history.lines.resourceSet', { who, label, value: bold(a) }),
+    };
   const diff = a - b;
   if (!diff) return null;
   const recoversToMax = found.attr.recuperation === 'max';
   if (found.primaryVital && recoversToMax && a <= 0 && b > 0)
-    return { type: 'mort', text: `${who} a succombé à ses blessures !` };
+    return { type: 'mort', text: translate('history.lines.succumbed', { who }) };
   const harmful = recoversToMax ? diff < 0 : diff > 0;
   if (character?.side !== 'players')
-    return { type: 'combat', text: `${who} a été ${harmful ? 'attaqué' : 'soigné'}.` };
+    return {
+      type: 'combat',
+      text: translate(harmful ? 'history.lines.attacked' : 'history.lines.healed', { who }),
+    };
   const verbs = recoversToMax
-    ? { pire: 'perdu', mieux: 'récupéré' }
-    : { pire: 'subi', mieux: 'guéri de' };
+    ? { pire: translate('history.lines.lost'), mieux: translate('history.lines.recovered') }
+    : { pire: translate('history.lines.suffered'), mieux: translate('history.lines.healedOf') };
   const verb = harmful ? verbs.pire : verbs.mieux;
-  return { type: 'combat', text: `${who} a ${bold(verb)} ${Math.abs(diff)} ${label}.` };
+  return {
+    type: 'combat',
+    text: translate('history.lines.resourceChange', {
+      who,
+      verb: bold(verb),
+      amount: String(Math.abs(diff)),
+      label,
+    }),
+  };
 }
 
 /** Nombre qui passe d'une valeur à une autre ; une hausse saisie par le MJ est une progression. */
@@ -315,7 +332,12 @@ function numberLine(
   const progression = attr?.nature === 'base' && attr.saisie === 'mj' && a > b;
   return {
     type: progression ? 'niveau' : 'stats',
-    text: `${who} : ${label} passe de ${b} à ${bold(a)}${progression ? ' !' : '.'}`,
+    text: translate(progression ? 'history.lines.numberProgress' : 'history.lines.numberChange', {
+      who,
+      label,
+      before: String(b),
+      after: bold(a),
+    }),
   };
 }
 
@@ -347,7 +369,10 @@ function valueLine(
   }
   if (a !== null && b !== null && hasBefore) return numberLine(who, attr, label, b, a);
   if (hasBefore && show(before) === show(after)) return null;
-  return { type: 'stats', text: `${who} : ${label} devient ${bold(show(after))}.` };
+  return {
+    type: 'stats',
+    text: translate('history.lines.valueBecomes', { who, label, value: bold(show(after)) }),
+  };
 }
 
 /** Changements de valeurs : le diff (`changes`), sinon les valeurs envoyées (`valeurs`). */
@@ -381,11 +406,13 @@ function entryChangeLine(ctx: FormatContext, who: string, c: Change, raw: string
     return {
       type: 'combat',
       text:
-        duration !== null ? `${who} est ${name} (${rounds(duration)}).` : `${who} reçoit ${name}.`,
+        duration !== null
+          ? translate('history.lines.isFor', { who, name, rounds: rounds(duration) })
+          : translate('history.lines.receives', { who, name }),
     };
   }
   if (!('after' in c) || c.after == null)
-    return { type: 'combat', text: `${who} n'est plus ${name}.` };
+    return { type: 'combat', text: translate('history.lines.noLonger', { who, name }) };
   return null;
 }
 
@@ -394,9 +421,21 @@ function bonusChangeLine(who: string, c: Change): Line | null {
   const before = obj(c.before);
   const after = obj(c.after);
   if (after && !before)
-    return { type: 'combat', text: `${who} est ${bold(str(after.nom) ?? 'un état')}.` };
+    return {
+      type: 'combat',
+      text: translate('history.lines.is', {
+        who,
+        name: bold(str(after.nom) ?? translate('history.lines.aState')),
+      }),
+    };
   if (before && !after)
-    return { type: 'combat', text: `${who} n'est plus ${bold(str(before.nom) ?? 'un état')}.` };
+    return {
+      type: 'combat',
+      text: translate('history.lines.noLonger', {
+        who,
+        name: bold(str(before.nom) ?? translate('history.lines.aState')),
+      }),
+    };
   return null;
 }
 
@@ -453,8 +492,8 @@ function profileUpdated({ p, changes, line }: UpdateScope): Formatted | null {
   return line(
     'info',
     oldName
-      ? `${bold(oldName)} s'appelle désormais ${bold(newName)}.`
-      : `${bold(newName)} change de nom.`,
+      ? translate('history.lines.renamed', { before: bold(oldName), after: bold(newName) })
+      : translate('history.lines.nameChanged', { name: bold(newName) }),
   );
 }
 
@@ -470,11 +509,19 @@ function possessionFieldLine(
     if (diff)
       return line(
         'inventaire',
-        `${who} a ${bold(diff > 0 ? 'reçu' : 'perdu')} ${Math.abs(diff)}x ${item}.`,
+        translate('history.lines.quantityChange', {
+          who,
+          verb: bold(translate(diff > 0 ? 'history.lines.received' : 'history.lines.lost')),
+          amount: String(Math.abs(diff)),
+          item,
+        }),
       );
   }
   if (field === 'actif' && typeof c.after === 'boolean')
-    return line('inventaire', `${who} a ${c.after ? 'équipé' : 'rangé'} ${item}.`);
+    return line(
+      'inventaire',
+      translate(c.after ? 'history.lines.equipped' : 'history.lines.stowed', { who, item }),
+    );
   return null;
 }
 
@@ -486,12 +533,18 @@ function possessionUpdated(s: UpdateScope): Formatted | null {
   const item = bold(`[${entryName(ctx, entree)}]`);
   // Possession à durée : état temporaire (Aveuglé, Étourdi…), comme les conditions du combat
   if (num(possession?.duree) !== null)
-    return line('combat', `${who} est ${bold(entryName(ctx, entree))}.`);
+    return line(
+      'combat',
+      translate('history.lines.is', { who, name: bold(entryName(ctx, entree)) }),
+    );
   if (detail(p, 'cree') === true) {
     const qty = num(possession?.quantite) ?? 1;
     return line(
       'inventaire',
-      `${who} a reçu ${bold(`${qty}x [${entryName(ctx, entree)}]`)} dans son inventaire.`,
+      translate('history.lines.receivedInInventory', {
+        who,
+        item: bold(`${qty}x [${entryName(ctx, entree)}]`),
+      }),
     );
   }
   for (const c of s.changes ?? []) {
@@ -499,7 +552,7 @@ function possessionUpdated(s: UpdateScope): Formatted | null {
     const changed = m && possessionFieldLine(s, c, m[2], item);
     if (changed) return changed;
   }
-  return line('inventaire', `${who} a modifié ${item}.`);
+  return line('inventaire', translate('history.lines.modified', { who, item }));
 }
 
 /** Achat ou remboursement hors création. */
@@ -509,8 +562,8 @@ function purchaseUpdated({ p, ctx, op, who, character, line }: UpdateScope): For
   if (!ligne || ligne.creation === true) return null;
   const name = bold(purchaseName(ctx, character?.type ?? null, str(ligne.objet) ?? '?'));
   return op === 'achat'
-    ? line('competence', `${who} a acquis ${name}.`)
-    : line('competence', `${who} a renoncé à ${name}.`);
+    ? line('competence', translate('history.lines.acquired', { who, name }))
+    : line('competence', translate('history.lines.renounced', { who, name }));
 }
 
 /** Effets coupés ou réactivés un à un (bloc Bonus) ; une demande sans effet ne se dit pas. */
@@ -520,25 +573,35 @@ function effectUpdated({ p, ctx, who, line }: UpdateScope): Formatted | null {
   const noms = (Array.isArray(sources) ? sources : [])
     .filter((x): x is string => typeof x === 'string')
     .map((x) => `[${entryName(ctx, x.split('#')[0])}]`);
-  const de = noms.length ? ` de ${bold(noms.join(', '))}` : '';
+  const de = noms.length ? translate('history.lines.of', { name: bold(noms.join(', ')) }) : '';
   return line(
     'stats',
-    `${who} a ${detail(p, 'actif') === true ? 'réactivé' : 'désactivé'} des bonus${de}.`,
+    translate(detail(p, 'actif') === true ? 'history.lines.bonusOn' : 'history.lines.bonusOff', {
+      who,
+      of: de,
+    }),
   );
 }
 
-/** États arrivés au bout de leur durée. */
+/**
+ * États arrivés au bout de leur durée. Un décompte du combat (`tickId`) est raconté par
+ * `combat.durations_expired`, pour toute la table : il n'est pas répété ici.
+ */
 function durationsCounted({ p, ctx, who, changes, line }: UpdateScope): Formatted | null {
+  if (detail(p, 'tickId') !== undefined) return null;
   const retirees = detail(p, 'retirees');
   const names = (Array.isArray(retirees) ? retirees : [])
     .filter((r): r is string => typeof r === 'string')
     .map((r) =>
       r.startsWith('bonus:')
-        ? (bonusName(changes, r.slice(6)) ?? 'un bonus')
+        ? (bonusName(changes, r.slice(6)) ?? translate('history.lines.aBonus'))
         : entryName(ctx, r.split('#')[0]),
     );
   if (!names.length) return null;
-  return line('combat', `${who} n'est plus ${names.map(bold).join(', ')}.`);
+  return line(
+    'combat',
+    translate('history.lines.noLonger', { who, name: names.map(bold).join(', ') }),
+  );
 }
 
 /** Annulation : d'une application (MJ), ou des durées d'un round (« Précédent », `tick:…`). */
@@ -547,29 +610,51 @@ function combatReverted(s: UpdateScope): Formatted | null {
   if (!c) return null;
   const round = str(detail(s.p, 'applicationId'))?.startsWith('tick:') === true;
   const forced = detail(s.p, 'forced') === true;
-  const annulation = forced ? 'Annulation du MJ (forcée)' : 'Annulation du MJ';
-  return s.line('combat', `${round ? 'Retour au tour précédent' : annulation} : ${c.text}`);
+  const annulation = translate(forced ? 'history.lines.gmRevertForced' : 'history.lines.gmRevert');
+  return s.line(
+    'combat',
+    translate('history.lines.pair', {
+      name: round ? translate('history.lines.previousTurn') : annulation,
+      value: c.text,
+    }),
+  );
 }
 
 /** Tournure de chaque opération sur la fiche. */
 const UPDATE_FORMATTERS: Record<string, UpdateFormatter> = {
   profil: profileUpdated,
-  'creation.terminer': ({ who, line }) => line('creation', `${who} a terminé sa création.`),
+  'creation.terminer': ({ who, line }) =>
+    line('creation', translate('history.lines.creationDone', { who })),
   possession: possessionUpdated,
   'possession.retrait': ({ p, ctx, who, line }) =>
     line(
       'inventaire',
-      `${who} a jeté/perdu ${bold(`[${entryName(ctx, str(detail(p, 'entree')))}]`)}.`,
+      translate('history.lines.discarded', {
+        who,
+        item: bold(`[${entryName(ctx, str(detail(p, 'entree')))}]`),
+      }),
     ),
   achat: purchaseUpdated,
   remboursement: purchaseUpdated,
   bonus: ({ p, who, line }) => {
     const nom = str(obj(detail(p, 'bonus'))?.nom);
-    return line('stats', `${who} bénéficie de ${bold(nom ?? 'un bonus')}.`);
+    return line(
+      'stats',
+      translate('history.lines.benefits', {
+        who,
+        name: bold(nom ?? translate('history.lines.aBonus')),
+      }),
+    );
   },
   'bonus.retrait': ({ p, who, changes, line }) => {
     const nom = bonusName(changes, str(detail(p, 'bonusId')) ?? '');
-    return line('stats', `${who} perd ${bold(nom ?? 'un bonus')}.`);
+    return line(
+      'stats',
+      translate('history.lines.loses', {
+        who,
+        name: bold(nom ?? translate('history.lines.aBonus')),
+      }),
+    );
   },
   effet: effectUpdated,
   'durees.decompte': durationsCounted,
@@ -578,7 +663,7 @@ const UPDATE_FORMATTERS: Record<string, UpdateFormatter> = {
   'combat.annulation': combatReverted,
   repos: (s) => {
     const rest = combine([
-      { type: 'stats', text: `${s.who} a pris du repos.` },
+      { type: 'stats', text: translate('history.lines.rested', { who: s.who }) },
       ...valueLines(s.ctx, s.who, s.character, s.p, s.changes),
     ]);
     return rest && s.line('stats', rest.text);
@@ -611,8 +696,9 @@ function characterUpdated(e: HistoryEvent, ctx: FormatContext): Formatted | null
 function outcomeWord(o: unknown): string | null {
   const outcome = obj(o);
   if (!outcome || typeof outcome.success !== 'boolean') return null;
-  if (outcome.success) return outcome.critical === true ? 'critique' : 'touché';
-  return outcome.fumble === true ? 'échec critique' : 'raté';
+  if (outcome.success)
+    return translate(outcome.critical === true ? 'history.lines.critical' : 'history.lines.hit');
+  return translate(outcome.fumble === true ? 'history.lines.fumble' : 'history.lines.miss');
 }
 
 /** Total d'un jet numérique, ou résultats nets d'un pool (noms du système). */
@@ -628,7 +714,7 @@ function rollText(ctx: FormatContext, r: unknown): string | null {
     .map((d) => `${results[d.cle]} ${d.nom.toLowerCase()}`);
   if (!declared.length)
     for (const [k, v] of Object.entries(results)) if ((num(v) ?? 0) > 0) parts.push(`${v} ${k}`);
-  return parts.length ? parts.join(', ') : 'aucun symbole net';
+  return parts.length ? parts.join(', ') : translate('history.lines.noNetSymbol');
 }
 
 function damageTypeName(ctx: FormatContext, id: string | null): string | null {
@@ -646,7 +732,7 @@ function modificationText(
   if (!mod) return null;
   if (mod.kind === 'entry') {
     const name = entryName(ctx, str(mod.entry));
-    if (mod.operation === 'remove') return `sans ${name}`;
+    if (mod.operation === 'remove') return translate('history.lines.without', { name });
     const duration = num(mod.duration);
     return duration ? `${name} (${rounds(duration)})` : name;
   }
@@ -676,12 +762,12 @@ const listOf = (v: unknown): Payload[] =>
 
 /** Attaquant nommé par la charge ; null : caché au lecteur (« Un adversaire »). */
 function attackerName(ctx: FormatContext, id: string | null) {
-  return id ? bold(characterName(ctx, id)) : 'Un adversaire';
+  return id ? bold(characterName(ctx, id)) : translate('history.lines.anOpponent');
 }
 
 /** « de **Orc** », ou rien quand l'attaquant n'est pas connu. */
 const ofAttacker = (ctx: FormatContext, id: string | null) =>
-  id ? ` de ${bold(characterName(ctx, id))}` : '';
+  id ? translate('history.lines.of', { name: bold(characterName(ctx, id)) }) : '';
 
 /**
  * Événements réservés au MJ (rapport complet, décision, annulation, hors de combat) : le
@@ -697,17 +783,23 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
   'combat.attack_announced': (e, ctx) => {
     const p = e.payload;
     const attackerId = str(p.attackerId);
-    const action = str(obj(p.action)?.name) ?? 'une attaque';
+    const action = str(obj(p.action)?.name) ?? translate('history.lines.anAttack');
     const targets = listOf(p.targets).map((t) => {
       const outcome = outcomeWord(t.outcome);
-      return `${bold(characterName(ctx, str(t.characterId)))}${outcome ? ` : ${bold(outcome)}` : ''}`;
+      const name = bold(characterName(ctx, str(t.characterId)));
+      return outcome ? translate('history.lines.pair', { name, value: bold(outcome) }) : name;
     });
+    const attacker = attackerName(ctx, attackerId);
     return {
       ...characterFields(ctx, attackerId),
       type: 'combat',
-      message: `${attackerName(ctx, attackerId)} utilise ${bold(action)}${
-        targets.length ? ` contre ${targets.join(' ; ')}` : ''
-      }.`,
+      message: targets.length
+        ? translate('history.lines.usesAgainst', {
+            attacker,
+            action: bold(action),
+            targets: targets.join(' ; '),
+          })
+        : translate('history.lines.uses', { attacker, action: bold(action) }),
     };
   },
 
@@ -718,7 +810,7 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
     const parts = listOf(p.targets).flatMap((t) => {
       const id = str(t.characterId);
       const who = bold(characterName(ctx, id));
-      if (t.decision === 'skipped') return [`${who} : sans effet`];
+      if (t.decision === 'skipped') return [translate('history.lines.noEffect', { who })];
       if (t.decision !== 'applied') return [];
       const character = characterOf(ctx, id);
       const amounts = listOf(t.amounts)
@@ -738,7 +830,10 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
     return {
       ...characterFields(ctx, attackerId),
       type: 'combat',
-      message: `Attaque${attackerId ? ofAttacker(ctx, attackerId) : ' d’un adversaire'} appliquée : ${parts.join(' ; ')}.`,
+      message: translate('history.lines.attackApplied', {
+        of: attackerId ? ofAttacker(ctx, attackerId) : translate('history.lines.ofOpponent'),
+        parts: parts.join(' ; '),
+      }),
     };
   },
 
@@ -747,12 +842,15 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
     const attack = obj(e.payload.attack);
     if (!attack) return null;
     const attackerId = str(attack.attackerId);
-    const action = str(obj(attack.action)?.name) ?? 'une attaque';
+    const action = str(obj(attack.action)?.name) ?? translate('history.lines.anAttack');
     const parts = listOf(attack.targets).map((t) => {
       const id = str(t.characterId);
       const who = bold(characterName(ctx, id));
       const error = str(t.error);
-      if (t.status === 'failed') return `${who} : refusé${error ? ` (${error})` : ''}`;
+      if (t.status === 'failed')
+        return error
+          ? translate('history.lines.refusedWith', { who, error })
+          : translate('history.lines.refused', { who });
       const result = obj(t.result);
       const outcome = outcomeWord(result?.outcome);
       const roll = rollText(ctx, result?.roll);
@@ -761,16 +859,28 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
         characterOf(ctx, id)?.type ?? null,
         result?.modifications,
       );
-      return `${who} : ${[outcome ? bold(outcome) : null, roll ? `jet ${roll}` : null, mods]
-        .filter(Boolean)
-        .join(', ')}`;
+      return translate('history.lines.pair', {
+        name: who,
+        value: [
+          outcome ? bold(outcome) : null,
+          roll ? translate('history.lines.rollOf', { roll }) : null,
+          mods,
+        ]
+          .filter(Boolean)
+          .join(', '),
+      });
     });
+    const attacker = attackerName(ctx, attackerId);
     return {
       ...characterFields(ctx, attackerId),
       type: 'combat',
-      message: `${attackerName(ctx, attackerId)} utilise ${bold(action)}${
-        parts.length ? ` : ${parts.join(' ; ')}` : ''
-      }.`,
+      message: parts.length
+        ? translate('history.lines.usesDetail', {
+            attacker,
+            action: bold(action),
+            parts: parts.join(' ; '),
+          })
+        : translate('history.lines.uses', { attacker, action: bold(action) }),
     };
   }),
 
@@ -785,8 +895,8 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
       const redirected = str(app?.redirectedTo);
       const touched = redirected ?? target;
       const who = bold(characterName(ctx, touched));
-      if (t.decision === 'skipped') return `${who} : non appliqué`;
-      if (t.decision !== 'applied') return `${who} : en attente`;
+      if (t.decision === 'skipped') return translate('history.lines.notApplied', { who });
+      if (t.decision !== 'applied') return translate('history.lines.pending', { who });
       const mods = modificationsText(
         ctx,
         characterOf(ctx, touched)?.type ?? null,
@@ -797,16 +907,23 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
         .filter((x): x is string => !!x)
         .map((x) => entryName(ctx, x));
       const detailText = [mods, ...tables].filter(Boolean).join(', ');
-      return `${who}${redirected ? ' (réattribué)' : ''}${detailText ? ` : ${detailText}` : ''}`;
+      const name = `${who}${redirected ? translate('history.lines.reassigned') : ''}`;
+      return detailText ? translate('history.lines.pair', { name, value: detailText }) : name;
     });
     const note = str(p.note);
+    const decision = translate(
+      applied.length ? 'history.lines.gmApplies' : 'history.lines.gmDismisses',
+      {
+        of: ofAttacker(ctx, attackerId),
+        parts: parts.length
+          ? translate('history.lines.colonList', { list: parts.join(' ; ') })
+          : '',
+      },
+    );
     return {
       ...characterFields(ctx, attackerId),
       type: 'combat',
-      message: `Le MJ ${applied.length ? 'applique' : 'écarte'} l’attaque${ofAttacker(
-        ctx,
-        attackerId,
-      )}${parts.length ? ` : ${parts.join(' ; ')}` : ''}.${note ? ` « ${note} »` : ''}`,
+      message: `${decision}${note ? translate('history.lines.quote', { note }) : ''}`,
     };
   }),
 
@@ -819,10 +936,14 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
     return {
       ...characterFields(ctx, attackerId),
       type: 'combat',
-      message: `Application annulée${p.forced === true ? ' (forcée)' : ''} : attaque${ofAttacker(
-        ctx,
-        attackerId,
-      )}${names.length ? ` sur ${names.join(', ')}` : ''}${p.actor === true ? ', coûts de l’attaquant rendus' : ''}.`,
+      message: translate(
+        p.forced === true ? 'history.lines.revertedForced' : 'history.lines.reverted',
+        {
+          of: ofAttacker(ctx, attackerId),
+          on: names.length ? translate('history.lines.on', { name: names.join(', ') }) : '',
+          costs: p.actor === true ? translate('history.lines.costsRefunded') : '',
+        },
+      ),
     };
   }),
 
@@ -831,9 +952,38 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
     return {
       ...characterFields(ctx, id),
       type: 'mort',
-      message: `${bold(characterName(ctx, id))} est hors de combat !`,
+      message: translate('history.lines.defeated', { name: bold(characterName(ctx, id)) }),
     };
   }),
+
+  // Fin des durées d'un passage de tour (docs/combat.md § 18.7) : « Aria n'est plus Bénie »
+  'combat.durations_expired': (e, ctx) => {
+    const expirations = Array.isArray(e.payload.expirations) ? e.payload.expirations : [];
+    const parts = expirations.flatMap((x) => {
+      const o = obj(x);
+      const id = str(o?.characterId);
+      const names = (Array.isArray(o?.entries) ? o.entries : [])
+        .map((entry) => str(obj(entry)?.name))
+        .filter((n): n is string => Boolean(n));
+      return id && names.length
+        ? [
+            {
+              id,
+              text: translate('history.lines.noLongerBare', {
+                who: bold(characterName(ctx, id)),
+                name: names.map(bold).join(', '),
+              }),
+            },
+          ]
+        : [];
+    });
+    if (!parts.length) return null;
+    return {
+      ...characterFields(ctx, parts.length === 1 ? parts[0]!.id : undefined),
+      type: 'combat',
+      message: `${parts.map((x) => x.text).join(' ; ')}.`,
+    };
+  },
 };
 
 /** Combattants ajoutés en cours de combat. */
@@ -845,9 +995,10 @@ function participantsAdded(p: Payload, ctx: FormatContext): Formatted | null {
   if (!added.length) return null;
   return {
     type: 'combat',
-    message: `${added.map((id) => bold(characterName(ctx, id))).join(', ')} ${
-      added.length > 1 ? 'rejoignent' : 'rejoint'
-    } le combat.`,
+    message: translate('history.lines.joinCombat', {
+      count: added.length,
+      names: added.map((id) => bold(characterName(ctx, id))).join(', '),
+    }),
   };
 }
 
@@ -859,7 +1010,9 @@ function initiativeRolled(p: Payload, ctx: FormatContext): Formatted {
     .map((id) => bold(characterName(ctx, id)));
   return {
     type: 'combat',
-    message: order.length ? `Initiative : ${order.join(', ')}.` : 'Initiative lancée.',
+    message: order.length
+      ? translate('history.lines.initiative', { order: order.join(', ') })
+      : translate('history.lines.initiativeRolled'),
   };
 }
 
@@ -869,31 +1022,43 @@ const FORMATTERS: Record<string, Formatter> = {
   'character.created': (e, ctx) => ({
     ...characterFields(ctx, e.aggregate.id, str(e.payload.nom)),
     type: 'creation',
-    message: `Création de ${bold(characterName(ctx, e.aggregate.id, str(e.payload.nom)))}.`,
+    message: translate('history.lines.created', {
+      name: bold(characterName(ctx, e.aggregate.id, str(e.payload.nom))),
+    }),
   }),
 
   'character.deleted': (e, ctx) => ({
     ...characterFields(ctx, e.aggregate.id),
     type: 'info',
-    message: `Disparition de : ${bold(characterName(ctx, e.aggregate.id))}.`,
+    message: translate('history.lines.disappeared', {
+      name: bold(characterName(ctx, e.aggregate.id)),
+    }),
   }),
 
   'character.action_resolved': (e, ctx) => {
     const p = e.payload;
     const actorId = e.aggregate.id;
-    const action = str(p.action) ?? 'action';
+    const action = str(p.action) ?? translate('history.lines.action');
     const actionName = ctx.system?.actions.get(action)?.nom ?? action;
     const targetId = str(p.cibleId);
     const onOther = !!targetId && lower(targetId) !== lower(actorId);
     const reussi = obj(p.resultat)?.reussi;
-    const issue = reussi ? 'réussite' : 'échec';
-    const outcome = typeof reussi === 'boolean' ? ` : ${bold(issue)}` : '';
+    const issue = translate(reussi ? 'history.lines.success' : 'history.lines.failure');
+    const outcome =
+      typeof reussi === 'boolean'
+        ? translate('history.lines.colonList', { list: bold(issue) })
+        : '';
     return {
       ...characterFields(ctx, actorId),
       type: onOther ? 'combat' : 'competence',
-      message: `${bold(characterName(ctx, actorId))} utilise ${bold(actionName)}${
-        onOther ? ` sur ${bold(characterName(ctx, targetId))}` : ''
-      }${outcome}.`,
+      message: translate('history.lines.actionUsed', {
+        actor: bold(characterName(ctx, actorId)),
+        action: bold(actionName),
+        on: onOther
+          ? translate('history.lines.on', { name: bold(characterName(ctx, targetId)) })
+          : '',
+        outcome,
+      }),
     };
   },
 
@@ -911,14 +1076,23 @@ const FORMATTERS: Record<string, Formatter> = {
     if (symbols) result = bold(symbols);
     else if (total !== null) result = bold(total);
     let critical = '';
-    if (outcome?.critical === true) critical = ` ${bold('Réussite critique !')}`;
-    else if (outcome?.fumble === true) critical = ` ${bold('Échec critique !')}`;
+    if (outcome?.critical === true)
+      critical = ` ${bold(translate('history.lines.criticalSuccess'))}`;
+    else if (outcome?.fumble === true)
+      critical = ` ${bold(translate('history.lines.criticalFailure'))}`;
     const formule = notation ? ` (${notation})` : '';
-    const quoi = label ? `${bold(label)}${formule}` : (notation ?? 'les dés');
+    const quoi = label
+      ? `${bold(label)}${formule}`
+      : (notation ?? translate('history.lines.theDice'));
+    const rolled = { author: bold(author), what: quoi };
     return {
       ...characterFields(ctx, characterId, author),
       type: 'competence',
-      message: `${bold(author)} lance ${quoi}${result ? ` : ${result}` : ''}.${critical}`,
+      message: `${
+        result
+          ? translate('history.lines.rollsResult', { ...rolled, result })
+          : translate('history.lines.rolls', rolled)
+      }${critical}`,
       // Jet d'une action : la ligne de l'action le résume dans le Journal
       hiddenFromTimeline: str(p.source) === 'action',
     };
@@ -928,7 +1102,9 @@ const FORMATTERS: Record<string, Formatter> = {
     const count = Array.isArray(e.payload.participants) ? e.payload.participants.length : 0;
     return {
       type: 'combat',
-      message: count ? `Le combat commence (${bold(count)} combattants) !` : 'Le combat commence !',
+      message: count
+        ? translate('history.lines.combatStartsCount', { count: bold(count) })
+        : translate('history.lines.combatStarts'),
     };
   },
 
@@ -939,8 +1115,8 @@ const FORMATTERS: Record<string, Formatter> = {
         type: 'combat',
         message:
           num(p.round) !== null
-            ? `Retour au tour précédent (round ${bold(num(p.round)!)}).`
-            : 'Retour au tour précédent.',
+            ? translate('history.lines.previousRound', { round: bold(num(p.round)!) })
+            : translate('history.lines.previousTurnDot'),
       };
     if (p.reason === 'turn_set') {
       const actor = str(p.currentActorId);
@@ -948,14 +1124,17 @@ const FORMATTERS: Record<string, Formatter> = {
         ...characterFields(ctx, actor),
         type: 'combat',
         message: actor
-          ? `Le MJ donne la main à ${bold(characterName(ctx, actor))}.`
-          : 'Le MJ passe la main.',
+          ? translate('history.lines.gmGivesTurn', { name: bold(characterName(ctx, actor)) })
+          : translate('history.lines.gmPasses'),
       };
     }
     if (p.reason === 'participants_added') return participantsAdded(p, ctx);
     if (p.reason === 'initiative') return initiativeRolled(p, ctx);
     if (p.reason === 'new_round' && num(p.round) !== null)
-      return { type: 'combat', message: `Début du round ${bold(num(p.round)!)}.` };
+      return {
+        type: 'combat',
+        message: translate('history.lines.roundStart', { round: bold(num(p.round)!) }),
+      };
     // Tour suivant, participants retirés : trop fréquents pour le Journal
     return null;
   },
@@ -964,7 +1143,10 @@ const FORMATTERS: Record<string, Formatter> = {
     const round = num(e.payload.round);
     return {
       type: 'combat',
-      message: round && round > 1 ? `Fin du combat après ${bold(round)} rounds.` : 'Fin du combat.',
+      message:
+        round && round > 1
+          ? translate('history.lines.combatEndAfter', { round: bold(round) })
+          : translate('history.lines.combatEnd'),
     };
   },
 
@@ -977,7 +1159,7 @@ const FORMATTERS: Record<string, Formatter> = {
       characterName: name,
       characterAvatar: (id && ctx.users.get(lower(id))?.avatarUrl) || undefined,
       type: 'info',
-      message: `${bold(name)} a rejoint la campagne.`,
+      message: translate('history.lines.memberJoined', { name: bold(name) }),
     };
   },
 
@@ -985,14 +1167,14 @@ const FORMATTERS: Record<string, Formatter> = {
     const p = e.payload;
     const id = str(p.userId) ?? e.actor.userId;
     const name = userName(ctx, id);
-    let how = 'a quitté la campagne';
-    if (p.banned === true) how = 'a été banni de la campagne';
-    else if (p.kicked === true) how = 'a été exclu de la campagne';
+    let how: 'memberLeft' | 'memberBanned' | 'memberKicked' = 'memberLeft';
+    if (p.banned === true) how = 'memberBanned';
+    else if (p.kicked === true) how = 'memberKicked';
     return {
       characterName: name,
       characterAvatar: (id && ctx.users.get(lower(id))?.avatarUrl) || undefined,
       type: 'info',
-      message: `${bold(name)} ${how}.`,
+      message: translate(`history.lines.${how}`, { name: bold(name) }),
     };
   },
 
@@ -1002,7 +1184,7 @@ const FORMATTERS: Record<string, Formatter> = {
     return {
       ...characterFields(ctx, id, name),
       type: 'creation',
-      message: `Apparition de : ${bold(name)}.`,
+      message: translate('history.lines.appeared', { name: bold(name) }),
     };
   },
 
@@ -1011,7 +1193,7 @@ const FORMATTERS: Record<string, Formatter> = {
     return {
       ...characterFields(ctx, id),
       type: 'info',
-      message: `Disparition de : ${bold(characterName(ctx, id))}.`,
+      message: translate('history.lines.disappeared', { name: bold(characterName(ctx, id)) }),
     };
   },
 
@@ -1022,8 +1204,8 @@ const FORMATTERS: Record<string, Formatter> = {
       ...characterFields(ctx, id),
       type: 'info',
       message: id
-        ? `${player} incarne ${bold(characterName(ctx, id))}.`
-        : `${player} n'incarne plus de personnage.`,
+        ? translate('history.lines.plays', { player, name: bold(characterName(ctx, id)) })
+        : translate('history.lines.playsNone', { player }),
     };
   },
 
@@ -1033,7 +1215,7 @@ const FORMATTERS: Record<string, Formatter> = {
     return {
       ...characterFields(ctx, id),
       type: 'creation',
-      message: `Apparition de : ${bold(characterName(ctx, id))}.`,
+      message: translate('history.lines.appeared', { name: bold(characterName(ctx, id)) }),
     };
   },
 
@@ -1043,7 +1225,7 @@ const FORMATTERS: Record<string, Formatter> = {
     return {
       ...characterFields(ctx, id),
       type: 'info',
-      message: `Disparition de : ${bold(characterName(ctx, id))}.`,
+      message: translate('history.lines.disappeared', { name: bold(characterName(ctx, id)) }),
     };
   },
 
@@ -1056,7 +1238,9 @@ const FORMATTERS: Record<string, Formatter> = {
     const name = ctx.maps.get(lower(mapId));
     return {
       type: 'deplacement',
-      message: name ? `Le groupe se rend à ${bold(name)}.` : 'Le groupe change de lieu.',
+      message: name
+        ? translate('history.lines.partyGoes', { name: bold(name) })
+        : translate('history.lines.partyMoves'),
     };
   },
 };
@@ -1073,7 +1257,7 @@ function legacyEvent(e: HistoryEvent, ctx: FormatContext): Formatted {
     message: str(p.message) ?? '',
     characterId: id,
     characterName: str(character?.name) ?? undefined,
-    // Avatar retiré à l'import (base64) : celui de la fiche, s'il est connu
+    // Avatar retiré à l’import (base64) : celui de la fiche, s’il est connu
     characterAvatar: str(character?.avatar) ?? characterOf(ctx, id)?.avatarUrl ?? undefined,
     characterType: str(character?.type) ?? undefined,
     details,
@@ -1108,16 +1292,16 @@ export function formatHistoryEvent(e: HistoryEvent, ctx: FormatContext): GameEve
  * ne reçoit jamais la première, rien ne change pour lui).
  */
 export function withoutRedactedTwins(events: readonly HistoryEvent[]): HistoryEvent[] {
-  const turnKey = (e: HistoryEvent) => `${e.aggregate.id}:${String(e.payload.version)}`;
-  const full = new Set(
-    events
-      .filter((e) => e.type === 'combat.turn_changed' && e.visibility === 'gm_only')
-      .map(turnKey),
-  );
+  // Même passage de tour (version), ou même décompte des durées (`tickId`)
+  const twinKey = (e: HistoryEvent) =>
+    e.type === 'combat.durations_expired'
+      ? `${e.type}:${String(e.payload.tickId)}`
+      : `${e.type}:${e.aggregate.id}:${String(e.payload.version)}`;
+  const twinned = (e: HistoryEvent) =>
+    e.type === 'combat.turn_changed' || e.type === 'combat.durations_expired';
+  const full = new Set(events.filter((e) => twinned(e) && e.visibility === 'gm_only').map(twinKey));
   if (!full.size) return [...events];
-  return events.filter(
-    (e) => !(e.type === 'combat.turn_changed' && e.visibility === 'public' && full.has(turnKey(e))),
-  );
+  return events.filter((e) => !(twinned(e) && e.visibility === 'public' && full.has(twinKey(e))));
 }
 
 /**

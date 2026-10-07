@@ -10,6 +10,9 @@ import {
   type AttackTargetView,
   type CombatInitiative,
   type CombatSettings,
+  type DurationEvent,
+  type MapExplorationMode,
+  type MapExplorationScope,
   type MapGrid,
   type MapWeather,
   type RollStep,
@@ -291,7 +294,9 @@ export const campaignCombatTurns = campaignSchema.table('campaign_combat_turns',
   reason: text('reason').$type<TurnLogReason>().notNull(),
   before: jsonb('before').$type<TurnSnapshot>().notNull(),
   tickId: text('tick_id'),
-  /** Entrées expirées par personnage lors du décompte de ce passage. */
+  /** Événements du décompte des durées de ce passage (docs/combat.md § 18). */
+  tickEvents: jsonb('tick_events').$type<DurationEvent[]>(),
+  /** Entrées expirées par personnage lors du décompte de ce passage ; null : pas encore fait. */
   expired: jsonb('expired').$type<Record<string, string[]>>(),
   createdBy: uuid('created_by').notNull(),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
@@ -589,9 +594,44 @@ export const maps = campaignSchema.table('maps', {
   fogFull: boolean('fog_full').notNull().default(false),
   /** Quadrillages (0021), grille de jeu comprise (`MapGrid`, @vtt/contracts). */
   grids: jsonb('grids').$type<MapGrid[]>().notNull().default([]),
+  /** Mémoire de l'exploration (0031, docs/exploration.md) : `party` pour une scène neuve. */
+  exploration: text('exploration').$type<MapExplorationMode>().notNull().default('party'),
   version: integer('version').notNull().default(1),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+
+/** Octets bruts (`bytea`), lus et écrits en `Uint8Array`. */
+const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
+  dataType: () => 'bytea',
+  toDriver: (v) => Buffer.from(v.buffer, v.byteOffset, v.byteLength),
+  fromDriver: (v) => new Uint8Array(v.buffer, v.byteOffset, v.byteLength),
+});
+
+/**
+ * Mémoire de l'exploration (0031, docs/exploration.md) : un masque par scène et par portée
+ * (`party`), bits tassés (8 cases par octet, `packBits` de @vtt/vision), rangés par lignes.
+ */
+export const mapExplorations = campaignSchema.table(
+  'map_explorations',
+  {
+    mapId: uuid('map_id').notNull(),
+    scope: text('scope').$type<MapExplorationScope>().notNull().default('party'),
+    campaignId: uuid('campaign_id').notNull(),
+    cols: integer('cols').notNull(),
+    rows: integer('rows').notNull(),
+    cells: bytea('cells').notNull(),
+    version: integer('version').notNull().default(1),
+    updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.mapId, t.scope] })],
+);
+
+/** Scènes à explorer (0031) : une ligne par scène, insérée dans la transaction de l'écriture. */
+export const mapExplorationQueue = campaignSchema.table('map_exploration_queue', {
+  mapId: uuid('map_id').primaryKey(),
+  campaignId: uuid('campaign_id').notNull(),
+  queuedAt: timestampTz('queued_at').notNull().defaultNow(),
 });
 
 /** Calques du MJ (0018) : pile ordonnée par carte ; une carte naît avec Sol, Objets, Personnages. */

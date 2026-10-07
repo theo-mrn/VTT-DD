@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { soldes, type Fiche, type Presentation } from '@vtt/rules';
 import { Illustration } from '@/components/commun/illustration';
 import { FittingLabel } from '@/components/ui/fitting-label';
@@ -135,6 +136,7 @@ export function ApercuFiche({
   /** Tous les blocs (récapitulatif) plutôt que les principaux. */
   complet?: boolean;
 }>) {
+  const t = useTranslations();
   const resume = resumer(fiche, presentation);
   const widgets = widgetsFiche(presentation, fiche.etat.type).filter(
     (w) => w.type === 'attributs' || w.type === 'ressources',
@@ -165,14 +167,14 @@ export function ApercuFiche({
       <Illustration
         largeur={480}
         src={portraitUrl}
-        graine={nom || 'Héros'}
+        graine={nom || t('creation.preview.hero')}
         position="top"
         className={complet ? 'aspect-[4/3]' : 'aspect-[16/10]'}
         voile
       >
         <div className="absolute inset-x-4 bottom-4">
           <p className="truncate font-display text-2xl font-semibold text-white">
-            {nom || 'Sans nom'}
+            {nom || t('creation.preview.unnamed')}
           </p>
           <p className="truncate text-[13px] text-white/70">{resume.tagline || 'À définir…'}</p>
         </div>

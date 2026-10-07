@@ -10,6 +10,8 @@
  * clic choisit une autre cible, ⇧ en ajoute ou en retire ; « Attaquer » ouvre le menu à
  * l'étape « Action », Échap, « Annuler » ou un clic dans le vide annulent sans rien déclarer.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import { ArrowRight, Crosshair, Ruler, Swords, X } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
@@ -66,6 +68,7 @@ export function AimPill({
   /** Échap : retour au menu, ou attaque annulée (visée rapide). */
   onCancel: () => void;
 }) {
+  const t = useTranslations();
   const reduced = useReducedMotion();
   const distance = useAimDistance(campaignId, attackerId, targetIds);
 
@@ -86,7 +89,7 @@ export function AimPill({
   return createPortal(
     <motion.div
       role="toolbar"
-      aria-label="Visée sur la carte"
+      aria-label={t('combat.attack.aimingOnMap')}
       initial={reduced ? false : { opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -102,7 +105,7 @@ export function AimPill({
         />
         <ArrowRight className="size-4 shrink-0 text-subtle" aria-hidden />
         {n > 0 ? (
-          <ul className="flex shrink-0 -space-x-2" aria-label="Cibles">
+          <ul className="flex shrink-0 -space-x-2" aria-label={t('combat.attack.targets')}>
             {targetIds.slice(0, 4).map((id, i) => (
               <li key={id} style={{ zIndex: 4 - i }}>
                 <Illustration
@@ -141,7 +144,7 @@ export function AimPill({
             size="icon-sm"
             variant="ghost"
             className="shrink-0 rounded-full"
-            aria-label="Annuler l’attaque"
+            aria-label={t('combat.attack.cancel')}
             onClick={onCancel}
           >
             <X />
@@ -153,7 +156,7 @@ export function AimPill({
           disabled={quick && n === 0}
           onClick={onDone}
         >
-          <Swords /> Attaquer
+          <Swords /> {t('combat.character.attack')}
         </Button>
       </div>
     </motion.div>,
@@ -162,5 +165,5 @@ export function AimPill({
 }
 
 function countTargets(n: number): string {
-  return n === 0 ? 'Aucune cible' : `${n} cibles`;
+  return n === 0 ? translate('combat.attack.noTarget') : `${n} cibles`;
 }

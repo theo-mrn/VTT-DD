@@ -44,7 +44,7 @@ function press(
 const cmd = (id: string, binding: string | null, extra: Partial<ShortcutDescriptor> = {}) =>
   ({
     id,
-    label: id,
+    label: { text: id },
     scope: 'table',
     defaultBinding: binding,
     ...extra,

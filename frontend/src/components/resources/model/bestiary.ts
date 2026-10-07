@@ -4,6 +4,7 @@
  * présentation déclare par type d'entité (`references.bestiaire.statistiques`), ou à défaut
  * les blocs d'attributs de sa fiche : aucune clé de jeu en dur.
  */
+import { translate } from '@/i18n/runtime';
 import {
   calculer,
   type BestiaryCreature,
@@ -95,7 +96,7 @@ function stats(
     .filter((c) => !montres.has(c))
     .map(item)
     .filter((x): x is StatItem => x !== null);
-  if (reste.length) r.push({ title: 'Autres', items: reste });
+  if (reste.length) r.push({ title: translate('resources.bestiary.others'), items: reste });
   return r;
 }
 

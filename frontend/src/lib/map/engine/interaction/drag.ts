@@ -8,9 +8,10 @@
  * - `TransformSession` : une poignée de rotation (⇧ : pas de 15°) ou de taille (⇧ : garde les
  *   proportions).
  */
+import { translate } from '@/i18n/runtime';
 import type { EntityGeometry, Point } from '../geometry';
 import type { MapEntity } from '../entities/entity';
-import type { MapEngine } from '../map-engine';
+import type { DragEvent, MapEngine } from '../map-engine';
 import { snapGeometryToGrid } from './snapping';
 import { resizeGeometry, rotateGeometry, type HandleId } from './transform-gizmo';
 
@@ -20,12 +21,15 @@ export const DRAG_THRESHOLD_PX = 4;
 export const exceedsThreshold = (a: Point, b: Point, threshold = DRAG_THRESHOLD_PX) =>
   Math.hypot(a.x - b.x, a.y - b.y) > threshold;
 
-const moveLabel = (n: number) => (n > 1 ? `Déplacer ${n} éléments` : 'Déplacer');
+const moveLabel = (n: number) =>
+  n > 1 ? translate('map.common.moveMany', { count: n }) : translate('map.common.move');
 
 export class DragSession {
   private dx = 0;
   private dy = 0;
   private done = false;
+  /** Étape signalée aux modules (`engine.onDrag`), un seul objet pour tout le geste. */
+  private readonly event: DragEvent;
 
   constructor(
     private readonly engine: MapEngine,
@@ -35,6 +39,8 @@ export class DragSession {
     private readonly primary: MapEntity,
   ) {
     engine.setEntityState(entities, { dragging: true });
+    this.event = { phase: 'start', entities, primary, committed: false };
+    engine.emitDrag(this.event);
   }
 
   get delta(): Point {
@@ -60,6 +66,8 @@ export class DragSession {
     this.engine.live?.drag(
       this.entities.map((e) => [e.id, e.current.x, e.current.y] as [string, number, number]),
     );
+    this.event.phase = 'move';
+    this.engine.emitDrag(this.event);
   }
 
   /** Fin du geste : une commande pour toute la sélection (null si rien n'a bougé). */
@@ -76,7 +84,7 @@ export class DragSession {
       : [];
     // La commande écrit le magasin tout de suite : la géométrie prend le relais de l'aperçu
     const result = moved ? this.engine.transformEntities(changes, moveLabel(changes.length)) : null;
-    this.finish();
+    this.finish(result !== null);
     return result;
   }
 
@@ -85,12 +93,15 @@ export class DragSession {
     if (this.done) return;
     this.done = true;
     this.engine.live?.end();
-    this.finish();
+    this.finish(false);
   }
 
-  private finish() {
+  private finish(committed: boolean) {
     for (const e of this.entities) this.engine.setPreview(e, null);
     this.engine.setEntityState(this.entities, { dragging: false });
+    this.event.phase = 'end';
+    this.event.committed = committed;
+    this.engine.emitDrag(this.event);
   }
 }
 
@@ -139,7 +150,8 @@ export class TransformSession {
       n.width !== g.width ||
       n.height !== g.height ||
       n.rotation !== g.rotation;
-    const label = this.handle === 'rotate' ? 'Pivoter' : 'Redimensionner';
+    const label =
+      this.handle === 'rotate' ? translate('map.common.rotate') : translate('map.common.resize');
     const result = changed
       ? this.engine.transformEntities([{ entity: this.entity, next: n }], label)
       : null;

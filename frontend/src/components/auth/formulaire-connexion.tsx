@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { ArrowRight, Eye, EyeOff, Lock, Mail, UserRound } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useId, useState, type FormEvent } from 'react';
@@ -9,7 +10,7 @@ import { Message } from '@/components/compte/elements';
 import { Button } from '@/components/ui/button';
 import { InputGroup } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { messageErreur } from '@/lib/api';
+import { ApiError, messageErreur } from '@/lib/api';
 import { LEGAL_PAGES } from '@/lib/legal';
 import type { Fournisseur } from '@/lib/profil';
 import {
@@ -45,6 +46,7 @@ export function FormulaireConnexion({
   modeInitial?: ModeAuth;
   carte?: boolean;
 }>) {
+  const t = useTranslations('auth.form');
   const { seConnecter, sInscrire } = useSession();
   const chemin = usePathname();
   const [mode, setMode] = useState<ModeAuth>(modeInitial);
@@ -75,7 +77,11 @@ export function FormulaireConnexion({
       else await sInscrire(email, motDePasse, nom.trim());
       onConnecte?.(mode);
     } catch (err) {
-      setErreur(messageErreur(err, 'Serveur injoignable, réessayez dans un instant.'));
+      setErreur(
+        err instanceof ApiError && err.status === 401 && mode === 'connexion'
+          ? t('invalidCredentials')
+          : messageErreur(err),
+      );
     } finally {
       setEnvoi(false);
     }
@@ -98,12 +104,10 @@ export function FormulaireConnexion({
     >
       <div className="mb-7 space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">
-          {inscription ? 'Créez votre compte' : 'Bon retour parmi nous'}
+          {inscription ? t('signUpTitle') : t('signInTitle')}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {inscription
-            ? 'Quelques secondes, et votre première aventure vous attend.'
-            : 'Connectez-vous pour retrouver vos campagnes et vos héros.'}
+          {inscription ? t('signUpLead') : t('signInLead')}
         </p>
       </div>
 
@@ -135,7 +139,7 @@ export function FormulaireConnexion({
           </div>
           <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-wider text-subtle">
             <span className="h-px flex-1 bg-border" />
-            ou avec votre e-mail
+            {t('orEmail')}
             <span className="h-px flex-1 bg-border" />
           </div>
         </>
@@ -144,11 +148,11 @@ export function FormulaireConnexion({
       <form onSubmit={valider} className={cn('space-y-4', actifs.length === 0 && 'mt-6')}>
         {inscription && (
           <div className="space-y-2">
-            <Label htmlFor={`${ids}-nom`}>Nom d&apos;aventurier</Label>
+            <Label htmlFor={`${ids}-nom`}>{t('name')}</Label>
             <InputGroup
               id={`${ids}-nom`}
               avant={<UserRound />}
-              placeholder="Elrond, Kaël, Morgane…"
+              placeholder={t('namePlaceholder')}
               autoComplete="nickname"
               value={nom}
               onChange={(e) => setNom(e.target.value)}
@@ -158,12 +162,12 @@ export function FormulaireConnexion({
           </div>
         )}
         <div className="space-y-2">
-          <Label htmlFor={`${ids}-email`}>E-mail</Label>
+          <Label htmlFor={`${ids}-email`}>{t('email')}</Label>
           <InputGroup
             id={`${ids}-email`}
             avant={<Mail />}
             type="email"
-            placeholder="vous@exemple.fr"
+            placeholder={t('emailPlaceholder')}
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -182,27 +186,30 @@ export function FormulaireConnexion({
         {erreur && <Message>{erreur}</Message>}
 
         <Button type="submit" size="lg" className="group w-full" loading={envoi}>
-          {inscription ? 'Créer mon compte' : 'Se connecter'}
+          {inscription ? t('signUp') : t('signIn')}
           {!envoi && <ArrowRight className="transition-transform group-hover:translate-x-0.5" />}
         </Button>
 
         {inscription && (
           <p className="text-center text-xs leading-relaxed text-subtle">
-            En créant un compte, vous acceptez les{' '}
-            <Link
-              href={LEGAL_PAGES.terms}
-              className="underline underline-offset-2 hover:text-foreground"
-            >
-              conditions d&apos;utilisation
-            </Link>{' '}
-            et la{' '}
-            <Link
-              href={LEGAL_PAGES.privacy}
-              className="underline underline-offset-2 hover:text-foreground"
-            >
-              politique de confidentialité
-            </Link>
-            .
+            {t.rich('consent', {
+              terms: (chunks) => (
+                <Link
+                  href={LEGAL_PAGES.terms}
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  {chunks}
+                </Link>
+              ),
+              privacy: (chunks) => (
+                <Link
+                  href={LEGAL_PAGES.privacy}
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
         )}
       </form>
@@ -226,16 +233,17 @@ function ChampMotDePasse({
   visible: boolean;
   onToggleVisible(): void;
 }>) {
+  const t = useTranslations('auth.form');
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between">
-        <Label htmlFor={id}>Mot de passe</Label>
+        <Label htmlFor={id}>{t('password')}</Label>
         {!inscription && (
           <Link
             href="/mot-de-passe-oublie"
             className="text-xs text-muted-foreground transition-colors hover:text-primary"
           >
-            Mot de passe oublié ?
+            {t('forgot')}
           </Link>
         )}
       </div>
@@ -243,7 +251,7 @@ function ChampMotDePasse({
         id={id}
         avant={<Lock />}
         type={visible ? 'text' : 'password'}
-        placeholder={inscription ? `${LONGUEUR_MIN_MDP} caractères minimum` : '••••••••'}
+        placeholder={inscription ? t('passwordMin', { min: LONGUEUR_MIN_MDP }) : '••••••••'}
         autoComplete={inscription ? 'new-password' : 'current-password'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -255,7 +263,7 @@ function ChampMotDePasse({
             type="button"
             onClick={onToggleVisible}
             className="flex size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-foreground"
-            aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            aria-label={visible ? t('hidePassword') : t('showPassword')}
           >
             {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
@@ -270,10 +278,11 @@ function SelecteurMode({
   mode,
   onChange,
 }: Readonly<{ mode: ModeAuth; onChange: (m: ModeAuth) => void }>) {
+  const t = useTranslations('auth.form');
   return (
     <div
       role="tablist"
-      aria-label="Connexion ou inscription"
+      aria-label={t('modeLabel')}
       className="relative grid grid-cols-2 rounded-xl border border-border bg-surface p-1"
     >
       {(['connexion', 'inscription'] as const).map((m) => (
@@ -295,7 +304,7 @@ function SelecteurMode({
               className="absolute inset-0 -z-10 rounded-lg bg-surface-3 shadow-surface"
             />
           )}
-          {m === 'connexion' ? 'Connexion' : 'Inscription'}
+          {m === 'connexion' ? t('signInTab') : t('signUpTab')}
         </button>
       ))}
     </div>
@@ -304,6 +313,7 @@ function SelecteurMode({
 
 /** Indication de solidité : longueur, variété des caractères. */
 function ForceMotDePasse({ motDePasse }: Readonly<{ motDePasse: string }>) {
+  const t = useTranslations('auth.form.strength');
   if (!motDePasse) return null;
   const criteres = [
     motDePasse.length >= LONGUEUR_MIN_MDP,
@@ -312,7 +322,7 @@ function ForceMotDePasse({ motDePasse }: Readonly<{ motDePasse: string }>) {
     /\d/.test(motDePasse) || /[^A-Za-z0-9]/.test(motDePasse),
   ];
   const score = criteres.filter(Boolean).length;
-  const libelles = ['Trop court', 'Faible', 'Correct', 'Solide', 'Excellent'];
+  const libelles = ['tooShort', 'weak', 'fair', 'strong', 'excellent'] as const;
   const couleurs = ['bg-destructive', 'bg-destructive', 'bg-warning', 'bg-success', 'bg-success'];
   return (
     <div className="flex items-center gap-3 pt-1" aria-live="polite">
@@ -328,7 +338,7 @@ function ForceMotDePasse({ motDePasse }: Readonly<{ motDePasse: string }>) {
         ))}
       </div>
       <span className="w-16 text-right text-[11px] text-subtle">
-        {criteres[0] ? libelles[score] : libelles[0]}
+        {t(criteres[0] ? (libelles[score] ?? 'tooShort') : 'tooShort')}
       </span>
     </div>
   );

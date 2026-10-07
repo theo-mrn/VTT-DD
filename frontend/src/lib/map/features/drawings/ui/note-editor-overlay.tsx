@@ -6,6 +6,7 @@
  * la ligne, Échap annule ; cliquer ailleurs valide. L'état et l'écriture sont dans
  * `lib/map/features/drawings/engine/note-editor.ts`.
  */
+import { translate } from '@/i18n/runtime';
 import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Kbd } from '@/components/ui/kbd';
@@ -70,7 +71,7 @@ function NoteField({ engine, session }: Readonly<{ engine: MapEngine; session: N
     <div className="pointer-events-auto absolute z-20" style={{ left: topLeft.x, top: topLeft.y }}>
       <textarea
         ref={ref}
-        aria-label="Texte sur la carte"
+        aria-label={translate('map.drawings.textOnMap')}
         value={session.text}
         onChange={(e) => rt.editor.setText(e.target.value)}
         onKeyDown={onKeyDown}
@@ -91,7 +92,11 @@ function NoteField({ engine, session }: Readonly<{ engine: MapEngine; session: N
         }}
       />
       <p className="mt-1.5 flex w-max items-center gap-1.5 rounded-md border border-border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground shadow-elevated">
-        <Kbd>Entrée</Kbd> valider <Kbd>⇧ Entrée</Kbd> à la ligne <Kbd>Échap</Kbd> annuler
+        {translate.rich('map.drawings.editorKeys', {
+          enter: () => <Kbd>{translate('map.drawings.enterKey')}</Kbd>,
+          newline: () => <Kbd>⇧ {translate('map.drawings.enterKey')}</Kbd>,
+          esc: () => <Kbd>{translate('map.tokens.library.esc')}</Kbd>,
+        })}
       </p>
     </div>
   );

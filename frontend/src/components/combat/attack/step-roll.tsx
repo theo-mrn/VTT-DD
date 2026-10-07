@@ -10,6 +10,7 @@
  * résultat apparaît, il n'est pas « lancé ». Le branchement des dés 3D (étape C) reste celui de
  * `dice-steps.ts`.
  */
+import { useTranslations } from 'next-intl';
 import type { Attack } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { Ban, ChevronDown, Send, Shield } from 'lucide-react';
@@ -36,7 +37,7 @@ import {
 import { attackMenu } from '@/lib/combat/attack-menu-store';
 import { clientRunner } from '@/lib/combat/dice-steps';
 import { isLocalAttack } from '@/lib/combat/local-attack';
-import { ATTACK_STATUS_LABELS, useAttack, type useAttackCommands } from '@/lib/combat/use-attacks';
+import { attackStatusLabel, useAttack, type useAttackCommands } from '@/lib/combat/use-attacks';
 import { awaitingReaction, targetName } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
 import { OUTCOME_STYLE, rollGroups } from './outcome';
@@ -109,23 +110,28 @@ export function StepRoll({
   revealed: boolean;
   onRevealed: () => void;
 }>) {
-  if (!attack) return <Waiting title="Envoi de l’attaque…" />;
+  const t = useTranslations();
+  if (!attack) return <Waiting title={t('combat.attack.sending')} />;
   const stage = declaredStage(attack);
   if (stage === 'reactions') {
     const waiting = awaitingReaction(attack);
     return (
       <Waiting
         shield
-        title={`Défense de ${waiting.map((t) => targetName(t.characterId, ctx.known)).join(', ') || 'la cible'}…`}
+        title={t('combat.attack.defenseOf', {
+          names:
+            waiting.map((w) => targetName(w.characterId, ctx.known)).join(', ') ||
+            t('combat.attack.theTarget'),
+        })}
       />
     );
   }
-  if (stage === 'dice') return <Waiting title="Les dés roulent…" />;
+  if (stage === 'dice') return <Waiting title={t('combat.attack.diceRolling')} />;
   if (stage === 'cancelled')
     return (
       <Centered>
         <Ban className="mx-auto size-10 text-subtle" aria-hidden />
-        <p className="mt-3 font-display text-2xl font-semibold">Attaque abandonnée</p>
+        <p className="mt-3 font-display text-2xl font-semibold">{t('combat.attack.abandoned')}</p>
       </Centered>
     );
   return (
@@ -210,6 +216,7 @@ function Result({
   settled: boolean;
   onRevealed: () => void;
 }>) {
+  const t = useTranslations();
   const reduced = useReducedMotion() ?? false;
   const quick = instant || reduced;
   // Retour de l'écran des dégâts : le jet est déjà connu, seuls les dégâts arrivent
@@ -220,16 +227,16 @@ function Result({
     summarizeTarget(attack, t, { successRule, attributeName }),
   );
   const shared = sharedRoll(attack);
-  const t = revealTimeline({
+  const timeline = revealTimeline({
     targets: summaries.length,
     damage: summaries.some((s) => s.damage),
     instant: rollQuick,
   });
-  const damageDelay = settled && !quick ? 150 : t.damage;
+  const damageDelay = settled && !quick ? 150 : timeline.damage;
   const done = useRef(onRevealed);
   done.current = onRevealed;
   useEffect(() => {
-    const id = window.setTimeout(() => done.current(), t.done);
+    const id = window.setTimeout(() => done.current(), timeline.done);
     return () => window.clearTimeout(id);
     // Une fois par attaque montrée, même si elle se met à jour (décision du MJ)
   }, [attack.id]);
@@ -253,10 +260,9 @@ function Result({
         />
         {failed && (
           <Message>
-            Refusée par les règles
             {summaries.find((s) => s.error)?.error
-              ? ` : ${summaries.find((s) => s.error)!.error}`
-              : '.'}
+              ? t('combat.attack.refusedWith', { error: summaries.find((s) => s.error)!.error! })
+              : t('combat.attack.refused')}
           </Message>
         )}
         {summaries.length === 1 && first ? (
@@ -266,7 +272,7 @@ function Result({
             presentation={presentation}
             successRule={successRule}
             quick={rollQuick}
-            outcomeDelay={t.outcome}
+            outcomeDelay={timeline.outcome}
             damageDelay={damageDelay}
             animateDamage={!quick}
           />
@@ -293,7 +299,7 @@ function Result({
                   systeme={systeme}
                   presentation={presentation}
                   showRoll={!shared}
-                  delay={rollQuick ? 0 : (t.outcome + i * 120) / 1000}
+                  delay={rollQuick ? 0 : (timeline.outcome + i * 120) / 1000}
                   damageDelay={quick ? 0 : (damageDelay + i * 120) / 1000}
                   successRule={successRule}
                   quick={rollQuick}
@@ -332,6 +338,7 @@ function Duel({
   damageDelay: number;
   animateDamage: boolean;
 }>) {
+  const t = useTranslations();
   const o = summary.outcome;
   const style = o ? OUTCOME_STYLE[o.tone] : null;
   const fig = summary.figure;
@@ -383,7 +390,7 @@ function Duel({
           {...pop(damageDelay, animateDamage)}
           className="flex flex-col items-center gap-3 border-t border-border pt-8 text-center sm:border-l sm:border-t-0 sm:pl-8 sm:pt-0"
         >
-          <Label>{damage.name ?? 'Valeur'}</Label>
+          <Label>{damage.name ?? t('combat.attack.value')}</Label>
           <DamageNumber damage={damage} successRule={successRule} size="xl" />
           <DamageDetails damage={damage} className="justify-center" />
         </motion.div>
@@ -408,10 +415,11 @@ function BigRoll({
   critique: 'success' | 'failure' | null;
   cle: string;
 }>) {
+  const t = useTranslations();
   if (figure.kind === 'symbols')
     return (
       <div className="flex max-w-xl flex-col items-center gap-3">
-        <Label>Jet</Label>
+        <Label>{t('combat.stages.roll')}</Label>
         <ResultatsSymboles
           systeme={systeme}
           presentation={presentation}
@@ -426,9 +434,9 @@ function BigRoll({
     );
   return (
     <div className="flex flex-col items-center gap-3">
-      <Label>Jet</Label>
+      <Label>{t('combat.stages.roll')}</Label>
       <DesDuJet taille="md" entree={!quick} groupes={rollGroups(figure.roll)} />
-      <div aria-label={`Total du jet : ${figure.total}`}>
+      <div aria-label={t('combat.attack.rollTotal', { total: figure.total })}>
         <TotalJet total={figure.total} critique={critique} taille="xl" cle={cle} sansBadge />
       </div>
       <p className="max-w-full truncate font-mono text-xs text-subtle">
@@ -519,6 +527,7 @@ function TargetRow({
   quick: boolean;
   animateDamage: boolean;
 }>) {
+  const t = useTranslations();
   const name = targetName(summary.characterId, ctx.known);
   const o = summary.outcome;
   const style = o ? OUTCOME_STYLE[o.tone] : null;
@@ -581,7 +590,7 @@ function TargetRow({
         <motion.span {...fade(damageDelay, animateDamage)} className="flex items-baseline gap-2">
           <DamageNumber damage={summary.damage} successRule={successRule} size="md" />
           <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">
-            {summary.damage.name ?? 'Valeur'}
+            {summary.damage.name ?? t('combat.attack.value')}
           </span>
         </motion.span>
       )}
@@ -605,6 +614,7 @@ function Details({
   systeme: SystemeCharge;
   presentation: Presentation | null;
 }>) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const successRule = hasSuccessRule(systeme.actions.get(attack.action.id));
   return (
@@ -619,7 +629,7 @@ function Details({
           className={cn('size-4 transition-transform', open && 'rotate-180')}
           aria-hidden
         />
-        Détail
+        {t('combat.attack.detail')}
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -651,10 +661,11 @@ function Details({
 
 /** « Rapport envoyé au MJ » et son statut en direct (§ 12.1, 4). */
 export function ReportStatus({ attack, gm }: Readonly<{ attack: Attack; gm: boolean }>) {
+  const t = useTranslations();
   const decided = attack.targets.filter((t) => t.decision !== 'pending').length;
-  let label = ATTACK_STATUS_LABELS[attack.status];
+  let label = attackStatusLabel(attack.status);
   if (attack.status === 'pending')
-    label = gm ? 'Rapport en attente : décidez dans le panneau Combat' : 'Rapport envoyé au MJ';
+    label = gm ? t('combat.attack.reportPendingGm') : t('combat.status.pending');
   return (
     <div
       role="status"
@@ -664,13 +675,13 @@ export function ReportStatus({ attack, gm }: Readonly<{ attack: Attack; gm: bool
       <span>{label}</span>
       {attack.targets.length > 1 && attack.status === 'pending' && decided > 0 && (
         <Badge ton="info">
-          {decided}/{attack.targets.length} décidées
+          {t('combat.attack.decided', { decided, total: attack.targets.length })}
         </Badge>
       )}
-      {attack.outOfTurn && <Badge ton="alerte">hors tour</Badge>}
-      {attack.selfTarget && <Badge ton="alerte">auto-attaque</Badge>}
-      {attack.visibility === 'gm' && <Badge>caché</Badge>}
-      {attack.adjustments && <Badge ton="alerte">ajusté à la main</Badge>}
+      {attack.outOfTurn && <Badge ton="alerte">{t('combat.attack.outOfTurn')}</Badge>}
+      {attack.selfTarget && <Badge ton="alerte">{t('combat.attack.selfAttack')}</Badge>}
+      {attack.visibility === 'gm' && <Badge>{t('combat.attack.hiddenShort')}</Badge>}
+      {attack.adjustments && <Badge ton="alerte">{t('combat.attack.adjusted')}</Badge>}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -32,13 +33,11 @@ import { cheminInterne } from '@/lib/redirection';
 import { useProfil, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
-const ETAPES = [
-  { id: 'bienvenue', nom: 'Bienvenue' },
-  { id: 'profil', nom: 'Votre profil' },
-  { id: 'depart', nom: 'Premier pas' },
-];
+/** Étapes du parcours ; nom affiché : `onboarding.steps.<id>`. */
+const ETAPES = [{ id: 'bienvenue' }, { id: 'profil' }, { id: 'depart' }] as const;
 
 export function ParcoursOnboarding() {
+  const t = useTranslations();
   const profil = useProfil();
   const { modifierPreferences, remplacerProfil } = useSession();
   const router = useRouter();
@@ -102,11 +101,15 @@ export function ParcoursOnboarding() {
       <EnTeteFocus
         centre={
           etape > 0 ? (
-            <ProgressionEtapes etapes={ETAPES} courante={etape} onAller={aller} />
+            <ProgressionEtapes
+              etapes={ETAPES.map((e) => ({ id: e.id, nom: t(`onboarding.steps.${e.id}`) }))}
+              courante={etape}
+              onAller={aller}
+            />
           ) : undefined
         }
         quitter={{ onClick: () => void terminer(suite) }}
-        libelleQuitter="Passer"
+        libelleQuitter={t('onboarding.skip')}
       />
 
       <div className="relative flex flex-1 flex-col">
@@ -132,10 +135,10 @@ export function ParcoursOnboarding() {
             <div className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">
               <Button variant="ghost" onClick={() => aller(etape - 1)}>
                 <ArrowLeft />
-                Retour
+                {t('common.actions.back')}
               </Button>
               <Button size="lg" onClick={() => void suivant()} disabled={!peutContinuer}>
-                Continuer
+                {t('common.actions.continue')}
                 <ArrowRight />
               </Button>
             </div>
@@ -144,7 +147,7 @@ export function ParcoursOnboarding() {
             <div className="mt-10 flex justify-start border-t border-border pt-6">
               <Button variant="ghost" onClick={() => aller(etape - 1)}>
                 <ArrowLeft />
-                Retour
+                {t('common.actions.back')}
               </Button>
             </div>
           )}
@@ -177,6 +180,7 @@ function TitreEtape({
 // ─── Étape 0 : bienvenue ─────────────────────────────────────────────────────
 
 function EtapeBienvenue({ nom, onCommencer }: Readonly<{ nom: string; onCommencer: () => void }>) {
+  const t = useTranslations();
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
       <motion.div
@@ -194,17 +198,19 @@ function EtapeBienvenue({ nom, onCommencer }: Readonly<{ nom: string; onCommence
         </span>
       </motion.div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
-        Bienvenue sur Yner
+        {t('onboarding.welcome')}
       </p>
       <h1 className="mt-3 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-        Salut, <span className="font-display text-gradient-primary">{nom}</span>.
+        {t.rich('onboarding.hello', {
+          name: nom,
+          b: (chunks) => <span className="font-display text-gradient-primary">{chunks}</span>,
+        })}
       </h1>
       <p className="mt-4 max-w-md text-balance text-[15px] leading-relaxed text-muted-foreground">
-        Quatre questions pour préparer votre table : qui vous êtes, comment vous jouez, et vos
-        univers favoris. Moins d&apos;une minute.
+        {t('onboarding.lead')}
       </p>
       <Button size="xl" className="group mt-8" onClick={onCommencer}>
-        Commencer
+        {t('onboarding.start')}
         <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
       </Button>
     </div>
@@ -224,15 +230,16 @@ function EtapeProfil({
   bio: string;
   setBio: (v: string) => void;
 }>) {
+  const t = useTranslations();
   const profil = useProfil();
   const avatar = useEnvoiImage('avatar');
 
   return (
     <>
       <TitreEtape
-        surtitre="Votre profil"
-        titre="Comment vous appelle-t-on à la table ?"
-        description="C'est ce que verront vos compagnons d'aventure. Vous pourrez tout changer plus tard."
+        surtitre={t('onboarding.steps.profil')}
+        titre={t('onboarding.nameQuestion')}
+        description={t('onboarding.nameHint')}
       />
       <div className="grid gap-8 sm:grid-cols-[auto_minmax(0,1fr)]">
         <div className="flex flex-col items-center gap-3">
@@ -247,7 +254,7 @@ function EtapeProfil({
             <button
               type="button"
               onClick={avatar.ouvrir}
-              aria-label="Choisir un avatar"
+              aria-label={t('onboarding.pickAvatar')}
               className="absolute bottom-1 right-1 flex size-9 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-muted-foreground shadow-elevated transition-colors hover:text-primary"
             >
               <Camera className="size-4" />
@@ -256,14 +263,14 @@ function EtapeProfil({
           {avatar.enAttente ? (
             <div className="flex gap-2">
               <Button size="xs" variant="ghost" onClick={avatar.annuler}>
-                Annuler
+                {t('common.actions.cancel')}
               </Button>
               <Button size="xs" loading={avatar.envoi} onClick={avatar.enregistrer}>
-                Enregistrer
+                {t('common.actions.save')}
               </Button>
             </div>
           ) : (
-            <p className="text-xs text-subtle">PNG, JPEG, WebP, 5 Mo max.</p>
+            <p className="text-xs text-subtle">{t('onboarding.avatarFormats')}</p>
           )}
         </div>
         <div className="space-y-5">
@@ -280,15 +287,15 @@ function EtapeProfil({
           </div>
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <Label htmlFor="onb-bio">Quelques mots sur vous</Label>
-              <span className="text-xs text-subtle">Facultatif</span>
+              <Label htmlFor="onb-bio">{t('onboarding.aboutYou')}</Label>
+              <span className="text-xs text-subtle">{t('onboarding.optional')}</span>
             </div>
             <Textarea
               id="onb-bio"
               value={bio}
               maxLength={500}
               onChange={(e) => setBio(e.target.value)}
-              placeholder="Rôliste depuis le lycée, fan de donjons humides et de PNJ bavards…"
+              placeholder={t('onboarding.bioPlaceholder')}
               className="min-h-[110px]"
             />
           </div>
@@ -308,6 +315,7 @@ function EtapeDepart({
   envoi: boolean;
   onTerminer: (destination: string) => Promise<void>;
 }>) {
+  const t = useTranslations();
   const router = useRouter();
   const [code, setCode] = useState('');
   const [ouvertes, setOuvertes] = useState(false);
@@ -327,9 +335,9 @@ function EtapeDepart({
   return (
     <>
       <TitreEtape
-        surtitre="Premier pas"
-        titre="Par où commence l'aventure ?"
-        description="Rejoignez la table de votre MJ, une campagne ouverte, ou ouvrez la vôtre. Votre héros se crée ensuite dans la campagne, avec son système de jeu."
+        surtitre={t('onboarding.steps.depart')}
+        titre={t('onboarding.whereStart')}
+        description={t('onboarding.whereStartHint')}
       />
 
       {/* Un ami m'a invité : on entre sans code, puis on choisit son héros */}
@@ -345,7 +353,7 @@ function EtapeDepart({
               <LogIn className="size-5" />
             </span>
             <div>
-              <p className="text-base font-semibold">Rejoindre une campagne</p>
+              <p className="text-base font-semibold">{t('onboarding.joinCampaign')}</p>
               <p className="mt-1 text-[13px] text-muted-foreground">
                 Votre MJ vous a donné un code à {LONGUEUR_CODE} caractères.
               </p>
@@ -363,7 +371,7 @@ function EtapeDepart({
               value={code}
               onChange={(v) => setCode(v.toUpperCase())}
               pattern="^[A-Za-z0-9]*$"
-              aria-label="Code de la campagne"
+              aria-label={t('onboarding.campaignCode')}
             >
               <InputOTPGroup>
                 {Array.from({ length: LONGUEUR_CODE }, (_, i) => (
@@ -380,7 +388,7 @@ function EtapeDepart({
               disabled={code.length !== LONGUEUR_CODE || envoi}
               loading={rejoindre.isPending}
             >
-              Rejoindre
+              {t('common.actions.join')}
             </Button>
           </form>
         </div>
@@ -397,9 +405,9 @@ function EtapeDepart({
             <Globe className="size-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-base font-semibold">Campagnes ouvertes</span>
+            <span className="block text-base font-semibold">{t('onboarding.openCampaigns')}</span>
             <span className="mt-1 block text-[13px] text-muted-foreground">
-              Pas de code ? Ces tables publiques accueillent de nouveaux joueurs.
+              {t('onboarding.openCampaignsHint')}
             </span>
           </span>
           <ChevronDown
@@ -431,18 +439,18 @@ function EtapeDepart({
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2 text-base font-semibold">
-            Créer une campagne
+            {t('onboarding.createCampaign')}
             <ArrowRight className="size-4 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
           </span>
           <span className="mt-1 block text-[13px] text-muted-foreground">
-            Vous êtes le MJ : choisissez le système et l'ambiance, puis invitez vos joueurs.
+            {t('onboarding.createCampaignHint')}
           </span>
         </span>
       </button>
 
       <div className="mt-6 text-center">
         <Button variant="link" disabled={envoi} onClick={() => void onTerminer('/accueil')}>
-          Explorer par moi-même
+          {t('onboarding.explore')}
         </Button>
       </div>
     </>

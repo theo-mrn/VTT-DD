@@ -131,7 +131,9 @@ frontend/src/lib/map/
     portals/             portails : même carte, autre scène, aller-retour, outil X, emprunter
     sounds/              zones sonores, écoute et dépôt
     measurements/        distance au clic, outil Mesurer (Z), gabarits épinglés, effets animés
+    movement-path/       trajet d'un token glissé : chemin, cases, distance, déplacement (⇧T)
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
+    exploration/         mémoire de l'exploration (masque du groupe, outil du MJ), exploration.md
     weather/             météo de la scène (pluie, neige, brouillard…), son canvas, espace écran
     combat/              anneaux du tour et des cibles, visée, « Attaquer »
     history/ layers/ scene-display/ snap/ presence/ camera/ fullscreen/ bubbles/ party/
@@ -419,6 +421,8 @@ Règles de ces gestes :
   nom ; survoler une ligne surligne l'élément. Le choix le sélectionne ; les autres de la pile
   sont mis de côté (à 30 %, intouchables) tant qu'il reste sélectionné. Si l'un d'eux est déjà
   sélectionné, il est pris sans menu.
+- **Trajet** : pendant le glisser d'un token, Espace ou un clic droit pose un point de passage,
+  Retour arrière retire le dernier (§ 10, Trajet des déplacements).
 - **Verrouillé** : un élément verrouillé se sélectionne et s'inspecte, mais ne bouge pas.
 - **Élément masqué aux joueurs** : le MJ le voit sous un voile blanc, à 50 %, avec un badge « œil
   barré » de taille constante à l'écran (`engine/visibility-badge.ts`, commun à toutes les sortes).
@@ -455,6 +459,7 @@ Règles de ces gestes :
   | W      | obstacles   | `obstacles`    | MJ                      |
   | G      | brouillard  | `fog`          | MJ                      |
   | L      | lumières    | `lights`       | MJ                      |
+  | —      | exploration | `exploration`  | MJ                      |
   | K      | calques     | moteur         | MJ (panneau, pas outil) |
 
   Dans cet ordre dans la barre : sélection, outils de pose, puis outils de visibilité. Chaque
@@ -730,6 +735,7 @@ de messages seulement.
     stroke?: { id: string; tool; color; width; fill?; points: number[] /* delta depuis le dernier envoi */ };
     transform?: [id: string, x, y, width, height, rotation][];
     measure?: { id; shape; from: [x, y]; to: [x, y]; color; skin?; options?; pinned? } | null;
+    path?: [id: string, points: number[] /* départ puis points de passage, à plat */][];
     end?: true;
   }
   ```
@@ -738,6 +744,10 @@ de messages seulement.
 
   `measure` : la mesure en cours de l'émetteur (une seule par auteur, § 10, Mesures) ; `null` :
   effacée (Échap) ; `pinned` : épinglée, le gabarit durable suit. Après `end`, elle reste 6 s.
+
+  `path` : le trajet du token glissé (§ 10, Trajet des déplacements) : son départ puis ses
+  points de passage ; le point courant est celui de `drag`. Envoyé quand il change, à sa propre
+  audience (jamais plus large que celle du token à chacun de ces points) ; `[id, []]` l'efface.
 
 - **`map.ping`** : `{ m, x, y, focus? }`.
 - **`map.bubble`** : `{ c, b: { t, v, d } | null }`, bulle d'interaction (emoji ou texte de 40
@@ -748,7 +758,8 @@ de messages seulement.
   son token (vision, calque). `lib/map/features/bubbles/`.
 - Tampon de 100 ms, puis interpolation linéaire : un fantôme glisse sans à-coups.
 - Élément inconnu du destinataire : ignoré.
-- Plus rien pendant 2 s : le fantôme disparaît.
+- Plus rien pendant 2 s : le fantôme disparaît. Un glisser immobile (on s'arrête pour lire son
+  trajet) est rappelé chaque seconde par l'émetteur, comme un curseur.
 - `end`, ou l'événement durable qui suit : il se pose.
 
 **Audience** (aucune fuite).
@@ -834,6 +845,11 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
     qu'il sache ce qu'ils voient, sans rien lui cacher.
   - « Vue de … » (sélecteur de joueur) : rendu exact de ce joueur, et entités non vues masquées.
 - **`shadowOpacity`** (réglage MJ) : opacité de l'obscurité hors de vue (1 = noir).
+- **Mémoire de l'exploration** ([exploration.md](exploration.md)) : par scène et pour tout le
+  groupe, ce que ses observateurs ont déjà vu reste montré sous un voile gris (fond, décors,
+  dessins des calques, murs tracés), sans PNJ ni objet hors décor (ils suivent la vue en
+  direct). Masque raster d'un quart de case calculé par le serveur après chaque changement de
+  vue, outil Exploration du MJ (révéler, oublier, réinitialiser, activer par scène).
 - **Rayons de vision** (menu « Vue », préférence locale, montrés par défaut) : un liseré doux,
   clair et estompé vers l'intérieur, au bord du rayon de vision de chaque observateur : les siens
   pour un joueur, ceux du joueur montré en « Vue de… », tous ceux des joueurs pour le MJ. Au-dessus
@@ -879,7 +895,10 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
   brouillard changent ; dérive lente à 10 i/s, désactivable : « Animer la brume » dans
   « Vue », préférence locale, figée par défaut avec « mouvement réduit » ou sur machine
   économe) là où il y a du brouillard et pas de vue,
-  lueurs × vu. Une seule passe obscurcit et éclaire.
+  lueurs × vu. Une seule passe obscurcit et éclaire. Là où le groupe a déjà exploré
+  ([exploration.md](exploration.md)) et ne voit plus, un voile gris (62 % de l'obscurité)
+  remplace obscurité, brume et noir des obstacles : une texture d'un texel par case
+  d'exploration, lue en coordonnées du monde, sans passe de plus.
 - **MJ** : tout visible, l'ombre des joueurs (union de leurs observateurs) en voile à 25 %,
   brume à 25 %, lueurs presque entières ; « Vue de … » (sélecteur « Vue », emplacement `view`
   de la barre d'outils) : rendu exact de ce joueur, entités non vues masquées. Les surcouches
@@ -1308,6 +1327,14 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
   « Vue de … » ; tous : « Animer la brume »), `features/vision/ui/view-menu.tsx`.
 - Branchement du serveur sur `@vtt/vision`, filtrage et événements ciblés (§ 9, Serveur).
 
+### Exploration (`exploration`)
+
+Mémoire de ce que le groupe a vu, par scène ([exploration.md](exploration.md)) : masque du
+serveur et couche locale pendant un glisser (`features/exploration/engine/model.ts`), traînées
+des glisser envoyées au lâcher (`trail.ts`), outil Exploration du MJ (révéler, oublier ; formes
+1 à 3 ; activer par scène ; réinitialiser), voile gris dessiné par le shader de composition du
+module vision (texture d'un texel par case, `mask-texture.ts`).
+
 ### Météo (`weather`)
 
 Refonte de la météo de l'ancienne carte (`WeatherCanvas`, `WeatherPicker`) : un canevas 2D
@@ -1649,6 +1676,87 @@ mesure se voit chez tous pendant le geste, s'efface ensuite, ou s'épingle en ga
   orienté vers le pointeur (l'ancienne app le gardait droit) ; les mesures éphémères ne
   passent plus par une base (RTDB) mais par le direct.
 
+### Trajet des déplacements (`movement-path`)
+
+Quand on glisse un token, son trajet se dessine, comme sur les tables de référence (Foundry,
+Roll20) : le chemin suivi, les cases traversées, la distance, comparée au déplacement du
+personnage quand le système le donne. Chez tous pendant le geste, rien d'enregistré.
+
+- **Ce qui est montré** (chez celui qui glisse et chez les autres) :
+  - le chemin : départ (anneau), points de passage (points pleins), position courante du token ;
+    trait d'épaisseur constante à l'écran, sur un liseré sombre, plan `live` ;
+  - avec une grille de jeu : les **cases traversées**, teintées sous les tokens (plan `grid`) ;
+    chaque segment va de case en case, en pas de roi, ou sans diagonale avec le comptage « Sans
+    diagonale ». La distance est le nombre de cases selon le **comptage des Mesures** (même
+    réglage, barre de l'outil Z ; une case vaut une unité, § 4), les diagonales alternées
+    comptées sur tout le trajet. « Ne pas compter » : cases teintées, distance euclidienne ;
+  - sans grille de jeu : la ligne, et la somme des segments en unités de la scène ;
+  - une étiquette au bout, à taille constante : « 8 m », ou « 8 / 6 m » quand le déplacement
+    du personnage est connu. Au-delà, la part du trajet en trop (cases, ou fin de la ligne) et le
+    liseré de l'étiquette passent en `destructive` ; en deçà, `primary`.
+- **Points de passage** (64 au plus) : Espace ou clic droit pendant le glisser ; ou un arrêt de
+  500 ms à une demi-case au moins du dernier point. Retour arrière retire le dernier. Le trajet
+  est celui du token tenu sous le pointeur ; le reste de la sélection suit du même écart, sans
+  trajet propre.
+- **Fin du geste** : au lâcher, le trajet reste puis s'efface en 0,8 s (le token se pose comme
+  avant, sans parcourir le chemin) ; Échap : il disparaît aussitôt.
+- **Déplacement du personnage** : la présentation du système déclare l'attribut qui le donne
+  (`carte.deplacement.attribut`, `@vtt/rules`, vérifié au chargement), en unités de la carte.
+  Une surcouche sans rendu (`ui/speed-feed.tsx`) le lit dans les fiches calculées que ce viewer
+  a déjà (mêmes requêtes que l'annuaire des tokens : MJ, tous les personnages posés ; joueur, les
+  siens), seulement si l'attribut lui est visible, et le pousse au moteur. Un joueur ne voit
+  donc jamais la vitesse d'un PNJ. Aucune clé de jeu dans le code ; sans déclaration, la
+  distance seule.
+- **Direct** (§ 8, `map.live.path`) :
+  - le trajet part au départ, à chaque point de passage ajouté ou retiré, et quand son audience
+    change ; jamais à chaque mouvement : le point courant est le fantôme du token (`drag`) ;
+  - **audience** : l'intersection des audiences du token prises au départ et à chaque point de
+    passage, au moment où il y était (`engine.liveAudience`, affinée par la vision). Un joueur ne
+    reçoit jamais le départ ni un passage d'un PNJ qu'il ne voyait pas à cet endroit. Quand elle
+    change, le trajet est effacé chez l'ancienne (`[id, []]`), puis renvoyé à la nouvelle à
+    l'envoi suivant (le numéro des messages garantit l'ordre) ;
+  - réception : dessiné tant que le fantôme du token est là (`state.remote`) ou que le trajet
+    vient d'arriver (2 s), token connu, non masqué et pas tenu par moi ; à `end`, effacé en
+    0,8 s ; sans fantôme ni nouvelles depuis 2 s, oublié comme lui.
+- **Activable** :
+  - préférence de chacun (navigateur, activée par défaut) : bouton « Trajets » (groupe
+    `assist`) et action `movement-path.toggle` (⇧T, `lib/map/shortcuts.ts`) ;
+  - **règle de la table** (MJ, chevron à côté du bouton) : « Au choix de chacun » (défaut),
+    « Toujours affichés », « Masqués ». Elle est enregistrée dans l'affichage de la scène
+    (`display.movement_paths` : absent, vrai, faux ; commande annulable) et s'impose aux joueurs
+    et aux spectateurs (bouton grisé, infobulle) ; le MJ garde sa préférence ;
+  - couper l'affichage ne coupe pas l'envoi : les autres voient mon trajet selon leur réglage.
+- **Socle** (ajouts additifs) : `engine.onDrag` (début, déplacement et fin d'un glisser, avec le
+  token tenu) ; `engine.onGestureInput` (touche, ou clic droit, pendant un geste : avant les
+  gestes communs, Échap garde son sens) ; `LiveChannel.path` et `onPath`.
+- **Fluidité** : rien de React pendant le geste. Chaque partie n'est redessinée que si ce
+  qu'elle montre change (sommets, case courante, palier de zoom, étiquette) ; les cases ne sont
+  recalculées qu'au changement de case ; une image de plus seulement pendant un effacement.
+- **Fichiers** : `engine/model.ts` (géométrie, cases, distances, audiences ; pur, testé),
+  `engine/tracker.ts` (mon trajet), `engine/remote.ts` (ceux des autres), `engine/rule.ts`
+  (préférence, règle de la table), `engine/speeds.ts`, `engine/render.ts`, `engine/register.ts`
+  (branchement) ; `ui/path-controls.tsx` (bouton et règle), `ui/speed-feed.tsx`.
+
+**Décisions prises** (2026-10-07, à revoir par Théo) :
+
+1. Un trajet par geste : celui du token tenu. Une sélection multiple suit sans trajet propre.
+2. Points de passage par Espace, clic droit ou arrêt de 500 ms ; Retour arrière retire le
+   dernier. Espace est un **geste fixe** (catalogue des raccourcis, comme Espace + glisser) :
+   toutes les lettres seules sont prises, et Espace ne peut pas être un défaut modifiable (il
+   commence le jet rapide « Espace Entrée »).
+3. Distance sur grille : nombre de cases (une case vaut une unité, § 4) selon le comptage des
+   Mesures, partagé avec l'outil Z plutôt qu'un second réglage.
+4. Déplacement : nouvelle clé de présentation `carte.deplacement.attribut`. Aucun système ne la
+   déclare encore (dnd-classic n'a pas d'attribut de vitesse, Star Wars compte en portées) : à
+   ajouter avec l'attribut, dans le YAML du système.
+5. Comparaison seulement chez qui connaît déjà la fiche ; rien de la fiche ne part sur le direct.
+6. Audience du trajet : intersection au départ et aux points de passage (voir Direct).
+7. Règle du MJ par scène, dans `display` : aucune route, colonne ni migration. Elle ne lie pas
+   le MJ.
+8. Éphémère : rien d'enregistré ; pas d'animation du token le long du chemin au lâcher.
+9. Bascule ⇧T (`Shift+KeyT`) ; bouton dans le groupe `assist`, après l'aimantation.
+10. Couleurs du thème : `primary` pour le trajet, `destructive` au-delà du déplacement.
+
 ### Zones sonores (`sounds`)
 
 Décisions du 2026-10-02 : son étouffé derrière les murs, le MJ n'écoute pas, zones en cercle ;
@@ -1832,6 +1940,10 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
 15. **Mesures** (§ 10, Mesures) : `map.live.measure` au contrat (mesure en cours de l'outil
     Mesurer, `null` pour l'effacer, `pinned` quand elle devient un gabarit) ; les gabarits
     durables gardent la couche `measurements` (auteur ou MJ, `start` et `end` ensemble).
+
+16. **Trajet des déplacements** (§ 10) : `map.live.path` au contrat (`[id, points]`, 20
+    trajets et 64 points au plus par message, `[id, []]` l'efface) ; aucune route ni table. La
+    règle du MJ vit dans `maps.display` (`movement_paths`), déjà au contrat.
 
 ## 13. Découpage du chantier
 

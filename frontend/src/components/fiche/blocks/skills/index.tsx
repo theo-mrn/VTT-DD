@@ -10,6 +10,8 @@
  * Les soldes des monnaies de la progression sont dans l'en-tête ; le détail s'ouvre au clic
  * (description, effets, achat ou remboursement par les opérations de la fiche).
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import { Coins, ListChecks, Search, TableProperties, TrendingUp, X } from 'lucide-react';
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Info } from '@/components/ui/tooltip';
@@ -89,6 +91,7 @@ function SearchField({
   onChange: (v: string) => void;
   label: string;
 }>) {
+  const t = useTranslations();
   return (
     <div className="relative min-w-0 flex-1">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-subtle" />
@@ -96,7 +99,7 @@ function SearchField({
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Rechercher…"
+        placeholder={t('map.tokens.library.searchPlaceholder')}
         aria-label={label}
         className="h-11 w-full rounded-lg border border-input bg-surface-2/60 pl-8 pr-8 text-[13px] text-foreground placeholder:text-subtle focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10 sm:h-8 [&::-webkit-search-cancel-button]:hidden"
       />
@@ -105,7 +108,7 @@ function SearchField({
           type="button"
           onClick={() => onChange('')}
           className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 sm:size-7 items-center justify-center rounded text-subtle hover:text-foreground"
-          aria-label="Effacer la recherche"
+          aria-label={t('resources.clearSearch')}
         >
           <X className="size-3.5" />
         </button>
@@ -135,13 +138,14 @@ function FilterChips({
   filter: string | null;
   onFilter(key: string | null): void;
 }>) {
+  const t = useTranslations();
   return (
     <div
       className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:thin]"
       role="group"
-      aria-label="Filtrer par type"
+      aria-label={t('sheet.skills.filterType')}
     >
-      {[{ key: null, label: 'Toutes', count: total }, ...filters].map((f) => {
+      {[{ key: null, label: t('map.sounds.allCategories'), count: total }, ...filters].map((f) => {
         const on = filter === f.key;
         return (
           <button
@@ -224,16 +228,19 @@ function CapacitesView({
   writes: Writes;
   onOpen(card: SkillCard): void;
 }>) {
+  const t = useTranslations();
   return (
     <>
       {data.owned.length === 0 && (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          Aucune capacité acquise pour l’instant.
-          {data.views.includes('progression') && ' Elles s’obtiennent par la progression.'}
+          {t('sheet.skills.noAbility')}
+          {data.views.includes('progression') && ` ${t('sheet.skills.noAbilityHint')}`}
         </p>
       )}
       {data.owned.length > 0 && owned.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">Aucun résultat.</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          {t('sheet.effects.noResult')}
+        </p>
       )}
       {owned.length > 0 && (
         <OwnedList
@@ -253,6 +260,7 @@ function SkillsBlock({
   mode,
   height = 'auto',
 }: Readonly<SheetBlockProps<'competences'>>) {
+  const t = useTranslations();
   const data = useMemo(() => buildSkillsBlock(ctx.fiche, widget), [ctx.fiche, widget]);
   const writes = sheetWrites(ctx, mode);
   const [bodyRef, width] = useWidth<HTMLDivElement>();
@@ -282,12 +290,12 @@ function SkillsBlock({
 
   const narrow = width > 0 && width < 560;
   const libellesVues: Record<SkillsViewId, Omit<ViewOption<SkillsViewId>, 'id'>> = {
-    progression: { label: 'Progression', icon: TableProperties },
+    progression: { label: t('sheet.skills.progression'), icon: TableProperties },
     rangs: {
       label: data.ranked.map((r) => r.sorte.nomPluriel ?? r.sorte.nom).join(', '),
       icon: TrendingUp,
     },
-    capacites: { label: 'Capacités', icon: ListChecks },
+    capacites: { label: t('resources.tabs.capacites'), icon: ListChecks },
   };
   const options: ViewOption<SkillsViewId>[] = data.views.map((id) => ({
     id,
@@ -311,13 +319,16 @@ function SkillsBlock({
                   setView(v);
                   setFilter(null);
                 }}
-                label={`Vues de ${widget.titre}`}
+                label={t('sheet.skills.viewsOf', { name: widget.titre })}
                 panelId={panelId}
                 showLabels={width === 0 || width >= 420}
               />
             )}
             {data.balances.map((b) => (
-              <Info key={b.currency} texte={`${b.balance} ${b.name} à dépenser`}>
+              <Info
+                key={b.currency}
+                texte={t('sheet.skills.toSpend', { amount: `${b.balance} ${b.name}` })}
+              >
                 <span className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-2 text-[12px]">
                   <Coins className="size-3.5 text-primary" aria-hidden />
                   <span className="font-mono font-semibold tabular">{b.balance}</span>
@@ -333,7 +344,7 @@ function SkillsBlock({
               <SearchField
                 value={query}
                 onChange={setQuery}
-                label={`Rechercher dans ${widget.titre}`}
+                label={t('resources.catalogue.searchIn', { section: widget.titre })}
               />
               {view === 'capacites' && data.filters.length > 0 && (
                 <FilterChips
@@ -399,9 +410,12 @@ function SkillsBlock({
 
 export const skillsBlock: SheetBlockDefinition<'competences'> = {
   type: 'competences',
-  label: 'Compétences',
-  description:
-    'Progression (voies en tableau ou arbres), compétences à rangs et capacités acquises.',
+  get label() {
+    return translate('sheet.blocks.skills.label');
+  },
+  get description() {
+    return translate('sheet.blocks.skills.description');
+  },
   defaultSize: { w: 12, h: 8 },
   minSize: { w: 3, h: 4 },
   Component: SkillsBlock,

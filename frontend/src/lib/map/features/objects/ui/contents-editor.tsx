@@ -5,6 +5,7 @@
  * contenu, le retrait, l'ajout depuis le marché du système (référence `ref`) ou d'un objet
  * libre (nom, quantité, description). Chaque changement est une commande annulable.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapObjectItem } from '@vtt/contracts';
 import { Minus, PenLine, Plus, Store, Trash2 } from 'lucide-react';
 import { useId, useState } from 'react';
@@ -43,7 +44,7 @@ export function ContentsEditor({
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between gap-2">
-        <FieldLabel>Contenu</FieldLabel>
+        <FieldLabel>{translate('map.objects.contents.title')}</FieldLabel>
         {items.length > 0 && (
           <span className="text-[11px] text-subtle">
             {items.length} contenu{items.length > 1 ? 's' : ''} · {units} objet
@@ -59,12 +60,24 @@ export function ContentsEditor({
               item.description ?? (item.ref && entries?.get(item.ref)?.description);
             return (
               <li key={item.id} className="flex items-center gap-2 px-2 py-1.5">
-                <Info texte={item.ref ? 'Objet du marché' : 'Objet libre'}>
+                <Info
+                  texte={
+                    item.ref
+                      ? translate('map.objects.contents.market')
+                      : translate('map.objects.contents.free')
+                  }
+                >
                   <span className="grid size-6 shrink-0 place-items-center rounded-md bg-surface-2 text-subtle">
                     {item.ref ? (
-                      <Store className="size-3.5" aria-label="Objet du marché" />
+                      <Store
+                        className="size-3.5"
+                        aria-label={translate('map.objects.contents.market')}
+                      />
                     ) : (
-                      <PenLine className="size-3.5" aria-label="Objet libre" />
+                      <PenLine
+                        className="size-3.5"
+                        aria-label={translate('map.objects.contents.free')}
+                      />
                     )}
                   </span>
                 </Info>
@@ -80,26 +93,34 @@ export function ContentsEditor({
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    aria-label={`Un ${item.name} de moins`}
+                    aria-label={translate('map.objects.contents.oneLess', { name: item.name })}
                     disabled={item.quantity <= 1}
                     onClick={() =>
-                      onChange(setItemQuantity(items, item.id, item.quantity - 1), 'Quantité')
+                      onChange(
+                        setItemQuantity(items, item.id, item.quantity - 1),
+                        translate('map.objects.contents.quantity'),
+                      )
                     }
                   >
                     <Minus />
                   </Button>
                   <span
                     className="w-7 text-center text-[13px] tabular-nums"
-                    aria-label={`Quantité : ${item.quantity}`}
+                    aria-label={translate('map.objects.contents.quantityOf', {
+                      quantity: item.quantity,
+                    })}
                   >
                     {item.quantity}
                   </span>
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    aria-label={`Un ${item.name} de plus`}
+                    aria-label={translate('map.objects.contents.oneMore', { name: item.name })}
                     onClick={() =>
-                      onChange(setItemQuantity(items, item.id, item.quantity + 1), 'Quantité')
+                      onChange(
+                        setItemQuantity(items, item.id, item.quantity + 1),
+                        translate('map.objects.contents.quantity'),
+                      )
                     }
                   >
                     <Plus />
@@ -109,7 +130,9 @@ export function ContentsEditor({
                     size="icon-xs"
                     aria-label={`Retirer ${item.name}`}
                     className="hover:text-destructive"
-                    onClick={() => onChange(removeItem(items, item.id), 'Retirer un contenu')}
+                    onClick={() =>
+                      onChange(removeItem(items, item.id), translate('map.objects.contents.remove'))
+                    }
                   >
                     <Trash2 />
                   </Button>
@@ -120,7 +143,7 @@ export function ContentsEditor({
         </ul>
       ) : (
         <p className="rounded-lg border border-dashed border-border-strong px-3 py-3 text-center text-xs text-muted-foreground">
-          Vide : ajoutez des objets du marché ou des objets libres.
+          {translate('map.objects.contents.empty')}
         </p>
       )}
 
@@ -129,12 +152,14 @@ export function ContentsEditor({
           <PopoverTrigger asChild>
             <Button variant="secondary" size="xs" disabled={full}>
               <Store />
-              Depuis le marché
+              {translate('map.objects.contents.fromMarket')}
             </Button>
           </PopoverTrigger>
           <PopoverContent side="left" align="start" className="w-80 p-2">
             <CataloguePicker
-              onPick={(entry) => onChange(addCatalogueItem(items, entry), 'Ajouter un contenu')}
+              onPick={(entry) =>
+                onChange(addCatalogueItem(items, entry), translate('map.objects.contents.add'))
+              }
             />
           </PopoverContent>
         </Popover>
@@ -146,7 +171,7 @@ export function ContentsEditor({
           onClick={() => setFreeOpen((v) => !v)}
         >
           <PenLine />
-          Objet libre
+          {translate('map.objects.contents.free')}
         </Button>
       </div>
       {full && (
@@ -156,7 +181,7 @@ export function ContentsEditor({
         <FreeItemForm
           onCancel={() => setFreeOpen(false)}
           onAdd={(input) => {
-            onChange(addFreeItem(items, input), 'Ajouter un contenu');
+            onChange(addFreeItem(items, input), translate('map.objects.contents.add'));
             setFreeOpen(false);
           }}
         />
@@ -197,20 +222,22 @@ function FreeItemForm({
     >
       <div className="grid grid-cols-[1fr_4.5rem] gap-2">
         <div className="space-y-1">
-          <FieldLabel htmlFor={`${id}-name`}>Nom</FieldLabel>
+          <FieldLabel htmlFor={`${id}-name`}>{translate('map.lights.name')}</FieldLabel>
           <Input
             id={`${id}-name`}
             autoFocus
             value={name}
             maxLength={ITEM_NAME_MAX}
-            placeholder="Clé rouillée"
+            placeholder={translate('map.objects.contents.namePlaceholder')}
             aria-invalid={tried && !!error}
             onChange={(e) => setName(e.target.value)}
             className="h-8"
           />
         </div>
         <div className="space-y-1">
-          <FieldLabel htmlFor={`${id}-qty`}>Quantité</FieldLabel>
+          <FieldLabel htmlFor={`${id}-qty`}>
+            {translate('map.objects.contents.quantity')}
+          </FieldLabel>
           <Input
             id={`${id}-qty`}
             type="number"
@@ -229,7 +256,7 @@ function FreeItemForm({
           rows={2}
           value={description}
           maxLength={ITEM_DESCRIPTION_MAX}
-          placeholder="Ce que le personnage découvre en la prenant."
+          placeholder={translate('map.objects.contents.descriptionHint')}
           onChange={(e) => setDescription(e.target.value)}
           className="min-h-0 text-[13px]"
         />
@@ -241,11 +268,11 @@ function FreeItemForm({
       )}
       <div className="flex justify-end gap-1.5">
         <Button type="button" variant="ghost" size="xs" onClick={onCancel}>
-          Annuler
+          {translate('common.actions.cancel')}
         </Button>
         <Button type="submit" size="xs">
           <Plus />
-          Ajouter
+          {translate('map.objects.contents.addShort')}
         </Button>
       </div>
     </form>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState, type FormEvent } from 'react';
@@ -13,6 +14,7 @@ import { LONGUEUR_MAX_MDP, LONGUEUR_MIN_MDP, reinitialiserMotDePasse } from '@/l
 import { useSession } from '@/lib/session';
 
 function Reinitialisation() {
+  const t = useTranslations('auth');
   const jeton = useSearchParams().get('jeton');
   const { statut, oublierSession } = useSession();
   const [motDePasse, setMotDePasse] = useState('');
@@ -25,7 +27,7 @@ function Reinitialisation() {
     e.preventDefault();
     if (!jeton) return;
     if (motDePasse !== confirmation) {
-      setErreur('Les deux mots de passe ne correspondent pas.');
+      setErreur(t('reset.mismatch'));
       return;
     }
     setErreur(null);
@@ -45,9 +47,9 @@ function Reinitialisation() {
   if (!jeton)
     return (
       <div className="space-y-4">
-        <Message>Ce lien est incomplet : il manque le jeton de réinitialisation.</Message>
+        <Message>{t('reset.missingToken')}</Message>
         <Link href="/mot-de-passe-oublie" className={styleLien}>
-          Demander un nouveau lien
+          {t('reset.requestNew')}
         </Link>
       </div>
     );
@@ -55,12 +57,9 @@ function Reinitialisation() {
   if (fini)
     return (
       <div className="space-y-4">
-        <Message ton="succes">
-          Mot de passe modifié. Par sécurité, tous vos appareils ont été déconnectés :
-          reconnectez-vous avec votre nouveau mot de passe.
-        </Message>
+        <Message ton="succes">{t('reset.done')}</Message>
         <Bouton asChild className="h-10 w-full">
-          <Link href="/connexion">Se connecter</Link>
+          <Link href="/connexion">{t('form.signIn')}</Link>
         </Bouton>
       </div>
     );
@@ -69,7 +68,7 @@ function Reinitialisation() {
     <form onSubmit={valider} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="mdp" className={styleLabel}>
-          Nouveau mot de passe
+          {t('reset.newPassword')}
         </Label>
         <Input
           id="mdp"
@@ -82,11 +81,11 @@ function Reinitialisation() {
           onChange={(e) => setMotDePasse(e.target.value)}
           className={styleChamp}
         />
-        <p className="text-xs text-subtle">{LONGUEUR_MIN_MDP} caractères minimum.</p>
+        <p className="text-xs text-subtle">{t('reset.minLength', { min: LONGUEUR_MIN_MDP })}</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirmation" className={styleLabel}>
-          Confirmation
+          {t('reset.confirmation')}
         </Label>
         <Input
           id="confirmation"
@@ -100,11 +99,11 @@ function Reinitialisation() {
       </div>
       {erreur && <Message>{erreur}</Message>}
       <Bouton type="submit" chargement={envoi} className="h-10 w-full">
-        Changer le mot de passe
+        {t('reset.submit')}
       </Bouton>
       <p className="text-center">
         <Link href="/mot-de-passe-oublie" className={styleLien}>
-          Lien expiré ? En demander un nouveau
+          {t('reset.expired')}
         </Link>
       </p>
     </form>
@@ -112,8 +111,9 @@ function Reinitialisation() {
 }
 
 export default function PageReinitialisation() {
+  const t = useTranslations('auth.reset');
   return (
-    <CadrePublic titre="Nouveau mot de passe">
+    <CadrePublic titre={t('title')}>
       <Suspense fallback={<Chargement />}>
         <Reinitialisation />
       </Suspense>

@@ -6,11 +6,13 @@ import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
 import { register as checkout } from './modules/checkout/index.js';
 import { register as codes } from './modules/codes/index.js';
+import { register as connectModule } from './modules/connect/index.js';
 import { register as invoices } from './modules/invoices/index.js';
 import { register as plans } from './modules/plans/index.js';
 import { register as subscription } from './modules/subscription/index.js';
 import { register as webhook } from './modules/webhook/index.js';
 import { stripeApi, type StripeApi } from './stripe/client.js';
+import { connectApi, type ConnectApi } from './stripe/connect.js';
 
 export async function buildBilling(
   config: BillingConfig,
@@ -18,9 +20,11 @@ export async function buildBilling(
     db?: Db;
     /** API Stripe simulée (tests) ; null : comme sans STRIPE_SECRET_KEY. */
     stripe?: StripeApi | null;
+    /** Stripe Connect simulé (tests) ; null : comme sans STRIPE_SECRET_KEY. */
+    connect?: ConnectApi | null;
   } = {},
 ) {
-  const { db: providedDb, stripe, ...options } = extra;
+  const { db: providedDb, stripe, connect, ...options } = extra;
   if (!config.JWKS_URL && !options.authKeyResolver) {
     throw new Error('Configuration invalide : JWKS_URL est requis pour vérifier les jetons');
   }
@@ -46,14 +50,22 @@ export async function buildBilling(
     db,
     stripe: stripeApiOrNull,
     prices: stripeApiOrNull ? priceResolver(stripeApiOrNull) : null,
+    connect:
+      connect === undefined
+        ? config.STRIPE_SECRET_KEY
+          ? connectApi(config.STRIPE_SECRET_KEY)
+          : null
+        : connect,
   };
+  if (config.STRIPE_CONNECT === 'on' && !config.STRIPE_CONNECT_WEBHOOK_SECRET)
+    app.log.warn('STRIPE_CONNECT_WEBHOOK_SECRET absent : comptes des créateurs non suivis');
   if (!deps.stripe)
     app.log.warn('STRIPE_SECRET_KEY absent : paiements désactivés (503 billing_unconfigured)');
   if (!config.STRIPE_WEBHOOK_SECRET)
     app.log.warn('STRIPE_WEBHOOK_SECRET absent : webhook Stripe désactivé (503)');
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [plans, checkout, subscription, invoices, codes, webhook]) {
+  for (const module of [plans, checkout, subscription, invoices, codes, connectModule, webhook]) {
     await module(app, deps);
   }
 

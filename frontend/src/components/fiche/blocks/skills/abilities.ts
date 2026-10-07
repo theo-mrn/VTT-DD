@@ -6,6 +6,7 @@
  * - **rangs** : sortes du bloc dont les rangs s'achètent directement (tout le catalogue) ;
  * - **capacites** : entrées acquises des autres sortes du bloc.
  */
+import { translate } from '@/i18n/runtime';
 import {
   solde,
   sortesCompetences,
@@ -175,7 +176,7 @@ function rankedGroupOf(sorte: Sorte, cards: SkillCard[]): RankedGroup {
 /** Par la valeur du champ de filtre quand la sorte le déclare, sinon par la sorte. */
 function ownedFilter(card: SkillCard, sorte: Sorte): [key: string, label: string] {
   if (card.filter?.key) return [`champ:${card.filter.key}`, card.filter.label];
-  if (card.filter) return ['champ:', 'Autres'];
+  if (card.filter) return ['champ:', translate('resources.bestiary.others')];
   return [`sorte:${sorte.id}`, sorte.nomPluriel ?? sorte.nom];
 }
 
@@ -265,5 +266,5 @@ export function buildSkillsBlock(fiche: Fiche, widget: SkillsWidget): SkillsBloc
 /** Libellé d'un groupe d'étiquette : aucun s'il est seul, « Autres » sans étiquette. */
 function groupLabel(key: string, groups: number): string | null {
   if (groups <= 1) return null;
-  return key ? tagLabel(key) : 'Autres';
+  return key ? tagLabel(key) : translate('resources.bestiary.others');
 }

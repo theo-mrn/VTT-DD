@@ -5,6 +5,7 @@
  * puis le calque lui-même), Supprimer.
  * Sélection multiple : seules les actions permises pour toutes les entités apparaissent.
  */
+import { translate } from '@/i18n/runtime';
 import {
   ArrowDown,
   ArrowDownToLine,
@@ -49,9 +50,9 @@ const inspectItem: Section = (engine, entities) => {
   if (!single || !allCan(engine, entities, 'inspect')) return null;
   return {
     id: 'inspect',
-    label: 'Inspecter',
+    label: translate('map.common.inspect'),
     icon: SlidersHorizontal,
-    shortcut: 'Double clic',
+    shortcut: translate('map.common.doubleClick'),
     run: () => engine.openInspector([single.id]),
   };
 };
@@ -62,7 +63,7 @@ const lockItem: Section = (engine, entities) => {
   const allLocked = entities.every((e) => e.state.locked);
   return {
     id: 'lock',
-    label: allLocked ? 'Déverrouiller' : 'Verrouiller',
+    label: allLocked ? translate('map.common.unlock') : translate('map.common.lock'),
     icon: allLocked ? LockOpen : Lock,
     run: () => void engine.setLocked(entities, !allLocked),
   };
@@ -74,7 +75,7 @@ const hideItem: Section = (engine, entities) => {
   const allHidden = entities.every((e) => e.state.hiddenForPlayers);
   return {
     id: 'hide',
-    label: allHidden ? 'Montrer' : 'Masquer aux joueurs',
+    label: allHidden ? translate('map.common.show') : translate('map.common.hideFromPlayers'),
     icon: allHidden ? Eye : EyeOff,
     run: () => void engine.setHidden(entities, !allHidden),
   };
@@ -89,13 +90,13 @@ const restrictItem: Section = (engine, entities) => {
   const restricted = entities.some((e) => e.kind.restrictedTo!.get(e.data) !== null);
   return {
     id: 'restrictTo',
-    label: 'Visible pour…',
+    label: translate('map.common.visibleFor'),
     icon: UsersRound,
     disabled: !characters.length,
     children: [
       {
         id: 'restrictTo:all',
-        label: 'Tous les joueurs',
+        label: translate('map.common.allPlayers'),
         checked: !restricted,
         run: () => void engine.setRestrictedTo(entities, null),
       },
@@ -119,26 +120,26 @@ const rotateItem: Section = (engine, entities) => {
   if (!allCan(engine, entities, 'rotate') || !entities.every((e) => !e.state.locked)) return null;
   return {
     id: 'rotate',
-    label: 'Pivoter',
+    label: translate('map.common.rotate'),
     icon: RotateCw,
     children: [
       {
         id: 'rotate:cw',
-        label: 'De 15° à droite',
+        label: translate('map.common.rotateRight'),
         icon: RotateCw,
         shortcut: 'R',
         run: () => void engine.rotateEntities(entities, 15),
       },
       {
         id: 'rotate:ccw',
-        label: 'De 15° à gauche',
+        label: translate('map.common.rotateLeft'),
         icon: RotateCcw,
         shortcut: '⇧R',
         run: () => void engine.rotateEntities(entities, -15),
       },
       {
         id: 'rotate:90',
-        label: 'D’un quart de tour',
+        label: translate('map.common.rotateQuarter'),
         icon: RotateCw,
         run: () => void engine.rotateEntities(entities, 90),
       },
@@ -152,7 +153,7 @@ const duplicateItem: Section = (engine, entities) => {
     return null;
   return {
     id: 'duplicate',
-    label: 'Dupliquer',
+    label: translate('map.common.duplicate'),
     icon: Copy,
     shortcut: '⌘D',
     run: () => void engine.duplicateEntities(entities),
@@ -170,39 +171,39 @@ const arrangeItem: Section = (engine, entities) => {
   const home = current.size === 1 ? layers.find((l) => current.has(l.id)) : undefined;
   return {
     id: 'arrange',
-    label: 'Disposition',
+    label: translate('map.common.arrange'),
     icon: Layers2,
     children: [
       {
         id: 'label:arrange-order',
         label: home
-          ? `Devant ou derrière, dans « ${home.name} »`
-          : 'Devant ou derrière, dans son calque',
+          ? translate('map.common.arrangeIn', { layer: home.name })
+          : translate('map.common.arrangeInOwn'),
       },
       {
         id: 'arrange:front',
-        label: 'Tout devant',
+        label: translate('map.common.allFront'),
         icon: ArrowUpToLine,
         shortcut: `${MOD}⇧↑`,
         run: () => void engine.arrange(entities, 'front'),
       },
       {
         id: 'arrange:forward',
-        label: 'Un cran devant',
+        label: translate('map.common.oneFront'),
         icon: ArrowUp,
         shortcut: `${MOD}↑`,
         run: () => void engine.arrange(entities, 'forward'),
       },
       {
         id: 'arrange:backward',
-        label: 'Un cran derrière',
+        label: translate('map.common.oneBack'),
         icon: ArrowDown,
         shortcut: `${MOD}↓`,
         run: () => void engine.arrange(entities, 'backward'),
       },
       {
         id: 'arrange:back',
-        label: 'Tout derrière',
+        label: translate('map.common.allBack'),
         icon: ArrowDownToLine,
         shortcut: `${MOD}⇧↓`,
         run: () => void engine.arrange(entities, 'back'),
@@ -212,7 +213,7 @@ const arrangeItem: Section = (engine, entities) => {
             { id: 'sep:arrange-layers', label: '' },
             {
               id: 'label:arrange-layers',
-              label: 'Calque (du plus haut au plus bas)',
+              label: translate('map.common.layerList'),
             },
             ...layers.map((l) => ({
               id: `arrange:layer:${l.id}`,
@@ -233,9 +234,9 @@ const deleteItem: Section = (engine, entities) => {
   if (!allCan(engine, entities, 'delete')) return null;
   return {
     id: 'delete',
-    label: 'Supprimer',
+    label: translate('map.common.delete'),
     icon: Trash2,
-    shortcut: 'Suppr',
+    shortcut: translate('map.common.deleteKey'),
     danger: true,
     run: () => void engine.deleteEntities(entities),
   };

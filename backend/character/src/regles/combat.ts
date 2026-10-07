@@ -7,6 +7,8 @@
  */
 import {
   deepEqual,
+  DURATION_MOMENT_RULES,
+  durationMomentOf,
   type AttackModification,
   type AttackModificationInput,
   type AttackOutcome,
@@ -103,19 +105,36 @@ function issue(r: Pick<ResultatAction, 'reussi' | 'jet'>): AttackOutcome {
 const entier = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Math.round(Number.isFinite(n) ? n : min)));
 
-/** Modification du moteur → contrat (`entity` : l'attaquant ou la cible). */
-export function versModification(m: Modification): AttackModification {
+/**
+ * Décompte d'une entrée donnée → contrat : l'ancre `source` devient l'acteur de l'action
+ * (`sourceId`) ; inconnu, le porteur (docs/combat.md § 18.8).
+ */
+function versTiming(m: Extract<Modification, { entree: string }>, sourceId?: string) {
+  if (!m.decompte || m.decompte.moment === 'fin-round') return {};
+  const anchorId = m.decompte.de ?? (m.decompte.source ? sourceId : undefined);
+  return {
+    timing: { moment: durationMomentOf(m.decompte.moment), ...(anchorId ? { anchorId } : {}) },
+  };
+}
+
+/**
+ * Modification du moteur → contrat (`entity` : l'attaquant ou la cible). `sourceId` : l'acteur
+ * de l'action, ancre d'une durée qui se décompte à son tour.
+ */
+export function versModification(m: Modification, sourceId?: string): AttackModification {
   const entity = m.entite === 'acteur' ? ('actor' as const) : ('target' as const);
-  if ('entree' in m)
+  if ('entree' in m) {
+    const duree = m.duree !== undefined && m.duree >= 1;
     return {
       kind: 'entry',
       entity,
       entry: m.entree,
       operation: m.operation === 'donner' ? 'give' : 'remove',
       ranks: entier(m.rangs, 0, 100),
-      ...(m.duree !== undefined && m.duree >= 1 ? { duration: entier(m.duree, 1, 10_000) } : {}),
+      ...(duree ? { duration: entier(m.duree!, 1, 10_000), ...versTiming(m, sourceId) } : {}),
       ...(m.exemplaire !== undefined ? { instance: m.exemplaire } : {}),
     };
+  }
   return {
     kind: 'attribute',
     entity,
@@ -160,13 +179,17 @@ function versTable(systeme: SystemeCharge, t: TirageTable): AttackTableDraw {
   };
 }
 
-/** Résultat complet d'une cible, pour le MJ seul. */
-export function resultatCible(systeme: SystemeCharge, r: ResultatAction): AttackTargetResult {
+/** Résultat complet d'une cible, pour le MJ seul (`sourceId` : l'attaquant). */
+export function resultatCible(
+  systeme: SystemeCharge,
+  r: ResultatAction,
+  sourceId?: string,
+): AttackTargetResult {
   return {
     outcome: issue(r),
     roll: versJet(r.jet),
     variables: r.variables,
-    modifications: r.modifications.map(versModification),
+    modifications: r.modifications.map((m) => versModification(m, sourceId)),
     tables: r.tables.map((t) => versTable(systeme, t)),
     explanations: r.explications,
     errors: r.erreurs.map((e) => ({ where: e.ou, message: e.message })),
@@ -248,6 +271,14 @@ function modificationEntree(
     operation: m.operation === 'give' ? 'donner' : 'retirer',
     rangs: m.ranks,
     ...(m.duration !== undefined ? { duree: m.duration } : {}),
+    ...(m.duration !== undefined && m.timing && m.timing.moment !== 'round_end'
+      ? {
+          decompte: {
+            moment: DURATION_MOMENT_RULES[m.timing.moment],
+            ...(m.timing.anchorId ? { de: m.timing.anchorId } : {}),
+          },
+        }
+      : {}),
     ...(m.instance !== undefined ? { exemplaire: m.instance } : {}),
   });
 }

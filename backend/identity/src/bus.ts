@@ -1,7 +1,7 @@
 /**
  * Bus NATS d'identity : une seule connexion pour le relais d'outbox et les
- * consommateurs des titres (identity-titles) et des droits publiés par
- * billing (identity-rights). Même principe que
+ * consommateurs des titres (identity-titles), de la progression du compte
+ * (identity-progression) et des droits publiés par billing (identity-rights). Même principe que
  * startOutboxRelayWithBus (@vtt/platform), qui ne partage pas sa connexion :
  * le démarrage n'attend pas NATS, la connexion est retentée en arrière-plan
  * (délai croissant, 1 à 30 s) et les événements attendent dans l'outbox.
@@ -10,6 +10,7 @@ import { connectBus, startOutboxRelay, type Bus } from '@vtt/platform';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from './db/client.js';
 import { RIGHTS_CONSUMER, startRightsConsumer } from './modules/premium/index.js';
+import { PROGRESSION_CONSUMER, startProgressionConsumer } from './modules/progression/consumer.js';
 import { startTitlesConsumer } from './modules/titres/consumer.js';
 
 const MAX_RETRY_MS = 30_000;
@@ -60,6 +61,10 @@ export function startIdentityBus(opts: IdentityBusOptions): () => Promise<void> 
   const consumers: { name: string; start: (bus: Bus) => Promise<() => Promise<void>> }[] = [
     { name: 'identity-titles', start: (b) => startTitlesConsumer({ bus: b, db: opts.db, logger }) },
     { name: RIGHTS_CONSUMER, start: (b) => startRightsConsumer({ bus: b, db: opts.db, logger }) },
+    {
+      name: PROGRESSION_CONSUMER,
+      start: (b) => startProgressionConsumer({ bus: b, db: opts.db, logger }),
+    },
   ];
 
   // Consommateur réessayé tant que son durable ne peut pas être créé

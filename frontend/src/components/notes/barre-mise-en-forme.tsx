@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+import { useText, type Text } from '@/i18n/text';
 import type { Editor } from '@tiptap/react';
 import { useEditorState } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
@@ -32,7 +34,8 @@ const MOD =
 
 interface Commande {
   id: string;
-  label: string;
+  /** Nom du bouton (clé du catalogue ou texte calculé). */
+  label: Text;
   icone: LucideIcon;
   raccourci?: string;
   actif: (e: Editor) => boolean;
@@ -44,7 +47,7 @@ const GROUPES: Commande[][] = [
   [
     {
       id: 'gras',
-      label: 'Gras',
+      label: 'notes.format.bold',
       icone: Bold,
       raccourci: `${MOD} B`,
       actif: (e) => e.isActive('bold'),
@@ -52,7 +55,7 @@ const GROUPES: Commande[][] = [
     },
     {
       id: 'italique',
-      label: 'Italique',
+      label: 'notes.format.italic',
       icone: Italic,
       raccourci: `${MOD} I`,
       actif: (e) => e.isActive('italic'),
@@ -60,7 +63,7 @@ const GROUPES: Commande[][] = [
     },
     {
       id: 'souligne',
-      label: 'Souligné',
+      label: 'notes.format.underline',
       icone: Underline,
       raccourci: `${MOD} U`,
       actif: (e) => e.isActive('underline'),
@@ -68,7 +71,7 @@ const GROUPES: Commande[][] = [
     },
     {
       id: 'barre',
-      label: 'Barré',
+      label: 'notes.format.strike',
       icone: Strikethrough,
       raccourci: `${MOD} ⇧ S`,
       actif: (e) => e.isActive('strike'),
@@ -78,7 +81,7 @@ const GROUPES: Commande[][] = [
   [
     {
       id: 'h1',
-      label: 'Titre 1',
+      label: 'notes.format.h1',
       icone: Heading1,
       raccourci: '#',
       actif: (e) => e.isActive('heading', { level: 1 }),
@@ -86,7 +89,7 @@ const GROUPES: Commande[][] = [
     },
     {
       id: 'h2',
-      label: 'Titre 2',
+      label: 'notes.format.h2',
       icone: Heading2,
       raccourci: '##',
       actif: (e) => e.isActive('heading', { level: 2 }),
@@ -94,7 +97,7 @@ const GROUPES: Commande[][] = [
     },
     {
       id: 'h3',
-      label: 'Titre 3',
+      label: 'notes.format.h3',
       icone: Heading3,
       raccourci: '###',
       actif: (e) => e.isActive('heading', { level: 3 }),
@@ -104,7 +107,7 @@ const GROUPES: Commande[][] = [
   [
     {
       id: 'puces',
-      label: 'Liste à puces',
+      label: 'notes.format.bullets',
       icone: List,
       raccourci: '-',
       actif: (e) => e.isActive('bulletList'),
@@ -112,7 +115,7 @@ const GROUPES: Commande[][] = [
     },
     {
       id: 'numeros',
-      label: 'Liste numérotée',
+      label: 'notes.format.numbers',
       icone: ListOrdered,
       raccourci: '1.',
       actif: (e) => e.isActive('orderedList'),
@@ -120,7 +123,7 @@ const GROUPES: Commande[][] = [
     },
     {
       id: 'citation',
-      label: 'Citation',
+      label: 'notes.format.quote',
       icone: TextQuote,
       raccourci: '>',
       actif: (e) => e.isActive('blockquote'),
@@ -128,7 +131,7 @@ const GROUPES: Commande[][] = [
     },
     {
       id: 'code',
-      label: 'Code',
+      label: 'notes.format.code',
       icone: Code,
       raccourci: '`',
       actif: (e) => e.isActive('code'),
@@ -139,7 +142,7 @@ const GROUPES: Commande[][] = [
 
 const SEPARATEUR: Commande = {
   id: 'separateur',
-  label: 'Séparateur',
+  label: 'notes.format.separator',
   icone: Minus,
   raccourci: '---',
   actif: () => false,
@@ -158,6 +161,7 @@ export function BarreMiseEnForme({
   editor: Editor;
   variante: 'bulle' | 'fixe';
 }>) {
+  const t = useTranslations();
   const actifs = useEditorState({
     editor,
     selector: ({ editor: e }) => {
@@ -188,7 +192,7 @@ export function BarreMiseEnForme({
   return (
     <div
       role="toolbar"
-      aria-label="Mise en forme"
+      aria-label={t('notes.format.toolbar')}
       className={cn('flex items-center gap-0.5', !bulle && 'min-w-max')}
     >
       {groupes.map((groupe, i) => (
@@ -209,7 +213,7 @@ export function BarreMiseEnForme({
       <BoutonOutil
         commande={{
           id: 'lien',
-          label: actifs?.lien ? 'Modifier le lien' : 'Lien',
+          label: actifs?.lien ? 'notes.format.editLink' : 'notes.format.link',
           icone: Link2,
           actif: () => false,
           lancer: () => undefined,
@@ -233,10 +237,12 @@ function BoutonOutil({
   infobulle: boolean;
   onClick: () => void;
 }>) {
+  const text = useText();
+  const label = text(c.label);
   const bouton = (
     <button
       type="button"
-      aria-label={c.label}
+      aria-label={label}
       aria-pressed={actif}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
@@ -256,7 +262,7 @@ function BoutonOutil({
     <Info
       texte={
         <span className="flex items-center gap-2">
-          {c.label}
+          {label}
           {c.raccourci && <span className="font-mono text-[10px] text-subtle">{c.raccourci}</span>}
         </span>
       }
@@ -268,6 +274,7 @@ function BoutonOutil({
 
 /** Saisie d'un lien à la place des boutons : Entrée applique, vide retire le lien. */
 function SaisieLien({ editor, onFin }: Readonly<{ editor: Editor; onFin: () => void }>) {
+  const t = useTranslations();
   const actuel = (editor.getAttributes('link').href as string | undefined) ?? '';
   const [url, setUrl] = useState(actuel);
   const champ = useRef<HTMLInputElement>(null);
@@ -305,15 +312,15 @@ function SaisieLien({ editor, onFin }: Readonly<{ editor: Editor; onFin: () => v
             onFin();
           }
         }}
-        placeholder="Coller un lien…"
-        aria-label="Adresse du lien"
+        placeholder={t('notes.format.pastePlaceholder')}
+        aria-label={t('notes.format.address')}
         className="h-7 w-52 bg-transparent px-1 text-[13px] text-foreground outline-none placeholder:text-subtle focus-visible:outline-none"
       />
       {actuel && (
-        <Info texte="Retirer le lien">
+        <Info texte={t('notes.format.removeLink')}>
           <button
             type="button"
-            aria-label="Retirer le lien"
+            aria-label={t('notes.format.removeLink')}
             onClick={() => {
               editor.chain().focus().extendMarkRange('link').unsetLink().run();
               onFin();
@@ -326,7 +333,7 @@ function SaisieLien({ editor, onFin }: Readonly<{ editor: Editor; onFin: () => v
       )}
       <button
         type="submit"
-        aria-label="Appliquer le lien"
+        aria-label={t('notes.format.applyLink')}
         className="flex size-7 items-center justify-center rounded-md bg-primary/15 text-primary-strong transition-colors hover:bg-primary/25"
       >
         <CornerDownLeft className="size-3.5" />

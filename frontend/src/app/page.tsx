@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { Appel } from '@/components/landing/appel';
 import { DeFlottant } from '@/components/landing/de-flottant';
 import { Des } from '@/components/landing/des';
@@ -8,11 +9,10 @@ import { Navigation } from '@/components/landing/navigation';
 import { Outils } from '@/components/landing/outils';
 import { Pied } from '@/components/landing/pied';
 
-export const metadata: Metadata = {
-  title: { absolute: 'Yner · Table de jeu de rôle en ligne' },
-  description:
-    'Cartes vivantes, brouillard de guerre, fiches automatiques et dés 3D : la table de jeu de rôle en ligne, gratuite et sans installation.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta');
+  return { title: { absolute: t('landingTitle') }, description: t('landingDescription') };
+}
 
 export default function Accueil() {
   return (

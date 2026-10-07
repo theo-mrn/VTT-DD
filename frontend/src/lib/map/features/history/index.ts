@@ -2,6 +2,7 @@
  * Module « historique » (docs/carte.md § 7) : Annuler et Refaire dans la barre. ⌘Z, ⌘⇧Z et ⌘Y
  * restent des gestes communs du contrôleur : ils marchent même sans ce module.
  */
+import { translate } from '@/i18n/runtime';
 import { Redo2, Undo2 } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import type { MapViewer } from '@/lib/map/engine/entities/entity-kind';
@@ -21,7 +22,7 @@ export const historyFeature: MapFeature = {
   register: (engine) => [
     engine.registerAction({
       id: 'history.undo',
-      label: 'Annuler',
+      label: translate('map.history.undo'),
       icon: Undo2,
       hint: `${MOD}Z`,
       available: canEdit,
@@ -30,14 +31,16 @@ export const historyFeature: MapFeature = {
         const h = useHistory(e);
         return {
           enabled: h.canUndo,
-          label: h.undoLabel ? `Annuler « ${h.undoLabel} »` : undefined,
+          label: h.undoLabel
+            ? translate('map.history.undoNamed', { name: h.undoLabel })
+            : undefined,
         };
       },
       toolbar: { group: 'history', order: 10 },
     }),
     engine.registerAction({
       id: 'history.redo',
-      label: 'Refaire',
+      label: translate('map.history.redo'),
       icon: Redo2,
       hint: `${MOD}⇧Z`,
       available: canEdit,
@@ -46,7 +49,9 @@ export const historyFeature: MapFeature = {
         const h = useHistory(e);
         return {
           enabled: h.canRedo,
-          label: h.redoLabel ? `Refaire « ${h.redoLabel} »` : undefined,
+          label: h.redoLabel
+            ? translate('map.history.redoNamed', { name: h.redoLabel })
+            : undefined,
         };
       },
       toolbar: { group: 'history', order: 20 },

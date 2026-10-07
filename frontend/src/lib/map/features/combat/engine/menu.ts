@@ -12,6 +12,7 @@
  *   personnages dans la zone ».
  * - Clavier : Y, la sélection devient les cibles.
  */
+import { translate } from '@/i18n/runtime';
 import type { AttackOrigin } from '@vtt/contracts';
 import { Swords, Target } from 'lucide-react';
 import type { MenuItem } from '@/lib/map/engine/entities/entity-kind';
@@ -39,8 +40,6 @@ export interface AttackOpener {
   }): void;
 }
 
-const plural = (label: string, n: number) => (n > 1 ? `${label} (${n})` : label);
-
 export function combatMenu(ctx: MenuContext, open: AttackOpener): MenuItem[] {
   const { entities, viewer, engine } = ctx;
   if (viewer.role === 'spectator' || !entities.length) return [];
@@ -57,7 +56,10 @@ export function combatMenu(ctx: MenuContext, open: AttackOpener): MenuItem[] {
 
   items.push({
     id: 'combat:attack',
-    label: plural('Attaquer', characters.length),
+    label:
+      characters.length > 1
+        ? translate('map.combat.attackCount', { count: characters.length })
+        : translate('map.actions.combatAttack'),
     icon: Target,
     // MJ : bouton de la barre ; joueur : clic droit seulement (son clic ouvre la visée rapide)
     primary: gm,
@@ -67,14 +69,14 @@ export function combatMenu(ctx: MenuContext, open: AttackOpener): MenuItem[] {
   if (gm && characters.length === 1)
     items.push({
       id: 'combat:attack-with',
-      label: 'Attaquer avec',
+      label: translate('map.combat.attackWith'),
       icon: Swords,
       run: () => open({ origin, attackerId: characters[0]! }),
     });
   if (gm && characters.length > 1)
     items.push({
       id: 'combat:attack-with-selection',
-      label: `Attaquer avec la sélection (${characters.length})`,
+      label: translate('map.combat.attackWithSelection', { count: characters.length }),
       icon: Swords,
       run: () => open({ origin: 'selection', attackers: characters }),
     });
@@ -88,7 +90,7 @@ function zoneEntry(engine: MapEngine, template: MapEntity, open: AttackOpener): 
   return [
     {
       id: 'combat:attack-zone',
-      label: `Attaquer la zone (${targets.length})`,
+      label: translate('map.combat.attackZone', { count: targets.length }),
       icon: Target,
       forPlayers: true,
       disabled: !targets.length,

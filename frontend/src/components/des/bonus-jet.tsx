@@ -7,6 +7,7 @@
  * tête ; un bonus chiffré se coche pour s'ajouter au prochain jet, les autres (dés de
  * dégâts, avantage…) restent un rappel. Rien n'est propre à un jeu : tout vient du moteur.
  */
+import { useTranslations } from 'next-intl';
 import { listerEffets, type Fiche } from '@vtt/rules';
 import { useMemo } from 'react';
 import { clesJetsVises } from '@/components/fiche/blocks/effects/condition-text';
@@ -83,18 +84,17 @@ export function BonusJetListe({
   onBasculer: (cle: string) => void;
   className?: string;
 }>) {
+  const t = useTranslations('dice.bonuses');
   const concernes = useMemo(() => bonus.filter((b) => b.concerne).length, [bonus]);
   if (!bonus.length) return null;
   return (
     <aside aria-labelledby="bonus-jet-titre" className={cn('flex min-h-0 flex-col', className)}>
       <div className="shrink-0 px-1.5 pb-1.5 pt-1">
         <h2 id="bonus-jet-titre" className="text-xs font-medium text-muted-foreground">
-          Bonus de jet
+          {t('title')}
         </h2>
         <p className="text-[11px] text-subtle">
-          {concernes > 0
-            ? `${concernes} pour cette formule · allumés, ils s’ajoutent à chaque jet`
-            : 'Selon la situation · allumés, ils s’ajoutent à chaque jet'}
+          {concernes > 0 ? t('relevant', { count: concernes }) : t('situational')}
         </p>
       </div>
       <ul className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
@@ -124,6 +124,7 @@ function LigneBonus({
   coche: boolean;
   onBasculer: () => void;
 }>) {
+  const t = useTranslations('dice.bonuses');
   return (
     <li className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-surface-2">
       <Tooltip>
@@ -140,7 +141,7 @@ function LigneBonus({
               </span>
               {b.concerne && (
                 <span
-                  aria-label="concerne cette formule"
+                  aria-label={t('concerns')}
                   className="size-1.5 shrink-0 rounded-full bg-primary"
                 />
               )}
@@ -148,7 +149,7 @@ function LigneBonus({
             <span className="block truncate text-[11px] text-subtle">
               {b.source}
               {b.precision && ` · ${b.precision}`}
-              {b.terme === null && ' · à la main'}
+              {b.terme === null && t('manual')}
             </span>
           </span>
         </TooltipTrigger>
@@ -169,7 +170,7 @@ function LigneBonus({
           className="scale-90"
           checked={coche}
           onCheckedChange={onBasculer}
-          aria-label={`${coche ? 'Retirer' : 'Ajouter'} ${b.libelle} (${b.source}) au prochain jet`}
+          aria-label={t(coche ? 'remove' : 'add', { label: b.libelle, source: b.source })}
         />
       )}
     </li>

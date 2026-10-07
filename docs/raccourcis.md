@@ -124,8 +124,9 @@ joueur (K, `table`) et les calques du MJ (K, `map`) : rôles disjoints, pas de c
 
 ### Gestes fixes
 
-Échap, Suppr, flèches, R / ⇧R (rotation), Espace + glisser, ⌘Z, ⌘⇧Z, ⌘Y, ⌘D, ⌘↑↓, chiffres
-des outils de la carte, ⌘S (note). Affichés dans l'éditeur (grisés), **non modifiables** :
+Échap, Suppr, flèches, R / ⇧R (rotation), Espace + glisser, Espace pendant le glisser d'un
+token (point de passage du trajet, Retour arrière le retire : docs/carte.md § 10), ⌘Z, ⌘⇧Z,
+⌘Y, ⌘D, ⌘↑↓, chiffres des outils de la carte, ⌘S (note). Affichés dans l'éditeur (grisés), **non modifiables** :
 ce sont des conventions que les joueurs connaissent, et la carte en dépend pour revenir à un
 état sûr (décidé avec Théo ; le legacy permettait de changer annuler et refaire). Une touche
 choisie ne peut pas les remplacer (« Remplacer » n'est pas proposé).

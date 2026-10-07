@@ -9,6 +9,7 @@ import {
   CreateMapScene,
   MAP_LAYERS,
   MapLiveMessage,
+  MAP_PATH_MAX_POINTS,
   MapWeather,
   mapLayerBatch,
   MediaUploadRequest,
@@ -143,6 +144,20 @@ describe('contrat de la carte', () => {
       MapLiveMessage.safeParse({ m: 'carte', s: 9, measure: { ...measure, options: { a: {} } } })
         .success,
     ).toBe(false);
+  });
+
+  it('map.live : trajet d’un token (départ et points de passage), effacé par une liste vide', () => {
+    const path: [string, number[]][] = [['t1', [10, 20, 60, 20, 60, 80]]];
+    expect(MapLiveMessage.parse({ m: 'carte', s: 1, path })).toMatchObject({ path });
+    expect(MapLiveMessage.safeParse({ m: 'carte', s: 2, path: [['t1', []]] }).success).toBe(true);
+    // Points par paires, bornés
+    expect(MapLiveMessage.safeParse({ m: 'carte', s: 3, path: [['t1', [1, 2, 3]]] }).success).toBe(
+      false,
+    );
+    const long = Array.from({ length: 2 * MAP_PATH_MAX_POINTS + 2 }, (_, i) => i);
+    expect(MapLiveMessage.safeParse({ m: 'carte', s: 4, path: [['t1', long]] }).success).toBe(
+      false,
+    );
   });
 
   it('média : https, chemin absolu, ou http sur la boucle locale seulement', () => {

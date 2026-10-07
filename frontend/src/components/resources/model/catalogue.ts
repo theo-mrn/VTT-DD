@@ -5,6 +5,7 @@
  * Tout se calcule sur une fiche vierge du type d'entité de la sorte : les libellés
  * d'attributs, de dés et de conditions sont ceux du système.
  */
+import { translate } from '@/i18n/runtime';
 import {
   apercuFormule,
   calculer,
@@ -287,7 +288,12 @@ export function linkGroups(
     return cible ? [{ entry: cible, note: seuilRang(fiche, e.condition) }] : [];
   });
   if (accordes.length)
-    groups.push({ key: 'rangs', title: 'Accorde', caption: null, links: accordes });
+    groups.push({
+      key: 'rangs',
+      title: translate('resources.catalogue.grants'),
+      caption: null,
+      links: accordes,
+    });
 
   entry.effets.forEach((e, i) => {
     if (e.sur !== 'marque') return;
@@ -297,7 +303,12 @@ export function linkGroups(
       return x ? [{ entry: x, note: null }] : [];
     });
     if (links.length)
-      groups.push({ key: `marque:${i}`, title: `Marque « ${nom} »`, caption: null, links });
+      groups.push({
+        key: `marque:${i}`,
+        title: translate('resources.catalogue.mark', { name: nom }),
+        caption: null,
+        links,
+      });
   });
 
   for (const ch of entry.choix) {
@@ -313,8 +324,11 @@ export function linkGroups(
       key: `choix:${ch.id}`,
       title: ch.nom,
       caption: parmi?.length
-        ? `${nombre} au choix parmi :`
-        : `${nombre} au choix : ${(sorteChoisie?.nomPluriel ?? sorteChoisie?.nom ?? ch.parmi.sorte).toLowerCase()}`,
+        ? translate('resources.catalogue.chooseAmong', { count: nombre })
+        : translate('resources.catalogue.chooseKind', {
+            count: nombre,
+            kind: (sorteChoisie?.nomPluriel ?? sorteChoisie?.nom ?? ch.parmi.sorte).toLowerCase(),
+          }),
       links: parmi ?? [],
     });
   }

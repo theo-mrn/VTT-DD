@@ -5,6 +5,7 @@
  * ancré au point de l'écran ; ses entrées viennent du moteur (actions communes générées par les
  * capacités, actions de la sorte, entrées des modules, menu du vide).
  */
+import { translate } from '@/i18n/runtime';
 import { useMemo, type RefObject } from 'react';
 import {
   DropdownMenu,
@@ -120,7 +121,7 @@ export function MapContextMenu({ hostRef }: Readonly<{ hostRef: RefObject<HTMLEl
         {items.length ? (
           <MenuItems items={items} />
         ) : (
-          <DropdownMenuLabel>Aucune action ici</DropdownMenuLabel>
+          <DropdownMenuLabel>{translate('map.ui.noAction')}</DropdownMenuLabel>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

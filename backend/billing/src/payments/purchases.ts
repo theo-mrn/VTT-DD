@@ -12,6 +12,7 @@ import { purchases, type PurchaseRow } from '../db/schema.js';
 import { idOf, type CheckoutSession } from '../stripe/client.js';
 import { isUuid, rememberCustomer, type PaymentDeps } from './common.js';
 import { grant, publishRights, revoke } from './entitlements.js';
+import { withdrawSale } from './marketplace.js';
 
 const entitlementOf = (p: PurchaseRow) => ({
   userId: p.userId,
@@ -135,7 +136,8 @@ export async function withdrawPurchase(
     .select()
     .from(purchases)
     .where(eq(purchases.stripePaymentIntentId, paymentIntent));
-  if (!purchase) return 'ignored';
+  // Pas un achat du catalogue : peut-être la vente d'un pack de la marketplace
+  if (!purchase) return withdrawSale(deps, ctx, actor, paymentIntent, reason);
 
   await deps.db.transaction(async (tx) => {
     const revoked = await revoke(tx, entitlementOf(purchase), reason);

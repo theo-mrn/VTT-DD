@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import {
   BookOpen,
   CloudRain,
@@ -46,6 +47,7 @@ function Case({
 
 /** Égaliseur : des barres qui battent, comme une piste qui joue. */
 function Egaliseur() {
+  const t = useTranslations('landing.tools.sound');
   const barres = [0.45, 0.8, 0.55, 1, 0.7, 0.4, 0.9, 0.6, 0.75, 0.5, 0.95, 0.65, 0.4, 0.85];
   return (
     <div className="flex w-full items-center gap-5">
@@ -59,29 +61,25 @@ function Egaliseur() {
         ))}
       </div>
       <div className="min-w-0 text-sm">
-        <p className="truncate font-medium text-foreground">La Taverne d’Elfsong</p>
-        <p className="text-subtle">Zone musicale · 6 cases</p>
+        <p className="truncate font-medium text-foreground">{t('track')}</p>
+        <p className="text-subtle">{t('zone')}</p>
       </div>
     </div>
   );
 }
 
-const CREATURES = [
-  { id: 'goblin', nom: 'Gobelin' },
-  { id: 'skeleton', nom: 'Squelette' },
-  { id: 'owlbear', nom: 'Ours-hibou' },
-  { id: 'adult-red-dragon', nom: 'Dragon rouge' },
-];
+const CREATURES = ['goblin', 'skeleton', 'owlbear', 'adult-red-dragon'];
 
 /** Quelques créatures du bestiaire, en pile. */
 function Bestiaire() {
+  const t = useTranslations('landing.tools.bestiary');
   return (
     <div className="flex items-center gap-5">
       <div className="flex -space-x-4" aria-hidden>
-        {CREATURES.map((c) => (
+        {CREATURES.map((id) => (
           <Image
-            key={c.id}
-            src={`/landing/bestiaire-${c.id}.webp`}
+            key={id}
+            src={`/landing/bestiaire-${id}.webp`}
             alt=""
             width={96}
             height={96}
@@ -91,7 +89,7 @@ function Bestiaire() {
       </div>
       <p className="text-sm text-subtle">
         <span className="block text-2xl font-semibold tabular-nums text-foreground">334</span>
-        créatures D&amp;D
+        {t('count')}
       </p>
     </div>
   );
@@ -177,10 +175,11 @@ function Gabarits() {
   );
 }
 
-const SYSTEMES = ['D&D classique', 'Star Wars — Aux confins de l’Empire', 'Nooblies Chroniques'];
+const SYSTEMES = ['dnd', 'starWars', 'nooblies'] as const;
 
 /** Les systèmes de jeu inclus. */
 function Systemes() {
+  const t = useTranslations('landing.tools.systems');
   return (
     <ul className="flex flex-wrap gap-2" aria-hidden>
       {SYSTEMES.map((s) => (
@@ -188,7 +187,7 @@ function Systemes() {
           key={s}
           className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-foreground"
         >
-          {s}
+          {t(s)}
         </li>
       ))}
     </ul>
@@ -196,113 +195,88 @@ function Systemes() {
 }
 
 const SIMPLES = [
-  {
-    Icone: BookOpen,
-    titre: 'Notes et documents',
-    texte: 'Lettres, cartes et indices, montrés aux joueurs au bon moment.',
-  },
-  {
-    Icone: History,
-    titre: 'Historique',
-    texte: 'Chaque jet, chaque coup, chaque découverte, gardés pour la suite.',
-  },
-  {
-    Icone: Images,
-    titre: 'Bibliothèque',
-    texte: 'Près de 4 000 cartes, portraits et objets prêts à poser.',
-  },
-  {
-    Icone: DoorOpen,
-    titre: 'Portails et scènes',
-    texte: 'Escaliers, portes et passages qui mènent le groupe d’une carte à l’autre.',
-  },
-  {
-    Icone: Layers,
-    titre: 'Calques du MJ',
-    texte: 'Préparez en coulisses, révélez quand il le faut.',
-  },
-  {
-    Icone: Zap,
-    titre: 'Temps réel',
-    texte: 'Chaque geste se synchronise à l’instant pour toute la table.',
-  },
-];
+  { Icone: BookOpen, id: 'notes' },
+  { Icone: History, id: 'history' },
+  { Icone: Images, id: 'library' },
+  { Icone: DoorOpen, id: 'portals' },
+  { Icone: Layers, id: 'layers' },
+  { Icone: Zap, id: 'realtime' },
+] as const;
 
 /** Le reste de la table : une mosaïque, visuels en code, sans capture. */
 export function Outils() {
+  const t = useTranslations('landing.tools');
   return (
     <section className="py-24 lg:py-32">
       <div className="mx-auto max-w-6xl px-6">
         <Apparition className="max-w-2xl">
           <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
-            Et tout le reste de la table
+            {t('title')}
           </h2>
-          <p className="mt-5 text-pretty text-lg text-muted-foreground">
-            De la première partie à la centième, tout est déjà là.
-          </p>
+          <p className="mt-5 text-pretty text-lg text-muted-foreground">{t('lead')}</p>
         </Apparition>
 
         <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-6">
           <Case
             className="lg:col-span-3"
             visuel={<Egaliseur />}
-            titre="Ambiance sonore"
-            texte="Des musiques posées sur la carte, qui montent quand on s’approche. Fichiers ou YouTube."
+            titre={t('sound.title')}
+            texte={t('sound.text')}
           />
           <Case
             className="lg:col-span-3"
             delai={0.06}
             visuel={<Bestiaire />}
-            titre="Bestiaire"
-            texte="Posez une créature en un clic : sa fiche complète arrive avec elle, prête au combat."
+            titre={t('bestiary.title')}
+            texte={t('bestiary.text')}
           />
           <Case
             className="lg:col-span-2"
             visuel={<CommandeDiscord />}
-            titre="Bot Discord"
-            texte="Lancez les dés de votre personnage depuis votre serveur."
+            titre={t('discord.title')}
+            texte={t('discord.text')}
           />
           <Case
             className="lg:col-span-2"
             delai={0.06}
             visuel={<CodeInvitation />}
-            titre="Invitation en un code"
-            texte="Vos joueurs rejoignent la campagne avec six caractères."
+            titre={t('invite.title')}
+            texte={t('invite.text')}
           />
           <Case
             className="lg:col-span-2"
             delai={0.12}
             visuel={<Meteo />}
-            titre="Météo"
-            texte="Pluie, neige, braises ou tempête, réglées au vent près."
+            titre={t('weather.title')}
+            texte={t('weather.text')}
           />
           <Case
             className="lg:col-span-2"
             visuel={<Gabarits />}
-            titre="Gabarits de sorts"
-            texte="Cônes, cercles et lignes pour viser juste."
+            titre={t('templates.title')}
+            texte={t('templates.text')}
           />
           <Case
             className="md:col-span-2 lg:col-span-4"
             delai={0.06}
             visuel={<Systemes />}
-            titre="Plusieurs systèmes de jeu"
-            texte="Les règles de chaque système sont appliquées pour vous : création, fiches, combat."
+            titre={t('systems.title')}
+            texte={t('systems.text')}
           />
         </div>
 
         <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SIMPLES.map(({ Icone, titre, texte }, i) => (
-            <li key={titre}>
+          {SIMPLES.map(({ Icone, id }, i) => (
+            <li key={id}>
               <Apparition
                 delai={(i % 3) * 0.06}
                 className="flex h-full gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6"
               >
                 <Icone className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
                 <div>
-                  <h3 className="text-base font-semibold text-foreground">{titre}</h3>
+                  <h3 className="text-base font-semibold text-foreground">{t(`${id}.title`)}</h3>
                   <p className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground">
-                    {texte}
+                    {t(`${id}.text`)}
                   </p>
                 </div>
               </Apparition>

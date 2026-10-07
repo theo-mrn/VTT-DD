@@ -4,6 +4,8 @@
   sorte: etat
   nom: Étourdi
   description: Ne peut effectuer aucune action (les manœuvres restent possibles).
+  # Blessures critiques : « étourdi jusqu'à la fin de son prochain tour »
+  duree: { valeur: 1, moment: fin-tour, de: porteur }
 - id: desoriente
   sorte: etat
   nom: Désorienté
@@ -29,6 +31,7 @@
   sorte: etat
   nom: Manœuvre défensive
   description: Jusqu'à son prochain tour, ajoute 1 dé d'Infortune aux attaques qui le visent.
+  duree: { valeur: 1, moment: debut-tour, de: porteur }
   effets:
     - { sur: attribut, attribut: defenseMelee, operation: ajouter, valeur: 1 }
     - { sur: attribut, attribut: defenseDistance, operation: ajouter, valeur: 1 }

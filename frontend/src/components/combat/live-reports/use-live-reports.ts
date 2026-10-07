@@ -5,6 +5,8 @@
  * (pastille, repli, menu ⋯) et la pile (cartes, décisions). Les décisions passent par les corps
  * de `reports/model.ts` ; les commandes par `use-attacks.ts`.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { Attack, AttackTarget } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -77,6 +79,7 @@ export interface LiveReports {
 }
 
 export function useLiveReports(campagne: DetailCampagne): LiveReports {
+  const t = useTranslations();
   const campaignId = campagne.id;
   const pending = useAttacks(campaignId, { status: 'pending', limit: 100 });
   const open = useAttacks(campaignId, { status: 'open', limit: 50 });
@@ -139,7 +142,7 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
   const decide = useCallback(
     async (a: Attack, scope: Scope, apply: boolean) => {
       const { commands, systeme, castById } = latest.current;
-      const nameOf = (id: string) => castById.get(id)?.name ?? 'Personnage';
+      const nameOf = (id: string) => castById.get(id)?.name ?? t('map.common.character');
       setBusy(scopeKey(a, scope, apply));
       try {
         const actor =
@@ -165,7 +168,7 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
           );
         }
       } catch (err) {
-        toast.error('La décision n’a pas pu être appliquée', {
+        toast.error(t('combat.reports.decideFailed'), {
           description: combatErrorMessage(err),
         });
       } finally {
@@ -186,7 +189,7 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
         serverFallback: true,
       });
     } catch (err) {
-      toast.error('Les dés n’ont pas pu être tirés', { description: combatErrorMessage(err) });
+      toast.error(t('combat.reports.diceFailed'), { description: combatErrorMessage(err) });
     } finally {
       setBusy(null);
     }
@@ -197,7 +200,7 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
     try {
       await latest.current.commands.cancel(a.id, { version: a.version });
     } catch (err) {
-      toast.error('L’attaque n’a pas pu être abandonnée', {
+      toast.error(t('combat.reports.abandonFailed'), {
         description: combatErrorMessage(err),
       });
     } finally {
@@ -212,9 +215,9 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
         await latest.current.commands.revert(s.attack.id, { version: s.attack.version });
         forget(s.attack.id);
       } catch (err) {
-        toast.error('L’application n’a pas pu être annulée', {
+        toast.error(t('combat.reports.revertFailed'), {
           description: revertConflictOf(err)
-            ? 'La fiche a changé entre-temps : voyez les rapports d’attaque du menu ⋯.'
+            ? t('combat.reports.changedSheet')
             : combatErrorMessage(err),
         });
       } finally {
@@ -288,9 +291,19 @@ function settledMessage(
     const values = t.applied.modifications
       .filter((m) => m.kind === 'attribute')
       .map((m) => modificationText(systeme, toInput(m), cast.get(who)?.type));
-    return [`${values.length ? values.join(', ') : 'effets'} à ${nameOf(who)}`];
+    return [
+      translate('combat.live.appliedTo', {
+        values: values.length ? values.join(', ') : translate('combat.live.effects'),
+        name: nameOf(who),
+      }),
+    ];
   });
-  if (parts.length) return { message: `Appliqué : ${parts.join(' · ')}`, applied: true };
-  if (a.status === 'dismissed') return { message: 'Rapport écarté', applied: false };
-  return { message: 'Non appliqué', applied: false };
+  if (parts.length)
+    return {
+      message: translate('combat.live.applied', { parts: parts.join(' · ') }),
+      applied: true,
+    };
+  if (a.status === 'dismissed')
+    return { message: translate('combat.reports.dismissed'), applied: false };
+  return { message: translate('combat.decision.skipped'), applied: false };
 }

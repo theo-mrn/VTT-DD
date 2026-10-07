@@ -16,11 +16,13 @@
  */
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   EtatEntite,
   type BonusLibre,
   type Effet,
+  type MomentDecompte,
   type ResultatAction,
   type Tirage,
   type Valeur,
@@ -209,6 +211,14 @@ export interface DemandeBonus {
   effets: BonusLibre['effets'];
   actif?: boolean;
   duree?: number;
+  /** Moment du décompte de `duree` (docs/combat.md § 18) ; absent : fin de round. */
+  decompte?: DemandeDecompte;
+}
+
+/** Décompte d'une durée demandé : moment, et personnage dont le tour compte (absent : le porteur). */
+export interface DemandeDecompte {
+  moment: MomentDecompte;
+  de?: string;
 }
 
 /** Demande de possession (docs/api-character.md, « Possessions »). */
@@ -228,6 +238,10 @@ export interface DemandePossession {
   hidden?: boolean;
   /** Dossier d'inventaire ; null : retour à la racine. */
   folder?: string | null;
+  /** Durée (état donné pour un temps) ; null la retire. */
+  duree?: number | null;
+  /** Moment du décompte de `duree` ; null : fin de round (docs/combat.md § 18). */
+  decompte?: DemandeDecompte | null;
 }
 
 /** Don d'un objet à un personnage de la même campagne (`POST /possessions/give`). */
@@ -316,7 +330,7 @@ function versEngage(
 ): Personnage {
   return {
     id: e.characterId,
-    name: e.name ?? 'Personnage indisponible',
+    name: e.name ?? translate('sheet.unavailable'),
     portraitUrl: e.avatarUrl,
     system: { id: campagne.system, version: campagne.systemVersion },
     type: e.type ?? 'personnage',
@@ -375,9 +389,8 @@ export function conflitVersion(): ApiError {
   return new ApiError({
     status: 409,
     code: 'version_perimee',
-    title: 'Fiche modifiée entre-temps',
-    detail:
-      "Cette fiche vient d'être modifiée ailleurs (par le MJ ou dans un autre onglet) : elle a été rechargée. Refaites votre modification.",
+    title: translate('sheet.conflict.title'),
+    detail: translate('sheet.conflict.detail'),
   });
 }
 

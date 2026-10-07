@@ -4,6 +4,7 @@
  * Inspecteur des lumières (MJ) : nom, allumée, rayon (unités), couleur, intensité, dégradé,
  * token suivi (torche). Chaque réglage est une commande annulable.
  */
+import { translate } from '@/i18n/runtime';
 import { useEffect, useId, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { SelectField } from '@/components/ui/select';
@@ -11,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import type { InspectorSectionProps } from '@/lib/map/engine/map-engine';
 import { patchLights } from '../engine/kind';
 import {
-  LIGHT_COLORS,
+  lightColorOptions,
   lightPosition,
   RADIUS_RANGE,
   TOKEN_KIND,
@@ -49,7 +50,7 @@ export function LightInspector({ engine, entities }: Readonly<InspectorSectionPr
 
   const commitName = () => {
     const next = name.trim().slice(0, 200);
-    if (next && next !== first.name) patch('Renommer la lumière', () => ({ name: next }));
+    if (next && next !== first.name) patch(translate('map.lights.rename'), () => ({ name: next }));
   };
 
   return (
@@ -57,7 +58,7 @@ export function LightInspector({ engine, entities }: Readonly<InspectorSectionPr
       {entities.length === 1 && (
         <div className="space-y-1.5">
           <label htmlFor={`${id}-name`} className="text-[13px] text-foreground">
-            Nom
+            {translate('map.lights.name')}
           </label>
           <Input
             id={`${id}-name`}
@@ -77,67 +78,70 @@ export function LightInspector({ engine, entities }: Readonly<InspectorSectionPr
       )}
 
       <FieldRow
-        label="Allumée"
+        label={translate('map.lights.on')}
         htmlFor={`${id}-on`}
-        hint="Éteinte, elle n’éclaire pas et les joueurs ne la reçoivent pas."
+        hint={translate('map.lights.offHint')}
       >
         <Switch
           id={`${id}-on`}
           checked={lights.every((l) => l.visible)}
           onCheckedChange={(on) =>
-            patch(on ? 'Allumer la lumière' : 'Éteindre la lumière', () => ({ visible: on }))
+            patch(
+              on ? translate('map.lights.turnOnLight') : translate('map.lights.turnOffLight'),
+              () => ({ visible: on }),
+            )
           }
         />
       </FieldRow>
 
       <RangeField
-        label="Rayon"
+        label={translate('map.lights.radius')}
         value={same((l) => l.radius) ?? first.radius}
         min={RADIUS_RANGE.min}
         max={RADIUS_RANGE.slider}
         inputMax={RADIUS_RANGE.max}
         step={RADIUS_RANGE.step}
         format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
-        onCommit={(v) => patch('Rayon de la lumière', () => ({ radius: v }))}
+        onCommit={(v) => patch(translate('map.lights.lightRadius'), () => ({ radius: v }))}
       />
 
       <div className="space-y-2">
-        <span className="text-[13px] text-foreground">Couleur</span>
+        <span className="text-[13px] text-foreground">{translate('map.lights.color')}</span>
         <Swatches
           value={same((l) => l.color) ?? ''}
-          options={LIGHT_COLORS}
-          onChange={(c) => c && patch('Couleur de la lumière', () => ({ color: c }))}
+          options={lightColorOptions()}
+          onChange={(c) => c && patch(translate('map.lights.lightColor'), () => ({ color: c }))}
         />
       </div>
 
       <RangeField
-        label="Intensité"
+        label={translate('map.lights.intensity')}
         value={same((l) => l.intensity) ?? first.intensity}
         min={0}
         max={1}
         step={0.05}
         format={percent}
         scale={100}
-        onCommit={(v) => patch('Intensité de la lumière', () => ({ intensity: v }))}
+        onCommit={(v) => patch(translate('map.lights.lightIntensity'), () => ({ intensity: v }))}
       />
       <RangeField
-        label="Dégradé"
+        label={translate('map.lights.falloff')}
         value={same((l) => l.falloff) ?? first.falloff}
         min={0}
         max={1}
         step={0.05}
         format={(v) => (v === 0 ? 'bord net' : percent(v))}
         scale={100}
-        onCommit={(v) => patch('Dégradé de la lumière', () => ({ falloff: v }))}
+        onCommit={(v) => patch(translate('map.lights.lightFalloff'), () => ({ falloff: v }))}
       />
 
       <div className="space-y-1.5">
         <span className="text-[13px] text-foreground">Suit un token (torche)</span>
         <SelectField
-          aria-label="Token suivi"
+          aria-label={translate('map.lights.followedToken')}
           value={attached ?? NONE}
           onValueChange={(v) =>
-            patch(v ? 'Attacher la lumière' : 'Détacher la lumière', (l) =>
+            patch(v ? translate('map.lights.attach') : translate('map.lights.detach'), (l) =>
               v
                 ? { attachedTokenId: v }
                 : {
@@ -149,11 +153,9 @@ export function LightInspector({ engine, entities }: Readonly<InspectorSectionPr
                   },
             )
           }
-          options={[{ valeur: NONE, nom: 'Aucun (fixe)' }, ...tokens]}
+          options={[{ valeur: NONE, nom: translate('map.lights.noneFixed') }, ...tokens]}
         />
-        <p className="text-xs text-muted-foreground">
-          La lumière est là où est le token, pendant ses déplacements aussi.
-        </p>
+        <p className="text-xs text-muted-foreground">{translate('map.lights.followsToken')}</p>
       </div>
     </div>
   );

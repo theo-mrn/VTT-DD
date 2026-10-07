@@ -21,3 +21,51 @@ export const EntitlementsChanged = z.object({
   tokenFrames: z.array(z.string().min(1)),
 });
 export type EntitlementsChanged = z.infer<typeof EntitlementsChanged>;
+
+// ─── Marketplace : comptes des créateurs et ventes (docs/marketplace.md § 5) ──
+
+/**
+ * État du compte Stripe Connect d'un créateur, publié par billing à chaque changement. Comme les
+ * droits : état complet et `version` croissante, un consommateur ignore une version plus ancienne
+ * ou égale.
+ */
+export const CONNECT_ACCOUNT_UPDATED = 'billing.connect_account_updated';
+export const ConnectAccountUpdated = z.object({
+  userId: z.uuid(),
+  version: z.number().int().positive(),
+  chargesEnabled: z.boolean(),
+  payoutsEnabled: z.boolean(),
+  detailsSubmitted: z.boolean(),
+});
+export type ConnectAccountUpdated = z.infer<typeof ConnectAccountUpdated>;
+
+/** Vente d'un pack payée, remboursée ou contestée (sujet vtt.global.billing.<action>). */
+export const MARKETPLACE_SALE_COMPLETED = 'billing.marketplace_sale_completed';
+export const MARKETPLACE_SALE_REFUNDED = 'billing.marketplace_sale_refunded';
+export const MARKETPLACE_SALE_DISPUTED = 'billing.marketplace_sale_disputed';
+export const MarketplaceSale = z.object({
+  saleId: z.uuid(),
+  buyerId: z.uuid(),
+  sellerId: z.uuid(),
+  listingId: z.uuid(),
+  amountCents: z.number().int().positive(),
+  feeCents: z.number().int().min(0),
+  currency: z.string().length(3),
+});
+export type MarketplaceSale = z.infer<typeof MarketplaceSale>;
+
+/** `POST /internal/marketplace/checkout` (billing) : session de vente demandée par marketplace. */
+export const MarketplaceCheckoutRequest = z.object({
+  buyerId: z.uuid(),
+  sellerId: z.uuid(),
+  listingId: z.uuid(),
+  title: z.string().min(1).max(120),
+  priceCents: z.number().int().positive(),
+  currency: z.literal('eur'),
+  /** Chemin du front où revenir (relatif). */
+  returnUrl: z
+    .string()
+    .max(512)
+    .regex(/^\/(?![/\\])[^\s\\]*$/, 'Chemin relatif attendu (/…)'),
+});
+export type MarketplaceCheckoutRequest = z.infer<typeof MarketplaceCheckoutRequest>;

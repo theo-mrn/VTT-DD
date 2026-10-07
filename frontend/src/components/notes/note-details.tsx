@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   Check,
   ChevronDown,
@@ -30,15 +31,14 @@ import { randomId } from '@/lib/random-id';
 const LONGUEUR_DETAIL = 200;
 const MAX_ETAPES = 100;
 
-const IMPORTANCES: { id: QuestType; label: string }[] = [
-  { id: 'main', label: 'Principale' },
-  { id: 'side', label: 'Annexe' },
-];
+/** Importances d'une quête ; nom : `notes.quest.importance.<id>`. */
+const IMPORTANCES: readonly QuestType[] = ['main', 'side'];
 
-const STATUTS: { id: QuestStatus; label: string; icone: typeof Circle }[] = [
-  { id: 'not_started', label: 'À commencer', icone: Circle },
-  { id: 'in_progress', label: 'En cours', icone: CircleDot },
-  { id: 'completed', label: 'Terminée', icone: CircleCheck },
+/** Statuts d'une quête ou d'une étape ; nom : `notes.quest.status.<id>`. */
+const STATUTS: { id: QuestStatus; icone: typeof Circle }[] = [
+  { id: 'not_started', icone: Circle },
+  { id: 'in_progress', icone: CircleDot },
+  { id: 'completed', icone: CircleCheck },
 ];
 
 const SUIVANT: Record<QuestStatus, QuestStatus> = {
@@ -125,6 +125,7 @@ function Etapes({
   lecture: boolean;
   onChange: (etapes: SubQuest[]) => void;
 }>) {
+  const t = useTranslations();
   const modifier = (id: string, m: Partial<SubQuest>) =>
     onChange(etapes.map((e) => (e.id === id ? { ...e, ...m } : e)));
 
@@ -138,7 +139,9 @@ function Etapes({
               type="button"
               disabled={lecture}
               onClick={() => modifier(e.id, { status: statutSuivant(e.status) })}
-              aria-label={`Étape ${statut.label.toLowerCase()} : changer le statut`}
+              aria-label={t('notes.quest.stepStatus', {
+                status: t(`notes.quest.status.${statut.id}`).toLowerCase(),
+              })}
               className={cn(
                 '-ml-1 mt-1 flex size-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-surface-2 disabled:pointer-events-none',
                 TEINTES_STATUT[e.status],
@@ -151,8 +154,8 @@ function Etapes({
                 value={e.title}
                 readOnly={lecture}
                 maxLength={500}
-                placeholder="Étape"
-                aria-label="Titre de l'étape"
+                placeholder={t('notes.quest.step')}
+                aria-label={t('notes.quest.stepTitle')}
                 onChange={(ev) => modifier(e.id, { title: ev.target.value })}
                 className={cn(
                   styleChampLigne,
@@ -164,8 +167,8 @@ function Etapes({
                   value={e.description}
                   readOnly={lecture}
                   maxLength={5000}
-                  placeholder="Détails…"
-                  aria-label="Détails de l'étape"
+                  placeholder={t('notes.quest.detailsPlaceholder')}
+                  aria-label={t('notes.quest.stepDetails')}
                   onChange={(ev) => modifier(e.id, { description: ev.target.value })}
                   className={cn(styleChampLigne, 'h-7 text-xs text-muted-foreground')}
                 />
@@ -175,7 +178,7 @@ function Etapes({
               <button
                 type="button"
                 onClick={() => onChange(etapes.filter((x) => x.id !== e.id))}
-                aria-label="Retirer l'étape"
+                aria-label={t('notes.quest.removeStep')}
                 className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-md text-subtle opacity-0 transition hover:bg-surface-2 hover:text-foreground focus-visible:opacity-100 group-hover/etape:opacity-100"
               >
                 <X className="size-3.5" />
@@ -196,7 +199,7 @@ function Etapes({
           className="-ml-2 inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px] text-subtle transition-colors hover:bg-surface-2 hover:text-foreground"
         >
           <Plus className="size-3.5" />
-          Ajouter une étape
+          {t('notes.quest.addStep')}
         </button>
       )}
       {lecture && !etapes.length && <span className="text-[13px] text-subtle">—</span>}
@@ -220,21 +223,22 @@ export function DetailsNote({
   lecture: boolean;
   onChange: (m: Partial<NoteDetails>, immediat?: boolean) => void;
 }>) {
+  const t = useTranslations();
   if (kind === 'personnage')
     return (
       <>
-        <Ligne icone={Fingerprint} label="Race">
+        <Ligne icone={Fingerprint} label={t('notes.details.race')}>
           <ChampDetail
             valeur={details.race}
-            placeholder="Elfe, nain…"
+            placeholder={t('notes.details.racePlaceholder')}
             lecture={lecture}
             onChange={(race) => onChange({ race })}
           />
         </Ligne>
-        <Ligne icone={Shield} label="Classe">
+        <Ligne icone={Shield} label={t('notes.details.class')}>
           <ChampDetail
             valeur={details.class}
-            placeholder="Magicien, rôdeur…"
+            placeholder={t('notes.details.classPlaceholder')}
             lecture={lecture}
             onChange={(v) => onChange({ class: v })}
           />
@@ -243,10 +247,10 @@ export function DetailsNote({
     );
   if (kind === 'lieu')
     return (
-      <Ligne icone={MapPin} label="Région">
+      <Ligne icone={MapPin} label={t('notes.details.region')}>
         <ChampDetail
           valeur={details.region}
-          placeholder="Royaume, contrée…"
+          placeholder={t('notes.details.regionPlaceholder')}
           lecture={lecture}
           onChange={(region) => onChange({ region })}
         />
@@ -254,10 +258,10 @@ export function DetailsNote({
     );
   if (kind === 'objet')
     return (
-      <Ligne icone={Package} label="Type d’objet">
+      <Ligne icone={Package} label={t('notes.details.itemType')}>
         <ChampDetail
           valeur={details.itemType}
-          placeholder="Arme, relique…"
+          placeholder={t('notes.details.itemTypePlaceholder')}
           lecture={lecture}
           onChange={(itemType) => onChange({ itemType })}
         />
@@ -266,25 +270,25 @@ export function DetailsNote({
   if (kind === 'quete')
     return (
       <>
-        <Ligne icone={Flag} label="Importance">
+        <Ligne icone={Flag} label={t('notes.quest.importanceTitle')}>
           <Choix
             valeur={details.questType}
-            options={IMPORTANCES}
-            vide="Non précisée"
+            options={IMPORTANCES.map((id) => ({ id, label: t(`notes.quest.importance.${id}`) }))}
+            vide={t('notes.quest.unspecifiedF')}
             lecture={lecture}
             onChange={(questType) => onChange({ questType }, true)}
           />
         </Ligne>
-        <Ligne icone={CircleDashed} label="Statut">
+        <Ligne icone={CircleDashed} label={t('notes.quest.statusTitle')}>
           <Choix
             valeur={details.questStatus}
-            options={STATUTS}
-            vide="Non précisé"
+            options={STATUTS.map((s) => ({ id: s.id, label: t(`notes.quest.status.${s.id}`) }))}
+            vide={t('notes.quest.unspecified')}
             lecture={lecture}
             onChange={(questStatus) => onChange({ questStatus }, true)}
           />
         </Ligne>
-        <Ligne icone={ListChecks} label="Étapes">
+        <Ligne icone={ListChecks} label={t('notes.quest.steps')}>
           <Etapes
             etapes={details.subQuests}
             lecture={lecture}

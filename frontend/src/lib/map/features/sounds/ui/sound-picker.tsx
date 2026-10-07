@@ -10,12 +10,13 @@
  *
  * Les sons YouTube n'y figurent pas (ni direction ni étouffement possibles hors de Web Audio).
  */
+import { compareText, translate } from '@/i18n/runtime';
 import type { Asset, AssetKind, CatalogEntry } from '@vtt/contracts';
 import { Check, Headphones, Library, Package, Pause, Play, Square, Upload } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { FileSource, plain } from '@/components/audio/add-sound-dialog';
-import { formatTime, KIND_ICONS, KIND_LABELS, Segmented } from '@/components/audio/parts';
+import { formatTime, KIND_ICONS, kindLabel, Segmented } from '@/components/audio/parts';
 import { Chips, SearchField } from '@/components/resources/parts';
 import { useTable } from '@/components/table/contexte';
 import { Button } from '@/components/ui/button';
@@ -64,20 +65,25 @@ export function SoundPicker({
         variant="secondary"
         size="sm"
         aria-haspopup="dialog"
-        aria-label="Son de la zone"
+        aria-label={translate('map.sounds.zoneSound')}
         onClick={() => setOpen(true)}
         className="min-w-0 flex-1 justify-start gap-2"
       >
         <Library className="opacity-60" />
         <span className={cn('truncate', !current && 'text-muted-foreground')}>
-          {current?.name ?? (value ? 'Son introuvable' : 'Choisir un son')}
+          {current?.name ??
+            (value ? translate('map.sounds.notFound') : translate('map.sounds.pick'))}
         </span>
       </Button>
-      <Info texte={playing ? 'Arrêter l’écoute' : 'Écouter'}>
+      <Info
+        texte={playing ? translate('map.sounds.stopListening') : translate('map.sounds.listen')}
+      >
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={playing ? 'Arrêter l’écoute' : 'Écouter'}
+          aria-label={
+            playing ? translate('map.sounds.stopListening') : translate('map.sounds.listen')
+          }
           disabled={!current?.url}
           onClick={() => (playing ? preview.stop() : current && preview.play(current))}
         >
@@ -119,19 +125,19 @@ function SoundLibraryDialog({
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[80dvh] max-h-[640px] flex-col sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Son de la zone</DialogTitle>
+          <DialogTitle>{translate('map.sounds.zoneSound')}</DialogTitle>
           <DialogDescription className="sr-only">
-            Choisir un son de la bibliothèque, un son fourni ou un fichier.
+            {translate('map.sounds.pickHint')}
           </DialogDescription>
         </DialogHeader>
         <Segmented
-          label="Provenance"
+          label={translate('map.sounds.source')}
           value={source}
           onChange={(v) => setSource(v as Source)}
           options={[
-            { value: 'mine', label: 'Mes sons', icon: Library },
-            { value: 'catalog', label: 'Fournis', icon: Package },
-            { value: 'file', label: 'Fichier', icon: Upload },
+            { value: 'mine', label: translate('map.sounds.mine'), icon: Library },
+            { value: 'catalog', label: translate('map.sounds.provided'), icon: Package },
+            { value: 'file', label: translate('map.sounds.file'), icon: Upload },
           ]}
         />
         <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
@@ -192,7 +198,11 @@ function PickRow({
       <Button
         variant="ghost"
         size="icon-xs"
-        aria-label={previewing ? 'Arrêter l’écoute' : `Écouter ${name}`}
+        aria-label={
+          previewing
+            ? translate('map.sounds.stopListening')
+            : translate('map.sounds.listenTo', { name })
+        }
         aria-pressed={previewing}
         onClick={onPreview}
         className={cn(previewing && 'text-primary-strong')}
@@ -210,7 +220,12 @@ function PickRow({
           <span className="block truncate text-[13px] font-medium">{name}</span>
           <span className="block text-[11px] text-muted-foreground">{meta}</span>
         </span>
-        {chosen && <Check className="size-4 shrink-0 text-primary-strong" aria-label="Choisi" />}
+        {chosen && (
+          <Check
+            className="size-4 shrink-0 text-primary-strong"
+            aria-label={translate('map.sounds.chosen')}
+          />
+        )}
       </button>
     </li>
   );
@@ -239,23 +254,23 @@ function useSoundFilters<T>(
   const counts = new Map<string, number>();
   for (const x of ofKind) counts.set(categoryOf(x), (counts.get(categoryOf(x)) ?? 0) + 1);
   const kindChips = [
-    { value: 'all', label: 'Tous', count: items.length },
+    { value: 'all', label: translate('map.sounds.allKinds'), count: items.length },
     ...KINDS.map((k) => ({
       value: k,
-      label: KIND_LABELS[k],
+      label: kindLabel(k),
       count: items.filter((x) => kindOf(x) === k).length,
     })).filter((c) => c.count > 0),
   ];
   const categoryChips =
     counts.size > 1
       ? [
-          { value: 'all', label: 'Toutes', count: ofKind.length },
+          { value: 'all', label: translate('map.sounds.allCategories'), count: ofKind.length },
           ...[...counts]
             .map(([value, count]) => ({ value, label: labelOf(value), count }))
             .sort(
               (a, b) =>
                 Number(a.value === UPLOADS) - Number(b.value === UPLOADS) ||
-                a.label.localeCompare(b.label, 'fr'),
+                compareText(a.label, b.label),
             ),
         ]
       : null;
@@ -265,9 +280,19 @@ function useSoundFilters<T>(
       (kind === 'all' || kindOf(x) === kind) && (active === 'all' || categoryOf(x) === active),
     chips: (
       <>
-        <Chips label="Type" value={kind} onChange={setKind} options={kindChips} />
+        <Chips
+          label={translate('map.sounds.type')}
+          value={kind}
+          onChange={setKind}
+          options={kindChips}
+        />
         {categoryChips && (
-          <Chips label="Catégorie" value={active} onChange={setCategory} options={categoryChips} />
+          <Chips
+            label={translate('map.sounds.category')}
+            value={active}
+            onChange={setCategory}
+            options={categoryChips}
+          />
         )}
       </>
     ),
@@ -300,7 +325,7 @@ function MineList({
     sounds,
     (a) => a.kind,
     (a) => catalogCategory(a.catalogId),
-    (c) => (c === UPLOADS ? 'Mes envois' : (labels.get(c) ?? c)),
+    (c) => (c === UPLOADS ? translate('map.sounds.myUploads') : (labels.get(c) ?? c)),
   );
   const q = plain(query.trim());
   const items = sounds
@@ -314,17 +339,19 @@ function MineList({
       <SearchField
         value={query}
         onChange={setQuery}
-        placeholder="Rechercher dans mes sons"
-        label="Rechercher dans mes sons"
+        placeholder={translate('map.sounds.searchMine')}
+        label={translate('map.sounds.searchMine')}
         className="sm:w-full"
       />
       {filters.chips}
       {library.loading && (
-        <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
+        <p className="py-6 text-center text-[13px] text-muted-foreground">
+          {translate('common.states.loading')}
+        </p>
       )}
       {!library.loading && items.length === 0 && (
         <p className="py-6 text-center text-[13px] text-muted-foreground">
-          {sounds.length ? 'Aucun son ne correspond.' : 'La bibliothèque est vide.'}
+          {sounds.length ? translate('map.sounds.noMatch') : translate('map.sounds.emptyLibrary')}
         </p>
       )}
       {!library.loading && items.length > 0 && (
@@ -335,8 +362,10 @@ function MineList({
               name={a.name}
               kind={a.kind}
               meta={[
-                KIND_LABELS[a.kind],
-                a.status === 'processing' ? 'en préparation' : formatTime(a.durationMs),
+                kindLabel(a.kind),
+                a.status === 'processing'
+                  ? translate('map.sounds.processing')
+                  : formatTime(a.durationMs),
               ].join(' · ')}
               previewing={preview.playingId === a.id}
               onPreview={() => (preview.playingId === a.id ? preview.stop() : preview.play(a))}
@@ -392,7 +421,7 @@ function CatalogList({
     try {
       onPick(byCatalog.get(e.id) ?? (await library.addFromCatalog(e.id, { kind: e.kind })));
     } catch (err) {
-      toast.error('Ajout impossible', { description: messageErreur(err) });
+      toast.error(translate('map.sounds.addFailed'), { description: messageErreur(err) });
     } finally {
       setBusy(null);
     }
@@ -403,13 +432,15 @@ function CatalogList({
       <SearchField
         value={query}
         onChange={setQuery}
-        placeholder="Rechercher un son fourni"
-        label="Rechercher un son fourni"
+        placeholder={translate('map.sounds.searchProvided')}
+        label={translate('map.sounds.searchProvided')}
         className="sm:w-full"
       />
       {filters.chips}
       {catalog.loading ? (
-        <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
+        <p className="py-6 text-center text-[13px] text-muted-foreground">
+          {translate('common.states.loading')}
+        </p>
       ) : (
         <ul>
           {items.map((e) => (

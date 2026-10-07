@@ -13,6 +13,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { translate } from '@/i18n/runtime';
 import { connexion, deconnexion, inscription, refreshSession, setAccessToken } from './api';
 import { lireMonProfil, modifierMonProfil, type Profil } from './profil';
 import { urlConnexion } from './redirection';
@@ -83,7 +84,7 @@ export function SessionProvider({ children }: Readonly<{ children: ReactNode }>)
       async seConnecter(email, motDePasse) {
         const { deletionCancelled } = await connexion(email, motDePasse);
         await chargerProfil();
-        if (deletionCancelled) toast.success('Suppression du compte annulée');
+        if (deletionCancelled) toast.success(translate('auth.form.deletionCancelled'));
       },
       async sInscrire(email, motDePasse, nom) {
         await inscription(email, motDePasse, nom);

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 import { Interrupteur } from '@/components/compte/elements';
 import { Label } from '@/components/ui/label';
@@ -10,12 +11,6 @@ import {
   type RollableAttribute,
 } from '@/lib/rollable-attributes';
 import { useSysteme } from '@/lib/systemes';
-
-const APPORT: Record<RollableAttribute['kind'], string> = {
-  modificateur: 'Ajoute son modificateur',
-  valeur: 'Ajoute sa valeur',
-  formule: 'Ajoute',
-};
 
 /**
  * Attributs proposés dans le lanceur de dés de toute la table : ceux que les règles du
@@ -33,6 +28,7 @@ export function ReglagesLanceur({
   onChange: (hidden: string[]) => void;
   loading?: boolean;
 }>) {
+  const t = useTranslations('campaigns.settings.launcher');
   const systeme = useSysteme(systemId);
   const groups = useMemo(
     () =>
@@ -53,26 +49,24 @@ export function ReglagesLanceur({
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label>Lanceur de dés</Label>
-        <p className="text-xs text-subtle">
-          Attributs proposés en raccourci dans le lanceur de toute la table. Retirez ceux dont vous
-          ne voulez pas.
-        </p>
+        <Label>{t('title')}</Label>
+        <p className="text-xs text-subtle">{t('lead')}</p>
       </div>
       {etat === 'chargement' && (
-        <div className="space-y-2" aria-label="Chargement des attributs">
+        <div className="space-y-2" aria-label={t('loading')}>
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-9 w-full rounded-lg" />
           ))}
         </div>
       )}
       {etat === 'erreur' && systeme.error && (
-        <p className="text-xs text-destructive">Système indisponible : {systeme.error.message}</p>
+        <p className="text-xs text-destructive">
+          {t('systemUnavailable', { error: systeme.error.message })}
+        </p>
       )}
       {etat === 'aucun' && (
         <p className="rounded-lg border border-dashed border-border px-3 py-2.5 text-xs text-subtle">
-          Ce système ne propose aucun attribut au lanceur : ses jets passent par les actions de la
-          fiche.
+          {t('none')}
         </p>
       )}
       {etat === 'liste' && (
@@ -95,12 +89,14 @@ export function ReglagesLanceur({
                       {a.label !== a.name && (
                         <span className="ml-1.5 font-mono text-xs text-subtle">{a.label}</span>
                       )}
-                      {a.gmOnly && <span className="ml-1.5 text-xs text-subtle">(MJ)</span>}
+                      {a.gmOnly && (
+                        <span className="ml-1.5 text-xs text-subtle">{t('gmOnly')}</span>
+                      )}
                     </>
                   }
                   description={
                     <>
-                      {APPORT[a.kind]} <code className="font-mono">{a.term}</code>
+                      {t(`adds.${a.kind}`)} <code className="font-mono">{a.term}</code>
                     </>
                   }
                 />

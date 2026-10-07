@@ -4,6 +4,7 @@
  * Mon mixeur : volumes et coupures par bus, enregistrés sur mon compte
  * (tous mes appareils). Chacun règle ce qu'il entend, sans toucher à la table.
  */
+import { useTranslations } from 'next-intl';
 import type { BusName } from '@vtt/contracts';
 import { RotateCcw, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,32 +15,28 @@ import { useMixer } from '@/lib/audio';
 import { cn } from '@/lib/utils';
 import { SectionTitle } from './parts';
 
-const BUSES: { bus: BusName; label: string }[] = [
-  { bus: 'master', label: 'Général' },
-  { bus: 'music', label: 'Musique' },
-  { bus: 'ambience', label: 'Ambiance' },
-  { bus: 'sfx', label: 'Effets' },
-  { bus: 'zones', label: 'Zones de la carte' },
-  { bus: 'dice', label: 'Dés' },
-];
+/** Bus du mixeur ; nom : `audio.buses.<bus>`. */
+const BUSES: readonly BusName[] = ['master', 'music', 'ambience', 'sfx', 'zones', 'dice'];
 
 export function MixerPanel() {
+  const t = useTranslations();
   const m = useMixer();
   if (!m.volumes || !m.muted) return null;
   return (
-    <section aria-label="Mon volume">
+    <section aria-label={t('audio.mixer.myVolume')}>
       <SectionTitle
         action={
           <Button variant="ghost" size="xs" onClick={() => m.reset()}>
             <RotateCcw />
-            Réinitialiser
+            {t('audio.mixer.reset')}
           </Button>
         }
       >
-        Mon volume · pour moi seul
+        {t('audio.mixer.forMe')}
       </SectionTitle>
       <ul className="space-y-1.5">
-        {BUSES.map(({ bus, label }) => {
+        {BUSES.map((bus) => {
+          const label = t(`audio.buses.${bus}`);
           const muted = m.muted![bus];
           const volume = m.volumes![bus];
           return (
@@ -48,7 +45,9 @@ export function MixerPanel() {
                 variant="ghost"
                 size="icon-xs"
                 aria-label={
-                  muted ? `Rétablir ${label.toLowerCase()}` : `Couper ${label.toLowerCase()}`
+                  muted
+                    ? t('audio.mixer.unmute', { bus: label.toLowerCase() })
+                    : t('audio.mixer.mute', { bus: label.toLowerCase() })
                 }
                 aria-pressed={muted}
                 onClick={() => m.toggleMute(bus)}
@@ -92,12 +91,13 @@ export function MixerPanel() {
 
 /** « Mon volume » en bouton (MJ : le panneau est déjà chargé de commandes). */
 export function MixerButton() {
+  const t = useTranslations();
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="secondary" size="sm">
           <SlidersHorizontal />
-          Mon volume
+          {t('audio.mixer.myVolume')}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-96">

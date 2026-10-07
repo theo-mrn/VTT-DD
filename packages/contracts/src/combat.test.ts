@@ -13,6 +13,10 @@ import {
   CombatTurnResponse,
   DeclareAttack,
   DEFAULT_COMBAT_SETTINGS,
+  DurationEvent,
+  DurationTiming,
+  durationMomentOf,
+  DURATION_MOMENT_RULES,
   EndCombat,
   ListAttacksQuery,
   NextTurn,
@@ -480,5 +484,49 @@ describe('événements et direct', () => {
       CombatAimMessage.safeParse({ a: 'p1', t: Array.from({ length: 51 }, (_, i) => `t${i}`) })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('durées décomptées au nombre de tours (§ 18)', () => {
+  it('moment et ancre d’une durée donnée par une attaque', () => {
+    expect(DurationTiming.safeParse({ moment: 'turn_end', anchorId: A }).success).toBe(true);
+    expect(DurationTiming.safeParse({ moment: 'turn_end', attente: true }).success).toBe(false);
+    expect(DurationTiming.safeParse({ moment: 'next_week' }).success).toBe(false);
+    const give = {
+      kind: 'entry',
+      entry: 'etourdi',
+      operation: 'give',
+      ranks: 1,
+      duration: 1,
+      timing: { moment: 'turn_end' },
+    };
+    expect(
+      ApplyAttack.safeParse({
+        version: 1,
+        targets: [{ characterId: B, apply: true, modifications: [give] }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it('noms du moteur de règles, dans les deux sens', () => {
+    for (const [moment, rules] of Object.entries(DURATION_MOMENT_RULES))
+      expect(durationMomentOf(rules)).toBe(moment);
+    expect(durationMomentOf('inconnu')).toBe('round_end');
+  });
+
+  it('événements d’un passage de tour', () => {
+    expect(DurationEvent.safeParse({ kind: 'turn_start', characterId: A }).success).toBe(true);
+    expect(DurationEvent.safeParse({ kind: 'round_end', round: 2 }).success).toBe(true);
+    expect(DurationEvent.safeParse({ kind: 'combat_end' }).success).toBe(true);
+    expect(DurationEvent.safeParse({ kind: 'turn_end' }).success).toBe(false);
+  });
+
+  it('expiration annoncée', () => {
+    const p = CombatEventPayloads['combat.durations_expired'].safeParse({
+      tickId: 'tick:x:1:y',
+      round: 2,
+      expirations: [{ characterId: A, entries: [{ key: 'bonus:priere', name: 'Prière' }] }],
+    });
+    expect(p.success).toBe(true);
   });
 });

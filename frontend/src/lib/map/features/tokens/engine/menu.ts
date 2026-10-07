@@ -7,6 +7,7 @@
  *   engagé ; un PNJ se supprime, son modèle de « Mes PNJ » reste) ;
  * - joueur : Vision augmentée de ses personnages.
  */
+import { translate } from '@/i18n/runtime';
 import { Eye, IdCard, MapPinOff, ScanEye, UsersRound } from 'lucide-react';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import type { MenuItem } from '@/lib/map/engine/entities/entity-kind';
@@ -18,7 +19,7 @@ import {
   settled,
   toggleVisibleTo,
 } from './edit';
-import { isNpc, ownsToken, VISIBILITY_LABELS, VISIBILITY_ORDER, type TokenData } from './model';
+import { isNpc, ownsToken, visibilityLabel, VISIBILITY_ORDER, type TokenData } from './model';
 import type { TokensState } from './state';
 
 /** Rayons de vision proposés, en cases (× `pixelsPerUnit`). */
@@ -38,7 +39,7 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
   if (single && (gm || ownsToken(single.data, viewer)))
     items.push({
       id: 'token:sheet',
-      label: 'Fiche',
+      label: translate('map.tokens.sheet'),
       icon: IdCard,
       primary: true,
       run: () => tokens.library.setState({ sheetFor: single.data.characterId }),
@@ -47,7 +48,7 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
   const boosted = entities.every((e) => e.data.visionBoost);
   const boost: MenuItem = {
     id: 'token:vision-boost',
-    label: 'Vision augmentée',
+    label: translate('map.tokens.visionBoost'),
     checked: boosted,
     run: () => void setVisionBoost(tokens, entities, !boosted),
   };
@@ -66,13 +67,13 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
     entities.every((e) => e.data.visibility === 'custom' && e.data.visibleTo.includes(id));
   items.push({
     id: 'token:visibility',
-    label: 'Visibilité',
+    label: translate('map.tokens.visibilityTitle'),
     icon: Eye,
     children: VISIBILITY_ORDER.map((v): MenuItem => {
       if (v === 'custom')
         return {
           id: 'token:visibility:custom',
-          label: VISIBILITY_LABELS.custom.label,
+          label: visibilityLabel('custom'),
           icon: UsersRound,
           disabled: !characters.length,
           children: characters.map((c) => ({
@@ -84,7 +85,7 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
         };
       return {
         id: `token:visibility:${v}`,
-        label: VISIBILITY_LABELS[v].label,
+        label: visibilityLabel(v),
         checked: only === v,
         run: () => void setVisibility(tokens, entities, v),
       };
@@ -98,7 +99,7 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
   const radius = radii.size === 1 ? [...radii][0]! : null;
   items.push({
     id: 'token:vision',
-    label: 'Vision',
+    label: translate('map.tokens.vision'),
     icon: ScanEye,
     children: [
       boost,
@@ -107,14 +108,14 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
         const px = n * ctx.pixelsPerUnit;
         return {
           id: `token:vision:${n}`,
-          label: n === 0 ? 'Aucune' : `${n} ${unit}`,
+          label: n === 0 ? translate('map.tokens.noVision') : `${n} ${unit}`,
           checked: radius !== null && Math.abs(radius - px) < 0.5,
           run: () => void setVisionRadius(tokens, entities, px),
         };
       }),
       {
         id: 'token:vision:custom',
-        label: 'Autre rayon…',
+        label: translate('map.tokens.otherRadius'),
         run: () => engine.openInspector(entities.map((e) => e.id)),
       },
     ],
@@ -125,7 +126,7 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
   if (entities.every((e) => !isNpc(tokens.directory.get(e.data.characterId))))
     items.push({
       id: 'token:remove-from-map',
-      label: 'Retirer de la carte',
+      label: translate('map.tokens.removeFromMap'),
       icon: MapPinOff,
       run: () => void removeFromMap(tokens, entities),
     });

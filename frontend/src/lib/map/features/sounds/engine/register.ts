@@ -2,6 +2,7 @@
  * Branchement du module zones sonores sur le moteur, sans React : sorte `sound-zone`, outil F,
  * inspecteur. L'interface est ajoutée par `index.ts` ; l'écoute, par `MapSounds`.
  */
+import { translate } from '@/i18n/runtime';
 import { Music } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
@@ -32,7 +33,7 @@ export function registerSounds(engine: MapEngine, ui: SoundUi = {}): () => void 
     engine.registerKind(soundZoneKind(ctx, view)),
     engine.registerTool({
       id: SOUNDS_TOOL_ID,
-      label: 'Zones sonores',
+      label: translate('map.sounds.zones'),
       icon: Music,
       shortcut: { code: 'KeyF', label: 'F' },
       order: 73,
@@ -45,7 +46,7 @@ export function registerSounds(engine: MapEngine, ui: SoundUi = {}): () => void 
     unregister.push(
       engine.registerInspectorSection({
         id: 'sound-zone',
-        title: 'Zone sonore',
+        title: translate('map.sounds.zone'),
         order: 10,
         appliesTo: (es, viewer) => isGm(viewer) && es.every((e) => e.kind.id === SOUND_ZONE_KIND),
         component: ui.inspector,

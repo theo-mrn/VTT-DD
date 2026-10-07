@@ -6,6 +6,7 @@
  * lié (champ de la sorte), marques de rang et « + » pour acheter le rang suivant (coût ou
  * blocage en info-bulle). Le détail s'ouvre au clic sur le nom.
  */
+import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Info } from '@/components/ui/tooltip';
@@ -39,13 +40,18 @@ export function RankedList({
   writes: SheetWrites | undefined;
   onOpen: (card: SkillCard) => void;
 }>) {
+  const t = useTranslations();
   const sections = groups.flatMap((g) =>
     g.groups
       .map((s) => ({ ...s, key: `${g.sorte.id}:${s.key}`, cards: s.cards.filter(matches) }))
       .filter((s) => s.cards.length),
   );
   if (!sections.length)
-    return <p className="py-6 text-center text-sm text-muted-foreground">Aucun résultat.</p>;
+    return (
+      <p className="py-6 text-center text-sm text-muted-foreground">
+        {t('sheet.effects.noResult')}
+      </p>
+    );
   return (
     <div className="space-y-3">
       {sections.map((s) => (
@@ -98,7 +104,11 @@ export function RankedList({
                           className="size-11 sm:size-7"
                           disabled={!card.offer.possible}
                           onClick={() => writes.buy(card.offer!.achat, card.offer!.objet)}
-                          aria-label={`Acheter le rang ${card.offer.cible} de ${card.entry.nom} : ${offerText(ctx, card)}`}
+                          aria-label={t('sheet.skills.buyRank', {
+                            rank: card.offer.cible,
+                            name: card.entry.nom,
+                            offer: offerText(ctx, card),
+                          })}
                         >
                           <Plus />
                         </Button>

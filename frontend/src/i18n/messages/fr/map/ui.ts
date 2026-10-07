@@ -1,0 +1,16 @@
+export default {
+  items: '{count, plural, one {# élément} other {# éléments}}',
+  selectionOf: 'Sélection : {title}',
+  deselect: 'Désélectionner',
+  editStats: 'Modifier les stats',
+  inspectorOf: 'Inspecteur : {title}',
+  closeInspector: 'Fermer l’inspecteur',
+  nothing: 'Rien à régler ici.',
+  noPlayerCharacter: 'Aucun personnage joueur dans la campagne.',
+  allPlayers: 'Tous les joueurs',
+  othersFade: 'Les autres s’estompent tant que celui-ci reste sélectionné.',
+  locked: 'verrouillé',
+  dragReset: 'Glisser pour déplacer · double clic : remettre en place',
+  drag: 'Glisser pour déplacer',
+  noAction: 'Aucune action ici',
+} as const;

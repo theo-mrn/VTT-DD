@@ -5,6 +5,7 @@
  * qui n'en ont pas), ajout de participants en cours de combat, fin du combat (rapports en
  * attente gardés ou écartés, états à durée retirés), réglages.
  */
+import { useTranslations } from 'next-intl';
 import type { ActionParams, CampaignSide, CombatSettings, CombatState } from '@vtt/contracts';
 import type { SystemeCharge } from '@vtt/rules';
 import { Dices, EyeOff, Flag, UserPlus } from 'lucide-react';
@@ -92,6 +93,7 @@ function InitiativeBody({
   systeme: SystemeCharge | null;
   initial: Partial<Record<CampaignSide, ActionParams>>;
 }>) {
+  const t = useTranslations();
   const commands = useCombatCommands(campaignId);
   const [sideParams, setSideParams] =
     useState<Partial<Record<CampaignSide, ActionParams>>>(initial);
@@ -105,7 +107,7 @@ function InitiativeBody({
   const roll = async () => {
     setBusy(true);
     const paramsBySide = sideParamsBody(sideParams);
-    const ok = await attempt('L’initiative n’a pas pu être lancée', () =>
+    const ok = await attempt(t('combat.initiative.rollFailed'), () =>
       commands.rollInitiative({
         ...(paramsBySide ? { paramsBySide } : {}),
         ...(onlyMissing && missing.length ? { participants: missing } : {}),
@@ -113,7 +115,7 @@ function InitiativeBody({
     );
     setBusy(false);
     if (ok) {
-      toast.success('Initiative lancée');
+      toast.success(t('combat.initiative.rolled'));
       onOpenChange(false);
     }
   };
@@ -126,11 +128,11 @@ function InitiativeBody({
     >
       <DotsBackdrop />
       <DialogHeader>
-        <DialogTitle>Initiative</DialogTitle>
+        <DialogTitle>{t('combat.initiative.title')}</DialogTitle>
         <DialogDescription>
           {action
-            ? `« ${action.nom} » pour chaque participant ; l’ordre suit le résultat.`
-            : 'Le système ne déclare pas d’initiative.'}
+            ? t('combat.initiative.forEach', { action: action.nom })
+            : t('combat.initiative.none')}
         </DialogDescription>
       </DialogHeader>
       {action && systeme && (
@@ -160,11 +162,11 @@ function InitiativeBody({
       )}
       <DialogFooter>
         <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
-          Annuler
+          {t('common.actions.cancel')}
         </Button>
         <Button onClick={() => void roll()} loading={busy} disabled={!action}>
           <Dices />
-          {combat.initiativeRolled ? 'Relancer' : 'Lancer l’initiative'}
+          {combat.initiativeRolled ? t('combat.initiative.reroll') : t('combat.initiative.roll')}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -186,6 +188,7 @@ export function AddParticipantsDialog({
   combat: CombatState;
   members: readonly CastMember[];
 }>) {
+  const t = useTranslations();
   const commands = useCombatCommands(campaignId);
   const { tokens } = useSceneTokens(campaignId);
   const inCombat = useMemo(() => new Set(combat.order.map((p) => p.characterId)), [combat.order]);
@@ -205,7 +208,7 @@ export function AddParticipantsDialog({
   const add = async () => {
     if (!chosen.length) return;
     setBusy(true);
-    const ok = await attempt('Les participants n’ont pas pu rejoindre le combat', () =>
+    const ok = await attempt(t('combat.add.failed'), () =>
       commands.addParticipants({
         participants: chosen.map((c) => ({
           characterId: c.characterId,
@@ -226,7 +229,7 @@ export function AddParticipantsDialog({
       <DialogContent className="isolate sm:max-w-md">
         <DotsBackdrop />
         <DialogHeader>
-          <DialogTitle>Ajouter au combat</DialogTitle>
+          <DialogTitle>{t('combat.add.title')}</DialogTitle>
           <DialogDescription>
             Ils entrent à leur place d’initiative ; le tour ne change pas de main.
           </DialogDescription>
@@ -235,7 +238,7 @@ export function AddParticipantsDialog({
           <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-xl border border-border">
             {rows.map((r) => {
               const m = byId.get(r.characterId);
-              const name = m?.name ?? 'Personnage';
+              const name = m?.name ?? t('map.common.character');
               const set = (patch: Partial<{ checked: boolean; hidden: boolean }>) =>
                 setPicked((prev) => ({
                   ...prev,
@@ -259,7 +262,7 @@ export function AddParticipantsDialog({
                     <span className="block truncate text-sm font-medium">{name}</span>
                     <span className="block text-[11px] text-muted-foreground">
                       {SIDE_LABELS[r.side].name}
-                      {r.onScene ? ' · sur la scène' : ''}
+                      {r.onScene ? ` · ${t('combat.onScene')}` : ''}
                     </span>
                   </span>
                   {r.side !== 'players' && (
@@ -272,7 +275,7 @@ export function AddParticipantsDialog({
                       onClick={() => set({ hidden: !r.hidden })}
                     >
                       <EyeOff />
-                      {r.hidden ? 'Caché' : 'Visible'}
+                      {r.hidden ? t('combat.hiddenShort') : t('combat.visible')}
                     </Button>
                   )}
                 </li>
@@ -281,7 +284,7 @@ export function AddParticipantsDialog({
           </ul>
         ) : (
           <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-[13px] text-muted-foreground">
-            Tous les personnages engagés sont déjà au combat.
+            {t('combat.add.allIn')}
           </p>
         )}
         <div className="flex items-center justify-between gap-4">
@@ -292,7 +295,7 @@ export function AddParticipantsDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button onClick={() => void add()} loading={busy} disabled={!chosen.length}>
             <UserPlus />
@@ -319,23 +322,27 @@ export function EndCombatDialog({
   combat: CombatState;
   pendingReports: number;
 }>) {
+  const t = useTranslations();
   const commands = useCombatCommands(campaignId);
   const [reports, setReports] = useState<'keep' | 'dismiss'>('keep');
-  const [clearTimed, setClearTimed] = useState(false);
+  // Une durée de combat finit avec le combat (docs/combat.md § 18.6) ; décocher les garde
+  const [clearTimed, setClearTimed] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const end = async () => {
     setBusy(true);
-    const ok = await attempt('Le combat n’a pas pu se terminer', () =>
+    const ok = await attempt(t('combat.end.failed'), () =>
       commands.end({
         ...(pendingReports ? { pendingAttacks: reports } : {}),
-        ...(clearTimed ? { clearTimedStates: true } : {}),
+        clearTimedStates: clearTimed,
       }),
     );
     setBusy(false);
     if (ok) {
       toast.success(
-        combat.round > 1 ? `Fin du combat après ${combat.round} rounds.` : 'Fin du combat.',
+        combat.round > 1
+          ? t('combat.end.doneAfter', { rounds: combat.round })
+          : t('combat.end.done'),
       );
       onOpenChange(false);
     }
@@ -346,23 +353,22 @@ export function EndCombatDialog({
       <DialogContent className="isolate sm:max-w-md">
         <DotsBackdrop />
         <DialogHeader>
-          <DialogTitle>Terminer le combat ?</DialogTitle>
+          <DialogTitle>{t('combat.end.title')}</DialogTitle>
           <DialogDescription>
-            Round {combat.round}, {combat.order.length} participant
-            {combat.order.length > 1 ? 's' : ''}.
+            {t('combat.end.summary', { round: combat.round, count: combat.order.length })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           {pendingReports > 0 && (
             <fieldset className="space-y-2">
               <legend className="text-[13px] font-medium">
-                {pendingReports} rapport{pendingReports > 1 ? 's' : ''} en attente
+                {t('combat.end.pendingReports', { count: pendingReports })}
               </legend>
               <div role="radiogroup" className="grid grid-cols-2 gap-2">
                 {(
                   [
-                    ['keep', 'Les garder', 'À décider plus tard'],
-                    ['dismiss', 'Les écarter', 'Rien n’est appliqué'],
+                    ['keep', t('combat.end.keep'), t('combat.end.keepHint')],
+                    ['dismiss', t('combat.end.dismiss'), t('combat.end.dismissHint')],
                   ] as const
                 ).map(([value, label, hint]) => (
                   <button
@@ -387,18 +393,18 @@ export function EndCombatDialog({
           )}
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="end-clear" className="text-[13px]">
-              Retirer les états à durée
+              {t('combat.end.clearStates')}
             </Label>
             <Switch id="end-clear" checked={clearTimed} onCheckedChange={setClearTimed} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
-            Continuer le combat
+            {t('combat.end.continue')}
           </Button>
           <Button variant="destructive" onClick={() => void end()} loading={busy}>
             <Flag />
-            Terminer
+            {t('combat.end.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -419,6 +425,7 @@ export function SettingsDialog({
   campaignId: string;
   combat: CombatState;
 }>) {
+  const t = useTranslations();
   const commands = useCombatCommands(campaignId);
   const [busy, setBusy] = useState(false);
   const current = combatSettings(combat);
@@ -430,7 +437,7 @@ export function SettingsDialog({
     setBusy(true);
     const body: Partial<CombatSettings> = {};
     for (const k of diff) body[k] = next[k];
-    await attempt('Les réglages n’ont pas pu changer', () => commands.updateSettings(body));
+    await attempt(t('combat.settingsDialog.failed'), () => commands.updateSettings(body));
     setBusy(false);
   };
   return (
@@ -438,10 +445,8 @@ export function SettingsDialog({
       <DialogContent className="isolate sm:max-w-md">
         <DotsBackdrop />
         <DialogHeader>
-          <DialogTitle>Réglages du combat</DialogTitle>
-          <DialogDescription>
-            Ils valent pour toute la table, jusqu’à la fin du combat.
-          </DialogDescription>
+          <DialogTitle>{t('combat.settingsDialog.title')}</DialogTitle>
+          <DialogDescription>{t('combat.settingsDialog.lead')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <SettingsFields value={current} onChange={(v) => void change(v)} disabled={busy} />

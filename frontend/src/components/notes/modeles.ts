@@ -2,90 +2,85 @@
  * Modèles de notes : une structure de départ par usage courant à la table,
  * pour ne jamais partir d'une page blanche.
  */
+import type { Messages } from '@/i18n/types';
+import { formatter, translate } from '@/i18n/runtime';
 import type { ModificationNote, TypeNote } from '@/lib/notes';
 
+/** Un modèle ; nom et description : `notes.templates.<id>.label|description`. */
 export interface ModeleNote {
-  id: string;
+  id: 'session' | 'pnj' | 'lieu' | 'quete' | 'objet';
   kind: TypeNote;
   icone: string;
-  label: string;
-  description: string;
   /** Titre proposé (calculé à la création : la date du jour, par exemple). */
   titre: () => string;
-  contenu: string;
+  /** Structure de départ, dans la langue de l'utilisateur au moment de la création. */
+  contenu: () => string;
 }
 
 const vide = '<p></p>';
 const puces = '<ul><li><p></p></li></ul>';
-const section = (titre: string, corps = vide) => `<h2>${titre}</h2>${corps}`;
-
-const JOUR = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
+type Section = keyof Messages['notes']['templates']['sections'];
+const section = (titre: Section, corps = vide) =>
+  `<h2>${translate(`notes.templates.sections.${titre}`)}</h2>${corps}`;
 
 export const MODELES_NOTE: ModeleNote[] = [
   {
     id: 'session',
     kind: 'journal',
     icone: '📖',
-    label: 'Journal de session',
-    description: 'Résumé, moments forts, butin',
-    titre: () => `Session du ${JOUR.format(new Date())}`,
-    contenu:
-      section('Résumé') +
-      section('Moments marquants', puces) +
-      section('Butin et récompenses', puces) +
-      section('Pistes à suivre', puces),
+    titre: () =>
+      translate('notes.templates.sessionTitle', {
+        date: formatter().dateTime(new Date(), { day: 'numeric', month: 'long' }),
+      }),
+    contenu: () =>
+      section('summary') +
+      section('highlights', puces) +
+      section('loot', puces) +
+      section('leads', puces),
   },
   {
     id: 'pnj',
     kind: 'personnage',
     icone: '🧙',
-    label: 'Personnage non joueur',
-    description: 'Apparence, motivations, secrets',
     titre: () => '',
-    contenu:
-      section('Apparence') +
-      section('Personnalité') +
-      section('Motivations') +
-      section('Secrets', '<blockquote><p></p></blockquote>'),
+    contenu: () =>
+      section('appearance') +
+      section('personality') +
+      section('motivations') +
+      section('secrets', '<blockquote><p></p></blockquote>'),
   },
   {
     id: 'lieu',
     kind: 'lieu',
     icone: '🏰',
-    label: 'Lieu',
-    description: 'Ambiance, habitants, points d’intérêt',
     titre: () => '',
-    contenu:
-      section('Description') +
-      section('Ambiance') +
-      section('Habitants', puces) +
-      section('Points d’intérêt', puces),
+    contenu: () =>
+      section('description') +
+      section('mood') +
+      section('inhabitants', puces) +
+      section('pointsOfInterest', puces),
   },
   {
     id: 'quete',
     kind: 'quete',
     icone: '🧭',
-    label: 'Quête',
-    description: 'Objectif, commanditaire, étapes',
     titre: () => '',
-    contenu:
-      section('Objectif') +
-      section('Commanditaire') +
-      section('Étapes', '<ol><li><p></p></li></ol>') +
-      section('Récompense'),
+    contenu: () =>
+      section('goal') +
+      section('patron') +
+      section('steps', '<ol><li><p></p></li></ol>') +
+      section('reward'),
   },
   {
     id: 'objet',
     kind: 'objet',
     icone: '🗝️',
-    label: 'Objet',
-    description: 'Propriétés, origine, légende',
     titre: () => '',
-    contenu: section('Description') + section('Propriétés', puces) + section('Origine et légende'),
+    contenu: () => section('description') + section('properties', puces) + section('origin'),
   },
 ];
 
 /** Champs d'une nouvelle note tirée d'un modèle. */
 export function depuisModele(m: ModeleNote): ModificationNote {
-  return { kind: m.kind, icon: m.icone, title: m.titre(), content: m.contenu };
+  return { kind: m.kind, icon: m.icone, title: m.titre(), content: m.contenu() };
 }

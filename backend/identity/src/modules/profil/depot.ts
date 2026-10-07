@@ -7,9 +7,11 @@
 import { and, asc, eq, isNull, ne, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { appendEvent, type EventContext } from '../../db/outbox.js';
-import { credentials, oauthAccounts, profiles, users } from '../../db/schema.js';
+import { accountProgress, credentials, oauthAccounts, profiles, users } from '../../db/schema.js';
+import { bordersForLevel } from '../progression/levels.js';
+import { levelOf } from '../progression/service.js';
 import { echapperLike, jsonEgal, urlImageAcceptee, type PatchProfil } from './validation.js';
-import { compareCodeUnits } from '@vtt/contracts';
+import { compareCodeUnits, isLocale, type Locale } from '@vtt/contracts';
 
 export type Fournisseur = 'google' | 'discord';
 
@@ -26,6 +28,8 @@ export interface MonProfil {
   showPremiumBadge: boolean;
   timeSpentMinutes: number;
   emailNotifications: boolean;
+  /** Langue de l'interface choisie ; null : le navigateur décide (docs/i18n.md § 3). */
+  locale: Locale | null;
   settings: Record<string, unknown>;
   hasPassword: boolean;
   providers: Fournisseur[];
@@ -43,6 +47,8 @@ export interface ProfilPublic {
   premium: boolean;
   showPremiumBadge: boolean;
   timeSpentMinutes: number;
+  /** Niveau du compte (docs/progression.md). */
+  level: number;
 }
 
 export interface ResultatRecherche {
@@ -69,6 +75,7 @@ export async function lireMonProfil(db: Db, userId: string): Promise<MonProfil |
       showPremiumBadge: profiles.showPremiumBadge,
       timeSpentMinutes: profiles.timeSpentMinutes,
       emailNotifications: profiles.emailNotifications,
+      locale: profiles.locale,
       settings: profiles.settings,
       hasPassword: sql<boolean>`exists (select 1 from ${credentials} where ${credentials.userId} = ${users.id})`,
       providers: sql<
@@ -80,7 +87,9 @@ export async function lireMonProfil(db: Db, userId: string): Promise<MonProfil |
     .where(eq(users.id, userId))
     .limit(1);
   if (!ligne) return null;
-  return { ...ligne, createdAt: ligne.createdAt.toISOString() };
+  // Langue retirée de LOCALES depuis : comme sans choix
+  const locale = isLocale(ligne.locale) ? ligne.locale : null;
+  return { ...ligne, locale, createdAt: ligne.createdAt.toISOString() };
 }
 
 /** Profil visible par les autres joueurs : jamais d'e-mail. Null si inconnu ou désactivé. */
@@ -98,9 +107,11 @@ export async function lireProfilPublic(db: Db, userId: string): Promise<ProfilPu
       premium: profiles.premium,
       showPremiumBadge: profiles.showPremiumBadge,
       timeSpentMinutes: profiles.timeSpentMinutes,
+      level: sql<number>`coalesce(${accountProgress.level}, 1)`,
     })
     .from(users)
     .innerJoin(profiles, eq(profiles.userId, users.id))
+    .leftJoin(accountProgress, eq(accountProgress.userId, users.id))
     .where(and(eq(users.id, userId), isNull(users.disabledAt), isNull(users.deletionRequestedAt)))
     .limit(1);
   return ligne ?? null;
@@ -133,6 +144,32 @@ export async function rechercherProfils(
     )
     .orderBy(sql`lower(${profiles.name})`, asc(users.id))
     .limit(limite);
+}
+
+/** Bordure refusée : ni « none », ni portée, ni acquise par le niveau, ni premium. */
+export class BordureVerrouillee extends Error {
+  constructor(public readonly bordure: string) {
+    super(`bordure ${bordure} verrouillée`);
+    this.name = 'BordureVerrouillee';
+  }
+}
+
+/**
+ * Bordures que le joueur peut choisir : « none » et celle qu'il porte toujours ;
+ * toutes avec le premium ; sinon celles acquises par son niveau (docs/progression.md § 5).
+ */
+export function bordureAutorisee(
+  bordure: string,
+  actuelle: string,
+  premium: boolean,
+  niveau: number,
+): boolean {
+  return (
+    bordure === 'none' ||
+    bordure === actuelle ||
+    premium ||
+    bordersForLevel(niveau).includes(bordure)
+  );
 }
 
 /** URL d'image refusée : ni null, ni la valeur actuelle, ni notre stockage. */
@@ -176,6 +213,17 @@ export async function modifierProfil(
       !urlImageAcceptee(patch.bannerUrl, actuel.bannerUrl, baseStockage, 'banners', userId)
     ) {
       throw new UrlImageRefusee('bannerUrl');
+    }
+    if (
+      patch.borderType !== undefined &&
+      !bordureAutorisee(
+        patch.borderType,
+        actuel.borderType,
+        actuel.premium,
+        await levelOf(tx, userId),
+      )
+    ) {
+      throw new BordureVerrouillee(patch.borderType);
     }
 
     const changements: Partial<typeof profiles.$inferInsert> = {};

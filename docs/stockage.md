@@ -17,6 +17,9 @@
 
 - Avatars et bannières (`avatars/`, `banners/`) appartiennent à l'utilisateur : hors campagne,
   non comptés.
+- Packs de la marketplace (`marketplace/<fiche>/`, [marketplace.md](marketplace.md)) : un pack
+  installé cite ces fichiers sans les recopier ; hors campagne, non comptés, jamais balayés par
+  la passe des orphelins.
 - Seul l'audio a un quota (2 Gio, depuis sa base). Rien ne dit au MJ ce qu'il occupe.
 - La gateway ne voit jamais les fichiers (envoi direct à R2), n'a pas de base et ne sait pas à
   quelle campagne appartient un personnage : le quota ne peut pas y vivre. Elle relaie seulement

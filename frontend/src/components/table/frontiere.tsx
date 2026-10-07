@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import { RotateCw, TriangleAlert } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { EtatVide } from '@/components/commun/page';
@@ -36,19 +38,19 @@ export class FrontiereTable extends Component<
           className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-subtle hover:text-foreground"
         >
           <TriangleAlert className="size-3.5 text-warning" aria-hidden />
-          {this.props.nom} indisponible
+          {translate('table.host.unavailable', { name: this.props.nom })}
         </button>
       );
     return (
       <div className="px-4 py-10 sm:px-6 lg:px-8">
         <EtatVide
           icone={TriangleAlert}
-          titre={`${this.props.nom} indisponible`}
-          description="Une erreur est survenue dans ce panneau. Le reste de la table fonctionne toujours."
+          titre={translate('table.host.unavailable', { name: this.props.nom })}
+          description={translate('table.host.crashed')}
           action={
             <Button variant="secondary" onClick={reessayer}>
               <RotateCw />
-              Réessayer
+              {translate('table.host.retry')}
             </Button>
           }
         />
@@ -59,6 +61,7 @@ export class FrontiereTable extends Component<
 
 /** Attente du code d'un panneau (chargé à la demande). */
 export function ChargementOnglet({ className }: Readonly<{ className?: string }>) {
+  const t = useTranslations('table.host');
   return (
     <div
       className={cn(
@@ -66,7 +69,7 @@ export function ChargementOnglet({ className }: Readonly<{ className?: string }>
         className,
       )}
       aria-busy
-      aria-label="Chargement du panneau"
+      aria-label={t('loading')}
     >
       <div className="space-y-2">
         <Skeleton className="h-3 w-28" />

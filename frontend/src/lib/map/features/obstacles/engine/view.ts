@@ -12,6 +12,7 @@
  * Tout est dessiné en coordonnées du monde (`transformDisplay: false`). Les points affichés
  * sont ceux de l'aperçu d'un geste (`setPreview`), sinon ceux de la donnée.
  */
+import { translate } from '@/i18n/runtime';
 import type { Container, Graphics, GraphicsContext, Text } from 'pixi.js';
 import { destroyDisplay } from '@/lib/map/engine/destroy-display';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -342,7 +343,7 @@ export class ObstacleView {
     }
 
     // Nom au centre, taille constante
-    const name = r.name?.trim() || 'Pièce';
+    const name = r.name?.trim() || translate('map.obstacles.room');
     if (v.name !== name) {
       v.name = name;
       v.text.text = name;

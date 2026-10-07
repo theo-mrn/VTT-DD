@@ -6,6 +6,7 @@
  * Une lumière attachée à un token (`attachedTokenId`, torche) est là où est le token, y compris
  * pendant un glisser (aperçu local ou direct d'un autre) : sa `pos` n'est alors qu'un repli.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapLight } from '@vtt/contracts';
 import type { Point } from '@/lib/map/engine/geometry';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
@@ -20,16 +21,20 @@ export const LIGHTS_TOOL_ID = 'lights';
 /** Sorte des tokens (module tokens) auxquels une lumière s'attache. */
 export const TOKEN_KIND = 'token';
 
-/** Palette proposée (donnée : elle part au serveur). */
-export const LIGHT_COLORS: readonly { value: string; label: string }[] = [
-  { value: '#ffb35c', label: 'Torche' },
-  { value: '#ffd9a0', label: 'Bougie' },
-  { value: '#fff4e0', label: 'Jour' },
-  { value: '#8fb8ff', label: 'Lune' },
-  { value: '#7cf0c8', label: 'Magie' },
-  { value: '#ff6b5c', label: 'Braise' },
-  { value: '#c69bff', label: 'Arcane' },
-];
+/** Palette proposée (donnée : elle part au serveur) ; nom affiché : `map.lights.colors.<name>`. */
+export const LIGHT_COLORS = [
+  { value: '#ffb35c', name: 'torch' },
+  { value: '#ffd9a0', name: 'candle' },
+  { value: '#fff4e0', name: 'day' },
+  { value: '#8fb8ff', name: 'moon' },
+  { value: '#7cf0c8', name: 'magic' },
+  { value: '#ff6b5c', name: 'ember' },
+  { value: '#c69bff', name: 'arcane' },
+] as const;
+
+/** La palette avec ses noms, pour un sélecteur de couleur. */
+export const lightColorOptions = () =>
+  LIGHT_COLORS.map((c) => ({ value: c.value, label: translate(`map.lights.colors.${c.name}`) }));
 
 export interface LightDefaults {
   radius: number;
@@ -52,7 +57,7 @@ export function lightDraft(
   mapId: string,
   pos: Point,
   d: LightDefaults,
-  name = 'Lumière',
+  name = translate('map.lights.light'),
 ): LightData {
   return {
     id: tempId(),
@@ -94,6 +99,6 @@ export function lightRadiusPx(engine: MapEngine, light: Pick<MapLight, 'radius'>
 /** Nom d'un token pour les menus (nom de sa sorte, sinon « Token »). */
 export function tokenName(engine: MapEngine, tokenId: string): string {
   const t = engine.entity(tokenId);
-  if (!t) return 'Token absent';
-  return t.kind.name?.(t.data, engine.kindContext()) ?? 'Token';
+  if (!t) return translate('map.lights.missingToken');
+  return t.kind.name?.(t.data, engine.kindContext()) ?? translate('map.tokens.token');
 }

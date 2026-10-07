@@ -10,6 +10,7 @@
  * ajuster la ressource (MJ, ou son propre héros), écrire en privé à son joueur. Double clic :
  * centrer.
  */
+import { translate } from '@/i18n/runtime';
 import {
   ArrowLeft,
   Crosshair,
@@ -166,20 +167,29 @@ export function PartyBar() {
 
   return (
     <div data-party-bar className={cn(HUD_BAR, 'max-w-[min(28rem,42vw)]')}>
-      <Info texte="Retour au salon" cote="bottom">
+      <Info texte={translate('table.scene.backToLobby')} cote="bottom">
         <Button variant="ghost" size="icon-sm" asChild className={cn(HUD_CONTROL, 'shrink-0')}>
-          <Link href={`/campagnes/${campaignId}`} aria-label="Retour au salon">
+          <Link href={`/campagnes/${campaignId}`} aria-label={translate('table.scene.backToLobby')}>
             <ArrowLeft />
           </Link>
         </Button>
       </Info>
       <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
       {gm && (
-        <Info texte={mode === 'players' ? 'Afficher les PNJ' : 'Afficher les héros'} cote="bottom">
+        <Info
+          texte={
+            mode === 'players' ? translate('map.party.showNpcs') : translate('map.party.showHeroes')
+          }
+          cote="bottom"
+        >
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={mode === 'players' ? 'Afficher les PNJ' : 'Afficher les héros'}
+            aria-label={
+              mode === 'players'
+                ? translate('map.party.showNpcs')
+                : translate('map.party.showHeroes')
+            }
             onClick={() => setMode((m) => (m === 'players' ? 'npcs' : 'players'))}
             className={cn(HUD_CONTROL, 'shrink-0', mode === 'npcs' && 'bg-primary/10 text-primary')}
           >
@@ -222,7 +232,7 @@ export function PartyBar() {
         {rest.length > 0 && <Overflow engine={engine} tokens={tokens} members={rest} />}
         {members.length === 0 && (
           <span className="px-2 text-xs text-subtle">
-            {gm && mode === 'npcs' ? 'Aucun PNJ' : 'Personne sur la scène'}
+            {gm && mode === 'npcs' ? translate('map.party.noNpc') : translate('map.party.nobody')}
           </span>
         )}
       </div>
@@ -250,7 +260,7 @@ function CombatBarToggle({ campaignId }: Readonly<{ campaignId: string }>) {
     <Button
       variant="ghost"
       size="icon-sm"
-      aria-label={on ? 'Ranger la barre de combat' : 'Montrer la barre de combat'}
+      aria-label={on ? translate('map.party.hideCombatBar') : translate('map.party.showCombatBar')}
       aria-pressed={on}
       onClick={onClick}
       className={cn(HUD_CONTROL, 'shrink-0', on && 'bg-primary/10 text-primary')}
@@ -260,20 +270,23 @@ function CombatBarToggle({ campaignId }: Readonly<{ campaignId: string }>) {
   );
   if (!combat || !on)
     return (
-      <Info texte={on ? 'Ranger la barre de combat' : 'Montrer la barre de combat'} cote="bottom">
+      <Info
+        texte={on ? translate('map.party.hideCombatBar') : translate('map.party.showCombatBar')}
+        cote="bottom"
+      >
         {button(() => set(!on))}
       </Info>
     );
   return (
     <>
       <DropdownMenu>
-        <Info texte="Barre de combat" cote="bottom">
+        <Info texte={translate('map.party.combatBar')} cote="bottom">
           <DropdownMenuTrigger asChild>{button()}</DropdownMenuTrigger>
         </Info>
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuItem onSelect={() => set(false)}>
             <EyeOff />
-            Masquer la barre
+            {translate('map.party.hideBar')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -281,7 +294,7 @@ function CombatBarToggle({ campaignId }: Readonly<{ campaignId: string }>) {
             onSelect={() => setEnding(true)}
           >
             <Flag />
-            Terminer le combat…
+            {translate('map.party.endCombat')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -310,7 +323,7 @@ const MemberAvatar = memo(function MemberAvatar({
 }) {
   const { info } = member;
   const r = info.resource;
-  const name = info.name ?? 'Personnage';
+  const name = info.name ?? translate('map.common.character');
   const down = r ? health(r) <= 0 : false;
   // En pleine forme : le rail seul ; la couleur ne dit que les dégâts
   const hurt = r ? health(r) < 0.999 : false;
@@ -423,7 +436,7 @@ function MemberCard({
   const canSheet = gm || mine;
   const canWrite = info.playedBy !== null && info.playedBy !== viewer.userId;
   const [writing, setWriting] = useState(false);
-  const name = info.name ?? 'Personnage';
+  const name = info.name ?? translate('map.common.character');
 
   return (
     <div className="space-y-3 p-3">
@@ -450,11 +463,11 @@ function MemberCard({
       )}
 
       <div className="flex items-center gap-1 border-t border-border pt-2">
-        <Info texte="Centrer la vue">
+        <Info texte={translate('map.party.centerView')}>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Centrer la vue"
+            aria-label={translate('map.party.centerView')}
             onClick={() => {
               centerOn(engine, member);
               onDone();
@@ -464,11 +477,11 @@ function MemberCard({
           </Button>
         </Info>
         {canSheet && (
-          <Info texte="Fiche">
+          <Info texte={translate('map.party.sheet')}>
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Fiche"
+              aria-label={translate('map.party.sheet')}
               onClick={() => {
                 tokens.library.setState({ sheetFor: info.id });
                 onDone();
@@ -479,11 +492,11 @@ function MemberCard({
           </Info>
         )}
         {canWrite && (
-          <Info texte="Écrire en privé">
+          <Info texte={translate('map.party.whisper')}>
             <Button
               variant={writing ? 'secondary' : 'ghost'}
               size="icon-sm"
-              aria-label="Écrire en privé"
+              aria-label={translate('map.party.whisper')}
               aria-pressed={writing}
               onClick={() => setWriting((w) => !w)}
             >
@@ -541,10 +554,10 @@ function PrivateMessage({
     setSending(true);
     try {
       await chatApi.post(campaignId, body, { gm: false, userIds: [to] });
-      toast.success(`Message privé envoyé à ${name}`);
+      toast.success(translate('map.party.whisperSent', { name }));
       onSent();
     } catch (err) {
-      toast.error('Message non envoyé', { description: messageErreur(err) });
+      toast.error(translate('map.party.notSent'), { description: messageErreur(err) });
     } finally {
       setSending(false);
     }
@@ -562,21 +575,26 @@ function PrivateMessage({
             onCancel();
           }
         }}
-        placeholder={`À ${name}…`}
-        aria-label={`Message privé à ${name}`}
+        placeholder={translate('map.party.whisperTo', { name })}
+        aria-label={translate('map.party.whisperLabel', { name })}
         className="h-8"
         maxLength={2000}
       />
       <Button
         size="icon-sm"
-        aria-label="Envoyer"
+        aria-label={translate('map.bubbles.send')}
         disabled={!text.trim()}
         loading={sending}
         onClick={() => void send()}
       >
         <SendHorizontal />
       </Button>
-      <Button variant="ghost" size="icon-sm" aria-label="Fermer" onClick={onCancel}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={translate('common.actions.close')}
+        onClick={onCancel}
+      >
         <X />
       </Button>
     </div>
@@ -599,7 +617,7 @@ function Overflow({
         <button
           type="button"
           className="grid size-10 shrink-0 place-items-center rounded-full bg-surface-2 font-mono text-[11px] font-semibold tabular-nums text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground"
-          aria-label={`${members.length} de plus`}
+          aria-label={translate('map.party.more', { count: members.length })}
         >
           +{members.length}
         </button>

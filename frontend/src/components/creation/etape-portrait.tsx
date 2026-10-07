@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import type { Fiche, Presentation } from '@vtt/rules';
 import { Check, Crop, ImageOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -38,6 +39,7 @@ export function EtapePortrait({
   /** Personnage en création : son dossier reçoit l'image envoyée. */
   personnageId: string | null;
 }>) {
+  const t = useTranslations();
   const assets = useAssets();
   const dossiers = useMemo(() => portraitsParDossier(assets.data ?? []), [assets.data]);
   const mots = motsClesPortrait(fiche);
@@ -63,7 +65,7 @@ export function EtapePortrait({
           usage="portrait"
           value={portrait}
           onChange={onPortrait}
-          label="Votre image"
+          label={t('creation.portrait.yours')}
         />
         {portrait && (
           <div className="flex flex-col items-start gap-1.5">
@@ -77,7 +79,7 @@ export function EtapePortrait({
             )}
             <Button variant="ghost" size="sm" onClick={() => onPortrait(null)}>
               <ImageOff />
-              Sans portrait
+              {t('creation.portrait.none')}
             </Button>
           </div>
         )}
@@ -86,7 +88,7 @@ export function EtapePortrait({
       {illustrations.length > 0 && (
         <section>
           <p className="mb-3 text-xs font-medium uppercase tracking-wider text-subtle">
-            Illustrations de vos choix
+            {t('creation.portrait.fromChoices')}
           </p>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
             {illustrations.map((src) => (
@@ -105,7 +107,7 @@ export function EtapePortrait({
       <section>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <p className="mr-2 text-xs font-medium uppercase tracking-wider text-subtle">
-            Bibliothèque
+            {t('portraits.library')}
           </p>
           {[...dossiers.keys()].map((d) => (
             <button
@@ -173,13 +175,14 @@ function OuvrirStudio({
   portrait: string;
   onPortrait: (url: string | null) => void;
 }>) {
+  const t = useTranslations();
   const modifier = useModifierPersonnage(personnageId);
   const [ouvert, setOuvert] = useState(false);
   return (
     <>
       <Button variant="secondary" size="sm" onClick={() => setOuvert(true)}>
         <Crop />
-        Studio
+        {t('sheet.page.studio')}
       </Button>
       <PortraitStudio
         open={ouvert}

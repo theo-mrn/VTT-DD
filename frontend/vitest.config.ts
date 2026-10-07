@@ -7,7 +7,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
-    // Même profil de machine partout (cœurs, OS) : voir src/test/machine.ts
-    setupFiles: ['src/test/machine.ts'],
+    // Même profil de machine partout (cœurs, OS) : voir src/test/machine.ts ; textes en
+    // français hors React : voir src/test/i18n.ts
+    setupFiles: ['src/test/machine.ts', 'src/test/i18n.ts'],
   },
 });

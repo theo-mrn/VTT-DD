@@ -6,6 +6,7 @@
  * discret de bonus (ils se gèrent dans le bloc Bonus) et un interrupteur pour celles qui
  * s'activent. Le détail s'ouvre au clic sur le nom.
  */
+import { useTranslations } from 'next-intl';
 import { BadgePlus } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
@@ -25,6 +26,7 @@ export function OwnedList({
   writes: SheetWrites | undefined;
   onOpen: (item: OwnedItem) => void;
 }>) {
+  const t = useTranslations();
   return (
     <ul className="divide-y divide-border">
       {items.map((item) => {
@@ -78,7 +80,7 @@ export function OwnedList({
                 checked={on}
                 disabled={!writes}
                 onCheckedChange={(v) => writes?.setActive(card.entry.id, v)}
-                aria-label={`${on ? 'Désactiver' : 'Activer'} ${card.entry.nom}`}
+                aria-label={`${on ? t('sheet.effects.disable') : t('sheet.effects.enable')} ${card.entry.nom}`}
                 className="mr-1 after:absolute after:-inset-3 after:content-[''] relative"
               />
             )}

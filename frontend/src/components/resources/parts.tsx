@@ -4,6 +4,7 @@
  * Éléments communs aux onglets des ressources : recherche, filtres en pastilles, états
  * vides, texte du catalogue (markdown léger), mise en page liste et détail.
  */
+import { useTranslations } from 'next-intl';
 import { Search, X, type LucideIcon } from 'lucide-react';
 import { createContext, Fragment, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import { RichText } from '@/components/fiche/blocks/skills/rich-text';
@@ -67,6 +68,7 @@ export function MasterDetail({
   title: string;
   onClose(): void;
 }>) {
+  const t = useTranslations();
   const wide = useWide();
   const variant = useResourcesVariant();
   return (
@@ -86,7 +88,7 @@ export function MasterDetail({
         <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
           <SheetContent cote="right" className="w-full max-w-lg overflow-y-auto p-0">
             <DialogTitle className="sr-only">{title}</DialogTitle>
-            <DialogDescription className="sr-only">Détail de l’entrée choisie</DialogDescription>
+            <DialogDescription className="sr-only">{t('resources.entryDetail')}</DialogDescription>
             {detail}
           </SheetContent>
         </Dialog>
@@ -110,6 +112,7 @@ export function SearchField({
   label: string;
   className?: string;
 }>) {
+  const t = useTranslations();
   return (
     <div className={cn('w-full sm:w-72', className)}>
       <InputGroup
@@ -126,7 +129,7 @@ export function SearchField({
               variant="ghost"
               size="icon-xs"
               onClick={() => onChange('')}
-              aria-label="Effacer la recherche"
+              aria-label={t('resources.clearSearch')}
             >
               <X />
             </Button>
@@ -249,8 +252,9 @@ export function ListSkeleton({
   rows = 6,
   className,
 }: Readonly<{ rows?: number; className?: string }>) {
+  const t = useTranslations();
   return (
-    <div className={cn('space-y-2', className)} aria-busy="true" aria-label="Chargement">
+    <div className={cn('space-y-2', className)} aria-busy="true" aria-label={t('history.loading')}>
       {Array.from({ length: rows }, (_, i) => (
         <Skeleton key={i} className="h-12 w-full" />
       ))}

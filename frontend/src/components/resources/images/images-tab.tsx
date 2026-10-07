@@ -5,6 +5,7 @@
  * prises dans la bibliothèque d'actifs publique. Filtre par catégorie, pages de 60, aperçu en
  * grand (flèches du clavier), ouverture de l'original et copie du lien.
  */
+import { useTranslations } from 'next-intl';
 import type { Presentation } from '@vtt/rules';
 import {
   AlertTriangle,
@@ -28,6 +29,7 @@ const PAGE = 60;
 const TOUTES = '';
 
 export function ImagesTab({ presentation }: Readonly<{ presentation: Presentation | null }>) {
+  const t = useTranslations();
   const collections = presentation?.references.images?.collections ?? [];
   const assets = useAssets();
   const [index, setIndex] = useState(0);
@@ -77,9 +79,9 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
   const copier = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      toast.success('Lien copié');
+      toast.success(t('resources.images.copied'));
     } catch {
-      toast.error('Copie impossible');
+      toast.error(t('resources.images.copyFailed'));
     }
   };
 
@@ -88,7 +90,7 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
       <Toolbar>
         {collections.length > 1 ? (
           <Chips
-            label="Collections"
+            label={t('resources.images.collections')}
             value={String(index)}
             onChange={(v) => {
               setIndex(Number(v));
@@ -111,10 +113,10 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
               setCategory(v);
               setPage(0);
             }}
-            aria-label="Filtrer par catégorie"
+            aria-label={t('map.tokens.library.filterCategory')}
             className="h-9 sm:w-56"
             options={[
-              { valeur: TOUTES, nom: 'Toutes les catégories' },
+              { valeur: TOUTES, nom: t('map.tokens.library.allCategories') },
               ...categories.map((c) => ({ valeur: c, nom: c })),
             ]}
           />
@@ -132,16 +134,16 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
         <Notice
           tone="error"
           icon={AlertTriangle}
-          title="Bibliothèque indisponible"
-          description="Les images n’ont pas pu être chargées."
+          title={t('resources.images.unavailable')}
+          description={t('resources.images.loadFailed')}
           action={
             <Button variant="secondary" size="sm" onClick={() => void assets.refetch()}>
-              Réessayer
+              {t('common.actions.retry')}
             </Button>
           }
         />
       )}
-      {etat === 'vide' && <Notice icon={ImageIcon} title="Aucune image" />}
+      {etat === 'vide' && <Notice icon={ImageIcon} title={t('resources.images.none')} />}
       {etat === 'liste' && (
         <>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -172,7 +174,7 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
           </ul>
           {pages > 1 && (
             <nav
-              aria-label="Pages"
+              aria-label={t('resources.images.pages')}
               className="mt-5 flex items-center justify-center gap-3 text-[13px]"
             >
               <Button
@@ -182,7 +184,7 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
                 onClick={() => setPage((p) => p - 1)}
               >
                 <ChevronLeft />
-                Précédente
+                {t('resources.images.previous')}
               </Button>
               <span className="tabular-nums text-muted-foreground">
                 {page + 1} / {pages}
@@ -193,7 +195,7 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
                 disabled={page >= pages - 1}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Suivante
+                {t('resources.images.next')}
                 <ChevronRight />
               </Button>
             </nav>
@@ -220,7 +222,7 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
                       size="icon"
                       className="absolute left-3 top-1/2 -translate-y-1/2"
                       onClick={() => deplacer(-1)}
-                      aria-label="Image précédente"
+                      aria-label={t('resources.images.previousImage')}
                     >
                       <ChevronLeft />
                     </Button>
@@ -229,7 +231,7 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
                       size="icon"
                       className="absolute right-3 top-1/2 -translate-y-1/2"
                       onClick={() => deplacer(1)}
-                      aria-label="Image suivante"
+                      aria-label={t('resources.images.nextImage')}
                     >
                       <ChevronRight />
                     </Button>
@@ -246,12 +248,12 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
                 </div>
                 <Button variant="secondary" size="sm" onClick={() => void copier(courante.url)}>
                   <Copy />
-                  Copier le lien
+                  {t('resources.images.copyLink')}
                 </Button>
                 <Button size="sm" asChild>
                   <a href={courante.url} target="_blank" rel="noreferrer">
                     <ExternalLink />
-                    Ouvrir l’original
+                    {t('resources.images.openOriginal')}
                   </a>
                 </Button>
               </div>

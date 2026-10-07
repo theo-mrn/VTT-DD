@@ -5,6 +5,7 @@
  * fiche détaillée : puces de situation, jauge de la ressource principale, valeurs clés de la
  * présentation, ressources ± en fenêtre surgissante (l'ancien « + » de la ligne).
  */
+import { useTranslations } from 'next-intl';
 import type { ResourceGauge } from '@/lib/map/features/tokens/engine/model';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -149,16 +150,17 @@ export function ResourcesPopover({
   name: string;
   className?: string;
 }>) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Info texte="Ressources">
+      <Info texte={t('combat.resources.title')}>
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
             size="icon-xs"
             className={cn('relative z-10 shrink-0', className)}
-            aria-label={`Ressources de ${name}`}
+            aria-label={t('combat.resources.of', { name })}
           >
             <Plus />
           </Button>
@@ -172,12 +174,15 @@ export function ResourcesPopover({
 }
 
 function ResourcesBody({ characterId, name }: Readonly<{ characterId: string; name: string }>) {
+  const t = useTranslations();
   const { ctx, perso } = useFicheCalculee(characterId);
   const bloc = ctx ? widgetsDe(ctx).find((w) => w.type === 'ressources') : undefined;
   return (
     <div>
       <p className="border-b border-border px-4 py-2.5 text-[13px] font-semibold">{name}</p>
-      {perso.isError && <p className="p-4 text-[13px] text-destructive">Fiche indisponible.</p>}
+      {perso.isError && (
+        <p className="p-4 text-[13px] text-destructive">{t('combat.resources.unavailable')}</p>
+      )}
       {!perso.isError && !ctx && (
         <div className="space-y-2 p-4">
           <Skeleton className="h-4 w-full" />
@@ -190,7 +195,7 @@ function ResourcesBody({ characterId, name }: Readonly<{ characterId: string; na
         </div>
       )}
       {!perso.isError && ctx && !(bloc?.type === 'ressources' && bloc.attributs.length) && (
-        <p className="p-4 text-[13px] text-subtle">Aucune ressource suivie par ce système.</p>
+        <p className="p-4 text-[13px] text-subtle">{t('combat.resources.none')}</p>
       )}
     </div>
   );

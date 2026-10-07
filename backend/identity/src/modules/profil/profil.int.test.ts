@@ -7,7 +7,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { createLocalJWKSet } from 'jose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { IdentityConfig } from '../../config.js';
-import { oauthAccounts, outbox, profiles, users } from '../../db/schema.js';
+import { accountProgress, oauthAccounts, outbox, profiles, users } from '../../db/schema.js';
 import { appDeTest, TEST_DATABASE_URL } from '../../test/app-de-test.js';
 import { createJwtSigner, generateSigningJwk } from '../../tokens/jwt.js';
 import { registerProfil } from './index.js';
@@ -79,6 +79,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       showPremiumBadge: true,
       timeSpentMinutes: 0,
       emailNotifications: true,
+      locale: null,
       settings: {},
       hasPassword: true,
       providers: [],
@@ -97,6 +98,8 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
 
   it('PATCH /v1/users/me met à jour chaque champ et trace les champs modifiés', async () => {
     const moi = await t.inscrire('Avant');
+    // Premium : toutes les bordures sont permises (voir le test des bordures)
+    await t.db.update(profiles).set({ premium: true }).where(eq(profiles.userId, moi.id));
     const [avant] = await t.db
       .select({ updatedAt: profiles.updatedAt })
       .from(profiles)
@@ -110,6 +113,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       borderType: 'magic_shine_aurora',
       showPremiumBadge: false,
       emailNotifications: false,
+      locale: 'en',
       settings: { theme: 'sombre', des: { son: true } },
     };
     const res = await t.app.inject({
@@ -137,6 +141,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
         'bio',
         'borderType',
         'emailNotifications',
+        'locale',
         'name',
         'settings',
         'showPremiumBadge',
@@ -163,6 +168,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       ['bio', null],
       ['avatarUrl', null],
       ['bannerUrl', null],
+      ['locale', null],
     ] as const) {
       const r = await t.app.inject({
         method: 'PATCH',
@@ -175,8 +181,44 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
     }
     const tous = await evenements(moi.id, 'identity.profile_updated');
     expect(tous.map((e) => e.payload.fields)).toEqual(
-      expect.arrayContaining([['bio'], ['avatarUrl'], ['bannerUrl']]),
+      expect.arrayContaining([['bio'], ['avatarUrl'], ['bannerUrl'], ['locale']]),
     );
+  });
+
+  it('PATCH /v1/users/me : bordure permise par le niveau du compte ou le premium', async () => {
+    const moi = await t.inscrire();
+    const bordure = (borderType: string) =>
+      t.app.inject({
+        method: 'PATCH',
+        url: '/v1/users/me',
+        headers: moi.auth,
+        payload: { borderType },
+      });
+
+    // Niveau 1 sans premium : seulement « none »
+    const refus = await bordure('blue');
+    expect(refus.statusCode).toBe(403);
+    expect(refus.json().code).toBe('border_locked');
+    expect((await bordure('none')).statusCode).toBe(200);
+
+    // Niveau 3 : Azur acquise, pas les bordures plus hautes ni les « Lueur »
+    await t.db.insert(accountProgress).values({ userId: moi.id, xp: 250, level: 3 });
+    expect((await bordure('blue')).statusCode).toBe(200);
+    expect((await bordure('orange')).statusCode).toBe(403);
+    expect((await bordure('magic_shine')).statusCode).toBe(403);
+
+    // Premium : toutes ; la bordure portée reste permise une fois le premium perdu
+    await t.db.update(profiles).set({ premium: true }).where(eq(profiles.userId, moi.id));
+    expect((await bordure('magic_shine')).statusCode).toBe(200);
+    await t.db.update(profiles).set({ premium: false }).where(eq(profiles.userId, moi.id));
+    const garde = await t.app.inject({
+      method: 'PATCH',
+      url: '/v1/users/me',
+      headers: moi.auth,
+      payload: { borderType: 'magic_shine', name: 'Toujours là' },
+    });
+    expect(garde.statusCode).toBe(200);
+    expect((await bordure('magic_red')).statusCode).toBe(403);
   });
 
   it('refuse les entrées invalides', async () => {
@@ -188,6 +230,8 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       { settings: { gros: 'x'.repeat(17 * 1024) } },
       { settings: [1, 2] },
       { title: 'Légende' },
+      { locale: 'de' },
+      { locale: 'EN' },
     ];
     for (const payload of refus) {
       const r = await t.app.inject({
@@ -369,6 +413,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       premium: false,
       showPremiumBadge: true,
       timeSpentMinutes: 0,
+      level: 1,
     });
     expect(r.body).not.toContain(cible.email);
     expect(r.body).not.toContain('settings');

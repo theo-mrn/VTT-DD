@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import localFont from 'next/font/local';
 import { Fournisseurs } from '@/components/fournisseurs';
+import { I18nProvider } from '@/i18n/provider';
 import './globals.css';
 import { MAP_FONT_VARIABLES } from './map-fonts';
 
@@ -42,32 +44,42 @@ const aclonica = localFont({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  title: { default: 'Yner', template: '%s · Yner' },
-  description: 'Plateforme de JDR VTT pour créer, gérer et jouer vos aventures épiques en ligne.',
-  icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/icon.svg', type: 'image/svg+xml' },
-    ],
-    apple: '/apple-icon.png',
-  },
+const ICONS: Metadata['icons'] = {
+  icon: [
+    { url: '/favicon.ico', sizes: 'any' },
+    { url: '/icon.svg', type: 'image/svg+xml' },
+  ],
+  apple: '/apple-icon.png',
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta');
+  return {
+    title: { default: 'Yner', template: '%s · Yner' },
+    description: t('description'),
+    icons: ICONS,
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#09090b',
   colorScheme: 'dark',
 };
 
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  // Langue de la requête (cookie, Accept-Language, défaut) : docs/i18n.md § 3
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
     <html
-      lang="fr"
+      lang={locale}
       suppressHydrationWarning
       className={`dark ${geist.variable} ${geistMono.variable} ${cinzel.variable} ${aclonica.variable} ${MAP_FONT_VARIABLES}`}
     >
       <body suppressHydrationWarning>
-        <Fournisseurs>{children}</Fournisseurs>
+        <I18nProvider locale={locale} messages={messages}>
+          <Fournisseurs>{children}</Fournisseurs>
+        </I18nProvider>
       </body>
     </html>
   );

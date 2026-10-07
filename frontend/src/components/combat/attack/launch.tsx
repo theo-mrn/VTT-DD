@@ -12,6 +12,7 @@
  *
  * Touches 1 à 9 : l'écran marque ses cartes (`data-shortcut`), le menu les déclenche.
  */
+import { useTranslations } from 'next-intl';
 import { ArrowRight, Check, Dices, Send, type LucideIcon } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { forwardRef, type ReactNode } from 'react';
@@ -70,6 +71,7 @@ export const TypeCard = forwardRef<
     onClick: () => void;
   }
 >(function TypeCard({ title, formula, shortcut, active, expanded, disabled, onClick }, ref) {
+  const t = useTranslations();
   const faces = firstDieFaces(formula);
   return (
     <button
@@ -104,7 +106,9 @@ export const TypeCard = forwardRef<
         <ShortcutKbd className="absolute left-3 top-3 max-sm:hidden">{shortcut}</ShortcutKbd>
       )}
       {active && !expanded && (
-        <ShortcutKbd className="absolute right-3 top-3 max-sm:hidden">Entrée</ShortcutKbd>
+        <ShortcutKbd className="absolute right-3 top-3 max-sm:hidden">
+          {t('chat.enterKey')}
+        </ShortcutKbd>
       )}
       <span className="transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110 motion-reduce:transition-none">
         {faces ? (
@@ -264,6 +268,7 @@ export const LaunchButton = forwardRef<
     className?: string;
   }
 >(function LaunchButton({ children, onClick, disabled, busy, enter, size = 'md', className }, ref) {
+  const t = useTranslations();
   return (
     <button
       ref={ref}
@@ -284,7 +289,7 @@ export const LaunchButton = forwardRef<
       {children}
       {enter && !busy && !disabled && (
         <Kbd className="border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground max-sm:hidden">
-          Entrée
+          {t('chat.enterKey')}
         </Kbd>
       )}
       <Send

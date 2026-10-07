@@ -1,0 +1,56 @@
+import type fr from '../fr/home';
+import type { Translation } from '../../types';
+
+export default {
+  greeting: {
+    night: 'Good night',
+    morning: 'Good morning',
+    afternoon: 'Good afternoon',
+    evening: 'Good evening',
+  },
+  hello: '{greeting}, <b>{name}</b>',
+  join: 'Join',
+  newCampaign: 'New campaign',
+  allCampaigns: 'All campaigns',
+  resume: 'Resume the adventure',
+  allCharacters: 'All characters',
+  myCharacters: 'My characters',
+  newHero: 'New hero',
+  updated: 'Updated {since}',
+  openLobby: 'Open the lobby',
+  firstCampaign: 'Your first campaign awaits',
+  firstCampaignText: 'Run your own adventure, or join a friend’s table with their code.',
+  createCampaign: 'Create a campaign',
+  upcoming: 'Upcoming',
+  noSession: 'No session planned.',
+  sessionLine: '{title} · {when}',
+  session: 'Session',
+  quick: {
+    createCampaign: 'Create a campaign',
+    createHero: 'Create a hero',
+    rollDice: 'Roll dice',
+  },
+  firstSteps: {
+    title: 'First steps',
+    hide: 'Hide',
+    hideAll: 'Hide first steps',
+    progress: '{done, number} of {total, number}: your table is taking shape.',
+    progressLabel: 'Progress',
+    profile: 'Complete your profile',
+    campaign: 'Create or join a campaign',
+    hero: 'Create your first hero',
+    dice: 'Roll your first dice',
+  },
+  rolls: {
+    title: 'Latest rolls',
+    diceTable: 'Dice table',
+    empty: 'No rolls yet. Try <kbd>⌘K</kbd> then “1d20”.',
+  },
+  notes: {
+    title: 'Recent notes',
+    all: 'All notes',
+    empty: 'Journal, NPCs, clues: your notes will show up here.',
+    untitled: 'Untitled',
+    campaign: 'Campaign',
+  },
+} satisfies Translation<typeof fr>;

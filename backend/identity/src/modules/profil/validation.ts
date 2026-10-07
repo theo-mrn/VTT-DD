@@ -3,7 +3,7 @@
  * entrées et contrôle des URL d'images envoyées par le client.
  */
 import { z } from 'zod';
-import { compareCodeUnits } from '@vtt/contracts';
+import { AccountLocale, compareCodeUnits } from '@vtt/contracts';
 import { withoutTrailingSlashes } from '@vtt/platform';
 
 /** Bordures de la carte de profil, reprises telles quelles de l'ancienne app. */
@@ -55,6 +55,7 @@ export const PatchProfil = z
     borderType: z.enum(BORDER_TYPES),
     showPremiumBadge: z.boolean(),
     emailNotifications: z.boolean(),
+    locale: AccountLocale,
     settings: Settings,
   })
   .partial()

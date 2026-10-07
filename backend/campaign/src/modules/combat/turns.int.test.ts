@@ -240,8 +240,10 @@ describe.skipIf(!TEST_DATABASE_URL)('combat, tours (étape A)', () => {
     c = await h.ok<Combat>(gm, 'POST', url(id, '/next'), {});
     expect(c.round).toBe(2);
     expect(character.get(aria)!.durations).toEqual({ rage: 2 });
-    const tickIds = new Set(callsTo('/durees/decompter').map((r) => r.body.tickId));
-    expect(tickIds.size).toBe(2);
+    const roundEnds = callsTo('/durations/tick').filter((r) =>
+      (r.body.events as { kind: string }[]).some((e) => e.kind === 'round_end'),
+    );
+    expect(new Set(roundEnds.map((r) => r.body.tickId)).size).toBe(2);
     const reasons = (await events(id, 'combat.turn_changed')).map((e) => e.payload.reason);
     expect(reasons.filter((r) => r === 'previous')).toHaveLength(2);
   });
@@ -492,27 +494,155 @@ describe.skipIf(!TEST_DATABASE_URL)('combat, tours (étape A)', () => {
     ).toMatchObject({ status: 400, code: 'unknown_participant' });
   });
 
-  it('fin : états à durée retirés sur demande, MJ seulement', async () => {
+  it('fin : une durée de combat finit avec lui, sauf si le MJ la garde ; MJ seulement', async () => {
     const id = await h.campaign(gm, 'dnd-classic', [alice]);
     const aria = await h.engage(id, alice, { durations: { beni: 3 } });
     const npc = await h.engage(id, gm, { durations: { lent: 5, rage: 1 } });
     const c = await h.ok<Combat>(gm, 'POST', url(id), { participants: [aria, npc] });
     expect((await h.request(alice, 'POST', url(id, '/end'), {})).statusCode).toBe(403);
-    expect(
-      (await h.request(gm, 'POST', url(id, '/end'), { clearTimedStates: true })).statusCode,
-    ).toBe(204);
+    // Par défaut : tout ce qui a une durée est retiré
+    expect((await h.request(gm, 'POST', url(id, '/end'), {})).statusCode).toBe(204);
     expect(t.character.characters.get(aria)!.durations).toEqual({});
     expect(t.character.characters.get(npc)!.durations).toEqual({});
-    const clears = callsTo('/durees/decompter');
-    expect(clears).toHaveLength(2);
-    for (const r of clears)
-      expect(r.body).toMatchObject({ clear: true, tickId: `tick:${c.id}:end`, userId: gm.id });
-    // Sans l'option : rien n'est retiré
+    const clears = callsTo('/durations/tick');
+    expect(clears).toHaveLength(1);
+    expect(clears[0]!.body).toMatchObject({
+      tickId: `tick:${c.id}:end`,
+      userId: gm.id,
+      campaignId: id,
+      events: [{ kind: 'combat_end' }],
+    });
+    expect((clears[0]!.body.characterIds as string[]).sort()).toEqual([aria, npc].sort());
+    // Annoncée : les joueurs voient la fin de l'état d'Aria, jamais celle du PNJ
+    const expired = await events(id, 'combat.durations_expired');
+    expect(expired.map((e) => [e.visibility, e.payload.expirations])).toEqual([
+      [
+        'gm_only',
+        expect.arrayContaining([
+          { characterId: aria, entries: [{ key: 'beni', name: 'beni' }] },
+          expect.objectContaining({ characterId: npc }),
+        ]),
+      ],
+      ['public', [{ characterId: aria, entries: [{ key: 'beni', name: 'beni' }] }]],
+    ]);
+    // Gardées par le MJ : rien n'est retiré
     const hero = await h.engage(id, alice, { durations: { beni: 3 } });
     await h.ok(gm, 'POST', url(id), { participants: [hero] });
     expect(
-      (await h.request(gm, 'POST', url(id, '/end'), { pendingAttacks: 'keep' })).statusCode,
+      (
+        await h.request(gm, 'POST', url(id, '/end'), {
+          pendingAttacks: 'keep',
+          clearTimedStates: false,
+        })
+      ).statusCode,
     ).toBe(204);
     expect(t.character.characters.get(hero)!.durations).toEqual({ beni: 3 });
+  });
+
+  // ─── Durées au nombre de tours (docs/combat.md § 18) ─────────────────────────
+
+  it('au tour : début et fin du tour du porteur ou de la source, annonce filtrée', async () => {
+    const id = await h.campaign(gm, 'dnd-classic', [alice]);
+    const aria = await h.engage(id, alice, { sortKeys: [15] });
+    const orc = await h.engage(id, gm, { sortKeys: [10] });
+    const gob = await h.engage(id, gm, { sortKeys: [5] });
+    await h.play(id, alice, aria);
+    const sheet = (cid: string) => t.character.characters.get(cid)!;
+    // Aria : bénie jusqu'à la fin de son prochain tour (attente posée par character) ;
+    // l'orc : marqué jusqu'au début du prochain tour d'Aria ; le gobelin : 2 rounds
+    sheet(aria).durations = { beni: { n: 1, moment: 'turn_end', waiting: true } };
+    sheet(gob).durations = { lent: 2 };
+    await h.ok(gm, 'POST', url(id), { participants: [aria, orc, gob], rollInitiative: true });
+    // Démarrage avec initiative : le tour d'Aria commence, son attente est levée
+    expect(sheet(aria).durations).toEqual({ beni: { n: 1, moment: 'turn_end', waiting: false } });
+    // Pendant le tour d'Aria, elle marque l'orc jusqu'au début de son prochain tour
+    sheet(orc).durations = { marque: { n: 1, moment: 'turn_start', anchor: aria } };
+
+    // Aria passe son tour : bénie expire à la fin de son tour (et la réponse le dit à alice)
+    let c = await h.ok<Combat>(alice, 'POST', url(id, '/next'), {});
+    expect(sheet(aria).durations).toEqual({});
+    expect(c.durationUpdates).toEqual([
+      { characterId: aria, expired: ['beni'], entries: [{ key: 'beni', name: 'beni' }] },
+    ]);
+    // L'orc, puis le gobelin : fin du round, début du tour d'Aria → la marque de l'orc tombe
+    c = await h.ok<Combat>(gm, 'POST', url(id, '/next'), {});
+    expect(c.durationUpdates).toBeUndefined();
+    c = await h.ok<Combat>(gm, 'POST', url(id, '/next'), {});
+    expect(c.round).toBe(2);
+    expect(sheet(orc).durations).toEqual({});
+    expect(sheet(gob).durations).toEqual({ lent: 1 });
+    const last = callsTo('/durations/tick').at(-1)!;
+    expect(last.body.events).toEqual([
+      { kind: 'turn_end', characterId: gob },
+      { kind: 'round_end', round: 1 },
+      { kind: 'turn_start', characterId: aria },
+    ]);
+    // Les joueurs ne reçoivent rien des PNJ : un seul événement, réservé au MJ
+    const expired = await events(id, 'combat.durations_expired');
+    expect(expired.map((e) => e.visibility)).toEqual(['public', 'gm_only']);
+    expect(expired[1]!.payload.expirations).toEqual([
+      { characterId: orc, entries: [{ key: 'marque', name: 'marque' }] },
+    ]);
+
+    // Précédent : la marque revient, le décompte est rendu (pierre tombale demandée)
+    c = await h.ok<Combat>(gm, 'POST', url(id, '/previous'), {});
+    expect(sheet(orc).durations).toEqual({ marque: { n: 1, moment: 'turn_start', anchor: aria } });
+    expect(sheet(gob).durations).toEqual({ lent: 2 });
+    expect(callsTo('/modifications/revert').at(-1)!.body).toMatchObject({ cancelIfMissing: true });
+  });
+
+  it('un décompte en échec est rejoué au passage suivant, dans l’ordre, une seule fois', async () => {
+    const id = await h.campaign(gm, 'dnd-classic', [alice]);
+    const aria = await h.engage(id, alice, { sortKeys: [15], durations: { beni: 3 } });
+    const orc = await h.engage(id, gm, { sortKeys: [10] });
+    await h.ok(gm, 'POST', url(id), { participants: [aria, orc], rollInitiative: true });
+    await h.ok(gm, 'POST', url(id, '/next'), {});
+    // character tombe : la fin du round n'est pas décomptée, le passage est validé
+    t.character.behaviour.down = new Set(['/internal/durations/tick']);
+    let c = await h.ok<Combat>(gm, 'POST', url(id, '/next'), {});
+    expect(c.round).toBe(2);
+    expect(c.durationFailures?.sort()).toEqual([aria, orc].sort());
+    expect(t.character.characters.get(aria)!.durations).toEqual({ beni: 3 });
+    // character revient : le décompte en retard passe d'abord, puis celui du passage
+    t.character.behaviour.down = new Set();
+    const before = callsTo('/durations/tick').length;
+    c = await h.ok<Combat>(gm, 'POST', url(id, '/next'), {});
+    expect(c.durationFailures).toBeUndefined();
+    expect(t.character.characters.get(aria)!.durations).toEqual({ beni: 2 });
+    const replayed = callsTo('/durations/tick').slice(before);
+    expect(replayed).toHaveLength(2);
+    expect(
+      (replayed[0]!.body.events as { kind: string }[]).some((e) => e.kind === 'round_end'),
+    ).toBe(true);
+    // Rien de plus au passage suivant : le décompte n'est jamais rejoué deux fois
+    await h.ok(gm, 'POST', url(id, '/next'), {});
+    expect(t.character.characters.get(aria)!.durations).toEqual({ beni: 1 });
+  });
+
+  it('donner le tour et désigner l’acteur du créneau ouvrent un tour', async () => {
+    const sw = 'star-wars-eote';
+    const id = await h.campaign(gm, sw, [alice]);
+    const kesh = await h.engage(id, alice, { systemId: sw, sortKeys: [3, 0] });
+    const trooper = await h.engage(id, gm, { systemId: sw, sortKeys: [1, 0] });
+    t.character.characters.get(kesh)!.durations = {
+      'manoeuvre-defensive': { n: 1, moment: 'turn_start' },
+    };
+    await h.ok(gm, 'POST', url(id), { participants: [kesh, trooper], rollInitiative: true });
+    const c = await h.ok<Combat>(gm, 'POST', url(id, '/slot-actor'), { characterId: kesh });
+    expect(c.currentActorId).toBe(kesh);
+    expect(c.durationUpdates).toEqual([
+      {
+        characterId: kesh,
+        expired: ['manoeuvre-defensive'],
+        entries: [{ key: 'manoeuvre-defensive', name: 'manoeuvre-defensive' }],
+      },
+    ]);
+    expect(callsTo('/durations/tick').at(-1)!.body.events).toEqual([
+      { kind: 'turn_start', characterId: kesh },
+    ]);
+    await h.ok(gm, 'POST', url(id, '/turn'), { slotIndex: 1 });
+    expect(callsTo('/durations/tick').at(-1)!.body.events).toEqual([
+      { kind: 'turn_end', characterId: kesh },
+    ]);
   });
 });

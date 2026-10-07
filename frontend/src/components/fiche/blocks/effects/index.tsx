@@ -13,6 +13,8 @@
  * leur onglet. La liste défile au-delà d'une douzaine de lignes : le bloc reste bas.
  * Rien n'est propre à un jeu : tout vient de `listerEffets` de @vtt/rules.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import type { BonusLibre, Effet, EffetListe } from '@vtt/rules';
 import { ChevronRight, Plus, Search, Trash2, X } from 'lucide-react';
 import { useDeferredValue, useMemo, useState } from 'react';
@@ -29,6 +31,9 @@ import { Input, styleChampBase } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DurationChip, timerOf } from '@/components/combat/duration-chip';
+import { SelectField } from '@/components/ui/select';
+import { DURATION_MOMENTS, durationText, turnBased, type Timer } from '@/lib/combat/durations';
 import { groupesAttributs } from '@/lib/creation';
 import { cn } from '@/lib/utils';
 import { Bloc, visiblePour, type ContexteFiche } from '../../widgets';
@@ -73,6 +78,8 @@ interface GroupeSource {
   /** Pourquoi la source ne s'applique pas (objet rangé…), sinon null. */
   raison: string | null;
   bonus?: BonusLibre;
+  /** Durée restante (état ou bonus donné pour un temps, docs/combat.md § 18). */
+  minuterie?: Timer;
   /** Source activable (capacité à activer…) : son interrupteur l'active, ses bonus suivent. */
   activation?: { entree: string; actif: boolean };
   lignes: LigneEffet[];
@@ -89,6 +96,10 @@ function cleSource(e: EffetListe): string {
 /** Groupe d'une source, tel que son premier effet le décrit. */
 function nouveauGroupe(e: EffetListe, cle: string): GroupeSource {
   const p = e.possession;
+  // Durée : celle du bonus, sinon du premier exemplaire qui en a une
+  const minuterie = e.bonus
+    ? timerOf(e.bonus)
+    : (p?.exemplaires.map(timerOf).find((t) => t !== null) ?? null);
   return {
     cle,
     nom: e.nom,
@@ -96,6 +107,7 @@ function nouveauGroupe(e: EffetListe, cle: string): GroupeSource {
     famille: familleDe(e),
     raison: e.statut === 'inactif' ? raisonInactif(e) : null,
     ...(e.bonus ? { bonus: e.bonus } : {}),
+    ...(minuterie ? { minuterie } : {}),
     ...(e.genre !== 'bonus' && p?.sorte.activable
       ? { activation: { entree: p.entree.id, actif: p.actif } }
       : {}),
@@ -131,6 +143,7 @@ const compte = (gs: GroupeSource[]) => ({
 });
 
 function EffectsBlock({ ctx, widget, mode }: Readonly<SheetBlockProps<'bonus'>>) {
+  const t = useTranslations();
   const { fiche } = ctx;
   const operations = mode === 'read' ? ctx.operations : undefined;
   const [ajout, setAjout] = useState(false);
@@ -145,8 +158,8 @@ function EffectsBlock({ ctx, widget, mode }: Readonly<SheetBlockProps<'bonus'>>)
     () => [
       {
         id: 'actifs' as Onglet,
-        nom: 'Actifs',
-        titre: 'Bonus appliqués en ce moment',
+        nom: t('sheet.effects.active'),
+        titre: t('sheet.effects.activeTitle'),
         ...compte(groupes),
       },
       ...familles.map((f) => ({
@@ -227,7 +240,7 @@ function EffectsBlock({ ctx, widget, mode }: Readonly<SheetBlockProps<'bonus'>>)
         >
           <TabsList
             variante="ligne"
-            aria-label="Sources des bonus"
+            aria-label={t('sheet.effects.sources')}
             className="h-8 gap-3 overflow-x-auto overflow-y-hidden [scrollbar-width:none]"
           >
             {onglets.map((o) => (
@@ -258,8 +271,8 @@ function EffectsBlock({ ctx, widget, mode }: Readonly<SheetBlockProps<'bonus'>>)
                         setRecherche('');
                       }
                     }}
-                    placeholder="Rechercher…"
-                    aria-label={`Rechercher dans ${o.titre}`}
+                    placeholder={t('map.tokens.library.searchPlaceholder')}
+                    aria-label={t('resources.catalogue.searchIn', { section: o.titre })}
                     className="h-7 w-full rounded-md border border-input bg-surface-2/60 pl-7 pr-7 text-xs text-foreground placeholder:text-subtle focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15 [&::-webkit-search-cancel-button]:hidden"
                   />
                   {recherche && (
@@ -267,7 +280,7 @@ function EffectsBlock({ ctx, widget, mode }: Readonly<SheetBlockProps<'bonus'>>)
                       type="button"
                       onClick={() => setRecherche('')}
                       className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-subtle hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-                      aria-label="Effacer la recherche"
+                      aria-label={t('resources.clearSearch')}
                     >
                       <X className="size-3" />
                     </button>
@@ -277,7 +290,11 @@ function EffectsBlock({ ctx, widget, mode }: Readonly<SheetBlockProps<'bonus'>>)
 
               {sources.length === 0 ? (
                 <p className="py-4 text-center text-xs text-subtle">
-                  {recherche ? 'Aucun résultat.' : (VIDE[o.id] ?? 'Rien ici pour l’instant.')}
+                  {recherche
+                    ? t('sheet.effects.noResult')
+                    : o.id === 'actifs' || o.id === 'libres'
+                      ? t(`sheet.effects.empty.${o.id}`)
+                      : t('sheet.effects.nothingYet')}
                 </p>
               ) : (
                 // Une douzaine de lignes, puis défilement : le bloc garde une hauteur raisonnable
@@ -307,7 +324,7 @@ function EffectsBlock({ ctx, widget, mode }: Readonly<SheetBlockProps<'bonus'>>)
                   onClick={() => setAjout(true)}
                 >
                   <Plus />
-                  Ajouter un bonus libre
+                  {t('sheet.effects.addFree')}
                 </Button>
               )}
             </TabsContent>
@@ -383,6 +400,7 @@ function Source({
           <span className="min-w-0 flex-1 truncate text-xs text-subtle">
             {resume || desactives(coupes)}
           </span>
+          {g.minuterie && <DurationChip timer={g.minuterie} />}
           {g.raison && <span className="shrink-0 text-[11px] text-subtle">{g.raison}</span>}
         </button>
         <InterrupteurSource
@@ -423,6 +441,7 @@ function InterrupteurSource({
   onBonus: (b: BonusLibre) => void;
   onRetirer: (b: BonusLibre) => void;
 }>) {
+  const t = useTranslations();
   const b = g.bonus;
   const act = g.activation;
   const eteinte = g.raison !== null;
@@ -435,14 +454,16 @@ function InterrupteurSource({
           checked={b.actif}
           disabled={!ecriture}
           onCheckedChange={() => onBonus(b)}
-          aria-label={`${b.actif ? 'Désactiver' : 'Activer'} le bonus ${b.nom}`}
+          aria-label={t(b.actif ? 'sheet.effects.disableBonus' : 'sheet.effects.enableBonus', {
+            name: b.nom,
+          })}
         />
         {ecriture && (
           <Button
             variant="ghost"
             size="icon-xs"
             onClick={() => onRetirer(b)}
-            aria-label={`Retirer le bonus ${b.nom}`}
+            aria-label={t('sheet.effects.removeBonus', { name: b.nom })}
           >
             <Trash2 />
           </Button>
@@ -456,7 +477,9 @@ function InterrupteurSource({
         checked={act.actif}
         disabled={!onActiver}
         onCheckedChange={(v) => onActiver?.(act.entree, v)}
-        aria-label={`${act.actif ? 'Désactiver' : 'Activer'} ${g.nom}`}
+        aria-label={t(act.actif ? 'sheet.inventory.disable' : 'sheet.inventory.enable', {
+          name: g.nom,
+        })}
       />
     );
   if (basculables.length === 0) return null;
@@ -466,9 +489,11 @@ function InterrupteurSource({
       checked={allume && !eteinte}
       disabled={!peutBasculer || eteinte}
       onCheckedChange={(v) => onEffets(basculables, v)}
-      aria-label={`${allume ? 'Désactiver' : 'Activer'} les bonus de ${g.nom}${
-        g.raison ? `, ${g.raison}` : ''
-      }`}
+      aria-label={
+        t(allume ? 'sheet.effects.disableBonusesOf' : 'sheet.effects.enableBonusesOf', {
+          name: g.nom,
+        }) + (g.raison ? `, ${g.raison}` : '')
+      }
     />
   );
 }
@@ -485,10 +510,11 @@ function DetailSource({
   peutBasculer: boolean;
   onEffets: (cles: string[], actif: boolean) => void;
 }>) {
+  const t = useTranslations();
   const b = g.bonus;
   const eteinte = g.raison !== null;
-  const duree = b?.duree === undefined ? null : `${b.duree} round(s)`;
-  const meta = b ? [b.source, duree].filter(Boolean).join(' · ') : null;
+  const duree = g.minuterie ? durationText(g.minuterie) : null;
+  const meta = [b?.source, duree].filter(Boolean).join(' · ') || null;
   return (
     <ul id={id} className="pb-1.5 pl-6">
       {meta && <li className="pb-0.5 text-[11px] text-subtle">{meta}</li>}
@@ -513,7 +539,12 @@ function DetailSource({
             <span className="min-w-0 flex-1 truncate text-xs">
               <span className={cn(coupe && 'line-through')}>{libelle}</span>
               {precision && <span className="text-[11px] text-subtle"> · {precision}</span>}
-              {coupe && <span className="text-[11px] text-subtle"> · désactivé</span>}
+              {coupe && (
+                <span className="text-[11px] text-subtle">
+                  {' '}
+                  · {t('sheet.effects.disabledShort')}
+                </span>
+              )}
             </span>
             {e.basculable && (
               <Switch
@@ -521,7 +552,9 @@ function DetailSource({
                 checked={!coupe && !eteinte}
                 disabled={!peutBasculer || eteinte}
                 onCheckedChange={(v) => onEffets([e.cle], v)}
-                aria-label={`${coupe ? 'Activer' : 'Désactiver'} ${libelle} (${g.nom})`}
+                aria-label={`${t(coupe ? 'sheet.inventory.enable' : 'sheet.inventory.disable', {
+                  name: libelle,
+                })} (${g.nom})`}
               />
             )}
           </li>
@@ -541,6 +574,7 @@ function AjoutBonus({
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
 }>) {
+  const t = useTranslations();
   const { fiche, operations } = ctx;
   const groupes = useMemo(
     () =>
@@ -553,6 +587,9 @@ function AjoutBonus({
   const [source, setSource] = useState('');
   const [attribut, setAttribut] = useState('');
   const [valeur, setValeur] = useState('1');
+  // Durée facultative : nombre, et moment du décompte (au tour du personnage lui-même)
+  const [duree, setDuree] = useState('');
+  const [moment, setMoment] = useState<(typeof DURATION_MOMENTS)[number]['value']>('fin-round');
   const nombre = Number(valeur);
   const valide =
     nom.trim().length > 0 && attribut !== '' && Number.isFinite(nombre) && nombre !== 0;
@@ -562,11 +599,17 @@ function AjoutBonus({
     const effets: Effet[] = [
       { sur: 'attribut', attribut, operation: 'ajouter', valeur: String(nombre) },
     ];
+    const decomptes = duree.trim()
+      ? Math.min(10_000, Math.max(1, Math.round(Number(duree))))
+      : null;
+    const decompte = decomptes && turnBased(moment) ? { moment } : null;
     const demande = {
       nom: nom.trim(),
       ...(source.trim() ? { source: source.trim() } : {}),
       effets,
       actif: true,
+      ...(decomptes ? { duree: decomptes } : {}),
+      ...(decompte ? { decompte } : {}),
     };
     // Aperçu : l'identifiant définitif est donné par le service
     const apercu: BonusLibre = { ...demande, id: `nouveau-${Date.now()}` };
@@ -575,20 +618,20 @@ function AjoutBonus({
     setNom('');
     setSource('');
     setValeur('1');
+    setDuree('');
+    setMoment('fin-round');
   }
 
   return (
     <Dialog open={ouvert} onOpenChange={onOuvert}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouveau bonus</DialogTitle>
-          <DialogDescription>
-            Un modificateur libre (potion, bénédiction, décision du MJ), activable à tout moment.
-          </DialogDescription>
+          <DialogTitle>{t('sheet.effects.newBonus')}</DialogTitle>
+          <DialogDescription>{t('sheet.effects.newBonusHint')}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="space-y-2">
-            <Label htmlFor="bonus-nom">Nom</Label>
+            <Label htmlFor="bonus-nom">{t('map.lights.name')}</Label>
             <Input
               id="bonus-nom"
               value={nom}
@@ -608,14 +651,14 @@ function AjoutBonus({
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
             <div className="space-y-2">
-              <Label htmlFor="bonus-attribut">Attribut</Label>
+              <Label htmlFor="bonus-attribut">{t('sheet.formula.attribute')}</Label>
               <select
                 id="bonus-attribut"
                 value={attribut}
                 onChange={(e) => setAttribut(e.target.value)}
                 className={cn(styleChampBase, 'h-10 px-3')}
               >
-                <option value="">Choisir…</option>
+                <option value="">{t('sheet.effects.choose')}</option>
                 {groupes.map((g) => (
                   <optgroup key={g.id} label={g.nom}>
                     {g.attributs.map((a) => (
@@ -628,7 +671,7 @@ function AjoutBonus({
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bonus-valeur">Valeur</Label>
+              <Label htmlFor="bonus-valeur">{t('combat.attack.value')}</Label>
               <Input
                 id="bonus-valeur"
                 type="number"
@@ -638,13 +681,39 @@ function AjoutBonus({
               />
             </div>
           </div>
+          <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="bonus-duree">{t('combat.states.durationTitle')}</Label>
+              <Input
+                id="bonus-duree"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                placeholder="∞"
+                value={duree}
+                onChange={(e) => setDuree(e.target.value)}
+                className="text-right font-mono tabular-nums"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bonus-decompte">{t('combat.states.countdown')}</Label>
+              <SelectField
+                id="bonus-decompte"
+                value={moment}
+                disabled={!duree.trim()}
+                onValueChange={(v) => setMoment(v as typeof moment)}
+                options={DURATION_MOMENTS.map((m) => ({ valeur: m.value, nom: m.label }))}
+                className="h-10"
+              />
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOuvert(false)}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button disabled={!valide} onClick={enregistrer}>
-            Ajouter
+            {t('common.actions.add')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -654,22 +723,19 @@ function AjoutBonus({
 
 export const effectsBlock: SheetBlockDefinition<'bonus'> = {
   type: 'bonus',
-  label: 'Bonus',
-  description:
-    'Tous les bonus du personnage par source, activables un à un ; bonus libres à ajouter.',
+  get label() {
+    return translate('sheet.blocks.effects.label');
+  },
+  get description() {
+    return translate('sheet.blocks.effects.description');
+  },
   defaultSize: { w: 6, h: 6 },
   minSize: { w: 3, h: 4 },
   Component: EffectsBlock,
 };
 
-/** Onglet vide : son message. */
-const VIDE: Partial<Record<string, string>> = {
-  actifs: 'Aucun bonus appliqué en ce moment.',
-  libres: 'Aucun bonus libre.',
-};
-
 /** « 2 désactivés » ; aucun : rien. */
 function desactives(n: number): string {
   if (!n) return '';
-  return n > 1 ? `${n} désactivés` : `${n} désactivé`;
+  return translate('sheet.effects.disabledCount', { count: n });
 }

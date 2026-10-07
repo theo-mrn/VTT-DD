@@ -5,6 +5,7 @@
  * du contour ». Une pièce fermée (aucune porte ouverte sur son contour) coupe la vue entre
  * dedans et dehors (docs/carte.md § 9).
  */
+import { translate } from '@/i18n/runtime';
 import { BrickWall } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,7 @@ export function RoomInspector({ engine, entities }: Readonly<InspectorSectionPro
       engine,
       entities,
       () => ({ name: next }),
-      'Renommer la pièce',
+      translate('map.obstacles.renameRoom'),
       ctx.persistences.rooms,
     );
   };
@@ -44,7 +45,7 @@ export function RoomInspector({ engine, entities }: Readonly<InspectorSectionPro
     <div className="space-y-4">
       <div className="space-y-1.5">
         <label htmlFor={`${id}-name`} className="text-[13px] text-foreground">
-          Nom
+          {translate('map.lights.name')}
         </label>
         <Input
           id={`${id}-name`}
@@ -65,10 +66,7 @@ export function RoomInspector({ engine, entities }: Readonly<InspectorSectionPro
         {room.points.length} sommets · {area.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}{' '}
         {unit}²
       </p>
-      <p className="text-xs text-muted-foreground">
-        Fermée tant qu’aucune porte ouverte n’est sur son contour : de l’intérieur, on ne voit pas
-        dehors ; de l’extérieur, on ne voit pas dedans.
-      </p>
+      <p className="text-xs text-muted-foreground">{translate('map.obstacles.roomHint')}</p>
       <Button
         variant="secondary"
         size="sm"
@@ -76,11 +74,11 @@ export function RoomInspector({ engine, entities }: Readonly<InspectorSectionPro
         onClick={() => {
           const plan = newPlan(engine);
           addChain(plan, [...room.points, room.points[0]!], defaultProps('wall'));
-          void executePlan(engine, 'Poser les murs', plan, ctx.persistences);
+          void executePlan(engine, translate('map.obstacles.placeWalls'), plan, ctx.persistences);
         }}
       >
         <BrickWall />
-        Poser les murs du contour
+        {translate('map.obstacles.placeOutlineWalls')}
       </Button>
     </div>
   );

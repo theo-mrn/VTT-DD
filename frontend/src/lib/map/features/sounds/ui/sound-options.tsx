@@ -3,6 +3,7 @@
 /**
  * Barre contextuelle de l'outil Zones sonores (F) : son, rayon et volume des zones posées.
  */
+import { translate } from '@/i18n/runtime';
 import { useStore } from 'zustand';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { RADIUS_RANGE } from '../engine/model';
@@ -27,7 +28,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: SoundTool
 
   return (
     <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
-      <span className="px-1 text-xs text-muted-foreground">Nouvelle zone</span>
+      <span className="px-1 text-xs text-muted-foreground">{translate('map.sounds.newZone')}</span>
       <SoundPicker
         campaignId={engine.store.getState().campaignId}
         value={assetId}
@@ -37,7 +38,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: SoundTool
       <OptionSeparator />
       <div className="w-40 px-1">
         <RangeField
-          label="Rayon"
+          label={translate('map.lights.radius')}
           value={radius}
           min={RADIUS_RANGE.min}
           max={RADIUS_RANGE.slider}
@@ -49,7 +50,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: SoundTool
       </div>
       <div className="w-36 px-1">
         <RangeField
-          label="Volume"
+          label={translate('map.sounds.volume')}
           value={volume}
           min={0.05}
           max={1}

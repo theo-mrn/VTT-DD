@@ -6,6 +6,7 @@
  * comptage des cases, effacement des gabarits, et rappel des gestes. Réglages gardés dans le
  * navigateur.
  */
+import { formatter, translate } from '@/i18n/runtime';
 import {
   Circle,
   Eye,
@@ -29,8 +30,9 @@ import type { MapEngine } from '@/lib/map/engine/map-engine';
 import type { MeasureModule } from '../engine/context';
 import {
   GRID_COUNTINGS,
-  MEASURE_COLORS,
+  measureColorOptions,
   MEASURE_SHAPES,
+  measureShapeLabel,
   type ConeOptions,
   type MeasureShape,
 } from '../engine/model';
@@ -78,7 +80,7 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
           return (
             <OptionButton
               key={shape.value}
-              label={shape.label}
+              label={measureShapeLabel(shape.value)}
               shortcut={shape.key}
               active={s.shape === shape.value}
               onClick={() => {
@@ -93,9 +95,14 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
         <OptionSeparator />
 
         <Popover>
-          <Info texte="Couleur">
+          <Info texte={translate('map.lights.color')}>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5 px-2" aria-label="Couleur">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 px-2"
+                aria-label={translate('map.lights.color')}
+              >
                 <span
                   aria-hidden
                   className="size-4 rounded-full border border-border-strong"
@@ -108,7 +115,7 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
           <PopoverContent side="top" className="w-72 p-3">
             <Swatches
               value={s.color}
-              options={MEASURE_COLORS}
+              options={measureColorOptions()}
               onChange={(c) => c && set({ color: c })}
             />
           </PopoverContent>
@@ -116,9 +123,14 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
 
         {s.shape === 'cone' && (
           <Popover>
-            <Info texte="Cône">
+            <Info texte={translate('map.measurements.shapes.cone')}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 px-2" aria-label="Cône">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 px-2"
+                  aria-label={translate('map.measurements.shapes.cone')}
+                >
                   <Triangle />
                   <span className="text-xs tabular-nums">{coneLabel(s.cone, unit)}</span>
                 </Button>
@@ -132,12 +144,18 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
 
         {skinnable(s.shape) && (
           <Popover>
-            <Info texte={skin ? 'Effet animé' : 'Effet animé : aucun'}>
+            <Info
+              texte={
+                skin
+                  ? translate('map.measurements.effect')
+                  : translate('map.measurements.effectNone')
+              }
+            >
               <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Effet animé"
+                  aria-label={translate('map.measurements.effect')}
                   className={cn(skin && 'text-primary')}
                 >
                   <Flame />
@@ -145,7 +163,7 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
               </PopoverTrigger>
             </Info>
             <PopoverContent side="top" className="w-80 p-3">
-              <p className="mb-2 text-sm font-semibold">Effet animé</p>
+              <p className="mb-2 text-sm font-semibold">{translate('map.measurements.effect')}</p>
               <SkinPicker
                 engine={engine}
                 shape={s.shape}
@@ -164,8 +182,8 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
         <OptionButton
           label={
             s.pinOnRelease
-              ? 'Épingler au lâcher : le gabarit reste'
-              : 'Mesure éphémère : elle s’efface après 6 s (Entrée : épingler)'
+              ? translate('map.measurements.pinOnRelease')
+              : translate('map.measurements.ephemeral')
           }
           active={s.pinOnRelease}
           onClick={() => set({ pinOnRelease: !s.pinOnRelease })}
@@ -174,7 +192,11 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
         </OptionButton>
         {gm && (
           <OptionButton
-            label={s.shared ? 'Mesure visible des joueurs' : 'Mesure pour les MJ seulement'}
+            label={
+              s.shared
+                ? translate('map.measurements.visibleToPlayers')
+                : translate('map.measurements.gmOnly')
+            }
             active={s.shared}
             onClick={() => set({ shared: !s.shared })}
           >
@@ -183,12 +205,12 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
         )}
 
         <Popover>
-          <Info texte="Comptage des cases">
+          <Info texte={translate('map.measurements.countingTitle')}>
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Comptage des cases"
+                aria-label={translate('map.measurements.countingTitle')}
                 className={cn(counting !== 'off' && 'text-primary')}
               >
                 <Grid3x3 />
@@ -196,37 +218,50 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
             </PopoverTrigger>
           </Info>
           <PopoverContent side="top" className="w-72 p-2">
-            <p className="px-2 pb-1 pt-1 text-sm font-semibold">Comptage des cases</p>
-            <div role="radiogroup" aria-label="Comptage des cases" className="space-y-0.5">
+            <p className="px-2 pb-1 pt-1 text-sm font-semibold">
+              {translate('map.measurements.countingTitle')}
+            </p>
+            <div
+              role="radiogroup"
+              aria-label={translate('map.measurements.countingTitle')}
+              className="space-y-0.5"
+            >
               {GRID_COUNTINGS.map((c) => (
                 <button
-                  key={c.value}
+                  key={c}
                   type="button"
                   role="radio"
-                  aria-checked={c.value === counting}
-                  onClick={() => setGridCounting(engine, c.value)}
+                  aria-checked={c === counting}
+                  onClick={() => setGridCounting(engine, c)}
                   className={cn(
                     'w-full rounded-md px-2 py-1.5 text-left transition-colors hover:bg-surface-2',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-                    c.value === counting && 'text-primary',
+                    c === counting && 'text-primary',
                   )}
                 >
-                  <span className="block text-[13px] font-medium">{c.label}</span>
-                  <span className="block text-[11px] text-muted-foreground">{c.hint}</span>
+                  <span className="block text-[13px] font-medium">
+                    {translate(`map.measurements.counting.${c}.label`)}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {translate(`map.measurements.counting.${c}.hint`)}
+                  </span>
                 </button>
               ))}
             </div>
             <p className="px-2 pb-1 pt-2 text-[11px] text-muted-foreground">
-              Avec une grille de jeu, les mesures disent aussi le nombre de cases à parcourir.
-              Réglage de votre écran seulement.
+              {translate('map.measurements.countingHint')}
             </p>
           </PopoverContent>
         </Popover>
 
         <Popover>
-          <Info texte="Effacer des gabarits">
+          <Info texte={translate('map.measurements.clearSome')}>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Effacer des gabarits">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={translate('map.measurements.clearSome')}
+              >
                 <Trash2 />
               </Button>
             </PopoverTrigger>
@@ -238,7 +273,7 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
               className="w-full justify-start"
               onClick={() => void clearTemplates(ctx, false)}
             >
-              Effacer mes gabarits
+              {translate('map.measurements.clearMine')}
             </Button>
             {gm && (
               <Button
@@ -247,16 +282,17 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
                 className="w-full justify-start"
                 onClick={() => void clearTemplates(ctx, true)}
               >
-                Effacer tous les gabarits
+                {translate('map.measurements.clearAll')}
               </Button>
             )}
-            <p className="px-2 pt-1 text-[11px] text-muted-foreground">⌘Z les fait revenir.</p>
+            <p className="px-2 pt-1 text-[11px] text-muted-foreground">
+              {translate('map.measurements.undoHint')}
+            </p>
           </PopoverContent>
         </Popover>
       </div>
       <p className="max-w-[36rem] px-2 text-center text-[11px] leading-snug text-muted-foreground">
-        Glisser : mesurer (Alt : sans aimantation, ⇧ : par 15°). Entrée : épingler la dernière
-        mesure. 1 à 4 : forme. Un gabarit sélectionné se règle par la poignée de son bout.
+        {translate('map.measurements.toolHint')}
       </p>
     </div>
   );
@@ -265,5 +301,7 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
 /** Réglage du cône affiché : son angle, sa largeur, ou « Dim. » sans largeur fixée. */
 function coneLabel(cone: ConeOptions, unit: string): string {
   if (cone.mode === 'angle') return `${Math.round(cone.angle)}°`;
-  return cone.width ? `${cone.width.toLocaleString('fr-FR')} ${unit}` : 'Dim.';
+  return cone.width
+    ? `${formatter().number(cone.width)} ${unit}`
+    : translate('map.measurements.dimensionsShort');
 }

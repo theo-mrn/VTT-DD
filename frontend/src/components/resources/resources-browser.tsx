@@ -6,6 +6,7 @@
  * présentation). Mêmes composants sur la page de l'accueil et dans le panneau de la table ;
  * seuls les droits changent (bestiaire de campagne pour le MJ, ajout à l'inventaire).
  */
+import { useTranslations } from 'next-intl';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { BookOpen, ImageIcon, Library, Skull, Store, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -30,11 +31,12 @@ export interface ResourcesAccess {
   inventory: InventoryTarget | null;
 }
 
-const ONGLETS: { id: ResourceTab; label: string; icon: LucideIcon }[] = [
-  { id: 'capacites', label: 'Capacités', icon: BookOpen },
-  { id: 'marche', label: 'Marché', icon: Store },
-  { id: 'bestiaire', label: 'Bestiaire', icon: Skull },
-  { id: 'images', label: 'Images', icon: ImageIcon },
+/** Onglets ; nom par défaut : `resources.tabs.<id>` (le système peut nommer les siens). */
+const ONGLETS: { id: ResourceTab; icon: LucideIcon }[] = [
+  { id: 'capacites', icon: BookOpen },
+  { id: 'marche', icon: Store },
+  { id: 'bestiaire', icon: Skull },
+  { id: 'images', icon: ImageIcon },
 ];
 
 /** Onglets que ce système déclare, et que ces droits permettent. */
@@ -79,6 +81,7 @@ export function ResourcesBrowser({
   tab?: ResourceTab | null;
   onTabChange?: (tab: ResourceTab) => void;
 }>) {
+  const t = useTranslations();
   const onglets = availableTabs(presentation, access);
   const [local, setLocal] = useState<ResourceTab | null>(null);
   const voulu = tab !== undefined ? tab : local;
@@ -88,16 +91,12 @@ export function ResourcesBrowser({
     const propre =
       references?.[id === 'capacites' || id === 'marche' || id === 'bestiaire' ? id : 'images']
         ?.titre;
-    return propre ?? ONGLETS.find((o) => o.id === id)!.label;
+    return propre ?? t(`resources.tabs.${id}`);
   };
 
   if (!actif)
     return (
-      <Notice
-        icon={Library}
-        title="Aucune ressource"
-        description="Ce système ne déclare pas encore de ressources à consulter."
-      />
+      <Notice icon={Library} title={t('resources.none')} description={t('resources.noneHint')} />
     );
 
   const changer = (v: string) => {
@@ -110,7 +109,7 @@ export function ResourcesBrowser({
     <ResourcesVariantProvider value={variant}>
       <Tabs value={actif} onValueChange={changer}>
         {onglets.length > 1 && (
-          <TabsList aria-label="Ressources" className="max-w-full overflow-x-auto">
+          <TabsList aria-label={t('resources.title')} className="max-w-full overflow-x-auto">
             {onglets.map((id) => {
               const Icone = ONGLETS.find((o) => o.id === id)!.icon;
               return (

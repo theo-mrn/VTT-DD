@@ -5,6 +5,7 @@
  * personnage qui fouille (celui qu'il incarne par défaut, un autre à portée au choix), et
  * « Prendre » (une partie ou tout) qui range l'objet dans l'inventaire du personnage.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapObjectItem } from '@vtt/contracts';
 import { AlertTriangle, Minus, Package, PackageOpen, Plus, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -46,7 +47,7 @@ export function SearchDialog({
     [engine, object, tokens],
   );
   const inRange = reach.filter((r) => r.inRange);
-  const name = s.result?.name || object?.name || 'l’objet';
+  const name = s.result?.name || object?.name || translate('map.objects.search.theObject');
   const stale = !!s.result && !!object && object.version > s.result.version;
   const gone = s.objectId !== null && !object;
 
@@ -68,22 +69,23 @@ export function SearchDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PackageOpen className="size-5 text-primary" aria-hidden />
-            Fouiller « {name} »
+            {translate('map.objects.search.title', { name })}
           </DialogTitle>
           <DialogDescription>
-            Ce que vous prenez rejoint l’inventaire de{' '}
-            <span className="font-medium text-foreground">
-              {controller.characterName(s.characterId)}
-            </span>
-            .
+            {translate.rich('map.objects.search.joins', {
+              name: controller.characterName(s.characterId),
+              b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+            })}
           </DialogDescription>
         </DialogHeader>
 
         {inRange.length > 1 && s.characterId && (
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Personnage</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              {translate('map.common.character')}
+            </p>
             <SelectField
-              aria-label="Personnage qui fouille"
+              aria-label={translate('map.objects.search.searcher')}
               value={s.characterId}
               onValueChange={(id) => controller.setCharacter(id)}
               options={inRange.map((r) => ({
@@ -103,7 +105,7 @@ export function SearchDialog({
             <span className="flex-1">{s.error}</span>
             {s.status === 'error' && (
               <Button variant="secondary" size="xs" onClick={() => void controller.search()}>
-                Réessayer
+                {translate('map.tokens.library.retry')}
               </Button>
             )}
           </div>
@@ -111,21 +113,21 @@ export function SearchDialog({
 
         {gone && (
           <p className="text-[13px] text-muted-foreground">
-            L’objet n’est plus visible : le contenu affiché peut être périmé.
+            {translate('map.objects.search.stale')}
           </p>
         )}
         {stale && !gone && (
           <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-2/60 px-3 py-2 text-[13px] text-muted-foreground">
-            Le contenu a changé depuis votre fouille.
+            {translate('map.objects.search.changed')}
             <Button variant="secondary" size="xs" onClick={() => void controller.search()}>
               <RefreshCw />
-              Actualiser
+              {translate('map.objects.search.refresh')}
             </Button>
           </div>
         )}
 
         {s.status === 'loading' && !s.result && (
-          <div className="space-y-2" aria-label="Fouille en cours">
+          <div className="space-y-2" aria-label={translate('map.objects.search.inProgress')}>
             {Array.from({ length: 3 }, (_, i) => (
               <Skeleton key={i} className="h-14" />
             ))}
@@ -146,7 +148,7 @@ export function SearchDialog({
         )}
         {s.result?.items.length === 0 && (
           <p className="rounded-lg border border-dashed border-border-strong px-3 py-6 text-center text-[13px] text-muted-foreground">
-            Il n’y a rien (ou plus rien) à prendre.
+            {translate('map.objects.search.nothing')}
           </p>
         )}
       </DialogContent>
@@ -199,7 +201,7 @@ function ItemRow({
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label="Un de moins"
+                aria-label={translate('map.objects.search.oneLess')}
                 disabled={q <= 1 || disabled}
                 onClick={() => setQuantity(q - 1)}
               >
@@ -211,7 +213,7 @@ function ItemRow({
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label="Un de plus"
+                aria-label={translate('map.objects.search.oneMore')}
                 disabled={q >= item.quantity || disabled}
                 onClick={() => setQuantity(q + 1)}
               >
@@ -220,7 +222,9 @@ function ItemRow({
             </span>
           )}
           <Button size="xs" loading={busy} disabled={disabled} onClick={() => onTake(q)}>
-            {item.quantity > 1 ? `Prendre ${q}` : 'Prendre'}
+            {item.quantity > 1
+              ? translate('map.objects.search.takeCount', { count: q })
+              : translate('map.objects.search.take')}
           </Button>
           {item.quantity > 1 && q < item.quantity && (
             <Button

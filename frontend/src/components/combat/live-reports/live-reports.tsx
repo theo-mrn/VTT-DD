@@ -8,6 +8,7 @@
  * la pastille de la barre replie la pile. Pile au focus : Entrée applique la carte
  * dépliée, Suppr ne l'applique pas.
  */
+import { useTranslations } from 'next-intl';
 import type { CombatState } from '@vtt/contracts';
 import { ScrollText } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
@@ -42,6 +43,7 @@ export function LiveReports({
   campagne: DetailCampagne;
   combat: CombatState | null;
 }>) {
+  const t = useTranslations();
   const { stack, focus, busy } = live;
   const focused = stack.visible.find((i) => i.attack.id === focus)?.attack ?? null;
 
@@ -68,8 +70,8 @@ export function LiveReports({
         {shown && (
           <motion.section
             key="pile"
-            aria-label="Rapports d’attaque en direct"
-            aria-keyshortcuts="Enter Delete"
+            aria-label={t('combat.live.title')}
+            aria-keyshortcuts={'Enter Delete' /* i18n-ignore */}
             tabIndex={0}
             onKeyDown={onKeyDown}
             initial={{ opacity: 0, y: -6 }}
@@ -118,8 +120,8 @@ export function LiveReports({
                     aria-expanded={live.showAll}
                     aria-label={
                       live.showAll
-                        ? 'Ne montrer que les premiers rapports'
-                        : `Montrer les ${stack.hidden} autres rapports`
+                        ? t('combat.live.showFirst')
+                        : t('combat.live.showMore', { count: stack.hidden })
                     }
                     className={cn(
                       GLASS,
@@ -127,7 +129,7 @@ export function LiveReports({
                       TOUCH,
                     )}
                   >
-                    {live.showAll ? 'Moins' : `+${stack.hidden}`}
+                    {live.showAll ? t('encounters.less') : `+${stack.hidden}`}
                   </button>
                 </motion.div>
               )}
@@ -196,9 +198,10 @@ function Card({
  * attaque seulement en cours : un point qui respire.
  */
 export function ReportsToggle({ live }: Readonly<{ live: Live }>) {
+  const t = useTranslations();
   if (!pileShown(live)) return null;
   const { waiting } = live.stack;
-  const label = live.collapsed ? 'Déplier les rapports' : 'Replier les rapports';
+  const label = live.collapsed ? t('combat.live.expand') : t('combat.live.collapse');
   return (
     <Info texte={label} cote="bottom">
       <button

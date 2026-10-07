@@ -207,7 +207,7 @@ export class PortalView {
     // Icône (écran)
     v.icon.position.set(p.pos.x, p.pos.y);
     v.disk.tint = color;
-    const icon = PORTAL_ICONS.some((i) => i.value === p.icon) ? p.icon! : 'portal';
+    const icon = p.icon && PORTAL_ICONS.includes(p.icon) ? p.icon : 'portal';
     if (v.glyph.context !== ctxs.glyphs[icon]) v.glyph.context = ctxs.glyphs[icon];
     // Anneau de sélection, estompé au survol
     v.ring.visible = selected || hovered;

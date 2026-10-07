@@ -1,16 +1,12 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import {
-  AvatarJoueur,
-  Bouton,
-  Carte,
-  Chargement,
-  Message,
-  formaterDuree,
-} from '@/components/compte/elements';
+import { AvatarJoueur, Bouton, Carte, Chargement, Message } from '@/components/compte/elements';
 import { styleLien } from '@/components/compte/styles';
+import { LevelBadge } from '@/components/progression/level';
+import { useDates } from '@/i18n/dates';
 import {
   accepterDemande,
   demanderEnAmi,
@@ -25,6 +21,8 @@ import { cn } from '@/lib/utils';
 
 /** Profil public d'un joueur (GET /v1/users/:id), avec la relation d'amitié. */
 export default function PageJoueur() {
+  const t = useTranslations('account');
+  const dates = useDates();
   const { id } = useParams<{ id: string }>();
   const moi = useProfil();
   const joueur = useRessource(id ? `joueur-${id}` : null, () => lireJoueur(id));
@@ -34,9 +32,9 @@ export default function PageJoueur() {
   if (joueur.erreur || !joueur.donnees) {
     return (
       <Carte>
-        <Message>{joueur.erreur ?? 'Joueur introuvable.'}</Message>
+        <Message>{joueur.erreur ?? t('player.notFound')}</Message>
         <Link href="/amis" className={cn('mt-4 inline-block', styleLien)}>
-          Retour aux amis
+          {t('player.backToFriends')}
         </Link>
       </Carte>
     );
@@ -57,20 +55,23 @@ export default function PageJoueur() {
           <div className="-mt-16 flex flex-wrap items-end gap-4">
             <AvatarJoueur nom={p.name} url={p.avatarUrl} bordure={p.borderType} taille="xl" />
             <div className="min-w-0 flex-1">
-              <h1 className="truncate font-display text-2xl font-semibold text-foreground sm:text-3xl">
-                {p.name}
-              </h1>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <h1 className="truncate font-display text-2xl font-semibold text-foreground sm:text-3xl">
+                  {p.name}
+                </h1>
+                <LevelBadge level={p.level ?? 1} className="shrink-0" />
+              </div>
               {p.title && <p className="text-primary">{p.title}</p>}
             </div>
             <div className="flex gap-2">
               {lien === 'moi' && (
                 <Bouton asChild ton="secondaire">
-                  <Link href="/profil">Modifier mon profil</Link>
+                  <Link href="/profil">{t('player.editProfile')}</Link>
                 </Bouton>
               )}
               {lien === 'aucune' && (
                 <Bouton chargement={occupe} onClick={() => agir(p.id, demanderEnAmi)}>
-                  Ajouter en ami
+                  {t('player.addFriend')}
                 </Bouton>
               )}
               {lien === 'envoyee' && (
@@ -79,26 +80,26 @@ export default function PageJoueur() {
                   chargement={occupe}
                   onClick={() => agir(p.id, supprimerDemande)}
                 >
-                  Annuler la demande
+                  {t('player.cancelRequest')}
                 </Bouton>
               )}
               {lien === 'recue' && (
                 <>
                   <Bouton chargement={occupe} onClick={() => agir(p.id, accepterDemande)}>
-                    Accepter
+                    {t('friends.accept')}
                   </Bouton>
                   <Bouton
                     ton="secondaire"
                     disabled={occupe}
                     onClick={() => agir(p.id, supprimerDemande)}
                   >
-                    Refuser
+                    {t('friends.decline')}
                   </Bouton>
                 </>
               )}
               {lien === 'ami' && (
                 <Bouton ton="danger" chargement={occupe} onClick={() => agir(p.id, retirerAmi)}>
-                  Retirer des amis
+                  {t('player.removeFriend')}
                 </Bouton>
               )}
             </div>
@@ -107,8 +108,10 @@ export default function PageJoueur() {
           {erreur && <Message>{erreur}</Message>}
           {p.bio && <p className="whitespace-pre-line text-foreground/85">{p.bio}</p>}
           <p className="text-sm text-muted-foreground">
-            Temps de jeu :{' '}
-            <span className="text-foreground">{formaterDuree(p.timeSpentMinutes)}</span>
+            {t.rich('player.playTime', {
+              duration: dates.duration(p.timeSpentMinutes),
+              b: (chunks) => <span className="text-foreground">{chunks}</span>,
+            })}
           </p>
         </div>
       </div>

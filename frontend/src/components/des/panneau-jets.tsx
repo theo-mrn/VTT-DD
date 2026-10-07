@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { BarChart3, History, Radio, Swords, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,13 +40,14 @@ export function PanneauJets({
   onRelancer: (jet: Jet) => void;
   onEfface: () => void;
 }>) {
+  const t = useTranslations('dice.panel');
   const [onglet, setOnglet] = useState('historique');
   const stats = useStatsJets(roomId, onglet === 'stats');
   const Contexte = campagne ? Swords : UserRound;
 
   return (
     <aside
-      aria-label="Historique et statistiques"
+      aria-label={t('label')}
       className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-surface"
     >
       <Tabs value={onglet} onValueChange={setOnglet} className="flex min-h-0 flex-1 flex-col">
@@ -56,14 +58,14 @@ export function PanneauJets({
               className="flex-1 text-xs font-bold uppercase tracking-wider"
             >
               <History aria-hidden />
-              Historique
+              {t('history')}
             </TabsTrigger>
             <TabsTrigger
               value="stats"
               className="flex-1 text-xs font-bold uppercase tracking-wider"
             >
               <BarChart3 aria-hidden />
-              Statistiques
+              {t('stats')}
             </TabsTrigger>
           </TabsList>
           {peutEffacer && (
@@ -79,15 +81,13 @@ export function PanneauJets({
           <p className="flex items-center gap-1.5 px-3 pt-2 text-[11px] text-subtle">
             <Contexte className="size-3 shrink-0" aria-hidden />
             <span className="truncate">
-              {onglet === 'stats' && !campagne
-                ? 'Tous vos jets, campagnes comprises'
-                : (campagne ?? 'Jets personnels')}
+              {onglet === 'stats' && !campagne ? t('allRolls') : (campagne ?? t('personal'))}
             </span>
             {campagne && live && (
-              <Info texte="En direct : les jets de la table arrivent tout seuls">
+              <Info texte={t('liveHint')}>
                 <span className="ml-auto flex shrink-0 items-center gap-1 text-success">
                   <Radio className="size-3" aria-hidden />
-                  En direct
+                  {t('live')}
                 </span>
               </Info>
             )}

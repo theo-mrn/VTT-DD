@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Settings2,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -30,11 +31,12 @@ type RailLayout = ReturnType<typeof useRailLayout>;
  * bouton Carte (mobile). Mêmes panneaux, même ordre personnalisé.
  */
 export const TableRail = memo(function TableRail({ layout }: { layout: RailLayout }) {
+  const t = useTranslations('table.rail');
   const visibles = layout.items.filter((i) => !i.hidden);
   return (
     <>
       <nav
-        aria-label="Panneaux de la table"
+        aria-label={t('label')}
         className="fixed left-3 top-1/2 z-40 hidden max-h-[calc(100dvh-8rem)] -translate-y-1/2 flex-col items-center gap-1 overflow-y-auto rounded-2xl border border-border-strong bg-popover/95 p-1.5 shadow-elevated lg:flex"
       >
         <PillGroup>
@@ -47,7 +49,7 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
       </nav>
 
       <nav
-        aria-label="Panneaux de la table"
+        aria-label={t('label')}
         className="fixed inset-x-0 bottom-0 z-50 flex h-[var(--table-dock-h)] items-start border-t border-border-strong bg-popover/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 lg:hidden"
       >
         <div className="no-scrollbar flex w-full items-center gap-0.5 overflow-x-auto">
@@ -89,9 +91,8 @@ function RailButton({
   const toggle = usePanelStore((s) => s.toggle);
   const Icone = panel.icon;
   const touche = useBindingLabel(shortcutOfPanel(panel.id));
-  let nouveautes = '';
-  if (badge === 1) nouveautes = ' (1 nouveauté)';
-  else if (badge > 1) nouveautes = ` (${badge} nouveautés)`;
+  const t = useTranslations('table');
+  const nom = t(`panels.${panel.id}.label`);
 
   const bouton = (
     <button
@@ -100,7 +101,7 @@ function RailButton({
       aria-expanded={actif}
       aria-controls={monte ? panelDomId(panel.id) : undefined}
       aria-keyshortcuts={touche.aria}
-      aria-label={`${panel.label}${nouveautes}`}
+      aria-label={t('rail.news', { count: badge, panel: nom })}
       className={cn(
         'relative isolate flex shrink-0 items-center justify-center transition-[color,background-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 active:scale-95',
         variante === 'rail'
@@ -117,7 +118,7 @@ function RailButton({
         />
       )}
       <Icone className="size-5" aria-hidden />
-      {variante === 'dock' && <span className="max-w-full truncate">{panel.label}</span>}
+      {variante === 'dock' && <span className="max-w-full truncate">{nom}</span>}
       {badge > 0 && <Pastille nombre={badge} />}
     </button>
   );
@@ -128,7 +129,7 @@ function RailButton({
       cote="right"
       texte={
         <span className="flex items-center gap-2">
-          {panel.label}
+          {nom}
           {touche.label && <Kbd>{touche.label}</Kbd>}
         </span>
       }
@@ -140,6 +141,7 @@ function RailButton({
 
 /** Mobile : revenir à la carte (ferme le panneau ouvert). */
 function DockMap() {
+  const t = useTranslations('table.rail');
   const surCarte = usePanelStore((s) => s.active === null);
   const close = usePanelStore((s) => s.close);
   return (
@@ -153,22 +155,23 @@ function DockMap() {
       )}
     >
       <IconeCarte className="size-5" aria-hidden />
-      Carte
+      {t('map')}
     </button>
   );
 }
 
 /** Ordre et masquage des panneaux du rail, par boutons (pas de glisser-déposer). */
 function RailCustomizer({ layout, cote }: Readonly<{ layout: RailLayout; cote: 'right' | 'top' }>) {
+  const t = useTranslations('table.rail');
   const { items, move, setHidden, reset, customized } = layout;
   const tousVisibles = items.filter((i) => !i.hidden).length;
   return (
     <Popover>
-      <Info texte={cote === 'right' ? 'Personnaliser le rail' : null} cote="right">
+      <Info texte={cote === 'right' ? t('customizeRail') : null} cote="right">
         <PopoverTrigger asChild>
           <button
             type="button"
-            aria-label="Personnaliser la barre des panneaux"
+            aria-label={t('customizeLabel')}
             className={cn(
               'flex shrink-0 items-center justify-center rounded-xl text-subtle transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 data-[state=open]:bg-surface-3 data-[state=open]:text-foreground',
               cote === 'right' ? 'size-11' : 'h-12 w-11',
@@ -180,13 +183,10 @@ function RailCustomizer({ layout, cote }: Readonly<{ layout: RailLayout; cote: '
       </Info>
       <PopoverContent side={cote} align="end" className="w-80 p-0">
         <div className="border-b border-border px-4 py-3">
-          <p className="text-sm font-semibold">Barre des panneaux</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Ordre et panneaux affichés, pour cette campagne. Un panneau masqué s’ouvre toujours avec
-            sa touche.
-          </p>
+          <p className="text-sm font-semibold">{t('title')}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t('lead')}</p>
         </div>
-        <ul className="max-h-[50dvh] overflow-y-auto p-1.5" aria-label="Panneaux">
+        <ul className="max-h-[50dvh] overflow-y-auto p-1.5" aria-label={t('panels')}>
           {items.map((i, index) => (
             <LigneCustomizer
               key={i.panel.id}
@@ -203,7 +203,7 @@ function RailCustomizer({ layout, cote }: Readonly<{ layout: RailLayout; cote: '
           <ToucheNoteRapide />
           <Button variant="ghost" size="xs" onClick={reset} disabled={!customized}>
             <RotateCcw />
-            Réinitialiser
+            {t('reset')}
           </Button>
         </div>
       </PopoverContent>
@@ -226,6 +226,8 @@ function LigneCustomizer({
   onMove: (delta: -1 | 1) => void;
   onHidden: (hidden: boolean) => void;
 }>) {
+  const t = useTranslations('table');
+  const nom = t(`panels.${panel.id}.label`);
   const Icone = panel.icon;
   const touche = useBindingLabel(shortcutOfPanel(panel.id));
   return (
@@ -235,7 +237,7 @@ function LigneCustomizer({
         aria-hidden
       />
       <span className={cn('min-w-0 flex-1 truncate text-sm', hidden && 'text-subtle line-through')}>
-        {panel.label}
+        {nom}
       </span>
       {touche.label && <Kbd aria-hidden>{touche.label}</Kbd>}
       <Button
@@ -243,7 +245,7 @@ function LigneCustomizer({
         size="icon-xs"
         onClick={() => onMove(-1)}
         disabled={premier}
-        aria-label={`Monter ${panel.label}`}
+        aria-label={t('rail.moveUp', { panel: nom })}
       >
         <ChevronUp />
       </Button>
@@ -252,7 +254,7 @@ function LigneCustomizer({
         size="icon-xs"
         onClick={() => onMove(1)}
         disabled={dernier}
-        aria-label={`Descendre ${panel.label}`}
+        aria-label={t('rail.moveDown', { panel: nom })}
       >
         <ChevronDown />
       </Button>
@@ -262,7 +264,7 @@ function LigneCustomizer({
         onClick={() => onHidden(!hidden)}
         disabled={dernierVisible}
         aria-pressed={!hidden}
-        aria-label={hidden ? `Afficher ${panel.label}` : `Masquer ${panel.label}`}
+        aria-label={hidden ? t('rail.show', { panel: nom }) : t('rail.hide', { panel: nom })}
       >
         {hidden ? <EyeOff /> : <Eye />}
       </Button>
@@ -272,11 +274,12 @@ function LigneCustomizer({
 
 /** Rappel de la note rapide, avec la touche choisie (rien si elle n'en a plus). */
 function ToucheNoteRapide() {
+  const t = useTranslations('table.rail');
   const touche = useBindingLabel(TABLE_SHORTCUTS.quickNote);
   if (!touche.label) return <span />;
   return (
     <span className="flex items-center gap-1.5 text-xs text-subtle">
-      Note rapide <Kbd>{touche.label}</Kbd>
+      {t('quickNote')} <Kbd>{touche.label}</Kbd>
     </span>
   );
 }

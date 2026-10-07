@@ -5,6 +5,7 @@
  */
 import {
   bigint,
+  boolean,
   integer,
   jsonb,
   pgSchema,
@@ -150,6 +151,44 @@ export const purchases = billingSchema.table('purchases', {
   consentAt: timestampTz('consent_at'),
 });
 export type PurchaseRow = typeof purchases.$inferSelect;
+
+/** Compte Stripe Connect d'un créateur de la marketplace (docs/marketplace.md § 5). */
+export const connectedAccounts = billingSchema.table('connected_accounts', {
+  userId: uuid('user_id').primaryKey(),
+  stripeAccountId: text('stripe_account_id').notNull(),
+  chargesEnabled: boolean('charges_enabled').notNull().default(false),
+  payoutsEnabled: boolean('payouts_enabled').notNull().default(false),
+  detailsSubmitted: boolean('details_submitted').notNull().default(false),
+  requirementsDue: integer('requirements_due').notNull().default(0),
+  stateVersion: bigint('state_version', { mode: 'number' }).notNull().default(0),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+export type ConnectedAccountRow = typeof connectedAccounts.$inferSelect;
+
+export const SALE_STATUSES = ['pending', 'completed', 'expired', 'refunded', 'disputed'] as const;
+export type SaleStatus = (typeof SALE_STATUSES)[number];
+
+/** Vente d'un pack de la marketplace : une par session Checkout. */
+export const marketplaceSales = billingSchema.table('marketplace_sales', {
+  id: uuid('id').primaryKey(),
+  buyerId: uuid('buyer_id').notNull(),
+  sellerId: uuid('seller_id').notNull(),
+  listingId: uuid('listing_id').notNull(),
+  title: text('title').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  feeCents: integer('fee_cents').notNull(),
+  currency: text('currency').notNull().default('eur'),
+  stripeAccountId: text('stripe_account_id').notNull(),
+  status: text('status', { enum: SALE_STATUSES }).notNull().default('pending'),
+  stripeSessionId: text('stripe_session_id').notNull(),
+  stripePaymentIntentId: text('stripe_payment_intent_id'),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+  completedAt: timestampTz('completed_at'),
+  refundedAt: timestampTz('refunded_at'),
+  consentAt: timestampTz('consent_at'),
+});
+export type SaleRow = typeof marketplaceSales.$inferSelect;
 
 export const rightsVersions = billingSchema.table('rights_versions', {
   userId: uuid('user_id').primaryKey(),

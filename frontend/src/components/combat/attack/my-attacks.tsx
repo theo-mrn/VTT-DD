@@ -5,11 +5,12 @@
  * (ou les plus récentes hors combat), avec leur statut en direct. Un clic en montre le suivi.
  * Le service filtre la liste pour un joueur (ses attaques, vue de l'attaquant).
  */
+import { useTranslations } from 'next-intl';
 import type { Attack } from '@vtt/contracts';
 import { ChevronRight, Clock, EyeOff, Swords } from 'lucide-react';
 import { EtatVide } from '@/components/commun/page';
 import { Badge } from '@/components/ui/badge';
-import { ATTACK_STATUS_LABELS, isClosed, useAttacks } from '@/lib/combat/use-attacks';
+import { attackStatusLabel, isClosed, useAttacks } from '@/lib/combat/use-attacks';
 import { targetName, type KnownCharacter } from '@/lib/combat/view';
 
 const time = (iso: string) =>
@@ -28,6 +29,7 @@ export function MyAttacks({
   known: ReadonlyMap<string, KnownCharacter>;
   onShow: (attack: Attack) => void;
 }>) {
+  const t = useTranslations();
   const { attacks, isLoading, isError } = useAttacks(campaignId, {
     ...(combatId ? { combatId } : {}),
     limit: 30,
@@ -35,9 +37,17 @@ export function MyAttacks({
   const mine = attacks.filter((a) => a.createdBy === userId);
 
   if (isLoading)
-    return <p className="px-1 py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>;
+    return (
+      <p className="px-1 py-6 text-center text-[13px] text-muted-foreground">
+        {t('common.states.loading')}
+      </p>
+    );
   if (isError)
-    return <p className="px-1 py-6 text-center text-[13px] text-muted-foreground">Indisponible</p>;
+    return (
+      <p className="px-1 py-6 text-center text-[13px] text-muted-foreground">
+        {t('combat.attack.unavailable')}
+      </p>
+    );
   if (!mine.length)
     return (
       <EtatVide icone={Swords} titre="Aucune attaque" className="border-none bg-transparent py-6" />
@@ -54,17 +64,21 @@ export function MyAttacks({
           >
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13px] font-medium">
-                {known.get(a.attackerId)?.name ?? 'Personnage'} · {a.action.name}
+                {known.get(a.attackerId)?.name ?? t('map.common.character')} · {a.action.name}
               </span>
               <span className="block truncate text-[12px] text-muted-foreground">
                 {a.targets.map((t) => targetName(t.characterId, known)).join(', ') || '—'}
               </span>
             </span>
             <span className="flex shrink-0 flex-col items-end gap-1">
-              <Badge ton={statusTone(a.status)}>{ATTACK_STATUS_LABELS[a.status]}</Badge>
+              <Badge ton={statusTone(a.status)}>{attackStatusLabel(a.status)}</Badge>
               <span className="flex items-center gap-1.5 text-[11px] text-subtle">
-                {a.visibility === 'gm' && <EyeOff className="size-3" aria-label="Cachée" />}
-                {a.outOfTurn && <Clock className="size-3" aria-label="Hors tour" />}
+                {a.visibility === 'gm' && (
+                  <EyeOff className="size-3" aria-label={t('combat.attack.hiddenF')} />
+                )}
+                {a.outOfTurn && (
+                  <Clock className="size-3" aria-label={t('combat.attack.outOfTurnCap')} />
+                )}
                 {time(a.createdAt)}
               </span>
             </span>

@@ -7,6 +7,8 @@
  * annulation, erreurs claires. Le fichier part directement au stockage (Uppy, route commune
  * `POST …/uploads`), compressé en WebP ; `onChange` reçoit son adresse publique.
  */
+import { useTranslations } from 'next-intl';
+import type { Translator } from '@/i18n/text';
 import {
   UPLOAD_EXTENSIONS,
   UPLOAD_USAGES,
@@ -68,6 +70,7 @@ export function ImageDrop({
   cropAspect?: number | null;
   disabled?: boolean;
 }>) {
+  const t = useTranslations();
   const u: UploadUsage = UPLOAD_USAGES[usage];
   const aspect = cropAspect === undefined ? u.aspect : cropAspect;
   const name = label ?? u.label;
@@ -97,7 +100,7 @@ export function ImageDrop({
   };
 
   async function send(file: File, crop: CropArea | null = null) {
-    if (!target) return setPhase({ kind: 'error', message: 'Envoi impossible ici', retry: null });
+    if (!target) return setPhase({ kind: 'error', message: t('uploads.notHere'), retry: null });
     const ctrl = new AbortController();
     abort.current = ctrl;
     setPhase({
@@ -124,7 +127,7 @@ export function ImageDrop({
       if (ctrl.signal.aborted) return setPhase({ kind: 'idle' });
       setPhase({
         kind: 'error',
-        message: err instanceof Error ? err.message : 'Envoi impossible',
+        message: err instanceof Error ? err.message : t('uploads.failed'),
         retry: file,
       });
     } finally {
@@ -138,7 +141,9 @@ export function ImageDrop({
     if (!(u.types as readonly string[]).includes(file.type))
       return setPhase({
         kind: 'error',
-        message: `Format non accepté (${u.types.map((t) => UPLOAD_EXTENSIONS[t].toUpperCase()).join(', ')})`,
+        message: t('uploads.badFormat', {
+          formats: u.types.map((type) => UPLOAD_EXTENSIONS[type].toUpperCase()).join(', '),
+        }),
         retry: null,
       });
     if (aspect !== null && isProcessable(file.type))
@@ -188,7 +193,7 @@ export function ImageDrop({
       <div
         role="button"
         tabIndex={disabled ? -1 : 0}
-        aria-label={`${name} : glisser une image, coller, ou choisir un fichier`}
+        aria-label={t('uploads.dropLabel', { name })}
         aria-disabled={disabled || undefined}
         onClick={() => !busy && !disabled && input.current?.click()}
         onKeyDown={(e) => {
@@ -256,7 +261,7 @@ export function ImageDrop({
               </motion.span>
               <span className="text-sm font-medium">{dragging ? 'Déposez ici' : name}</span>
               <span className="text-[11px] text-subtle">
-                {u.types.map((t) => UPLOAD_EXTENSIONS[t].toUpperCase()).join(' · ')} ·{' '}
+                {u.types.map((type) => UPLOAD_EXTENSIONS[type].toUpperCase()).join(' · ')} ·{' '}
                 {fmtSize(u.maxBytes)}
               </span>
             </motion.div>
@@ -269,9 +274,9 @@ export function ImageDrop({
               className="absolute inset-0 flex items-end justify-end gap-1 bg-gradient-to-t from-background/70 via-transparent to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
             >
               <span className="mr-auto self-end rounded-lg bg-background/80 px-2 py-1 text-[11px] font-medium">
-                Remplacer
+                {t('map.objects.replace')}
               </span>
-              <Info texte="Retirer">
+              <Info texte={t('common.actions.remove')}>
                 <Button
                   type="button"
                   size="icon-sm"
@@ -325,17 +330,17 @@ export function ImageDrop({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://…"
-              aria-label="Adresse de l’image"
+              aria-label={t('uploads.imageAddress')}
               className="h-8 text-xs"
             />
             <Button type="submit" size="xs" disabled={!ADDRESS.test(url.trim())}>
-              Ajouter
+              {t('common.actions.add')}
             </Button>
             <Button
               type="button"
               size="icon-xs"
               variant="ghost"
-              aria-label="Annuler"
+              aria-label={t('common.actions.cancel')}
               onClick={() => setUrlMode(false)}
             >
               <X />
@@ -351,7 +356,7 @@ export function ImageDrop({
             disabled={disabled || busy}
             onClick={() => setUrlMode(true)}
           >
-            <Link2 /> Coller une adresse
+            <Link2 /> {t('uploads.pasteAddress')}
           </Button>
         )}
       </div>
@@ -419,6 +424,7 @@ function ErreurEnvoi({
   onRetry(file: File): void;
   onClose(): void;
 }>) {
+  const t = useTranslations();
   const retry = phase.retry;
   return (
     <p role="alert" className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-destructive">
@@ -426,10 +432,16 @@ function ErreurEnvoi({
       <span className="truncate">{phase.message}</span>
       {retry && (
         <Button type="button" size="xs" variant="ghost" onClick={() => onRetry(retry)}>
-          <RefreshCw /> Réessayer
+          <RefreshCw /> {t('common.actions.retry')}
         </Button>
       )}
-      <Button type="button" size="icon-xs" variant="ghost" aria-label="Fermer" onClick={onClose}>
+      <Button
+        type="button"
+        size="icon-xs"
+        variant="ghost"
+        aria-label={t('common.actions.close')}
+        onClick={onClose}
+      >
         <X />
       </Button>
     </p>
@@ -447,6 +459,7 @@ function UploadMeter({
   encoding: number | null;
   onCancel(): void;
 }>) {
+  const t = useTranslations();
   const p = progress?.progress ?? encoding ?? 0;
   const shown = progress !== null || encoding !== null;
   const r = 22;
@@ -478,7 +491,7 @@ function UploadMeter({
       <span className="font-mono text-[11px] text-muted-foreground tabular-nums" aria-live="polite">
         {progress
           ? `${fmtSize(progress.bytesUploaded)} / ${fmtSize(progress.bytesTotal)}`
-          : attente(encoding)}
+          : attente(t, encoding)}
       </span>
       <Button
         type="button"
@@ -489,7 +502,7 @@ function UploadMeter({
           onCancel();
         }}
       >
-        <X /> Annuler
+        <X /> {t('common.actions.cancel')}
       </Button>
     </div>
   );
@@ -509,6 +522,7 @@ function CropDialog({
   onCancel(): void;
   onDone(file: File, area: CropArea): void;
 }>) {
+  const t = useTranslations();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(null);
@@ -527,9 +541,7 @@ function CropDialog({
           <div className="flex items-center gap-2 px-5 pb-3 pt-5">
             <Crop className="size-4 text-primary" aria-hidden />
             <DialogTitle className="text-base">Recadrer : {title.toLowerCase()}</DialogTitle>
-            <DialogDescription className="sr-only">
-              Glissez pour cadrer, zoomez avec la molette ou le curseur.
-            </DialogDescription>
+            <DialogDescription className="sr-only">{t('uploads.cropHint')}</DialogDescription>
           </div>
           <div className="relative h-80 bg-background">
             <Cropper
@@ -551,11 +563,11 @@ function CropDialog({
               max={4}
               step={0.01}
               onValueChange={(v) => setZoom(v[0] ?? 1)}
-              aria-label="Zoom"
+              aria-label={t('portraits.zoom')}
               className="flex-1"
             />
             <Button type="button" variant="ghost" onClick={onCancel}>
-              Annuler
+              {t('common.actions.cancel')}
             </Button>
             <Button
               type="button"
@@ -570,7 +582,7 @@ function CropDialog({
                 })
               }
             >
-              Envoyer
+              {t('common.actions.send')}
             </Button>
           </div>
         </DialogContent>
@@ -580,7 +592,8 @@ function CropDialog({
 }
 
 /** Avant l'envoi : conversion de l'image en cours, ou préparation. */
-const attente = (encoding: unknown) => (encoding === null ? 'Préparation…' : 'Conversion…');
+const attente = (t: Translator, encoding: unknown) =>
+  encoding === null ? t('portraits.preparing') : t('uploads.converting');
 
 /** Adresse affichable comme média : http(s), blob (aperçu local) ou image en data. */
 function urlMedia(value: string): boolean {

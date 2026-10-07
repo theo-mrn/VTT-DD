@@ -1,0 +1,598 @@
+'use client';
+
+/**
+ * Éditeur d'un pack (studio) : la fiche (texte, système, licence, étiquettes, avertissements,
+ * prix, couverture, galerie) et ses versions (contenu composé depuis une campagne, numéro,
+ * notes, soumission à la revue, historique et motifs de refus).
+ */
+import {
+  CONTENT_WARNINGS,
+  LICENSES,
+  nextVersionNumber,
+  type ContentWarning,
+  type License,
+  type StudioListing,
+  type StudioVersion,
+  type UpdateListing,
+} from '@vtt/contracts';
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  FilePlus2,
+  ImagePlus,
+  Layers,
+  MoreHorizontal,
+  Send,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useMemo, useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
+import { Message } from '@/components/compte/elements';
+import { Page, Panneau } from '@/components/commun/page';
+import { ImageDrop } from '@/components/uploads/image-drop';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { SelectField } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
+import { Info } from '@/components/ui/tooltip';
+import { messageErreur } from '@/lib/api';
+import {
+  marketplaceApi,
+  useMarketplaceConfig,
+  useMarketplaceMutation,
+  useStudioListing,
+} from '@/lib/marketplace/api';
+import { creatorShare, parsePrice, priceInput } from '@/lib/marketplace/format';
+import { useSystemes } from '@/lib/systemes';
+import { Chip, Cover } from './elements';
+import { PackComposer } from './pack-composer';
+import { useStudioLabels } from './studio-labels';
+
+export function StudioListingPage({ id }: Readonly<{ id: string }>) {
+  const t = useTranslations('marketplace.studio.page');
+  const listing = useStudioListing(id);
+  return (
+    <Page large>
+      <Link
+        href="/marketplace/studio"
+        className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" aria-hidden />
+        {t('title')}
+      </Link>
+      {listing.isError && <Message>{messageErreur(listing.error)}</Message>}
+      {listing.isPending && <Skeleton className="h-96 w-full rounded-2xl" />}
+      {listing.data && <Editor key={listing.data.version} listing={listing.data} />}
+    </Page>
+  );
+}
+
+function Editor({ listing }: Readonly<{ listing: StudioListing }>) {
+  const t = useTranslations('marketplace.studio.listing');
+  const labels = useStudioLabels();
+  const router = useRouter();
+  const removed = listing.status === 'removed';
+  const listed = useMarketplaceMutation((v: boolean) => marketplaceApi.setListed(listing.id, v));
+  const remove = useMarketplaceMutation(() => marketplaceApi.deleteListing(listing.id));
+  const deletable = listing.status === 'draft' && !listing.publishedAt;
+
+  return (
+    <>
+      <header className="mb-6 flex flex-wrap items-center gap-3">
+        <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight">{listing.title}</h1>
+        <Badge
+          taille="md"
+          ton={listing.status === 'published' ? 'succes' : removed ? 'danger' : 'neutre'}
+        >
+          {labels.listingStatus(listing.status)}
+        </Badge>
+        <div className="ml-auto flex items-center gap-2">
+          {listing.status !== 'draft' && (
+            <Button variant="secondary" size="sm" asChild>
+              <Link href={`/marketplace/${listing.slug}`}>
+                <Eye aria-hidden />
+                {t('view')}
+              </Link>
+            </Button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label={t('moreActions')}>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {listing.status === 'published' && (
+                <DropdownMenuItem
+                  onSelect={() =>
+                    listed.mutate(false, { onError: (e) => toast.error(messageErreur(e)) })
+                  }
+                >
+                  <EyeOff aria-hidden />
+                  {t('unlist')}
+                </DropdownMenuItem>
+              )}
+              {listing.status === 'unlisted' && (
+                <DropdownMenuItem
+                  onSelect={() =>
+                    listed.mutate(true, { onError: (e) => toast.error(messageErreur(e)) })
+                  }
+                >
+                  <Eye aria-hidden />
+                  {t('relist')}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                disabled={!deletable}
+                className="text-destructive"
+                onSelect={() =>
+                  remove.mutate(undefined, {
+                    onSuccess: () => router.push('/marketplace/studio'),
+                    onError: (e) => toast.error(messageErreur(e)),
+                  })
+                }
+              >
+                <Trash2 aria-hidden />
+                {t('deleteDraft')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
+      {removed && listing.removedReason && (
+        <Message className="mb-6">
+          {t('removedBy', { reason: labels.moderationReason(listing.removedReason) })}
+        </Message>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <ListingForm listing={listing} disabled={removed} />
+        <Versions listing={listing} disabled={removed} />
+      </div>
+    </>
+  );
+}
+
+/** Saisie des étiquettes : « donjon, sel » → ['donjon', 'sel']. */
+const parseTags = (text: string) =>
+  [
+    ...new Set(
+      text
+        .split(',')
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ].slice(0, 5);
+
+function ListingForm({
+  listing,
+  disabled,
+}: Readonly<{ listing: StudioListing; disabled: boolean }>) {
+  const t = useTranslations('marketplace.studio.form');
+  const tc = useTranslations('common.actions');
+  const labels = useStudioLabels();
+  const config = useMarketplaceConfig();
+  const systems = useSystemes();
+  const [title, setTitle] = useState(listing.title);
+  const [summary, setSummary] = useState(listing.summary);
+  const [description, setDescription] = useState(listing.description);
+  const [systemId, setSystemId] = useState(listing.systemId ?? '');
+  const [license, setLicense] = useState<License>(listing.license);
+  const [attribution, setAttribution] = useState(listing.attribution);
+  const [tags, setTags] = useState(listing.tags.join(', '));
+  const [warnings, setWarnings] = useState<ContentWarning[]>(listing.contentWarnings);
+  const [price, setPrice] = useState(priceInput(listing.priceCents));
+  const priceCents = parsePrice(price);
+
+  const save = useMarketplaceMutation((patch: UpdateListing) =>
+    marketplaceApi.updateListing(listing.id, { ...patch, version: listing.version }),
+  );
+
+  const patch = useMemo(() => {
+    const p: UpdateListing = {};
+    if (title.trim() !== listing.title) p.title = title.trim();
+    if (summary.trim() !== listing.summary) p.summary = summary.trim();
+    if (description.trim() !== listing.description) p.description = description.trim();
+    if ((systemId || null) !== listing.systemId) p.systemId = systemId || null;
+    if (license !== listing.license) p.license = license;
+    if (attribution.trim() !== listing.attribution) p.attribution = attribution.trim();
+    const t = parseTags(tags);
+    if (t.join(',') !== listing.tags.join(',')) p.tags = t;
+    if ([...warnings].sort().join() !== [...listing.contentWarnings].sort().join())
+      p.contentWarnings = warnings;
+    if (priceCents !== null && priceCents !== listing.priceCents) p.priceCents = priceCents;
+    return p;
+  }, [
+    title,
+    summary,
+    description,
+    systemId,
+    license,
+    attribution,
+    tags,
+    warnings,
+    priceCents,
+    listing,
+  ]);
+  const dirty = Object.keys(patch).length > 0;
+
+  // Une image enregistrée emporte aussi la saisie en cours (le formulaire se recharge ensuite)
+  const media = (p: UpdateListing) =>
+    save.mutate({ ...patch, ...p }, { onError: (e) => toast.error(messageErreur(e)) });
+
+  return (
+    <Panneau titre={t('title')}>
+      <fieldset disabled={disabled} className="space-y-5">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="l-title" label={t('name')}>
+            <Input
+              id="l-title"
+              value={title}
+              maxLength={80}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </Field>
+          <Field id="l-system" label={t('system')}>
+            <SelectField
+              id="l-system"
+              value={systemId}
+              onValueChange={setSystemId}
+              options={[
+                { valeur: '', nom: t('allSystems') },
+                ...(systems.data ?? []).map((s) => ({ valeur: s.id, nom: s.nom })),
+              ]}
+            />
+          </Field>
+        </div>
+        <Field id="l-summary" label={t('summary')}>
+          <Input
+            id="l-summary"
+            value={summary}
+            maxLength={160}
+            onChange={(e) => setSummary(e.target.value)}
+          />
+        </Field>
+        <Field id="l-description" label={t('description')}>
+          <Textarea
+            id="l-description"
+            value={description}
+            maxLength={5000}
+            rows={6}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="l-license" label={t('license')}>
+            <SelectField
+              id="l-license"
+              value={license}
+              onValueChange={(v) => setLicense(v as License)}
+              options={LICENSES.map((l) => ({ valeur: l, nom: labels.license(l) }))}
+            />
+          </Field>
+          <Field id="l-tags" label={t('tags')}>
+            <Input
+              id="l-tags"
+              value={tags}
+              placeholder={t('tagsPlaceholder')}
+              onChange={(e) => setTags(e.target.value)}
+            />
+          </Field>
+        </div>
+        <Field id="l-attribution" label={t('credits')}>
+          <Textarea
+            id="l-attribution"
+            value={attribution}
+            maxLength={500}
+            rows={2}
+            onChange={(e) => setAttribution(e.target.value)}
+          />
+        </Field>
+        <div className="space-y-1.5">
+          <Label>{t('warnings')}</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {CONTENT_WARNINGS.map((w) => (
+              <Chip
+                key={w}
+                active={warnings.includes(w)}
+                onClick={() =>
+                  setWarnings((ws) => (ws.includes(w) ? ws.filter((x) => x !== w) : [...ws, w]))
+                }
+              >
+                {labels.warning(w)}
+              </Chip>
+            ))}
+          </div>
+        </div>
+        {(config.data?.paidListings || listing.priceCents > 0) && (
+          <Field id="l-price" label={t('price')}>
+            <div className="flex items-center gap-3">
+              <Input
+                id="l-price"
+                value={price}
+                inputMode="decimal"
+                placeholder={labels.price(0)}
+                className="w-32"
+                aria-invalid={priceCents === null || undefined}
+                onChange={(e) => setPrice(e.target.value)}
+              />
+              {priceCents !== null && priceCents > 0 && (
+                <Info texte={t('feeDeducted')}>
+                  <span className="text-[13px] text-muted-foreground">
+                    {t('youReceive', { amount: labels.price(creatorShare(priceCents)) })}
+                  </span>
+                </Info>
+              )}
+            </div>
+          </Field>
+        )}
+
+        <div className="flex justify-end">
+          <Button disabled={!dirty} loading={save.isPending} onClick={() => media(patch)}>
+            {tc('save')}
+          </Button>
+        </div>
+
+        <div className="space-y-1.5 border-t border-border pt-5">
+          <Label>{t('cover')}</Label>
+          <ImageDrop
+            target={{ kind: 'listing', id: listing.id }}
+            usage="marketplace-cover"
+            value={listing.coverUrl}
+            onChange={(url) => media({ coverUrl: url })}
+            disabled={disabled}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t('gallery')}</Label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {listing.gallery.map((url) => (
+              <div key={url} className="relative overflow-hidden rounded-lg border border-border">
+                <Cover url={url} alt="" />
+                <Button
+                  variant="secondary"
+                  size="icon-xs"
+                  className="absolute right-1 top-1"
+                  aria-label={t('removeImage')}
+                  onClick={() => media({ gallery: listing.gallery.filter((g) => g !== url) })}
+                >
+                  <X />
+                </Button>
+              </div>
+            ))}
+          </div>
+          {listing.gallery.length < 8 && (
+            <ImageDrop
+              key={listing.gallery.length}
+              target={{ kind: 'listing', id: listing.id }}
+              usage="marketplace-image"
+              value={null}
+              label={t('addImage')}
+              onChange={(url) => url && media({ gallery: [...listing.gallery, url] })}
+              disabled={disabled}
+            />
+          )}
+        </div>
+      </fieldset>
+    </Panneau>
+  );
+}
+
+function Field({
+  id,
+  label,
+  children,
+}: Readonly<{ id: string; label: string; children: ReactNode }>) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function Versions({ listing, disabled }: Readonly<{ listing: StudioListing; disabled: boolean }>) {
+  const t = useTranslations('marketplace.studio.versions');
+  const open = listing.versions.find((v) => v.status === 'draft' || v.status === 'in_review');
+  const latest = listing.versions[0]?.number ?? null;
+  const create = useMarketplaceMutation(() =>
+    marketplaceApi.createVersion(listing.id, { number: nextVersionNumber(latest), notes: '' }),
+  );
+  const history = listing.versions.filter((v) => v !== open);
+
+  return (
+    <Panneau titre={t('title')}>
+      <div className="space-y-4">
+        {open ? (
+          open.status === 'draft' ? (
+            <DraftVersion version={open} disabled={disabled} />
+          ) : (
+            <VersionCard version={open} />
+          )
+        ) : (
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={disabled}
+            loading={create.isPending}
+            onClick={() =>
+              create.mutate(undefined, { onError: (e) => toast.error(messageErreur(e)) })
+            }
+          >
+            <FilePlus2 aria-hidden />
+            {t('new')}
+          </Button>
+        )}
+        {history.length > 0 && (
+          <ol className="space-y-2">
+            {history.map((v) => (
+              <li key={v.id}>
+                <VersionCard version={v} />
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </Panneau>
+  );
+}
+
+function VersionCard({ version }: Readonly<{ version: StudioVersion }>) {
+  const t = useTranslations('marketplace.studio.versions');
+  const labels = useStudioLabels();
+  return (
+    <div className="space-y-1.5 rounded-xl border border-border p-3 text-[13px]">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold tabular-nums">{labels.version(version.number)}</span>
+        <Badge
+          ton={
+            version.status === 'published'
+              ? 'succes'
+              : version.status === 'rejected'
+                ? 'danger'
+                : version.status === 'in_review'
+                  ? 'info'
+                  : 'neutre'
+          }
+        >
+          {labels.versionStatus(version.status)}
+        </Badge>
+        <span className="ml-auto text-xs text-subtle">
+          {labels.date(
+            version.publishedAt ?? version.reviewedAt ?? version.submittedAt ?? version.createdAt,
+          )}
+        </span>
+      </div>
+      {version.counts && <p className="text-muted-foreground">{labels.counts(version.counts)}</p>}
+      {version.status === 'rejected' && version.reviewReason && (
+        <p className="text-destructive">
+          {version.reviewNote
+            ? t('reasonWithNote', {
+                reason: labels.moderationReason(version.reviewReason),
+                note: version.reviewNote,
+              })
+            : labels.moderationReason(version.reviewReason)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DraftVersion({
+  version,
+  disabled,
+}: Readonly<{ version: StudioVersion; disabled: boolean }>) {
+  const t = useTranslations('marketplace.studio.versions');
+  const tc = useTranslations('common.actions');
+  const labels = useStudioLabels();
+  const [number, setNumber] = useState(version.number);
+  const [notes, setNotes] = useState(version.notes);
+  const [composing, setComposing] = useState(false);
+  const [attested, setAttested] = useState(false);
+  const update = useMarketplaceMutation(() =>
+    marketplaceApi.updateVersion(version.id, {
+      ...(number !== version.number ? { number } : {}),
+      ...(notes !== version.notes ? { notes } : {}),
+    }),
+  );
+  const submit = useMarketplaceMutation(() => marketplaceApi.submitVersion(version.id));
+  const remove = useMarketplaceMutation(() => marketplaceApi.deleteVersion(version.id));
+  const dirty = number !== version.number || notes !== version.notes;
+
+  return (
+    <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+      <div className="flex items-center gap-2">
+        <Input
+          value={number}
+          onChange={(e) => setNumber(e.target.value)}
+          aria-label={t('number')}
+          className="h-8 w-24 tabular-nums"
+          disabled={disabled}
+        />
+        <Badge>{labels.versionStatus('draft')}</Badge>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="ml-auto"
+          aria-label={t('deleteDraft')}
+          disabled={disabled}
+          onClick={() =>
+            remove.mutate(undefined, { onError: (e) => toast.error(messageErreur(e)) })
+          }
+        >
+          <Trash2 />
+        </Button>
+      </div>
+      <Textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        maxLength={2000}
+        rows={3}
+        placeholder={t('notes')}
+        aria-label={t('notes')}
+        disabled={disabled}
+      />
+      {dirty && (
+        <Button
+          size="xs"
+          variant="secondary"
+          loading={update.isPending}
+          onClick={() =>
+            update.mutate(undefined, { onError: (e) => toast.error(messageErreur(e)) })
+          }
+        >
+          {tc('save')}
+        </Button>
+      )}
+
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-[13px]">
+        <Layers className="size-4 text-primary" aria-hidden />
+        <span className="min-w-0 flex-1 truncate">
+          {(version.counts && labels.counts(version.counts)) || t('empty')}
+        </span>
+        <Button size="xs" variant="ghost" disabled={disabled} onClick={() => setComposing(true)}>
+          <ImagePlus aria-hidden />
+          {t('compose')}
+        </Button>
+      </div>
+
+      <label className="flex items-start gap-2 text-[13px]">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 accent-primary"
+          checked={attested}
+          onChange={(e) => setAttested(e.target.checked)}
+          disabled={disabled}
+        />
+        {t('attest')}
+      </label>
+      {submit.isError && <Message>{messageErreur(submit.error)}</Message>}
+      <Button
+        className="w-full"
+        disabled={disabled || !attested || !version.counts || dirty}
+        loading={submit.isPending}
+        onClick={() => submit.mutate(undefined, { onSuccess: () => toast.success(t('submitted')) })}
+      >
+        <Send aria-hidden />
+        {t('submit')}
+      </Button>
+
+      <PackComposer open={composing} onOpenChange={setComposing} version={version} />
+    </div>
+  );
+}

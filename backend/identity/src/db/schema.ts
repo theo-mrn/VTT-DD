@@ -11,6 +11,7 @@ import {
   jsonb,
   pgSchema,
   primaryKey,
+  date,
   text,
   timestamp,
   uuid,
@@ -55,6 +56,8 @@ export const profiles = identity.table('profiles', {
   timeSpentMinutes: bigint('time_spent_minutes', { mode: 'number' }).notNull().default(0),
   settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
   emailNotifications: boolean('email_notifications').notNull().default(true),
+  /** Langue de l'interface choisie (`LOCALES` de @vtt/contracts) ; null : le navigateur décide. */
+  locale: text('locale'),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),
 });
 
@@ -128,11 +131,15 @@ export const outbox = identity.table('outbox', {
 });
 
 /** Événements du bus déjà traités, par consommateur (dédoublonnage « au moins une fois »). */
-export const inbox = identity.table('inbox', {
-  eventId: uuid('event_id').primaryKey(),
-  consumer: text('consumer').notNull(),
-  processedAt: horodatage('processed_at').notNull().defaultNow(),
-});
+export const inbox = identity.table(
+  'inbox',
+  {
+    eventId: uuid('event_id').notNull(),
+    consumer: text('consumer').notNull(),
+    processedAt: horodatage('processed_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.consumer, t.eventId] })],
+);
 
 export const emailTokens = identity.table('email_tokens', {
   tokenHash: bytea('token_hash').primaryKey(),
@@ -257,3 +264,72 @@ export const shortcutPreferences = identity.table('shortcut_preferences', {
   version: bigint('version', { mode: 'number' }).notNull(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),
 });
+
+// ─── Progression du compte (docs/progression.md) ─────────────────────────────
+
+/** XP et niveau du compte, tenus par le consommateur identity-progression. */
+export const accountProgress = identity.table('account_progress', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  xp: bigint('xp', { mode: 'number' }).notNull().default(0),
+  level: integer('level').notNull().default(1),
+  updatedAt: horodatage('updated_at').notNull().defaultNow(),
+});
+
+/** Unités et XP par jour de Paris et par activité (plafonds, défis du jour et de la semaine). */
+export const progressionDaily = identity.table(
+  'progression_daily',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    day: date('day', { mode: 'string' }).notNull(),
+    activity: text('activity').notNull(),
+    units: integer('units').notNull().default(0),
+    xp: integer('xp').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.day, t.activity] })],
+);
+
+/** Unités à vie par activité (défis permanents). */
+export const progressionCounters = identity.table(
+  'progression_counters',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    activity: text('activity').notNull(),
+    total: bigint('total', { mode: 'number' }).notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.activity] })],
+);
+
+/** Clés d'unicité des activités (campagne rejointe, ami, séance d'un jour). */
+export const progressionKeys = identity.table(
+  'progression_keys',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    activity: text('activity').notNull(),
+    key: text('key').notNull(),
+    createdAt: horodatage('created_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.activity, t.key] })],
+);
+
+/** Défis accomplis : une ligne par défi et par période, une seule récompense. */
+export const progressionChallenges = identity.table(
+  'progression_challenges',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    challengeId: text('challenge_id').notNull(),
+    period: text('period').notNull(),
+    xp: integer('xp').notNull(),
+    completedAt: horodatage('completed_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.challengeId, t.period] })],
+);

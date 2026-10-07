@@ -8,6 +8,7 @@
  *   ne voient rien : ils l'entendent (`MapSounds`).
  * - Arrêtée : le serveur ne l'envoie pas aux joueurs.
  */
+import { translate } from '@/i18n/runtime';
 import { Play, Square } from 'lucide-react';
 import type { Container, Graphics, GraphicsContext } from 'pixi.js';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -91,7 +92,7 @@ export function placeZone(
   });
   void engine.execute(
     createCommand({
-      label: 'Poser une zone sonore',
+      label: translate('map.sounds.place'),
       collection: SOUND_ZONES,
       persistence: ctx.persistence,
       items: [draft],
@@ -106,7 +107,7 @@ export function toggleItem(ctx: SoundContext, entities: readonly MapEntity[]): M
   const allOn = entities.every((e) => zoneOf(e).active);
   return {
     id: 'sound:toggle',
-    label: allOn ? 'Arrêter' : 'Lancer',
+    label: allOn ? translate('map.sounds.stopShort') : translate('map.sounds.startShort'),
     icon: allOn ? Square : Play,
     primary: true,
     run: () =>
@@ -114,7 +115,7 @@ export function toggleItem(ctx: SoundContext, entities: readonly MapEntity[]): M
         ctx,
         entities,
         () => ({ active: !allOn }),
-        allOn ? 'Arrêter la zone sonore' : 'Lancer la zone sonore',
+        allOn ? translate('map.sounds.stop') : translate('map.sounds.start'),
       ),
   };
 }
@@ -284,7 +285,7 @@ export function soundZoneKind(ctx: SoundContext, view: SoundZoneView): EntityKin
   const { engine } = ctx;
   return {
     id: SOUND_ZONE_KIND,
-    label: 'Zone sonore',
+    label: translate('map.sounds.zone'),
     collection: SOUND_ZONES,
     capabilities: ['select', 'move', 'delete', 'inspect', 'duplicate'],
     plane: 'gm',
@@ -298,7 +299,7 @@ export function soundZoneKind(ctx: SoundContext, view: SoundZoneView): EntityKin
       return { x: d.pos.x, y: d.pos.y, width: 0, height: 0, rotation: 0 };
     },
     applyGeometry: (z, g) => ({ ...(z as SoundZoneData), pos: roundPoint(g) }),
-    name: (z) => (z as SoundZoneData).name?.trim() || 'Zone sonore',
+    name: (z) => (z as SoundZoneData).name?.trim() || translate('map.sounds.zone'),
     can: gmOnly,
     hitTest: (e, p, tol) =>
       isGm(engine.viewer) &&

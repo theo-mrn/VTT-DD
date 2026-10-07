@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { ArrowRight, KeyRound, Swords } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -19,6 +20,7 @@ import { type Campagne, useCampagnes } from '@/lib/campagnes';
  * on en rejoint une par code, ou on en crée une.
  */
 export function ChoixCampagnePersonnage() {
+  const t = useTranslations();
   const campagnes = useCampagnes();
   const [rejoindre, setRejoindre] = useState(false);
 
@@ -28,14 +30,13 @@ export function ChoixCampagnePersonnage() {
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10 lg:py-14">
         <div className="mb-8 space-y-2">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-primary">
-            Nouveau héros
+            {t('characters.page.newHero')}
           </p>
           <h1 className="text-balance text-3xl font-semibold tracking-tight">
-            Pour quelle campagne ?
+            {t('creation.pick.title')}
           </h1>
           <p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-            Un héros naît dans une campagne : son système de jeu, ses règles de création et sa table
-            en dépendent.
+            {t('creation.pick.lead')}
           </p>
         </div>
 
@@ -58,20 +59,20 @@ export function ChoixCampagnePersonnage() {
         {campagnes.data?.length === 0 && (
           <EtatVide
             icone={Swords}
-            titre="Aucune campagne pour l'instant"
-            description="Rejoignez la campagne de votre MJ avec son code, une campagne ouverte, ou créez la vôtre."
+            titre={t('creation.pick.none')}
+            description={t('creation.pick.noneHint')}
           />
         )}
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Button variant="secondary" onClick={() => setRejoindre(true)}>
             <KeyRound />
-            Rejoindre une campagne
+            {t('onboarding.joinCampaign')}
           </Button>
           <Button variant="ghost" asChild>
             <Link href="/campagnes/nouvelle">
               <Swords />
-              Créer une campagne
+              {t('onboarding.createCampaign')}
             </Link>
           </Button>
         </div>
@@ -82,6 +83,7 @@ export function ChoixCampagnePersonnage() {
 }
 
 function CarteChoix({ campagne }: Readonly<{ campagne: Campagne }>) {
+  const t = useTranslations();
   const nomSysteme = useNomSysteme(campagne.system);
   return (
     <Link
@@ -92,7 +94,7 @@ function CarteChoix({ campagne }: Readonly<{ campagne: Campagne }>) {
       <Illustration
         largeur={640}
         src={campagne.coverUrl}
-        graine={campagne.name || 'Campagne'}
+        graine={campagne.name || t('notes.props.campaign')}
         className="aspect-[16/8] w-full"
         classeImage="transition-transform duration-700 ease-out group-hover:scale-[1.04]"
         voile

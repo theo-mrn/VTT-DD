@@ -6,6 +6,7 @@
  * glissant son en-tête, il reste dans la fenêtre, et un double clic sur l'en-tête le remet en
  * place (`usePanelDrag`, position gardée par panneau dans ce navigateur).
  */
+import { translate } from '@/i18n/runtime';
 import { X } from 'lucide-react';
 import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -60,11 +61,7 @@ export function MapPanel({
     >
       <header
         {...drag.handleProps}
-        title={
-          drag.moved
-            ? 'Glisser pour déplacer · double clic : remettre en place'
-            : 'Glisser pour déplacer'
-        }
+        title={drag.moved ? translate('map.ui.dragReset') : translate('map.ui.drag')}
         className={cn(
           'flex touch-none items-center gap-3 border-b border-border px-4 py-3',
           drag.dragging ? 'cursor-grabbing' : 'cursor-grab',

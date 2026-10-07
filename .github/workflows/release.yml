@@ -87,6 +87,16 @@ jobs:
             }
           # Worker ffmpeg du service audio (même paquet, runtime Debian avec ffmpeg)
           - { image: audio-worker, dockerfile: infra/docker/audio-worker.Dockerfile, args: '' }
+          - {
+              image: marketplace,
+              dockerfile: infra/docker/service.Dockerfile,
+              args: 'SERVICE=marketplace',
+            }
+          - {
+              image: marketplace-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=marketplace',
+            }
           # Pas de base : ni migrations ni image de migration
           - {
               image: realtime,
@@ -115,6 +125,8 @@ jobs:
       digest-audio: ${{ steps.out.outputs.digest-audio }}
       digest-audio-migrations: ${{ steps.out.outputs.digest-audio-migrations }}
       digest-audio-worker: ${{ steps.out.outputs.digest-audio-worker }}
+      digest-marketplace: ${{ steps.out.outputs.digest-marketplace }}
+      digest-marketplace-migrations: ${{ steps.out.outputs.digest-marketplace-migrations }}
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
         with: { egress-policy: audit }
@@ -216,6 +228,8 @@ jobs:
           DIGEST_AUDIO: ${{ needs.publish.outputs.digest-audio }}
           DIGEST_AUDIO_MIGRATIONS: ${{ needs.publish.outputs.digest-audio-migrations }}
           DIGEST_AUDIO_WORKER: ${{ needs.publish.outputs.digest-audio-worker }}
+          DIGEST_MARKETPLACE: ${{ needs.publish.outputs.digest-marketplace }}
+          DIGEST_MARKETPLACE_MIGRATIONS: ${{ needs.publish.outputs.digest-marketplace-migrations }}
         run: |
           set -euo pipefail
           for pair in "gateway:$DIGEST_GATEWAY" "web:$DIGEST_WEB" "identity:$DIGEST_IDENTITY" \
@@ -234,6 +248,16 @@ jobs:
             svc=${pair%%:*}; digest=${pair#*:}
             test -n "$digest"
             yq -i ".migrations.image.digest = \"$digest\"" "infra/gitops/$TARGET/$svc.yaml"
+          done
+          # Services pas encore déclarés dans le dépôt GitOps (docs/marketplace.md) : déployés
+          # dès que leur fichier existe, ignorés jusque-là
+          for svc in marketplace; do
+            file="infra/gitops/$TARGET/$svc.yaml"
+            if [ ! -f "$file" ]; then echo "$file absent : $svc non déployé"; continue; fi
+            var=$(echo "$svc" | tr 'a-z-' 'A-Z_')
+            digest=$(printenv "DIGEST_$var"); migrations=$(printenv "DIGEST_${var}_MIGRATIONS")
+            test -n "$digest" && test -n "$migrations"
+            yq -i ".image.digest = \"$digest\" | .migrations.image.digest = \"$migrations\"" "$file"
           done
           git diff --stat
       - name: Commit (Argo CD synchronise)

@@ -2,7 +2,7 @@
  * Module « profil » : profil du compte connecté (lecture, modification,
  * envoi d'images), profils publics, recherche de joueurs et temps de jeu.
  */
-import { FileUploadRequest, FileUploadTicket } from '@vtt/contracts';
+import { AccountLocale, FileUploadRequest, FileUploadTicket } from '@vtt/contracts';
 import { HttpError, Uploads } from '@vtt/platform';
 import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -11,6 +11,7 @@ import type { Deps, Module, ServiceApp } from '../../deps.js';
 import { debloquerTitresParTemps } from '../titres/service.js';
 import {
   ajouterTempsDeJeu,
+  BordureVerrouillee,
   lireMonProfil,
   lireProfilPublic,
   modifierProfil,
@@ -39,6 +40,7 @@ const MonProfilReponse = z.object({
   showPremiumBadge: z.boolean(),
   timeSpentMinutes: z.number(),
   emailNotifications: z.boolean(),
+  locale: AccountLocale,
   settings: z.record(z.string(), z.unknown()),
   hasPassword: z.boolean(),
   providers: z.array(z.enum(['google', 'discord'])),
@@ -56,6 +58,7 @@ const ProfilPublicReponse = z.object({
   premium: z.boolean(),
   showPremiumBadge: z.boolean(),
   timeSpentMinutes: z.number(),
+  level: z.number(),
 });
 
 const ResultatRechercheReponse = z.array(
@@ -116,6 +119,14 @@ export async function registerProfil(
       try {
         champs = await modifierProfil(deps.db, contexte(req), userId, req.body, base);
       } catch (err) {
+        if (err instanceof BordureVerrouillee) {
+          throw new HttpError(
+            403,
+            'Bordure verrouillée',
+            'border_locked',
+            'Cette bordure se débloque avec le niveau du compte ou le premium',
+          );
+        }
         if (err instanceof UrlImageRefusee) {
           throw HttpError.badRequest(
             "L'image doit avoir été envoyée par POST /v1/users/me/uploads",

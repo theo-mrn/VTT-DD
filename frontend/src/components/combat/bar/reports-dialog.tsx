@@ -5,6 +5,7 @@
  * la pile en direct ne montre pas. Décidés et tous, ce combat ou hors combat, un personnage ;
  * « Tout appliquer » (revue groupée), « Annuler l'application », « Modifier » (tiroir).
  */
+import { useTranslations } from 'next-intl';
 import type { CombatState } from '@vtt/contracts';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -30,11 +31,12 @@ export function ReportsDialog({
   live: LiveReports;
   onOpenCharacter(characterId: string): void;
 }>) {
+  const t = useTranslations();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="isolate flex h-[min(88dvh,52rem)] flex-col gap-0 p-0 sm:max-w-2xl">
         <DotsBackdrop />
-        <DialogTitle className="sr-only">Rapports d’attaque</DialogTitle>
+        <DialogTitle className="sr-only">{t('combat.reports.title')}</DialogTitle>
         {open && <ReportsBody combat={combat} live={live} onOpenCharacter={onOpenCharacter} />}
       </DialogContent>
     </Dialog>

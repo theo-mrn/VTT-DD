@@ -290,3 +290,43 @@ l'exécute.
    du jeton par le navigateur : pas de contrôle côté serveur, comme avant.
 8. **Codes** (2026-10-06) : premium à durée limitée, skin ou cadre à vie, commande
    `codes:create`, carte « Code » de la page Abonnement (voir « Codes »).
+
+## Marketplace : vente des packs par Stripe Connect
+
+Conception et décisions : [marketplace.md](marketplace.md) § 5. Coupé par défaut
+(`STRIPE_CONNECT=off` ici, `MARKETPLACE_PAID_LISTINGS=off` dans marketplace) : la marketplace
+tourne alors en gratuit seulement.
+
+- Tables `connected_accounts` (compte Express v2 d'un créateur, son état, `state_version`) et
+  `marketplace_sales` (une vente par session Checkout : acheteur, vendeur, fiche, montant,
+  commission, statuts).
+- Routes : `GET /v1/billing/connect/me`, `POST /v1/billing/connect/onboarding`,
+  `POST /v1/billing/connect/refresh`, `POST /v1/billing/connect/dashboard`,
+  `GET /v1/billing/connect/sales`, `POST /v1/billing/connect/webhook` (public, signé),
+  `POST /internal/marketplace/checkout` (marketplace, secret interne).
+- Vente : charge de destination `on_behalf_of` vers le compte du créateur,
+  `application_fee_amount` = commission (`marketplaceFee`, 15 %, 0,50 € au moins), prix en
+  `price_data` TTC, facture émise au nom du créateur (`invoice_data.issuer`).
+- Webhook principal : `checkout.session.completed` d'une vente → `billing.marketplace_sale_completed` ;
+  expirée → vente expirée ; `charge.refunded` (total) et `charge.dispute.created` →
+  `billing.marketplace_sale_refunded` / `…_disputed` (marketplace révoque l'acquisition).
+- Liste « Achats » du compte et retour de Checkout : type `marketplace`.
+
+### Mise en route (avant `STRIPE_CONNECT=on`)
+
+1. **Connect** (_Settings → Connect_) : activer Connect sur le compte de la plateforme, profil de
+   la plateforme (marketplace, France), image de marque de l'onboarding et du tableau de bord
+   Express, pays des comptes connectés (France au départ).
+2. **Endpoint des comptes connectés** (_Developers → Webhooks → Event destinations_) :
+   `https://api.<env>/v1/billing/connect/webhook`, événements des comptes v2
+   (`v2.core.account.updated`, `v2.core.account[configuration.merchant].capability_status_updated`,
+   `v2.core.account[requirements].updated`) ; son `whsec_…` dans
+   `STRIPE_CONNECT_WEBHOOK_SECRET`.
+3. **Clé** : la clé restreinte (`rk_…`) de billing doit aussi écrire les comptes v2, les liens
+   de compte et les liens de connexion (_Connect_), en plus des droits actuels.
+4. **Secrets** : `INTERNAL_API_SECRET` dans billing (même valeur que marketplace).
+5. **Textes** : conditions des créateurs et CGV des packs ([legal.md](legal.md), « Marketplace »)
+   en ligne avant d'ouvrir la vente.
+6. `STRIPE_CONNECT=on` (billing) et `MARKETPLACE_PAID_LISTINGS=on` (marketplace), puis recette
+   en mode test : onboarding d'un compte de test, achat avec la carte `4242…`, remboursement
+   depuis le tableau de bord (« Rembourser les frais d'application », « Annuler le transfert »).

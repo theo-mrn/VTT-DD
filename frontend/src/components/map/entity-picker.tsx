@@ -6,6 +6,7 @@
  * la carte ; le choisir le sélectionne, et les autres s'estompent et ne se touchent plus tant
  * qu'il reste sélectionné (`engine.chooseAmong`).
  */
+import { translate } from '@/i18n/runtime';
 import { Layers2 } from 'lucide-react';
 import { useMemo, type RefObject } from 'react';
 import {
@@ -69,7 +70,7 @@ export function EntityPicker({ hostRef }: Readonly<{ hostRef: RefObject<HTMLElem
           Lequel voulez-vous prendre ?
         </DropdownMenuLabel>
         <p className="px-2 pb-1.5 text-[11px] leading-snug text-muted-foreground">
-          Les autres s’estompent tant que celui-ci reste sélectionné.
+          {translate('map.ui.othersFade')}
         </p>
         {entities.map((e) => (
           <PickerItem
@@ -119,7 +120,7 @@ function PickerItem({
         <span className="block truncate text-[13px] font-medium">{name}</span>
         <span className="block truncate text-[11px] text-muted-foreground">
           {entity.kind.label}
-          {entity.state.locked ? ' · verrouillé' : ''}
+          {entity.state.locked ? ` · ${translate('map.ui.locked')}` : ''}
         </span>
       </span>
     </DropdownMenuItem>
