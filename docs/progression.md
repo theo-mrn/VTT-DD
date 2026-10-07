@@ -206,6 +206,9 @@ par jet doublerait le trafic du bus pour rien).
 
 - **Profil** : carte « Progression » (niveau, barre d'XP, paliers, défis par onglets Quotidiens,
   Hebdomadaires, Permanents). Bordures acquises débloquées dans la carte « Apparence ».
+- **Table** : panneau « Progression » du rail (même contenu que la carte du profil), pour suivre
+  ses défis sans quitter la partie ; sans touche par défaut (toutes les lettres sont prises),
+  une se choisit dans l'éditeur des raccourcis.
 - **Profil public** : pastille de niveau à côté du nom.
 - **Accueil** : résumé (niveau, barre, prochaines étapes, défis du jour). Il remplace le bloc
   « Premiers pas » calculé dans le navigateur, dont les étapes deviennent les Premiers pas du

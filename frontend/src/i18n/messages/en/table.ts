@@ -13,6 +13,10 @@ export default {
       label: 'Handouts',
       description: 'Images and videos shown at the table: projected or sent by the GM',
     },
+    progression: {
+      label: 'Progress',
+      description: 'My level, rewards and daily and weekly challenges',
+    },
     joueurs: {
       label: 'Characters',
       description: 'The table’s characters, from one sheet to the next in a click',
