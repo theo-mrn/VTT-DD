@@ -521,6 +521,7 @@ Le fichier `presentation.yaml` de chaque système décrit :
 - l'ordre et les groupes des attributs du lanceur de dés (`des.jets`, voir « Attributs jetables ») ;
 - le combat (`combat`) : groupes du menu d'attaque et états proposés, avec leurs icônes (voir « Combat »), et l'icône de certains paramètres de situation (`combat.situation.icones`, par identifiant de paramètre rangé `section: situation` : couvert, cible à terre…) ;
 - les icônes des objets de l'inventaire (`iconesObjets`) : une icône générique (`epee`, `cible`, `bouclier`, `fiole`, `pieces`, `sac`…) par sorte, ou par valeur d'un champ (`{ champ: categorie, valeur: potions, icone: fiole }`, `{ champ: melee, valeur: true, icone: epee }`) ; la première règle qui convient l'emporte, vérifiée contre le système (`erreursRegleIcone`). Sans règle, le front déduit l'icône de la forme de la sorte (formule de jet, équipable, en quantité) ;
+- la carte (`carte.deplacement.attribut`) : l'attribut calculé qui donne le déplacement d'un personnage, en unités de la carte, comparé au trajet d'un token glissé (docs/carte.md § 10, Trajet des déplacements) ; vérifié contre le système (attribut connu d'un type d'entité). Sans lui, la carte ne montre que la distance ;
 - la géométrie des arbres, les images et les bibliothèques.
 
 Ce fichier est validé contre les règles au build (`erreursWidget` pour chaque bloc). Le front n'y ajoute aucune valeur propre à un jeu, et marque indisponible un bloc enregistré dans une mise en page que le système ne permet plus (attribut retiré).

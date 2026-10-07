@@ -3,8 +3,9 @@
  * stocké. Deux sortes de messages :
  *
  * - `map.live`, émis à 15 Hz au plus pendant un geste, puis une dernière fois avec `end`. Il
- *   regroupe tout ce qui bouge chez l'émetteur (glisser, poignées, tracé, mesure, curseur), en **un
- *   message par audience** : public, MJ seulement (`gmOnly`), ou certains joueurs (`toUsers`).
+ *   regroupe tout ce qui bouge chez l'émetteur (glisser, poignées, tracé, mesure, trajet, curseur),
+ *   en **un message par audience** : public, MJ seulement (`gmOnly`), ou certains joueurs
+ *   (`toUsers`).
  *   Il pèse moins de 4 Kio : au-delà, les points du tracé partent au message suivant.
  * - `map.ping` : une onde chez tous ; `focus` (MJ) amène la caméra de chacun à ce point.
  *
@@ -44,6 +45,8 @@ export const LIVE_EXPIRE_MS = 2_000;
 export const LIVE_MAX_BYTES = MAP_LIVE_MAX_BYTES - 300;
 /** Curseur immobile : rappel de sa position, pour qu'il n'expire pas chez les autres. */
 export const CURSOR_KEEPALIVE_MS = 1_000;
+/** Glisser immobile (on s'arrête pour lire un trajet) : rappel, comme un curseur. */
+export const DRAG_KEEPALIVE_MS = 1_000;
 
 /** Messages du contrat (`@vtt/contracts`, docs/carte.md § 8). */
 export type LiveMessage = MapLiveMessage;
@@ -53,6 +56,8 @@ export type TransformEntry = NonNullable<LiveMessage['transform']>[number];
 export type LiveStroke = NonNullable<LiveMessage['stroke']>;
 /** Mesure en cours de l'outil Mesurer (une seule par auteur). */
 export type LiveMeasure = NonNullable<LiveMessage['measure']>;
+/** Trajet d'un token glissé : `[id, points]`, départ puis points de passage, à plat. */
+export type LivePath = NonNullable<LiveMessage['path']>[number];
 
 /** Audience d'un élément qui bouge (§ 8, aucune fuite). */
 export type LiveAudience = 'public' | 'gm' | { users: readonly string[] };
@@ -105,6 +110,14 @@ export interface MeasureEvent {
   /** La mesure reçue ; null : effacée ; absente : seulement la fin du geste. */
   measure: LiveMeasure | null | undefined;
   /** Fin du geste de cet utilisateur : sa mesure ne bouge plus. */
+  end: boolean;
+}
+
+export interface PathEvent {
+  userId: string;
+  /** Trajets reçus ; des points vides : trajet effacé. */
+  paths: readonly LivePath[];
+  /** Fin du geste de cet utilisateur : ses trajets sont finis. */
   end: boolean;
 }
 
@@ -174,9 +187,19 @@ interface AudienceMessage {
   msg: LiveMessage;
 }
 
-/** Le message porte un geste (glisser, poignées, tracé, mesure). */
+/** Le message porte un geste (glisser, poignées, tracé, mesure, trajet). */
 const carriesGesture = (msg: LiveMessage) =>
-  !!(msg.drag || msg.transform || msg.stroke || msg.measure !== undefined);
+  !!(msg.drag || msg.transform || msg.stroke || msg.measure !== undefined || msg.path);
+
+/** Trajet à envoyer : ses points, son audience, et s'il a changé depuis le dernier envoi. */
+interface PendingPath {
+  points: number[];
+  audience: LiveAudience;
+  dirty: boolean;
+}
+
+/** Ce qu'un envoi fait d'un trajet : l'effacer chez son ancienne audience, ou l'envoyer. */
+type PathStep = { id: string; clear: true } | { id: string; clear: false; audience: LiveAudience };
 
 function lerpAngle(a: number, b: number, t: number) {
   const d = ((((b - a) % 360) + 540) % 360) - 180;
@@ -192,6 +215,9 @@ export class LiveChannel {
 
   // Émission
   private readonly drags = new Map<string, DragEntry>();
+  /** Dernières positions du glisser en cours, rappelées s'il ne bouge plus (`keepAlive`). */
+  private readonly heldDrags = new Map<string, DragEntry>();
+  private lastDragSent = -Infinity;
   private readonly transforms = new Map<string, TransformEntry>();
   private cursorPos: [number, number] | null = null;
   private cursorDirty = false;
@@ -200,6 +226,11 @@ export class LiveChannel {
   /** Mesure à envoyer (undefined : rien ; null : effacée) et son audience. */
   private measureState: LiveMeasure | null | undefined = undefined;
   private measureAudience: LiveAudience = 'public';
+  /** Trajets de mes tokens glissés, et l'audience à laquelle chacun a été envoyé. */
+  private readonly paths = new Map<string, PendingPath>();
+  private readonly pathsSent = new Map<string, LiveAudience>();
+  /** Étapes des trajets de l'envoi en préparation, appliquées une fois l'envoi parti. */
+  private pathSteps: PathStep[] = [];
   private ending = false;
   /** Audiences qui ont reçu un message pendant le geste en cours (elles recevront `end`). */
   private readonly gestureAudiences = new Map<string, LiveAudience>();
@@ -217,6 +248,7 @@ export class LiveChannel {
   private readonly pingListeners = new Set<(p: PingEvent) => void>();
   private readonly strokeListeners = new Set<(s: StrokeEvent) => void>();
   private readonly measureListeners = new Set<(m: MeasureEvent) => void>();
+  private readonly pathListeners = new Set<(p: PathEvent) => void>();
   private readonly activityListeners = new Set<(visible: boolean) => void>();
 
   /** Messages envoyés (tests, diagnostic). */
@@ -246,10 +278,10 @@ export class LiveChannel {
     for (const e of entries) {
       const [id, x, y] = e;
       const rotation = e[3];
-      this.drags.set(
-        id,
-        rotation === undefined ? [id, r1(x), r1(y)] : [id, r1(x), r1(y), r1(rotation)],
-      );
+      const entry: DragEntry =
+        rotation === undefined ? [id, r1(x), r1(y)] : [id, r1(x), r1(y), r1(rotation)];
+      this.drags.set(id, entry);
+      this.heldDrags.set(id, entry);
     }
     this.ending = false;
     this.request();
@@ -292,6 +324,18 @@ export class LiveChannel {
     this.request();
   }
 
+  /**
+   * Trajet d'un token que je glisse (docs/carte.md § 10, Trajet des déplacements) : départ et
+   * points de passage, à plat, et leur audience (celle du token à chacun de ces points). Envoyé
+   * quand il change. Si l'audience change, il est d'abord effacé chez l'ancienne, puis renvoyé
+   * à la nouvelle à l'envoi suivant : le numéro des messages garde l'ordre chez chacun.
+   */
+  path(entityId: string, points: readonly number[], audience: LiveAudience) {
+    this.paths.set(entityId, { points: points.map(r1), audience, dirty: true });
+    this.ending = false;
+    this.request();
+  }
+
   /** Fin du geste : un dernier message avec `end` à chaque audience du geste. */
   end() {
     if (
@@ -299,7 +343,8 @@ export class LiveChannel {
       !this.drags.size &&
       !this.transforms.size &&
       !this.strokeMeta &&
-      this.measureState === undefined
+      this.measureState === undefined &&
+      !this.paths.size
     )
       return;
     this.ending = true;
@@ -321,10 +366,18 @@ export class LiveChannel {
     return true;
   }
 
-  /** Rappel périodique d'un curseur immobile (appelé par le moteur à chaque image active). */
+  /**
+   * Rappel périodique d'un curseur immobile et d'un glisser immobile (appelé par le moteur), pour
+   * qu'ils n'expirent pas chez les autres.
+   */
   keepAlive() {
-    if (this.cursorPos && this.now() - this.lastCursorSent >= CURSOR_KEEPALIVE_MS) {
+    const now = this.now();
+    if (this.cursorPos && now - this.lastCursorSent >= CURSOR_KEEPALIVE_MS) {
       this.cursorDirty = true;
+      this.request();
+    }
+    if (this.heldDrags.size && !this.ending && now - this.lastDragSent >= DRAG_KEEPALIVE_MS) {
+      for (const [id, entry] of this.heldDrags) this.drags.set(id, entry);
       this.request();
     }
   }
@@ -336,8 +389,14 @@ export class LiveChannel {
       this.cursorDirty ||
       this.strokePoints.length > 0 ||
       this.measureState !== undefined ||
+      this.pathPending() ||
       this.ending
     );
+  }
+
+  private pathPending(): boolean {
+    for (const p of this.paths.values()) if (p.dirty) return true;
+    return false;
   }
 
   private refill() {
@@ -364,6 +423,7 @@ export class LiveChannel {
     const groups = new Map<string, AudienceMessage>();
     this.groupEntries(groups);
     this.groupShared(groups);
+    this.groupPaths(groups);
     if (this.ending) this.groupEnd(groups);
     return [...groups.values()];
   }
@@ -399,6 +459,39 @@ export class LiveChannel {
       this.group(groups, 'public')[0]!.stroke = { ...this.strokeMeta, points: this.strokePoints };
     if (this.measureState !== undefined)
       for (const msg of this.group(groups, this.measureAudience)) msg.measure = this.measureState;
+  }
+
+  /**
+   * Trajets qui ont changé, chacun vers son audience. Audience changée : cet envoi l'efface chez
+   * l'ancienne, le suivant l'envoie à la nouvelle. Rien n'est noté avant l'envoi (`pathSteps`).
+   */
+  private groupPaths(groups: Map<string, AudienceMessage>) {
+    this.pathSteps = [];
+    for (const [id, p] of this.paths) {
+      if (!p.dirty) continue;
+      const sent = this.pathsSent.get(id);
+      if (sent && audienceKey(sent) !== audienceKey(p.audience)) {
+        for (const msg of this.group(groups, sent)) (msg.path ??= []).push([id, []]);
+        this.pathSteps.push({ id, clear: true });
+        continue;
+      }
+      for (const msg of this.group(groups, p.audience)) (msg.path ??= []).push([id, p.points]);
+      this.pathSteps.push({ id, clear: false, audience: p.audience });
+    }
+  }
+
+  /** L'envoi est parti : les trajets effacés attendent le suivant, les autres sont à jour. */
+  private applyPathSteps() {
+    for (const step of this.pathSteps) {
+      if (step.clear) {
+        this.pathsSent.delete(step.id);
+        continue;
+      }
+      this.pathsSent.set(step.id, step.audience);
+      const p = this.paths.get(step.id);
+      if (p) p.dirty = false;
+    }
+    this.pathSteps = [];
   }
 
   /** Fin du geste : chaque audience du geste la reçoit, et tout message qui en porte un. */
@@ -461,27 +554,37 @@ export class LiveChannel {
       this.transport.send(LIVE_KIND, fitted.msg, sendOptions(audience));
       if (carriesGesture(fitted.msg)) this.gestureAudiences.set(audienceKey(audience), audience);
       if (fitted.msg.cursor) this.lastCursorSent = this.now();
+      if (fitted.msg.drag) this.lastDragSent = this.now();
     }
     this.lastFlush = this.now();
+    // Fin : un trajet effacé chez son ancienne audience n'est pas renvoyé, la fin suffit
     const ended = this.ending && !leftover.length;
     this.drags.clear();
     this.transforms.clear();
     this.cursorDirty = false;
     this.measureState = undefined;
     this.strokePoints = leftover;
+    this.applyPathSteps();
     if (ended) {
       this.ending = false;
       this.strokeMeta = null;
       this.gestureAudiences.clear();
+      this.paths.clear();
+      this.pathsSent.clear();
+      this.heldDrags.clear();
     }
     if (this.hasPending()) this.request();
   }
 
   private reset() {
     this.drags.clear();
+    this.heldDrags.clear();
     this.transforms.clear();
     this.cursorDirty = false;
     this.measureState = undefined;
+    this.paths.clear();
+    this.pathsSent.clear();
+    this.pathSteps = [];
     this.strokePoints = [];
     this.strokeMeta = null;
     this.ending = false;
@@ -505,6 +608,12 @@ export class LiveChannel {
   onMeasure(listener: (m: MeasureEvent) => void): () => void {
     this.measureListeners.add(listener);
     return () => void this.measureListeners.delete(listener);
+  }
+
+  /** Trajets des tokens glissés par les autres (le module du trajet les dessine). */
+  onPath(listener: (p: PathEvent) => void): () => void {
+    this.pathListeners.add(listener);
+    return () => void this.pathListeners.delete(listener);
   }
 
   /**
@@ -606,6 +715,8 @@ export class LiveChannel {
       for (const l of this.strokeListeners) l({ userId: user, stroke: msg.stroke ?? null, end });
     if (msg.measure !== undefined || msg.end)
       for (const l of this.measureListeners) l({ userId: user, measure: msg.measure, end });
+    if (msg.path || msg.end)
+      for (const l of this.pathListeners) l({ userId: user, paths: msg.path ?? [], end });
     if (msg.end) this.endTracks(user, t);
   }
 
@@ -691,6 +802,7 @@ export class LiveChannel {
     this.pingListeners.clear();
     this.strokeListeners.clear();
     this.measureListeners.clear();
+    this.pathListeners.clear();
     this.activityListeners.clear();
   }
 }

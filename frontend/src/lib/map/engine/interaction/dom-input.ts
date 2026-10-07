@@ -87,7 +87,12 @@ export function bindDomInput(engine: MapEngine, el: HTMLElement): () => void {
     }
     if (controller.pointerDown(toPointer(e, e.button))) e.preventDefault();
   };
-  const onPointerMove = (e: PointerEvent) => controller.pointerMove(toPointer(e, -1));
+  const onPointerMove = (e: PointerEvent) => {
+    // Bouton pressé en plus pendant un appui (clic droit pendant un glisser) : le navigateur
+    // l'annonce par un déplacement dont `button` est ce bouton (sinon -1)
+    if (e.button > 0) controller.pointerChord(toPointer(e, e.button));
+    controller.pointerMove(toPointer(e, -1));
+  };
   const onPointerUp = (e: PointerEvent) => {
     controller.pointerUp(toPointer(e, e.button));
     if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);

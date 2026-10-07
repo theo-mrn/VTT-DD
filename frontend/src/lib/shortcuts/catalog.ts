@@ -146,6 +146,15 @@ export const FIXED_SHORTCUTS: readonly ShortcutDescriptor[] = [
     fixed: true,
   },
   {
+    id: 'fixed.waypoint',
+    label: 'Point de passage pendant le glisser d’un token (⌫ : retirer le dernier)',
+    scope: 'map',
+    defaultBinding: null,
+    fixedLabel: 'Espace',
+    fixed: true,
+    roles: ['gm', 'player'],
+  },
+  {
     id: 'fixed.tool-modes',
     label: 'Mode de l’outil actif',
     scope: 'map',

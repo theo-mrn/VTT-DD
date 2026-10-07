@@ -109,6 +109,41 @@ describe('gestes communs', () => {
     expect(t.persistence.update).not.toHaveBeenCalled();
   });
 
+  it('glisser : début, déplacements et fin signalés aux modules (validé ou annulé)', async () => {
+    const t = setup({ boxes: [box('a', 100, 100), box('b', 300, 300)] });
+    const steps: string[] = [];
+    t.engine.onDrag((e) => steps.push(`${e.phase}:${e.primary.id}:${e.committed}`));
+    t.drag({ x: 100, y: 100 }, { x: 200, y: 100 }, { alt: true });
+    await t.commands.idle();
+    expect(steps[0]).toBe('start:a:false');
+    expect(steps).toContain('move:a:false');
+    expect(steps.at(-1)).toBe('end:a:true');
+    steps.length = 0;
+    t.drag({ x: 300, y: 300 }, { x: 400, y: 300 }, { alt: true }, false);
+    t.engine.controller.keyDown(t.key('Escape'));
+    expect(steps.at(-1)).toBe('end:b:false');
+  });
+
+  it('pendant un geste, touches et clic droit sont proposés aux modules ; Échap garde son sens', () => {
+    const t = setup({ boxes: [box('a', 100, 100)] });
+    const inputs: string[] = [];
+    t.engine.onGestureInput((i) => {
+      inputs.push(i.kind === 'key' ? i.key.code : `bouton ${i.pointer.button}`);
+      return i.kind === 'button' || i.key.code === 'Space';
+    });
+    // Hors geste : rien n'est proposé
+    t.engine.controller.keyDown(t.key(' ', { code: 'Space' }));
+    t.engine.controller.keyUp(t.key(' ', { code: 'Space' }));
+    expect(inputs).toEqual([]);
+    t.drag({ x: 100, y: 100 }, { x: 200, y: 100 }, { alt: true }, false);
+    expect(t.engine.controller.keyDown(t.key(' ', { code: 'Space' }))).toBe(true);
+    t.engine.controller.pointerChord(t.pointer({ x: 200, y: 100 }, { button: 2, buttons: 3 }));
+    t.engine.controller.pointerDown(t.pointer({ x: 200, y: 100 }, { id: 2, button: 2 }));
+    expect(t.engine.controller.keyDown(t.key('Escape'))).toBe(true);
+    expect(inputs).toEqual(['Space', 'bouton 2', 'bouton 2']);
+    expect(t.engine.entity('a')?.preview).toBeNull();
+  });
+
   it('un élément verrouillé se sélectionne mais ne bouge pas', () => {
     const t = setup({ boxes: [box('a', 100, 100, { locked: true })] });
     t.drag({ x: 100, y: 100 }, { x: 300, y: 300 });

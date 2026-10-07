@@ -1381,6 +1381,8 @@ export const MAP_LIVE_HZ = 15;
 export const MAP_LIVE_MAX_BYTES = 4096;
 /** Destinataires nommés d'un message éphémère (`toUsers`), au plus. */
 export const EPHEMERAL_TO_USERS_MAX = 50;
+/** Points d'un trajet (départ et points de passage) dans `map.live.path`, au plus. */
+export const MAP_PATH_MAX_POINTS = 64;
 
 const LiveNumber = z.number().finite();
 /** `[id, x, y]` ou `[id, x, y, rotation]`. */
@@ -1435,6 +1437,24 @@ export const MapLiveMessage = z.object({
       pinned: z.literal(true).optional(),
     })
     .nullable()
+    .optional(),
+  /**
+   * Trajet d'un token glissé (docs/carte.md § 10, Trajet des déplacements) : `[id, points]`,
+   * son départ puis ses points de passage, à plat (`x0, y0, x1, y1…`) ; le point courant est
+   * celui de `drag`. Envoyé quand il change, à l'audience du token à chacun de ces points ;
+   * `[id, []]` l'efface.
+   */
+  path: z
+    .array(
+      z.tuple([
+        z.string().max(64),
+        z
+          .array(LiveNumber)
+          .max(2 * MAP_PATH_MAX_POINTS)
+          .refine((points) => points.length % 2 === 0, 'Points par paires (x, y)'),
+      ]),
+    )
+    .max(20)
     .optional(),
   end: z.literal(true).optional(),
 });

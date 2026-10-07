@@ -103,8 +103,12 @@ export class InteractionController {
       this.startPinch(touches as [MapPointer, MapPointer]);
       return true;
     }
-    // Un seul geste à la fois (un clic droit pendant un glisser est ignoré)
-    if (this.mode !== 'none') return true;
+    // Un seul geste à la fois : un autre bouton pendant un geste est proposé aux modules (point de
+    // passage d'un trajet), sinon ignoré
+    if (this.mode !== 'none') {
+      if (this.mode === 'tool' && e.button > 0) engine.gestureInput({ kind: 'button', pointer: e });
+      return true;
+    }
 
     const double = this.isDouble(e);
     this.lastDown = double ? null : { time: e.time, screen: e.screen, button: e.button };
@@ -186,6 +190,15 @@ export class InteractionController {
         if (e.buttons === 0) engine.tools.active.move?.(e, engine);
     }
     engine.shareCursor(e.world);
+  }
+
+  /**
+   * Bouton pressé en plus pendant un appui (le DOM le signale par un déplacement, « chorded
+   * buttons ») : comme un bouton pendant un geste, proposé aux modules.
+   */
+  pointerChord(e: MapPointer) {
+    if (this.mode === 'tool' && e.button > 0)
+      this.engine.gestureInput({ kind: 'button', pointer: e });
   }
 
   pointerUp(e: MapPointer) {
@@ -316,6 +329,10 @@ export class InteractionController {
   /** Touche enfoncée, carte focalisée ; renvoie vrai si elle est prise. */
   keyDown(k: MapKey): boolean {
     const engine = this.engine;
+    // Pendant un geste, une touche est d'abord proposée aux modules (Espace : point de passage
+    // d'un trajet), répétitions comprises ; Échap garde toujours son sens
+    if (this.mode === 'tool' && k.key !== 'Escape' && engine.gestureInput({ kind: 'key', key: k }))
+      return true;
     if (k.code === 'Space' && !k.ctrl && !k.meta) return this.holdSpace();
     if (k.key === 'Escape') return this.escape();
     if (engine.tools.active.key?.(k, engine)) return true;

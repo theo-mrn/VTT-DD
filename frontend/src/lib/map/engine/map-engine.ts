@@ -23,6 +23,8 @@
  * - `registerOverlay(overlay)` : une surcouche React (panneau flottant, composant sans rendu) ;
  * - `registerMenuProvider(provider)` : des entrées du menu contextuel (vide ou sélection) ;
  * - `onFrame(cb)` : une animation (renvoyer vrai tant qu'elle continue) ;
+ * - `onDrag(cb)`, `onGestureInput(cb)` : suivre un glisser fait ici, prendre une touche ou un
+ *   clic droit pendant un geste (trajet des déplacements) ;
  * - `plane(id)` : le conteneur Pixi d'un plan (vision, gm…), après le montage.
  */
 import { attachMapPerf, perfEnabled } from '@/lib/perf/monitor';
@@ -104,7 +106,7 @@ import { SelectTool } from './tools/select-tool';
 import type { BindingResolver } from '@/lib/shortcuts/dispatcher';
 import { mapActionShortcut } from '../shortcuts';
 import type { MapAction, ToolbarEntry } from './toolbar';
-import type { ToolDefinition } from './tools/tool';
+import type { MapKey, MapPointer, ToolDefinition } from './tools/tool';
 import { SELECT_TOOL_ID, ToolManager } from './tools/tool-manager';
 
 // ─── Extensions des fonctions ────────────────────────────────────────────────
@@ -354,6 +356,25 @@ export interface MapClick {
   /** Sélection au moment du bouton, avant le clic. */
   selectionBefore: readonly string[];
 }
+
+/**
+ * Glisser d'entités fait ici (`DragSession`), suivi par les modules (trajet des déplacements) :
+ * début, chaque déplacement de l'aperçu, fin. Un seul objet par geste, mis à jour sur place.
+ */
+export interface DragEvent {
+  phase: 'start' | 'move' | 'end';
+  entities: readonly MapEntity[];
+  /** Entité tenue sous le pointeur (celle qui s'aimante). */
+  primary: MapEntity;
+  /** Fin : la commande est partie ; faux si le geste est annulé (Échap) ou si rien n'a bougé. */
+  committed: boolean;
+}
+
+/**
+ * Entrée pendant un geste en cours (glisser…) : une touche, ou un bouton pressé en plus (clic
+ * droit pendant le glisser). Un module peut la prendre (point de passage d'un trajet).
+ */
+export type GestureInput = { kind: 'key'; key: MapKey } | { kind: 'button'; pointer: MapPointer };
 
 export class MapEngine {
   readonly store: MapStore;
@@ -828,6 +849,8 @@ export class MapEngine {
       again = true;
       this.perf.camera += 1;
     }
+    // Mon glisser immobile est rappelé aux autres (sinon son fantôme expire chez eux)
+    if (this.dragRelease) this.live?.keepAlive();
     if (this.live && this.applyLive(now)) {
       again = true;
       this.perf.live += 1;
@@ -1805,6 +1828,36 @@ export class MapEngine {
   onEntitiesMoved(listener: MovedListener): () => void {
     this.movedListeners.add(listener);
     return () => void this.movedListeners.delete(listener);
+  }
+
+  private readonly dragListeners = new Set<(e: DragEvent) => void>();
+
+  /** Écoute les glissers d'entités faits ici (début, déplacement, fin) ; renvoie le retrait. */
+  onDrag(listener: (e: DragEvent) => void): () => void {
+    this.dragListeners.add(listener);
+    return () => void this.dragListeners.delete(listener);
+  }
+
+  /** Signale une étape d'un glisser (`DragSession`). */
+  emitDrag(e: DragEvent) {
+    for (const listener of this.dragListeners) listener(e);
+  }
+
+  private readonly gestureHandlers = new Set<(input: GestureInput) => boolean>();
+
+  /**
+   * Prend les entrées faites pendant un geste (touche, clic droit), avant les gestes communs ;
+   * le gestionnaire renvoie vrai s'il a pris l'entrée. Renvoie le retrait.
+   */
+  onGestureInput(handler: (input: GestureInput) => boolean): () => void {
+    this.gestureHandlers.add(handler);
+    return () => void this.gestureHandlers.delete(handler);
+  }
+
+  /** Une entrée pendant un geste : vrai si un module l'a prise. */
+  gestureInput(input: GestureInput): boolean {
+    for (const handler of this.gestureHandlers) if (handler(input)) return true;
+    return false;
   }
 
   private readonly clickListeners = new Set<(click: MapClick) => void>();
