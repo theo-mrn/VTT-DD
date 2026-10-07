@@ -1,8 +1,9 @@
 'use client';
 
 /** Signaler un pack : motif, précisions facultatives (docs/marketplace.md § 7). */
-import { REPORT_REASON_LABELS, ReportReason } from '@vtt/contracts';
+import { ReportReason } from '@vtt/contracts';
 import { Flag } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Message } from '@/components/compte/elements';
@@ -20,12 +21,14 @@ import { SelectField } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { messageErreur } from '@/lib/api';
 import { marketplaceApi } from '@/lib/marketplace/api';
+import { REPORT_REASON_LABELS } from '@/lib/marketplace/format';
 
 export function ReportDialog({
   open,
   onOpenChange,
   listingId,
 }: Readonly<{ open: boolean; onOpenChange: (open: boolean) => void; listingId: string }>) {
+  const t = useTranslations('marketplace.shop.report');
   const [reason, setReason] = useState<ReportReason | ''>('');
   const [details, setDetails] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export function ReportDialog({
     setError(null);
     try {
       await marketplaceApi.report(listingId, { reason, details: details.trim() });
-      toast.success('Signalement envoyé');
+      toast.success(t('sent'));
       onOpenChange(false);
       setReason('');
       setDetails('');
@@ -52,19 +55,17 @@ export function ReportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Signaler ce pack</DialogTitle>
-          <DialogDescription className="sr-only">
-            Le signalement est examiné par la modération.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="report-reason">Motif</Label>
+            <Label htmlFor="report-reason">{t('reason')}</Label>
             <SelectField
               id="report-reason"
               value={reason}
               onValueChange={(v) => setReason(v as ReportReason)}
-              placeholder="Choisir"
+              placeholder={t('choose')}
               options={ReportReason.options.map((r) => ({
                 valeur: r,
                 nom: REPORT_REASON_LABELS[r],
@@ -72,7 +73,7 @@ export function ReportDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="report-details">Précisions</Label>
+            <Label htmlFor="report-details">{t('details')}</Label>
             <Textarea
               id="report-details"
               value={details}
@@ -91,7 +92,7 @@ export function ReportDialog({
             loading={sending}
           >
             <Flag aria-hidden />
-            Signaler
+            {t('submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
