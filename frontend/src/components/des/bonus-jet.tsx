@@ -14,9 +14,11 @@
  *   utilisation et l'éteint).
  * Rien n'est propre à un jeu : tout vient du moteur et de la présentation.
  */
+import { translate } from '@/i18n/runtime';
 import { useTranslations } from 'next-intl';
 import {
   evaluerChampEntree,
+  idEffetsDonnes,
   usagesDe,
   type BonusLibre,
   type EffetListe,
@@ -50,7 +52,12 @@ export type BasculeBonus =
   /** Source activée ou éteinte : capacité à activer, objet équipé ou rangé. */
   | { type: 'source'; entree: string; exemplaire?: string }
   /** Bonus libre activé ou coupé. */
-  | { type: 'bonus'; bonus: BonusLibre };
+  | { type: 'bonus'; bonus: BonusLibre }
+  /**
+   * Effets donnés par une capacité (`Entree.donne`) : allumer se les donne (l'entrée qui les
+   * porte, pour la durée de la capacité), éteindre les retire.
+   */
+  | { type: 'donne'; entree: string; capacite: string };
 
 export interface BonusJet {
   /** Clé de l'effet (`<source>/<index>`), ou `invocation:<entrée>`. */
@@ -119,6 +126,9 @@ function ligneDe(e: EffetListe): string {
 /** Écriture de l'interrupteur d'un effet listé, selon sa source. */
 function basculeDe(e: EffetListe): BasculeBonus | null {
   if (e.genre === 'bonus') return e.bonus ? { type: 'bonus', bonus: e.bonus } : null;
+  // Effets reçus d'une capacité : la ligne se retire en entier
+  const recus = e.possession && capaciteDesEffets(e.possession.entree.id);
+  if (recus) return { type: 'donne', entree: e.possession!.entree.id, capacite: recus };
   if (e.statut === 'desactive') return { type: 'effet', cles: [e.cle] };
   const p = e.possession;
   const source = p
@@ -132,6 +142,64 @@ function basculeDe(e: EffetListe): BasculeBonus | null {
   if (source && p?.sorte.activable && !p.sorte.actifParDefaut) return source;
   if (source && p?.sorte.activable && e.raison === 'inactive') return source;
   return e.basculable ? { type: 'effet', cles: [e.cle] } : null;
+}
+
+/** Capacité dont cette entrée porte les effets donnés (`<capacité>--effets`), sinon null. */
+function capaciteDesEffets(entree: string): string | null {
+  return entree.endsWith(SUFFIXE_EFFETS) ? entree.slice(0, -SUFFIXE_EFFETS.length) : null;
+}
+const SUFFIXE_EFFETS = idEffetsDonnes('');
+
+/**
+ * Effets que les capacités possédées donnent (Bénédiction…), pas encore reçus par le
+ * personnage : éteints, l'interrupteur se les donne. Reçus, ils sont des effets ordinaires.
+ */
+function effetsADonner(fiche: Fiche, presentes: Set<string>): BonusJet[] {
+  if (!fiche.systeme.source.effetsDonnes) return [];
+  const sortie: BonusJet[] = [];
+  for (const p of fiche.possessions.values()) {
+    const donne = p.entree.donne;
+    if (!donne || (p.sorte.rangs && p.rang < 1)) continue;
+    const id = idEffetsDonnes(p.entree.id);
+    if (fiche.possessions.get(id)) continue;
+    donne.forEach((effet, i) => {
+      const valeur = 'valeur' in effet ? Number(effet.valeur) : Number.NaN;
+      const jet = effet.sur === 'jet';
+      const vises = jet
+        ? [
+            ...(effet.si !== undefined ? (clesJetsVises(fiche, effet.si) ?? []) : []),
+            ...(effet.implique?.attribut ? [effet.implique.attribut] : []),
+          ]
+        : [];
+      sortie.push({
+        cle: `${id}/${i}`,
+        sourceId: id,
+        source: p.entree.nom,
+        libelle: libelleEffet(fiche, {
+          effet,
+          valeur: Number.isFinite(valeur) ? valeur : undefined,
+        }),
+        precision: null,
+        description: p.entree.description?.trim() || null,
+        terme:
+          jet && effet.ajout && 'bonus' in effet.ajout && Number.isFinite(Number(effet.ajout.bonus))
+            ? Number(effet.ajout.bonus)
+            : null,
+        concerne: vises.some((c) => presentes.has(c)),
+        vises,
+        jet,
+        groupe: jet ? 'jet' : 'valeur',
+        actif: false,
+        mode: 'fiche',
+        bascule: { type: 'donne', entree: id, capacite: p.entree.id },
+        raison: translate('dice.bonuses.toGive'),
+        entree: p.entree.id,
+        usages: usagesDe(fiche, p.entree.id) ?? null,
+        minuterie: null,
+      });
+    });
+  }
+  return sortie;
 }
 
 /** Un effet listé par le moteur, en bonus du lanceur. */
@@ -232,7 +300,10 @@ export function bonusDeJet(
 ): BonusJet[] {
   if (!fiche) return [];
   const presentes = clesDeLaFormule(fiche, formule);
-  const effets = effetsDuPersonnage(fiche).map((e) => depuisEffet(fiche, e, presentes));
+  const effets = [
+    ...effetsDuPersonnage(fiche).map((e) => depuisEffet(fiche, e, presentes)),
+    ...effetsADonner(fiche, presentes),
+  ];
   const rang = (b: BonusJet) => (b.actif ? 0 : 2) + (b.concerne ? 0 : 1);
   const trier = (l: BonusJet[]) =>
     l

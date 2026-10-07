@@ -961,10 +961,17 @@ export const Systeme = z.object({
   catalogue: z.array(Entree).default([]),
   /**
    * Effets donnés par les entrées (`Entree.donne`) : la sorte des entrées qui les portent (un
-   * état, donné pour un temps), et le champ texte où chaque entrée reçoit l'identifiant de la
-   * sienne.
+   * état, donné pour un temps), le champ texte où chaque entrée reçoit l'identifiant de la
+   * sienne, et le champ de leur durée.
    */
-  effetsDonnes: z.object({ sorte: Cle, champ: Cle }).optional(),
+  effetsDonnes: z
+    .object({
+      sorte: Cle,
+      champ: Cle,
+      /** Champ formule de l'entrée qui donne leur durée (tours, dés compris) ; absent : aucune. */
+      duree: Cle.optional(),
+    })
+    .optional(),
   monnaies: z.array(Monnaie).default([]),
   achats: z.array(Achat).default([]),
   creation: z.array(Creation).default([]),

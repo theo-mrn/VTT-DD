@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { aleatoireCrypto, evaluerChampEntree } from '@vtt/rules';
 import { useDiceShortcuts } from './raccourcis-des';
 import { MotionConfig } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -165,7 +166,21 @@ export function TableDes({
       ? {
           basculer(b, actif) {
             if (b.type === 'effet') void ops.effet(b.cles, actif).catch(signaler);
-            else if (b.type === 'source')
+            else if (b.type === 'donne') {
+              if (!actif) return void ops.retirerPossession(b.entree).catch(signaler);
+              // Se donner les effets de la capacité, pour sa durée (dés tirés ici)
+              const champ = fiche.fiche?.systeme.source.effetsDonnes?.duree;
+              const brute =
+                champ && fiche.fiche
+                  ? evaluerChampEntree(fiche.fiche, b.capacite, champ, {
+                      aleatoire: aleatoireCrypto(),
+                    })
+                  : undefined;
+              const duree = Math.floor(Number(brute ?? 0));
+              void ops
+                .possession({ entree: b.entree, ...(duree >= 1 ? { duree } : {}) })
+                .catch(signaler);
+            } else if (b.type === 'source')
               void ops
                 .possession({
                   entree: b.entree,

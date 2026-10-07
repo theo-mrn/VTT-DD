@@ -278,7 +278,7 @@ entites:
         description: Surcharge
 
 # Effets donnés par les capacités (docs/combat.md § 19.2) : un « effet de capacité » chacun
-effetsDonnes: { sorte: effet, champ: donne }
+effetsDonnes: { sorte: effet, champ: donne, duree: dureeDonne }
 
 sortes:
   - id: race

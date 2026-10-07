@@ -127,6 +127,7 @@ export default {
     storeLabel: 'Dice skin store',
   },
   bonuses: {
+    toGive: 'to play',
     title: 'Bonuses',
     relevant: '{count, plural, one {# added to this formula} other {# added to this formula}}',
     concerns: 'added to this formula',

@@ -126,6 +126,7 @@ export default {
     storeLabel: 'Boutique des skins de dés',
   },
   bonuses: {
+    toGive: 'à jouer',
     title: 'Bonus',
     relevant: '{count, plural, one {# ajouté à cette formule} other {# ajoutés à cette formule}}',
     concerns: 'ajouté à cette formule',

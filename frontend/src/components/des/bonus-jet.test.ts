@@ -50,6 +50,29 @@ describe('bonus du lanceur', () => {
     expect(bonusRetenus(bonus, new Set())).toEqual([]);
   });
 
+  it('capacité qui donne des effets (Bénédiction) : à jouer, puis reçue, une seule ligne', () => {
+    const pretre = fiche([{ entree: 'pretre-priere', rang: 1 }]);
+    const avant = ligne(bonusDeJet(pretre, '1d20', presentation), 'Bénédiction');
+    expect(avant).toMatchObject({
+      actif: false,
+      bascule: {
+        type: 'donne',
+        entree: 'pretre-priere-benediction--effets',
+        capacite: 'pretre-priere-benediction',
+      },
+    });
+    expect(avant?.bonus.map((b) => b.libelle)).toContain('Contact +1');
+    const beni = fiche([
+      { entree: 'pretre-priere', rang: 1 },
+      { entree: 'pretre-priere-benediction--effets' },
+    ]);
+    const apres = lignesParSource(bonusDeJet(beni, '1d20', presentation), new Set()).filter(
+      (l) => l.source === 'Bénédiction',
+    );
+    expect(apres).toHaveLength(1);
+    expect(apres[0]).toMatchObject({ actif: true, bascule: { type: 'donne' } });
+  });
+
   it('capacité à activer éteinte : l’interrupteur active la capacité elle-même', () => {
     const barbare = fiche([{ entree: 'barbare-rage', rang: 3 }]);
     const rage = ligne(bonusDeJet(barbare, '1d20 + Contact', presentation), 'Rage du berserk');
