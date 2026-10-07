@@ -289,6 +289,42 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     h.r.draw(h.state.picture(), { x: 0, y: 0, zoom: 1, width: 10, height: 10 }, 0);
   });
 
+  it('mémoire de l’exploration : texture d’un texel par case, lue en coordonnées du monde', () => {
+    const h = harness();
+    h.draw();
+    expect(h.inner.uniforms.uniforms.uMemoryOn).toBe(0);
+    const written: number[] = [];
+    const memory = {
+      revision: 1,
+      active: true,
+      cols: 4,
+      rows: 2,
+      write: (out: Uint8Array) => {
+        written.push(out.length);
+        out.fill(255);
+      },
+    };
+    const cam: CameraView = { x: 500, y: 500, zoom: 1, width: 800, height: 600 };
+    h.r.draw(h.state.picture(), cam, 0, memory);
+    const u = h.inner.uniforms.uniforms;
+    expect(u.uMemoryOn).toBe(1);
+    // Joueur : voile à 62 % de l'obscurité (noire)
+    expect(u.uMemoryAlpha).toBeCloseTo(0.62);
+    // Vue des textures 800 × 600 px du monde, à gauche 100 et en haut 200, rapportée à la carte
+    const { width, height } = h.state.picture()!.bounds;
+    expect([...(u.uMemoryMap as Float32Array)]).toEqual(
+      [800 / width, 600 / height, 100 / width, 200 / height].map(Math.fround),
+    );
+    expect(written).toEqual([4 * 2 * 4]);
+    const source = h.inner.composite.shader!.resources.uMemory as PIXI.TextureSource;
+    expect([source.width, source.height]).toEqual([4, 2]);
+    // Même révision : rien n'est réécrit ; mémoire coupée : plus de voile
+    h.r.draw(h.state.picture(), cam, 0, memory);
+    expect(written).toHaveLength(1);
+    h.r.draw(h.state.picture(), cam, 0, { ...memory, revision: 2, active: false });
+    expect(u.uMemoryOn).toBe(0);
+  });
+
   it('murs tracés pour le joueur : opaques et portes fermées, ni fenêtres ni portes ouvertes', () => {
     const P = (x: number, y: number) => ({ x, y });
     const walls = blockingWalls({

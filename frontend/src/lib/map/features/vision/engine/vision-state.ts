@@ -64,6 +64,11 @@ export type VisionMode = 'player' | 'gm' | 'view-as';
 export const GM_VEIL = 0.25;
 /** Opacité du brouillard au plus (au-dessus de l'obscurité). */
 export const FOG_ALPHA = 0.9;
+/**
+ * Voile de la mémoire de l'exploration : part de l'obscurité gardée là où le groupe a déjà vu
+ * (docs/exploration.md § 5.2). Le fond reste lisible, assombri et grisé.
+ */
+export const MEMORY_DIM = 0.62;
 
 /** Observateur prêt à dessiner : ses termes (§ 9) et ses ombres partielles. */
 export interface ViewerLayer {
@@ -97,6 +102,8 @@ export interface VisionPicture {
   readonly fogAlpha: number;
   /** Part des lueurs gardée hors de la vue (MJ : on les voit presque toutes). */
   readonly glowFloor: number;
+  /** Opacité du voile de la mémoire de l'exploration (là où le groupe a vu, hors de la vue). */
+  readonly memoryAlpha: number;
   readonly showFog: boolean;
   readonly showGlow: boolean;
   /**
@@ -585,6 +592,7 @@ export class VisionState {
       obstacleDarkness: gm ? Math.max(0, Math.min(1, shadow)) * GM_VEIL : 1,
       fogAlpha: FOG_ALPHA * (gm ? GM_VEIL : 1),
       glowFloor: gm ? 1 - GM_VEIL : 0,
+      memoryAlpha: (gm ? Math.max(0, Math.min(1, shadow)) * GM_VEIL : 1) * MEMORY_DIM,
       showFog: display.fog !== false,
       showGlow: display.lights !== false,
       versions: { fog: this.fogVersion, lights: this.lightVersion, viewers: this.viewersVersion },
@@ -603,6 +611,17 @@ export class VisionState {
   /** Ce que le rendu dessine (après `sync`). */
   picture(): VisionPicture | null {
     return this.pictureCache;
+  }
+
+  /**
+   * Vue du joueur (mode joueur, avec au moins un observateur) et la scène où elle a été
+   * calculée : la mémoire locale de l'exploration y marque ce qu'il voit pendant un glisser.
+   */
+  liveView(): { prep: PreparedScene; view: View } | null {
+    if (this.mode !== 'player' || !this.map) return null;
+    const member = this.member();
+    const view = member ? this.map.forMember(member).view() : null;
+    return view ? { prep: this.map.opts.prep, view } : null;
   }
 
   // ─── Masquage ───────────────────────────────────────────────────────────────

@@ -19,6 +19,7 @@
  */
 import { Eye } from 'lucide-react';
 import type { MapEngine, MapFeature } from '@/lib/map/engine/map-engine';
+import { explorationOf } from '@/lib/map/features/exploration/engine/model';
 import { VisionViewMenu } from './ui/view-menu';
 import { Fades, VISION_MASK } from './engine/fades';
 import { VisionRings } from './engine/radius-rings';
@@ -31,6 +32,8 @@ import { VisionState } from './engine/vision-state';
 export const ALLIES_ALPHA = 0.6;
 /** Cadence de l'animation de la brume (images par seconde) : une dérive lente, 10 suffisent. */
 export const FOG_FPS = 10;
+/** Mémoire de l'exploration pendant un glisser : marquée au plus toutes les … ms. */
+export const MEMORY_MARK_MS = 100;
 
 /**
  * Applique masques et plans forcés décidés par l'état de la visibilité ; une entité sans
@@ -145,9 +148,34 @@ export const visionFeature: MapFeature = {
         engine.invalidate();
       }, CAMERA_REFRESH_MS);
     };
+    // Mémoire de l'exploration (docs/exploration.md § 5.3) : ce que le joueur voit pendant un
+    // glisser est marqué localement, au plus toutes les MEMORY_MARK_MS, la dernière vue comprise
+    let markedView: unknown = null;
+    let lastMark = -Infinity;
+    let markTimer: ReturnType<typeof setTimeout> | null = null;
+    const markMemory = (now: number) => {
+      const memory = explorationOf(engine);
+      if (!memory?.active) return;
+      const live = state.liveView();
+      if (!live || live.view === markedView) return;
+      const wait = MEMORY_MARK_MS - (now - lastMark);
+      if (wait > 0) {
+        markTimer ??= setTimeout(() => {
+          markTimer = null;
+          engine.invalidate();
+        }, wait);
+        return;
+      }
+      lastMark = now;
+      markedView = live.view;
+      const t0 = performance.now();
+      memory.markLocal(live.prep, live.view);
+      stats.record('memory', performance.now() - t0);
+    };
     cleanups.push(() => {
       if (fogTimer) clearTimeout(fogTimer);
       if (settleTimer) clearTimeout(settleTimer);
+      if (markTimer) clearTimeout(markTimer);
     });
 
     cleanups.push(
@@ -158,6 +186,7 @@ export const visionFeature: MapFeature = {
           // Vue du MJ : aucune décision, tout se remontre et retrouve son plan
           applyDecisions(engine, state, fades, now);
         }
+        markMemory(now);
         const fading = fades.step(now);
         if (renderer) {
           // Horloge de la brume : avance seulement quand elle est animée
@@ -176,6 +205,7 @@ export const visionFeature: MapFeature = {
               height: cam.viewport.height,
             },
             fogClock,
+            explorationOf(engine),
           );
           if (stale) scheduleSettle();
           scheduleFog();
