@@ -1610,3 +1610,24 @@ Les décomptes en retard sont rejoués avant. Le retrait passe par le même lot 
     d'un PNJ ennemi chez un joueur.
 11. **Démarrage sans initiative** : aucun début de tour annoncé ; il l'est au tirage.
 12. **Données** : seuls les états dont la règle écrit une durée en reçoivent une par défaut.
+13. **Personnage supprimé** pendant le combat : ignoré par le décompte (les autres sont
+    décomptés), plus signalé comme un échec.
+14. **Bonus libre d'un joueur** (bloc Bonus de sa fiche) : durée et moment au tour du porteur ;
+    seul le MJ choisit l'ancre d'un autre participant (fiche de combat).
+
+### 18.10 Réalisé, reste
+
+Réalisé le 2026-10-07 : moteur (`packages/rules/src/jets/durees.ts`, schémas, validation,
+données Star Wars), character (route par lot, pierre tombale, `decompte` des routes publiques),
+campaign (`durations.ts`, journal `0031-combat-duration-ticks.sql`, rejeu, annonce, fin du combat),
+front (fiche de combat, ordre du tour, badges de la carte, blocs Bonus et Liste de la fiche,
+toast, chronique, rapports d'attaque), tests du moteur, des services (unitaires, intégration,
+bout en bout avec le vrai character) et du front.
+
+Reste :
+
+- tiroir de décision d'un rapport : le MJ change le nombre de décomptes d'un état donné, pas
+  encore son moment ni son ancre (ils sont gardés tels que l'action les a donnés) ;
+- états posés hors combat puis combat démarré sans initiative : le premier début de tour n'est
+  annoncé qu'au tirage (décision 11) ;
+- durées « de rencontre » ou « de scène » (hors combat) : à concevoir avec les rencontres.
