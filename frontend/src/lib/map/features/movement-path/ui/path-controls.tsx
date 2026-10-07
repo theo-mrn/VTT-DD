@@ -5,6 +5,7 @@
  * de chacun (⇧T) et, à côté pour le MJ, la règle de la table. Quand le MJ l'impose ou la coupe,
  * le bouton d'un joueur est grisé et dit pourquoi en infobulle.
  */
+import { translate } from '@/i18n/runtime';
 import { Check, ChevronUp, Route } from 'lucide-react';
 import { useState } from 'react';
 import { useStore } from 'zustand';
@@ -35,7 +36,10 @@ export function PathControls({ engine }: Readonly<{ engine: MapEngine }>) {
   const touche = useBindingLabel(mapActionShortcutOf(TOGGLE_ACTION_ID));
 
   if (ruleForced(engine, rule)) {
-    const label = rule === 'shown' ? 'Trajets affichés par le MJ' : 'Trajets masqués par le MJ';
+    const label =
+      rule === 'shown'
+        ? translate('map.movementPath.forcedShown')
+        : translate('map.movementPath.forcedHidden');
     return (
       <Info texte={label}>
         <span className="inline-flex">
@@ -57,7 +61,7 @@ export function PathControls({ engine }: Readonly<{ engine: MapEngine }>) {
   return (
     <div className="flex items-center">
       <ToolbarButton
-        label={pref ? 'Masquer les trajets' : 'Afficher les trajets'}
+        label={pref ? translate('map.movementPath.hide') : translate('map.movementPath.show')}
         shortcut={touche.label ?? undefined}
         active={pref}
         onClick={() => {
@@ -75,14 +79,15 @@ export function PathControls({ engine }: Readonly<{ engine: MapEngine }>) {
 /** Règle de la table (MJ) : au choix de chacun, toujours affichés, masqués. */
 function TableRuleMenu({ engine, rule }: Readonly<{ engine: MapEngine; rule: TableRule }>) {
   const [open, setOpen] = useState(false);
+  const title = translate('map.movementPath.tableRule');
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Info texte="Trajets pour la table">
+      <Info texte={title}>
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Trajets pour la table"
+            aria-label={title}
             className={cn('w-5 px-0 text-muted-foreground', rule !== 'free' && 'text-primary')}
           >
             <ChevronUp />
@@ -90,18 +95,18 @@ function TableRuleMenu({ engine, rule }: Readonly<{ engine: MapEngine; rule: Tab
         </PopoverTrigger>
       </Info>
       <PopoverContent side="top" className="w-56 p-2">
-        <p className="px-2 pb-1 pt-1 text-sm font-semibold">Trajets pour la table</p>
-        <div role="radiogroup" aria-label="Trajets pour la table" className="space-y-0.5">
+        <p className="px-2 pb-1 pt-1 text-sm font-semibold">{title}</p>
+        <div role="radiogroup" aria-label={title} className="space-y-0.5">
           {TABLE_RULES.map((r) => {
-            const on = r.value === rule;
+            const on = r === rule;
             return (
               <button
-                key={r.value}
+                key={r}
                 type="button"
                 role="radio"
                 aria-checked={on}
                 onClick={() => {
-                  void setTableRule(engine, r.value);
+                  void setTableRule(engine, r);
                   setOpen(false);
                   focusMap(engine);
                 }}
@@ -112,7 +117,7 @@ function TableRuleMenu({ engine, rule }: Readonly<{ engine: MapEngine; rule: Tab
                 )}
               >
                 <Check className={cn('size-3.5 shrink-0', !on && 'invisible')} aria-hidden />
-                {r.label}
+                {translate(`map.movementPath.rules.${r}`)}
               </button>
             );
           })}

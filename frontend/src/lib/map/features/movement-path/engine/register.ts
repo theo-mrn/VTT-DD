@@ -4,6 +4,7 @@
  * la bascule (⇧T) et le rendu. L'interface (bouton, règle de la table, déplacement lu dans les
  * fiches) est ajoutée par `index.ts`.
  */
+import { translate } from '@/i18n/runtime';
 import { Route } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -23,7 +24,6 @@ import { PathTracker } from './tracker';
 /** Bascule de l'affichage des trajets (ma préférence). */
 export const TOGGLE_ACTION_ID = 'movement-path.toggle';
 export const TOGGLE_SHORTCUT = { code: 'Shift+KeyT', label: '⇧T' };
-export const TOGGLE_LABEL = 'Trajets des déplacements';
 
 export interface MovementPathUi {
   /** Bouton « Trajets » et règle de la table (barre d'outils, groupe `assist`). */
@@ -141,7 +141,7 @@ export function registerMovementPath(engine: MapEngine, ui: MovementPathUi = {})
     speeds.subscribe(() => engine.invalidate()),
     engine.registerAction({
       id: TOGGLE_ACTION_ID,
-      label: TOGGLE_LABEL,
+      label: translate('map.actions.movementPathToggle'),
       icon: Route,
       shortcut: TOGGLE_SHORTCUT,
       run: (e) => {
@@ -183,7 +183,7 @@ export function registerMovementPath(engine: MapEngine, ui: MovementPathUi = {})
       engine.registerToolbarEntry({
         kind: 'custom',
         id: 'movement-path:menu',
-        label: TOGGLE_LABEL,
+        label: translate('map.actions.movementPathToggle'),
         icon: Route,
         group: 'assist',
         order: 15,

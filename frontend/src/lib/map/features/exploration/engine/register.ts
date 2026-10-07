@@ -3,6 +3,7 @@
  * § 5) : la mémoire (`explorationOf`), les traînées des glisser, l'outil Exploration (MJ) et ses
  * actions. L'interface (barre de l'outil, écoute des événements) est ajoutée par `index.ts`.
  */
+import { translate } from '@/i18n/runtime';
 import { Footprints, RotateCcw, ToggleRight } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
@@ -36,9 +37,10 @@ export function toggleExploration(engine: MapEngine, on?: boolean): Promise<bool
   if (!scene) return null;
   const next = on ?? scene.exploration !== 'party';
   if ((scene.exploration === 'party') === next) return null;
-  return engine.updateScene(next ? 'Activer l’exploration' : 'Couper l’exploration', {
-    exploration: next ? 'party' : 'off',
-  });
+  const label = next
+    ? translate('map.exploration.commands.enable')
+    : translate('map.exploration.commands.disable');
+  return engine.updateScene(label, { exploration: next ? 'party' : 'off' });
 }
 
 /** Réinitialise la mémoire du groupe, après confirmation ; une commande annulable. */
@@ -46,9 +48,9 @@ export async function resetExploration(engine: MapEngine): Promise<boolean> {
   const m = modules.get(engine);
   if (!m?.api || !m.model.active) return false;
   const ok = await engine.confirm({
-    title: 'Réinitialiser l’exploration',
-    message: 'Tout ce que le groupe a exploré sur cette scène sera oublié.',
-    confirmLabel: 'Réinitialiser',
+    title: translate('map.exploration.resetConfirm.title'),
+    message: translate('map.exploration.resetConfirm.message'),
+    confirmLabel: translate('map.exploration.reset'),
     danger: true,
   });
   if (!ok) return false;
@@ -71,7 +73,7 @@ export function registerExploration(engine: MapEngine, ui: ExplorationUi = {}): 
     engine.onEntitiesMoved((moves, done) => trails.moved(moves, done, performance.now())),
     engine.registerTool({
       id: EXPLORATION_TOOL_ID,
-      label: 'Exploration',
+      label: translate('map.tools.exploration'),
       icon: Footprints,
       order: 74,
       available: isGm,
@@ -81,14 +83,14 @@ export function registerExploration(engine: MapEngine, ui: ExplorationUi = {}): 
     // Sans bouton ni touche par défaut : à choisir dans l'éditeur des raccourcis
     engine.registerAction({
       id: 'exploration.toggle',
-      label: 'Activer ou couper l’exploration',
+      label: translate('map.actions.explorationToggle'),
       icon: ToggleRight,
       available: isGm,
       run: (e) => void toggleExploration(e),
     }),
     engine.registerAction({
       id: 'exploration.reset',
-      label: 'Réinitialiser l’exploration',
+      label: translate('map.actions.explorationReset'),
       icon: RotateCcw,
       available: isGm,
       run: (e) => void resetExploration(e),

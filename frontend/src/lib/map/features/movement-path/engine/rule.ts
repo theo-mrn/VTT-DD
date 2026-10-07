@@ -8,6 +8,7 @@
  *
  * Couper l'affichage ne coupe pas l'envoi : les autres voient mon trajet selon leur réglage.
  */
+import { translate } from '@/i18n/runtime';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
@@ -20,11 +21,8 @@ const PREF_KEY = 'vtt:carte:trajets';
 /** Règle de la table : au choix de chacun, toujours affichés, masqués. */
 export type TableRule = 'free' | 'shown' | 'hidden';
 
-export const TABLE_RULES: readonly { value: TableRule; label: string }[] = [
-  { value: 'free', label: 'Au choix de chacun' },
-  { value: 'shown', label: 'Toujours affichés' },
-  { value: 'hidden', label: 'Masqués' },
-];
+/** Règles, dans l'ordre du menu ; nom : `map.movementPath.rules.<règle>`. */
+export const TABLE_RULES: readonly TableRule[] = ['free', 'shown', 'hidden'];
 
 export interface PathPrefs {
   /** Montrer les trajets sur mon écran. */
@@ -74,7 +72,7 @@ export function setTableRule(engine: MapEngine, rule: TableRule) {
   const scene = engine.store.getState().scene;
   if (!scene || tableRule(scene) === rule) return null;
   const { [RULE_KEY]: _before, ...display } = displayOf(scene);
-  return engine.updateScene('Trajets des déplacements', {
+  return engine.updateScene(translate('map.movementPath.tableRuleCommand'), {
     display: rule === 'free' ? display : { ...display, [RULE_KEY]: rule === 'shown' },
   });
 }
