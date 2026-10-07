@@ -2,7 +2,8 @@
 
 /**
  * Libellés du studio et de la modération dans la langue de la page : prix, dates, contenu d'une
- * version, statuts, licences, avertissements et motifs (docs/i18n.md § 5 et § 6).
+ * version, statuts, licences, avertissements et motifs (docs/i18n.md § 5 et § 6). Les textes
+ * sont ceux de `marketplace.common`, partagés avec la boutique.
  */
 import type {
   ContentWarning,
@@ -28,13 +29,13 @@ const LICENSE_KEYS = {
 } as const satisfies Record<License, string>;
 
 export function useStudioLabels() {
-  const t = useTranslations('marketplace.studio');
+  const t = useTranslations('marketplace.common');
   const format = useFormatter();
   return useMemo(
     () => ({
       /** Centimes → « 4,99 € » ; 0 → « Gratuit ». */
       price(cents: number, currency = 'eur') {
-        if (cents <= 0) return t('free');
+        if (cents <= 0) return t('price.free');
         return format.number(cents / 100, { style: 'currency', currency: currency.toUpperCase() });
       },
       /** Date courte : « 7 oct. 2026 ». */
@@ -55,11 +56,13 @@ export function useStudioLabels() {
           .join(' · ');
       },
       listingStatus: (s: ListingStatus) => t(`listingStatus.${s}`),
-      versionStatus: (s: VersionStatus) => t(`versionStatus.${s}`),
+      versionStatus: (s: VersionStatus) => t(`versionStatus.${s === 'in_review' ? 'inReview' : s}`),
       license: (l: License) => t(`licenses.${LICENSE_KEYS[l]}`),
-      warning: (w: ContentWarning) => t(`warnings.${w}`),
+      warning: (w: ContentWarning) => t(`contentWarnings.${w}`),
       moderationReason: (r: ModerationReason) => t(`moderationReasons.${r}`),
       reportReason: (r: ReportReason) => t(`reportReasons.${r}`),
+      /** « v1.2.0 ». */
+      version: (n: string) => t('version', { number: n }),
     }),
     [t, format],
   );

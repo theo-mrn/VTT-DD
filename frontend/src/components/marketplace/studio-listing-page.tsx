@@ -458,7 +458,7 @@ function VersionCard({ version }: Readonly<{ version: StudioVersion }>) {
   return (
     <div className="space-y-1.5 rounded-xl border border-border p-3 text-[13px]">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold tabular-nums">v{version.number}</span>
+        <span className="font-semibold tabular-nums">{labels.version(version.number)}</span>
         <Badge
           ton={
             version.status === 'published'
