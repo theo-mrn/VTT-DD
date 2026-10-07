@@ -255,6 +255,16 @@ export const PresentationCombat = z.object({
 export type PresentationCombat = z.output<typeof PresentationCombat>;
 
 /**
+ * Carte (docs/carte.md § 10, Trajet des déplacements) : l'attribut calculé qui donne le
+ * déplacement d'un personnage, en unités de la carte (une case de la grille de jeu vaut une
+ * unité). Le trajet d'un token glissé s'y compare ; sans lui, la carte ne montre que la distance.
+ */
+export const PresentationCarte = z.object({
+  deplacement: z.object({ attribut: Cle }).optional(),
+});
+export type PresentationCarte = z.output<typeof PresentationCarte>;
+
+/**
  * Ressources consultables (panneau « Ressources » de la table, page Ressources) : chaque
  * onglet n'existe que si le système le déclare ici. Voir docs/ressources.md.
  */
@@ -426,6 +436,8 @@ export const Presentation = z.object({
   references: References.default({}),
   /** Menu d'attaque et états du combat. */
   combat: PresentationCombat.optional(),
+  /** Carte : déplacement d'un personnage, comparé au trajet d'un token. */
+  carte: PresentationCarte.optional(),
 });
 export type Presentation = z.output<typeof Presentation>;
 
@@ -488,6 +500,9 @@ export function verifierPresentation(
 
   for (const e of erreursReferences(systeme, p.references)) erreur(e.chemin, e.message);
   if (p.combat) for (const e of erreursCombat(systeme, p.combat)) erreur(e.chemin, e.message);
+  const deplacement = p.carte?.deplacement?.attribut;
+  if (deplacement && ![...systeme.entites.values()].some((e) => e.attributs.has(deplacement)))
+    erreur('carte/deplacement', `Attribut inconnu : ${deplacement}`);
 
   return erreurs.length ? { ok: false, erreurs } : { ok: true, presentation: p };
 }
