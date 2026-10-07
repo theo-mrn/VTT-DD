@@ -66,6 +66,7 @@ import { Info } from '@/components/ui/tooltip';
 import {
   actionsGeneriques,
   capaciteJouee,
+  ciblesProposees,
   capacitesDeCombat,
   type CapaciteCombat,
 } from '@/lib/combat/capacities';
@@ -160,9 +161,9 @@ export function StepCompose({
       usage: c.jeu.type === 'generique' && c.usages ? id : null,
       activate: c.jeu.type === 'activer' && !c.active ? id : null,
     });
-    const soi = !c.entree.champs.cibles || c.entree.champs.cibles === 'soi';
-    if (soi && !draft.targetIds.length && draft.attackerId)
-      attackMenu.dispatch({ type: 'setTargets', characterIds: [draft.attackerId] });
+    // Cibles naturelles de la capacité : soi, ou soi et ses alliés ; ennemis : ce qui est visé
+    const cibles = ciblesProposees(c.entree, draft.attackerId, ctx);
+    if (cibles) attackMenu.dispatch({ type: 'setTargets', characterIds: cibles });
   }
 
   return (

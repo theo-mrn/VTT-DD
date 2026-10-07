@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { calculer, charger, EtatEntite, Presentation, type EtatEntiteSaisi } from '@vtt/rules';
 import { describe, expect, it } from 'vitest';
 import { targetedActions } from './actions';
-import { capaciteDeLActe, capacitesDeCombat, groupeDe } from './capacities';
+import { capaciteDeLActe, capacitesDeCombat, ciblesProposees, groupeDe } from './capacities';
 
 const PUBLIC = fileURLToPath(new URL('../../../public/systemes/', import.meta.url));
 const r = charger(JSON.parse(readFileSync(`${PUBLIC}dnd-classic.json`, 'utf8')));
@@ -88,5 +88,30 @@ describe('menu Capacités', () => {
     expect(nom('utiliser-capacite', 'barde-musicien-chant-des-heros')).toBe('Chant des héros');
     expect(nom('sort', 'barde-musicien-danse-irresistible')).toBe('Danse irrésistible');
     expect(capaciteDeLActe(systeme, presentation, 'attaque', { arme: 'epee-longue' })).toBeNull();
+  });
+
+  it('cibles posées d’office : soi, ou soi et ses alliés présents', () => {
+    const known = new Map([
+      ['hero', { side: 'players' }],
+      ['ami', { side: 'players' }],
+      ['ko', { side: 'players' }],
+      ['gobelin', { side: 'enemies' }],
+    ]);
+    const roster = [...known.keys()].map((id) => ({ id }));
+    const combat = {
+      order: [
+        { characterId: 'hero' },
+        { characterId: 'ami' },
+        { characterId: 'ko', defeated: true },
+        { characterId: 'gobelin' },
+      ],
+    };
+    const ctx = { known, roster, combat };
+    expect(ciblesProposees({ champs: { cibles: 'allies' } }, 'hero', ctx)).toEqual(['hero', 'ami']);
+    expect(ciblesProposees({ champs: {} }, 'hero', ctx)).toEqual(['hero']);
+    expect(ciblesProposees({ champs: { cibles: 'ennemis' } }, 'hero', ctx)).toBeNull();
+    expect(
+      ciblesProposees({ champs: { cibles: 'allies' } }, 'hero', { ...ctx, combat: null }),
+    ).toEqual(['hero', 'ami', 'ko']);
   });
 });

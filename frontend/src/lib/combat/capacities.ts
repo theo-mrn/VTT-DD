@@ -209,3 +209,32 @@ export function capaciteJouee(
   const v = a ? params?.[a.parametre] : undefined;
   return typeof v === 'string' ? v : null;
 }
+
+/** Ce qu'il faut savoir des personnages pour poser des cibles : camp, présence au combat. */
+export interface CiblesContexte {
+  known: ReadonlyMap<string, { side: string | null }>;
+  roster: readonly { id: string }[];
+  combat: { order: readonly { characterId: string; defeated?: boolean }[] } | null;
+}
+
+/**
+ * Cibles posées d'office par une capacité (champ `cibles`) : `soi` (défaut), ou `allies` : soi
+ * et son camp (en combat, les participants non vaincus) ; null pour `ennemis` et `tous` : on
+ * garde ce qui est visé.
+ */
+export function ciblesProposees(
+  capacite: Pick<Entree, 'champs'>,
+  acteur: string | null,
+  ctx: CiblesContexte,
+): string[] | null {
+  if (!acteur) return null;
+  const cibles = capacite.champs.cibles;
+  if (!cibles || cibles === 'soi') return [acteur];
+  if (cibles !== 'allies') return null;
+  const camp = ctx.known.get(acteur)?.side ?? null;
+  if (!camp) return [acteur];
+  const presents = ctx.combat
+    ? ctx.combat.order.filter((p) => !p.defeated).map((p) => p.characterId)
+    : ctx.roster.map((r) => r.id);
+  return [acteur, ...presents.filter((id) => id !== acteur && ctx.known.get(id)?.side === camp)];
+}
