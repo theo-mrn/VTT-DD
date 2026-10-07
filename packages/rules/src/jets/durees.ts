@@ -7,7 +7,9 @@
  * Le service qui mène le combat traduit chaque passage de tour en événements ; le service des
  * personnages les applique ici, dans l'ordre.
  */
-import type { SystemeCharge } from '../chargement/index.js';
+import type { Fiche } from '../calcul/index.js';
+import { formuleChamp, variablesObjet, type SystemeCharge } from '../chargement/index.js';
+import { ErreurEvaluation, type Generateur, type Valeur } from '../formules/index.js';
 import {
   nomPossession,
   type BonusLibre,
@@ -136,6 +138,8 @@ export function decompterDurees(
       change = true;
     } else {
       expirees.push({ cle: cleDureePossession(p), nom: nomDePossession(o.systeme, p) });
+      // Activation arrivée à son terme : l'entrée s'éteint, elle reste possédée
+      if (dureeActivationDe(o.systeme, p.entree)) possessions.push(eteinte(p));
       change = true;
     }
   }
@@ -156,6 +160,18 @@ export function decompterDurees(
   return { etat: { ...etat, possessions, bonus }, expirees };
 }
 
+/** Durée d'activation déclarée par la sorte de l'entrée (`sorte.dureeActivation`). */
+function dureeActivationDe(systeme: SystemeCharge | undefined, entree: string) {
+  const sorte = systeme?.sortes.get(systeme.entrees.get(entree)?.sorte ?? '');
+  return sorte?.activable ? sorte.dureeActivation : undefined;
+}
+
+/** Possession éteinte : inactive, sans durée. */
+function eteinte(p: Possession): Possession {
+  const { duree: _d, decompte: _c, ...reste } = p;
+  return { ...reste, actif: false };
+}
+
 function nomDePossession(systeme: SystemeCharge | undefined, p: Possession): string {
   const entree = systeme?.entrees.get(p.entree);
   const sorte = entree && systeme?.sortes.get(entree.sorte);
@@ -163,6 +179,45 @@ function nomDePossession(systeme: SystemeCharge | undefined, p: Possession): str
 }
 
 // ─── Poser une durée ──────────────────────────────────────────────────────────
+
+/**
+ * Durée d'une activation (`sorte.dureeActivation`, docs/regles.md « Durées ») : la formule du
+ * champ, lue sur le porteur au moment où il active l'entrée (dés tirés par `aleatoire`),
+ * arrondie à l'entier inférieur, et son décompte. Absent : la sorte n'en déclare pas, l'entrée
+ * n'a pas de formule pour ce champ, la formule ne se calcule pas, ou le résultat est inférieur
+ * à 1 ; l'entrée reste alors active jusqu'à ce qu'on la coupe.
+ */
+export function dureeActivation(
+  fiche: Fiche,
+  entree: string,
+  aleatoire?: Generateur,
+): Minuterie | undefined {
+  const systeme = fiche.systeme;
+  const declaree = dureeActivationDe(systeme, entree);
+  const e = systeme.entrees.get(entree);
+  const sorte = e && systeme.sortes.get(e.sorte);
+  const champ = sorte?.champs.find((c) => c.id === declaree?.champ);
+  if (!declaree || !e || !sorte || !champ) return undefined;
+  const p = fiche.possessions.get(entree);
+  const f = formuleChamp(systeme, e, champ, p?.possession, fiche.etat.type);
+  if (!f) return undefined;
+  const lire = variablesObjet(
+    e,
+    sorte,
+    { rang: p?.rang ?? 0, actif: true, quantite: p?.quantite ?? 1 },
+    p?.possession,
+  );
+  const variable = (n: string): Valeur => {
+    const x = lire(n);
+    if (x === undefined) throw new ErreurEvaluation(`Variable inconnue : ${n}`, 0);
+    return x;
+  };
+  const v = fiche.evaluer(f, { variable, ...(aleatoire ? { aleatoire } : {}) }, 0);
+  const duree = Math.floor(Number(v));
+  if (!Number.isFinite(duree) || duree < 1) return undefined;
+  const decompte = poserDecompte(undefined, { moment: declaree.moment });
+  return decompte ? { duree, decompte } : { duree };
+}
 
 /** Décompte demandé (à la pose) : moment, et ancre déjà résolue en identifiant. */
 export interface DecompteSaisi {

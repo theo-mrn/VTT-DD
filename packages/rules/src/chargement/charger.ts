@@ -510,6 +510,16 @@ class Chargeur {
       if (id !== undefined && sorte.champs.find((c) => c.id === id)?.type !== 'texte')
         this.erreur(`${chemin}/${cle}`, `Champ texte attendu : ${id}`);
     }
+    if (sorte.dureeActivation) {
+      const id = sorte.dureeActivation.champ;
+      if (!sorte.activable)
+        this.erreur(
+          `${chemin}/dureeActivation`,
+          'Seule une sorte activable a une durée d’activation',
+        );
+      if (sorte.champs.find((c) => c.id === id)?.type !== 'formule')
+        this.erreur(`${chemin}/dureeActivation`, `Champ formule attendu : ${id}`);
+    }
     if (!sorte.rangs) return;
     if (sorte.exemplaires)
       this.erreur(

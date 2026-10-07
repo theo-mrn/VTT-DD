@@ -20,6 +20,7 @@ import {
   acheterObjet,
   appliquerEtape,
   etatInitial,
+  minuterActivation,
   modifierValeurs,
   poserPossession,
   rembourserLigne,
@@ -592,6 +593,28 @@ describe('durées', () => {
     expect(finDeRound(verifierEtat(dnd, { ...etat, possessions: [] }).etat)).toEqual({
       retirees: [],
     });
+  });
+
+  it('activation : durée lue sur le porteur en l’activant, gardée si déjà active, ôtée coupée', () => {
+    const entree = 'pretre-priere-benediction';
+    const poser = (etat: EtatEntite, actif: boolean) => {
+      const d = { entree, actif };
+      return minuterActivation(dnd, etat, poserPossession(dnd, etat, d), d, aleatoireGraine('g'));
+    };
+    const benediction = (etat: EtatEntite) => etat.possessions.find((p) => p.entree === entree);
+    const pretre = verifierEtat(dnd, {
+      type: 'personnage',
+      systeme: { id: 'dnd-classic', version: dnd.source.version },
+      valeurs: { niveau: 1, SAG: 14 },
+      possessions: [{ entree: 'pretre-priere', rang: 2 }],
+    }).etat;
+    const active = poser(pretre, true);
+    expect(benediction(active)).toMatchObject({ actif: true, duree: 3 + 2 });
+    const entamee = finDeRound(active).etat!;
+    expect(benediction(poser(entamee, true))?.duree).toBe(4);
+    const coupee = poser(entamee, false);
+    expect(benediction(coupee)).toMatchObject({ actif: false });
+    expect(benediction(coupee)).not.toHaveProperty('duree');
   });
 
   it('exemplaires : chacun décompte sa durée, le retrait vise l’exemplaire exact', () => {

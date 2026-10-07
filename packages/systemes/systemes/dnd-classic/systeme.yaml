@@ -317,6 +317,8 @@ sortes:
       - { id: voie, nom: Voie, type: entree, sorte: voie }
       - { id: rangVoie, nom: Rang dans la voie, type: nombre }
       - { id: activation, nom: Activation, type: texte }
+      # Durée d'une capacité à activer, en tours, lue à l'activation (dés compris)
+      - { id: duree, nom: Durée (tours), type: formule, des: true }
       # Bonus situationnel invoqué au test (« +2 par rang aux tests de survie »)
       - { id: bonusTest, nom: Bonus au test invoqué, type: formule }
       - { id: avantageTest, nom: Avantage au test invoqué, type: nombre, defaut: 0 }
@@ -343,11 +345,13 @@ sortes:
     description: >-
       Capacité d'une voie dont les effets ne comptent que lorsque le joueur
       l'active (sort de durée, rage, transformation, posture…) : inactive par
-      défaut, activée par une possession explicite « actif ».
+      défaut, activée par une possession explicite « actif ». Une durée (champ
+      « Durée », en tours) l'éteint d'elle-même au bout du compte, en combat.
     pour: [personnage]
     rangs: { max: 1 }
     activable: true
     actifParDefaut: false
+    dureeActivation: { champ: duree }
     champs: *champs-capacite
   - id: arme
     nom: Arme

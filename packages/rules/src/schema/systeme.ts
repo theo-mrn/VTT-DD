@@ -285,6 +285,13 @@ export const Champ = z.discriminatedUnion('type', [
 ]);
 export type Champ = z.output<typeof Champ>;
 
+/**
+ * Moment où une durée perd un décompte : à chaque fin de round, au début ou à la fin du tour
+ * d'un personnage (le porteur, ou la source de l'effet).
+ */
+export const MomentDecompte = z.enum(['fin-round', 'debut-tour', 'fin-tour']);
+export type MomentDecompte = z.output<typeof MomentDecompte>;
+
 export const Sorte = z.object({
   id: Cle,
   nom: Libelle,
@@ -300,6 +307,14 @@ export const Sorte = z.object({
   activable: z.boolean().default(false),
   /** État d'une entrée activable obtenue sans possession explicite (capacité à activer : Rage…). */
   actifParDefaut: z.boolean().default(true),
+  /**
+   * Durée d'une activation (sorte `activable`) : le champ `formule` de la sorte qui la donne,
+   * lu sur le porteur au moment où il active l'entrée (dés compris : « 1d6 + mod(@INT) »), et
+   * le moment de son décompte. À 0, l'entrée s'éteint (`actif: false`) au lieu d'être retirée.
+   * Entrée sans valeur pour ce champ, ou résultat inférieur à 1 : pas de durée, elle reste
+   * active jusqu'à ce qu'on la coupe.
+   */
+  dureeActivation: z.object({ champ: Cle, moment: MomentDecompte.default('fin-round') }).optional(),
   /**
    * Une même entrée peut être possédée plusieurs fois (deux dagues, deux
    * Obligations du même type) : chaque possession est un exemplaire, avec son
@@ -357,13 +372,6 @@ export const ChoixAttribut = z.object({
 export type ChoixAttribut = z.output<typeof ChoixAttribut>;
 
 // ─── Durées (docs/combat.md § 18) ────────────────────────────────────────────
-
-/**
- * Moment où une durée perd un décompte : à chaque fin de round, au début ou à la fin du tour
- * d'un personnage (le porteur, ou la source de l'effet).
- */
-export const MomentDecompte = z.enum(['fin-round', 'debut-tour', 'fin-tour']);
-export type MomentDecompte = z.output<typeof MomentDecompte>;
 
 /** Personnage dont le tour compte : le porteur de l'effet, ou sa source (qui l'a donné). */
 export const AncreDuree = z.enum(['porteur', 'source']);

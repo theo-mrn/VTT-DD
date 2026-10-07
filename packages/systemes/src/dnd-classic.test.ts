@@ -16,6 +16,7 @@ import {
   executerAction,
   initiative,
   reduireDegats,
+  dureeActivation,
   tirerEtape,
   type EtatEntiteSaisi,
   type Fiche,
@@ -1147,6 +1148,18 @@ describe('dnd-classic : capacités codées', () => {
       { entree: 'magicien-magie-elementaire-protection-contre-les-elements', actif: true },
     ]);
     expect(reduireDegats(protege, 10, 'acide', 'PV').valeur).toBe(4);
+  });
+
+  it('capacités à activer : durée en tours lue sur le porteur, dés compris', () => {
+    const pretre = nu([{ entree: 'pretre-priere', rang: 2 }], { SAG: 14 });
+    expect(dureeActivation(pretre, 'pretre-priere-benediction')).toEqual({ duree: 3 + 2 });
+    const minotaure = nu([{ entree: 'race-minotaure', rang: 5 }]);
+    expect(dureeActivation(minotaure, 'race-minotaure-frenesie', aleatoireImpose([4]))).toEqual({
+      duree: 4,
+    });
+    // Rage du berserk : tant qu'il reste des ennemis, sans durée
+    const barbare = nu([{ entree: 'barbare-rage', rang: 3 }]);
+    expect(dureeActivation(barbare, 'barbare-rage-rage-du-berserk')).toBeUndefined();
   });
 
   it('Détection de la magie : +2 par rang de la voie, invoqué au test', () => {

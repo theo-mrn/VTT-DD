@@ -28,6 +28,7 @@ import {
   calculer,
   choisirEtape,
   creationDe,
+  dureeActivation,
   EtatEntite,
   executerAction,
   MAX_INVENTORY_FOLDERS,
@@ -693,6 +694,37 @@ export function poserPossession(
     etat: { ...etat, possessions },
     ...(exemplaire !== undefined ? { exemplaire } : {}),
     cree: true,
+  };
+}
+
+/**
+ * Durée d'une activation (sorte à `dureeActivation`, docs/regles.md « Durées ») après une
+ * pose : l'entrée qui passe de coupée à active reçoit la durée lue sur le porteur (dés tirés
+ * ici), sauf durée demandée ; coupée, elle la perd. Le reste de la pose ne change pas.
+ */
+export function minuterActivation(
+  systeme: SystemeCharge,
+  avant: EtatEntite,
+  pose: PossessionPosee,
+  d: DemandePossession,
+  aleatoire: Generateur,
+): EtatEntite {
+  const sorte = systeme.sortes.get(systeme.entrees.get(d.entree)?.sorte ?? '');
+  if (d.actif === undefined || !sorte?.activable || !sorte.dureeActivation) return pose.etat;
+  const vise = (p: Possession) => estExemplaire(p, d.entree, pose.exemplaire);
+  const etaitActive = avant.possessions.find(vise)?.actif ?? sorte.actifParDefaut;
+  let minuterie: { duree?: number; decompte?: Decompte } = {};
+  if (d.actif) {
+    if (etaitActive || d.duree !== undefined) return pose.etat;
+    minuterie = dureeActivation(calculer(systeme, pose.etat), d.entree, aleatoire) ?? {};
+  }
+  return {
+    ...pose.etat,
+    possessions: pose.etat.possessions.map((p) => {
+      if (!vise(p)) return p;
+      const { duree: _d, decompte: _c, ...reste } = p;
+      return { ...reste, ...minuterie };
+    }),
   };
 }
 

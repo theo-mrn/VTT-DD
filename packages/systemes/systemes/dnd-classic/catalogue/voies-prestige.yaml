@@ -512,7 +512,13 @@
 - id: prestige-rodeur-fusion-lycanthropique-lycanthropie
   sorte: capacite_active
   nom: Lycanthropie
-  champs: { voie: prestige-rodeur-fusion-lycanthropique, rangVoie: 1, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-rodeur-fusion-lycanthropique,
+      rangVoie: 1,
+      activation: Action limitée,
+      duree: '5 * mod(@SAG)',
+    }
   description: |-
     Effet : Le rôdeur peut fusionner avec son compagnon loup pour se transformer en forme hybride, mi-homme, mi-loup pendant [5 x Mod. de SAG] tours. Sous cette forme,
     il ne peut plus utiliser d’armes, mais il peut encore utiliser son armure, qui s’adapte à sa taille.
@@ -620,7 +626,13 @@
 - id: prestige-pretre-archange-forme-d-ange
   sorte: capacite_active
   nom: Forme d’Ange
-  champs: { voie: prestige-pretre-archange, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: prestige-pretre-archange,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@SAG)',
+    }
   description: |-
     Effet : Le prêtre prend la forme d’un ange pour [5 + Mod. SAG] tours.
 
@@ -1080,7 +1092,13 @@
 - id: prestige-moine-pierre-corps-de-pierre
   sorte: capacite_active
   nom: Corps de pierre
-  champs: { voie: prestige-moine-pierre, rangVoie: 5, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-moine-pierre,
+      rangVoie: 5,
+      activation: Action limitée,
+      duree: '1d6 + mod(@SAG)',
+    }
   description: |-
     Effet : Le moine donne à son corps la texture de la pierre pendant [1d6 + Mod. de SAG] tours. Dans cet état, il retranche 5 points à tous les DM subits par des armes. Les créatures qui l'attaquent avec des armes naturelles subissent 1 point DM par attaque et celles qui utilisent des armes manufacturées voient leur arme se briser s'ils obtiennent un résultat de 1 au dé de DM. Les armes magiques ne risquent pas de se briser. Le personnage peut utiliser cette capacité pour mettre fin à tout effet de pétrification qui l'affecte en 1d6 tours.
   effets:
@@ -1605,7 +1623,13 @@
 - id: prestige-ensorceleur-sang-dragon-ferocite
   sorte: capacite_active
   nom: Férocité
-  champs: { voie: prestige-ensorceleur-sang-dragon, rangVoie: 2, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-ensorceleur-sang-dragon,
+      rangVoie: 2,
+      activation: Action limitée,
+      duree: '1d6 + mod(@CHA)',
+    }
   description: |-
     Effet : L’ensorceleur voit ses muscles se développer de façon spectaculaire pendant [1d6 + Mod. de CHA] tours tandis que d’énormes griffes poussent subitement au bout de ses doigts.
 
@@ -1996,7 +2020,13 @@
 - id: prestige-chevalier-chevalier-dragon-epee-de-feu
   sorte: capacite_active
   nom: Épée de feu
-  champs: { voie: prestige-chevalier-chevalier-dragon, rangVoie: 2, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-chevalier-chevalier-dragon,
+      rangVoie: 2,
+      activation: Action limitée,
+      duree: '5 + mod(@CHA)',
+    }
   description: |-
     Effet : Le chevalier peut enflammer son épée pour [5 + Mod. de CHA] tours. Elle inflige des lots +1d6 DM de feu.
   effets:

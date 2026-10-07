@@ -3,12 +3,13 @@
 /**
  * Vue « Capacités » : les entrées acquises de toutes les sortes du bloc, en liste dense. Nom,
  * provenance (voie et rang), activation (valeur du champ de filtre), rang, un indicateur
- * discret de bonus (ils se gèrent dans le bloc Bonus) et un interrupteur pour celles qui
- * s'activent. Le détail s'ouvre au clic sur le nom.
+ * discret de bonus (ils se gèrent dans le bloc Bonus), le temps restant d'une activation à
+ * durée et un interrupteur pour celles qui s'activent. Le détail s'ouvre au clic sur le nom.
  */
 import { useTranslations } from 'next-intl';
 import { BadgePlus } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { PossessionDuration } from '@/components/combat/duration-chip';
 import { cn } from '@/lib/utils';
 import type { SheetWrites } from '../tree/writes';
 import type { OwnedItem } from './abilities';
@@ -70,6 +71,9 @@ export function OwnedList({
                   />
                   <span className="sr-only">{bonusText}</span>
                 </span>
+              )}
+              {on && card.possession && (
+                <PossessionDuration exemplaires={card.possession.exemplaires} />
               )}
               {card.maxRank !== undefined && card.maxRank > 1 && (
                 <RankMarks rank={card.rank} max={card.maxRank} />

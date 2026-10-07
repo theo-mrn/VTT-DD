@@ -328,6 +328,26 @@ Détail : [combat.md](combat.md) § 18. Une possession ou un bonus libre porte `
 - `dureeDonnee` : durée et décompte d'une conséquence `donner` (les siens, sinon ceux de l'entrée) ; la modification porte `decompte: { moment, source? }`, la source résolue par `appliquerModifications(fiche, mods, entite, { source })` ;
 - `libelleDuree`, `libelleCourtDuree` : « jusqu'à la fin de son prochain tour », « 2 rounds ».
 
+#### Durée d'une activation
+
+Une capacité à activer (rage, sort de durée, transformation) s'éteint d'elle-même au bout de sa
+durée.
+
+- **Déclaration.** La sorte activable nomme le champ `formule` qui donne la durée, et le moment
+  du décompte : `dureeActivation: { champ: duree, moment: fin-round }` (moment par défaut : fin
+  de round). Le chargement refuse une sorte non activable ou un champ qui n'est pas une formule.
+- **Valeur.** Chaque entrée écrit sa durée dans ce champ (`duree: '5 + mod(@SAG)'`, `'1d6'`) :
+  lue sur le porteur au moment où il active l'entrée, dés tirés par le service, arrondie à
+  l'entier inférieur (`dureeActivation(fiche, entree, aleatoire)`). Sans valeur, ou un résultat
+  inférieur à 1 : pas de durée, l'entrée reste active jusqu'à ce qu'on la coupe (Rage du berserk :
+  « tant qu'il reste des ennemis »).
+- **Pose.** Le service character (`minuterActivation`, route des possessions) pose la durée quand
+  l'entrée passe de coupée à active, sauf durée demandée ; réactiver une entrée déjà active garde
+  le temps restant ; la couper retire sa durée.
+- **Fin.** Elle se décompte comme toute durée (en combat seulement). À 0, ou à la fin du combat,
+  l'entrée **s'éteint** (`actif: false`, sans durée) au lieu d'être retirée : elle reste possédée,
+  et figure dans les durées expirées. La fiche montre le temps restant à côté de l'interrupteur.
+
 ### Paramètres choisis après le jet (`etape: apres`)
 
 On ne choisit pas son arme pour savoir si l'on touche : le jet d'attaque se lance sur le type

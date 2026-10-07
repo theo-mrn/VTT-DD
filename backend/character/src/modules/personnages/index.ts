@@ -39,6 +39,7 @@ import {
   etatInitial,
   modifierValeurs,
   poserBonus,
+  minuterActivation,
   poserPossession,
   rembourserLigne,
   reposer,
@@ -620,8 +621,9 @@ export const register: Module = async (app, deps) => {
       const { version, ...demande } = req.body;
       const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => {
         const r = poserPossession(systeme, l.etat, demande);
+        const etat = minuterActivation(systeme, l.etat, r, demande, deps.aleatoire());
         return {
-          changement: { etat: r.etat },
+          changement: { etat },
           operation: 'possession',
           details: {
             possession: {

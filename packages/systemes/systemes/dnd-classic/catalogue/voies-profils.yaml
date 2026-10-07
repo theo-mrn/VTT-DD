@@ -141,7 +141,7 @@
 - id: barbare-rage-meme-pas-mal
   sorte: capacite_active
   nom: Même pas mal
-  champs: { voie: barbare-rage, rangVoie: 4, activation: Capacité passive }
+  champs: { voie: barbare-rage, rangVoie: 4, activation: Capacité passive, duree: '3' }
   description: |-
     Effet : +1d6 DM et rage ou furie gratuite.
     Dure : 3 prochains tours.
@@ -157,7 +157,7 @@
 - id: barbare-rage-furie-du-berserk
   sorte: capacite_active
   nom: Furie du berserk
-  champs: { voie: barbare-rage, rangVoie: 5, activation: Action limitée }
+  champs: { voie: barbare-rage, rangVoie: 5, activation: Action limitée, duree: '3' }
   description: |-
     Effet : +3 contact, +2d6 DM, -6 DEF.
     Dure : 3 prochains tours.
@@ -1349,7 +1349,13 @@
 - id: druide-animaux-masque-du-predateur
   sorte: capacite_active
   nom: Masque du prédateur
-  champs: { voie: druide-animaux, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: druide-animaux,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@SAG)',
+    }
   description: |-
     Effet: + mod. SAG en Init, Contact,Distance, Magie.
     Durée : [5 + mod. SAG].
@@ -1467,7 +1473,13 @@
 - id: druide-vegetaux-peau-d-ecorce
   sorte: capacite_active
   nom: Peau d’écorce
-  champs: { voie: druide-vegetaux, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: druide-vegetaux,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@SAG)',
+    }
   description: |-
     Effet : +1 DEF par rang:
     Durée : [5 + mod. SAG] tours.
@@ -2293,7 +2305,8 @@
 - id: forgesort-metal-forgeron
   sorte: capacite_active
   nom: Forgeron
-  champs: { voie: forgesort-metal, rangVoie: 1, activation: Capacité passive }
+  champs:
+    { voie: forgesort-metal, rangVoie: 1, activation: Capacité passive, duree: '5 + mod(@INT)' }
   description: |-
     Effet : enflamme son arme, +1 par rang DM
     Durée : [5 + mod. d'INT] tours.
@@ -2326,7 +2339,13 @@
 - id: forgesort-metal-magnetisme
   sorte: capacite_active
   nom: Magnétisme
-  champs: { voie: forgesort-metal, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: forgesort-metal,
+      rangVoie: 3,
+      activation: 'Action limitée, sortilège',
+      duree: '3 + mod(@INT)',
+    }
   description: |-
     Effet : +5 🛡️, 1/2 DM reçus
     Durée : [3 + mod. d'INT] tours.
@@ -3211,7 +3230,13 @@
 - id: magicien-magie-des-arcanes-agrandissement
   sorte: capacite_active
   nom: Agrandissement
-  champs: { voie: magicien-magie-des-arcanes, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: magicien-magie-des-arcanes,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@INT)',
+    }
   description: |-
     Effet : +2 DM 🗡️, +2 tests de FOR, -2 tests de DEX
     Durée : [5 + Mod. d'INT] tours.
@@ -3424,7 +3449,13 @@
 - id: magicien-magie-elementaire-protection-contre-les-elements
   sorte: capacite_active
   nom: Protection contre les éléments
-  champs: { voie: magicien-magie-elementaire, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: magicien-magie-elementaire,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@INT)',
+    }
   description: |-
     Effet : [2 x rang] RD dégâts élémentaires
     Durée : [5 + Mod. d'INT] tours.
@@ -3442,7 +3473,13 @@
 - id: magicien-magie-elementaire-arme-enflammee
   sorte: capacite_active
   nom: Arme enflammée
-  champs: { voie: magicien-magie-elementaire, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: magicien-magie-elementaire,
+      rangVoie: 3,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@INT)',
+    }
   description: |-
     Effet : Enchantement +1d6 DM de feu sur arme
     Durée : [5 + Mod. d'INT] tours.
@@ -3464,7 +3501,13 @@
 - id: magicien-magie-elementaire-peau-de-pierre
   sorte: capacite_active
   nom: Peau de pierre
-  champs: { voie: magicien-magie-elementaire, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: magicien-magie-elementaire,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@INT)',
+    }
   description: |-
     Effet : [5 + Mod. d'INT] RD
     Durée : [5 + Mod. d'INT] tours ou 40 DM absorbés.
@@ -3533,7 +3576,13 @@
 - id: magicien-magie-protectrice-flou
   sorte: capacite_active
   nom: Flou
-  champs: { voie: magicien-magie-protectrice, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: magicien-magie-protectrice,
+      rangVoie: 3,
+      activation: 'Action limitée, sortilège',
+      duree: '1d4 + mod(@INT)',
+    }
   description: |-
     Effet : subit 1/2 DM Contact et Distance
     Durée : [1d4 + Mod. d'INT] tours.
@@ -4056,7 +4105,13 @@
 - id: necromancien-mort-masque-mortuaire
   sorte: capacite_active
   nom: Masque mortuaire
-  champs: { voie: necromancien-mort, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: necromancien-mort,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@INT)',
+    }
   description: |-
     Effet : -2 DM physique subit, 1/2 DM de froid subit
     Durée : [5 + Mod. d'INT] tours.
@@ -4251,7 +4306,13 @@
 - id: necromancien-demon-aspect-du-demon
   sorte: capacite_active
   nom: Aspect du démon
-  champs: { voie: necromancien-demon, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: necromancien-demon,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@INT)',
+    }
   description: |-
     Effet : +2 🗡️, +2 FOR, +2 DEX, +2 CON
     Durée : [5 + Mod. d'INT] tours.
@@ -4648,7 +4709,13 @@
 - id: pretre-priere-benediction
   sorte: capacite_active
   nom: Bénédiction
-  champs: { voie: pretre-priere, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: pretre-priere,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      duree: '3 + mod(@SAG)',
+    }
   description: |-
     Effet: +1 Contact, Distance, Magie, +1 tous tests
     Durée : [3 + mod. SAG] tour
@@ -4932,7 +4999,13 @@
 - id: psionique-telekinesie-psychoportation
   sorte: capacite_active
   nom: Psychoportation
-  champs: { voie: psionique-telekinesie, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: psionique-telekinesie,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      duree: '5 + mod(@CHA)',
+    }
   description: |-
     Effet : lévitation, 2d20 aux tests de FOR
     Durée : [5 + mod. CHA] tours

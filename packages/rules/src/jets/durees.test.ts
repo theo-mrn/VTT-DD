@@ -18,6 +18,7 @@ import {
   avancerMinuterie,
   decompterDurees,
   donnerEntree,
+  dureeActivation,
   dureeDonnee,
   executerAction,
   libelleCourtDuree,
@@ -31,7 +32,19 @@ const LUI = 'source-2';
 
 const saisi: SystemeSaisi = {
   ...miniD20,
-  sortes: [...miniD20.sortes!, { id: 'etat', nom: 'État', pour: ['personnage'] }],
+  sortes: [
+    ...miniD20.sortes!,
+    { id: 'etat', nom: 'État', pour: ['personnage'] },
+    {
+      id: 'pouvoir',
+      nom: 'Pouvoir à activer',
+      pour: ['personnage'],
+      activable: true,
+      actifParDefaut: false,
+      dureeActivation: { champ: 'duree' },
+      champs: [{ id: 'duree', nom: 'Durée', type: 'formule', des: true }],
+    },
+  ],
   catalogue: [
     ...miniD20.catalogue!,
     {
@@ -46,6 +59,15 @@ const saisi: SystemeSaisi = {
       nom: 'Étourdi',
       duree: { valeur: 1, moment: 'fin-tour' },
     },
+    {
+      id: 'rage',
+      sorte: 'pouvoir',
+      nom: 'Rage',
+      champs: { duree: '2 + mod(@FOR)' },
+      effets: [{ sur: 'attribut', attribut: 'Defense', operation: 'ajouter', valeur: 2 }],
+    },
+    { id: 'transe', sorte: 'pouvoir', nom: 'Transe', champs: { duree: '1d4' } },
+    { id: 'aura', sorte: 'pouvoir', nom: 'Aura' },
     {
       id: 'marque',
       sorte: 'etat',
@@ -308,6 +330,62 @@ describe('action : durée par défaut de l’entrée, source résolue à l’app
     expect(!r2.ok && r2.erreurs.map((e) => e.message)).toEqual([
       'La source ne compte qu’avec un décompte au tour (debut-tour, fin-tour)',
     ]);
+  });
+});
+
+describe('durée d’une activation', () => {
+  const rage = (p: Partial<Possession> = {}) => ({ entree: 'rage', actif: true, ...p });
+
+  it('lue sur le porteur à l’activation, dés compris ; sans formule : pas de durée', () => {
+    const f = fiche({ valeurs: { niveau: 1, FOR: 14 }, possessions: [rage()] });
+    expect(dureeActivation(f, 'rage')).toEqual({ duree: 4 });
+    expect(dureeActivation(f, 'transe', aleatoireImpose([3]))).toEqual({ duree: 3 });
+    expect(dureeActivation(f, 'transe')).toBeUndefined(); // dés sans générateur
+    expect(dureeActivation(f, 'aura')).toBeUndefined();
+    expect(dureeActivation(f, 'beni')).toBeUndefined(); // sorte sans durée d'activation
+  });
+
+  it('à son terme, l’entrée s’éteint au lieu d’être retirée, fin du combat comprise', () => {
+    for (const evenements of [[ROUND], [{ type: 'fin-combat' } as const]]) {
+      const r = decompterDurees(etat({ possessions: [rage({ duree: 1 })] }), evenements, {
+        porteur: MOI,
+        systeme: s,
+      });
+      expect(r.expirees).toEqual([{ cle: 'rage', nom: 'Rage' }]);
+      expect(r.etat?.possessions).toEqual([
+        expect.objectContaining({ entree: 'rage', actif: false }),
+      ]);
+      expect(r.etat?.possessions[0]).not.toHaveProperty('duree');
+      expect(calculer(s, r.etat!).valeur('Defense')).toBe(fiche().valeur('Defense'));
+    }
+  });
+
+  it('refusée au chargement hors d’une sorte activable, ou sans champ formule', () => {
+    const avec = (sorte: Record<string, unknown>) =>
+      charger({
+        ...saisi,
+        sortes: [...miniD20.sortes!, { id: 'x', nom: 'X', pour: ['personnage'], ...sorte }],
+        catalogue: miniD20.catalogue,
+        actions: [],
+      });
+    expect(
+      avec({ dureeActivation: { champ: 'd' }, champs: [{ id: 'd', nom: 'D', type: 'formule' }] })
+        .ok,
+    ).toBe(false);
+    expect(
+      avec({
+        activable: true,
+        dureeActivation: { champ: 'd' },
+        champs: [{ id: 'd', nom: 'D', type: 'nombre' }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      avec({
+        activable: true,
+        dureeActivation: { champ: 'd' },
+        champs: [{ id: 'd', nom: 'D', type: 'formule' }],
+      }).ok,
+    ).toBe(true);
   });
 });
 

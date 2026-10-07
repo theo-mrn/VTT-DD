@@ -489,7 +489,7 @@
 - id: race-minotaure-frenesie
   sorte: capacite_active
   nom: Frénésie
-  champs: { voie: race-minotaure, rangVoie: 2, activation: Capacité passive }
+  champs: { voie: race-minotaure, rangVoie: 2, activation: Capacité passive, duree: '1d6' }
   description: |-
     Effet : frénésie sur blessure : +2 🗡️, +2 DM, -2 🛡️
     Durée : 1d6 tours.
