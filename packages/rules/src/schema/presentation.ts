@@ -394,6 +394,13 @@ export const Presentation = z.object({
        * Sans déclaration : ordre du système, groupé par `groupe`.
        */
       jets: z.array(GroupeJets).optional(),
+      /**
+       * Capacités qui s'invoquent au jet (bonus situationnel : « +2 par rang aux tests de
+       * survie ») : entrées possédées portant cette étiquette ; `bonus` est leur champ formule
+       * ajouté au jet, `avantage` leur champ nombre de dés d'avantage (rappel). Le lanceur de
+       * dés les propose à côté des bonus de jet.
+       */
+      invocations: z.object({ etiquette: Id, bonus: Cle, avantage: Cle.optional() }).optional(),
     })
     .optional(),
   /** Libellé et icône des marques posées par les règles (`carriere` → « Carrière »). */

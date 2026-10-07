@@ -134,6 +134,9 @@ export default {
     manual: ' · by hand',
     remove: 'Remove {label} ({source}) from the next roll',
     add: 'Add {label} ({source}) to the next roll',
+    disabled: ' · disabled',
+    activate: 'Activate {source}',
+    groups: { actif: 'Active', invocation: 'To invoke', inactif: 'Inactive' },
   },
   macros: {
     undo: 'Undo',

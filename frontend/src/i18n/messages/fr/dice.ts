@@ -133,6 +133,9 @@ export default {
     manual: ' · à la main',
     remove: 'Retirer {label} ({source}) du prochain jet',
     add: 'Ajouter {label} ({source}) au prochain jet',
+    disabled: ' · coupé',
+    activate: 'Activer {source}',
+    groups: { actif: 'Actifs', invocation: 'À invoquer', inactif: 'Inactifs' },
   },
   macros: {
     undo: 'Annuler',

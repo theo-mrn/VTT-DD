@@ -69,6 +69,8 @@ des:
   jets:
     - { titre: Caractéristiques, attributs: [FOR, DEX, CON, SAG, INT, CHA] }
     - { titre: Attaques et initiative, attributs: [Contact, Distance, Magie, INIT] }
+  # Capacités au bonus situationnel (« +2 par rang aux tests de survie »), proposées au jet
+  invocations: { etiquette: test, bonus: bonusTest, avantage: avantageTest }
 
 # Marques posées par les règles
 marques:

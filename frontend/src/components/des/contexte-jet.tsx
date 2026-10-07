@@ -48,6 +48,9 @@ export function useFichePersonnage(personnage: Personnage | null) {
 
   return {
     ...calcul,
+    presentation: systeme.data?.presentation ?? null,
+    /** Le joueur (ou le MJ) peut écrire sur la fiche : activer une capacité, consommer. */
+    ecriture: complet.data?.permissions?.write === true,
     chargement: Boolean(personnage) && (systeme.isPending || complet.isPending),
     erreur: calcul.erreur ?? (systeme.error ?? complet.error)?.message ?? null,
   };

@@ -6,7 +6,13 @@ import { MotionConfig } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { EnTetePage, Page } from '@/components/commun/page';
-import { avecBonusChoisis, bonusDeJet, BonusJetListe } from '@/components/des/bonus-jet';
+import {
+  avecBonusChoisis,
+  bonusAUsage,
+  bonusDeJet,
+  BonusJetListe,
+  type ActionsBonus,
+} from '@/components/des/bonus-jet';
 import { useFichePersonnage } from '@/components/des/contexte-jet';
 import { Lanceur, type EtatPlateau } from '@/components/des/lanceur';
 import { useMacros } from '@/components/des/macros';
@@ -17,7 +23,7 @@ import { useCampagnes } from '@/lib/campagnes';
 import { useDicePreferences } from '@/lib/dice-preferences';
 import { prepareDice3D } from '@/lib/dice-throw';
 import { useJets, useLancer, useSynchroJets, verifierFormule, type Jet } from '@/lib/jets';
-import { usePersonnages, type Personnage } from '@/lib/personnages';
+import { useOperationsPersonnage, usePersonnages, type Personnage } from '@/lib/personnages';
 import { usePreferenceLocale } from '@/lib/preference-locale';
 import { cn } from '@/lib/utils';
 
@@ -125,7 +131,10 @@ export function TableDes({
 
   // Bonus de jet du personnage (conditionnels) : allumés, ils s'ajoutent à chaque jet jusqu'à
   // ce qu'on les éteigne ; gardés par personnage dans ce navigateur (panneau fermé, rechargement)
-  const bonus = useMemo(() => bonusDeJet(fiche.fiche, etat.formule), [fiche.fiche, etat.formule]);
+  const bonus = useMemo(
+    () => bonusDeJet(fiche.fiche, etat.formule, fiche.presentation),
+    [fiche.fiche, etat.formule, fiche.presentation],
+  );
   const avecBonus = bonus.length > 0;
   const [allumes, setAllumes] = usePreferenceLocale<string[]>(
     `des:bonus:${personnage?.id ?? 'aucun'}`,
@@ -134,7 +143,17 @@ export function TableDes({
   const choisis = useMemo(() => new Set(allumes), [allumes]);
   const basculerBonus = (cle: string) =>
     setAllumes(choisis.has(cle) ? allumes.filter((c) => c !== cle) : [...allumes, cle]);
-  function lancerPlateau() {
+  // Écritures sur la fiche depuis les dés : activer une capacité, consommer un usage
+  const ops = useOperationsPersonnage(personnage?.id ?? '');
+  const signaler = (e: unknown) => toast.error(messageErreur(e));
+  const actionsBonus: ActionsBonus | undefined =
+    personnage && fiche.ecriture
+      ? {
+          activer: (entree) => void ops.possession({ entree, actif: true }).catch(signaler),
+          reactiver: (cle) => void ops.effet([cle], true).catch(signaler),
+        }
+      : undefined;
+  async function lancerPlateau() {
     const retenus = bonus.filter((b) => b.terme !== null && choisis.has(b.cle));
     if (!retenus.length) return void lancerFormule(etat.formule, etat.libelle);
     // Le libellé garde la trace des bonus ajoutés (historique)
@@ -142,7 +161,16 @@ export function TableDes({
     const libelle = etat.libelle.trim()
       ? t('labelWithSources', { label: etat.libelle.trim(), sources })
       : t('withSources', { sources });
-    void lancerFormule(avecBonusChoisis(etat.formule, bonus, choisis), libelle);
+    const aUsage = bonusAUsage(bonus, choisis);
+    const ok = await lancerFormule(avecBonusChoisis(etat.formule, bonus, choisis), libelle);
+    if (!ok || !aUsage.length || !actionsBonus) return;
+    // Usage limité : le jet en consomme une utilisation, et le bonus s'éteint
+    setAllumes(allumes.filter((c) => !aUsage.some((b) => b.cle === c)));
+    try {
+      for (const b of aUsage) await ops.usage(b.entree!, false);
+    } catch (e) {
+      signaler(e);
+    }
   }
 
   // Le jet qu'on vient de lancer, sinon le plus récent du contexte (sans animation)
@@ -174,13 +202,14 @@ export function TableDes({
     });
   }
 
-  async function lancerFormule(formule: string, libelle: string | null) {
+  /** Lance une formule ; vrai si le jet a eu lieu. */
+  async function lancerFormule(formule: string, libelle: string | null): Promise<boolean> {
     // Un seul jet à la fois : R, une macro ou Entrée pendant que les dés roulent ne relancent pas
-    if (enCours.current) return;
+    if (enCours.current) return false;
     const verif = verifierFormule(formule, fiche.fiche);
     if (!verif.ok) {
       toast.error(t('invalid'), { description: verif.message });
-      return;
+      return false;
     }
     enCours.current = true;
     try {
@@ -195,11 +224,13 @@ export function TableDes({
       });
       setDernier(jet);
       reveler();
+      return true;
     } catch (err) {
       toast.error(t('rollFailed'), {
         description:
           err instanceof ApiError || !(err instanceof Error) ? messageErreur(err) : err.message,
       });
+      return false;
     } finally {
       enCours.current = false;
     }
@@ -265,7 +296,7 @@ export function TableDes({
                 ? { liste: contexte.personnage ? [contexte.personnage] : [], chargement: false }
                 : { liste: personnages.data ?? [], chargement: personnages.isPending }
             }
-            onLancer={lancerPlateau}
+            onLancer={() => void lancerPlateau()}
             enCours={lancer.isPending}
             onLancerMacro={(m) => void lancerFormule(m.formula, m.name)}
             onChargerMacro={(m) => {
@@ -282,6 +313,7 @@ export function TableDes({
             bonus={bonus}
             choisis={choisis}
             onBasculer={basculerBonus}
+            {...(actionsBonus ? { actions: actionsBonus } : {})}
             className="max-h-72 lg:sticky lg:top-3 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-9rem)] lg:self-start"
           />
         )}

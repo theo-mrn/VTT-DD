@@ -7,9 +7,9 @@
  * Le service qui mène le combat traduit chaque passage de tour en événements ; le service des
  * personnages les applique ici, dans l'ordre.
  */
-import type { Fiche } from '../calcul/index.js';
-import { formuleChamp, variablesObjet, type SystemeCharge } from '../chargement/index.js';
-import { ErreurEvaluation, type Generateur, type Valeur } from '../formules/index.js';
+import { evaluerChampEntree, type Fiche } from '../calcul/index.js';
+import type { SystemeCharge } from '../chargement/index.js';
+import type { Generateur } from '../formules/index.js';
 import {
   nomPossession,
   type BonusLibre,
@@ -192,28 +192,13 @@ export function dureeActivation(
   entree: string,
   aleatoire?: Generateur,
 ): Minuterie | undefined {
-  const systeme = fiche.systeme;
-  const declaree = dureeActivationDe(systeme, entree);
-  const e = systeme.entrees.get(entree);
-  const sorte = e && systeme.sortes.get(e.sorte);
-  const champ = sorte?.champs.find((c) => c.id === declaree?.champ);
-  if (!declaree || !e || !sorte || !champ) return undefined;
-  const p = fiche.possessions.get(entree);
-  const f = formuleChamp(systeme, e, champ, p?.possession, fiche.etat.type);
-  if (!f) return undefined;
-  const lire = variablesObjet(
-    e,
-    sorte,
-    { rang: p?.rang ?? 0, actif: true, quantite: p?.quantite ?? 1 },
-    p?.possession,
-  );
-  const variable = (n: string): Valeur => {
-    const x = lire(n);
-    if (x === undefined) throw new ErreurEvaluation(`Variable inconnue : ${n}`, 0);
-    return x;
-  };
-  const v = fiche.evaluer(f, { variable, ...(aleatoire ? { aleatoire } : {}) }, 0);
-  const duree = Math.floor(Number(v));
+  const declaree = dureeActivationDe(fiche.systeme, entree);
+  if (!declaree) return undefined;
+  const v = evaluerChampEntree(fiche, entree, declaree.champ, {
+    actif: true,
+    ...(aleatoire ? { aleatoire } : {}),
+  });
+  const duree = Math.floor(Number(v ?? 0));
   if (!Number.isFinite(duree) || duree < 1) return undefined;
   const decompte = poserDecompte(undefined, { moment: declaree.moment });
   return decompte ? { duree, decompte } : { duree };
