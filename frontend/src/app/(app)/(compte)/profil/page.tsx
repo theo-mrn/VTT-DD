@@ -16,6 +16,8 @@ import {
   TitrePage,
 } from '@/components/compte/elements';
 import { useYoutubeConsent } from '@/components/audio/youtube-consent';
+import { ProgressionCard } from '@/components/progression/progression-card';
+import { Info } from '@/components/ui/tooltip';
 import { useEnvoiImage } from '@/components/compte/envoi-image';
 import { styleChamp, styleLabel } from '@/components/compte/styles';
 import { Button } from '@/components/ui/button';
@@ -34,6 +36,7 @@ import {
   type Profil,
   texteCondition,
 } from '@/lib/profil';
+import { useProgression } from '@/lib/progression';
 import { useRessource } from '@/lib/ressource';
 import { envoyerVerificationEmail } from '@/lib/securite';
 import { useProfil, useSession } from '@/lib/session';
@@ -57,6 +60,7 @@ export default function PageProfil() {
       {profil.email && !profil.emailVerified && <BandeauVerification email={profil.email} />}
       <EnTete profil={profil} />
       <div className="grid gap-6 lg:grid-cols-2">
+        <ProgressionCard />
         <CarteIdentite profil={profil} />
         <CarteTitre profil={profil} />
         <CarteApparence profil={profil} premium={premium.donnees ?? false} />
@@ -448,6 +452,11 @@ function PastilleTitre({
 // ─── Bordure et badge premium ────────────────────────────────────────────────
 
 function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium: boolean }>) {
+  // Bordures acquises par le niveau du compte (docs/progression.md § 5)
+  const progression = useProgression();
+  const acquises = progression.data?.borders ?? [];
+  const palierDe = (id: string) =>
+    progression.data?.rewards.find((r) => r.type === 'border' && r.id === id)?.level;
   const [bordure, setBordure] = useState(profil.borderType);
   const [badge, setBadge] = useState(profil.showPremiumBadge);
   const { enregistrer, envoi, erreur, succes, effacer } = useEnregistrement();
@@ -478,13 +487,15 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
         {!premium && (
           <p className="flex items-center gap-2 text-xs text-subtle">
             <Crown className="h-3.5 w-3.5 text-primary" />
-            Les bordures animées sont réservées aux membres Premium.
+            Bordures débloquées par le niveau du compte ou le Premium.
           </p>
         )}
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {BORDURES.map((b) => {
-            const verrou = !premium && b.id !== 'none' && b.id !== profil.borderType;
-            return (
+            const verrou =
+              !premium && b.id !== 'none' && b.id !== profil.borderType && !acquises.includes(b.id);
+            const palier = palierDe(b.id);
+            const bouton = (
               <button
                 key={b.id}
                 type="button"
@@ -518,6 +529,17 @@ function CarteApparence({ profil, premium }: Readonly<{ profil: Profil; premium:
                 </span>
                 <span className="text-center">{b.label}</span>
               </button>
+            );
+            if (!verrou) return bouton;
+            return (
+              <Info key={b.id} texte={palier ? `Niveau ${palier} ou Premium` : 'Premium'}>
+                <span
+                  tabIndex={0}
+                  className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {bouton}
+                </span>
+              </Info>
             );
           })}
         </div>

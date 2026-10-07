@@ -3,7 +3,6 @@
 import {
   ArrowRight,
   CalendarClock,
-  Check,
   Crown,
   Dices,
   KeyRound,
@@ -11,7 +10,6 @@ import {
   Swords,
   UserRound,
   Wand2,
-  X,
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -21,18 +19,17 @@ import { Illustration } from '@/components/commun/illustration';
 import { Page, Panneau, TitreSection } from '@/components/commun/page';
 import { formaterDepuis } from '@/components/compte/elements';
 import { DesDuJet } from '@/components/des/resultat-jet';
+import { ProgressionSummary } from '@/components/progression/progression-summary';
 import {
   CartePersonnage,
   CartePersonnageSquelette,
 } from '@/components/personnages/carte-personnage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { useCampagnes, type Campagne } from '@/lib/campagnes';
 import { useJets } from '@/lib/jets';
 import { iconeNote, useNotes } from '@/lib/notes';
 import { lienPersonnage, usePersonnages } from '@/lib/personnages';
-import { usePreferenceLocale } from '@/lib/preference-locale';
 import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
@@ -80,7 +77,7 @@ export default function PageAccueil() {
         </div>
       </header>
 
-      <PremiersPas />
+      <ProgressionSummary />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section className="min-w-0">
@@ -310,102 +307,6 @@ function ActionsRapides() {
         </Link>
       ))}
     </div>
-  );
-}
-
-// ─── Premiers pas ────────────────────────────────────────────────────────────
-
-function PremiersPas() {
-  const profil = useProfil();
-  const campagnes = useCampagnes();
-  const personnages = usePersonnages();
-  const jets = useJets(null);
-  const notes = useNotes();
-  const [masque, setMasque] = usePreferenceLocale('premiers-pas-masques', false);
-
-  const etapes = [
-    {
-      ok: Boolean(profil.avatarUrl || profil.bio),
-      label: 'Compléter votre profil',
-      href: '/profil',
-    },
-    {
-      ok: (campagnes.data?.length ?? 0) > 0,
-      label: 'Créer ou rejoindre une campagne',
-      href: '/campagnes',
-    },
-    {
-      ok: (personnages.data?.length ?? 0) > 0,
-      label: 'Créer votre premier héros',
-      href: '/personnages/nouveau',
-    },
-    { ok: (jets.data?.length ?? 0) > 0, label: 'Lancer vos premiers dés', href: '/des' },
-  ];
-  const faites = etapes.filter((e) => e.ok).length;
-  const charge = campagnes.isSuccess && personnages.isSuccess && jets.isSuccess && notes.isSuccess;
-  if (masque || !charge || faites === etapes.length) return null;
-
-  return (
-    <section className="relative mb-8 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-surface">
-      <div
-        aria-hidden
-        className="absolute -left-36 -top-40 size-96 bg-[radial-gradient(closest-side,hsl(var(--primary)/0.08),transparent)]"
-      />
-      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center">
-        <div className="lg:w-64">
-          <div className="flex items-center justify-between">
-            <p className="font-semibold">Premiers pas</p>
-            <button
-              type="button"
-              onClick={() => setMasque(true)}
-              className="rounded-md p-1 text-subtle transition-colors hover:bg-surface-3 hover:text-foreground lg:hidden"
-              aria-label="Masquer"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            {faites} sur {etapes.length} : votre table prend forme.
-          </p>
-          <Progress valeur={(faites / etapes.length) * 100} className="mt-3" label="Progression" />
-        </div>
-        <ol className="grid flex-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
-          {etapes.map((e) => (
-            <li key={e.label}>
-              <Link
-                href={e.href}
-                className={cn(
-                  'flex h-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-[13px] transition-colors',
-                  e.ok
-                    ? 'border-border text-subtle line-through decoration-subtle/50'
-                    : 'border-border-strong bg-surface-2/60 text-foreground hover:border-primary/40',
-                )}
-              >
-                <span
-                  className={cn(
-                    'flex size-5 shrink-0 items-center justify-center rounded-full border',
-                    e.ok
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border-strong',
-                  )}
-                >
-                  {e.ok && <Check className="size-3" strokeWidth={3} />}
-                </span>
-                {e.label}
-              </Link>
-            </li>
-          ))}
-        </ol>
-        <button
-          type="button"
-          onClick={() => setMasque(true)}
-          className="hidden rounded-md p-1 text-subtle transition-colors hover:bg-surface-3 hover:text-foreground lg:block"
-          aria-label="Masquer les premiers pas"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
-    </section>
   );
 }
 

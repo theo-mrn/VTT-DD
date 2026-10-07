@@ -9,6 +9,7 @@ import { Toaster } from 'sonner';
 import { YoutubeConsentBanner } from '@/components/audio/youtube-consent';
 import { DiceThrowerHost } from '@/components/dice/thrower-host';
 import { PerfOverlay } from '@/components/perf/perf-overlay';
+import { ProgressionRoot } from '@/components/progression/progression-root';
 import { Telemetry } from '@/components/telemetry';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SessionProvider } from '@/lib/session';
@@ -38,6 +39,8 @@ export function Fournisseurs({ children }: Readonly<{ children: ReactNode }>) {
             <DiceThrowerHost />
             {/* Raccourcis du compte, aide-mémoire (?) et éditeur, partout dans l'app */}
             <ShortcutsRoot />
+            {/* Progression du compte : notifications (niveau, défi) et temps de jeu */}
+            <ProgressionRoot />
             <PerfOverlay />
             <Telemetry />
             <YoutubeConsentBanner />
