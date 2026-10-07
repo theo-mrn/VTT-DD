@@ -410,6 +410,59 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
           expect(JSON.stringify(e.payload)).not.toContain(goblin);
       });
 
+      it('jusqu’à la fin de son prochain tour : décompté au tour, annoncé, une seule fois', async () => {
+        // Posé hors du tour de Thorin : son prochain tour commence, puis sa fin l'achève
+        let state = await ok<Combat>(gm, 'GET', combat());
+        const at = state.order.findIndex((p) => p.characterId === thorin);
+        if (state.currentIndex === at)
+          state = await ok<Combat>(gm, 'POST', `${combat()}/next`, { version: state.version });
+        let s = await sheet(alice, thorin);
+        await okSheet(alice, 'POST', `/v1/characters/${thorin}/possessions`, {
+          version: s.version,
+          entree: 'aveugle',
+          duree: 1,
+          decompte: { moment: 'fin-tour' },
+        });
+        s = await sheet(alice, thorin);
+        expect(s.etat.possessions.find((p) => p.entree === 'aveugle')).toMatchObject({
+          duree: 1,
+          decompte: { moment: 'fin-tour', attente: true },
+        });
+        // Jusqu'au tour de Thorin : l'état reste ; la fin de son tour le retire
+        while (state.order[state.currentIndex]?.characterId !== thorin)
+          state = await ok<Combat>(gm, 'POST', `${combat()}/next`, { version: state.version });
+        s = await sheet(alice, thorin);
+        expect(s.etat.possessions.find((p) => p.entree === 'aveugle')?.duree).toBe(1);
+        const ended = await ok<Combat>(gm, 'POST', `${combat()}/next`, { version: state.version });
+        expect(ended.durationUpdates?.find((u) => u.characterId === thorin)?.expired).toEqual([
+          'aveugle',
+        ]);
+        s = await sheet(alice, thorin);
+        expect(s.etat.possessions.some((p) => p.entree === 'aveugle')).toBe(false);
+        // Annoncé à la table (un héros : public), nommé par character
+        const announced = (await campaignEvents(c.id, 'combat.durations_expired')).filter((e) =>
+          JSON.stringify(e.payload).includes('aveugle'),
+        );
+        expect(announced.map((e) => e.visibility)).toEqual(['public']);
+        expect(announced[0]!.payload.expirations).toEqual([
+          { characterId: thorin, entries: [{ key: 'aveugle', name: 'Aveuglé' }] },
+        ]);
+        // Retour au début pour la suite
+        state = ended;
+        while (state.canGoBack)
+          state = await ok<Combat>(gm, 'POST', `${combat()}/previous`, { version: state.version });
+        s = await sheet(alice, thorin);
+        expect(s.etat.possessions.find((p) => p.entree === 'aveugle')).toMatchObject({
+          duree: 1,
+          decompte: { moment: 'fin-tour', attente: true },
+        });
+        await okSheet(
+          alice,
+          'DELETE',
+          `/v1/characters/${thorin}/possessions/aveugle?version=${s.version}`,
+        );
+      });
+
       let playerAttack: Attack;
 
       it('attaque d’un joueur, une cible : vue de l’attaquant seulement, jet transmis réduit', async () => {

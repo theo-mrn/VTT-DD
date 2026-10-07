@@ -2,7 +2,7 @@
  * Combat en base : une ligne `campaign_combats` par campagne (combat actif), ses participants
  * (turn_order = position dans l'ordre d'initiative) et le journal des passages de tour.
  */
-import { uuidv7, type Visibility } from '@vtt/contracts';
+import { uuidv7, type DurationEvent, type Visibility } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
@@ -139,7 +139,8 @@ export type CombatEventType =
   | 'combat.turn_changed'
   | 'combat.ended'
   | 'combat.settings_updated'
-  | 'combat.participant_defeated';
+  | 'combat.participant_defeated'
+  | 'combat.durations_expired';
 
 /** Événement de combat (sujet vtt.<campaignId>.combat.<action>, agrégat `combat`). */
 export function combatEvent(
@@ -196,7 +197,9 @@ export async function logTurn(
     reason: TurnLogReason;
     before: TurnSnapshot;
     userId: string;
+    /** Décompte des durées du passage (docs/combat.md § 18.4), fait après la transaction. */
     tickId?: string | null;
+    tickEvents?: DurationEvent[] | null;
   },
 ): Promise<string> {
   const id = e.id ?? uuidv7();
@@ -207,6 +210,7 @@ export async function logTurn(
     reason: e.reason,
     before: e.before,
     tickId: e.tickId ?? null,
+    tickEvents: e.tickEvents ?? null,
     createdBy: e.userId,
   });
   return id;
@@ -234,7 +238,10 @@ export async function clearTurns(tx: Tx, combat: CombatRow) {
   await tx.delete(campaignCombatTurns).where(eq(campaignCombatTurns.combatId, combat.id));
 }
 
-/** Entrées expirées au décompte d'un passage (pour les rendre avec « Précédent »). */
+/**
+ * Décompte d'un passage fait : entrées expirées par personnage (pour les rendre avec
+ * « Précédent ») ; non nul, il ne sera plus rejoué.
+ */
 export async function recordExpired(db: Db, id: string, expired: Record<string, string[]>) {
   await db.update(campaignCombatTurns).set({ expired }).where(eq(campaignCombatTurns.id, id));
 }

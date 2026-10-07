@@ -13,9 +13,9 @@
  *   POST /internal/characters/:id/actions/:action    action jouée par le serveur
  *        (initiative d'un combat : la réponse porte les clés de tri `cles` ; `visibility` du jet
  *        transmis à dice, `gm` pour un PNJ)
- *   POST /internal/characters/:id/durees/decompter   fin de round : durées -1,
- *        possessions arrivées à 0 retirées ; `tickId` : une seule fois par passage de round
- *        (reprise : réponse d'origine), annulable par /internal/modifications/revert
+ *   POST /internal/durations/tick   durées des participants décomptées pour un passage de
+ *        tour, une seule fois par `tickId`, annulable par /internal/modifications/revert
+ *        (./durations.ts)
  *   POST /internal/npcs, /internal/npcs/delete, /internal/characters/:id/possessions/receive
  *        instances de PNJ et butin de la carte (./npcs.ts)
  *   POST /internal/actions/prepare, /internal/actions/resolve   attaques du combat (./actions.ts)
@@ -28,7 +28,7 @@ import type { Valeur } from '@vtt/rules';
 import { z } from 'zod';
 import type { Module } from '../../deps.js';
 import { exigerSecretInterne } from '../../interne/secret.js';
-import { decompterDurees, Valeurs } from '../../regles/operations.js';
+import { Valeurs } from '../../regles/operations.js';
 import { jouerAction } from '../personnages/actions.js';
 import {
   autoriser,
@@ -41,11 +41,8 @@ import {
 } from '../personnages/depot.js';
 import { CharacterSummary } from '../../regles/summary.js';
 import { registerActionRoutes } from './actions.js';
-import {
-  decompteDejaFait,
-  enregistrerDecompte,
-  registerModificationRoutes,
-} from './modifications.js';
+import { registerDurationRoutes } from './durations.js';
+import { registerModificationRoutes } from './modifications.js';
 import { registerNpcRoutes } from './npcs.js';
 
 const IdPersonnage = z.uuid('Identifiant de personnage invalide').transform((s) => s.toLowerCase());
@@ -119,6 +116,8 @@ export const register: Module = async (app, deps) => {
   // Attaques du combat : préparer, résoudre ; appliquer, annuler (docs/combat.md § 11.2)
   registerActionRoutes(app, deps, interne);
   registerModificationRoutes(app, deps, interne);
+  // Durées décomptées à chaque passage de tour (docs/combat.md § 18)
+  registerDurationRoutes(app, deps, interne);
 
   r.get(
     '/internal/characters/:id',
@@ -249,80 +248,6 @@ export const register: Module = async (app, deps) => {
         appliquer,
         // Jet d'initiative lancé par le MJ : dans l'historique de sa campagne
         ...(origine.roomId ? { campaignId: origine.roomId } : {}),
-      });
-    },
-  );
-
-  r.post(
-    '/internal/characters/:id/durees/decompter',
-    {
-      ...interne,
-      schema: {
-        hide: true,
-        params: z.object({ id: IdPersonnage }),
-        body: Origine.extend({
-          /** Passage de round (`tick:<combatId>:<round>`) : décompté une seule fois. */
-          tickId: z.string().trim().min(1).max(200).optional(),
-          /** Fin de combat : tous les états et bonus à durée sont retirés d'un coup. */
-          clear: z.boolean().optional(),
-        }).default({}),
-        response: {
-          200: z.object({
-            modifie: z.boolean(),
-            retirees: z.array(z.string()),
-            version: z.number().int(),
-            /** Même `tickId` déjà décompté : réponse d'origine, rien de plus. */
-            replayed: z.boolean().optional(),
-            personnage: Personnage.optional(),
-          }),
-        },
-      },
-    },
-    async (req) => {
-      const ctx = contexte(req);
-      const { tickId, clear = false, ...origine } = req.body;
-      const options = await deps.droits.options(req.params.id);
-      // Le joueur qui incarne le personnage voit sa fiche changer en direct (états expirés)
-      const joueur = await incarnateur(deps, req.params.id, origine);
-      return db.transaction(async (tx) => {
-        const [ligne] = await verrouiller(tx, [req.params.id]);
-        if (tickId) {
-          const fait = await decompteDejaFait(tx, tickId, ligne!.id);
-          if (fait) return { ...fait, replayed: true };
-        }
-        const { etat, retirees } = decompterDurees(ligne!.etat, clear);
-        const suivante = etat
-          ? await enregistrer(
-              tx,
-              ctx,
-              catalogue,
-              { ...appelant(origine), joueur },
-              ligne!,
-              { etat },
-              {
-                operation: 'durees.decompte',
-                details: { retirees, ...(tickId ? { tickId } : {}), ...(clear ? { clear } : {}) },
-              },
-              options,
-            )
-          : ligne!;
-        const resultat = { modifie: Boolean(etat), retirees, version: suivante.version };
-        if (tickId)
-          await enregistrerDecompte(tx, {
-            tickId,
-            characterId: ligne!.id,
-            campaignId: origine.roomId ?? null,
-            userId: origine.userId ?? null,
-            avant: ligne!.etat,
-            apres: suivante.etat,
-            resultat,
-          });
-        if (!etat) return { ...resultat, ...(tickId ? { replayed: false } : {}) };
-        return {
-          ...resultat,
-          ...(tickId ? { replayed: false } : {}),
-          personnage: versApi(catalogue, suivante, { options }),
-        };
       });
     },
   );

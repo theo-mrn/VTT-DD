@@ -95,6 +95,11 @@ const CorpsAnnuler = z.object({
   characterIds: z.array(Id).max(100).optional(),
   force: z.boolean().optional(),
   userId: Id.nullable().optional(),
+  /**
+   * Décompte des durées inconnu (encore en vol, ou jamais arrivé) : une pierre tombale est
+   * posée, le décompte arrivé ensuite ne fera rien (« Précédent », docs/combat.md § 18.5).
+   */
+  cancelIfMissing: z.boolean().optional(),
 });
 
 /** Résultat d'une fiche touchée (gardé tel quel pour une reprise). */
@@ -211,7 +216,7 @@ const diff = (avant: Ligne, apres: Ligne) =>
     IDENTITES,
   );
 
-interface Contexte {
+export interface Contexte {
   deps: Deps;
   ctx: EventContext;
   /** Règles optionnelles de la campagne de chaque personnage. */
@@ -220,7 +225,7 @@ interface Contexte {
   joueurs: Map<string, string | null>;
 }
 
-async function preparerContexte(
+export async function preparerContexte(
   deps: Deps,
   ctx: EventContext,
   personnages: { characterId: string; userId: string | null; campaignId: string | null }[],
@@ -239,7 +244,7 @@ async function preparerContexte(
   return { deps, ctx, options, joueurs };
 }
 
-const appelant = (
+export const appelantDe = (
   c: Contexte,
   characterId: string,
   userId: string | null,
@@ -373,7 +378,7 @@ async function ecrirePlan(
         tx,
         c.ctx,
         catalogue,
-        appelant(c, p.characterId, a.userId ?? null, a.campaignId),
+        appelantDe(c, p.characterId, a.userId ?? null, a.campaignId),
         ligne,
         { etat: p.etat },
         { operation: 'combat.application', details: { applicationId: p.applicationId } },
@@ -535,7 +540,7 @@ async function annulerItem(n: Annulation, i: ItemEnregistre): Promise<ItemAnnule
         tx,
         c.ctx,
         catalogue,
-        appelant(c, i.characterId, userId, entete.campaignId),
+        appelantDe(c, i.characterId, userId, entete.campaignId),
         ligne,
         { etat },
         {
@@ -654,10 +659,29 @@ export function registerModificationRoutes(
       schema: { hide: true, body: CorpsAnnuler, response: { 200: ReponseAnnuler } },
     },
     async (req, reply) => {
-      const [entete] = await deps.db
-        .select()
-        .from(applications)
-        .where(eq(applications.applicationId, req.body.applicationId));
+      const lireEntete = async () =>
+        (
+          await deps.db
+            .select()
+            .from(applications)
+            .where(eq(applications.applicationId, req.body.applicationId))
+        )[0];
+      let entete = await lireEntete();
+      if (!entete && req.body.cancelIfMissing) {
+        // Pierre tombale ; un décompte concurrent qui vient d'écrire son en-tête l'emporte
+        const posee = await deps.db
+          .insert(applications)
+          .values({
+            applicationId: req.body.applicationId,
+            kind: 'tick',
+            userId: req.body.userId ?? null,
+            response: { items: [], cancelled: true },
+          })
+          .onConflictDoNothing()
+          .returning({ id: applications.applicationId });
+        if (posee.length) return { applicationId: req.body.applicationId, items: [] };
+        entete = await lireEntete();
+      }
       if (!entete)
         throw new HttpError(
           404,
@@ -683,65 +707,4 @@ export function registerModificationRoutes(
       }
     },
   );
-}
-
-// ─── Décompte des durées (tickId) ──────────────────────────────────────────────
-
-/** Réponse d'un décompte, gardée pour une reprise du même `tickId`. */
-export interface DecompteEnregistre {
-  modifie: boolean;
-  retirees: string[];
-  version: number;
-}
-
-/**
- * Décompte idempotent : dans la transaction du décompte, après le verrou de la fiche. Renvoie
- * le décompte déjà fait pour ce `tickId` et ce personnage, s'il y en a un.
- */
-export async function decompteDejaFait(
-  tx: Tx,
-  tickId: string,
-  characterId: string,
-): Promise<DecompteEnregistre | null> {
-  const [entete] = await tx
-    .select({ kind: applications.kind })
-    .from(applications)
-    .where(eq(applications.applicationId, tickId));
-  if (entete && entete.kind !== 'tick')
-    throw HttpError.conflict(`${tickId} désigne une application, pas un décompte`, 'tick_conflict');
-  const [item] = await tx
-    .select({ result: applicationItems.result })
-    .from(applicationItems)
-    .where(
-      and(
-        eq(applicationItems.applicationId, tickId),
-        eq(applicationItems.characterId, characterId),
-      ),
-    );
-  return item ? (item.result as DecompteEnregistre) : null;
-}
-
-/** Garde le décompte (delta pour l'annulation, réponse pour une reprise). */
-export async function enregistrerDecompte(
-  tx: Tx,
-  o: {
-    tickId: string;
-    characterId: string;
-    campaignId: string | null;
-    userId: string | null;
-    avant: EtatEntite;
-    apres: EtatEntite;
-    resultat: DecompteEnregistre;
-  },
-) {
-  await tx
-    .insert(applications)
-    .values({ applicationId: o.tickId, kind: 'tick', campaignId: o.campaignId, userId: o.userId })
-    .onConflictDoNothing();
-  await tx.insert(applicationItems).values({
-    applicationId: o.tickId,
-    characterId: o.characterId,
-    delta: deltaEtat(etatNormalise(o.avant) as EtatEntite, etatNormalise(o.apres) as EtatEntite),
-    result: o.resultat,
-  });
 }

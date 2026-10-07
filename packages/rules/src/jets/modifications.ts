@@ -8,6 +8,7 @@ import type { Fiche } from '../calcul/index.js';
 import type { Valeur } from '../formules/index.js';
 import type { SystemeCharge } from '../chargement/index.js';
 import type { LigneResistance } from './degats.js';
+import { poserDecompte, type DecompteSaisi } from './durees.js';
 import {
   type Attribut,
   estExemplaire,
@@ -35,8 +36,19 @@ export interface ModificationAttribut {
 }
 
 /**
- * Entrée donnée ou retirée (état, blessure…), avec une durée éventuelle en rounds.
- * `rangs` : rangs d'une entrée à rangs, unités d'une sorte à quantités ;
+ * Décompte d'une entrée donnée (docs/combat.md § 18) : `de` désigne le personnage dont le tour
+ * compte ; `source: true` le résout à la source de l'action (`appliquerModifications`) ; ni l'un
+ * ni l'autre : le porteur.
+ */
+export interface DecompteModification {
+  moment: DecompteSaisi['moment'];
+  de?: string;
+  source?: boolean;
+}
+
+/**
+ * Entrée donnée ou retirée (état, blessure…), avec une durée éventuelle (rounds, ou tours
+ * selon `decompte`). `rangs` : rangs d'une entrée à rangs, unités d'une sorte à quantités ;
  * ignoré sinon (un exemplaire à la fois).
  */
 export interface ModificationEntree {
@@ -45,6 +57,8 @@ export interface ModificationEntree {
   operation: 'donner' | 'retirer';
   rangs: number;
   duree?: number;
+  /** Moment du décompte de `duree` ; absent : fin de round. */
+  decompte?: DecompteModification;
   /** Exemplaire visé (sorte `exemplaires`) ; absent : le dernier (retrait) ou un nouveau (don). */
   exemplaire?: string;
 }
@@ -81,6 +95,8 @@ export function appliquerModifications(
   fiche: Fiche,
   modifications: Modification[],
   entite?: Modification['entite'],
+  /** `source` : personnage à l'origine de l'action (ancre `source` d'un décompte). */
+  o: { source?: string } = {},
 ): EtatEntite {
   const valeurs = { ...fiche.etat.valeurs };
   let possessions = fiche.etat.possessions;
@@ -88,7 +104,7 @@ export function appliquerModifications(
   for (const m of modifications) {
     if (entite !== undefined && m.entite !== entite) continue;
     if ('entree' in m) {
-      possessions = modifierPossession(fiche.systeme, possessions, m);
+      possessions = modifierPossession(fiche.systeme, possessions, m, o.source);
       continue;
     }
     const a = fiche.entite.attributs.get(m.attribut);
@@ -106,12 +122,25 @@ export function appliquerModifications(
   return { ...fiche.etat, valeurs, possessions };
 }
 
+/** Décompte demandé par une modification, l'ancre `source` résolue. */
+function decompteDe(m: ModificationEntree, source?: string): DecompteSaisi | undefined {
+  if (!m.decompte) return undefined;
+  const de = m.decompte.de ?? (m.decompte.source ? source : undefined);
+  return { moment: m.decompte.moment, ...(de ? { de } : {}) };
+}
+
 function modifierPossession(
   systeme: SystemeCharge,
   possessions: EtatEntite['possessions'],
   m: ModificationEntree,
+  source?: string,
 ): EtatEntite['possessions'] {
-  const o = { rangs: m.rangs, ...(m.duree !== undefined ? { duree: m.duree } : {}) };
+  const decompte = m.duree !== undefined ? decompteDe(m, source) : undefined;
+  const o = {
+    rangs: m.rangs,
+    ...(m.duree !== undefined ? { duree: m.duree } : {}),
+    ...(decompte ? { decompte } : {}),
+  };
   const x = m.exemplaire !== undefined ? { exemplaire: m.exemplaire } : {};
   return m.operation === 'donner'
     ? donnerEntree(systeme, possessions, m.entree, { ...o, ...x })
@@ -130,7 +159,7 @@ export function donnerEntree(
   systeme: SystemeCharge,
   possessions: EtatEntite['possessions'],
   id: string,
-  o: { rangs?: number; duree?: number; exemplaire?: string } = {},
+  o: { rangs?: number; duree?: number; decompte?: DecompteSaisi; exemplaire?: string } = {},
 ): EtatEntite['possessions'] {
   const entree = systeme.entrees.get(id);
   if (!entree) throw new Error(`Entrée inconnue : ${id}`);
@@ -144,7 +173,8 @@ export function donnerEntree(
     o.exemplaire !== undefined
       ? siens.find((p) => estExemplaire(p, id, o.exemplaire))
       : siens[siens.length - 1];
-  const extra = o.duree !== undefined ? { duree: o.duree } : {};
+  const decompte = o.duree !== undefined ? poserDecompte(undefined, o.decompte) : undefined;
+  const extra = o.duree !== undefined ? { duree: o.duree, ...(decompte ? { decompte } : {}) } : {};
 
   const creer = (exemplaire: string | undefined) =>
     liste.push(
@@ -171,7 +201,13 @@ export function donnerEntree(
   const cible = aRangs ? siens[0]! : (visee ?? siens[0]!);
   if (aRangs) cible.rang += n;
   cible.actif = true;
-  if (o.duree !== undefined) cible.duree = Math.max(cible.duree ?? 0, o.duree);
+  // Déjà là pour un temps : la durée la plus longue l'emporte, avec son décompte
+  if (o.duree !== undefined && o.duree >= (cible.duree ?? 0)) {
+    cible.duree = o.duree;
+    const suite = poserDecompte(cible.decompte, o.decompte);
+    if (suite) cible.decompte = suite;
+    else delete cible.decompte;
+  }
   return liste;
 }
 

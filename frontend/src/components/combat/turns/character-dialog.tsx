@@ -46,7 +46,7 @@ import { SIDE_LABELS } from './model';
 import { SituationChips } from './parts';
 import { situationChips } from './situation';
 import { StatesManager } from './states-manager';
-import { combatPresentation, statesOf, type CastMember } from './use-cast';
+import { combatPresentation, statesOf, useCast, type CastMember } from './use-cast';
 import { DotsBackdrop } from '../backdrop';
 
 /** D'où la fiche a été ouverte : le libellé et la teinte de son bandeau. */
@@ -113,6 +113,7 @@ export function CharacterDialog({
             campaignId={campaignId}
             characterId={characterId}
             participant={participant}
+            combat={combat}
             current={participant !== null && currentActorId(combat) === characterId}
             member={member}
             playerName={playerName}
@@ -149,6 +150,7 @@ function DialogBody({
   campaignId,
   characterId,
   participant: p,
+  combat,
   current,
   member,
   playerName,
@@ -161,6 +163,7 @@ function DialogBody({
   campaignId: string;
   characterId: string;
   participant: CombatParticipant | null;
+  combat: CombatState | null;
   current: boolean;
   member: CastMember | null;
   playerName: string | null;
@@ -171,7 +174,13 @@ function DialogBody({
   onClose(): void;
 }>) {
   const commands = useCombatCommands(campaignId);
+  const cast = useCast(campaignId);
   const { ctx, perso, sys, ecritures } = useFicheCalculee(characterId);
+  // Participants dont le tour peut compter pour une durée (docs/combat.md § 18)
+  const fighters = (combat?.order ?? []).map((x) => ({
+    id: x.characterId,
+    name: cast.nameOf(x.characterId),
+  }));
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const name = member?.name ?? perso.data?.name ?? 'Personnage';
@@ -259,6 +268,9 @@ function DialogBody({
               states={states}
               sheet={perso.data}
               ecritures={ecritures}
+              bearerId={characterId}
+              fighters={fighters}
+              actingId={currentActorId(combat)}
               disabled={perso.data.permissions?.write === false}
             />
           ) : (

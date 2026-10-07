@@ -24,8 +24,11 @@ export interface FakeCharacter {
   sortKeys?: number[] | ((params: Record<string, unknown>) => number[]);
   /** Refus des règles (422) à l'initiative, avec ce message. */
   rejection?: string;
-  /** États temporaires : rounds restants par entrée. */
-  durations?: Record<string, number>;
+  /**
+   * États temporaires par entrée : rounds restants (fin de round), ou minuterie au tour d'un
+   * personnage (docs/combat.md § 18).
+   */
+  durations?: Record<string, number | FakeTimer>;
   /** Création en cours (fiche pas encore terminée). */
   inCreation?: boolean;
   type?: string;
@@ -46,6 +49,51 @@ export interface FakeCharacter {
   /** Hors de combat après une application (formule `horsCombat`). */
   defeatedWhen?: (values: Record<string, number>) => boolean;
 }
+
+/** Durée au tour d'un personnage : `anchor` absent, le porteur ; `waiting` : attente d'une fin. */
+export interface FakeTimer {
+  n: number;
+  moment: 'round_end' | 'turn_start' | 'turn_end';
+  anchor?: string;
+  waiting?: boolean;
+}
+
+type DurationEvent =
+  | { kind: 'turn_start' | 'turn_end'; characterId: string }
+  | { kind: 'round_end'; round: number }
+  | { kind: 'combat_end' };
+
+/**
+ * Même règle que le moteur (`avancerMinuterie`) : décompte au moment voulu, attente d'une fin
+ * de tour levée par le premier événement du tour de l'ancre, ancre absente → fin de round.
+ */
+function advance(
+  value: number | FakeTimer,
+  events: DurationEvent[],
+  bearer: string,
+  participants: Set<string>,
+): number | FakeTimer | null {
+  const t: FakeTimer = typeof value === 'number' ? { n: value, moment: 'round_end' } : { ...value };
+  const anchor = t.anchor ?? bearer;
+  const moment = t.moment !== 'round_end' && !participants.has(anchor) ? 'round_end' : t.moment;
+  for (const e of events) {
+    if (e.kind === 'combat_end') return null;
+    if (moment === 'round_end') {
+      if (e.kind === 'round_end') t.n--;
+    } else if (e.kind !== 'round_end' && e.characterId === anchor) {
+      if (moment === 'turn_start' && e.kind === 'turn_start') t.n--;
+      else if (moment === 'turn_end' && e.kind === 'turn_start') t.waiting = false;
+      else if (moment === 'turn_end' && e.kind === 'turn_end') {
+        if (t.waiting) t.waiting = false;
+        else t.n--;
+      }
+    }
+    if (t.n <= 0) return null;
+  }
+  return typeof value === 'number' ? t.n : t;
+}
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Action à cible du faux moteur. */
 export interface FakeAction {
@@ -129,7 +177,7 @@ export async function fakeCharacter(secret: string) {
   const rolls: number[] = [];
   /** Applications et décomptes (`tickId`) enregistrés, par identifiant. */
   const applications = new Map<string, StoredApplication>();
-  /** Décomptes déjà faits : `tickId|personnage` → réponse d'origine. */
+  /** Décomptes déjà faits (ou annulés avant d'arriver) : `tickId` → réponse d'origine. */
   const ticks = new Map<string, Record<string, unknown>>();
 
   const sheet = (id: string) => {
@@ -480,8 +528,56 @@ export async function fakeCharacter(secret: string) {
       });
       return reply(200, { applications: out });
     }
+    // Décompte des durées d'un passage de tour, par lot (docs/combat.md § 18.4)
+    if (req.method === 'POST' && path === '/internal/durations/tick') {
+      const tickId = body.tickId as string;
+      const done = ticks.get(tickId);
+      if (done) return reply(200, { ...done, replayed: true });
+      const participants = new Set(body.characterIds as string[]);
+      const events = body.events as DurationEvent[];
+      const stored: StoredApplication = {
+        response: {},
+        diffs: new Map<string, Change[]>(),
+        reverted: new Set<string>(),
+      };
+      const items: Record<string, unknown>[] = [];
+      for (const id of participants) {
+        const c = sheet(id);
+        if (!c?.durations) continue;
+        const expired: { key: string; name: string }[] = [];
+        const changes: Change[] = [];
+        for (const [entry, value] of Object.entries(c.durations)) {
+          const after = advance(value, events, id, participants);
+          if (after !== null && same(after, value)) continue;
+          if (after === null) {
+            delete c.durations[entry];
+            expired.push({ key: entry, name: entry });
+            changes.push({ path: durationPath(entry), before: value });
+          } else {
+            c.durations[entry] = after;
+            changes.push({ path: durationPath(entry), before: value, after });
+          }
+        }
+        if (!changes.length) continue;
+        stored.diffs.set(id, changes);
+        items.push({ characterId: id, version: 2, expired });
+      }
+      const response = { tickId, replayed: false, items };
+      ticks.set(tickId, response);
+      applications.set(tickId, stored);
+      return reply(200, response);
+    }
     if (req.method === 'POST' && path === '/internal/modifications/revert') {
       const stored = applications.get(body.applicationId as string);
+      if (!stored && body.cancelIfMissing === true) {
+        // Pierre tombale : le décompte arrivé ensuite ne fera rien
+        ticks.set(body.applicationId as string, {
+          tickId: body.applicationId,
+          replayed: false,
+          items: [],
+        });
+        return reply(200, { applicationId: body.applicationId, items: [] });
+      }
       if (!stored)
         return reply(404, {
           title: 'Introuvable',
@@ -499,7 +595,7 @@ export async function fakeCharacter(secret: string) {
       const conflicts = wanted.flatMap((id) => {
         if (stored.reverted.has(id)) return [];
         const paths = (stored.diffs.get(id) ?? [])
-          .filter((ch) => current(id, ch.path) !== ch.after)
+          .filter((ch) => !same(current(id, ch.path), ch.after))
           .map((ch) => ch.path);
         return paths.length ? [{ characterId: id, paths }] : [];
       });
@@ -520,7 +616,7 @@ export async function fakeCharacter(secret: string) {
             c.values![ch.path.slice(13)] = ch.before as number;
           else if (ch.path.startsWith('etat.durees.')) {
             c.durations ??= {};
-            c.durations[ch.path.slice(12)] = ch.before as number;
+            c.durations[ch.path.slice(12)] = ch.before as number | FakeTimer;
           } else c.entries = (c.entries ?? []).filter((e) => e !== ch.path.slice(17, -1));
           return { path: ch.path, before: ch.after, after: ch.before };
         });
@@ -625,37 +721,6 @@ export async function fakeCharacter(secret: string) {
       const item = body.item as Record<string, unknown>;
       loot.set(id, [...(loot.get(id) ?? []), { ...item, playerId: body.playerId }]);
       return reply(200, { version: 2, entree: (item.ref as string) ?? 'objet-libre' });
-    }
-    if (req.method === 'POST' && rest === '/durees/decompter') {
-      const tickId = body.tickId as string | undefined;
-      const done = tickId ? ticks.get(`${tickId}|${id}`) : undefined;
-      if (done) return reply(200, { ...done, replayed: true });
-      c.durations ??= {};
-      const durations = c.durations;
-      const retirees: string[] = [];
-      const changes: Change[] = [];
-      for (const [entry, n] of Object.entries(durations)) {
-        if (body.clear === true || n - 1 <= 0) {
-          retirees.push(entry);
-          delete durations[entry];
-          changes.push({ path: durationPath(entry), before: n });
-        } else {
-          durations[entry] = n - 1;
-          changes.push({ path: durationPath(entry), before: n, after: n - 1 });
-        }
-      }
-      const response = { modifie: retirees.length > 0, retirees, version: 2 };
-      if (tickId) {
-        ticks.set(`${tickId}|${id}`, response);
-        const stored = applications.get(tickId) ?? {
-          response: {},
-          diffs: new Map<string, Change[]>(),
-          reverted: new Set<string>(),
-        };
-        stored.diffs.set(id, changes);
-        applications.set(tickId, stored);
-      }
-      return reply(200, response);
     }
     return reply(404, { title: 'Route introuvable' });
   });

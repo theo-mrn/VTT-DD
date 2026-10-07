@@ -29,6 +29,9 @@ import { Input, styleChampBase } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DurationChip, timerOf } from '@/components/combat/duration-chip';
+import { SelectField } from '@/components/ui/select';
+import { DURATION_MOMENTS, durationText, turnBased, type Timer } from '@/lib/combat/durations';
 import { groupesAttributs } from '@/lib/creation';
 import { cn } from '@/lib/utils';
 import { Bloc, visiblePour, type ContexteFiche } from '../../widgets';
@@ -73,6 +76,8 @@ interface GroupeSource {
   /** Pourquoi la source ne s'applique pas (objet rangé…), sinon null. */
   raison: string | null;
   bonus?: BonusLibre;
+  /** Durée restante (état ou bonus donné pour un temps, docs/combat.md § 18). */
+  minuterie?: Timer;
   /** Source activable (capacité à activer…) : son interrupteur l'active, ses bonus suivent. */
   activation?: { entree: string; actif: boolean };
   lignes: LigneEffet[];
@@ -89,6 +94,10 @@ function cleSource(e: EffetListe): string {
 /** Groupe d'une source, tel que son premier effet le décrit. */
 function nouveauGroupe(e: EffetListe, cle: string): GroupeSource {
   const p = e.possession;
+  // Durée : celle du bonus, sinon du premier exemplaire qui en a une
+  const minuterie = e.bonus
+    ? timerOf(e.bonus)
+    : (p?.exemplaires.map(timerOf).find((t) => t !== null) ?? null);
   return {
     cle,
     nom: e.nom,
@@ -96,6 +105,7 @@ function nouveauGroupe(e: EffetListe, cle: string): GroupeSource {
     famille: familleDe(e),
     raison: e.statut === 'inactif' ? raisonInactif(e) : null,
     ...(e.bonus ? { bonus: e.bonus } : {}),
+    ...(minuterie ? { minuterie } : {}),
     ...(e.genre !== 'bonus' && p?.sorte.activable
       ? { activation: { entree: p.entree.id, actif: p.actif } }
       : {}),
@@ -383,6 +393,7 @@ function Source({
           <span className="min-w-0 flex-1 truncate text-xs text-subtle">
             {resume || desactives(coupes)}
           </span>
+          {g.minuterie && <DurationChip timer={g.minuterie} />}
           {g.raison && <span className="shrink-0 text-[11px] text-subtle">{g.raison}</span>}
         </button>
         <InterrupteurSource
@@ -487,8 +498,8 @@ function DetailSource({
 }>) {
   const b = g.bonus;
   const eteinte = g.raison !== null;
-  const duree = b?.duree === undefined ? null : `${b.duree} round(s)`;
-  const meta = b ? [b.source, duree].filter(Boolean).join(' · ') : null;
+  const duree = g.minuterie ? durationText(g.minuterie) : null;
+  const meta = [b?.source, duree].filter(Boolean).join(' · ') || null;
   return (
     <ul id={id} className="pb-1.5 pl-6">
       {meta && <li className="pb-0.5 text-[11px] text-subtle">{meta}</li>}
@@ -553,6 +564,9 @@ function AjoutBonus({
   const [source, setSource] = useState('');
   const [attribut, setAttribut] = useState('');
   const [valeur, setValeur] = useState('1');
+  // Durée facultative : nombre, et moment du décompte (au tour du personnage lui-même)
+  const [duree, setDuree] = useState('');
+  const [moment, setMoment] = useState<(typeof DURATION_MOMENTS)[number]['value']>('fin-round');
   const nombre = Number(valeur);
   const valide =
     nom.trim().length > 0 && attribut !== '' && Number.isFinite(nombre) && nombre !== 0;
@@ -562,11 +576,17 @@ function AjoutBonus({
     const effets: Effet[] = [
       { sur: 'attribut', attribut, operation: 'ajouter', valeur: String(nombre) },
     ];
+    const decomptes = duree.trim()
+      ? Math.min(10_000, Math.max(1, Math.round(Number(duree))))
+      : null;
+    const decompte = decomptes && turnBased(moment) ? { moment } : null;
     const demande = {
       nom: nom.trim(),
       ...(source.trim() ? { source: source.trim() } : {}),
       effets,
       actif: true,
+      ...(decomptes ? { duree: decomptes } : {}),
+      ...(decompte ? { decompte } : {}),
     };
     // Aperçu : l'identifiant définitif est donné par le service
     const apercu: BonusLibre = { ...demande, id: `nouveau-${Date.now()}` };
@@ -575,6 +595,8 @@ function AjoutBonus({
     setNom('');
     setSource('');
     setValeur('1');
+    setDuree('');
+    setMoment('fin-round');
   }
 
   return (
@@ -635,6 +657,32 @@ function AjoutBonus({
                 inputMode="numeric"
                 value={valeur}
                 onChange={(e) => setValeur(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="bonus-duree">Durée</Label>
+              <Input
+                id="bonus-duree"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                placeholder="∞"
+                value={duree}
+                onChange={(e) => setDuree(e.target.value)}
+                className="text-right font-mono tabular-nums"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bonus-decompte">Décompte</Label>
+              <SelectField
+                id="bonus-decompte"
+                value={moment}
+                disabled={!duree.trim()}
+                onValueChange={(v) => setMoment(v as typeof moment)}
+                options={DURATION_MOMENTS.map((m) => ({ valeur: m.value, nom: m.label }))}
+                className="h-10"
               />
             </div>
           </div>

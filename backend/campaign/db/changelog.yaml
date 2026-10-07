@@ -56,5 +56,7 @@ databaseChangeLog:
   - include: { file: changes/0029-handouts.sql, relativeToChangelogFile: true }
   # Salle active d'un joueur : jets Discord et retour de l'activité (docs/discord.md)
   - include: { file: changes/0030-active-campaigns.sql, relativeToChangelogFile: true }
+  # Combat, durées au nombre de tours : événements du décompte d'un passage, rejoués s'il échoue (docs/combat.md § 18)
+  - include: { file: changes/0031-combat-duration-ticks.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

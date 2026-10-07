@@ -321,7 +321,8 @@ export function EndCombatDialog({
 }>) {
   const commands = useCombatCommands(campaignId);
   const [reports, setReports] = useState<'keep' | 'dismiss'>('keep');
-  const [clearTimed, setClearTimed] = useState(false);
+  // Une durée de combat finit avec le combat (docs/combat.md § 18.6) ; décocher les garde
+  const [clearTimed, setClearTimed] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const end = async () => {
@@ -329,7 +330,7 @@ export function EndCombatDialog({
     const ok = await attempt('Le combat n’a pas pu se terminer', () =>
       commands.end({
         ...(pendingReports ? { pendingAttacks: reports } : {}),
-        ...(clearTimed ? { clearTimedStates: true } : {}),
+        clearTimedStates: clearTimed,
       }),
     );
     setBusy(false);

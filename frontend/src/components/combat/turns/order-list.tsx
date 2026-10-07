@@ -45,7 +45,7 @@ import { cn } from '@/lib/utils';
 import { SIDE_LABELS, turnRows, type TurnRow } from './model';
 import { Gauge, ResourcesPopover, SituationChips } from './parts';
 import { situationChips } from './situation';
-import { StateBadge } from './states-manager';
+import { durationLabel, StateBadge } from './states-manager';
 import type { CastMember, ParticipantSheet } from './use-cast';
 
 export interface OrderActions {
@@ -161,6 +161,7 @@ export function OrderList({
               row={row}
               member={cast.get(row.characterId) ?? null}
               sheet={sheets.get(row.characterId) ?? null}
+              nameOf={(cid) => cast.get(cid)?.name}
               count={rows.length}
               busy={busy}
               canAttack={canAttack}
@@ -175,24 +176,32 @@ export function OrderList({
 
 /** États et situation sous le nom, les premiers en pastilles, le reste en info-bulle. */
 function RowBadges({
+  bearerId,
   states,
   chips,
+  nameOf,
 }: Readonly<{
+  bearerId: string;
   states: NonNullable<ParticipantSheet['states']>;
   chips: ReturnType<typeof situationChips>;
+  nameOf: (id: string) => string | undefined;
 }>) {
   if (!(states.length > 0 || chips.length > 0)) return null;
   return (
     <span className="relative z-10 mt-1 flex flex-wrap items-center gap-1">
       <SituationChips chips={chips} />
       {states.slice(0, MAX_BADGES).map((s) => (
-        <StateBadge key={s.key} state={s} />
+        <StateBadge key={s.key} state={s} bearerId={bearerId} nameOf={nameOf} />
       ))}
       {states.length > MAX_BADGES && (
         <Info
           texte={states
             .slice(MAX_BADGES)
-            .map((s) => s.name)
+            .map((s) =>
+              s.duration !== null
+                ? `${s.name} (${durationLabel(s, { bearerId, nameOf })})`
+                : s.name,
+            )
             .join(', ')}
         >
           <span className="cursor-help text-[11px] text-subtle">+{states.length - MAX_BADGES}</span>
@@ -306,6 +315,7 @@ function OrderRow({
   row,
   member,
   sheet,
+  nameOf,
   count,
   busy,
   canAttack,
@@ -314,6 +324,7 @@ function OrderRow({
   row: TurnRow;
   member: CastMember | null;
   sheet: ParticipantSheet | null;
+  nameOf: (id: string) => string | undefined;
   count: number;
   busy: boolean;
   canAttack: boolean;
@@ -415,7 +426,7 @@ function OrderRow({
             </>
           )}
         </span>
-        <RowBadges states={states} chips={chips} />
+        <RowBadges bearerId={id} states={states} chips={chips} nameOf={nameOf} />
       </span>
       {sheet?.gauge && <Gauge gauge={sheet.gauge} />}
       <ResourcesPopover

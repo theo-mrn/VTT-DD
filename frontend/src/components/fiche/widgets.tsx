@@ -39,6 +39,7 @@ import { EntryBonuses } from './blocks/effects/entry-bonuses';
 import { ICONES } from './blocks/inventory/item-icon';
 import { arrangeTiles, type TileArrangement } from './blocks/tiles/model';
 import { TileGrid } from './blocks/tiles/tile-grid';
+import { PossessionDuration } from '@/components/combat/duration-chip';
 import { LanceurAction } from './lanceur-action';
 import { ResourceDialog } from './resource-dialog';
 
@@ -564,6 +565,7 @@ export function BlocPossessions({
                       {p.entree.nom}
                     </button>
                   </FichePossession>
+                  <PossessionDuration exemplaires={p.exemplaires} />
                   {p.sorte.rangs && (
                     <span className="flex items-center gap-0.5" aria-label={`Rang ${p.rang}`}>
                       {Array.from({ length: Math.min(p.rang, 6) }, (_, i) => (

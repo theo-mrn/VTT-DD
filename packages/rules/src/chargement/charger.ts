@@ -18,6 +18,7 @@ import {
   type Achat,
   type Action,
   type Attribut,
+  type DecompteDonne,
   type JetAttribut,
   type Arbre,
   type Entree,
@@ -662,6 +663,9 @@ class Chargeur {
     for (const [cle, v] of Object.entries(e.champs))
       this.verifierChampEntree(e, sorte, porteurs, cle, v);
 
+    // Durée par défaut : l'ancre ne compte qu'au tour d'un personnage
+    if (e.duree) this.verifierDecompte(`${chemin}/duree`, e.duree);
+
     // Entrée générique d'objets hors catalogue : chaque exemplaire se nomme lui-même
     if (e.libre && !sorte.exemplaires)
       this.erreur(`${chemin}/libre`, `La sorte ${sorte.id} n’admet pas d’exemplaires`);
@@ -1183,6 +1187,16 @@ class Chargeur {
       this.erreur(ou, `${sorte.nom} non possédable par ${types.join(', ')}`);
     this.compiler(`${ou}/rangs`, c.rangs, opts(), 'nombre');
     if (c.duree !== undefined) this.compiler(`${ou}/duree`, c.duree, opts(), 'nombre');
+    if (c.decompte) {
+      this.verifierDecompte(`${ou}/decompte`, c.decompte);
+      if (c.operation !== 'donner') this.erreur(`${ou}/decompte`, 'Décompte sans entrée donnée');
+    }
+  }
+
+  /** Décompte d'une durée (docs/combat.md § 18.2) : `de: source` demande un tour. */
+  private verifierDecompte(ou: string, d: DecompteDonne): void {
+    if (d.moment === 'fin-round' && d.de === 'source')
+      this.erreur(ou, 'La source ne compte qu’avec un décompte au tour (debut-tour, fin-tour)');
   }
 
   /** Attribut modifié : de base ou ressource, valeur, type de dégâts et minimum cohérents. */

@@ -324,11 +324,66 @@ export const CombatState = z.object({
 });
 export type CombatState = z.infer<typeof CombatState>;
 
-/** Durées décomptées en fin de round (réponse de `…/next`, `…/previous`), déjà existant. */
+// ─── Durées (docs/combat.md § 18) ────────────────────────────────────────────
+
+/**
+ * Moment où une durée perd un décompte : fin de round, début ou fin du tour d'un personnage.
+ * Noms du moteur de règles (`MomentDecompte`) : `DURATION_MOMENT_RULES`.
+ */
+export const DurationMoment = z.enum(['round_end', 'turn_start', 'turn_end']);
+export type DurationMoment = z.infer<typeof DurationMoment>;
+
+/** Moment d'une durée → nom du moteur de règles (`decompte.moment` de l'état d'une fiche). */
+export const DURATION_MOMENT_RULES = {
+  round_end: 'fin-round',
+  turn_start: 'debut-tour',
+  turn_end: 'fin-tour',
+} as const satisfies Record<DurationMoment, string>;
+
+/** Nom du moteur de règles → moment d'une durée. */
+export function durationMomentOf(rules: string): DurationMoment {
+  const found = (Object.keys(DURATION_MOMENT_RULES) as DurationMoment[]).find(
+    (m) => DURATION_MOMENT_RULES[m] === rules,
+  );
+  return found ?? 'round_end';
+}
+
+/**
+ * Décompte d'une durée donnée par une attaque : moment, et personnage dont le tour compte
+ * (`anchorId` ; absent : le porteur). La source d'un effet (l'attaquant) est résolue à la
+ * construction du rapport.
+ */
+export const DurationTiming = z.strictObject({
+  moment: DurationMoment,
+  anchorId: Id.optional(),
+});
+export type DurationTiming = z.infer<typeof DurationTiming>;
+
+/** Ce qui arrive à la table pendant un passage de tour, dans l'ordre (décompte des durées). */
+export const DurationEvent = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('turn_start'), characterId: Id }),
+  z.object({ kind: z.literal('turn_end'), characterId: Id }),
+  z.object({ kind: z.literal('round_end'), round: z.number().int().nonnegative() }),
+  /** Fin du combat : tout ce qui a une durée est retiré. */
+  z.object({ kind: z.literal('combat_end') }),
+]);
+export type DurationEvent = z.infer<typeof DurationEvent>;
+
+/** Entrée ou bonus arrivé au bout de sa durée : clé (`entree`, `entree#exemplaire`, `bonus:<id>`). */
+export const ExpiredDuration = z.object({
+  key: z.string(),
+  /** Nom lisible (nom du bonus, de l'exemplaire ou de l'entrée). */
+  name: z.string(),
+});
+export type ExpiredDuration = z.infer<typeof ExpiredDuration>;
+
+/** Durées décomptées ou rendues par un passage (réponse de `…/next`, `…/previous`…). */
 export const CombatDurationUpdate = z.object({
   characterId: Id,
   /** Entrées (`entree`, `entree#exemplaire`, `bonus:<id>`) arrivées à 0, ou rendues. */
   expired: z.array(z.string()),
+  /** Les mêmes, nommées (absent pour des durées rendues). */
+  entries: z.array(ExpiredDuration).optional(),
 });
 export type CombatDurationUpdate = z.infer<typeof CombatDurationUpdate>;
 
@@ -504,7 +559,10 @@ export type ChooseSlotActor = z.input<typeof ChooseSlotActor>;
 export const EndCombat = z.object({
   /** Rapports encore en attente : gardés (défaut) ou écartés. */
   pendingAttacks: z.enum(['keep', 'dismiss']).optional(),
-  /** Retirer les états et bonus à durée des participants. */
+  /**
+   * Retirer les états et bonus à durée des participants ; absent : oui (une durée de combat
+   * finit avec le combat, docs/combat.md § 18.6). Faux : figées jusqu'au combat suivant.
+   */
   clearTimedStates: z.boolean().optional(),
 });
 export type EndCombat = z.input<typeof EndCombat>;
@@ -743,8 +801,10 @@ const EntryModificationFields = {
   operation: z.enum(['give', 'remove']),
   /** Rangs d'une entrée à rangs, unités d'une sorte à quantités ; ignoré sinon. */
   ranks: z.number().int().min(0).max(100),
-  /** Durée en rounds, décomptée en fin de round ; absente : jusqu'au retrait. */
+  /** Nombre de décomptes (rounds par défaut) ; absente : jusqu'au retrait. */
   duration: z.number().int().min(1).max(10_000).optional(),
+  /** Moment du décompte de `duration` ; absent : fin de round. */
+  timing: DurationTiming.optional(),
   /** Exemplaire visé (sorte à exemplaires). */
   instance: z.string().trim().min(1).max(100).optional(),
 };
@@ -1295,6 +1355,18 @@ export const AttackRevertedPayload = z.object({
 });
 export type AttackRevertedPayload = z.infer<typeof AttackRevertedPayload>;
 
+/**
+ * `combat.durations_expired` : états et bonus arrivés au bout de leur durée pendant un passage
+ * de tour (ou retirés à la fin du combat). Complet aux MJ ; pour les autres, les seuls
+ * participants vus des camps `players` et `allies` (jamais l'état d'un PNJ ennemi).
+ */
+export const CombatDurationsExpiredPayload = z.object({
+  tickId: z.string(),
+  round: z.number().int(),
+  expirations: z.array(z.object({ characterId: Id, entries: z.array(ExpiredDuration) })),
+});
+export type CombatDurationsExpiredPayload = z.infer<typeof CombatDurationsExpiredPayload>;
+
 /** Charge de chaque événement du combat (agrégat `combat` ou `attack`). */
 export const CombatEventPayloads = {
   'combat.started': CombatStartedPayload,
@@ -1308,6 +1380,7 @@ export const CombatEventPayloads = {
   'combat.attack_decided': AttackDecidedPayload,
   'combat.attack_concluded': AttackConcludedPayload,
   'combat.attack_reverted': AttackRevertedPayload,
+  'combat.durations_expired': CombatDurationsExpiredPayload,
 } as const;
 export type CombatEventType = keyof typeof CombatEventPayloads;
 export type CombatEventPayload<T extends CombatEventType> = z.infer<

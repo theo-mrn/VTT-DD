@@ -4,7 +4,14 @@
  */
 import { EtatEntite, nouvellePossession } from '@vtt/rules';
 import { describe, expect, it } from 'vitest';
-import { annuler, deltaEtat, deltaVide, versModification } from './combat.js';
+import { catalogueReference } from './catalogue.js';
+import {
+  annuler,
+  deltaEtat,
+  deltaVide,
+  modificationsDecidees,
+  versModification,
+} from './combat.js';
 
 const etat = (o: Partial<EtatEntite> = {}): EtatEntite =>
   EtatEntite.parse({
@@ -101,5 +108,69 @@ describe('conversions vers le contrat', () => {
         minimum: 1,
       }),
     ).toMatchObject({ value: 1, raw: 2, minimum: 1, resistances: [{ name: 'Peau de pierre' }] });
+  });
+});
+
+describe('durées au tour d’un personnage (docs/combat.md § 18)', () => {
+  const ATTAQUANT = '0b5c1c9e-7f37-4b8a-9d55-1f2d3c4b5a69';
+
+  it('la source devient l’attaquant ; la fin de round ne dit rien de plus', () => {
+    const donner = {
+      entite: 'cible' as const,
+      entree: 'aveugle',
+      operation: 'donner' as const,
+      rangs: 1,
+      duree: 1,
+    };
+    expect(
+      versModification({ ...donner, decompte: { moment: 'debut-tour', source: true } }, ATTAQUANT),
+    ).toMatchObject({ duration: 1, timing: { moment: 'turn_start', anchorId: ATTAQUANT } });
+    // Porteur : pas d'ancre ; source inconnue : le porteur
+    expect(versModification({ ...donner, decompte: { moment: 'fin-tour' } })).toMatchObject({
+      timing: { moment: 'turn_end' },
+    });
+    expect(
+      versModification({ ...donner, decompte: { moment: 'fin-tour', source: true } }).timing,
+    ).toEqual({ moment: 'turn_end' });
+    expect(versModification(donner)).not.toHaveProperty('timing');
+  });
+
+  it('décision du MJ : le moment et l’ancre passent au moteur', () => {
+    const dnd = catalogueReference().charge('dnd-classic')!;
+    const d = modificationsDecidees(
+      dnd,
+      'personnage',
+      [
+        {
+          kind: 'entry',
+          entry: 'aveugle',
+          operation: 'give',
+          ranks: 1,
+          duration: 2,
+          timing: { moment: 'turn_end', anchorId: ATTAQUANT },
+        },
+        {
+          kind: 'entry',
+          entry: 'effraye',
+          operation: 'give',
+          ranks: 1,
+          duration: 2,
+          timing: { moment: 'round_end' },
+        },
+      ],
+      [],
+    );
+    expect(d.erreurs).toEqual([]);
+    expect(d.modifications).toEqual([
+      {
+        entite: 'cible',
+        entree: 'aveugle',
+        operation: 'donner',
+        rangs: 1,
+        duree: 2,
+        decompte: { moment: 'fin-tour', de: ATTAQUANT },
+      },
+      { entite: 'cible', entree: 'effraye', operation: 'donner', rangs: 1, duree: 2 },
+    ]);
   });
 });

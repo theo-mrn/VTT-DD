@@ -356,12 +356,44 @@ export const ChoixAttribut = z.object({
 });
 export type ChoixAttribut = z.output<typeof ChoixAttribut>;
 
+// ─── Durées (docs/combat.md § 18) ────────────────────────────────────────────
+
+/**
+ * Moment où une durée perd un décompte : à chaque fin de round, au début ou à la fin du tour
+ * d'un personnage (le porteur, ou la source de l'effet).
+ */
+export const MomentDecompte = z.enum(['fin-round', 'debut-tour', 'fin-tour']);
+export type MomentDecompte = z.output<typeof MomentDecompte>;
+
+/** Personnage dont le tour compte : le porteur de l'effet, ou sa source (qui l'a donné). */
+export const AncreDuree = z.enum(['porteur', 'source']);
+export type AncreDuree = z.output<typeof AncreDuree>;
+
+/** Comment une durée donnée se décompte (`fin-round` : `de` n'a pas de sens). */
+export const DecompteDonne = z.object({
+  moment: MomentDecompte.default('fin-round'),
+  de: AncreDuree.default('porteur'),
+});
+export type DecompteDonne = z.output<typeof DecompteDonne>;
+
+/**
+ * Durée par défaut d'une entrée (état, sort actif) : proposée quand on la pose à la main,
+ * reprise par une conséquence `donner` qui ne dit pas de durée.
+ */
+export const DureeEntree = DecompteDonne.extend({
+  /** Nombre de décomptes (rounds, ou tours de l'ancre). */
+  valeur: z.number().int().min(1).max(10_000),
+});
+export type DureeEntree = z.output<typeof DureeEntree>;
+
 export const Entree = z.object({
   id: Id,
   sorte: Cle,
   nom: Libelle,
   description: Description,
   etiquettes: z.array(Id).default([]),
+  /** Durée par défaut quand l'entrée est donnée pour un temps (état, sort actif). */
+  duree: DureeEntree.optional(),
   /**
    * Entrée générique des objets hors catalogue (« Objet personnalisé ») : chaque exemplaire
    * porte son nom, sa description et ses valeurs dans ses champs propres (`nomExemplaire`
@@ -681,8 +713,13 @@ export const ConsequenceEntree = z.object({
   operation: z.enum(['donner', 'retirer']),
   /** Rangs donnés ou retirés (entrée à rangs). */
   rangs: Formule.default('1'),
-  /** Durée en rounds, décomptée par l'état de combat ; absente : permanente. */
+  /**
+   * Nombre de décomptes (rounds par défaut), décomptés par l'état de combat ; absente : la
+   * durée par défaut de l'entrée (`duree`), sinon permanente.
+   */
   duree: Formule.optional(),
+  /** Moment et ancre du décompte ; absent : ceux de l'entrée, sinon fin de round. */
+  decompte: DecompteDonne.optional(),
 });
 
 export const Consequence = z.union([ConsequenceAttribut, ConsequenceEntree]);

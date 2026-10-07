@@ -3,7 +3,7 @@
  * partagé INTERNAL_API_SECRET, jamais relayées par la gateway) :
  *  - résumé d'un personnage (propriétaire, système) avant de l'engager ;
  *  - action d'initiative d'un participant (clés de tri renvoyées ; jet caché pour un PNJ) ;
- *  - décompte des durées en fin de round (idempotent par `tickId`, annulable) ;
+ *  - décompte des durées d'un passage de tour, par lot (idempotent par `tickId`, annulable) ;
  *  - attaques (docs/combat.md § 11.2) : préparer, résoudre, appliquer les décisions du MJ,
  *    annuler une application ;
  *  - instances de PNJ posées sur la carte (création, suppression) et butin d'un objet.
@@ -17,7 +17,9 @@ import {
   AttackTargetResult,
   AttackTargetView,
   Change,
+  ExpiredDuration,
   RollStep,
+  type DurationEvent,
   type ActionParams,
   type AttackModificationInput,
   type AttackRollMode,
@@ -89,19 +91,29 @@ export interface PlayedAction {
 }
 
 const DurationsResponse = z.object({
-  modifie: z.boolean(),
-  retirees: z.array(z.string()),
-  version: z.number(),
-  replayed: z.boolean().optional(),
+  tickId: z.string(),
+  replayed: z.boolean(),
+  items: z.array(
+    z.object({
+      characterId: z.string(),
+      version: z.number(),
+      expired: z.array(ExpiredDuration),
+    }),
+  ),
 });
 
-export interface DurationsTick {
-  changed: boolean;
-  /** Entrées (états temporaires) arrivées à expiration. */
-  expired: string[];
-  version: number;
-  /** Même `tickId` déjà décompté : réponse d'origine, rien de plus. */
-  replayed: boolean;
+/**
+ * Décompte d'un passage de tour (docs/combat.md § 18.4) : les fiches réécrites, avec leurs
+ * entrées arrivées à expiration. `replayed` : même `tickId` déjà décompté (réponse d'origine).
+ */
+export type DurationsTick = z.infer<typeof DurationsResponse>;
+
+/** Décompte demandé à character pour un passage de tour. */
+export interface DurationsTickInput {
+  tickId: string;
+  /** Participants du combat : fiches décomptées et ancres valables. */
+  characterIds: string[];
+  events: DurationEvent[];
 }
 
 // ─── Attaques (docs/combat.md § 11.2, forme fixée par le lot 2) ─────────────
@@ -348,12 +360,7 @@ export interface CharacterClient {
    * Décompte des durées ; `tickId` : une seule fois par passage (idempotent, annulable) ;
    * `clear` : tout ce qui a une durée est retiré (fin de combat).
    */
-  tickDurations(
-    id: string,
-    origin?: CallOrigin,
-    tickId?: string,
-    options?: { clear?: boolean },
-  ): Promise<DurationsTick>;
+  tickDurations(input: DurationsTickInput, origin: CallOrigin): Promise<DurationsTick>;
   /** Vérifie une attaque, fige l'instantané, propose les réactions (ou résout tout de suite). */
   prepareAction(input: PrepareInput, origin?: CallOrigin): Promise<PreparedAction>;
   /** Résout (ou avance d'une étape de dés) une attaque préparée. */
@@ -370,7 +377,14 @@ export interface CharacterClient {
   ): Promise<AppliedModifications>;
   /** Rend les valeurs d'avant une application (ou un décompte : `applicationId = tickId`). */
   revertModifications(
-    input: { applicationId: string; characterIds?: string[]; force?: boolean; userId?: string },
+    input: {
+      applicationId: string;
+      characterIds?: string[];
+      force?: boolean;
+      userId?: string;
+      /** Décompte inconnu : pierre tombale, il ne s'appliquera plus (« Précédent »). */
+      cancelIfMissing?: boolean;
+    },
     origin?: CallOrigin,
   ): Promise<RevertedModifications>;
   /** Crée `count` personnages PNJ du MJ (`origin.userId`) pour la campagne (`origin.campaignId`). */
@@ -538,24 +552,12 @@ export function characterClient(o: {
       );
       return { result: r.resultat, ...(r.cles ? { sortKeys: r.cles } : {}) };
     },
-    async tickDurations(characterId, origin, tickId, options) {
-      const r = await request(
-        'POST',
-        `/internal/characters/${id(characterId)}/durees/decompter`,
-        DurationsResponse,
-        origin,
-        {
-          ...originBody(origin),
-          ...(tickId ? { tickId } : {}),
-          ...(options?.clear ? { clear: true } : {}),
-        },
-      );
-      return {
-        changed: r.modifie,
-        expired: r.retirees,
-        version: r.version,
-        replayed: r.replayed ?? false,
-      };
+    tickDurations(input, origin) {
+      return request('POST', '/internal/durations/tick', DurationsResponse, origin, {
+        ...input,
+        campaignId: origin.campaignId,
+        ...(origin.userId ? { userId: origin.userId } : {}),
+      });
     },
     prepareAction(input, origin) {
       return request('POST', '/internal/actions/prepare', PrepareResponse, origin, input);

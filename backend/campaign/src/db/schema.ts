@@ -10,6 +10,7 @@ import {
   type AttackTargetView,
   type CombatInitiative,
   type CombatSettings,
+  type DurationEvent,
   type MapGrid,
   type MapWeather,
   type RollStep,
@@ -291,7 +292,9 @@ export const campaignCombatTurns = campaignSchema.table('campaign_combat_turns',
   reason: text('reason').$type<TurnLogReason>().notNull(),
   before: jsonb('before').$type<TurnSnapshot>().notNull(),
   tickId: text('tick_id'),
-  /** Entrées expirées par personnage lors du décompte de ce passage. */
+  /** Événements du décompte des durées de ce passage (docs/combat.md § 18). */
+  tickEvents: jsonb('tick_events').$type<DurationEvent[]>(),
+  /** Entrées expirées par personnage lors du décompte de ce passage ; null : pas encore fait. */
   expired: jsonb('expired').$type<Record<string, string[]>>(),
   createdBy: uuid('created_by').notNull(),
   createdAt: timestampTz('created_at').notNull().defaultNow(),

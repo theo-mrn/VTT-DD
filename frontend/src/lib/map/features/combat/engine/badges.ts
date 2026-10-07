@@ -22,8 +22,10 @@ import { characterOf } from './model';
 export interface MapStateBadge {
   icon: IconeEtat;
   name: string;
-  /** Rounds restants ; null : jusqu'au retrait. */
+  /** Décomptes restants (rounds, ou tours selon le moment) ; null : jusqu'au retrait. */
   duration: number | null;
+  /** Durée en toutes lettres (« 2 rounds », « jusqu'à la fin de son prochain tour »). */
+  label?: string;
 }
 
 export interface BadgeSource {
@@ -48,10 +50,10 @@ export function visibleBadges(
   return { shown: states.slice(0, max - 1), more: states.length - (max - 1) };
 }
 
-/** Libellé au survol : « Aveuglé (2) · Étourdi ». */
+/** Libellé au survol : « Aveuglé (2 rounds) · Étourdi ». */
 export function badgeLabel(states: readonly MapStateBadge[]): string {
   return states
-    .map((s) => (s.duration !== null ? `${s.name} (${s.duration})` : s.name))
+    .map((s) => (s.duration !== null ? `${s.name} (${s.label ?? s.duration})` : s.name))
     .join(' · ');
 }
 
@@ -73,7 +75,7 @@ export function readableSheets(
 
 /** Clé d'un dessin (redessiné seulement quand les états du token changent). */
 const keyOf = (states: readonly MapStateBadge[]) =>
-  states.map((s) => `${s.icon}:${s.name}:${s.duration ?? ''}`).join('|');
+  states.map((s) => `${s.icon}:${s.name}:${s.duration ?? ''}:${s.label ?? ''}`).join('|');
 
 const shown = (e: MapEntity) => e.masks.size === 0 && e.display?.visible === true;
 

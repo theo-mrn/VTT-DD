@@ -14,8 +14,9 @@
  *   + participants (participants.ts)
  *
  * L'initiative est lancée par character (action d'initiative du système, route interne) ;
- * campaign trie avec les clés renvoyées. En fin de round, character décompte les durées, une
- * fois par passage (`tickId`) ; « Précédent » les rend.
+ * campaign trie avec les clés renvoyées. À chaque passage de tour, character décompte les
+ * durées (début et fin de tour, fin de round), une fois par passage (`tickId`) ; « Précédent »
+ * les rend (docs/combat.md § 18, ./durations.ts).
  */
 import {
   ChooseSlotActor,
@@ -71,20 +72,28 @@ import {
 } from './initiative.js';
 import { register as registerParticipants } from './participants.js';
 import {
+  logPassage,
+  playerUpdates,
+  settleTicks,
+  tickContext,
+  tickFirstTurn,
+  tickOutsideLog,
+  type Settled,
+} from './durations.js';
+import {
   clearTurns,
   combatEvent,
   dropTurn,
   engagedOrThrow,
   lastTurn,
   loadCombat,
-  logTurn,
-  recordExpired,
   requirePlays,
   saveSettings,
   saveState,
   turnChanged,
+  type LoadedCombat,
 } from './repository.js';
-import { restore, snapshotOf } from './turn-log.js';
+import { restore } from './turn-log.js';
 import {
   canActNow,
   chooseSlotActor,
@@ -202,13 +211,24 @@ export const register: Module = async (app, deps) => {
           },
         });
         return {
-          combat: combat!,
-          participants: participants.sort((x, y) => x.turnOrder - y.turnOrder),
-          canGoBack: false,
+          loaded: {
+            combat: combat!,
+            participants: participants.sort((x, y) => x.turnOrder - y.turnOrder),
+            canGoBack: false,
+            tallies: [],
+          },
+          a,
         };
       });
+      // Initiative tirée : le tour du premier commence (durées « au début de son tour »)
+      if (rolled)
+        await tickFirstTurn(
+          tickContext(deps, req, loaded.a),
+          loaded.loaded,
+          stateOf(loaded.loaded.combat, loaded.loaded.participants),
+        );
       reply.code(201);
-      return fullApi(loaded);
+      return fullApi(loaded.loaded);
     },
   );
 
@@ -240,6 +260,9 @@ export const register: Module = async (app, deps) => {
         );
       const subset = req.body.participants ? new Set(req.body.participants) : null;
       const targets = before.participants.filter((p) => !subset || subset.has(p.characterId));
+      // Initiative de tous : le journal sera vidé, ses décomptes en retard passent d'abord
+      const ticks = tickContext(deps, req, a);
+      if (!subset) await settleTicks(ticks);
 
       // « Les joueurs lancent » : les personnages joueurs incarnés attendent leur joueur
       const played = req.body.askPlayers ? await playedIds(db, a.campaign.id) : new Set<string>();
@@ -318,6 +341,8 @@ export const register: Module = async (app, deps) => {
         );
         return saved;
       });
+      // Nouvel ordre, premier tour : le tour du premier commence
+      if (!subset) await tickFirstTurn(ticks, loaded, stateOf(loaded.combat, loaded.participants));
       return fullApi(loaded);
     },
   );
@@ -335,8 +360,7 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const userId = currentUser(req);
       const { characterId, version } = req.body;
-      const logId = uuidv7();
-      const { saved, endOfRound, a, tickId } = await db.transaction(async (tx) => {
+      const { saved, a } = await db.transaction(async (tx) => {
         await lockCampaign(tx, req.params.id);
         const a = await access(tx, req.params.id, userId);
         const current = await loadCombat(tx, a.campaign.id, true);
@@ -345,16 +369,15 @@ export const register: Module = async (app, deps) => {
         const state = stateOf(current.combat, current.participants);
         await requireTurn(tx, a, userId, state, characterId);
         const advance = next(state, characterId);
-        // Un décompte par passage : un passage annulé puis rejoué décompte de nouveau
-        const tickId = advance.endOfRound
-          ? `tick:${current.combat.id}:${state.round}:${logId}`
-          : null;
-        await logTurn(tx, current.combat, {
-          id: logId,
-          reason: advance.endOfRound ? 'new_round' : 'next',
-          before: snapshotOf(state),
+        const reason = advance.endOfRound ? 'new_round' : 'next';
+        // Le décompte des durées du passage est gardé avec lui, fait après la transaction
+        await logPassage(tx, current.combat, {
+          reason,
+          kind: 'next',
+          before: state,
+          after: advance.state,
+          acted: advance.acted,
           userId,
-          tickId,
         });
         const saved = await saveState(
           tx,
@@ -366,47 +389,13 @@ export const register: Module = async (app, deps) => {
           eventContext(req),
           saved,
           { userId, role: a.role },
-          {
-            reason: advance.endOfRound ? 'new_round' : 'next',
-            acted: advance.acted,
-          },
+          { reason, acted: advance.acted },
         );
-        return { saved, endOfRound: advance.endOfRound, a, tickId };
+        return { saved, a };
       });
-      const api = viewFor(saved, a.role === 'gm');
-      if (!endOfRound || !tickId) return api;
-
-      // Fin de round, après validation du nouveau round : chaque état à durée perd un round,
-      // une seule fois pour ce passage (tickId), même si un appel est rejoué
-      const results = await Promise.allSettled(
-        saved.participants.map((p) =>
-          deps.character.tickDurations(p.characterId, originOf(req, a.campaign.id), tickId),
-        ),
-      );
-      const durationUpdates: CombatDurationUpdate[] = [];
-      const durationFailures: string[] = [];
-      results.forEach((res, i) => {
-        const id = saved.participants[i]!.characterId;
-        if (res.status === 'fulfilled')
-          durationUpdates.push({ characterId: id, expired: res.value.expired });
-        else {
-          durationFailures.push(id);
-          req.log.error(
-            { characterId: id, error: (res.reason as Error).message },
-            'décompte des durées impossible',
-          );
-        }
-      });
-      await recordExpired(
-        db,
-        logId,
-        Object.fromEntries(durationUpdates.map((u) => [u.characterId, u.expired])),
-      ).catch((e: Error) => req.log.warn({ error: e.message }, 'décompte non journalisé'));
-      return {
-        ...api,
-        durationUpdates: a.role === 'gm' ? durationUpdates : visibleUpdates(api, durationUpdates),
-        ...(durationFailures.length && a.role === 'gm' ? { durationFailures } : {}),
-      };
+      // Après validation du passage : chaque durée concernée perd un décompte, une seule fois
+      const settled = await settleTicks(tickContext(deps, req, a));
+      return withDurations(viewFor(saved, a.role === 'gm'), saved, a, settled);
     },
   );
 
@@ -449,7 +438,7 @@ export const register: Module = async (app, deps) => {
       const restored = await revertTick(deps, req, a, entry);
       return {
         ...api,
-        durationUpdates: restored.updates,
+        ...(restored.updates.length ? { durationUpdates: restored.updates } : {}),
         ...(restored.failures.length ? { durationFailures: restored.failures } : {}),
       };
     },
@@ -457,10 +446,10 @@ export const register: Module = async (app, deps) => {
 
   r.post(
     '/v1/campaigns/:id/combat/turn',
-    { ...auth, schema: { params: Params, body: SetTurn, response: { 200: CombatState } } },
+    { ...auth, schema: { params: Params, body: SetTurn, response: { 200: CombatTurnResponse } } },
     async (req) => {
       const userId = currentUser(req);
-      const saved = await db.transaction(async (tx) => {
+      const given = await db.transaction(async (tx) => {
         await lockCampaign(tx, req.params.id);
         const a = await gmAccess(tx, req.params.id, userId);
         const current = await loadCombat(tx, a.campaign.id, true);
@@ -468,9 +457,11 @@ export const register: Module = async (app, deps) => {
         checkVersion(current.combat, req.body.version);
         const state = stateOf(current.combat, current.participants);
         const turned = setTurn(state, req.body);
-        await logTurn(tx, current.combat, {
+        await logPassage(tx, current.combat, {
           reason: 'turn_set',
-          before: snapshotOf(state),
+          kind: 'turn_set',
+          before: state,
+          after: turned,
           userId,
         });
         const saved = await saveState(tx, { combat: current.combat, canGoBack: true }, turned);
@@ -483,19 +474,23 @@ export const register: Module = async (app, deps) => {
             reason: 'turn_set',
           },
         );
-        return saved;
+        return { saved, a };
       });
-      return fullApi(saved);
+      const settled = await settleTicks(tickContext(deps, req, given.a));
+      return withDurations(fullApi(given.saved), given.saved, given.a, settled);
     },
   );
 
   r.post(
     '/v1/campaigns/:id/combat/slot-actor',
-    { ...auth, schema: { params: Params, body: ChooseSlotActor, response: { 200: CombatState } } },
+    {
+      ...auth,
+      schema: { params: Params, body: ChooseSlotActor, response: { 200: CombatTurnResponse } },
+    },
     async (req) => {
       const userId = currentUser(req);
       const { characterId, force, version } = req.body;
-      const { saved, isGm } = await db.transaction(async (tx) => {
+      const { saved, a } = await db.transaction(async (tx) => {
         await lockCampaign(tx, req.params.id);
         const a = await access(tx, req.params.id, userId);
         if (a.role === 'spectator') throw HttpError.forbidden('Un spectateur ne joue pas');
@@ -508,9 +503,11 @@ export const register: Module = async (app, deps) => {
         }
         const state = stateOf(current.combat, current.participants);
         const chosen = chooseSlotActor(state, characterId, force === true);
-        await logTurn(tx, current.combat, {
+        await logPassage(tx, current.combat, {
           reason: 'slot_actor',
-          before: snapshotOf(state),
+          kind: 'slot_actor',
+          before: state,
+          after: chosen,
           userId,
         });
         const saved = await saveState(tx, { combat: current.combat, canGoBack: true }, chosen);
@@ -523,9 +520,10 @@ export const register: Module = async (app, deps) => {
             reason: 'slot_actor',
           },
         );
-        return { saved, isGm: a.role === 'gm' };
+        return { saved, a };
       });
-      return viewFor(saved, isGm);
+      const settled = await settleTicks(tickContext(deps, req, a));
+      return withDurations(viewFor(saved, a.role === 'gm'), saved, a, settled);
     },
   );
 
@@ -607,6 +605,9 @@ export const register: Module = async (app, deps) => {
     async (req, reply) => {
       const userId = currentUser(req);
       const options = req.body ?? {};
+      // Les décomptes en retard passent avant la fin (le journal part avec le combat)
+      const first = await access(db, req.params.id, userId);
+      if (first.role === 'gm') await settleTicks(tickContext(deps, req, first));
       const ended = await db.transaction(async (tx) => {
         await lockCampaign(tx, req.params.id);
         const a = await gmAccess(tx, req.params.id, userId);
@@ -622,30 +623,16 @@ export const register: Module = async (app, deps) => {
           role: a.role,
           payload: { round: loaded.combat.round },
         });
-        return { loaded, campaignId: a.campaign.id };
+        return { loaded, a };
       });
-      if (options.clearTimedStates) {
-        // Fin de combat : les états à durée des participants sont retirés (annulable comme
-        // un round, par le même identifiant de décompte)
-        const tickId = `tick:${ended.loaded.combat.id}:end`;
-        const results = await Promise.allSettled(
-          ended.loaded.participants.map((p) =>
-            deps.character.tickDurations(p.characterId, originOf(req, ended.campaignId), tickId, {
-              clear: true,
-            }),
-          ),
+      // Une durée de combat finit avec le combat, sauf si le MJ choisit de la garder (§ 18.6)
+      if (options.clearTimedStates !== false)
+        await tickOutsideLog(
+          tickContext(deps, req, ended.a),
+          ended.loaded,
+          `tick:${ended.loaded.combat.id}:end`,
+          [{ kind: 'combat_end' }],
         );
-        results.forEach((res, i) => {
-          if (res.status === 'rejected')
-            req.log.error(
-              {
-                characterId: ended.loaded.participants[i]!.characterId,
-                error: (res.reason as Error).message,
-              },
-              'états à durée non retirés',
-            );
-        });
-      }
       reply.code(204);
     },
   );
@@ -694,14 +681,27 @@ async function requireTurn(
   });
 }
 
-/** Un joueur ne reçoit le décompte que pour les participants qu'il voit, hors PNJ. */
-function visibleUpdates(view: CombatState, updates: CombatDurationUpdate[]) {
-  const mine = new Set(view.order.filter((p) => p.side === 'players').map((p) => p.characterId));
-  return updates.filter((u) => mine.has(u.characterId));
+/**
+ * Réponse d'un passage avec ses durées décomptées : toutes pour le MJ (et les fiches
+ * injoignables) ; pour un joueur, celles des personnages vus des joueurs et des alliés.
+ */
+function withDurations(
+  view: CombatState,
+  loaded: LoadedCombat,
+  a: Access,
+  settled: Settled,
+): CombatTurnResponse {
+  const gm = a.role === 'gm';
+  const updates = gm ? settled.updates : playerUpdates(loaded.participants, settled.updates);
+  return {
+    ...view,
+    ...(updates.length ? { durationUpdates: updates } : {}),
+    ...(gm && settled.failures.length ? { durationFailures: settled.failures } : {}),
+  };
 }
 
 /**
- * « Précédent » après un nouveau round : character rend les durées décomptées par ce passage
+ * « Précédent » : character rend les durées décomptées par ce passage
  * (`applicationId = tickId`). Une fiche modifiée depuis sur les mêmes chemins (409) n'est pas
  * forcée : elle est signalée dans `durationFailures`, les autres sont rendues.
  */
@@ -713,12 +713,14 @@ async function revertTick(
 ): Promise<{ updates: CombatDurationUpdate[]; failures: string[] }> {
   const expired = entry.expired ?? {};
   const origin = originOf(req, a.campaign.id);
+  // Un décompte encore en vol ne s'appliquera plus : pierre tombale (§ 18.5)
   const revert = (characterIds?: string[]) =>
     deps.character.revertModifications(
       {
         applicationId: entry.tickId!,
         ...(characterIds ? { characterIds } : {}),
         userId: origin.userId,
+        cancelIfMissing: true,
       },
       origin,
     );

@@ -194,27 +194,34 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
     expect((await h.request(alice, 'POST', url(id, '/next'), {})).statusCode).toBe(403);
     c = await h.ok<Combat>(gm, 'POST', url(id, '/next'), {});
     expect(c.currentIndex).toBe(2);
-    expect(callsTo('/durees/decompter')).toHaveLength(0);
+    // Des passages de tour, mais aucune durée de fin de round ne bouge avant la fin du round
+    expect(t.character.characters.get(aria)!.durations).toEqual({ beni: 1, rage: 2 });
 
-    // Dernier tour : nouveau round, chaque participant décompte ses durées une fois ; le
-    // joueur ne reçoit que celles du camp des joueurs (les états d'un PNJ ne fuient pas)
+    // Dernier tour : nouveau round, les durées de tous sont décomptées en un lot ; le joueur
+    // ne reçoit que celles du camp des joueurs (les états d'un PNJ ne fuient pas)
     c = await h.ok<Combat>(bob, 'POST', url(id, '/next'), { characterId: brom });
     expect(c).toMatchObject({ round: 2, currentIndex: 0 });
     expect(c.order.every((p) => !p.hasActed)).toBe(true);
-    expect(c.durationUpdates).toEqual(
-      expect.arrayContaining([
-        { characterId: aria, expired: ['beni'] },
-        { characterId: brom, expired: [] },
-      ]),
-    );
-    expect(c.durationUpdates).toHaveLength(2);
+    expect(c.durationUpdates).toEqual([
+      { characterId: aria, expired: ['beni'], entries: [{ key: 'beni', name: 'beni' }] },
+    ]);
     expect(c.durationFailures).toBeUndefined();
-    const ticks = callsTo('/durees/decompter');
-    expect(ticks).toHaveLength(3);
-    const tickId = ticks[0]!.body.tickId as string;
-    expect(tickId).toMatch(/^tick:/);
-    for (const r of ticks)
-      expect(r).toMatchObject({ secret: SECRET, body: { userId: bob.id, roomId: id, tickId } });
+    expect(t.character.characters.get(npc)!.durations).toEqual({ aveugle: 1 });
+    const tick = callsTo('/durations/tick').at(-1)!;
+    expect(tick).toMatchObject({
+      secret: SECRET,
+      body: {
+        tickId: expect.stringMatching(/^tick:/),
+        userId: bob.id,
+        campaignId: id,
+        events: [
+          { kind: 'turn_end', characterId: brom },
+          { kind: 'round_end', round: 1 },
+          { kind: 'turn_start', characterId: aria },
+        ],
+      },
+    });
+    expect((tick.body.characterIds as string[]).sort()).toEqual([aria, npc, brom].sort());
 
     // Round 2 complet par le MJ : les états suivants arrivent à 0
     await h.ok(gm, 'POST', url(id, '/next'), {});
@@ -223,11 +230,14 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
     expect(c.round).toBe(3);
     expect(c.durationUpdates).toEqual(
       expect.arrayContaining([
-        { characterId: aria, expired: ['rage'] },
-        { characterId: npc, expired: ['aveugle'] },
+        expect.objectContaining({ characterId: aria, expired: ['rage'] }),
+        expect.objectContaining({ characterId: npc, expired: ['aveugle'] }),
       ]),
     );
-    expect(callsTo('/durees/decompter')).toHaveLength(6);
+    const roundEnds = callsTo('/durations/tick').filter((r) =>
+      (r.body.events as { kind: string }[]).some((e) => e.kind === 'round_end'),
+    );
+    expect(roundEnds).toHaveLength(2);
 
     // Initiative : charge complète (ordre, clés) aux MJ et expurgée à tous ; suivant : une seule
     const turns = await t
@@ -240,19 +250,20 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
     expect(turns.filter((e) => e.visibility === 'gm_only')).toHaveLength(1);
   });
 
-  it('un décompte en échec est signalé sans bloquer le round', async () => {
+  it('un personnage disparu de character n’empêche pas le décompte des autres', async () => {
     const id = await h.campaign(gm, 'dnd-classic', [alice]);
     const aria = await h.engage(id, alice, { sortKeys: [10] });
     const npc = await h.engage(id, gm, { sortKeys: [5], durations: { lent: 1 } });
     await h.ok(gm, 'POST', url(id), { participants: [aria, npc] });
     await h.ok(gm, 'POST', url(id, '/initiative'), {});
-    // Le personnage disparaît de character : 404 au décompte
     t.character.characters.delete(aria);
     await h.ok(gm, 'POST', url(id, '/next'), {});
     const c = await h.ok<Combat>(gm, 'POST', url(id, '/next'), {});
     expect(c.round).toBe(2);
-    expect(c.durationUpdates).toEqual([{ characterId: npc, expired: ['lent'] }]);
-    expect(c.durationFailures).toEqual([aria]);
+    expect(c.durationUpdates).toEqual([
+      { characterId: npc, expired: ['lent'], entries: [{ key: 'lent', name: 'lent' }] },
+    ]);
+    expect(c.durationFailures).toBeUndefined();
   });
 
   it('Star Wars en slots : chaque créneau est ouvert à tout son camp', async () => {
@@ -320,9 +331,16 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
     c = await h.ok<Combat>(alice, 'POST', url(id, '/next'), { characterId: kesh });
     expect(c).toMatchObject({ round: 2, currentIndex: 0 });
     expect(c.order.every((p) => !p.hasActed)).toBe(true);
-    // Décompte des quatre, rendu au joueur pour le camp des joueurs seulement
-    expect(callsTo('/durees/decompter')).toHaveLength(4);
-    expect(c.durationUpdates).toHaveLength(2);
+    // Kesh n'avait pas été désigné : son tour commence et finit au même passage, puis le
+    // round ; décompté pour les quatre (aucune durée ici : rien à rendre)
+    const tick = callsTo('/durations/tick').at(-1)!;
+    expect(tick.body.events).toEqual([
+      { kind: 'turn_start', characterId: kesh },
+      { kind: 'turn_end', characterId: kesh },
+      { kind: 'round_end', round: 1 },
+    ]);
+    expect(tick.body.characterIds as string[]).toHaveLength(4);
+    expect(c.durationUpdates).toBeUndefined();
   });
 
   it('fin : MJ seulement, le combat disparaît et peut reprendre', async () => {

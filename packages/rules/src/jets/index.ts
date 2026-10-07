@@ -24,3 +24,4 @@ export * from './multicible.js';
 export * from './planification.js';
 export * from './vue-acteur.js';
 export * from './hors-combat.js';
+export * from './durees.js';
