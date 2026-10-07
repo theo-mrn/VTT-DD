@@ -18,7 +18,15 @@
 import { useTranslations } from 'next-intl';
 import type { AttackRollMode } from '@vtt/contracts';
 import type { Action, Fiche, Presentation, SystemeCharge, Valeur } from '@vtt/rules';
-import { ChevronDown, Crosshair, Dices, RotateCcw, SlidersHorizontal, Target } from 'lucide-react';
+import {
+  ChevronDown,
+  Crosshair,
+  Dices,
+  ListChecks,
+  RotateCcw,
+  SlidersHorizontal,
+  Target,
+} from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { EtatVide } from '@/components/commun/page';
@@ -85,6 +93,7 @@ export function StepCompose({
   error,
   canAim,
   onAim,
+  onCapacities,
 }: Readonly<{
   ctx: AttackContext;
   model: AttackModel;
@@ -93,6 +102,8 @@ export function StepCompose({
   error: string | null;
   canAim: boolean;
   onAim: () => void;
+  /** Ouvre le menu Capacités de l'attaquant ; absent : il n'en a pas à jouer. */
+  onCapacities?: (() => void) | undefined;
 }>) {
   const t = useTranslations();
   const { systeme, fiche, action } = model;
@@ -111,13 +122,14 @@ export function StepCompose({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-      {model.actions.length > 1 && (
+      {(model.actions.length > 1 || onCapacities) && (
         <ActionTabs
           groups={model.groups}
           selected={action}
           numbered={!card}
           onChoose={model.choose}
           disabled={disabled}
+          onCapacities={onCapacities}
         />
       )}
 
@@ -181,6 +193,7 @@ function ActionTabs({
   numbered,
   onChoose,
   disabled,
+  onCapacities,
 }: Readonly<{
   groups: readonly ActionGroup[];
   selected: Action | null;
@@ -188,6 +201,8 @@ function ActionTabs({
   numbered: boolean;
   onChoose: (a: Action) => void;
   disabled: boolean;
+  /** Menu Capacités de l'attaquant (capacités sans action à elles) ; absent : aucune. */
+  onCapacities?: (() => void) | undefined;
 }>) {
   const t = useTranslations();
   let index = 0;
@@ -225,16 +240,29 @@ function ActionTabs({
                   )}
                 >
                   {a.nom}
-                  {shortcut && (
-                    <Kbd aria-hidden className="max-sm:hidden">
-                      {shortcut}
-                    </Kbd>
-                  )}
                 </button>
               );
             })}
           </Fragment>
         ))}
+        {onCapacities && (
+          <>
+            <span aria-hidden className="mx-1 my-1.5 w-px self-stretch bg-border" />
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onCapacities}
+              className={cn(
+                'flex min-h-9 items-center gap-1.5 rounded-lg border border-dashed border-border-strong px-3 py-1.5 text-[13px] text-muted-foreground transition-colors max-sm:min-h-11',
+                'hover:border-primary/30 hover:text-foreground disabled:opacity-50',
+                FOCUS,
+              )}
+            >
+              <ListChecks className="size-3.5" aria-hidden />
+              {t('combat.capacities.open')}
+            </button>
+          </>
+        )}
       </div>
       {selected?.description && (
         <span className="pt-2">

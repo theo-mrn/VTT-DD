@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { calculer, charger, EtatEntite, Presentation, type EtatEntiteSaisi } from '@vtt/rules';
 import { describe, expect, it } from 'vitest';
+import { targetedActions } from './actions';
 import { capacitesDeCombat, groupeDe } from './capacities';
 
 const PUBLIC = fileURLToPath(new URL('../../../public/systemes/', import.meta.url));
@@ -73,5 +74,11 @@ describe('menu Capacités', () => {
     expect(jeu(f, 'guerrier-maitre-d-armes-riposte')).toMatchObject({
       usages: { par: 'tour' },
     });
+  });
+
+  it('menu d’attaque : une action sans rien à choisir (Sort sans sort) n’est pas proposée', () => {
+    const ids = (f: ReturnType<typeof fiche>) => targetedActions(systeme, f).map((a) => a.id);
+    expect(ids(fiche([{ entree: 'barbare-rage', rang: 3 }]))).not.toContain('sort');
+    expect(ids(fiche([{ entree: 'barde-seduction', rang: 4 }]))).toContain('sort');
   });
 });

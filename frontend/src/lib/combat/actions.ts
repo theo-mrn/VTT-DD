@@ -42,8 +42,27 @@ export function actionAllowed(systeme: SystemeCharge, action: Action, fiche: Fic
 /** Actions à cible que ce personnage peut jouer, dans l'ordre du système. */
 export function targetedActions(systeme: SystemeCharge, fiche: Fiche): Action[] {
   return [...systeme.actions.values()].filter(
-    (a) => isTargeted(a) && a.pour.includes(fiche.etat.type) && actionAllowed(systeme, a, fiche),
+    (a) =>
+      isTargeted(a) &&
+      a.pour.includes(fiche.etat.type) &&
+      actionAllowed(systeme, a, fiche) &&
+      hasChoices(a, fiche),
   );
+}
+
+/**
+ * L'acteur a de quoi remplir chaque entrée requise de l'action, parmi ce qu'il possède (Sort
+ * d'attaque sans aucun sort : rien à choisir, l'action n'est pas proposée).
+ */
+function hasChoices(action: Action, fiche: Fiche): boolean {
+  return action.parametres.every((p) => {
+    if (p.type !== 'entree' || p.facultatif || !p.possedee || p.par === 'cible') return true;
+    for (const x of fiche.possessions.values()) {
+      if (x.sorte.id !== p.sorte || !x.actif || (x.sorte.rangs && x.rang < 1)) continue;
+      if (!p.etiquette || x.entree.etiquettes.includes(p.etiquette)) return true;
+    }
+    return false;
+  });
 }
 
 // ─── Groupes du menu ─────────────────────────────────────────────────────────
