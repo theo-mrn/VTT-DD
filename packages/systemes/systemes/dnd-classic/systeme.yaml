@@ -145,7 +145,6 @@ entites:
         groupe: combat
       - cle: Contact
         nom: Contact
-        abrege: Ctt
         description: Attaque au corps à corps (1 de base + mod. FOR + niveau − 1).
         nature: derivee
         formule: mod(@FOR) + @niveau
@@ -153,7 +152,6 @@ entites:
         jet: { apport: valeur }
       - cle: Distance
         nom: Distance
-        abrege: Dst
         description: Attaque à distance (1 de base + mod. DEX + niveau − 1).
         nature: derivee
         formule: mod(@DEX) + @niveau
@@ -161,7 +159,6 @@ entites:
         jet: { apport: valeur }
       - cle: Magie
         nom: Magie
-        abrege: Mag
         description: Attaque magique, avec la meilleure des caractéristiques mentales (INT, SAG ou CHA).
         nature: derivee
         formule: max(mod(@INT), mod(@SAG), mod(@CHA)) + @niveau

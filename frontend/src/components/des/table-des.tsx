@@ -7,10 +7,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { EnTetePage, Page } from '@/components/commun/page';
 import {
-  avecBonusChoisis,
+  avecBonusRetenus,
   bonusAUsage,
   bonusDeJet,
   BonusJetListe,
+  bonusRetenus,
   type ActionsBonus,
 } from '@/components/des/bonus-jet';
 import { useFichePersonnage } from '@/components/des/contexte-jet';
@@ -150,31 +151,64 @@ export function TableDes({
     [],
   );
   const choisis = useMemo(() => new Set(allumes), [allumes]);
-  const basculerBonus = (cle: string) =>
-    setAllumes(choisis.has(cle) ? allumes.filter((c) => c !== cle) : [...allumes, cle]);
+  // Bonus allumés pour le jet seulement (capacités à invoquer, usages limités)
+  const basculerBonus = (cles: string[], actif: boolean) =>
+    setAllumes(
+      actif ? [...new Set([...allumes, ...cles])] : allumes.filter((c) => !cles.includes(c)),
+    );
   // Écritures sur la fiche depuis les dés : activer une capacité, consommer un usage
   const ops = useOperationsPersonnage(personnage?.id ?? '');
   const signaler = (e: unknown) => toast.error(messageErreur(e));
+  // L'interrupteur d'un bonus est son état sur la fiche : il l'écrit
   const actionsBonus: ActionsBonus | undefined =
     personnage && fiche.ecriture
       ? {
-          activer: (entree) => void ops.possession({ entree, actif: true }).catch(signaler),
-          reactiver: (cle) => void ops.effet([cle], true).catch(signaler),
+          basculer(b, actif) {
+            if (b.type === 'effet') void ops.effet(b.cles, actif).catch(signaler);
+            else if (b.type === 'source')
+              void ops
+                .possession({
+                  entree: b.entree,
+                  ...(b.exemplaire !== undefined ? { exemplaire: b.exemplaire } : {}),
+                  actif,
+                })
+                .catch(signaler);
+            else {
+              const { decompte, ...reste } = b.bonus;
+              void ops
+                .bonus({
+                  ...reste,
+                  actif,
+                  ...(decompte
+                    ? {
+                        decompte: {
+                          moment: decompte.moment,
+                          ...(decompte.de ? { de: decompte.de } : {}),
+                        },
+                      }
+                    : {}),
+                })
+                .catch(signaler);
+            }
+          },
         }
       : undefined;
   async function lancerPlateau() {
-    const retenus = bonus.filter((b) => b.terme !== null && choisis.has(b.cle));
+    const retenus = bonusRetenus(bonus, choisis);
     if (!retenus.length) return void lancerFormule(etat.formule, etat.libelle);
     // Le libellé garde la trace des bonus ajoutés (historique)
     const sources = [...new Set(retenus.map((b) => b.source))].join(', ');
     const libelle = etat.libelle.trim()
       ? t('labelWithSources', { label: etat.libelle.trim(), sources })
       : t('withSources', { sources });
-    const aUsage = bonusAUsage(bonus, choisis);
-    const ok = await lancerFormule(avecBonusChoisis(etat.formule, bonus, choisis), libelle);
-    if (!ok || !aUsage.length || !actionsBonus) return;
+    const aUsage = bonusAUsage(retenus);
+    const ok = await lancerFormule(avecBonusRetenus(etat.formule, retenus), libelle);
+    if (!ok || !aUsage.length || !personnage || !fiche.ecriture) return;
     // Usage limité : le jet en consomme une utilisation, et le bonus s'éteint
-    setAllumes(allumes.filter((c) => !aUsage.some((b) => b.cle === c)));
+    const sourcesUsage = new Set(aUsage.map((b) => b.sourceId));
+    setAllumes(
+      allumes.filter((c) => !bonus.some((b) => b.cle === c && sourcesUsage.has(b.sourceId))),
+    );
     try {
       for (const b of aUsage) await ops.usage(b.entree!, false);
     } catch (e) {

@@ -3,30 +3,27 @@
 /**
  * Bonus du personnage, à côté du lanceur : tous, comme le bloc Bonus de la fiche (de jet, de
  * valeur, résistances), actifs ou non, et les capacités qui s'invoquent au jet (présentation
- * du système, `des.invocations`). Une formule libre ne sait pas quand ils s'appliquent : on les
- * montre pour ne pas les oublier. Un bonus de valeur (DEF +1) est déjà dans son attribut : il
- * a son groupe, éteint comme tous par défaut, et s'ajoute au jet seulement si on l'allume.
- * - En tête, ceux qui visent une caractéristique de la formule ; puis les autres actifs, les
- *   capacités à invoquer, les bonus de valeur, et enfin les inactifs (capacité éteinte, effet
- *   coupé, objet rangé), grisés avec leur raison.
- * - Un bonus chiffré s'allume pour s'ajouter aux jets, actif ou non (« pour ce jet ») ; les
- *   autres (dés de dégâts, avantage…) restent un rappel.
- * - Une capacité éteinte s'active d'ici pour de bon (« Activer » : la fiche change, un usage
- *   est consommé, sa durée commence) ; un effet coupé se réactive.
- * - Usages limités et durée restante de la source sont montrés sur la ligne. Un bonus dont la
- *   source a des usages limités sert une fois : le jet en consomme une utilisation et l'éteint.
+ * du système, `des.invocations`). Un seul repère : la fiche.
+ * - L'interrupteur d'un bonus est son état sur la fiche, et l'écrit : couper un bonus de valeur
+ *   le retire de la stat, allumer une capacité à activer l'active (usage consommé, durée
+ *   lancée), allumer le bonus d'un objet rangé l'équipe.
+ * - Au jet, un bonus de jet actif chiffré s'ajoute de lui-même quand il vise une stat de la
+ *   formule ; un bonus de valeur, jamais : il est déjà dans la stat.
+ * - Seuls les bonus qui ne sont pas un état de la fiche s'allument pour le jet : capacités à
+ *   invoquer, et bonus d'une source à usages limités (une fois : le jet consomme une
+ *   utilisation et l'éteint).
  * Rien n'est propre à un jeu : tout vient du moteur et de la présentation.
  */
 import { useTranslations } from 'next-intl';
 import {
   evaluerChampEntree,
   usagesDe,
+  type BonusLibre,
   type EffetListe,
   type Fiche,
   type Presentation,
   type Usages,
 } from '@vtt/rules';
-import { Power } from 'lucide-react';
 import { useMemo } from 'react';
 import { DurationChip, timerOf } from '@/components/combat/duration-chip';
 import { clesJetsVises } from '@/components/fiche/blocks/effects/condition-text';
@@ -37,23 +34,29 @@ import {
   raisonInactif,
 } from '@/components/fiche/blocks/effects/model';
 import { UsesChip } from '@/components/fiche/blocks/skills/uses';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Info, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Timer } from '@/lib/combat/durations';
 import { cn } from '@/lib/utils';
 import { FOCUS } from './tactile';
 
-/** Où en est la source du bonus. */
-/**
- * Groupe d'un bonus : de jet actif, capacité à invoquer, bonus de valeur actif (attribut,
- * résistance : déjà compté dans la valeur, éteint par défaut), inactif.
- */
-export type EtatBonus = 'actif' | 'invocation' | 'valeur' | 'inactif';
+/** Groupe d'un bonus : de jet, capacité à invoquer, de valeur (attribut, résistance). */
+export type GroupeBonus = 'jet' | 'invocation' | 'valeur';
+
+/** Comment l'interrupteur d'un bonus écrit sur la fiche. */
+export type BasculeBonus =
+  /** Effets coupés ou rallumés, sans toucher à leur source (`etat.effetsDesactives`). */
+  | { type: 'effet'; cles: string[] }
+  /** Source activée ou éteinte : capacité à activer, objet équipé ou rangé. */
+  | { type: 'source'; entree: string; exemplaire?: string }
+  /** Bonus libre activé ou coupé. */
+  | { type: 'bonus'; bonus: BonusLibre };
 
 export interface BonusJet {
   /** Clé de l'effet (`<source>/<index>`), ou `invocation:<entrée>`. */
   cle: string;
+  /** Identifiant de la source (compétence, objet, bonus libre) : une ligne par source. */
+  sourceId: string;
   source: string;
   libelle: string;
   precision: string | null;
@@ -67,15 +70,20 @@ export interface BonusJet {
   vises: string[];
   /** Bonus de jet (effet `sur: jet` ou capacité à invoquer), sinon bonus de valeur. */
   jet: boolean;
-  etat: EtatBonus;
-  /** Pourquoi il ne s'applique pas (inactif). */
+  groupe: GroupeBonus;
+  /** S'applique sur la fiche. */
+  actif: boolean;
+  /**
+   * `fiche` : l'interrupteur est l'état sur la fiche ; `jet` : il allume le bonus pour les
+   * jets seulement (capacité à invoquer, source à usages limités).
+   */
+  mode: 'fiche' | 'jet';
+  /** Écriture de l'interrupteur sur la fiche ; null : il ne se bascule pas d'ici. */
+  bascule: BasculeBonus | null;
+  /** Pourquoi il ne s'applique pas. */
   raison: string | null;
   /** Entrée source (usages limités, activation, durée). */
   entree: string | null;
-  /** La source s'active sur la fiche (capacité à activer éteinte). */
-  activable: boolean;
-  /** Effet coupé à la main, à réactiver (sa clé). */
-  reactivable: string | null;
   usages: Usages | null;
   minuterie: Timer | null;
 }
@@ -90,11 +98,6 @@ function clesDeLaFormule(fiche: Fiche, formule: string): Set<string> {
 
 const arrondi = (v: number) => Math.round(v * 100) / 100;
 
-/** Entrée source d'un effet listé (entrée possédée ou exemplaire), sinon null. */
-function entreeDe(e: EffetListe): string | null {
-  return e.possession?.entree.id ?? null;
-}
-
 function minuterieDe(e: Pick<EffetListe, 'possession'>): Timer | null {
   for (const x of e.possession?.exemplaires ?? []) {
     const t = timerOf(x);
@@ -103,7 +106,35 @@ function minuterieDe(e: Pick<EffetListe, 'possession'>): Timer | null {
   return null;
 }
 
-/** Un effet de jet listé par le moteur, en bonus du lanceur. */
+/**
+ * Ligne d'un effet : son entrée possédée (effets du catalogue et effets propres ensemble), son
+ * exemplaire pour un objet en plusieurs exemplaires, sinon sa source (bonus libre).
+ */
+function ligneDe(e: EffetListe): string {
+  if (!e.possession) return e.source;
+  const ex = e.exemplaire?.exemplaire;
+  return ex === undefined ? e.possession.entree.id : `${e.possession.entree.id}#${ex}`;
+}
+
+/** Écriture de l'interrupteur d'un effet listé, selon sa source. */
+function basculeDe(e: EffetListe): BasculeBonus | null {
+  if (e.genre === 'bonus') return e.bonus ? { type: 'bonus', bonus: e.bonus } : null;
+  if (e.statut === 'desactive') return { type: 'effet', cles: [e.cle] };
+  const p = e.possession;
+  const source = p
+    ? {
+        type: 'source' as const,
+        entree: p.entree.id,
+        ...(e.exemplaire?.exemplaire !== undefined ? { exemplaire: e.exemplaire.exemplaire } : {}),
+      }
+    : null;
+  // Capacité à activer : la capacité elle-même ; objet rangé : l'équiper
+  if (source && p?.sorte.activable && !p.sorte.actifParDefaut) return source;
+  if (source && p?.sorte.activable && e.raison === 'inactive') return source;
+  return e.basculable ? { type: 'effet', cles: [e.cle] } : null;
+}
+
+/** Un effet listé par le moteur, en bonus du lanceur. */
 function depuisEffet(fiche: Fiche, e: EffetListe, presentes: Set<string>): BonusJet {
   const effet = e.effet;
   const jet = effet.sur === 'jet';
@@ -114,15 +145,20 @@ function depuisEffet(fiche: Fiche, e: EffetListe, presentes: Set<string>): Bonus
         ...(effet.implique?.attribut ? [effet.implique.attribut] : []),
       ]
     : [];
-  const ajoute = jet
-    ? !!effet.ajout && 'bonus' in effet.ajout
-    : effet.sur === 'attribut' && effet.operation === 'ajouter';
-  const chiffre = ajoute && typeof e.valeur === 'number' && e.valeur !== 0;
-  const entree = entreeDe(e);
+  const chiffre =
+    jet &&
+    !!effet.ajout &&
+    'bonus' in effet.ajout &&
+    typeof e.valeur === 'number' &&
+    e.valeur !== 0;
+  const entree = e.possession?.entree.id ?? null;
   const p = e.possession;
-  const eteinte = e.statut === 'inactif' && e.raison === 'inactive' && !!p?.sorte.activable;
+  const usages = entree ? (usagesDe(fiche, entree) ?? null) : null;
+  // Source à usages limités qui ne s'active pas : son bonus de jet sert une fois, au jet
+  const unique = jet && usages !== null && !p?.sorte.activable;
   return {
     cle: e.cle,
+    sourceId: ligneDe(e),
     source: e.nom,
     libelle: libelleEffet(fiche, e),
     precision: precisionEffet(fiche, e),
@@ -132,12 +168,13 @@ function depuisEffet(fiche: Fiche, e: EffetListe, presentes: Set<string>): Bonus
     concerne: vises.some((c) => presentes.has(c)),
     vises,
     jet,
-    etat: e.statut !== 'actif' ? 'inactif' : jet ? 'actif' : 'valeur',
-    raison: e.statut === 'desactive' ? null : e.statut === 'inactif' ? raisonInactif(e) : null,
+    groupe: jet ? 'jet' : 'valeur',
+    actif: e.statut === 'actif',
+    mode: unique ? 'jet' : 'fiche',
+    bascule: unique ? null : basculeDe(e),
+    raison: e.statut === 'inactif' ? raisonInactif(e) : null,
     entree,
-    activable: eteinte,
-    reactivable: e.statut === 'desactive' ? e.cle : null,
-    usages: entree ? (usagesDe(fiche, entree) ?? null) : null,
+    usages,
     minuterie: minuterieDe(e),
   };
 }
@@ -158,6 +195,7 @@ function invocations(fiche: Fiche, presentation: Presentation | null): BonusJet[
     if (terme === null && !avantage) continue;
     sortie.push({
       cle: `invocation:${p.entree.id}`,
+      sourceId: `invocation:${p.entree.id}`,
       source: p.entree.nom,
       libelle:
         terme !== null
@@ -169,11 +207,12 @@ function invocations(fiche: Fiche, presentation: Presentation | null): BonusJet[
       concerne: false,
       vises: [],
       jet: true,
-      etat: 'invocation',
+      groupe: 'invocation',
+      actif: true,
+      mode: 'jet',
+      bascule: null,
       raison: null,
       entree: p.entree.id,
-      activable: false,
-      reactivable: null,
       usages: usagesDe(fiche, p.entree.id) ?? null,
       minuterie: minuterieDe({ possession: p }),
     });
@@ -182,9 +221,9 @@ function invocations(fiche: Fiche, presentation: Presentation | null): BonusJet[
 }
 
 /**
- * Bonus de jet de la fiche pour cette formule : actifs (ceux qui la concernent d'abord),
- * capacités à invoquer, puis inactifs. Les effets d'une entrée à rangs sans rang (pas
- * vraiment possédée) et les règles du système n'en sont pas.
+ * Bonus de la fiche pour cette formule, par groupe : de jet (ceux qui la concernent d'abord),
+ * à invoquer, de valeur ; dans chaque groupe, les actifs avant les autres. Les effets d'une
+ * entrée à rangs sans rang (pas vraiment possédée) et les règles du système n'en sont pas.
  */
 export function bonusDeJet(
   fiche: Fiche | null,
@@ -193,45 +232,107 @@ export function bonusDeJet(
 ): BonusJet[] {
   if (!fiche) return [];
   const presentes = clesDeLaFormule(fiche, formule);
-  // Tous les bonus du personnage, comme le bloc Bonus de la fiche
   const effets = effetsDuPersonnage(fiche).map((e) => depuisEffet(fiche, e, presentes));
-  const actifs = effets.filter((b) => b.etat === 'actif');
+  const rang = (b: BonusJet) => (b.actif ? 0 : 2) + (b.concerne ? 0 : 1);
+  const trier = (l: BonusJet[]) =>
+    l
+      .map((b, i) => [b, i] as const)
+      .sort((a, b) => rang(a[0]) - rang(b[0]) || a[1] - b[1])
+      .map(([b]) => b);
   return [
-    ...actifs.filter((b) => b.concerne),
-    ...actifs.filter((b) => !b.concerne),
+    ...trier(effets.filter((b) => b.groupe === 'jet')),
     ...invocations(fiche, presentation),
-    ...effets.filter((b) => b.etat === 'valeur'),
-    ...effets.filter((b) => b.etat === 'inactif'),
+    ...trier(effets.filter((b) => b.groupe === 'valeur')),
   ];
 }
 
-/** Formule avec les bonus cochés ajoutés (`1d20 + DEX + 3`). */
-export function avecBonusChoisis(formule: string, bonus: BonusJet[], choisis: ReadonlySet<string>) {
-  const termes = bonus.filter((b) => b.terme !== null && choisis.has(b.cle));
-  return termes.reduce(
-    (f, b) => `${f} ${b.terme! < 0 ? '-' : '+'} ${Math.abs(b.terme!)}`,
-    formule.trim(),
+/**
+ * Bonus ajoutés au jet : ceux allumés pour le jet (`mode: jet`), et les bonus de jet actifs
+ * sur la fiche, chiffrés, qui visent une stat de la formule. Jamais un bonus de valeur.
+ */
+export function bonusRetenus(bonus: BonusJet[], choisis: ReadonlySet<string>): BonusJet[] {
+  return bonus.filter(
+    (b) =>
+      b.terme !== null && (b.mode === 'jet' ? choisis.has(b.cle) : b.jet && b.actif && b.concerne),
   );
 }
 
+/** Formule avec les bonus retenus ajoutés (`1d20 + DEX + 3`). */
+export function avecBonusRetenus(formule: string, retenus: BonusJet[]) {
+  return retenus
+    .filter((b) => b.terme !== null)
+    .reduce((f, b) => `${f} ${b.terme! < 0 ? '-' : '+'} ${Math.abs(b.terme!)}`, formule.trim());
+}
+
 /**
- * Bonus retenus pour un jet dont la source a des usages limités et ne s'active pas : le jet
+ * Bonus retenus pour un jet dont la source a des usages limités (allumés pour le jet) : le jet
  * consomme une utilisation de chacune (une fois par entrée), puis ils s'éteignent.
  */
-export function bonusAUsage(bonus: BonusJet[], choisis: ReadonlySet<string>): BonusJet[] {
+export function bonusAUsage(retenus: BonusJet[]): BonusJet[] {
   const vus = new Set<string>();
-  return bonus.filter((b) => {
-    if (!choisis.has(b.cle) || b.terme === null || !b.usages || !b.entree) return false;
-    if (b.activable || vus.has(b.entree)) return false;
+  return retenus.filter((b) => {
+    if (b.mode !== 'jet' || !b.usages || !b.entree || vus.has(b.entree)) return false;
     vus.add(b.entree);
     return true;
   });
 }
 
-/** Activer la source d'un bonus : capacité éteinte, ou effet coupé. */
+/** Écrit l'interrupteur d'un bonus sur la fiche. */
 export interface ActionsBonus {
-  activer(entree: string): void;
-  reactiver(cle: string): void;
+  basculer(b: BasculeBonus, actif: boolean): void;
+}
+
+/** Une ligne de la liste : une source (compétence, objet, bonus libre) et tous ses bonus. */
+export interface LigneSource {
+  cle: string;
+  source: string;
+  groupe: GroupeBonus;
+  bonus: BonusJet[];
+  /** Au moins un de ses bonus s'applique (fiche), ou est allumé pour le jet. */
+  actif: boolean;
+  mode: 'fiche' | 'jet';
+  /** Écriture de l'interrupteur de la ligne sur la fiche ; null : figé. */
+  bascule: BasculeBonus | null;
+  /** Un de ses bonus de jet actif s'ajoute à cette formule. */
+  ajoute: boolean;
+  raison: string | null;
+  description: string | null;
+  usages: Usages | null;
+  minuterie: Timer | null;
+}
+
+/**
+ * Regroupe les bonus par source, dans l'ordre : une compétence qui donne FOR +2 et CHA +2 n'a
+ * qu'une ligne et un interrupteur. Son écriture : la source elle-même si un de ses bonus la
+ * bascule (capacité à activer, objet), le bonus libre, sinon tous ses effets ensemble.
+ */
+export function lignesParSource(bonus: BonusJet[], choisis: ReadonlySet<string>): LigneSource[] {
+  const lignes = new Map<string, BonusJet[]>();
+  for (const b of bonus) lignes.set(b.sourceId, [...(lignes.get(b.sourceId) ?? []), b]);
+  return [...lignes.entries()].map(([cle, l]) => {
+    const premier = l[0]!;
+    const mode = l.every((b) => b.mode === 'jet') ? 'jet' : 'fiche';
+    const fiche = l.filter((b) => b.mode === 'fiche');
+    const source = fiche.find((b) => b.bascule && b.bascule.type !== 'effet')?.bascule;
+    const cles = fiche.flatMap((b) => (b.bascule?.type === 'effet' ? b.bascule.cles : []));
+    return {
+      cle,
+      source: premier.source,
+      groupe:
+        premier.groupe === 'invocation' ? 'invocation' : l.some((b) => b.jet) ? 'jet' : 'valeur',
+      bonus: l,
+      actif: mode === 'jet' ? l.some((b) => choisis.has(b.cle)) : fiche.some((b) => b.actif),
+      mode,
+      bascule: source ?? (cles.length ? { type: 'effet', cles } : null),
+      ajoute: l.some(
+        (b) => b.mode === 'fiche' && b.jet && b.actif && b.concerne && b.terme !== null,
+      ),
+      raison: l.find((b) => b.raison)?.raison ?? null,
+      description: premier.description,
+      usages: l.find((b) => b.usages)?.usages ?? null,
+      minuterie: l.find((b) => b.minuterie)?.minuterie ?? null,
+    };
+  });
 }
 
 export function BonusJetListe({
@@ -243,48 +344,62 @@ export function BonusJetListe({
 }: Readonly<{
   bonus: BonusJet[];
   choisis: ReadonlySet<string>;
-  onBasculer: (cle: string) => void;
-  /** Absent : fiche en lecture seule, pas d'activation d'ici. */
+  /** Allume ou éteint pour le jet les bonus d'une ligne `mode: jet` (leurs clés). */
+  onBasculer: (cles: string[], actif: boolean) => void;
+  /** Absent : fiche en lecture seule, les interrupteurs de la fiche sont figés. */
   actions?: ActionsBonus;
   className?: string;
 }>) {
   const t = useTranslations('dice.bonuses');
-  const concernes = useMemo(() => bonus.filter((b) => b.concerne).length, [bonus]);
-  if (!bonus.length) return null;
-  const groupes: [EtatBonus, BonusJet[]][] = (
-    [
-      ['actif', bonus.filter((b) => b.etat === 'actif')],
-      ['invocation', bonus.filter((b) => b.etat === 'invocation')],
-      ['valeur', bonus.filter((b) => b.etat === 'valeur')],
-      ['inactif', bonus.filter((b) => b.etat === 'inactif')],
-    ] as [EtatBonus, BonusJet[]][]
-  ).filter(([, l]) => l.length > 0);
+  const lignes = useMemo(() => lignesParSource(bonus, choisis), [bonus, choisis]);
+  const ajoutes = lignes.filter((l) => l.ajoute).length;
+  if (!lignes.length) return null;
+  const rang = (l: LigneSource) => (l.actif ? 0 : 2) + (l.ajoute ? 0 : 1);
+  const groupes = (['jet', 'invocation', 'valeur'] as const)
+    .map(
+      (g) =>
+        [
+          g,
+          lignes
+            .map((l, i) => [l, i] as const)
+            .filter(([l]) => l.groupe === g)
+            .sort((a, b) => rang(a[0]) - rang(b[0]) || a[1] - b[1])
+            .map(([l]) => l),
+        ] as const,
+    )
+    .filter(([, l]) => l.length > 0);
   return (
     <aside aria-labelledby="bonus-jet-titre" className={cn('flex min-h-0 flex-col', className)}>
       <div className="shrink-0 px-1.5 pb-1.5 pt-1">
         <h2 id="bonus-jet-titre" className="text-xs font-medium text-muted-foreground">
           {t('title')}
         </h2>
-        <p className="text-[11px] text-subtle">
-          {concernes > 0 ? t('relevant', { count: concernes }) : t('situational')}
-        </p>
+        {ajoutes > 0 && (
+          <p className="text-[11px] text-subtle">{t('relevant', { count: ajoutes })}</p>
+        )}
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto [scrollbar-width:thin]">
-        {groupes.map(([etat, liste]) => (
-          <section key={etat} aria-label={t(`groups.${etat}`)}>
+        {groupes.map(([groupe, liste]) => (
+          <section key={groupe} aria-label={t(`groups.${groupe}`)}>
             {groupes.length > 1 && (
               <h3 className="px-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-subtle">
-                {t(`groups.${etat}`)}
+                {t(`groups.${groupe}`)}
               </h3>
             )}
             <ul>
-              {liste.map((b) => (
+              {liste.map((l) => (
                 <LigneBonus
-                  key={b.cle}
-                  b={b}
-                  coche={choisis.has(b.cle)}
-                  onBasculer={() => onBasculer(b.cle)}
-                  actions={actions}
+                  key={l.cle}
+                  l={l}
+                  onBasculer={(v) =>
+                    l.mode === 'jet'
+                      ? onBasculer(
+                          l.bonus.map((b) => b.cle),
+                          v,
+                        )
+                      : l.bascule && actions?.basculer(l.bascule, v)
+                  }
+                  modifiable={l.mode === 'jet' || (!!actions && !!l.bascule)}
                 />
               ))}
             </ul>
@@ -296,30 +411,24 @@ export function BonusJetListe({
 }
 
 /**
- * Une ligne compacte : la règle complète de la source dans l'infobulle du texte ; usages et
- * durée de la source ; « Activer » pour une source éteinte ; un interrupteur ajoute le bonus
- * aux jets.
+ * Une ligne compacte : la source, ses bonus en dessous ; la règle complète dans l'infobulle ;
+ * usages et durée ; l'interrupteur (état sur la fiche, ou allumé pour le jet).
  */
 function LigneBonus({
-  b,
-  coche,
+  l,
   onBasculer,
-  actions,
+  modifiable,
 }: Readonly<{
-  b: BonusJet;
-  coche: boolean;
-  onBasculer: () => void;
-  actions: ActionsBonus | undefined;
+  l: LigneSource;
+  onBasculer: (actif: boolean) => void;
+  modifiable: boolean;
 }>) {
   const t = useTranslations('dice.bonuses');
-  const inactif = b.etat === 'inactif';
-  const activer =
-    actions && b.activable && b.entree
-      ? () => actions.activer(b.entree!)
-      : actions && b.reactivable
-        ? () => actions.reactiver(b.reactivable!)
-        : null;
-  const epuise = b.usages !== null && b.usages.restants <= 0;
+  const epuise = l.usages !== null && l.usages.restants <= 0;
+  // Allumer une capacité ou un bonus à usage limité épuisé : refusé
+  const bloque = !l.actif && epuise && (l.mode === 'jet' || l.bascule?.type === 'source');
+  const libelles = l.bonus.map((b) => b.libelle).join(' · ');
+  const precisions = [...new Set(l.bonus.map((b) => b.precision).filter(Boolean))].join(' · ');
   return (
     <li className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-surface-2">
       <Tooltip>
@@ -329,16 +438,12 @@ function LigneBonus({
               <span
                 className={cn(
                   'min-w-0 truncate text-[13px] font-medium',
-                  inactif && !coche
-                    ? 'text-subtle'
-                    : b.concerne || coche
-                      ? 'text-foreground'
-                      : 'text-muted-foreground',
+                  l.actif ? 'text-foreground' : 'text-subtle',
                 )}
               >
-                {b.libelle}
+                {l.source}
               </span>
-              {b.concerne && (
+              {l.ajoute && (
                 <span
                   aria-label={t('concerns')}
                   className="size-1.5 shrink-0 rounded-full bg-primary"
@@ -346,50 +451,31 @@ function LigneBonus({
               )}
             </span>
             <span className="block truncate text-[11px] text-subtle">
-              {b.source}
-              {b.precision && ` · ${b.precision}`}
-              {b.raison && ` · ${b.raison}`}
-              {b.reactivable && t('disabled')}
-              {b.terme === null && t('manual')}
+              {libelles}
+              {l.raison && ` · ${l.raison}`}
             </span>
           </span>
         </TooltipTrigger>
-        {(b.description || b.precision) && (
-          <TooltipContent side="left" className="max-w-sm space-y-1.5 py-2">
-            <p className="font-medium">{b.source}</p>
-            {b.description && (
-              <p className="whitespace-pre-line leading-relaxed text-muted-foreground">
-                {b.description}
-              </p>
-            )}
-            {b.precision && <p className="text-subtle">{b.precision}</p>}
-          </TooltipContent>
-        )}
+        <TooltipContent side="left" className="max-w-sm space-y-1.5 py-2">
+          <p className="font-medium">{l.source}</p>
+          <p className="text-muted-foreground">{libelles}</p>
+          {precisions && <p className="text-subtle">{precisions}</p>}
+          {l.description && (
+            <p className="whitespace-pre-line leading-relaxed text-muted-foreground">
+              {l.description}
+            </p>
+          )}
+        </TooltipContent>
       </Tooltip>
-      {b.minuterie && <DurationChip timer={b.minuterie} />}
-      {b.usages && <UsesChip uses={b.usages} />}
-      {activer && (
-        <Info texte={t('activate', { source: b.source })}>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            aria-label={t('activate', { source: b.source })}
-            disabled={b.activable && epuise}
-            onClick={activer}
-          >
-            <Power />
-          </Button>
-        </Info>
-      )}
-      {b.terme !== null && (
-        <Switch
-          className="scale-90"
-          checked={coche}
-          disabled={epuise && !coche}
-          onCheckedChange={onBasculer}
-          aria-label={t(coche ? 'remove' : 'add', { label: b.libelle, source: b.source })}
-        />
-      )}
+      {l.minuterie && <DurationChip timer={l.minuterie} />}
+      {l.usages && <UsesChip uses={l.usages} />}
+      <Switch
+        className="scale-90"
+        checked={l.actif}
+        disabled={!modifiable || bloque}
+        onCheckedChange={onBasculer}
+        aria-label={t(l.actif ? 'remove' : 'add', { label: libelles, source: l.source })}
+      />
     </li>
   );
 }

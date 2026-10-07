@@ -316,7 +316,8 @@ function SkillsBlock({
       // Seuls les bonus de jet (actifs, à invoquer, ou d'une capacité éteinte) se lancent
       if (!b.jet || !b.entree || (b.terme === null && !b.vises.length)) continue;
       const r = m.get(b.entree) ?? { bonus: [], attributs: [] };
-      if (b.terme !== null) r.bonus.push(b.cle);
+      // Allumés pour le jet ; ceux de la fiche s'ajoutent d'eux-mêmes (attribut dans la formule)
+      if (b.terme !== null && b.mode === 'jet') r.bonus.push(b.cle);
       for (const a of b.vises) if (!r.attributs.includes(a)) r.attributs.push(a);
       m.set(b.entree, r);
     }
