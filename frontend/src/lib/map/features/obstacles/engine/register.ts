@@ -3,6 +3,7 @@
  * outil W. L'interface (barre contextuelle, inspecteur) est ajoutée par `index.ts` ; les tests
  * s'en passent.
  */
+import { translate } from '@/i18n/runtime';
 import { BrickWall } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { isGm } from '@/lib/map/engine/entities/entity-kind';
@@ -47,7 +48,7 @@ export function registerObstacles(engine: MapEngine, ui: ObstacleUi = {}): () =>
     engine.registerKind(roomKind(ctx)),
     engine.registerTool({
       id: OBSTACLES_TOOL_ID,
-      label: 'Obstacles',
+      label: translate('map.obstacles.obstacles'),
       icon: BrickWall,
       shortcut: { code: 'KeyW', label: 'W' },
       order: 70,
@@ -60,7 +61,7 @@ export function registerObstacles(engine: MapEngine, ui: ObstacleUi = {}): () =>
     unregister.push(
       engine.registerInspectorSection({
         id: 'obstacle',
-        title: 'Obstacle',
+        title: translate('map.obstacles.obstacle'),
         order: 10,
         appliesTo: (es, viewer) => isGm(viewer) && es.every((e) => e.kind.id === OBSTACLE_KIND),
         component: ui.obstacleInspector,
@@ -70,7 +71,7 @@ export function registerObstacles(engine: MapEngine, ui: ObstacleUi = {}): () =>
     unregister.push(
       engine.registerInspectorSection({
         id: 'room',
-        title: 'Pièce',
+        title: translate('map.obstacles.room'),
         order: 10,
         appliesTo: (es, viewer) => isGm(viewer) && es.length === 1 && es[0]!.kind.id === ROOM_KIND,
         component: ui.roomInspector,

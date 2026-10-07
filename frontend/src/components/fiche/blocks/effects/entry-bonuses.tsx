@@ -9,6 +9,8 @@
  * retire par son menu, après confirmation ; l'ajout se fait en ligne, en bas de la carte.
  * Entrée non acquise : lecture seule.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import { sourceExemplaire, type Effet, type Entree, type Fiche } from '@vtt/rules';
 import { BadgePlus, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import { useId, useMemo, useRef, useState } from 'react';
@@ -91,7 +93,7 @@ const TITRE = 'text-sm font-semibold text-foreground';
 /** Pourquoi un bonus propre ne peut pas être ajouté (cible refusée, aucun attribut), sinon null. */
 function ajoutBloque(own: EntryBonusEdit['own'], peutAjouter: boolean): string | null {
   if (own && !own.cible.ok) return own.cible.raison;
-  if (own && !peutAjouter) return 'Aucun attribut du personnage ne peut recevoir de bonus.';
+  if (own && !peutAjouter) return translate('sheet.effects.noAttribute');
   return null;
 }
 
@@ -106,10 +108,11 @@ function CompteActifs({ actifs, total }: Readonly<{ actifs: number; total: numbe
 
 /** Effets qui ne sont pas des bonus : rangs offerts, marques d'entrées. */
 function EffetsMarques({ marques }: Readonly<{ marques: string[] }>) {
+  const t = useTranslations();
   if (marques.length === 0) return null;
   return (
     <section className="space-y-2">
-      <h3 className={TITRE}>Effets</h3>
+      <h3 className={TITRE}>{t('resources.catalogue.effects')}</h3>
       <ul className="space-y-0.5 text-[13px] text-muted-foreground">
         {marques.map((t, i) => (
           <li key={`${t}-${i}`}>{t}</li>
@@ -129,6 +132,7 @@ export function EntryBonuses({
   /** Interrupteurs et gestion des bonus propres (absent : lecture seule). */
   edit?: EntryBonusEdit;
 }>) {
+  const t = useTranslations();
   const id = useId();
   const [ajout, setAjout] = useState(false);
   const boutonAjout = useRef<HTMLButtonElement>(null);
@@ -191,7 +195,7 @@ export function EntryBonuses({
           onClick={() => !bloque && setAjout(true)}
         >
           <Plus />
-          Ajouter un bonus
+          {t('sheet.inventory.addBonus')}
         </Button>
       </Info>
     );
@@ -202,7 +206,7 @@ export function EntryBonuses({
         <section aria-labelledby={`${id}-titre`} className="space-y-2">
           <div className="flex min-h-7 items-center gap-2">
             <h3 id={`${id}-titre`} className={TITRE}>
-              Bonus
+              {t('sheet.inventory.bonus')}
             </h3>
             {possedee && liste.length > 0 && <CompteActifs actifs={actifs} total={liste.length} />}
           </div>
@@ -236,7 +240,7 @@ export function EntryBonuses({
                 <div className="flex flex-col items-center gap-2 px-3 py-4 text-center">
                   <BadgePlus className="size-4 text-subtle" aria-hidden />
                   <p className="text-[13px] text-muted-foreground">
-                    Aucun bonus sur cette compétence
+                    {t('sheet.effects.noneOnSkill')}
                   </p>
                   {boutonAjouter(true)}
                 </div>
@@ -266,6 +270,7 @@ function LigneBonus({
   toggle: ((cles: string[], actif: boolean) => void) | undefined;
   onRetirer: ((index: number) => void) | undefined;
 }>) {
+  const t = useTranslations();
   const [confirme, setConfirme] = useState(false);
   const menu = useRef<HTMLButtonElement>(null);
   const coupe = l.statut === 'desactive';
@@ -291,18 +296,18 @@ function LigneBonus({
           Retirer « {l.texte} » ?
         </span>
         <Button type="button" variant="ghost" size="xs" autoFocus onClick={annuler}>
-          Annuler
+          {t('common.actions.cancel')}
         </Button>
         <Button type="button" variant="destructive" size="xs" onClick={() => onRetirer(l.propre!)}>
-          Retirer
+          {t('common.actions.remove')}
         </Button>
       </li>
     );
 
   const meta = [
-    l.propre !== undefined ? 'ajouté' : null,
+    l.propre !== undefined ? t('sheet.effects.added') : null,
     l.precision,
-    possedee && coupe ? 'désactivé' : null,
+    possedee && coupe ? t('sheet.effects.disabledShort') : null,
     l.raison,
   ].filter(Boolean);
 
@@ -328,7 +333,7 @@ function LigneBonus({
               variant="ghost"
               size="icon-xs"
               className="text-muted-foreground"
-              aria-label={`Actions du bonus ${l.texte}`}
+              aria-label={t('sheet.effects.bonusActions', { name: l.texte })}
             >
               <MoreHorizontal />
             </Button>
@@ -339,7 +344,7 @@ function LigneBonus({
               onSelect={() => setConfirme(true)}
             >
               <Trash2 />
-              Retirer…
+              {t('sheet.effects.removeEllipsis')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -350,7 +355,7 @@ function LigneBonus({
           checked={!coupe}
           disabled={l.statut === 'inactif'}
           onCheckedChange={(v) => toggle([l.cle], v)}
-          aria-label={`${coupe ? 'Activer' : 'Désactiver'} ${l.texte}${l.raison ? `, ${l.raison}` : ''}`}
+          aria-label={`${coupe ? t('sheet.effects.enable') : t('sheet.effects.disable')} ${l.texte}${l.raison ? `, ${l.raison}` : ''}`}
         />
       )}
     </li>

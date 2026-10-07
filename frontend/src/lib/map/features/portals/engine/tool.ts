@@ -14,6 +14,7 @@
  * Entrée et arrivée s'aimantent au centre de la case, comme le glisser commun (Alt : libre).
  * Aller-retour (réglage) : le retour est posé à l'arrivée, relié, en la même commande.
  */
+import { activeLocale, translate } from '@/i18n/runtime';
 import type { MapPortalIcon } from '@vtt/contracts';
 import type { BitmapText, Container, Graphics } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
@@ -78,7 +79,7 @@ function readSettings(): PortalDefaults {
     const bool = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d);
     const radius = Number(raw.radius);
     return {
-      icon: PORTAL_ICONS.some((i) => i.value === raw.icon)
+      icon: PORTAL_ICONS.includes(raw.icon as MapPortalIcon)
         ? (raw.icon as MapPortalIcon)
         : DEFAULT_PORTAL.icon,
       color:
@@ -323,7 +324,7 @@ export class PortalTool implements Tool {
             this.ctx,
             [drag.entity],
             () => ({ radius: drag.radius }),
-            'Rayon du portail',
+            translate('map.portals.portalRadius'),
           );
         break;
       }
@@ -336,7 +337,7 @@ export class PortalTool implements Tool {
             this.ctx,
             [drag.entity],
             () => ({ target: drag.target }),
-            'Arrivée du portail',
+            translate('map.portals.portalArrival'),
           );
         break;
       }
@@ -392,7 +393,7 @@ export class PortalTool implements Tool {
     }
     void engine.execute(
       createCommand({
-        label: d.twoWay ? 'Poser un portail aller-retour' : 'Poser un portail',
+        label: d.twoWay ? translate('map.portals.placeTwoWay') : translate('map.portals.place'),
         collection: PORTALS,
         persistence: this.ctx.persistence,
         items,
@@ -418,7 +419,7 @@ export class PortalTool implements Tool {
       target,
     });
     const scene = this.ctx.scenes().find((x) => x.id === targetMapId);
-    const label = d.twoWay ? 'Poser un portail aller-retour' : 'Poser un portail';
+    const label = d.twoWay ? translate('map.portals.placeTwoWay') : translate('map.portals.place');
     if (d.twoWay && scene) {
       const at = roundPoint(target ?? sceneArrival(scene));
       void engine.execute(
@@ -467,7 +468,7 @@ export class PortalTool implements Tool {
     );
     void engine.execute(
       createCommand({
-        label: 'Poser un portail',
+        label: translate('map.portals.place'),
         collection: PORTALS,
         persistence: this.ctx.persistence,
         items: [a],
@@ -495,7 +496,7 @@ export class PortalTool implements Tool {
       this.ctx,
       [e],
       () => ({ kind: 'same_map', targetMapId: null, target }),
-      'Arrivée du portail',
+      translate('map.portals.portalArrival'),
     );
   }
 
@@ -660,7 +661,7 @@ export class PortalTool implements Tool {
     const units =
       this.radiusDrag?.units ??
       portalOf(radius.entity).radius / (engine.kindContext().pixelsPerUnit || 50);
-    text.text = `${units.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${rc.unitName}`;
+    text.text = `${units.toLocaleString(activeLocale(), { maximumFractionDigits: 2 })} ${rc.unitName}`;
     text.visible = true;
     text.scale.set(u);
     text.position.set(radius.at.x + 12 * u, radius.at.y - 8 * u);

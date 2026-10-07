@@ -1,6 +1,7 @@
 'use client';
 
 import { DoorOpen } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
@@ -15,6 +16,7 @@ import { useRejoindreCampagne } from '@/lib/campagnes';
  * campagne avec ce code, puis ouvre le choix du héros, comme la saisie d'un code.
  */
 export default function PageRejoindreParLien() {
+  const t = useTranslations('campaigns.join');
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
   const rejoindre = useRejoindreCampagne();
@@ -28,16 +30,16 @@ export default function PageRejoindreParLien() {
     });
   }, [code, rejoindre, router]);
 
-  if (!rejoindre.isError) return <Chargement texte="Entrée dans la campagne…" />;
+  if (!rejoindre.isError) return <Chargement texte={t('entering')} />;
   return (
     <div className="px-4 py-20">
       <EtatVide
         icone={DoorOpen}
-        titre="Invitation invalide"
+        titre={t('invalidInvite')}
         description={messageErreur(rejoindre.error)}
         action={
           <Button asChild variant="secondary">
-            <Link href="/campagnes?rejoindre=1">Rejoindre une campagne</Link>
+            <Link href="/campagnes?rejoindre=1">{t('joinACampaign')}</Link>
           </Button>
         }
       />

@@ -10,6 +10,7 @@
  * machine économe), une image demandée par battement, et seules les vidéos qui ont une image
  * neuve sont renvoyées au GPU. Pixi est pris sur le moteur.
  */
+import { translate } from '@/i18n/runtime';
 import type * as Pixi from 'pixi.js';
 import { prefersEconomy } from '@/lib/perf/device';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
@@ -61,7 +62,8 @@ export function effectVariant(url: string): string | null {
 export const skinValueOf = (localPath: string) =>
   localPath.replace(/^\/+/, '').replace(/^Effect\//, '');
 
-const LABELS: Record<string, string> = { cone: 'Cône', explosion: 'Explosion', loop: 'Boucle' };
+/** Familles d'effets connues (`map.measurements.skins.<famille>`). */
+const FAMILIES = new Set(['cone', 'explosion', 'loop']);
 
 /** « Cône 3 », « Explosion 2 », « Boucle 5 ». */
 export function skinLabel(value: string): string {
@@ -71,7 +73,11 @@ export function skinLabel(value: string): string {
     .replace(/\.[a-z0-9]+$/i, '');
   const m = /^([a-z]+)(\d+)$/i.exec(base);
   if (!m) return base;
-  return `${LABELS[m[1]!.toLowerCase()] ?? m[1]} ${m[2]}`;
+  const family = m[1]!.toLowerCase();
+  const name = FAMILIES.has(family)
+    ? translate(`map.measurements.skins.${family as 'cone' | 'explosion' | 'loop'}`)
+    : m[1];
+  return `${name} ${m[2]}`;
 }
 
 /** Effets proposés pour une forme, triés (vignette quand elle existe). */

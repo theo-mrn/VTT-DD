@@ -5,6 +5,7 @@
  * la sélection. − et + (Maj : 5), saisie directe, pleine forme (0 pour une ressource qui se
  * remplit). Les clics rapprochés font une seule écriture.
  */
+import { translate } from '@/i18n/runtime';
 import { HeartPulse, Minus, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -44,7 +45,9 @@ export function ResourceEditor({
       if (v === r.value) return;
       ops.valeurs({ [r.key]: v }).catch((err: unknown) => {
         setValue(r.value);
-        toast.error(`${r.label} non enregistrés`, { description: messageErreur(err) });
+        toast.error(translate('map.tokens.resource.notSaved', { label: r.label }), {
+          description: messageErreur(err),
+        });
       });
     }, 450);
   };
@@ -61,7 +64,7 @@ export function ResourceEditor({
       <Button
         variant="secondary"
         size="icon-sm"
-        aria-label={`Retirer des ${r.label}`}
+        aria-label={translate('map.tokens.resource.remove', { label: r.label })}
         onClick={(e) => set(value - step(e))}
       >
         <Minus />
@@ -87,16 +90,26 @@ export function ResourceEditor({
       <Button
         variant="secondary"
         size="icon-sm"
-        aria-label={`Ajouter des ${r.label}`}
+        aria-label={translate('map.tokens.resource.add', { label: r.label })}
         onClick={(e) => set(value + step(e))}
       >
         <Plus />
       </Button>
-      <Info texte={r.rising ? 'Indemne' : 'Pleine forme'}>
+      <Info
+        texte={
+          r.rising
+            ? translate('map.tokens.resource.unharmed')
+            : translate('map.tokens.resource.full')
+        }
+      >
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={r.rising ? 'Indemne' : 'Pleine forme'}
+          aria-label={
+            r.rising
+              ? translate('map.tokens.resource.unharmed')
+              : translate('map.tokens.resource.full')
+          }
           disabled={value === full}
           onClick={() => set(full)}
         >

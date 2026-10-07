@@ -1,6 +1,7 @@
 'use client';
 
 import { LogIn, Plus, Swords, UserRound } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Illustration } from '@/components/commun/illustration';
@@ -32,6 +33,7 @@ export function PaletteCommandes({
   ouverte: boolean;
   onOuverte: (v: boolean) => void;
 }>) {
+  const t = useTranslations('shell');
   const router = useRouter();
   const campagnes = useCampagnes();
   const personnages = usePersonnages();
@@ -53,7 +55,7 @@ export function PaletteCommandes({
           <SelectField
             value={systemId}
             onValueChange={setChoisi}
-            aria-label="Système de jeu"
+            aria-label={t('palette.system')}
             className="h-7 w-40 shrink-0 text-xs"
             options={liste.map((sys) => ({ valeur: sys.id, nom: sys.nom }))}
           />
@@ -67,38 +69,42 @@ export function PaletteCommandes({
         return (
           <>
             {/* Les règles trouvées ne comptent pas pour cmdk (montées de force) */}
-            {!rulesPreview && <CommandEmpty>Aucun résultat.</CommandEmpty>}
+            {!rulesPreview && <CommandEmpty>{t('palette.noResult')}</CommandEmpty>}
 
             {/d\d/i.test(query) && <GroupeLancer saisie={query} onLance={close} />}
 
             {rulesPreview}
 
-            <CommandGroup heading="Actions">
+            <CommandGroup heading={t('palette.actions')}>
               <CommandItem onSelect={() => aller('/campagnes/nouvelle')}>
                 <Plus />
-                Nouvelle campagne
+                {t('nav.newCampaign')}
               </CommandItem>
               <CommandItem onSelect={() => aller('/campagnes?rejoindre=1')}>
                 <LogIn />
-                Rejoindre une campagne avec un code
+                {t('palette.joinWithCode')}
               </CommandItem>
               <CommandItem onSelect={() => aller('/personnages/nouveau')}>
                 <UserRound />
-                Nouveau personnage
+                {t('nav.newCharacter')}
               </CommandItem>
             </CommandGroup>
 
-            <CommandGroup heading="Aller à">
+            <CommandGroup heading={t('palette.goTo')}>
               {[...NAV_PRINCIPALE, ...NAV_SOCIALE, ...LIENS_COMPTE].map((l) => (
-                <CommandItem key={l.href} value={`aller ${l.label}`} onSelect={() => aller(l.href)}>
+                <CommandItem
+                  key={l.href}
+                  value={`${t('palette.goToKeyword')} ${t(`nav.${l.label}`)}`}
+                  onSelect={() => aller(l.href)}
+                >
                   <l.icone />
-                  {l.label}
+                  {t(`nav.${l.label}`)}
                 </CommandItem>
               ))}
             </CommandGroup>
 
             {(campagnes.data?.length ?? 0) > 0 && (
-              <CommandGroup heading="Campagnes">
+              <CommandGroup heading={t('palette.campaigns')}>
                 {campagnes.data!.map((c) => (
                   <CommandItem
                     key={c.id}
@@ -122,7 +128,7 @@ export function PaletteCommandes({
             )}
 
             {(personnages.data?.length ?? 0) > 0 && (
-              <CommandGroup heading="Personnages">
+              <CommandGroup heading={t('palette.characters')}>
                 {personnages.data!.map((p) => (
                   <CommandItem
                     key={p.id}
@@ -145,7 +151,7 @@ export function PaletteCommandes({
             )}
 
             {(notes.data?.length ?? 0) > 0 && (
-              <CommandGroup heading="Notes">
+              <CommandGroup heading={t('palette.notes')}>
                 {notes.data!.slice(0, 12).map((n) => (
                   <CommandItem
                     key={n.id}
@@ -153,7 +159,7 @@ export function PaletteCommandes({
                     onSelect={() => aller(`/notes?note=${n.id}`)}
                   >
                     <span className="w-4 text-center text-sm">{iconeNote(n)}</span>
-                    {n.title || 'Sans titre'}
+                    {n.title || t('untitled')}
                   </CommandItem>
                 ))}
               </CommandGroup>

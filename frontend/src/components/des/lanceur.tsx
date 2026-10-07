@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Send } from 'lucide-react';
 import { forwardRef, useMemo, useState, type FormEvent } from 'react';
 import type { Campagne } from '@/lib/campagnes';
@@ -88,6 +89,7 @@ export const Lanceur = forwardRef<
   const mode = modeD20(formule);
   const personnage = personnages.liste.find((p) => p.id === etat.personnageId) ?? null;
   const { groups, loading } = useRollableAttributes(etat.campagneId, fiche.fiche);
+  const t = useTranslations('dice.launcher');
   const [options, setOptions] = useState(false);
   const [edition, setEdition] = useState<EditionMacro | null>(null);
   const ecrire = (f: string) => onModifier({ formule: f });
@@ -102,7 +104,7 @@ export const Lanceur = forwardRef<
   return (
     <form
       onSubmit={valider}
-      aria-label="Lanceur de dés"
+      aria-label={t('title')}
       className="relative isolate flex min-h-[14.5rem] overflow-hidden rounded-2xl border border-border bg-card shadow-surface"
     >
       <div className="flex shrink-0 items-center justify-center border-r border-border p-2">
@@ -125,7 +127,7 @@ export const Lanceur = forwardRef<
 
         <div className="flex items-center gap-1.5">
           <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
-          <h2 className="shrink-0 text-xs font-medium text-muted-foreground">Lanceur de dés</h2>
+          <h2 className="shrink-0 text-xs font-medium text-muted-foreground">{t('title')}</h2>
           <AideLanceur
             onEssayer={(f) => {
               ecrire(f);
@@ -192,14 +194,14 @@ export const Lanceur = forwardRef<
               type="button"
               onClick={() => ecrire('')}
               disabled={!formule.trim()}
-              aria-label="Vider la formule"
+              aria-label={t('clearLabel')}
               className={cn(
                 'h-8 shrink-0 rounded-lg border border-border bg-background/40 px-2.5 text-[11px] font-bold tracking-wide text-muted-foreground transition-colors hover:text-foreground disabled:opacity-45',
                 FOCUS,
                 TACTILE,
               )}
             >
-              Vider
+              {t('clear')}
             </button>
             <button
               type="submit"
@@ -212,7 +214,7 @@ export const Lanceur = forwardRef<
                 '[@media(pointer:coarse)]:h-11',
               )}
             >
-              Lancer
+              {t('roll')}
               <Send
                 className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
                 aria-hidden

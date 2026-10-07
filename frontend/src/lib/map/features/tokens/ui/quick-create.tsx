@@ -5,6 +5,7 @@
  * (`NpcForm`) crée un modèle dans « Mes PNJ », puis le choisit pour la pose. Tout PNJ posé
  * vient donc d'un modèle, qui reste pour la suite.
  */
+import { translate } from '@/i18n/runtime';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { Crosshair } from 'lucide-react';
 import { useState } from 'react';
@@ -39,7 +40,7 @@ export function QuickCreate({
   return (
     <div className="space-y-3">
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Le PNJ est ajouté à « Mes PNJ » (U), puis choisi pour la pose : cliquez sur la carte.
+        {translate('map.tokens.quick.hint')}
       </p>
       <NpcForm
         key={round}
@@ -47,7 +48,7 @@ export function QuickCreate({
         systeme={systeme}
         presentation={presentation}
         categories={templates.data?.categories ?? []}
-        submitLabel="Créer et poser"
+        submitLabel={translate('map.tokens.quick.create')}
         submitIcon={<Crosshair />}
         busy={busy}
         onSubmit={async (r) => {
@@ -68,13 +69,13 @@ export function QuickCreate({
               imageUrl: t.tokenUrl ?? t.imageUrl,
               source: { templateId: t.id },
             });
-            toast.success(`« ${t.name} » ajouté à Mes PNJ`, {
-              description: 'Cliquez sur la carte pour le poser.',
+            toast.success(translate('map.tokens.quick.added', { name: t.name }), {
+              description: translate('map.tokens.quick.clickToPlace'),
             });
             setRound((n) => n + 1);
             onCreated?.();
           } catch (err) {
-            toast.error('Le PNJ n’a pas pu être créé', { description: messageErreur(err) });
+            toast.error(translate('table.npcs.createFailed'), { description: messageErreur(err) });
           } finally {
             setBusy(false);
           }

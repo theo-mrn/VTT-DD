@@ -1,5 +1,6 @@
 import { Award, Circle, Lock } from 'lucide-react';
 import { BORDURES } from '@/components/compte/elements';
+import { translate } from '@/i18n/runtime';
 import { Info } from '@/components/ui/tooltip';
 import type { LevelReward } from '@/lib/progression';
 import { cn } from '@/lib/utils';
@@ -7,7 +8,8 @@ import { cn } from '@/lib/utils';
 /** « Titre « Héros Accompli » », « Bordure Azur ». */
 export function rewardText(r: Pick<LevelReward, 'type' | 'id' | 'label'>): string {
   if (r.type === 'title') return `Titre « ${r.label ?? r.id} »`;
-  return `Bordure ${BORDURES.find((b) => b.id === r.id)?.label ?? r.id}`;
+  const bordure = BORDURES.find((b) => b.id === r.id);
+  return `Bordure ${bordure ? translate(`account.borders.${bordure.id}`) : r.id}`;
 }
 
 /** Paliers du niveau : atteints en couleur, les suivants verrouillés. */

@@ -12,6 +12,7 @@ import {
   GENERAL_SHORTCUTS,
   NOTES_SHORTCUTS,
 } from '@/lib/shortcuts/catalog';
+import type { MessageKey } from '@/i18n/types';
 import type { ShortcutDescriptor, ShortcutScope } from '@/lib/shortcuts/registry';
 import { customDescriptor, type ShortcutPrefs } from '@/lib/shortcuts/store';
 
@@ -37,10 +38,10 @@ export const allShortcuts = (prefs: ShortcutPrefs): ShortcutDescriptor[] => [
 ];
 
 /** Sections de l'éditeur, dans l'ordre. */
-export const SECTIONS: readonly { scope: ShortcutScope; title: string }[] = [
-  { scope: 'global', title: 'Général' },
-  { scope: 'table', title: 'Table' },
-  { scope: 'map', title: 'Carte' },
-  { scope: 'dice', title: 'Dés' },
-  { scope: 'notes', title: 'Notes' },
+export const SECTIONS: readonly { scope: ShortcutScope; title: MessageKey }[] = [
+  { scope: 'global', title: 'shortcuts.sections.global' },
+  { scope: 'table', title: 'shortcuts.sections.table' },
+  { scope: 'map', title: 'shortcuts.sections.map' },
+  { scope: 'dice', title: 'shortcuts.sections.dice' },
+  { scope: 'notes', title: 'shortcuts.sections.notes' },
 ];

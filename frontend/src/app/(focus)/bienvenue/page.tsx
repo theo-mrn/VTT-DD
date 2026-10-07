@@ -1,8 +1,8 @@
-import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { titleMetadata } from '@/i18n/metadata';
 import { ParcoursOnboarding } from '@/components/onboarding/parcours';
 
-export const metadata: Metadata = { title: 'Bienvenue' };
+export const generateMetadata = titleMetadata('welcome');
 
 export default function PageBienvenue() {
   return (

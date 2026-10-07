@@ -15,6 +15,7 @@
  * Les compteurs forcés sont les ajustements libres de la déclaration (`adjustments`) : hors
  * règles, appliqués après les effets et marqués « ajusté à la main » dans le rapport.
  */
+import { useTranslations } from 'next-intl';
 import type { AttackRollMode } from '@vtt/contracts';
 import type { Action, Fiche, Presentation, SystemeCharge, Valeur } from '@vtt/rules';
 import { ChevronDown, Crosshair, Dices, RotateCcw, SlidersHorizontal, Target } from 'lucide-react';
@@ -93,6 +94,7 @@ export function StepCompose({
   canAim: boolean;
   onAim: () => void;
 }>) {
+  const t = useTranslations();
   const { systeme, fiche, action } = model;
   const presentation = ctx.presentation;
   if (!systeme || !fiche) return null;
@@ -100,7 +102,7 @@ export function StepCompose({
     return (
       <EtatVide
         icone={Target}
-        titre="Aucune action contre une cible"
+        titre={t('combat.attack.noAction')}
         className="mx-auto max-w-md py-10"
       />
     );
@@ -187,10 +189,15 @@ function ActionTabs({
   onChoose: (a: Action) => void;
   disabled: boolean;
 }>) {
+  const t = useTranslations();
   let index = 0;
   return (
     <div className="flex items-start gap-2">
-      <div role="tablist" aria-label="Action" className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+      <div
+        role="tablist"
+        aria-label={t('combat.stages.action')}
+        className="flex min-w-0 flex-1 flex-wrap gap-1.5"
+      >
         {groups.map((g, gi) => (
           <Fragment key={g.id}>
             {gi > 0 && <span aria-hidden className="mx-1 my-1.5 w-px self-stretch bg-border" />}
@@ -248,6 +255,7 @@ function Notice({
   aim: (() => void) | null;
   noTarget: boolean;
 }>) {
+  const t = useTranslations();
   return (
     <div
       role="status"
@@ -259,7 +267,7 @@ function Notice({
       </span>
       {aim && (
         <Button size="xs" variant="secondary" onClick={aim}>
-          <Crosshair /> Viser sur la carte
+          <Crosshair /> {t('combat.attack.aimOnMap')}
           <Kbd className="ml-0.5">V</Kbd>
         </Button>
       )}
@@ -293,6 +301,7 @@ function TypeCards({
   onLaunch: (patch: Record<string, Valeur>) => void;
   disabled: boolean;
 }>) {
+  const t = useTranslations();
   const reduced = useReducedMotion();
   const options = typeOptions(fiche, param);
   const current = String(values[param.id] ?? '');
@@ -368,7 +377,7 @@ function TypeCards({
               onClick={() => onLaunch({ [param.id]: expanded.valeur })}
             >
               <span className="font-mono normal-case tracking-normal">
-                {formula(expanded.valeur) ?? 'Lancer'}
+                {formula(expanded.valeur) ?? t('combat.attack.roll')}
               </span>
             </LaunchButton>
           </motion.div>
@@ -492,14 +501,15 @@ function changedCount(
 
 /** Pastilles du bouton replié : réglages modifiés, jet caché. */
 function DisclosureBadges({ count, hidden }: Readonly<{ count: number; hidden: boolean }>) {
+  const t = useTranslations();
   return (
     <>
       {count > 0 && (
-        <Badge ton="primaire" aria-label={`${count} réglé${count > 1 ? 's' : ''}`}>
+        <Badge ton="primaire" aria-label={t('combat.attack.setCount', { count })}>
           {count}
         </Badge>
       )}
-      {hidden && <Badge>caché</Badge>}
+      {hidden && <Badge>{t('combat.attack.hiddenShort')}</Badge>}
     </>
   );
 }
@@ -520,12 +530,13 @@ function RollModeRow({
   hidden: boolean;
   disabled: boolean;
 }>) {
+  const t = useTranslations();
   if (!(targets > 1 || gm)) return null;
   return (
     <div className="flex flex-wrap items-center gap-3">
       {targets > 1 && (
         <Segmented
-          label="Mode de jet"
+          label={t('combat.attack.rollMode')}
           value={rollMode}
           onChange={(v) =>
             attackMenu.dispatch({ type: 'setRollMode', rollMode: v as AttackRollMode })
@@ -533,20 +544,20 @@ function RollModeRow({
           disabled={disabled}
           options={(
             [
-              ['per_target', 'Un jet par cible'],
-              ['shared', 'Jet commun'],
+              ['per_target', t('combat.attack.rollPerTarget')],
+              ['shared', t('combat.attack.rollShared')],
             ] as const
           ).map(([value, label]) => ({
             value,
             label,
-            ...(actionRollMode === value ? { meta: 'proposé' } : {}),
+            ...(actionRollMode === value ? { meta: t('combat.attack.suggested') } : {}),
           }))}
         />
       )}
       {gm && (
         <div className="min-w-[14rem]">
           <ToggleTile
-            label="Jet caché aux joueurs"
+            label={t('combat.attack.hiddenRoll')}
             checked={hidden}
             onChange={(h) =>
               attackMenu.dispatch({
@@ -589,6 +600,7 @@ function OptionsDisclosure({
   hidden: boolean;
   disabled: boolean;
 }>) {
+  const t = useTranslations();
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
   const params = attackerParams(systeme, action, fiche);
@@ -628,7 +640,7 @@ function OptionsDisclosure({
         )}
       >
         <SlidersHorizontal className="size-4" aria-hidden />
-        <span className="flex-1">Situation et options</span>
+        <span className="flex-1">{t('combat.attack.situationOptions')}</span>
         <DisclosureBadges count={count} hidden={hidden} />
         <ChevronDown
           className={cn(
@@ -713,12 +725,15 @@ function OptionsSection({
   values: Record<string, Valeur>;
   disabled: boolean;
 }>) {
+  const t = useTranslations();
   const toggles = params.filter((p) => p.type === 'booleen');
   const numbers = params.filter((p) => p.type === 'nombre');
   const choices = params.filter((p) => p.type === 'attribut' || isChoiceParam(p));
   return (
     <section>
-      <SectionTitle icon={<SlidersHorizontal aria-hidden />}>Options</SectionTitle>
+      <SectionTitle icon={<SlidersHorizontal aria-hidden />}>
+        {t('combat.attack.options')}
+      </SectionTitle>
       <div className="space-y-3">
         {choices.map((p) => (
           <ChoiceField key={p.id} fiche={fiche} param={p} values={values} disabled={disabled} />
@@ -771,6 +786,7 @@ function DicePool({
   draft: AttackDraft;
   disabled: boolean;
 }>) {
+  const t = useTranslations();
   const adjustments = draft.adjustments;
   const adjusted = hasAdjustments(adjustments);
   const set = (die: string | null, value: number) =>
@@ -778,11 +794,11 @@ function DicePool({
   const header = (
     <SectionTitle
       icon={<Dices aria-hidden />}
-      hint="Hors règles : appliqué après les effets, signalé au MJ dans le rapport."
+      hint={t('combat.attack.offRules')}
       action={
         adjusted ? (
           <span className="flex items-center gap-2">
-            <Badge ton="alerte">ajusté à la main</Badge>
+            <Badge ton="alerte">{t('combat.attack.adjusted')}</Badge>
             <Button
               type="button"
               variant="ghost"
@@ -790,13 +806,15 @@ function DicePool({
               onClick={() => attackMenu.dispatch({ type: 'resetAdjustments' })}
               disabled={disabled}
             >
-              <RotateCcw /> Réinitialiser
+              <RotateCcw /> {t('audio.mixer.reset')}
             </Button>
           </span>
         ) : undefined
       }
     >
-      {action.jet.type === 'numerique' ? 'Bonus au total' : 'Pool de dés'}
+      {action.jet.type === 'numerique'
+        ? t('combat.attack.totalBonus')
+        : t('combat.attack.dicePool')}
     </SectionTitle>
   );
 
@@ -805,7 +823,7 @@ function DicePool({
       <section>
         {header}
         <Stepper
-          label="Bonus au total"
+          label={t('combat.attack.totalBonus')}
           value={adjustments.bonus}
           display={adjustments.bonus > 0 ? `+${adjustments.bonus}` : String(adjustments.bonus)}
           min={-100}
@@ -832,8 +850,9 @@ function DicePool({
           const known = auto !== null;
           const value = known ? Math.max(0, auto + delta) : delta;
           const display = known ? String(value) : inconnu(delta);
-          let hint: string | null = 'Dépend de la cible';
-          if (known) hint = delta ? `${auto} d’après la fiche, ${signe(delta)} à la main` : null;
+          let hint: string | null = t('combat.attack.dependsOnTarget');
+          if (known)
+            hint = delta ? t('combat.attack.adjustedHint', { auto, delta: signe(delta) }) : null;
           return (
             <Stepper
               key={d.id}

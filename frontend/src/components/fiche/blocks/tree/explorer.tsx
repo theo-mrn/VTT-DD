@@ -6,6 +6,7 @@
  * détail d'un nœud (achat, remboursement). Vue Progression du bloc Compétences, quand le
  * système déclare des arbres.
  */
+import { useTranslations } from 'next-intl';
 import { ChevronDown, GitBranch, Lock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ export function TreeExplorer({
   writes: SheetWrites | undefined;
   className?: string;
 }>) {
+  const t = useTranslations();
   const views = useMemo(() => trees.filter((t) => t.open || t.owned > 0), [trees]);
   const closed = useMemo(() => trees.filter((t) => !t.open && t.owned === 0), [trees]);
 
@@ -51,9 +53,7 @@ export function TreeExplorer({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 py-8 text-center">
         <GitBranch className="size-6 text-subtle" />
-        <p className="text-sm text-muted-foreground">
-          Ce système ne déclare aucun arbre pour ce personnage.
-        </p>
+        <p className="text-sm text-muted-foreground">{t('sheet.tree.none')}</p>
       </div>
     );
 
@@ -104,7 +104,7 @@ export function TreeExplorer({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-h-80 w-64 overflow-y-auto">
-              <DropdownMenuLabel>Arbres fermés</DropdownMenuLabel>
+              <DropdownMenuLabel>{t('sheet.tree.closedTrees')}</DropdownMenuLabel>
               {closed.map((t) => (
                 <DropdownMenuItem key={t.tree.id} onSelect={() => setSelectedId(t.tree.id)}>
                   <span className="min-w-0 flex-1 truncate">{t.tree.nom}</span>
@@ -128,7 +128,9 @@ export function TreeExplorer({
       {preview && (
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-2/60 px-3 py-2 text-[13px]">
           <span className="text-muted-foreground">
-            Arbre fermé{preview.opener ? ` : nécessite « ${preview.opener.nom} »` : ''}.
+            {preview.opener
+              ? t('sheet.tree.closedNeeds', { name: preview.opener.nom })
+              : t('sheet.tree.closed')}
             {preview.openerOffer && !preview.openerOffer.possible && (
               <span className="text-warning">
                 {' '}

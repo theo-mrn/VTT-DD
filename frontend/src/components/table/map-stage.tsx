@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Map as IconeCarte } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Illustration } from '@/components/commun/illustration';
@@ -24,14 +25,10 @@ export interface MapStageProps {
  * surcouches. Aucune logique de carte ici : le moteur (`components/map/table-map.tsx`) se
  * branche comme enfant, et reçoit tout l'espace (`absolute inset-0`).
  */
-export function MapStage({
-  backdropUrl,
-  seed,
-  children,
-  emptyMessage = 'La carte arrive bientôt',
-}: Readonly<MapStageProps>) {
+export function MapStage({ backdropUrl, seed, children, emptyMessage }: Readonly<MapStageProps>) {
+  const t = useTranslations('table.scene');
   return (
-    <section aria-label="Carte" className="absolute inset-0 overflow-hidden bg-background">
+    <section aria-label={t('map')} className="absolute inset-0 overflow-hidden bg-background">
       {children ?? (
         <>
           <Illustration
@@ -48,7 +45,7 @@ export function MapStage({
           <div className="absolute inset-0 grid place-items-center p-6">
             <p className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2 text-sm text-muted-foreground">
               <IconeCarte className="size-4 text-primary" aria-hidden />
-              {emptyMessage}
+              {emptyMessage ?? t('mapSoon')}
             </p>
           </div>
         </>

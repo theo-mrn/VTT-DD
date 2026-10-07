@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   Crop,
   Hammer,
@@ -20,7 +21,8 @@ import { toast } from 'sonner';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
 import { EtatVide, Page } from '@/components/commun/page';
-import { Chargement, formaterDepuis, Message } from '@/components/compte/elements';
+import { Chargement, Message } from '@/components/compte/elements';
+import { useDates } from '@/i18n/dates';
 import { PortraitStudio } from '@/components/portraits/portrait-studio';
 import { SheetGrid } from '@/components/sheet-grid/sheet-grid';
 import { Button } from '@/components/ui/button';
@@ -155,6 +157,7 @@ export function FichePersonnage({
   /** Ouverte sur ses valeurs (stats à modifier), depuis la carte. */
   valeursOuvertes?: boolean;
 }>) {
+  const t = useTranslations();
   const { perso, sys, ctx, proprietaire, peutModifier, permissions, ecritures } =
     useFicheCalculee(id);
   const campagne = useCampagne(perso.data?.roomId);
@@ -172,11 +175,11 @@ export function FichePersonnage({
       <Page>
         <EtatVide
           icone={UserRound}
-          titre="Personnage introuvable"
-          description="Il a peut-être été supprimé, ou vous n’y avez plus accès."
+          titre={t('sheet.page.notFound')}
+          description={t('sheet.page.notFoundHint')}
           action={
             <Button asChild variant="secondary">
-              <Link href="/personnages">Tous les personnages</Link>
+              <Link href="/personnages">{t('sheet.page.allCharacters')}</Link>
             </Button>
           }
         />
@@ -204,13 +207,13 @@ export function FichePersonnage({
       <Page large className="pt-0 lg:pt-0">
         <Tabs defaultValue="fiche">
           <TabsList variante="ligne" className="mb-2">
-            <TabsTrigger value="fiche">Fiche</TabsTrigger>
-            <TabsTrigger value="histoire">Histoire</TabsTrigger>
+            <TabsTrigger value="fiche">{t('sheet.page.sheet')}</TabsTrigger>
+            <TabsTrigger value="histoire">{t('sheet.page.story')}</TabsTrigger>
           </TabsList>
           <TabsContent value="fiche">
-            {sys.isError && <Message>Impossible de charger les règles de ce personnage.</Message>}
+            {sys.isError && <Message>{t('sheet.page.rulesFailed')}</Message>}
             {!ctx ? (
-              !sys.isError && <Chargement texte="Calcul de la fiche…" />
+              !sys.isError && <Chargement texte={t('sheet.page.computing')} />
             ) : (
               <SheetGrid
                 ctx={ctx}
@@ -425,13 +428,15 @@ function MenuFiche({
   onModifier: () => void;
   onSupprimer: () => void;
 }>) {
+  const t = useTranslations();
+  const dates = useDates();
   const creation = proprietaire && p.inCreation && p.roomId;
   if (!progressions.length && !onValeurs && !onPersonnaliser && !peutModifier && !proprietaire)
     return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="icon-sm" aria-label="Actions de la fiche">
+        <Button variant="secondary" size="icon-sm" aria-label={t('sheet.page.actions')}>
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
@@ -440,7 +445,7 @@ function MenuFiche({
           <DropdownMenuItem asChild>
             <Link href={lienPersonnage(p)}>
               <Hammer />
-              Reprendre la création
+              {t('characters.picker.resumeCreation')}
             </Link>
           </DropdownMenuItem>
         )}
@@ -453,26 +458,26 @@ function MenuFiche({
         {onValeurs && (
           <DropdownMenuItem onSelect={onValeurs}>
             <SlidersHorizontal />
-            Valeurs
+            {t('sheet.page.values')}
           </DropdownMenuItem>
         )}
         {onPersonnaliser && (
           <DropdownMenuItem onSelect={onPersonnaliser}>
             <LayoutGrid />
-            Personnaliser la fiche
+            {t('sheet.page.customize')}
           </DropdownMenuItem>
         )}
         {peutModifier && (
           <DropdownMenuItem onSelect={onModifier}>
             <Pencil />
-            Modifier l’identité
+            {t('sheet.page.editIdentity')}
           </DropdownMenuItem>
         )}
         {(peutModifier || proprietaire) && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled className="text-xs">
-              Modifié {formaterDepuis(p.updatedAt)}
+              Modifié {dates.since(p.updatedAt)}
             </DropdownMenuItem>
           </>
         )}
@@ -482,7 +487,7 @@ function MenuFiche({
             className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
           >
             <Trash2 />
-            Supprimer
+            {t('common.actions.delete')}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
@@ -491,19 +496,15 @@ function MenuFiche({
 }
 
 function Histoire({ personnage: p }: Readonly<{ personnage: Fiche }>) {
+  const t = useTranslations();
   const vide = !p.details.appearance && !p.details.backstory;
   if (vide)
-    return (
-      <p className="py-12 text-center text-sm text-subtle">
-        Aucune histoire écrite pour l&apos;instant. Racontez-la avec « Modifier l’identité », dans
-        le menu … de la fiche.
-      </p>
-    );
+    return <p className="py-12 text-center text-sm text-subtle">{t('sheet.page.noStory')}</p>;
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       {p.details.appearance && (
         <section className="rounded-2xl border border-border bg-card p-6 shadow-surface">
-          <h2 className="mb-3 text-sm font-semibold">Apparence</h2>
+          <h2 className="mb-3 text-sm font-semibold">{t('sheet.page.appearance')}</h2>
           <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/85">
             {p.details.appearance}
           </p>
@@ -511,7 +512,7 @@ function Histoire({ personnage: p }: Readonly<{ personnage: Fiche }>) {
       )}
       {p.details.backstory && (
         <section className="rounded-2xl border border-border bg-card p-6 shadow-surface">
-          <h2 className="mb-3 text-sm font-semibold">Histoire</h2>
+          <h2 className="mb-3 text-sm font-semibold">{t('sheet.page.story')}</h2>
           <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/85">
             {p.details.backstory}
           </p>
@@ -531,6 +532,7 @@ function PortraitFiche({
   peutModifier: boolean;
   dansPanneau: boolean;
 }>) {
+  const t = useTranslations();
   const modifier = useModifierPersonnage(p.id);
   const [studio, setStudio] = useState(false);
   const image = (
@@ -552,7 +554,7 @@ function PortraitFiche({
       <button
         type="button"
         onClick={() => setStudio(true)}
-        aria-label="Studio du portrait"
+        aria-label={t('portraits.title')}
         className={cn(
           cadre,
           taille,
@@ -562,7 +564,7 @@ function PortraitFiche({
         {image}
         <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-gradient-to-t from-background/90 to-transparent pb-2 pt-6 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           <Crop className="size-3.5" aria-hidden />
-          Studio
+          {t('sheet.page.studio')}
         </span>
       </button>
       <PortraitStudio
@@ -592,6 +594,7 @@ function EditionIdentite({
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
 }>) {
+  const t = useTranslations();
   const modifier = useModifierPersonnage(p.id);
   const [nom, setNom] = useState(p.name);
   const [portrait, setPortrait] = useState(p.portraitUrl ?? '');
@@ -612,7 +615,7 @@ function EditionIdentite({
         portraitUrl: portrait.trim() || null,
         details,
       });
-      toast.success('Personnage mis à jour');
+      toast.success(t('sheet.page.updated'));
       onOuvert(false);
     } catch (err) {
       toast.error(messageErreur(err));
@@ -624,14 +627,12 @@ function EditionIdentite({
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Modifier {p.name}</DialogTitle>
-          <DialogDescription>
-            Identité et histoire. Les règles se modifient en jeu.
-          </DialogDescription>
+          <DialogDescription>{t('sheet.page.identityHint')}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="e-nom">Nom</Label>
+              <Label htmlFor="e-nom">{t('map.lights.name')}</Label>
               <Input
                 id="e-nom"
                 value={nom}
@@ -650,7 +651,7 @@ function EditionIdentite({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="e-concept">Concept</Label>
+            <Label htmlFor="e-concept">{t('sheet.page.concept')}</Label>
             <Input
               id="e-concept"
               value={details.concept}
@@ -659,7 +660,7 @@ function EditionIdentite({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="e-apparence">Apparence</Label>
+            <Label htmlFor="e-apparence">{t('sheet.page.appearance')}</Label>
             <Textarea
               id="e-apparence"
               value={details.appearance}
@@ -667,7 +668,7 @@ function EditionIdentite({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="e-histoire">Histoire</Label>
+            <Label htmlFor="e-histoire">{t('sheet.page.story')}</Label>
             <Textarea
               id="e-histoire"
               value={details.backstory}
@@ -678,14 +679,14 @@ function EditionIdentite({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOuvert(false)}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button
             onClick={() => void enregistrer()}
             loading={modifier.isPending}
             disabled={nom.trim().length < 2}
           >
-            Enregistrer
+            {t('common.actions.save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -702,6 +703,7 @@ function DialogueSuppression({
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
 }>) {
+  const t = useTranslations();
   const router = useRouter();
   const supprimer = useSupprimerPersonnage();
   const client = useQueryClient();
@@ -710,20 +712,21 @@ function DialogueSuppression({
     <Dialog open={ouvert} onOpenChange={onOuvert}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Supprimer {p.name} ?</DialogTitle>
-          <DialogDescription>
-            Restaurable 7 jours depuis la corbeille de vos personnages.
-          </DialogDescription>
+          <DialogTitle>{t('sheet.inventory.deleteTitle', { name: p.name })}</DialogTitle>
+          <DialogDescription>{t('sheet.page.restorable')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
           <p className="text-[13px] text-muted-foreground">
-            Tapez <span className="font-medium text-foreground">{p.name}</span> pour confirmer.
+            {t.rich('sheet.page.typeToConfirm', {
+              name: p.name,
+              b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+            })}
           </p>
           <Input value={confirmation} onChange={(e) => setConfirmation(e.target.value)} autoFocus />
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOuvert(false)}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button
             variant="destructive"
@@ -732,7 +735,7 @@ function DialogueSuppression({
             onClick={() =>
               supprimer.mutate(p.id, {
                 onSuccess: () => {
-                  toast.success(`${p.name} a quitté l'aventure`, {
+                  toast.success(t('sheet.page.left', { name: p.name }), {
                     action: undoAction(client, { id: p.id, name: p.name }),
                   });
                   router.replace('/personnages');
@@ -741,7 +744,7 @@ function DialogueSuppression({
               })
             }
           >
-            Supprimer
+            {t('common.actions.delete')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -750,11 +753,12 @@ function DialogueSuppression({
 }
 
 export function SqueletteFiche({ dansPanneau = false }: Readonly<{ dansPanneau?: boolean }>) {
+  const t = useTranslations();
   return (
     <div
       className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-8"
       aria-busy
-      aria-label="Chargement de la fiche"
+      aria-label={t('sheet.page.loading')}
     >
       <div className="flex items-end gap-6">
         <Skeleton className={cn('aspect-[3/4] rounded-2xl', dansPanneau ? 'w-32' : 'w-44')} />

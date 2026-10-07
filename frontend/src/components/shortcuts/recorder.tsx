@@ -5,6 +5,7 @@
  * séquence (jusqu'à 3 frappes) se valide après 1 s sans frappe ; Échap annule. L'aiguilleur se
  * tait pendant la saisie (`data-shortcut-recorder`).
  */
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Kbd } from '@/components/ui/kbd';
 import { bindingLabel, chordFromEvent, MAX_SEQUENCE } from '@/lib/shortcuts/chord';
@@ -61,6 +62,7 @@ export function ShortcutRecorder({
     timer.current = setTimeout(() => commit(next), SEQUENCE_GAP_MS);
   };
 
+  const t = useTranslations('shortcuts.recorder');
   const shown = recording
     ? chords.length
       ? bindingLabel(chords.join(' '))
@@ -73,7 +75,7 @@ export function ShortcutRecorder({
       type="button"
       data-shortcut-recorder
       disabled={disabled}
-      aria-label={recording ? `Nouvelle touche pour ${label}` : `Touche de ${label}`}
+      aria-label={recording ? t('newKeyFor', { name: label }) : t('keyOf', { name: label })}
       aria-pressed={recording}
       onClick={() => (recording ? stop() : setRecording(true))}
       onBlur={() => recording && commit(chords)}
@@ -93,7 +95,7 @@ export function ShortcutRecorder({
         <Kbd className="pointer-events-none">{shown}</Kbd>
       ) : (
         <span className={cn(recording ? 'animate-pulse' : 'text-subtle')}>
-          {recording ? 'Appuyez…' : 'Aucune'}
+          {recording ? t('press') : t('none')}
         </span>
       )}
     </button>

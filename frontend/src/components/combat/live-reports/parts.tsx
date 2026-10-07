@@ -5,6 +5,8 @@
  * lanceur), valeurs à appliquer (réductions en info-bulle), marques. Rien n'est propre à un jeu :
  * libellés et types viennent du système.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { Attack, AttackTarget } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { MotionConfig as FramerMotionConfig } from 'framer-motion';
@@ -36,8 +38,10 @@ import type { Cast } from './use-live-reports';
 export function readReport(a: Attack, cast: Cast, systeme: SystemeCharge | null) {
   const params = keyParams(systeme, a.action.id, a.params);
   const successRule = hasSuccessRule(systeme?.actions.get(a.action.id) ?? null);
-  const attackerName = cast.get(a.attackerId)?.name ?? 'Personnage';
-  const targetNames = a.targets.map((t) => cast.get(t.characterId)?.name ?? 'Personnage');
+  const attackerName = cast.get(a.attackerId)?.name ?? translate('map.common.character');
+  const targetNames = a.targets.map(
+    (t) => cast.get(t.characterId)?.name ?? translate('map.common.character'),
+  );
   const tones = a.targets.map((t) => outcomeOf(t, successRule)?.tone ?? 'neutral');
   const tone: OutcomeTone =
     tones.length && tones.every((x) => x === tones[0]) ? tones[0]! : 'neutral';
@@ -91,12 +95,13 @@ export function Duel({
   cast: Cast;
   size?: 'sm' | 'md';
 }>) {
+  const tr = useTranslations();
   const attacker = cast.get(a.attackerId);
   const face = size === 'md' ? 'size-9' : 'size-7';
   return (
     <span className="flex shrink-0 items-center" aria-hidden>
       <Portrait
-        name={attacker?.name ?? 'Personnage'}
+        name={attacker?.name ?? tr('map.common.character')}
         src={attacker?.portraitUrl}
         className={cn(face, 'ring-primary/60')}
       />
@@ -113,7 +118,11 @@ export function Duel({
           const m = cast.get(t.characterId);
           return (
             <span key={t.characterId} className="relative" style={{ zIndex: 3 - i }}>
-              <Portrait name={m?.name ?? 'Personnage'} src={m?.portraitUrl} className={face} />
+              <Portrait
+                name={m?.name ?? tr('map.common.character')}
+                src={m?.portraitUrl}
+                className={face}
+              />
             </span>
           );
         })}
@@ -276,6 +285,7 @@ export function Amount({
   /** Détail des réductions en info-bulle (pas dans un bouton : la ligne repliée). */
   detail?: boolean;
 }>) {
+  const tr = useTranslations();
   const r = reductionDetail(m);
   const value = `${SIGNE[m.operation] ?? '−'}${m.value}`;
   const danger = harmful(m, presentation);
@@ -298,7 +308,12 @@ export function Amount({
     <span className={cn('inline-flex items-baseline', size === 'lg' ? 'gap-2' : 'gap-1')}>
       {number}
       {label && <span className="text-[11px] font-medium text-muted-foreground">{label}</span>}
-      {r && <ShieldHalf className="size-3 self-center text-info" aria-label="Réduit" />}
+      {r && (
+        <ShieldHalf
+          className="size-3 self-center text-info"
+          aria-label={tr('combat.live.reduced')}
+        />
+      )}
     </span>
   );
   if (!r || !detail) return body;
@@ -378,6 +393,7 @@ export function Extras({
 
 /** Auto-attaque, hors tour, ajusté à la main, caché : seulement quand c'est le cas. */
 export function Marks({ attack: a, className }: Readonly<{ attack: Attack; className?: string }>) {
+  const tr = useTranslations();
   const self = a.targets.some((t) => t.characterId === a.attackerId);
   if (!self && !a.outOfTurn && !a.adjustments && a.visibility === 'public') return null;
   return (
@@ -388,12 +404,12 @@ export function Marks({ attack: a, className }: Readonly<{ attack: Attack; class
           Auto-attaque
         </Badge>
       )}
-      {a.outOfTurn && <Badge ton="alerte">Hors tour</Badge>}
-      {a.adjustments && <Badge ton="info">Ajusté à la main</Badge>}
+      {a.outOfTurn && <Badge ton="alerte">{tr('combat.attack.outOfTurnCap')}</Badge>}
+      {a.adjustments && <Badge ton="info">{tr('combat.live.adjustedCap')}</Badge>}
       {a.visibility !== 'public' && (
         <Badge>
           <EyeOff aria-hidden />
-          {a.visibility === 'gm' ? 'Caché' : 'Privé'}
+          {a.visibility === 'gm' ? tr('combat.hiddenShort') : tr('combat.live.private')}
         </Badge>
       )}
     </div>
@@ -406,6 +422,6 @@ const SIGNE: Partial<Record<string, string>> = { add: '+', set: '=' };
 function hitOf(outcome: { success?: boolean } | null) {
   if (!outcome) return null;
   return outcome.success
-    ? { label: 'Touché', tone: 'success' as const }
-    : { label: 'Raté', tone: 'failure' as const };
+    ? { label: translate('combat.outcome.hit'), tone: 'success' as const }
+    : { label: translate('combat.outcome.miss'), tone: 'failure' as const };
 }

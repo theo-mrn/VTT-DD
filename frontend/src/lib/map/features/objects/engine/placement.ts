@@ -10,6 +10,7 @@
  * - Retouches : agrandir, rétrécir, remettre à une case, changer de sorte, rendre fouillable,
  *   et tout champ de l'inspecteur (une commande par modification validée).
  */
+import { translate } from '@/i18n/runtime';
 import type { MapObjectKind } from '@vtt/contracts';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import type { EntityGeometry, Point } from '@/lib/map/engine/geometry';
@@ -45,7 +46,7 @@ export interface ObjectSource {
 /** Zone à fouiller sans image, à poser sur un coffre peint dans le fond de la carte. */
 export const ZONE_SOURCE: ObjectSource = {
   key: 'zone',
-  name: 'Zone à fouiller',
+  name: translate('map.objects.library.searchZone'),
   imageUrl: '',
   kind: 'item',
   aspect: 1,
@@ -147,7 +148,7 @@ export function placeObject(
   });
   void engine.execute(
     createCommand({
-      label: 'Poser un objet',
+      label: translate('map.objects.place'),
       collection: OBJECTS_COLLECTION,
       persistence,
       items: [draft],
@@ -197,7 +198,10 @@ export function scaleObjects(engine: MapEngine, entities: readonly MapEntity[], 
     const k = Math.max(factor, minSize / Math.max(1, Math.min(g.width, g.height)));
     return { entity: e, next: { ...g, width: g.width * k, height: g.height * k } };
   });
-  return engine.transformEntities(changes, factor > 1 ? 'Agrandir' : 'Rétrécir');
+  return engine.transformEntities(
+    changes,
+    factor > 1 ? translate('map.objects.enlarge') : translate('map.objects.shrink'),
+  );
 }
 
 /** Taille par défaut : une case sur le petit côté, proportions de l'image (ou actuelles). */
@@ -209,13 +213,16 @@ export function fitObjects(engine: MapEngine, entities: readonly MapEntity[]) {
     const size = defaultObjectSize(ppu, aspect);
     return { entity: e, next: { ...g, ...size } satisfies EntityGeometry };
   });
-  return engine.transformEntities(changes, 'Taille d’une case');
+  return engine.transformEntities(changes, translate('map.objects.oneSquareSize'));
 }
 
 /** Rendre fouillable ou non. */
 export function setSearchable(engine: MapEngine, entities: readonly MapEntity[], on: boolean) {
-  return updateObjects(engine, on ? 'Rendre fouillable' : 'Ne plus fouiller', entities, (o) =>
-    o.searchable === on ? o : { ...o, searchable: on },
+  return updateObjects(
+    engine,
+    on ? translate('map.objects.makeSearchable') : translate('map.objects.unsearchable'),
+    entities,
+    (o) => (o.searchable === on ? o : { ...o, searchable: on }),
   );
 }
 
@@ -230,7 +237,7 @@ export function setObjectKind(
 ) {
   const ids = entities.map((e) => e.id);
   const inspector = engine.ui.getState().inspector;
-  const result = updateObjects(engine, 'Changer de sorte', entities, (o) =>
+  const result = updateObjects(engine, translate('map.objects.changeKind'), entities, (o) =>
     o.kind === kind ? o : { ...o, kind },
   );
   const alive = ids.filter((id) => engine.entity(id));

@@ -9,6 +9,7 @@ import {
   Swords,
   UserRound,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AvatarJoueur } from '@/components/compte/elements';
@@ -47,6 +48,7 @@ export function BarreLaterale({
   /** Appelé après un clic de navigation (ferme le menu mobile). */
   onNavigue?: () => void;
 }>) {
+  const t = useTranslations('shell.sidebar');
   const chemin = usePathname();
   const campagnes = useCampagnes();
   const demandes = useDemandesAmis();
@@ -72,14 +74,14 @@ export function BarreLaterale({
           )}
         </Link>
         {!repliee && onReplier && (
-          <Info texte="Replier le menu">
+          <Info texte={t('collapse')}>
             <button
               type="button"
               onClick={onReplier}
               className="hidden size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-3 hover:text-foreground lg:inline-flex"
             >
               <ChevronsLeft className="size-4" />
-              <span className="sr-only">Replier le menu</span>
+              <span className="sr-only">{t('collapse')}</span>
             </button>
           </Info>
         )}
@@ -88,7 +90,7 @@ export function BarreLaterale({
       {/* Actions rapides */}
       <div className={cn('flex shrink-0 flex-col gap-1.5', repliee ? 'px-2' : 'px-3')}>
         <MenuCreer repliee={repliee} onNavigue={onNavigue} />
-        <Info texte={repliee ? 'Rechercher (⌘K)' : null} cote="right">
+        <Info texte={repliee ? t('searchWithKey', { key: '⌘K' }) : null} cote="right">
           <button
             type="button"
             onClick={onRecherche}
@@ -100,18 +102,18 @@ export function BarreLaterale({
             <Search className="size-4 shrink-0" />
             {!repliee && (
               <>
-                <span className="flex-1 text-left">Rechercher…</span>
+                <span className="flex-1 text-left">{t('searchEllipsis')}</span>
                 <Kbd>⌘K</Kbd>
               </>
             )}
-            {repliee && <span className="sr-only">Rechercher</span>}
+            {repliee && <span className="sr-only">{t('search')}</span>}
           </button>
         </Info>
       </div>
 
       <PillGroup>
         <nav
-          aria-label="Navigation principale"
+          aria-label={t('mainNav')}
           className={cn(
             'mt-3 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto no-scrollbar',
             repliee ? 'px-2' : 'px-3',
@@ -130,7 +132,7 @@ export function BarreLaterale({
           </GroupeNav>
 
           {!repliee && (campagnes.data?.length ?? 0) > 0 && (
-            <GroupeNav titre="Mes campagnes">
+            <GroupeNav titre={t('myCampaigns')}>
               {campagnes.data!.slice(0, 5).map((c) => {
                 const href = `/campagnes/${c.id}`;
                 const actif = chemin === href || chemin.startsWith(`${href}/`);
@@ -161,7 +163,7 @@ export function BarreLaterale({
             </GroupeNav>
           )}
 
-          <GroupeNav titre={repliee ? undefined : 'Social'}>
+          <GroupeNav titre={repliee ? undefined : t('social')}>
             {NAV_SOCIALE.map((l) => (
               <ElementNav
                 key={l.href}
@@ -209,9 +211,11 @@ function ElementNav({
   onClick?: () => void;
   pastille?: number;
 }>) {
+  const t = useTranslations('shell.nav');
   const Icone = lien.icone;
+  const label = t(lien.label);
   return (
-    <Info texte={repliee ? lien.label : null} cote="right">
+    <Info texte={repliee ? label : null} cote="right">
       <Link
         href={lien.href}
         onClick={onClick}
@@ -237,8 +241,8 @@ function ElementNav({
             actif ? 'text-primary' : 'text-subtle group-hover:text-muted-foreground',
           )}
         />
-        {!repliee && <span className="flex-1">{lien.label}</span>}
-        {repliee && <span className="sr-only">{lien.label}</span>}
+        {!repliee && <span className="flex-1">{label}</span>}
+        {repliee && <span className="sr-only">{label}</span>}
         {pastille > 0 && (
           <span
             className={cn(
@@ -255,23 +259,24 @@ function ElementNav({
 }
 
 function MenuCreer({ repliee, onNavigue }: Readonly<{ repliee: boolean; onNavigue?: () => void }>) {
+  const t = useTranslations('shell.sidebar');
   const entrees = [
     {
       href: '/campagnes/nouvelle',
-      label: 'Campagne',
-      desc: 'Devenir maître du jeu',
+      label: t('createCampaign'),
+      desc: t('createCampaignHint'),
       icone: Swords,
     },
     {
       href: '/personnages/nouveau',
-      label: 'Personnage',
-      desc: 'Créer un héros',
+      label: t('createCharacter'),
+      desc: t('createCharacterHint'),
       icone: UserRound,
     },
   ];
   return (
     <DropdownMenu>
-      <Info texte={repliee ? 'Créer' : null} cote="right">
+      <Info texte={repliee ? t('create') : null} cote="right">
         <DropdownMenuTrigger
           className={cn(
             'flex h-9 items-center gap-2 rounded-lg bg-primary text-[13px] font-semibold text-primary-foreground shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.25)] outline-none transition-colors hover:bg-primary-strong focus-visible:ring-2 focus-visible:ring-ring/60',
@@ -279,8 +284,8 @@ function MenuCreer({ repliee, onNavigue }: Readonly<{ repliee: boolean; onNavigu
           )}
         >
           <Plus className="size-4" />
-          {!repliee && <span className="flex-1 text-left">Créer</span>}
-          {repliee && <span className="sr-only">Créer</span>}
+          {!repliee && <span className="flex-1 text-left">{t('create')}</span>}
+          {repliee && <span className="sr-only">{t('create')}</span>}
         </DropdownMenuTrigger>
       </Info>
       <DropdownMenuContent align="start" side={repliee ? 'right' : 'bottom'} className="w-60">
@@ -306,6 +311,7 @@ function MenuUtilisateur({
   repliee,
   onNavigue,
 }: Readonly<{ repliee: boolean; onNavigue?: () => void }>) {
+  const t = useTranslations('shell');
   const { profil, seDeconnecter } = useSession();
   if (!profil) return null;
   return (
@@ -324,7 +330,7 @@ function MenuUtilisateur({
                 {profil.name}
               </span>
               <span className="block truncate text-[11px] text-subtle">
-                {profil.title ?? profil.email ?? 'Aventurier'}
+                {profil.title ?? profil.email ?? t('sidebar.adventurer')}
               </span>
             </span>
             <ChevronsUpDown className="size-4 shrink-0 text-subtle" />
@@ -341,7 +347,7 @@ function MenuUtilisateur({
           <DropdownMenuItem key={l.href} asChild>
             <Link href={l.href} onClick={onNavigue} className="cursor-pointer">
               <l.icone />
-              {l.label}
+              {t(`nav.${l.label}`)}
             </Link>
           </DropdownMenuItem>
         ))}
@@ -351,7 +357,7 @@ function MenuUtilisateur({
           className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
         >
           <LogOut />
-          Se déconnecter
+          {t('sidebar.signOut')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

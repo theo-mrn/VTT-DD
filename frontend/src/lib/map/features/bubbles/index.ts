@@ -3,6 +3,7 @@
  * et `MapBubbles` (réception et envoi sur le canal éphémère, bulles au-dessus des tokens, touche
  * K du joueur, écoutée sur toute la table et pas seulement sur la carte).
  */
+import { translate } from '@/i18n/runtime';
 import { MessageCircle } from 'lucide-react';
 import { BubbleToolbarButton } from './ui/bubble-picker';
 import { MapBubbles } from './ui/map-bubbles';
@@ -14,7 +15,7 @@ export const bubblesFeature: MapFeature = {
     engine.registerToolbarEntry({
       kind: 'custom',
       id: 'bubbles',
-      label: 'Bulle',
+      label: translate('shortcuts.commands.bubble'),
       icon: MessageCircle,
       group: 'view',
       order: 0,

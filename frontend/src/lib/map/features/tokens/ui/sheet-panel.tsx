@@ -5,6 +5,7 @@
  * complète (`FichePersonnage` en panneau), avec les droits habituels décidés par le service
  * character (le MJ la modifie, un joueur celle de son personnage).
  */
+import { translate } from '@/i18n/runtime';
 import { IdCard } from 'lucide-react';
 import { FichePersonnage } from '@/components/fiche/fiche-personnage';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
@@ -18,14 +19,14 @@ export function TokenSheetPanel({ engine }: Readonly<{ engine: MapEngine }>) {
   const info = useCharacterInfo(tokens, characterId);
   if (!characterId) return null;
   const close = () => tokens.library.setState({ sheetFor: null, sheetValues: false });
-  const name = info?.name ?? 'Personnage';
+  const name = info?.name ?? translate('map.common.character');
   return (
     <MapPanel
       id="token-sheet"
       label={`Fiche : ${name}`}
       icon={IdCard}
       title={name}
-      closeLabel="Fermer la fiche"
+      closeLabel={translate('map.tokens.closeSheet')}
       onClose={close}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {

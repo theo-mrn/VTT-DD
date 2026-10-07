@@ -6,6 +6,7 @@
  * liste, son arrivée (point d'arrivée des joueurs, ou point choisi sur l'aperçu), puis « Poser
  * le portail ». Aller-retour : le retour est posé à l'arrivée, relié.
  */
+import { translate } from '@/i18n/runtime';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRightLeft, MousePointerClick } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -52,11 +53,11 @@ function Panel({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalTool 
   return (
     <MapPanel
       id="portal-destination"
-      label="Destination du portail"
+      label={translate('map.portals.portalDestination')}
       icon={PortalToolIcon}
-      title="Destination du portail"
-      subtitle="Où mène ce portail ?"
-      closeLabel="Annuler le portail"
+      title={translate('map.portals.portalDestination')}
+      subtitle={translate('map.portals.whereTo')}
+      closeLabel={translate('map.portals.cancel')}
       onClose={cancel}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -69,17 +70,17 @@ function Panel({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalTool 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <section className="space-y-1.5">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-subtle">
-            Sur cette scène
+            {translate('map.portals.onThisScene')}
           </h3>
           <p className="flex items-start gap-2 rounded-xl border border-border bg-surface-2/50 p-3 text-sm text-muted-foreground">
             <MousePointerClick className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-            Cliquez l’arrivée sur la carte : les tokens y seront téléportés.
+            {translate('map.portals.clickArrival')}
           </p>
         </section>
 
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-subtle">
-            Vers une autre scène
+            {translate('map.portals.toOtherScene')}
           </h3>
           <SceneDestination
             scenes={maps.data ?? []}
@@ -96,7 +97,7 @@ function Panel({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalTool 
               Aller-retour
             </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              Le retour est posé à l’arrivée, relié : déplacer l’un déplace l’arrivée de l’autre.
+              {translate('map.portals.returnLinked')}
             </span>
           </span>
           <Switch
@@ -116,7 +117,7 @@ function Panel({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalTool 
             focusMap(engine);
           }}
         >
-          Sans destination
+          {translate('map.portals.noDestination')}
         </Button>
         <Button
           size="sm"
@@ -127,7 +128,7 @@ function Panel({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalTool 
             focusMap(engine);
           }}
         >
-          Poser le portail
+          {translate('map.portals.placePortal')}
         </Button>
       </footer>
     </MapPanel>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useDiceShortcuts } from './raccourcis-des';
 import { MotionConfig } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -70,6 +71,7 @@ export function TableDes({
   /** Raccourcis clavier actifs (faux quand l'écran est monté mais masqué, panneau fermé). */
   raccourcis?: boolean;
 }>) {
+  const t = useTranslations('dice.launcher');
   const [enregistre, setEtat] = usePreferenceLocale<EtatPlateau>(
     contexte ? `des:table:${contexte.campagneId}` : 'des:plateau',
     PLATEAU_INITIAL,
@@ -138,8 +140,8 @@ export function TableDes({
     // Le libellé garde la trace des bonus ajoutés (historique)
     const sources = [...new Set(retenus.map((b) => b.source))].join(', ');
     const libelle = etat.libelle.trim()
-      ? `${etat.libelle.trim()} (+ ${sources})`
-      : `Avec ${sources}`;
+      ? t('labelWithSources', { label: etat.libelle.trim(), sources })
+      : t('withSources', { sources });
     void lancerFormule(avecBonusChoisis(etat.formule, bonus, choisis), libelle);
   }
 
@@ -177,7 +179,7 @@ export function TableDes({
     if (enCours.current) return;
     const verif = verifierFormule(formule, fiche.fiche);
     if (!verif.ok) {
-      toast.error('Formule invalide', { description: verif.message });
+      toast.error(t('invalid'), { description: verif.message });
       return;
     }
     enCours.current = true;
@@ -194,7 +196,7 @@ export function TableDes({
       setDernier(jet);
       reveler();
     } catch (err) {
-      toast.error('Le jet n’a pas pu être lancé', {
+      toast.error(t('rollFailed'), {
         description:
           err instanceof ApiError || !(err instanceof Error) ? messageErreur(err) : err.message,
       });
@@ -252,9 +254,7 @@ export function TableDes({
             sousTitre={
               contexte
                 ? (contexte.personnage?.name ?? contexte.campagneNom)
-                : [campagne?.name ?? 'Jets personnels', personnage?.name]
-                    .filter(Boolean)
-                    .join(' · ')
+                : [campagne?.name ?? t('personal'), personnage?.name].filter(Boolean).join(' · ')
             }
             campagnes={{
               liste: campagnes.data ?? [],

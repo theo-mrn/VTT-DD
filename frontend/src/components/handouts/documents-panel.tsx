@@ -8,6 +8,7 @@
  *   « Envoyer », à toute la table ou à certains joueurs) et l'historique des partages
  *   (« Arrêter » sur la projection en cours).
  */
+import { useFormatter, useTranslations } from 'next-intl';
 import type { Handout, SharedDocument } from '@vtt/contracts';
 import {
   Check,
@@ -41,36 +42,33 @@ import { messageErreur } from '@/lib/api';
 import { handoutsApi, isVideo, useDocuments, useHandoutLibrary } from '@/lib/handouts';
 import { prepareUpload } from '@/lib/uploads/prepare';
 import { uploadFile } from '@/lib/uploads/uploader';
+import { translate } from '@/i18n/runtime';
 import { cn } from '@/lib/utils';
 
-const quand = (iso: string) =>
-  new Date(iso).toLocaleString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+/** Jour et heure d'un partage : « 4 oct., 20:30 ». */
+const QUAND = { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } as const;
 
 const sansExtension = (name: string) =>
   name
     .replace(/\.[a-z0-9]+$/i, '')
     .replace(/[_-]+/g, ' ')
     .trim()
-    .slice(0, 200) || 'Document';
+    .slice(0, 200) || translate('handouts.document');
 
 export function DocumentsPanel() {
+  const t = useTranslations();
   const { campagne, gm } = useTable();
   const [vue, setVue] = useState<'library' | 'shared'>('library');
   if (!gm) return <Recus campaignId={campagne.id} />;
   return (
     <div className="space-y-4 px-5 py-4">
       <Segmented
-        label="Vue"
+        label={t('handouts.view')}
         value={vue}
         onChange={(v) => setVue(v as 'library' | 'shared')}
         options={[
-          { value: 'library', label: 'Bibliothèque', icon: Library },
-          { value: 'shared', label: 'Partagés', icon: Send },
+          { value: 'library', label: t('handouts.library'), icon: Library },
+          { value: 'shared', label: t('handouts.shared'), icon: Send },
         ]}
       />
       {vue === 'library' ? (
@@ -107,11 +105,12 @@ function Vignette({ h, className }: Readonly<{ h: Handout; className?: string }>
 
 /** Document agrandi (joueur, historique) : image entière, vidéo avec ses commandes. */
 function Agrandi({ doc, onClose }: Readonly<{ doc: Handout | null; onClose: () => void }>) {
+  const t = useTranslations();
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-5xl p-3 sm:p-4">
         <DialogTitle className="sr-only">{doc?.name}</DialogTitle>
-        <DialogDescription className="sr-only">Document de la campagne</DialogDescription>
+        <DialogDescription className="sr-only">{t('handouts.campaignDocument')}</DialogDescription>
         {doc &&
           (isVideo(doc.contentType) ? (
             <video src={doc.url} controls autoPlay className="max-h-[80dvh] w-full rounded-lg" />
@@ -132,6 +131,8 @@ function Agrandi({ doc, onClose }: Readonly<{ doc: Handout | null; onClose: () =
 // ─── Joueur : documents reçus ────────────────────────────────────────────────
 
 function Recus({ campaignId }: Readonly<{ campaignId: string }>) {
+  const format = useFormatter();
+  const t = useTranslations();
   const docs = useDocuments(campaignId);
   const [ouvert, setOuvert] = useState<Handout | null>(null);
   // Un document partagé plusieurs fois (projeté puis renvoyé…) n'apparaît qu'une fois, à la date
@@ -145,11 +146,13 @@ function Recus({ campaignId }: Readonly<{ campaignId: string }>) {
   return (
     <div className="px-5 py-4">
       {docs.isPending && (
-        <p className="py-8 text-center text-[13px] text-muted-foreground">Chargement…</p>
+        <p className="py-8 text-center text-[13px] text-muted-foreground">
+          {t('common.states.loading')}
+        </p>
       )}
       {!docs.isPending && items.length === 0 && (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-[13px] text-muted-foreground">
-          Aucun document reçu.
+          {t('handouts.noneReceived')}
         </p>
       )}
       {!docs.isPending && items.length > 0 && (
@@ -169,7 +172,7 @@ function Recus({ campaignId }: Readonly<{ campaignId: string }>) {
                   {d.handout.name}
                 </span>
                 <span className="px-2.5 pb-2 text-[11px] text-muted-foreground">
-                  {quand(d.sharedAt)}
+                  {format.dateTime(new Date(d.sharedAt), QUAND)}
                 </span>
               </button>
             </li>
@@ -184,6 +187,7 @@ function Recus({ campaignId }: Readonly<{ campaignId: string }>) {
 // ─── MJ : bibliothèque ───────────────────────────────────────────────────────
 
 function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
+  const t = useTranslations();
   const { campagne } = useTable();
   const library = useHandoutLibrary(campaignId, true);
   const input = useRef<HTMLInputElement>(null);
@@ -207,7 +211,7 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
         await handoutsApi.create(campaignId, { name, url });
         void library.refresh();
       } catch (e) {
-        toast.error(`« ${name} » non envoyé`, { description: messageErreur(e) });
+        toast.error(t('handouts.notUploaded', { name }), { description: messageErreur(e) });
       } finally {
         setEnvois((l) => l.filter((e) => e.id !== id));
       }
@@ -218,9 +222,9 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
     handoutsApi
       .share(campaignId, h.id, { mode, recipients: destinataires })
       .then(() => {
-        if (mode === 'send') toast.success(`« ${h.name} » envoyé`);
+        if (mode === 'send') toast.success(t('handouts.sent', { name: h.name }));
       })
-      .catch((e) => toast.error('Partage impossible', { description: messageErreur(e) }));
+      .catch((e) => toast.error(t('handouts.shareFailed'), { description: messageErreur(e) }));
 
   return (
     <div className="space-y-4">
@@ -259,7 +263,7 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
         )}
       >
         <CloudUpload className="size-4" aria-hidden />
-        Déposez des images ou des vidéos
+        {t('handouts.drop')}
       </button>
 
       {envois.map((e) => (
@@ -277,7 +281,9 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
       <Destinataires joueurs={joueurs} value={destinataires} onChange={setDestinataires} />
 
       {library.loading && (
-        <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
+        <p className="py-6 text-center text-[13px] text-muted-foreground">
+          {t('common.states.loading')}
+        </p>
       )}
       {!library.loading && library.items.length > 0 && (
         <ul className="grid grid-cols-2 gap-3">
@@ -307,9 +313,12 @@ function Destinataires({
   value: string[] | null;
   onChange: (v: string[] | null) => void;
 }>) {
-  const nom = (id: string) => joueurs.find((j) => j.userId === id)?.name ?? 'Joueur';
-  let libelle = 'Toute la table';
-  if (value) libelle = value.length === 1 ? nom(value[0]!) : `${value.length} joueurs`;
+  const t = useTranslations();
+  const nom = (id: string) =>
+    joueurs.find((j) => j.userId === id)?.name ?? t('common.roles.player');
+  let libelle = t('handouts.wholeTable');
+  if (value)
+    libelle = value.length === 1 ? nom(value[0]!) : t('handouts.players', { count: value.length });
   const basculer = (id: string) => {
     const set = new Set(value ?? []);
     if (set.has(id)) set.delete(id);
@@ -332,7 +341,7 @@ function Destinataires({
           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-surface-2"
         >
           <Check className={cn('size-4', value ? 'opacity-0' : 'opacity-100')} />
-          Toute la table
+          {t('handouts.wholeTable')}
         </button>
         {joueurs.map((j) => (
           <button
@@ -365,6 +374,7 @@ function Document({
   onSend: () => void;
   onChanged: () => void;
 }>) {
+  const t = useTranslations();
   const [renaming, setRenaming] = useState<string | null>(null);
   const valider = () => {
     const name = renaming?.trim();
@@ -373,7 +383,7 @@ function Document({
       handoutsApi
         .rename(campaignId, h.id, name)
         .then(onChanged)
-        .catch((e) => toast.error('Renommage impossible', { description: messageErreur(e) }));
+        .catch((e) => toast.error(t('handouts.renameFailed'), { description: messageErreur(e) }));
   };
   return (
     <li className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-surface duration-200 ease-out animate-in fade-in-0 zoom-in-[0.98]">
@@ -384,7 +394,7 @@ function Document({
             autoFocus
             value={renaming}
             maxLength={200}
-            aria-label="Nouveau nom"
+            aria-label={t('handouts.newName')}
             className="h-7 text-[13px]"
             onChange={(e) => setRenaming(e.target.value)}
             onBlur={valider}
@@ -398,14 +408,18 @@ function Document({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-xs" aria-label={`Actions de ${h.name}`}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={t('handouts.actionsOf', { name: h.name })}
+            >
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={() => setRenaming(h.name)}>
               <Pencil />
-              Renommer
+              {t('common.actions.rename')}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive"
@@ -414,27 +428,27 @@ function Document({
                   .remove(campaignId, h.id)
                   .then(onChanged)
                   .catch((e) =>
-                    toast.error('Suppression impossible', { description: messageErreur(e) }),
+                    toast.error(t('handouts.deleteFailed'), { description: messageErreur(e) }),
                   )
               }
             >
               <Trash2 />
-              Supprimer
+              {t('common.actions.delete')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       <div className="grid grid-cols-2 gap-1.5 p-2">
-        <Info texte="Plein écran chez les destinataires">
+        <Info texte={t('handouts.projectHint')}>
           <Button size="xs" onClick={onShow}>
             <Presentation />
-            Projeter
+            {t('handouts.project')}
           </Button>
         </Info>
-        <Info texte="Dans leurs documents, sans interrompre">
+        <Info texte={t('handouts.sendHint')}>
           <Button size="xs" variant="secondary" onClick={onSend}>
             <Send />
-            Envoyer
+            {t('common.actions.send')}
           </Button>
         </Info>
       </div>
@@ -445,22 +459,26 @@ function Document({
 // ─── MJ : historique des partages ────────────────────────────────────────────
 
 function Partages({ campaignId }: Readonly<{ campaignId: string }>) {
+  const format = useFormatter();
+  const t = useTranslations();
   const { campagne } = useTable();
   const docs = useDocuments(campaignId);
   const [ouvert, setOuvert] = useState<Handout | null>(null);
   const noms = useMemo(
-    () => new Map(campagne.members.map((m) => [m.userId, m.name ?? 'Joueur'])),
+    () => new Map(campagne.members.map((m) => [m.userId, m.name ?? t('common.roles.player')])),
     [campagne.members],
   );
   const items = docs.data?.items ?? [];
   const enCours = docs.data?.projection?.id ?? null;
   const pour = (d: SharedDocument) =>
-    d.recipients ? d.recipients.map((id) => noms.get(id) ?? 'Joueur').join(', ') : 'Toute la table';
+    d.recipients
+      ? d.recipients.map((id) => noms.get(id) ?? t('common.roles.player')).join(', ')
+      : t('handouts.wholeTable');
 
   if (!items.length)
     return (
       <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-[13px] text-muted-foreground">
-        Rien n’a encore été partagé.
+        {t('handouts.nothingShared')}
       </p>
     );
   return (
@@ -485,7 +503,8 @@ function Partages({ campaignId }: Readonly<{ campaignId: string }>) {
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-medium">{d.handout.name}</p>
               <p className="truncate text-[11px] text-muted-foreground">
-                {d.mode === 'show' ? 'Projeté' : 'Envoyé'} · {pour(d)} · {quand(d.sharedAt)}
+                {d.mode === 'show' ? t('handouts.shown') : t('handouts.sentShort')} · {pour(d)} ·{' '}
+                {format.dateTime(new Date(d.sharedAt), QUAND)}
               </p>
             </div>
             {d.id === enCours && (
@@ -496,12 +515,12 @@ function Partages({ campaignId }: Readonly<{ campaignId: string }>) {
                   handoutsApi
                     .stop(campaignId, d.id)
                     .catch((e) =>
-                      toast.error('Arrêt impossible', { description: messageErreur(e) }),
+                      toast.error(t('handouts.stopFailed'), { description: messageErreur(e) }),
                     )
                 }
               >
                 <Square />
-                Arrêter
+                {t('handouts.stop')}
               </Button>
             )}
           </li>

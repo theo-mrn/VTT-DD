@@ -8,6 +8,7 @@
  *   un symbole (`Char:?`, sans ⇧ : il sert à le produire), sinon le code (`Space`, `Enter`…).
  * - `Binding` : 1 à 3 `Chord` séparés par une espace (`Space Enter`), une séquence.
  */
+import { translate } from '@/i18n/runtime';
 
 export const IS_MAC =
   typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform ?? '');
@@ -92,28 +93,35 @@ export function bindingsClash(a: string, b: string): boolean {
   return x.slice(0, n).every((c, i) => c === y[i]);
 }
 
-const KEY_LABELS: Record<string, string> = {
-  Space: 'Espace',
-  Enter: 'Entrée',
-  Escape: 'Échap',
+/** Touches écrites en symbole, les mêmes dans toutes les langues. */
+const KEY_SYMBOLS: Record<string, string> = {
   Backspace: '⌫',
-  Delete: 'Suppr',
-  Tab: 'Tab',
+  Tab: 'Tab', // i18n-ignore
   ArrowUp: '↑',
   ArrowDown: '↓',
   ArrowLeft: '←',
   ArrowRight: '→',
-  Home: 'Début',
-  End: 'Fin',
   PageUp: 'Pg↑',
   PageDown: 'Pg↓',
 };
+
+/** Touches nommées dans la langue de la page (`shortcuts.keys`). */
+const KEY_NAMES = {
+  Space: 'space',
+  Enter: 'enter',
+  Escape: 'escape',
+  Delete: 'delete',
+  Home: 'home',
+  End: 'end',
+} as const;
 
 function keyLabel(key: string): string {
   if (key.startsWith('Char:')) return key.slice(5);
   if (/^Key[A-Z]$/.test(key)) return key.slice(3);
   if (/^Digit\d$/.test(key)) return key.slice(5);
-  return KEY_LABELS[key] ?? key;
+  if (key in KEY_NAMES)
+    return translate(`shortcuts.keys.${KEY_NAMES[key as keyof typeof KEY_NAMES]}`);
+  return KEY_SYMBOLS[key] ?? key;
 }
 
 /** `Mod+Shift+KeyK` → `⌘⇧K` (Mac) ou `Ctrl+Maj+K`. */

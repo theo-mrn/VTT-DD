@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import {
   acheter,
   achatsPossibles,
@@ -99,7 +101,12 @@ export function widgetsDe(ctx: ContexteFiche): Widget[] {
   );
   const sortesPossedees = new Set([...fiche.possessions.values()].map((p) => p.sorte.id));
   return [
-    { type: 'details', titre: 'Profil', sortes: uniques.map((s) => s.id), attributs: [] },
+    {
+      type: 'details',
+      titre: translate('sheet.blocks.details.label'),
+      sortes: uniques.map((s) => s.id),
+      attributs: [],
+    },
     ...groupesAttributs(fiche)
       .filter((g) => g.attributs.some((a) => a.nature !== 'ressource'))
       .map((g) => ({ type: 'attributs' as const, titre: g.nom, groupe: g.id })),
@@ -107,7 +114,7 @@ export function widgetsDe(ctx: ContexteFiche): Widget[] {
       ? [
           {
             type: 'ressources' as const,
-            titre: 'Ressources',
+            titre: translate('sheet.blocks.resources.label'),
             attributs: ressources.map((a) => a.cle),
           },
         ]
@@ -119,8 +126,8 @@ export function widgetsDe(ctx: ContexteFiche): Widget[] {
         titre: fiche.systeme.sortes.get(s)!.nomPluriel ?? fiche.systeme.sortes.get(s)!.nom,
         sorte: s,
       })),
-    { type: 'monnaies', titre: 'Monnaies' },
-    { type: 'actions', titre: 'Actions' },
+    { type: 'monnaies', titre: translate('sheet.blocks.currencies.label') },
+    { type: 'actions', titre: translate('sheet.blocks.actions.label') },
   ];
 }
 
@@ -498,6 +505,7 @@ export function BlocPossessions({
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'possessions' }>;
 }>) {
+  const t = useTranslations();
   const { fiche, operations: ecritures } = ctx;
   const sorte = ctx.systeme.sortes.get(widget.sorte);
   // Une entrée à rangs n'apparaît qu'avec un rang, sauf si elle est prise explicitement (voie au rang 0)
@@ -580,7 +588,11 @@ export function BlocPossessions({
                     <Info
                       texte={
                         achats.get(p.entree.id)!.possible
-                          ? `Rang ${achats.get(p.entree.id)!.cible} pour ${achats.get(p.entree.id)!.cout} ${ctx.systeme.monnaies.get(achats.get(p.entree.id)!.monnaie)?.nom ?? ''}`
+                          ? t('sheet.skills.rankFor', {
+                              rank: achats.get(p.entree.id)!.cible,
+                              price:
+                                `${achats.get(p.entree.id)!.cout} ${ctx.systeme.monnaies.get(achats.get(p.entree.id)!.monnaie)?.nom ?? ''}`.trim(),
+                            })
                           : achats
                               .get(p.entree.id)!
                               .blocages.map((b) => b.message)
@@ -612,7 +624,7 @@ export function BlocPossessions({
                           : 'border-border-strong text-subtle hover:text-foreground',
                       )}
                     >
-                      {p.actif ? 'Actif' : 'Inactif'}
+                      {p.actif ? t('sheet.widgets.active') : t('sheet.widgets.inactive')}
                     </button>
                   )}
                 </li>
@@ -699,6 +711,7 @@ export function BlocActions({
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'actions' }>;
 }>) {
+  const t = useTranslations();
   const actions = actionsDisponibles(ctx, widget.actions);
   const [ouverte, setOuverte] = useState<string | null>(null);
   // Actions à cible (attaques, sorts, soins) : elles se jouent dans le menu d'attaque, à la table
@@ -727,7 +740,7 @@ export function BlocActions({
             }
           >
             <Swords />
-            Attaquer
+            {t('combat.character.attack')}
           </Button>
         ) : undefined
       }

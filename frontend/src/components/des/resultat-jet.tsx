@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Crown, EyeOff, Skull } from 'lucide-react';
 import type { Critique, GroupeDes } from '@/lib/jets';
@@ -51,12 +52,11 @@ const TAILLE_TOTAL = { md: 'text-3xl', lg: 'text-5xl', xl: 'text-7xl' } as const
 
 /** Jet caché au MJ, vu par son auteur : pas de total. */
 function TotalCache({ petit }: Readonly<{ petit: boolean }>) {
+  const t = useTranslations('dice.result');
   return (
     <div className="flex items-center gap-2.5 text-muted-foreground">
       <EyeOff className={cn(petit ? 'size-5' : 'size-7')} aria-hidden />
-      <span className={cn('font-medium', petit ? 'text-sm' : 'text-base')}>
-        Résultat caché, visible par le MJ
-      </span>
+      <span className={cn('font-medium', petit ? 'text-sm' : 'text-base')}>{t('hiddenForGm')}</span>
     </div>
   );
 }
@@ -83,6 +83,7 @@ export function TotalJet({
   /** Pas de pastille « Critique » : l'issue est dite ailleurs (menu d'attaque). */
   sansBadge?: boolean;
 }>) {
+  const t = useTranslations('dice.result');
   if (total === null) return <TotalCache petit={taille === 'md'} />;
   return (
     <div className="flex items-center gap-3">
@@ -116,7 +117,7 @@ export function TotalJet({
           )}
         >
           {critique === 'success' ? <Crown className="size-3" /> : <Skull className="size-3" />}
-          {critique === 'success' ? 'Critique' : 'Échec critique'}
+          {critique === 'success' ? t('critical') : t('fumble')}
         </motion.span>
       )}
     </div>

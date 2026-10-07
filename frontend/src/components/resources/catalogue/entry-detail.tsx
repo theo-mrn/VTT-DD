@@ -5,6 +5,7 @@
  * entrées liées, navigables (retour à l'entrée précédente). Une entrée liée qui accorde
  * elle-même des rangs (une voie) est dépliée avec ce qu'elle accorde.
  */
+import { useTranslations } from 'next-intl';
 import type { Entree, Presentation, SystemeCharge } from '@vtt/rules';
 import { ArrowLeft, ChevronRight, ListTree } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
@@ -41,6 +42,7 @@ export function EntryDetail({
   /** Actions propres à l'onglet (ajout à l'inventaire…). */
   actions?: ReactNode;
 }>) {
+  const t = useTranslations();
   const fiche = useMemo(() => sheetFor(systeme, entry), [systeme, entry]);
   const sorte = systeme.sortes.get(entry.sorte);
   const image = imageEntree(presentation, entry.id);
@@ -55,13 +57,13 @@ export function EntryDetail({
     <article className="flex flex-col">
       {(onBack || trail.length > 0) && (
         <nav
-          aria-label="Entrées ouvertes"
+          aria-label={t('resources.catalogue.openEntries')}
           className="flex items-center gap-1 border-b border-border px-3 py-2 text-xs text-subtle"
         >
           {onBack && (
             <Button variant="ghost" size="xs" onClick={onBack}>
               <ArrowLeft />
-              Retour
+              {t('common.actions.back')}
             </Button>
           )}
           <span className="min-w-0 truncate">
@@ -98,8 +100,8 @@ export function EntryDetail({
         {entry.description && <CatalogueText text={entry.description} />}
 
         {effects.length > 0 && (
-          <section aria-label="Effets">
-            <h4 className="mb-2 text-sm font-semibold">Effets</h4>
+          <section aria-label={t('resources.catalogue.effects')}>
+            <h4 className="mb-2 text-sm font-semibold">{t('resources.catalogue.effects')}</h4>
             <ul className="divide-y divide-border rounded-xl border border-border bg-surface-2/40">
               {effects.map((e, i) => (
                 <li key={i} className="px-3 py-2">

@@ -13,6 +13,7 @@
  * La pose s'aimante au centre de la case, comme le glisser commun (Alt : libre). Sans son choisi
  * dans la barre contextuelle, la zone posée ouvre son inspecteur pour en choisir un.
  */
+import { translate } from '@/i18n/runtime';
 import type { BitmapText, Container, Graphics } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -187,7 +188,7 @@ export class SoundTool implements Tool {
             this.ctx,
             [drag.entity],
             () => ({ radius: px }),
-            'Rayon de la zone sonore',
+            translate('map.sounds.zoneRadius'),
           );
         break;
       }

@@ -1,0 +1,16 @@
+export default {
+  emoji: 'Emoji',
+  text: 'Texte',
+  remove: 'Retirer ma bulle',
+  duration: 'Durée de la bulle',
+  secondsShort: '{count, number} s',
+  seconds: '{count, plural, one {# seconde} other {# secondes}}',
+  searchEmoji: 'Rechercher un emoji…',
+  searchEmojiLabel: 'Rechercher un emoji',
+  skinTone: 'Couleur de peau',
+  loadingEmoji: 'Chargement des emoji',
+  noEmoji: 'Aucun emoji',
+  yourLine: 'Votre réplique…',
+  bubbleText: 'Texte de la bulle',
+  send: 'Envoyer',
+} as const;

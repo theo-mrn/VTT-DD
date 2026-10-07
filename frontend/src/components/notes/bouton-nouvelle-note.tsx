@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { ChevronDown, FilePlus2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,12 +30,13 @@ export function BoutonNouvelleNote({
   compact?: boolean;
   className?: string;
 }>) {
+  const t = useTranslations();
   return (
     <div className={cn('inline-flex shrink-0 items-center', className)}>
       <Info
         texte={
           <span className="flex items-center gap-2">
-            Nouvelle note <Kbd>N</Kbd>
+            {t('notes.new')} <Kbd>N</Kbd>
           </span>
         }
         cote="bottom"
@@ -44,10 +46,10 @@ export function BoutonNouvelleNote({
           loading={enCours}
           onClick={() => onNouvelle()}
           className="rounded-r-none"
-          aria-label="Nouvelle note"
+          aria-label={t('notes.new')}
         >
           {!enCours && <Plus />}
-          {!compact && 'Nouvelle note'}
+          {!compact && t('notes.new')}
         </Button>
       </Info>
       <DropdownMenu>
@@ -55,7 +57,7 @@ export function BoutonNouvelleNote({
           <Button
             size="icon-sm"
             className="w-7 rounded-l-none border-l border-primary-foreground/15"
-            aria-label="Partir d'un modèle"
+            aria-label={t('notes.fromTemplate')}
             disabled={enCours}
           >
             <ChevronDown />
@@ -67,21 +69,23 @@ export function BoutonNouvelleNote({
               <FilePlus2 className="size-4 text-primary" />
             </span>
             <span className="flex flex-1 flex-col">
-              <span className="text-foreground">Page vierge</span>
-              <span className="text-xs text-subtle">Partir de zéro</span>
+              <span className="text-foreground">{t('notes.blank')}</span>
+              <span className="text-xs text-subtle">{t('notes.fromScratch')}</span>
             </span>
             <DropdownMenuShortcut>N</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel>Modèles</DropdownMenuLabel>
+          <DropdownMenuLabel>{t('notes.templatesTitle')}</DropdownMenuLabel>
           {MODELES_NOTE.map((m) => (
             <DropdownMenuItem key={m.id} onSelect={() => onNouvelle(m)}>
               <span className="flex size-8 items-center justify-center rounded-md border border-border-strong bg-surface-2 text-base leading-none">
                 {m.icone}
               </span>
               <span className="flex min-w-0 flex-col">
-                <span className="text-foreground">{m.label}</span>
-                <span className="truncate text-xs text-subtle">{m.description}</span>
+                <span className="text-foreground">{t(`notes.templates.${m.id}.label`)}</span>
+                <span className="truncate text-xs text-subtle">
+                  {t(`notes.templates.${m.id}.description`)}
+                </span>
               </span>
             </DropdownMenuItem>
           ))}

@@ -5,6 +5,7 @@
  * recherche, filtre par sorte et par catégorie, tri par nom ou prix, et le détail d'un objet.
  * À la table, « Ajouter » range l'objet dans l'inventaire du héros incarné.
  */
+import { useTranslations } from 'next-intl';
 import type { Entree, Presentation, SystemeCharge } from '@vtt/rules';
 import { Plus, SearchX, Store } from 'lucide-react';
 import { useDeferredValue, useMemo, useState } from 'react';
@@ -37,6 +38,7 @@ export function MarketTab({
   /** Inventaire où ranger un objet (table, droit d'écriture) ; absent : catalogue seul. */
   target: InventoryTarget | null;
 }>) {
+  const t = useTranslations();
   const sections = useMemo(() => buildMarket(systeme, presentation), [systeme, presentation]);
   const textes = useMemo(() => {
     const ids = presentation?.references.marche?.textes ?? [];
@@ -70,8 +72,8 @@ export function MarketTab({
     return (
       <Notice
         icon={Store}
-        title="Aucun équipement"
-        description="Ce système ne déclare pas d’équipement à vendre."
+        title={t('resources.market.none')}
+        description={t('resources.market.noneHint')}
       />
     );
 
@@ -79,7 +81,7 @@ export function MarketTab({
     <div>
       <Toolbar>
         <Chips
-          label="Sortes d’équipement"
+          label={t('resources.market.kinds')}
           value={sorte}
           onChange={(v) => {
             setSorte(v);
@@ -88,7 +90,7 @@ export function MarketTab({
           options={[
             {
               value: TOUT,
-              label: 'Tout',
+              label: t('resources.market.all'),
               count: sections.reduce((n, s) => n + s.rows.length, 0),
             },
             ...sections.map((s) => ({ value: s.sorte.id, label: s.title, count: s.rows.length })),
@@ -99,10 +101,12 @@ export function MarketTab({
             <SelectField
               value={category}
               onValueChange={setCategory}
-              aria-label={`Filtrer par ${choisie.categoryField?.nom.toLowerCase() ?? 'catégorie'}`}
+              aria-label={t('resources.market.filterBy', {
+                field: choisie.categoryField?.nom.toLowerCase() ?? t('resources.market.category'),
+              })}
               className="h-9 sm:w-48"
               options={[
-                { valeur: TOUT, nom: 'Toutes les catégories' },
+                { valeur: TOUT, nom: t('map.tokens.library.allCategories') },
                 ...choisie.categories.map((c) => ({ valeur: c, nom: c })),
               ]}
             />
@@ -111,37 +115,38 @@ export function MarketTab({
             <SelectField
               value={sort}
               onValueChange={(v) => setSort(v as MarketSort)}
-              aria-label="Trier"
+              aria-label={t('resources.market.sort')}
               className="h-9 sm:w-44"
               options={[
-                { valeur: 'nom', nom: 'Par nom' },
-                { valeur: 'prix-croissant', nom: 'Prix croissant' },
-                { valeur: 'prix-decroissant', nom: 'Prix décroissant' },
+                { valeur: 'nom', nom: t('resources.market.byName') },
+                { valeur: 'prix-croissant', nom: t('resources.market.priceUp') },
+                { valeur: 'prix-decroissant', nom: t('resources.market.priceDown') },
               ]}
             />
           )}
           <SearchField
             value={query}
             onChange={setQuery}
-            label="Rechercher un objet"
-            placeholder="Rechercher un objet…"
+            label={t('map.objects.library.search')}
+            placeholder={t('resources.market.searchPlaceholder')}
           />
         </div>
       </Toolbar>
 
       {target && (
         <p className="mb-3 text-xs text-muted-foreground">
-          « Ajouter » range l’objet dans l’inventaire de{' '}
-          <span className="font-medium text-foreground">{target.name}</span>. Aucune pièce n’est
-          dépensée.
+          {t.rich('resources.market.addHint', {
+            name: target.name,
+            b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+          })}
         </p>
       )}
 
       {total === 0 ? (
         <Notice
           icon={SearchX}
-          title="Aucun résultat"
-          description={recherche ? `Rien ne correspond à « ${recherche} ».` : undefined}
+          title={t('map.tokens.library.noResult')}
+          description={recherche ? t('resources.market.noMatch', { search: recherche }) : undefined}
         />
       ) : (
         <div className="space-y-6">
@@ -178,7 +183,9 @@ export function MarketTab({
       <Dialog open={courante !== null} onOpenChange={(o) => !o && setStack([])}>
         <DialogContent className="gap-0 p-0 sm:max-w-xl">
           <DialogTitle className="sr-only">{courante?.nom ?? 'Objet'}</DialogTitle>
-          <DialogDescription className="sr-only">Caractéristiques de l’objet</DialogDescription>
+          <DialogDescription className="sr-only">
+            {t('resources.market.itemStats')}
+          </DialogDescription>
           {courante && (
             <EntryDetail
               key={courante.id}
@@ -214,6 +221,7 @@ function MarketTable({
   target: InventoryTarget | null;
   onOpen(id: string): void;
 }>) {
+  const t = useTranslations();
   const prix = priceLabel(section);
   return (
     <section aria-label={section.title}>
@@ -228,7 +236,7 @@ function MarketTable({
           <thead>
             <tr className="border-b border-border bg-surface-2/60 text-left text-[11px] uppercase tracking-wide text-subtle">
               <th scope="col" className="px-3 py-2 font-medium">
-                Nom
+                {t('map.lights.name')}
               </th>
               {section.columns.map((c) => (
                 <th key={c.id} scope="col" className="px-3 py-2 font-medium">
@@ -242,7 +250,7 @@ function MarketTable({
               )}
               {target && (
                 <th scope="col" className="w-0 px-3 py-2">
-                  <span className="sr-only">Ajouter</span>
+                  <span className="sr-only">{t('common.actions.add')}</span>
                 </th>
               )}
             </tr>
@@ -307,6 +315,7 @@ export function AddButton({
   entry: Entree;
   large?: boolean;
 }>) {
+  const t = useTranslations();
   const [envoi, setEnvoi] = useState(false);
   const refus = target.blocked(entry);
   const bouton = (
@@ -314,7 +323,9 @@ export function AddButton({
       variant={large ? 'default' : 'ghost'}
       size={large ? 'sm' : 'xs'}
       disabled={refus !== null || envoi}
-      aria-label={large ? undefined : `Ajouter ${entry.nom} à l’inventaire de ${target.name}`}
+      aria-label={
+        large ? undefined : t('resources.market.addTo', { item: entry.nom, name: target.name })
+      }
       onClick={async () => {
         setEnvoi(true);
         try {
@@ -325,7 +336,9 @@ export function AddButton({
       }}
     >
       <Plus />
-      {large ? `Ajouter à l’inventaire de ${target.name}` : 'Ajouter'}
+      {large
+        ? t('resources.market.addToInventory', { name: target.name })
+        : t('common.actions.add')}
     </Button>
   );
   if (!refus) return bouton;

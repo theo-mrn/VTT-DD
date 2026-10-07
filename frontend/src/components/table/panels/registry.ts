@@ -46,11 +46,12 @@ export interface PanelShortcut {
   label: string;
 }
 
+/**
+ * Un panneau. Son nom et sa phrase courte (infobulles, personnalisation du rail) sont au
+ * catalogue : `table.panels.<id>.label` et `.description` (docs/i18n.md § 6).
+ */
 export interface PanelDefinition {
   id: string;
-  label: string;
-  /** Phrase courte des infobulles et de la personnalisation du rail. */
-  description: string;
   icon: LucideIcon;
   /** Touche du panneau ; absente quand toutes les lettres sont prises (carte et panneaux). */
   shortcut?: PanelShortcut;
@@ -76,8 +77,6 @@ const ALL_ROLES = ['gm', 'player', 'spectator'] as const;
 export const panelRegistry = [
   {
     id: 'des',
-    label: 'Dés',
-    description: 'Lancer les dés et suivre les jets de la table',
     icon: Dices,
     shortcut: { code: 'KeyD', label: 'D' },
     width: 'fit',
@@ -88,8 +87,6 @@ export const panelRegistry = [
   },
   {
     id: 'chat',
-    label: 'Chat',
-    description: 'Discuter avec la table, ou chuchoter à un joueur ou au MJ',
     icon: MessagesSquare,
     shortcut: { code: 'KeyC', label: 'C' },
     width: 'narrow',
@@ -101,8 +98,6 @@ export const panelRegistry = [
   },
   {
     id: 'notes',
-    label: 'Notes',
-    description: 'Les notes de la campagne',
     icon: NotebookPen,
     shortcut: { code: 'KeyN', label: 'N' },
     width: 'full',
@@ -113,8 +108,6 @@ export const panelRegistry = [
   },
   {
     id: 'documents',
-    label: 'Documents',
-    description: 'Images et vidéos montrées à la table : projetées ou envoyées par le MJ',
     icon: Images,
     // Toutes les lettres sont prises (carte et panneaux) : ouvert depuis le rail
     width: 'medium',
@@ -129,8 +122,6 @@ export const panelRegistry = [
   },
   {
     id: 'joueurs',
-    label: 'Personnages',
-    description: 'Les personnages de la table, d’une fiche à l’autre en un clic',
     icon: Users,
     shortcut: { code: 'KeyJ', label: 'J' },
     width: 'full',
@@ -142,8 +133,6 @@ export const panelRegistry = [
   },
   {
     id: 'historique',
-    label: 'Historique',
-    description: 'La chronique de la campagne, en direct',
     icon: History,
     shortcut: { code: 'KeyH', label: 'H' },
     width: 'narrow',
@@ -156,8 +145,6 @@ export const panelRegistry = [
   },
   {
     id: 'son',
-    label: 'Son',
-    description: 'Musique, ambiance et effets de la table, bibliothèque du MJ',
     icon: Music,
     // S comme son (Q, l'ancien raccourci du mixeur, reste libre)
     shortcut: { code: 'KeyS', label: 'S' },
@@ -169,8 +156,6 @@ export const panelRegistry = [
   },
   {
     id: 'volume',
-    label: 'Volume',
-    description: 'Mon volume : musique, ambiance, effets, dés, pour moi seul',
     icon: Volume2,
     // Même touche que « Son » pour le MJ : chacun ouvre son réglage du son avec S
     shortcut: { code: 'KeyS', label: 'S' },
@@ -181,8 +166,6 @@ export const panelRegistry = [
   },
   {
     id: 'resources',
-    label: 'Ressources',
-    description: 'Capacités, marché, bestiaire et images du système de la campagne',
     icon: Library,
     // R relance le dernier jet dans le panneau Dés : B comme bibliothèque
     shortcut: { code: 'KeyB', label: 'B' },
@@ -195,8 +178,6 @@ export const panelRegistry = [
   },
   {
     id: 'pnj',
-    label: 'Mes PNJ',
-    description: 'Vos modèles de PNJ, rangés par catégories, à poser sur la carte',
     icon: Skull,
     shortcut: { code: 'KeyU', label: 'U' },
     width: 'wide',
@@ -206,8 +187,6 @@ export const panelRegistry = [
   },
   {
     id: 'rencontres',
-    label: 'Rencontres',
-    description: 'Générer des rencontres équilibrées pour le groupe, les éditer, les garder',
     icon: Swords,
     // M comme monstres (libre depuis le retrait du panneau Combat)
     shortcut: { code: 'KeyM', label: 'M' },
@@ -220,8 +199,6 @@ export const panelRegistry = [
   },
   {
     id: 'scenes',
-    label: 'Scènes',
-    description: 'Les scènes de la campagne : ouvrir, faire venir le groupe, fonds et dossiers',
     icon: MapPinned,
     // E comme scènE : ni un panneau (F D C N J H S B M O) ni un outil de la carte (V P T W G L R K)
     shortcut: { code: 'KeyE', label: 'E' },
@@ -234,8 +211,6 @@ export const panelRegistry = [
   },
   {
     id: 'reglages',
-    label: 'Réglages',
-    description: 'Réglages de la campagne : règles optionnelles, lanceur, présentation',
     icon: Settings2,
     shortcut: { code: 'KeyO', label: 'O' },
     width: 'medium',

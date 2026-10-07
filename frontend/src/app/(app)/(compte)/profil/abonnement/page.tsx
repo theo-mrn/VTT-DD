@@ -20,17 +20,11 @@ import {
   ShoppingBag,
   WalletCards,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState, type FormEvent } from 'react';
-import {
-  Bouton,
-  Carte,
-  formaterDate,
-  Message,
-  ParEtat,
-  TitrePage,
-  Vide,
-} from '@/components/compte/elements';
+import { Bouton, Carte, Message, ParEtat, TitrePage, Vide } from '@/components/compte/elements';
 import { Badge } from '@/components/ui/badge';
+import { useDates } from '@/i18n/dates';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -51,7 +45,6 @@ import {
   resilier,
   souscrire,
   utiliserCode,
-  type CodeUtilise,
   type EtatAbonnement,
   type Formule,
   type Formules,
@@ -62,12 +55,10 @@ import { useRessource } from '@/lib/ressource';
 import { cn } from '@/lib/utils';
 
 const AVANTAGES = [
-  { Icone: Dices, texte: 'Tous les dés, présents et à venir' },
-  { Icone: Crown, texte: 'Badge et bordures premium' },
-  { Icone: Heart, texte: 'Soutien au développement' },
-];
-
-const NOM_FORMULE = { monthly: 'Mensuel', annual: 'Annuel', legacy: 'Premium' } as const;
+  { Icone: Dices, id: 'dice' },
+  { Icone: Crown, id: 'badge' },
+  { Icone: Heart, id: 'support' },
+] as const;
 
 const TON_FACTURE: Record<string, 'succes' | 'alerte' | 'danger'> = {
   paid: 'succes',
@@ -75,14 +66,13 @@ const TON_FACTURE: Record<string, 'succes' | 'alerte' | 'danger'> = {
   uncollectible: 'danger',
 };
 
-const STATUT_FACTURE: Record<string, string> = {
-  paid: 'Payée',
-  open: 'À régler',
-  void: 'Annulée',
-  uncollectible: 'Impayée',
-};
+const STATUTS_FACTURE = ['paid', 'open', 'void', 'uncollectible'] as const;
+const estStatutConnu = (s: string): s is (typeof STATUTS_FACTURE)[number] =>
+  (STATUTS_FACTURE as readonly string[]).includes(s);
 
 export default function PageAbonnement() {
+  const t = useTranslations('account.subscription');
+  const dates = useDates();
   const etat = useRessource('abonnement', lireAbonnement);
   const formules = useRessource('formules', lireFormules);
   const factures = useRessource('factures', lireFactures);
@@ -91,15 +81,13 @@ export default function PageAbonnement() {
 
   return (
     <div className="space-y-6">
-      <TitrePage>Abonnement</TitrePage>
+      <TitrePage>{t('title')}</TitrePage>
 
       <ParEtat chargement={etat.chargement && !e} erreur={etat.erreur}>
         {() =>
           e && (
             <>
-              {!e.configured && (
-                <Message ton="info">Paiements indisponibles pour le moment.</Message>
-              )}
+              {!e.configured && <Message ton="info">{t('unavailable')}</Message>}
               {e.premium && <Statut etat={e} onChange={() => void etat.recharger()} />}
               {/* Premium offert par un code : il s'arrête seul, l'abonnement reste proposé */}
               {(!e.premium || e.premiumUntil) && (
@@ -112,12 +100,12 @@ export default function PageAbonnement() {
 
       <CarteCode onUtilise={() => void etat.recharger()} />
 
-      <Carte titre="Factures">
+      <Carte titre={t('invoices')}>
         <ParEtat
           chargement={factures.chargement && !factures.donnees}
           erreur={factures.erreur}
           vide={!factures.donnees?.length}
-          siVide={<Vide>Aucune facture.</Vide>}
+          siVide={<Vide>{t('noInvoice')}</Vide>}
         >
           {() => (
             <ul className="divide-y divide-border">
@@ -126,10 +114,10 @@ export default function PageAbonnement() {
                   <Receipt className="size-5 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-foreground">
-                      {f.description ?? `Facture ${f.number ?? ''}`}
+                      {f.description ?? t('invoice', { number: f.number ?? '' })}
                     </p>
                     <p className="text-xs text-subtle">
-                      {formaterDate(new Date(f.date * 1000).toISOString())}
+                      {dates.date(new Date(f.date * 1000).toISOString())}
                       {f.number && ` · ${f.number}`}
                     </p>
                   </div>
@@ -137,18 +125,18 @@ export default function PageAbonnement() {
                     {montant(f.amount, f.currency)}
                   </span>
                   <Badge ton={TON_FACTURE[f.status] ?? 'neutre'}>
-                    {STATUT_FACTURE[f.status] ?? f.status}
+                    {estStatutConnu(f.status) ? t(`invoiceStatus.${f.status}`) : f.status}
                   </Badge>
                   <div className="flex gap-1">
                     {f.hostedUrl && (
-                      <Bouton ton="discret" size="icon" asChild title="Voir la facture">
+                      <Bouton ton="discret" size="icon" asChild title={t('viewInvoice')}>
                         <a href={f.hostedUrl} target="_blank" rel="noreferrer">
                           <ExternalLink />
                         </a>
                       </Bouton>
                     )}
                     {f.pdfUrl && (
-                      <Bouton ton="discret" size="icon" asChild title="Télécharger le PDF">
+                      <Bouton ton="discret" size="icon" asChild title={t('downloadPdf')}>
                         <a href={f.pdfUrl} target="_blank" rel="noreferrer">
                           <Download />
                         </a>
@@ -163,14 +151,14 @@ export default function PageAbonnement() {
       </Carte>
 
       {!!achats.donnees?.length && (
-        <Carte titre="Achats">
+        <Carte titre={t('purchases')}>
           <ul className="divide-y divide-border">
             {achats.donnees.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center gap-3 py-3">
                 <ShoppingBag className="size-5 shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-foreground">{a.name}</p>
-                  <p className="text-xs text-subtle">{formaterDate(a.completedAt)}</p>
+                  <p className="text-xs text-subtle">{dates.date(a.completedAt)}</p>
                 </div>
                 <span
                   className={cn(
@@ -180,7 +168,7 @@ export default function PageAbonnement() {
                 >
                   {montant(a.amount, a.currency)}
                 </span>
-                {a.status === 'refunded' && <Badge ton="neutre">Remboursé</Badge>}
+                {a.status === 'refunded' && <Badge ton="neutre">{t('refunded')}</Badge>}
               </li>
             ))}
           </ul>
@@ -192,6 +180,8 @@ export default function PageAbonnement() {
 
 /** Premium actif : formule, échéance, paiement en échec, actions. */
 function Statut({ etat, onChange }: Readonly<{ etat: EtatAbonnement; onChange(): void }>) {
+  const t = useTranslations('account.subscription');
+  const dates = useDates();
   const [resiliation, setResiliation] = useState(false);
   const [action, setAction] = useState<'portail' | 'reprise' | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -213,10 +203,10 @@ function Statut({ etat, onChange }: Readonly<{ etat: EtatAbonnement; onChange():
 
   let echeance: string | null = null;
   if (!enCours && etat.premiumUntil)
-    echeance = `Offert jusqu’au ${formaterDate(etat.premiumUntil)}`;
-  else if (enCours && sub.cancelAt) echeance = `Se termine le ${formaterDate(sub.cancelAt)}`;
+    echeance = t('giftedUntil', { date: dates.date(etat.premiumUntil) });
+  else if (enCours && sub.cancelAt) echeance = t('endsOn', { date: dates.date(sub.cancelAt) });
   else if (enCours && sub.currentPeriodEnd)
-    echeance = `Prochain prélèvement le ${formaterDate(sub.currentPeriodEnd)}`;
+    echeance = t('nextCharge', { date: dates.date(sub.currentPeriodEnd) });
 
   return (
     <Carte className="border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card">
@@ -226,19 +216,15 @@ function Statut({ etat, onChange }: Readonly<{ etat: EtatAbonnement; onChange():
         </span>
         <div className="min-w-0 flex-1 space-y-0.5">
           <p className="flex items-center gap-2 font-semibold">
-            Premium
-            {enCours && <Badge ton="primaire">{NOM_FORMULE[sub.plan]}</Badge>}
-            {enCours && sub.cancelAt && <Badge ton="neutre">Résilié</Badge>}
+            {t('premium')}
+            {enCours && <Badge ton="primaire">{t(`plans.${sub.plan}`)}</Badge>}
+            {enCours && sub.cancelAt && <Badge ton="neutre">{t('cancelled')}</Badge>}
           </p>
           {echeance && <p className="text-sm text-muted-foreground">{echeance}</p>}
         </div>
       </div>
 
-      {enCours && sub.paymentIssue && (
-        <Message className="mt-5">
-          Le dernier prélèvement a échoué. Mettez à jour votre carte pour garder Premium.
-        </Message>
-      )}
+      {enCours && sub.paymentIssue && <Message className="mt-5">{t('paymentFailed')}</Message>}
       {erreur && <Message className="mt-5">{erreur}</Message>}
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -249,7 +235,7 @@ function Statut({ etat, onChange }: Readonly<{ etat: EtatAbonnement; onChange():
             onClick={() => void lancer('portail', () => ouvrirPortail())}
           >
             <WalletCards />
-            {enCours && sub.paymentIssue ? 'Mettre à jour ma carte' : 'Gérer le paiement'}
+            {enCours && sub.paymentIssue ? t('updateCard') : t('managePayment')}
           </Bouton>
         )}
         {enCours && sub.cancelAt ? (
@@ -257,12 +243,12 @@ function Statut({ etat, onChange }: Readonly<{ etat: EtatAbonnement; onChange():
             chargement={action === 'reprise'}
             onClick={() => void lancer('reprise', reprendre)}
           >
-            Reprendre l&apos;abonnement
+            {t('resume')}
           </Bouton>
         ) : (
           (enCours || etat.premiumSource === 'legacy') && (
             <Bouton ton="discret" onClick={() => setResiliation(true)}>
-              Résilier
+              {t('cancel')}
             </Bouton>
           )
         )}
@@ -279,14 +265,10 @@ function Statut({ etat, onChange }: Readonly<{ etat: EtatAbonnement; onChange():
   );
 }
 
-const RECOMPENSE: Record<CodeUtilise['kind'], string> = {
-  premium: 'Premium activé',
-  dice_skin: 'Dés débloqués',
-  token_frame: 'Cadre débloqué',
-};
-
 /** Code à échanger : premium offert, skin de dés ou cadre. */
 function CarteCode({ onUtilise }: Readonly<{ onUtilise(): void }>) {
+  const t = useTranslations('account.subscription');
+  const dates = useDates();
   const client = useQueryClient();
   const [code, setCode] = useState('');
   const [envoi, setEnvoi] = useState(false);
@@ -303,8 +285,13 @@ function CarteCode({ onUtilise }: Readonly<{ onUtilise(): void }>) {
     setResultat(null);
     try {
       const r = await utiliserCode(code);
-      const fin = r.expiresAt ? ` jusqu’au ${formaterDate(r.expiresAt)}` : '';
-      setResultat({ ok: true, texte: `${RECOMPENSE[r.kind]}${fin}.` });
+      const recompense = t(`rewards.${r.kind}`);
+      setResultat({
+        ok: true,
+        texte: r.expiresAt
+          ? t('rewardUntil', { reward: recompense, date: dates.date(r.expiresAt) })
+          : t('reward', { reward: recompense }),
+      });
       setCode('');
       onUtilise();
       // Droits appliqués par le service dice à réception de l'événement : relus un peu après
@@ -319,10 +306,10 @@ function CarteCode({ onUtilise }: Readonly<{ onUtilise(): void }>) {
   }
 
   return (
-    <Carte titre="Code">
+    <Carte titre={t('code')}>
       <form onSubmit={valider} className="flex flex-col gap-2 sm:flex-row">
         <Input
-          aria-label="Code"
+          aria-label={t('code')}
           placeholder="YNER-XXXX-XXXX"
           autoComplete="off"
           spellCheck={false}
@@ -336,7 +323,7 @@ function CarteCode({ onUtilise }: Readonly<{ onUtilise(): void }>) {
         />
         <Bouton type="submit" chargement={envoi} disabled={!code.trim()}>
           <Ticket />
-          Utiliser
+          {t('use')}
         </Bouton>
       </form>
       {resultat && (
@@ -353,6 +340,7 @@ function Offre({
   formules,
   disponible,
 }: Readonly<{ formules: Formules | undefined; disponible: boolean }>) {
+  const t = useTranslations('account.subscription');
   const [choix, setChoix] = useState<Formule>('annual');
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -373,21 +361,21 @@ function Offre({
     <Carte>
       <div className="flex flex-wrap items-center gap-3">
         <Crown className="size-6 text-primary" aria-hidden />
-        <h2 className="text-lg font-semibold tracking-tight">Premium</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t('premium')}</h2>
       </div>
       <ul className="mt-4 grid gap-2 sm:grid-cols-3">
-        {AVANTAGES.map(({ Icone, texte }) => (
+        {AVANTAGES.map(({ Icone, id }) => (
           <li
-            key={texte}
+            key={id}
             className="flex items-center gap-2.5 rounded-xl border border-border bg-surface-2/60 p-3 text-sm"
           >
             <Icone className="size-4 shrink-0 text-primary" aria-hidden />
-            {texte}
+            {t(`perks.${id}`)}
           </li>
         ))}
       </ul>
 
-      <div role="radiogroup" aria-label="Formule" className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div role="radiogroup" aria-label={t('plan')} className="mt-5 grid gap-3 sm:grid-cols-2">
         {(formules?.plans ?? []).map((p) => {
           const economie =
             p.interval === 'year' && mensuel
@@ -413,10 +401,10 @@ function Offre({
                   {montant(p.amount, formules?.currency)}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  {p.interval === 'year' ? ' / an' : ' / mois'}
+                  {p.interval === 'year' ? t('perYear') : t('perMonth')}
                 </span>
               </span>
-              {economie > 0 && <Badge ton="succes">−{economie} %</Badge>}
+              {economie > 0 && <Badge ton="succes">{t('saving', { percent: economie })}</Badge>}
             </button>
           );
         })}
@@ -431,7 +419,7 @@ function Offre({
         onClick={() => void devenirPremium()}
       >
         <Crown />
-        Devenir Premium
+        {t('become')}
       </Bouton>
     </Carte>
   );
@@ -451,6 +439,8 @@ function DialogueResiliation({
   onFermer(): void;
   onResilie(): void;
 }>) {
+  const t = useTranslations('account.subscription');
+  const dates = useDates();
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -474,21 +464,19 @@ function DialogueResiliation({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="size-5 text-destructive" aria-hidden />
-            Résilier Premium
+            {t('cancelTitle')}
           </DialogTitle>
           <DialogDescription>
-            {immediate
-              ? 'Votre premium prend fin immédiatement.'
-              : `Vous gardez vos avantages jusqu’au ${formaterDate(fin)}, sans nouveau prélèvement.`}
+            {immediate ? t('cancelNow') : t('cancelAtEnd', { date: dates.date(fin) })}
           </DialogDescription>
         </DialogHeader>
         {erreur && <Message>{erreur}</Message>}
         <DialogFooter>
           <Bouton ton="secondaire" onClick={onFermer}>
-            Garder Premium
+            {t('keep')}
           </Bouton>
           <Bouton ton="danger" chargement={envoi} onClick={() => void confirmer()}>
-            Résilier
+            {t('cancel')}
           </Bouton>
         </DialogFooter>
       </DialogContent>

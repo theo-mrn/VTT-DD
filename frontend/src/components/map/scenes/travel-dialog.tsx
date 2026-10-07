@@ -5,6 +5,7 @@
  * groupe (la scène devient celle du groupe) ou une sélection de personnages. Ils arrivent au
  * point d'apparition de la scène (sinon à leur dernière position connue).
  */
+import { translate } from '@/i18n/runtime';
 import type { MapScene } from '@vtt/contracts';
 import { Check, Navigation, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -67,27 +68,25 @@ export function TravelDialog({
     <Dialog open={!!scene} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Faire venir sur « {scene?.name} »</DialogTitle>
+          <DialogTitle>{translate('map.scenes.bringTo', { name: scene?.name ?? '' })}</DialogTitle>
           <DialogDescription>
-            {scene?.spawn
-              ? 'Ils arrivent au point d’apparition de la scène.'
-              : 'Pas de point d’apparition : ils reprennent leur dernière place sur cette scène.'}
+            {scene?.spawn ? translate('map.scenes.arriveAtSpawn') : translate('map.scenes.noSpawn')}
           </DialogDescription>
         </DialogHeader>
 
         <Segmented
-          label="Qui"
+          label={translate('map.scenes.who')}
           value={mode}
           onChange={(v) => setMode(v as 'all' | 'some')}
           options={[
-            { value: 'all', label: 'Tout le groupe', icon: Users },
-            { value: 'some', label: 'Sélection', icon: Check },
+            { value: 'all', label: translate('map.scenes.wholeParty'), icon: Users },
+            { value: 'some', label: translate('map.scenes.selection'), icon: Check },
           ]}
         />
 
         {mode === 'all' && (
           <p className="rounded-xl border border-border bg-surface-2/50 p-4 text-sm text-muted-foreground">
-            Tous les personnages des joueurs, et la scène devient celle du groupe.
+            {translate('map.scenes.wholePartyHint')}
           </p>
         )}
         {mode !== 'all' && characters.length > 0 && (
@@ -126,12 +125,12 @@ export function TravelDialog({
           </ul>
         )}
         {mode !== 'all' && characters.length === 0 && (
-          <p className="text-sm text-muted-foreground">Aucun personnage de joueur engagé.</p>
+          <p className="text-sm text-muted-foreground">{translate('map.scenes.noEngaged')}</p>
         )}
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Annuler
+            {translate('common.actions.cancel')}
           </Button>
           <Button
             onClick={() => void go()}

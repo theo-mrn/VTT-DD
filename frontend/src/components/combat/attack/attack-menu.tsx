@@ -18,6 +18,8 @@
  * Clavier : 1 à 9 déclenchent les cartes numérotées de l'écran, Entrée relance le dernier type
  * (ou lance l'action, ou la suite), V vise sur la carte, Échap ferme.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import type { Valeur } from '@vtt/rules';
 import {
@@ -98,6 +100,7 @@ const PRESSABLE =
 type Screen = 'compose' | 'roll' | 'damage';
 
 function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }>) {
+  const t = useTranslations();
   const ctx = useAttackContext(flow.campaignId);
   const model = useAttackModel(flow, ctx);
   const attack = useDeclaredAttack(flow, model.commands);
@@ -246,7 +249,9 @@ function OpenMenu({ flow, canAim }: Readonly<{ flow: OpenFlow; canAim: boolean }
                 'duration-200 animate-in fade-in-0 zoom-in-[0.98] motion-reduce:animate-none',
               )}
             >
-              <DialogPrimitive.Title className="sr-only">Attaque</DialogPrimitive.Title>
+              <DialogPrimitive.Title className="sr-only">
+                {t('combat.attack.title')}
+              </DialogPrimitive.Title>
               <VersusHeader
                 ctx={ctx}
                 attackerId={draft.attackerId}
@@ -385,7 +390,8 @@ function ficheContext(
     fiche: model.fiche,
     personnage: {
       id: attackerId,
-      name: model.sheet.name ?? ctx.known.get(attackerId)?.name ?? 'Personnage',
+      name:
+        model.sheet.name ?? ctx.known.get(attackerId)?.name ?? translate('map.common.character'),
       roomId: ctx.campagne?.id ?? null,
     },
     mj: ctx.gm,
@@ -499,6 +505,7 @@ function TopBar({
   model: AttackModel;
   onClose: () => void;
 }>) {
+  const t = useTranslations();
   const [mine, setMine] = useState(false);
   const standing =
     flow.draft.attackerId && model.standing !== 'free' && flow.phase !== 'declared'
@@ -508,26 +515,34 @@ function TopBar({
     <div className="flex items-center gap-2 px-3 pt-2 sm:px-5 sm:pt-3">
       <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs">
         <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
-        <span className="shrink-0 font-medium text-muted-foreground">Attaque</span>
+        <span className="shrink-0 font-medium text-muted-foreground">
+          {t('combat.attack.title')}
+        </span>
         <span aria-hidden className="text-subtle">
           ·
         </span>
         <span className="truncate text-subtle">
-          {ctx.combat ? `Round ${ctx.combat.round}` : 'Hors combat'}
+          {ctx.combat
+            ? t('combat.attack.round', { round: ctx.combat.round })
+            : t('combat.attack.outsideCombat')}
         </span>
         {standing === 'on_turn' && (
           <Badge ton="primaire" className="ml-1">
-            <Swords aria-hidden /> Son tour
+            <Swords aria-hidden /> {t('combat.attack.theirTurn')}
           </Badge>
         )}
         {standing === 'out_of_turn' && (
           <Badge ton={model.blocked ? 'danger' : 'alerte'} className="ml-1">
-            <Clock aria-hidden /> {model.blocked ? 'Pas son tour' : 'Hors tour'}
+            <Clock aria-hidden />{' '}
+            {model.blocked ? t('combat.attack.notTheirTurn') : t('combat.attack.outOfTurnCap')}
           </Badge>
         )}
         {flow.queue.length > 0 && (
           <span className="ml-1 hidden truncate text-subtle lg:inline">
-            · Ensuite : {flow.queue.map((id) => targetName(id, ctx.known)).join(', ')}
+            ·{' '}
+            {t('combat.attack.next', {
+              names: flow.queue.map((id) => targetName(id, ctx.known)).join(', '),
+            })}
           </span>
         )}
       </div>
@@ -535,7 +550,7 @@ function TopBar({
         <PopoverTrigger asChild>
           <Button variant="ghost" size="sm" className="max-sm:size-10 max-sm:px-0">
             <History />
-            <span className="max-sm:sr-only">Mes attaques</span>
+            <span className="max-sm:sr-only">{t('combat.attack.myAttacks')}</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -543,7 +558,7 @@ function TopBar({
           className="max-h-[min(34rem,70dvh)] w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto p-3 [scrollbar-width:thin]"
         >
           <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-subtle">
-            Mes attaques
+            {t('combat.attack.myAttacks')}
           </p>
           <MyAttacks
             campaignId={flow.campaignId}
@@ -560,7 +575,7 @@ function TopBar({
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Fermer"
+        aria-label={t('common.actions.close')}
         onClick={onClose}
         disabled={flow.phase === 'submitting'}
         className="max-sm:size-10"
@@ -588,11 +603,12 @@ function ComposeBody({
   canAim: boolean;
   onAim: () => void;
 }>) {
+  const t = useTranslations();
   if (loading)
     return (
       <div
         aria-busy
-        aria-label="Chargement"
+        aria-label={t('history.loading')}
         className="mx-auto grid max-w-5xl grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
       >
         {Array.from({ length: 4 }, (_, i) => (
@@ -604,8 +620,7 @@ function ComposeBody({
     return (
       <EtatVide icone={UserRoundCog} titre="Qui attaque ?" className="mx-auto max-w-md py-10" />
     );
-  if (!model.fiche || !ctx.systeme)
-    return <Message>La fiche de ce personnage n’est pas disponible.</Message>;
+  if (!model.fiche || !ctx.systeme) return <Message>{t('combat.attack.sheetUnavailable')}</Message>;
   return (
     <StepCompose
       ctx={ctx}
@@ -642,6 +657,7 @@ function Footer({
   onLaunchNext: () => void;
   launching: boolean;
 }>) {
+  const t = useTranslations();
   const [busy, setBusy] = useState<string | null>(null);
 
   async function run(label: string, fn: () => Promise<Parameters<typeof attackMenu.dispatch>[0]>) {
@@ -673,7 +689,7 @@ function Footer({
             }))
       }
     >
-      <Undo2 /> Abandonner
+      <Undo2 /> {t('combat.attack.abandonShort')}
     </Button>
   );
 
@@ -722,6 +738,7 @@ function ComposeBar({
   flow,
   model,
 }: Readonly<{ ctx: AttackContext; flow: OpenFlow; model: AttackModel }>) {
+  const t = useTranslations();
   // Cartes du type d'attaque : chacune lance, pas de bouton en plus
   const cards =
     model.action && model.systeme && model.fiche
@@ -740,7 +757,7 @@ function ComposeBar({
         onClick={() => void model.submit()}
         className="w-full sm:w-auto sm:min-w-[16rem]"
       >
-        {retry ? 'Réessayer' : 'Lancer l’attaque'}
+        {retry ? t('common.actions.retry') : t('combat.attack.launch')}
         {n > 1 && <span className="normal-case tracking-normal opacity-80">· {n} cibles</span>}
         {model.preview && (
           <span className="max-w-[12rem] truncate normal-case tracking-normal opacity-90">
@@ -764,6 +781,7 @@ function SkipDefences({
   busy: string | null;
   run: Run;
 }>) {
+  const t = useTranslations();
   const waiting = awaitingReaction(attack);
   if (waiting.length === 0) return null;
   return (
@@ -782,7 +800,7 @@ function SkipDefences({
         })
       }
     >
-      <Shield /> Passer les défenses
+      <Shield /> {t('combat.attack.skipDefenses')}
     </Button>
   );
 }
@@ -799,6 +817,7 @@ function EndBar({
   attack: NonNullable<ReturnType<typeof useDeclaredAttack>>;
   onClose: () => void;
 }>) {
+  const t = useTranslations();
   return (
     <Bar className="flex-col items-stretch gap-3 lg:flex-row lg:items-center">
       <div className="lg:mr-auto">
@@ -806,19 +825,19 @@ function EndBar({
       </div>
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
         <Button variant="ghost" className="max-sm:order-last max-sm:col-span-2" onClick={onClose}>
-          Terminer
+          {t('combat.attack.finish')}
         </Button>
         <Button
           variant="secondary"
           onClick={() => attackMenu.dispatch({ type: 'again', keepTargets: false })}
         >
-          <Target /> Nouvelle attaque
+          <Target /> {t('combat.attack.new')}
         </Button>
         <Button
           variant={flow.queue.length ? 'secondary' : 'default'}
           onClick={() => attackMenu.dispatch({ type: 'again', keepTargets: true })}
         >
-          <RotateCcw /> Mêmes cibles
+          <RotateCcw /> {t('combat.attack.sameTargets')}
         </Button>
         {flow.queue.length > 0 && (
           <Button

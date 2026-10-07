@@ -4,6 +4,7 @@
  * Petites pièces du bloc Inventaire : vignette d'une entrée du catalogue, étiquettes de
  * bonus. Aucune clé de jeu : l'icône se déduit de la forme de la sorte (`iconeSorte`).
  */
+import { useTranslations } from 'next-intl';
 import type { Sorte } from '@vtt/rules';
 import { Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +53,7 @@ export function BonusBadges({
   max?: number;
   taille?: 'sm' | 'md';
 }>) {
+  const t = useTranslations();
   if (!bonus.length) return null;
   const montres = max === undefined ? bonus : bonus.slice(0, max);
   const reste = bonus.length - montres.length;
@@ -60,8 +62,8 @@ export function BonusBadges({
       {montres.map((b, i) => {
         const aide = [
           b.description,
-          b.conditionnel ? 'Sous condition' : null,
-          b.ignore ? 'Non cumulé : un effet de la même famille est plus fort' : null,
+          b.conditionnel ? t('sheet.inventory.conditional') : null,
+          b.ignore ? t('sheet.inventory.notStacked') : null,
         ]
           .filter(Boolean)
           .join(' · ');

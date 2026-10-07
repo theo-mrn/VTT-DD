@@ -6,6 +6,7 @@
  * non vues masquées). Chacun peut figer la brume, montrer les rayons de vision et la distance au
  * clic (préférences locales).
  */
+import { translate } from '@/i18n/runtime';
 import { CircleDashed, Cloudy, Eye, Film, Ruler, ScanEye } from 'lucide-react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
@@ -42,8 +43,8 @@ export function VisionViewMenu({ engine }: Readonly<{ engine: MapEngine }>) {
   const clickDistance = useStore(measurePrefs(engine), (s) => s.clickDistance);
   const players = gm ? (engine.directory.players?.() ?? []) : [];
   const current = players.find((p) => p.userId === viewAs);
-  let label = gm ? 'Vue du MJ' : 'Vue';
-  if (current) label = `Vue de ${current.name}`;
+  let label = gm ? translate('map.vision.gmView') : translate('map.vision.view');
+  if (current) label = translate('map.vision.viewOf', { name: current.name });
   const Icon = current ? ScanEye : Eye;
 
   return (
@@ -65,28 +66,28 @@ export function VisionViewMenu({ engine }: Readonly<{ engine: MapEngine }>) {
       <DropdownMenuContent side="top" className="w-60">
         {gm && (
           <>
-            <DropdownMenuLabel>Vue</DropdownMenuLabel>
+            <DropdownMenuLabel>{translate('map.vision.view')}</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={viewAs ?? GM_VIEW}
               onValueChange={(v) => engine.setViewAs(v === GM_VIEW ? null : v)}
             >
               <DropdownMenuRadioItem value={GM_VIEW}>
                 <span className="flex flex-col">
-                  Vue du MJ
+                  {translate('map.vision.gmView')}
                   <span className="text-xs text-muted-foreground">
-                    Tout visible, ombre des joueurs en voile
+                    {translate('map.vision.gmViewHint')}
                   </span>
                 </span>
               </DropdownMenuRadioItem>
               {players.map((p) => (
                 <DropdownMenuRadioItem key={p.userId} value={p.userId}>
-                  Vue de {p.name}
+                  {translate('map.vision.viewOf', { name: p.name })}
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
             {!players.length && (
               <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                Aucun joueur dans la campagne.
+                {translate('map.vision.noPlayers')}
               </p>
             )}
             <DropdownMenuSeparator />
@@ -97,14 +98,14 @@ export function VisionViewMenu({ engine }: Readonly<{ engine: MapEngine }>) {
           onCheckedChange={(on) => setVisionRadiusShown(engine, on === true)}
         >
           <CircleDashed className="size-4 text-muted-foreground" />
-          {gm ? 'Rayons de vision des joueurs' : 'Mon rayon de vision'}
+          {gm ? translate('map.vision.playersRadius') : translate('map.vision.myRadius')}
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={fogAnimation}
           onCheckedChange={(on) => setFogAnimation(engine, on === true)}
         >
           <Cloudy className="size-4 text-muted-foreground" />
-          Animer la brume
+          {translate('map.vision.animateMist')}
         </DropdownMenuCheckboxItem>
         {videoBackground && (
           <DropdownMenuCheckboxItem
@@ -112,7 +113,7 @@ export function VisionViewMenu({ engine }: Readonly<{ engine: MapEngine }>) {
             onCheckedChange={(on) => setBackgroundAnimation(engine, on === true)}
           >
             <Film className="size-4 text-muted-foreground" />
-            Animer le fond
+            {translate('map.vision.animateBackground')}
           </DropdownMenuCheckboxItem>
         )}
         <DropdownMenuCheckboxItem
@@ -121,9 +122,11 @@ export function VisionViewMenu({ engine }: Readonly<{ engine: MapEngine }>) {
         >
           <Ruler className="size-4 text-muted-foreground" />
           <span className="flex flex-col">
-            Distance au clic
+            {translate('map.vision.clickDistance')}
             <span className="text-xs text-muted-foreground">
-              {gm ? '⌘/Ctrl + clic : depuis le token sélectionné' : 'Depuis mon personnage'}
+              {gm
+                ? translate('map.vision.clickDistanceGm')
+                : translate('map.vision.clickDistancePlayer')}
             </span>
           </span>
         </DropdownMenuCheckboxItem>

@@ -10,6 +10,7 @@
  *   de `start` (origine ou centre) à `end` (le pointeur) ; ses options gardent les noms de
  *   l'ancienne app (`coneAngle`, `coneMode`, `coneWidth`, `fixedLength`, `coneShape`).
  */
+import { activeLocale, translate } from '@/i18n/runtime';
 import type { MapMeasurement, MapMeasurementShape } from '@vtt/contracts';
 import type { Point } from '@/lib/map/engine/geometry';
 import type { MapDto } from '@/lib/map/store/map-store';
@@ -24,25 +25,38 @@ export const MEASURE_TOOL_ID = 'measure';
 export type MeasureShape = MapMeasurementShape;
 export type MeasurementData = MapMeasurement & MapDto;
 
-export const MEASURE_SHAPES: readonly { value: MeasureShape; label: string; key: string }[] = [
-  { value: 'line', label: 'Règle', key: '1' },
-  { value: 'cone', label: 'Cône', key: '2' },
-  { value: 'circle', label: 'Cercle', key: '3' },
-  { value: 'cube', label: 'Carré', key: '4' },
+/** Formes de l'outil ; nom affiché : `map.measurements.shapes.<forme>`. */
+export const MEASURE_SHAPES: readonly { value: MeasureShape; key: string }[] = [
+  { value: 'line', key: '1' },
+  { value: 'cone', key: '2' },
+  { value: 'circle', key: '3' },
+  { value: 'cube', key: '4' },
 ];
+export const measureShapeLabel = (shape: MeasureShape) =>
+  translate(`map.measurements.shapes.${shape}`);
 
-/** Couleurs proposées (données) ; l'or est celle de l'ancienne app. */
-export const MEASURE_COLORS: readonly { value: string; label: string }[] = [
-  { value: '#ffd700', label: 'Or' },
-  { value: '#f97316', label: 'Orange' },
-  { value: '#ef4444', label: 'Rouge' },
-  { value: '#ec4899', label: 'Rose' },
-  { value: '#8b5cf6', label: 'Violet' },
-  { value: '#3b82f6', label: 'Bleu' },
-  { value: '#06b6d4', label: 'Cyan' },
-  { value: '#10b981', label: 'Vert' },
-  { value: '#e7e5e4', label: 'Pierre' },
-];
+/**
+ * Couleurs proposées (données) ; l'or est celle de l'ancienne app. Nom affiché :
+ * `map.measurements.colors.<name>`.
+ */
+export const MEASURE_COLORS = [
+  { value: '#ffd700', name: 'gold' },
+  { value: '#f97316', name: 'orange' },
+  { value: '#ef4444', name: 'red' },
+  { value: '#ec4899', name: 'pink' },
+  { value: '#8b5cf6', name: 'violet' },
+  { value: '#3b82f6', name: 'blue' },
+  { value: '#06b6d4', name: 'cyan' },
+  { value: '#10b981', name: 'green' },
+  { value: '#e7e5e4', name: 'stone' },
+] as const;
+
+/** La palette avec ses noms, pour un sélecteur de couleur. */
+export const measureColorOptions = () =>
+  MEASURE_COLORS.map((c) => ({
+    value: c.value,
+    label: translate(`map.measurements.colors.${c.name}`),
+  }));
 export const DEFAULT_MEASURE_COLOR = MEASURE_COLORS[0]!.value;
 
 // ─── Unités et cases ─────────────────────────────────────────────────────────
@@ -51,7 +65,7 @@ export const DEFAULT_MEASURE_COLOR = MEASURE_COLORS[0]!.value;
 export const roundHalf = (n: number) => Math.round(n * 2) / 2;
 
 const number = (n: number, digits = 1) =>
-  n.toLocaleString('fr-FR', { maximumFractionDigits: digits });
+  n.toLocaleString(activeLocale(), { maximumFractionDigits: digits });
 
 /** « 4,5 m » : unités arrondies à la demi-unité. */
 export function formatUnits(units: number, unitName: string): string {
@@ -70,15 +84,12 @@ export function formatArea(area: number, unitName: string): string {
  */
 export type GridCounting = 'chebyshev' | 'alternating' | 'manhattan' | 'off';
 
-export const GRID_COUNTINGS: readonly { value: GridCounting; label: string; hint: string }[] = [
-  { value: 'chebyshev', label: 'Diagonale : 1 case', hint: 'Une diagonale compte une case' },
-  {
-    value: 'alternating',
-    label: 'Diagonales alternées',
-    hint: 'Une diagonale sur deux compte double (1, 2, 1…)',
-  },
-  { value: 'manhattan', label: 'Sans diagonale', hint: 'Seulement en ligne et en colonne' },
-  { value: 'off', label: 'Ne pas compter', hint: 'La distance seule' },
+/** Comptages proposés ; nom et aide : `map.measurements.counting.<valeur>.label|hint`. */
+export const GRID_COUNTINGS: readonly GridCounting[] = [
+  'chebyshev',
+  'alternating',
+  'manhattan',
+  'off',
 ];
 
 /** Grille de jeu de la scène (en pixels du monde). */
@@ -112,7 +123,7 @@ export function gridSteps(
   }
 }
 
-const casesLabel = (n: number) => `${n} case${n > 1 ? 's' : ''}`;
+const casesLabel = (n: number) => translate('map.measurements.squares', { count: n });
 
 /** Ce qu'il faut pour écrire une distance. */
 export interface UnitContext {
@@ -374,10 +385,16 @@ export function measureLabel(spec: MeasureSpec, u: UnitContext): string {
     case 'line':
       return distanceText(spec.start, spec.end, u);
     case 'circle':
-      return `Rayon ${formatUnits(units, unit)} · ${formatArea(Math.PI * units * units, unit)}`;
+      return translate('map.measurements.radiusArea', {
+        length: formatUnits(units, unit),
+        area: formatArea(Math.PI * units * units, unit),
+      });
     case 'cube': {
       const side = 2 * units;
-      return `Côté ${formatUnits(side, unit)} · ${formatArea(side * side, unit)}`;
+      return translate('map.measurements.sideArea', {
+        length: formatUnits(side, unit),
+        area: formatArea(side * side, unit),
+      });
     }
     case 'cone': {
       const c = coneOptions(spec.options);

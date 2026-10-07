@@ -11,6 +11,7 @@
  * - Outil `spawn` (hors de la barre, lancé depuis le panneau Scènes) : un clic pose le point.
  * - Les joueurs ne le voient pas.
  */
+import { translate } from '@/i18n/runtime';
 import { Flag, MapPin } from 'lucide-react';
 import type { Container, Graphics, Text } from 'pixi.js';
 import { isGm, type EntityKind, type RenderContext } from '@/lib/map/engine/entities/entity-kind';
@@ -28,7 +29,7 @@ export const SPAWN_COLLECTION = 'spawn';
 const SPAWN_ID = 'spawn';
 /** Rayon touchable autour du drapeau, en pixels d'écran. */
 const HIT_PX = 16;
-const LABEL = 'Arrivée des joueurs';
+const spawnLabel = () => translate('map.scene.spawn');
 
 export interface SpawnData extends MapDto {
   x: number;
@@ -39,7 +40,7 @@ const round = (v: number) => Math.round(v);
 
 /** Pose le point d'apparition (commande annulable). */
 export function setSpawn(engine: MapEngine, p: Point | null) {
-  return engine.updateScene('Point d’arrivée des joueurs', {
+  return engine.updateScene(translate('map.scene.spawnPoint'), {
     spawn: p ? { x: round(p.x), y: round(p.y) } : null,
   });
 }
@@ -132,7 +133,7 @@ function drawSpawn(e: MapEntity, ctx: RenderContext) {
 function spawnKind(engine: MapEngine): EntityKind<MapDto> {
   return {
     id: SPAWN_KIND,
-    label: LABEL,
+    label: spawnLabel(),
     collection: SPAWN_COLLECTION,
     capabilities: ['select', 'move', 'delete'],
     // Sous tout le reste : un token posé sur le point reste prioritaire au clic
@@ -144,7 +145,7 @@ function spawnKind(engine: MapEngine): EntityKind<MapDto> {
       return { x: s.x, y: s.y, width: 0, height: 0, rotation: 0 };
     },
     applyGeometry: (d, g) => ({ ...d, x: round(g.x), y: round(g.y) }),
-    name: () => LABEL,
+    name: spawnLabel,
     can: (action, _e, viewer) => isGm(viewer) || action === 'view',
     hitTest: (e, p, tol) => {
       const zoom = engine.camera.zoom;
@@ -161,7 +162,7 @@ function spawnKind(engine: MapEngine): EntityKind<MapDto> {
       const flag = new pixi.Graphics({ label: 'drapeau' });
       const plate = new pixi.Graphics({ label: 'etiquette' });
       const label = new pixi.Text({
-        text: LABEL,
+        text: spawnLabel(),
         style: {
           fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 11,
@@ -223,7 +224,7 @@ export const sceneFeature: MapFeature = {
     const cleanups = [
       engine.registerTool({
         id: SPAWN_TOOL_ID,
-        label: 'Point d’arrivée des joueurs',
+        label: translate('map.scene.spawnPoint'),
         icon: MapPin,
         hidden: true,
         available: isGm,
@@ -247,7 +248,7 @@ export const sceneFeature: MapFeature = {
             : [
                 {
                   id: 'scene:spawn-here',
-                  label: 'Arrivée des joueurs ici',
+                  label: translate('map.scene.spawnHere'),
                   icon: Flag,
                   run: () => void setSpawn(engine, world),
                 },

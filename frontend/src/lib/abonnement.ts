@@ -3,6 +3,7 @@
  * Le paiement se fait sur Stripe Checkout : les fonctions qui ouvrent une
  * session renvoient l'URL de Stripe, où le navigateur est envoyé.
  */
+import { activeLocale } from '@/i18n/runtime';
 import { PAGES_FRONT } from '@vtt/contracts';
 import { api } from './api';
 
@@ -147,8 +148,8 @@ export const reprendre = () => post<{ resumed: boolean }>('/v1/billing/subscript
 
 /** Montant en centimes → « 4,99 € ». */
 export function montant(centimes: number, devise = 'eur') {
-  return (centimes / 100).toLocaleString('fr-FR', {
+  return new Intl.NumberFormat(activeLocale(), {
     style: 'currency',
     currency: devise.toUpperCase(),
-  });
+  }).format(centimes / 100);
 }

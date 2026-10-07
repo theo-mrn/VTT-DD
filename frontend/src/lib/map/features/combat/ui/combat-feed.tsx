@@ -13,6 +13,7 @@
  * - États des personnages posés (badges) : fiches que je peux lire seulement (MJ : toutes ;
  *   joueur : héros et alliés, jamais un PNJ ennemi, Q4), cache partagé avec la fiche.
  */
+import { translate } from '@/i18n/runtime';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { calculer, estHorsCombat } from '@vtt/rules';
 import { HeartPulse } from 'lucide-react';
@@ -147,7 +148,7 @@ export function CombatMapFeed({ engine }: { engine: MapEngine }) {
       return [
         {
           id: 'combat:revive',
-          label: 'Relever',
+          label: translate('map.combat.revive'),
           icon: HeartPulse,
           urgent: true,
           primary: true,

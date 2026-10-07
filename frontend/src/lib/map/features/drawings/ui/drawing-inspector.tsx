@@ -6,6 +6,7 @@
  * annulable, envoyée à la fin du geste (un curseur ne produit qu'une commande). Lecture seule
  * pour qui n'est ni l'auteur ni le MJ.
  */
+import { translate } from '@/i18n/runtime';
 import { Layers2, PenLine } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -49,10 +50,10 @@ function PlacementInfo({
 }>) {
   const layered = entities.filter((e) => e.layerId !== null);
   const layer = layered.length === entities.length ? engine.layer(layered[0]!.layerId) : null;
-  let placement = 'Dans des calques de la carte.';
-  if (layered.length === 0) placement = 'Annotation : au-dessus de l’ombre, vue de toute la table.';
+  let placement = translate('map.drawings.inLayers');
+  if (layered.length === 0) placement = translate('map.drawings.annotationHint');
   else if (layer && new Set(layered.map((e) => e.layerId)).size === 1)
-    placement = `Dans le calque « ${layer.name} ».`;
+    placement = translate('map.drawings.inLayer', { name: layer.name });
   const author = entities.length === 1 ? String(entities[0]!.data.createdBy ?? '') : '';
   const authorName = author ? (engine.directory.userName(author) ?? null) : null;
   return (
@@ -68,7 +69,7 @@ function PlacementInfo({
           onClick={() => void moveToAnnotations(engine, layered)}
         >
           <Layers2 />
-          Passer en annotation
+          {translate('map.drawings.toAnnotation')}
         </Button>
       )}
     </div>
@@ -97,11 +98,13 @@ export function DrawingInspector({ engine, entities }: Readonly<InspectorSection
         <ColorPalette
           value={hex}
           onChange={(h) =>
-            update('Couleur', (d) => recolor(d, h, parseColor(String(d.color))?.alpha ?? 1))
+            update(translate('map.grid.color'), (d) =>
+              recolor(d, h, parseColor(String(d.color))?.alpha ?? 1),
+            )
           }
         />
         <RangeSetting
-          label="Opacité"
+          label={translate('map.grid.opacity')}
           value={Math.round((opacityDraft ?? alpha) * 100)}
           min={OPACITY_RANGE.min * 100}
           max={OPACITY_RANGE.max * 100}
@@ -111,11 +114,13 @@ export function DrawingInspector({ engine, entities }: Readonly<InspectorSection
           onChange={(v) => setOpacityDraft(v / 100)}
           onCommit={(v) => {
             setOpacityDraft(null);
-            update('Opacité', (d) => recolor(d, parseColor(String(d.color))?.hex ?? hex, v / 100));
+            update(translate('map.grid.opacity'), (d) =>
+              recolor(d, parseColor(String(d.color))?.hex ?? hex, v / 100),
+            );
           }}
         />
         <RangeSetting
-          label="Épaisseur"
+          label={translate('map.grid.thickness')}
           value={widthDraft ?? first.width}
           min={WIDTH_RANGE.min}
           max={WIDTH_RANGE.max}
@@ -126,19 +131,24 @@ export function DrawingInspector({ engine, entities }: Readonly<InspectorSection
           onChange={setWidthDraft}
           onCommit={(v) => {
             setWidthDraft(null);
-            update('Épaisseur', (d) => (d.width === v ? d : { ...d, width: v }));
+            update(translate('map.grid.thickness'), (d) =>
+              d.width === v ? d : { ...d, width: v },
+            );
           }}
         />
         {closed && (
           <label className="flex items-center justify-between gap-3 text-[13px]">
-            Remplie
+            {translate('map.drawings.filled')}
             <Switch
               checked={filled}
               onCheckedChange={(on) =>
-                update(on ? 'Remplir' : 'Sans remplissage', (d) => ({
-                  ...d,
-                  fill: on ? fillFor(String(d.color)) : null,
-                }))
+                update(
+                  on ? translate('map.drawings.fill') : translate('map.drawings.noFill'),
+                  (d) => ({
+                    ...d,
+                    fill: on ? fillFor(String(d.color)) : null,
+                  }),
+                )
               }
             />
           </label>
@@ -164,7 +174,7 @@ export function NoteInspector({ engine, entities }: Readonly<InspectorSectionPro
     const text = textDraft;
     setTextDraft(null);
     if (text === null || !text.trim() || text === first.text) return;
-    update('Modifier le texte', (d) => ({ ...d, text }));
+    update(translate('map.drawings.editText'), (d) => ({ ...d, text }));
   };
 
   return (
@@ -172,7 +182,7 @@ export function NoteInspector({ engine, entities }: Readonly<InspectorSectionPro
       {single && (
         <div className="space-y-2">
           <Textarea
-            aria-label="Texte"
+            aria-label={translate('map.drawings.text')}
             value={textDraft ?? first.text}
             disabled={!canEdit}
             maxLength={5000}
@@ -190,7 +200,7 @@ export function NoteInspector({ engine, entities }: Readonly<InspectorSectionPro
               }}
             >
               <PenLine />
-              Modifier sur la carte
+              {translate('map.drawings.editOnMap')}
             </Button>
           )}
         </div>
@@ -200,13 +210,17 @@ export function NoteInspector({ engine, entities }: Readonly<InspectorSectionPro
         fontSize={sizeDraft ?? first.fontSize}
         fontFamily={first.fontFamily}
         disabled={!canEdit}
-        onColor={(hex) => update('Couleur', (d) => ({ ...d, color: hex }))}
+        onColor={(hex) => update(translate('map.grid.color'), (d) => ({ ...d, color: hex }))}
         onFontSize={setSizeDraft}
         onFontSizeCommit={(size) => {
           setSizeDraft(null);
-          update('Taille du texte', (d) => (d.fontSize === size ? d : { ...d, fontSize: size }));
+          update(translate('map.drawings.textSize'), (d) =>
+            d.fontSize === size ? d : { ...d, fontSize: size },
+          );
         }}
-        onFont={(font) => update('Police', (d) => ({ ...d, fontFamily: font }))}
+        onFont={(font) =>
+          update(translate('map.drawings.font'), (d) => ({ ...d, fontFamily: font }))
+        }
       />
       <PlacementInfo engine={engine} entities={entities} />
     </div>

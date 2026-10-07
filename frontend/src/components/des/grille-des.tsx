@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useId, useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { FOCUS, TACTILE } from './tactile';
@@ -22,13 +23,14 @@ export function GrilleDes({
   onAjouter: (faces: number) => void;
   onRetirer: (faces: number) => void;
 }>) {
+  const t = useTranslations('dice.grid');
   const aide = useId();
   return (
     <div>
       <p id={aide} className="sr-only">
-        Clic droit, appui long ou touche Retour arrière pour retirer un dé.
+        {t('removeHint')}
       </p>
-      <div role="group" aria-label="Dés à ajouter" className="grid grid-cols-2 gap-1.5">
+      <div role="group" aria-label={t('label')} className="grid grid-cols-2 gap-1.5">
         {DES_GRILLE.map((faces) => (
           <BoutonDe
             key={faces}
@@ -57,6 +59,7 @@ export function BoutonDe({
   onAjouter: () => void;
   onRetirer: () => void;
 }>) {
+  const t = useTranslations('dice.grid');
   const minuteur = useRef<number | undefined>(undefined);
   // Appui long déjà traité : le clic (ou le menu contextuel) qui suit ne compte pas
   const long = useRef(false);
@@ -115,7 +118,7 @@ export function BoutonDe({
       onPointerLeave={annuler}
       onPointerCancel={annuler}
       onKeyDown={clavier}
-      aria-label={`Ajouter un d${faces}${n ? `, ${n} dans la formule` : ''}`}
+      aria-label={t('add', { count: n, faces: String(faces) })}
       aria-describedby={aide}
       className={cn(
         'relative flex aspect-square size-14 touch-manipulation sm:size-16 select-none items-center justify-center rounded-lg border font-mono text-[13px] font-semibold tabular transition-[background-color,border-color,color,transform] duration-150 [-webkit-touch-callout:none]',

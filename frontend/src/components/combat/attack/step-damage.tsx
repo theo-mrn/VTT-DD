@@ -9,6 +9,7 @@
  * à dés), et « Dégâts libres » (les nombres de l'étape : dés, faces, modificateur). Un clic
  * lance les dégâts ; touches 1 à 9 sur les tuiles.
  */
+import { useTranslations } from 'next-intl';
 import type { Attack } from '@vtt/contracts';
 import type { Action, Fiche, Presentation, SystemeCharge, Valeur } from '@vtt/rules';
 import { Dices } from 'lucide-react';
@@ -51,6 +52,7 @@ export function StepDamage({
   launching: boolean;
   onLaunch: (params: Record<string, Valeur>) => void;
 }>) {
+  const t = useTranslations();
   const action = systeme.actions.get(attack.action.id) as Action | undefined;
   const params = useMemo(
     () =>
@@ -93,7 +95,7 @@ export function StepDamage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <ul className="flex flex-col items-center gap-1.5" aria-label="Jet d’attaque">
+      <ul className="flex flex-col items-center gap-1.5" aria-label={t('combat.attack.attackRoll')}>
         {hits.map((s) => (
           <RecapLine key={s.characterId} summary={s} name={targetName(s.characterId, ctx.known)} />
         ))}
@@ -136,16 +138,16 @@ export function StepDamage({
       {numbers.length > 0 && (
         <Stagger index={2}>
           <section
-            aria-label="Dégâts libres"
+            aria-label={t('combat.attack.freeDamage')}
             className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-surface sm:p-4"
           >
             <div className="flex items-center gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border-strong bg-surface-3 text-primary">
                 <Dices className="size-[1.125rem]" aria-hidden />
               </span>
-              <span className="flex-1 text-sm font-semibold">Dégâts libres</span>
+              <span className="flex-1 text-sm font-semibold">{t('combat.attack.freeDamage')}</span>
               <LaunchButton busy={launching} onClick={() => launch({})}>
-                Lancer
+                {t('combat.attack.roll')}
               </LaunchButton>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">

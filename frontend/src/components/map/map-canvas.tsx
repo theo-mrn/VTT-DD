@@ -10,6 +10,7 @@
  * compris) et remonte une carte neuve. La pile d'annulation, elle, est gardée par utilisateur
  * et par carte le temps de la session.
  */
+import { translate } from '@/i18n/runtime';
 import { effectiveBinding } from '@/lib/shortcuts/store';
 import { AlertTriangle, MapPinOff, RotateCw } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -206,7 +207,7 @@ function MapRuntime({
           tabIndex={0}
           role="application"
           aria-roledescription="carte"
-          aria-label="Carte de la scène"
+          aria-label={translate('map.scenes.canvas')}
           aria-keyshortcuts="V K Escape Delete Control+Z"
           className="absolute inset-0 touch-none select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40"
         />
@@ -215,7 +216,7 @@ function MapRuntime({
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
             <p className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2 text-sm text-muted-foreground">
               <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden />
-              Chargement de la scène…
+              {translate('map.scenes.loading')}
             </p>
           </div>
         )}
@@ -228,15 +229,15 @@ function MapRuntime({
               description={
                 failure ??
                 (status === 'gone'
-                  ? 'Elle a été supprimée, ou le MJ l’a cachée.'
-                  : 'Le service de la carte ne répond pas.')
+                  ? translate('map.scenes.goneHint')
+                  : translate('map.scenes.serviceDown'))
               }
               className="w-full max-w-md bg-background/95"
               action={
                 status === 'error' ? (
                   <Button variant="secondary" onClick={() => void sync.load()}>
                     <RotateCw />
-                    Réessayer
+                    {translate('map.tokens.library.retry')}
                   </Button>
                 ) : undefined
               }
@@ -264,6 +265,6 @@ function MapRuntime({
 }
 
 function titreEchec(failure: boolean, gone: boolean): string {
-  if (failure) return 'La carte ne peut pas s’afficher';
-  return gone ? 'Cette scène n’est plus disponible' : 'La scène n’a pas pu être chargée';
+  if (failure) return translate('map.scenes.cantDisplay');
+  return gone ? translate('map.scenes.gone') : translate('map.scenes.loadFailed');
 }

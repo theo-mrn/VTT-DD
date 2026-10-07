@@ -17,3 +17,4 @@ export * from './accounts.js';
 export * from './billing.js';
 export * from './marketplace.js';
 export * from './shortcuts.js';
+export * from './locale.js';

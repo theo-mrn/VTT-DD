@@ -7,6 +7,8 @@
  * dépose un objet), et la tuile « + » pour ajouter. Pas de nom sous la tuile : il est dans
  * l'infobulle et dans le libellé accessible, avec la quantité et l'info clé.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import { EyeOff, Folder, FolderOpen, Plus, type LucideIcon } from 'lucide-react';
 import {
   useState,
@@ -43,13 +45,13 @@ function Quantite({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 function unites(n: number): string {
-  return n > 1 ? `${n} unités` : `${n} unité`;
+  return translate('sheet.inventory.units', { count: n });
 }
 
 /** « Équipé » ou « Rangé » pour un objet activable. */
 function etatRangement(item: InventoryItem): string | null {
   if (!item.sorte.activable) return null;
-  return item.actif ? 'Équipé' : 'Rangé';
+  return translate(item.actif ? 'sheet.inventory.equipped' : 'sheet.inventory.stowed');
 }
 
 /** Libellé accessible d'un objet : nom, quantité, info clé, états. */
@@ -60,8 +62,8 @@ export function libelleObjet(item: InventoryItem, meta: string | null): string {
     meta,
     ...item.bonus.filter((b) => !b.ignore).map((b) => b.texte),
     etatRangement(item)?.toLowerCase(),
-    item.hidden ? 'caché aux autres joueurs' : null,
-    item.folder ? `dans ${item.folder.name}` : null,
+    item.hidden ? translate('sheet.inventory.hiddenOthers').toLowerCase() : null,
+    item.folder ? translate('sheet.inventory.inFolder', { name: item.folder.name }) : null,
   ]
     .filter(Boolean)
     .join(', ');
@@ -74,7 +76,7 @@ function InfoObjet({ item, meta }: Readonly<{ item: InventoryItem; meta: string 
     item.sorte.quantites || item.quantite > 1 ? `×${item.quantite}` : null,
     meta,
     etatRangement(item),
-    item.hidden ? 'Caché aux autres joueurs' : null,
+    item.hidden ? translate('sheet.inventory.hiddenOthers') : null,
   ].filter(Boolean);
   return (
     <span className="block max-w-56 space-y-0.5 text-left">
@@ -284,13 +286,14 @@ export function AddTile({
   focusable: boolean;
   onFocusTile(): void;
 }>) {
+  const t = useTranslations();
   return (
-    <Info texte="Ajouter un objet">
+    <Info texte={t('sheet.inventory.addItem')}>
       <button
         type="button"
         data-tile="ajouter"
         tabIndex={focusable ? 0 : -1}
-        aria-label="Ajouter un objet"
+        aria-label={t('sheet.inventory.addItem')}
         onFocus={onFocusTile}
         onClick={onClick}
         className={cn(

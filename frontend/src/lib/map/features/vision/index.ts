@@ -17,6 +17,7 @@
  *
  * État sans Pixi : `vision-state.ts` (testé à blanc) ; rendu : `renderer.ts`.
  */
+import { translate } from '@/i18n/runtime';
 import { Eye } from 'lucide-react';
 import type { MapEngine, MapFeature } from '@/lib/map/engine/map-engine';
 import { explorationOf } from '@/lib/map/features/exploration/engine/model';
@@ -108,7 +109,7 @@ export const visionFeature: MapFeature = {
       engine.registerToolbarEntry({
         kind: 'custom',
         id: 'vision:view',
-        label: 'Vue',
+        label: translate('map.vision.view'),
         icon: Eye,
         group: 'view',
         order: 10,

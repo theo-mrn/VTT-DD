@@ -44,9 +44,12 @@ export interface ResinLook {
   clearcoatRoughness?: number;
 }
 
+/**
+ * Un skin de dés. Son nom et sa description affichés sont au catalogue des langues
+ * (`diceSkins.<id>`, docs/i18n.md § 6).
+ */
 export interface DiceSkin {
   id: string;
-  name: string;
   bodyColor: string;
   edgeColor: string;
   borderColor: string;
@@ -122,7 +125,6 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
   // ── Série « Résine » (test) : motif cuit + vernis (materials/resin-material.tsx) ──
   resine_marbre: {
     id: 'resine_marbre',
-    name: 'Résine Marbre',
     bodyColor: '#f1ece2',
     edgeColor: '#c8a24a',
     borderColor: '#c8a24a',
@@ -143,13 +145,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ffffff',
     price: 0,
-    description: "Résine ivoire veinée d'or, sous un vernis brillant.",
     rarity: 'rare',
     resin: { pattern: 'marble', colors: ['#d8d2c6', '#f6f2ea', '#c49a3a'], scale: 1.4 },
   },
   resine_nuit: {
     id: 'resine_nuit',
-    name: 'Résine Nuit',
     bodyColor: '#0d1430',
     edgeColor: '#e6ecff',
     borderColor: '#e6ecff',
@@ -170,7 +170,6 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ffffff',
     price: 0,
-    description: "Bleu nuit profond, nuages d'encre et paillettes d'argent.",
     rarity: 'rare',
     resin: {
       pattern: 'nebula',
@@ -181,7 +180,6 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
   },
   resine_fumee: {
     id: 'resine_fumee',
-    name: 'Résine Fumée',
     bodyColor: '#3a2414',
     edgeColor: '#e8c9a0',
     borderColor: '#e8c9a0',
@@ -202,13 +200,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ffffff',
     price: 0,
-    description: 'Ambre fumé traversé de volutes laiteuses.',
     rarity: 'rare',
     resin: { pattern: 'smoke', colors: ['#2a160a', '#7a4a22', '#e9d2b0'], scale: 2.3 },
   },
   resine_jade: {
     id: 'resine_jade',
-    name: 'Résine Jade',
     bodyColor: '#2f6b4f',
     edgeColor: '#d9f0e2',
     borderColor: '#d9f0e2',
@@ -229,14 +225,12 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ffffff',
     price: 0,
-    description: 'Jade marbré aux inclusions claires.',
     rarity: 'rare',
     resin: { pattern: 'jade', colors: ['#1d4a35', '#4f9a74', '#d6f0e0'], scale: 1.7 },
   },
   // ── STAR WARS (dedicated signature shaders) ─────────────────
   kyber_bleu: {
     id: 'kyber_bleu',
-    name: 'Cristal Kyber — Bleu',
     bodyColor: '#0a1c3a', // deep cool crystal glass
     edgeColor: '#3aa8ff', // Jedi blade blue (drives the plasma)
     borderColor: '#bfe4ff',
@@ -259,12 +253,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#3aa8ff',
     particleColor2: '#eaf5ff',
     price: 2000,
-    description: "Le cœur d'un sabre Jedi. La lame bourdonne encore, prisonnière du cristal.",
     rarity: 'epic',
   },
   kyber_vert: {
     id: 'kyber_vert',
-    name: 'Cristal Kyber — Vert',
     bodyColor: '#0a2a16', // deep forest crystal glass
     edgeColor: '#3dff8a', // green blade (drives the plasma)
     borderColor: '#b8ffd4',
@@ -287,12 +279,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#3dff8a',
     particleColor2: '#eafff2',
     price: 2000,
-    description: 'Taillé sur une lune oubliée. La sérénité du gardien, forgée en lame.',
     rarity: 'epic',
   },
   kyber_violet: {
     id: 'kyber_violet',
-    name: 'Cristal Kyber — Améthyste',
     bodyColor: '#1a0a2e', // deep violet crystal glass
     edgeColor: '#b45cff', // rare purple blade
     borderColor: '#e0c0ff',
@@ -315,13 +305,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#b45cff',
     particleColor2: '#f4eaff',
     price: 2500,
-    description:
-      "Une couleur qu'un seul maître osa porter. Ni tout à fait lumière, ni tout à fait ombre.",
     rarity: 'epic',
   },
   kyber_rouge: {
     id: 'kyber_rouge',
-    name: 'Cristal Kyber — Saigné',
     bodyColor: '#2a0606', // dark blood-crystal glass
     edgeColor: '#ff2a1a', // Sith synthetic-red blade
     borderColor: '#ff9a8a',
@@ -344,12 +331,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ff2a1a',
     particleColor2: '#ffe0da',
     price: 2500,
-    description: "Un cristal brisé par la haine jusqu'à saigner. Sa lumière est une plaie.",
     rarity: 'epic',
   },
   kyber_or: {
     id: 'kyber_or',
-    name: 'Cristal Kyber — Or',
     bodyColor: '#2a1e04', // deep amber crystal glass
     edgeColor: '#ffcf2e', // radiant golden-yellow blade (drives the plasma)
     borderColor: '#fff0b0',
@@ -372,12 +357,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffcf2e',
     particleColor2: '#fff8e0',
     price: 2500,
-    description: "Le cristal des maîtres. Sa lame d'or ne tremble jamais — la marque du triomphe.",
     rarity: 'epic',
   },
   etoile_mort: {
     id: 'etoile_mort',
-    name: 'Étoile de la Mort',
     bodyColor: '#7d848c', // cold imperial hull grey
     edgeColor: '#5aff8f', // superlaser green
     borderColor: '#aeb6bf',
@@ -400,13 +383,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#5aff8f',
     particleColor2: '#aeb6bf',
     price: 2500,
-    description:
-      'Cette station de combat est votre arme ultime. Le superlaser se charge à chaque lancer.',
     rarity: 'rare',
   },
   cote_obscur: {
     id: 'cote_obscur',
-    name: 'Côté Obscur',
     bodyColor: '#1a0608', // corrupted black obsidian, faint crimson base
     edgeColor: '#ff1a2a', // dark-side crimson (Force lightning)
     borderColor: '#ff5a4a',
@@ -429,12 +409,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ff1a2a',
     particleColor2: '#3a0000',
     price: 2500,
-    description: 'La Force en colère. Les éclairs rampent sous la surface, cherchant une proie.',
     rarity: 'legendary',
   },
   cote_lumineux: {
     id: 'cote_lumineux',
-    name: 'Côté Lumineux',
     bodyColor: '#061626', // serene deep-blue crystal glass
     edgeColor: '#4ac8ff', // luminous side azure (Force energy)
     borderColor: '#a8e6ff',
@@ -457,13 +435,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#4ac8ff',
     particleColor2: '#04213a',
     price: 2500,
-    description:
-      'La Force en paix. Une énergie sereine circule sous la surface, veillant sur son porteur.',
     rarity: 'legendary',
   },
   esprit_force: {
     id: 'esprit_force',
-    name: 'Esprit de la Force',
     bodyColor: '#0a0a14', // near-black energy body (currents glow over it)
     edgeColor: '#ffe9b0', // white-gold light current (drives the luminous side)
     borderColor: '#fff4d8',
@@ -486,12 +461,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffe9b0',
     particleColor2: '#1a1a22',
     price: 2500,
-    description: 'La Force elle-même : lumière et ténèbres enlacées, éternellement en équilibre.',
     rarity: 'legendary',
   },
   hyperespace: {
     id: 'hyperespace',
-    name: 'Saut Hyperespace',
     bodyColor: '#050a1a', // near-black space
     edgeColor: '#78b4ff', // blue-white lightspeed tunnel
     borderColor: '#cfe6ff',
@@ -514,14 +487,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#78b4ff',
     particleColor2: '#ffffff',
     price: 2000,
-    description:
-      "Accroche-toi. Les étoiles s'étirent et l'univers file — c'est parti pour la vitesse-lumière.",
     rarity: 'epic',
   },
   // ── ORB SKINS (transparent shell + billboarded core) ────────
   aqua_orb: {
     id: 'aqua_orb',
-    name: 'Orbe Aquatique',
     bodyColor: '#1565c0',
     edgeColor: '#7ec8ff',
     borderColor: '#ffffff',
@@ -550,12 +520,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellColor: '#0d63d6',
     shellOpacity: 0.22,
     price: 500,
-    description: 'Une coque de verre vivante avec un cœur de lumière flottant.',
     rarity: 'epic',
   },
   eye_orb: {
     id: 'eye_orb',
-    name: 'Œil du Gardien',
     bodyColor: '#5b2d8a',
     edgeColor: '#c9a0ff',
     borderColor: '#ffffff',
@@ -587,12 +555,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellTintDistance: 6, // much clearer glass so the eye reads through
     shellThickness: 1.0,
     price: 750,
-    description: 'Un œil ancien scellé dans le verre. Il vous observe.',
     rarity: 'legendary',
   },
   shield_orb: {
     id: 'shield_orb',
-    name: 'Gardien',
     bodyColor: '#2a3a5a',
     edgeColor: '#9cc4ff',
     borderColor: '#ffffff',
@@ -625,12 +591,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellTintDistance: 1000, // essentially clear glass
     shellThickness: 0.05,
     price: 1500,
-    description: "Aucune lame n'a jamais franchi cette protection.",
     rarity: 'legendary',
   },
   book_orb: {
     id: 'book_orb',
-    name: 'Grimoire Ancien',
     bodyColor: '#3a2a5a',
     edgeColor: '#c9a0ff',
     borderColor: '#ffffff',
@@ -662,12 +626,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellTintDistance: 1000, // essentially clear glass
     shellThickness: 0.05,
     price: 1500,
-    description: 'Un savoir interdit, scellé pour le bien de tous.',
     rarity: 'legendary',
   },
   potion_orb: {
     id: 'potion_orb',
-    name: 'Élixir Mystique',
     bodyColor: '#1f5a3a',
     edgeColor: '#7affc0',
     borderColor: '#ffffff',
@@ -699,12 +661,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellTintDistance: 1000, // essentially clear glass
     shellThickness: 0.05,
     price: 1500,
-    description: "Un breuvage chatoyant dont nul ne connaît l'effet.",
     rarity: 'legendary',
   },
   mug_orb: {
     id: 'mug_orb',
-    name: 'Chope du Tavernier',
     bodyColor: '#6b4a1f',
     edgeColor: '#ffcf6e',
     borderColor: '#ffffff',
@@ -736,12 +696,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellTintDistance: 1000, // essentially clear glass
     shellThickness: 0.05,
     price: 1500,
-    description: 'Toujours pleine, jamais vide. Le rêve de tout aventurier.',
     rarity: 'legendary',
   },
   mimique_orb: {
     id: 'mimique_orb',
-    name: 'Mimique Captive',
     bodyColor: '#5a2f1a',
     edgeColor: '#ff8a5c',
     borderColor: '#ffffff',
@@ -773,12 +731,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellTintDistance: 1000, // essentially clear glass
     shellThickness: 0.05,
     price: 1500,
-    description: 'Un coffre qui mord, prisonnier de sa propre cupidité.',
     rarity: 'legendary',
   },
   ring_orb: {
     id: 'ring_orb',
-    name: 'Anneau Scellé',
     bodyColor: '#3a2a10',
     edgeColor: '#ffd97a',
     borderColor: '#ffffff',
@@ -812,12 +768,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellTintDistance: 40,
     shellThickness: 0.4,
     price: 1500,
-    description: "Un anneau de pouvoir scellé dans le verre. Un seul l'enchaîne.",
     rarity: 'legendary',
   },
   beholder_orb: {
     id: 'beholder_orb',
-    name: 'Œil Tyrannique',
     bodyColor: '#1f3d2e',
     edgeColor: '#7affc0',
     borderColor: '#ffffff',
@@ -848,12 +802,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellTintDistance: 40, // nearly clear glass so the model reads through
     shellThickness: 0.4,
     price: 1500,
-    description: 'Un beholder miniature scellé dans une sphère de verre.',
     rarity: 'legendary',
   },
   butterfly_orb: {
     id: 'butterfly_orb',
-    name: 'Papillon Éphémère',
     bodyColor: '#4a1f5a',
     edgeColor: '#ff8ad4',
     borderColor: '#ffffff',
@@ -886,13 +838,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     shellTintDistance: 1000, // essentially clear glass
     shellThickness: 0.05,
     price: 1500,
-    description: 'Une âme légère, figée en plein envol dans le verre.',
     rarity: 'legendary',
   },
   // ── SIGNATURE DICE (dedicated shaders) ──────────────────────
   singularite: {
     id: 'singularite',
-    name: 'Singularité',
     bodyColor: '#0d0a1e', // deep space black-violet
     edgeColor: '#8a5cff', // violet nebula (drives the astral palette)
     borderColor: '#5c7cff',
@@ -915,12 +865,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#8a5cff',
     particleColor2: '#25b8ff',
     price: 2500,
-    description: "Un fragment d'univers, volé au ciel d'une nuit qui n'existe plus.",
     rarity: 'legendary',
   },
   prism: {
     id: 'prism',
-    name: 'Opale Prismatique',
     bodyColor: '#efeef5', // pearl white body (lit by the scene)
     edgeColor: '#cdbcff', // soft lavender accent
     borderColor: '#b8a6f0',
@@ -943,12 +891,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#cdbcff',
     particleColor2: '#ffffff',
     price: 2000,
-    description: "Chaque angle révèle une couleur que personne d'autre ne verra.",
     rarity: 'legendary',
   },
   magma: {
     id: 'magma',
-    name: 'Cœur de Magma',
     bodyColor: '#241a14', // dark basalt crust
     edgeColor: '#ff9526', // molten orange — drives the whole magma ramp
     borderColor: '#ff6a1a',
@@ -971,12 +917,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ff9526',
     particleColor2: '#ff3a0a',
     price: 2000,
-    description: 'Le sang de la terre coule encore sous sa croûte brisée.',
     rarity: 'legendary',
   },
   storm: {
     id: 'storm',
-    name: "Cœur de l'Orage",
     bodyColor: '#2a3650', // storm blue-grey (drives the cloud tint)
     edgeColor: '#8fb4ff', // electric blue — bolts and rim
     borderColor: '#6a8fff',
@@ -999,12 +943,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#8fb4ff',
     particleColor2: '#dce8ff',
     price: 2000,
-    description: "L'orage vit à l'intérieur. Chaque lancer réveille la foudre.",
     rarity: 'legendary',
   },
   eclipse: {
     id: 'eclipse',
-    name: 'Éclipse',
     bodyColor: '#171008', // hot black obsidian (a warm near-black)
     edgeColor: '#ffb428', // solar gold — drives the whole corona ramp
     borderColor: '#ff8c00',
@@ -1027,12 +969,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffb428',
     particleColor2: '#ff5a00',
     price: 2000,
-    description: "Un soleil mort, couronné d'un feu qui refuse de s'éteindre.",
     rarity: 'legendary',
   },
   spectre: {
     id: 'spectre',
-    name: 'Âme Errante',
     bodyColor: '#10262e', // dark spectral void body
     edgeColor: '#1fb86a', // saturated spectral green (soul color, not whitish)
     borderColor: '#aaffee',
@@ -1055,12 +995,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#7dffe0',
     particleColor2: '#16323a',
     price: 1500,
-    description: 'Une âme prisonnière, à jamais à la dérive entre deux mondes.',
     rarity: 'legendary',
   },
   ocean_heart: {
     id: 'ocean_heart',
-    name: "Cœur de l'Océan",
     bodyColor: '#0d2f6b', // deep ocean blue water body (not teal/green)
     edgeColor: '#2f7fd6', // bright azure blue (drives the caustics/foam accents)
     borderColor: '#6fb0ff',
@@ -1083,12 +1021,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#2f7fd6',
     particleColor2: '#eaf3ff',
     price: 2000,
-    description: "Un océan entier, scellé dans le verre. Les vagues n'ont jamais cessé de rouler.",
     rarity: 'legendary',
   },
   ecailles_ancestrales: {
     id: 'ecailles_ancestrales',
-    name: 'Écailles Ancestrales',
     bodyColor: '#0e3a24', // deep forest emerald body
     edgeColor: '#2f8a52', // brighter emerald accent (drives the scale sheen)
     borderColor: '#4fae6e',
@@ -1111,13 +1047,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#2f8a52',
     particleColor2: '#eafff0',
     price: 500,
-    description:
-      'Une mue de dragon ancien, chaque écaille encore chaude du souvenir de son porteur.',
     rarity: 'rare',
   },
   bismuth: {
     id: 'bismuth',
-    name: 'Ziggourat de Bismuth',
     bodyColor: '#7d8a94', // near-neutral polished metal base
     edgeColor: '#c9a0ff', // used as a hue anchor for the iridescent film
     borderColor: '#ffffff',
@@ -1140,13 +1073,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ff6b6b',
     particleColor2: '#6bd0ff',
     price: 500,
-    description:
-      'Un cristal minéral en escalier, où chaque marche vole une couleur différente à la lumière.',
     rarity: 'rare',
   },
   poison: {
     id: 'poison',
-    name: 'Fiel Corrosif',
     bodyColor: '#1e3a12', // dark sludge green body
     edgeColor: '#9bff2e', // toxic acid green glow
     borderColor: '#c8ff66',
@@ -1169,13 +1099,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#9bff2e',
     particleColor2: '#1e3a12',
     price: 1500,
-    description: "Un poison si virulent qu'il ronge la réalité elle-même.",
     rarity: 'legendary',
   },
   // ── NEW PROCEDURAL DICE ─────────────────────────────────────
   onyx_dore: {
     id: 'onyx_dore',
-    name: 'Onyx Doré',
     bodyColor: '#141118', // deep black body
     edgeColor: '#e8b54a', // metallic gold veins (uAccent)
     borderColor: '#ffd700',
@@ -1197,12 +1125,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffd700',
     particleColor2: '#000000',
     price: 750,
-    description: "Ténèbres polies, veinées d'or pur. La richesse dans l'ombre.",
     rarity: 'epic',
   },
   sang_ancien: {
     id: 'sang_ancien',
-    name: 'Sang Ancien',
     bodyColor: '#6e0d12', // dark blood red body
     edgeColor: '#ff2a1a', // incandescent blood-fire accent
     borderColor: '#ff4433',
@@ -1224,13 +1150,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ff2a1a',
     particleColor2: '#5a0000',
     price: 750,
-    description: "Le sang d'un dieu déchu coule encore dans ses veines.",
     rarity: 'epic',
   },
   marbre_saphir: {
     id: 'marbre_saphir',
     varnish: true,
-    name: 'Marbre Saphir',
     bodyColor: '#16306e', // deep midnight-blue marble body
     edgeColor: '#dfe9ff', // silvery-white veins
     borderColor: '#6aa0ff',
@@ -1251,12 +1175,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ffffff',
     price: 500,
-    description: "Bleu nuit profond, strié de veines d'argent lunaire.",
     rarity: 'rare',
   },
   gold: {
     id: 'gold',
-    name: 'Or Royal',
     bodyColor: '#c9a227',
     edgeColor: '#ffe066',
     borderColor: '#ffd700',
@@ -1278,12 +1200,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffd700',
     particleColor2: '#ffaa00',
     price: 0,
-    description: "L'élégance intemporelle pour les aventuriers fortunés.",
     rarity: 'common',
   },
   silver: {
     id: 'silver',
-    name: 'Argent',
     bodyColor: '#c0c0c0',
     edgeColor: '#ffffff',
     borderColor: '#e8e8e8',
@@ -1305,12 +1225,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffffff',
     particleColor2: '#c0c0c0',
     price: 0,
-    description: 'Brillant et pur, efficace contre les lycanthropes.',
     rarity: 'common',
   },
   ruby: {
     id: 'ruby',
-    name: 'Rubis',
     bodyColor: '#cc0033',
     edgeColor: '#ff3366',
     borderColor: '#ff6699',
@@ -1333,12 +1251,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     textureMap: '/dice/textures/rubis_diffuse.webp',
     price: 250,
-    description: "Une gemme ardente pulsant d'énergie magique.",
     rarity: 'rare',
   },
   obsidian: {
     id: 'obsidian',
-    name: 'Obsidienne',
     bodyColor: '#15101f', // very dark with a faint violet base (not pure black)
     edgeColor: '#7c4dff', // vivid violet accent so veins read in the shader
     borderColor: '#6633ff',
@@ -1360,12 +1276,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#6633ff',
     particleColor2: '#220044',
     price: 500,
-    description: "Forgé dans les ténèbres, pour ceux qui embrassent l'ombre.",
     rarity: 'epic',
   },
   jade: {
     id: 'jade',
-    name: 'Jade',
     bodyColor: '#00b377',
     edgeColor: '#33ffaa',
     borderColor: '#66ffcc',
@@ -1388,12 +1302,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#00ff88',
     textureMap: '/dice/textures/jade.webp',
     price: 125,
-    description: 'Symbole de sérénité et de chance.',
     rarity: 'uncommon',
   },
   crystal: {
     id: 'crystal',
-    name: 'Cristal',
     bodyColor: '#eeeeff',
     edgeColor: '#ffffff',
     borderColor: '#aaccff',
@@ -1415,12 +1327,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffffff',
     particleColor2: '#aaccff',
     price: 250,
-    description: 'Transparent comme vos intentions... ou pas.',
     rarity: 'rare',
   },
   sapphire: {
     id: 'sapphire',
-    name: 'Saphir',
     bodyColor: '#0044cc',
     edgeColor: '#3377ff',
     borderColor: '#66aaff',
@@ -1443,12 +1353,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     textureMap: '/dice/textures/saphire_diffuse.webp',
     price: 250,
-    description: "Aussi profond que l'océan, aussi dur que l'acier.",
     rarity: 'rare',
   },
   amethyst: {
     id: 'amethyst',
-    name: 'Améthyste',
     bodyColor: '#7722aa',
     edgeColor: '#aa44dd',
     borderColor: '#cc77ff',
@@ -1471,12 +1379,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     textureMap: '/dice/textures/amethyst_diffuse.webp',
     price: 250,
-    description: 'Mystique et royale, favorisée par les mages.',
     rarity: 'rare',
   },
   inferno: {
     id: 'inferno',
-    name: 'Inferno',
     bodyColor: '#ff3300',
     edgeColor: '#ff6600',
     borderColor: '#ffaa00',
@@ -1498,12 +1404,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ff6600',
     particleColor2: '#ffaa00',
     price: 500,
-    description: "Brûle d'une flamme éternelle qui ne consume que vos ennemis.",
     rarity: 'epic',
   },
   frost: {
     id: 'frost',
-    name: 'Givre',
     bodyColor: '#88ccff',
     edgeColor: '#aaeeff',
     borderColor: '#ffffff',
@@ -1525,13 +1429,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#aaeeff',
     particleColor2: '#ffffff',
     price: 250,
-    description: 'Froid comme la mort, tranchant comme un blizzard.',
     rarity: 'rare',
   },
   // NEW SKINS
   cyber_neon: {
     id: 'cyber_neon',
-    name: 'Cyber Neon',
     bodyColor: '#050510',
     edgeColor: '#00ffcc',
     borderColor: '#00ffcc',
@@ -1553,12 +1455,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#00ffcc',
     particleColor2: '#ff00aa',
     price: 1250,
-    description: "Une technologie perdue d'une autre dimension.",
     rarity: 'legendary',
   },
   bleu_marble: {
     id: 'bleu_marble',
-    name: 'Marbre Bleu',
     bodyColor: '#004488',
     edgeColor: '#ffd700',
     borderColor: '#ffd700',
@@ -1581,12 +1481,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     textureMap: '/dice/textures/marblebleu_diffuse.webp',
     price: 125,
-    description: 'Élégance classique avec une touche royale.',
     rarity: 'epic',
   },
   cosmos: {
     id: 'cosmos',
-    name: 'Cosmos',
     bodyColor: '#1a0033',
     edgeColor: '#9933ff',
     borderColor: '#ffffff',
@@ -1609,12 +1507,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     textureMap: '/dice/textures/cosmos_diffuse.webp',
     price: 1250,
-    description: 'Contient des galaxies entières dans chaque face.',
     rarity: 'epic',
   },
   space: {
     id: 'space',
-    name: 'Espace',
     bodyColor: '#1a0033',
     edgeColor: '#9933ff',
     borderColor: '#ffffff',
@@ -1637,12 +1533,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     textureMap: '/dice/textures/space_diifuse.webp',
     price: 500,
-    description: 'Le vide infini entre les étoiles.',
     rarity: 'epic',
   },
   ocean: {
     id: 'ocean',
-    name: 'Océan',
     bodyColor: '#006994', // Ocean blue
     edgeColor: '#00bfff', // Deep sky blue
     borderColor: '#ffffff', // White foam
@@ -1665,12 +1559,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     textureMap: '/dice/textures/ocean_diffuse.webp',
     price: 250,
-    description: "Pour ceux qui entendent l'appel du large.",
     rarity: 'rare',
   },
   metal_lourd: {
     id: 'metal_lourd',
-    name: 'Métal Lourd',
     bodyColor: '#2b2b2b',
     edgeColor: '#4f4f4f',
     borderColor: '#1a1a1a',
@@ -1692,12 +1584,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#4f4f4f',
     particleColor2: '#2b2b2b',
     price: 125,
-    description: 'Un alliage robuste, forgé pour durer.',
     rarity: 'rare',
   },
   merveille: {
     id: 'merveille',
-    name: 'Merveille',
     bodyColor: '#004488',
     edgeColor: '#ffd700',
     borderColor: '#ffffff',
@@ -1720,12 +1610,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     textureMap: '/dice/textures/merveille_diffuse.webp',
     price: 1250,
-    description: "Une merveille d'artisanat magique.",
     rarity: 'rare',
   },
   ancient_bone: {
     id: 'ancient_bone',
-    name: 'Os Ancien',
     bodyColor: '#e3dac9',
     edgeColor: '#d4c5a9',
     borderColor: '#8a7e68',
@@ -1747,12 +1635,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#d4c5a9',
     particleColor2: '#e3dac9',
     price: 125,
-    description: "Sculpté dans les os d'une créature oubliée.",
     rarity: 'uncommon',
   },
   void_walker: {
     id: 'void_walker',
-    name: 'Marcheur du Vide',
     bodyColor: '#0a0618', // near-black with a cold indigo undertone
     edgeColor: '#6a3bd6', // indigo accent so the void veins read
     borderColor: '#4b0082', // Indigo
@@ -1774,12 +1660,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#4b0082',
     particleColor2: '#000000',
     price: 500,
-    description: "Il n'y a rien ici... absolument rien.",
     rarity: 'epic',
   },
   celestial_starlight: {
     id: 'celestial_starlight',
-    name: 'Lumière Stellaire',
     bodyColor: '#0d1b2a',
     edgeColor: '#415a77',
     borderColor: '#e0e1dd',
@@ -1801,12 +1685,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffffff',
     particleColor2: '#ffdd00',
     price: 1250,
-    description: 'Guide les voyageurs perdus dans la nuit.',
     rarity: 'epic',
   },
   blood_pact: {
     id: 'blood_pact',
-    name: 'Pacte de Sang',
     bodyColor: '#3a0404',
     edgeColor: '#610b0b',
     borderColor: '#8a1c1c',
@@ -1828,12 +1710,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#8a1c1c',
     particleColor2: '#3a0404',
     price: 500,
-    description: 'Un serment qui ne peut être brisé.',
     rarity: 'epic',
   },
   steampunk_copper: {
     id: 'steampunk_copper',
-    name: 'Steampunk Cuivre',
     bodyColor: '#b87333',
     edgeColor: '#cd7f32',
     borderColor: '#d4af37', // Brass details
@@ -1855,13 +1735,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#d4af37',
     particleColor2: '#b87333',
     price: 250,
-    description: "Rouages et vapeur, pour l'ingénieur moderne.",
     rarity: 'rare',
   },
   royal_marble: {
     id: 'royal_marble',
     varnish: true,
-    name: 'Marbre Royal',
     bodyColor: '#f5f5f5',
     edgeColor: '#ffffff',
     borderColor: '#e0c090', // Soft Gold
@@ -1883,12 +1761,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#d4af37',
     particleColor2: '#ffffff',
     price: 250,
-    description: "Digne d'un trône.",
     rarity: 'rare',
   },
   galactic_nebula: {
     id: 'galactic_nebula',
-    name: 'Nébuleuse',
     bodyColor: '#1a0033', // Deep purple
     edgeColor: '#4b0082',
     borderColor: '#00ffff', // Cyan accents
@@ -1910,12 +1786,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#00ffff',
     particleColor2: '#ff00ff',
     price: 1250,
-    description: 'Là où naissent les étoiles.',
     rarity: 'epic',
   },
   dragon_scale: {
     id: 'dragon_scale',
-    name: 'Écaille de Dragon',
     bodyColor: '#004d40', // Deep Teal
     edgeColor: '#00695c',
     borderColor: '#ffd700', // Gold borders
@@ -1937,12 +1811,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffd700',
     particleColor2: '#004d40',
     price: 1250,
-    description: 'Dur, brillant et extrêmement précieux.',
     rarity: 'epic',
   },
   moonstone: {
     id: 'moonstone',
-    name: 'Pierre de Lune',
     bodyColor: '#f0f8ff', // Alice Blue
     edgeColor: '#ffffff',
     borderColor: '#b0c4de', // Light Steel Blue
@@ -1964,12 +1836,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffffff',
     particleColor2: '#b0c4de',
     price: 1250,
-    description: 'Baignée dans la lumière de séluné.',
     rarity: 'rare',
   },
   bois_noble: {
     id: 'bois_noble',
-    name: 'Bois Noble',
     bodyColor: '#5c4033', // Warm walnut brown (fallback)
     edgeColor: '#8b6914', // Golden oak highlights
     borderColor: '#d4a76a', // Light wood grain accent
@@ -1993,13 +1863,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     // Wood texture
     textureMap: '/dice/textures/wood_diffuse.webp',
     price: 50,
-    description: 'Simple, robuste et fiable. Comme un bon nain.',
     rarity: 'common',
   },
   marbre_blanc: {
     id: 'marbre_blanc',
     varnish: true,
-    name: 'Marbre Blanc',
     bodyColor: '#eceae6', // bright marble white body
     edgeColor: '#b8902f', // refined gold veins on white
     borderColor: '#d4af37', // Gold accent
@@ -2021,12 +1889,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ffffff',
     particleColor2: '#e0e0e0',
     price: 125,
-    description: "Poli à la perfection, veiné d'or, pour les temples sacrés.",
     rarity: 'uncommon',
   },
   cuir_ancien: {
     id: 'cuir_ancien',
-    name: 'Cuir Ancien',
     bodyColor: '#3d2b1f', // Fallback dark brown
     edgeColor: '#5c4033',
     borderColor: '#8b7355', // Lighter brown accent
@@ -2049,12 +1915,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#3d2b1f',
     textureMap: '/dice/textures/leather_diffuse.webp',
     price: 50,
-    description: "Sent le vieux livre et l'aventure.",
     rarity: 'common',
   },
   pierre_donjon: {
     id: 'pierre_donjon',
-    name: 'Pierre de Donjon',
     bodyColor: '#5a5a5a', // Fallback grey
     edgeColor: '#4a4a4a',
     borderColor: '#3d5c3d', // Moss green accent
@@ -2077,12 +1941,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#5a5a5a',
     textureMap: '/dice/textures/stone_diffuse.webp',
     price: 0,
-    description: "Aussi froid que le sol d'un cachot.",
     rarity: 'common',
   },
   fer_rouille: {
     id: 'fer_rouille',
-    name: 'Fer Rouillé',
     bodyColor: '#5a4a3a', // Fallback rusty brown
     edgeColor: '#8b4513',
     borderColor: '#cd853f', // Peru/rust
@@ -2105,12 +1967,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#5a4a3a',
     textureMap: '/dice/textures/rust_diffuse.webp',
     price: 25,
-    description: 'Oublié depuis longtemps, mais toujours solide.',
     rarity: 'common',
   },
   roche_volcanique: {
     id: 'roche_volcanique',
-    name: 'Roche Volcanique',
     bodyColor: '#1a1a1a', // Fallback black
     edgeColor: '#ff4500', // Orange lava
     borderColor: '#ff6600',
@@ -2133,12 +1993,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ff6600',
     textureMap: '/dice/textures/lava_diffuse.webp',
     price: 250,
-    description: "Attention, c'est chaud !",
     rarity: 'rare',
   },
   glace_eternelle: {
     id: 'glace_eternelle',
-    name: 'Glace Éternelle',
     bodyColor: '#b0e0e6', // Fallback pale blue
     edgeColor: '#e0ffff',
     borderColor: '#ffffff',
@@ -2161,12 +2019,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#ffffff',
     textureMap: '/dice/textures/ice_diffuse.webp',
     price: 250,
-    description: 'Ne fond jamais, même dans un volcan.',
     rarity: 'rare',
   },
   ecorce_ancienne: {
     id: 'ecorce_ancienne',
-    name: 'Écorce Ancienne',
     bodyColor: '#3d3d2d', // Fallback dark bark
     edgeColor: '#4a4a3a',
     borderColor: '#6b8e23', // Olive green lichen
@@ -2189,12 +2045,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#3d3d2d',
     textureMap: '/dice/textures/bark_diffuse.webp',
     price: 125,
-    description: 'La nature reprend toujours ses droits.',
     rarity: 'uncommon',
   },
   parchemin_ancien: {
     id: 'parchemin_ancien',
-    name: 'Parchemin Ancien',
     bodyColor: '#f5deb3', // Fallback wheat
     edgeColor: '#d2b48c', // Tan edges
     borderColor: '#8b4513', // Sienna ink
@@ -2217,12 +2071,10 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor2: '#f5deb3',
     textureMap: '/dice/textures/parchment_diffuse.webp',
     price: 50,
-    description: 'Les mots ont un pouvoir.',
     rarity: 'common',
   },
   meteore_sang: {
     id: 'meteore_sang',
-    name: 'Météore',
     bodyColor: '#1a1a1a',
     edgeColor: '#4a0000',
     borderColor: '#ff0000',
@@ -2244,13 +2096,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleColor: '#ff0000',
     textureMap: '/dice/textures/lava_diffuse.webp',
     price: 1500,
-    description: 'Tombé du ciel pendant une éclips de sang.',
     rarity: 'epic',
   },
   marbre_emeraude: {
     id: 'marbre_emeraude',
     varnish: true,
-    name: 'Marbre Émeraude',
     bodyColor: '#0f7a44', // deep emerald body
     edgeColor: '#e8b54a', // saturated metallic gold veins
     borderColor: '#32cd32',
@@ -2271,13 +2121,11 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ffffff',
     price: 500,
-    description: 'Un mélange élégant de vagues émeraudes et de veines dorées.',
     rarity: 'rare',
   },
   marbre_ambre: {
     id: 'marbre_ambre',
     varnish: true,
-    name: 'Marbre Ambré',
     bodyColor: '#8a4a18', // deep amber/caramel body
     edgeColor: '#fff3df', // creamy white veins (reads better than gold on amber)
     borderColor: '#d2691e',
@@ -2298,7 +2146,6 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     particleType: 'none',
     particleColor: '#ffffff',
     price: 500,
-    description: 'Un mélange élégant de vagues ambrées et de veines dorées.',
     rarity: 'rare',
   },
 };

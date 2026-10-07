@@ -11,6 +11,7 @@
  * - Fouille des joueurs : fenêtre du contenu, « Prendre » ; le MJ est prévenu. Un objet à
  *   fouiller sélectionné montre sa zone de portée.
  */
+import { translate } from '@/i18n/runtime';
 import { Box } from 'lucide-react';
 import { ObjectInspector } from './ui/object-inspector';
 import { ObjectLibraryPanel } from './ui/object-library';
@@ -56,7 +57,7 @@ export const objectsFeature: MapFeature = {
       mountReachRing(engine),
       engine.registerTool({
         id: OBJECTS_TOOL_ID,
-        label: 'Objets',
+        label: translate('map.objects.library.objects'),
         icon: Box,
         shortcut: { code: 'KeyI', label: 'I' },
         order: 40,
@@ -73,21 +74,21 @@ export const objectsFeature: MapFeature = {
       }),
       engine.registerInspectorSection({
         id: 'object',
-        title: 'Objet',
+        title: translate('map.objects.kinds.item'),
         order: 10,
         appliesTo: (es, viewer) => isGm(viewer) && es.every(isObjectEntity),
         component: ObjectInspector,
       }),
       engine.registerInspectorSection({
         id: 'object-search',
-        title: 'Fouille',
+        title: translate('map.objects.searchTitle'),
         order: 20,
         appliesTo: (es, viewer) => isGm(viewer) && single(es) && es.every(isObjectEntity),
         component: SearchInspector,
       }),
       engine.registerInspectorSection({
         id: 'object-search-player',
-        title: 'Fouille',
+        title: translate('map.objects.searchTitle'),
         order: 20,
         appliesTo: (es, viewer) =>
           viewer.role === 'player' &&

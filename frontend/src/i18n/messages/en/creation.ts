@@ -1,0 +1,76 @@
+import type fr from '../fr/creation';
+import type { Translation } from '../../types';
+
+export default {
+  ready: '{name} is ready for adventure!',
+  manyInProgress: '{count, number} heroes are already being created in this campaign.',
+  oneInProgress: '{name} is already being created in this campaign.',
+  steps: {
+    identity: 'Identity',
+    portrait: 'Portrait',
+    recap: 'Summary',
+  },
+  titles: {
+    identity: 'Who is your hero?',
+    portrait: 'Give them a face',
+    recap: 'Ready for adventure?',
+  },
+  heroNotFound: 'Hero not found',
+  cantCreate: 'Couldn’t create a hero for this campaign.',
+  heroDeleted: 'This hero may have been deleted.',
+  gmOnly: 'Creation reserved to the GM',
+  gmOnlyHint: 'The game master assigns this campaign’s characters: choose a finished hero.',
+  backToChoice: 'Back to hero choice',
+  loadingRules: 'Loading the rules…',
+  create: 'Create the character',
+  yourHero: 'Your hero',
+  loadingCampaignRules: 'Loading the campaign’s rules…',
+  restart: 'Start over',
+  namePlaceholder: 'Aelys Silverwind',
+  conceptPlaceholder: 'An exiled mage seeking to atone for her lineage’s fault.',
+  appearancePlaceholder: 'Silver hair, a scar on the cheek, always a quill in hand…',
+  storyPlaceholder: 'Where do they come from, what do they seek, who awaits them?',
+  allGood: 'All in order: the rules validate your character.',
+  pick: {
+    title: 'For which campaign?',
+    none: 'No campaigns yet',
+    noneHint: 'Join your GM’s campaign with its code, an open campaign, or create your own.',
+    lead: 'A hero is born in a campaign: its game system, its creation rules and its table depend on it.',
+  },
+  choose: {
+    suggested: 'Suggested',
+    chosen: 'Chosen',
+    suggestedOne: 'Suggested',
+    atLeast: '{name}: at least {min, number}',
+    atMost: '{name}: at most {max, number}',
+    single: '{count, number} options, only one to choose.',
+    multi:
+      '{count, plural, one {# chosen} other {# chosen}} · between {min, number} and {max, number}.',
+  },
+  roll: {
+    inOrder: 'Values are assigned in order.',
+    distribute: 'You then distribute the values among the attributes.',
+    roll: 'Roll the dice',
+    pick: 'Pick a value…',
+    validate: 'Confirm the distribution',
+    valueFor: 'Value for {name}',
+  },
+  buy: {
+    unavailable: 'Unavailable',
+    filter: 'Filter…',
+    filterLabel: 'Filter the purchases',
+    new: 'New acquisition',
+    title: 'Creation purchases',
+    cancel: 'Cancel this purchase',
+  },
+  portrait: {
+    yours: 'Your image',
+    none: 'No portrait',
+    fromChoices: 'Illustrations from your choices',
+  },
+  preview: {
+    hero: 'Hero',
+    unnamed: 'Unnamed',
+  },
+  spent: 'Points spent',
+} satisfies Translation<typeof fr>;

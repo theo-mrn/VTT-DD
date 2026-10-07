@@ -10,6 +10,7 @@
  */
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import type { CampaignSide } from '@vtt/contracts';
 import type { Decompte, Fiche, IconeEtat, Presentation, SystemeCharge } from '@vtt/rules';
@@ -40,7 +41,7 @@ export interface CastMember {
 }
 
 /** Nom d'un personnage que la liste ne connaît pas (encore) : jamais un identifiant brut. */
-export const UNKNOWN_NAME = 'Personnage';
+export const unknownName = () => translate('map.common.character');
 
 /** Personnages engagés de la campagne (PNJ compris pour le MJ, filtrés par le service). */
 export function useCast(campaignId: string) {
@@ -52,7 +53,7 @@ export function useCast(campaignId: string) {
     () =>
       (list.data ?? []).map((c) => ({
         id: c.characterId,
-        name: c.name ?? UNKNOWN_NAME,
+        name: c.name ?? unknownName(),
         // Sans portrait (PNJ du bestiaire, d'un modèle) : son token du Studio, sinon son image
         // sur la carte
         portraitUrl: c.avatarUrl ?? c.tokenUrl ?? c.mapImageUrl ?? null,
@@ -71,7 +72,7 @@ export function useCast(campaignId: string) {
     isLoading: list.isPending,
     isError: list.isError,
     error: list.error,
-    nameOf: (id: string) => byId.get(id)?.name ?? UNKNOWN_NAME,
+    nameOf: (id: string) => byId.get(id)?.name ?? unknownName(),
   };
 }
 
@@ -122,7 +123,7 @@ export interface TimedState {
 }
 
 /** Source des états libres posés depuis le panneau Combat (bonus sans effet, nommé). */
-export const FREE_STATE_SOURCE = 'État';
+export const FREE_STATE_SOURCE = 'État'; // i18n-ignore : source enregistrée dans la fiche (donnée)
 
 /**
  * États d'une fiche : entrées des sortes d'états du système, possessions à durée, bonus libres

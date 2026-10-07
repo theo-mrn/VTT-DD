@@ -6,7 +6,8 @@ const d = (
   id: string,
   scope: ShortcutDescriptor['scope'],
   extra: Partial<ShortcutDescriptor> = {},
-) => ({ id, label: id, scope, defaultBinding: null, ...extra }) satisfies ShortcutDescriptor;
+) =>
+  ({ id, label: { text: id }, scope, defaultBinding: null, ...extra }) satisfies ShortcutDescriptor;
 
 describe('findConflicts', () => {
   it('table et carte ensemble ; dés et carte non', () => {

@@ -12,6 +12,7 @@ import { PerfOverlay } from '@/components/perf/perf-overlay';
 import { ProgressionRoot } from '@/components/progression/progression-root';
 import { Telemetry } from '@/components/telemetry';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { LocaleSync } from '@/i18n/locale-sync';
 import { SessionProvider } from '@/lib/session';
 
 /** Contextes communs à toute l'app : cache des requêtes, session, infobulles, notifications. */
@@ -34,6 +35,8 @@ export function Fournisseurs({ children }: Readonly<{ children: ReactNode }>) {
         <MotionConfig reducedMotion="user">
           <LegacyMotionConfig reducedMotion="user">
             <TooltipProvider delayDuration={250}>{children}</TooltipProvider>
+            {/* Langue du compte appliquée à ce navigateur (docs/i18n.md § 3) */}
+            <LocaleSync />
             {/* Dés 3D de toute l'app, montés une seule fois (contexte WebGL, shaders et moteur
                 physique gardés entre l'app et la table), chargés au premier lancer */}
             <DiceThrowerHost />

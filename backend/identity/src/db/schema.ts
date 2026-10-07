@@ -56,6 +56,8 @@ export const profiles = identity.table('profiles', {
   timeSpentMinutes: bigint('time_spent_minutes', { mode: 'number' }).notNull().default(0),
   settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
   emailNotifications: boolean('email_notifications').notNull().default(true),
+  /** Langue de l'interface choisie (`LOCALES` de @vtt/contracts) ; null : le navigateur décide. */
+  locale: text('locale'),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),
 });
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   acheterEtape,
   achatsPossibles,
@@ -45,6 +46,7 @@ export function EtapeAcheter({
   /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
   onEtat: (e: EtatEntite, op: OperationCreation) => void;
 }>) {
+  const t = useTranslations();
   const [recherche, setRecherche] = useState('');
   const [tous, setTous] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export function EtapeAcheter({
       </Message>
     );
 
-  const t = recherche.trim().toLowerCase();
+  const terme = recherche.trim().toLowerCase();
 
   return (
     <div className="space-y-5">
@@ -122,16 +124,16 @@ export function EtapeAcheter({
           <div className="flex items-center gap-3">
             <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
               <Switch checked={tous} onCheckedChange={setTous} />
-              Indisponibles
+              {t('creation.buy.unavailable')}
             </label>
             <div className="w-56">
               <InputGroup
                 avant={<Search />}
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
-                placeholder="Filtrer…"
+                placeholder={t('creation.buy.filter')}
                 className="h-9"
-                aria-label="Filtrer les achats"
+                aria-label={t('creation.buy.filterLabel')}
               />
             </div>
           </div>
@@ -139,7 +141,7 @@ export function EtapeAcheter({
         {disponibles.map((d) => {
           const objets = d.objets
             .filter((o) => tous || o.possible)
-            .filter((o) => !t || o.nom.toLowerCase().includes(t))
+            .filter((o) => !terme || o.nom.toLowerCase().includes(terme))
             .sort((a, b) => Number(b.possible) - Number(a.possible) || a.cout - b.cout);
           return (
             <TabsContent key={d.achat.id} value={d.achat.id}>
@@ -164,7 +166,7 @@ export function EtapeAcheter({
                         <p className="truncate text-sm font-medium">{o.nom}</p>
                         <p className="text-xs text-subtle">
                           {o.type === 'entree' || o.type === 'noeud'
-                            ? 'Nouvelle acquisition'
+                            ? t('creation.buy.new')
                             : `${o.actuel} → ${o.cible}`}
                         </p>
                       </div>
@@ -203,7 +205,7 @@ export function EtapeAcheter({
 
       {journal.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-5 shadow-surface">
-          <p className="mb-3 text-sm font-semibold">Achats de création</p>
+          <p className="mb-3 text-sm font-semibold">{t('creation.buy.title')}</p>
           <ul className="space-y-1.5">
             {journal
               .slice()
@@ -223,7 +225,7 @@ export function EtapeAcheter({
                     variant="ghost"
                     size="icon-xs"
                     onClick={() => annuler(index)}
-                    aria-label="Annuler cet achat"
+                    aria-label={t('creation.buy.cancel')}
                   >
                     <Undo2 />
                   </Button>

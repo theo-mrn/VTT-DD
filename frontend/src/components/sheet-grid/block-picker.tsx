@@ -4,6 +4,7 @@
  * Sélecteur de blocs : tout ce que la fiche de ce personnage peut afficher, par famille
  * (définitions du registre), avec recherche. Un bloc déjà présent est montré, pas proposé.
  */
+import { useTranslations } from 'next-intl';
 import { sortesCompetences, type Widget } from '@vtt/rules';
 import { Check, LayoutGrid } from 'lucide-react';
 import { useMemo } from 'react';
@@ -68,6 +69,7 @@ export function BlockPicker({
   onOpenChange: (v: boolean) => void;
   onPick: (w: Widget) => void;
 }>) {
+  const t = useTranslations();
   const groupes = useMemo(() => {
     const deja = new Set(present.map(cibleDe));
     const liste = candidateWidgets(ctx).map((w) => ({ widget: w, present: deja.has(cibleDe(w)) }));
@@ -84,16 +86,14 @@ export function BlockPicker({
         <DialogHeader className="border-b border-border px-5 pb-4 pt-5">
           <DialogTitle className="flex items-center gap-2">
             <LayoutGrid className="size-4 text-primary" aria-hidden />
-            Ajouter un bloc
+            {t('sheet.grid.addBlock')}
           </DialogTitle>
-          <DialogDescription>
-            Les blocs proposés viennent des règles du personnage. Il se place en bas de la fiche.
-          </DialogDescription>
+          <DialogDescription>{t('sheet.picker.hint')}</DialogDescription>
         </DialogHeader>
         <Command className="rounded-none border-0 bg-transparent">
-          <CommandInput placeholder="Rechercher un bloc…" />
+          <CommandInput placeholder={t('sheet.picker.search')} />
           <CommandList className="max-h-[min(60vh,28rem)]">
-            <CommandEmpty>Aucun bloc ne correspond.</CommandEmpty>
+            <CommandEmpty>{t('sheet.picker.none')}</CommandEmpty>
             {groupes.map((g) => (
               <CommandGroup key={g.type} heading={g.definition.label}>
                 {g.items.map(({ widget, present: dejaLa }, i) => {
@@ -118,7 +118,7 @@ export function BlockPicker({
                       {dejaLa && (
                         <span className="flex shrink-0 items-center gap-1 text-xs text-subtle">
                           <Check className="size-3.5" aria-hidden />
-                          Sur la fiche
+                          {t('sheet.picker.onSheet')}
                         </span>
                       )}
                     </CommandItem>

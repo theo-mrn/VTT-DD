@@ -21,6 +21,7 @@
  * jonction soudée), grille (Alt : sans grille) ; ⇧ aligne à 15° depuis le point précédent.
  * Chaque geste est **une** commande annulable (`/batch`).
  */
+import { translate as tr } from '@/i18n/runtime'; // translate : celui de la géométrie
 import type { BitmapText, Container, Graphics } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -81,41 +82,20 @@ import { dashedPolyline, zoomStep, unitAt } from './overlay';
 
 export type ObstacleMode = 'wall' | 'rect' | 'door' | 'window' | 'oneway' | 'room' | 'edit';
 
+/** Un mode de l'outil ; nom et aide : `map.obstacles.modes.<id>.label|hint`. */
 export interface ObstacleModeInfo {
-  id: ObstacleMode;
-  label: string;
+  id: Exclude<ObstacleMode, 'room'>;
   /** Chiffre du raccourci (quand l'outil est actif). */
   key: string;
-  hint: string;
 }
 
 export const OBSTACLE_MODES: readonly ObstacleModeInfo[] = [
-  {
-    id: 'wall',
-    label: 'Mur',
-    key: '1',
-    hint: 'Clic à clic. Double clic, Entrée ou premier point pour finir. ⇧ : 15°. Alt : sans grille.',
-  },
-  { id: 'rect', label: 'Rectangle de murs', key: '2', hint: 'Glisser : 4 murs soudés. ⇧ : carré.' },
-  {
-    id: 'door',
-    label: 'Porte',
-    key: '3',
-    hint: 'Clic sur un mur : porte centrée, le mur est scindé. Ailleurs : deux clics.',
-  },
-  { id: 'window', label: 'Fenêtre', key: '4', hint: 'Comme un mur ; la vue passe à travers.' },
-  {
-    id: 'oneway',
-    label: 'Sens unique',
-    key: '5',
-    hint: 'Comme un mur. La flèche montre le sens où l’on voit (menu : Inverser le sens).',
-  },
-  {
-    id: 'edit',
-    label: 'Édition',
-    key: '6',
-    hint: 'Glisser un sommet (Alt : le détacher). Double clic : ajouter un sommet. Suppr : supprimer.',
-  },
+  { id: 'wall', key: '1' },
+  { id: 'rect', key: '2' },
+  { id: 'door', key: '3' },
+  { id: 'window', key: '4' },
+  { id: 'oneway', key: '5' },
+  { id: 'edit', key: '6' },
 ];
 
 const CHAIN_KIND: Partial<Record<ObstacleMode, ObstacleKindId>> = {
@@ -125,12 +105,9 @@ const CHAIN_KIND: Partial<Record<ObstacleMode, ObstacleKindId>> = {
   door: 'door',
 };
 
-const CHAIN_LABEL: Partial<Record<ObstacleMode, string>> = {
-  wall: 'Poser des murs',
-  window: 'Poser une fenêtre',
-  oneway: 'Poser un mur à sens unique',
-  door: 'Poser une porte',
-};
+/** Libellé d'annulation d'une pose en chaîne (`map.obstacles.chain.<mode>`). */
+const chainLabel = (mode: 'wall' | 'window' | 'oneway' | 'door') =>
+  tr(`map.obstacles.chain.${mode}`);
 
 export interface ObstacleSettings {
   mode: ObstacleMode;
@@ -516,7 +493,7 @@ export class ObstacleTool implements Tool {
     const plan = newPlan(engine);
     translate(plan, ids, { x: dx, y: dy }, true);
     dropDuplicateSegments(plan, ids.obstacles);
-    void this.execute(engine, 'Déplacer', plan);
+    void this.execute(engine, tr('map.obstacles.move'), plan);
     this.sub = null;
     return true;
   }
@@ -605,7 +582,7 @@ export class ObstacleTool implements Tool {
         nextRoomName(plan.rooms()),
         this.settings.getState().roomWalls,
       );
-      if (room) void this.execute(engine, 'Créer une pièce', plan);
+      if (room) void this.execute(engine, tr('map.obstacles.createRoom'), plan);
       return;
     }
     const kind = CHAIN_KIND[mode];
@@ -613,7 +590,7 @@ export class ObstacleTool implements Tool {
     const plan = newPlan(engine);
     // Tout existait déjà (doublons) : rien n'est écrit
     if (addChain(plan, points, defaultProps(kind)).length)
-      void this.execute(engine, CHAIN_LABEL[mode]!, plan);
+      void this.execute(engine, chainLabel(mode as 'wall' | 'window' | 'oneway' | 'door'), plan);
   }
 
   private execute(engine: MapEngine, label: string, plan: EditPlan) {
@@ -650,10 +627,10 @@ export class ObstacleTool implements Tool {
     if (this.mode === 'room') {
       const pts = rectanglePoints(a, b).slice(0, 4);
       addRoom(plan, pts, nextRoomName(plan.rooms()), this.settings.getState().roomWalls);
-      void this.execute(engine, 'Créer une pièce', plan);
+      void this.execute(engine, tr('map.obstacles.createRoom'), plan);
     } else {
       addChain(plan, rectanglePoints(a, b), defaultProps('wall'));
-      void this.execute(engine, 'Poser un rectangle de murs', plan);
+      void this.execute(engine, tr('map.obstacles.placeWallRect'), plan);
     }
   }
 
@@ -716,7 +693,7 @@ export class ObstacleTool implements Tool {
     const plan = newPlan(engine);
     const width = this.settings.getState().doorWidth * engine.kindContext().pixelsPerUnit;
     const door = addDoorInWall(plan, hover.id, hover.segment, hover.at, width);
-    if (door) void this.execute(engine, 'Poser une porte', plan);
+    if (door) void this.execute(engine, tr('map.obstacles.chain.door'), plan);
     this.doorHover = null;
   }
 
@@ -801,7 +778,7 @@ export class ObstacleTool implements Tool {
     addVertex(plan, collection, hit.id, segment, p);
     // Les murs superposés à ce segment (pièce sur un mur) gardent la soudure
     weldPoints(plan, [p], new Set([hit.id]));
-    void this.execute(engine, 'Ajouter un sommet', plan);
+    void this.execute(engine, tr('map.obstacles.addVertex'), plan);
     engine.selection.replace([hit.id]);
     this.sub = { type: 'vertex', ref: { collection, id: hit.id, index: segment + 1 }, point: p };
     return true;
@@ -941,7 +918,7 @@ export class ObstacleTool implements Tool {
     const moved = drag.affected.map((a) => a.id);
     if (drag.target.kind === 'segment') weldPoints(plan, [drag.target.point], new Set(moved));
     dropDuplicateSegments(plan, moved);
-    void this.execute(engine, 'Déplacer un sommet', plan);
+    void this.execute(engine, tr('map.obstacles.moveVertex'), plan);
     if (this.sub?.type === 'vertex' && samePoint(this.sub.point, drag.origin))
       this.sub = { ...this.sub, point: drag.target.point };
   }
@@ -1015,7 +992,11 @@ export class ObstacleTool implements Tool {
     if (drag.target?.kind === 'segment') weldPoints(plan, [drag.target.point], new Set(moved));
     dropDuplicateSegments(plan, moved);
     const n = drag.ids.obstacles.size + drag.ids.rooms.size;
-    void this.execute(engine, n > 1 ? `Déplacer ${n} éléments` : 'Déplacer', plan);
+    void this.execute(
+      engine,
+      n > 1 ? tr('map.obstacles.moveMany', { count: n }) : tr('map.obstacles.move'),
+      plan,
+    );
   }
 
   private previewsOf(
@@ -1036,10 +1017,10 @@ export class ObstacleTool implements Tool {
     const plan = newPlan(engine);
     if (sub.type === 'vertex') {
       deleteVertex(plan, sub.ref);
-      void this.execute(engine, 'Supprimer le sommet', plan);
+      void this.execute(engine, tr('map.obstacles.deleteVertex'), plan);
     } else {
       deleteSegment(plan, sub.id, sub.index);
-      void this.execute(engine, 'Supprimer le segment', plan);
+      void this.execute(engine, tr('map.obstacles.deleteSegment'), plan);
     }
     this.dirty = true;
     engine.invalidate();

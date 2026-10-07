@@ -1,5 +1,7 @@
 'use client';
 
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { Fiche } from '@vtt/rules';
 import { Check, ChevronsUpDown, Swords, UserRound, type LucideIcon } from 'lucide-react';
 import { useMemo } from 'react';
@@ -37,7 +39,10 @@ export function useFichePersonnage(personnage: Personnage | null) {
     try {
       return { fiche: calculerMemo(systeme.data.systeme, etat), erreur: null };
     } catch (e) {
-      return { fiche: null, erreur: e instanceof Error ? e.message : 'Fiche illisible' };
+      return {
+        fiche: null,
+        erreur: e instanceof Error ? e.message : translate('dice.options.unreadableSheet'),
+      };
     }
   }, [etat, systeme.data]);
 
@@ -68,36 +73,44 @@ export function PastillesAttributs({
   nomPersonnage: string;
   onAjouter: (a: RollableAttribute) => void;
 }>) {
+  const t = useTranslations('dice.options');
   if (erreur)
     return (
       <p className="truncate text-xs text-destructive">
-        Fiche de {nomPersonnage} indisponible : {erreur}
+        {t('sheetUnavailable', { name: nomPersonnage, error: erreur })}
       </p>
     );
   if (chargement)
     return (
-      <div className="flex gap-1.5 overflow-hidden" aria-label="Chargement des attributs">
+      <div className="flex gap-1.5 overflow-hidden" aria-label={t('loadingAttributes')}>
         {Array.from({ length: 6 }, (_, i) => (
           <Skeleton key={i} className="h-8 w-16 shrink-0 rounded-full" />
         ))}
       </div>
     );
   if (!groupes.some((g) => g.attributes.length))
-    return <p className="text-xs text-subtle">Aucun attribut à ajouter pour ce système.</p>;
+    return <p className="text-xs text-subtle">{t('noAttributes')}</p>;
   const titres = groupes.some((g) => g.title);
   return (
     <div className="space-y-2">
       {groupes.map((g) => (
         <div key={g.id ?? 'sans-groupe'} className="space-y-1">
           {titres && g.title && <p className="text-[11px] text-muted-foreground">{g.title}</p>}
-          <ul className={LIGNE_PUCES} aria-label={g.title ?? `Attributs de ${nomPersonnage}`}>
+          <ul
+            className={LIGNE_PUCES}
+            aria-label={g.title ?? t('attributesOf', { name: nomPersonnage })}
+          >
             {g.attributes.map((a) => (
               <li key={a.key} className="shrink-0">
-                <Info texte={`${a.name} : ajoute + ${a.key} (lu comme ${a.term})`}>
+                <Info texte={t('attributeHint', { name: a.name, key: a.key, term: a.term })}>
                   <button
                     type="button"
                     onClick={() => onAjouter(a)}
-                    aria-label={`Ajouter ${a.key}, ${a.name} (${signe(a.value)})`}
+                    aria-label={t('addAttribute', {
+                      key: a.key,
+                      name: a.name,
+                      value: signe(a.value),
+                    })}
                     className={cn(
                       PUCE,
                       'hover:border-primary/40 hover:bg-primary/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
@@ -188,12 +201,16 @@ export function SelecteurContexte({
   vide: string;
   chargement?: boolean;
 }>) {
+  const t = useTranslations('dice.options');
   const choisie = options.find((o) => o.id === valeur) ?? null;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={`${etiquette} : ${chargement ? 'chargement' : (choisie?.libelle ?? aucun)}`}
+        aria-label={t('pickerLabel', {
+          label: etiquette,
+          value: chargement ? t('loadingShort') : (choisie?.libelle ?? aucun),
+        })}
         title={etiquette}
         className={cn(
           'flex h-9 min-w-0 max-w-[14rem] items-center gap-2 rounded-lg border border-border bg-surface-2/60 pl-2 pr-2 text-left text-[13px] transition-colors [@media(pointer:coarse)]:h-11',
@@ -207,7 +224,7 @@ export function SelecteurContexte({
           <Icone className="size-4 shrink-0 text-subtle" aria-hidden />
         )}
         <span className={cn('min-w-0 flex-1 truncate', !choisie && 'text-muted-foreground')}>
-          {chargement ? 'Chargement…' : (choisie?.libelle ?? aucun)}
+          {chargement ? t('loading') : (choisie?.libelle ?? aucun)}
         </span>
         <ChevronsUpDown className="size-3.5 shrink-0 text-subtle" aria-hidden />
       </DropdownMenuTrigger>

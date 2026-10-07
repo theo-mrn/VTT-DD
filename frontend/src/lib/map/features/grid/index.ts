@@ -11,6 +11,7 @@
  *   dessinées dans le fond ; la case et l'origine du quadrillage visé s'y alignent (une
  *   commande annulable). Échap annule.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapGrid } from '@vtt/contracts';
 import { Grid3x3, Ruler } from 'lucide-react';
 import type { Container, Graphics } from 'pixi.js';
@@ -86,7 +87,7 @@ export class CalibrateTool implements Tool {
     if (!fit || !gridId) return;
     const grids = gridsOf(engine);
     if (!grids.some((g) => g.id === gridId)) return;
-    void saveGrids(engine, 'Ajuster le quadrillage', withGrid(grids, gridId, fit));
+    void saveGrids(engine, translate('map.grid.fitTool'), withGrid(grids, gridId, fit));
     engine.tools.activate(SELECT_TOOL_ID);
   }
 
@@ -273,7 +274,7 @@ export const gridFeature: MapFeature = {
     const cleanups = [
       engine.registerTool({
         id: GRID_CALIBRATE_TOOL_ID,
-        label: 'Ajuster le quadrillage',
+        label: translate('map.grid.fitTool'),
         icon: Ruler,
         hidden: true,
         available: isGm,
@@ -283,7 +284,7 @@ export const gridFeature: MapFeature = {
       engine.registerToolbarEntry({
         kind: 'custom',
         id: 'grid:menu',
-        label: 'Quadrillage',
+        label: translate('map.grid.title'),
         icon: Grid3x3,
         group: 'view',
         order: 20,
@@ -293,7 +294,7 @@ export const gridFeature: MapFeature = {
       engine.registerToolbarEntry({
         kind: 'custom',
         id: 'grid:scale',
-        label: 'Échelle de la scène',
+        label: translate('map.grid.sceneScale'),
         icon: Ruler,
         group: 'view',
         order: 21,
@@ -309,7 +310,7 @@ export const gridFeature: MapFeature = {
       }),
       engine.registerAction({
         id: 'grid.toggle',
-        label: 'Quadrillage',
+        label: translate('map.grid.title'),
         icon: Grid3x3,
         shortcut: GRID_TOGGLE_SHORTCUT,
         run: () => setGridShown(!gridDisplay.getState().shown),

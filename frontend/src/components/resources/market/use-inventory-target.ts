@@ -6,6 +6,7 @@
  * l'inventaire de la fiche (`ajouter`) : une unité de plus sur une pile, sinon un nouvel
  * exemplaire ; refusée quand la sorte est pleine ou l'entrée déjà possédée sans exemplaires.
  */
+import { useTranslations } from 'next-intl';
 import { calculer, type Entree, type SystemeCharge } from '@vtt/rules';
 import { useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -25,6 +26,7 @@ export function useInventoryTarget(
   heroId: string | null,
   systeme: SystemeCharge | null,
 ): InventoryTarget | null {
+  const t = useTranslations();
   const hero = usePersonnage(heroId);
   const ops = useOperationsPersonnage(heroId ?? '');
   const fiche = hero.data;
@@ -45,16 +47,16 @@ export function useInventoryTarget(
 
   const blocked = useCallback(
     (entry: Entree): string | null => {
-      if (!calcul) return 'Fiche indisponible';
+      if (!calcul) return t('resources.market.sheetUnavailable');
       const sorte = calcul.systeme.sortes.get(entry.sorte);
-      if (!sorte?.pour.includes(calcul.etat.type)) return 'Ne se range pas dans cet inventaire';
+      if (!sorte?.pour.includes(calcul.etat.type)) return t('resources.market.wrongInventory');
       const modes = modesAjout(calcul, entry, sorte);
       if (modes.empiler || modes.nouveau) return null;
       return calcul.etat.possessions.some((p) => p.entree === entry.id)
-        ? 'Déjà possédé'
-        : 'Maximum atteint';
+        ? t('resources.market.owned')
+        : t('resources.market.max');
     },
-    [calcul],
+    [calcul, t],
   );
 
   const add = useCallback(
@@ -63,12 +65,14 @@ export function useInventoryTarget(
       const w = ajouter(systeme, calcul.etat, entry.id);
       try {
         await ops.possession(w.demande, w.apercu);
-        toast.success(`${entry.nom} ajouté à l’inventaire`, { description: fiche.name });
+        toast.success(t('resources.market.added', { item: entry.nom }), {
+          description: fiche.name,
+        });
       } catch (err) {
-        toast.error('Ajout impossible', { description: messageErreur(err) });
+        toast.error(t('map.sounds.addFailed'), { description: messageErreur(err) });
       }
     },
-    [calcul, fiche, systeme, ops],
+    [calcul, fiche, systeme, ops, t],
   );
 
   if (!heroId || !ecrire || !fiche || !calcul) return null;

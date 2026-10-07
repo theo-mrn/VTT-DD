@@ -1,5 +1,7 @@
 'use client';
 
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import {
   calculer,
   choisirEtape,
@@ -54,6 +56,7 @@ export function EtapeChoisir({
   /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
   onEtat: (e: EtatEntite, op: OperationCreation) => void;
 }>) {
+  const t = useTranslations();
   const [recherche, setRecherche] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
@@ -86,13 +89,13 @@ export function EtapeChoisir({
     }
     if (ids.includes(id)) {
       if (ids.length <= etape.min) {
-        setErreur(`${etape.nom} : ${etape.min} au moins`);
+        setErreur(t('creation.choose.atLeast', { name: etape.nom, min: etape.min }));
         return;
       }
       appliquer(selection.filter((s) => s.entree !== id));
     } else {
       if (ids.length >= etape.max) {
-        setErreur(`${etape.nom} : ${etape.max} au plus`);
+        setErreur(t('creation.choose.atMost', { name: etape.nom, max: etape.max }));
         return;
       }
       appliquer([...selection, { entree: id }]);
@@ -116,9 +119,9 @@ export function EtapeChoisir({
     );
   }
 
-  const t = recherche.trim().toLowerCase();
-  const filtrees = t
-    ? entrees.filter((e) => `${e.nom} ${e.etiquettes.join(' ')}`.toLowerCase().includes(t))
+  const terme = recherche.trim().toLowerCase();
+  const filtrees = terme
+    ? entrees.filter((e) => `${e.nom} ${e.etiquettes.join(' ')}`.toLowerCase().includes(terme))
     : entrees;
   const groupes = grouper(filtrees, suggerees);
   const detail = systeme.entrees.get(focus ?? ids[0] ?? '') ?? null;
@@ -128,8 +131,8 @@ export function EtapeChoisir({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[13px] text-muted-foreground">
           {unique
-            ? `${entrees.length} options, une seule à choisir.`
-            : `${ids.length} choisie(s) · entre ${etape.min} et ${etape.max}.`}
+            ? t('creation.choose.single', { count: entrees.length })
+            : t('creation.choose.multi', { count: ids.length, min: etape.min, max: etape.max })}
         </p>
         {entrees.length > 12 && (
           <div className="sm:w-64">
@@ -137,7 +140,7 @@ export function EtapeChoisir({
               avant={<Search />}
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
-              placeholder="Rechercher…"
+              placeholder={t('map.tokens.library.searchPlaceholder')}
               className="h-9"
               aria-label={`Rechercher parmi ${sorte.nomPluriel ?? sorte.nom}`}
             />
@@ -240,7 +243,7 @@ function grouper<T extends { id: string; etiquettes: string[] }>(
   const sugg = entrees.filter((e) => suggerees.includes(e.id));
   const reste = entrees.filter((e) => !suggerees.includes(e.id));
   const groupes: { titre: string | null; entrees: T[] }[] = [];
-  if (sugg.length) groupes.push({ titre: 'Suggérées', entrees: sugg });
+  if (sugg.length) groupes.push({ titre: translate('creation.choose.suggested'), entrees: sugg });
   if (reste.length > 20) {
     const parEtiquette = new Map<string, T[]>();
     for (const e of reste) {
@@ -252,7 +255,11 @@ function grouper<T extends { id: string; etiquettes: string[] }>(
         titre: cle.charAt(0).toUpperCase() + cle.slice(1).replaceAll('-', ' '),
         entrees: liste,
       });
-  } else if (reste.length) groupes.push({ titre: sugg.length ? 'Autres' : null, entrees: reste });
+  } else if (reste.length)
+    groupes.push({
+      titre: sugg.length ? translate('resources.bestiary.others') : null,
+      entrees: reste,
+    });
   return groupes;
 }
 
@@ -313,6 +320,7 @@ function DetailEntree({
   selection: Selection[];
   onOption: (entree: string, choix: Choix, option: string, max: number) => void;
 }>) {
+  const t = useTranslations();
   const e = systeme.entrees.get(entreeId)!;
   const effets = e.effets.map((x) => texteEffet(fiche, x)).filter((x): x is string => Boolean(x));
   const champs = champsLisibles(systeme, e);
@@ -337,7 +345,7 @@ function DetailEntree({
             <h3 className="font-display text-xl font-semibold">{e.nom}</h3>
             {choisie && (
               <Badge ton="primaire">
-                <Check /> Choisie
+                <Check /> {t('creation.choose.chosen')}
               </Badge>
             )}
           </div>
@@ -494,6 +502,7 @@ function CarteListe({
   suggeree: boolean;
   onBasculer(): void;
 }>) {
+  const t = useTranslations();
   return (
     <button
       type="button"
@@ -526,7 +535,7 @@ function CarteListe({
           {e.nom}
           {suggeree && (
             <Badge ton="primaire">
-              <Lightbulb /> Suggérée
+              <Lightbulb /> {t('creation.choose.suggestedOne')}
             </Badge>
           )}
         </span>

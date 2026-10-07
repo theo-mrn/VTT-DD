@@ -10,13 +10,9 @@
  * Uppy n'est chargé qu'au premier envoi (import dynamique) : ce module est importé par la
  * session, donc par toutes les pages, et doit rester léger.
  */
-import {
-  checkUpload,
-  type FileImport,
-  type FileUploadTicket,
-  type UploadUsageId,
-} from '@vtt/contracts';
+import { type FileImport, type FileUploadTicket, type UploadUsageId } from '@vtt/contracts';
 import { api } from '../api';
+import { uploadRefusal } from './check';
 
 /** À qui appartient le fichier (le service qui le signe). */
 export type UploadTarget =
@@ -88,14 +84,14 @@ export async function uploadFile(
   file: File,
   o: { onProgress?: (p: UploadProgress) => void; signal?: AbortSignal } = {},
 ): Promise<string> {
-  const refus = checkUpload({ usage, contentType: file.type, size: file.size });
-  if (refus) throw new Error(refus.message);
+  const refus = uploadRefusal(usage, file);
+  if (refus) throw new Error(refus);
 
   const [{ default: Uppy }, { default: AwsS3 }] = await Promise.all([
     import('@uppy/core'),
     import('@uppy/aws-s3'),
   ]);
-  if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError');
+  if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError'); // i18n-ignore : jamais affiché
 
   const tickets = new Map<string, FileUploadTicket>();
   const uppy = new Uppy({ autoProceed: false, allowMultipleUploadBatches: false });
@@ -129,7 +125,7 @@ export async function uploadFile(
   o.signal?.addEventListener('abort', abort, { once: true });
   try {
     const result = await uppy.upload();
-    if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError');
+    if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError'); // i18n-ignore : jamais affiché
     const failed = result?.failed?.[0];
     if (failed) {
       const e: unknown = failed.error;

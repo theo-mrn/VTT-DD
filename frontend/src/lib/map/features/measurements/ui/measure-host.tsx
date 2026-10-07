@@ -7,6 +7,7 @@
  * barre suit la mesure sans re-rendre React : sa position est écrite dans le DOM quand la caméra
  * ou sa taille changent (`trackOverlay`).
  */
+import { translate } from '@/i18n/runtime';
 import { Pin, Target, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useStore } from 'zustand';
@@ -54,20 +55,20 @@ function PinBar({ ctx }: Readonly<{ ctx: MeasureModule }>) {
     <div
       ref={ref}
       role="dialog"
-      aria-label="Mesure"
+      aria-label={translate('map.measurements.measure')}
       className="pointer-events-auto absolute left-0 top-0 z-20 flex items-center gap-1 rounded-xl border border-border bg-background p-1 shadow-elevated"
       style={{ visibility: 'hidden' }}
       onPointerDown={(e) => e.stopPropagation()}
     >
       <Button size="xs" onClick={() => void pin(ctx)}>
         <Pin />
-        Épingler
+        {translate('map.measurements.pinShort')}
       </Button>
       <AttackZone ctx={ctx} spec={recent.spec} />
       <Button
         variant="ghost"
         size="icon-xs"
-        aria-label="Effacer la mesure"
+        aria-label={translate('map.measurements.clearMeasure')}
         onClick={() => clearLocal(ctx)}
       >
         <X />

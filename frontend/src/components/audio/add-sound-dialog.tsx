@@ -6,6 +6,7 @@
  * dans un autre espace : il y est ajouté aussi, sans copie). Le son arrive directement dans
  * l'espace d'où l'on a ouvert la fenêtre.
  */
+import { useTranslations } from 'next-intl';
 import type { Asset, AssetKind, CatalogEntry } from '@vtt/contracts';
 import {
   Check,
@@ -52,18 +53,6 @@ type Source = 'file' | 'youtube' | 'catalog' | 'mine';
 /** L'espace visé : musique, ambiance ou table d'effets. */
 export type SoundTarget = AssetKind;
 
-export const TARGET_TITLES: Record<SoundTarget, string> = {
-  music: 'Ajouter une musique',
-  ambience: 'Ajouter une ambiance',
-  sfx: 'Ajouter un effet',
-};
-
-const NOMS: Record<SoundTarget, string> = {
-  music: 'la musique',
-  ambience: 'l’ambiance',
-  sfx: 'la table d’effets',
-};
-
 export const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 const baseName = (name: string) =>
@@ -91,6 +80,7 @@ export function AddSoundDialog({
   board: Board;
   onOpenChange: (open: boolean) => void;
 }>) {
+  const t = useTranslations();
   const [source, setSource] = useState<Source>('file');
   const open = target !== null;
   const fermer = (o: boolean) => {
@@ -109,19 +99,19 @@ export function AddSoundDialog({
     <Dialog open={open} onOpenChange={fermer}>
       <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{target ? TARGET_TITLES[target] : ''}</DialogTitle>
-          <DialogDescription>{target ? `Le son rejoint ${NOMS[target]}.` : ''}</DialogDescription>
+          <DialogTitle>{target ? t(`audio.add.titles.${target}`) : ''}</DialogTitle>
+          <DialogDescription>{target ? t(`audio.add.joins.${target}`) : ''}</DialogDescription>
         </DialogHeader>
 
         <Segmented
-          label="Provenance"
+          label={t('map.sounds.source')}
           value={source}
           onChange={(v) => setSource(v as Source)}
           options={[
-            { value: 'file', label: 'Fichier', icon: Upload },
+            { value: 'file', label: t('map.sounds.file'), icon: Upload },
             { value: 'youtube', label: 'YouTube', icon: Youtube },
-            { value: 'catalog', label: 'Fournis', icon: Package },
-            { value: 'mine', label: 'Mes sons', icon: Library },
+            { value: 'catalog', label: t('map.sounds.provided'), icon: Package },
+            { value: 'mine', label: t('map.sounds.mine'), icon: Library },
           ]}
         />
 
@@ -174,6 +164,7 @@ export function FileSource({
   ranger: (a: Asset) => Promise<void>;
   onDone: () => void;
 }>) {
+  const t = useTranslations();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
@@ -183,8 +174,8 @@ export function FileSource({
   const pick = (f: File | undefined) => {
     if (!f) return;
     if (!audioContentType(f)) {
-      toast.error('Format non pris en charge', {
-        description: 'Formats acceptés : mp3, m4a, aac, ogg, opus, webm, wav, flac.',
+      toast.error(t('audio.add.unsupported'), {
+        description: t('audio.add.formats'),
       });
       return;
     }
@@ -198,12 +189,12 @@ export function FileSource({
     try {
       const a = await library.upload(file, { name: name.trim(), kind: target }, setProgress);
       await ranger(a);
-      toast.success(`${name.trim()} ajouté`, {
-        description: 'Préparation du fichier : il sera jouable dans un instant.',
+      toast.success(t('audio.add.added', { name: name.trim() }), {
+        description: t('audio.add.preparing'),
       });
       onDone();
     } catch (e) {
-      toast.error('Envoi impossible', { description: messageErreur(e) });
+      toast.error(t('map.sounds.uploadFailed'), { description: messageErreur(e) });
       setProgress(null);
     }
   }
@@ -251,13 +242,13 @@ export function FileSource({
           </>
         ) : (
           <>
-            <span className="text-sm font-medium">Déposez un fichier ou cliquez pour choisir</span>
-            <span className="text-xs text-muted-foreground">mp3, m4a, ogg, opus, wav, flac…</span>
+            <span className="text-sm font-medium">{t('audio.add.drop')}</span>
+            <span className="text-xs text-muted-foreground">{t('audio.add.dropFormats')}</span>
           </>
         )}
       </button>
       <div className="space-y-1.5">
-        <Label htmlFor="son-nom">Nom</Label>
+        <Label htmlFor="son-nom">{t('map.lights.name')}</Label>
         <Input
           id="son-nom"
           value={name}
@@ -266,7 +257,7 @@ export function FileSource({
         />
       </div>
       {progress !== null && (
-        <Progress valeur={Math.round(progress * 100)} label="Envoi du fichier" />
+        <Progress valeur={Math.round(progress * 100)} label={t('audio.add.uploading')} />
       )}
       <DialogFooter>
         <Button
@@ -274,7 +265,7 @@ export function FileSource({
           loading={progress !== null}
           onClick={() => void envoyer()}
         >
-          Ajouter
+          {t('common.actions.add')}
         </Button>
       </DialogFooter>
     </div>
@@ -292,6 +283,7 @@ function YoutubeSource({
   ranger: (a: Asset) => Promise<void>;
   onDone: () => void;
 }>) {
+  const t = useTranslations();
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -301,10 +293,10 @@ function YoutubeSource({
     try {
       const a = await library.addYoutube(url.trim(), name.trim(), target);
       await ranger(a);
-      toast.success(`${name.trim()} ajouté`);
+      toast.success(t('audio.add.added', { name: name.trim() }));
       onDone();
     } catch (e) {
-      toast.error('Lien refusé', { description: messageErreur(e) });
+      toast.error(t('audio.add.linkRefused'), { description: messageErreur(e) });
       setBusy(false);
     }
   }
@@ -312,7 +304,7 @@ function YoutubeSource({
   return (
     <div className="space-y-4 pt-1">
       <div className="space-y-1.5">
-        <Label htmlFor="son-lien">Lien de la vidéo</Label>
+        <Label htmlFor="son-lien">{t('audio.add.videoLink')}</Label>
         <Input
           id="son-lien"
           value={url}
@@ -322,7 +314,7 @@ function YoutubeSource({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="son-nom-yt">Nom</Label>
+        <Label htmlFor="son-nom-yt">{t('map.lights.name')}</Label>
         <Input
           id="son-nom-yt"
           value={name}
@@ -336,7 +328,7 @@ function YoutubeSource({
           loading={busy}
           onClick={() => void ajouter()}
         >
-          Ajouter
+          {t('common.actions.add')}
         </Button>
       </DialogFooter>
     </div>
@@ -361,12 +353,13 @@ function ChoiceRow({
   busy: boolean;
   onAdd: () => void;
 }>) {
+  const t = useTranslations();
   return (
     <li className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-surface-2">
       <Button
         variant="ghost"
         size="icon-xs"
-        aria-label={previewing ? 'Arrêter l’écoute' : `Écouter ${name}`}
+        aria-label={previewing ? t('map.sounds.stopListening') : t('map.sounds.listenTo', { name })}
         aria-pressed={previewing}
         onClick={onPreview}
         className={cn(previewing && 'text-primary-strong')}
@@ -385,7 +378,7 @@ function ChoiceRow({
         onClick={onAdd}
       >
         {done ? <Check /> : <Plus />}
-        {done ? 'Ajouté' : 'Ajouter'}
+        {done ? t('audio.add.addedShort') : t('common.actions.add')}
       </Button>
     </li>
   );
@@ -404,6 +397,7 @@ function CatalogSource({
   board: Board;
   ranger: (a: Asset) => Promise<void>;
 }>) {
+  const t = useTranslations();
   const catalog = useAudioCatalog(systemId);
   const preview = usePreview();
   const [query, setQuery] = useState('');
@@ -416,7 +410,7 @@ function CatalogSource({
   // Catégories des sons fournis, celles du type de l'espace d'abord
   const chips = useMemo(
     () => [
-      { value: 'all', label: 'Tout', count: catalog.items.length },
+      { value: 'all', label: t('map.objects.library.all'), count: catalog.items.length },
       ...[...catalog.categories]
         .sort((a, b) => Number(b.kind === target) - Number(a.kind === target))
         .map((c) => ({
@@ -451,9 +445,9 @@ function CatalogSource({
     try {
       const a = byCatalog.get(e.id) ?? (await library.addFromCatalog(e.id, { kind: target }));
       await ranger(a);
-      toast.success(`${e.name} ajouté`);
+      toast.success(t('audio.add.added', { name: e.name }));
     } catch (err) {
-      toast.error('Ajout impossible', { description: messageErreur(err) });
+      toast.error(t('map.sounds.addFailed'), { description: messageErreur(err) });
     } finally {
       setBusy(null);
     }
@@ -464,15 +458,22 @@ function CatalogSource({
       <SearchField
         value={query}
         onChange={setQuery}
-        placeholder="Rechercher un son fourni"
-        label="Rechercher un son fourni"
+        placeholder={t('map.sounds.searchProvided')}
+        label={t('map.sounds.searchProvided')}
         className="sm:w-full"
       />
       {chips.length > 2 && (
-        <Chips label="Catégorie" value={category} onChange={setCategory} options={chips} />
+        <Chips
+          label={t('map.sounds.category')}
+          value={category}
+          onChange={setCategory}
+          options={chips}
+        />
       )}
       {catalog.loading ? (
-        <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
+        <p className="py-6 text-center text-[13px] text-muted-foreground">
+          {t('common.states.loading')}
+        </p>
       ) : (
         <ul>
           {items.map((e) => {
@@ -503,16 +504,13 @@ function CatalogSource({
 }
 
 type Where = 'all' | 'music' | 'ambience' | 'sfx' | 'none';
-const WHERE: { value: Where; label: string; test: (a: Asset, board: Board) => boolean }[] = [
-  { value: 'all', label: 'Tous', test: () => true },
-  { value: 'music', label: 'Musique', test: (a) => a.sections.includes('music') },
-  { value: 'ambience', label: 'Ambiance', test: (a) => a.sections.includes('ambience') },
-  { value: 'sfx', label: 'Effets', test: (a, b) => b.has(a.id) },
-  {
-    value: 'none',
-    label: 'Rangés nulle part',
-    test: (a, b) => !a.sections.length && !b.has(a.id),
-  },
+/** Filtres de rangement ; nom : `audio.add.where.<valeur>`. */
+const WHERE: { value: Where; test: (a: Asset, board: Board) => boolean }[] = [
+  { value: 'all', test: () => true },
+  { value: 'music', test: (a) => a.sections.includes('music') },
+  { value: 'ambience', test: (a) => a.sections.includes('ambience') },
+  { value: 'sfx', test: (a, b) => b.has(a.id) },
+  { value: 'none', test: (a, b) => !a.sections.length && !b.has(a.id) },
 ];
 
 function MineSource({
@@ -526,6 +524,7 @@ function MineSource({
   board: Board;
   ranger: (a: Asset) => Promise<void>;
 }>) {
+  const t = useTranslations();
   const preview = usePreview();
   const [query, setQuery] = useState('');
   const [where, setWhere] = useState<Where>('all');
@@ -538,10 +537,10 @@ function MineSource({
     () =>
       WHERE.map((w) => ({
         value: w.value,
-        label: w.label,
+        label: t(`audio.add.where.${w.value}`),
         count: usable.filter((a) => w.test(a, board)).length,
       })).filter((c) => c.value === 'all' || c.count > 0),
-    [usable, board],
+    [usable, board, t],
   );
   const items = useMemo(() => {
     const q = plain(query.trim());
@@ -560,7 +559,7 @@ function MineSource({
     try {
       await ranger(a);
     } catch (e) {
-      toast.error('Ajout impossible', { description: messageErreur(e) });
+      toast.error(t('map.sounds.addFailed'), { description: messageErreur(e) });
     } finally {
       setBusy(null);
     }
@@ -568,30 +567,28 @@ function MineSource({
 
   const ou = (a: Asset) =>
     [
-      a.sections.includes('music') && 'musique',
-      a.sections.includes('ambience') && 'ambiance',
-      board.has(a.id) && 'effets',
+      a.sections.includes('music') && t('audio.add.in.music'),
+      a.sections.includes('ambience') && t('audio.add.in.ambience'),
+      board.has(a.id) && t('audio.add.in.sfx'),
     ]
       .filter(Boolean)
       .join(', ');
 
   return (
     <div className="space-y-2 pt-1">
-      <p className="text-xs text-muted-foreground">
-        Un son déjà rangé ailleurs est ajouté ici aussi, sans être copié.
-      </p>
+      <p className="text-xs text-muted-foreground">{t('audio.add.mineHint')}</p>
       {library.assets.length > 6 && (
         <SearchField
           value={query}
           onChange={setQuery}
-          placeholder="Rechercher dans mes sons"
-          label="Rechercher dans mes sons"
+          placeholder={t('map.sounds.searchMine')}
+          label={t('map.sounds.searchMine')}
           className="sm:w-full"
         />
       )}
       {chips.length > 2 && (
         <Chips
-          label="Rangement"
+          label={t('audio.add.filing')}
           value={where}
           onChange={(v) => setWhere(v as Where)}
           options={chips}
@@ -599,7 +596,7 @@ function MineSource({
       )}
       {items.length === 0 ? (
         <p className="py-6 text-center text-[13px] text-muted-foreground">
-          {usable.length ? 'Aucun son ne correspond.' : 'Vous n’avez pas encore de sons.'}
+          {usable.length ? t('map.sounds.noMatch') : t('audio.add.noSounds')}
         </p>
       ) : (
         <ul>
@@ -607,7 +604,7 @@ function MineSource({
             <ChoiceRow
               key={a.id}
               name={a.name}
-              meta={ou(a) ? `Déjà en ${ou(a)}` : 'Rangé nulle part'}
+              meta={ou(a) ? t('audio.add.alreadyIn', { places: ou(a) }) : t('audio.add.nowhere')}
               previewing={preview.playingId === a.id}
               onPreview={() => (preview.playingId === a.id ? preview.stop() : preview.play(a))}
               done={inTarget(a, target, board)}

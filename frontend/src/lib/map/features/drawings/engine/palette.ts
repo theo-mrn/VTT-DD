@@ -6,42 +6,57 @@
  * Opacité : portée par la couleur elle-même (`#rrggbbaa`), pour qu'elle voyage avec le tracé,
  * dans la base comme dans le direct (`map.live.stroke.color`), sans champ de plus au contrat.
  */
+import { translate } from '@/i18n/runtime';
+import type { Messages } from '@/i18n/types';
 
 export interface PaletteColor {
   id: string;
-  /** Nom lu par les lecteurs d'écran et affiché en info-bulle. */
-  label: string;
+  /** Nom lu par les lecteurs d'écran et affiché en info-bulle (traduit à chaque lecture). */
+  readonly label: string;
   /** `#rrggbb`. */
   value: string;
 }
 
+/**
+ * Libellé traduit à la lecture : les listes ci-dessous sont des constantes de module, leur nom
+ * suit la langue active sans être figé au chargement (docs/i18n.md § 8).
+ */
+const labelled = <T extends object>(item: T, key: () => string): T & { readonly label: string } =>
+  Object.defineProperty(item, 'label', { get: key, enumerable: true }) as T & {
+    readonly label: string;
+  };
+
 /** Couleurs proposées : contrastées sur une carte sombre comme sur une carte claire. */
-export const DRAWING_COLORS: readonly PaletteColor[] = [
-  { id: 'ivory', label: 'Ivoire', value: '#f5f1e8' },
-  { id: 'charcoal', label: 'Charbon', value: '#1f1d24' },
-  { id: 'crimson', label: 'Carmin', value: '#e5484d' },
-  { id: 'amber', label: 'Ambre', value: '#f5a524' },
-  { id: 'gold', label: 'Or', value: '#d4b16a' },
-  { id: 'lime', label: 'Tilleul', value: '#99d52a' },
-  { id: 'emerald', label: 'Émeraude', value: '#30a46c' },
-  { id: 'teal', label: 'Sarcelle', value: '#12a594' },
-  { id: 'azure', label: 'Azur', value: '#3e9bf5' },
-  { id: 'indigo', label: 'Indigo', value: '#5b5bd6' },
-  { id: 'violet', label: 'Violet', value: '#8e4ec6' },
-  { id: 'rose', label: 'Rose', value: '#e93d82' },
-];
+export const DRAWING_COLORS: readonly PaletteColor[] = (
+  [
+    ['ivory', '#f5f1e8'],
+    ['charcoal', '#1f1d24'],
+    ['crimson', '#e5484d'],
+    ['amber', '#f5a524'],
+    ['gold', '#d4b16a'],
+    ['lime', '#99d52a'],
+    ['emerald', '#30a46c'],
+    ['teal', '#12a594'],
+    ['azure', '#3e9bf5'],
+    ['indigo', '#5b5bd6'],
+    ['violet', '#8e4ec6'],
+    ['rose', '#e93d82'],
+  ] as const
+).map(([id, value]) => labelled({ id, value }, () => translate(`map.drawings.colors.${id}`)));
 
 export const DEFAULT_DRAWING_COLOR = '#e5484d';
 export const DEFAULT_NOTE_COLOR = '#f5f1e8';
 
 /** Épaisseur du trait, en pixels du monde. */
 export const WIDTH_RANGE = { min: 1, max: 80, step: 1 } as const;
-export const WIDTH_PRESETS: readonly { label: string; value: number }[] = [
-  { label: 'Fin', value: 3 },
-  { label: 'Moyen', value: 6 },
-  { label: 'Épais', value: 12 },
-  { label: 'Très épais', value: 24 },
-];
+export const WIDTH_PRESETS: readonly { readonly label: string; value: number }[] = (
+  [
+    ['thin', 3],
+    ['medium', 6],
+    ['thick', 12],
+    ['veryThick', 24],
+  ] as const
+).map(([id, value]) => labelled({ value }, () => translate(`map.drawings.widths.${id}`)));
 export const DEFAULT_WIDTH = 6;
 
 /** Opacité du trait et du remplissage. */
@@ -52,40 +67,48 @@ export const FILL_ALPHA = 0.35;
 
 /** Taille des textes, en pixels du monde. */
 export const FONT_SIZE_RANGE = { min: 8, max: 240, step: 1 } as const;
-export const FONT_SIZE_PRESETS: readonly { label: string; value: number }[] = [
-  { label: 'Petit', value: 20 },
-  { label: 'Moyen', value: 32 },
-  { label: 'Grand', value: 56 },
-  { label: 'Titre', value: 96 },
-];
+export const FONT_SIZE_PRESETS: readonly { readonly label: string; value: number }[] = (
+  [
+    ['small', 20],
+    ['medium', 32],
+    ['large', 56],
+    ['title', 96],
+  ] as const
+).map(([id, value]) => labelled({ value }, () => translate(`map.drawings.fontSizes.${id}`)));
 export const DEFAULT_FONT_SIZE = 32;
 
 export interface NoteFont {
   id: string;
-  label: string;
+  readonly label: string;
   /** Valeur enregistrée (`fontFamily`) : une pile CSS, variables du thème permises. */
   value: string;
   /** Groupe du sélecteur. */
   group: NoteFontGroup;
 }
 
+/** Groupes du sélecteur ; nom affiché : `map.drawings.fontGroups.<groupe>`. */
 export const NOTE_FONT_GROUPS = [
-  'Lisibles',
-  'Fantastique',
-  'Manuscrites',
-  'Affiches',
-  'Science-fiction',
-  'Machine',
-  'Horreur',
+  'readable',
+  'fantasy',
+  'handwritten',
+  'posters',
+  'scifi',
+  'typewriter',
+  'horror',
 ] as const;
-export type NoteFontGroup = (typeof NOTE_FONT_GROUPS)[number] | 'Système';
+export type NoteFontGroup = (typeof NOTE_FONT_GROUPS)[number] | 'system';
 
-const font = (id: string, label: string, group: NoteFontGroup, fallback: string): NoteFont => ({
-  id,
-  label,
-  group,
-  value: `var(--font-map-${id}), ${fallback}`,
-});
+export const noteFontGroupLabel = (group: NoteFontGroup) =>
+  translate(`map.drawings.fontGroups.${group}`);
+
+type FontName = keyof Messages['map']['drawings']['fonts'];
+
+/** Une police servie par `next/font` ; son nom vient du catalogue (`map.drawings.fonts.<name>`). */
+const font = (id: string, name: FontName, group: NoteFontGroup, fallback: string): NoteFont =>
+  named({ id, group, value: `var(--font-map-${id}), ${fallback}` }, name);
+
+const named = (f: Omit<NoteFont, 'label'>, name: FontName): NoteFont =>
+  labelled(f, () => translate(`map.drawings.fonts.${name}`));
 
 /**
  * Polices des textes posés sur la carte. Les quatre premières gardent leurs valeurs d'origine
@@ -93,41 +116,41 @@ const font = (id: string, label: string, group: NoteFontGroup, fallback: string)
  * téléchargement tant qu'elles ne servent pas.
  */
 export const NOTE_FONTS: readonly NoteFont[] = [
-  { id: 'sans', label: 'Lisible', value: 'var(--font-sans)', group: 'Lisibles' },
-  { id: 'display', label: 'Titre', value: 'var(--font-display)', group: 'Fantastique' },
-  {
-    id: 'hand',
-    label: 'Manuscrit',
-    value: '"Bradley Hand", "Segoe Print", "Comic Sans MS", cursive',
-    group: 'Manuscrites',
-  },
-  { id: 'mono', label: 'Machine', value: 'var(--font-mono)', group: 'Machine' },
-  font('lora', 'Livre', 'Lisibles', 'serif'),
-  font('im-fell', 'Grimoire', 'Fantastique', 'serif'),
-  font('medieval-sharp', 'Médiéval', 'Fantastique', 'serif'),
-  font('uncial', 'Onciale', 'Fantastique', 'serif'),
-  font('almendra', 'Almendra', 'Fantastique', 'serif'),
-  font('cinzel-decorative', 'Enluminure', 'Fantastique', 'serif'),
-  font('unifraktur', 'Gothique', 'Fantastique', 'serif'),
-  font('pirata', 'Pirate', 'Fantastique', 'serif'),
-  font('caveat', 'Carnet', 'Manuscrites', 'cursive'),
-  font('kalam', 'Plume', 'Manuscrites', 'cursive'),
-  font('dancing', 'Calligraphie', 'Manuscrites', 'cursive'),
-  font('indie-flower', 'Griffonnage', 'Manuscrites', 'cursive'),
-  font('shadows', 'Craie', 'Manuscrites', 'cursive'),
-  font('bebas', 'Affiche', 'Affiches', 'sans-serif'),
-  {
-    id: 'aclonica',
-    label: 'Titre rond',
-    value: 'var(--font-aclonica), sans-serif',
-    group: 'Affiches',
-  },
-  font('orbitron', 'Orbitron', 'Science-fiction', 'sans-serif'),
-  font('audiowide', 'Néon', 'Science-fiction', 'sans-serif'),
-  font('share-tech', 'Terminal', 'Science-fiction', 'monospace'),
-  font('special-elite', 'Machine à écrire', 'Machine', 'monospace'),
-  font('creepster', 'Épouvante', 'Horreur', 'cursive'),
-  font('nosifer', 'Sanglant', 'Horreur', 'cursive'),
+  named({ id: 'sans', value: 'var(--font-sans)', group: 'readable' }, 'readable'),
+  named({ id: 'display', value: 'var(--font-display)', group: 'fantasy' }, 'title'),
+  named(
+    {
+      id: 'hand',
+      value: '"Bradley Hand", "Segoe Print", "Comic Sans MS", cursive', // i18n-ignore
+      group: 'handwritten',
+    },
+    'handwritten',
+  ),
+  named({ id: 'mono', value: 'var(--font-mono)', group: 'typewriter' }, 'mono'),
+  font('lora', 'book', 'readable', 'serif'),
+  font('im-fell', 'grimoire', 'fantasy', 'serif'),
+  font('medieval-sharp', 'medieval', 'fantasy', 'serif'),
+  font('uncial', 'uncial', 'fantasy', 'serif'),
+  font('almendra', 'almendra', 'fantasy', 'serif'),
+  font('cinzel-decorative', 'illumination', 'fantasy', 'serif'),
+  font('unifraktur', 'gothic', 'fantasy', 'serif'),
+  font('pirata', 'pirate', 'fantasy', 'serif'),
+  font('caveat', 'notebook', 'handwritten', 'cursive'),
+  font('kalam', 'quill', 'handwritten', 'cursive'),
+  font('dancing', 'calligraphy', 'handwritten', 'cursive'),
+  font('indie-flower', 'scribble', 'handwritten', 'cursive'),
+  font('shadows', 'chalk', 'handwritten', 'cursive'),
+  font('bebas', 'poster', 'posters', 'sans-serif'),
+  named(
+    { id: 'aclonica', value: 'var(--font-aclonica), sans-serif', group: 'posters' },
+    'roundTitle',
+  ),
+  font('orbitron', 'orbitron', 'scifi', 'sans-serif'),
+  font('audiowide', 'neon', 'scifi', 'sans-serif'),
+  font('share-tech', 'terminal', 'scifi', 'monospace'),
+  font('special-elite', 'typewriter', 'typewriter', 'monospace'),
+  font('creepster', 'dread', 'horror', 'cursive'),
+  font('nosifer', 'bloody', 'horror', 'cursive'),
 ];
 
 /** Police d'un système (fichier déclaré par sa présentation, chargé à la table). */
@@ -136,14 +159,14 @@ export function systemNoteFont(famille: string): NoteFont {
   return {
     id: `system:${safe}`,
     label: safe,
-    group: 'Système',
+    group: 'system',
     value: `"${safe}", var(--font-sans)`,
   };
 }
 
 export const DEFAULT_FONT = NOTE_FONTS[0]!.value;
 
-/** Polices de l'ancienne carte (`var(--font-body)`…), lues avec leur équivalent d'aujourd'hui. */
+/** Polices de l’ancienne carte (var(--font-body)…), lues avec leur équivalent d’aujourd’hui. */
 const LEGACY_FONTS: Readonly<Record<string, string>> = {
   'var(--font-body)': 'var(--font-sans)',
   'var(--font-modern)': 'var(--font-sans)',

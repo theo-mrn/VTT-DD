@@ -11,6 +11,7 @@
  *
  * La pose s'aimante au centre de la case, comme le glisser commun (Alt : libre).
  */
+import { translate } from '@/i18n/runtime';
 import type { BitmapText, Container, Graphics } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -200,7 +201,7 @@ export class LightTool implements Tool {
             this.ctx,
             [drag.entity],
             () => ({ radius: drag.radius }),
-            'Rayon de la lumière',
+            translate('map.lights.lightRadius'),
           );
         break;
       }
@@ -235,7 +236,7 @@ export class LightTool implements Tool {
     const draft = lightDraft(s.mapId, pos, this.settings.getState());
     void engine.execute(
       createCommand({
-        label: 'Poser une lumière',
+        label: translate('map.lights.place'),
         collection: LIGHTS,
         persistence: this.ctx.persistence,
         items: [draft],

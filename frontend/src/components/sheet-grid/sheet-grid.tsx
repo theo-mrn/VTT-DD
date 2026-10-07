@@ -13,6 +13,7 @@
  * La largeur est celle du conteneur (la fiche vit aussi dans un panneau de la table), mesurée
  * en continu : pas de WidthProvider, qui n'écoute que la fenêtre.
  */
+import { useTranslations } from 'next-intl';
 import { erreursWidget, type Widget } from '@vtt/rules';
 import { Check, CloudOff, LayoutGrid, Loader2, Plus, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
@@ -196,6 +197,7 @@ export function SheetGrid({
   /** Enregistre la mise en page (null : retour à la disposition par défaut). */
   onSave: (layout: SheetLayout | null) => Promise<unknown>;
 }>) {
+  const t = useTranslations();
   // ─── Largeur du conteneur ────────────────────────────────────────────────
   const conteneur = useRef<HTMLDivElement>(null);
   const [largeur, setLargeur] = useState(0);
@@ -286,7 +288,7 @@ export function SheetGrid({
       if (aEnregistrer.current === undefined) setStatut('saved');
     } catch (e) {
       setStatut('error');
-      toast.error(`Mise en page non enregistrée : ${messageErreur(e)}`);
+      toast.error(t('sheet.grid.notSaved', { error: messageErreur(e) }));
     }
   }, []);
 
@@ -421,11 +423,7 @@ export function SheetGrid({
           ? brouillon.arranged
           : [...brouillon.arranged, bp],
       });
-      setAnnonce(
-        mode === 'auto'
-          ? 'Hauteur automatique : le bloc suit son contenu.'
-          : 'Hauteur définie : réglez-la au coin du bloc, son contenu défile.',
-      );
+      setAnnonce(mode === 'auto' ? t('sheet.grid.heightAuto') : t('sheet.grid.heightFixed'));
     },
     [brouillon, layouts, bp, changer],
   );
@@ -442,7 +440,7 @@ export function SheetGrid({
           return arrangement ? { ...reste, arrangement } : reste;
         }),
       });
-      if (!arrangement) setAnnonce('Disposition du bloc rétablie : celle du système.');
+      if (!arrangement) setAnnonce(t('sheet.grid.layoutRestored'));
     },
     [brouillon, changer],
   );
@@ -470,7 +468,7 @@ export function SheetGrid({
         blocks: brouillon.blocks.filter((b) => b.id !== id),
         layouts: layoutsSans,
       });
-      setAnnonce('Bloc retiré de la fiche.');
+      setAnnonce(t('sheet.grid.removed'));
     },
     [brouillon, changer],
   );
@@ -479,7 +477,7 @@ export function SheetGrid({
     (w: Widget) => {
       if (!brouillon) return;
       if (brouillon.blocks.length >= MAX_BLOCKS) {
-        toast.error(`${MAX_BLOCKS} blocs au plus sur une fiche.`);
+        toast.error(t('sheet.grid.max', { max: MAX_BLOCKS }));
         return;
       }
       const bloc = gridBlock(newBlockId(brouillon.blocks), w);
@@ -495,7 +493,7 @@ export function SheetGrid({
         suivants[cle] = [...brouillon.layouts[cle], { ...place!, y: bas }];
       }
       changer({ ...brouillon, blocks: [...brouillon.blocks, bloc], layouts: suivants });
-      setAnnonce(`Bloc « ${w.titre} » ajouté en bas de la fiche.`);
+      setAnnonce(t('sheet.grid.added', { name: w.titre }));
       // Le nouveau bloc est amené à l'écran, prêt à être placé au clavier
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
@@ -519,7 +517,7 @@ export function SheetGrid({
     setBrouillon(defaut);
     planifier(null, true);
     setConfirmation(false);
-    setAnnonce('Disposition par défaut rétablie.');
+    setAnnonce(t('sheet.grid.defaultRestored'));
   }, [ctx, sizeOf, planifier]);
 
   // ─── Clavier ───────────────────────────────────────────────────────────────
@@ -531,7 +529,7 @@ export function SheetGrid({
         retirer(id);
         return;
       }
-      if (!e.key.startsWith('Arrow')) return;
+      if (!e.key.startsWith('Arrow')) return; // i18n-ignore
       e.preventDefault();
       const bloc = brouillon.blocks.find((b) => b.id === id);
       if (!bloc) return;
@@ -550,8 +548,8 @@ export function SheetGrid({
       const it = items.find((x) => x.i === id)!;
       setAnnonce(
         e.shiftKey
-          ? `Taille : ${it.w} colonne(s), ${it.h * ROW_HEIGHT - MARGIN} px de haut.`
-          : `Position : colonne ${it.x + 1}, rangée ${it.y + 1}.`,
+          ? t('sheet.grid.size', { columns: it.w, height: it.h * ROW_HEIGHT - MARGIN })
+          : t('sheet.grid.position', { column: it.x + 1, row: it.y + 1 }),
       );
     },
     [brouillon, bp, retirer, appliquerPositions, modes, layouts],
@@ -588,50 +586,46 @@ export function SheetGrid({
       {editing && (
         <div
           role="toolbar"
-          aria-label="Personnalisation de la fiche"
+          aria-label={t('sheet.grid.customizing')}
           className="sticky top-2 z-30 flex flex-wrap items-center gap-2 rounded-2xl border border-primary/30 bg-popover/95 px-3 py-2 shadow-elevated backdrop-blur"
         >
           <LayoutGrid className="size-4 shrink-0 text-primary" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Personnalisation</p>
+            <p className="text-sm font-semibold">{t('sheet.grid.customization')}</p>
             <p className="hidden text-xs text-muted-foreground md:block">
-              Glissez un bloc pour le déplacer, tirez son bord pour changer sa largeur (son coin en
-              hauteur définie). Au clavier : <Kbd>←↑→↓</Kbd> déplace, <Kbd>Maj</Kbd>+<Kbd>←↑→↓</Kbd>{' '}
-              redimensionne, <Kbd>Suppr</Kbd> retire.
+              {t.rich('sheet.grid.editHint', {
+                arrows: () => <Kbd>←↑→↓</Kbd>,
+                shift: () => <Kbd>{t('chat.shiftKey')}</Kbd>,
+                del: () => <Kbd>{t('sheet.inventory.delKey')}</Kbd>,
+              })}
             </p>
           </div>
           <StatutEnregistrement statut={statut} />
           <Button variant="secondary" size="sm" onClick={() => setSelecteur(true)}>
             <Plus />
-            Ajouter un bloc
+            {t('sheet.grid.addBlock')}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setConfirmation(true)}>
             <RotateCcw />
-            Réinitialiser
+            {t('audio.mixer.reset')}
           </Button>
           <Button size="sm" onClick={terminer}>
             <Check />
-            Terminer
+            {t('combat.attack.finish')}
           </Button>
         </div>
       )}
 
       <div ref={conteneur} className="min-w-0">
         {largeur === 0 && (
-          <div
-            className="grid gap-4 md:grid-cols-2"
-            aria-busy
-            aria-label="Mise en page de la fiche"
-          >
+          <div className="grid gap-4 md:grid-cols-2" aria-busy aria-label={t('sheet.grid.layout')}>
             <Skeleton className="h-48 rounded-2xl" />
             <Skeleton className="h-48 rounded-2xl" />
           </div>
         )}
         {largeur > 0 && visibles.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border-strong px-6 py-12 text-center text-sm text-muted-foreground">
-            {editing
-              ? 'Aucun bloc sur cette fiche. Ajoutez-en un pour commencer.'
-              : 'Rien à afficher sur cette fiche pour l’instant.'}
+            {editing ? t('sheet.grid.emptyEditing') : t('sheet.grid.empty')}
           </div>
         )}
         {largeur > 0 && visibles.length > 0 && (
@@ -662,12 +656,8 @@ export function SheetGrid({
                   data-sheet-block={b.id}
                   tabIndex={editing ? 0 : undefined}
                   role={editing ? 'group' : undefined}
-                  aria-roledescription={editing ? 'bloc déplaçable' : undefined}
-                  aria-label={
-                    editing
-                      ? `${titre} : flèches pour déplacer, Maj et flèches pour redimensionner, Suppr pour retirer`
-                      : undefined
-                  }
+                  aria-roledescription={editing ? t('sheet.grid.movableBlock') : undefined}
+                  aria-label={editing ? t('sheet.grid.blockKeys', { name: titre }) : undefined}
                   onKeyDown={editing ? (e) => surTouche(b.id, e) : undefined}
                   className="group/bloc outline-none"
                 >
@@ -703,19 +693,16 @@ export function SheetGrid({
       <Dialog open={confirmation} onOpenChange={setConfirmation}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Revenir à la disposition par défaut ?</DialogTitle>
-            <DialogDescription>
-              Les blocs ajoutés, retirés ou déplacés sur cette fiche sont oubliés, pour toute la
-              table. La disposition par défaut vient des règles du personnage.
-            </DialogDescription>
+            <DialogTitle>{t('sheet.grid.resetTitle')}</DialogTitle>
+            <DialogDescription>{t('sheet.grid.resetHint')}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmation(false)}>
-              Annuler
+              {t('common.actions.cancel')}
             </Button>
             <Button variant="destructive" onClick={reinitialiser}>
               <RotateCcw />
-              Réinitialiser
+              {t('audio.mixer.reset')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -725,25 +712,26 @@ export function SheetGrid({
 }
 
 function StatutEnregistrement({ statut }: Readonly<{ statut: Statut }>) {
+  const t = useTranslations();
   if (statut === 'idle') return null;
   let contenu = (
     <>
       <Loader2 className="size-3.5 animate-spin" aria-hidden />
-      Enregistrement…
+      {t('common.states.saving')}
     </>
   );
   if (statut === 'error')
     contenu = (
       <>
         <CloudOff className="size-3.5 text-destructive" aria-hidden />
-        Non enregistré
+        {t('notes.saving.failed')}
       </>
     );
   else if (statut === 'saved')
     contenu = (
       <>
         <Check className="size-3.5 text-success" aria-hidden />
-        Enregistré
+        {t('common.states.saved')}
       </>
     );
   return (

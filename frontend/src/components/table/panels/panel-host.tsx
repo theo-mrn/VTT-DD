@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import { shortcutOfPanel } from './shortcuts';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
@@ -118,19 +119,21 @@ function PanelFrame({ panel, visible }: Readonly<{ panel: TablePanel; visible: b
     }
   };
 
+  const t = useTranslations('table');
+  const nom = t(`panels.${panel.id}.label`);
   const Icone = panel.icon;
   // Corps du panneau : même élément d'un rendu à l'autre, il ne se re-rend pas quand le
   // panneau s'ouvre ou se ferme (seuls les lecteurs de `usePanelVisible` le suivent)
   const Corps = panel.component;
   const corps = useMemo(
     () => (
-      <FrontiereTable nom={panel.label}>
+      <FrontiereTable nom={nom}>
         <Suspense fallback={<ChargementOnglet />}>
           <Corps />
         </Suspense>
       </FrontiereTable>
     ),
-    [Corps, panel.label],
+    [Corps, nom],
   );
   const cadre = (
     <motion.section
@@ -164,13 +167,13 @@ function PanelFrame({ panel, visible }: Readonly<{ panel: TablePanel; visible: b
             <Icone className="size-4" aria-hidden />
           </span>
           <h2 id={titreId} className="min-w-0 flex-1 truncate text-[15px] font-semibold">
-            {panel.label}
+            {nom}
           </h2>
           <ToucheDuPanneau id={panel.id} />
           <Info
             texte={
               <span className="flex items-center gap-2">
-                Fermer <Kbd>Échap</Kbd>
+                {t('host.close')} <Kbd>{t('host.escape')}</Kbd>
               </span>
             }
           >
@@ -178,7 +181,7 @@ function PanelFrame({ panel, visible }: Readonly<{ panel: TablePanel; visible: b
               variant="ghost"
               size="icon-sm"
               onClick={close}
-              aria-label={`Fermer ${panel.label}`}
+              aria-label={t('host.closePanel', { panel: nom })}
               aria-keyshortcuts="Escape"
             >
               <X />

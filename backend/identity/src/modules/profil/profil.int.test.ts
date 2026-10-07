@@ -79,6 +79,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       showPremiumBadge: true,
       timeSpentMinutes: 0,
       emailNotifications: true,
+      locale: null,
       settings: {},
       hasPassword: true,
       providers: [],
@@ -112,6 +113,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       borderType: 'magic_shine_aurora',
       showPremiumBadge: false,
       emailNotifications: false,
+      locale: 'en',
       settings: { theme: 'sombre', des: { son: true } },
     };
     const res = await t.app.inject({
@@ -139,6 +141,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
         'bio',
         'borderType',
         'emailNotifications',
+        'locale',
         'name',
         'settings',
         'showPremiumBadge',
@@ -165,6 +168,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       ['bio', null],
       ['avatarUrl', null],
       ['bannerUrl', null],
+      ['locale', null],
     ] as const) {
       const r = await t.app.inject({
         method: 'PATCH',
@@ -177,7 +181,7 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
     }
     const tous = await evenements(moi.id, 'identity.profile_updated');
     expect(tous.map((e) => e.payload.fields)).toEqual(
-      expect.arrayContaining([['bio'], ['avatarUrl'], ['bannerUrl']]),
+      expect.arrayContaining([['bio'], ['avatarUrl'], ['bannerUrl'], ['locale']]),
     );
   });
 
@@ -226,6 +230,8 @@ describe.skipIf(!TEST_DATABASE_URL)('profil par HTTP', () => {
       { settings: { gros: 'x'.repeat(17 * 1024) } },
       { settings: [1, 2] },
       { title: 'Légende' },
+      { locale: 'de' },
+      { locale: 'EN' },
     ];
     for (const payload of refus) {
       const r = await t.app.inject({

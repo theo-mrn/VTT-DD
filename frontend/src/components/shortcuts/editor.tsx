@@ -7,6 +7,7 @@
  * raccourcis créés (une formule de dés sur une touche).
  */
 import { AlertTriangle, MoreHorizontal, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Kbd } from '@/components/ui/kbd';
 import { Info } from '@/components/ui/tooltip';
 import { useMacros } from '@/components/des/macros';
+import { useText } from '@/i18n/text';
 import { bindingLabel } from '@/lib/shortcuts/chord';
 import { useShortcutPrefs } from '@/lib/shortcuts/hooks';
 import {
@@ -55,6 +57,8 @@ export function ShortcutsEditor({
   /** Rôle à la table : seules ses commandes ; null (profil) : toutes. */
   role?: ShortcutRole | null;
 }>) {
+  const t = useTranslations('shortcuts');
+  const text = useText();
   const prefs = useShortcutPrefs();
   const [query, setQuery] = useState('');
   const [pending, setPending] = useState<Pending | null>(null);
@@ -65,9 +69,12 @@ export function ShortcutsEditor({
     [list, prefs],
   );
   const byId = useMemo(() => new Map(list.map((d) => [d.id, d])), [list]);
+  /** Libellés dans la langue de la page : recherche, conflits. */
+  const labels = useMemo(() => new Map(list.map((d) => [d.id, text(d.label)])), [list, text]);
+  const labelOf = (id: string) => labels.get(id) ?? id;
 
   const q = query.trim().toLowerCase();
-  const shown = q ? list.filter((d) => d.label.toLowerCase().includes(q)) : list;
+  const shown = q ? list.filter((d) => labelOf(d.id).toLowerCase().includes(q)) : list;
 
   const record = (d: ShortcutDescriptor, binding: string) => {
     const others = clashesFor(list, prefs, d, binding);
@@ -91,8 +98,8 @@ export function ShortcutsEditor({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Chercher"
-            aria-label="Chercher un raccourci"
+            placeholder={t('editor.search')}
+            aria-label={t('editor.searchLabel')}
             className="pl-8"
           />
         </div>
@@ -103,7 +110,7 @@ export function ShortcutsEditor({
           onClick={() => save(resetAll(prefs))}
         >
           <RotateCcw />
-          Tout rétablir
+          {t('editor.resetAll')}
         </Button>
       </div>
 
@@ -111,9 +118,9 @@ export function ShortcutsEditor({
         const rows = shown.filter((d) => d.scope === scope && !d.id.startsWith('custom.'));
         if (!rows.length) return null;
         return (
-          <section key={scope} aria-label={title}>
+          <section key={scope} aria-label={text(title)}>
             <h3 className="mb-1 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              {title}
+              {text(title)}
             </h3>
             <ul className="divide-y divide-border rounded-xl border border-border">
               {rows.map((d) => (
@@ -122,7 +129,7 @@ export function ShortcutsEditor({
                   descriptor={d}
                   prefs={prefs}
                   role={role}
-                  conflicts={(conflicts.get(d.id) ?? []).map((id) => byId.get(id)!.label)}
+                  conflicts={(conflicts.get(d.id) ?? []).map(labelOf)}
                   pending={pending?.descriptor.id === d.id ? pending : null}
                   onRecord={(b) => record(d, b)}
                   onReplace={replace}
@@ -139,6 +146,7 @@ export function ShortcutsEditor({
         query={q}
         conflicts={conflicts}
         byId={byId}
+        labelOf={labelOf}
         pending={pending}
         onRecord={record}
         onReplace={replace}
@@ -169,6 +177,9 @@ function Row({
   onCancel(): void;
   extra?: ReactNode;
 }>) {
+  const t = useTranslations('shortcuts.editor');
+  const text = useText();
+  const label = text(d.label);
   const binding = bindingOf(prefs, d);
   const changed = !d.fixed && binding !== d.defaultBinding && !d.id.startsWith('custom.');
   return (
@@ -177,26 +188,29 @@ function Row({
         <span
           className={cn('min-w-0 flex-1 truncate text-[13px]', d.fixed && 'text-muted-foreground')}
         >
-          {d.label}
+          {label}
         </span>
         {!role && d.roles?.length === 1 && d.roles[0] === 'gm' && (
           <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-            MJ
+            {t('gm')}
           </span>
         )}
         {conflicts.length > 0 && (
-          <Info texte={`Aussi : ${conflicts.join(', ')}`}>
-            <AlertTriangle className="size-4 shrink-0 text-destructive" aria-label="Conflit" />
+          <Info texte={t('also', { list: conflicts.join(', ') })}>
+            <AlertTriangle
+              className="size-4 shrink-0 text-destructive"
+              aria-label={t('conflict')}
+            />
           </Info>
         )}
         {d.fixed ? (
           <span className="flex h-7 min-w-16 items-center justify-center">
-            <Kbd>{d.fixedLabel ?? bindingLabel(binding)}</Kbd>
+            <Kbd>{d.fixedLabel ? text(d.fixedLabel) : bindingLabel(binding)}</Kbd>
           </span>
         ) : (
           <ShortcutRecorder
             binding={binding}
-            label={d.label}
+            label={label}
             single={d.single}
             conflict={conflicts.length > 0}
             onRecord={onRecord}
@@ -206,7 +220,7 @@ function Row({
         {!d.fixed && !extra && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={`Options de ${d.label}`}>
+              <Button variant="ghost" size="icon-sm" aria-label={t('optionsOf', { name: label })}>
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
@@ -215,13 +229,13 @@ function Row({
                 disabled={binding === null}
                 onSelect={() => shortcutPrefsStore().set(withBinding(prefs, d, null))}
               >
-                Aucune
+                {t('none')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!changed}
                 onSelect={() => shortcutPrefsStore().set(withBinding(prefs, d, d.defaultBinding))}
               >
-                Rétablir{' '}
+                {t('reset')}{' '}
                 {d.defaultBinding ? (
                   <Kbd className="ml-auto">{bindingLabel(d.defaultBinding)}</Kbd>
                 ) : null}
@@ -234,15 +248,15 @@ function Row({
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-1.5 text-xs">
           <Kbd>{bindingLabel(pending.binding)}</Kbd>
           <span className="min-w-0 flex-1 text-muted-foreground">
-            Déjà : {pending.others.map((o) => o.label).join(', ')}
+            {t('already', { list: pending.others.map((o) => text(o.label)).join(', ') })}
           </span>
           {pending.others.some((o) => o.fixed) ? null : (
             <Button size="xs" onClick={() => onReplace(pending)}>
-              Remplacer
+              {t('replace')}
             </Button>
           )}
           <Button size="xs" variant="ghost" onClick={onCancel}>
-            Annuler
+            {t('cancel')}
           </Button>
         </div>
       )}
@@ -256,6 +270,7 @@ function CustomSection({
   query,
   conflicts,
   byId,
+  labelOf,
   pending,
   onRecord,
   onReplace,
@@ -265,11 +280,13 @@ function CustomSection({
   query: string;
   conflicts: Map<string, string[]>;
   byId: Map<string, ShortcutDescriptor>;
+  labelOf(id: string): string;
   pending: Pending | null;
   onRecord(d: ShortcutDescriptor, binding: string): void;
   onReplace(p: Pending): void;
   onCancel(): void;
 }>) {
+  const t = useTranslations('shortcuts');
   const [adding, setAdding] = useState(false);
   const rows = prefs.custom.filter(
     (c) => !query || c.label.toLowerCase().includes(query) || c.formula.includes(query),
@@ -278,10 +295,10 @@ function CustomSection({
     shortcutPrefsStore().set({ ...prefs, custom: prefs.custom.filter((c) => c.id !== id) });
 
   return (
-    <section aria-label="Mes raccourcis">
+    <section aria-label={t('sections.custom')}>
       <div className="mb-1 flex items-center justify-between px-1">
         <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Mes raccourcis
+          {t('sections.custom')}
         </h3>
         <Button
           variant="ghost"
@@ -290,7 +307,7 @@ function CustomSection({
           onClick={() => setAdding(true)}
         >
           <Plus />
-          Ajouter
+          {t('editor.add')}
         </Button>
       </div>
       <ul className="divide-y divide-border rounded-xl border border-border">
@@ -300,10 +317,13 @@ function CustomSection({
           return (
             <Row
               key={c.id}
-              descriptor={{ ...d, label: `${c.label} · ${c.formula}` }}
+              descriptor={{
+                ...d,
+                label: { text: t('editor.customLine', { name: c.label, formula: c.formula }) },
+              }}
               prefs={prefs}
               role={null}
-              conflicts={(conflicts.get(d.id) ?? []).map((id) => byId.get(id)!.label)}
+              conflicts={(conflicts.get(d.id) ?? []).map(labelOf)}
               pending={pending?.descriptor.id === d.id ? pending : null}
               onRecord={(b) => onRecord(d, b)}
               onReplace={onReplace}
@@ -312,7 +332,7 @@ function CustomSection({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Supprimer ${c.label}`}
+                  aria-label={t('editor.removeOf', { name: c.label })}
                   onClick={() => remove(c.id)}
                 >
                   <Trash2 />
@@ -322,7 +342,7 @@ function CustomSection({
           );
         })}
         {!adding && rows.length === 0 && (
-          <li className="px-3 py-3 text-center text-xs text-subtle">Aucun</li>
+          <li className="px-3 py-3 text-center text-xs text-subtle">{t('editor.empty')}</li>
         )}
       </ul>
     </section>
@@ -330,6 +350,7 @@ function CustomSection({
 }
 
 function CustomForm({ prefs, onDone }: Readonly<{ prefs: ShortcutPrefs; onDone(): void }>) {
+  const t = useTranslations('shortcuts.editor');
   const { macros } = useMacros();
   const [label, setLabel] = useState('');
   const [formula, setFormula] = useState('');
@@ -361,8 +382,8 @@ function CustomForm({ prefs, onDone }: Readonly<{ prefs: ShortcutPrefs; onDone()
           autoFocus
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="Nom"
-          aria-label="Nom du raccourci"
+          placeholder={t('name')}
+          aria-label={t('nameLabel')}
           maxLength={60}
           className="h-8 w-36"
         />
@@ -370,7 +391,7 @@ function CustomForm({ prefs, onDone }: Readonly<{ prefs: ShortcutPrefs; onDone()
           value={formula}
           onChange={(e) => setFormula(e.target.value)}
           placeholder="1d20 + mod(@FOR)"
-          aria-label="Formule"
+          aria-label={t('formula')}
           maxLength={200}
           className="h-8 min-w-40 flex-1 font-mono"
         />
@@ -378,11 +399,11 @@ function CustomForm({ prefs, onDone }: Readonly<{ prefs: ShortcutPrefs; onDone()
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="ghost" size="sm">
-                Macro
+                {t('macro')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Mes macros</DropdownMenuLabel>
+              <DropdownMenuLabel>{t('myMacros')}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {macros.map((m) => (
                 <DropdownMenuItem
@@ -400,10 +421,10 @@ function CustomForm({ prefs, onDone }: Readonly<{ prefs: ShortcutPrefs; onDone()
           </DropdownMenu>
         )}
         <Button type="submit" size="sm" disabled={!ok}>
-          Ajouter
+          {t('add')}
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onDone}>
-          Annuler
+          {t('cancel')}
         </Button>
       </form>
     </li>

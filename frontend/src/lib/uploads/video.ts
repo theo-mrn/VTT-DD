@@ -62,7 +62,7 @@ export async function prepareVideo(file: File, o: PrepareVideoOptions = {}): Pro
     } finally {
       o.signal?.removeEventListener('abort', abort);
     }
-    if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError');
+    if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError'); // i18n-ignore : jamais affiché
     const buffer = output.target.buffer;
     if (!buffer) return file;
     return new File([buffer], webmToMp4(file.name), { type: 'video/mp4' });

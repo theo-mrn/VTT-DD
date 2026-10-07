@@ -8,6 +8,8 @@
  * personnage) avec l'aperçu de la ressource avant et après ; coûts de l'attaquant à part ;
  * note facultative. Aucun dé n'est relancé : le serveur applique ces valeurs telles quelles.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import {
   ATTACK_NOTE_MAX,
   type Attack,
@@ -119,6 +121,7 @@ function DrawerBody({
   stateSorts: readonly string[];
   onClose(): void;
 }>) {
+  const tr = useTranslations();
   const commands = useAttackCommands(campaignId);
   const targets = decidableTargets(attack);
   const [drafts, setDrafts] = useState<Record<string, TargetDraft>>(() =>
@@ -146,11 +149,13 @@ function DrawerBody({
       const updated = await commands.apply(attack.id, buildApply(attack, chosen, actorSent, note));
       reportDefeated(defeatedBy(updated));
       toast.success(
-        chosen.some((d) => d.apply) || actorSent?.apply ? 'Décision appliquée' : 'Rapport écarté',
+        chosen.some((d) => d.apply) || actorSent?.apply
+          ? tr('combat.decide.applied')
+          : tr('combat.reports.dismissed'),
       );
       onClose();
     } catch (err) {
-      toast.error('La décision n’a pas pu être appliquée', {
+      toast.error(tr('combat.reports.decideFailed'), {
         description: combatErrorMessage(err),
       });
     } finally {
@@ -161,10 +166,11 @@ function DrawerBody({
   return (
     <div className="flex min-h-full flex-col">
       <header className="space-y-1 px-5 pb-4 pt-5 pr-12">
-        <DialogTitle className="text-base">Décider : {attack.action.name}</DialogTitle>
+        <DialogTitle className="text-base">
+          {tr('combat.decide.title', { action: attack.action.name })}
+        </DialogTitle>
         <DialogDescription className="text-xs">
-          {attacker?.name ?? 'Attaquant'} · les valeurs proposées tiennent déjà compte de la cible
-          (encaissement, résistances). Rien n’est relancé.
+          {tr('combat.decide.lead', { name: attacker?.name ?? tr('combat.attack.attacker') })}
         </DialogDescription>
       </header>
 
@@ -199,7 +205,7 @@ function DrawerBody({
                   if (m !== 'later') setActor({ ...actor, apply: m === 'apply' });
                 }}
                 disabled={busy}
-                label="Coûts de l’attaquant"
+                label={tr('combat.live.attackerCosts')}
               />
             </div>
             {!actorLater && actor.apply && (
@@ -226,7 +232,7 @@ function DrawerBody({
             id="decision-note"
             value={note}
             maxLength={ATTACK_NOTE_MAX}
-            placeholder="Esquive narrative, cible déjà à terre…"
+            placeholder={tr('combat.decide.notePlaceholder')}
             onChange={(e) => setNote(e.target.value)}
             className="min-h-16 text-[13px]"
           />
@@ -235,11 +241,11 @@ function DrawerBody({
 
       <footer className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-border bg-popover px-5 py-3">
         <Button variant="ghost" onClick={onClose} disabled={busy}>
-          Annuler
+          {tr('common.actions.cancel')}
         </Button>
         <Button onClick={() => void submit()} loading={busy} disabled={nothing}>
           <Check />
-          Valider la décision
+          {tr('combat.decide.validate')}
         </Button>
       </footer>
     </div>
@@ -257,10 +263,11 @@ function ModeSwitch({
   disabled?: boolean;
   label: string;
 }>) {
+  const tr = useTranslations();
   const options: { v: Mode; t: string }[] = [
-    { v: 'apply', t: 'Appliquer' },
-    { v: 'skip', t: 'Ne pas appliquer' },
-    { v: 'later', t: 'Plus tard' },
+    { v: 'apply', t: tr('combat.live.apply') },
+    { v: 'skip', t: tr('combat.live.skip') },
+    { v: 'later', t: tr('combat.decide.later') },
   ];
   return (
     <div
@@ -313,8 +320,9 @@ function TargetEditor({
   onMode(m: Mode): void;
   onDraft(d: TargetDraft): void;
 }>) {
+  const tr = useTranslations();
   const member = cast.get(t.characterId);
-  const name = member?.name ?? 'Personnage';
+  const name = member?.name ?? tr('map.common.character');
   const outcome = outcomeLabel(t.result?.outcome ?? null, successRule);
   const roll = rollSummary(systeme, t.result?.roll ?? null);
   const touched = draft.redirectTo ?? t.characterId;
@@ -348,7 +356,7 @@ function TargetEditor({
           value={mode}
           onChange={onMode}
           disabled={disabled}
-          label={`Décision pour ${name}`}
+          label={tr('combat.decide.for', { name })}
         />
       </div>
 
@@ -375,7 +383,7 @@ function TargetEditor({
           />
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor={`redirect-${t.characterId}`} className="text-xs text-muted-foreground">
-              Appliquer à
+              {tr('combat.decide.applyTo')}
             </Label>
             <SelectField
               id={`redirect-${t.characterId}`}
@@ -424,6 +432,7 @@ function ModificationsEditor({
   disabled: boolean;
   onChange(mods: AttackModificationInput[]): void;
 }>) {
+  const tr = useTranslations();
   const { fiche } = useComputedSheet({ systeme }, characterId);
   const [resist, setResist] = useState('1');
   const [newState, setNewState] = useState('');
@@ -451,7 +460,7 @@ function ModificationsEditor({
   return (
     <div className="space-y-2">
       {mods.length === 0 && (
-        <p className="text-[13px] text-muted-foreground">Rien à appliquer à ce personnage.</p>
+        <p className="text-[13px] text-muted-foreground">{tr('combat.decide.nothing')}</p>
       )}
       <ul className="space-y-1.5">
         {mods.map((m, i) => (
@@ -470,7 +479,7 @@ function ModificationsEditor({
                     size="icon-xs"
                     disabled={disabled || m.value <= 0}
                     onClick={() => onChange(adjust(mods, -1, i))}
-                    aria-label="Un de moins"
+                    aria-label={tr('map.objects.search.oneLess')}
                   >
                     <Minus />
                   </Button>
@@ -489,7 +498,7 @@ function ModificationsEditor({
                     size="icon-xs"
                     disabled={disabled}
                     onClick={() => onChange(adjust(mods, 1, i))}
-                    aria-label="Un de plus"
+                    aria-label={tr('map.objects.search.oneMore')}
                   >
                     <Plus />
                   </Button>
@@ -500,9 +509,9 @@ function ModificationsEditor({
                     disabled={disabled}
                     onValueChange={(v) => onChange(setDamageType(mods, i, v || null))}
                     className="h-7 w-32 text-xs"
-                    aria-label="Type de dégâts"
+                    aria-label={tr('combat.decide.damageType')}
                     options={[
-                      { valeur: '', nom: 'Sans type' },
+                      { valeur: '', nom: tr('combat.decide.untyped') },
                       ...types.map((d) => ({ valeur: d.id, nom: d.nom })),
                     ]}
                   />
@@ -520,18 +529,18 @@ function ModificationsEditor({
                   size="icon-xs"
                   disabled={disabled}
                   onClick={() => onChange(removeAt(mods, i))}
-                  aria-label="Retirer cette valeur"
+                  aria-label={tr('combat.decide.removeValue')}
                   className={current(m.attribute) === null ? 'ml-auto' : ''}
                 >
                   <Trash2 />
                 </Button>
                 {resistancesOf(m.attribute).length > 0 && (
                   <p className="w-full text-[11px] text-subtle">
-                    Résistances :{' '}
+                    {tr('combat.decide.resistances')}{' '}
                     {resistancesOf(m.attribute)
                       .map(
                         (r) =>
-                          `${r.name} (${resistanceEffect(r.operation, r.value)})${r.ignored ? ', écartée' : ''}`,
+                          `${r.name} (${resistanceEffect(r.operation, r.value)})${r.ignored ? `, ${tr('combat.decide.ignored')}` : ''}`,
                       )
                       .join(' · ')}
                   </p>
@@ -540,7 +549,7 @@ function ModificationsEditor({
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-                  {m.operation === 'remove' ? 'Retirer : ' : ''}
+                  {m.operation === 'remove' ? `${tr('combat.decide.removeColon')} ` : ''}
                   {entryName(systeme, m.entry)}
                 </span>
                 {m.operation === 'give' && (
@@ -555,7 +564,9 @@ function ModificationsEditor({
                       onChange(setDuration(mods, i, e.target.value ? Number(e.target.value) : null))
                     }
                     className="h-7 w-16 px-1 text-center font-mono tabular-nums"
-                    aria-label={`Durée en rounds : ${entryName(systeme, m.entry)}`}
+                    aria-label={tr('combat.decide.durationOf', {
+                      name: entryName(systeme, m.entry),
+                    })}
                   />
                 )}
                 <Button
@@ -563,7 +574,7 @@ function ModificationsEditor({
                   size="icon-xs"
                   disabled={disabled}
                   onClick={() => onChange(removeAt(mods, i))}
-                  aria-label={`Ne pas donner ${entryName(systeme, m.entry)}`}
+                  aria-label={tr('combat.decide.dontGive', { name: entryName(systeme, m.entry) })}
                 >
                   <X />
                 </Button>
@@ -581,7 +592,7 @@ function ModificationsEditor({
             disabled={disabled}
             onClick={() => onChange(halve(mods))}
           >
-            Moitié
+            {tr('combat.decide.half')}
           </Button>
           <Button
             size="xs"
@@ -589,7 +600,7 @@ function ModificationsEditor({
             disabled={disabled}
             onClick={() => onChange(double(mods))}
           >
-            Double
+            {tr('combat.decide.double')}
           </Button>
           <span className="flex items-center gap-1">
             <Button
@@ -598,7 +609,7 @@ function ModificationsEditor({
               disabled={disabled || !(Number(resist) > 0)}
               onClick={() => onChange(reduceBy(mods, Number(resist)))}
             >
-              Résistance −
+              {tr('combat.decide.resistanceMinus')}
             </Button>
             <Input
               type="number"
@@ -607,7 +618,7 @@ function ModificationsEditor({
               value={resist}
               onChange={(e) => setResist(e.target.value)}
               className="h-7 w-12 px-1 text-center font-mono tabular-nums"
-              aria-label="Résistance à retirer"
+              aria-label={tr('combat.decide.resistanceToRemove')}
             />
           </span>
           <Button
@@ -616,7 +627,7 @@ function ModificationsEditor({
             disabled={disabled}
             onClick={() => onChange(zero(mods))}
           >
-            Aucun dégât
+            {tr('combat.decide.noDamage')}
           </Button>
           <Button
             size="xs"
@@ -625,7 +636,7 @@ function ModificationsEditor({
             onClick={() => onChange([...proposed])}
           >
             <RotateCcw />
-            Réinitialiser
+            {tr('audio.mixer.reset')}
           </Button>
         </div>
       )}
@@ -647,8 +658,8 @@ function ModificationsEditor({
               onValueChange={setNewState}
               disabled={disabled}
               className="h-7 w-40 text-xs"
-              aria-label="État à ajouter"
-              placeholder="Ajouter un état…"
+              aria-label={tr('combat.decide.stateToAdd')}
+              placeholder={tr('combat.decide.addState')}
               options={catalogue.map((e) => ({ valeur: e.id, nom: e.nom }))}
             />
             <Input
@@ -659,11 +670,11 @@ function ModificationsEditor({
               value={newDuration}
               onChange={(e) => setNewDuration(e.target.value)}
               className="h-7 w-14 px-1 text-center font-mono tabular-nums"
-              aria-label="Durée de l’état ajouté, en rounds"
+              aria-label={tr('combat.decide.stateDuration')}
             />
             <Button type="submit" size="xs" variant="ghost" disabled={disabled || !newState}>
               <Plus />
-              État
+              {tr('combat.states.state')}
             </Button>
           </>
         )}
@@ -690,6 +701,7 @@ function TablesEditor({
   disabled: boolean;
   onChange(tables: AttackTableChoice[]): void;
 }>) {
+  const tr = useTranslations();
   const draws = t.result?.tables ?? [];
   if (!draws.length) return null;
   return (
@@ -726,7 +738,7 @@ function TablesEditor({
                 onClick={() => set({ apply: !choice.apply })}
               >
                 {choice.apply ? <Check /> : <X />}
-                {choice.apply ? 'Appliquée' : 'Écartée'}
+                {choice.apply ? tr('combat.decide.appliedF') : tr('combat.decide.ignoredF')}
               </Button>
             </div>
             {choice.apply && entries.length > 0 && (
@@ -735,9 +747,14 @@ function TablesEditor({
                 disabled={disabled}
                 onValueChange={(v) => set({ entry: v || undefined })}
                 className="mt-1.5 h-7 text-xs"
-                aria-label="Entrée donnée"
+                aria-label={tr('combat.decide.entryGiven')}
                 options={[
-                  { valeur: '', nom: `Ligne tirée${d.line?.name ? ` (${d.line.name})` : ''}` },
+                  {
+                    valeur: '',
+                    nom: d.line?.name
+                      ? tr('combat.decide.drawnLineOf', { name: d.line.name })
+                      : tr('combat.decide.drawnLine'),
+                  },
                   ...entries,
                 ]}
               />
@@ -768,7 +785,7 @@ const SIGNE_OPERATION: Partial<Record<string, string>> = { add: '+', subtract: '
 
 /** Effet d'une résistance, lisible : immunité, ×2, −3. */
 function resistanceEffect(operation: string, value: number): string {
-  if (operation === 'cancel') return 'immunité';
+  if (operation === 'cancel') return translate('combat.reports.immunity');
   if (operation === 'multiply') return `×${value}`;
   return `−${value}`;
 }

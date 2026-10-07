@@ -1,6 +1,7 @@
 'use client';
 
 import { KeyRound, Plus, Search, Swords } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useMemo, useState } from 'react';
@@ -20,6 +21,7 @@ import { useProfil } from '@/lib/session';
 type Filtre = 'toutes' | 'gm' | 'player';
 
 function ListeCampagnes() {
+  const t = useTranslations('campaigns.list');
   const profil = useProfil();
   const router = useRouter();
   const params = useSearchParams();
@@ -29,11 +31,11 @@ function ListeCampagnes() {
   const rejoindre = params.get('rejoindre') === '1';
 
   const liste = useMemo(() => {
-    const t = recherche.trim().toLowerCase();
+    const q = recherche.trim().toLowerCase();
     return (campagnes.data ?? []).filter(
       (c) =>
         (filtre === 'toutes' || c.role === filtre) &&
-        (!t || `${c.name} ${c.pitch} ${c.tags.join(' ')}`.toLowerCase().includes(t)),
+        (!q || `${c.name} ${c.pitch} ${c.tags.join(' ')}`.toLowerCase().includes(q)),
     );
   }, [campagnes.data, filtre, recherche]);
 
@@ -51,19 +53,19 @@ function ListeCampagnes() {
   return (
     <Page large>
       <EnTetePage
-        surtitre="Vos tables"
-        titre="Campagnes"
-        description="Les aventures que vous menez et celles où vous jouez."
+        surtitre={t('eyebrow')}
+        titre={t('title')}
+        description={t('lead')}
         actions={
           <>
             <Button variant="secondary" onClick={() => ouvrirRejoindre(true)}>
               <KeyRound />
-              Rejoindre avec un code
+              {t('joinWithCode')}
             </Button>
             <Button asChild>
               <Link href="/campagnes/nouvelle">
                 <Plus />
-                Nouvelle campagne
+                {t('newCampaign')}
               </Link>
             </Button>
           </>
@@ -74,9 +76,9 @@ function ListeCampagnes() {
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs value={filtre} onValueChange={(v) => setFiltre(v as Filtre)}>
             <TabsList>
-              <TabsTrigger value="toutes">Toutes · {nombre('toutes')}</TabsTrigger>
-              <TabsTrigger value="gm">Je suis MJ · {nombre('gm')}</TabsTrigger>
-              <TabsTrigger value="player">Je joue · {nombre('player')}</TabsTrigger>
+              <TabsTrigger value="toutes">{t('all', { count: nombre('toutes') })}</TabsTrigger>
+              <TabsTrigger value="gm">{t('gm', { count: nombre('gm') })}</TabsTrigger>
+              <TabsTrigger value="player">{t('player', { count: nombre('player') })}</TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="sm:w-72">
@@ -84,9 +86,9 @@ function ListeCampagnes() {
               avant={<Search />}
               value={recherche}
               onChange={(e) => setRecherche(e.target.value)}
-              placeholder="Rechercher une campagne…"
+              placeholder={t('search')}
               className="h-9"
-              aria-label="Rechercher une campagne"
+              aria-label={t('searchLabel')}
             />
           </div>
         </div>
@@ -106,26 +108,26 @@ function ListeCampagnes() {
       {etat === 'aucune' && (
         <EtatVide
           icone={Swords}
-          titre="Aucune campagne pour l'instant"
-          description="Créez votre propre aventure en tant que maître du jeu, ou rejoignez celle d'un ami avec son code."
+          titre={t('emptyTitle')}
+          description={t('emptyText')}
           action={
             <>
               <Button asChild>
                 <Link href="/campagnes/nouvelle">
                   <Plus />
-                  Créer une campagne
+                  {t('create')}
                 </Link>
               </Button>
               <Button variant="secondary" onClick={() => ouvrirRejoindre(true)}>
                 <KeyRound />
-                Rejoindre avec un code
+                {t('joinWithCode')}
               </Button>
             </>
           }
         />
       )}
       {etat === 'filtree' && (
-        <p className="py-16 text-center text-sm text-subtle">Aucune campagne ne correspond.</p>
+        <p className="py-16 text-center text-sm text-subtle">{t('noMatch')}</p>
       )}
       {etat === 'liste' && (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -138,10 +140,8 @@ function ListeCampagnes() {
       )}
 
       <section className="mt-12">
-        <TitreSection>Campagnes ouvertes</TitreSection>
-        <p className="-mt-2 mb-5 text-[13px] text-muted-foreground">
-          Des tables publiques qui accueillent de nouveaux joueurs, sans code.
-        </p>
+        <TitreSection>{t('openTitle')}</TitreSection>
+        <p className="-mt-2 mb-5 text-[13px] text-muted-foreground">{t('openLead')}</p>
         <CampagnesOuvertes />
       </section>
 

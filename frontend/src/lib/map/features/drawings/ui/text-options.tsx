@@ -4,6 +4,7 @@
  * Barre contextuelle de l'outil Texte (T) : couleur, taille, police, destination (annotation
  * ou calque). S'applique aux nouveaux textes ; un texte posé se règle dans l'inspecteur.
  */
+import { translate } from '@/i18n/runtime';
 import { ALargeSmall, Type } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ import {
   FONT_SIZE_RANGE,
   NOTE_FONT_GROUPS,
   NOTE_FONTS,
+  noteFontGroupLabel,
   noteFontOf,
   systemNoteFont,
   type NoteFont,
@@ -46,7 +48,7 @@ export function TextOptions({ engine }: Readonly<{ engine: MapEngine }>) {
     <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
       <p className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
         <Type className="size-3.5" aria-hidden />
-        Cliquez sur la carte pour écrire
+        {translate('map.drawings.clickToWrite')}
       </p>
       <OptionSeparator />
       <TextStyleControls
@@ -87,12 +89,12 @@ export function TextStyleControls({
   return (
     <div className="flex items-center gap-1">
       <Popover>
-        <Info texte="Couleur du texte">
+        <Info texte={translate('map.drawings.textColor')}>
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Couleur du texte"
+              aria-label={translate('map.drawings.textColor')}
               disabled={disabled}
             >
               <ColorDot color={color} className="size-5" />
@@ -100,17 +102,21 @@ export function TextStyleControls({
           </PopoverTrigger>
         </Info>
         <PopoverContent side="top" className="w-auto p-3">
-          <ColorPalette value={color} onChange={onColor} label="Couleur du texte" />
+          <ColorPalette
+            value={color}
+            onChange={onColor}
+            label={translate('map.drawings.textColor')}
+          />
         </PopoverContent>
       </Popover>
 
       <Popover>
-        <Info texte="Taille du texte">
+        <Info texte={translate('map.drawings.textSize')}>
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              aria-label="Taille du texte"
+              aria-label={translate('map.drawings.textSize')}
               disabled={disabled}
               className="gap-1.5 px-2"
             >
@@ -121,7 +127,7 @@ export function TextStyleControls({
         </Info>
         <PopoverContent side="top" className="w-64 p-3">
           <RangeSetting
-            label="Taille"
+            label={translate('map.objects.size')}
             value={Math.round(fontSize)}
             min={FONT_SIZE_RANGE.min}
             max={FONT_SIZE_RANGE.max}
@@ -164,9 +170,9 @@ function FontMenu({
   const groups = useMemo(
     () =>
       [
-        { title: 'Polices du système', fonts: system },
+        { title: translate('map.drawings.systemFonts'), fonts: system },
         ...NOTE_FONT_GROUPS.map((g) => ({
-          title: g,
+          title: noteFontGroupLabel(g),
           fonts: NOTE_FONTS.filter((f) => f.group === g),
         })),
       ].filter((g) => g.fonts.length),
@@ -174,14 +180,14 @@ function FontMenu({
   );
   return (
     <DropdownMenu>
-      <Info texte="Police">
+      <Info texte={translate('map.drawings.font')}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" disabled={disabled} className="max-w-40 px-2">
             <span
               className="truncate"
               style={{ fontFamily: font?.value ?? fontFamily ?? undefined }}
             >
-              {font?.label ?? 'Police'}
+              {font?.label ?? translate('map.drawings.font')}
             </span>
           </Button>
         </DropdownMenuTrigger>

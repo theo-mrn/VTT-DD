@@ -6,6 +6,7 @@
  * l'utilisateur, un séparateur entre deux groupes. Elle ne connaît aucune fonction. Les
  * réglages de l'outil actif s'affichent au-dessus ; un clic droit la personnalise.
  */
+import { translate } from '@/i18n/runtime';
 import { mapToolShortcut } from '@/lib/map/shortcuts';
 import type { ToolDefinition } from '@/lib/map/engine/tools/tool';
 import { useBindingLabel } from '@/lib/shortcuts/hooks';
@@ -72,7 +73,7 @@ export function MapToolbar() {
           <PopoverAnchor asChild>
             <div
               role="toolbar"
-              aria-label="Outils de la carte"
+              aria-label={translate('map.toolbar.mapTools')}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setCustomizing(true);

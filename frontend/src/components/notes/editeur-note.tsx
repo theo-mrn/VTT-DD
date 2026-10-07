@@ -1,5 +1,7 @@
 'use client';
 
+import { useLocale, useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
@@ -131,8 +133,21 @@ function useStatistiques(editor: Editor | null) {
   return stats;
 }
 
-/** Extensions de l'éditeur : les mêmes pour toutes les notes (comparées à chaque rendu). */
-const EXTENSIONS = [
+/**
+ * Extensions de l'éditeur : les mêmes pour toutes les notes d'une langue (comparées à chaque
+ * rendu) ; les guillemets typographiques suivent la langue.
+ */
+const EXTENSIONS_PAR_LANGUE = new Map<string, ReturnType<typeof creerExtensions>>();
+function extensions(langue: string) {
+  let e = EXTENSIONS_PAR_LANGUE.get(langue);
+  if (!e) {
+    e = creerExtensions(langue);
+    EXTENSIONS_PAR_LANGUE.set(langue, e);
+  }
+  return e;
+}
+
+const creerExtensions = (langue: string) => [
   StarterKit.configure({
     heading: { levels: [1, 2, 3] },
     link: {
@@ -145,11 +160,11 @@ const EXTENSIONS = [
   Placeholder.configure({
     placeholder: ({ node }) =>
       node.type.name === 'heading'
-        ? `Titre ${String(node.attrs.level ?? '')}`.trim()
-        : 'Écrivez librement… « # » pour un titre, « - » pour une liste, « > » pour une citation',
+        ? translate('notes.editor.headingPlaceholder', { level: String(node.attrs.level ?? '') })
+        : translate('notes.editor.placeholder'),
   }),
-  // Guillemets à la française, espaces fines insécables comprises
-  Typography.configure({ openDoubleQuote: '« ', closeDoubleQuote: ' »' }),
+  // Guillemets à la française (espaces fines insécables comprises), anglais sinon
+  Typography.configure(langue === 'fr' ? { openDoubleQuote: '« ', closeDoubleQuote: ' »' } : {}),
   // Notes de l'ancien éditeur : images du texte et alignement
   ImageNote,
   AlignementTexte,
@@ -215,6 +230,8 @@ export function EditeurNote({
   onDupliquer: (copie: NouvelleNote) => void;
   onSupprimer: (instantane: Note) => void;
 }>) {
+  const t = useTranslations();
+  const locale = useLocale();
   const lecture = !note.permissions.edit;
   const [conflit, setConflit] = useState<Conflit | null>(null);
   const editeurRef = useRef<Editor | null>(null);
@@ -295,7 +312,7 @@ export function EditeurNote({
     () => ({
       attributes: {
         class: 'editeur-note min-h-[40vh] pb-6',
-        'aria-label': 'Contenu de la note',
+        'aria-label': t('notes.editor.content'),
         spellcheck: 'true',
       },
       handleKeyDown: (view, event) => {
@@ -318,7 +335,7 @@ export function EditeurNote({
   const editor = useEditor({
     immediatelyRender: false,
     editable: !lecture,
-    extensions: EXTENSIONS,
+    extensions: extensions(locale),
     content: contenuInitial,
     editorProps,
     onCreate: ({ editor: e }) => {
@@ -459,7 +476,12 @@ export function EditeurNote({
       ...champs,
       details: { ...recente.details, ...details },
     };
-    onDupliquer(copieDe(mienne, `${mienne.title || 'Sans titre'} (ma version)`));
+    onDupliquer(
+      copieDe(
+        mienne,
+        t('notes.editor.myVersion', { title: mienne.title || t('common.states.untitled') }),
+      ),
+    );
     setConflit(null);
     reprendre();
   };
@@ -473,7 +495,7 @@ export function EditeurNote({
     epingler.mutate(
       { id: note.id, pinned: !note.pinned },
       {
-        onError: (err) => toast.error(messageErreur(err, 'L’épingle n’a pas pu être changée.')),
+        onError: (err) => toast.error(messageErreur(err, t('notes.editor.pinFailed'))),
       },
     );
 
@@ -482,9 +504,9 @@ export function EditeurNote({
       await navigator.clipboard.writeText(
         `${window.location.origin}/notes?note=${encodeURIComponent(note.id)}`,
       );
-      toast.success('Lien copié', { description: 'Il ouvre cette note directement.' });
+      toast.success(t('resources.images.copied'), { description: t('notes.editor.linkHint') });
     } catch {
-      toast.error('Impossible de copier le lien.');
+      toast.error(t('notes.editor.copyFailed'));
     }
   };
 
@@ -498,7 +520,7 @@ export function EditeurNote({
   const onPartage = (p: Partage) => changer(p, true);
 
   const icone = brouillon.icon;
-  const titreCompact = brouillon.title.trim() || 'Sans titre';
+  const titreCompact = brouillon.title.trim() || t('common.states.untitled');
   const auteur = note.authorId === moi ? null : note.authorName;
 
   return (
@@ -513,15 +535,18 @@ export function EditeurNote({
             className="-ml-0.5 gap-1 px-2 lg:hidden"
           >
             <ChevronLeft />
-            Notes
+            {t('notes.list.title')}
           </Button>
-          <Info texte={listeMasquee ? 'Afficher la liste' : 'Masquer la liste'} cote="bottom">
+          <Info
+            texte={listeMasquee ? t('notes.editor.showList') : t('notes.editor.hideList')}
+            cote="bottom"
+          >
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={onBasculerListe}
               className="hidden lg:inline-flex"
-              aria-label={listeMasquee ? 'Afficher la liste' : 'Masquer la liste'}
+              aria-label={listeMasquee ? t('notes.editor.showList') : t('notes.editor.hideList')}
             >
               {listeMasquee ? <PanelLeftOpen /> : <PanelLeftClose />}
             </Button>
@@ -606,8 +631,8 @@ export function EditeurNote({
                   if (editor) focusTexte(editor, 'debut');
                 }
               }}
-              placeholder="Sans titre"
-              aria-label="Titre de la note"
+              placeholder={t('common.states.untitled')}
+              aria-label={t('notes.editor.titleLabel')}
               spellCheck
               className="block w-full resize-none overflow-hidden bg-transparent text-[30px] font-semibold leading-[1.2] tracking-[-0.025em] text-foreground outline-none placeholder:text-subtle/60 focus-visible:outline-none sm:text-[36px]"
             />
@@ -667,7 +692,7 @@ export function EditeurNote({
           <p className="mt-10 flex flex-wrap gap-x-3 gap-y-1 text-xs text-subtle tabular lg:hidden">
             <MotsNote editor={editor} />
             <span>
-              Modifiée <IlYA iso={note.updatedAt} />
+              {t('notes.editor.modified')} <IlYA iso={note.updatedAt} />
             </span>
           </p>
         </article>
@@ -675,9 +700,9 @@ export function EditeurNote({
 
       <footer className="hidden h-9 shrink-0 items-center justify-between gap-4 border-t border-border/70 px-4 text-[11px] text-subtle tabular lg:flex">
         <StatistiquesNote editor={editor} />
-        <Info texte={`Créée le ${dateLongue(note.createdAt)}`} cote="top">
+        <Info texte={t('notes.editor.createdOn', { date: dateLongue(note.createdAt) })} cote="top">
           <span className="cursor-default">
-            Modifiée <IlYA iso={note.updatedAt} />
+            {t('notes.editor.modified')} <IlYA iso={note.updatedAt} />
           </span>
         </Info>
       </footer>
@@ -688,20 +713,23 @@ export function EditeurNote({
             <div className="mb-2 flex size-10 items-center justify-center rounded-xl border border-destructive/25 bg-destructive/10">
               <Trash2 className="size-4 text-destructive" />
             </div>
-            <DialogTitle>Supprimer cette note ?</DialogTitle>
+            <DialogTitle>{t('notes.editor.deleteTitle')}</DialogTitle>
             <DialogDescription>
-              « {titreCompact} » disparaîtra de vos notes
-              {brouillon.visibility !== 'private' ? ' et de celles des joueurs qui la lisent' : ''}.
-              Vous pourrez l’annuler pendant quelques secondes.
+              {t(
+                brouillon.visibility === 'private'
+                  ? 'notes.editor.deleteMessage'
+                  : 'notes.editor.deleteMessageShared',
+                { title: titreCompact },
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setConfirmation(false)}>
-              Annuler
+              {t('common.actions.cancel')}
             </Button>
             <Button variant="destructive" onClick={supprimer} autoFocus>
               <Trash2 />
-              Supprimer
+              {t('common.actions.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -727,17 +755,15 @@ function ActionsNote({
   onCopierLien(): void;
   onSupprimer(): void;
 }>) {
+  const t = useTranslations();
   return (
     <>
-      <Info
-        texte={epinglee ? 'Désépingler' : 'Épingler en haut de la liste (pour vous)'}
-        cote="bottom"
-      >
+      <Info texte={epinglee ? t('notes.editor.unpin') : t('notes.editor.pinHint')} cote="bottom">
         <Button
           variant="ghost"
           size="icon-sm"
           aria-pressed={epinglee}
-          aria-label={epinglee ? 'Désépingler la note' : 'Épingler la note'}
+          aria-label={epinglee ? t('notes.editor.unpinNote') : t('notes.editor.pinNote')}
           onClick={onEpingler}
           className={cn(epinglee && 'text-primary hover:text-primary-strong')}
         >
@@ -746,18 +772,18 @@ function ActionsNote({
       </Info>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Plus d'actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t('common.actions.more')}>
             <Ellipsis />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem onSelect={onDupliquer}>
             <CopyPlus />
-            Dupliquer
+            {t('notes.editor.duplicate')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onCopierLien}>
             <Link2 />
-            Copier le lien
+            {t('resources.images.copyLink')}
           </DropdownMenuItem>
           {supprimable && (
             <>
@@ -767,7 +793,7 @@ function ActionsNote({
                 className="text-destructive focus:bg-destructive/10 focus:text-destructive"
               >
                 <Trash2 />
-                Supprimer…
+                {t('notes.editor.deleteEllipsis')}
               </DropdownMenuItem>
             </>
           )}
@@ -783,6 +809,7 @@ function AlerteConflit({
   onCopier,
   onAbandonner,
 }: Readonly<{ onReappliquer(): void; onCopier(): void; onAbandonner(): void }>) {
+  const t = useTranslations();
   return (
     <div
       role="alert"
@@ -790,21 +817,18 @@ function AlerteConflit({
     >
       <p className="flex items-center gap-2 font-medium text-foreground">
         <GitCompareArrows className="size-4 shrink-0 text-warning" aria-hidden />
-        Cette note a été modifiée ailleurs pendant votre saisie.
+        {t('notes.editor.conflict')}
       </p>
-      <p className="mt-0.5 text-muted-foreground">
-        La version la plus récente est affichée. Vos modifications non enregistrées sont gardées de
-        côté : rien n’a été écrasé.
-      </p>
+      <p className="mt-0.5 text-muted-foreground">{t('notes.editor.conflictHint')}</p>
       <div className="mt-2.5 flex flex-wrap gap-2">
         <Button size="xs" onClick={onReappliquer}>
-          Réappliquer mes modifications
+          {t('notes.editor.reapply')}
         </Button>
         <Button size="xs" variant="secondary" onClick={onCopier}>
-          En faire une copie
+          {t('notes.editor.copy')}
         </Button>
         <Button size="xs" variant="ghost" onClick={onAbandonner}>
-          Abandonner mes modifications
+          {t('notes.editor.discard')}
         </Button>
       </div>
     </div>
@@ -817,6 +841,7 @@ function ImageEntete({
   lecture,
   onRetirer,
 }: Readonly<{ imageUrl: string | null | undefined; lecture: boolean; onRetirer(): void }>) {
+  const t = useTranslations();
   if (!imageUrl) return null;
   return (
     <figure className="group/image relative mb-6 overflow-hidden rounded-xl border border-border bg-surface">
@@ -835,7 +860,7 @@ function ImageEntete({
           className="absolute right-2 top-2 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/image:opacity-100"
         >
           <ImageOff />
-          Retirer l’image
+          {t('notes.editor.removeImage')}
         </Button>
       )}
     </figure>
@@ -852,6 +877,7 @@ function IconeEntete({
   lecture: boolean;
   onChoix: Parameters<typeof SelecteurIcone>[0]['onChoix'];
 }>) {
+  const t = useTranslations();
   if (lecture)
     return icone ? (
       <span className="-ml-1.5 mb-3 flex size-[72px] items-center justify-center text-[52px] leading-none">
@@ -868,7 +894,7 @@ function IconeEntete({
     <SelecteurIcone valeur={icone} onChoix={onChoix}>
       <button
         type="button"
-        aria-label="Changer l'icône"
+        aria-label={t('notes.editor.changeIcon')}
         className="-ml-1.5 mb-3 flex size-[72px] items-center justify-center rounded-2xl text-[52px] leading-none transition-[background-color,transform] duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-95 data-[state=open]:bg-surface-2"
       >
         {icone}

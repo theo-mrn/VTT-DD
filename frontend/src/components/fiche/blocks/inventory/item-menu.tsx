@@ -7,6 +7,7 @@
  * si la sorte la permet (équipable, quantités, exemplaires, nom propre) et si l'utilisateur
  * peut écrire.
  */
+import { useTranslations } from 'next-intl';
 import type { InventoryFolder } from '@vtt/rules';
 import {
   BadgePlus,
@@ -98,14 +99,15 @@ function SousMenuRanger({
   ranger(item: InventoryItem, folder: string | null): void;
   nouveauDossierPour: ItemHandlers['nouveauDossierPour'];
 }>) {
+  const t = useTranslations();
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger>
-        <FolderInput /> Déplacer vers
+        <FolderInput /> {t('sheet.inventory.moveTo')}
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent className="w-52">
         <DropdownMenuItem disabled={!item.folder} onSelect={() => ranger(item, null)}>
-          <Folder className="opacity-40" /> Sans dossier
+          <Folder className="opacity-40" /> {t('map.scenes.noFolder')}
         </DropdownMenuItem>
         {folders.map((f) => (
           <DropdownMenuItem
@@ -120,7 +122,7 @@ function SousMenuRanger({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => nouveauDossierPour(item)}>
-              <FolderPlus /> Nouveau dossier…
+              <FolderPlus /> {t('sheet.inventory.newFolderEllipsis')}
             </DropdownMenuItem>
           </>
         )}
@@ -141,22 +143,23 @@ function EntreesOrganiser({
   folders: InventoryFolder[];
   nouveauDossierPour: ItemHandlers['nouveauDossierPour'];
 }>) {
+  const t = useTranslations();
   return (
     <>
       {a.renommer && (
         <DropdownMenuItem onSelect={() => a.renommer!(item)}>
-          <Pencil /> Renommer…
+          <Pencil /> {t('sheet.inventory.renameEllipsis')}
         </DropdownMenuItem>
       )}
       {a.quantite && (
         <DropdownMenuItem onSelect={() => a.quantite!(item)}>
-          <Hash /> Modifier la quantité…
+          <Hash /> {t('sheet.inventory.editQuantity')}
         </DropdownMenuItem>
       )}
       {a.cacher && (
         <DropdownMenuItem onSelect={() => a.cacher!(item, !item.hidden)}>
           {item.hidden ? <Eye /> : <EyeOff />}
-          {item.hidden ? 'Montrer aux autres joueurs' : 'Cacher aux autres joueurs'}
+          {item.hidden ? t('sheet.inventory.showOthers') : t('sheet.inventory.hideOthers')}
         </DropdownMenuItem>
       )}
       {a.ranger && (
@@ -169,7 +172,7 @@ function EntreesOrganiser({
       )}
       {a.exemplaire && (
         <DropdownMenuItem onSelect={() => a.exemplaire!(item)}>
-          <Copy /> Nouvel exemplaire distinct
+          <Copy /> {t('sheet.inventory.newDistinctCopy')}
         </DropdownMenuItem>
       )}
     </>
@@ -186,6 +189,7 @@ export function ItemMenuItems({
   handlers: ItemHandlers;
   folders: InventoryFolder[];
 }>) {
+  const t = useTranslations();
   const a = actionsDe(item, handlers);
   const organiser = a.renommer || a.quantite || a.cacher || a.ranger || a.exemplaire;
   const regler = a.formules || a.bonus;
@@ -195,33 +199,33 @@ export function ItemMenuItems({
         {item.nom}
       </DropdownMenuLabel>
       <DropdownMenuItem onSelect={() => handlers.ouvrir(item)}>
-        <PanelRightOpen /> Détails
-        <span className="ml-auto text-[10px] text-subtle">Entrée</span>
+        <PanelRightOpen /> {t('sheet.inventory.details')}
+        <span className="ml-auto text-[10px] text-subtle">{t('chat.enterKey')}</span>
       </DropdownMenuItem>
       {a.equiper && (
         <DropdownMenuItem onSelect={() => a.equiper!(item, !item.actif)}>
-          <Check /> {item.actif ? 'Ranger' : 'Équiper'}
+          <Check /> {item.actif ? t('sheet.inventory.stow') : t('sheet.inventory.equip')}
         </DropdownMenuItem>
       )}
       {a.consommer && (
         <DropdownMenuItem onSelect={() => a.consommer!(item)}>
-          <Minus /> Consommer une unité
+          <Minus /> {t('sheet.inventory.consumeOne')}
         </DropdownMenuItem>
       )}
       {a.donner && (
         <DropdownMenuItem onSelect={() => a.donner!(item)}>
-          <Gift /> Donner…
+          <Gift /> {t('sheet.inventory.giveEllipsis')}
         </DropdownMenuItem>
       )}
       {regler && <DropdownMenuSeparator />}
       {a.formules && (
         <DropdownMenuItem onSelect={() => a.formules!(item, 'formules')}>
-          <Dices /> Dés et formule…
+          <Dices /> {t('sheet.inventory.diceFormula')}
         </DropdownMenuItem>
       )}
       {a.bonus && (
         <DropdownMenuItem onSelect={() => a.bonus!(item, 'bonus')}>
-          <BadgePlus /> Bonus…
+          <BadgePlus /> {t('sheet.inventory.bonusEllipsis')}
         </DropdownMenuItem>
       )}
       {organiser && <DropdownMenuSeparator />}
@@ -238,8 +242,8 @@ export function ItemMenuItems({
             onSelect={() => a.supprimer!(item)}
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"
           >
-            <Trash2 /> Supprimer…
-            <span className="ml-auto text-[10px] opacity-70">Suppr</span>
+            <Trash2 /> {t('notes.editor.deleteEllipsis')}
+            <span className="ml-auto text-[10px] opacity-70">{t('sheet.inventory.delKey')}</span>
           </DropdownMenuItem>
         </>
       )}

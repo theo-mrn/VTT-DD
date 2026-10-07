@@ -6,6 +6,8 @@
  * précédent/suivant pour la musique, arrêt), et le volume de la table. Répétition et
  * aléatoire (musique) restent accessibles sans encombrer.
  */
+import { useTranslations } from 'next-intl';
+import type { Translator } from '@/i18n/text';
 import type { ChannelName, RepeatMode } from '@vtt/contracts';
 import {
   Music,
@@ -39,13 +41,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatTime } from './parts';
 
-const LABELS: Record<ChannelName, string> = { music: 'Musique', ambience: 'Ambiance' };
 const NEXT_REPEAT: Record<RepeatMode, RepeatMode> = { off: 'all', all: 'track', track: 'off' };
-const REPEAT_LABELS: Record<RepeatMode, string> = {
-  off: 'Répétition désactivée',
-  all: 'Répéter la liste',
-  track: 'Répéter ce morceau',
-};
 
 export function Deck({
   campaignId,
@@ -56,6 +52,7 @@ export function Deck({
   channel: ChannelName;
   gm: boolean;
 }>) {
+  const t = useTranslations();
   const c = useChannel(campaignId, channel);
   const s = c.state;
   // Panneau gardé monté mais masqué : la position cesse de se rafraîchir
@@ -66,7 +63,7 @@ export function Deck({
   useEffect(() => setVolume(null), [s?.volume]);
 
   const run = (p: Promise<unknown>) =>
-    p.catch((e) => toast.error('Commande refusée', { description: messageErreur(e) }));
+    p.catch((e) => toast.error(t('audio.deck.refused'), { description: messageErreur(e) }));
 
   const Icon = channel === 'music' ? Music : Wind;
   const playing = s?.status === 'playing';
@@ -75,19 +72,19 @@ export function Deck({
   const { needsUnlock } = useAudioStatus();
   const heard = live.some((l) => l.kind === channel);
   const hasTrack = !!s?.track && !s.track.deleted;
-  const status = statusLabel({
+  const status = statusLabel(t, {
     hasTrack,
     playing,
     heard,
     needsUnlock,
     paused: s?.status === 'paused',
   });
-  const trackLabel = trackLabelOf(s, hasTrack, channel);
+  const trackLabel = trackLabelOf(t, s, hasTrack, channel);
   const statusTone = statusToneOf(heard, playing, needsUnlock);
 
   return (
     <section
-      aria-label={LABELS[channel]}
+      aria-label={t(`audio.kinds.${channel}`)}
       className={cn(
         'rounded-lg border px-2.5 py-2 transition-colors',
         heard ? 'border-primary/40 bg-primary/[0.06]' : 'border-border bg-surface-2/60',
@@ -164,10 +161,15 @@ type ChannelControl = ReturnType<typeof useChannel>;
 type ChannelState = ChannelControl['state'];
 
 /** Titre affiché : le morceau, « Son supprimé », ou rien en cours. */
-function trackLabelOf(s: ChannelState, hasTrack: boolean, channel: ChannelName): string {
-  if (s?.track?.deleted) return 'Son supprimé';
+function trackLabelOf(
+  t: Translator,
+  s: ChannelState,
+  hasTrack: boolean,
+  channel: ChannelName,
+): string {
+  if (s?.track?.deleted) return t('audio.deck.deleted');
   if (hasTrack) return s!.track!.name;
-  return `${LABELS[channel]} : rien en cours`;
+  return t('audio.deck.nothing', { channel: t(`audio.kinds.${channel}`) });
 }
 
 /** Couleur de l'état : entendu ici, bloqué par le navigateur, ou neutre. */
@@ -191,10 +193,11 @@ function DeckMeta({
   dragging: number | null;
   active: boolean;
 }>) {
+  const t = useTranslations();
   const isMusic = channel === 'music';
   return (
     <p className="flex items-center gap-1.5 text-[11px] tabular-nums text-subtle">
-      <span className="uppercase tracking-wide">{LABELS[channel]}</span>
+      <span className="uppercase tracking-wide">{t(`audio.kinds.${channel}`)}</span>
       {duration !== null && (
         <span>
           · <DeckTime channel={channel} dragging={dragging} active={active} /> /{' '}
@@ -228,16 +231,17 @@ function DeckControls({
   onVolume(v: number | null): void;
   run(p: Promise<unknown>): Promise<unknown>;
 }>) {
+  const t = useTranslations();
   const s = c.state;
   const isMusic = channel === 'music';
   return (
     <div className="flex shrink-0 items-center">
       {isMusic && (
-        <Info texte="Morceau précédent">
+        <Info texte={t('audio.deck.previous')}>
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Morceau précédent"
+            aria-label={t('audio.deck.previous')}
             disabled={c.pending}
             onClick={() => void run(c.previous())}
           >
@@ -245,10 +249,10 @@ function DeckControls({
           </Button>
         </Info>
       )}
-      <Info texte={playing ? 'Pause' : 'Lecture'}>
+      <Info texte={playing ? t('audio.deck.pause') : t('audio.deck.play')}>
         <Button
           size="icon-sm"
-          aria-label={playing ? 'Mettre en pause' : 'Reprendre la lecture'}
+          aria-label={playing ? t('audio.deck.pauseLabel') : t('audio.deck.resume')}
           disabled={c.pending}
           onClick={() => void run(playing ? c.pause() : c.resume())}
         >
@@ -256,11 +260,11 @@ function DeckControls({
         </Button>
       </Info>
       {isMusic && (
-        <Info texte="Morceau suivant">
+        <Info texte={t('audio.deck.next')}>
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Morceau suivant"
+            aria-label={t('audio.deck.next')}
             disabled={c.pending}
             onClick={() => void run(c.next())}
           >
@@ -268,11 +272,11 @@ function DeckControls({
           </Button>
         </Info>
       )}
-      <Info texte="Arrêter">
+      <Info texte={t('audio.deck.stop')}>
         <Button
           variant="ghost"
           size="icon-xs"
-          aria-label="Arrêter"
+          aria-label={t('audio.deck.stop')}
           disabled={s?.status === 'stopped' || c.pending}
           onClick={() => void run(c.stop())}
         >
@@ -280,12 +284,12 @@ function DeckControls({
         </Button>
       </Info>
       <Popover>
-        <Info texte="Volume de la table et options">
+        <Info texte={t('audio.deck.tableVolume')}>
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label={`Volume et options de la ${LABELS[channel].toLowerCase()}`}
+              aria-label={t(`audio.deck.optionsOf.${channel}`)}
             >
               <SlidersHorizontal />
             </Button>
@@ -293,11 +297,13 @@ function DeckControls({
         </Info>
         <PopoverContent align="end" className="w-64 space-y-3 p-3">
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Volume pour toute la table</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              {t('audio.deck.volumeForTable')}
+            </p>
             <div className="flex items-center gap-2">
               <Volume2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
               <Slider
-                aria-label={`Volume de la ${LABELS[channel].toLowerCase()} pour toute la table`}
+                aria-label={t(`audio.deck.volumeOf.${channel}`)}
                 min={0}
                 max={1}
                 step={0.05}
@@ -319,6 +325,7 @@ function MusicOptions({
   control: c,
   run,
 }: Readonly<{ control: ChannelControl; run(p: Promise<unknown>): Promise<unknown> }>) {
+  const t = useTranslations();
   const s = c.state;
   const repeat = s?.repeat ?? 'all';
   return (
@@ -330,7 +337,7 @@ function MusicOptions({
         onClick={() => void run(c.configure({ repeat: NEXT_REPEAT[repeat] }))}
       >
         {repeat === 'track' ? <Repeat1 /> : <Repeat />}
-        {REPEAT_LABELS[repeat]}
+        {t(`audio.deck.repeat.${repeat}`)}
       </Button>
       <Button
         variant={s?.shuffle ? 'default' : 'secondary'}
@@ -339,7 +346,7 @@ function MusicOptions({
         onClick={() => void run(c.configure({ shuffle: !s?.shuffle }))}
       >
         <Shuffle />
-        Aléatoire
+        {t('audio.deck.shuffle')}
       </Button>
     </div>
   );
@@ -377,10 +384,11 @@ function DeckSeek({
   onDrag: (v: number) => void;
   onSeek: (v: number) => void;
 }>) {
+  const t = useTranslations();
   const position = useChannelPosition(channel, 1_000, active && dragging === null);
   return (
     <Slider
-      aria-label="Position dans le morceau"
+      aria-label={t('audio.deck.position')}
       min={0}
       max={duration}
       step={1000}
@@ -408,15 +416,18 @@ function DeckProgress({ channel, active }: Readonly<{ channel: ChannelName; acti
 }
 
 /** État lisible d'un canal : ce qui s'entend vraiment, pas seulement ce que dit le serveur. */
-function statusLabel(o: {
-  hasTrack: boolean;
-  playing: boolean;
-  heard: boolean;
-  needsUnlock: boolean;
-  paused: boolean;
-}): string {
-  if (!o.hasTrack) return 'Rien en cours';
-  if (!o.playing) return o.paused ? 'En pause' : 'Arrêté';
-  if (o.heard) return 'En lecture';
-  return o.needsUnlock ? 'Son bloqué par le navigateur' : 'Démarrage…';
+function statusLabel(
+  t: Translator,
+  o: {
+    hasTrack: boolean;
+    playing: boolean;
+    heard: boolean;
+    needsUnlock: boolean;
+    paused: boolean;
+  },
+): string {
+  if (!o.hasTrack) return t('audio.deck.status.none');
+  if (!o.playing) return o.paused ? t('audio.deck.status.paused') : t('audio.deck.status.stopped');
+  if (o.heard) return t('audio.deck.status.playing');
+  return o.needsUnlock ? t('audio.deck.status.blocked') : t('audio.deck.status.starting');
 }

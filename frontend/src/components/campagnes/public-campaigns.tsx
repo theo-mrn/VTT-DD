@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowRight, ChevronLeft, ChevronRight, Globe, Search, Users } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -40,6 +41,7 @@ export function CampagnesOuvertes({
   compacte?: boolean;
   className?: string;
 }>) {
+  const t = useTranslations('campaigns');
   const router = useRouter();
   const [saisie, setSaisie] = useState('');
   const [recherche, setRecherche] = useState('');
@@ -49,18 +51,18 @@ export function CampagnesOuvertes({
   const [enCours, setEnCours] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    const minuteur = window.setTimeout(() => {
       setRecherche(saisie);
       setPage(1);
     }, DELAI_RECHERCHE_MS);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(minuteur);
   }, [saisie]);
 
   async function entrer(c: Campagne) {
     setEnCours(c.id);
     try {
       const rejointe = await rejoindre.mutateAsync(c.id);
-      toast.success(`Bienvenue dans « ${rejointe.name} »`);
+      toast.success(t('join.welcome', { name: rejointe.name }));
       if (onRejointe) await onRejointe(rejointe);
       else router.push(`/campagnes/${rejointe.id}/personnage`);
     } catch (err) {
@@ -79,9 +81,9 @@ export function CampagnesOuvertes({
         avant={<Search />}
         value={saisie}
         onChange={(e) => setSaisie(e.target.value)}
-        placeholder="Rechercher par nom, thème ou code…"
+        placeholder={t('public.search')}
         className="h-10"
-        aria-label="Rechercher une campagne ouverte"
+        aria-label={t('public.searchLabel')}
       />
 
       {publiques.isError && <Message>{messageErreur(publiques.error)}</Message>}
@@ -112,36 +114,32 @@ export function CampagnesOuvertes({
 
       {donnees?.total === 0 && (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-sm text-subtle">
-          {recherche.trim()
-            ? 'Aucune campagne ouverte ne correspond à cette recherche.'
-            : 'Aucune campagne ouverte pour le moment. Créez la vôtre et rendez-la publique !'}
+          {recherche.trim() ? t('public.noMatch') : t('public.none')}
         </p>
       )}
 
       {donnees && pages > 1 && (
         <div className="flex items-center justify-between gap-3 text-[13px] text-muted-foreground">
-          <span>
-            {donnees.total} campagne{donnees.total > 1 ? 's' : ''} · page {donnees.page} sur {pages}
-          </span>
+          <span>{t('public.pages', { total: donnees.total, page: donnees.page, pages })}</span>
           <div className="flex gap-1.5">
             <Button
               variant="ghost"
               size="sm"
               disabled={page <= 1 || publiques.isFetching}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              aria-label="Page précédente"
+              aria-label={t('public.previousPage')}
             >
               <ChevronLeft />
-              Précédente
+              {t('public.previous')}
             </Button>
             <Button
               variant="ghost"
               size="sm"
               disabled={page >= pages || publiques.isFetching}
               onClick={() => setPage((p) => Math.min(pages, p + 1))}
-              aria-label="Page suivante"
+              aria-label={t('public.nextPage')}
             >
-              Suivante
+              {t('public.next')}
               <ChevronRight />
             </Button>
           </div>
@@ -165,6 +163,7 @@ function CarteOuverte({
   bloque: boolean;
   onRejoindre: () => void;
 }>) {
+  const t = useTranslations('campaigns');
   const nomSysteme = useNomSysteme(c.system);
   const membre = c.role !== null;
   return (
@@ -175,7 +174,7 @@ function CarteOuverte({
       <Illustration
         largeur={640}
         src={c.coverUrl}
-        graine={c.name || 'Campagne'}
+        graine={c.name || c.id}
         className={cn('w-full', compacte ? 'aspect-[16/6]' : 'aspect-[16/8]')}
         classeImage="transition-transform duration-700 ease-out group-hover:scale-[1.04]"
         voile
@@ -183,7 +182,7 @@ function CarteOuverte({
         <div className="absolute left-3 top-3">
           <Badge ton="verre">
             <Globe />
-            Ouverte
+            {t('badges.open')}
           </Badge>
         </div>
         {nomSysteme && (
@@ -205,25 +204,25 @@ function CarteOuverte({
           <AvatarJoueur nom={c.owner.name} url={c.owner.avatarUrl} taille="xs" />
           <div className="min-w-0 text-xs">
             <p className="truncate text-foreground/90">
-              <span className="text-subtle">MJ </span>
+              <span className="text-subtle">{t('public.gm')} </span>
               {c.owner.name}
             </p>
             <p className="flex items-center gap-1 text-subtle">
               <Users className="size-3" />
-              {c.playerCount} joueur{c.playerCount > 1 ? 's' : ''}
+              {t('card.players', { count: c.playerCount })}
             </p>
           </div>
         </div>
         {membre ? (
           <Button size="sm" variant="secondary" asChild>
             <Link href={`/campagnes/${c.id}`}>
-              Ouvrir
+              {t('public.open')}
               <ArrowRight />
             </Link>
           </Button>
         ) : (
           <Button size="sm" onClick={onRejoindre} loading={enCours} disabled={bloque && !enCours}>
-            Rejoindre
+            {t('join.join')}
           </Button>
         )}
       </div>

@@ -13,6 +13,7 @@
  * Défense active (paramètres `par: cible`, l'Esquive de Star Wars) : la cible choisit, ce
  * chemin ne s'applique pas (`needsReaction`) ; l'ancien chemin serveur reste pour elle.
  */
+import { translate } from '@/i18n/runtime';
 import {
   ROLL_STEP_DICE_MAX,
   type ActionParams,
@@ -279,7 +280,7 @@ export function runLocal(
       return {
         characterId: id,
         status: 'failed',
-        error: c && !c.ok ? messages(c.erreurs) : 'Cible refusée',
+        error: c && !c.ok ? messages(c.erreurs) : translate('combat.targetRefused'),
         result: null,
         view: null,
       };
@@ -364,7 +365,11 @@ export function continueLocal(
   const asked = step.params ?? [];
   const given = Object.keys(stepParams ?? {});
   if (given.some((k) => !asked.includes(k)) || asked.some((k) => !given.includes(k)))
-    throw new LocalRefusal(`Paramètres attendus pour cette étape : ${asked.join(', ') || 'aucun'}`);
+    throw new LocalRefusal(
+      translate('combat.paramsExpected', {
+        params: asked.join(', ') || translate('common.states.none').toLowerCase(),
+      }),
+    );
   const params = asked.length ? { ...session.params, ...stepParams } : session.params;
   return advance(session.input, { faces: session.faces, params }, step.phase, roll);
 }
@@ -379,7 +384,11 @@ export function resolvedReport(s: LocalSession, actionName: string): ResolvedAtt
     targets: s.last.targets.map((t) =>
       t.status === 'resolved'
         ? { characterId: t.characterId, status: 'resolved', result: t.result, view: t.view }
-        : { characterId: t.characterId, status: 'failed', error: t.error ?? 'Cible refusée' },
+        : {
+            characterId: t.characterId,
+            status: 'failed',
+            error: t.error ?? translate('combat.targetRefused'),
+          },
     ),
     ...(s.last.actor.length ? { actor: { modifications: s.last.actor } } : {}),
   };

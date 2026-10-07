@@ -4,6 +4,7 @@
  * système (paramètres des actions, champs des sortes, entrées, attributs) : rien n'est propre
  * à un jeu. Ce qui ne se traduit pas retombe sur la formule canonique.
  */
+import { translate } from '@/i18n/runtime';
 import { afficher, analyser, type Fiche, type Noeud } from '@vtt/rules';
 
 type Parametre =
@@ -53,9 +54,10 @@ function nomAttribut(fiche: Fiche, cle: string): string {
 
 /** Nom lisible d'une variable (`caracteristique`, `arme.attaque`, `action`, `rang`). */
 function nomVariable(fiche: Fiche, nom: string): string {
-  if (nom === 'action') return 'Action';
+  if (nom === 'action') return translate('combat.stages.action');
   const [base, id] = nom.split('.', 2) as [string, string | undefined];
-  if (base === 'source' && id) return `${champ(fiche, undefined, id)?.nom ?? id} de la source`;
+  if (base === 'source' && id)
+    return translate('sheet.condition.ofSource', { name: champ(fiche, undefined, id)?.nom ?? id });
   const p = parametre(fiche, base);
   if (!p) return nom;
   if (!id) return p.nom;
@@ -101,10 +103,14 @@ function operandeAppel(fiche: Fiche, n: Appel): string {
   const sorte = a?.t === 'texte' ? fiche.systeme.sortes.get(a.v) : undefined;
   if (n.fn === 'compte_actifs' && sorte) {
     const nom = (sorte.nomPluriel ?? sorte.nom).toLowerCase();
-    return `nombre ${/^[aeéèêiîoôuyh]/.test(nom) ? 'd’' : 'de '}${nom} en usage`;
+    // « nombre d’armes » : élision devant une voyelle (français)
+    return translate('sheet.condition.countInUse', {
+      name: nom,
+      elided: /^[aeéèêiîoôuyh]/.test(nom) ? 'yes' : 'no',
+    });
   }
   if (n.fn === 'somme_actifs' && sorte && b?.t === 'texte')
-    return `${champ(fiche, sorte.id, b.v)?.nom ?? b.v} en usage`;
+    return translate('sheet.condition.inUse', { name: champ(fiche, sorte.id, b.v)?.nom ?? b.v });
   return afficher(n);
 }
 
@@ -144,9 +150,13 @@ function decrireOu(fiche: Fiche, n: Binaire): string {
     const cle = vs.join(', ');
     parValeurs.set(cle, [...(parValeurs.get(cle) ?? []), nom]);
   }
-  return [...[...parValeurs].map(([vs, noms]) => `${noms.join(' ou ')} : ${vs}`), ...autres].join(
-    ' ou ',
-  );
+  const ou = ` ${translate('sheet.condition.or')} `;
+  return [
+    ...[...parValeurs].map(([vs, noms]) =>
+      translate('sheet.explain.pair', { name: noms.join(ou), value: vs }),
+    ),
+    ...autres,
+  ].join(ou);
 }
 
 /** Conjonction : chaque membre, les alternatives entre parenthèses. */
@@ -156,7 +166,7 @@ function decrireEt(fiche: Fiche, n: Binaire): string {
       const t = decrire(fiche, f);
       return f.t === 'binaire' && f.op === 'ou' ? `(${t})` : t;
     })
-    .join(' et ');
+    .join(` ${translate('sheet.condition.and')} `);
 }
 
 /** `variable == "texte"` : « Nom : valeur », « Nom autre que valeur », « sans Nom ». */
@@ -165,9 +175,12 @@ function decrireEgalite(
   e: { variable: string; valeur: string; egal: boolean },
 ): string {
   const nom = nomVariable(fiche, e.variable);
-  if (e.valeur === '') return e.egal ? `sans ${nom}` : `avec ${nom}`;
+  if (e.valeur === '')
+    return translate(e.egal ? 'sheet.condition.without' : 'sheet.condition.with', { name: nom });
   const v = nomValeur(fiche, e.variable, e.valeur);
-  return e.egal ? `${nom} : ${v}` : `${nom} autre que ${v}`;
+  return e.egal
+    ? translate('sheet.explain.pair', { name: nom, value: v })
+    : translate('sheet.condition.otherThan', { name: nom, value: v });
 }
 
 /** Comparaison : « nombre d’armes en usage » pour `appel > 0`, sinon les deux membres. */
@@ -182,19 +195,22 @@ function decrireComparaison(fiche: Fiche, n: Binaire): string | null {
 /** Négation : « sans X » pour une possession, sinon « pas … ». */
 function decrireNon(fiche: Fiche, n: Unaire): string {
   return n.arg.t === 'appel' && n.arg.fn === 'possede' && n.arg.args[0]?.t === 'texte'
-    ? `sans ${fiche.systeme.entrees.get(n.arg.args[0].v)?.nom ?? n.arg.args[0].v}`
-    : `pas ${decrire(fiche, n.arg)}`;
+    ? translate('sheet.condition.without', {
+        name: fiche.systeme.entrees.get(n.arg.args[0].v)?.nom ?? n.arg.args[0].v,
+      })
+    : translate('sheet.condition.not', { text: decrire(fiche, n.arg) });
 }
 
 /** Appels lisibles : étiquette, marque, possession. */
 function decrireAppel(fiche: Fiche, n: Appel): string | null {
   const [a, b] = n.args;
   const texte = b?.t === 'texte' ? b.v : undefined;
-  if (n.fn === 'a_etiquette' && a && texte) return `${operande(fiche, a)} « ${lisible(texte)} »`;
+  if (n.fn === 'a_etiquette' && a && texte)
+    return translate('sheet.condition.tagged', { name: operande(fiche, a), tag: lisible(texte) });
   if ((n.fn === 'marquee' || n.fn === 'marque') && a && texte)
-    return `${operande(fiche, a)} de ${lisible(texte)}`;
+    return translate('sheet.condition.marked', { name: operande(fiche, a), mark: lisible(texte) });
   if (n.fn === 'possede' && a?.t === 'texte')
-    return `possède ${fiche.systeme.entrees.get(a.v)?.nom ?? a.v}`;
+    return translate('sheet.condition.owns', { name: fiche.systeme.entrees.get(a.v)?.nom ?? a.v });
   return null;
 }
 

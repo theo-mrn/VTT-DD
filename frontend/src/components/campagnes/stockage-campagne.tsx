@@ -5,13 +5,7 @@
  * catégorie, et la galerie de tout ce qui a été envoyé (images, vidéos, sons) avec sa taille, sa
  * date et où il sert. Un fichier que plus rien n'utilise se supprime ici.
  */
-import {
-  formatBytes,
-  STORAGE_CATEGORY_LABELS,
-  STORAGE_WARNING_RATIO,
-  type CampaignStorage,
-  type StorageFile,
-} from '@vtt/contracts';
+import { STORAGE_WARNING_RATIO, type CampaignStorage, type StorageFile } from '@vtt/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AudioLines,
@@ -23,6 +17,7 @@ import {
   Square,
   Trash2,
 } from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Chips } from '@/components/resources/parts';
@@ -30,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { SelectField } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Info } from '@/components/ui/tooltip';
+import { useFormatBytes } from '@/i18n/units';
 import { api, messageErreur } from '@/lib/api';
 import { useAudioLibrary, usePreview } from '@/lib/audio';
 import { campagnes } from '@/lib/campagnes';
@@ -42,9 +38,6 @@ const route = (campaignId: string) => `/v1/campaigns/${encodeURIComponent(campai
 type Tri = 'taille' | 'date';
 const UNUSED = 'unused';
 
-const date = (iso: string) =>
-  new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-
 /** Personnage ou son d'un fichier, d'après sa clé (`characters/<id>/…`, `audio/…/<id>/…`). */
 function ownerOf(key: string): { kind: 'character' | 'sound'; id: string } | null {
   const parts = key.split('/');
@@ -54,6 +47,9 @@ function ownerOf(key: string): { kind: 'character' | 'sound'; id: string } | nul
 }
 
 export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }>) {
+  const t = useTranslations('campaigns.storage');
+  const format = useFormatter();
+  const formatBytes = useFormatBytes();
   const client = useQueryClient();
   const q = useQuery({
     queryKey: cle(campaignId),
@@ -85,7 +81,7 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
         await api<CampaignStorage>(`${route(campaignId)}?refresh=1`),
       );
     } catch (e) {
-      toast.error('Actualisation impossible', { description: messageErreur(e) });
+      toast.error(t('refreshFailed'), { description: messageErreur(e) });
     } finally {
       setActualise(false);
     }
@@ -112,9 +108,9 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
             }
           : s,
       );
-      toast.success(`${formatBytes(f.size)} libérés`);
+      toast.success(t('freed', { size: formatBytes(f.size) }));
     } catch (e) {
-      toast.error('Suppression refusée', { description: messageErreur(e) });
+      toast.error(t('deleteRefused'), { description: messageErreur(e) });
       void client.invalidateQueries({ queryKey: cle(campaignId) });
     }
   };
@@ -127,13 +123,15 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
   }, [s, filtre, tri]);
 
   if (q.isPending)
-    return <p className="px-6 py-10 text-center text-[13px] text-muted-foreground">Chargement…</p>;
+    return (
+      <p className="px-6 py-10 text-center text-[13px] text-muted-foreground">{t('loading')}</p>
+    );
   if (!s)
     return (
       <div className="space-y-3 px-6 py-10 text-center">
         <p className="text-[13px] text-muted-foreground">{messageErreur(q.error)}</p>
         <Button variant="secondary" size="sm" onClick={() => void q.refetch()}>
-          Réessayer
+          {t('retry')}
         </Button>
       </div>
     );
@@ -141,17 +139,22 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
   const ratio = s.usedBytes / s.quotaBytes;
   const inutilises = s.files.filter((f) => f.deletable);
   const options = [
-    { value: 'all', label: 'Tout', count: s.files.length },
+    { value: 'all', label: t('all'), count: s.files.length },
     ...s.byCategory.map((c) => ({
       value: c.category,
-      label: `${STORAGE_CATEGORY_LABELS[c.category]} · ${formatBytes(c.bytes)}`,
+      label: t('category', {
+        label: t(`categories.${c.category}`),
+        size: formatBytes(c.bytes),
+      }),
       count: c.count,
     })),
     ...(inutilises.length
       ? [
           {
             value: UNUSED,
-            label: `Inutilisés · ${formatBytes(inutilises.reduce((t, f) => t + f.size, 0))}`,
+            label: t('unused', {
+              size: formatBytes(inutilises.reduce((total, f) => total + f.size, 0)),
+            }),
             count: inutilises.length,
           },
         ]
@@ -160,26 +163,28 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
 
   return (
     <div className="space-y-5 px-6 py-5">
-      <section aria-label="Place occupée" className="space-y-2">
+      <section aria-label={t('used')} className="space-y-2">
         <div className="flex items-baseline justify-between gap-3">
           <p className="flex items-center gap-2 text-sm font-semibold">
             <HardDrive className="size-4 text-muted-foreground" aria-hidden />
             {formatBytes(s.usedBytes)}
             <span className="font-normal text-muted-foreground">
-              sur {formatBytes(s.quotaBytes)}
+              {t('of', { total: formatBytes(s.quotaBytes) })}
             </span>
           </p>
           <Info
             texte={
               s.inventoriedAt
-                ? `Inventaire du ${new Date(s.inventoriedAt).toLocaleString('fr-FR')}`
-                : 'Actualiser'
+                ? t('inventoriedAt', {
+                    date: format.dateTime(new Date(s.inventoriedAt), 'dateTime'),
+                  })
+                : t('refresh')
             }
           >
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Actualiser"
+              aria-label={t('refresh')}
               onClick={() => void actualiser()}
               disabled={actualise}
             >
@@ -189,11 +194,14 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
         </div>
         <div
           role="meter"
-          aria-label="Place occupée"
+          aria-label={t('used')}
           aria-valuemin={0}
           aria-valuemax={s.quotaBytes}
           aria-valuenow={s.usedBytes}
-          aria-valuetext={`${formatBytes(s.usedBytes)} sur ${formatBytes(s.quotaBytes)}`}
+          aria-valuetext={t('usedOf', {
+            used: formatBytes(s.usedBytes),
+            total: formatBytes(s.quotaBytes),
+          })}
           className="h-2.5 overflow-hidden rounded-full bg-surface-3"
         >
           <div
@@ -204,23 +212,19 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
             style={{ width: `${Math.min(100, Math.max(ratio > 0 ? 1 : 0, ratio * 100))}%` }}
           />
         </div>
-        {ratio >= 1 && (
-          <p className="text-[13px] text-destructive">
-            Espace plein : les nouveaux envois sont refusés.
-          </p>
-        )}
+        {ratio >= 1 && <p className="text-[13px] text-destructive">{t('full')}</p>}
       </section>
 
       {s.files.length > 0 && (
         <div className="space-y-3">
-          <Chips label="Catégorie" value={filtre} onChange={setFiltre} options={options} />
+          <Chips label={t('categoryLabel')} value={filtre} onChange={setFiltre} options={options} />
           <SelectField
-            aria-label="Tri"
+            aria-label={t('sort')}
             value={tri}
             onValueChange={(v) => setTri(v as Tri)}
             options={[
-              { valeur: 'taille', nom: 'Les plus lourds d’abord' },
-              { valeur: 'date', nom: 'Les plus récents d’abord' },
+              { valeur: 'taille', nom: t('sortSize') },
+              { valeur: 'date', nom: t('sortDate') },
             ]}
             className="w-56"
           />
@@ -229,7 +233,7 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
 
       {fichiers.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-[13px] text-muted-foreground">
-          {s.files.length ? 'Aucun fichier dans cette catégorie.' : 'Rien n’a encore été envoyé.'}
+          {s.files.length ? t('emptyCategory') : t('empty')}
         </p>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -243,13 +247,13 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
               <Fichier
                 key={f.key}
                 fichier={f}
-                nom={nom ?? (sonSupprime ? 'Son supprimé' : null)}
+                nom={nom ?? (sonSupprime ? t('deletedSound') : null)}
                 usedBy={sonSupprime ? [] : f.usedBy}
                 ecoute={preview.playingId === f.key}
                 onEcoute={() =>
                   preview.playingId === f.key
                     ? preview.stop()
-                    : preview.play({ id: f.key, url: f.url, name: nom ?? 'Son' })
+                    : preview.play({ id: f.key, url: f.url, name: nom ?? t('sound') })
                 }
                 onSupprimer={() => supprimer(f)}
               />
@@ -276,6 +280,9 @@ function Fichier({
   onEcoute: () => void;
   onSupprimer: () => Promise<void>;
 }>) {
+  const t = useTranslations('campaigns.storage');
+  const format = useFormatter();
+  const formatBytes = useFormatBytes();
   const [confirmer, setConfirmer] = useState(false);
   const [busy, setBusy] = useState(false);
   // Second clic attendu dans les 3 s, sinon la demande retombe
@@ -293,11 +300,15 @@ function Fichier({
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-1 p-2.5">
-        <p className="truncate text-[13px] font-medium">
-          {nom ?? STORAGE_CATEGORY_LABELS[f.category]}
-        </p>
+        <p className="truncate text-[13px] font-medium">{nom ?? t(`categories.${f.category}`)}</p>
         <p className="text-[11px] text-muted-foreground">
-          {f.pending ? 'Envoi en cours' : date(f.createdAt)}
+          {f.pending
+            ? t('uploading')
+            : format.dateTime(new Date(f.createdAt), {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
         </p>
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
           <span
@@ -307,14 +318,14 @@ function Fichier({
             )}
             title={usedBy.join(', ')}
           >
-            {usedBy.length ? usedBy.join(', ') : 'Inutilisé'}
+            {usedBy.length ? usedBy.join(', ') : t('unusedFile')}
           </span>
           {f.deletable && (
             <Button
               variant={confirmer ? 'destructive' : 'ghost'}
               size="xs"
               loading={busy}
-              aria-label={confirmer ? 'Confirmer la suppression' : 'Supprimer'}
+              aria-label={confirmer ? t('confirmDelete') : t('delete')}
               onClick={async () => {
                 if (!confirmer) return setConfirmer(true);
                 setBusy(true);
@@ -323,7 +334,7 @@ function Fichier({
               }}
             >
               <Trash2 />
-              {confirmer && 'Confirmer'}
+              {confirmer && t('confirm')}
             </Button>
           )}
         </div>
@@ -340,16 +351,17 @@ export function OngletsReglages({
   vue: 'campagne' | 'stockage';
   onVue: (v: 'campagne' | 'stockage') => void;
 }>) {
+  const t = useTranslations('campaigns.settings');
   return (
     <Tabs value={vue} onValueChange={(v) => onVue(v as 'campagne' | 'stockage')}>
       <TabsList>
         <TabsTrigger value="campagne">
           <Settings2 aria-hidden />
-          Campagne
+          {t('tabCampaign')}
         </TabsTrigger>
         <TabsTrigger value="stockage">
           <HardDrive aria-hidden />
-          Stockage
+          {t('tabStorage')}
         </TabsTrigger>
       </TabsList>
     </Tabs>
@@ -363,6 +375,7 @@ function Apercu({
   ecoute,
   onEcoute,
 }: Readonly<{ fichier: StorageFile; nom: string | null; ecoute: boolean; onEcoute: () => void }>) {
+  const t = useTranslations('campaigns.storage');
   const type = f.contentType ?? '';
   if (type.startsWith('image/'))
     return (
@@ -386,7 +399,7 @@ function Apercu({
       <Button
         variant="secondary"
         size="icon"
-        aria-label={ecoute ? 'Arrêter l’écoute' : 'Écouter'}
+        aria-label={ecoute ? t('stopListening') : t('listen')}
         onClick={onEcoute}
         disabled={f.pending}
       >

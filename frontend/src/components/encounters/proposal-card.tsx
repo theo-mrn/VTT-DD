@@ -5,6 +5,7 @@
  * ligne par créature (portrait, puissance, nombre ±, verrou, remplacer, retirer), puis
  * relancer (les verrouillées restent), ajouter une créature, enregistrer dans Mes PNJ.
  */
+import { useTranslations } from 'next-intl';
 import type { Rencontres } from '@vtt/rules';
 import { Lock, LockOpen, Plus, RefreshCw, Replace, Save, Minus, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -28,13 +29,13 @@ import {
   type EncounterCreature,
   type PartyMember,
 } from '@/lib/encounters/generator';
+import { formatter } from '@/i18n/runtime';
 import { cn } from '@/lib/utils';
 import { DotsBackdrop } from '../combat/backdrop';
 import { SPRING } from '../combat/live-reports/look';
 
-const fmt = (n: number) => n.toLocaleString('fr-FR');
-const power = (p: number) =>
-  p > 0 && p < 1 ? `1/${Math.round(1 / p)}` : p.toLocaleString('fr-FR');
+const fmt = (n: number) => formatter().number(n);
+const power = (p: number) => (p > 0 && p < 1 ? `1/${Math.round(1 / p)}` : formatter().number(p));
 
 /** Teinte de la difficulté atteinte (index dans la liste déclarée). */
 function tone(index: number, total: number) {
@@ -66,6 +67,7 @@ export function ProposalCard({
   onReroll(): void;
   onSave(): void;
 }>) {
+  const t = useTranslations();
   const reading = readDifficulty(rules, party, encounter.groups);
   const reachedIndex = reading.reached
     ? reading.thresholds.findIndex((t) => t.id === reading.reached!.id)
@@ -90,7 +92,7 @@ export function ProposalCard({
             tone(reachedIndex, reading.thresholds.length),
           )}
         >
-          {reading.reached?.nom ?? 'Trop facile'}
+          {reading.reached?.nom ?? t('encounters.tooEasy')}
         </span>
         <span className="flex-1" />
         <span className="font-mono text-sm font-semibold tabular-nums">
@@ -152,7 +154,7 @@ export function ProposalCard({
               <span className="flex items-center rounded-lg border border-border bg-background/40">
                 <button
                   type="button"
-                  aria-label={`Un ${g.creature.name} de moins`}
+                  aria-label={t('encounters.oneLess', { name: g.creature.name })}
                   className="grid size-7 place-items-center text-muted-foreground hover:text-foreground"
                   onClick={() =>
                     onChange({ type: 'count', key: g.creature.key, count: g.count - 1 })
@@ -165,7 +167,7 @@ export function ProposalCard({
                 </span>
                 <button
                   type="button"
-                  aria-label={`Un ${g.creature.name} de plus`}
+                  aria-label={t('encounters.oneMore', { name: g.creature.name })}
                   className="grid size-7 place-items-center text-muted-foreground hover:text-foreground"
                   onClick={() =>
                     onChange({ type: 'count', key: g.creature.key, count: g.count + 1 })
@@ -174,12 +176,12 @@ export function ProposalCard({
                   <Plus className="size-3.5" />
                 </button>
               </span>
-              <Info texte={g.locked ? 'Gardée à la relance' : 'Garder à la relance'}>
+              <Info texte={g.locked ? t('encounters.keptOnReroll') : t('encounters.keepOnReroll')}>
                 <Button
                   size="icon-sm"
                   variant="ghost"
                   aria-pressed={Boolean(g.locked)}
-                  aria-label="Verrouiller"
+                  aria-label={t('encounters.lock')}
                   className={cn(g.locked ? 'text-primary-strong' : 'text-subtle')}
                   onClick={() => onChange({ type: 'lock', key: g.creature.key })}
                 >
@@ -187,12 +189,12 @@ export function ProposalCard({
                 </Button>
               </Info>
               <CreaturePicker
-                label="Remplacer"
+                label={t('encounters.replace')}
                 icon={<Replace />}
                 options={alternativesFor(pool, g.creature, 40)}
                 onPick={(c) => onChange({ type: 'replace', key: g.creature.key, by: c })}
               />
-              <Info texte="Retirer">
+              <Info texte={t('common.actions.remove')}>
                 <Button
                   size="icon-sm"
                   variant="ghost"
@@ -209,13 +211,18 @@ export function ProposalCard({
       </ul>
 
       <footer className="mt-2 flex items-center gap-1.5 border-t border-border px-3 py-2.5">
-        <Info texte="Relancer (les créatures verrouillées restent)">
-          <Button size="icon-sm" variant="ghost" aria-label="Relancer" onClick={onReroll}>
+        <Info texte={t('encounters.rerollHint')}>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t('encounters.reroll')}
+            onClick={onReroll}
+          >
             <RefreshCw />
           </Button>
         </Info>
         <CreaturePicker
-          label="Ajouter une créature"
+          label={t('encounters.addCreature')}
           icon={<Plus />}
           options={pool}
           onPick={(c) => onChange({ type: 'add', creature: c })}
@@ -228,7 +235,7 @@ export function ProposalCard({
           disabled={busy || !encounter.groups.length}
         >
           <Save />
-          Mes PNJ
+          {t('encounters.myNpcs')}
         </Button>
       </footer>
     </motion.article>
@@ -252,6 +259,7 @@ function CreaturePicker({
   options: readonly EncounterCreature[];
   onPick(c: EncounterCreature): void;
 }>) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -264,9 +272,9 @@ function CreaturePicker({
       </Info>
       <PopoverContent align="end" className="w-72 p-0">
         <Command>
-          <CommandInput placeholder="Chercher une créature" />
+          <CommandInput placeholder={t('encounters.searchCreature')} />
           <CommandList className="max-h-72">
-            <CommandEmpty>Aucune créature.</CommandEmpty>
+            <CommandEmpty>{t('encounters.noCreature')}</CommandEmpty>
             <CommandGroup>
               {options.map((c) => (
                 <CommandItem

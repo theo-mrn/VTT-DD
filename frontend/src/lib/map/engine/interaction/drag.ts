@@ -8,6 +8,7 @@
  * - `TransformSession` : une poignée de rotation (⇧ : pas de 15°) ou de taille (⇧ : garde les
  *   proportions).
  */
+import { translate } from '@/i18n/runtime';
 import type { EntityGeometry, Point } from '../geometry';
 import type { MapEntity } from '../entities/entity';
 import type { DragEvent, MapEngine } from '../map-engine';
@@ -20,7 +21,8 @@ export const DRAG_THRESHOLD_PX = 4;
 export const exceedsThreshold = (a: Point, b: Point, threshold = DRAG_THRESHOLD_PX) =>
   Math.hypot(a.x - b.x, a.y - b.y) > threshold;
 
-const moveLabel = (n: number) => (n > 1 ? `Déplacer ${n} éléments` : 'Déplacer');
+const moveLabel = (n: number) =>
+  n > 1 ? translate('map.common.moveMany', { count: n }) : translate('map.common.move');
 
 export class DragSession {
   private dx = 0;
@@ -148,7 +150,8 @@ export class TransformSession {
       n.width !== g.width ||
       n.height !== g.height ||
       n.rotation !== g.rotation;
-    const label = this.handle === 'rotate' ? 'Pivoter' : 'Redimensionner';
+    const label =
+      this.handle === 'rotate' ? translate('map.common.rotate') : translate('map.common.resize');
     const result = changed
       ? this.engine.transformEntities([{ entity: this.entity, next: n }], label)
       : null;

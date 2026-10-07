@@ -12,6 +12,7 @@
  * - Rangement : annotation (plan `annotations`, au-dessus de l'ombre) si `layerId` est nul,
  *   sinon dans son calque.
  */
+import { translate } from '@/i18n/runtime';
 import { Layers2 } from 'lucide-react';
 import type { Graphics } from 'pixi.js';
 import {
@@ -118,7 +119,7 @@ export function annotationMenuItem(engine: MapEngine, entities: readonly MapEnti
   return [
     {
       id: 'drawings:to-annotation',
-      label: 'Passer en annotation',
+      label: translate('map.drawings.toAnnotation'),
       icon: Layers2,
       run: () => void moveToAnnotations(engine, layered),
     },
@@ -128,7 +129,7 @@ export function annotationMenuItem(engine: MapEngine, entities: readonly MapEnti
 export function drawingKind(rt: DrawingsRuntime): EntityKind<DrawingData> {
   return {
     id: DRAWING_KIND,
-    label: 'Dessin',
+    label: translate('map.drawings.drawing'),
     collection: DRAWINGS_COLLECTION,
     capabilities: ['select', 'move', 'resize', 'duplicate', 'delete', 'inspect', 'order'],
     plane: 'annotations',

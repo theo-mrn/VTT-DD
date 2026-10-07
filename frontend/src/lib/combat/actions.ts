@@ -8,6 +8,7 @@
  * `multicible` et `combat.groupes` sont lus sans supposer leur présence dans le schéma (ajout
  * du lot « règles ») : une donnée absente donne le comportement par défaut.
  */
+import { translate } from '@/i18n/runtime';
 import type { AttackRollMode } from '@vtt/contracts';
 import { ATTACK_TARGETS_MAX } from '@vtt/contracts';
 import {
@@ -92,7 +93,11 @@ export function groupActions(
   });
   const rest = actions.filter((a) => !placed.has(a.id));
   if (rest.length)
-    out.push({ id: 'autres', title: out.length ? 'Autres actions' : null, actions: rest });
+    out.push({
+      id: 'autres',
+      title: out.length ? translate('combat.otherActions') : null,
+      actions: rest,
+    });
   return out;
 }
 

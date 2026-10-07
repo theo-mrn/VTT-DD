@@ -3,6 +3,7 @@
  * « Épingler » (un gabarit durable, une commande annulable), modifications et effacement des
  * gabarits, personnages dans la zone.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import type { LiveAudience, LiveMeasure } from '@/lib/map/live/live-channel';
@@ -128,7 +129,7 @@ export function pin(ctx: MeasureModule, m = ctx.local.getState().measure): Promi
   const draft = templateDraft(ctx, m);
   const done = engine.execute(
     createCommand({
-      label: 'Épingler la mesure',
+      label: translate('map.measurements.pin'),
       collection: MEASUREMENTS,
       persistence: ctx.persistence,
       items: [draft],
@@ -197,7 +198,7 @@ export function clearTemplates(ctx: MeasureModule, all: boolean): Promise<boolea
   if (!items.length) return null;
   return engine.execute(
     deleteCommand({
-      label: all ? 'Effacer tous les gabarits' : 'Effacer mes gabarits',
+      label: all ? translate('map.measurements.clearAll') : translate('map.measurements.clearMine'),
       collection: MEASUREMENTS,
       persistence: ctx.persistence,
       items,

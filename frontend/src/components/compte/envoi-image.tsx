@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { translate } from '@/i18n/runtime';
 import { ApiError, messageErreur } from '@/lib/api';
 import { envoyerImage, TYPES_IMAGE, verifierImage, type TypeImage } from '@/lib/profil';
 import { useSession } from '@/lib/session';
-
-const MESSAGE_STOCKAGE =
-  "L'envoi d'images n'est pas encore disponible : le stockage n'est pas configuré sur ce serveur.";
 
 /**
  * Choix d'une image (avatar ou bannière) : vérification locale, aperçu,
@@ -57,7 +55,9 @@ export function useEnvoiImage(type: TypeImage) {
       setApercu(null);
     } catch (err) {
       setErreur(
-        err instanceof ApiError && err.status === 503 ? MESSAGE_STOCKAGE : messageErreur(err),
+        err instanceof ApiError && err.status === 503
+          ? translate('errors.upload.storageUnavailable')
+          : messageErreur(err),
       );
     } finally {
       setEnvoi(false);

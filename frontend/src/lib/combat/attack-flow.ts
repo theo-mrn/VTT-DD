@@ -20,6 +20,7 @@
  * - `queue` : PNJ suivants d'une attaque « à la suite » (§ 8.2) : « Suivant » garde l'action,
  *   les paramètres communs et les cibles.
  */
+import { activeLocale, translate } from '@/i18n/runtime';
 import {
   ATTACK_TARGETS_MAX,
   type ActionParams,
@@ -478,18 +479,21 @@ export type SubmitCheck =
 
 /** « Attaquer » est possible ; sinon, pourquoi (texte du bouton désactivé). */
 export function canSubmit(s: AttackFlowState, limits: { maxTargets?: number } = {}): SubmitCheck {
-  if (s.phase !== 'compose') return { ok: false, reason: 'busy', message: 'Attaque en cours' };
+  if (s.phase !== 'compose')
+    return { ok: false, reason: 'busy', message: translate('combat.submit.busy') };
   const d = s.draft;
-  if (!d.attackerId) return { ok: false, reason: 'no_attacker', message: 'Choisissez qui attaque' };
-  if (!d.actionId) return { ok: false, reason: 'no_action', message: 'Choisissez une action' };
+  if (!d.attackerId)
+    return { ok: false, reason: 'no_attacker', message: translate('combat.submit.noAttacker') };
+  if (!d.actionId)
+    return { ok: false, reason: 'no_action', message: translate('combat.submit.noAction') };
   if (!d.targetIds.length)
-    return { ok: false, reason: 'no_target', message: 'Choisissez au moins une cible' };
+    return { ok: false, reason: 'no_target', message: translate('combat.submit.noTarget') };
   const max = Math.min(limits.maxTargets ?? ATTACK_TARGETS_MAX, ATTACK_TARGETS_MAX);
   if (d.targetIds.length > max)
     return {
       ok: false,
       reason: 'too_many_targets',
-      message: `${max} cible${max > 1 ? 's' : ''} au plus pour cette action`,
+      message: translate('combat.submit.tooMany', { count: max }),
     };
   return { ok: true };
 }
@@ -567,12 +571,8 @@ export type MenuStage = 'action' | 'prepare' | 'roll' | 'end';
 
 export const MENU_STAGES: readonly MenuStage[] = ['action', 'prepare', 'roll', 'end'];
 
-export const MENU_STAGE_LABELS: Record<MenuStage, string> = {
-  action: 'Action',
-  prepare: 'Préparer',
-  roll: 'Jet',
-  end: 'Fin',
-};
+/** Nom d'une étape du menu (`combat.stages.<étape>`). */
+export const menuStageLabel = (stage: MenuStage) => translate(`combat.stages.${stage}`);
 
 /**
  * Étape à montrer : une seule action proposée saute l'étape « Action » ; la déclaration part
@@ -639,9 +639,12 @@ export function stepToLaunch(attack: Attack): Attack['pendingSteps'][number] | n
 /** « Lancer les dégâts », « Lancer les soins », « Tirer : Blessures critiques »… */
 export function stepButtonLabel(step: Attack['pendingSteps'][number]): string {
   const label = step.label?.trim();
-  if (!label) return 'Lancer la suite';
-  if (step.phase === 'table') return `Tirer : ${label}`;
-  return /s$/i.test(label) ? `Lancer les ${label.toLowerCase()}` : `Lancer : ${label}`;
+  if (!label) return translate('combat.step.next');
+  if (step.phase === 'table') return translate('combat.step.draw', { label });
+  // Un nom au pluriel (« Dégâts ») se lit « Lancer les dégâts » en français
+  return activeLocale() === 'fr' && /s$/i.test(label)
+    ? translate('combat.step.rollPlural', { label: label.toLowerCase() })
+    : translate('combat.step.roll', { label });
 }
 
 /** Étape à montrer pour une attaque déclarée, d'après son statut. */

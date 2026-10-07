@@ -5,6 +5,7 @@
  * Rayon en **pixels du monde** dans la donnée (comme l'ancienne carte) ; l'interface l'affiche
  * en unités (÷ `pixelsPerUnit`).
  */
+import { translate } from '@/i18n/runtime';
 import type { MapMusicZone } from '@vtt/contracts';
 import type { Point } from '@/lib/map/engine/geometry';
 import { tempId } from '@/lib/map/store/commands';
@@ -55,7 +56,7 @@ export function soundZoneDraft(
     mapId,
     version: 0,
     updatedAt: '',
-    name: o.name.trim().slice(0, 200) || 'Zone sonore',
+    name: o.name.trim().slice(0, 200) || translate('map.sounds.zone'),
     pos: { x: round(pos.x), y: round(pos.y) },
     radius: round(o.radiusPx),
     url: null,

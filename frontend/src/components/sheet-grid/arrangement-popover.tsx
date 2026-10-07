@@ -6,6 +6,7 @@
  * une reste affichée) et retour à la présentation du système. Chaque réglage est appliqué
  * aussitôt au bloc (aperçu) et enregistré avec la mise en page.
  */
+import { useTranslations } from 'next-intl';
 import { ArrowDown, ArrowUp, Columns3, GripVertical, RotateCcw, X } from 'lucide-react';
 import { useId, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import {
@@ -52,6 +53,7 @@ export function ArrangementPopover({
   /** Retire une valeur du bloc (il en garde au moins une). */
   onRemove?: (key: string) => void;
 }>) {
+  const t = useTranslations();
   const keys = tiles.map((t) => t.key);
   const parCle = new Map(tiles.map((t) => [t.key, t]));
   const ordre = orderedKeys(keys, value);
@@ -73,7 +75,9 @@ export function ArrangementPopover({
     suivant.splice(de, 1);
     suivant.splice(vers, 0, cle);
     emettre({ ...value, order: suivant });
-    setAnnonce(`${nom(cle)} : position ${vers + 1} sur ${ordre.length}.`);
+    setAnnonce(
+      t('sheet.arrange.position', { name: nom(cle), position: vers + 1, total: ordre.length }),
+    );
     if (!focus) return;
     // Le bouton utilisé peut devenir inactif en bout de liste : l'autre prend le focus
     requestAnimationFrame(() => {
@@ -91,12 +95,14 @@ export function ArrangementPopover({
     else if (affichees.size > 1) masques.add(cle);
     else return;
     emettre({ ...value, hidden: ordre.filter((k) => masques.has(k)) });
-    setAnnonce(`${nom(cle)} ${visible ? 'affichée' : 'masquée'}.`);
+    setAnnonce(t(visible ? 'sheet.arrange.shown' : 'sheet.arrange.hidden', { name: nom(cle) }));
   }
 
   function choisirColonnes(c: TileColumns) {
     emettre({ ...value, columns: c });
-    setAnnonce(c === 'auto' ? 'Colonnes automatiques.' : `${c} colonne(s).`);
+    setAnnonce(
+      c === 'auto' ? t('sheet.arrange.autoColumns') : t('sheet.arrange.columnsCount', { count: c }),
+    );
   }
 
   // Groupe de boutons radio : une seule tabulation, les flèches changent le choix
@@ -128,8 +134,8 @@ export function ArrangementPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`Disposition du bloc ${title}`}
-          title="Disposition"
+          aria-label={t('sheet.arrange.layoutOf', { name: title })}
+          title={t('sheet.arrange.layout')}
           className={cn(
             'sheet-no-drag ml-1 flex shrink-0 items-center gap-1 rounded-md border border-border bg-surface-2 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground',
             'transition-colors duration-150 hover:bg-surface-3 hover:text-foreground motion-reduce:transition-none',
@@ -137,7 +143,7 @@ export function ArrangementPopover({
           )}
         >
           <Columns3 className="size-3.5" aria-hidden />
-          <span className="hidden sm:inline">Disposition</span>
+          <span className="hidden sm:inline">{t('sheet.arrange.layout')}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -145,7 +151,7 @@ export function ArrangementPopover({
         collisionPadding={12}
         // Jamais hors de l'écran : bornée à la hauteur disponible, le contenu défile
         className="flex max-h-[min(36rem,var(--radix-popover-content-available-height))] w-80 flex-col p-0"
-        aria-label={`Disposition du bloc ${title}`}
+        aria-label={t('sheet.arrange.layoutOf', { name: title })}
         // Rien ne remonte jusqu'à la grille (déplacement du bloc, raccourcis clavier)
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
@@ -153,7 +159,7 @@ export function ArrangementPopover({
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 [scrollbar-width:thin]">
           <div>
             <p id={`${ids}-titre`} className="text-sm font-semibold">
-              Disposition
+              {t('sheet.arrange.layout')}
             </p>
             <p className="text-xs text-muted-foreground">
               Colonnes et ordre des valeurs de « {title} ».
@@ -162,7 +168,7 @@ export function ArrangementPopover({
 
           <section aria-labelledby={`${ids}-colonnes`} className="space-y-1.5">
             <p id={`${ids}-colonnes`} className="text-xs font-medium text-muted-foreground">
-              Colonnes
+              {t('sheet.arrange.columnsTitle')}
             </p>
             <div
               role="radiogroup"
@@ -178,7 +184,11 @@ export function ArrangementPopover({
                     type="button"
                     role="radio"
                     aria-checked={actif}
-                    aria-label={c === 'auto' ? 'Automatique' : pluriel(c, 'colonne')}
+                    aria-label={
+                      c === 'auto'
+                        ? t('sheet.arrange.auto')
+                        : t('sheet.arrange.columns', { count: c })
+                    }
                     tabIndex={actif ? 0 : -1}
                     onClick={() => !actif && choisirColonnes(c)}
                     className={cn(
@@ -190,22 +200,25 @@ export function ArrangementPopover({
                         : 'text-muted-foreground hover:bg-surface-3 hover:text-foreground',
                     )}
                   >
-                    {c === 'auto' ? 'Auto' : c}
+                    {c === 'auto' ? t('sheet.arrange.autoShort') : c}
                   </button>
                 );
               })}
             </div>
             <p className="text-[11px] text-subtle">
               {rangees === null
-                ? 'Auto : s’adapte à la largeur du bloc.'
-                : `${Math.min(colonnes as number, affichees.size)} par rangée, ${pluriel(rangees, 'rangée')}.`}
+                ? t('sheet.arrange.autoHint')
+                : t('sheet.arrange.perRow', {
+                    count: Math.min(colonnes as number, affichees.size),
+                    rows: rangees,
+                  })}
             </p>
           </section>
 
           <section aria-labelledby={`${ids}-valeurs`} className="space-y-1.5">
             <p id={`${ids}-valeurs`} className="text-xs font-medium text-muted-foreground">
-              Valeurs
-              <span className="font-normal text-subtle"> · glisser pour réordonner</span>
+              {t('sheet.page.values')}
+              <span className="font-normal text-subtle"> {t('sheet.arrange.dragToReorder')}</span>
             </p>
             <ul
               ref={liste}
@@ -252,8 +265,8 @@ export function ArrangementPopover({
                       checked={visible}
                       disabled={derniere}
                       onCheckedChange={(v) => basculer(cle, v)}
-                      aria-label={`Afficher ${tuile?.label ?? cle}`}
-                      title={derniere ? 'Au moins une valeur reste affichée' : undefined}
+                      aria-label={t('sheet.arrange.show', { name: tuile?.label ?? cle })}
+                      title={derniere ? t('sheet.arrange.atLeastOne') : undefined}
                       className="scale-90"
                     />
                     <span
@@ -273,7 +286,7 @@ export function ArrangementPopover({
                       data-move="up"
                       disabled={i === 0}
                       onClick={() => deplacer(cle, i - 1, 'up')}
-                      aria-label={`Monter ${tuile?.label ?? cle}`}
+                      aria-label={t('sheet.arrange.up', { name: tuile?.label ?? cle })}
                     >
                       <ArrowUp />
                     </Button>
@@ -283,7 +296,7 @@ export function ArrangementPopover({
                       data-move="down"
                       disabled={i === ordre.length - 1}
                       onClick={() => deplacer(cle, i + 1, 'down')}
-                      aria-label={`Descendre ${tuile?.label ?? cle}`}
+                      aria-label={t('sheet.arrange.down', { name: tuile?.label ?? cle })}
                     >
                       <ArrowDown />
                     </Button>
@@ -294,9 +307,9 @@ export function ArrangementPopover({
                         disabled={ordre.length <= 1}
                         onClick={() => {
                           onRemove(cle);
-                          setAnnonce(`${tuile?.label ?? cle} retirée du bloc.`);
+                          setAnnonce(t('sheet.arrange.removed', { name: tuile?.label ?? cle }));
                         }}
-                        aria-label={`Retirer ${tuile?.label ?? cle} du bloc`}
+                        aria-label={t('sheet.arrange.remove', { name: tuile?.label ?? cle })}
                       >
                         <X />
                       </Button>
@@ -311,10 +324,14 @@ export function ArrangementPopover({
                 onValueChange={(k) => {
                   if (!k) return;
                   onAdd(k);
-                  setAnnonce(`${addable.find((t) => t.key === k)?.label ?? k} ajoutée au bloc.`);
+                  setAnnonce(
+                    t('sheet.arrange.added', {
+                      name: addable.find((x) => x.key === k)?.label ?? k,
+                    }),
+                  );
                 }}
-                placeholder="Ajouter une valeur…"
-                aria-label={`Ajouter une valeur au bloc ${title}`}
+                placeholder={t('sheet.arrange.addValue')}
+                aria-label={t('sheet.arrange.addTo', { name: title })}
                 className="h-8 text-xs"
                 options={addable.map((t) => ({
                   valeur: t.key,
@@ -327,7 +344,7 @@ export function ArrangementPopover({
 
         <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-2.5">
           <p className="text-[11px] text-subtle">
-            {value ? 'Disposition personnalisée' : 'Présentation du système'}
+            {value ? t('sheet.arrange.custom') : t('sheet.arrange.system')}
           </p>
           <Button
             variant="ghost"
@@ -335,11 +352,11 @@ export function ArrangementPopover({
             disabled={!value}
             onClick={() => {
               onChange(undefined);
-              setAnnonce('Disposition du système rétablie.');
+              setAnnonce(t('sheet.arrange.restored'));
             }}
           >
             <RotateCcw />
-            Réinitialiser
+            {t('audio.mixer.reset')}
           </Button>
         </div>
         <p className="sr-only" aria-live="polite">
@@ -351,7 +368,6 @@ export function ArrangementPopover({
 }
 
 /** « 3 colonnes », « 1 rangée ». */
-const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 
 /**
  * Choix visé par une touche dans un groupe radio de `n` choix (`i` : le choix actuel) :

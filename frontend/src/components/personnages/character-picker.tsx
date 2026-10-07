@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+import type { Translator } from '@/i18n/text';
 import { calculer } from '@vtt/rules';
 import {
   ArrowRight,
@@ -71,6 +73,7 @@ interface CharacterOption {
  * création pas terminée se reprend dans l'assistant.
  */
 export function CharacterPicker({ campaignId }: { campaignId: string }) {
+  const t = useTranslations();
   const profile = useProfil();
   const router = useRouter();
   const campaign = useCampagne(campaignId);
@@ -115,7 +118,7 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
   const back = `/campagnes/${campaignId}`;
   const shell = (content: ReactNode) => (
     <div data-ambiance={c?.ambiance} className="min-h-dvh bg-background">
-      <EnTeteFocus quitter={{ href: back }} libelleQuitter="Retour au salon" />
+      <EnTeteFocus quitter={{ href: back }} libelleQuitter={t('table.scene.backToLobby')} />
       {content}
     </div>
   );
@@ -126,11 +129,11 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
       <div className="mx-auto max-w-xl px-4 py-16">
         <EtatVide
           icone={DoorOpen}
-          titre="Campagne introuvable"
-          description="Elle a peut-être été supprimée, ou vous n'en faites plus partie."
+          titre={t('characters.picker.notFound')}
+          description={t('characters.picker.notFoundHint')}
           action={
             <Button asChild variant="secondary">
-              <Link href="/campagnes">Retour aux campagnes</Link>
+              <Link href="/campagnes">{t('characters.picker.backToCampaigns')}</Link>
             </Button>
           }
         />
@@ -143,8 +146,8 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
   const heading = (actions?: ReactNode) => (
     <EnTetePage
       surtitre={[c.name, systemName].filter(Boolean).join(' · ')}
-      titre="Choisir votre personnage"
-      description="Le personnage que vous incarnez à la table. Vous pourrez en changer à tout moment en revenant ici."
+      titre={t('characters.picker.title')}
+      description={t('characters.picker.lead')}
       actions={actions}
     />
   );
@@ -155,12 +158,12 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
         {heading()}
         <EtatVide
           icone={Eye}
-          titre="Vous suivez cette campagne en spectateur"
-          description="Les spectateurs n'incarnent pas de personnage : vous voyez la table sans y jouer."
+          titre={t('characters.picker.spectator')}
+          description={t('characters.picker.spectatorHint')}
           action={
             <Button asChild>
               <Link href={`/campagnes/${campaignId}/table`}>
-                Entrer à la table
+                {t('characters.picker.enterTable')}
                 <ArrowRight />
               </Link>
             </Button>
@@ -176,15 +179,15 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
         {heading()}
         <EtatVide
           icone={TriangleAlert}
-          titre="Impossible de charger les personnages"
+          titre={t('characters.picker.loadFailed')}
           description={messageErreur(loadError)}
           action={
             <>
               <Button variant="secondary" onClick={() => void pcs.refetch()}>
-                Réessayer
+                {t('common.actions.retry')}
               </Button>
               <Button asChild variant="ghost">
-                <Link href={back}>Retour au salon</Link>
+                <Link href={back}>{t('table.scene.backToLobby')}</Link>
               </Button>
             </>
           }
@@ -203,11 +206,9 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
         {heading()}
         <EtatVide
           icone={UserRound}
-          titre="Aucun personnage joueur dans cette campagne"
+          titre={t('characters.picker.noCharacters')}
           description={
-            canCreate
-              ? 'Créez votre personnage pour rejoindre la table.'
-              : "Le maître du jeu n'autorise pas la création de personnages ici : demandez-lui de vous en préparer un."
+            canCreate ? t('characters.picker.createToJoin') : t('characters.picker.noCreation')
           }
           action={canCreate ? <CreateButton href={createHref} primary /> : undefined}
         />
@@ -233,7 +234,7 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
     try {
       // Un personnage libre est d'abord engagé dans la campagne, puis incarné
       await play.mutateAsync(p);
-      toast.success(p ? `Vous incarnez ${p.name}` : 'Vous entrez en maître du jeu');
+      toast.success(p ? `Vous incarnez ${p.name}` : t('characters.picker.asGm'));
       router.push(`/campagnes/${campaignId}/table`);
     } catch (err) {
       toast.error(messageErreur(err));
@@ -263,11 +264,11 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <fieldset className="min-w-0 space-y-8" onKeyDown={onKeyDown}>
-          <legend className="sr-only">Personnage incarné</legend>
+          <legend className="sr-only">{t('characters.picker.played')}</legend>
 
           {role === 'gm' && (
             <section>
-              <TitreSection>Mener la partie</TitreSection>
+              <TitreSection>{t('characters.picker.runGame')}</TitreSection>
               <GmOption
                 checked={selected === GM_OPTION}
                 current={current === GM_OPTION}
@@ -342,11 +343,12 @@ function canCreateIn(role: string, freeCreation: boolean): boolean {
 
 /** Lien vers l'assistant de création d'un personnage. */
 function CreateButton({ href, primary }: Readonly<{ href: string; primary: boolean }>) {
+  const t = useTranslations();
   return (
     <Button asChild variant={primary ? 'default' : 'secondary'}>
       <Link href={href}>
         <Plus />
-        Créer mon personnage
+        {t('characters.picker.createMine')}
       </Link>
     </Button>
   );
@@ -378,22 +380,19 @@ function PlayerCharacters({
   createHref: string | null;
   optionProps: OptionChoice;
 }>) {
+  const t = useTranslations();
   if (pcs.length > 0)
     return (
       <section>
-        <TitreSection compte={pcs.length}>Personnages joueurs</TitreSection>
+        <TitreSection compte={pcs.length}>{t('characters.picker.playerCharacters')}</TitreSection>
         <OptionGrid options={pcs} {...optionProps} />
       </section>
     );
   return (
     <EtatVide
       icone={UserRound}
-      titre="Aucun personnage joueur pour l'instant"
-      description={
-        gm
-          ? "Les personnages de vos joueurs apparaîtront ici dès qu'ils les auront créés."
-          : 'Créez votre personnage, ou amenez-en un que vous avez déjà.'
-      }
+      titre={t('characters.picker.noneYet')}
+      description={gm ? t('characters.picker.noneYetGm') : t('characters.picker.noneYetPlayer')}
       action={createHref ? <CreateButton href={createHref} primary /> : undefined}
     />
   );
@@ -468,6 +467,7 @@ function BringToggle({
   open: boolean;
   onToggle: () => void;
 }>) {
+  const t = useTranslations();
   const id = useId();
   return (
     <button
@@ -481,9 +481,9 @@ function BringToggle({
         <UserPlus className="size-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">Amener un personnage existant</span>
+        <span className="block text-sm font-medium">{t('characters.picker.bringExisting')}</span>
         <span id={id} className="block truncate text-[13px] text-muted-foreground">
-          Un de vos personnages hors campagne, engagé en entrant à la table
+          {t('characters.picker.bringHint')}
         </span>
       </span>
       <span className="tabular text-xs text-subtle">{count}</span>
@@ -566,6 +566,7 @@ function GmOption({
   onEnter: () => void;
   disabled: boolean;
 }>) {
+  const t = useTranslations();
   return (
     <div className="grid sm:grid-cols-2">
       <RadioCard
@@ -579,9 +580,9 @@ function GmOption({
           <Crown className="size-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold">Maître du jeu</span>
+          <span className="block truncate text-sm font-semibold">{t('common.roles.gmLong')}</span>
           <span className="block truncate text-[13px] text-muted-foreground">
-            Voir et diriger toute la table
+            {t('characters.picker.gmHint')}
           </span>
           {current && (
             <Badge ton="primaire" point className="mt-1.5">
@@ -607,6 +608,7 @@ function OptionCard({
   onEnter: () => void;
   disabled: boolean;
 }>) {
+  const t = useTranslations();
   const p = o.character;
   const statusId = useId();
   const highlights = p.summary.highlights.slice(0, 2);
@@ -630,7 +632,7 @@ function OptionCard({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{p.name}</span>
         <span className="block truncate text-[13px] text-muted-foreground">
-          {p.summary.tagline || 'Profil à compléter'}
+          {p.summary.tagline || t('characters.picker.profileToComplete')}
         </span>
         <span id={statusId} className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {highlights.map((h) => (
@@ -651,41 +653,44 @@ function OptionCard({
 
 /** Où en est le personnage : en création, qui l'incarne en ce moment, libre, hors campagne. */
 function OptionStatus({ option: o }: Readonly<{ option: CharacterOption }>) {
+  const t = useTranslations();
   if (o.character.inCreation)
     return (
       <Badge ton="alerte">
         <Hammer />
-        {o.mine ? 'Création à reprendre' : 'En création'}
+        {o.mine ? t('characters.picker.toResume') : t('characters.picker.inCreation')}
       </Badge>
     );
   if (o.takenFrom)
     return (
       <Badge ton="neutre" point>
-        Joué par {o.takenFrom.name}
+        {t('characters.picker.playedBy', { name: o.takenFrom.name })}
       </Badge>
     );
   if (o.playedBy)
     return (
       <Badge ton="primaire" point>
-        Vous l’incarnez
+        {t('characters.picker.youPlay')}
       </Badge>
     );
-  if (o.free) return <Badge ton="neutre">Hors campagne</Badge>;
-  return <Badge ton="neutre">Libre</Badge>;
+  if (o.free) return <Badge ton="neutre">{t('characters.picker.outside')}</Badge>;
+  return <Badge ton="neutre">{t('characters.picker.free')}</Badge>;
 }
 
 // ─── Sélection ───────────────────────────────────────────────────────────────
 
-function selectionStatus(selected: Choice | null) {
-  if (!selected) return 'Sélectionnez un personnage';
+function selectionStatus(t: Translator, selected: Choice | null) {
+  if (!selected) return t('characters.picker.selectOne');
   if (selected !== GM_OPTION && selected.takenFrom)
-    return `Joué par ${selected.takenFrom.name} : vous le lui reprenez`;
-  return 'Prêt à jouer';
+    return t('characters.picker.takeOver', { name: selected.takenFrom.name });
+  return t('characters.picker.ready');
 }
 
-function enterLabel(selected: Choice) {
-  if (selected === GM_OPTION) return 'Entrer en maître du jeu';
-  return selected.character.inCreation ? 'Reprendre la création' : 'Entrer à la table';
+function enterLabel(t: Translator, selected: Choice) {
+  if (selected === GM_OPTION) return t('characters.picker.enterAsGm');
+  return selected.character.inCreation
+    ? t('characters.picker.resumeCreation')
+    : t('characters.picker.enterTable');
 }
 
 /**
@@ -700,18 +705,13 @@ function SelectionNotes({
   option: CharacterOption;
   played: CharacterOption | null;
 }>) {
+  const t = useTranslations();
   const notes: string[] = [];
-  if (o.takenFrom)
-    notes.push(
-      `${o.takenFrom.name} l’incarne en ce moment : le choisir le lui reprend, avec la main sur sa fiche.`,
-    );
-  if (o.free) notes.push('Il sera engagé dans la campagne.');
-  if (!o.character.inCreation && !o.playedBy)
-    notes.push('Vous modifierez sa fiche tant que vous l’incarnez ; les autres joueurs la lisent.');
+  if (o.takenFrom) notes.push(t('characters.picker.takenNote', { name: o.takenFrom.name }));
+  if (o.free) notes.push(t('characters.picker.engagedNote'));
+  if (!o.character.inCreation && !o.playedBy) notes.push(t('characters.picker.editNote'));
   if (played && played.character.id !== o.character.id)
-    notes.push(
-      `Vous n’incarnerez plus ${played.character.name} : sa fiche passera en lecture seule.`,
-    );
+    notes.push(t('characters.picker.leaveNote', { name: played.character.name }));
   if (notes.length === 0) return null;
   return (
     <ul className="space-y-1 text-[13px] text-muted-foreground">
@@ -738,10 +738,11 @@ function SelectionPanel({
   sending: boolean;
   onEnter: () => void;
 }>) {
+  const t = useTranslations();
   if (!selected)
     return (
       <div className="rounded-2xl border border-dashed border-border-strong px-6 py-12 text-center text-sm text-muted-foreground">
-        Sélectionnez un personnage pour voir sa fiche.
+        {t('characters.picker.selectToView')}
       </div>
     );
 
@@ -749,10 +750,12 @@ function SelectionPanel({
     <div className="space-y-2">
       <Button size="lg" className="w-full" onClick={onEnter} loading={sending}>
         {selected !== GM_OPTION && selected.character.inCreation ? <Hammer /> : <ArrowRight />}
-        {enterLabel(selected)}
+        {enterLabel(t, selected)}
       </Button>
       <p className="text-center text-[11px] text-subtle">
-        <Kbd>Entrée</Kbd> ou double-clic sur une carte
+        {t.rich('characters.picker.enterKeys', {
+          enter: () => <Kbd>{t('chat.enterKey')}</Kbd>,
+        })}
       </p>
     </div>
   );
@@ -760,17 +763,15 @@ function SelectionPanel({
   if (selected === GM_OPTION)
     return (
       <section
-        aria-label="Maître du jeu"
+        aria-label={t('common.roles.gmLong')}
         className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-surface"
       >
         <span className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Crown className="size-5" />
         </span>
         <div className="space-y-1">
-          <h2 className="text-[15px] font-semibold">Maître du jeu</h2>
-          <p className="text-[13px] text-muted-foreground">
-            Vous voyez toute la carte, dirigez les PNJ et modifiez toutes les fiches.
-          </p>
+          <h2 className="text-[15px] font-semibold">{t('common.roles.gmLong')}</h2>
+          <p className="text-[13px] text-muted-foreground">{t('characters.picker.gmPower')}</p>
         </div>
         {action}
       </section>
@@ -878,8 +879,11 @@ function MobileBar({
   sending: boolean;
   onEnter: () => void;
 }>) {
+  const t = useTranslations();
   const name =
-    selected === GM_OPTION ? 'Maître du jeu' : (selected?.character.name ?? 'Aucun personnage');
+    selected === GM_OPTION
+      ? t('common.roles.gmLong')
+      : (selected?.character.name ?? t('characters.picker.none'));
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 lg:hidden">
       <div className="mx-auto flex max-w-6xl items-center gap-3">
@@ -902,10 +906,10 @@ function MobileBar({
         )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{name}</p>
-          <p className="truncate text-xs text-muted-foreground">{selectionStatus(selected)}</p>
+          <p className="truncate text-xs text-muted-foreground">{selectionStatus(t, selected)}</p>
         </div>
         <Button onClick={onEnter} disabled={!selected} loading={sending}>
-          {selected ? enterLabel(selected) : 'Entrer à la table'}
+          {selected ? enterLabel(t, selected) : t('characters.picker.enterTable')}
         </Button>
       </div>
     </div>
@@ -915,11 +919,12 @@ function MobileBar({
 // ─── Chargement ──────────────────────────────────────────────────────────────
 
 function PickerSkeleton() {
+  const t = useTranslations();
   return (
     <div
       className="mx-auto w-full max-w-6xl px-4 pt-8 sm:px-6"
       role="status"
-      aria-label="Chargement des personnages"
+      aria-label={t('characters.picker.loading')}
     >
       <div className="mb-8 space-y-2">
         <Skeleton className="h-3 w-40" />

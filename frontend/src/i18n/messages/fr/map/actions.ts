@@ -1,0 +1,15 @@
+export default {
+  layersPanel: 'Calques',
+  gridToggle: 'Quadrillage',
+  combatAttack: 'Attaquer',
+  presenceCursor: 'Montrer mon curseur',
+  movementPathToggle: 'Trajets des déplacements',
+  cameraFit: 'Recadrer la vue',
+  cameraZoomIn: 'Zoomer',
+  cameraZoomOut: 'Dézoomer',
+  fullscreenToggle: 'Plein écran',
+  fogCover: 'Tout couvrir de brouillard',
+  fogReveal: 'Tout découvrir',
+  explorationToggle: 'Activer ou couper l’exploration',
+  explorationReset: 'Réinitialiser l’exploration',
+} as const;

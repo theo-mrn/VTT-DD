@@ -16,6 +16,7 @@
  */
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   EtatEntite,
@@ -329,7 +330,7 @@ function versEngage(
 ): Personnage {
   return {
     id: e.characterId,
-    name: e.name ?? 'Personnage indisponible',
+    name: e.name ?? translate('sheet.unavailable'),
     portraitUrl: e.avatarUrl,
     system: { id: campagne.system, version: campagne.systemVersion },
     type: e.type ?? 'personnage',
@@ -388,9 +389,8 @@ export function conflitVersion(): ApiError {
   return new ApiError({
     status: 409,
     code: 'version_perimee',
-    title: 'Fiche modifiée entre-temps',
-    detail:
-      "Cette fiche vient d'être modifiée ailleurs (par le MJ ou dans un autre onglet) : elle a été rechargée. Refaites votre modification.",
+    title: translate('sheet.conflict.title'),
+    detail: translate('sheet.conflict.detail'),
   });
 }
 

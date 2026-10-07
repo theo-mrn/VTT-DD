@@ -10,6 +10,7 @@
  * - Le nom d'une cible vient de la liste de la campagne que le serveur m'a donnée ; une cible
  *   que je ne connais pas reste « Adversaire », sans jamais lire sa fiche.
  */
+import { translate } from '@/i18n/runtime';
 import type {
   Attack,
   AttackDecision,
@@ -87,23 +88,21 @@ export function outcomeLabel(
   hasSuccessRule: boolean,
 ): { label: string; tone: OutcomeTone } | null {
   if (!outcome) return null;
-  if (outcome.critical) return { label: 'Critique', tone: 'critical' };
-  if (outcome.fumble) return { label: 'Échec critique', tone: 'fumble' };
+  if (outcome.critical) return { label: translate('combat.outcome.critical'), tone: 'critical' };
+  if (outcome.fumble) return { label: translate('combat.outcome.fumble'), tone: 'fumble' };
   if (!hasSuccessRule) return null;
   return outcome.success
-    ? { label: 'Touché', tone: 'success' }
-    : { label: 'Raté', tone: 'failure' };
+    ? { label: translate('combat.outcome.hit'), tone: 'success' }
+    : { label: translate('combat.outcome.miss'), tone: 'failure' };
 }
 
 /** Décision du MJ vue par l'auteur (sans montants, § 5.6). */
 export function decisionLabel(decision: AttackDecision): string | null {
   switch (decision) {
     case 'applied':
-      return 'Appliqué';
     case 'skipped':
-      return 'Non appliqué';
     case 'reverted':
-      return 'Application annulée';
+      return translate(`combat.decision.${decision}`);
     default:
       return null;
   }
@@ -121,7 +120,7 @@ export function targetName(
   characterId: string,
   known: ReadonlyMap<string, KnownCharacter>,
 ): string {
-  return known.get(characterId)?.name ?? 'Adversaire';
+  return known.get(characterId)?.name ?? translate('combat.opponent');
 }
 
 /** Cibles qui doivent encore répondre (défense active). */

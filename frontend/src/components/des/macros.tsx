@@ -1,6 +1,7 @@
 'use client';
 
 import { BookmarkPlus, MoreHorizontal, PencilLine, Play, Trash2, Upload } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ export function lireMacros(settings: Record<string, unknown> | undefined): Macro
 
 /** Lecture et écriture des macros, synchronisées avec le profil (donc sur tous les appareils). */
 export function useMacros() {
+  const t = useTranslations('dice.macros');
   const { profil, modifierPreferences } = useSession();
   const macros = lireMacros(profil?.settings);
 
@@ -66,12 +68,12 @@ export function useMacros() {
         toast.success(succes, {
           // Une suppression se rattrape : on réenregistre la liste d'avant
           action: annulable
-            ? { label: 'Annuler', onClick: () => void enregistrer(avant) }
+            ? { label: t('undo'), onClick: () => void enregistrer(avant) }
             : undefined,
         });
       return true;
     } catch (err) {
-      toast.error('Impossible d’enregistrer les macros', { description: messageErreur(err) });
+      toast.error(t('saveFailed'), { description: messageErreur(err) });
       return false;
     }
   }
@@ -81,14 +83,14 @@ export function useMacros() {
     ajouter: (name: string, formula: string) =>
       enregistrer(
         [...macros, { id: crypto.randomUUID(), name, formula: normaliserFormule(formula) }],
-        'Macro enregistrée',
+        t('saved'),
       ),
     renommer: (id: string, name: string) =>
       enregistrer(macros.map((m) => (m.id === id ? { ...m, name } : m))),
     supprimer: (id: string) =>
       enregistrer(
         macros.filter((m) => m.id !== id),
-        'Macro supprimée',
+        t('deleted'),
         true,
       ),
   };
@@ -113,20 +115,21 @@ export function PucesMacros({
   /** Ouvre la fenêtre de nom (création ou renommage), rendue par l'appelant. */
   onEditer: (e: EditionMacro) => void;
 }>) {
+  const t = useTranslations('dice.macros');
   const { macros, supprimer } = useMacros();
   const plein = macros.length >= MACROS_MAX;
   // « Charger » attend la fermeture du menu : sinon Radix rend le focus à son bouton
   const aCharger = useRef<Macro | null>(null);
 
   return (
-    <ul className="flex flex-wrap items-center gap-1.5" aria-label="Macros">
+    <ul className="flex flex-wrap items-center gap-1.5" aria-label={t('label')}>
       {macros.map((m, i) => (
         <li key={m.id} className="shrink-0">
           <button
             type="button"
             onClick={() => onLancer(m)}
             title={m.formula}
-            aria-label={`Lancer la macro ${m.name} (${m.formula})`}
+            aria-label={t('rollMacro', { name: m.name, formula: m.formula })}
             aria-keyshortcuts={i < 9 ? String(i + 1) : undefined}
             className={cn(
               PUCE,
@@ -149,22 +152,22 @@ export function PucesMacros({
           type="button"
           disabled={!formuleValide || plein}
           onClick={() => onEditer({ mode: 'creer' })}
-          title={plein ? `${MACROS_MAX} macros au plus` : 'Enregistrer la formule comme macro'}
+          title={plein ? t('max', { max: MACROS_MAX }) : t('saveFormula')}
           className={cn(
             PUCE,
             'border-dashed text-muted-foreground hover:text-foreground disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
           )}
         >
           <BookmarkPlus className="size-3.5" aria-hidden />
-          {macros.length ? 'Enregistrer' : 'Enregistrer comme macro'}
+          {macros.length ? t('save') : t('saveAsMacro')}
         </button>
       </li>
       {macros.length > 0 && (
         <li className="shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger
-              aria-label="Gérer les macros"
-              title="Gérer les macros"
+              aria-label={t('manage')}
+              title={t('manage')}
               className={cn(
                 PUCE,
                 'w-8 justify-center px-0 text-muted-foreground hover:text-foreground data-[state=open]:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 [@media(pointer:coarse)]:w-11',
@@ -183,7 +186,7 @@ export function PucesMacros({
                 onCharger(m);
               }}
             >
-              <DropdownMenuLabel>Macros</DropdownMenuLabel>
+              <DropdownMenuLabel>{t('label')}</DropdownMenuLabel>
               {macros.map((m) => (
                 <DropdownMenuSub key={m.id}>
                   <DropdownMenuSubTrigger>
@@ -201,11 +204,11 @@ export function PucesMacros({
                       }}
                     >
                       <Upload aria-hidden />
-                      Charger dans le lanceur
+                      {t('load')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => onEditer({ mode: 'renommer', macro: m })}>
                       <PencilLine aria-hidden />
-                      Renommer…
+                      {t('rename')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -213,7 +216,7 @@ export function PucesMacros({
                       className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                     >
                       <Trash2 aria-hidden />
-                      Supprimer
+                      {t('delete')}
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
@@ -271,6 +274,7 @@ function DialogueMacro({
   onFermer: () => void;
   onValider: (nom: string) => Promise<void>;
 }>) {
+  const t = useTranslations('dice.macros');
   const [nom, setNom] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [ouvertPour, setOuvertPour] = useState<EditionMacro | null>(null);
@@ -302,27 +306,23 @@ function DialogueMacro({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={valider} className="grid gap-5">
           <DialogHeader>
-            <DialogTitle>{creation ? 'Nouvelle macro' : 'Renommer la macro'}</DialogTitle>
-            <DialogDescription>
-              {creation
-                ? 'Enregistrée dans votre profil, elle vous suit sur tous vos appareils.'
-                : 'La formule ne change pas.'}
-            </DialogDescription>
+            <DialogTitle>{creation ? t('newTitle') : t('renameTitle')}</DialogTitle>
+            <DialogDescription>{creation ? t('newText') : t('renameText')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="nom-macro">Nom</Label>
+            <Label htmlFor="nom-macro">{t('name')}</Label>
             <Input
               id="nom-macro"
               value={nom}
               onChange={(e) => setNom(e.target.value)}
-              placeholder="Attaque à l’épée"
+              placeholder={t('namePlaceholder')}
               maxLength={60}
               autoFocus
               autoComplete="off"
             />
           </div>
           <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2/60 px-3 py-2.5">
-            <span className="text-xs text-muted-foreground">Formule</span>
+            <span className="text-xs text-muted-foreground">{t('formula')}</span>
             <code className="truncate font-mono text-sm text-primary-strong">
               {formuleAffichee}
             </code>
@@ -330,11 +330,11 @@ function DialogueMacro({
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="ghost">
-                Annuler
+                {t('cancel')}
               </Button>
             </DialogClose>
             <Button type="submit" loading={enCours} disabled={!nom.trim()}>
-              {creation ? 'Enregistrer' : 'Renommer'}
+              {creation ? t('save') : t('renameButton')}
             </Button>
           </DialogFooter>
         </form>

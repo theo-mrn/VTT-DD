@@ -4,13 +4,14 @@
  * Inspecteur d'un gabarit épinglé (auteur ou MJ) : longueur et direction, couleur, options du
  * cône, effet animé. Chaque réglage est une commande annulable, pour toute la sélection.
  */
+import { translate } from '@/i18n/runtime';
 import { useEffect, useId, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import type { InspectorSectionProps } from '@/lib/map/engine/map-engine';
 import {
   coneOptions,
-  MEASURE_COLORS,
-  MEASURE_SHAPES,
+  measureColorOptions,
+  measureShapeLabel,
   reach,
   withCone,
   type MeasurementData,
@@ -87,18 +88,18 @@ export function MeasureInspector({ engine, entities }: Readonly<InspectorSection
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-muted-foreground">
-        {shape ? MEASURE_SHAPES.find((s) => s.value === shape)?.label : 'Gabarits'}
+        {shape ? measureShapeLabel(shape) : translate('map.measurements.templates')}
         {items.length > 1 ? ` · ${items.length}` : ''}
       </p>
       {single && r && (
         <>
-          <FieldRow label={LENGTH_LABELS[single.shape] ?? 'Longueur'} htmlFor={`${id}-length`}>
+          <FieldRow label={lengthLabel(single.shape)} htmlFor={`${id}-length`}>
             <NumberField
               id={`${id}-length`}
               value={r.length / ppu}
               suffix={unit}
               onCommit={(v) =>
-                patch('Longueur du gabarit', (m) => ({
+                patch(translate('map.measurements.templateLength'), (m) => ({
                   ...m,
                   end: endFor(m, v, (reach(m).angle * 180) / Math.PI),
                 }))
@@ -106,13 +107,13 @@ export function MeasureInspector({ engine, entities }: Readonly<InspectorSection
             />
           </FieldRow>
           {single.shape !== 'circle' && (
-            <FieldRow label="Direction" htmlFor={`${id}-angle`}>
+            <FieldRow label={translate('map.measurements.direction')} htmlFor={`${id}-angle`}>
               <NumberField
                 id={`${id}-angle`}
                 value={((((r.angle * 180) / Math.PI) % 360) + 360) % 360}
                 suffix="°"
                 onCommit={(v) =>
-                  patch('Direction du gabarit', (m) => ({
+                  patch(translate('map.measurements.templateDirection'), (m) => ({
                     ...m,
                     end: endFor(m, reach(m).length / ppu, v),
                   }))
@@ -123,33 +124,44 @@ export function MeasureInspector({ engine, entities }: Readonly<InspectorSection
         </>
       )}
       <div className="space-y-1.5">
-        <span className="text-[13px] text-foreground">Couleur</span>
+        <span className="text-[13px] text-foreground">{translate('map.lights.color')}</span>
         <Swatches
           value={sameColor}
-          options={MEASURE_COLORS}
-          onChange={(c) => c && patch('Couleur du gabarit', (m) => ({ ...m, color: c }))}
+          options={measureColorOptions()}
+          onChange={(c) =>
+            c && patch(translate('map.measurements.templateColor'), (m) => ({ ...m, color: c }))
+          }
         />
       </div>
       {shape === 'cone' && (
         <div className="space-y-1.5">
-          <span className="text-[13px] text-foreground">Cône</span>
+          <span className="text-[13px] text-foreground">
+            {translate('map.measurements.shapes.cone')}
+          </span>
           <ConeSettings
             value={coneOptions(first.options)}
             unit={unit}
             onChange={(cone) =>
-              patch('Cône du gabarit', (m) => ({ ...m, options: withCone(m.options, cone) }))
+              patch(translate('map.measurements.templateCone'), (m) => ({
+                ...m,
+                options: withCone(m.options, cone),
+              }))
             }
           />
         </div>
       )}
       {shape && skinnable(shape) && (
         <div className="space-y-1.5">
-          <span className="text-[13px] text-foreground">Effet animé</span>
+          <span className="text-[13px] text-foreground">
+            {translate('map.measurements.effect')}
+          </span>
           <SkinPicker
             engine={engine}
             shape={shape}
             value={items.every((m) => m.skin === first.skin) ? first.skin : null}
-            onChange={(skin) => patch('Effet du gabarit', (m) => ({ ...m, skin }))}
+            onChange={(skin) =>
+              patch(translate('map.measurements.templateEffect'), (m) => ({ ...m, skin }))
+            }
           />
         </div>
       )}
@@ -157,4 +169,9 @@ export function MeasureInspector({ engine, entities }: Readonly<InspectorSection
   );
 }
 
-const LENGTH_LABELS: Partial<Record<string, string>> = { circle: 'Rayon', cube: 'Demi-côté' };
+const lengthLabel = (shape: string) =>
+  shape === 'circle'
+    ? translate('map.measurements.radius')
+    : shape === 'cube'
+      ? translate('map.measurements.halfSide')
+      : translate('map.measurements.length');

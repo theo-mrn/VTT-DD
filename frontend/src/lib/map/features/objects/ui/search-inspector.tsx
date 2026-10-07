@@ -4,6 +4,7 @@
  * Inspecteur d'un objet, section « Fouille » (MJ ; docs/carte.md § 10) : ouvrir la fouille aux
  * joueurs, sa portée (en unités de jeu, du centre du token au bord de l'objet) et le contenu.
  */
+import { translate } from '@/i18n/runtime';
 import type { InspectorSectionProps } from '@/lib/map/engine/map-engine';
 import { deepEqual } from '@/lib/map/store/commands';
 import { setSearchable, updateObjects } from '../engine/placement';
@@ -27,13 +28,15 @@ export function SearchInspector({ engine, entities }: Readonly<InspectorSectionP
   return (
     <div className="space-y-4">
       <ToggleRow
-        label="Les joueurs peuvent fouiller"
-        hint="Un joueur dont un personnage est à portée voit « Fouiller » en cliquant l’objet."
+        label={translate('map.objects.playersCanSearch')}
+        hint={translate('map.objects.searchableHint')}
         checked={o.searchable === true}
         onChange={(on) => void setSearchable(engine, [entity], on)}
       />
       <div className="space-y-1.5">
-        <FieldLabel htmlFor={`search-radius-${entity.id}`}>Portée</FieldLabel>
+        <FieldLabel htmlFor={`search-radius-${entity.id}`}>
+          {translate('map.objects.reach')}
+        </FieldLabel>
         <div className="flex items-center gap-2">
           <CommitNumber
             id={`search-radius-${entity.id}`}
@@ -44,13 +47,13 @@ export function SearchInspector({ engine, entities }: Readonly<InspectorSectionP
             suffix={unit}
             className="w-28"
             onCommit={(r) =>
-              void updateObjects(engine, 'Portée de fouille', [entity], (x) => ({
+              void updateObjects(engine, translate('map.objects.searchReach'), [entity], (x) => ({
                 ...x,
                 searchRadius: r,
               }))
             }
           />
-          <p className="text-xs text-muted-foreground">du centre du token au bord de l’objet</p>
+          <p className="text-xs text-muted-foreground">{translate('map.objects.reachHint')}</p>
         </div>
       </div>
       <ContentsEditor

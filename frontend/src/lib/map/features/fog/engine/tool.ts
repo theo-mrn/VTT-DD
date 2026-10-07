@@ -14,6 +14,7 @@
  * | `pressing` | +4 px → `drawing`                        | lâcher : clic (sélectionne la zone touchée) |
  * | `drawing`  | rectangle, cercle ou tracé               | lâcher : une commande ; Échap : rien       |
  */
+import { translate } from '@/i18n/runtime';
 import type { Container, Graphics } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -29,7 +30,7 @@ import { dashedPolyline } from '@/lib/map/features/obstacles/engine/overlay';
 import { circlePolygon, hatchPolygon, lassoPolygon } from './geometry';
 import type { FogContext } from './kind';
 import {
-  FOG_MODE_LABELS,
+  fogModeLabel,
   FOG_TOOL_ID,
   FOG_ZONE_KIND,
   FOG_ZONES,
@@ -43,31 +44,12 @@ import {
 
 export type FogShape = 'rect' | 'circle' | 'lasso' | 'select';
 
-export const FOG_SHAPES: readonly { id: FogShape; label: string; key: string; hint: string }[] = [
-  {
-    id: 'rect',
-    label: 'Rectangle',
-    key: '1',
-    hint: 'Glisser un rectangle. Alt : mode inverse le temps du geste.',
-  },
-  {
-    id: 'circle',
-    label: 'Cercle',
-    key: '2',
-    hint: 'Glisser depuis le centre. ⇧ : rayon en cases entières. Alt : mode inverse.',
-  },
-  {
-    id: 'lasso',
-    label: 'Main levée',
-    key: '3',
-    hint: 'Tracer le contour à main levée. Alt : mode inverse.',
-  },
-  {
-    id: 'select',
-    label: 'Sélection',
-    key: '4',
-    hint: 'Cliquer, glisser, redimensionner ou supprimer (Suppr) les zones.',
-  },
+/** Formes de l'outil ; nom et aide : `map.fog.shapes.<id>.label|hint`. */
+export const FOG_SHAPES: readonly { id: FogShape; key: string }[] = [
+  { id: 'rect', key: '1' },
+  { id: 'circle', key: '2' },
+  { id: 'lasso', key: '3' },
+  { id: 'select', key: '4' },
 ];
 
 export interface FogSettings {
@@ -278,7 +260,7 @@ export class FogTool implements Tool {
     const draft = fogDraft(s.mapId, engine.viewer.userId, nextOrder(zones), mode, g);
     void engine.execute(
       createCommand({
-        label: FOG_MODE_LABELS[mode],
+        label: fogModeLabel(mode),
         collection: FOG_ZONES,
         persistence: this.ctx.persistence,
         items: [draft],

@@ -7,6 +7,7 @@
  * seules les attaques publiques y sont comptées). Les champs `tally` et `surprised` sont
  * facultatifs : absents, leurs puces ne s'affichent pas, rien d'autre ne change.
  */
+import { translate } from '@/i18n/runtime';
 import type { CombatParticipant, CombatState } from '@vtt/contracts';
 import type { IconeEtat, Presentation } from '@vtt/rules';
 
@@ -37,7 +38,7 @@ export interface CombatSituation {
 const participant = (combat: CombatState, id: string): CombatParticipant | undefined =>
   combat.order.find((p) => p.characterId === id);
 
-const times = (n: number) => (n === 1 ? 'une fois' : `${n} fois`);
+const times = (n: number) => translate('combat.situation.times', { count: n });
 
 /** Puces de l'attaquant : première attaque, attaques déjà faites ce round, surpris. */
 export function attackerChips(
@@ -50,32 +51,34 @@ export function attackerChips(
     return [
       {
         id: 'not-participant',
-        label: 'Hors du combat',
+        label: translate('combat.situation.outside'),
         tone: 'neutral',
-        hint: 'Ce personnage ne participe pas au combat en cours.',
+        hint: translate('combat.situation.outsideHint'),
       },
     ];
   const chips: SituationChip[] = [];
   if (me.surprised)
-    chips.push({ id: 'surprised', label: 'Surpris', tone: 'warning', hint: 'Marqué par le MJ.' });
+    chips.push({
+      id: 'surprised',
+      label: translate('combat.situation.surprised'),
+      tone: 'warning',
+      hint: translate('combat.situation.markedByGm'),
+    });
   const t = me.tally;
   if (t) {
     if (t.attacksMade === 0)
       chips.push({
         id: 'first-attack',
-        label: 'Première attaque',
+        label: translate('combat.situation.firstAttack'),
         tone: 'positive',
-        hint: 'Sa première attaque de ce combat.',
+        hint: translate('combat.situation.firstAttackHint'),
       });
     else if (t.attacksMadeRound > 0)
       chips.push({
         id: 'attacks-round',
-        label:
-          t.attacksMadeRound === 1
-            ? 'A déjà attaqué ce round'
-            : `A déjà attaqué ${t.attacksMadeRound} fois ce round`,
+        label: translate('combat.situation.attackedRound', { count: t.attacksMadeRound }),
         tone: 'info',
-        hint: `${t.attacksMade} attaque${t.attacksMade > 1 ? 's' : ''} depuis le début du combat.`,
+        hint: translate('combat.situation.attacksSoFar', { count: t.attacksMade }),
       });
   }
   return chips;
@@ -94,25 +97,35 @@ export function targetChips(
   if (targetId === attackerId)
     chips.push({
       id: 'self',
-      label: 'Lui-même',
+      label: translate('combat.situation.self'),
       tone: 'warning',
-      hint: 'L’attaquant se vise lui-même (auto-attaque).',
+      hint: translate('combat.situation.selfHint'),
     });
   if (!combat) return chips;
   const p = participant(combat, targetId);
   if (!p) {
-    chips.push({ id: 'not-participant', label: 'Hors du combat', tone: 'neutral' });
+    chips.push({
+      id: 'not-participant',
+      label: translate('combat.situation.outside'),
+      tone: 'neutral',
+    });
     return chips;
   }
-  if (p.defeated) chips.push({ id: 'defeated', label: 'Hors de combat', tone: 'danger' });
+  if (p.defeated)
+    chips.push({ id: 'defeated', label: translate('combat.situation.defeated'), tone: 'danger' });
   if (p.surprised)
-    chips.push({ id: 'surprised', label: 'Surpris', tone: 'warning', hint: 'Marqué par le MJ.' });
+    chips.push({
+      id: 'surprised',
+      label: translate('combat.situation.surprised'),
+      tone: 'warning',
+      hint: translate('combat.situation.markedByGm'),
+    });
   if (combat.initiativeRolled && !p.hasActed)
     chips.push({
       id: 'not-acted',
-      label: 'N’a pas encore agi',
+      label: translate('combat.situation.notActed'),
       tone: 'info',
-      hint: `Pas encore joué au round ${combat.round}.`,
+      hint: translate('combat.situation.notActedHint', { round: combat.round }),
     });
   if (p.tally) chips.push(targetedChip(p.tally));
   return chips;
@@ -123,15 +136,19 @@ function targetedChip(t: NonNullable<CombatParticipant['tally']>): SituationChip
   if (t.targetedRound > 0)
     return {
       id: 'targeted-round',
-      label: `Déjà visé ${times(t.targetedRound)} ce round`,
+      label: translate('combat.situation.targetedRound', { times: times(t.targetedRound) }),
       tone: 'warning',
-      hint: `Visé ${times(t.targeted)} depuis le début du combat.`,
+      hint: translate('combat.situation.targetedSoFar', { times: times(t.targeted) }),
     };
   return {
     id: 'not-targeted',
-    label: t.targeted > 0 ? 'Pas encore visé ce round' : 'Jamais visé',
+    label: translate(
+      t.targeted > 0 ? 'combat.situation.notTargetedRound' : 'combat.situation.neverTargeted',
+    ),
     tone: 'neutral',
-    ...(t.targeted > 0 ? { hint: `Visé ${times(t.targeted)} depuis le début du combat.` } : {}),
+    ...(t.targeted > 0
+      ? { hint: translate('combat.situation.targetedSoFar', { times: times(t.targeted) }) }
+      : {}),
   };
 }
 

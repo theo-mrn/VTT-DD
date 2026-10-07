@@ -16,5 +16,6 @@ databaseChangeLog:
   - include: { file: changes/0013-map-toolbar-layouts.sql, relativeToChangelogFile: true }
   - include: { file: changes/0014-shortcut-preferences.sql, relativeToChangelogFile: true }
   - include: { file: changes/0015-account-progression.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0015-profile-locale.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

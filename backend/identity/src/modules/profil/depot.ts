@@ -11,7 +11,7 @@ import { accountProgress, credentials, oauthAccounts, profiles, users } from '..
 import { bordersForLevel } from '../progression/levels.js';
 import { levelOf } from '../progression/service.js';
 import { echapperLike, jsonEgal, urlImageAcceptee, type PatchProfil } from './validation.js';
-import { compareCodeUnits } from '@vtt/contracts';
+import { compareCodeUnits, isLocale, type Locale } from '@vtt/contracts';
 
 export type Fournisseur = 'google' | 'discord';
 
@@ -28,6 +28,8 @@ export interface MonProfil {
   showPremiumBadge: boolean;
   timeSpentMinutes: number;
   emailNotifications: boolean;
+  /** Langue de l'interface choisie ; null : le navigateur décide (docs/i18n.md § 3). */
+  locale: Locale | null;
   settings: Record<string, unknown>;
   hasPassword: boolean;
   providers: Fournisseur[];
@@ -73,6 +75,7 @@ export async function lireMonProfil(db: Db, userId: string): Promise<MonProfil |
       showPremiumBadge: profiles.showPremiumBadge,
       timeSpentMinutes: profiles.timeSpentMinutes,
       emailNotifications: profiles.emailNotifications,
+      locale: profiles.locale,
       settings: profiles.settings,
       hasPassword: sql<boolean>`exists (select 1 from ${credentials} where ${credentials.userId} = ${users.id})`,
       providers: sql<
@@ -84,7 +87,9 @@ export async function lireMonProfil(db: Db, userId: string): Promise<MonProfil |
     .where(eq(users.id, userId))
     .limit(1);
   if (!ligne) return null;
-  return { ...ligne, createdAt: ligne.createdAt.toISOString() };
+  // Langue retirée de LOCALES depuis : comme sans choix
+  const locale = isLocale(ligne.locale) ? ligne.locale : null;
+  return { ...ligne, locale, createdAt: ligne.createdAt.toISOString() };
 }
 
 /** Profil visible par les autres joueurs : jamais d'e-mail. Null si inconnu ou désactivé. */

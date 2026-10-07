@@ -9,6 +9,8 @@
  *
  * En largeur étroite, le tableau devient une liste de voies dépliables.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import { Check, ChevronDown, Lock, Plus } from 'lucide-react';
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
@@ -25,13 +27,8 @@ function cellState(rank: PathRankView | undefined): CellState {
   return 'locked';
 }
 
-const STATE_LABEL: Record<CellState, string> = {
-  owned: 'acquise',
-  available: 'achetable',
-  blocked: 'prochain rang, bloqué',
-  locked: 'verrouillée',
-  empty: 'aucune',
-};
+/** État d'une case (`sheet.skills.cell.<état>`), lu par les lecteurs d'écran. */
+const stateLabel = (state: CellState) => translate(`sheet.skills.cell.${state}`);
 
 const CELL_CLASS: Record<CellState, string> = {
   owned: 'border-primary/45 bg-primary/[0.14] text-primary-strong hover:bg-primary/20',
@@ -108,7 +105,7 @@ function cellLabel(
   const cost = rank ? costText(rank, currencyName) : null;
   return [
     `${path.entry.nom}, rang ${rank?.rank ?? '?'} : ${rankTitle(rank)}`,
-    STATE_LABEL[state],
+    stateLabel(state),
     cost,
   ]
     .filter(Boolean)
@@ -131,9 +128,10 @@ export function PathsTable({
   currencyName: (id: string) => string;
   onSelect: (path: PathRow, rank: PathRankView) => void;
 }>) {
+  const t = useTranslations();
   if (!paths.length)
     return (
-      <p className="py-6 text-center text-sm text-muted-foreground">Aucune voie pour l’instant.</p>
+      <p className="py-6 text-center text-sm text-muted-foreground">{t('sheet.skills.noPath')}</p>
     );
   return narrow ? (
     <PathsList paths={paths} currencyName={currencyName} onSelect={onSelect} />
@@ -161,6 +159,7 @@ function PathsGrid({
   currencyName: (id: string) => string;
   onSelect: (path: PathRow, rank: PathRankView) => void;
 }>) {
+  const t = useTranslations();
   const ranks = Array.from({ length: columns }, (_, i) => i + 1);
   // Focus itinérant : une seule case atteignable par Tab, les flèches déplacent le focus
   const [focus, setFocus] = useState<[number, number]>(() => {
@@ -209,7 +208,7 @@ function PathsGrid({
         <thead>
           <tr>
             <th scope="col" className="px-1 text-left text-[11px] font-medium text-subtle">
-              <span className="sr-only">Voie</span>
+              <span className="sr-only">{t('sheet.skills.path')}</span>
             </th>
             {ranks.map((r) => (
               <th
@@ -236,7 +235,7 @@ function PathsGrid({
                   {path.source && <span className="truncate">{path.source}</span>}
                   <span
                     className="font-mono tabular"
-                    aria-label={`rang ${path.rank} sur ${path.maxRank}`}
+                    aria-label={t('sheet.skills.rankOf', { rank: path.rank, max: path.maxRank })}
                   >
                     {path.rank}/{path.maxRank}
                   </span>

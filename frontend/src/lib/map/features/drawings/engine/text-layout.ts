@@ -15,7 +15,7 @@ export const LINE_HEIGHT = 1.25;
 /** Taille de référence des mesures (les largeurs sont proportionnelles à la taille). */
 const REFERENCE = 100;
 /** Chaîne de mesure de l'œil de la police (celle de Pixi). */
-const METRICS_STRING = '|ÉqÅM';
+const METRICS_STRING = '|ÉqÅM'; // i18n-ignore
 const MAX_CACHE = 2_000;
 
 export interface NoteLayout {

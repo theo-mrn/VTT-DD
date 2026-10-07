@@ -7,6 +7,7 @@
  * Bonus (même opération, même état), et « Gérer les bonus » ajoute ou retire les bonus
  * propres.
  */
+import { useTranslations } from 'next-intl';
 import type { Entree } from '@vtt/rules';
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,7 @@ export function EntryDetails({
   writes?: SheetWrites;
   showDescription?: boolean;
 }>) {
+  const t = useTranslations();
   const { fiche } = ctx;
   const d = useMemo(() => describeEntry(fiche, entry), [fiche, entry]);
   // Entrée acquise à activer (capacité à activer…) : ses bonus ne s'appliquent qu'active
@@ -66,15 +68,13 @@ export function EntryDetails({
         <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">{activable.actif ? 'Active' : 'Inactive'}</p>
-            <p className="text-xs text-subtle">
-              Ses bonus ne s’appliquent que lorsqu’elle est active.
-            </p>
+            <p className="text-xs text-subtle">{t('sheet.skills.bonusWhenActive')}</p>
           </div>
           <Switch
             checked={activable.actif}
             disabled={!writes}
             onCheckedChange={(v) => writes?.setActive(entry.id, v)}
-            aria-label={`${activable.actif ? 'Désactiver' : 'Activer'} ${entry.nom}`}
+            aria-label={`${activable.actif ? t('sheet.effects.disable') : t('sheet.effects.enable')} ${entry.nom}`}
           />
         </div>
       )}

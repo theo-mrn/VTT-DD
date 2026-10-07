@@ -10,6 +10,8 @@
  * - Carte d'un modèle : portrait, nom, type, statistiques de la présentation du système ; clic :
  *   modifier ; menu : dupliquer, changer de catégorie, supprimer (les PNJ déjà posés restent).
  */
+import { compareText } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import {
   AlertTriangle,
@@ -101,6 +103,7 @@ function carteDe(
 }
 
 export function OngletPnj() {
+  const t = useTranslations('table.npcs');
   const { campagne } = useTable();
   const sys = useCampaignSystem(campagne.system, campagne.id);
   const templates = useNpcTemplates(campagne.id);
@@ -119,7 +122,7 @@ export function OngletPnj() {
         template: t,
         item: carteDe(rules.systeme, rules.presentation, t, categories),
       }))
-      .sort((a, b) => a.template.name.localeCompare(b.template.name, 'fr'));
+      .sort((a, b) => compareText(a.template.name, b.template.name));
   }, [sys.data, templates.data, categories]);
 
   const q = normaliser(query);
@@ -163,7 +166,7 @@ export function OngletPnj() {
     const ok =
       editing.mode === 'new'
         ? await run(
-            'Le PNJ n’a pas pu être créé',
+            t('createFailed'),
             () =>
               npcTemplatesApi.create(campagne.id, {
                 name: r.name,
@@ -173,9 +176,9 @@ export function OngletPnj() {
                 type: r.type,
                 ...valeurs,
               }),
-            `« ${r.name} » ajouté à vos PNJ`,
+            t('created', { name: r.name }),
           )
-        : await run('Le PNJ n’a pas pu être modifié', () =>
+        : await run(t('updateFailed'), () =>
             npcTemplatesApi.update(campagne.id, editing.template.id, editing.template.version, {
               name: r.name,
               categoryId: r.categoryId,
@@ -188,33 +191,33 @@ export function OngletPnj() {
   };
 
   // Copie complète de l'état (un modèle à l'état illisible ne se duplique pas)
-  const duplicate = (t: NpcTemplate) => {
-    const etat = t.etat;
+  const duplicate = (m: NpcTemplate) => {
+    const etat = m.etat;
     if (!etat) return;
     void run(
-      'Le PNJ n’a pas pu être dupliqué',
+      t('duplicateFailed'),
       () =>
         npcTemplatesApi.create(campagne.id, {
-          name: `${t.name} (copie)`.slice(0, 100),
-          categoryId: t.categoryId,
-          imageUrl: t.imageUrl,
-          tokenUrl: t.tokenUrl,
+          name: t('copySuffix', { name: m.name }).slice(0, 100),
+          categoryId: m.categoryId,
+          imageUrl: m.imageUrl,
+          tokenUrl: m.tokenUrl,
           etat,
         }),
-      `« ${t.name} » dupliqué`,
+      t('duplicated', { name: m.name }),
     );
   };
 
-  const remove = (t: NpcTemplate) =>
+  const remove = (m: NpcTemplate) =>
     void run(
-      'Le PNJ n’a pas pu être supprimé',
-      () => npcTemplatesApi.remove(campagne.id, t.id),
-      `« ${t.name} » supprimé de vos PNJ`,
+      t('deleteFailed'),
+      () => npcTemplatesApi.remove(campagne.id, m.id),
+      t('deleted', { name: m.name }),
     );
 
-  const move = (t: NpcTemplate, categoryId: string | null) =>
-    void run('Le PNJ n’a pas pu être rangé', () =>
-      npcTemplatesApi.update(campagne.id, t.id, t.version, { categoryId }),
+  const move = (m: NpcTemplate, categoryId: string | null) =>
+    void run(t('moveFailed'), () =>
+      npcTemplatesApi.update(campagne.id, m.id, m.version, { categoryId }),
     );
 
   if (sys.isPending || templates.isPending)
@@ -229,11 +232,11 @@ export function OngletPnj() {
         <Notice
           tone="error"
           icon={AlertTriangle}
-          title="PNJ indisponibles"
-          description={messageErreur(templates.error ?? sys.error, 'Réessayez dans un instant.')}
+          title={t('unavailable')}
+          description={messageErreur(templates.error ?? sys.error, t('tryAgainSoon'))}
           action={
             <Button variant="secondary" size="sm" onClick={() => void templates.refetch()}>
-              Réessayer
+              {t('retry')}
             </Button>
           }
         />
@@ -246,26 +249,26 @@ export function OngletPnj() {
         <SearchField
           value={query}
           onChange={setQuery}
-          label="Rechercher un PNJ"
-          placeholder="Rechercher un PNJ…"
+          label={t('search')}
+          placeholder={t('searchPlaceholder')}
           className="sm:w-64"
         />
         <div className="ml-auto flex items-center gap-1.5">
           <CategoryManager campaignId={campagne.id} categories={categories} onChanged={refresh} />
           <Button size="sm" onClick={() => setEditing({ mode: 'new' })}>
             <Plus />
-            Nouveau PNJ
+            {t('newNpc')}
           </Button>
         </div>
       </div>
 
       {categories.length > 0 && (
         <Chips
-          label="Catégories"
+          label={t('categories')}
           value={category}
           onChange={setCategory}
           options={[
-            { value: ALL, label: 'Tous', count: cards.length },
+            { value: ALL, label: t('all'), count: cards.length },
             ...categories.map((c) => ({
               value: c.id,
               label: c.name,
@@ -275,7 +278,7 @@ export function OngletPnj() {
               ? [
                   {
                     value: NONE,
-                    label: 'Sans catégorie',
+                    label: t('noCategory'),
                     count: counts.get('') ?? 0,
                   },
                 ]
@@ -287,19 +290,19 @@ export function OngletPnj() {
       {!cards.length && (
         <Notice
           icon={Skull}
-          title="Pas encore de PNJ"
-          description="Créez vos PNJ ici, rangez-les par catégories, puis posez-les sur la carte depuis la bibliothèque des personnages (A). Chacun reste un modèle, à poser autant de fois qu’il le faut."
+          title={t('empty')}
+          description={t('emptyText')}
           action={
             <Button size="sm" onClick={() => setEditing({ mode: 'new' })}>
               <Plus />
-              Nouveau PNJ
+              {t('newNpc')}
             </Button>
           }
         />
       )}
       {cards.length > 0 && !shown.length && (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-[13px] text-muted-foreground">
-          Aucun PNJ ne correspond.
+          {t('noMatch')}
         </p>
       )}
       {shown.length > 0 && (
@@ -328,12 +331,12 @@ export function OngletPnj() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editing?.mode === 'edit' ? `Modifier « ${editing.template.name} »` : 'Nouveau PNJ'}
+              {editing?.mode === 'edit'
+                ? t('editTitle', { name: editing.template.name })
+                : t('newNpc')}
             </DialogTitle>
             <DialogDescription>
-              {editing?.mode === 'edit'
-                ? 'Les PNJ déjà posés gardent leur fiche ; les prochains suivront ce modèle.'
-                : 'Un modèle à poser sur la carte autant de fois qu’il le faut (bibliothèque, A).'}
+              {editing?.mode === 'edit' ? t('editText') : t('newText')}
             </DialogDescription>
           </DialogHeader>
           {editing && (
@@ -377,6 +380,7 @@ function EditorForm({
   onSubmit(r: NpcFormResult): void;
   onCancel(): void;
 }>) {
+  const tr = useTranslations('table.npcs');
   const t = editing.mode === 'edit' ? editing.template : null;
   return (
     <NpcForm
@@ -391,7 +395,7 @@ function EditorForm({
       }
       defaultCategoryId={defaultCategory}
       columns={3}
-      submitLabel={t ? 'Enregistrer' : 'Créer le PNJ'}
+      submitLabel={t ? tr('save') : tr('create')}
       submitIcon={t ? <Pencil /> : <UserRoundPlus />}
       busy={busy}
       onSubmit={onSubmit}
@@ -425,13 +429,14 @@ function TemplateCard({
   onMove(categoryId: string | null): void;
   onDelete(): void;
 }>) {
+  const tr = useTranslations('table.npcs');
   const [confirm, setConfirm] = useState(false);
   return (
     <div className="group relative flex gap-3 rounded-xl border border-border bg-surface p-2.5 transition-colors hover:border-border-strong">
       <button
         type="button"
         onClick={onEdit}
-        aria-label={`Modifier ${name}`}
+        aria-label={tr('editOf', { name })}
         className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       />
       <Thumb
@@ -448,7 +453,7 @@ function TemplateCard({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{name}</p>
         <p className="truncate text-xs text-muted-foreground">
-          {[subtitle, category].filter(Boolean).join(' · ') || 'Sans catégorie'}
+          {[subtitle, category].filter(Boolean).join(' · ') || tr('noCategory')}
         </p>
         {stats.length > 0 && (
           <p className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
@@ -466,7 +471,7 @@ function TemplateCard({
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label={`Actions pour ${name}`}
+            aria-label={tr('actionsFor', { name })}
             className="relative z-10 shrink-0 self-start"
           >
             <MoreHorizontal />
@@ -475,21 +480,21 @@ function TemplateCard({
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem onSelect={onEdit}>
             <Pencil />
-            Modifier
+            {tr('edit')}
           </DropdownMenuItem>
           <DropdownMenuItem disabled={!t.etat} onSelect={onDuplicate}>
             <Copy />
-            Dupliquer
+            {tr('duplicate')}
           </DropdownMenuItem>
           {categories.length > 0 && (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <FolderInput />
-                Ranger dans
+                {tr('moveTo')}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-52">
                 <DropdownMenuItem disabled={!t.categoryId} onSelect={() => onMove(null)}>
-                  Sans catégorie
+                  {tr('noCategory')}
                 </DropdownMenuItem>
                 {categories.map((c) => (
                   <DropdownMenuItem
@@ -516,11 +521,11 @@ function TemplateCard({
             }}
           >
             <Trash2 />
-            {confirm ? 'Confirmer la suppression' : 'Supprimer'}
+            {confirm ? tr('confirmDelete') : tr('delete')}
           </DropdownMenuItem>
           {confirm && (
             <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
-              Les PNJ déjà posés sur la carte restent.
+              {tr('placedStay')}
             </DropdownMenuLabel>
           )}
         </DropdownMenuContent>
@@ -539,6 +544,7 @@ function CategoryManager({
   categories: readonly NpcTemplateCategory[];
   onChanged(): void;
 }>) {
+  const t = useTranslations('table.npcs');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const act = async (label: string, work: () => Promise<unknown>) => {
@@ -557,11 +563,7 @@ function CategoryManager({
   const add = async () => {
     const n = name.trim();
     if (!n) return;
-    if (
-      await act('La catégorie n’a pas pu être créée', () =>
-        npcTemplatesApi.createCategory(campaignId, n),
-      )
-    )
+    if (await act(t('categoryCreateFailed'), () => npcTemplatesApi.createCategory(campaignId, n)))
       setName('');
   };
 
@@ -570,11 +572,11 @@ function CategoryManager({
       <PopoverTrigger asChild>
         <Button variant="secondary" size="sm">
           <Tags />
-          Catégories
+          {t('categories')}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-3">
-        <p className="mb-2 text-sm font-semibold">Catégories</p>
+        <p className="mb-2 text-sm font-semibold">{t('categories')}</p>
         {categories.length ? (
           <ul className="mb-3 space-y-1">
             {categories.map((c) => (
@@ -583,12 +585,12 @@ function CategoryManager({
                 category={c}
                 disabled={busy}
                 onRename={(n) =>
-                  void act('La catégorie n’a pas pu être renommée', () =>
+                  void act(t('categoryRenameFailed'), () =>
                     npcTemplatesApi.renameCategory(campaignId, c.id, c.version, n),
                   )
                 }
                 onDelete={() =>
-                  void act('La catégorie n’a pas pu être supprimée', () =>
+                  void act(t('categoryDeleteFailed'), () =>
                     npcTemplatesApi.removeCategory(campaignId, c.id),
                   )
                 }
@@ -596,9 +598,7 @@ function CategoryManager({
             ))}
           </ul>
         ) : (
-          <p className="mb-3 text-xs text-muted-foreground">
-            Rangez vos PNJ : bandits, gardes, marchands…
-          </p>
+          <p className="mb-3 text-xs text-muted-foreground">{t('categoriesHint')}</p>
         )}
         <form
           className="flex gap-1.5"
@@ -610,15 +610,15 @@ function CategoryManager({
           <Input
             value={name}
             maxLength={100}
-            placeholder="Nouvelle catégorie"
-            aria-label="Nom de la nouvelle catégorie"
+            placeholder={t('newCategory')}
+            aria-label={t('newCategoryName')}
             onChange={(e) => setName(e.target.value)}
             className="h-8 text-[13px]"
           />
           <Button
             type="submit"
             size="icon-sm"
-            aria-label="Ajouter la catégorie"
+            aria-label={t('addCategory')}
             disabled={busy || !name.trim()}
           >
             <Plus />
@@ -640,6 +640,7 @@ function CategoryRow({
   onRename(name: string): void;
   onDelete(): void;
 }>) {
+  const t = useTranslations('table.npcs');
   const [draft, setDraft] = useState(c.name);
   const [confirm, setConfirm] = useState(false);
   const commit = () => {
@@ -652,7 +653,7 @@ function CategoryRow({
       <Input
         value={draft}
         maxLength={100}
-        aria-label={`Nom de la catégorie ${c.name}`}
+        aria-label={t('categoryName', { name: c.name })}
         disabled={disabled}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -666,8 +667,10 @@ function CategoryRow({
         variant="ghost"
         size="icon-sm"
         disabled={disabled}
-        aria-label={confirm ? `Confirmer la suppression de ${c.name}` : `Supprimer ${c.name}`}
-        title={confirm ? 'Cliquer encore : ses PNJ restent, sans catégorie' : undefined}
+        aria-label={
+          confirm ? t('confirmDeleteOf', { name: c.name }) : t('deleteOf', { name: c.name })
+        }
+        title={confirm ? t('clickAgain') : undefined}
         onClick={() => (confirm ? onDelete() : setConfirm(true))}
         onBlur={() => setConfirm(false)}
         className={cn('shrink-0', confirm && 'bg-destructive/10 text-destructive')}

@@ -27,6 +27,7 @@
  *   clic droit pendant un geste (trajet des déplacements) ;
  * - `plane(id)` : le conteneur Pixi d'un plan (vision, gm…), après le montage.
  */
+import { translate } from '@/i18n/runtime';
 import { attachMapPerf, perfEnabled } from '@/lib/perf/monitor';
 import { playGridOf, scenePixelsPerUnit, type MapGrid } from '@vtt/contracts';
 import { Crosshair, Focus, MousePointer2, Radio } from 'lucide-react';
@@ -503,7 +504,7 @@ export class MapEngine {
     // Outil par défaut : la sélection (V)
     this.tools.register({
       id: SELECT_TOOL_ID,
-      label: 'Sélection',
+      label: translate('map.tools.select'),
       icon: selectIcon,
       shortcut: { code: 'KeyV', label: 'V' },
       order: 0,
@@ -734,7 +735,7 @@ export class MapEngine {
     } catch (err) {
       console.error('[carte] rendu impossible', err);
       this.ui.setState({
-        failure: 'Impossible d’afficher la carte : le navigateur refuse WebGL.',
+        failure: translate('map.common.webglRefused'),
       });
     }
   }
@@ -1631,7 +1632,7 @@ export class MapEngine {
       // (le serveur met toute la géométrie à l'échelle, `rescale`)
       if (previous) {
         await backend.rescale(width / previous.width, height / previous.height);
-        if (this.entityMap.size) this.notify('Éléments adaptés à la nouvelle taille du fond');
+        if (this.entityMap.size) this.notify(translate('map.common.resized'));
       }
       const scene = this.store.getState().scene;
       const saved = await backend.updateScene({ width, height }, scene?.version);
@@ -1891,7 +1892,10 @@ export class MapEngine {
     const pairs = this.allowed(entities, 'lock').flatMap((e) =>
       e.kind.locked ? [{ entity: e, after: e.kind.locked.set(e.data, locked) }] : [],
     );
-    const cmd = this.updateEntities(locked ? 'Verrouiller' : 'Déverrouiller', pairs);
+    const cmd = this.updateEntities(
+      locked ? translate('map.common.lock') : translate('map.common.unlock'),
+      pairs,
+    );
     return cmd ? this.execute(cmd) : null;
   }
 
@@ -1899,7 +1903,10 @@ export class MapEngine {
     const pairs = this.allowed(entities, 'hide').flatMap((e) =>
       e.kind.hidden ? [{ entity: e, after: e.kind.hidden.set(e.data, hidden) }] : [],
     );
-    const cmd = this.updateEntities(hidden ? 'Masquer aux joueurs' : 'Montrer', pairs);
+    const cmd = this.updateEntities(
+      hidden ? translate('map.common.hideFromPlayers') : translate('map.common.show'),
+      pairs,
+    );
     return cmd ? this.execute(cmd) : null;
   }
 
@@ -1909,7 +1916,7 @@ export class MapEngine {
         ? [{ entity: e, after: e.kind.restrictedTo.set(e.data, characterIds) }]
         : [],
     );
-    const cmd = this.updateEntities('Visible pour…', pairs);
+    const cmd = this.updateEntities(translate('map.common.visibleFor'), pairs);
     return cmd ? this.execute(cmd) : null;
   }
 
@@ -1920,7 +1927,7 @@ export class MapEngine {
         entity: e,
         next: { ...e.geometry, rotation: normalizeDegrees(e.geometry.rotation + degrees) },
       }));
-    return this.transformEntities(changes, 'Pivoter');
+    return this.transformEntities(changes, translate('map.common.rotate'));
   }
 
   /** Flèches : déplace la sélection (une case, ⇧ : cinq). */
@@ -1933,7 +1940,7 @@ export class MapEngine {
         entity: e,
         next: { ...e.geometry, x: e.geometry.x + dx, y: e.geometry.y + dy },
       })),
-      'Déplacer',
+      translate('map.common.move'),
     );
   }
 
@@ -1953,14 +1960,14 @@ export class MapEngine {
     }
     const cmds = [...groups.entries()].map(([collection, g]) =>
       createCommand({
-        label: 'Dupliquer',
+        label: translate('map.common.duplicate'),
         collection,
         persistence: g.kind.persistence,
         items: g.items,
       }),
     );
     if (!cmds.length) return null;
-    const result = this.execute(groupCommands('Dupliquer', cmds));
+    const result = this.execute(groupCommands(translate('map.common.duplicate'), cmds));
     this.selection.replace([...groups.values()].flatMap((g) => g.items.map((i) => i.id)));
     return result;
   }
@@ -1979,9 +1986,9 @@ export class MapEngine {
       const message = kind.confirmDelete?.(list);
       if (message) {
         const ok = await this.confirm({
-          title: 'Supprimer ?',
+          title: translate('map.common.deleteConfirm'),
           message,
-          confirmLabel: 'Supprimer',
+          confirmLabel: translate('map.common.delete'),
           danger: true,
         });
         if (!ok) return false;
@@ -1997,7 +2004,10 @@ export class MapEngine {
       g.items.push(e.data);
       groups.set(e.kind.collection, g);
     }
-    const label = common.length > 1 ? `Supprimer ${common.length} éléments` : 'Supprimer';
+    const label =
+      common.length > 1
+        ? translate('map.common.deleteMany', { count: common.length })
+        : translate('map.common.delete');
     const cmds = [...groups.entries()].map(([collection, g]) =>
       deleteCommand({ label, collection, persistence: g.kind.persistence, items: g.items }),
     );
@@ -2103,10 +2113,10 @@ export class MapEngine {
       }
     }
     const labels: Record<OrderOp, string> = {
-      forward: 'Avancer',
-      backward: 'Reculer',
-      front: 'Premier plan',
-      back: 'Arrière-plan',
+      forward: translate('map.common.forward'),
+      backward: translate('map.common.backward'),
+      front: translate('map.common.front'),
+      back: translate('map.common.back'),
     };
     return this.runArrange(labels[op], moves);
   }
@@ -2191,7 +2201,7 @@ export class MapEngine {
       separator('map'),
       {
         id: 'map:ping',
-        label: 'Signaler ici',
+        label: translate('map.common.pingHere'),
         icon: pingIcon,
         shortcut: '⌥ clic',
         run: () => this.ping(world),
@@ -2200,13 +2210,18 @@ export class MapEngine {
         ? [
             {
               id: 'map:focus',
-              label: 'Amener tout le monde ici',
+              label: translate('map.common.bringEveryone'),
               icon: focusIcon,
               run: () => this.ping(world, true),
             },
           ]
         : []),
-      { id: 'map:fit', label: 'Recadrer la vue', icon: fitIcon, run: () => this.fitView() },
+      {
+        id: 'map:fit',
+        label: translate('map.common.fitView'),
+        icon: fitIcon,
+        run: () => this.fitView(),
+      },
     ];
   }
 
@@ -2338,7 +2353,7 @@ function trimSeparators(items: MenuItem[]): MenuItem[] {
 
 /** Libellé d'un changement de calque. */
 function layerMoveLabel(target: string): string {
-  if (target === 'above') return 'Calque au-dessus';
-  if (target === 'below') return 'Calque en dessous';
-  return 'Changer de calque';
+  if (target === 'above') return translate('map.common.layerAbove');
+  if (target === 'below') return translate('map.common.layerBelow');
+  return translate('map.common.changeLayer');
 }

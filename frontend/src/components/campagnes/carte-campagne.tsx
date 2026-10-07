@@ -1,6 +1,7 @@
 'use client';
 
 import { CalendarClock, Users } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Illustration } from '@/components/commun/illustration';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Campagne, RoleCampagne } from '@/lib/campagnes';
 import { useSystemes } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
-import { BadgeRole, formaterDans, PileAvatars } from './elements';
+import { useDates } from '@/i18n/dates';
+import { BadgeRole, PileAvatars } from './elements';
 
 /** Nom lisible d'un système à partir de l'index (identifiant en attendant). */
 export function useNomSysteme(id: string | null | undefined) {
@@ -48,6 +50,8 @@ export function CarteCampagne({
   className?: string;
   grande?: boolean;
 }) {
+  const t = useTranslations('campaigns.card');
+  const dates = useDates();
   const nomSysteme = useNomSysteme(campagne.system);
   const role = roleImpose !== undefined ? roleImpose : campagne.role;
   const session = campagne.nextSession;
@@ -57,7 +61,7 @@ export function CarteCampagne({
       <Illustration
         largeur={grande ? undefined : 640}
         src={campagne.coverUrl}
-        graine={campagne.name || 'Campagne'}
+        graine={campagne.name || campagne.id}
         className={cn('w-full', grande ? 'aspect-[16/8]' : 'aspect-[16/9]')}
         classeImage="transition-transform duration-700 ease-out group-hover:scale-[1.04]"
         voile
@@ -81,7 +85,7 @@ export function CarteCampagne({
               grande ? 'text-2xl' : 'text-[17px]',
             )}
           >
-            {campagne.name || 'Nouvelle campagne'}
+            {campagne.name || t('untitled')}
           </h3>
           {campagne.pitch && (
             <p
@@ -100,16 +104,16 @@ export function CarteCampagne({
           <PileAvatars membres={campagne.members} total={campagne.memberCount} />
           <span className="flex items-center gap-1 text-xs text-subtle">
             <Users className="size-3.5" />
-            {campagne.playerCount} {campagne.playerCount > 1 ? 'joueurs' : 'joueur'}
+            {t('players', { count: campagne.playerCount })}
           </span>
         </div>
         {session ? (
           <span className="flex shrink-0 items-center gap-1.5 text-xs text-primary">
             <CalendarClock className="size-3.5" />
-            {formaterDans(session.startsAt)}
+            {dates.inDays(session.startsAt)}
           </span>
         ) : (
-          <span className="text-xs text-subtle">Aucune session prévue</span>
+          <span className="text-xs text-subtle">{t('noSession')}</span>
         )}
       </div>
     </>

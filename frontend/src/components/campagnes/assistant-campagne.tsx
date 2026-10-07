@@ -11,6 +11,7 @@ import {
   Info as IconeInfo,
   Lock,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
@@ -40,17 +41,13 @@ import { cn } from '@/lib/utils';
 import { CarteCampagne } from './carte-campagne';
 import { AMBIANCES, COUVERTURES, ETIQUETTES } from './elements';
 
-const ETAPES = [
-  { id: 'histoire', nom: "L'histoire" },
-  { id: 'regles', nom: 'Les règles' },
-  { id: 'ambiance', nom: "L'ambiance" },
-  { id: 'table', nom: 'La table' },
-];
+const ETAPES = ['story', 'rules', 'ambiance', 'table'] as const;
 
 const ETIQUETTES_MAX = 4;
 
 /** Assistant de création d'une campagne, avec l'aperçu de la carte en direct. */
 export function AssistantCampagne() {
+  const t = useTranslations('campaigns.wizard');
   const profil = useProfil();
   const router = useRouter();
   const { modifierPreferences } = useSession();
@@ -136,7 +133,7 @@ export function AssistantCampagne() {
       <EnTeteFocus
         centre={
           <ProgressionEtapes
-            etapes={ETAPES}
+            etapes={ETAPES.map((id) => ({ id, nom: t(`steps.${id}`) }))}
             courante={etape}
             onAller={(i) => (i < etape || valide.slice(0, i).every(Boolean)) && aller(i)}
           />
@@ -170,16 +167,16 @@ export function AssistantCampagne() {
                 className={cn(etape === 0 && 'invisible')}
               >
                 <ArrowLeft />
-                Retour
+                {t('back')}
               </Button>
               {derniere ? (
                 <Button size="lg" onClick={() => void terminer()} loading={creer.isPending}>
                   <Check />
-                  Créer la campagne
+                  {t('create')}
                 </Button>
               ) : (
                 <Button size="lg" onClick={() => aller(etape + 1)} disabled={!valide[etape]}>
-                  Continuer
+                  {t('continue')}
                   <ArrowRight />
                 </Button>
               )}
@@ -188,17 +185,19 @@ export function AssistantCampagne() {
 
           <aside className="hidden lg:block">
             <div className="sticky top-24 space-y-4">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-subtle">Aperçu</p>
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-subtle">
+                {t('preview')}
+              </p>
               <CarteCampagne campagne={apercu} role="gm" />
               <ul className="space-y-2 rounded-2xl border border-border bg-card p-4 text-[13px] shadow-surface">
-                <Recap ok={valide[0]!} label="Un titre d'au moins 3 lettres" />
-                <Recap ok={valide[1]!} label="Un système de jeu" />
+                <Recap ok={valide[0]!} label={t('recap.title')} />
+                <Recap ok={valide[1]!} label={t('recap.system')} />
                 <Recap
                   ok={b.coverUrl !== null || b.couverture !== null}
-                  label="Une couverture"
+                  label={t('recap.cover')}
                   facultatif
                 />
-                <Recap ok={b.invite.length > 0} label="Des joueurs invités" facultatif />
+                <Recap ok={b.invite.length > 0} label={t('recap.invites')} facultatif />
               </ul>
             </div>
           </aside>
@@ -228,6 +227,7 @@ function Recap({
   label,
   facultatif,
 }: Readonly<{ ok: boolean; label: string; facultatif?: boolean }>) {
+  const t = useTranslations('campaigns.wizard.recap');
   return (
     <li className="flex items-center gap-2.5">
       <span
@@ -239,7 +239,7 @@ function Recap({
         {ok && <Check className="size-2.5" strokeWidth={3} />}
       </span>
       <span className={ok ? 'text-foreground' : 'text-muted-foreground'}>{label}</span>
-      {facultatif && <span className="ml-auto text-[11px] text-subtle">facultatif</span>}
+      {facultatif && <span className="ml-auto text-[11px] text-subtle">{t('optional')}</span>}
     </li>
   );
 }
@@ -272,35 +272,36 @@ interface PropsEtape {
 // ─── 1. L'histoire ───────────────────────────────────────────────────────────
 
 function EtapeHistoire({ b, maj }: Readonly<PropsEtape>) {
-  const basculer = (t: string) => {
-    if (b.tags.includes(t)) maj({ tags: b.tags.filter((x) => x !== t) });
-    else if (b.tags.length < ETIQUETTES_MAX) maj({ tags: [...b.tags, t] });
+  const t = useTranslations('campaigns');
+  const basculer = (tag: string) => {
+    if (b.tags.includes(tag)) maj({ tags: b.tags.filter((x) => x !== tag) });
+    else if (b.tags.length < ETIQUETTES_MAX) maj({ tags: [...b.tags, tag] });
   };
   return (
     <>
       <TitreEtape
-        surtitre="Nouvelle campagne"
-        titre="Quelle histoire allez-vous raconter ?"
-        description="Un titre qui donne envie, une accroche en une phrase : c'est ce que vos joueurs verront en premier."
+        surtitre={t('wizard.story.eyebrow')}
+        titre={t('wizard.story.title')}
+        description={t('wizard.story.lead')}
       />
       <div className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="c-nom">Titre de la campagne</Label>
+          <Label htmlFor="c-nom">{t('wizard.story.name')}</Label>
           <Input
             id="c-nom"
             autoFocus
             maxLength={80}
             value={b.name}
             onChange={(e) => maj({ name: e.target.value })}
-            placeholder="La Crypte d'Ashenvale"
+            placeholder={t('wizard.story.namePlaceholder')}
             className="h-12 text-lg font-medium"
           />
         </div>
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
-            <Label htmlFor="c-accroche">Accroche</Label>
+            <Label htmlFor="c-accroche">{t('wizard.story.pitch')}</Label>
             <span className="text-xs tabular text-subtle">
-              {b.pitch.length} / {LONGUEUR_ACCROCHE}
+              {t('wizard.story.count', { length: b.pitch.length, max: LONGUEUR_ACCROCHE })}
             </span>
           </div>
           <Input
@@ -308,34 +309,36 @@ function EtapeHistoire({ b, maj }: Readonly<PropsEtape>) {
             maxLength={LONGUEUR_ACCROCHE}
             value={b.pitch}
             onChange={(e) => maj({ pitch: e.target.value })}
-            placeholder="Sous les collines, quelque chose s'est réveillé."
+            placeholder={t('wizard.story.pitchPlaceholder')}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="c-description">Présentation</Label>
+          <Label htmlFor="c-description">{t('wizard.story.description')}</Label>
           <Textarea
             id="c-description"
             maxLength={LONGUEUR_DESCRIPTION}
             value={b.description}
             onChange={(e) => maj({ description: e.target.value })}
-            placeholder="Le contexte, le ton, ce que les joueurs doivent savoir avant la première session…"
+            placeholder={t('wizard.story.descriptionPlaceholder')}
             className="min-h-[140px]"
           />
         </div>
         <div className="space-y-3">
           <div className="flex items-baseline justify-between">
-            <Label>Genres</Label>
-            <span className="text-xs text-subtle">{ETIQUETTES_MAX} au plus</span>
+            <Label>{t('wizard.story.genres')}</Label>
+            <span className="text-xs text-subtle">
+              {t('wizard.story.genresMax', { max: ETIQUETTES_MAX })}
+            </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {ETIQUETTES.map((t) => {
-              const actif = b.tags.includes(t);
+            {ETIQUETTES.map((tag) => {
+              const actif = b.tags.includes(tag.valeur);
               return (
                 <button
-                  key={t}
+                  key={tag.valeur}
                   type="button"
                   aria-pressed={actif}
-                  onClick={() => basculer(t)}
+                  onClick={() => basculer(tag.valeur)}
                   className={cn(
                     'h-8 rounded-full border px-3.5 text-[13px] transition-all',
                     actif
@@ -343,7 +346,7 @@ function EtapeHistoire({ b, maj }: Readonly<PropsEtape>) {
                       : 'border-border-strong text-muted-foreground hover:border-subtle hover:text-foreground',
                   )}
                 >
-                  {t}
+                  {t(`tags.${tag.cle}`)}
                 </button>
               );
             })}
@@ -357,17 +360,14 @@ function EtapeHistoire({ b, maj }: Readonly<PropsEtape>) {
 // ─── 2. Les règles ───────────────────────────────────────────────────────────
 
 function EtapeRegles({ b, maj }: Readonly<PropsEtape>) {
+  const t = useTranslations('campaigns.wizard.rules');
   const systemes = useSystemes();
   return (
     <>
-      <TitreEtape
-        surtitre="Les règles"
-        titre="Avec quel système jouez-vous ?"
-        description="Les fiches, la création des personnages et les jets suivront ses règles, calculées automatiquement."
-      />
+      <TitreEtape surtitre={t('eyebrow')} titre={t('title')} description={t('lead')} />
       <div
         role="radiogroup"
-        aria-label="Système de jeu"
+        aria-label={t('system')}
         className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
       >
         {systemes.isLoading &&
@@ -383,7 +383,7 @@ function EtapeRegles({ b, maj }: Readonly<PropsEtape>) {
       </div>
       <p className="mt-5 flex items-start gap-2 text-[13px] text-subtle">
         <IconeInfo className="mt-0.5 size-4 shrink-0" />
-        Le système est définitif : les personnages de la campagne en dépendent.
+        {t('final')}
       </p>
     </>
   );
@@ -392,6 +392,7 @@ function EtapeRegles({ b, maj }: Readonly<PropsEtape>) {
 // ─── 3. L'ambiance ───────────────────────────────────────────────────────────
 
 function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
+  const t = useTranslations('campaigns');
   const champ = useRef<HTMLInputElement>(null);
   const [erreurImage, setErreurImage] = useState<string | null>(null);
   const apercuImport = useApercuFichier(b.couverture);
@@ -409,16 +410,16 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
   return (
     <>
       <TitreEtape
-        surtitre="L'ambiance"
-        titre="Donnez-lui un visage"
-        description="Une couverture et une couleur : elles habillent le salon de la campagne et sa carte."
+        surtitre={t('wizard.ambiance.eyebrow')}
+        titre={t('wizard.ambiance.title')}
+        description={t('wizard.ambiance.lead')}
       />
       <div className="space-y-8">
         <div>
-          <Label className="mb-3 block">Couverture</Label>
+          <Label className="mb-3 block">{t('wizard.ambiance.cover')}</Label>
           <div
             role="radiogroup"
-            aria-label="Couverture"
+            aria-label={t('wizard.ambiance.cover')}
             className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
           >
             {COUVERTURES.map((c) => {
@@ -429,7 +430,7 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
                   type="button"
                   role="radio"
                   aria-checked={choisie}
-                  aria-label={c.nom}
+                  aria-label={t(`covers.${c.nom}`)}
                   onClick={() => maj({ coverUrl: c.url, couverture: null })}
                   className={cn(
                     'group relative overflow-hidden rounded-xl border-2 transition-all',
@@ -447,7 +448,7 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
                     voile
                   >
                     <span className="absolute bottom-1.5 left-2.5 text-[11px] font-medium text-white/85">
-                      {c.nom}
+                      {t(`covers.${c.nom}`)}
                     </span>
                     {choisie && (
                       <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -471,14 +472,9 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
               )}
             >
               {apercuImport ? (
-                <Illustration
-                  src={apercuImport}
-                  graine="Couverture importée"
-                  className="absolute inset-0"
-                  voile
-                >
+                <Illustration src={apercuImport} graine="import" className="absolute inset-0" voile>
                   <span className="absolute bottom-1.5 left-2.5 text-[11px] font-medium text-white/85">
-                    Votre image
+                    {t('wizard.ambiance.yourImage')}
                   </span>
                   <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <Check className="size-3" strokeWidth={3} />
@@ -487,7 +483,7 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
               ) : (
                 <>
                   <ImagePlus className="size-4" />
-                  Importer une image
+                  {t('wizard.ambiance.importImage')}
                 </>
               )}
             </button>
@@ -504,7 +500,7 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
               )}
             >
               <ImageOff className="size-4" />
-              Sans image
+              {t('wizard.ambiance.noImage')}
             </button>
             <input
               ref={champ}
@@ -515,14 +511,16 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
             />
           </div>
           {erreurImage && <Message className="mt-3">{erreurImage}</Message>}
-          <p className="mt-3 text-xs text-subtle">
-            PNG, JPEG, WebP ou GIF, 5 Mo au plus : l&apos;image est envoyée à la création.
-          </p>
+          <p className="mt-3 text-xs text-subtle">{t('wizard.ambiance.imageHint')}</p>
         </div>
 
         <div>
-          <Label className="mb-3 block">Couleur d&apos;ambiance</Label>
-          <div role="radiogroup" aria-label="Couleur d'ambiance" className="flex flex-wrap gap-3">
+          <Label className="mb-3 block">{t('wizard.ambiance.color')}</Label>
+          <div
+            role="radiogroup"
+            aria-label={t('wizard.ambiance.color')}
+            className="flex flex-wrap gap-3"
+          >
             {AMBIANCES.map((a) => {
               const choisie = b.ambiance === a.id;
               return (
@@ -549,7 +547,7 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
                   >
                     {choisie && <Check className="size-3 text-black/70" strokeWidth={3} />}
                   </span>
-                  {a.nom}
+                  {t(`ambiances.${a.id}`)}
                 </button>
               );
             })}
@@ -563,6 +561,7 @@ function EtapeAmbiance({ b, maj }: Readonly<PropsEtape>) {
 // ─── 4. La table ─────────────────────────────────────────────────────────────
 
 function EtapeTable({ b, maj }: Readonly<PropsEtape>) {
+  const t = useTranslations('campaigns.wizard.table');
   const amis = useAmis();
   const invite = (id: string) => b.invite.some((i) => i.id === id);
   let etatAmis: 'chargement' | 'erreur' | 'aucun' | 'liste' = 'liste';
@@ -572,26 +571,22 @@ function EtapeTable({ b, maj }: Readonly<PropsEtape>) {
 
   return (
     <>
-      <TitreEtape
-        surtitre="La table"
-        titre="Qui s'assoit autour de la table ?"
-        description="Qui peut entrer, comment naissent les héros, et les amis à inviter tout de suite."
-      />
+      <TitreEtape surtitre={t('eyebrow')} titre={t('title')} description={t('lead')} />
       <div className="space-y-8">
-        <div role="radiogroup" aria-label="Visibilité" className="grid gap-3 sm:grid-cols-2">
+        <div role="radiogroup" aria-label={t('visibility')} className="grid gap-3 sm:grid-cols-2">
           <CarteChoix
             choisie={b.visibility === 'private'}
             onChoisir={() => maj({ visibility: 'private' })}
             icone={Lock}
-            titre="Privée"
-            description="Seuls les joueurs qui ont le code ou une invitation peuvent entrer."
+            titre={t('private')}
+            description={t('privateText')}
           />
           <CarteChoix
             choisie={b.visibility === 'public'}
             onChoisir={() => maj({ visibility: 'public' })}
             icone={Globe}
-            titre="Publique"
-            description="Visible par tous les joueurs de Yner, qui peuvent la rejoindre sans code."
+            titre={t('public')}
+            description={t('publicText')}
           />
         </div>
 
@@ -599,23 +594,24 @@ function EtapeTable({ b, maj }: Readonly<PropsEtape>) {
           <Interrupteur
             actif={b.freeCreation}
             onChange={(v) => maj({ freeCreation: v })}
-            label="Création libre des personnages"
-            description="Les joueurs créent leur héros eux-mêmes. Sinon, vous leur attribuez un personnage."
+            label={t('freeCreation')}
+            description={t('freeCreationText')}
           />
         </div>
 
         <div>
           <div className="mb-3 flex items-baseline justify-between">
-            <Label>Inviter des amis</Label>
+            <Label>{t('invite')}</Label>
             {b.invite.length > 0 && (
-              <span className="text-xs text-primary">{b.invite.length} invité(s)</span>
+              <span className="text-xs text-primary">
+                {t('invited', { count: b.invite.length })}
+              </span>
             )}
           </div>
-          {etatAmis === 'erreur' && <Message>Impossible de charger vos amis.</Message>}
+          {etatAmis === 'erreur' && <Message>{t('friendsError')}</Message>}
           {etatAmis === 'aucun' && (
             <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-sm text-subtle">
-              Pas encore d&apos;amis sur Yner : partagez simplement le code de la campagne une fois
-              créée.
+              {t('noFriends')}
             </p>
           )}
           {etatAmis === 'liste' && (

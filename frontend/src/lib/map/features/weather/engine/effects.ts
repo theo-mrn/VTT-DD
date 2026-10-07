@@ -9,6 +9,7 @@
  * - des émetteurs de particules (2 au plus), chacun un `ParticleContainer` ;
  * - des éclairs (orage), une vignette (alerte) ou un grain de parasites.
  */
+import { translate } from '@/i18n/runtime';
 
 /** Frames de l'atlas des particules (`textures.ts`). */
 export type AtlasFrame = 'streak' | 'dot' | 'flake' | 'leaf0' | 'leaf1' | 'leaf2' | 'ring';
@@ -72,9 +73,9 @@ export interface StrongSpec {
   lightning?: number;
 }
 
+/** Un effet de météo ; son nom : `map.weather.types.<id>` (`weatherName`). */
 export interface WeatherEffect {
   id: WeatherType;
-  label: string;
   group: 'nature' | 'scifi';
   /** Vent par défaut ; null : le vent n'a pas de sens pour l'effet (alerte, parasites). */
   wind: { direction: number; strength: number } | null;
@@ -145,10 +146,12 @@ const splashes = (density: number): EmitterSpec => ({
   still: false,
 });
 
+/** Nom d'un effet dans la langue de la page. */
+export const weatherName = (id: WeatherType) => translate(`map.weather.types.${id}`);
+
 export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   rain: {
     id: 'rain',
-    label: 'Pluie',
     group: 'nature',
     strong: { density: 2.4, speed: 1.3, alpha: 1.35 },
     wind: { direction: 0, strength: 0.2 },
@@ -157,7 +160,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   },
   storm: {
     id: 'storm',
-    label: 'Orage',
     group: 'nature',
     strong: { density: 2.3, speed: 1.3, alpha: 1.35, lightning: 2 },
     wind: { direction: 0, strength: 0.45 },
@@ -167,7 +169,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   },
   snow: {
     id: 'snow',
-    label: 'Neige',
     group: 'nature',
     strong: { density: 2.4, speed: 1.15, alpha: 1.15 },
     wind: { direction: 0, strength: 0.15 },
@@ -201,7 +202,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   },
   blizzard: {
     id: 'blizzard',
-    label: 'Blizzard',
     group: 'nature',
     strong: { density: 2.4, speed: 1.35, alpha: 1.35 },
     wind: { direction: 20, strength: 0.85 },
@@ -239,7 +239,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   },
   fog: {
     id: 'fog',
-    label: 'Brouillard',
     group: 'nature',
     strong: { density: 1, speed: 1.2, alpha: 1.45 },
     wind: { direction: 0, strength: 0.2 },
@@ -266,7 +265,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   },
   leaves: {
     id: 'leaves',
-    label: 'Feuilles au vent',
     group: 'nature',
     strong: { density: 2.4, speed: 1.2, alpha: 1 },
     wind: { direction: 15, strength: 0.55 },
@@ -291,7 +289,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   },
   embers: {
     id: 'embers',
-    label: 'Cendres et braises',
     group: 'nature',
     strong: { density: 2.4, speed: 1.15, alpha: 1.2 },
     wind: { direction: 0, strength: 0.15 },
@@ -326,7 +323,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   },
   sandstorm: {
     id: 'sandstorm',
-    label: 'Tempête de sable',
     group: 'nature',
     strong: { density: 2.4, speed: 1.35, alpha: 1.35 },
     wind: { direction: 0, strength: 0.9 },
@@ -354,7 +350,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   },
   alert: {
     id: 'alert',
-    label: 'Alerte rouge',
     group: 'scifi',
     strong: { density: 1, speed: 1, alpha: 1.25 },
     wind: null,
@@ -363,7 +358,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
   },
   static: {
     id: 'static',
-    label: 'Parasites',
     group: 'scifi',
     strong: { density: 1, speed: 1, alpha: 1.5 },
     wind: null,

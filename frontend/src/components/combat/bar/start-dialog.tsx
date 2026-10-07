@@ -6,6 +6,7 @@
  * surpris), la compétence d'initiative par camp (Star Wars), mode et réglages ; « Lancer
  * l'initiative » démarre et tire l'ordre, « Démarrer sans initiative » démarre seulement.
  */
+import { useTranslations } from 'next-intl';
 import {
   DEFAULT_COMBAT_SETTINGS,
   type ActionParams,
@@ -83,6 +84,7 @@ function StartBody({
   onConsult(characterId: string): void;
   onStarted(): void;
 }>) {
+  const t = useTranslations();
   const campaignId = campagne.id;
   const cast = useCast(campaignId);
   const commands = useCombatCommands(campaignId);
@@ -124,11 +126,11 @@ function StartBody({
     setBusy(roll);
     try {
       await commands.start(body);
-      toast.success('Le combat commence !');
+      toast.success(t('history.lines.combatStarts'));
       onStarted();
     } catch (err) {
       const message = combatFailure(err);
-      if (message) toast.error('Le combat n’a pas pu commencer', { description: message });
+      if (message) toast.error(t('combat.start.failed'), { description: message });
     } finally {
       setBusy(null);
     }
@@ -137,10 +139,8 @@ function StartBody({
   return (
     <>
       <header className="border-b border-border px-5 py-4 pr-12">
-        <DialogTitle className="font-display text-lg">Combat</DialogTitle>
-        <DialogDescription className="sr-only">
-          Qui se bat, cachés et surpris, puis le lancement.
-        </DialogDescription>
+        <DialogTitle className="font-display text-lg">{t('combat.bar.combat')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('combat.start.lead2')}</DialogDescription>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
@@ -162,12 +162,12 @@ function StartBody({
       </div>
 
       <footer className="flex flex-wrap items-end gap-2 border-t border-border p-3">
-        <Info texte="Mode et réglages">
+        <Info texte={t('combat.start.modeSettings')}>
           <Button
             variant="ghost"
             size="icon-sm"
             className={cn('size-10 rounded-[14px]', TOUCH)}
-            aria-label="Mode et réglages"
+            aria-label={t('combat.start.modeSettings')}
             onClick={() => setSettingsOpen(true)}
           >
             <Settings2 />
@@ -192,7 +192,7 @@ function StartBody({
           aria-busy={busy === false || undefined}
         >
           {busy === false ? <Loader2 className="animate-spin" /> : <Play />}
-          Démarrer sans initiative
+          {t('combat.start.noInitiative')}
         </Button>
         {action && (
           <Button
@@ -203,7 +203,7 @@ function StartBody({
             aria-busy={busy === true || undefined}
           >
             {busy === true ? <Loader2 className="animate-spin" /> : <Dices />}
-            Lancer l’initiative
+            {t('combat.initiative.roll')}
           </Button>
         )}
       </footer>
@@ -235,7 +235,11 @@ function SideSelects({
   value: Partial<Record<CampaignSide, ActionParams>>;
   onChange(value: Partial<Record<CampaignSide, ActionParams>>): void;
 }>) {
-  const options = [{ valeur: '', nom: 'Par défaut' }, ...entryOptionsOf(systeme, param)];
+  const t = useTranslations();
+  const options = [
+    { valeur: '', nom: t('combat.initiative.default') },
+    ...entryOptionsOf(systeme, param),
+  ];
   return (
     <div className="flex flex-wrap items-end gap-2" role="group" aria-label={param.nom}>
       {sides.map((side) => {
@@ -255,7 +259,10 @@ function SideSelects({
               }}
               options={options}
               className="h-10 w-36 rounded-[14px] text-xs"
-              aria-label={`${param.nom} des ${SIDE_LABELS[side].name.toLowerCase()}`}
+              aria-label={t('combat.start.paramOf', {
+                param: param.nom,
+                side: SIDE_LABELS[side].name.toLowerCase(),
+              })}
             />
           </label>
         );

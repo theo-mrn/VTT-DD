@@ -5,6 +5,7 @@
  * prestige, carrières, talents…), une recherche plein texte qui descend dans ce que chaque
  * entrée accorde, un filtre par groupe, et le détail navigable de l'entrée choisie.
  */
+import { useTranslations } from 'next-intl';
 import type { Entree, Presentation, SystemeCharge } from '@vtt/rules';
 import { BookOpen, SearchX } from 'lucide-react';
 import { useDeferredValue, useMemo, useState } from 'react';
@@ -43,6 +44,7 @@ export function CatalogueTab({
   systeme: SystemeCharge;
   presentation: Presentation | null;
 }>) {
+  const t = useTranslations();
   const sections = presentation?.references.capacites?.sections ?? [];
   const [index, setIndex] = useState(0);
   const [query, setQuery] = useState('');
@@ -107,9 +109,11 @@ export function CatalogueTab({
     hits.size === 0 ? (
       <Notice
         icon={SearchX}
-        title="Aucun résultat"
+        title={t('map.tokens.library.noResult')}
         description={
-          recherche ? `Rien ne correspond à « ${recherche} » dans ${section.titre}.` : undefined
+          recherche
+            ? t('resources.catalogue.noMatch', { search: recherche, section: section.titre })
+            : undefined
         }
       />
     ) : (
@@ -145,7 +149,7 @@ export function CatalogueTab({
       <Toolbar>
         {sections.length > 1 ? (
           <Chips
-            label="Sections"
+            label={t('resources.catalogue.sections')}
             value={String(index)}
             onChange={changerSection}
             options={sections.map((s, i) => ({
@@ -162,10 +166,10 @@ export function CatalogueTab({
             <SelectField
               value={group}
               onValueChange={setGroup}
-              aria-label="Filtrer par groupe"
+              aria-label={t('resources.catalogue.filterGroup')}
               className="h-9 sm:w-52"
               options={[
-                { valeur: TOUS, nom: 'Tous les groupes' },
+                { valeur: TOUS, nom: t('resources.catalogue.allGroups') },
                 ...groupNames.map((n) => ({ valeur: n, nom: n })),
               ]}
             />
@@ -173,8 +177,8 @@ export function CatalogueTab({
           <SearchField
             value={query}
             onChange={setQuery}
-            label={`Rechercher dans ${section.titre}`}
-            placeholder="Nom, texte d’une capacité…"
+            label={t('resources.catalogue.searchIn', { section: section.titre })}
+            placeholder={t('resources.catalogue.searchPlaceholder')}
           />
         </div>
       </Toolbar>
@@ -188,8 +192,8 @@ export function CatalogueTab({
           <div className="p-5">
             <Notice
               icon={BookOpen}
-              title="Choisissez une entrée"
-              description="Sa description, ses effets et ce qu’elle accorde s’affichent ici."
+              title={t('resources.catalogue.pickEntry')}
+              description={t('resources.catalogue.pickEntryHint')}
             />
           </div>
         }

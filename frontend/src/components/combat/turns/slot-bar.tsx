@@ -6,6 +6,7 @@
  * « Qui agit ? » (désigner, faire rejouer avec `force`) est la carte du personnage actif
  * (`SlotPickCard`, `side-cards.tsx`) tant que le créneau n'a pas d'acteur.
  */
+import { useTranslations } from 'next-intl';
 import type { CombatState } from '@vtt/contracts';
 import { cn } from '@/lib/utils';
 import { SIDE_LABELS, slotBar } from './model';
@@ -19,12 +20,13 @@ export function SlotBar({
   busy: boolean;
   onSlot(index: number): void;
 }>) {
+  const t = useTranslations();
   const cells = slotBar(combat);
   if (!cells.length) return null;
   return (
     <div
       role="group"
-      aria-label={`Créneaux du round ${combat.round}`}
+      aria-label={t('combat.slots.ofRound', { round: combat.round })}
       className="flex flex-wrap items-center gap-1"
     >
       {cells.map((c) => {
@@ -36,8 +38,11 @@ export function SlotBar({
             disabled={busy || c.current}
             onClick={() => onSlot(c.index)}
             aria-current={c.current ? 'step' : undefined}
-            aria-label={`Créneau ${c.index + 1} : ${label.name}${c.current ? ' (en cours)' : ''}`}
-            title={`Créneau ${c.index + 1} : ${label.name}`}
+            aria-label={t(c.current ? 'combat.slots.slotCurrent' : 'combat.slots.slot', {
+              n: c.index + 1,
+              side: label.name,
+            })}
+            title={t('combat.slots.slot', { n: c.index + 1, side: label.name })}
             className={cn(
               'grid size-8 place-items-center rounded-lg border font-mono text-xs font-semibold transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',

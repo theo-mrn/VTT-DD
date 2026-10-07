@@ -5,6 +5,7 @@
  * des rapports en attente (menu ⋯, puis la fiche de l'une d'elles) et « Qui agit ? » d'un
  * créneau sans acteur (mode slots, dans l'ordre déplié).
  */
+import { useTranslations } from 'next-intl';
 import type { CampaignSide } from '@vtt/contracts';
 import { ChevronRight, UserCheck, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -67,19 +68,18 @@ export function TargetsDialog({
   sheets: ReadonlyMap<string, ParticipantSheet>;
   onPick(characterId: string): void;
 }>) {
+  const t = useTranslations();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Cibles des rapports</DialogTitle>
-          <DialogDescription>
-            Les personnages visés par les rapports qui attendent votre décision.
-          </DialogDescription>
+          <DialogTitle>{t('combat.side.reportTargets')}</DialogTitle>
+          <DialogDescription>{t('combat.side.reportTargetsHint')}</DialogDescription>
         </DialogHeader>
         <ul className="space-y-1.5">
           {ids.map((id) => {
             const m = cast.get(id);
-            const name = m?.name ?? 'Personnage';
+            const name = m?.name ?? t('map.common.character');
             const sheet = sheets.get(id);
             return (
               <li key={id}>
@@ -132,6 +132,7 @@ export function SlotPickCard({
   busy: boolean;
   onChoose(characterId: string, force: boolean): void;
 }>) {
+  const t = useTranslations();
   return (
     <div
       className={cn(
@@ -140,16 +141,16 @@ export function SlotPickCard({
       )}
     >
       <CardLabel tone="primary" icon={UserCheck}>
-        Créneau des {SIDE_LABELS[side].name.toLowerCase()}
+        {t('combat.turn.slotOf', { side: SIDE_LABELS[side].name.toLowerCase() })}
       </CardLabel>
-      <p className="mt-0.5 text-sm font-semibold">Qui agit ?</p>
+      <p className="mt-0.5 text-sm font-semibold">{t('combat.side.whoActs')}</p>
       {candidates.length === 0 ? (
-        <p className="mt-2 text-[13px] text-subtle">Personne de ce camp ne peut agir.</p>
+        <p className="mt-2 text-[13px] text-subtle">{t('combat.side.nobody')}</p>
       ) : (
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {candidates.map((c) => {
             const m = cast.get(c.characterId);
-            const name = m?.name ?? 'Personnage';
+            const name = m?.name ?? t('map.common.character');
             return (
               <li key={c.characterId}>
                 <Button
@@ -157,7 +158,7 @@ export function SlotPickCard({
                   size="sm"
                   disabled={busy}
                   onClick={() => onChoose(c.characterId, c.acted)}
-                  title={c.acted ? `${name} a déjà agi ce round : le faire rejouer` : undefined}
+                  title={c.acted ? t('combat.side.replay', { name }) : undefined}
                   className="h-9 gap-2 pl-1.5"
                 >
                   <Illustration

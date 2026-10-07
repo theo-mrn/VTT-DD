@@ -6,6 +6,7 @@
  * créneau, relancer une initiative, cacher, surprendre, mettre hors de combat, réordonner,
  * retirer. Chaque commande appelle sa route ; la réponse remplace l'état du combat.
  */
+import { useTranslations } from 'next-intl';
 import type { CombatState } from '@vtt/contracts';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -13,6 +14,7 @@ import { combatFailure, useCombatCommands } from '@/lib/combat/use-combat';
 import { currentSlotOf, reorder } from '../turns/model';
 
 export function useTurnActions(campaignId: string, combat: CombatState | null) {
+  const t = useTranslations();
   const commands = useCombatCommands(campaignId);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -36,18 +38,18 @@ export function useTurnActions(campaignId: string, combat: CombatState | null) {
     // de son camp
     if (slot && p) {
       if (p.side === slot.side)
-        return void run('turn', 'Le tour n’a pas pu être donné', () =>
+        return void run('turn', t('combat.bar.turnFailed'), () =>
           commands.chooseSlotActor({ characterId: id, force: p.hasActed }),
         );
       const slots = combat.slots ?? [];
       const after = slots.findIndex((s, i) => i > slot.index && s.side === p.side);
       const target = after >= 0 ? after : slots.findIndex((s) => s.side === p.side);
       if (target < 0) return;
-      return void run('turn', 'Le tour n’a pas pu être donné', () =>
+      return void run('turn', t('combat.bar.turnFailed'), () =>
         commands.setTurn({ slotIndex: target, version: combat.version }),
       );
     }
-    void run('turn', 'Le tour n’a pas pu être donné', () =>
+    void run('turn', t('combat.bar.turnFailed'), () =>
       commands.setTurn({ characterId: id, version: combat.version }),
     );
   };
@@ -58,19 +60,19 @@ export function useTurnActions(campaignId: string, combat: CombatState | null) {
     /** Créneau choisi dans la suite J/E. */
     setSlot: (slotIndex: number) =>
       combat &&
-      void run('turn', 'Le tour n’a pas pu être donné', () =>
+      void run('turn', t('combat.bar.turnFailed'), () =>
         commands.setTurn({ slotIndex, version: combat.version }),
       ),
     /** « Qui agit ? » d'un créneau ; `force` : faire rejouer qui a déjà agi. */
     chooseSlotActor: (characterId: string, force: boolean) =>
-      void run('slot', 'Ce participant ne peut pas agir maintenant', () =>
+      void run('slot', t('combat.bar.cannotAct'), () =>
         commands.chooseSlotActor({ characterId, ...(force ? { force: true } : {}) }),
       ),
     reroll: (id: string) => {
       if (!combat) return;
       // Une relance reprend les paramètres de la précédente (compétence choisie…)
       const params = combat.order.find((p) => p.characterId === id)?.initiative?.params;
-      void run('reroll', 'L’initiative n’a pas pu être lancée', () =>
+      void run('reroll', t('combat.initiative.rollFailed'), () =>
         commands.rollParticipantInitiative(id, {
           ...(params && Object.keys(params).length ? { params } : {}),
           dice: 'server',
@@ -78,28 +80,26 @@ export function useTurnActions(campaignId: string, combat: CombatState | null) {
       );
     },
     setHidden: (id: string, hidden: boolean) =>
-      void run('hidden', 'La visibilité n’a pas pu changer', () =>
+      void run('hidden', t('combat.bar.visibilityFailed'), () =>
         commands.updateParticipant(id, { visibleToPlayers: !hidden }),
       ),
     setSurprised: (id: string, surprised: boolean) =>
-      void run('surprised', 'La surprise n’a pas pu changer', () =>
+      void run('surprised', t('combat.bar.surpriseFailed'), () =>
         commands.updateParticipant(id, { surprised }),
       ),
     setDefeated: (id: string, defeated: boolean) =>
-      void run('defeated', 'L’état n’a pas pu changer', () =>
+      void run('defeated', t('combat.bar.stateFailed'), () =>
         commands.updateParticipant(id, { defeated }),
       ),
     move: (id: string, to: number) => {
       if (!combat) return;
       const ids = combat.order.map((p) => p.characterId);
-      void run('order', 'L’ordre n’a pas pu changer', () =>
+      void run('order', t('combat.bar.orderFailed'), () =>
         commands.reorder({ order: reorder(ids, id, to), version: combat.version }),
       );
     },
     remove: (id: string) =>
-      void run('remove', 'Le participant n’a pas pu être retiré', () =>
-        commands.removeParticipant(id),
-      ),
+      void run('remove', t('combat.character.removeFailed'), () => commands.removeParticipant(id)),
   };
 }
 

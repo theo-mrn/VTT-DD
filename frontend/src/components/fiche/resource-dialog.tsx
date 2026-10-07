@@ -5,6 +5,8 @@
  * jauge, Dégâts, Soins ou Fixer, un montant (raccourcis 1, 2, 5, 10) et l'aperçu du
  * résultat, borné par le minimum et le maximum de la ressource. Rien n'est propre à un jeu.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import type { LucideIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -22,11 +24,8 @@ import { cn } from '@/lib/utils';
 
 type Mode = 'retirer' | 'ajouter' | 'fixer';
 
-const MODES: { id: Mode; label: string }[] = [
-  { id: 'retirer', label: 'Dégâts' },
-  { id: 'ajouter', label: 'Soins' },
-  { id: 'fixer', label: 'Fixer' },
-];
+/** Modes d'ajustement ; nom : `sheet.resource.modes.<mode>`. */
+const MODES: readonly Mode[] = ['retirer', 'ajouter', 'fixer'];
 
 const RACCOURCIS = [1, 2, 5, 10];
 
@@ -50,6 +49,7 @@ export function ResourceDialog({
   /** Déclencheur (la valeur affichée sur la fiche). */
   children: ReactNode;
 }>) {
+  const t = useTranslations();
   const [ouvert, setOuvert] = useState(false);
   const [mode, setMode] = useState<Mode>('retirer');
   const [texte, setTexte] = useState('');
@@ -89,7 +89,7 @@ export function ResourceDialog({
             )}
             {nom}
           </DialogTitle>
-          <DialogDescription>Dégâts, soins, ou nouvelle valeur.</DialogDescription>
+          <DialogDescription>{t('sheet.resource.hint')}</DialogDescription>
         </DialogHeader>
 
         {/* Valeur actuelle et aperçu */}
@@ -98,31 +98,31 @@ export function ResourceDialog({
         {/* Dégâts, soins ou valeur fixée */}
         <div
           role="radiogroup"
-          aria-label="Type d’ajustement"
+          aria-label={t('sheet.resource.type')}
           className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface-2 p-1"
         >
           {MODES.map((m) => (
             <button
-              key={m.id}
+              key={m}
               type="button"
               role="radio"
-              aria-checked={mode === m.id}
-              onClick={() => setMode(m.id)}
+              aria-checked={mode === m}
+              onClick={() => setMode(m)}
               className={cn(
                 'h-9 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-                mode === m.id
-                  ? MODE_ACTIF[m.id]
+                mode === m
+                  ? MODE_ACTIF[m]
                   : 'text-muted-foreground hover:bg-surface-3 hover:text-foreground',
               )}
             >
-              {m.label}
+              {t(`sheet.resource.modes.${m}`)}
             </button>
           ))}
         </div>
 
         <div className="space-y-2">
           <label htmlFor="ressource-montant" className="text-xs font-medium text-muted-foreground">
-            {mode === 'fixer' ? 'Nouvelle valeur' : 'Montant'}
+            {mode === 'fixer' ? t('sheet.resource.newValue') : t('sheet.resource.amount')}
           </label>
           <Input
             id="ressource-montant"
@@ -153,7 +153,7 @@ export function ResourceDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => fermer(false)}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button
             variant={mode === 'retirer' ? 'destructive' : 'default'}
@@ -238,7 +238,7 @@ function ajuster(mode: Mode, valeur: number, montant: number): number {
 }
 
 function libelleAction(mode: Mode, valeur: number, suivante: number): string {
-  if (mode === 'retirer') return `Retirer ${valeur - suivante}`;
-  if (mode === 'ajouter') return `Ajouter ${suivante - valeur}`;
-  return `Fixer à ${suivante}`;
+  if (mode === 'retirer') return translate('sheet.resource.remove', { value: valeur - suivante });
+  if (mode === 'ajouter') return translate('sheet.resource.add', { value: suivante - valeur });
+  return translate('sheet.resource.setTo', { value: suivante });
 }

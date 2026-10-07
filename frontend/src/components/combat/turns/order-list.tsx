@@ -8,6 +8,7 @@
  * « Descendre » au menu, au clavier) ; le menu de ligne donne le tour, attaque avec, relance ou
  * saisit l'initiative, cache, surprend, met hors de combat, retire.
  */
+import { useTranslations } from 'next-intl';
 import type { CombatState } from '@vtt/contracts';
 import {
   ArrowDown,
@@ -79,6 +80,7 @@ export function OrderList({
   canAttack: boolean;
   actions: OrderActions;
 }>) {
+  const t = useTranslations();
   const rows = turnRows(combat);
   const [dragged, setDragged] = useState<string | null>(null);
   const currentRef = useRef<HTMLLIElement | null>(null);
@@ -114,12 +116,12 @@ export function OrderList({
   if (!rows.length)
     return (
       <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-[13px] text-muted-foreground">
-        Personne au combat : ajoutez des participants.
+        {t('combat.order.empty')}
       </p>
     );
 
   return (
-    <ol className="space-y-1" aria-label="Ordre du tour">
+    <ol className="space-y-1" aria-label={t('combat.order.title')}>
       {rows.map((row, i) => (
         <motion.li
           key={row.characterId}
@@ -228,69 +230,70 @@ function RowMenuItems({
   confirm: boolean;
   onConfirm(): void;
 }>) {
+  const t = useTranslations();
   const id = row.characterId;
   const p = row.participant;
   return (
     <>
       <DropdownMenuItem onSelect={() => actions.open(id)}>
         <IdCard />
-        Fiche de combat
+        {t('combat.order.sheet')}
       </DropdownMenuItem>
       <DropdownMenuItem
         disabled={row.current || row.defeated}
         onSelect={() => actions.giveTurn(id)}
       >
         <Hand />
-        Donner le tour
+        {t('combat.character.giveTurn')}
       </DropdownMenuItem>
       <DropdownMenuItem
         disabled={row.defeated || !canAttack}
         onSelect={() => actions.attackWith(id)}
       >
         <Swords />
-        Attaquer avec
+        {t('combat.order.attackWith')}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => actions.reroll(id)}>
         <Dices />
-        {row.initiative ? 'Relancer l’initiative' : 'Lancer l’initiative'}
+        {row.initiative ? t('combat.character.rerollInitiative') : t('combat.initiative.roll')}
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => actions.open(id)}>
         <PencilLine />
-        Saisir l’initiative…
+        {t('combat.order.enterInitiative')}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => actions.setHidden(id, !row.hidden)}>
         {row.hidden ? <Eye /> : <EyeOff />}
-        {row.hidden ? 'Montrer aux joueurs' : 'Cacher aux joueurs'}
+        {row.hidden ? t('combat.order.show') : t('map.scenes.hideFromPlayers')}
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => actions.setSurprised(id, p.surprised !== true)}>
         <Zap />
-        {p.surprised ? 'N’est plus surpris' : 'Surpris'}
+        {p.surprised ? t('combat.order.notSurprised') : t('combat.situation.surprised')}
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => actions.setDefeated(id, !row.defeated)}>
         <Skull />
-        {row.defeated ? 'Remettre en jeu' : 'Hors de combat'}
+        {row.defeated ? t('combat.order.backInPlay') : t('combat.situation.defeated')}
       </DropdownMenuItem>
       <DropdownMenuItem
         disabled={row.position === 1}
         onSelect={() => actions.move(id, row.position - 2)}
       >
         <ArrowUp />
-        Monter
+        {t('audio.playlists.up')}
       </DropdownMenuItem>
       <DropdownMenuItem
         disabled={row.position === count}
         onSelect={() => actions.move(id, row.position)}
       >
         <ArrowDown />
-        Descendre
+        {t('audio.playlists.down')}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem asChild>
         <PanelLink panel="joueurs" params={{ [TABLE_PARAMS.character]: id }}>
           <ExternalLink />
-          Ouvrir la fiche
+          {t('map.tokens.inspector.openSheet')}
         </PanelLink>
       </DropdownMenuItem>
       <DropdownMenuItem
@@ -305,7 +308,7 @@ function RowMenuItems({
         }}
       >
         <UserMinus />
-        {confirm ? 'Confirmer le retrait' : 'Retirer du combat'}
+        {confirm ? t('combat.character.confirmRemove') : t('combat.character.remove')}
       </DropdownMenuItem>
     </>
   );
@@ -330,7 +333,8 @@ function OrderRow({
   canAttack: boolean;
   actions: OrderActions;
 }>) {
-  const name = member?.name ?? 'Personnage';
+  const t = useTranslations();
+  const name = member?.name ?? t('map.common.character');
   const states = sheet?.states ?? [];
   const id = row.characterId;
   const p = row.participant;
@@ -358,7 +362,7 @@ function OrderRow({
       <button
         type="button"
         onClick={() => actions.open(id)}
-        aria-label={`Fiche de combat de ${name}`}
+        aria-label={t('combat.order.sheetOf', { name })}
         className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       />
       <span
@@ -389,7 +393,7 @@ function OrderRow({
         />
         {row.defeated && (
           <span className="absolute -bottom-1 -right-1 grid size-4 place-items-center rounded-full bg-background text-destructive">
-            <Skull className="size-3" aria-label="Hors de combat" />
+            <Skull className="size-3" aria-label={t('combat.situation.defeated')} />
           </span>
         )}
       </span>
@@ -405,12 +409,15 @@ function OrderRow({
             {name}
           </span>
           {row.hidden && (
-            <EyeOff className="size-3.5 shrink-0 text-info" aria-label="Caché aux joueurs" />
+            <EyeOff
+              className="size-3.5 shrink-0 text-info"
+              aria-label={t('combat.order.hiddenFromPlayers')}
+            />
           )}
           {row.pendingInitiative && (
             <Hourglass
               className="size-3.5 shrink-0 text-warning"
-              aria-label="Initiative demandée au joueur"
+              aria-label={t('combat.order.initiativeAsked')}
             />
           )}
         </span>
@@ -440,7 +447,7 @@ function OrderRow({
             variant="ghost"
             size="icon-sm"
             className="relative z-10 shrink-0"
-            aria-label={`Actions pour ${name}`}
+            aria-label={t('audio.playlists.actionsFor', { name })}
             disabled={busy}
           >
             <MoreHorizontal />

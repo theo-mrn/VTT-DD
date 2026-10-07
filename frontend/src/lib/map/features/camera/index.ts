@@ -2,6 +2,7 @@
  * Module « caméra » (docs/carte.md § 4) : « Recadrer la vue » (la carte entière à l'écran), et
  * zoomer ou dézoomer d'un cran au centre de la vue (+ et −).
  */
+import { translate } from '@/i18n/runtime';
 import { Focus, ZoomIn, ZoomOut } from 'lucide-react';
 import type { MapEngine, MapFeature } from '@/lib/map/engine/map-engine';
 
@@ -20,21 +21,21 @@ export const cameraFeature: MapFeature = {
   register: (engine) => [
     engine.registerAction({
       id: 'camera.fit',
-      label: 'Recadrer la vue',
+      label: translate('map.actions.cameraFit'),
       icon: Focus,
       run: (e) => e.fitView(),
       toolbar: { group: 'assist', order: 30 },
     }),
     engine.registerAction({
       id: 'camera.zoom-in',
-      label: 'Zoomer',
+      label: translate('map.actions.cameraZoomIn'),
       icon: ZoomIn,
       shortcut: { code: 'Char:+', label: '+' },
       run: (e) => zoomCenter(e, ZOOM_STEP),
     }),
     engine.registerAction({
       id: 'camera.zoom-out',
-      label: 'Dézoomer',
+      label: translate('map.actions.cameraZoomOut'),
       icon: ZoomOut,
       shortcut: { code: 'Char:-', label: '−' },
       run: (e) => zoomCenter(e, 1 / ZOOM_STEP),

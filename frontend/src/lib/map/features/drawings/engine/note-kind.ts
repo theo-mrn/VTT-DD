@@ -8,6 +8,7 @@
  * dans une boîte mesurée comme le moteur la mesure (`text-layout.ts`). Sa résolution suit le
  * zoom par paliers (net de près, léger de loin), sans re-rendu à chaque image.
  */
+import { translate } from '@/i18n/runtime';
 import type * as Pixi from 'pixi.js';
 import { authorOrGm, field, type EntityKind } from '@/lib/map/engine/entities/entity-kind';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -132,7 +133,7 @@ const looksDifferent = (a: NoteData, b: NoteData) =>
 export function noteKind(rt: DrawingsRuntime): EntityKind<NoteData> {
   return {
     id: NOTE_KIND,
-    label: 'Texte',
+    label: translate('map.drawings.text'),
     collection: NOTES_COLLECTION,
     capabilities: ['select', 'move', 'rotate', 'resize', 'duplicate', 'delete', 'inspect', 'order'],
     plane: 'annotations',

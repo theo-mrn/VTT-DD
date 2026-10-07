@@ -1,6 +1,7 @@
 'use client';
 
 import { Lock } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ReglagesForm } from '@/components/campagnes/reglages-campagne';
 import { OngletsReglages, StockageCampagne } from '@/components/campagnes/stockage-campagne';
@@ -14,16 +15,13 @@ import { useTable } from '../contexte';
  * occupée et fichiers envoyés (docs/stockage.md).
  */
 export function OngletReglages() {
+  const t = useTranslations('table.settings');
   const { campagne, gm } = useTable();
   const [vue, setVue] = useState<'campagne' | 'stockage'>('campagne');
   if (!gm)
     return (
       <Page>
-        <EtatVide
-          icone={Lock}
-          titre="Réservé au maître du jeu"
-          description="Les réglages de la campagne se changent par le MJ."
-        />
+        <EtatVide icone={Lock} titre={t('gmOnly')} description={t('gmOnlyText')} />
       </Page>
     );
   return (
@@ -33,9 +31,7 @@ export function OngletReglages() {
       </div>
       {vue === 'campagne' ? (
         <>
-          <p className="px-6 pt-4 text-[13px] text-muted-foreground">
-            Visibles par toute la table. Le système de jeu ne change pas.
-          </p>
+          <p className="px-6 pt-4 text-[13px] text-muted-foreground">{t('lead')}</p>
           <ReglagesForm campagne={campagne} actif pied="sticky bottom-0 z-10 bg-background/95" />
         </>
       ) : (

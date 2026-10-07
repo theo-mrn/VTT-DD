@@ -3,6 +3,7 @@
  * droite), son bouton et la touche K. La pile, le calque actif, l'œil local et l'isolement
  * restent au moteur : le rendu et le toucher en dépendent.
  */
+import { translate } from '@/i18n/runtime';
 import { Layers } from 'lucide-react';
 import { useStore } from 'zustand';
 import { LayersPanel } from './ui/layers-panel';
@@ -15,7 +16,7 @@ export const layersFeature: MapFeature = {
   register: (engine) => [
     engine.registerAction({
       id: 'layers.panel',
-      label: 'Calques',
+      label: translate('map.actions.layersPanel'),
       icon: Layers,
       shortcut: { code: 'KeyK', label: 'K' },
       available: isGm,

@@ -13,6 +13,7 @@
  * - Un élément supprimé puis recréé (annuler une suppression) a un nouvel identifiant : les
  *   commandes de la pile le retrouvent par `ctx.resolve(id)`.
  */
+import { translate } from '@/i18n/runtime';
 import { ApiError, messageErreur } from '@/lib/api';
 import { itemOf, type MapDto, type MapStore } from './map-store';
 
@@ -573,8 +574,7 @@ export interface CommandManagerSnapshot {
   busy: boolean;
 }
 
-export const CONFLICT_MESSAGE =
-  'Modifié entre-temps par quelqu’un d’autre : l’élément a été rechargé.';
+export const CONFLICT_MESSAGE = translate('map.common.reloaded');
 
 export class CommandManager {
   readonly history: CommandHistory;

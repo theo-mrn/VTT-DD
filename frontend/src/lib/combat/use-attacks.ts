@@ -17,6 +17,7 @@
  */
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type {
   ApplyAttack,
@@ -62,16 +63,8 @@ export const isOpen = (s: AttackStatus) => isInProgress(s) || isPendingDecision(
 export const isClosed = (s: AttackStatus) =>
   s === 'applied' || s === 'dismissed' || s === 'cancelled' || s === 'failed';
 
-/** Libellé d'un statut, pour l'auteur et le MJ. */
-export const ATTACK_STATUS_LABELS: Record<AttackStatus, string> = {
-  awaiting_reactions: 'En attente de la défense',
-  awaiting_dice: 'Dés à lancer',
-  pending: 'Rapport envoyé au MJ',
-  applied: 'Appliqué',
-  dismissed: 'Écarté',
-  cancelled: 'Abandonnée',
-  failed: 'Refusée par les règles',
-};
+/** Libellé d'un statut, pour l'auteur et le MJ (`combat.status.<statut>`). */
+export const attackStatusLabel = (status: AttackStatus) => translate(`combat.status.${status}`);
 
 // ─── Cache ───────────────────────────────────────────────────────────────────
 

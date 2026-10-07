@@ -5,6 +5,7 @@
  * système, avec recherche, filtre par catégorie et fiche détaillée (statistiques déclarées
  * par le système, actions, description).
  */
+import { useTranslations } from 'next-intl';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { AlertTriangle, SearchX, Skull } from 'lucide-react';
 import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
@@ -39,6 +40,7 @@ export function BestiaryTab({
   /** Le système a un bestiaire de référence. */
   reference: boolean;
 }>) {
+  const t = useTranslations();
   const templates = useNpcTemplates(campaignId, campaignId !== null);
   const creatures = useSystemBestiary(systemId, reference);
   const [source, setSource] = useState<Source>(campaignId ? 'campaign' : 'system');
@@ -106,10 +108,10 @@ export function BestiaryTab({
                 setCategory(v);
                 setLimite(PAGE);
               }}
-              aria-label="Filtrer par catégorie"
+              aria-label={t('map.tokens.library.filterCategory')}
               className="h-9 sm:w-48"
               options={[
-                { valeur: TOUTES, nom: 'Toutes les catégories' },
+                { valeur: TOUTES, nom: t('map.tokens.library.allCategories') },
                 ...categories.map((c) => ({ valeur: c, nom: c })),
               ]}
             />
@@ -120,8 +122,8 @@ export function BestiaryTab({
               setQuery(v);
               setLimite(PAGE);
             }}
-            label="Rechercher une créature"
-            placeholder="Rechercher une créature…"
+            label={t('resources.bestiary.search')}
+            placeholder={t('resources.bestiary.searchPlaceholder')}
           />
         </div>
       </Toolbar>
@@ -193,28 +195,29 @@ function ChoixSource({
   compteCampagne: number | undefined;
   compteSysteme: number | undefined;
 }>) {
+  const t = useTranslations();
   if (!choix)
     return (
       <p className="text-[13px] text-muted-foreground">
         {source === 'campaign'
-          ? 'Les modèles de PNJ de la campagne, visibles du MJ seul.'
-          : 'Créatures de référence du système.'}
+          ? t('resources.bestiary.campaignHint')
+          : t('resources.bestiary.systemHint')}
       </p>
     );
   return (
     <Chips
-      label="Source"
+      label={t('resources.bestiary.source')}
       value={source}
       onChange={onSource}
       options={[
         {
           value: 'campaign',
-          label: 'Modèles de la campagne',
+          label: t('resources.bestiary.campaignTemplates'),
           ...(compteCampagne !== undefined ? { count: compteCampagne } : {}),
         },
         {
           value: 'system',
-          label: 'Bestiaire du système',
+          label: t('resources.bestiary.systemBestiary'),
           ...(compteSysteme !== undefined ? { count: compteSysteme } : {}),
         },
       ]}
@@ -240,6 +243,7 @@ function EtatBestiaire({
   onReessayer(): void;
   onSysteme(): void;
 }>) {
+  const t = useTranslations();
   switch (vue) {
     case 'chargement':
       return (
@@ -254,11 +258,11 @@ function EtatBestiaire({
         <Notice
           tone="error"
           icon={AlertTriangle}
-          title="Bestiaire indisponible"
-          description={messageErreur(erreur, 'Réessayez dans un instant.')}
+          title={t('map.tokens.library.bestiaryUnavailable')}
+          description={messageErreur(erreur, t('map.tokens.library.tryAgainSoon'))}
           action={
             <Button variant="secondary" size="sm" onClick={onReessayer}>
-              Réessayer
+              {t('common.actions.retry')}
             </Button>
           }
         />
@@ -269,8 +273,10 @@ function EtatBestiaire({
       return (
         <Notice
           icon={SearchX}
-          title="Aucun résultat"
-          description={recherche ? `Aucune créature ne correspond à « ${recherche} ».` : undefined}
+          title={t('map.tokens.library.noResult')}
+          description={
+            recherche ? t('resources.bestiary.noMatch', { search: recherche }) : undefined
+          }
         />
       );
     default:
@@ -284,20 +290,19 @@ function BestiaireVide({
   reference,
   onSysteme,
 }: Readonly<{ source: Source; reference: boolean; onSysteme(): void }>) {
+  const t = useTranslations();
   const campagne = source === 'campaign';
   return (
     <Notice
       icon={Skull}
-      title={campagne ? 'Aucun modèle de PNJ' : 'Bestiaire vide'}
+      title={campagne ? t('map.tokens.library.noTemplate') : t('resources.bestiary.empty')}
       description={
-        campagne
-          ? 'Les modèles de PNJ de la campagne apparaîtront ici.'
-          : 'Ce système n’a pas encore de créatures de référence.'
+        campagne ? t('resources.bestiary.campaignEmpty') : t('resources.bestiary.systemEmpty')
       }
       action={
         campagne && reference ? (
           <Button variant="secondary" size="sm" onClick={onSysteme}>
-            Voir le bestiaire du système
+            {t('resources.bestiary.seeSystem')}
           </Button>
         ) : undefined
       }
@@ -353,6 +358,7 @@ export function CreatureSheet({
   inDialog = true,
   actions,
 }: Readonly<{ item: BestiaryItem; inDialog?: boolean; actions?: ReactNode }>) {
+  const t = useTranslations();
   const Title = inDialog ? DialogTitle : 'h2';
   const Description = inDialog ? DialogDescription : 'p';
   return (
@@ -372,11 +378,13 @@ export function CreatureSheet({
         <div className="min-w-0 space-y-1.5">
           <Title className="text-lg font-semibold leading-tight">{item.name}</Title>
           <Description className="text-sm text-muted-foreground">
-            {item.subtitle ?? item.category ?? 'Créature'}
+            {item.subtitle ?? item.category ?? t('resources.bestiary.creature')}
           </Description>
           <div className="flex flex-wrap gap-1.5">
             <Badge ton={item.source === 'campaign' ? 'primaire' : 'neutre'}>
-              {item.source === 'campaign' ? 'Modèle de la campagne' : 'Référence du système'}
+              {item.source === 'campaign'
+                ? t('resources.bestiary.campaignTemplate')
+                : t('resources.bestiary.systemReference')}
             </Badge>
             {item.category && item.subtitle && <Badge>{item.category}</Badge>}
           </div>
@@ -406,15 +414,13 @@ export function CreatureSheet({
           </section>
         ))}
         {item.source === 'campaign' && item.stats.length === 0 && (
-          <p className="text-[13px] text-muted-foreground">
-            Statistiques illisibles avec les règles de cette campagne.
-          </p>
+          <p className="text-[13px] text-muted-foreground">{t('resources.bestiary.unreadable')}</p>
         )}
         {item.description && <CatalogueText text={item.description} />}
         {item.actions.length > 0 && (
-          <section aria-label="Actions">
+          <section aria-label={t('resources.bestiary.actions')}>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtle">
-              Actions
+              {t('resources.bestiary.actions')}
             </h4>
             <ul className="space-y-3">
               {item.actions.map((a, i) => (

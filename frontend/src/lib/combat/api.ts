@@ -19,6 +19,8 @@
  * Erreurs : `ApiError` de `lib/api.ts` ; `combatErrorMessage(err)` donne un message lisible
  * pour les codes du combat (`not_their_turn`, `action_refused`…).
  */
+import { translate } from '@/i18n/runtime';
+import type { Messages } from '@/i18n/types';
 import type {
   AddCombatParticipants,
   ApplyAttack,
@@ -212,25 +214,26 @@ export const attacksApi = {
 
 // ─── Erreurs ─────────────────────────────────────────────────────────────────
 
-/** Messages des codes d'erreur du combat (docs/combat.md § 11.1). */
-const MESSAGES: Record<string, string> = {
-  no_combat: 'Aucun combat en cours.',
-  attack_not_found: 'Cette attaque n’existe plus.',
-  target_not_found: 'Une des cibles n’est pas visible ou n’existe plus.',
-  not_their_turn: 'Ce n’est pas le tour de ce personnage.',
-  already_acted: 'Ce personnage a déjà agi ce round.',
-  version_conflict: 'Le combat a changé entre-temps : réessayez.',
-  combat_changed: 'Le combat a changé entre-temps : réessayez.',
-  already_resolved: 'L’attaque est déjà résolue.',
-  step_outdated: 'Ces dés ont déjà été lancés.',
-  invalid_physical_result: 'Les faces lues sur les dés sont invalides.',
-  resolution_in_progress: 'Les dés précédents sont en train d’être comptés : patientez.',
-  character_unavailable: 'Les fiches ne répondent pas : rien n’a été fait, réessayez.',
-  no_initiative: 'Le système ne déclare pas d’initiative.',
-  nothing_to_undo: 'Aucun passage de tour à annuler.',
-  revert_conflict: 'La fiche a changé depuis l’application.',
-  idempotency_in_progress: 'La même demande est encore en cours : réessayez dans un instant.',
-};
+/** Codes d'erreur du combat qui ont un message (docs/combat.md § 11.1) : `combat.errors.<code>`. */
+type MessageCode = keyof Messages['combat']['errors'];
+const MESSAGES = new Set([
+  'no_combat',
+  'attack_not_found',
+  'target_not_found',
+  'not_their_turn',
+  'already_acted',
+  'version_conflict',
+  'combat_changed',
+  'already_resolved',
+  'step_outdated',
+  'invalid_physical_result',
+  'resolution_in_progress',
+  'character_unavailable',
+  'no_initiative',
+  'nothing_to_undo',
+  'revert_conflict',
+  'idempotency_in_progress',
+]);
 
 /** Messages des règles joints à un refus (`action_refused` : `errors` ou `messages`). */
 export function refusalMessages(err: unknown): string[] {
@@ -254,7 +257,8 @@ export function combatErrorMessage(err: unknown): string {
       const reasons = refusalMessages(err);
       if (reasons.length) return reasons.join(' · ');
     }
-    if (code && MESSAGES[code] && !err.problem.detail) return MESSAGES[code];
+    if (code && MESSAGES.has(code) && !err.problem.detail)
+      return translate(`combat.errors.${code as MessageCode}`);
   }
   return messageErreur(err);
 }

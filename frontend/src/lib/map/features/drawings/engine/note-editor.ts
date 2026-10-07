@@ -8,6 +8,7 @@
  * - `commit()` (Entrée, clic ailleurs) : créer, modifier, ou supprimer un texte vidé, en une
  *   commande annulable ; `cancel()` (Échap) : rien n'est écrit.
  */
+import { translate } from '@/i18n/runtime';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import type { Point } from '@/lib/map/engine/geometry';
@@ -142,7 +143,7 @@ export class NoteEditor {
       // Texte vidé : il disparaît (annulable)
       return engine.execute(
         deleteCommand({
-          label: 'Supprimer le texte',
+          label: translate('map.drawings.deleteText'),
           collection: NOTES_COLLECTION,
           persistence: this.rt.notes,
           items: [entity.data as NoteData],
@@ -150,10 +151,15 @@ export class NoteEditor {
       );
     }
     if (text === (entity.data as NoteData).text) return null;
-    return updateItems(this.rt as DrawingsRuntime, 'Modifier le texte', [entity], (d) => ({
-      ...d,
-      text,
-    }));
+    return updateItems(
+      this.rt as DrawingsRuntime,
+      translate('map.drawings.editText'),
+      [entity],
+      (d) => ({
+        ...d,
+        text,
+      }),
+    );
   }
 
   /** Échap : rien n'est écrit. */

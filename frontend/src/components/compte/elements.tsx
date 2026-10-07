@@ -1,10 +1,12 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { AlertCircle, CheckCircle2, Info as IconeInfo, Loader2 } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import type { Messages } from '@/i18n/types';
 import { cn } from '@/lib/utils';
 
 export { aclonica, styleChamp, styleLabel, styleLien } from './styles';
@@ -108,11 +110,12 @@ export function Message({
   );
 }
 
-export function Chargement({ texte = 'Chargement…' }: Readonly<{ texte?: string }>) {
+export function Chargement({ texte }: Readonly<{ texte?: string }>) {
+  const t = useTranslations('common.states');
   return (
     <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
       <Loader2 className="size-4 animate-spin text-primary" />
-      {texte}
+      {texte ?? t('loading')}
     </div>
   );
 }
@@ -159,20 +162,23 @@ export function Interrupteur({
 
 // ─── Avatar avec bordure ─────────────────────────────────────────────────────
 
-/** Bordures de profil (mêmes identifiants que l'ancienne app). Toutes sauf « none » sont premium. */
-export const BORDURES: { id: string; label: string; couleurs: string[] }[] = [
-  { id: 'none', label: 'Aucune', couleurs: [] },
-  { id: 'blue', label: 'Azur', couleurs: ['#3b82f6'] },
-  { id: 'orange', label: 'Ambre', couleurs: ['#f97316'] },
-  { id: 'magic', label: 'Arcane dorée', couleurs: ['#c9a965', '#f5d491', '#8a6d2f'] },
-  { id: 'magic_purple', label: 'Arcane violette', couleurs: ['#9333ea', '#ec4899', '#6d28d9'] },
-  { id: 'magic_green', label: 'Arcane verte', couleurs: ['#16a34a', '#84cc16', '#065f46'] },
-  { id: 'magic_red', label: 'Arcane rouge', couleurs: ['#dc2626', '#f97316', '#7f1d1d'] },
-  { id: 'magic_double', label: 'Double arcane', couleurs: ['#c9a965', '#3b82f6', '#c9a965'] },
-  { id: 'magic_shine', label: 'Lueur', couleurs: ['#ffffff', '#c9a965', '#ffffff'] },
-  { id: 'magic_shine_aurora', label: 'Aurore', couleurs: ['#10b981', '#06b6d4', '#8b5cf6'] },
-  { id: 'magic_shine_solar', label: 'Solaire', couleurs: ['#fef08a', '#f97316', '#dc2626'] },
-  { id: 'magic_shine_twilight', label: 'Crépuscule', couleurs: ['#1e3a8a', '#7c3aed', '#db2777'] },
+/**
+ * Bordures de profil (mêmes identifiants que l'ancienne app). Toutes sauf « none » sont premium.
+ * Nom affiché : `account.borders.<id>`.
+ */
+export const BORDURES: { id: keyof Messages['account']['borders']; couleurs: string[] }[] = [
+  { id: 'none', couleurs: [] },
+  { id: 'blue', couleurs: ['#3b82f6'] },
+  { id: 'orange', couleurs: ['#f97316'] },
+  { id: 'magic', couleurs: ['#c9a965', '#f5d491', '#8a6d2f'] },
+  { id: 'magic_purple', couleurs: ['#9333ea', '#ec4899', '#6d28d9'] },
+  { id: 'magic_green', couleurs: ['#16a34a', '#84cc16', '#065f46'] },
+  { id: 'magic_red', couleurs: ['#dc2626', '#f97316', '#7f1d1d'] },
+  { id: 'magic_double', couleurs: ['#c9a965', '#3b82f6', '#c9a965'] },
+  { id: 'magic_shine', couleurs: ['#ffffff', '#c9a965', '#ffffff'] },
+  { id: 'magic_shine_aurora', couleurs: ['#10b981', '#06b6d4', '#8b5cf6'] },
+  { id: 'magic_shine_solar', couleurs: ['#fef08a', '#f97316', '#dc2626'] },
+  { id: 'magic_shine_twilight', couleurs: ['#1e3a8a', '#7c3aed', '#db2777'] },
 ];
 
 const tailles = {
@@ -233,42 +239,6 @@ export function AvatarJoueur({
 }
 
 // ─── Formats ─────────────────────────────────────────────────────────────────
-
-export function formaterDuree(minutes: number) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h} h ${String(m).padStart(2, '0')} min`;
-}
-
-export function formaterDate(iso: string | null | undefined) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? '—'
-    : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-/** « il y a 3 heures », « à l'instant »… */
-export function formaterDepuis(iso: string | null | undefined) {
-  if (!iso) return 'jamais';
-  const d = new Date(iso).getTime();
-  if (Number.isNaN(d)) return '—';
-  const secondes = Math.round((d - Date.now()) / 1000);
-  if (Math.abs(secondes) < 60) return "à l'instant";
-  const rtf = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
-  const unites: [Intl.RelativeTimeFormatUnit, number][] = [
-    ['year', 31536000],
-    ['month', 2592000],
-    ['week', 604800],
-    ['day', 86400],
-    ['hour', 3600],
-    ['minute', 60],
-  ];
-  for (const [unite, duree] of unites)
-    if (Math.abs(secondes) >= duree) return rtf.format(Math.round(secondes / duree), unite);
-  return rtf.format(secondes, 'second');
-}
 
 /**
  * Contenu d'une carte selon l'état de sa requête : chargement, erreur, vide, puis la liste.

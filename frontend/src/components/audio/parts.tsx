@@ -1,17 +1,15 @@
 'use client';
 
 /** Petits éléments partagés par les écrans du son. */
+import { translate } from '@/i18n/runtime';
 import type { AssetKind } from '@vtt/contracts';
 import { AudioLines, Music, Wind, type LucideIcon } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { cn } from '@/lib/utils';
 
-export const KIND_LABELS: Record<AssetKind, string> = {
-  music: 'Musique',
-  ambience: 'Ambiance',
-  sfx: 'Effet',
-};
+/** Nom d'une sorte de son (`audio.kinds.<sorte>`). */
+export const kindLabel = (kind: AssetKind) => translate(`audio.kinds.${kind}`);
 
 export const KIND_ICONS: Record<AssetKind, LucideIcon> = {
   music: Music,

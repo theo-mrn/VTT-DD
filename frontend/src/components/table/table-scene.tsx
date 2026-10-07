@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { TableDiceShortcuts } from '@/components/des/raccourcis-table';
 import { useQuery } from '@tanstack/react-query';
 import { DoorOpen, RotateCw } from 'lucide-react';
@@ -42,6 +43,7 @@ import { TableRail } from './rail/table-rail';
  * choisit d'abord le sien.
  */
 export function TableScene({ id, children }: Readonly<{ id: string; children: ReactNode }>) {
+  const t = useTranslations('table.scene');
   const profil = useProfilRequis();
   const router = useRouter();
   const campagne = useCampagne(profil ? id : null);
@@ -86,23 +88,23 @@ export function TableScene({ id, children }: Readonly<{ id: string; children: Re
   );
 
   if (!profil || campagne.isLoading || refuse || horsTable || sansHeros)
-    return <EcranChargement texte="Installation de la table…" />;
+    return <EcranChargement texte={t('loading')} />;
   if (!table)
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background px-4">
         <EtatVide
           icone={DoorOpen}
-          titre="La table est inaccessible"
+          titre={t('unreachable')}
           description={messageErreur(campagne.error)}
           className="w-full max-w-md"
           action={
             <>
               <Button variant="secondary" onClick={() => void campagne.refetch()}>
                 <RotateCw />
-                Réessayer
+                {t('retry')}
               </Button>
               <Button variant="ghost" asChild>
-                <Link href="/campagnes">Mes campagnes</Link>
+                <Link href="/campagnes">{t('myCampaigns')}</Link>
               </Button>
             </>
           }

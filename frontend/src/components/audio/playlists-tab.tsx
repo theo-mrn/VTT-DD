@@ -9,6 +9,8 @@
  * - l'ajout : sélection multiple dans mes sons, les musiques d'abord.
  * Tout passe par le canal musique : la table entend la playlist au même instant.
  */
+import { useTranslations } from 'next-intl';
+import type { Translator } from '@/i18n/text';
 import type { Asset, Playlist } from '@vtt/contracts';
 import {
   ArrowDown,
@@ -59,19 +61,18 @@ const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerC
 const fail = (label: string) => (e: unknown) =>
   toast.error(label, { description: messageErreur(e) });
 
-/** « 12 morceaux · 42 min » */
-function morceaux(n: number): string {
-  return n > 1 ? `${n} morceaux` : `${n} morceau`;
-}
-
-function resume(p: Playlist, assets: Map<string, Asset>): string {
+function resume(t: Translator, p: Playlist, assets: Map<string, Asset>): string {
   const n = p.assetIds.length;
   const ms = p.assetIds.reduce((t, id) => t + (assets.get(id)?.durationMs ?? 0), 0);
   let duree: string | null = null;
   if (ms >= 3_600_000)
-    duree = `${Math.floor(ms / 3_600_000)} h ${Math.round((ms % 3_600_000) / 60_000)} min`;
-  else if (ms > 0) duree = `${Math.max(1, Math.round(ms / 60_000))} min`;
-  return [morceaux(n), duree].filter(Boolean).join(' · ');
+    duree = t('common.time.hoursMinutes', {
+      hours: String(Math.floor(ms / 3_600_000)),
+      minutes: String(Math.round((ms % 3_600_000) / 60_000)),
+    });
+  else if (ms > 0)
+    duree = t('common.time.minutes', { count: Math.max(1, Math.round(ms / 60_000)) });
+  return [t('audio.playlists.tracks', { count: n }), duree].filter(Boolean).join(' · ');
 }
 
 /** Couverture générée aux couleurs du thème, nuance stable tirée du nom (rien à charger). */
@@ -99,6 +100,7 @@ export function PlaylistsTab({
   campaignId,
   library,
 }: Readonly<{ campaignId: string; library: Library }>) {
+  const t = useTranslations();
   const music = useChannel(campaignId, 'music');
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
@@ -124,7 +126,7 @@ export function PlaylistsTab({
       setCreating(null);
       setOpenId(p.id);
     } catch (e) {
-      fail('Création impossible')(e);
+      fail(t('audio.playlists.createFailed'))(e);
     }
   }
 
@@ -144,30 +146,29 @@ export function PlaylistsTab({
             maxLength={100}
             onChange={(e) => setCreating(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && setCreating(null)}
-            placeholder="Nom de la playlist : Combat, Taverne, Voyage…"
-            aria-label="Nom de la nouvelle playlist"
+            placeholder={t('audio.playlists.namePlaceholder')}
+            aria-label={t('audio.playlists.newName')}
             className="h-9"
           />
           <Button type="submit" size="sm" disabled={!creating.trim()}>
-            Créer
+            {t('common.actions.create')}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={() => setCreating(null)}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
         </form>
       ) : (
         <div className="flex justify-end">
           <Button size="sm" onClick={() => setCreating('')}>
             <Plus />
-            Nouvelle playlist
+            {t('audio.playlists.new')}
           </Button>
         </div>
       )}
 
       {library.playlists.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-[13px] text-muted-foreground">
-          Pas encore de playlist. Regroupez vos musiques par scène (combat, taverne, voyage…) pour
-          les enchaîner d’un clic.
+          {t('audio.playlists.empty')}
         </p>
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2">
@@ -187,16 +188,18 @@ export function PlaylistsTab({
                     type="button"
                     onClick={() => setOpenId(p.id)}
                     className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-                    aria-label={`Ouvrir la playlist ${p.name}`}
+                    aria-label={t('audio.playlists.open', { name: p.name })}
                   >
                     <Cover name={p.name} />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold">{p.name}</span>
                       <span className="block truncate text-[11px] text-muted-foreground">
                         {enCours ? (
-                          <span className="font-semibold text-primary-strong">En cours · </span>
+                          <span className="font-semibold text-primary-strong">
+                            {t('audio.nowPlaying')} ·{' '}
+                          </span>
                         ) : null}
-                        {resume(p, assets)}
+                        {resume(t, p, assets)}
                       </span>
                     </span>
                   </button>
@@ -204,9 +207,9 @@ export function PlaylistsTab({
                     size="icon"
                     className="shrink-0 rounded-full"
                     disabled={!p.assetIds.length}
-                    aria-label={`Lire la playlist ${p.name} pour la table`}
+                    aria-label={t('audio.playlists.play', { name: p.name })}
                     onClick={() =>
-                      void music.play({ playlistId: p.id }).catch(fail('Lecture impossible'))
+                      void music.play({ playlistId: p.id }).catch(fail(t('audio.playFailed')))
                     }
                   >
                     <Play />
@@ -234,6 +237,7 @@ function PlaylistView({
   music: Channel;
   onBack: () => void;
 }>) {
+  const t = useTranslations();
   const [renaming, setRenaming] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -247,7 +251,7 @@ function PlaylistView({
   const joue = music.state?.playlistId === p.id && music.state.status === 'playing';
 
   const save = (assetIds: string[]) =>
-    library.updatePlaylist(p.id, { assetIds }).catch(fail('Modification impossible'));
+    library.updatePlaylist(p.id, { assetIds }).catch(fail(t('audio.editFailed')));
   const move = (from: number, to: number) => {
     if (to < 0 || to >= p.assetIds.length || from === to) return;
     const ids = [...p.assetIds];
@@ -259,18 +263,18 @@ function PlaylistView({
     const name = renaming?.trim();
     setRenaming(null);
     if (name && name !== p.name)
-      void library.updatePlaylist(p.id, { name }).catch(fail('Renommage impossible'));
+      void library.updatePlaylist(p.id, { name }).catch(fail(t('audio.renameFailed')));
   };
   const lire = (index?: number) =>
     void music
       .play({ playlistId: p.id, ...(index !== undefined ? { index } : {}) })
-      .catch(fail('Lecture impossible'));
+      .catch(fail(t('audio.playFailed')));
   const auHasard = async () => {
     try {
       await music.configure({ shuffle: true });
       await music.play({ playlistId: p.id });
     } catch (e) {
-      fail('Lecture impossible')(e);
+      fail(t('audio.playFailed'))(e);
     }
   };
 
@@ -278,7 +282,7 @@ function PlaylistView({
     <div className="space-y-4">
       <Button variant="ghost" size="xs" onClick={onBack} className="-ml-2">
         <ArrowLeft />
-        Playlists
+        {t('audio.playlists.title')}
       </Button>
 
       <header className="flex items-center gap-4">
@@ -289,7 +293,7 @@ function PlaylistView({
               autoFocus
               value={renaming}
               maxLength={100}
-              aria-label="Nom de la playlist"
+              aria-label={t('audio.playlists.name')}
               onChange={(e) => setRenaming(e.target.value)}
               onBlur={renommer}
               onKeyDown={(e) => {
@@ -301,11 +305,11 @@ function PlaylistView({
           ) : (
             <h3 className="truncate text-lg font-semibold">{p.name}</h3>
           )}
-          <p className="text-xs text-muted-foreground">{resume(p, assets)}</p>
+          <p className="text-xs text-muted-foreground">{resume(t, p, assets)}</p>
           <div className="flex flex-wrap items-center gap-1.5">
             <Button size="sm" disabled={!p.assetIds.length} onClick={() => lire()}>
               <Play />
-              Lire
+              {t('audio.playlists.playShort')}
             </Button>
             <Button
               size="sm"
@@ -314,22 +318,26 @@ function PlaylistView({
               onClick={() => void auHasard()}
             >
               <Shuffle />
-              Au hasard
+              {t('notes.random')}
             </Button>
             <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>
               <Plus />
-              Ajouter des morceaux
+              {t('audio.playlists.addTracks')}
             </Button>
             <DropdownMenu onOpenChange={(o) => !o && setConfirm(false)}>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Autres actions de la playlist">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t('audio.playlists.moreActions')}
+                >
                   <MoreHorizontal />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => setRenaming(p.name)}>
                   <Pencil />
-                  Renommer
+                  {t('common.actions.rename')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -343,11 +351,11 @@ function PlaylistView({
                     void library
                       .deletePlaylist(p.id)
                       .then(onBack)
-                      .catch(fail('Suppression impossible'));
+                      .catch(fail(t('audio.deleteFailed')));
                   }}
                 >
                   <Trash2 />
-                  {confirm ? 'Confirmer la suppression' : 'Supprimer la playlist'}
+                  {confirm ? t('audio.playlists.confirmDelete') : t('audio.playlists.delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -357,10 +365,10 @@ function PlaylistView({
 
       {p.assetIds.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center">
-          <p className="text-[13px] text-muted-foreground">Cette playlist est vide.</p>
+          <p className="text-[13px] text-muted-foreground">{t('audio.playlists.isEmpty')}</p>
           <Button size="sm" className="mt-3" onClick={() => setPicking(true)}>
             <Plus />
-            Ajouter des morceaux
+            {t('audio.playlists.addTracks')}
           </Button>
         </div>
       ) : (
@@ -405,7 +413,9 @@ function PlaylistView({
                 <button
                   type="button"
                   onClick={() => lire(i)}
-                  aria-label={`Lire à partir de ${a?.name ?? 'ce morceau'}`}
+                  aria-label={t('audio.playlists.playFrom', {
+                    name: a?.name ?? t('audio.playlists.thisTrack'),
+                  })}
                   className="grid size-6 shrink-0 place-items-center rounded text-[12px] tabular-nums text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
                 >
                   {actif && joue ? (
@@ -431,7 +441,7 @@ function PlaylistView({
                       !a && 'text-muted-foreground',
                     )}
                   >
-                    {a?.name ?? 'Son supprimé'}
+                    {a?.name ?? t('audio.deck.deleted')}
                   </p>
                   {a?.source === 'youtube' && (
                     <p className="text-[11px] text-muted-foreground">YouTube</p>
@@ -445,7 +455,9 @@ function PlaylistView({
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      aria-label={`Actions pour ${a?.name ?? 'ce morceau'}`}
+                      aria-label={t('audio.playlists.actionsFor', {
+                        name: a?.name ?? t('audio.playlists.thisTrack'),
+                      })}
                       className="opacity-60 group-hover:opacity-100"
                     >
                       <MoreHorizontal />
@@ -454,25 +466,25 @@ function PlaylistView({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onSelect={() => lire(i)}>
                       <Play />
-                      Lire à partir d’ici
+                      {t('audio.playlists.playFromHere')}
                     </DropdownMenuItem>
                     <DropdownMenuItem disabled={i === 0} onSelect={() => move(i, i - 1)}>
                       <ArrowUp />
-                      Monter
+                      {t('audio.playlists.up')}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       disabled={i === p.assetIds.length - 1}
                       onSelect={() => move(i, i + 1)}
                     >
                       <ArrowDown />
-                      Descendre
+                      {t('audio.playlists.down')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onSelect={() => void save(p.assetIds.filter((_, j) => j !== i))}
                     >
                       <X />
-                      Retirer de la playlist
+                      {t('audio.playlists.remove')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -507,6 +519,7 @@ function AddTracks({
   library: Library;
   onAdd: (ids: string[]) => Promise<unknown>;
 }>) {
+  const t = useTranslations();
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -553,16 +566,16 @@ function AddTracks({
         <SearchField
           value={query}
           onChange={setQuery}
-          placeholder="Rechercher dans mes sons"
-          label="Rechercher dans mes sons"
+          placeholder={t('map.sounds.searchMine')}
+          label={t('map.sounds.searchMine')}
           className="sm:w-full"
         />
         <ul className="-mx-1 min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
           {candidats.length === 0 ? (
             <li className="py-8 text-center text-[13px] text-muted-foreground">
               {library.assets.length
-                ? 'Tous vos sons sont déjà dans la playlist.'
-                : 'Ajoutez d’abord des musiques dans l’onglet Musique.'}
+                ? t('audio.playlists.allIn')
+                : t('audio.playlists.addMusicFirst')}
             </li>
           ) : (
             candidats.map((a) => {
@@ -593,7 +606,9 @@ function AddTracks({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-medium">{a.name}</span>
                       <span className="block text-[11px] text-muted-foreground">
-                        {a.sections.includes('music') ? 'Musique' : 'Autre son'}
+                        {a.sections.includes('music')
+                          ? t('audio.kinds.music')
+                          : t('audio.playlists.otherSound')}
                         {a.durationMs ? ` · ${formatTime(a.durationMs)}` : ''}
                       </span>
                     </span>
@@ -610,10 +625,12 @@ function AddTracks({
         </ul>
         <DialogFooter>
           <Button variant="ghost" onClick={() => fermer(false)}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button disabled={!chosen.length} loading={busy} onClick={() => void ajouter()}>
-            {chosen.length ? `Ajouter ${morceaux(chosen.length)}` : 'Ajouter'}
+            {chosen.length
+              ? t('audio.playlists.addCount', { count: chosen.length })
+              : t('common.actions.add')}
           </Button>
         </DialogFooter>
       </DialogContent>

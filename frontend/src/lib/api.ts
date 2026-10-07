@@ -6,6 +6,9 @@
  * - Sur un 401, un seul renouvellement à la fois, partagé entre les onglets
  *   (Web Locks) : deux renouvellements parallèles seraient pris pour un vol.
  */
+import { DEFAULT_LOCALE } from '@/i18n/config';
+import { activeLocale, translate } from '@/i18n/runtime';
+import type { MessageKey } from '@/i18n/types';
 
 export interface ProblemDetail {
   status: number;
@@ -26,13 +29,29 @@ export class ApiError extends Error {
   }
 }
 
-/** Message lisible pour l'utilisateur : le `detail` du problème, sinon un message générique. */
-export function messageErreur(
-  err: unknown,
-  parDefaut = 'Serveur injoignable, réessayez dans un instant.',
-): string {
-  if (err instanceof ApiError) return err.message || err.problem.title || parDefaut;
-  return parDefaut;
+/**
+ * Message lisible pour l'utilisateur (docs/i18n.md § 8). Les services répondent en français :
+ * en français, le `detail` du problème ; dans une autre langue, la traduction de son `code`,
+ * sinon un message selon le statut.
+ */
+export function messageErreur(err: unknown, parDefaut?: string): string {
+  if (!(err instanceof ApiError)) return parDefaut ?? translate('errors.unreachable');
+  const { code, detail, title, status } = err.problem;
+  const parCode = code && translate.has(`errors.api.${code}` as MessageKey);
+  if (activeLocale() === DEFAULT_LOCALE && (detail || title)) return detail || title;
+  if (parCode) return translate(`errors.api.${code}` as 'errors.api.not_found');
+  return parDefaut ?? translate(`errors.status.${statusKey(status)}`);
+}
+
+function statusKey(status: number) {
+  if (status === 401) return 'unauthorized';
+  if (status === 403) return 'forbidden';
+  if (status === 404) return 'notFound';
+  if (status === 409) return 'conflict';
+  if (status === 413) return 'tooLarge';
+  if (status === 429) return 'tooMany';
+  if (status >= 500) return 'server';
+  return 'badRequest';
 }
 
 /** En-tête exigé par les routes qui lisent le cookie de refresh (protection CSRF). */

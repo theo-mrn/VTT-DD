@@ -12,12 +12,11 @@ import {
   Wand2,
   type LucideIcon,
 } from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { CarteCampagneSquelette, useNomSysteme } from '@/components/campagnes/carte-campagne';
-import { formaterDans, formaterSession } from '@/components/campagnes/elements';
 import { Illustration } from '@/components/commun/illustration';
 import { Page, Panneau, TitreSection } from '@/components/commun/page';
-import { formaterDepuis } from '@/components/compte/elements';
 import { DesDuJet } from '@/components/des/resultat-jet';
 import { ProgressionSummary } from '@/components/progression/progression-summary';
 import {
@@ -26,6 +25,7 @@ import {
 } from '@/components/personnages/carte-personnage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useDates } from '@/i18n/dates';
 import { useCampagnes, type Campagne } from '@/lib/campagnes';
 import { useJets } from '@/lib/jets';
 import { iconeNote, useNotes } from '@/lib/notes';
@@ -33,24 +33,22 @@ import { lienPersonnage, usePersonnages } from '@/lib/personnages';
 import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
-function salutation() {
+function moment(): 'night' | 'morning' | 'afternoon' | 'evening' {
   const h = new Date().getHours();
-  if (h < 5) return 'Bonne nuit';
-  if (h < 12) return 'Bonjour';
-  return h < 18 ? 'Bon après-midi' : 'Bonsoir';
+  if (h < 5) return 'night';
+  if (h < 12) return 'morning';
+  return h < 18 ? 'afternoon' : 'evening';
 }
 
 /** Tableau de bord : reprendre la dernière campagne, sessions à venir, héros, jets et notes. */
 export default function PageAccueil() {
+  const t = useTranslations('home');
+  const format = useFormatter();
   const profil = useProfil();
   const campagnes = useCampagnes();
   const personnages = usePersonnages();
   const recente = campagnes.data?.[0] ?? null;
-  const date = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  const date = format.dateTime(new Date(), { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <Page large>
@@ -58,20 +56,24 @@ export default function PageAccueil() {
         <div className="space-y-1">
           <p className="text-[13px] text-subtle first-letter:uppercase">{date}</p>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-[32px]">
-            {salutation()}, <span className="text-gradient-primary">{profil.name}</span>
+            {t.rich('hello', {
+              greeting: t(`greeting.${moment()}`),
+              name: profil.name,
+              b: (chunks) => <span className="text-gradient-primary">{chunks}</span>,
+            })}
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" asChild>
             <Link href="/campagnes?rejoindre=1">
               <KeyRound />
-              Rejoindre
+              {t('join')}
             </Link>
           </Button>
           <Button asChild>
             <Link href="/campagnes/nouvelle">
               <Plus />
-              Nouvelle campagne
+              {t('newCampaign')}
             </Link>
           </Button>
         </div>
@@ -88,12 +90,12 @@ export default function PageAccueil() {
                   href="/campagnes"
                   className="flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
                 >
-                  Toutes les campagnes <ArrowRight className="size-3.5" />
+                  {t('allCampaigns')} <ArrowRight className="size-3.5" />
                 </Link>
               )
             }
           >
-            Reprendre l&apos;aventure
+            {t('resume')}
           </TitreSection>
           {campagnes.isLoading && <CarteCampagneSquelette />}
           {!campagnes.isLoading && recente && <Reprendre campagne={recente} />}
@@ -113,11 +115,11 @@ export default function PageAccueil() {
               href="/personnages"
               className="flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
             >
-              Tous les personnages <ArrowRight className="size-3.5" />
+              {t('allCharacters')} <ArrowRight className="size-3.5" />
             </Link>
           }
         >
-          Mes personnages
+          {t('myCharacters')}
         </TitreSection>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
           {personnages.isLoading &&
@@ -132,7 +134,7 @@ export default function PageAccueil() {
             <span className="flex size-11 items-center justify-center rounded-full border border-border-strong bg-surface-2 transition-colors group-hover:border-primary/40 group-hover:text-primary">
               <Wand2 className="size-5" />
             </span>
-            <span className="text-sm font-medium">Nouveau héros</span>
+            <span className="text-sm font-medium">{t('newHero')}</span>
           </Link>
         </div>
       </section>
@@ -148,6 +150,8 @@ export default function PageAccueil() {
 // ─── Reprendre ───────────────────────────────────────────────────────────────
 
 function Reprendre({ campagne: c }: Readonly<{ campagne: Campagne }>) {
+  const t = useTranslations();
+  const dates = useDates();
   const personnages = usePersonnages();
   const role = c.role;
   const perso = personnages.data?.find((p) => p.id === c.playedCharacterId);
@@ -169,11 +173,11 @@ function Reprendre({ campagne: c }: Readonly<{ campagne: Campagne }>) {
         <div className="absolute left-5 top-5 flex gap-2">
           {role === 'gm' ? (
             <Badge ton="verre" className="border-primary/40 text-primary-strong">
-              <Crown /> Vous êtes MJ
+              <Crown /> {t('campaigns.badges.youAreGm')}
             </Badge>
           ) : (
             <Badge ton="verre">
-              <UserRound /> Joueur
+              <UserRound /> {t('campaigns.badges.player')}
             </Badge>
           )}
           <Badge ton="verre">{nomSysteme}</Badge>
@@ -186,7 +190,7 @@ function Reprendre({ campagne: c }: Readonly<{ campagne: Campagne }>) {
               {session && (
                 <span className="flex items-center gap-1.5 text-primary-strong">
                   <CalendarClock className="size-3.5" />
-                  {formaterSession(session.startsAt)}
+                  {dates.session(session.startsAt)}
                 </span>
               )}
               {perso && (
@@ -195,12 +199,12 @@ function Reprendre({ campagne: c }: Readonly<{ campagne: Campagne }>) {
                   {perso.name}
                 </span>
               )}
-              <span>Mise à jour {formaterDepuis(c.updatedAt)}</span>
+              <span>{t('home.updated', { since: dates.since(c.updatedAt) })}</span>
             </div>
           </div>
           <Button size="lg" asChild className="shrink-0">
             <Link href={`/campagnes/${c.id}`}>
-              Ouvrir le salon
+              {t('home.openLobby')}
               <ArrowRight />
             </Link>
           </Button>
@@ -211,6 +215,7 @@ function Reprendre({ campagne: c }: Readonly<{ campagne: Campagne }>) {
 }
 
 function InviteCampagne() {
+  const t = useTranslations('home');
   return (
     <div className="relative flex aspect-[16/9] flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border-strong px-6 text-center sm:aspect-[21/9]">
       <div aria-hidden className="absolute inset-0 bg-grid mask-radial" />
@@ -218,19 +223,19 @@ function InviteCampagne() {
       <span className="relative mb-4 flex size-12 items-center justify-center rounded-xl border border-border-strong bg-surface-2 text-primary shadow-surface">
         <Swords className="size-5" />
       </span>
-      <p className="relative text-lg font-semibold">Votre première campagne vous attend</p>
+      <p className="relative text-lg font-semibold">{t('firstCampaign')}</p>
       <p className="relative mt-1 max-w-md text-sm text-muted-foreground">
-        Menez votre propre aventure, ou rejoignez la table d&apos;un ami avec son code.
+        {t('firstCampaignText')}
       </p>
       <div className="relative mt-5 flex flex-wrap justify-center gap-2">
         <Button asChild>
           <Link href="/campagnes/nouvelle">
-            <Plus /> Créer une campagne
+            <Plus /> {t('createCampaign')}
           </Link>
         </Button>
         <Button asChild variant="secondary">
           <Link href="/campagnes?rejoindre=1">
-            <KeyRound /> Rejoindre
+            <KeyRound /> {t('join')}
           </Link>
         </Button>
       </div>
@@ -241,15 +246,18 @@ function InviteCampagne() {
 // ─── À venir ─────────────────────────────────────────────────────────────────
 
 function AVenir({ campagnes }: Readonly<{ campagnes: Campagne[] }>) {
+  const t = useTranslations('home');
+  const format = useFormatter();
+  const dates = useDates();
   const sessions = campagnes
     .flatMap((c) => (c.nextSession ? [{ c, s: c.nextSession }] : []))
     .sort((a, b) => a.s.startsAt.localeCompare(b.s.startsAt))
     .slice(0, 4);
 
   return (
-    <Panneau titre="À venir" corps={false}>
+    <Panneau titre={t('upcoming')} corps={false}>
       {sessions.length === 0 ? (
-        <p className="px-5 py-8 text-center text-[13px] text-subtle">Aucune session planifiée.</p>
+        <p className="px-5 py-8 text-center text-[13px] text-subtle">{t('noSession')}</p>
       ) : (
         <ul className="divide-y divide-border">
           {sessions.map(({ c, s }) => {
@@ -262,7 +270,7 @@ function AVenir({ campagnes }: Readonly<{ campagnes: Campagne[] }>) {
                 >
                   <span className="flex w-11 shrink-0 flex-col items-center rounded-lg border border-primary/25 bg-primary/10 py-1">
                     <span className="text-[10px] font-medium uppercase text-primary">
-                      {d.toLocaleDateString('fr-FR', { month: 'short' })}
+                      {format.dateTime(d, { month: 'short' })}
                     </span>
                     <span className="font-mono text-base font-semibold leading-tight">
                       {d.getDate()}
@@ -271,7 +279,10 @@ function AVenir({ campagnes }: Readonly<{ campagnes: Campagne[] }>) {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{c.name}</span>
                     <span className="block truncate text-xs text-subtle">
-                      {s.title ?? 'Session'} · {formaterDans(s.startsAt)}
+                      {t('sessionLine', {
+                        title: s.title ?? t('session'),
+                        when: dates.inDays(s.startsAt),
+                      })}
                     </span>
                   </span>
                 </Link>
@@ -287,10 +298,11 @@ function AVenir({ campagnes }: Readonly<{ campagnes: Campagne[] }>) {
 // ─── Actions rapides ─────────────────────────────────────────────────────────
 
 function ActionsRapides() {
+  const t = useTranslations('home.quick');
   const actions: { href: string; label: string; icone: LucideIcon }[] = [
-    { href: '/campagnes/nouvelle', label: 'Créer une campagne', icone: Swords },
-    { href: '/personnages/nouveau', label: 'Créer un héros', icone: Wand2 },
-    { href: '/des', label: 'Lancer des dés', icone: Dices },
+    { href: '/campagnes/nouvelle', label: t('createCampaign'), icone: Swords },
+    { href: '/personnages/nouveau', label: t('createHero'), icone: Wand2 },
+    { href: '/des', label: t('rollDice'), icone: Dices },
   ];
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -313,22 +325,25 @@ function ActionsRapides() {
 // ─── Jets et notes ───────────────────────────────────────────────────────────
 
 function DerniersJets() {
+  const t = useTranslations('home.rolls');
+  const dates = useDates();
   const jets = useJets(null);
   const liste = jets.data?.slice(0, 5) ?? [];
   return (
     <Panneau
-      titre="Derniers jets"
+      titre={t('title')}
       corps={false}
       action={
         <Link href="/des" className="text-[13px] text-muted-foreground hover:text-foreground">
-          Table de dés
+          {t('diceTable')}
         </Link>
       }
     >
       {liste.length === 0 ? (
         <p className="px-5 py-8 text-center text-[13px] text-subtle">
-          Aucun jet pour l&apos;instant. Essayez <kbd className="font-mono text-foreground">⌘K</kbd>{' '}
-          puis « 1d20 ».
+          {t.rich('empty', {
+            kbd: (chunks) => <kbd className="font-mono text-foreground">{chunks}</kbd>,
+          })}
         </p>
       ) : (
         <ul className="divide-y divide-border">
@@ -347,7 +362,7 @@ function DerniersJets() {
                 <span className="block truncate text-[13px] font-medium">
                   {j.label ?? j.formula}
                 </span>
-                <span className="block text-xs text-subtle">{formaterDepuis(j.createdAt)}</span>
+                <span className="block text-xs text-subtle">{dates.since(j.createdAt)}</span>
               </span>
               <span className="hidden sm:block">
                 <DesDuJet groupes={j.groups} taille="xs" max={5} />
@@ -361,23 +376,23 @@ function DerniersJets() {
 }
 
 function NotesRecentes() {
+  const t = useTranslations('home.notes');
+  const dates = useDates();
   const notes = useNotes();
   const campagnes = useCampagnes();
   const liste = notes.data?.slice(0, 5) ?? [];
   return (
     <Panneau
-      titre="Notes récentes"
+      titre={t('title')}
       corps={false}
       action={
         <Link href="/notes" className="text-[13px] text-muted-foreground hover:text-foreground">
-          Toutes les notes
+          {t('all')}
         </Link>
       }
     >
       {liste.length === 0 ? (
-        <p className="px-5 py-8 text-center text-[13px] text-subtle">
-          Journal, PNJ, indices : vos notes apparaîtront ici.
-        </p>
+        <p className="px-5 py-8 text-center text-[13px] text-subtle">{t('empty')}</p>
       ) : (
         <ul className="divide-y divide-border">
           {liste.map((n) => (
@@ -389,11 +404,11 @@ function NotesRecentes() {
                 <span className="text-lg">{iconeNote(n)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-medium">
-                    {n.title || 'Sans titre'}
+                    {n.title || t('untitled')}
                   </span>
                   <span className="block truncate text-xs text-subtle">
-                    {campagnes.data?.find((c) => c.id === n.roomId)?.name ?? 'Campagne'} ·{' '}
-                    {formaterDepuis(n.updatedAt)}
+                    {campagnes.data?.find((c) => c.id === n.roomId)?.name ?? t('campaign')} ·{' '}
+                    {dates.since(n.updatedAt)}
                   </span>
                 </span>
               </Link>

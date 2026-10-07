@@ -6,6 +6,7 @@
  * arrivée) ; retour relié (sélectionner, délier) ou « Poser le retour ». Chaque réglage est une
  * commande annulable ; une sélection multiple règle l'apparence et le comportement.
  */
+import { translate } from '@/i18n/runtime';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRightLeft, Crosshair, Link2Off, MapPinned } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
@@ -18,8 +19,9 @@ import type { InspectorSectionProps } from '@/lib/map/engine/map-engine';
 import { patchPortals } from '../engine/kind';
 import {
   hasDestination,
-  PORTAL_COLORS,
+  iconLabel,
   PORTAL_ICONS,
+  portalColorOptions,
   PORTALS_TOOL_ID,
   portalLabel,
   RADIUS_RANGE,
@@ -63,7 +65,7 @@ export function PortalInspector({ engine, entities }: Readonly<InspectorSectionP
 
   const commitName = () => {
     const next = name.trim().slice(0, 200);
-    if (next !== first.name) patch('Renommer le portail', () => ({ name: next }));
+    if (next !== first.name) patch(translate('map.portals.rename'), () => ({ name: next }));
   };
 
   return (
@@ -71,7 +73,7 @@ export function PortalInspector({ engine, entities }: Readonly<InspectorSectionP
       {single && (
         <div className="space-y-1.5">
           <label htmlFor={`${id}-name`} className="text-[13px] text-foreground">
-            Nom
+            {translate('map.lights.name')}
           </label>
           <Input
             id={`${id}-name`}
@@ -88,34 +90,32 @@ export function PortalInspector({ engine, entities }: Readonly<InspectorSectionP
               }
             }}
           />
-          <p className="text-xs text-muted-foreground">
-            Montré aux joueurs : évitez d’y nommer une scène qu’ils ne connaissent pas encore.
-          </p>
+          <p className="text-xs text-muted-foreground">{translate('map.portals.nameHint')}</p>
         </div>
       )}
 
       <div className="space-y-1.5">
-        <span className="text-[13px] text-foreground">Icône</span>
+        <span className="text-[13px] text-foreground">{translate('map.portals.icon')}</span>
         <div className="flex gap-1">
           {PORTAL_ICONS.map((i) => (
             <OptionButton
-              key={i.value}
-              label={i.label}
-              active={same((p) => p.icon) === i.value}
-              onClick={() => patch('Icône du portail', () => ({ icon: i.value }))}
+              key={i}
+              label={iconLabel(i)}
+              active={same((p) => p.icon) === i}
+              onClick={() => patch(translate('map.portals.portalIcon'), () => ({ icon: i }))}
             >
-              <PortalGlyph icon={i.value} />
+              <PortalGlyph icon={i} />
             </OptionButton>
           ))}
         </div>
       </div>
 
       <div className="space-y-2">
-        <span className="text-[13px] text-foreground">Couleur</span>
+        <span className="text-[13px] text-foreground">{translate('map.lights.color')}</span>
         <Swatches
           value={same((p) => p.color) ?? ''}
-          options={PORTAL_COLORS}
-          onChange={(c) => c && patch('Couleur du portail', () => ({ color: c }))}
+          options={portalColorOptions()}
+          onChange={(c) => c && patch(translate('map.portals.portalColor'), () => ({ color: c }))}
         />
       </div>
 
@@ -127,34 +127,41 @@ export function PortalInspector({ engine, entities }: Readonly<InspectorSectionP
         step={RADIUS_RANGE.step}
         format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
         onCommit={(v) =>
-          patch('Zone du portail', () => ({ radius: Math.round(v * ppu * 100) / 100 }))
+          patch(translate('map.portals.portalZone'), () => ({
+            radius: Math.round(v * ppu * 100) / 100,
+          }))
         }
       />
 
       <FieldRow
-        label="Visible des joueurs"
+        label={translate('map.portals.visibleToPlayers')}
         htmlFor={`${id}-visible`}
-        hint="Masqué, les joueurs ne le voient ni ne l’empruntent."
+        hint={translate('map.portals.hiddenHint')}
       >
         <Switch
           id={`${id}-visible`}
           checked={list.every((p) => p.visible)}
           onCheckedChange={(on) =>
-            patch(on ? 'Montrer le portail' : 'Masquer le portail', () => ({ visible: on }))
+            patch(on ? translate('map.portals.show') : translate('map.portals.hide'), () => ({
+              visible: on,
+            }))
           }
         />
       </FieldRow>
 
       <FieldRow
-        label="Automatique"
+        label={translate('map.portals.auto')}
         htmlFor={`${id}-auto`}
-        hint="Franchi dès qu’un joueur y lâche son token, sans question."
+        hint={translate('map.portals.autoCrossed')}
       >
         <Switch
           id={`${id}-auto`}
           checked={list.every((p) => p.auto)}
           onCheckedChange={(on) =>
-            patch(on ? 'Portail automatique' : 'Portail sur demande', () => ({ auto: on }))
+            patch(
+              on ? translate('map.portals.setAuto') : translate('map.portals.setOnDemand'),
+              () => ({ auto: on }),
+            )
           }
         />
       </FieldRow>
@@ -208,14 +215,16 @@ function Destination({
 
   return (
     <div className="space-y-3 border-t border-border pt-4">
-      <span className="text-xs font-semibold uppercase tracking-wide text-subtle">Destination</span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-subtle">
+        {translate('map.portals.destination')}
+      </span>
       <Segmented
-        label="Destination"
+        label={translate('map.portals.destination')}
         value={mode}
         onChange={(v) => setMode(v as 'here' | 'scene')}
         options={[
-          { value: 'here', label: 'Cette scène', icon: Crosshair },
-          { value: 'scene', label: 'Autre scène', icon: MapPinned },
+          { value: 'here', label: translate('map.portals.thisScene'), icon: Crosshair },
+          { value: 'scene', label: translate('map.portals.otherScene'), icon: MapPinned },
         ]}
       />
       {mode === 'here' ? (
@@ -228,7 +237,7 @@ function Destination({
           </p>
           <Button variant="secondary" size="sm" onClick={pick}>
             <Crosshair />
-            Choisir l’arrivée sur la carte
+            {translate('map.portals.pickArrival')}
           </Button>
         </div>
       ) : (
@@ -241,7 +250,7 @@ function Destination({
           }}
           onChange={(v) =>
             v.mapId &&
-            patch('Destination du portail', () => ({
+            patch(translate('map.portals.portalDestination'), () => ({
               kind: 'scene_change',
               targetMapId: v.mapId,
               target: v.target,
@@ -253,15 +262,17 @@ function Destination({
       <div className="space-y-2 rounded-xl border border-border p-3">
         <span className="flex items-center gap-1.5 text-sm font-medium">
           <ArrowRightLeft className="size-4 text-primary" aria-hidden />
-          Retour
+          {translate('map.portals.return')}
         </span>
         {portal.linkedPortalId ? (
           <>
             <p className="text-xs text-muted-foreground">
               {twin
-                ? `Relié à « ${portalLabel(twin)} », sur cette scène.`
-                : `Relié à un portail de « ${sceneName ?? 'une autre scène'} ».`}{' '}
-              Déplacer l’un déplace l’arrivée de l’autre.
+                ? translate('map.portals.linkedHere', { name: portalLabel(twin) })
+                : translate('map.portals.linkedElsewhere', {
+                    scene: sceneName ?? translate('map.portals.anotherScene'),
+                  })}{' '}
+              {translate('map.portals.linkedMoves')}
             </p>
             <div className="flex flex-wrap gap-2">
               {twin && (
@@ -270,31 +281,31 @@ function Destination({
                   size="sm"
                   onClick={() => engine.selection.replace([twin.id])}
                 >
-                  Sélectionner le retour
+                  {translate('map.portals.selectReturn')}
                 </Button>
               )}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => patch('Délier le retour', () => ({ linkedPortalId: null }))}
+                onClick={() =>
+                  patch(translate('map.portals.unlinkReturn'), () => ({ linkedPortalId: null }))
+                }
               >
                 <Link2Off />
-                Délier
+                {translate('map.portals.unlink')}
               </Button>
             </div>
           </>
         ) : (
           <>
-            <p className="text-xs text-muted-foreground">
-              Aller simple. Le retour se pose à l’arrivée, relié à ce portail.
-            </p>
+            <p className="text-xs text-muted-foreground">{translate('map.portals.oneWayHint')}</p>
             <Button
               variant="secondary"
               size="sm"
               disabled={!hasDestination(portal)}
               onClick={placeReturn}
             >
-              Poser le retour
+              {translate('map.portals.placeReturn')}
             </Button>
           </>
         )}
@@ -304,8 +315,6 @@ function Destination({
 }
 
 function arrivalHint(hasArrival: boolean, linked: boolean): string {
-  if (!hasArrival) return 'Pas encore d’arrivée sur cette scène.';
-  return linked
-    ? 'Les tokens arrivent à son retour, sur cette scène.'
-    : 'Les tokens arrivent au repère d’arrivée (glissez-le avec l’outil Portails).';
+  if (!hasArrival) return translate('map.portals.noArrival');
+  return linked ? translate('map.portals.arriveAtReturn') : translate('map.portals.arriveAtMarker');
 }
