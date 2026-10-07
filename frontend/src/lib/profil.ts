@@ -2,7 +2,7 @@
  * Profils, titres et envoi d'images (service identity).
  * Les composants passent par ces fonctions typées, jamais par fetch directement.
  */
-import { checkUpload, UPLOAD_USAGES } from '@vtt/contracts';
+import { checkUpload, UPLOAD_USAGES, type Locale } from '@vtt/contracts';
 import { api } from './api';
 import { MAX_SIDE, prepareImage } from './uploads/image';
 import { uploadFile, type UploadProgress } from './uploads/uploader';
@@ -23,6 +23,8 @@ export interface Profil {
   showPremiumBadge: boolean;
   timeSpentMinutes: number;
   emailNotifications: boolean;
+  /** Langue choisie sur le compte ; null : le navigateur décide (docs/i18n.md § 3). */
+  locale: Locale | null;
   settings: Record<string, unknown>;
   hasPassword: boolean;
   providers: Fournisseur[];
@@ -39,6 +41,7 @@ export type ModificationProfil = Partial<
     | 'borderType'
     | 'showPremiumBadge'
     | 'emailNotifications'
+    | 'locale'
     | 'settings'
   >
 >;
