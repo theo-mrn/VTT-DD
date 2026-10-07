@@ -11,6 +11,7 @@
  * - `ProgressRow` : attaque en cours (défense, dés), avec Tirer et Abandonner ;
  * - `SettledRow` : confirmation d'une décision, avec Annuler.
  */
+import { CapacityText } from '@/components/combat/reports/capacity-text';
 import { translate } from '@/i18n/runtime';
 import { useTranslations } from 'next-intl';
 import type { Attack, AttackTarget } from '@vtt/contracts';
@@ -138,6 +139,12 @@ export function ReportCard({ attack: a, live }: Readonly<{ attack: Attack; live:
       </header>
 
       <Marks attack={a} className="pl-4 pr-3 pt-1.5" />
+      <CapacityText
+        systeme={systeme}
+        presentation={live.presentation}
+        attack={a}
+        className="mx-3 mt-2"
+      />
 
       {single && t0 ? (
         <SingleTarget attack={a} target={t0} live={live} />

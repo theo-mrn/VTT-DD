@@ -176,6 +176,29 @@ export function actionsGeneriques(presentation: Presentation | null | undefined)
   return new Set((capacitesDeLaPresentation(presentation)?.actions ?? []).map((a) => a.action));
 }
 
+/**
+ * Capacité jouée par un acte (docs/combat.md § 19.1) : l'entrée qu'un paramètre de l'action
+ * reçoit parmi les sortes du menu Capacités (action générique, Sort…) ; null sinon. Le MJ en
+ * lit le texte complet dans le rapport.
+ */
+export function capaciteDeLActe(
+  systeme: SystemeCharge | null | undefined,
+  presentation: Presentation | null | undefined,
+  actionId: string,
+  params: Record<string, unknown> | undefined,
+): Entree | null {
+  const decl = capacitesDeLaPresentation(presentation);
+  const action = systeme?.actions.get(actionId);
+  if (!decl || !action || !systeme) return null;
+  for (const p of action.parametres) {
+    if (p.type !== 'entree' || !decl.sortes.includes(p.sorte)) continue;
+    const v = params?.[p.id];
+    const e = typeof v === 'string' ? systeme.entrees.get(v) : undefined;
+    if (e) return e;
+  }
+  return null;
+}
+
 /** Capacité jouée par une action générique (son paramètre), sinon null. */
 export function capaciteJouee(
   presentation: Presentation | null | undefined,

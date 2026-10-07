@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { calculer, charger, EtatEntite, Presentation, type EtatEntiteSaisi } from '@vtt/rules';
 import { describe, expect, it } from 'vitest';
 import { targetedActions } from './actions';
-import { capacitesDeCombat, groupeDe } from './capacities';
+import { capaciteDeLActe, capacitesDeCombat, groupeDe } from './capacities';
 
 const PUBLIC = fileURLToPath(new URL('../../../public/systemes/', import.meta.url));
 const r = charger(JSON.parse(readFileSync(`${PUBLIC}dnd-classic.json`, 'utf8')));
@@ -80,5 +80,13 @@ describe('menu Capacités', () => {
     const ids = (f: ReturnType<typeof fiche>) => targetedActions(systeme, f).map((a) => a.id);
     expect(ids(fiche([{ entree: 'barbare-rage', rang: 3 }]))).not.toContain('sort');
     expect(ids(fiche([{ entree: 'barde-seduction', rang: 4 }]))).toContain('sort');
+  });
+
+  it('rapport du MJ : la capacité jouée par l’acte, générique ou Sort', () => {
+    const nom = (action: string, capacite: string) =>
+      capaciteDeLActe(systeme, presentation, action, { capacite })?.nom;
+    expect(nom('utiliser-capacite', 'barde-musicien-chant-des-heros')).toBe('Chant des héros');
+    expect(nom('sort', 'barde-musicien-danse-irresistible')).toBe('Danse irrésistible');
+    expect(capaciteDeLActe(systeme, presentation, 'attaque', { arme: 'epee-longue' })).toBeNull();
   });
 });

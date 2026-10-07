@@ -11,7 +11,7 @@
  * à donner ou à passer, dés à tirer par le serveur, abandon. Les coûts de l'attaquant ont leur
  * propre ligne (`ActorCostCard`).
  */
-import { capaciteJouee } from '@/lib/combat/capacities';
+import { CapacityText } from './capacity-text';
 import { translate } from '@/i18n/runtime';
 import { useTranslations } from 'next-intl';
 import type { Attack, AttackTarget } from '@vtt/contracts';
@@ -214,20 +214,6 @@ export interface ReportCardProps {
   onFilter(characterId: string): void;
 }
 
-/**
- * Texte de la capacité jouée par l'action générique du menu Capacités (docs/combat.md § 19.1) :
- * le MJ lit ce qu'elle fait et l'applique.
- */
-function texteCapacite(
-  systeme: ReportCardProps['systeme'],
-  presentation: ReportCardProps['presentation'],
-  attack: Attack,
-): string | null {
-  const id = capaciteJouee(presentation, attack.action.id, attack.params);
-  const entree = id ? systeme?.entrees.get(id) : undefined;
-  return entree?.description?.trim() || null;
-}
-
 export function ReportCard({
   campaignId,
   attack,
@@ -254,7 +240,6 @@ export function ReportCard({
   const view = targetView(systeme, attack, t);
   const { outcome } = view;
   const params = keyParams(systeme, attack.action.id, attack.params);
-  const regle = texteCapacite(systeme, presentation, attack);
   const { decidable, decided, closed } = targetState(attack, t);
   const awaiting = awaitingMyReaction(attack, 'all');
 
@@ -306,14 +291,12 @@ export function ReportCard({
         </span>
       </header>
 
-      {regle && (
-        <p
-          title={regle}
-          className="mx-4 mt-1 line-clamp-3 whitespace-pre-line text-xs leading-relaxed text-muted-foreground"
-        >
-          {regle}
-        </p>
-      )}
+      <CapacityText
+        systeme={systeme}
+        presentation={presentation}
+        attack={attack}
+        className="mx-4 mt-1.5"
+      />
 
       <PeopleRow
         attack={attack}
