@@ -6,19 +6,23 @@
  * au même endroit de l'image pour tous, quels que soient l'écran et le zoom. La grille de jeu
  * (`primary`) donne la case de la scène (`scenePixelsPerUnit`, @vtt/contracts).
  */
+import { translate } from '@/i18n/runtime';
 import { MAP_GRIDS_MAX, type MapGrid } from '@vtt/contracts';
 import type { Point } from '@/lib/map/engine/geometry';
 
 export const GRID_CALIBRATE_TOOL_ID = 'grid-calibrate';
 
-/** Couleurs proposées (données : un quadrillage sur fond sombre ou clair). */
+/**
+ * Couleurs proposées (données : un quadrillage sur fond sombre ou clair) ; nom affiché :
+ * `map.grid.colors.<name>`.
+ */
 export const GRID_COLORS = [
-  { value: '#000000', label: 'Noir' },
-  { value: '#ffffff', label: 'Blanc' },
-  { value: '#9ca3af', label: 'Gris' },
-  { value: '#f5c542', label: 'Or' },
-  { value: '#38bdf8', label: 'Bleu' },
-  { value: '#ef4444', label: 'Rouge' },
+  { value: '#000000', name: 'black' },
+  { value: '#ffffff', name: 'white' },
+  { value: '#9ca3af', name: 'grey' },
+  { value: '#f5c542', name: 'gold' },
+  { value: '#38bdf8', name: 'blue' },
+  { value: '#ef4444', name: 'red' },
 ] as const;
 
 /** Nombre de cases couvertes par le glisser du calibrage. */
@@ -45,7 +49,7 @@ export function newGrid(existing: readonly MapGrid[], cell: number): MapGrid | n
   const primary = !existing.some((g) => g.primary);
   return {
     id: `grille-${n}`,
-    name: primary ? 'Grille de jeu' : `Quadrillage ${n}`,
+    name: primary ? translate('map.grid.playGrid') : translate('map.grid.numbered', { n }),
     size: round2(cell > 0 ? cell : 50),
     offsetX: 0,
     offsetY: 0,

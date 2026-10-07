@@ -2,6 +2,7 @@
  * Écritures des tokens depuis le menu et l'inspecteur : une commande annulable par geste
  * (toute la sélection), retrait de la carte, suppression des PNJ avec leur personnage.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapTokenVisibility } from '@vtt/contracts';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import type { EntityKind } from '@/lib/map/engine/entities/entity-kind';
@@ -50,7 +51,7 @@ export function setVisibility(
   visibility: MapTokenVisibility,
   visibleTo: readonly string[] = [],
 ) {
-  return patchTokens(tokens, entities, 'Visibilité', (d) =>
+  return patchTokens(tokens, entities, translate('map.tokens.visibilityTitle'), (d) =>
     d.visibility === visibility && (visibility !== 'custom' || sameIds(d.visibleTo, visibleTo))
       ? d
       : withVisibility(d, visibility, visibleTo),
@@ -72,7 +73,7 @@ export function toggleVisibleTo(
   const all = entities.every(
     (e) => e.data.visibility === 'custom' && e.data.visibleTo.includes(characterId),
   );
-  return patchTokens(tokens, entities, 'Visible pour…', (d) => {
+  return patchTokens(tokens, entities, translate('map.common.visibleFor'), (d) => {
     const current = d.visibility === 'custom' ? d.visibleTo : [];
     const next = all
       ? current.filter((id) => id !== characterId)
@@ -87,14 +88,17 @@ export function setVisionRadius(
   radius: number,
 ) {
   const r = Math.max(0, Math.min(100_000, Math.round(radius)));
-  return patchTokens(tokens, entities, 'Rayon de vision', (d) =>
+  return patchTokens(tokens, entities, translate('map.tokens.visionRadius'), (d) =>
     d.visionRadius === r ? d : { ...d, visionRadius: r },
   );
 }
 
 export function setVisionBoost(tokens: TokensState, entities: readonly TokenEntity[], on: boolean) {
-  return patchTokens(tokens, entities, on ? 'Vision augmentée' : 'Vision normale', (d) =>
-    d.visionBoost === on ? d : { ...d, visionBoost: on },
+  return patchTokens(
+    tokens,
+    entities,
+    on ? translate('map.tokens.visionBoost') : translate('map.tokens.visionNormal'),
+    (d) => (d.visionBoost === on ? d : { ...d, visionBoost: on }),
   );
 }
 
@@ -105,7 +109,10 @@ export function removeFromMap(tokens: TokensState, entities: readonly TokenEntit
   if (!persistence || !items.length) return null;
   return tokens.engine.execute(
     deleteCommand({
-      label: items.length > 1 ? `Retirer ${items.length} tokens` : 'Retirer de la carte',
+      label:
+        items.length > 1
+          ? translate('map.tokens.removeMany', { count: items.length })
+          : translate('map.tokens.removeFromMap'),
       collection: TOKENS_COLLECTION,
       persistence,
       items,
@@ -131,7 +138,12 @@ export async function removeTokens(
     runs.push(
       tokens.engine.execute(
         deleteNpcsCommand({
-          label: npcs.length > 1 ? `Supprimer ${npcs.length} PNJ` : `Supprimer ${name ?? 'le PNJ'}`,
+          label:
+            npcs.length > 1
+              ? translate('map.tokens.deleteNpcs', { count: npcs.length })
+              : translate('map.tokens.deleteNamed', {
+                  name: name ?? translate('map.tokens.theNpc'),
+                }),
           api: tokens.api,
           items: npcs.map((e) => e.data),
           sideOf: (id) => tokens.directory.get(id)?.side,
@@ -151,14 +163,18 @@ export function confirmNpcDeletion(
 ): string | null {
   const npcs = settled(entities).filter((e) => isNpc(tokens.directory.get(e.data.characterId)));
   if (!npcs.length) return null;
-  const names = npcs.map((e) => tokens.directory.get(e.data.characterId)?.name ?? 'PNJ sans nom');
+  const names = npcs.map(
+    (e) => tokens.directory.get(e.data.characterId)?.name ?? translate('map.tokens.unnamedNpc'),
+  );
   const others = settled(entities).length - npcs.length;
-  const suffix = others
-    ? ` Les personnages joueurs sélectionnés sont seulement retirés de la carte.`
-    : '';
+  const suffix = others ? ` ${translate('map.tokens.playersOnlyRemoved')}` : '';
   if (npcs.length === 1)
-    return `Supprimer « ${names[0]} » de la carte ? Sa fiche de jeu (PV, état) disparaît avec lui ; son modèle reste dans « Mes PNJ ».${suffix}`;
+    return translate('map.tokens.confirmDeleteOne', { name: names[0] ?? '' }) + suffix;
   const shown = names.slice(0, 3).join(', ');
-  const more = names.length > 3 ? ` et ${names.length - 3} autres` : '';
-  return `Supprimer ${npcs.length} PNJ (${shown}${more}) de la carte ? Leurs fiches de jeu disparaissent avec eux ; leurs modèles restent dans « Mes PNJ ».${suffix}`;
+  const more =
+    names.length > 3 ? translate('map.tokens.andOthers', { count: names.length - 3 }) : '';
+  return (
+    translate('map.tokens.confirmDeleteMany', { count: npcs.length, names: `${shown}${more}` }) +
+    suffix
+  );
 }

@@ -8,6 +8,7 @@
  * `/tokens/move` pour un glisser, `PATCH` sinon, `/duplicate` pour copier un PNJ, et la
  * suppression d'un PNJ avec son personnage.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
 import { field, type EntityKind, type LiveAudience } from '@/lib/map/engine/entities/entity-kind';
 import type { Persistence } from '@/lib/map/store/commands';
@@ -94,7 +95,7 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
 
   return {
     id: TOKEN_KIND_ID,
-    label: 'Personnage',
+    label: translate('map.common.character'),
     collection: TOKENS_COLLECTION,
     capabilities: ['select', 'move', 'resize', 'duplicate', 'delete', 'inspect', 'order'],
     plane: 'content',

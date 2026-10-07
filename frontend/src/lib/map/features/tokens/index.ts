@@ -9,6 +9,7 @@
  * - Inspecteur : personnage (fiche) et réglages du token ; panneau de fiche ; menu.
  * - Annuaire des personnages, alimenté par React (`TokenCharacterFeed`).
  */
+import { translate } from '@/i18n/runtime';
 import { UserRoundPlus } from 'lucide-react';
 import { TokenCharacterFeed } from './ui/character-feed';
 import { TokenSheetPanel } from './ui/sheet-panel';
@@ -42,7 +43,7 @@ export function createTokensFeature(
         engine.registerKind(createTokenKind(tokens)),
         engine.registerTool({
           id: TOKENS_TOOL_ID,
-          label: 'Personnages',
+          label: translate('map.tools.tokens'),
           icon: UserRoundPlus,
           shortcut: { code: 'KeyA', label: 'A' },
           order: 60,
@@ -55,7 +56,7 @@ export function createTokensFeature(
         }),
         engine.registerInspectorSection({
           id: 'token-character',
-          title: 'Personnage',
+          title: translate('map.common.character'),
           order: 10,
           appliesTo: (es, viewer) =>
             es.length === 1 &&
@@ -65,7 +66,7 @@ export function createTokensFeature(
         }),
         engine.registerInspectorSection({
           id: 'token-settings',
-          title: 'Token',
+          title: translate('map.tokens.token'),
           order: 20,
           appliesTo: (es, viewer) =>
             es.every(isToken) &&

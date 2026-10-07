@@ -43,6 +43,9 @@ const entree = (delai: number) => ({
   transition: { duration: 0.6, delay: delai, ease: 'easeOut' as const },
 });
 
+/** Héros de la vitrine : un nom propre, le même dans toutes les langues. */
+const HEROS_DEMO = 'Aelys'; // i18n-ignore
+
 function Vitrine() {
   const t = useTranslations('auth.frame.showcase');
   return (
@@ -130,13 +133,13 @@ function Vitrine() {
             <div className="flex items-center gap-3">
               <Illustration
                 src="https://assets.yner.fr/images/races/Elfe.webp"
-                graine="Aelys" // i18n-ignore
+                graine={HEROS_DEMO}
                 largeur={44}
                 position="top"
                 className="size-11 rounded-xl ring-1 ring-white/15"
               />
               <div>
-                <p className="font-display text-base font-semibold text-white">Aelys</p>
+                <p className="font-display text-base font-semibold text-white">{HEROS_DEMO}</p>
                 <p className="text-xs text-white/55">{t('heroLine')}</p>
               </div>
             </div>

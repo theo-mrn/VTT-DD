@@ -145,17 +145,22 @@ export function scanSource(code, tsx) {
     if (raw[index]?.includes('i18n-ignore')) return;
     if (/^\s*(import|export \* from|export \{[^}]*\} from)\b/.test(line)) return;
     if (/displayName\s*=|#include/.test(line)) return;
-    if (/new Error\(|console\.|'use (client|server)'|className=|class=/.test(line)) {
-      // Une ligne className peut porter aussi un libellé : on ne garde que les attributs utiles
-      if (!/(title|placeholder|aria-label|alt|label)=["'][^"']+["']/.test(line)) return;
-    }
+    if (/new Error\(|console\.|'use (client|server)'/.test(line)) return;
+    // Ligne de classes CSS : ses chaînes sont des classes, mais elle peut porter un texte JSX
+    // ou un attribut utile (title, aria-label…)
+    const classes = /className=|class=/.test(line);
     const hits = new Set();
-    for (const m of line.matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`([^`$]*)`/g)) {
+    if (classes)
+      for (const m of line.matchAll(/(title|placeholder|aria-label|alt|label)=["']([^"']+)["']/g))
+        if (looksLikeText(m[2])) hits.add(m[2].trim());
+    for (const m of classes
+      ? []
+      : line.matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`([^`$]*)`/g)) {
       const s = m[1] ?? m[2] ?? m[3] ?? '';
       if (looksLikeText(s)) hits.add(s.trim());
     }
     // Gabarit avec des valeurs : le texte autour d'elles (`par ${noms}`)
-    for (const m of line.matchAll(/`([^`]*\$\{[^`]*)`/g)) {
+    for (const m of classes ? [] : line.matchAll(/`([^`]*\$\{[^`]*)`/g)) {
       const fixed = (m[1] ?? '').replace(/\$\{[^}]*\}/g, ' ').trim();
       if (/[a-zà-ÿ]{2}/i.test(fixed) && (ACCENTS.test(fixed) || FRENCH_WORDS.test(` ${fixed} `)))
         hits.add(m[1].trim());
@@ -165,7 +170,8 @@ export function scanSource(code, tsx) {
         // Flèche de fonction suivie d'un type générique (`=> api<T>`) : du code
         if (line[(m.index ?? 0) - 1] === '=') continue;
         const s = m[1].trim();
-        if (/[;=()&|]/.test(s) || /^[,.]/.test(s) || !/[a-zà-ÿ]{2}/i.test(s)) continue;
+        if (/[;=()&|]/.test(s) || /^[,./]/.test(s) || !/[a-zà-ÿ]{2}/i.test(s)) continue;
+        if (TECHNICAL.has(s)) continue;
         hits.add(s);
       }
       // Texte JSX seul sur sa ligne

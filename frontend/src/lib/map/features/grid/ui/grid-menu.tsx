@@ -8,6 +8,7 @@
  * « Ajuster sur l'image » : glisser sur des cases dessinées dans le fond pour caler case et
  * origine. Chaque changement est une commande annulable (`PATCH /maps/:mapId`).
  */
+import { formatter, translate } from '@/i18n/runtime';
 import { mapActionShortcutOf } from '@/lib/map/shortcuts';
 import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import { MAP_GRIDS_MAX, type MapGrid } from '@vtt/contracts';
@@ -54,7 +55,7 @@ export function GridControls({ engine }: Readonly<{ engine: MapEngine }>) {
         <Info
           texte={
             <span className="flex items-center gap-2">
-              {shown ? 'Masquer le quadrillage' : 'Afficher le quadrillage'}
+              {shown ? translate('map.grid.hide') : translate('map.grid.show')}
               {touche.label && <Kbd>{touche.label}</Kbd>}
             </span>
           }
@@ -62,7 +63,7 @@ export function GridControls({ engine }: Readonly<{ engine: MapEngine }>) {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={shown ? 'Masquer le quadrillage' : 'Afficher le quadrillage'}
+            aria-label={shown ? translate('map.grid.hide') : translate('map.grid.show')}
             aria-pressed={shown}
             aria-keyshortcuts={touche.aria}
             onClick={() => setGridShown(!shown)}
@@ -93,19 +94,19 @@ function GridSettings({
   const add = () => {
     const grid = newGrid(grids, engine.kindContext().pixelsPerUnit);
     if (grid) {
-      save('Ajouter un quadrillage', [...grids, grid]);
+      save(translate('map.grid.add'), [...grids, grid]);
       setGridShown(true);
     }
   };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Info texte="Réglages du quadrillage">
+      <Info texte={translate('map.grid.settings')}>
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Réglages du quadrillage"
+            aria-label={translate('map.grid.settings')}
             className={cn(compact && 'w-5 px-0 text-muted-foreground')}
           >
             {compact ? <ChevronUp /> : <Grid3x3 />}
@@ -118,12 +119,8 @@ function GridSettings({
         // Rien de sélectionné à l'ouverture : une touche ne renomme pas le quadrillage
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <p className="text-sm font-semibold">Quadrillage</p>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Aligné sur l’image : le même pour tous, à tous les zooms. La grille de jeu donne la case
-          de la scène (taille des jetons, rayons, aimantation). Le bouton l’affiche ou le masque sur
-          votre écran.
-        </p>
+        <p className="text-sm font-semibold">{translate('map.grid.title')}</p>
+        <p className="mb-3 text-xs text-muted-foreground">{translate('map.grid.lead')}</p>
         <div className="space-y-3">
           {grids.map((grid) => (
             <GridCard
@@ -133,7 +130,7 @@ function GridSettings({
               onChange={(label, patch) => save(label, withGrid(grids, grid.id, patch))}
               onRemove={() =>
                 save(
-                  'Retirer un quadrillage',
+                  translate('map.grid.remove'),
                   grids.filter((g) => g.id !== grid.id),
                 )
               }
@@ -142,13 +139,13 @@ function GridSettings({
           ))}
           {grids.length === 0 && (
             <p className="rounded-lg border border-dashed border-border-strong px-3 py-4 text-center text-xs text-muted-foreground">
-              Pas encore de quadrillage sur cette scène.
+              {translate('map.grid.none')}
             </p>
           )}
           {grids.length < MAP_GRIDS_MAX && (
             <Button variant="secondary" size="sm" className="w-full" onClick={add}>
               <Plus />
-              {grids.length ? 'Ajouter un quadrillage' : 'Ajouter la grille de jeu'}
+              {grids.length ? translate('map.grid.add') : translate('map.grid.addPlay')}
             </Button>
           )}
         </div>
@@ -180,9 +177,9 @@ function GridCard({
     onCalibrate();
     toast(
       cells === 1
-        ? 'Glissez d’un coin à l’autre d’une case de l’image'
-        : `Glissez sur ${cells} × ${cells} cases de l’image`,
-      { description: 'Échap pour annuler.' },
+        ? translate('map.grid.dragOne')
+        : translate('map.grid.dragMany', { cells: String(cells) }),
+      { description: translate('map.grid.escapeToCancel') },
     );
   };
 
@@ -195,15 +192,17 @@ function GridCard({
     >
       <div className="flex items-center gap-1.5">
         <TextField
-          label="Nom du quadrillage"
+          label={translate('map.grid.name')}
           value={grid.name}
-          onCommit={(name) => onChange('Renommer le quadrillage', { name })}
+          onCommit={(name) => onChange(translate('map.grid.rename'), { name })}
         />
-        <Info texte="Retirer ce quadrillage">
+        <Info texte={translate('map.grid.removeThis')}>
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label={`Retirer ${grid.name || 'ce quadrillage'}`}
+            aria-label={translate('map.grid.removeOf', {
+              name: grid.name || translate('map.grid.thisGrid'),
+            })}
             onClick={onRemove}
             className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
@@ -212,51 +211,58 @@ function GridCard({
         </Info>
       </div>
 
-      <Row label="Grille de jeu" hint={grid.primary ? `1 case = 1 ${unit}` : undefined}>
+      <Row
+        label={translate('map.grid.playGrid')}
+        hint={grid.primary ? translate('map.grid.cellUnit', { unit }) : undefined}
+      >
         <Switch
           checked={grid.primary}
-          aria-label="Grille de jeu"
-          onCheckedChange={(primary) => onChange('Grille de jeu', { primary })}
+          aria-label={translate('map.grid.playGrid')}
+          onCheckedChange={(primary) => onChange(translate('map.grid.playGrid'), { primary })}
         />
       </Row>
-      <Row label="Visible des joueurs">
+      <Row label={translate('map.grid.visible')}>
         <Switch
           checked={grid.visibleToPlayers}
-          aria-label="Visible des joueurs"
+          aria-label={translate('map.grid.visible')}
           onCheckedChange={(visibleToPlayers) =>
-            onChange('Quadrillage montré aux joueurs', { visibleToPlayers })
+            onChange(translate('map.grid.shownToPlayers'), { visibleToPlayers })
           }
         />
       </Row>
 
       <div className="grid grid-cols-3 gap-1.5">
         <NumberField
-          label="Case (px)"
+          label={translate('map.grid.cellPx')}
           value={grid.size}
           min={4}
           max={10_000}
-          onCommit={(size) => onChange('Taille de la case', { size })}
+          onCommit={(size) => onChange(translate('map.grid.cellSize'), { size })}
         />
         <NumberField
-          label="Origine X"
+          label={translate('map.grid.originX')}
           value={grid.offsetX}
           min={-100_000}
           max={100_000}
-          onCommit={(offsetX) => onChange('Origine du quadrillage', { offsetX })}
+          onCommit={(offsetX) => onChange(translate('map.grid.origin'), { offsetX })}
         />
         <NumberField
-          label="Origine Y"
+          label={translate('map.grid.originY')}
           value={grid.offsetY}
           min={-100_000}
           max={100_000}
-          onCommit={(offsetY) => onChange('Origine du quadrillage', { offsetY })}
+          onCommit={(offsetY) => onChange(translate('map.grid.origin'), { offsetY })}
         />
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-[11px] text-muted-foreground">Ajuster sur l’image</p>
+        <p className="text-[11px] text-muted-foreground">{translate('map.grid.fitOnImage')}</p>
         <div className="flex items-center gap-1">
-          <div role="radiogroup" aria-label="Cases couvertes" className="flex gap-0.5">
+          <div
+            role="radiogroup"
+            aria-label={translate('map.grid.cellsCovered')}
+            className="flex gap-0.5"
+          >
             {CALIBRATE_CELLS.map((n) => (
               <button
                 key={n}
@@ -277,20 +283,24 @@ function GridCard({
           </div>
           <Button size="xs" variant="secondary" className="ml-auto" onClick={calibrate}>
             <Ruler />
-            Ajuster
+            {translate('map.grid.fit')}
           </Button>
         </div>
       </div>
 
-      <div className="flex items-center gap-1" role="radiogroup" aria-label="Couleur">
+      <div
+        className="flex items-center gap-1"
+        role="radiogroup"
+        aria-label={translate('map.grid.color')}
+      >
         {GRID_COLORS.map((c) => (
-          <Info key={c.value} texte={c.label}>
+          <Info key={c.value} texte={translate(`map.grid.colors.${c.name}`)}>
             <button
               type="button"
               role="radio"
               aria-checked={grid.color === c.value}
-              aria-label={c.label}
-              onClick={() => onChange('Couleur du quadrillage', { color: c.value })}
+              aria-label={translate(`map.grid.colors.${c.name}`)}
+              onClick={() => onChange(translate('map.grid.gridColor'), { color: c.value })}
               className={cn(
                 'grid size-6 place-items-center rounded-full border border-border-strong',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
@@ -309,22 +319,22 @@ function GridCard({
       </div>
 
       <SliderRow
-        label="Opacité"
+        label={translate('map.grid.opacity')}
         value={Math.round(grid.opacity * 100)}
         min={5}
         max={100}
         step={5}
-        format={(v) => `${v} %`}
-        onCommit={(v) => onChange('Opacité du quadrillage', { opacity: v / 100 })}
+        format={(v) => formatter().number(v / 100, 'percent')}
+        onCommit={(v) => onChange(translate('map.grid.gridOpacity'), { opacity: v / 100 })}
       />
       <SliderRow
-        label="Épaisseur"
+        label={translate('map.grid.thickness')}
         value={grid.thickness}
         min={0.5}
         max={4}
         step={0.5}
         format={(v) => `${v} px`}
-        onCommit={(thickness) => onChange('Épaisseur du quadrillage', { thickness })}
+        onCommit={(thickness) => onChange(translate('map.grid.gridThickness'), { thickness })}
       />
     </div>
   );

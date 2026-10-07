@@ -8,6 +8,7 @@
  *   forme et image du token (MJ) ; vision augmentée pour un joueur sur ses personnages.
  * Chaque réglage est une commande annulable, pour toute la sélection.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapTokenShape, MapTokenVisibility } from '@vtt/contracts';
 import { MediaUrl } from '@vtt/contracts';
 import { Circle, IdCard, ImageUp, Square, Undo2 } from 'lucide-react';
@@ -34,9 +35,10 @@ import {
 } from '../engine/edit';
 import {
   ownsToken,
-  SIDE_LABELS,
+  sideLabel,
   tokenImage,
-  VISIBILITY_LABELS,
+  visibilityHint,
+  visibilityLabel,
   VISIBILITY_ORDER,
   type ResourceGauge,
   type TokenData,
@@ -65,7 +67,7 @@ export function TokenCharacterSection({ engine, entities }: Readonly<InspectorSe
   const tokens = useTokens(engine);
   const token = asTokens(entities)[0]!.data;
   const info = useCharacterInfo(tokens, token.characterId);
-  const name = info?.name ?? token.draft?.name ?? 'Personnage';
+  const name = info?.name ?? token.draft?.name ?? translate('map.common.character');
   const side = info?.side ?? token.draft?.side ?? null;
   return (
     <div className="space-y-3">
@@ -79,8 +81,8 @@ export function TokenCharacterSection({ engine, entities }: Readonly<InspectorSe
         <div className="min-w-0 flex-1 space-y-1">
           <p className="truncate text-[15px] font-semibold">{name}</p>
           <div className="flex flex-wrap gap-1.5">
-            {side && <Badge ton={SIDE_TONE[side]}>{SIDE_LABELS[side]}</Badge>}
-            {info?.kind === 'npc' && <Badge>PNJ</Badge>}
+            {side && <Badge ton={SIDE_TONE[side]}>{sideLabel(side)}</Badge>}
+            {info?.kind === 'npc' && <Badge>{translate('map.tokens.inspector.npc')}</Badge>}
           </div>
         </div>
       </div>
@@ -93,7 +95,7 @@ export function TokenCharacterSection({ engine, entities }: Readonly<InspectorSe
         onClick={() => tokens.library.setState({ sheetFor: token.characterId })}
       >
         <IdCard />
-        Ouvrir la fiche
+        {translate('map.tokens.inspector.openSheet')}
       </Button>
     </div>
   );
@@ -156,15 +158,18 @@ export function TokenSettingsSection({ engine, entities }: Readonly<InspectorSec
   const list = asTokens(entities).filter((e) => !e.data.draft);
   const gm = engine.viewer.role === 'gm';
   const boostId = useId();
-  if (!list.length) return <p className="text-sm text-muted-foreground">Pose en cours…</p>;
+  if (!list.length)
+    return (
+      <p className="text-sm text-muted-foreground">{translate('map.tokens.library.placing')}</p>
+    );
 
   const boost = common(list, (d) => d.visionBoost);
   const boostSwitch = (
     <div className="flex items-center justify-between gap-3">
       <Label htmlFor={boostId} className="text-[13px]">
-        Vision augmentée
+        {translate('map.tokens.visionBoost')}
         <span className="block text-xs font-normal text-muted-foreground">
-          Rayon triplé tant qu’elle est active
+          {translate('map.tokens.inspector.boostHint')}
         </span>
       </Label>
       <Switch
@@ -200,11 +205,11 @@ function VisibilityField({ tokens, entities: es }: Readonly<FieldProps>) {
   const id = useId();
   const value = common(es, (d) => d.visibility);
   return (
-    <Field label="Visibilité" htmlFor={id}>
+    <Field label={translate('map.tokens.visibilityTitle')} htmlFor={id}>
       <SelectField
         id={id}
         value={value ?? ''}
-        placeholder="Plusieurs"
+        placeholder={translate('map.tokens.inspector.several')}
         onValueChange={(v) => {
           if (!v) return;
           const next = v as MapTokenVisibility;
@@ -214,14 +219,14 @@ function VisibilityField({ tokens, entities: es }: Readonly<FieldProps>) {
         }}
         options={VISIBILITY_ORDER.map((v) => ({
           valeur: v,
-          nom: VISIBILITY_LABELS[v].label,
+          nom: visibilityLabel(v),
         }))}
       />
-      {value && <p className="text-xs text-muted-foreground">{VISIBILITY_LABELS[value].hint}</p>}
+      {value && <p className="text-xs text-muted-foreground">{visibilityHint(value)}</p>}
       {value === 'custom' && (
         <div className="pt-1">
           <CharacterChoice
-            label="Personnages qui voient le token"
+            label={translate('map.tokens.inspector.seenBy')}
             isChosen={(cid) => es.every((e) => e.data.visibleTo.includes(cid))}
             onToggle={(cid) => void toggleVisibleTo(tokens, es, cid)}
           />
@@ -241,10 +246,10 @@ function VisionField({ tokens, entities: es }: Readonly<FieldProps>) {
   const [draft, setDraft] = useState<number | null>(null);
   const shown = draft ?? units ?? 0;
   return (
-    <Field label={`Rayon de vision (${unit})`}>
+    <Field label={translate('map.tokens.inspector.radiusIn', { unit })}>
       <div className="flex items-center gap-3">
         <Slider
-          aria-label="Rayon de vision"
+          aria-label={translate('map.tokens.visionRadius')}
           min={0}
           max={30}
           step={0.5}
@@ -256,7 +261,7 @@ function VisionField({ tokens, entities: es }: Readonly<FieldProps>) {
           }}
         />
         <NumberBox
-          label="Rayon de vision"
+          label={translate('map.tokens.visionRadius')}
           value={units}
           min={0}
           step={0.5}
@@ -272,13 +277,15 @@ function SizeField({ tokens, entities: es }: Readonly<FieldProps>) {
   const [draft, setDraft] = useState<number | null>(null);
   const commit = (v: number) => {
     const s = Math.min(100, Math.max(0.1, Math.round(v * 100) / 100));
-    void patchTokens(tokens, es, 'Taille', (d) => (d.scale === s ? d : { ...d, scale: s }));
+    void patchTokens(tokens, es, translate('map.tokens.inspector.size'), (d) =>
+      d.scale === s ? d : { ...d, scale: s },
+    );
   };
   return (
     <Field label="Taille (en cases)">
       <div className="flex items-center gap-3">
         <Slider
-          aria-label="Taille du token"
+          aria-label={translate('map.tokens.inspector.tokenSize')}
           min={0.25}
           max={6}
           step={0.25}
@@ -289,7 +296,13 @@ function SizeField({ tokens, entities: es }: Readonly<FieldProps>) {
             commit(v ?? 1);
           }}
         />
-        <NumberBox label="Taille" value={scale} min={0.1} step={0.25} onCommit={commit} />
+        <NumberBox
+          label={translate('map.tokens.inspector.size')}
+          value={scale}
+          min={0.1}
+          step={0.25}
+          onCommit={commit}
+        />
       </div>
     </Field>
   );
@@ -298,14 +311,20 @@ function SizeField({ tokens, entities: es }: Readonly<FieldProps>) {
 function ShapeField({ tokens, entities: es }: Readonly<FieldProps>) {
   const shape = common(es, (d) => d.shape);
   const set = (s: MapTokenShape) =>
-    void patchTokens(tokens, es, 'Forme', (d) => (d.shape === s ? d : { ...d, shape: s }));
+    void patchTokens(tokens, es, translate('map.tokens.inspector.shape'), (d) =>
+      d.shape === s ? d : { ...d, shape: s },
+    );
   const options = [
-    { value: 'circle' as const, label: 'Rond', icon: Circle },
-    { value: 'square' as const, label: 'Carré', icon: Square },
+    { value: 'circle' as const, label: translate('map.tokens.inspector.round'), icon: Circle },
+    { value: 'square' as const, label: translate('map.tokens.inspector.square'), icon: Square },
   ];
   return (
-    <Field label="Forme">
-      <div role="radiogroup" aria-label="Forme du token" className="grid grid-cols-2 gap-1.5">
+    <Field label={translate('map.tokens.inspector.shape')}>
+      <div
+        role="radiogroup"
+        aria-label={translate('map.tokens.inspector.tokenShape')}
+        className="grid grid-cols-2 gap-1.5"
+      >
         {options.map((o) => (
           <button
             key={o.value}
@@ -339,7 +358,7 @@ function ImageField({ tokens, entity }: Readonly<{ tokens: TokensState; entity: 
   const [error, setError] = useState<string | null>(null);
   useEffect(() => setUrl(entity.data.imageUrl ?? ''), [entity.data.imageUrl]);
   const save = (next: string | null) =>
-    void patchTokens(tokens, [entity], 'Image du token', (d) =>
+    void patchTokens(tokens, [entity], translate('map.tokens.inspector.image'), (d) =>
       d.imageUrl === next ? d : { ...d, imageUrl: next },
     );
   const submit = () => {
@@ -347,7 +366,7 @@ function ImageField({ tokens, entity }: Readonly<{ tokens: TokensState; entity: 
     if (!v) return save(null);
     const ok = MediaUrl.safeParse(v);
     if (!ok.success) {
-      setError('Adresse https ou chemin du site attendu.');
+      setError(translate('map.tokens.inspector.urlHint'));
       return;
     }
     setError(null);
@@ -362,17 +381,17 @@ function ImageField({ tokens, entity }: Readonly<{ tokens: TokensState; entity: 
       setUrl(publicUrl);
       save(publicUrl);
     } catch (err) {
-      toast.error(messageErreur(err, 'L’image n’a pas pu être envoyée.'));
+      toast.error(messageErreur(err, translate('map.tokens.inspector.uploadFailed')));
     } finally {
       setBusy(false);
     }
   };
   return (
-    <Field label="Image du token" htmlFor={id}>
+    <Field label={translate('map.tokens.inspector.image')} htmlFor={id}>
       <Input
         id={id}
         value={url}
-        placeholder="Portrait du personnage"
+        placeholder={translate('map.tokens.inspector.portrait')}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-erreur` : undefined}
         onChange={(e) => setUrl(e.target.value)}
@@ -390,12 +409,12 @@ function ImageField({ tokens, entity }: Readonly<{ tokens: TokensState; entity: 
       <div className="flex gap-1.5">
         <Button variant="secondary" size="xs" loading={busy} onClick={() => file.current?.click()}>
           <ImageUp />
-          Envoyer une image
+          {translate('map.tokens.inspector.upload')}
         </Button>
         {entity.data.imageUrl && (
           <Button variant="ghost" size="xs" onClick={() => save(null)}>
             <Undo2 />
-            Portrait du personnage
+            {translate('map.tokens.inspector.portrait')}
           </Button>
         )}
       </div>
