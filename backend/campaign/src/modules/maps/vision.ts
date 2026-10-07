@@ -35,6 +35,7 @@ import {
   mapTokens,
 } from '../../db/schema.js';
 import { hiddenLayerIds, mapEvent, sceneSettingsOf, type Viewer } from './common.js';
+import { queueExploration } from './exploration-queue.js';
 import {
   foggedScene,
   geometryScene,
@@ -414,7 +415,8 @@ const notified = new WeakMap<object, Map<string, Set<string>>>();
 /**
  * `map.visibility_changed { mapId }` : un observateur, une porte, un mur, une pièce, une zone
  * ou une lumière a changé ; ces joueurs (tous par défaut) relisent tokens et objets, que le
- * serveur filtre autrement. Au plus un par joueur, par carte et par transaction.
+ * serveur filtre autrement. Au plus un par joueur, par carte et par transaction. La scène est
+ * aussi mise en file pour l'exploration (calculée après le `COMMIT`).
  */
 export async function notifyVisibilityChanged(
   tx: Tx,
@@ -423,6 +425,8 @@ export async function notifyVisibilityChanged(
   map: { id: string; campaignId: string },
   users?: readonly string[],
 ) {
+  // La mémoire de l'exploration suit la vue du groupe (docs/exploration.md § 4)
+  await queueExploration(tx, map);
   const members = await campaignPlayers(tx, map.campaignId);
   const byMap = notified.get(tx) ?? new Map<string, Set<string>>();
   notified.set(tx, byMap);

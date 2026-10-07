@@ -3,15 +3,22 @@ import { buildCampaign } from './app.js';
 import { CampaignConfig } from './config.js';
 import { createDb } from './db/client.js';
 import { ACCOUNTS_CONSUMER, startAccountsConsumer } from './modules/accounts/consumer.js';
+import { startExplorationWorker } from './modules/maps/exploration-worker.js';
 import { startStorageInventory } from './modules/storage/runtime.js';
 
 const config = loadConfig(CampaignConfig);
 let stopRelay: (() => Promise<void>) | undefined;
 let stopSweep: (() => Promise<void>) | undefined;
 let stopInventory: (() => Promise<void>) | undefined;
+let stopExploration: (() => Promise<void>) | undefined;
 // Relais et balayage s'arrêtent avant la fermeture du pool du service (onShutdown passe en premier)
 const app = await buildCampaign(config, {
-  onShutdown: [async () => stopRelay?.(), async () => stopSweep?.(), async () => stopInventory?.()],
+  onShutdown: [
+    async () => stopRelay?.(),
+    async () => stopSweep?.(),
+    async () => stopInventory?.(),
+    async () => stopExploration?.(),
+  ],
 });
 await start(app, config);
 
@@ -34,6 +41,17 @@ if (config.ORPHAN_SWEEP !== 'off') {
 
 // Inventaire du stockage de chaque campagne (docs/stockage.md) : jauge et quota à jour
 stopInventory = startStorageInventory(config, app.log);
+
+{
+  // Mémoire de l'exploration (docs/exploration.md § 4) : la file des scènes à explorer, vidée
+  // après le COMMIT des écritures qui la remplissent ; petit pool à part
+  const explorationDb = createDb(config.DATABASE_URL);
+  const stop = startExplorationWorker({ db: explorationDb.db, logger: app.log });
+  stopExploration = async () => {
+    await stop();
+    await explorationDb.pool.end().catch(() => undefined);
+  };
+}
 
 if (config.NATS_URL) {
   // Après le démarrage : NATS injoignable ne bloque pas le service, le relais réessaie. Le

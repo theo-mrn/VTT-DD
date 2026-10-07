@@ -74,6 +74,8 @@ import {
 } from './layers.js';
 import { rescaleMap } from './rescale.js';
 import { listTokens } from './tokens.js';
+import { explorationFor } from './exploration.js';
+import { queueExploration } from './exploration-queue.js';
 import { lineOfSight, notifyVisibilityChanged, viewerVision } from './vision.js';
 import { occlusionOn } from './vision-rules.js';
 
@@ -92,6 +94,7 @@ export const mapApi = (m: MapRow): MapScene => ({
   display: m.layers,
   fogFull: m.fogFull,
   grids: m.grids,
+  exploration: m.exploration,
   version: m.version,
   updatedAt: m.updatedAt.toISOString(),
 });
@@ -146,7 +149,8 @@ export async function mapSnapshot(
 ) {
   // Une seule lecture de la visibilité pour tokens et objets (joueur)
   const vision = viewerVision(db, v, map.id);
-  const [tokens, ...layers] = await Promise.all([
+  const [exploration, tokens, ...layers] = await Promise.all([
+    explorationFor(db, map),
     listTokens(db, v, map.id, bbox, vision),
     ...LAYERS.map((def) => listLayer(db, def, v, map.id, bbox, vision)),
   ]);
@@ -154,6 +158,7 @@ export async function mapSnapshot(
     map: mapApi(map),
     tokens,
     ...Object.fromEntries(LAYERS.map((def, i) => [layerKey(def), layers[i]])),
+    exploration,
   };
 }
 
@@ -276,6 +281,9 @@ export const registerMaps: Module = async (app, deps) => {
             occlusionOn(before.layers) !== occlusionOn(after!.layers)
           )
             await notifyVisibilityChanged(tx, ctx, v, after!);
+          // Exploration activée : ce que le groupe voit en ce moment est exploré tout de suite
+          if (before.exploration === 'off' && after!.exploration !== 'off')
+            await queueExploration(tx, after!);
           return after!;
         })
         .catch(mapWriteError);

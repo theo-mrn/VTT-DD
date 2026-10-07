@@ -330,6 +330,8 @@ function roomContext(
         backgroundUrl: toText(fond?.url) ?? null,
         weather: weather(general.weather),
         layers: layersOf('layers'),
+        // L'ancienne carte n'avait pas d'exploration : rien ne change à l'import
+        exploration: 'off',
         ...(sized ? { width: Math.round(width), height: Math.round(height) } : {}),
       };
       mapsOut.push(defaultMap);
@@ -468,6 +470,7 @@ function migrateScenes(r: Room): void {
       spawn: spawnX !== undefined && spawnY !== undefined ? { x: spawnX, y: spawnY } : null,
       weather: weather(c.weather),
       layers: layersOf(`layers_${d.id}`),
+      exploration: 'off',
     });
   }
 }
