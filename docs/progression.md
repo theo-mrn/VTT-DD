@@ -297,3 +297,13 @@ Prises seul, à revoir par Théo :
 14. **Premiers pas de l'accueil** remplacés par ceux du serveur (mêmes étapes, plus l'ami et la
     séance) : une seule source de vérité.
 15. Le **profil public** montre le niveau, pas l'XP ni les défis.
+
+## 12. Suites possibles
+
+- Skins de dés ou cadres de jetons en récompense : un consommateur de `identity.level_reached`
+  dans billing, droit de source `progression` (republié à dice comme les autres droits).
+- Niveau affiché dans les listes (amis, membres d'une campagne, barre latérale).
+- Recrutement : XP au MJ quand un joueur rejoint par son invitation (il faudrait que
+  `campaign.member_joined` nomme l'auteur de l'invitation).
+- Défis propres au MJ (planifier une séance dans la semaine) dans un lot réservé aux comptes
+  qui mènent une campagne.
