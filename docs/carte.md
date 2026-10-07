@@ -886,7 +886,10 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
   brouillard changent ; dérive lente à 10 i/s, désactivable : « Animer la brume » dans
   « Vue », préférence locale, figée par défaut avec « mouvement réduit » ou sur machine
   économe) là où il y a du brouillard et pas de vue,
-  lueurs × vu. Une seule passe obscurcit et éclaire.
+  lueurs × vu. Une seule passe obscurcit et éclaire. Là où le groupe a déjà exploré
+  ([exploration.md](exploration.md)) et ne voit plus, un voile gris (62 % de l'obscurité)
+  remplace obscurité, brume et noir des obstacles : une texture d'un texel par case
+  d'exploration, lue en coordonnées du monde, sans passe de plus.
 - **MJ** : tout visible, l'ombre des joueurs (union de leurs observateurs) en voile à 25 %,
   brume à 25 %, lueurs presque entières ; « Vue de … » (sélecteur « Vue », emplacement `view`
   de la barre d'outils) : rendu exact de ce joueur, entités non vues masquées. Les surcouches
@@ -1314,6 +1317,14 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
   masquage et plan `allies`, audience du direct, sélecteur « Vue » (MJ : vue du MJ ou
   « Vue de … » ; tous : « Animer la brume »), `features/vision/ui/view-menu.tsx`.
 - Branchement du serveur sur `@vtt/vision`, filtrage et événements ciblés (§ 9, Serveur).
+
+### Exploration (`exploration`)
+
+Mémoire de ce que le groupe a vu, par scène ([exploration.md](exploration.md)) : masque du
+serveur et couche locale pendant un glisser (`features/exploration/engine/model.ts`), traînées
+des glisser envoyées au lâcher (`trail.ts`), outil Exploration du MJ (révéler, oublier ; formes
+1 à 3 ; activer par scène ; réinitialiser), voile gris dessiné par le shader de composition du
+module vision (texture d'un texel par case, `mask-texture.ts`).
 
 ### Météo (`weather`)
 

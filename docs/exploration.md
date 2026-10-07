@@ -74,7 +74,7 @@ Montré grisé    = Explorée − Vu(joueur)       (Vu(joueur) reste montré en 
 explorationGrid(width, height, pixelsPerUnit): { cols, rows }
 class ExplorationMask { cols; rows; cells: Uint8Array; count(); clone(); … }
 markView(mask, view, bounds, opts?): CellWindow | null     // cases neuves vues, fenêtre touchée
-viewRegion(prep, terms): rectangle du monde où Vu(O) peut tomber (borne du balayage)
+viewerReach(prep, terms): rectangle du monde où Vu(O) peut tomber (borne du balayage)
 rasterizeShape(grid, bounds, shape): fenêtre des cases dont le centre est dans la forme
 applyWindow(mask, window, op: 'reveal' | 'forget' | 'set'): CellWindow | null
 encodeWindow(mask, rect) / decodeWindow(window): codage RLE
@@ -131,8 +131,9 @@ packBits / unpackBits : stockage
   (null si coupée) : rien de plus à demander à l'ouverture.
 - **Traînée** : 20 tokens et 32 points chacun au plus, dans la carte. Seuls comptent les tokens
   qui sont des observateurs du groupe, avec leur rayon de vision actuel ; un joueur n'envoie que
-  pour ses personnages (même droit que le déplacement), le MJ pour tous. Traitée tout de suite,
-  dans la transaction de la route (le joueur n'attend pas : la requête part après le lâcher).
+  pour ses personnages (même droit que le déplacement), le MJ pour tous. Traitée tout de suite
+  par `exploreMap` (le joueur n'attend pas : la requête part après le lâcher, sans bloquer le
+  glisser suivant).
   Elle ne donne aucun pouvoir de plus qu'un déplacement : poser son token là explorerait autant.
 - **Révéler, oublier** : la fenêtre (cases calculées par le client du MJ avec
   `rasterizeShape`) est ajoutée ou retirée ; `cols`, `rows` doivent être ceux du masque (sinon
@@ -200,7 +201,7 @@ packBits / unpackBits : stockage
   - Formes : 1 Rectangle, 2 Cercle, 3 Main levée (mêmes gestes que le brouillard) ; mode
     **Révéler** ou **Oublier** (Alt inverse le temps du geste) ; chaque geste est une commande
     annulable.
-  - Tant que l'outil est actif, la mémoire est surlignée (couleur primaire, 25 %) : on voit ce
+  - Tant que l'outil est actif, la mémoire est surlignée (couleur primaire, 28 %) : on voit ce
     qu'on révèle ou oublie.
   - Barre contextuelle : formes, mode, interrupteur « Exploration » de la scène, « Réinitialiser »
     (confirmation). Pas de texte d'aide : infobulles.
@@ -210,22 +211,59 @@ packBits / unpackBits : stockage
 
 ## 6. Performances (budgets)
 
-| Où                                                          | Budget      |
-| ----------------------------------------------------------- | ----------- |
-| Client, marquage local d'une vue (donjon du banc, régime)   | < 0,5 ms    |
-| Client, marquage local d'une vue (première fois, 104 × 104) | < 3 ms      |
-| Client, composition : une texture lue de plus               | négligeable |
-| Serveur, exploration d'une scène (4 joueurs, régime)        | < 5 ms      |
-| Serveur, traînée de 32 points                               | < 30 ms     |
-| Événement d'un pas d'exploration                            | < 1 Kio     |
-| Masque en base                                              | ≤ 32 Kio    |
-
-Mesures : § 7.
+| Où                                                                   | Budget                |
+| -------------------------------------------------------------------- | --------------------- |
+| Client, image d'un glisser avec le marquage local (10 Hz au plus)    | < 4 ms (carte.md § 9) |
+| Client, marquage local d'une vue, régime (cases hors vue re-testées) | < 1 ms                |
+| Client, composition : une texture lue de plus                        | négligeable           |
+| Serveur, exploration d'une scène en régime (rien de neuf)            | < 10 ms               |
+| Serveur, traînée de 32 points                                        | < 30 ms               |
+| Événement d'un pas d'exploration                                     | < 1 Kio               |
+| Masque en base                                                       | ≤ 32 Kio              |
 
 ## 7. Mesures
 
-(à remplir par le banc, `packages/vision/src/exploration.bench.ts` et
-`features/vision/engine/vision-drag.bench.ts`)
+Apple Silicon, Node 24, moyennes ; machine chargée par d'autres travaux pendant la mesure
+(charge moyenne de 9 à 40) : les chiffres sont des majorants.
+
+**Paquet** (`packages/vision/src/exploration.bench.ts`, donjon de 2 000 segments, 4 800 px,
+brouillard total, case de 100 px : 192 × 192 cases) :
+
+| Opération                                      | Mesuré   |
+| ---------------------------------------------- | -------- |
+| `markView`, groupe de 4, régime établi         | 0,20 ms  |
+| `markView`, groupe de 4, premier passage       | 0,25 ms  |
+| traînée de 32 points (une vue par point)       | 16,5 ms  |
+| masque entier en taches (7 827 cases) → plages | 0,24 ms  |
+| plages → masque entier                         | 0,06 ms  |
+| fenêtre d'un pas (32 × 32 cases) → plages      | 0,015 ms |
+
+Masque en taches de 192 × 192 : 2 380 caractères codés (4 608 octets en bits tassés).
+
+**Client** (`features/vision/engine/vision-drag.bench.ts`, donjon de 2 600 px, 1 252 murs et
+portes, 30 pièces, 63 tokens, 40 objets, 10 lumières, case de 50 px : 208 × 208 cases) :
+
+| Par image de glisser (CPU)                                  | Mesuré              |
+| ----------------------------------------------------------- | ------------------- |
+| joueur : son héros bouge, vue refaite, 103 entités décidées | 2,1 ms (min 1,8 ms) |
+| même chose, et la mémoire marquée **à chaque image**        | 2,9 ms (min 2,4 ms) |
+| mémoire : marquage en régime (vue déjà explorée)            | 0,59 ms             |
+| mémoire : premier marquage d'une vue                        | 0,92 ms             |
+
+En vrai, le marquage n'a lieu qu'une image sur six au plus (10 Hz) : environ 0,1 ms par image
+en moyenne. Le coût en régime vient des cases de la boîte de la ligne de vue qui ne sont pas vues
+(re-testées à chaque vue) ; s'il fallait descendre, un balayage par lignes du polygone de vue les
+éviterait.
+
+**Serveur** (mesure ponctuelle sur PostgreSQL local : scène de 2 600 px, 546 murs et portes,
+brouillard total, 4 joueurs, 104 × 104 cases) :
+
+| `exploreMap`                                             | Mesuré                   |
+| -------------------------------------------------------- | ------------------------ |
+| premier passage (scène préparée, masque créé, événement) | 29 ms                    |
+| régime (rien de neuf : lectures seules, aucun événement) | 5,5 ms (p95 8,3 ms)      |
+| traînée de 32 points                                     | 15 ms                    |
+| plus gros événement                                      | 312 caractères de plages |
 
 ## 8. Décisions prises
 
@@ -252,10 +290,27 @@ Mesures : § 7.
 - **D8 — La mémoire ne montre que le fixe** : fond, décors, dessins et textes des calques, murs
   tracés. PNJ, objets hors décor et icônes de porte suivent la vue en direct (filtrage serveur
   inchangé).
+- **D9 — Outil sans touche par défaut** : toutes les lettres sont prises (carte et panneaux de
+  la table) ; le MJ en choisit une dans l'éditeur des raccourcis. Les deux actions (activer ou
+  couper, réinitialiser) sont aussi sans touche.
+- **D10 — Les spectateurs voient la mémoire** comme les joueurs (elle ne dit rien de plus que
+  ce que le groupe sait) ; la « Vue de … » du MJ la montre exactement, sa vue normale en voile
+  léger.
+- **D11 — Traînées du MJ** : quand il glisse un personnage joueur ou un allié, son client envoie
+  aussi la traînée (même droit que le déplacement) ; celle d'un PNJ ennemi ne part pas (le
+  serveur l'ignorerait).
+- **D12 — Les événements d'exploration vont au journal** (service history) comme tout
+  événement ; ils sont petits (quelques centaines d'octets) et au plus un par passage du
+  travailleur et par scène.
 
 ## 9. Reste à faire, limites
 
 - Mémoire par joueur (D1) : non faite.
+- Le banc WebGL de la vision (`frontend/scripts/vision-render`, Chromium) n'a pas été rejoué
+  avec le terme de mémoire du shader : à faire avant de livrer (seuls les tests sans WebGL
+  couvrent la texture et ses uniformes).
+- Un PNJ allié posé (`ally`) explore dès la pose ; un changement de visibilité d'un token en
+  `ally` passe par `map.visibility_changed`, donc par la file, comme le reste.
 - Le bord de la mémoire déborde d'au plus 1/8 de case derrière un mur (§ 3).
 - La traînée suit la position affichée du token, échantillonnée à chaque image : un glisser très
   rapide à travers une petite pièce peut la sauter entre deux points (un point par case).
