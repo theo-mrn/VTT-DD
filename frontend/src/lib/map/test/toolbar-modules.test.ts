@@ -39,7 +39,7 @@ describe('barre d’outils, modules de l’app', () => {
       'scene.background',
       'scene.display',
     ]);
-    expect(bar.assist).toEqual(['snap', 'presence.cursor', 'camera.fit']);
+    expect(bar.assist).toEqual(['snap', 'movement-path:menu', 'presence.cursor', 'camera.fit']);
   });
 
   it('joueur : bulle, sans calques ni fond', async () => {
@@ -48,14 +48,14 @@ describe('barre d’outils, modules de l’app', () => {
     expect(bar.view?.[0]).toBe('bubbles');
     expect(bar.view).not.toContain('layers.panel');
     expect(bar.view).not.toContain('scene.display');
-    expect(bar.assist).toEqual(['snap', 'presence.cursor', 'camera.fit']);
+    expect(bar.assist).toEqual(['snap', 'movement-path:menu', 'presence.cursor', 'camera.fit']);
   });
 
-  it('spectateur : sélection et recadrer, ni historique ni curseur', async () => {
+  it('spectateur : sélection, trajets et recadrer, ni historique ni curseur', async () => {
     const bar = await barOf(SPECTATOR);
     expect(bar.tools).toEqual(['select']);
     expect(bar.history).toBeUndefined();
-    expect(bar.assist).toEqual(['camera.fit']);
+    expect(bar.assist).toEqual(['movement-path:menu', 'camera.fit']);
   });
 
   it('surcouches des modules : bulles, sons, groupe, calques (colonne de droite)', async () => {

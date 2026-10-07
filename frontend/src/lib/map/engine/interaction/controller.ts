@@ -330,9 +330,9 @@ export class InteractionController {
   keyDown(k: MapKey): boolean {
     const engine = this.engine;
     // Pendant un geste, une touche est d'abord proposée aux modules (Espace : point de passage
-    // d'un trajet) ; Échap garde toujours son sens
-    if (this.mode === 'tool' && k.key !== 'Escape' && !k.repeat)
-      if (engine.gestureInput({ kind: 'key', key: k })) return true;
+    // d'un trajet), répétitions comprises ; Échap garde toujours son sens
+    if (this.mode === 'tool' && k.key !== 'Escape' && engine.gestureInput({ kind: 'key', key: k }))
+      return true;
     if (k.code === 'Space' && !k.ctrl && !k.meta) return this.holdSpace();
     if (k.key === 'Escape') return this.escape();
     if (engine.tools.active.key?.(k, engine)) return true;

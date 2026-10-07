@@ -1697,8 +1697,9 @@ personnage quand le système le donne. Chez tous pendant le geste, rien d'enregi
     reçoit jamais le départ ni un passage d'un PNJ qu'il ne voyait pas à cet endroit. Quand elle
     change, le trajet est effacé chez l'ancienne (`[id, []]`), puis renvoyé à la nouvelle à
     l'envoi suivant (le numéro des messages garantit l'ordre) ;
-  - réception : dessiné tant que le fantôme du token est là (`state.remote`), token connu et
-    non masqué ; à `end`, effacé en 0,8 s.
+  - réception : dessiné tant que le fantôme du token est là (`state.remote`) ou que le trajet
+    vient d'arriver (2 s), token connu, non masqué et pas tenu par moi ; à `end`, effacé en
+    0,8 s ; sans fantôme ni nouvelles depuis 2 s, oublié comme lui.
 - **Activable** :
   - préférence de chacun (navigateur, activée par défaut) : bouton « Trajets » (groupe
     `assist`) et action `movement-path.toggle` (⇧T, `lib/map/shortcuts.ts`) ;

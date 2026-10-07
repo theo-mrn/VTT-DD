@@ -75,6 +75,7 @@ export const MAP_SHORTCUTS: readonly ShortcutDescriptor[] = [
   action('grid.toggle', 'Quadrillage', 'KeyQ'),
   action('combat.attack', 'Attaquer', 'KeyY', PLAYING),
   action('presence.cursor', 'Montrer mon curseur', null, PLAYING),
+  action('movement-path.toggle', 'Trajets des déplacements', 'Shift+KeyT'),
   action('camera.fit', 'Recadrer la vue', null),
   action('camera.zoom-in', 'Zoomer', 'Char:+'),
   action('camera.zoom-out', 'Dézoomer', 'Char:-'),
