@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchAcceptLanguage, resolveLocale } from './resolve';
+import { localeOfCountry, matchAcceptLanguage, resolveLocale } from './resolve';
 
 describe('matchAcceptLanguage', () => {
   it('prend la première langue connue, variantes régionales comprises', () => {
@@ -36,5 +36,45 @@ describe('resolveLocale', () => {
   it('sans rien de connu : le français', () => {
     expect(resolveLocale({})).toBe('fr');
     expect(resolveLocale({ acceptLanguage: 'ja-JP' })).toBe('fr');
+  });
+});
+
+describe('localeOfCountry', () => {
+  it('français dans un pays francophone, outre-mer compris ; anglais ailleurs', () => {
+    expect(localeOfCountry('FR')).toBe('fr');
+    expect(localeOfCountry('be')).toBe('fr');
+    expect(localeOfCountry('RE')).toBe('fr');
+    expect(localeOfCountry('SN')).toBe('fr');
+    expect(localeOfCountry('GB')).toBe('en');
+    expect(localeOfCountry('US')).toBe('en');
+    expect(localeOfCountry('DE')).toBe('en');
+  });
+
+  it('pays partagé, inconnu, Tor ou mal formé : pas de choix', () => {
+    expect(localeOfCountry('CA')).toBeNull();
+    expect(localeOfCountry('MA')).toBeNull();
+    expect(localeOfCountry('XX')).toBeNull();
+    expect(localeOfCountry('T1')).toBeNull();
+    expect(localeOfCountry('FRA')).toBeNull();
+    expect(localeOfCountry('')).toBeNull();
+    expect(localeOfCountry(null)).toBeNull();
+  });
+});
+
+describe('resolveLocale avec le pays', () => {
+  it('le pays passe avant le navigateur', () => {
+    expect(resolveLocale({ country: 'GB', acceptLanguage: 'fr-FR' })).toBe('en');
+    expect(resolveLocale({ country: 'FR', acceptLanguage: 'en-US' })).toBe('fr');
+  });
+
+  it('le cookie passe avant le pays', () => {
+    expect(resolveLocale({ cookie: 'fr', country: 'GB', acceptLanguage: 'en-GB' })).toBe('fr');
+  });
+
+  it('pays partagé ou inconnu : le navigateur décide', () => {
+    expect(resolveLocale({ country: 'CA', acceptLanguage: 'fr-CA' })).toBe('fr');
+    expect(resolveLocale({ country: 'CA', acceptLanguage: 'en-CA' })).toBe('en');
+    expect(resolveLocale({ country: 'XX', acceptLanguage: 'en-US' })).toBe('en');
+    expect(resolveLocale({ country: null, acceptLanguage: null })).toBe('fr');
   });
 });
