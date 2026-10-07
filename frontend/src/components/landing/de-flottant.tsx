@@ -4,6 +4,7 @@
  * Le d20 du coin de la landing : un clic lance un d20 3D au skin tiré au sort (lanceur
  * « pour le plaisir », chargé seulement à la première intention : survol, focus ou appui).
  */
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import React from 'react';
 import type { FunDiceHandle } from '@/components/dice/three/throw-fun';
@@ -19,6 +20,7 @@ let throwerModule: Promise<ThrowerModule> | null = null;
 const loadThrower = () => (throwerModule ??= import('@/components/dice/three/throw-fun'));
 
 export function DeFlottant() {
+  const t = useTranslations('landing.dice');
   const throwerRef = React.useRef<FunDiceHandle>(null);
   const [Thrower, setThrower] = React.useState<ThrowerComponent | null>(null);
   // Lancer demandé avant l'arrivée du module : parti dès qu'il est monté.
@@ -60,14 +62,14 @@ export function DeFlottant() {
   return (
     <div className="group fixed bottom-6 right-6 z-30 flex flex-col items-end gap-2">
       <span className="pointer-events-none pr-1 text-[10px] uppercase tracking-[0.2em] text-white/40 opacity-0 transition-opacity group-hover:opacity-100">
-        Lancer un dé
+        {t('rollHint')}
       </span>
       <button
         onClick={handleClick}
         onPointerEnter={ensureLoaded}
         onPointerDown={ensureLoaded}
         onFocus={ensureLoaded}
-        aria-label="Lancer un dé 20"
+        aria-label={t('rollD20')}
         className="relative flex size-16 cursor-pointer items-center justify-center transition-transform duration-300 hover:scale-110"
       >
         {/* Image cuite du dé (dice:bake) : aucun WebGL avant le premier lancer */}

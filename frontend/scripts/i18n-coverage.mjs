@@ -17,8 +17,8 @@ import { fileURLToPath } from 'node:url';
 
 export const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
 
-/** Hors champ : catalogues, tests, outillage. */
-const EXCLUDED = [/\.test\.tsx?$/, /\/i18n\//, /\/test\//, /\.d\.ts$/];
+/** Hors champ : catalogues, tests, outillage, contenus écrits par langue (`<page>/fr.tsx`). */
+const EXCLUDED = [/\.test\.tsx?$/, /\/i18n\//, /\/test\//, /\.d\.ts$/, /\/[a-z]{2}\.tsx$/];
 
 /** Mots techniques qui ressemblent à un libellé (touches, méthodes, types). */
 const TECHNICAL = new Set([

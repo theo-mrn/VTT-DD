@@ -4,12 +4,16 @@
  */
 import common from './common';
 import errors from './errors';
+import landing from './landing';
+import legal from './legal';
 import locale from './locale';
 import meta from './meta';
 
 const fr = {
   common,
   errors,
+  landing,
+  legal,
   locale,
   meta,
 } as const;

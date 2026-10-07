@@ -1,5 +1,7 @@
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { DEFAULT_LOCALE } from '@/i18n/config';
 import { Navigation } from '@/components/landing/navigation';
 import { Pied } from '@/components/landing/pied';
 import { LEGAL_UPDATED_AT } from '@/lib/legal';
@@ -10,12 +12,24 @@ export function LegalPage({
   intro,
   children,
 }: Readonly<{ title: string; intro?: ReactNode; children: ReactNode }>) {
+  const t = useTranslations('legal');
+  const format = useFormatter();
+  const locale = useLocale();
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <Navigation />
       <main className="mx-auto max-w-3xl px-6 pb-24 pt-36">
         <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-        <p className="mt-3 text-sm text-subtle">Dernière mise à jour : {LEGAL_UPDATED_AT}</p>
+        <p className="mt-3 text-sm text-subtle">
+          {t('updatedAt', {
+            date: format.dateTime(new Date(LEGAL_UPDATED_AT), 'calendarDate'),
+          })}
+        </p>
+        {locale !== DEFAULT_LOCALE && (
+          <p className="mt-3 text-sm text-subtle" lang={locale}>
+            {t('translationNotice')}
+          </p>
+        )}
         {intro && <div className="mt-8 text-lg leading-relaxed text-muted-foreground">{intro}</div>}
         <div className="mt-12 space-y-12">{children}</div>
       </main>
