@@ -438,8 +438,12 @@ bash infra/postgres/tests/marketplace-droits.sh
   `MARKETPLACE_PAID_LISTINGS=off`. NetworkPolicies : gateway → marketplace ; marketplace →
   campaign et billing (routes internes).
 - Gateway : `UPSTREAM_MARKETPLACE_URL`. billing : `INTERNAL_API_SECRET`, `STRIPE_CONNECT=off`.
-- Secrets scellés `pg-marketplace` et `pg-marketplace-owner` (`infra/cluster/secrets`) ; rôles
-  déclarés dans `infra/cluster/data/postgres-cluster.yaml` ; sur une base existante, appliquer
-  `infra/cluster/data/schemas.sql` (idempotent) pour créer le schéma.
+- Secrets scellés `pg-marketplace` et `pg-marketplace-owner` (`infra/cluster/secrets`), **puis**,
+  dans le même changement, les rôles `marketplace_owner` et `marketplace_svc` dans
+  `infra/cluster/data/postgres-cluster.yaml` (`managed.roles`, sur le modèle d'audio). Ce
+  dossier est synchronisé par Argo CD : déclarer les rôles avant leurs secrets mettrait le
+  cluster en erreur de réconciliation (retirés à l'assemblage pour cette raison). Sur une base
+  existante, appliquer ensuite `infra/cluster/data/schemas.sql` (idempotent) pour créer le
+  schéma.
 - La release met à jour l'image de marketplace dès que son fichier GitOps existe (sinon elle
   l'ignore, `release.yml`).
