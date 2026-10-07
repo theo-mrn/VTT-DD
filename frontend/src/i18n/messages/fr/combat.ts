@@ -278,6 +278,7 @@ export default {
     open: 'Capacités',
     none: 'Aucune capacité à jouer.',
     use: 'Utiliser',
+    active: 'Active',
     activate: 'Activer {name}',
     deactivate: 'Couper {name}',
     groups: {

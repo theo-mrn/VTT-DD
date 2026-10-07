@@ -58,8 +58,7 @@ import {
   stepButtonLabel,
   stepToLaunch,
 } from '@/lib/combat/attack-flow';
-import { attackMenu, closeAttackMenu, useAttackFlow } from '@/lib/combat/attack-menu-store';
-import { capacitesDeCombat, openCapacitiesMenu } from '@/lib/combat/capacities';
+import { attackMenu, useAttackFlow } from '@/lib/combat/attack-menu-store';
 import { clientRunner } from '@/lib/combat/dice-steps';
 import { isLocalAttack } from '@/lib/combat/local-attack';
 import { awaitingReaction, targetName } from '@/lib/combat/view';
@@ -622,11 +621,6 @@ function ComposeBody({
       <EtatVide icone={UserRoundCog} titre="Qui attaque ?" className="mx-auto max-w-md py-10" />
     );
   if (!model.fiche || !ctx.systeme) return <Message>{t('combat.attack.sheetUnavailable')}</Message>;
-  // Capacités sans action à elles (les autres sont déjà des onglets) : le menu Capacités
-  const attaquant = flow.draft.attackerId;
-  const capacites = capacitesDeCombat(ctx.systeme, ctx.presentation, model.fiche).some(
-    (c) => c.jeu.type !== 'actions',
-  );
   return (
     <StepCompose
       ctx={ctx}
@@ -635,18 +629,6 @@ function ComposeBody({
       error={flow.phase === 'compose' ? flow.error : null}
       canAim={canAim}
       onAim={onAim}
-      onCapacities={
-        capacites
-          ? () => {
-              closeAttackMenu();
-              openCapacitiesMenu({
-                campaignId: flow.campaignId,
-                actorId: attaquant,
-                origin: flow.origin,
-              });
-            }
-          : undefined
-      }
     />
   );
 }

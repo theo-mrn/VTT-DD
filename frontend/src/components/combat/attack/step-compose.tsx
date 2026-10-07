@@ -44,6 +44,7 @@ import {
   choiceOptions,
   defaultParamValue,
   isChoiceParam,
+  mergeParams,
   paramDescription,
   paramSection,
   typeCardParam,
@@ -56,6 +57,13 @@ import { hasSituation, SituationBlock } from './situation-block';
 import type { AttackContext } from './use-attack-context';
 import type { AttackModel } from './use-attack-model';
 import { EntryPicker } from './weapon-cards';
+import { CapacityPicker } from './capacity-picker';
+import {
+  actionsGeneriques,
+  capaciteJouee,
+  capacitesDeCombat,
+  type CapaciteCombat,
+} from '@/lib/combat/capacities';
 
 interface TypeOption {
   valeur: string;
@@ -93,7 +101,6 @@ export function StepCompose({
   error,
   canAim,
   onAim,
-  onCapacities,
 }: Readonly<{
   ctx: AttackContext;
   model: AttackModel;
@@ -102,8 +109,6 @@ export function StepCompose({
   error: string | null;
   canAim: boolean;
   onAim: () => void;
-  /** Ouvre le menu Capacités de l'attaquant ; absent : il n'en a pas à jouer. */
-  onCapacities?: (() => void) | undefined;
 }>) {
   const t = useTranslations();
   const { systeme, fiche, action } = model;
@@ -118,18 +123,57 @@ export function StepCompose({
       />
     );
 
-  const { card, disabled, reason } = composeState(model, systeme, fiche);
+  const composed = composeState(model, systeme, fiche);
+  const { disabled, reason } = composed;
+  // Onglet Capacités : l'action générique d'une sorte, la capacité en paramètre
+  const capacites = capacitesDeCombat(systeme, presentation, fiche);
+  const enCapacites = Boolean(action && actionsGeneriques(presentation).has(action.id));
+  const card = enCapacites ? null : composed.card;
+  const choisie = action ? capaciteJouee(presentation, action.id, draft.params) : null;
+
+  /** Prépare l'acte de la capacité dans le menu : action dédiée, ou générique de sa sorte. */
+  function choisir(c: CapaciteCombat) {
+    if (!systeme || !fiche) return;
+    const id = c.entree.id;
+    if (c.jeu.type === 'actions') {
+      const d = c.jeu.actions[0]!;
+      attackMenu.dispatch({
+        type: 'chooseAction',
+        actionId: d.action.id,
+        params: mergeParams(systeme, d.action, fiche, { ...draft.params, ...d.params }),
+        usage: c.usages ? id : null,
+      });
+      return;
+    }
+    const g = c.jeu.type === 'activer' ? c.jeu.generique : c.jeu;
+    if (!g) return;
+    attackMenu.dispatch({
+      type: 'chooseAction',
+      actionId: g.action.id,
+      params: mergeParams(systeme, g.action, fiche, { [g.parametre]: id }),
+      // À activer : l'activation consomme l'usage, au lancer
+      usage: c.jeu.type === 'generique' && c.usages ? id : null,
+      activate: c.jeu.type === 'activer' && !c.active ? id : null,
+    });
+    const soi = !c.entree.champs.cibles || c.entree.champs.cibles === 'soi';
+    if (soi && !draft.targetIds.length && draft.attackerId)
+      attackMenu.dispatch({ type: 'setTargets', characterIds: [draft.attackerId] });
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-      {(model.actions.length > 1 || onCapacities) && (
+      {(model.actions.length > 1 || capacites.length > 0) && (
         <ActionTabs
           groups={model.groups}
-          selected={action}
+          selected={enCapacites ? null : action}
           numbered={!card}
           onChoose={model.choose}
           disabled={disabled}
-          onCapacities={onCapacities}
+          capacities={
+            capacites.length
+              ? { selected: enCapacites, onChoose: () => choisir(capacites[0]!) }
+              : undefined
+          }
         />
       )}
 
@@ -153,7 +197,21 @@ export function StepCompose({
           disabled={disabled || Boolean(model.disabledReason)}
         />
       )}
-      {action && !card && (
+      {draft.capacites && !enCapacites && capacites.length > 0 && (
+        <OpenCapacities onOpen={() => choisir(capacites[0]!)} />
+      )}
+      {enCapacites && (
+        <CapacitySync capacites={capacites} choisie={choisie} draft={draft} choisir={choisir} />
+      )}
+      {enCapacites && (
+        <CapacityPicker
+          capacites={capacites}
+          selected={choisie}
+          onSelect={choisir}
+          disabled={disabled}
+        />
+      )}
+      {action && !card && !enCapacites && (
         <GenericBody
           systeme={systeme}
           presentation={presentation}
@@ -193,7 +251,7 @@ function ActionTabs({
   numbered,
   onChoose,
   disabled,
-  onCapacities,
+  capacities,
 }: Readonly<{
   groups: readonly ActionGroup[];
   selected: Action | null;
@@ -201,8 +259,8 @@ function ActionTabs({
   numbered: boolean;
   onChoose: (a: Action) => void;
   disabled: boolean;
-  /** Menu Capacités de l'attaquant (capacités sans action à elles) ; absent : aucune. */
-  onCapacities?: (() => void) | undefined;
+  /** Onglet Capacités (capacités jouables de l'attaquant) ; absent : aucune. */
+  capacities?: { selected: boolean; onChoose: () => void } | undefined;
 }>) {
   const t = useTranslations();
   let index = 0;
@@ -245,17 +303,22 @@ function ActionTabs({
             })}
           </Fragment>
         ))}
-        {onCapacities && (
+        {capacities && (
           <>
             <span aria-hidden className="mx-1 my-1.5 w-px self-stretch bg-border" />
             <button
               type="button"
+              role="tab"
+              aria-selected={capacities.selected}
               disabled={disabled}
-              onClick={onCapacities}
+              onClick={() => !capacities.selected && capacities.onChoose()}
               className={cn(
-                'flex min-h-9 items-center gap-1.5 rounded-lg border border-dashed border-border-strong px-3 py-1.5 text-[13px] text-muted-foreground transition-colors max-sm:min-h-11',
-                'hover:border-primary/30 hover:text-foreground disabled:opacity-50',
+                'flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] transition-colors max-sm:min-h-11',
+                'disabled:opacity-50',
                 FOCUS,
+                capacities.selected
+                  ? 'border-primary/60 bg-primary/15 font-medium text-primary-strong'
+                  : 'border-border-strong text-muted-foreground hover:border-primary/30 hover:text-foreground',
               )}
             >
               <ListChecks className="size-3.5" aria-hidden />
@@ -908,4 +971,37 @@ const signe = (n: number) => `${n >= 0 ? '+' : ''}${n}`;
 function inconnu(delta: number): string {
   if (!delta) return '?';
   return `?${delta > 0 ? '+' : '−'}${Math.abs(delta)}`;
+}
+
+/**
+ * Onglet Capacités : la capacité du brouillon est l'une de la liste, avec son usage ou son
+ * activation (ouverture depuis la fiche, paramètre par défaut) ; sinon la première est choisie.
+ */
+function CapacitySync({
+  capacites,
+  choisie,
+  draft,
+  choisir,
+}: Readonly<{
+  capacites: readonly CapaciteCombat[];
+  choisie: string | null;
+  draft: AttackDraft;
+  choisir: (c: CapaciteCombat) => void;
+}>) {
+  const c = capacites.find((x) => x.entree.id === choisie);
+  const incoherent =
+    !c ||
+    (c.jeu.type === 'generique' && c.usages !== null && draft.usage !== c.entree.id) ||
+    (c.jeu.type === 'activer' && !c.active && draft.activate !== c.entree.id);
+  const cible = c ?? capacites[0];
+  useEffect(() => {
+    if (incoherent && cible && !cible.epuisee) choisir(cible);
+  }, [incoherent, cible?.entree.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
+/** Ouvert depuis « Capacités » (fiche, token) : l'onglet Capacités est choisi une fois. */
+function OpenCapacities({ onOpen }: Readonly<{ onOpen: () => void }>) {
+  useEffect(() => onOpen(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }

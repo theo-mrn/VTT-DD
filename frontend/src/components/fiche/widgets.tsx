@@ -28,7 +28,7 @@ import { FittingLabel } from '@/components/ui/fitting-label';
 import { Info } from '@/components/ui/tooltip';
 import { targetedActions } from '@/lib/combat/actions';
 import { openAttackMenu, useAttackHost } from '@/lib/combat/attack-menu-store';
-import { capacitesDeCombat, openCapacitiesMenu } from '@/lib/combat/capacities';
+import { capacitesDeCombat } from '@/lib/combat/capacities';
 import { afficherValeur, champsLisibles, explication, groupesAttributs } from '@/lib/creation';
 import type {
   DemandeBonus,
@@ -753,10 +753,11 @@ export function BlocActions({
                 size="xs"
                 variant="secondary"
                 onClick={() =>
-                  openCapacitiesMenu({
+                  openAttackMenu({
                     campaignId: campagne!,
                     origin: 'sheet',
-                    actorId: ctx.personnage.id,
+                    attackerId: ctx.personnage.id,
+                    capacites: true,
                   })
                 }
               >

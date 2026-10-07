@@ -14,8 +14,6 @@
  * passives pures (valeur de `passives.champ` parmi `passives.valeurs`, sans usages limités ni
  * action dédiée).
  */
-'use client';
-
 import {
   usagesDe,
   type Action,
@@ -26,9 +24,6 @@ import {
   type SystemeCharge,
   type Usages,
 } from '@vtt/rules';
-import type { AttackOrigin } from '@vtt/contracts';
-import { useStore } from 'zustand';
-import { createStore } from 'zustand/vanilla';
 import { actionAllowed, isTargeted } from './actions';
 
 export type CapacitesCombat = NonNullable<NonNullable<Presentation['combat']>['capacites']>;
@@ -190,30 +185,4 @@ export function capaciteJouee(
   const a = capacitesDeLaPresentation(presentation)?.actions.find((x) => x.action === actionId);
   const v = a ? params?.[a.parametre] : undefined;
   return typeof v === 'string' ? v : null;
-}
-
-// ─── Ouverture du menu ───────────────────────────────────────────────────────
-
-export interface CapacitiesMenuRequest {
-  campaignId: string;
-  /** Personnage qui joue la capacité. */
-  actorId: string;
-  /** D'où vient l'ouverture, repris par le menu d'attaque. */
-  origin: AttackOrigin;
-}
-
-export const capacitiesMenuStore = createStore<{ request: CapacitiesMenuRequest | null }>()(() => ({
-  request: null,
-}));
-
-export function openCapacitiesMenu(request: CapacitiesMenuRequest) {
-  capacitiesMenuStore.setState({ request });
-}
-
-export function closeCapacitiesMenu() {
-  capacitiesMenuStore.setState({ request: null });
-}
-
-export function useCapacitiesMenu(): CapacitiesMenuRequest | null {
-  return useStore(capacitiesMenuStore, (s) => s.request);
 }

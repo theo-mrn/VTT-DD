@@ -8,8 +8,8 @@
  *   cesse son propre token pour le déplacer, sans qu'aucune barre ne s'ouvre.
  * - MJ : « Attaquer avec » (le personnage du token attaque) et « Attaquer avec la sélection »
  *   (plusieurs PNJ à la suite, § 8.2).
- * - Capacités : le menu Capacités de son personnage (joueur, son token), ou du personnage du
- *   token (MJ).
+ * - Capacités : le menu d'attaque sur l'onglet Capacités, pour son personnage (joueur, son
+ *   token) ou le personnage du token (MJ).
  * - Gabarit : « Attaquer la zone (n) » (tokens vus dans la forme), à côté de « Sélectionner les
  *   personnages dans la zone ».
  * - Clavier : Y, la sélection devient les cibles.
@@ -39,17 +39,12 @@ export interface AttackOpener {
     attackers?: readonly string[];
     /** Visée rapide : le menu s'ouvre réduit à la pastille de visée. */
     aim?: boolean;
+    /** Ouvre sur l'onglet Capacités. */
+    capacites?: boolean;
   }): void;
 }
 
-/** Ce que la carte demande au menu Capacités (docs/combat.md § 19.1) : ce personnage joue. */
-export type CapacitiesOpener = (actorId: string, origin: AttackOrigin) => void;
-
-export function combatMenu(
-  ctx: MenuContext,
-  open: AttackOpener,
-  openCapacities?: CapacitiesOpener,
-): MenuItem[] {
+export function combatMenu(ctx: MenuContext, open: AttackOpener): MenuItem[] {
   const { entities, viewer, engine } = ctx;
   if (viewer.role === 'spectator' || !entities.length) return [];
 
@@ -77,13 +72,13 @@ export function combatMenu(
 
   // Capacités : celles de mon personnage (joueur), ou du personnage du token (MJ)
   const own = entities.length === 1 && (gm || ownsToken(entities[0]!.data as TokenData, viewer));
-  if (openCapacities && own && characters.length === 1)
+  if (own && characters.length === 1)
     items.push({
       id: 'combat:capacities',
       label: translate('combat.capacities.open'),
       icon: ListChecks,
       forPlayers: true,
-      run: () => openCapacities(characters[0]!, origin),
+      run: () => open({ origin, attackerId: characters[0]!, capacites: true }),
     });
 
   if (gm && characters.length === 1)

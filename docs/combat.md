@@ -1638,16 +1638,19 @@ Demande de Théo (2026-10-07) : en combat, le joueur choisit une capacité à la
 attaque (action, type d'attaque, soin, bonus donné au groupe…). Le MJ en voit le texte ; ce que
 les données décrivent s'applique tout seul (« +3 FOR à tout le monde », « lancer 2d20 »).
 
-Choix de Théo : un **menu « Capacités » à part** ; on y trouve **toutes les capacités qui
+Choix de Théo : un **menu « Capacités » à part**, devenu le 2026-10-08 un **onglet du menu
+d'attaque** (« pourquoi quitter le menu ? ») ; on y trouve **toutes les capacités qui
 s'utilisent** (activation d'action, sortilège, ou usages limités ; pas les passives pures) ; un
 bonus donné à d'autres est fait d'**effets écrits sur la capacité** ; **phase 1 puis phase 2**.
 
 ### 19.1 Phase 1 : tout jouable, texte au MJ
 
-- **Menu « Capacités »** (joueur et MJ, à côté d'« Attaquer » : fiche, panneau Combat, menu du
-  token, touche dédiée) : les capacités utilisables de l'acteur, rangées comme la vue Capacités
-  de la fiche (actives, à activer, usages limités, autres), avec la pastille des usages et la
-  durée restante. Épuisée : grisée. Le texte de la capacité en infobulle.
+- **Onglet « Capacités »** du menu d'attaque (dernier onglet ; les boutons « Capacités » de la
+  fiche et du menu du token ouvrent le menu dessus) : les capacités utilisables de l'acteur,
+  rangées comme la vue Capacités de la fiche (actives, à activer, usages limités, autres), avec
+  la pastille des usages et la durée restante ; épuisée : grisée ; la capacité choisie déplie son
+  texte. Choisir une capacité prépare l'acte dans le menu, sans le quitter. Une action dont une
+  entrée requise n'a aucun choix possédé (Sort sans sort) n'est pas proposée.
 - **Utiliser**, selon ce que la capacité permet, sans rien deviner :
   1. elle a une **action dédiée** du système (`exige` qui lit `possede("<capacité>")` : Charge,
      Soins légers, Attaque sournoise…) : le menu d'attaque s'ouvre sur cette action, déroulé

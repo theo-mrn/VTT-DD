@@ -58,7 +58,8 @@ function hasChoices(action: Action, fiche: Fiche): boolean {
   return action.parametres.every((p) => {
     if (p.type !== 'entree' || p.facultatif || !p.possedee || p.par === 'cible') return true;
     for (const x of fiche.possessions.values()) {
-      if (x.sorte.id !== p.sorte || !x.actif || (x.sorte.rangs && x.rang < 1)) continue;
+      // Une capacité à activer éteinte compte : elle s'active au lancer
+      if (x.sorte.id !== p.sorte || (x.sorte.rangs && x.rang < 1)) continue;
       if (!p.etiquette || x.entree.etiquettes.includes(p.etiquette)) return true;
     }
     return false;

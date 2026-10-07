@@ -624,13 +624,23 @@ export interface OperationsPersonnage {
 }
 
 /**
- * Usages limités de n'importe quel personnage (menu Capacités du combat : l'acteur n'est pas
- * forcément la fiche ouverte) : consommer une utilisation d'une entrée.
+ * Capacités de n'importe quel personnage (onglet Capacités du combat : l'acteur n'est pas
+ * forcément la fiche ouverte) : activer une entrée, consommer une utilisation.
  */
 export function useUsagesPersonnages() {
   const client = useQueryClient();
   return useMemo(
     () => ({
+      /** Active une entrée activable (capacité à activer : usage consommé, durée lancée). */
+      activate: async (id: string, entree: string) =>
+        (
+          await ecrire(client, id, (version) =>
+            api<CharacterApi>(url(id, '/possessions'), {
+              method: 'POST',
+              ...json({ version, entree, actif: true }),
+            }),
+          )
+        ).fiche,
       consume: async (id: string, entree: string) =>
         (
           await ecrire(client, id, (version) =>

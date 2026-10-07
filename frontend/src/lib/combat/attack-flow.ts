@@ -56,6 +56,8 @@ export interface AttackMenuRequest {
    * est déclaré (docs/combat.md § 19.1).
    */
   usage?: string | null;
+  /** Ouvre sur l'onglet Capacités (bouton « Capacités » de la fiche, menu du token). */
+  capacites?: boolean;
   /**
    * Visée rapide (joueur, clic sur un PNJ) : le menu s'ouvre réduit à la pastille de visée,
    * ces cibles déjà prises ; « Valider » l'ouvre à l'étape « Action », Échap l'annule.
@@ -92,8 +94,12 @@ export interface AttackDraft {
   /** null : le défaut (MJ : cachée si `gmRollsHidden`, joueur : publique). */
   visibility: AttackVisibility | null;
   adjustments: FreeAdjustments;
-  /** Capacité dont une utilisation est consommée à la déclaration (menu Capacités). */
+  /** Capacité dont une utilisation est consommée à la déclaration (onglet Capacités). */
   usage: string | null;
+  /** Capacité à activer avant la déclaration (onglet Capacités : usage, durée). */
+  activate: string | null;
+  /** Ouvert pour jouer une capacité : l'onglet Capacités est choisi dès qu'il le peut. */
+  capacites: boolean;
 }
 
 /** Étape de la composition (§ 12.1) : choisir l'action, puis la préparer. */
@@ -142,7 +148,15 @@ export type AttackFlowEvent =
   | { type: 'setAttacker'; attackerId: string | null }
   | { type: 'setAction'; actionId: string | null; params?: ActionParams; presetId?: string | null }
   /** Carte d'action choisie : l'action, puis l'étape « Préparer ». */
-  | { type: 'chooseAction'; actionId: string; params?: ActionParams; presetId?: string | null }
+  | {
+      type: 'chooseAction';
+      actionId: string;
+      params?: ActionParams;
+      presetId?: string | null;
+      /** Capacité choisie (onglet Capacités) : usage consommé, ou activée avant la déclaration. */
+      usage?: string | null;
+      activate?: string | null;
+    }
   /** « Retour » (ou un clic sur l'indicateur d'étapes). */
   | { type: 'setStep'; step: ComposeStep }
   | { type: 'setParams'; params: ActionParams }
@@ -193,6 +207,8 @@ function emptyDraft(request: AttackMenuRequest, attackerId: string | null): Atta
     visibility: null,
     adjustments: NO_ADJUSTMENTS,
     usage: request.usage ?? null,
+    activate: null,
+    capacites: request.capacites ?? false,
   };
 }
 
@@ -276,7 +292,7 @@ function openFlow(r: AttackMenuRequest): ComposeState {
       draft: emptyDraft(r, first),
       queue: rest,
       // Action demandée (fiche, attaque enregistrée) : on la prépare directement
-      step: r.actionId ? 'prepare' : 'action',
+      step: r.actionId || r.capacites ? 'prepare' : 'action',
     },
     {
       autoAttacker: r.attackerId === undefined && !queue.length,
@@ -378,6 +394,8 @@ function reduceDraft(s: ComposeState, event: DraftEvent): AttackFlowState {
         actionId: event.actionId,
         params: event.params ?? {},
         presetId: event.presetId ?? null,
+        // Une autre action : la capacité choisie ne vaut plus ; la même : elle reste
+        ...(event.actionId !== s.draft.actionId ? { usage: null, activate: null } : {}),
       });
     case 'chooseAction':
       return {
@@ -385,6 +403,9 @@ function reduceDraft(s: ComposeState, event: DraftEvent): AttackFlowState {
           actionId: event.actionId,
           params: event.params ?? {},
           presetId: event.presetId ?? null,
+          usage: event.usage ?? null,
+          activate: event.activate ?? null,
+          capacites: false,
         }),
         step: 'prepare',
       };

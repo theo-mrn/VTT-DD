@@ -279,6 +279,7 @@ export default {
     open: 'Abilities',
     none: 'No ability to play.',
     use: 'Use',
+    active: 'Active',
     activate: 'Activate {name}',
     deactivate: 'Turn off {name}',
     groups: {

@@ -24,7 +24,6 @@ import {
 } from '@/lib/combat/attack-flow';
 import { AIM_TOOL_ID, AimTool } from './aim-tool';
 import { attackSelection, combatMenu, quickAimTarget, type AttackOpener } from './menu';
-import { openCapacitiesMenu } from '@/lib/combat/capacities';
 import { aimLines, EMPTY_COMBAT_MAP, ringTargets, type CombatMapState } from './model';
 import { mountStateBadges } from './badges';
 import { mountCombatRings, type RingSnapshot } from './rings';
@@ -148,11 +147,7 @@ export function registerCombat(
       engine.selection.clear();
       open({ origin: 'map', targetIds: [target], aim: true });
     }),
-    engine.registerMenuProvider((ctx) =>
-      combatMenu(ctx, open, (actorId, origin) =>
-        openCapacitiesMenu({ campaignId, actorId, origin }),
-      ),
-    ),
+    engine.registerMenuProvider((ctx) => combatMenu(ctx, open)),
     engine.registerAction({
       id: 'combat.attack',
       label: translate('map.actions.combatAttack'),

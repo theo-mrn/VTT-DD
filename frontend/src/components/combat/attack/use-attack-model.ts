@@ -238,6 +238,17 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
         animation3d: prefs.data?.animation3d ?? true,
       }),
     });
+    // Capacité à activer : elle s'active d'abord (usage consommé, durée lancée ; refus : rien ne part)
+    let acteur = fiche;
+    if (draft.activate && !fiche?.possessions.get(draft.activate)?.actif) {
+      try {
+        const relue = await usages.activate(body.attackerId, draft.activate);
+        acteur = calculerMemo(systeme, relue.state);
+      } catch (err) {
+        toast.error(messageErreur(err));
+        return;
+      }
+    }
     attackMenu.dispatch({ type: 'submit', key });
     // Du clic sur « Lancer » à l'attaque déclarée (jet compris quand il se fait ici)
     const traced = startBusinessSpan('combat.attack', {
@@ -247,7 +258,7 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     });
     try {
       // Calcul dans le navigateur (Théo, 2026-09-30) ; défense active : le serveur, comme avant
-      const session = await startInBrowser(body);
+      const session = await startInBrowser(body, acteur);
       const attack = session
         ? await browserAttack(session, body, key, action)
         : await commands.declare(body, key);
@@ -277,7 +288,11 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
    * navigateur. null : l'attaque passe par le serveur (une cible a une défense active à
    * choisir, ou une fiche n'a pas pu être lue).
    */
-  async function startInBrowser(body: DeclareAttack): Promise<LocalSession | null> {
+  async function startInBrowser(
+    body: DeclareAttack,
+    actorSheet: Fiche | null = fiche,
+  ): Promise<LocalSession | null> {
+    const fiche = actorSheet;
     if (!systeme || !fiche || !action) return null;
     let targets: { id: string; fiche: Fiche }[];
     try {

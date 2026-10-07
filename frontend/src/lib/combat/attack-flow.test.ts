@@ -40,6 +40,26 @@ const ready = () =>
   ]) as ComposeState;
 
 describe('menu d’attaque : ouverture et composition', () => {
+  it('onglet Capacités : ouvert en préparation, la capacité choisie porte son usage', () => {
+    const s = open({ attackerId: 'hero', capacites: true }) as ComposeState;
+    expect([s.step, s.draft.capacites]).toEqual(['prepare', true]);
+    const choisie = run(
+      [
+        {
+          type: 'chooseAction',
+          actionId: 'utiliser-capacite-active',
+          params: { capacite: 'rage' },
+          activate: 'rage',
+        },
+      ],
+      s,
+    ) as ComposeState;
+    expect(choisie.draft).toMatchObject({ usage: null, activate: 'rage', capacites: false });
+    // Une autre action : la capacité ne vaut plus
+    const autre = run([{ type: 'setAction', actionId: 'frappe' }], choisie) as ComposeState;
+    expect([autre.draft.usage, autre.draft.activate]).toEqual([null, null]);
+  });
+
   it('ouvre en composition avec les cibles demandées, sans doublon', () => {
     const s = open({ targetIds: ['gobelin', 'gobelin', 'loup'] });
     expect(s.phase).toBe('compose');
