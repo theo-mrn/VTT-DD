@@ -206,6 +206,9 @@ par jet doublerait le trafic du bus pour rien).
 
 - **Profil** : carte « Progression » (niveau, barre d'XP, paliers, défis par onglets Quotidiens,
   Hebdomadaires, Permanents). Bordures acquises débloquées dans la carte « Apparence ».
+- **Table** : panneau « Progression » du rail (même contenu que la carte du profil), pour suivre
+  ses défis sans quitter la partie ; sans touche par défaut (toutes les lettres sont prises),
+  une se choisit dans l'éditeur des raccourcis.
 - **Profil public** : pastille de niveau à côté du nom.
 - **Accueil** : résumé (niveau, barre, prochaines étapes, défis du jour). Il remplace le bloc
   « Premiers pas » calculé dans le navigateur, dont les étapes deviennent les Premiers pas du
@@ -223,10 +226,35 @@ envoi toutes les 5 minutes). Le nouveau front ne l'envoyait plus : les titres de
 d'onglet visible, envoi par lots de 5 (et du reste quand l'onglet est masqué), vers
 `POST /v1/users/me/time` existant.
 
-## 9. Reprise de l'existant
+## 9. Niveaux d'avant et reprise de l'existant
 
-Sans reprise, un joueur qui a déjà dix personnages verrait « Créer votre premier personnage ».
-Commande à lancer une fois au déploiement (rejouable sans risque) :
+### Niveau d'avant (automatique)
+
+Décidé avec Théo le 2026-10-07 : **chaque compte démarre à son niveau de l'ancienne app**, sans
+commande à lancer.
+
+- L'ancienne app calculait le niveau du compte par le temps de jeu : **un niveau toutes les 2 h**
+  (`niveau = minutes ÷ 120 + 1`, `legacy/src/components/ui/profile-card.tsx`). Ces minutes sont
+  en base (`profiles.time_spent_minutes`, importées de l'ancienne app) :
+  `legacyLevelForMinutes` (`levels.ts`).
+- La ligne `account_progress` d'un joueur est créée au premier besoin (premier événement ou premier
+  affichage de sa progression, `ensureProgress`) avec ce niveau et l'XP qui y mène dans la
+  nouvelle courbe (`xpForLevel`). Un compte importé plus tard de l'ancienne app (à sa première
+  connexion) en profite de la même façon.
+- Les titres des paliers déjà atteints sont débloqués (`identity.title_unlocked`, source
+  `level`), sans `identity.level_reached` : ce n'est pas une montée de niveau.
+- Un joueur qui a déjà joué (niveau d'avant 2 ou plus, soit 2 h de jeu) a ses **Premiers pas**
+  tenus pour faits (sans XP ni notification) : on ne propose pas « Créer votre premier
+  personnage » à un habitué.
+- Le profil public montre le niveau d'avant même avant la création de la ligne (`levelOf`).
+- Ensuite, le joueur progresse avec l'XP et les défis (§ 3 à § 6) ; le niveau ne baisse jamais.
+
+### Reprise des compteurs (facultative)
+
+Une commande d'exploitation relève les compteurs à vie depuis les autres services, pour que les
+défis permanents (« 100 jets », « 10 séances »…) tiennent compte du passé. **Elle n'est pas
+nécessaire au déploiement** : sans elle, ces compteurs partent du déploiement ; le niveau, lui,
+part toujours du niveau d'avant.
 
 ```sh
 BACKFILL_SOURCE_URL=postgres://… DATABASE_URL=postgres://identity_svc:… \
@@ -237,18 +265,12 @@ BACKFILL_SOURCE_URL=postgres://… DATABASE_URL=postgres://identity_svc:… \
   Les écritures passent par `DATABASE_URL` (rôle `identity_svc`) et le code du service.
 - Compteurs à vie repris : personnages joueurs non supprimés, campagnes où il est MJ et où il
   est joueur, séances qu'il a planifiées, messages, notes, jets (importés de l'ancienne app
-  compris : ce sont de vrais jets passés ; pas ceux d'une clé d'API), séances jouées (couples
-  campagne-jour distincts de ses jets et messages), amis, profil complété, minutes de jeu. Un
+  compris ; pas ceux d'une clé d'API), séances jouées, amis, profil complété, minutes de jeu. Un
   compteur repris ne baisse jamais : `greatest(actuel, repris)`.
 - Clés reprises : campagnes rejointes, amis, profil complété (rien n'est regagné ensuite).
-- Les défis permanents atteints sont accomplis avec leur XP.
-- **Ancienneté** : 1 XP par minute de jeu déjà comptée, au plus 6 000 (100 h), une seule fois.
-- Les quotidiens et hebdomadaires ne sont pas repris.
-- Les événements sont écrits comme d'habitude (`identity.challenge_completed`,
-  `identity.level_reached`) : un joueur connecté pendant la reprise voit ses notifications.
+- Les défis permanents atteints sont accomplis avec leur XP ; les quotidiens et hebdomadaires ne
+  sont pas repris. Plus d'« ancienneté » en XP : le niveau d'avant la remplace.
 - Sortie : des compteurs seulement (comptes, totaux, niveaux atteints), jamais d'identifiant.
-- Vérifié en local : essai à blanc sur toute la base, puis deux passes réelles sur un compte
-  jetable (la seconde n'écrit rien).
 
 ## 10. Données
 
@@ -292,8 +314,9 @@ Prises seul, à revoir par Théo :
 11. **Pas d'événement par gain d'XP** ; seulement niveau et défi accomplis.
 12. **Temps de jeu rétabli** dans le front (régression du nouveau front par rapport à l'ancienne
     app), compté sur onglet visible seulement.
-13. **Reprise de l'existant** par une commande d'exploitation qui lit les autres schémas, plutôt
-    que par des appels entre services (identity n'en fait aucun) ; ancienneté plafonnée à 100 h.
+13. **Niveau d'avant** (avec Théo, 2026-10-07) : chaque compte démarre au niveau que lui donnait
+    l'ancienne app (1 niveau / 2 h de jeu), automatiquement à la création de sa ligne ; aucune
+    migration manuelle. La reprise des compteurs reste une commande facultative (§ 9).
 14. **Premiers pas de l'accueil** remplacés par ceux du serveur (mêmes étapes, plus l'ami et la
     séance) : une seule source de vérité.
 15. Le **profil public** montre le niveau, pas l'XP ni les défis.

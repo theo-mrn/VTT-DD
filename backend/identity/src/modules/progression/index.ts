@@ -77,7 +77,11 @@ export const register: Module = async (app, deps) => {
       preHandler: app.authenticate,
       schema: { response: { 200: ProgressionResponse } },
     },
-    async (req) => readProgression(deps.db, req.user!.userId),
+    async (req) =>
+      readProgression(deps.db, req.user!.userId, new Date(), {
+        correlationId: req.ctx.correlationId,
+        traceparent: (req.headers.traceparent as string | undefined) ?? null,
+      }),
   );
 
   r.get(

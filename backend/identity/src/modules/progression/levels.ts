@@ -6,6 +6,17 @@
  */
 import { slugDe } from '../titres/catalogue.js';
 
+/**
+ * Niveau de l'ancienne app : un niveau toutes les 2 heures de jeu (`profile-card.tsx` du legacy),
+ * tiré de `profiles.time_spent_minutes`. Chaque compte démarre à ce niveau (docs/progression.md § 9).
+ */
+export const LEGACY_MINUTES_PER_LEVEL = 120;
+
+export function legacyLevelForMinutes(minutes: number): number {
+  if (!Number.isFinite(minutes) || minutes <= 0) return 1;
+  return Math.floor(minutes / LEGACY_MINUTES_PER_LEVEL) + 1;
+}
+
 /** XP cumulée nécessaire pour atteindre `level` (1 → 0). */
 export function xpForLevel(level: number): number {
   const n = Math.max(1, Math.floor(level)) - 1;

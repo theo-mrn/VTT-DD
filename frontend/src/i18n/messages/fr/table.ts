@@ -12,6 +12,10 @@ export default {
       label: 'Documents',
       description: 'Images et vidéos montrées à la table : projetées ou envoyées par le MJ',
     },
+    progression: {
+      label: 'Progression',
+      description: 'Mon niveau, mes paliers et mes défis du jour et de la semaine',
+    },
     joueurs: {
       label: 'Personnages',
       description: 'Les personnages de la table, d’une fiche à l’autre en un clic',

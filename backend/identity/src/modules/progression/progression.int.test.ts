@@ -25,14 +25,15 @@ import {
 import { appDeTest, TEST_DATABASE_URL } from '../../test/app-de-test.js';
 import { activeChallenges } from './challenges.js';
 import { handleProgressionEvent, startProgressionConsumer } from './consumer.js';
-import { xpForLevel } from './levels.js';
+import { LEVEL_REWARDS, xpForLevel } from './levels.js';
 import { addDays, isoWeek, parisDay } from './periods.js';
 import {
   backfillUserInTx,
   DAILY_KEPT_DAYS,
   purgeProgressionDaily,
+  levelOf,
   readProgression,
-  SENIORITY_MAX_XP,
+  recordActivitiesInTx,
   type ProgressionView,
 } from './service.js';
 
@@ -339,7 +340,53 @@ describe.skipIf(!TEST_DATABASE_URL)('progression du compte', () => {
     expect(pub.json().level).toBe(after.level);
   });
 
-  it('reprise de l’existant : compteurs relevés, permanents accomplis, ancienneté une fois', async () => {
+  it('niveau d’avant : un compte démarre au niveau de son temps de jeu, sans reprise', async () => {
+    const j = await t.inscrire();
+    // 1 300 minutes : 10 tranches de 2 h, niveau 11 dans l'ancienne app
+    await t.db.update(profiles).set({ timeSpentMinutes: 1300 }).where(eq(profiles.userId, j.id));
+    // Avant toute ligne : le profil public montre déjà le niveau d'avant
+    expect(await levelOf(t.db, j.id)).toBe(11);
+
+    const view = await readProgression(t.db, j.id);
+    expect(view).toMatchObject({ level: 11, xp: xpForLevel(11) });
+    expect(view.steps.some((s) => s.id.startsWith('first_'))).toBe(false);
+    // Titres des paliers atteints, sans notification de niveau ni défi annoncé
+    const slugs = (
+      await t.db
+        .select({ slug: userTitles.slug })
+        .from(userTitles)
+        .where(eq(userTitles.userId, j.id))
+    ).map((r) => r.slug);
+    for (const r of LEVEL_REWARDS.filter((x) => x.type === 'title' && x.level <= 11))
+      expect(slugs).toContain(r.id);
+    expect(await events(j.id, 'identity.level_reached')).toEqual([]);
+    expect(await events(j.id, 'identity.challenge_completed')).toEqual([]);
+
+    // Relu : rien ne change ; une activité ensuite part de là
+    expect(await readProgression(t.db, j.id)).toMatchObject({ level: 11, xp: xpForLevel(11) });
+    const before = (await progress(j.id))!;
+    await t.db.transaction((tx) =>
+      recordActivitiesInTx(
+        tx,
+        { correlationId: `test-${uuidv7()}` },
+        j.id,
+        [{ userId: j.id, kind: 'character_created', units: 1 }],
+        new Date(),
+      ),
+    );
+    const after = (await progress(j.id))!;
+    expect(after.xp).toBeGreaterThan(before.xp);
+    expect(after.level).toBeGreaterThanOrEqual(11);
+  });
+
+  it('nouveau compte sans temps de jeu : niveau 1, Premiers pas proposés', async () => {
+    const j = await t.inscrire();
+    const view = await readProgression(t.db, j.id);
+    expect(view).toMatchObject({ level: 1, xp: 0 });
+    expect(view.steps.some((s) => s.id.startsWith('first_'))).toBe(true);
+  });
+
+  it('reprise de l’existant : compteurs relevés, permanents accomplis', async () => {
     const j = await t.inscrire();
     const friend = crypto.randomUUID();
     const ctx = { correlationId: `test-${uuidv7()}` };
@@ -351,15 +398,13 @@ describe.skipIf(!TEST_DATABASE_URL)('progression du compte', () => {
           j.id,
           { dice_roll: 150, character_created: 2, campaign_joined: 1 },
           [{ activity: 'friend_added', key: friend }],
-          9000,
         ),
       );
     const first = await run();
-    expect(first!.seniorityXp).toBe(SENIORITY_MAX_XP);
     expect(first!.completed.map((c) => c.id).sort()).toEqual(
       ['first_campaign', 'first_character', 'first_roll', 'rolls_100'].sort(),
     );
-    const xp = SENIORITY_MAX_XP + 50 + 50 + 25 + 100;
+    const xp = 50 + 50 + 25 + 100;
     expect(await progress(j.id)).toMatchObject({ xp });
     expect(await counters(j.id)).toEqual({
       dice_roll: 150,
@@ -375,7 +420,7 @@ describe.skipIf(!TEST_DATABASE_URL)('progression du compte', () => {
         and(eq(progressionCounters.userId, j.id), eq(progressionCounters.activity, 'dice_roll')),
       );
     const second = await run();
-    expect(second).toMatchObject({ seniorityXp: 0, completed: [] });
+    expect(second).toMatchObject({ completed: [] });
     expect(await progress(j.id)).toMatchObject({ xp });
     expect((await counters(j.id)).dice_roll).toBe(500);
 

@@ -1,7 +1,8 @@
 /**
  * Reprise de l'existant (docs/progression.md § 9) : relit ce que chaque joueur
  * a déjà fait dans les autres services, puis relève ses compteurs à vie,
- * accomplit les défis permanents atteints et accorde son ancienneté.
+ * accomplit les défis permanents atteints. Facultatif : le niveau part tout seul du niveau
+ * d'avant (temps de jeu), sans cette reprise.
  *
  * Lecture : une connexion qui lit les schémas identity, characters, campaign et
  * dice (commande d'exploitation lancée une fois au déploiement, jamais par le
@@ -21,7 +22,6 @@ import { TIME_ZONE } from './periods.js';
 export interface UserFacts {
   totals: Partial<Record<ActivityKind, number>>;
   keys: { activity: ActivityKind; key: string }[];
-  playMinutes: number;
 }
 
 /** Sources de jet reprises : toutes sauf `api`. */
@@ -114,7 +114,7 @@ const PROFILES = `select user_id, time_spent_minutes as minutes,
 
 function factsOf(facts: Map<string, UserFacts>, userId: string): UserFacts {
   let f = facts.get(userId);
-  if (!f) facts.set(userId, (f = { totals: {}, keys: [], playMinutes: 0 }));
+  if (!f) facts.set(userId, (f = { totals: {}, keys: [] }));
   return f;
 }
 
@@ -150,7 +150,6 @@ export async function readFacts(
   for (const r of rows) {
     const f = factsOf(facts, r.user_id);
     const minutes = Number(r.minutes);
-    f.playMinutes = minutes;
     if (minutes > 0) f.totals.play_minutes = minutes;
     if (r.complete) {
       f.totals.profile_completed = 1;
@@ -165,7 +164,6 @@ export interface BackfillReport {
   missing: number;
   counters: number;
   challenges: number;
-  seniorityXp: number;
   levels: Record<number, number>;
 }
 
@@ -180,14 +178,11 @@ export async function applyFacts(
     missing: 0,
     counters: 0,
     challenges: 0,
-    seniorityXp: 0,
     levels: {},
   };
   const ctx = { correlationId: `progression-backfill-${uuidv7()}` };
   for (const [userId, f] of [...facts.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    const r = await db.transaction((tx) =>
-      backfillUserInTx(tx, ctx, userId, f.totals, f.keys, f.playMinutes),
-    );
+    const r = await db.transaction((tx) => backfillUserInTx(tx, ctx, userId, f.totals, f.keys));
     onUser?.(userId, r);
     if (!r) {
       report.missing += 1;
@@ -196,7 +191,6 @@ export async function applyFacts(
     report.users += 1;
     report.counters += r.counters;
     report.challenges += r.completed.length;
-    report.seniorityXp += r.seniorityXp;
     report.levels[r.level] = (report.levels[r.level] ?? 0) + 1;
   }
   return report;

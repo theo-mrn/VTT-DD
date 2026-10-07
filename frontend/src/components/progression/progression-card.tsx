@@ -19,10 +19,21 @@ import { ChallengeList } from './challenge-list';
 import { LevelRing } from './level';
 import { RewardTrack, rewardText } from './rewards';
 
+/** Niveau, paliers et défis, sans cadre : carte du profil, panneau de la table. */
+export function ProgressionContent() {
+  const progression = useProgression();
+  return (
+    <>
+      {progression.isLoading && <Chargement />}
+      {progression.isError && <Message>{messageErreur(progression.error)}</Message>}
+      {progression.data && <ProgressionBody p={progression.data} />}
+    </>
+  );
+}
+
 /** Carte « Progression » du profil : niveau, paliers et défis. */
 export function ProgressionCard() {
   const t = useTranslations();
-  const progression = useProgression();
 
   return (
     <Carte
@@ -40,9 +51,7 @@ export function ProgressionCard() {
         </Info>
       }
     >
-      {progression.isLoading && <Chargement />}
-      {progression.isError && <Message>{messageErreur(progression.error)}</Message>}
-      {progression.data && <ProgressionBody p={progression.data} />}
+      <ProgressionContent />
     </Carte>
   );
 }

@@ -9,6 +9,7 @@ import {
   NotebookPen,
   Settings2,
   Swords,
+  Trophy,
   Users,
   Volume2,
   type LucideIcon,
@@ -118,6 +119,17 @@ export const panelRegistry = [
       import('@/components/handouts/documents-panel').then((m) => ({
         default: m.DocumentsPanel,
       })),
+    ),
+  },
+  {
+    id: 'progression',
+    icon: Trophy,
+    // Toutes les lettres sont prises : ouvert depuis le rail (touche au choix, raccourcis)
+    width: 'narrow',
+    mode: 'side',
+    roles: ALL_ROLES,
+    component: lazy(() =>
+      import('../onglets/progression').then((m) => ({ default: m.OngletProgression })),
     ),
   },
   {
