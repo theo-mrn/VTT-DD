@@ -132,6 +132,7 @@ frontend/src/lib/map/
     sounds/              zones sonores, écoute et dépôt
     measurements/        distance au clic, outil Mesurer (Z), gabarits épinglés, effets animés
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
+    exploration/         mémoire de l'exploration (masque du groupe, outil du MJ), exploration.md
     weather/             météo de la scène (pluie, neige, brouillard…), son canvas, espace écran
     combat/              anneaux du tour et des cibles, visée, « Attaquer »
     history/ layers/ scene-display/ snap/ presence/ camera/ fullscreen/ bubbles/ party/
@@ -455,6 +456,7 @@ Règles de ces gestes :
   | W      | obstacles   | `obstacles`    | MJ                      |
   | G      | brouillard  | `fog`          | MJ                      |
   | L      | lumières    | `lights`       | MJ                      |
+  | —      | exploration | `exploration`  | MJ                      |
   | K      | calques     | moteur         | MJ (panneau, pas outil) |
 
   Dans cet ordre dans la barre : sélection, outils de pose, puis outils de visibilité. Chaque
@@ -834,6 +836,11 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
     qu'il sache ce qu'ils voient, sans rien lui cacher.
   - « Vue de … » (sélecteur de joueur) : rendu exact de ce joueur, et entités non vues masquées.
 - **`shadowOpacity`** (réglage MJ) : opacité de l'obscurité hors de vue (1 = noir).
+- **Mémoire de l'exploration** ([exploration.md](exploration.md)) : par scène et pour tout le
+  groupe, ce que ses observateurs ont déjà vu reste montré sous un voile gris (fond, décors,
+  dessins des calques, murs tracés), sans PNJ ni objet hors décor (ils suivent la vue en
+  direct). Masque raster d'un quart de case calculé par le serveur après chaque changement de
+  vue, outil Exploration du MJ (révéler, oublier, réinitialiser, activer par scène).
 - **Rayons de vision** (menu « Vue », préférence locale, montrés par défaut) : un liseré doux,
   clair et estompé vers l'intérieur, au bord du rayon de vision de chaque observateur : les siens
   pour un joueur, ceux du joueur montré en « Vue de… », tous ceux des joueurs pour le MJ. Au-dessus
