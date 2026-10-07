@@ -57,6 +57,8 @@ export interface BonusJet {
   terme: number | null;
   /** Vise une caractéristique présente dans la formule. */
   concerne: boolean;
+  /** Attributs que le bonus vise (sa condition, ou le jet qu'il implique). */
+  vises: string[];
   etat: EtatBonus;
   /** Pourquoi il ne s'applique pas (inactif). */
   raison: string | null;
@@ -113,6 +115,7 @@ function depuisEffet(fiche: Fiche, e: EffetListe, presentes: Set<string>): Bonus
     description: (effet.description ?? p?.entree.description ?? '').trim() || null,
     terme: chiffre ? arrondi(e.valeur as number) : null,
     concerne: vises.some((c) => presentes.has(c)),
+    vises,
     etat: e.statut === 'actif' ? 'actif' : 'inactif',
     raison: e.statut === 'desactive' ? null : e.statut === 'inactif' ? raisonInactif(e) : null,
     entree,
@@ -148,6 +151,7 @@ function invocations(fiche: Fiche, presentation: Presentation | null): BonusJet[
       description: p.entree.description?.trim() || null,
       terme,
       concerne: false,
+      vises: [],
       etat: 'invocation',
       raison: null,
       entree: p.entree.id,

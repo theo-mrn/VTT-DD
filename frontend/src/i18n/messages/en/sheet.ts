@@ -310,6 +310,13 @@ export default {
     left: '{name} left the adventure',
   },
   skills: {
+    roll: 'Roll with {name}',
+    groups: {
+      active: 'Active',
+      toActivate: 'To activate',
+      limited: 'Limited uses',
+      passive: 'Passive',
+    },
     uses: {
       left: '{left, number}/{max, number}',
       tooltip: '{left, number} of {max, number} {period}',

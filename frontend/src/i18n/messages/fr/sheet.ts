@@ -314,6 +314,13 @@ export default {
     left: '{name} a quitté l’aventure',
   },
   skills: {
+    roll: 'Lancer avec {name}',
+    groups: {
+      active: 'Actives',
+      toActivate: 'À activer',
+      limited: 'Usages limités',
+      passive: 'Passives',
+    },
     uses: {
       left: '{left, number}/{max, number}',
       tooltip: '{left, number} sur {max, number} {period}',

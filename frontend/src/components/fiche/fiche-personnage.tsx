@@ -20,6 +20,9 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { PERIODES_REPOS, recuperer, remettreUsages } from '@vtt/rules';
+import { useDemandeJet } from '@/components/des/demande-jet';
+import { useTableOptionnelle } from '@/components/table/contexte';
+import { usePanelStoreApiOptionnel } from '@/components/table/panels/store';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
 import { EtatVide, Page } from '@/components/commun/page';
@@ -127,6 +130,20 @@ export function useFicheCalculee(id: string | null | undefined) {
   const permissions = p?.permissions ?? { write: false, layout: false };
   const peutModifier = permissions.write;
   const mj = campagne.data?.role === 'gm';
+  // « Lancer » une capacité : à la table, sur la fiche de son héros (celui du panneau des dés)
+  const table = useTableOptionnelle();
+  const panneaux = usePanelStoreApiOptionnel();
+  const demanderJet = useDemandeJet((s) => s.demander);
+  const lancerJet = useMemo(
+    () =>
+      id && panneaux && table?.herosId === id
+        ? (d: { bonus: string[]; attributs: string[] }) => {
+            demanderJet({ personnageId: id, ...d });
+            panneaux.getState().open('des');
+          }
+        : undefined,
+    [id, panneaux, table?.herosId, demanderJet],
+  );
   const ctx = useMemo<ContexteFiche | null>(
     () =>
       p && sys.data && fiche
@@ -137,9 +154,10 @@ export function useFicheCalculee(id: string | null | undefined) {
             personnage: { id: p.id, name: p.name, roomId: p.roomId, portraitUrl: p.portraitUrl },
             operations: peutModifier ? operations : undefined,
             mj,
+            ...(lancerJet ? { lancerJet } : {}),
           }
         : null,
-    [p, sys.data, fiche, peutModifier, operations, mj],
+    [p, sys.data, fiche, peutModifier, operations, mj, lancerJet],
   );
   return { perso, sys, ctx, proprietaire, peutModifier, permissions, ecritures };
 }

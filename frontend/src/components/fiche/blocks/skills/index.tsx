@@ -6,7 +6,9 @@
  * - **Progression** : voies en tableau (une ligne par voie, une colonne par rang), ou arbres
  *   de talents en grille ; la forme vient des données du système, jamais de son identifiant ;
  * - **rangs** (nom de la sorte) : entrées dont les rangs s'achètent directement, avec « + » ;
- * - **Capacités** : entrées acquises, toutes sortes du bloc confondues, avec activation.
+ * - **Capacités** : entrées acquises, toutes sortes du bloc confondues, rangées par état
+ *   (actives, à activer, usages limités, passives), avec activation, usages, durée et
+ *   « Lancer » (panneau des dés avec leurs bonus, à la table).
  * Les soldes des monnaies de la progression sont dans l'en-tête ; le détail s'ouvre au clic
  * (description, effets, achat ou remboursement par les opérations de la fiche).
  */
@@ -14,6 +16,7 @@ import { useTranslations } from 'next-intl';
 import { translate } from '@/i18n/runtime';
 import { Coins, ListChecks, Search, TableProperties, TrendingUp, X } from 'lucide-react';
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { bonusDeJet } from '@/components/des/bonus-jet';
 import { Info } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { TreeDetailDialog, type TreeSelection } from '../tree/detail-dialog';
@@ -216,19 +219,45 @@ function ProgressionView({
   );
 }
 
-/** Vue Capacités : entrées acquises filtrées, ou ce qui explique leur absence. */
+/** Groupes de la vue Capacités, dans l'ordre : ce qui joue maintenant, puis le reste. */
+const CAPACITY_GROUPS = ['active', 'toActivate', 'limited', 'passive'] as const;
+type CapacityGroup = (typeof CAPACITY_GROUPS)[number];
+
+function groupOf({ card }: OwnedItem): CapacityGroup {
+  if (card.activable) return card.active ? 'active' : 'toActivate';
+  return card.uses ? 'limited' : 'passive';
+}
+
+/** Ce qu'un « Lancer » demande au panneau des dés pour une capacité. */
+export interface RollRequest {
+  bonus: string[];
+  attributs: string[];
+}
+
+/**
+ * Vue Capacités : entrées acquises filtrées, rangées par état (actives, à activer, usages
+ * limités, passives), ou ce qui explique leur absence. « Lancer » ouvre les dés avec les
+ * bonus de jet de la capacité.
+ */
 function CapacitesView({
   data,
   owned,
   writes,
+  rolls,
+  onRoll,
   onOpen,
 }: Readonly<{
   data: SkillsBlockData;
   owned: OwnedItem[];
   writes: Writes;
+  rolls: ReadonlyMap<string, RollRequest>;
+  onRoll: ((r: RollRequest) => void) | undefined;
   onOpen(card: SkillCard): void;
 }>) {
   const t = useTranslations();
+  const groups = CAPACITY_GROUPS.map(
+    (g) => [g, owned.filter((o) => groupOf(o) === g)] as const,
+  ).filter(([, items]) => items.length > 0);
   return (
     <>
       {data.owned.length === 0 && (
@@ -242,14 +271,30 @@ function CapacitesView({
           {t('sheet.effects.noResult')}
         </p>
       )}
-      {owned.length > 0 && (
-        <OwnedList
-          items={owned}
-          showFilterLabel={(o: OwnedItem) => o.filterKey.startsWith('champ:')}
-          writes={writes}
-          onOpen={(o) => onOpen(o.card)}
-        />
-      )}
+      {groups.map(([group, items]) => (
+        <section key={group} aria-label={t(`sheet.skills.groups.${group}`)} className="pb-1">
+          {groups.length > 1 && (
+            <h4 className="px-1.5 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-subtle first:pt-0">
+              {t(`sheet.skills.groups.${group}`)}
+            </h4>
+          )}
+          <OwnedList
+            items={items}
+            showFilterLabel={(o: OwnedItem) => o.filterKey.startsWith('champ:')}
+            writes={writes}
+            onOpen={(o) => onOpen(o.card)}
+            {...(onRoll
+              ? {
+                  onRoll: (o: OwnedItem) => {
+                    const r = rolls.get(o.card.entry.id);
+                    if (r) onRoll(r);
+                  },
+                  canRoll: (o: OwnedItem) => rolls.has(o.card.entry.id),
+                }
+              : {})}
+          />
+        </section>
+      ))}
     </>
   );
 }
@@ -263,6 +308,19 @@ function SkillsBlock({
   const t = useTranslations();
   const data = useMemo(() => buildSkillsBlock(ctx.fiche, widget), [ctx.fiche, widget]);
   const writes = sheetWrites(ctx, mode);
+  // Bonus de jet de chaque capacité, pour « Lancer » (à la table, sur son héros)
+  const rolls = useMemo(() => {
+    const m = new Map<string, RollRequest>();
+    if (!ctx.lancerJet) return m;
+    for (const b of bonusDeJet(ctx.fiche, '', ctx.presentation)) {
+      if (!b.entree || (b.terme === null && !b.vises.length)) continue;
+      const r = m.get(b.entree) ?? { bonus: [], attributs: [] };
+      if (b.terme !== null) r.bonus.push(b.cle);
+      for (const a of b.vises) if (!r.attributs.includes(a)) r.attributs.push(a);
+      m.set(b.entree, r);
+    }
+    return m;
+  }, [ctx.fiche, ctx.presentation, ctx.lancerJet]);
   const [bodyRef, width] = useWidth<HTMLDivElement>();
   const panelId = useId();
   const [view, setView] = useStoredView(
@@ -391,6 +449,8 @@ function SkillsBlock({
               data={data}
               owned={owned}
               writes={writes}
+              rolls={rolls}
+              onRoll={mode === 'edit' ? undefined : ctx.lancerJet}
               onOpen={(c) => setCardId(c.entry.id)}
             />
           )}

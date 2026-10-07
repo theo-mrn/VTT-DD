@@ -8,7 +8,9 @@
  * s'activent. Le détail s'ouvre au clic sur le nom.
  */
 import { useTranslations } from 'next-intl';
-import { BadgePlus } from 'lucide-react';
+import { BadgePlus, Dices } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Info } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { PossessionDuration } from '@/components/combat/duration-chip';
 import { cn } from '@/lib/utils';
@@ -22,12 +24,17 @@ export function OwnedList({
   showFilterLabel,
   writes,
   onOpen,
+  onRoll,
+  canRoll,
 }: Readonly<{
   items: OwnedItem[];
   /** La valeur du filtre est un champ (activation…) : montrée sur la ligne. */
   showFilterLabel: (item: OwnedItem) => boolean;
   writes: SheetWrites | undefined;
   onOpen: (item: OwnedItem) => void;
+  /** « Lancer » : panneau des dés avec les bonus de la capacité (absent : pas de dés ici). */
+  onRoll?: (item: OwnedItem) => void;
+  canRoll?: (item: OwnedItem) => boolean;
 }>) {
   const t = useTranslations();
   return (
@@ -89,6 +96,18 @@ export function OwnedList({
                 <RankMarks rank={card.rank} max={card.maxRank} />
               )}
             </button>
+            {onRoll && canRoll?.(item) && (
+              <Info texte={t('sheet.skills.roll', { name: card.entry.nom })}>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  aria-label={t('sheet.skills.roll', { name: card.entry.nom })}
+                  onClick={() => onRoll(item)}
+                >
+                  <Dices />
+                </Button>
+              </Info>
+            )}
             {card.activable && (
               <Switch
                 checked={on}

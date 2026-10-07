@@ -121,6 +121,11 @@ export function usePanelStoreApi(): StoreApi<PanelState> {
   return store;
 }
 
+/** Magasin des panneaux, ou null hors de la table. */
+export function usePanelStoreApiOptionnel(): StoreApi<PanelState> | null {
+  return useContext(PanelStoreContext);
+}
+
 /** Lecture sélective de l'état des panneaux (re-rendu seulement si la sélection change). */
 export function usePanelStore<T>(selector: (s: PanelState) => T): T {
   return useStore(usePanelStoreApi(), selector);

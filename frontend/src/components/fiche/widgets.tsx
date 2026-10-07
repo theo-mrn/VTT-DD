@@ -87,6 +87,11 @@ export interface ContexteFiche {
   operations?: OperationsFiche;
   /** L'utilisateur mène la campagne du personnage : il voit aussi les attributs réservés au MJ. */
   mj?: boolean;
+  /**
+   * Ouvre le panneau des dés de la table avec ces bonus allumés et ces attributs dans la
+   * formule (« Lancer » d'une capacité). Absent : hors de la table, ou pas son héros.
+   */
+  lancerJet?(d: { bonus: string[]; attributs: string[] }): void;
 }
 
 /**

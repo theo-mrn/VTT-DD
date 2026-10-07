@@ -32,6 +32,11 @@ export function useTable(): Table {
   return t;
 }
 
+/** La table courante, ou null hors de la table (fiche ouverte sur sa propre page). */
+export function useTableOptionnelle(): Table | null {
+  return useContext(ContexteTable);
+}
+
 /**
  * Résumé de mon héros (portrait, nom, ressources) ; null tant qu'il se charge, ou sans héros.
  * Change à chaque écriture sur sa fiche : seuls ses lecteurs (HUD, dés) se re-rendent.

@@ -14,6 +14,7 @@ import {
   type ActionsBonus,
 } from '@/components/des/bonus-jet';
 import { useFichePersonnage } from '@/components/des/contexte-jet';
+import { formuleAvecAttributs, useDemandeJet } from '@/components/des/demande-jet';
 import { Lanceur, type EtatPlateau } from '@/components/des/lanceur';
 import { useMacros } from '@/components/des/macros';
 import { PanneauJets } from '@/components/des/panneau-jets';
@@ -188,6 +189,17 @@ export function TableDes({
     },
     [setEtat],
   );
+
+  // « Lancer » depuis une capacité de la fiche : ses bonus allumés, l'attribut visé ajouté
+  const demande = useDemandeJet((s) => s.demande);
+  const viderDemande = useDemandeJet((s) => s.vider);
+  useEffect(() => {
+    if (!demande || !personnage || demande.personnageId !== personnage.id) return;
+    viderDemande();
+    setAllumes([...new Set([...allumes, ...demande.bonus])]);
+    const formule = formuleAvecAttributs(etatActuel.current.formule, demande.attributs);
+    if (formule !== etatActuel.current.formule) modifier({ formule });
+  }, [demande, personnage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Ramène le résultat à l'écran (mobile, ou page défilée jusqu'à l'historique). */
   function reveler() {
