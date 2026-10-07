@@ -11,6 +11,7 @@
  *   trajet. Sans grille, ou sans comptage : la somme des segments en unités.
  */
 import { MAP_PATH_MAX_POINTS } from '@vtt/contracts';
+import { activeLocale } from '@/i18n/runtime';
 import type { LiveAudience } from '@/lib/map/engine/entities/entity-kind';
 import type { Point } from '@/lib/map/engine/geometry';
 import {
@@ -176,7 +177,7 @@ export function measurePath(vertices: readonly Point[], u: UnitContext): PathMea
   return { units: counted ? steps : pathLength(vertices) / ppu, cells, counted };
 }
 
-const number = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+const number = (n: number) => n.toLocaleString(activeLocale(), { maximumFractionDigits: 1 });
 
 /** Étiquette : « 8 m », ou « 8 / 6 m » face au déplacement du personnage. */
 export function pathLabel(units: number, unitName: string, speed: number | null): string {

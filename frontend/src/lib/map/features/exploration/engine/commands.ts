@@ -14,16 +14,12 @@ import {
   fullWindow,
   type CellWindow,
 } from '@vtt/vision';
+import { translate } from '@/i18n/runtime';
 import type { Command } from '@/lib/map/store/commands';
 import type { ExplorationApi } from './api';
 import type { ExplorationModel } from './model';
 
 export type EditOp = 'reveal' | 'forget';
-
-export const EDIT_LABELS: Record<EditOp, string> = {
-  reveal: 'Révéler une zone',
-  forget: 'Oublier une zone',
-};
 
 const inverseOf = (op: EditOp): EditOp => (op === 'reveal' ? 'forget' : 'reveal');
 
@@ -36,7 +32,7 @@ export function editCommand(
   grid: { cols: number; rows: number },
 ): Command {
   return {
-    label: EDIT_LABELS[op],
+    label: translate(`map.exploration.commands.${op}`),
     targets: () => [],
     apply: () => void model.editLocal(op, win),
     revert: () => void model.editLocal(inverseOf(op), win),
@@ -79,7 +75,7 @@ export function resetCommand(model: ExplorationModel, api: ExplorationApi): Comm
   if (!before) return null;
   const empty = ExplorationMask.empty(before);
   return {
-    label: 'Réinitialiser l’exploration',
+    label: translate('map.exploration.commands.reset'),
     targets: () => [],
     apply: () => model.replaceLocal(empty),
     revert: () => model.replaceLocal(before),
