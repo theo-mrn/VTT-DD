@@ -4,6 +4,7 @@ import { JetRapidePersonnel } from '@/components/des/jet-rapide';
 import { GENERAL_SHORTCUTS } from '@/lib/shortcuts/catalog';
 import { useBindingLabel } from '@/lib/shortcuts/hooks';
 import { Bell, ChevronRight, Dices, Menu, Search } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -33,6 +34,7 @@ export function BarreHaute({
   onMenu: () => void;
   onRecherche: () => void;
 }>) {
+  const t = useTranslations('shell');
   const [des, setDes] = useState(false);
   const demandes = useDemandesAmis();
   const recues = demandes.data?.received ?? [];
@@ -44,7 +46,7 @@ export function BarreHaute({
         size="icon-sm"
         className="lg:hidden"
         onClick={onMenu}
-        aria-label="Ouvrir le menu"
+        aria-label={t('topbar.openMenu')}
       >
         <Menu />
       </Button>
@@ -58,7 +60,7 @@ export function BarreHaute({
           className="hidden h-8 items-center gap-2 rounded-lg border border-border bg-surface/80 pl-2.5 pr-1.5 text-[13px] text-subtle transition-colors hover:border-border-strong hover:text-muted-foreground md:flex lg:hidden"
         >
           <Search className="size-3.5" />
-          Rechercher
+          {t('sidebar.search')}
           <ToucheRecherche />
         </button>
         <Button
@@ -66,7 +68,7 @@ export function BarreHaute({
           size="icon-sm"
           className="md:hidden"
           onClick={onRecherche}
-          aria-label="Rechercher"
+          aria-label={t('sidebar.search')}
         >
           <Search />
         </Button>
@@ -74,9 +76,9 @@ export function BarreHaute({
         {/* Jet rapide (Espace puis Entrée) : un champ, la notation, Entrée */}
         <JetRapidePersonnel />
         <Popover open={des} onOpenChange={setDes}>
-          <Info texte="Lancer des dés">
+          <Info texte={t('topbar.rollDice')}>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Lancer des dés">
+              <Button variant="ghost" size="icon-sm" aria-label={t('topbar.rollDice')}>
                 <Dices className={cn(des && 'text-primary')} />
               </Button>
             </PopoverTrigger>
@@ -87,12 +89,12 @@ export function BarreHaute({
         </Popover>
 
         <Popover>
-          <Info texte="Notifications">
+          <Info texte={t('topbar.notifications')}>
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Notifications"
+                aria-label={t('topbar.notifications')}
                 className="relative"
               >
                 <Bell />
@@ -104,12 +106,10 @@ export function BarreHaute({
           </Info>
           <PopoverContent align="end" className="w-80 p-0">
             <div className="border-b border-border px-4 py-3">
-              <p className="text-sm font-medium">Notifications</p>
+              <p className="text-sm font-medium">{t('topbar.notifications')}</p>
             </div>
             {recues.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-subtle">
-                Rien de neuf pour le moment.
-              </p>
+              <p className="px-4 py-8 text-center text-sm text-subtle">{t('topbar.nothingNew')}</p>
             ) : (
               <ul className="max-h-80 overflow-y-auto p-1.5">
                 {recues.map((d) => (
@@ -120,8 +120,12 @@ export function BarreHaute({
                     >
                       <AvatarJoueur nom={d.name} url={d.avatarUrl} taille="sm" />
                       <span className="min-w-0 text-[13px] text-muted-foreground">
-                        <span className="font-medium text-foreground">{d.name}</span> vous a envoyé
-                        une demande d&apos;ami.
+                        {t.rich('topbar.friendRequest', {
+                          name: d.name,
+                          b: (chunks) => (
+                            <span className="font-medium text-foreground">{chunks}</span>
+                          ),
+                        })}
                       </span>
                     </Link>
                   </li>
@@ -136,6 +140,7 @@ export function BarreHaute({
 }
 
 function FilAriane() {
+  const t = useTranslations('shell');
   const chemin = usePathname();
   const segments = chemin.split('/').filter(Boolean);
   const idCampagne =
@@ -148,12 +153,16 @@ function FilAriane() {
   const libelle = (s: string, i: number) => {
     if (i === 1 && idCampagne) return campagne.data?.name ?? '…';
     if (i === 1 && idPersonnage) return personnage.data?.name ?? '…';
-    if (segments[0] === 'joueurs' && i === 1) return 'Joueur';
-    return LIBELLES_SEGMENTS[s] ?? s;
+    if (segments[0] === 'joueurs' && i === 1) return t('nav.player');
+    const cle = LIBELLES_SEGMENTS[s];
+    return cle ? t(`nav.${cle}`) : s;
   };
 
   return (
-    <nav aria-label="Fil d'Ariane" className="flex min-w-0 items-center gap-1 text-[13px]">
+    <nav
+      aria-label={t('topbar.breadcrumb')}
+      className="flex min-w-0 items-center gap-1 text-[13px]"
+    >
       {segments.map((s, i) => {
         const href = `/${segments.slice(0, i + 1).join('/')}`;
         const dernier = i === segments.length - 1;

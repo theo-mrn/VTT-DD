@@ -5,6 +5,7 @@
  * jet) : chargé à part, seulement quand la saisie ressemble à une formule de dés.
  */
 import { Dices } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CommandGroup, CommandItem, CommandShortcut } from '@/components/ui/command';
@@ -15,6 +16,7 @@ export function GroupeLancer({
   saisie,
   onLance,
 }: Readonly<{ saisie: string; onLance: () => void }>) {
+  const t = useTranslations('shell.palette');
   const router = useRouter();
   const lancer = useLancer();
   const formule = verifierFormule(saisie).ok ? saisie.trim() : null;
@@ -26,27 +28,29 @@ export function GroupeLancer({
     try {
       const jet = await lancer.mutateAsync({ formula: f });
       toast(`${jet.symbolResult ?? jet.total}`, {
-        description: `${jet.formula}${MENTION_CRITIQUE[jet.critical ?? ''] ?? ''}`,
+        description: t('rollResult', {
+          formula: jet.formula,
+          critical:
+            jet.critical === 'success' || jet.critical === 'failure' ? jet.critical : 'none',
+        }),
         icon: <Dices className="size-4 text-primary" />,
-        action: { label: 'Table de dés', onClick: () => router.push('/des') },
+        action: { label: t('diceTable'), onClick: () => router.push('/des') },
       });
     } catch (e) {
-      toast.error('Jet impossible', { description: messageErreur(e) });
+      toast.error(t('rollFailed'), { description: messageErreur(e) });
     }
   }
 
   return (
-    <CommandGroup heading="Lancer">
-      <CommandItem value={`lancer ${formule}`} onSelect={() => void lancerFormule(formule)}>
+    <CommandGroup heading={t('roll')}>
+      <CommandItem value={`${t('roll')} ${formule}`} onSelect={() => void lancerFormule(formule)}>
         <Dices className="text-primary" />
-        Lancer <span className="font-mono text-foreground">{formule}</span>
+        {t.rich('rollFormula', {
+          formula: formule,
+          b: (chunks) => <span className="font-mono text-foreground">{chunks}</span>,
+        })}
         <CommandShortcut>↵</CommandShortcut>
       </CommandItem>
     </CommandGroup>
   );
 }
-
-const MENTION_CRITIQUE: Partial<Record<string, string>> = {
-  success: ' · critique !',
-  failure: ' · échec critique',
-};

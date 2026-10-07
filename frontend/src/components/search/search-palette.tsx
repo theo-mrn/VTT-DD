@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useFormatter, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,7 +68,7 @@ export function SearchPalette({
   rules,
   navigation,
   systemPicker,
-  placeholder = 'Chercher une règle, un objet, une créature…',
+  placeholder,
 }: Readonly<{
   open: boolean;
   onOpenChange(open: boolean): void;
@@ -78,6 +79,7 @@ export function SearchPalette({
   systemPicker?: ReactNode;
   placeholder?: string;
 }>) {
+  const t = useTranslations('search');
   const [query, setQuery] = useState('');
   const search = useDeferredValue(query);
   const [tab, setTab] = useState<string>(navigation ? NAV : ALL);
@@ -133,8 +135,8 @@ export function SearchPalette({
   };
 
   const chips: { id: string; label: string; icon: LucideIcon }[] = [
-    ...(navigation ? [{ id: NAV, label: 'Aller à', icon: Compass }] : []),
-    ...(data ? [{ id: ALL, label: 'Tout', icon: Layers }] : []),
+    ...(navigation ? [{ id: NAV, label: t('goTo'), icon: Compass }] : []),
+    ...(data ? [{ id: ALL, label: t('all'), icon: Layers }] : []),
     ...tabs.map((t) => ({ id: t.id, label: t.label, icon: ICONS[t.kind] })),
   ];
 
@@ -155,7 +157,7 @@ export function SearchPalette({
         showCloseButton={false}
         className="top-[12%] max-w-2xl translate-y-0 overflow-hidden rounded-2xl border border-border-strong bg-popover shadow-elevated data-[state=open]:slide-in-from-top-4 sm:max-w-2xl"
       >
-        <DialogTitle className="sr-only">Recherche</DialogTitle>
+        <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <Command
           loop
           shouldFilter={tab === NAV}
@@ -176,14 +178,14 @@ export function SearchPalette({
                 cycle(e.shiftKey ? -1 : 1);
               }
             }}
-            placeholder={tab === NAV ? 'Chercher une page, une campagne, une règle…' : placeholder}
-            apres={<Kbd>Échap</Kbd>}
+            placeholder={tab === NAV ? t('navPlaceholder') : (placeholder ?? t('placeholder'))}
+            apres={<Kbd>{t('escape')}</Kbd>}
           />
           {chips.length > 1 && (
             <div className="flex items-center gap-2 border-b border-border px-3 py-2">
               <div
                 role="tablist"
-                aria-label="Rubriques"
+                aria-label={t('tabs')}
                 className="flex min-w-0 flex-1 gap-1 overflow-x-auto"
               >
                 {chips.map((c) => (
@@ -231,7 +233,10 @@ export function SearchPalette({
                   query: search,
                   close,
                   rulesPreview: preview.length ? (
-                    <CommandGroup heading={`Règles · ${data?.systeme.source.nom ?? ''}`} forceMount>
+                    <CommandGroup
+                      heading={t('rules', { system: data?.systeme.source.nom ?? '' })}
+                      forceMount
+                    >
                       {preview.map((h) => (
                         <Result key={h.item.id} hit={h} onSelect={() => openItem(h.item)} />
                       ))}
@@ -271,6 +276,7 @@ function RulesList({
   onTab(id: string): void;
   onOpen(item: SearchItem): void;
 }>) {
+  const t = useTranslations('search');
   if (rules.isPending && !rules.data)
     return (
       <div className="space-y-2 p-3" aria-busy>
@@ -279,7 +285,7 @@ function RulesList({
         ))}
       </div>
     );
-  if (!rules.data) return <CommandEmpty>Règles indisponibles.</CommandEmpty>;
+  if (!rules.data) return <CommandEmpty>{t('rulesUnavailable')}</CommandEmpty>;
   // « Tout » sans saisie : les rubriques du système, pour y entrer
   if (tab === ALL && !query.trim())
     return (
@@ -296,7 +302,7 @@ function RulesList({
         })}
       </CommandGroup>
     );
-  if (!hits.length) return <CommandEmpty>Aucun résultat.</CommandEmpty>;
+  if (!hits.length) return <CommandEmpty>{t('noResult')}</CommandEmpty>;
   return (
     <CommandGroup>
       {hits.map((h) => (
@@ -307,6 +313,8 @@ function RulesList({
 }
 
 function Result({ hit, onSelect }: Readonly<{ hit: SearchHit; onSelect(): void }>) {
+  const t = useTranslations('search');
+  const format = useFormatter();
   const { item, via } = hit;
   const Icon = item.creature ? Skull : item.market ? Store : BookOpen;
   return (
@@ -324,7 +332,9 @@ function Result({ hit, onSelect }: Readonly<{ hit: SearchHit; onSelect(): void }
         <span className="block truncate text-sm font-medium">{item.title}</span>
         {(item.subtitle || via.length > 0) && (
           <span className="block truncate text-xs text-muted-foreground">
-            {via.length > 0 ? `par ${via.map((v) => v.nom).join(', ')}` : item.subtitle}
+            {via.length > 0
+              ? t('via', { names: format.list(via.map((v) => v.nom)) })
+              : item.subtitle}
           </span>
         )}
       </span>
@@ -349,10 +359,11 @@ function Detail({
   onBack(): void;
   onClose(): void;
 }>) {
+  const t = useTranslations('search');
   const back = (
     <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 text-muted-foreground">
       <ArrowLeft />
-      Retour
+      {t('back')}
     </Button>
   );
 
@@ -367,11 +378,11 @@ function Detail({
             engine.tools.activate(TOKENS_TOOL_ID);
             tokensStateOf(engine)?.library.setState({ armed: placement });
             onClose();
-            toast.info(`Cliquez sur la carte pour poser ${placement.name}`);
+            toast.info(t('placeHint', { name: placement.name }));
           }}
         >
           <MapPin />
-          Poser sur la carte
+          {t('place')}
         </Button>
       ) : null;
     return (

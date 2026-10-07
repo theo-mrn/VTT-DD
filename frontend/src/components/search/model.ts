@@ -4,6 +4,7 @@
  * sorte du marché et pour le bestiaire. Aucune clé de jeu : les rubriques et leurs noms
  * viennent du système, une rubrique vide n'existe pas.
  */
+import { translate } from '@/i18n/runtime';
 import type { Entree, Presentation, SystemeCharge } from '@vtt/rules';
 import type { PlacementSource } from '@/lib/map/features/tokens/engine/state';
 import { imageEntree } from '@/lib/systemes';
@@ -109,7 +110,7 @@ export function buildSearchIndex(o: {
     push(
       {
         id: 'bestiaire',
-        label: presentation.references.bestiaire.titre ?? 'Bestiaire',
+        label: presentation.references.bestiaire.titre ?? translate('search.bestiary'),
         kind: 'bestiaire',
       },
       o.creatures.map(({ item, placement }) => ({

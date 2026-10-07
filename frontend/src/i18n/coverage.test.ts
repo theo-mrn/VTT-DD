@@ -23,6 +23,10 @@ export const TRANSLATED_AREAS = [
   'app/reinitialisation',
   'app/verification-email',
   'app/discord',
+  'components/shell',
+  'components/search',
+  'components/commun',
+  'components/compte/onglets-compte.tsx',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {

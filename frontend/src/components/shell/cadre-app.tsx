@@ -3,6 +3,7 @@
 import { GENERAL_SHORTCUTS } from '@/lib/shortcuts/catalog';
 import { useShortcut } from '@/lib/shortcuts/hooks';
 import { ChevronsRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -24,6 +25,7 @@ import { EcranChargement } from './ecran-chargement';
  * l'onboarding.
  */
 export function CadreApp({ children }: Readonly<{ children: ReactNode }>) {
+  const t = useTranslations('shell.sidebar');
   const profil = useProfilRequis();
   const router = useRouter();
   const chemin = usePathname();
@@ -55,14 +57,14 @@ export function CadreApp({ children }: Readonly<{ children: ReactNode }>) {
           onRecherche={() => setPalette(true)}
         />
         {repliee && (
-          <Info texte="Déplier le menu" cote="right">
+          <Info texte={t('expand')} cote="right">
             <button
               type="button"
               onClick={() => setRepliee(false)}
               className="absolute -right-3 top-[18px] z-10 flex size-6 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-subtle shadow-surface transition-colors hover:text-foreground"
             >
               <ChevronsRight className="size-3.5" />
-              <span className="sr-only">Déplier le menu</span>
+              <span className="sr-only">{t('expand')}</span>
             </button>
           </Info>
         )}
@@ -71,7 +73,7 @@ export function CadreApp({ children }: Readonly<{ children: ReactNode }>) {
       {/* Menu mobile */}
       <Dialog open={menuMobile} onOpenChange={setMenuMobile}>
         <SheetContent cote="left" className="w-[280px] bg-surface p-0">
-          <DialogTitle className="sr-only">Menu</DialogTitle>
+          <DialogTitle className="sr-only">{t('menu')}</DialogTitle>
           <BarreLaterale
             onRecherche={() => {
               setMenuMobile(false);
@@ -94,9 +96,10 @@ export function CadreApp({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 function NavMobile({ chemin }: Readonly<{ chemin: string }>) {
+  const t = useTranslations('shell');
   return (
     <nav
-      aria-label="Navigation"
+      aria-label={t('sidebar.mobileNav')}
       className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-around rounded-2xl border border-border-strong bg-popover/95 px-1 py-1.5 shadow-elevated lg:hidden"
     >
       {NAV_PRINCIPALE.map((l) => {
@@ -112,7 +115,7 @@ function NavMobile({ chemin }: Readonly<{ chemin: string }>) {
             )}
           >
             <l.icone className="size-5" />
-            {l.label}
+            {t(`nav.${l.label}`)}
           </Link>
         );
       })}

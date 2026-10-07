@@ -52,7 +52,7 @@ const TECHNICAL = new Set([
 ]);
 
 const FRENCH_WORDS =
-  /(^|\s)(le|la|les|des|du|de|un|une|et|ou|pour|avec|sans|au|aux|est|pas|ne|sur|dans|en|vos|votre|mon|ma|mes|ce|cette|ces|qui|que|à|d’|l’)(\s|$)/i;
+  /(^|\s)(le|la|les|des|du|de|un|une|et|ou|pour|avec|sans|au|aux|est|pas|ne|sur|dans|en|vos|votre|mon|ma|mes|ce|cette|ces|qui|que|par|à|d’|l’)(\s|$)/i;
 const ACCENTS = /[àâäçéèêëîïôöûùüÿœæÀÂÇÉÈÊËÎÏÔÛÙÜŒ’«»…]/;
 
 /** Retire les commentaires en gardant les chaînes (et les numéros de ligne). */
@@ -121,6 +121,7 @@ export function scanSource(code, tsx) {
   lines.forEach((line, index) => {
     if (raw[index]?.includes('i18n-ignore')) return;
     if (/^\s*(import|export \* from|export \{[^}]*\} from)\b/.test(line)) return;
+    if (/displayName\s*=/.test(line)) return;
     if (/new Error\(|console\.|'use (client|server)'|className=|class=/.test(line)) {
       // Une ligne className peut porter aussi un libellé : on ne garde que les attributs utiles
       if (!/(title|placeholder|aria-label|alt|label)=["'][^"']+["']/.test(line)) return;
@@ -130,10 +131,16 @@ export function scanSource(code, tsx) {
       const s = m[1] ?? m[2] ?? m[3] ?? '';
       if (looksLikeText(s)) hits.add(s.trim());
     }
+    // Gabarit avec des valeurs : le texte autour d'elles (`par ${noms}`)
+    for (const m of line.matchAll(/`([^`]*\$\{[^`]*)`/g)) {
+      const fixed = (m[1] ?? '').replace(/\$\{[^}]*\}/g, ' ').trim();
+      if (/[a-zà-ÿ]{2}/i.test(fixed) && (ACCENTS.test(fixed) || FRENCH_WORDS.test(` ${fixed} `)))
+        hits.add(m[1].trim());
+    }
     if (tsx) {
       for (const m of line.matchAll(/>([^<>{}]+)</g)) {
         const s = m[1].trim();
-        if (/[;=()&|]/.test(s) || !/[a-zà-ÿ]{2}/i.test(s)) continue;
+        if (/[;=()&|]/.test(s) || /^[,.]/.test(s) || !/[a-zà-ÿ]{2}/i.test(s)) continue;
         hits.add(s);
       }
       // Texte JSX seul sur sa ligne
@@ -145,6 +152,14 @@ export function scanSource(code, tsx) {
         !/^(return|const|let|if|else|case|default|await|type|interface|function)\b/.test(alone) &&
         !/[,(]$/.test(alone) &&
         (ACCENTS.test(alone) || FRENCH_WORDS.test(alone))
+      ) {
+        hits.add(alone);
+      }
+      // Un mot seul sur sa ligne, en texte JSX (« Retour », « Restaurer »)
+      if (
+        /^[A-ZÀ-Ý][a-zà-ÿ’']{2,}[.!?…]?$/.test(alone) &&
+        !TECHNICAL.has(alone) &&
+        /^\s*<|>\s*$|^\s*\{?\s*$/.test(raw[index - 1] ?? '')
       ) {
         hits.add(alone);
       }

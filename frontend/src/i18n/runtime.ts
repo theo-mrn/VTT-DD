@@ -2,7 +2,7 @@
  * Traduction hors React (docs/i18n.md § 6) : moteur de la carte, canevas, callbacks, toasts.
  * Initialisé par le fournisseur avec la langue de la page, qui ne change qu'au rechargement.
  * Côté client seulement : sur le serveur, le module est partagé entre les requêtes de toutes
- * les langues, il refuse donc de servir.
+ * les langues, il refuse donc de servir (voir `current`).
  */
 import { createFormatter, createTranslator, type Formats } from 'next-intl';
 import { DEFAULT_LOCALE, formats, type Locale } from './config';
@@ -50,8 +50,33 @@ function install(locale: Locale, messages: Messages, timeZone?: string) {
   };
 }
 
+/**
+ * Hors navigateur en production : les clés au lieu des textes (le client corrige à
+ * l'hydratation), plutôt qu'une page cassée. En développement, l'erreur montre l'appel fautif.
+ */
+let serverFallback: Runtime | null = null;
+function keysOnly(): Runtime {
+  serverFallback ??= {
+    locale: DEFAULT_LOCALE,
+    translate: createTranslator({
+      locale: DEFAULT_LOCALE,
+      messages: {} as Messages,
+      onError: () => undefined,
+      getMessageFallback,
+    }),
+    format: createFormatter({
+      locale: DEFAULT_LOCALE,
+      formats: formats as Formats,
+      timeZone: 'UTC',
+    }),
+    collator: new Intl.Collator(DEFAULT_LOCALE),
+  };
+  return serverFallback;
+}
+
 function current(): Runtime {
   if (typeof window === 'undefined' && !outsideBrowser) {
+    if (process.env.NODE_ENV === 'production') return keysOnly();
     throw new Error('i18n/runtime : réservé au navigateur (useTranslations au rendu serveur)');
   }
   if (!runtime) throw new Error('i18n/runtime : fournisseur I18nProvider absent');

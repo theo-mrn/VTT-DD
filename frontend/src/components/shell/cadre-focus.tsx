@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ export function CadreFocus({ children }: Readonly<{ children: ReactNode }>) {
 export function EnTeteFocus({
   centre,
   quitter,
-  libelleQuitter = 'Quitter',
+  libelleQuitter,
   className,
 }: Readonly<{
   centre?: ReactNode;
@@ -32,6 +33,8 @@ export function EnTeteFocus({
   libelleQuitter?: string;
   className?: string;
 }>) {
+  const t = useTranslations('shell.focus');
+  const quit = libelleQuitter ?? t('quit');
   return (
     <header
       className={cn(
@@ -39,7 +42,7 @@ export function EnTeteFocus({
         className,
       )}
     >
-      <Link href="/accueil" className="flex shrink-0 items-center gap-2.5" aria-label="Accueil">
+      <Link href="/accueil" className="flex shrink-0 items-center gap-2.5" aria-label={t('home')}>
         <LogoYner className="size-8 text-primary" />
         <span className="hidden font-logo text-base tracking-[0.18em] sm:inline">YNER</span>
       </Link>
@@ -48,14 +51,14 @@ export function EnTeteFocus({
         <Button variant="ghost" size="sm" asChild>
           <Link href={quitter.href}>
             <X />
-            <span className="hidden sm:inline">{libelleQuitter}</span>
+            <span className="hidden sm:inline">{quit}</span>
           </Link>
         </Button>
       )}
       {quitter && !('href' in quitter) && (
         <Button variant="ghost" size="sm" onClick={quitter.onClick}>
           <X />
-          <span className="hidden sm:inline">{libelleQuitter}</span>
+          <span className="hidden sm:inline">{quit}</span>
         </Button>
       )}
       {!quitter && <span className="w-20" />}
@@ -74,6 +77,7 @@ export function ProgressionEtapes({
   /** Rend les étapes déjà atteintes cliquables. */
   onAller?: (i: number) => void;
 }>) {
+  const t = useTranslations('shell.focus');
   return (
     <div className="flex w-full max-w-xl flex-col items-center gap-2">
       <div className="flex w-full gap-1.5">
@@ -85,7 +89,7 @@ export function ProgressionEtapes({
               type="button"
               disabled={!onAller || !atteinte}
               onClick={() => onAller?.(i)}
-              aria-label={`Étape ${i + 1} : ${e.nom}`}
+              aria-label={t('step', { index: i + 1, name: e.nom })}
               aria-current={i === courante ? 'step' : undefined}
               className="group h-4 flex-1 py-1.5 disabled:cursor-default"
             >
@@ -100,8 +104,12 @@ export function ProgressionEtapes({
         })}
       </div>
       <p className="text-xs text-subtle">
-        Étape {courante + 1} sur {etapes.length} ·{' '}
-        <span className="text-muted-foreground">{etapes[courante]?.nom}</span>
+        {t.rich('stepOf', {
+          index: courante + 1,
+          total: etapes.length,
+          name: etapes[courante]?.nom ?? '',
+          b: (chunks) => <span className="text-muted-foreground">{chunks}</span>,
+        })}
       </p>
     </div>
   );

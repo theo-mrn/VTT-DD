@@ -7,6 +7,8 @@ import landing from './landing';
 import legal from './legal';
 import locale from './locale';
 import meta from './meta';
+import search from './search';
+import shell from './shell';
 
 const en = {
   auth,
@@ -16,6 +18,8 @@ const en = {
   legal,
   locale,
   meta,
+  search,
+  shell,
 } satisfies Translation<Messages>;
 
 export default en;

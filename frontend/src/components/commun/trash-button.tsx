@@ -5,6 +5,7 @@
  * éléments supprimés, chacun avec sa date de purge et « Restaurer ».
  */
 import { Trash2, UserRound } from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -14,9 +15,6 @@ import { vignette } from '@/lib/assets';
 import { type TrashItem, useRestore } from '@/lib/trash';
 import { cn } from '@/lib/utils';
 
-const day = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
-const full = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
-
 export function TrashButton({
   items,
   className,
@@ -24,18 +22,20 @@ export function TrashButton({
   items: TrashItem[] | undefined;
   className?: string;
 }>) {
+  const t = useTranslations('common.trash');
+  const format = useFormatter();
   const restore = useRestore();
   if (!items?.length) return null;
 
   const restoreItem = (item: TrashItem) =>
     restore.mutate(item.id, {
-      onSuccess: () => toast.success(`« ${item.name} » restauré`),
-      onError: (err) => toast.error('Restauration impossible', { description: messageErreur(err) }),
+      onSuccess: () => toast.success(t('restored', { name: item.name })),
+      onError: (err) => toast.error(t('restoreFailed'), { description: messageErreur(err) }),
     });
 
   return (
     <Popover>
-      <Info texte="Corbeille">
+      <Info texte={t('title')}>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="sm" className={cn('gap-1.5', className)}>
             <Trash2 />
@@ -63,8 +63,10 @@ export function TrashButton({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] text-foreground">{item.name}</span>
-                  <Info texte={`Supprimé définitivement le ${full.format(purge)}`}>
-                    <span className="text-[11px] text-subtle">jusqu’au {day.format(purge)}</span>
+                  <Info texte={t('purgedOn', { date: format.dateTime(purge, 'longDateTime') })}>
+                    <span className="text-[11px] text-subtle">
+                      {t('until', { date: format.dateTime(purge, 'dayMonth') })}
+                    </span>
                   </Info>
                 </span>
                 <Button
@@ -73,7 +75,7 @@ export function TrashButton({
                   loading={restore.isPending && restore.variables === item.id}
                   onClick={() => restoreItem(item)}
                 >
-                  Restaurer
+                  {t('restore')}
                 </Button>
               </li>
             );

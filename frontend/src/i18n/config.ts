@@ -42,6 +42,8 @@ export const formats = {
     },
     /** 14:32 */
     time: { hour: '2-digit', minute: '2-digit' },
+    /** 5 octobre 2026 à 14:32 */
+    longDateTime: { dateStyle: 'long', timeStyle: 'short' },
     /** Date calendaire (`AAAA-MM-JJ`), sans décalage de fuseau. */
     calendarDate: { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' },
   },

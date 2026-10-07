@@ -49,6 +49,14 @@ export default {
     player: 'Joueur',
     spectator: 'Spectateur',
   },
+  trash: {
+    title: 'Corbeille',
+    restore: 'Restaurer',
+    restored: '« {name} » restauré',
+    restoreFailed: 'Restauration impossible',
+    purgedOn: 'Supprimé définitivement le {date}',
+    until: 'jusqu’au {date}',
+  },
   time: {
     justNow: "à l'instant",
     minutes: '{count, plural, one {# min} other {# min}}',

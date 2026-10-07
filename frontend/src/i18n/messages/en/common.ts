@@ -51,6 +51,14 @@ export default {
     player: 'Player',
     spectator: 'Spectator',
   },
+  trash: {
+    title: 'Trash',
+    restore: 'Restore',
+    restored: '“{name}” restored',
+    restoreFailed: 'Could not restore',
+    purgedOn: 'Permanently deleted on {date}',
+    until: 'until {date}',
+  },
   time: {
     justNow: 'just now',
     minutes: '{count, plural, one {# min} other {# min}}',

@@ -9,6 +9,8 @@ import landing from './landing';
 import legal from './legal';
 import locale from './locale';
 import meta from './meta';
+import search from './search';
+import shell from './shell';
 
 const fr = {
   auth,
@@ -18,6 +20,8 @@ const fr = {
   legal,
   locale,
   meta,
+  search,
+  shell,
 } as const;
 
 export default fr;
