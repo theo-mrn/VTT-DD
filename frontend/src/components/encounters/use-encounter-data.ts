@@ -5,6 +5,7 @@
  * (`Systeme.rencontres`), le groupe (personnages joueurs et leur niveau, calculé sur leur
  * fiche) et le vivier (créatures du bestiaire du système, modèles « Mes PNJ » du MJ).
  */
+import { translate } from '@/i18n/runtime';
 import { useQueries } from '@tanstack/react-query';
 import { calculer, type Rencontres, type SystemeCharge } from '@vtt/rules';
 import { useMemo } from 'react';
@@ -72,7 +73,7 @@ function templateCreature(
     return {
       key: `template:${t.id}`,
       name: t.name,
-      category: (t.categoryId && cats.get(t.categoryId)) || 'Mes PNJ',
+      category: (t.categoryId && cats.get(t.categoryId)) || translate('encounters.myNpcs'),
       image: t.imageUrl,
       power,
       values,

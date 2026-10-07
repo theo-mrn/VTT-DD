@@ -67,4 +67,5 @@ export default {
     hours: '{count, plural, one {# h} other {# h}}',
     hoursMinutes: '{hours} h {minutes} min',
   },
+  editValue: '{label} : {value}, saisir une valeur',
 } as const;

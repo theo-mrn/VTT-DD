@@ -1,6 +1,8 @@
 'use client';
 
 /**
+ * Outil de mesure pour les développeurs (`?perf`) : volontairement en français (i18n-ignore-file).
+ *
  * Compteur de charge (`?perf`, `lib/perf/monitor.ts`) : une seconde glissante, en bas à gauche.
  * Seul ce petit composant se met à jour (une fois par seconde) ; rien n'est monté sans `?perf`.
  */
@@ -85,14 +87,16 @@ export function PerfOverlay() {
       aria-hidden
       className="pointer-events-none fixed bottom-2 left-2 z-[100] w-56 rounded-lg border border-border bg-background/95 px-2.5 py-2 font-mono text-[11px] leading-5 shadow-surface"
     >
-      {line('carte', `${r.fps.toFixed(0)} i/s · ${r.msPerFrame.toFixed(1)} ms`, r.fps > 5)}
+      {line('carte', `${r.fps.toFixed(0)} i/s · ${r.msPerFrame.toFixed(1)} ms`, r.fps > 5)} //
+      i18n-ignore
       {r.causes && <div className="truncate text-muted-foreground">{r.causes}</div>}
       {r.weatherFps > 0 &&
-        line('météo', `${r.weatherFps.toFixed(0)} i/s · ${r.weatherMs.toFixed(1)} ms`)}
-      {line('longues tâches', `${r.longTasks} · ${Math.round(r.longTaskMs)} ms`, r.longTasks > 0)}
+        line('météo', `${r.weatherFps.toFixed(0)} i/s · ${r.weatherMs.toFixed(1)} ms`)}{' '}
+      {line('longues tâches', `${r.longTasks} · ${Math.round(r.longTaskMs)} ms`, r.longTasks > 0)}{' '}
       {line('requêtes', `${r.requests.toFixed(0)}/s`, r.requests > 2)}
       {line('temps réel', `${r.realtime.toFixed(0)}/s`)}
-      {line('vidéos', r.videos.length ? r.videos.join(', ') : '0', r.videos.length > 0)}
+      {line('vidéos', r.videos.length ? r.videos.join(', ') : '0', r.videos.length > 0)} //
+      i18n-ignore
       {line('canvas', String(r.canvases))}
       {r.heapMb !== null && line('mémoire JS', `${r.heapMb} Mo`)}
     </div>

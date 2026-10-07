@@ -68,4 +68,5 @@ export default {
     hours: '{count, plural, one {# h} other {# h}}',
     hoursMinutes: '{hours} h {minutes} min',
   },
+  editValue: '{label}: {value}, enter a value',
 } satisfies Translation<typeof fr>;

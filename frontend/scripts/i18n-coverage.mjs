@@ -5,7 +5,8 @@
  * Heuristique, sans analyse syntaxique complète : on retire les commentaires, puis on relève
  * le texte JSX (entre deux balises) et les chaînes qui ressemblent à une phrase ou à un libellé
  * (majuscule initiale, lettre accentuée, mots courants du français). Une ligne marquée
- * `i18n-ignore` est sautée (valeur technique qui ressemble à du texte).
+ * `i18n-ignore` est sautée (valeur technique qui ressemble à du texte) ; un fichier qui porte
+ * `i18n-ignore-file` l'est en entier (outil de développeur, volontairement hors traduction).
  *
  *   node scripts/i18n-coverage.mjs            état par dossier
  *   node scripts/i18n-coverage.mjs --files    détail par fichier
@@ -155,6 +156,7 @@ export function looksLikeText(s) {
 
 /** Textes en dur d'un fichier : [{ line, text }]. */
 export function scanSource(code, tsx) {
+  if (code.includes('i18n-ignore-file')) return [];
   const raw = code.split('\n');
   const lines = stripComments(code).split('\n');
   const found = [];

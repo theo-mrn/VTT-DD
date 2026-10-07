@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { XIcon } from 'lucide-react';
@@ -63,6 +64,7 @@ function DialogContent({
   unstyled?: boolean;
   borderTrail?: boolean;
 }) {
+  const t = useTranslations();
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -96,7 +98,7 @@ function DialogContent({
             className="absolute right-3.5 top-3.5 z-20 inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <XIcon className="size-4" />
-            <span className="sr-only">Fermer</span>
+            <span className="sr-only">{t('common.actions.close')}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -156,6 +158,7 @@ function SheetContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   cote?: 'left' | 'right' | 'bottom';
 }) {
+  const t = useTranslations();
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -176,7 +179,7 @@ function SheetContent({
         {children}
         <DialogPrimitive.Close className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground">
           <XIcon className="size-4" />
-          <span className="sr-only">Fermer</span>
+          <span className="sr-only">{t('common.actions.close')}</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </DialogPortal>

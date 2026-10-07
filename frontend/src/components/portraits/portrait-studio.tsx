@@ -10,6 +10,8 @@
  * fabrication. « Enregistrer » fabrique les images, les envoie et les enregistre avec les
  * réglages, pour rouvrir le Studio tel qu'il était.
  */
+import { useTranslations } from 'next-intl';
+import { formatter, translate } from '@/i18n/runtime';
 import {
   DEFAULT_PORTRAIT_STUDIO,
   PAGES_FRONT,
@@ -82,7 +84,7 @@ const ACCEPT = 'image/png,image/jpeg,image/webp,image/avif';
 function framesOf(assets: readonly Asset[]) {
   const n = (a: Asset) => Number(/(\d+)/.exec(a.name)?.[1] ?? 0);
   return assets
-    .filter((a) => a.category === 'Token' && a.type === 'image')
+    .filter((a) => a.category === 'Token' && a.type === 'image') // i18n-ignore : catégorie de la bibliothèque
     .sort((a, b) => n(a) - n(b));
 }
 
@@ -147,6 +149,7 @@ function Body({
   onSave(r: StudioResult): Promise<void>;
   onClose(): void;
 }>) {
+  const t = useTranslations();
   const initial = current.studio ?? DEFAULT_PORTRAIT_STUDIO;
   const firstUrl = initial.source ?? current.portraitUrl;
   const [source, setSource] = useState<Source | null>(firstUrl ? { remote: firstUrl } : null);
@@ -179,7 +182,7 @@ function Body({
   const fromFile = (file: File | null | undefined) => {
     if (!file) return;
     if (!ACCEPT.split(',').includes(file.type)) {
-      toast.error('Choisissez une image fixe (PNG, JPEG, WebP, AVIF).');
+      toast.error(t('portraits.fixedImage'));
       return;
     }
     pick({ file });
@@ -192,7 +195,7 @@ function Body({
   async function save() {
     if (!source || !image || !effective) return;
     try {
-      setSaving('Préparation…');
+      setSaving(t('portraits.preparing'));
       const frameBitmap = frame ? await loadBitmap(frame) : null;
       const slug =
         name
@@ -210,14 +213,14 @@ function Body({
       // L'image d'origine n'est envoyée qu'une fois (déposée ici) ; sinon son adresse est gardée
       let sourceUrl = loaded.status === 'ready' ? loaded.remote : null;
       if (source.file) {
-        setSaving('Envoi de l’image d’origine…');
+        setSaving(t('portraits.uploadingOriginal'));
         sourceUrl = await uploadFile(
           target,
           'portrait',
           await prepareImage(source.file, { maxSide: 2400 }),
         );
       }
-      setSaving('Envoi du portrait et du token…');
+      setSaving(t('portraits.uploadingBoth'));
       const [portraitUrl, tokenUrl] = await Promise.all([
         uploadFile(
           target,
@@ -226,7 +229,7 @@ function Body({
         ),
         uploadFile(target, 'token', tokenFile),
       ]);
-      setSaving('Enregistrement…');
+      setSaving(t('common.states.saving'));
       await onSave({
         portraitUrl,
         tokenUrl,
@@ -239,10 +242,10 @@ function Body({
           inset,
         },
       });
-      toast.success('Portrait et token enregistrés');
+      toast.success(t('portraits.saved'));
       onClose();
     } catch (err) {
-      toast.error('Le portrait n’a pas pu être enregistré', { description: messageErreur(err) });
+      toast.error(t('portraits.saveFailed'), { description: messageErreur(err) });
     } finally {
       setSaving(null);
     }
@@ -267,10 +270,15 @@ function Body({
           <UserSquare2 className="size-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <DialogTitle className="truncate text-base">Studio du portrait</DialogTitle>
+          <DialogTitle className="truncate text-base">{t('portraits.title')}</DialogTitle>
           <DialogDescription className="truncate text-xs">{name}</DialogDescription>
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fermer">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label={t('common.actions.close')}
+        >
           <X />
         </Button>
       </header>
@@ -283,31 +291,31 @@ function Body({
               role="tablist"
               className="relative flex rounded-xl border border-border bg-background/50 p-1"
             >
-              {(['token', 'portrait'] as const).map((t) => (
+              {(['token', 'portrait'] as const).map((id) => (
                 <button
-                  key={t}
+                  key={id}
                   role="tab"
                   type="button"
-                  aria-selected={tab === t && !library}
+                  aria-selected={tab === id && !library}
                   onClick={() => {
-                    setTab(t);
+                    setTab(id);
                     setLibrary(false);
                   }}
                   className={cn(
                     'relative rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
-                    tab === t && !library
+                    tab === id && !library
                       ? 'text-primary-foreground'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {tab === t && !library && (
+                  {tab === id && !library && (
                     <motion.span
                       layoutId="studio-tab"
                       className="absolute inset-0 -z-10 rounded-lg bg-primary shadow-glow"
                       transition={{ type: 'spring', stiffness: 500, damping: 38 }}
                     />
                   )}
-                  {t === 'token' ? 'Token' : 'Portrait'}
+                  {id === 'token' ? t('portraits.token') : t('portraits.portrait')}
                 </button>
               ))}
             </div>
@@ -328,12 +336,15 @@ function Body({
               )}
               {zone === 'empty' && (
                 <Fade key="empty">
-                  <Empty icon={<CloudUpload />} label="Déposez ou collez une image" />
+                  <Empty icon={<CloudUpload />} label={t('portraits.drop')} />
                 </Fade>
               )}
               {zone === 'loading' && (
                 <Fade key="loading">
-                  <Empty icon={<Loader2 className="animate-spin" />} label="Chargement…" />
+                  <Empty
+                    icon={<Loader2 className="animate-spin" />}
+                    label={t('common.states.loading')}
+                  />
                 </Fade>
               )}
               {loaded.status === 'error' && zone === 'error' && (
@@ -362,7 +373,7 @@ function Body({
           {tab === 'token' ? (
             <>
               <SliderRow
-                label="Arrondi"
+                label={t('portraits.rounding')}
                 icon={radius >= 40 ? <Circle /> : <Square />}
                 value={radius}
                 max={50}
@@ -370,7 +381,7 @@ function Body({
                 format={formatArrondi}
               />
               <SliderRow
-                label="Marge"
+                label={t('portraits.margin')}
                 value={inset}
                 max={30}
                 onChange={setInset}
@@ -398,7 +409,7 @@ function Body({
       </div>
 
       <footer className="flex items-center gap-2 border-t border-border px-5 py-3">
-        <Info texte="Revenir aux cadrages centrés">
+        <Info texte={t('portraits.recenter')}>
           <Button variant="ghost" size="sm" disabled={!image || Boolean(saving)} onClick={reset}>
             <RotateCcw /> Recentrer
           </Button>
@@ -418,7 +429,7 @@ function Body({
           )}
         </AnimatePresence>
         <Button variant="ghost" onClick={onClose} disabled={Boolean(saving)}>
-          Annuler
+          {t('common.actions.cancel')}
         </Button>
         <Button
           onClick={() => void save()}
@@ -426,7 +437,7 @@ function Body({
           disabled={!image}
           className="min-w-[9rem] shadow-glow"
         >
-          Enregistrer
+          {t('common.actions.save')}
         </Button>
       </footer>
     </div>
@@ -573,6 +584,7 @@ function CropArea({
   /** Geste de l'utilisateur (glisser, molette, clavier, zoom) : pas les réglages appliqués. */
   onInteract?: () => void;
 }>) {
+  const t = useTranslations();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   // Cadrage enregistré, repris une seule fois au montage
@@ -661,7 +673,7 @@ function CropArea({
         )}
       </div>
       <div className="flex items-center gap-3 border-t border-border bg-card/80 px-4 py-2.5 backdrop-blur">
-        <span className="text-xs text-muted-foreground">Zoom</span>
+        <span className="text-xs text-muted-foreground">{t('portraits.zoom')}</span>
         <Slider
           value={[zoom]}
           min={1}
@@ -671,7 +683,7 @@ function CropArea({
             onInteract?.();
             setZoom(v[0] ?? 1);
           }}
-          aria-label="Zoom"
+          aria-label={t('portraits.zoom')}
           className="flex-1"
         />
       </div>
@@ -695,10 +707,9 @@ function effectiveCrops(
 
 /** Le portrait suit le token, ou est réglé à part (un geste dans le cadrage l'en détache). */
 function FollowToggle({ follows, onFollow }: Readonly<{ follows: boolean; onFollow(): void }>) {
+  const t = useTranslations();
   return (
-    <Info
-      texte={follows ? 'Le portrait reprend le cadrage du token' : 'Reprendre le cadrage du token'}
-    >
+    <Info texte={follows ? t('portraits.follows') : t('portraits.follow')}>
       <Button
         variant={follows ? 'secondary' : 'ghost'}
         size="sm"
@@ -708,7 +719,7 @@ function FollowToggle({ follows, onFollow }: Readonly<{ follows: boolean; onFoll
         className="w-full justify-start"
       >
         {follows ? <Link2 /> : <Unlink2 />}
-        {follows ? 'Suit le token' : 'Réglé à part'}
+        {follows ? t('portraits.followsShort') : t('portraits.separate')}
       </Button>
     </Info>
   );
@@ -789,6 +800,7 @@ function FrameGallery({
   value: string | null;
   onChange(v: string | null): void;
 }>) {
+  const t = useTranslations();
   const assets = useAssets();
   const frames = useMemo(() => framesOf(assets.data ?? []), [assets.data]);
   const rights = useRessource('cadres-jetons', lireCadres);
@@ -804,7 +816,7 @@ function FrameGallery({
   return (
     <div className="space-y-2.5">
       <div className="flex items-center text-xs">
-        <span className="font-medium">Cadre</span>
+        <span className="font-medium">{t('portraits.frame')}</span>
         <span className="ml-auto tabular-nums text-subtle">{frames.length}</span>
       </div>
       <div className="grid grid-cols-5 gap-1.5">
@@ -814,7 +826,7 @@ function FrameGallery({
             setOffer(null);
             onChange(null);
           }}
-          label="Aucun cadre"
+          label={t('portraits.noFrame')}
         >
           <Ban className="size-5 text-subtle" aria-hidden />
         </FrameTile>
@@ -858,6 +870,7 @@ function FrameOffer({
   id,
   item,
 }: Readonly<{ id: string; item: { name: string; price: number } | null }>) {
+  const t = useTranslations();
   const [pending, setPending] = useState(false);
   const buy = async () => {
     setPending(true);
@@ -880,7 +893,7 @@ function FrameOffer({
         <Button size="sm" asChild>
           <Link href={PAGES_FRONT.abonnement}>
             <Crown aria-hidden />
-            Premium
+            {t('portraits.premium')}
           </Link>
         </Button>
       )}
@@ -975,6 +988,6 @@ function LibraryGrid({ onPick }: Readonly<{ onPick(url: string): void }>) {
 
 /** Arrondi du token : cercle, carré, ou pourcentage. */
 function formatArrondi(v: number): string {
-  if (v >= 50) return 'Cercle';
-  return v === 0 ? 'Carré' : `${Math.round(v)} %`;
+  if (v >= 50) return translate('portraits.circle');
+  return v === 0 ? translate('portraits.square') : formatter().number(v / 100, 'percent');
 }

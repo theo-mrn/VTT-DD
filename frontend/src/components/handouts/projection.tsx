@@ -7,6 +7,7 @@
  * serveur), avec son son réglé par le mixeur (bus musique) ; arrivé en retard, on la rejoint à
  * la bonne position.
  */
+import { useTranslations } from 'next-intl';
 import type { SharedDocument } from '@vtt/contracts';
 import { Square, Volume2, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -30,6 +31,7 @@ function readClosed(): string[] {
 }
 
 export function Projection({ campaignId, gm }: Readonly<{ campaignId: string; gm: boolean }>) {
+  const t = useTranslations();
   const docs = useDocuments(campaignId);
   const [closed, setClosed] = useState<string[]>(() => readClosed());
   const projection = docs.data?.projection ?? null;
@@ -106,18 +108,18 @@ export function Projection({ campaignId, gm }: Readonly<{ campaignId: string; gm
                   handoutsApi
                     .stop(campaignId, shown.id)
                     .catch((err) =>
-                      toast.error('Arrêt impossible', { description: messageErreur(err) }),
+                      toast.error(t('handouts.stopFailed'), { description: messageErreur(err) }),
                     );
                 }}
               >
                 <Square />
-                Arrêter pour tous
+                {t('handouts.stopForAll')}
               </Button>
             )}
             <Button
               variant="secondary"
               size="icon-sm"
-              aria-label="Fermer"
+              aria-label={t('common.actions.close')}
               onClick={(e) => {
                 e.stopPropagation();
                 close(shown.id);
@@ -138,6 +140,7 @@ export function Projection({ campaignId, gm }: Readonly<{ campaignId: string; gm
  * elle part muette, un bouton rétablit le son.
  */
 function SyncedVideo({ doc, offsetMs }: Readonly<{ doc: SharedDocument; offsetMs: number }>) {
+  const t = useTranslations();
   const ref = useRef<HTMLVideoElement>(null);
   const [blocked, setBlocked] = useState(false);
   const { volumes, muted } = useMixer();
@@ -195,7 +198,7 @@ function SyncedVideo({ doc, offsetMs }: Readonly<{ doc: SharedDocument; offsetMs
           }}
         >
           <Volume2 />
-          Activer le son
+          {t('handouts.unmute')}
         </Button>
       )}
     </div>

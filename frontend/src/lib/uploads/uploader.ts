@@ -85,7 +85,7 @@ export async function uploadFile(
     import('@uppy/core'),
     import('@uppy/aws-s3'),
   ]);
-  if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError');
+  if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError'); // i18n-ignore : jamais affiché
 
   const tickets = new Map<string, FileUploadTicket>();
   const uppy = new Uppy({ autoProceed: false, allowMultipleUploadBatches: false });
@@ -119,7 +119,7 @@ export async function uploadFile(
   o.signal?.addEventListener('abort', abort, { once: true });
   try {
     const result = await uppy.upload();
-    if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError');
+    if (o.signal?.aborted) throw new DOMException('Envoi annulé', 'AbortError'); // i18n-ignore : jamais affiché
     const failed = result?.failed?.[0];
     if (failed) {
       const e: unknown = failed.error;

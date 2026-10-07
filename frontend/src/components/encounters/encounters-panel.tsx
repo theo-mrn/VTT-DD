@@ -7,6 +7,7 @@
  * rubrique par forme de rencontre, chacune avec ses propositions éditables (jauge recalculée
  * à chaque changement), enregistrables dans Mes PNJ.
  */
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Dices, Minus, Plus, SlidersHorizontal, Swords } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
@@ -40,6 +41,7 @@ import { useEncounterData } from './use-encounter-data';
 type Proposals = Record<string, Encounter[]>;
 
 export function EncountersPanel() {
+  const t = useTranslations();
   const { campagne } = useTable();
   const data = useEncounterData(campagne.id, campagne.system);
   const refresh = useRefreshNpcTemplates(campagne.id);
@@ -76,8 +78,8 @@ export function EncountersPanel() {
       <Page>
         <EtatVide
           icone={Swords}
-          titre="Pas de générateur pour ce système"
-          description="Le système de la campagne ne déclare pas de règles de rencontre."
+          titre={t('encounters.noGenerator')}
+          description={t('encounters.noGeneratorHint')}
         />
       </Page>
     );
@@ -87,7 +89,7 @@ export function EncountersPanel() {
   const generated = Object.keys(proposals).length > 0;
 
   const run = () => {
-    if (!party.length) return toast.error('Le groupe est vide');
+    if (!party.length) return toast.error(t('encounters.emptyParty'));
     const next: Proposals = {};
     for (const s of rules.scenarios)
       next[s.id] = generate({ rules, pool, party, difficultyId, scenarioId: s.id });
@@ -137,9 +139,9 @@ export function EncountersPanel() {
         });
       }
       refresh();
-      toast.success(`« ${name} » ajoutée à Mes PNJ`);
+      toast.success(t('encounters.saved', { name }));
     } catch (err) {
-      toast.error('La rencontre n’a pas pu être enregistrée', { description: messageErreur(err) });
+      toast.error(t('encounters.saveFailed'), { description: messageErreur(err) });
     } finally {
       setBusy(false);
     }
@@ -151,7 +153,7 @@ export function EncountersPanel() {
       <aside className="relative isolate space-y-5 self-start overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-surface lg:sticky lg:top-20">
         <DotsBackdrop />
         <section className="space-y-2">
-          <h3 className={LABEL}>Groupe</h3>
+          <h3 className={LABEL}>{t('encounters.party')}</h3>
           <ul className="space-y-1">
             {data.party.map((m) => {
               const excluded = out.has(m.id);
@@ -183,7 +185,7 @@ export function EncountersPanel() {
                     value={level}
                     min={1}
                     max={rules.difficultes[0]!.parNiveau.length}
-                    label={`Niveau de ${m.name}`}
+                    label={t('encounters.levelOf', { name: m.name })}
                     onChange={(v) => setLevels((l) => ({ ...l, [m.id]: v }))}
                     disabled={excluded}
                   />
@@ -192,12 +194,12 @@ export function EncountersPanel() {
             })}
           </ul>
           {!data.party.length && (
-            <p className="text-[13px] text-muted-foreground">Aucun personnage joueur.</p>
+            <p className="text-[13px] text-muted-foreground">{t('encounters.noPlayerCharacter')}</p>
           )}
         </section>
 
         <section className="space-y-2">
-          <h3 className={LABEL}>Difficulté</h3>
+          <h3 className={LABEL}>{t('encounters.difficulty')}</h3>
           <div className="grid grid-cols-2 gap-1.5">
             {rules.difficultes.map((d) => (
               <button
@@ -226,7 +228,7 @@ export function EncountersPanel() {
             className={cn(LABEL, 'flex w-full items-center gap-1.5')}
           >
             <SlidersHorizontal className="size-3.5" />
-            Filtres
+            {t('encounters.filters')}
             {countFilters(filters) > 0 && (
               <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
                 {countFilters(filters)}
@@ -301,7 +303,7 @@ export function EncountersPanel() {
           disabled={!pool.length || !party.length}
         >
           <Dices />
-          {generated ? 'Relancer' : 'Générer'}
+          {generated ? t('encounters.reroll') : t('encounters.generate')}
         </Button>
       </aside>
 
@@ -357,8 +359,8 @@ export function EncountersPanel() {
         {generated && list.length === 0 && (
           <EtatVide
             icone={Swords}
-            titre="Aucune proposition"
-            description="Aucune créature du vivier ne convient à cette forme de rencontre : élargissez les filtres."
+            titre={t('encounters.noProposal')}
+            description={t('encounters.noProposalHint')}
           />
         )}
       </main>
@@ -389,6 +391,7 @@ function Stepper({
   disabled?: boolean;
   onChange(v: number): void;
 }>) {
+  const t = useTranslations();
   return (
     <span
       role="group"
@@ -398,7 +401,7 @@ function Stepper({
       <button
         type="button"
         disabled={disabled || value <= min}
-        aria-label="Moins"
+        aria-label={t('encounters.less')}
         className="grid size-7 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-40"
         onClick={() => onChange(Math.max(min, value - 1))}
       >
@@ -408,7 +411,7 @@ function Stepper({
       <button
         type="button"
         disabled={disabled || value >= max}
-        aria-label="Plus"
+        aria-label={t('encounters.more')}
         className="grid size-7 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-40"
         onClick={() => onChange(Math.min(max, value + 1))}
       >
@@ -427,6 +430,7 @@ function Range({
   value: { min?: number; max?: number };
   onChange(v: { min?: number; max?: number }): void;
 }>) {
+  const t = useTranslations();
   const parse = (s: string) => (s.trim() === '' ? undefined : Number(s));
   const set = (k: 'min' | 'max', s: string) => {
     const next = { ...value, [k]: parse(s) };
@@ -441,7 +445,7 @@ function Range({
       <Input
         type="number"
         inputMode="decimal"
-        aria-label={`${label} au moins`}
+        aria-label={t('encounters.atLeast', { label })}
         placeholder="min"
         value={value.min ?? ''}
         onChange={(e) => set('min', e.target.value)}
@@ -451,7 +455,7 @@ function Range({
       <Input
         type="number"
         inputMode="decimal"
-        aria-label={`${label} au plus`}
+        aria-label={t('encounters.atMost', { label })}
         placeholder="max"
         value={value.max ?? ''}
         onChange={(e) => set('max', e.target.value)}

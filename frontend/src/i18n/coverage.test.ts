@@ -47,6 +47,15 @@ export const TRANSLATED_AREAS = [
   'components/map',
   'components/chat',
   'components/historique',
+  'components/handouts',
+  'components/encounters',
+  'components/onboarding',
+  'components/personnages',
+  'components/portraits',
+  'components/uploads',
+  'lib/uploads',
+  'components/ui',
+  'components/perf',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {

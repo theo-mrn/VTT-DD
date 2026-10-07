@@ -8,6 +8,7 @@
  * `scale` : facteur d'affichage (100 pour une valeur de 0 à 1 montrée en %) ; la saisie est
  * dans l'unité affichée. `max` peut dépasser celui du curseur (saisie au-delà, au cas où).
  */
+import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +52,7 @@ export function EditableValue({
   disabled?: boolean;
   className?: string;
 }>) {
+  const t = useTranslations();
   const [text, setText] = useState<string | null>(null);
   // Échap : le champ disparaît sans que sa sortie n'enregistre
   const cancelled = useRef(false);
@@ -60,7 +62,7 @@ export function EditableValue({
       <button
         type="button"
         disabled={disabled}
-        aria-label={`${label} : ${format(value)}, saisir une valeur`}
+        aria-label={t('common.editValue', { label, value: format(value) })}
         onClick={() => {
           cancelled.current = false;
           setText(String(Math.round(value * scale * 100) / 100).replace('.', ','));
