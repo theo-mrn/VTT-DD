@@ -6,6 +6,7 @@ import combat from './combat';
 import common from './common';
 import display from './display';
 import drawings from './drawings';
+import exploration from './exploration';
 import fog from './fog';
 import fullscreen from './fullscreen';
 import grid from './grid';
@@ -13,6 +14,7 @@ import history from './history';
 import layers from './layers';
 import lights from './lights';
 import measurements from './measurements';
+import movementPath from './movementPath';
 import objects from './objects';
 import obstacles from './obstacles';
 import party from './party';
@@ -36,6 +38,7 @@ export default {
   common,
   display,
   drawings,
+  exploration,
   fog,
   fullscreen,
   grid,
@@ -43,6 +46,7 @@ export default {
   layers,
   lights,
   measurements,
+  movementPath,
   objects,
   obstacles,
   party,

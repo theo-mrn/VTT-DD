@@ -33,12 +33,12 @@ export const EXPLORATION_TOOL_ID = 'exploration';
 
 export type ExplorationShapeId = 'rect' | 'circle' | 'lasso';
 
-export const EXPLORATION_SHAPES: readonly { id: ExplorationShapeId; label: string; key: string }[] =
-  [
-    { id: 'rect', label: 'Rectangle', key: '1' },
-    { id: 'circle', label: 'Cercle', key: '2' },
-    { id: 'lasso', label: 'Main levée', key: '3' },
-  ];
+/** Formes de l'outil ; nom : `map.exploration.shapes.<id>`. */
+export const EXPLORATION_SHAPES: readonly { id: ExplorationShapeId; key: string }[] = [
+  { id: 'rect', key: '1' },
+  { id: 'circle', key: '2' },
+  { id: 'lasso', key: '3' },
+];
 
 export interface ExplorationToolSettings {
   shape: ExplorationShapeId;

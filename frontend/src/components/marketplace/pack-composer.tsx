@@ -9,6 +9,7 @@
 import type { MapScene, MapSnapshot, PackContentInput, StudioVersion } from '@vtt/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Loader2, Map as MapIcon, Upload, Users } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Message } from '@/components/compte/elements';
@@ -66,6 +67,7 @@ export function PackComposer({
   onOpenChange,
   version,
 }: Readonly<{ open: boolean; onOpenChange: (open: boolean) => void; version: StudioVersion }>) {
+  const t = useTranslations('marketplace.studio.composer');
   const campaigns = useCampagnes();
   const mine = (campaigns.data ?? []).filter((c) => c.role === 'gm');
   const [campaignId, setCampaignId] = useState('');
@@ -97,7 +99,7 @@ export function PackComposer({
     setError(null);
     try {
       await send.mutateAsync(pack);
-      toast.success('Contenu enregistré');
+      toast.success(t('saved'));
       setRefusal(null);
       onOpenChange(false);
     } catch (err) {
@@ -140,19 +142,17 @@ export function PackComposer({
     <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)}>
       <DialogContent className="flex max-h-[min(90dvh,760px)] flex-col sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Contenu de la version {version.number}</DialogTitle>
-          <DialogDescription className="sr-only">
-            Choisissez les scènes et modèles d’une de vos campagnes.
-          </DialogDescription>
+          <DialogTitle>{t('title', { number: version.number })}</DialogTitle>
+          <DialogDescription className="sr-only">{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-1.5">
-          <Label htmlFor="composer-campaign">Campagne</Label>
+          <Label htmlFor="composer-campaign">{t('campaign')}</Label>
           <SelectField
             id="composer-campaign"
             value={campaignId}
             onValueChange={choose}
-            placeholder="Choisir une campagne"
+            placeholder={t('chooseCampaign')}
             options={mine.map((c) => ({ valeur: c.id, nom: c.name }))}
             disabled={busy}
           />
@@ -169,14 +169,14 @@ export function PackComposer({
             <>
               <Choices
                 icon={<MapIcon aria-hidden />}
-                title="Scènes"
+                title={t('scenes')}
                 items={content.data.maps.map((m) => ({ id: m.id, name: m.name }))}
                 selected={maps}
                 onChange={setMaps}
               />
               <Choices
                 icon={<Users aria-hidden />}
-                title="Modèles de PNJ"
+                title={t('npcs')}
                 items={content.data.npcs.map((n) => ({
                   id: n.id,
                   name: n.name,
@@ -187,7 +187,7 @@ export function PackComposer({
               />
               <Choices
                 icon={<Box aria-hidden />}
-                title="Modèles d’objets"
+                title={t('objects')}
                 items={content.data.objects.map((o) => ({ id: o.id, name: o.name }))}
                 selected={objects}
                 onChange={setObjects}
@@ -197,10 +197,7 @@ export function PackComposer({
         </div>
 
         {refusal && (
-          <Message ton="info">
-            {refusal.refusal.urls.length} image{refusal.refusal.urls.length > 1 ? 's' : ''} hors de
-            vos envois
-          </Message>
+          <Message ton="info">{t('refusedImages', { count: refusal.refusal.urls.length })}</Message>
         )}
         {error && <Message>{error}</Message>}
 
@@ -210,12 +207,12 @@ export function PackComposer({
               loading={busy}
               onClick={() => void upload(withoutUrls(refusal.pack, refusal.refusal.urls))}
             >
-              Envoyer sans ces images
+              {t('sendWithout')}
             </Button>
           ) : (
             <Button disabled={total === 0} loading={busy} onClick={() => void compose()}>
               {!busy && <Upload aria-hidden />}
-              {phase === 'reading' ? 'Lecture…' : 'Envoyer'}
+              {phase === 'reading' ? t('reading') : t('send')}
             </Button>
           )}
         </DialogFooter>
@@ -237,6 +234,7 @@ function Choices({
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
 }>) {
+  const t = useTranslations('marketplace.studio.composer');
   const enabled = useMemo(() => items.filter((i) => !i.disabled), [items]);
   if (items.length === 0) return null;
   const all = enabled.length > 0 && enabled.every((i) => selected.has(i.id));
@@ -260,7 +258,7 @@ function Choices({
           className="ml-auto"
           onClick={() => onChange(all ? new Set() : new Set(enabled.map((i) => i.id)))}
         >
-          {all ? 'Aucun' : 'Tous'}
+          {all ? t('selectNone') : t('selectAll')}
         </Button>
       </div>
       <ul className="grid gap-1.5 sm:grid-cols-2">

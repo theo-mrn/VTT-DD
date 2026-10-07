@@ -15,6 +15,7 @@ import {
   Search,
 } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Message } from '@/components/compte/elements';
 import { EtatVide, Page } from '@/components/commun/page';
@@ -40,20 +41,13 @@ import { useSystemes } from '@/lib/systemes';
 import { Chip, KIND_ICONS, MarketplaceTabs } from './elements';
 import { ListingTile, ListingTileSkeleton } from './listing-tile';
 
-const SORTS: Record<CatalogSort, string> = {
-  popular: 'Populaires',
-  recent: 'Récents',
-  rating: 'Mieux notés',
-  price_asc: 'Prix croissant',
-  price_desc: 'Prix décroissant',
-};
-
-const SORT_TIPS: Record<CatalogSort, string> = {
-  popular: 'Les plus obtenus',
-  recent: 'Les derniers publiés',
-  rating: 'Moyenne des avis, pondérée par leur nombre',
-  price_asc: 'Du moins cher au plus cher',
-  price_desc: 'Du plus cher au moins cher',
+/** Tris du catalogue et leur clé de libellé (`catalog.sorts.*`, `catalog.sortTips.*`). */
+const SORTS: Record<CatalogSort, 'popular' | 'recent' | 'rating' | 'priceAsc' | 'priceDesc'> = {
+  popular: 'popular',
+  recent: 'recent',
+  rating: 'rating',
+  price_asc: 'priceAsc',
+  price_desc: 'priceDesc',
 };
 
 /** Filtres lus dans l'adresse (valeurs inconnues ignorées). */
@@ -73,6 +67,7 @@ function filtersFrom(params: URLSearchParams): CatalogFilters {
 }
 
 export function CatalogPage() {
+  const t = useTranslations('marketplace.shop.catalog');
   const router = useRouter();
   const path = usePathname();
   const params = useSearchParams();
@@ -87,14 +82,14 @@ export function CatalogPage() {
   // La saisie part dans l'adresse une fois l'utilisateur arrêté
   useEffect(() => {
     if (deferred.trim() === filters.q.trim()) return;
-    const t = setTimeout(
+    const timer = setTimeout(
       () =>
         router.replace(`${path}${catalogQuery({ ...filters, page: 1, q: deferred })}`, {
           scroll: false,
         }),
       300,
     );
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [deferred, filters, path, router]);
 
   const catalog = useCatalog(filters);
@@ -105,7 +100,7 @@ export function CatalogPage() {
   return (
     <Page large>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">Marketplace</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{t('title')}</h1>
         <MarketplaceTabs />
       </header>
 
@@ -116,8 +111,8 @@ export function CatalogPage() {
               avant={<Search />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher un pack, un créateur…"
-              aria-label="Rechercher un pack"
+              placeholder={t('searchPlaceholder')}
+              aria-label={t('searchLabel')}
               className="h-9"
             />
           </div>
@@ -125,23 +120,27 @@ export function CatalogPage() {
             value={filters.system}
             onValueChange={(system) => apply({ system })}
             options={[
-              { valeur: '', nom: 'Tous les systèmes' },
+              { valeur: '', nom: t('allSystems') },
               ...(systems.data ?? []).map((s) => ({ valeur: s.id, nom: s.nom })),
             ]}
-            aria-label="Système de jeu"
+            aria-label={t('systemLabel')}
             className="h-9 sm:w-56"
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-muted-foreground sm:ml-auto">
                 <ArrowDownWideNarrow aria-hidden />
-                {SORTS[filters.sort]}
+                {t(`sorts.${SORTS[filters.sort]}`)}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               {(Object.keys(SORTS) as CatalogSort[]).map((s) => (
-                <DropdownMenuItem key={s} onSelect={() => apply({ sort: s })} title={SORT_TIPS[s]}>
-                  <span className="flex-1">{SORTS[s]}</span>
+                <DropdownMenuItem
+                  key={s}
+                  onSelect={() => apply({ sort: s })}
+                  title={t(`sortTips.${SORTS[s]}`)}
+                >
+                  <span className="flex-1">{t(`sorts.${SORTS[s]}`)}</span>
                   {filters.sort === s && <Check className="text-primary" aria-hidden />}
                 </DropdownMenuItem>
               ))}
@@ -151,7 +150,7 @@ export function CatalogPage() {
 
         <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
           <Chip active={filters.kind === ''} onClick={() => apply({ kind: '' })}>
-            Tout
+            {t('allKinds')}
           </Chip>
           {ListingKind.options.map((k) => {
             const Icon = KIND_ICONS[k];
@@ -171,19 +170,19 @@ export function CatalogPage() {
             active={filters.price === 'free'}
             onClick={() => apply({ price: filters.price === 'free' ? '' : 'free' })}
           >
-            Gratuits
+            {t('free')}
           </Chip>
           <Chip
             active={filters.price === 'paid'}
             onClick={() => apply({ price: filters.price === 'paid' ? '' : 'paid' })}
           >
-            Payants
+            {t('paid')}
           </Chip>
-          <Info texte="Masquer les packs avec un avertissement de contenu">
+          <Info texte={t('safeTip')}>
             <span>
               <Chip active={filters.safe} onClick={() => apply({ safe: !filters.safe })}>
                 <EyeOff aria-hidden />
-                Sans avertissement
+                {t('safe')}
               </Chip>
             </span>
           </Info>
@@ -203,7 +202,7 @@ export function CatalogPage() {
       {catalog.data && catalog.data.items.length === 0 && (
         <EtatVide
           icone={PackageSearch}
-          titre="Aucun pack"
+          titre={t('empty')}
           action={
             JSON.stringify({ ...filters, page: 1 }) !== JSON.stringify(DEFAULT_FILTERS) ? (
               <Button
@@ -213,7 +212,7 @@ export function CatalogPage() {
                   router.replace(path, { scroll: false });
                 }}
               >
-                Effacer les filtres
+                {t('clearFilters')}
               </Button>
             ) : undefined
           }
@@ -233,23 +232,23 @@ export function CatalogPage() {
             ))}
           </ul>
           {pages > 1 && (
-            <nav aria-label="Pages" className="mt-8 flex items-center justify-center gap-2">
+            <nav aria-label={t('pages')} className="mt-8 flex items-center justify-center gap-2">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Page précédente"
+                aria-label={t('previousPage')}
                 disabled={filters.page <= 1}
                 onClick={() => apply({ page: filters.page - 1 })}
               >
                 <ChevronLeft />
               </Button>
               <span className="text-[13px] tabular-nums text-muted-foreground">
-                {filters.page} / {pages}
+                {t('pageOf', { page: filters.page, pages })}
               </span>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Page suivante"
+                aria-label={t('nextPage')}
                 disabled={filters.page >= pages}
                 onClick={() => apply({ page: filters.page + 1 })}
               >

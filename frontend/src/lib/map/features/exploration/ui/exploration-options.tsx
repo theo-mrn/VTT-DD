@@ -5,6 +5,7 @@
  * (Alt inverse le temps du geste), exploration de la scène active ou coupée, réinitialiser.
  * Aucun texte d'aide : des infobulles.
  */
+import { translate } from '@/i18n/runtime';
 import {
   Circle,
   Eye,
@@ -31,9 +32,10 @@ const ICONS: Record<ExplorationShapeId, LucideIcon> = {
   lasso: Lasso,
 };
 
-const MODES: readonly { id: EditOp; label: string; tip: string; icon: LucideIcon }[] = [
-  { id: 'reveal', label: 'Révéler', tip: 'Ajouter à la mémoire du groupe', icon: Eye },
-  { id: 'forget', label: 'Oublier', tip: 'Retirer de la mémoire du groupe', icon: EyeOff },
+/** Modes du geste ; nom et infobulle : `map.exploration.modes.<id>.label|hint`. */
+const MODES: readonly { id: EditOp; icon: LucideIcon }[] = [
+  { id: 'reveal', icon: Eye },
+  { id: 'forget', icon: EyeOff },
 ];
 
 export function ExplorationOptions({ engine }: Readonly<{ engine: MapEngine }>) {
@@ -52,28 +54,32 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: Explorati
 
   return (
     <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
-      <Info texte="Mémoire de ce que le groupe a vu sur cette scène">
+      <Info texte={translate('map.exploration.memoryHint')}>
         <label className="flex h-8 cursor-pointer items-center gap-2 rounded-md px-2 text-xs text-muted-foreground">
           <Switch
             checked={enabled}
-            aria-label="Exploration de la scène"
+            aria-label={translate('map.exploration.sceneSwitch')}
             onCheckedChange={(on) => {
               void toggleExploration(engine, on);
               focusMap(engine);
             }}
           />
-          Exploration
+          {translate('map.tools.exploration')}
         </label>
       </Info>
 
       <OptionSeparator />
-      <div role="group" aria-label="Forme" className="flex items-center gap-0.5">
+      <div
+        role="group"
+        aria-label={translate('map.exploration.shape')}
+        className="flex items-center gap-0.5"
+      >
         {EXPLORATION_SHAPES.map((s) => {
           const Icon = ICONS[s.id];
           return (
             <OptionButton
               key={s.id}
-              label={s.label}
+              label={translate(`map.exploration.shapes.${s.id}`)}
               shortcut={s.key}
               active={shape === s.id}
               disabled={!enabled}
@@ -91,11 +97,11 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: Explorati
       <OptionSeparator />
       <div
         role="radiogroup"
-        aria-label="Mode"
+        aria-label={translate('map.exploration.mode')}
         className="flex items-center rounded-lg border border-border p-0.5"
       >
         {MODES.map((m) => (
-          <Info key={m.id} texte={`${m.tip} (Alt : l’inverse)`}>
+          <Info key={m.id} texte={translate(`map.exploration.modes.${m.id}.hint`)}>
             <button
               type="button"
               role="radio"
@@ -113,14 +119,14 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: Explorati
               )}
             >
               <m.icon className="size-3.5" />
-              {m.label}
+              {translate(`map.exploration.modes.${m.id}.label`)}
             </button>
           </Info>
         ))}
       </div>
 
       <OptionSeparator />
-      <Info texte="Oublier tout ce que le groupe a exploré sur cette scène">
+      <Info texte={translate('map.exploration.resetHint')}>
         <Button
           variant="ghost"
           size="sm"
@@ -129,7 +135,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: Explorati
           onClick={() => void resetExploration(engine)}
         >
           <RotateCcw />
-          Réinitialiser
+          {translate('map.exploration.reset')}
         </Button>
       </Info>
     </div>
