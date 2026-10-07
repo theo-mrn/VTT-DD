@@ -55,6 +55,14 @@ describe('bonus du lanceur', () => {
     expect(bonusDeJet(pagne, '1d20', null).some((b) => b.etat === 'invocation')).toBe(false);
   });
 
+  it('tous les bonus, de valeur compris : groupés à part, déjà dans l’attribut', () => {
+    const drakonide = fiche([{ entree: 'race-drakonide', rang: 3 }]);
+    const ecailles = bonusDeJet(drakonide, '1d20', presentation).find(
+      (b) => b.source === 'Ecailles robustes',
+    );
+    expect(ecailles).toMatchObject({ etat: 'valeur', jet: false, terme: 1, concerne: false });
+  });
+
   it('retenus à usage limité : une utilisation par source, jamais pour une capacité à activer', () => {
     const base = bonusDeJet(
       fiche([{ entree: 'barbare-pagne', rang: 2 }]),

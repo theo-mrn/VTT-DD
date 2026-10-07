@@ -1,12 +1,14 @@
 'use client';
 
 /**
- * Bonus de jet du personnage, à côté du lanceur : tous ses effets `sur: jet`, actifs ou non, et
- * les capacités qui s'invoquent au jet (présentation du système, `des.invocations`). Une formule
- * libre ne sait pas quand ils s'appliquent : on les montre pour ne pas les oublier.
+ * Bonus du personnage, à côté du lanceur : tous, comme le bloc Bonus de la fiche (de jet, de
+ * valeur, résistances), actifs ou non, et les capacités qui s'invoquent au jet (présentation
+ * du système, `des.invocations`). Une formule libre ne sait pas quand ils s'appliquent : on les
+ * montre pour ne pas les oublier. Un bonus de valeur (DEF +1) est déjà dans son attribut : il
+ * a son groupe, éteint comme tous par défaut, et s'ajoute au jet seulement si on l'allume.
  * - En tête, ceux qui visent une caractéristique de la formule ; puis les autres actifs, les
- *   capacités à invoquer, et enfin les inactifs (capacité éteinte, effet coupé, objet rangé),
- *   grisés avec leur raison.
+ *   capacités à invoquer, les bonus de valeur, et enfin les inactifs (capacité éteinte, effet
+ *   coupé, objet rangé), grisés avec leur raison.
  * - Un bonus chiffré s'allume pour s'ajouter aux jets, actif ou non (« pour ce jet ») ; les
  *   autres (dés de dégâts, avantage…) restent un rappel.
  * - Une capacité éteinte s'active d'ici pour de bon (« Activer » : la fiche change, un usage
@@ -18,7 +20,6 @@
 import { useTranslations } from 'next-intl';
 import {
   evaluerChampEntree,
-  listerEffets,
   usagesDe,
   type EffetListe,
   type Fiche,
@@ -30,6 +31,7 @@ import { useMemo } from 'react';
 import { DurationChip, timerOf } from '@/components/combat/duration-chip';
 import { clesJetsVises } from '@/components/fiche/blocks/effects/condition-text';
 import {
+  effetsDuPersonnage,
   libelleEffet,
   precisionEffet,
   raisonInactif,
@@ -43,7 +45,11 @@ import { cn } from '@/lib/utils';
 import { FOCUS } from './tactile';
 
 /** Où en est la source du bonus. */
-export type EtatBonus = 'actif' | 'invocation' | 'inactif';
+/**
+ * Groupe d'un bonus : de jet actif, capacité à invoquer, bonus de valeur actif (attribut,
+ * résistance : déjà compté dans la valeur, éteint par défaut), inactif.
+ */
+export type EtatBonus = 'actif' | 'invocation' | 'valeur' | 'inactif';
 
 export interface BonusJet {
   /** Clé de l'effet (`<source>/<index>`), ou `invocation:<entrée>`. */
@@ -59,6 +65,8 @@ export interface BonusJet {
   concerne: boolean;
   /** Attributs que le bonus vise (sa condition, ou le jet qu'il implique). */
   vises: string[];
+  /** Bonus de jet (effet `sur: jet` ou capacité à invoquer), sinon bonus de valeur. */
+  jet: boolean;
   etat: EtatBonus;
   /** Pourquoi il ne s'applique pas (inactif). */
   raison: string | null;
@@ -97,13 +105,19 @@ function minuterieDe(e: Pick<EffetListe, 'possession'>): Timer | null {
 
 /** Un effet de jet listé par le moteur, en bonus du lanceur. */
 function depuisEffet(fiche: Fiche, e: EffetListe, presentes: Set<string>): BonusJet {
-  const effet = e.effet as Extract<EffetListe['effet'], { sur: 'jet' }>;
-  const vises = [
-    ...(effet.si !== undefined ? (clesJetsVises(fiche, effet.si) ?? []) : []),
-    ...(effet.implique?.attribut ? [effet.implique.attribut] : []),
-  ];
-  const chiffre =
-    effet.ajout && 'bonus' in effet.ajout && typeof e.valeur === 'number' && e.valeur !== 0;
+  const effet = e.effet;
+  const jet = effet.sur === 'jet';
+  // Seuls les bonus de jet visent un jet ; un bonus de valeur est déjà dans son attribut
+  const vises = jet
+    ? [
+        ...(effet.si !== undefined ? (clesJetsVises(fiche, effet.si) ?? []) : []),
+        ...(effet.implique?.attribut ? [effet.implique.attribut] : []),
+      ]
+    : [];
+  const ajoute = jet
+    ? !!effet.ajout && 'bonus' in effet.ajout
+    : effet.sur === 'attribut' && effet.operation === 'ajouter';
+  const chiffre = ajoute && typeof e.valeur === 'number' && e.valeur !== 0;
   const entree = entreeDe(e);
   const p = e.possession;
   const eteinte = e.statut === 'inactif' && e.raison === 'inactive' && !!p?.sorte.activable;
@@ -112,11 +126,13 @@ function depuisEffet(fiche: Fiche, e: EffetListe, presentes: Set<string>): Bonus
     source: e.nom,
     libelle: libelleEffet(fiche, e),
     precision: precisionEffet(fiche, e),
-    description: (effet.description ?? p?.entree.description ?? '').trim() || null,
+    description:
+      ((jet ? effet.description : undefined) ?? p?.entree.description ?? '').trim() || null,
     terme: chiffre ? arrondi(e.valeur as number) : null,
     concerne: vises.some((c) => presentes.has(c)),
     vises,
-    etat: e.statut === 'actif' ? 'actif' : 'inactif',
+    jet,
+    etat: e.statut !== 'actif' ? 'inactif' : jet ? 'actif' : 'valeur',
     raison: e.statut === 'desactive' ? null : e.statut === 'inactif' ? raisonInactif(e) : null,
     entree,
     activable: eteinte,
@@ -152,6 +168,7 @@ function invocations(fiche: Fiche, presentation: Presentation | null): BonusJet[
       terme,
       concerne: false,
       vises: [],
+      jet: true,
       etat: 'invocation',
       raison: null,
       entree: p.entree.id,
@@ -176,14 +193,14 @@ export function bonusDeJet(
 ): BonusJet[] {
   if (!fiche) return [];
   const presentes = clesDeLaFormule(fiche, formule);
-  const effets = listerEffets(fiche)
-    .filter((e) => e.effet.sur === 'jet' && e.genre !== 'regle' && e.raison !== 'non-effective')
-    .map((e) => depuisEffet(fiche, e, presentes));
+  // Tous les bonus du personnage, comme le bloc Bonus de la fiche
+  const effets = effetsDuPersonnage(fiche).map((e) => depuisEffet(fiche, e, presentes));
   const actifs = effets.filter((b) => b.etat === 'actif');
   return [
     ...actifs.filter((b) => b.concerne),
     ...actifs.filter((b) => !b.concerne),
     ...invocations(fiche, presentation),
+    ...effets.filter((b) => b.etat === 'valeur'),
     ...effets.filter((b) => b.etat === 'inactif'),
   ];
 }
@@ -238,6 +255,7 @@ export function BonusJetListe({
     [
       ['actif', bonus.filter((b) => b.etat === 'actif')],
       ['invocation', bonus.filter((b) => b.etat === 'invocation')],
+      ['valeur', bonus.filter((b) => b.etat === 'valeur')],
       ['inactif', bonus.filter((b) => b.etat === 'inactif')],
     ] as [EtatBonus, BonusJet[]][]
   ).filter(([, l]) => l.length > 0);

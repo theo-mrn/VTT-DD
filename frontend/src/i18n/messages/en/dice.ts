@@ -136,7 +136,12 @@ export default {
     add: 'Add {label} ({source}) to the next roll',
     disabled: ' · disabled',
     activate: 'Activate {source}',
-    groups: { actif: 'Active', invocation: 'To invoke', inactif: 'Inactive' },
+    groups: {
+      actif: 'Active',
+      invocation: 'To invoke',
+      valeur: 'Already in the values',
+      inactif: 'Inactive',
+    },
   },
   macros: {
     undo: 'Undo',

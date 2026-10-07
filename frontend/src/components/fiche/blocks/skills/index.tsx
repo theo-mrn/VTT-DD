@@ -313,7 +313,8 @@ function SkillsBlock({
     const m = new Map<string, RollRequest>();
     if (!ctx.lancerJet) return m;
     for (const b of bonusDeJet(ctx.fiche, '', ctx.presentation)) {
-      if (!b.entree || (b.terme === null && !b.vises.length)) continue;
+      // Seuls les bonus de jet (actifs, à invoquer, ou d'une capacité éteinte) se lancent
+      if (!b.jet || !b.entree || (b.terme === null && !b.vises.length)) continue;
       const r = m.get(b.entree) ?? { bonus: [], attributs: [] };
       if (b.terme !== null) r.bonus.push(b.cle);
       for (const a of b.vises) if (!r.attributs.includes(a)) r.attributs.push(a);

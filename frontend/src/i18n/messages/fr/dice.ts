@@ -135,7 +135,12 @@ export default {
     add: 'Ajouter {label} ({source}) au prochain jet',
     disabled: ' · coupé',
     activate: 'Activer {source}',
-    groups: { actif: 'Actifs', invocation: 'À invoquer', inactif: 'Inactifs' },
+    groups: {
+      actif: 'Actifs',
+      invocation: 'À invoquer',
+      valeur: 'Inclus dans les valeurs',
+      inactif: 'Inactifs',
+    },
   },
   macros: {
     undo: 'Annuler',
