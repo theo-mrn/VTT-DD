@@ -34,6 +34,12 @@ ingress:
   # Connexions WebSocket longues (realtime)
   websocket: true
   host: api.yner.fr
+  # Plugin CrowdSec : filtrage par IP ET WAF OWASP CRS (SQLi, XSS, LFI,
+  # RCE). Pose des maintenant, avant meme que la prod existe, pour qu'elle
+  # soit protegee des son premier deploiement plutot que de dependre d'un
+  # ajout a posteriori qu'on oublierait.
+  middlewares:
+    - crowdsec-crowdsec-appsec@kubernetescrd
 networkPolicy:
   enabled: true
 autoscaling:
