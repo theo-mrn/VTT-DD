@@ -2,7 +2,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-audio-worker
-  digest: 'sha256:c0a47b0d4edd2bf18ad7bd8a1ec9c6efdabab46207c0513885a8759fbb767b97'
+  digest: 'sha256:c32f04b3e6d8b4d708d09dcc984c948ebfaac97e061d2cd4102a058f71393bb3'
   tag: 'main'
 # Un réplica, deux jobs à la fois (WORKER_CONCURRENCY) ; plusieurs réplicas resteraient sûrs
 # (SKIP LOCKED), mais ffmpeg est gourmand : on scale la concurrence avant les pods
