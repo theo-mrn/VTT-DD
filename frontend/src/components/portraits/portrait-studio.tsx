@@ -411,7 +411,7 @@ function Body({
       <footer className="flex items-center gap-2 border-t border-border px-5 py-3">
         <Info texte={t('portraits.recenter')}>
           <Button variant="ghost" size="sm" disabled={!image || Boolean(saving)} onClick={reset}>
-            <RotateCcw /> Recentrer
+            <RotateCcw /> {t('portraits.recenterShort')}
           </Button>
         </Info>
         <span className="flex-1" />
@@ -528,11 +528,12 @@ function SourceButtons({
   onLibrary(): void;
   libraryOpen: boolean;
 }>) {
+  const t = useTranslations();
   const input = useRef<HTMLInputElement>(null);
   return (
     <div className="flex items-center gap-1.5">
       <Button variant="secondary" size="sm" onClick={() => input.current?.click()}>
-        <CloudUpload /> Importer
+        <CloudUpload /> {t('portraits.import')}
       </Button>
       <Button
         variant={libraryOpen ? 'default' : 'secondary'}
@@ -540,7 +541,7 @@ function SourceButtons({
         aria-pressed={libraryOpen}
         onClick={onLibrary}
       >
-        <Library /> Bibliothèque
+        <Library /> {t('portraits.library')}
       </Button>
       <input
         ref={input}

@@ -90,4 +90,5 @@ export default {
   opening: 'Ouverture de la scène…',
   noneOpened: 'Aucune scène ouverte : choisissez-en une dans Scènes (E).',
   noneYet: 'Aucune scène : créez la première dans Scènes (E).',
+  noBackground: 'Sans fond',
 } as const;

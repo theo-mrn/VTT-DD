@@ -38,6 +38,7 @@ export default {
     actions: 'Actions',
   },
   market: {
+    addHint: '“Add” puts the item in <b>{name}</b>’s inventory. No coin is spent.',
     sheetUnavailable: 'Sheet unavailable',
     wrongInventory: 'Doesn’t fit in this inventory',
     owned: 'Already owned',

@@ -7,4 +7,5 @@ export default {
   imageAddress: 'Adresse de l’image',
   cropHint: 'Glissez pour cadrer, zoomez avec la molette ou le curseur.',
   converting: 'Conversion…',
+  pasteAddress: 'Coller une adresse',
 } as const;

@@ -188,7 +188,7 @@ function Body({
         </div>
         {current && (
           <Button variant="ghost" size="sm" onClick={() => onPick(null)}>
-            <ImageOff /> Sans fond
+            <ImageOff /> {translate('map.scenes.noBackground')}
           </Button>
         )}
         <Button

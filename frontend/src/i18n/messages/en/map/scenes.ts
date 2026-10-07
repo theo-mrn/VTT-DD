@@ -93,4 +93,5 @@ export default {
   opening: 'Opening the scene…',
   noneOpened: 'No scene open: pick one in Scenes (E).',
   noneYet: 'No scenes: create the first one in Scenes (E).',
+  noBackground: 'No background',
 } satisfies Translation<typeof fr>;

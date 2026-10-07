@@ -356,7 +356,7 @@ export function ImageDrop({
             disabled={disabled || busy}
             onClick={() => setUrlMode(true)}
           >
-            <Link2 /> Coller une adresse
+            <Link2 /> {t('uploads.pasteAddress')}
           </Button>
         )}
       </div>
@@ -432,7 +432,7 @@ function ErreurEnvoi({
       <span className="truncate">{phase.message}</span>
       {retry && (
         <Button type="button" size="xs" variant="ghost" onClick={() => onRetry(retry)}>
-          <RefreshCw /> Réessayer
+          <RefreshCw /> {t('common.actions.retry')}
         </Button>
       )}
       <Button

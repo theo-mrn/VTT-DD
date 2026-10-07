@@ -36,6 +36,8 @@ export default {
     actions: 'Actions',
   },
   market: {
+    addHint:
+      '« Ajouter » range l’objet dans l’inventaire de <b>{name}</b>. Aucune pièce n’est dépensée.',
     sheetUnavailable: 'Fiche indisponible',
     wrongInventory: 'Ne se range pas dans cet inventaire',
     owned: 'Déjà possédé',

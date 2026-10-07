@@ -7,6 +7,7 @@
  * si la sorte la permet (équipable, quantités, exemplaires, nom propre) et si l'utilisateur
  * peut écrire.
  */
+import { useTranslations } from 'next-intl';
 import type { InventoryFolder } from '@vtt/rules';
 import {
   BadgePlus,
@@ -141,6 +142,7 @@ function EntreesOrganiser({
   folders: InventoryFolder[];
   nouveauDossierPour: ItemHandlers['nouveauDossierPour'];
 }>) {
+  const t = useTranslations();
   return (
     <>
       {a.renommer && (
@@ -156,7 +158,7 @@ function EntreesOrganiser({
       {a.cacher && (
         <DropdownMenuItem onSelect={() => a.cacher!(item, !item.hidden)}>
           {item.hidden ? <Eye /> : <EyeOff />}
-          {item.hidden ? 'Montrer aux autres joueurs' : 'Cacher aux autres joueurs'}
+          {item.hidden ? t('sheet.inventory.showOthers') : t('sheet.inventory.hideOthers')}
         </DropdownMenuItem>
       )}
       {a.ranger && (
@@ -186,6 +188,7 @@ export function ItemMenuItems({
   handlers: ItemHandlers;
   folders: InventoryFolder[];
 }>) {
+  const t = useTranslations();
   const a = actionsDe(item, handlers);
   const organiser = a.renommer || a.quantite || a.cacher || a.ranger || a.exemplaire;
   const regler = a.formules || a.bonus;
@@ -195,12 +198,12 @@ export function ItemMenuItems({
         {item.nom}
       </DropdownMenuLabel>
       <DropdownMenuItem onSelect={() => handlers.ouvrir(item)}>
-        <PanelRightOpen /> Détails
-        <span className="ml-auto text-[10px] text-subtle">Entrée</span>
+        <PanelRightOpen /> {t('sheet.inventory.details')}
+        <span className="ml-auto text-[10px] text-subtle">{t('chat.enterKey')}</span>
       </DropdownMenuItem>
       {a.equiper && (
         <DropdownMenuItem onSelect={() => a.equiper!(item, !item.actif)}>
-          <Check /> {item.actif ? 'Ranger' : 'Équiper'}
+          <Check /> {item.actif ? t('sheet.inventory.stow') : t('sheet.inventory.equip')}
         </DropdownMenuItem>
       )}
       {a.consommer && (
@@ -239,7 +242,7 @@ export function ItemMenuItems({
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"
           >
             <Trash2 /> Supprimer…
-            <span className="ml-auto text-[10px] opacity-70">Suppr</span>
+            <span className="ml-auto text-[10px] opacity-70">{t('sheet.inventory.delKey')}</span>
           </DropdownMenuItem>
         </>
       )}

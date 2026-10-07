@@ -6,6 +6,7 @@
  * Aperçus d'écriture : chaque opération calcule l'état attendu, montré aussitôt, et la
  * demande envoyée au service character (même règle que `poserPossession` côté serveur).
  */
+import { translate } from '@/i18n/runtime';
 import {
   achatsPossibles,
   apercuFormule,
@@ -189,7 +190,10 @@ function texteAjout(fiche: Fiche, e: EffetJetObjet, nombre: NombreEffet): string
   if (a && 'retirer' in a) return `−${n(a.nombre)} ${de(a.retirer)}`;
   if (a && 'variable' in a)
     return `${a.variable} ${ajoutSigne(nombre('ajout/ajouter', a.ajouter))}`;
-  if (a && 'bonus' in a) return `${ajoutSigne(nombre('ajout/bonus', a.bonus))} au jet`;
+  if (a && 'bonus' in a)
+    return translate('sheet.inventory.toRoll', {
+      value: ajoutSigne(nombre('ajout/bonus', a.bonus)),
+    });
   return null;
 }
 
@@ -205,9 +209,9 @@ function cibleJet(fiche: Fiche, e: EffetJetObjet): string | undefined {
 function libelleJet(fiche: Fiche, e: EffetJetObjet, nombre: NombreEffet): string {
   if (e.description) return e.description;
   const texte = texteAjout(fiche, e, nombre);
-  if (!texte) return 'Modifie certains jets';
+  if (!texte) return translate('sheet.effects.rolls');
   const cible = cibleJet(fiche, e);
-  const cote = e.cote === 'cible' ? ' (en défense)' : '';
+  const cote = e.cote === 'cible' ? ` ${translate('sheet.inventory.onDefense')}` : '';
   return cible ? `${texte} · ${cible}${cote}` : `${texte}${cote}`;
 }
 
@@ -227,13 +231,15 @@ export function libelleEffet(
     case 'jet':
       return libelleJet(fiche, e, nombre);
     case 'degats': {
-      if (e.operation === 'annuler') return e.description ?? 'Immunité';
+      if (e.operation === 'annuler') return e.description ?? translate('sheet.inventory.immunity');
       const v = nombre('valeur', e.valeur);
-      return e.operation === 'multiplier' ? `Dégâts ×${v}` : `Réduction des dégâts ${v}`;
+      return e.operation === 'multiplier'
+        ? translate('sheet.inventory.damageTimes', { value: String(v) })
+        : translate('sheet.effects.reduction', { value: String(v) });
     }
     case 'rang': {
       const cible = fiche.systeme.entrees.get(e.entree)?.nom ?? e.entree;
-      return e.description ?? `Accorde : ${cible}`;
+      return e.description ?? translate('sheet.effects.grants', { name: cible });
     }
     case 'marque':
       return e.description ?? null;
@@ -546,11 +552,15 @@ export function categorieDe(
   if (!champ) return { cle: `sorte:${sorte.id}`, nom: sorte.nomPluriel ?? sorte.nom, rang: base };
   const v = champDe(entree, champ, possession);
   if (v === undefined || v === '' || Array.isArray(v))
-    return { cle: AUTRES, nom: 'Autres', rang: Number.MAX_SAFE_INTEGER };
+    return {
+      cle: AUTRES,
+      nom: translate('resources.bestiary.others'),
+      rang: Number.MAX_SAFE_INTEGER,
+    };
   if (typeof v === 'boolean')
     return {
       cle: `${champ.id}:${v}`,
-      nom: v ? champ.nom : `Sans ${champ.nom.toLowerCase()}`,
+      nom: v ? champ.nom : translate('sheet.inventory.without', { name: champ.nom.toLowerCase() }),
       rang: base + (v ? 0 : 1),
     };
   const s = String(v);
@@ -806,9 +816,10 @@ function blocageAjout(
   parSorte: Map<string, number>,
 ): string | undefined {
   const ajouteUnite = sorte.quantites && possedes > 0;
-  if (possedes && !sorte.exemplaires && !sorte.quantites) return 'Déjà possédé';
+  if (possedes && !sorte.exemplaires && !sorte.quantites)
+    return translate('resources.market.owned');
   if (!ajouteUnite && sorte.maximum !== undefined && (parSorte.get(sorte.id) ?? 0) >= sorte.maximum)
-    return `Maximum de ${sorte.maximum} atteint`;
+    return translate('sheet.inventory.maxReached', { max: sorte.maximum });
   return undefined;
 }
 
@@ -1347,7 +1358,7 @@ export function bonusDesEffets(fiche: Fiche, effets: readonly Effet[]): BonusPro
     const texte =
       libelleEffet(fiche, effet, (champ) =>
         champ === 'valeur' && Number.isFinite(brut) ? brut : undefined,
-      ) ?? 'Effet';
+      ) ?? translate('sheet.inventory.effect');
     return { index, effet, texte, actif: effet.condition !== EFFET_DESACTIVE };
   });
 }
@@ -1504,12 +1515,8 @@ export function apercuDossiers(
 
 export type Tri = 'nom' | 'quantite' | 'poids' | 'equipe';
 
-export const TRIS: { cle: Tri; nom: string }[] = [
-  { cle: 'nom', nom: 'Nom' },
-  { cle: 'quantite', nom: 'Quantité' },
-  { cle: 'poids', nom: 'Poids' },
-  { cle: 'equipe', nom: 'Équipés d’abord' },
-];
+/** Tris de la grille ; nom : `sheet.inventory.sorts.<tri>`. */
+export const TRIS: readonly Tri[] = ['nom', 'quantite', 'poids', 'equipe'];
 
 export function trier(items: InventoryItem[], tri: Tri): InventoryItem[] {
   const parNom = (a: InventoryItem, b: InventoryItem) => a.nom.localeCompare(b.nom, 'fr');

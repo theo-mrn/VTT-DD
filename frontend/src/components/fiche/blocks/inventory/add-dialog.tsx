@@ -7,6 +7,7 @@
  * donne l'entrée, achat au coût de l'achat dans sa monnaie. Et, si le système déclare une
  * entrée `libre` pour ces sortes, configuration d'un objet personnalisé.
  */
+import { useTranslations } from 'next-intl';
 import type { Fiche, Presentation } from '@vtt/rules';
 import {
   AlertTriangle,
@@ -151,6 +152,7 @@ function Catalogue({
   onConfigurer(cible: CibleAjout): void;
   onAcheter(entree: CatalogueEntry): void;
 }>) {
+  const t = useTranslations();
   const [ouverte, setOuverte] = useState<string | null>(null);
   const modeles = useMemo(() => modelesLibres(fiche, widget), [fiche, widget]);
   const libre = (nom?: string) =>
@@ -188,8 +190,8 @@ function Catalogue({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <InputGroup
             avant={<Search />}
-            placeholder="Rechercher dans le catalogue…"
-            aria-label="Rechercher dans le catalogue"
+            placeholder={t('sheet.inventory.searchCatalog')}
+            aria-label={t('sheet.inventory.searchCatalogLabel')}
             value={terme}
             autoFocus
             {...(terme ? ECHAP_LOCAL : {})}
@@ -220,7 +222,11 @@ function Catalogue({
           ))}
         </div>
         {categories.length > 1 && (
-          <div role="group" aria-label="Catégories" className="flex flex-wrap gap-1.5">
+          <div
+            role="group"
+            aria-label={t('sheet.inventory.categories')}
+            className="flex flex-wrap gap-1.5"
+          >
             <Chip actif={categorie === null} onClick={() => setCategorie(null)}>
               Tout <span className="text-subtle">{catalogue.length}</span>
             </Chip>
@@ -237,11 +243,11 @@ function Catalogue({
         {filtres.length === 0 ? (
           <div className="flex flex-col items-center py-12 text-center">
             <Search className="mb-3 size-8 text-subtle" />
-            <p className="text-sm font-medium">Aucune entrée trouvée</p>
+            <p className="text-sm font-medium">{t('sheet.inventory.noEntry')}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {catalogue.length === 0
-                ? 'Le système ne propose aucune entrée de ces sortes.'
-                : 'Essayez un autre terme ou une autre catégorie.'}
+                ? t('sheet.inventory.noEntryKinds')
+                : t('sheet.inventory.tryAnother')}
             </p>
             {modeles.length > 0 && terme.trim() && (
               <Button variant="secondary" size="sm" className="mt-4" onClick={() => libre(terme)}>
@@ -327,6 +333,7 @@ function Ligne({
   onAjouter(): void;
   onAcheter(): void;
 }>) {
+  const t = useTranslations();
   const monnaie = c.achat ? fiche.systeme.monnaies.get(c.achat.monnaie) : undefined;
   const idDetail = `catalogue-${c.entree.id}`;
   const ajoutUnite = c.sorte.quantites && c.possede > 0;
@@ -357,10 +364,10 @@ function Ligne({
               </Badge>
             )}
             {c.exigeNonRempli && (
-              <Info texte="Prérequis non remplis">
+              <Info texte={t('sheet.inventory.prereqMissing')}>
                 <AlertTriangle
                   className="size-3.5 shrink-0 text-warning"
-                  aria-label="Prérequis non remplis"
+                  aria-label={t('sheet.inventory.prereqMissing')}
                 />
               </Info>
             )}
@@ -387,7 +394,10 @@ function Ligne({
                   size="xs"
                   disabled={!c.achat.possible}
                   onClick={onAcheter}
-                  aria-label={`Acheter ${c.entree.nom} pour ${c.achat.cout} ${monnaie.nom}`}
+                  aria-label={t('sheet.inventory.buyFor', {
+                    name: c.entree.nom,
+                    price: `${c.achat.cout} ${monnaie.nom}`,
+                  })}
                 >
                   <ShoppingCart />
                   {c.achat.cout}
@@ -398,9 +408,7 @@ function Ligne({
           <Info
             texte={
               c.bloque ??
-              (ajoutUnite
-                ? 'Des unités de plus, ou un exemplaire à configurer'
-                : 'Configurer puis ajouter sans payer')
+              (ajoutUnite ? t('sheet.inventory.unitsOrCopy') : t('sheet.inventory.configureFree'))
             }
           >
             <span>
@@ -412,7 +420,7 @@ function Ligne({
                 aria-label={`Ajouter ${c.entree.nom}`}
               >
                 <Plus />
-                <span className="hidden sm:inline">Ajouter</span>
+                <span className="hidden sm:inline">{t('common.actions.add')}</span>
               </Button>
             </span>
           </Info>

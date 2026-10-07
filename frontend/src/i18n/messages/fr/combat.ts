@@ -268,6 +268,10 @@ export default {
     slotCurrent: 'Créneau {n, number} : {side} (en cours)',
   },
   attack: {
+    abandonShort: 'Abandonner',
+    skipDefenses: 'Passer les défenses',
+    new: 'Nouvelle attaque',
+    sameTargets: 'Mêmes cibles',
     noDice: 'Aucun dé',
     notYourTurn: 'Pas le tour de votre personnage',
     noneAvailableFor: '{name} : aucune disponible',

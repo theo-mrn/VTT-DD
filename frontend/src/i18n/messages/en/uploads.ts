@@ -9,4 +9,5 @@ export default {
   imageAddress: 'Image address',
   cropHint: 'Drag to frame, zoom with the wheel or the slider.',
   converting: 'Converting…',
+  pasteAddress: 'Paste an address',
 } satisfies Translation<typeof fr>;

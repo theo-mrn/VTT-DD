@@ -5,6 +5,7 @@
  * quantité, dossier), confirmation d'une suppression, don à un autre personnage de la
  * campagne (destinataire, quantité).
  */
+import { useTranslations } from 'next-intl';
 import { Gift, Trash2 } from 'lucide-react';
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ export function PromptDialog({
 }
 
 function Prompt({ saisie, onClose }: Readonly<{ saisie: Saisie; onClose(): void }>) {
+  const t = useTranslations();
   const id = useId();
   const [valeur, setValeur] = useState(saisie.initial);
   const n = Number(valeur);
@@ -90,7 +92,7 @@ function Prompt({ saisie, onClose }: Readonly<{ saisie: Saisie; onClose(): void 
       </div>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onClose}>
-          Annuler
+          {t('common.actions.cancel')}
         </Button>
         <Button type="submit" disabled={!valide}>
           {saisie.valider}
@@ -116,6 +118,7 @@ export function ConfirmDialog({
   onConfirmer(): void;
   onClose(): void;
 }>) {
+  const t = useTranslations();
   return (
     <Dialog open={ouvert} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-sm" role="alertdialog">
@@ -125,7 +128,7 @@ export function ConfirmDialog({
         </DialogHeader>
         <DialogFooter>
           <Button variant="ghost" autoFocus onClick={onClose}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button
             variant="destructive"
@@ -186,6 +189,7 @@ function Don({
   onDonner(item: InventoryItem, to: { id: string; name: string }, quantite: number): void;
   onClose(): void;
 }>) {
+  const t = useTranslations();
   const id = useId();
   const table = usePersonnagesCampagne(personnage.roomId);
   const autres = (table.data ?? []).filter((p) => p.id !== personnage.id && !p.inCreation);
@@ -211,17 +215,15 @@ function Don({
     >
       <DialogHeader>
         <DialogTitle>Donner {item.nom}</DialogTitle>
-        <DialogDescription>
-          À un autre personnage de la campagne : l’objet quitte cet inventaire pour le sien.
-        </DialogDescription>
+        <DialogDescription>{t('sheet.inventory.giveHint')}</DialogDescription>
       </DialogHeader>
 
       {destinataires !== 'liste' && (
-        <p className="text-sm text-muted-foreground">{MESSAGES_DON[destinataires]}</p>
+        <p className="text-sm text-muted-foreground">{t(MESSAGES_DON[destinataires])}</p>
       )}
       {destinataires === 'liste' && (
         <fieldset className="space-y-1.5">
-          <legend className="mb-1.5 text-sm font-medium">Destinataire</legend>
+          <legend className="mb-1.5 text-sm font-medium">{t('sheet.inventory.recipient')}</legend>
           <div role="radiogroup" className="grid max-h-56 gap-1 overflow-y-auto">
             {autres.map((p) => (
               <label
@@ -276,7 +278,7 @@ function Don({
               size="sm"
               onClick={() => setQuantite(String(item.quantite))}
             >
-              Tout
+              {t('map.objects.library.all')}
             </Button>
           </div>
         </div>
@@ -284,7 +286,7 @@ function Don({
 
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onClose}>
-          Annuler
+          {t('common.actions.cancel')}
         </Button>
         <Button type="submit" disabled={!valide}>
           <Gift /> Donner
@@ -294,8 +296,9 @@ function Don({
   );
 }
 
+/** Pourquoi le don est impossible (clé du catalogue). */
 const MESSAGES_DON = {
-  horsCampagne: 'Ce personnage n’est engagé dans aucune campagne : il n’a personne à qui donner.',
-  chargement: 'Chargement de la table…',
-  personne: 'Aucun autre personnage joueur dans la campagne.',
+  horsCampagne: 'sheet.inventory.noCampaign',
+  chargement: 'sheet.inventory.loadingTable',
+  personne: 'sheet.inventory.noOtherPlayer',
 } as const;

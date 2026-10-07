@@ -255,6 +255,7 @@ function Notice({
   aim: (() => void) | null;
   noTarget: boolean;
 }>) {
+  const t = useTranslations();
   return (
     <div
       role="status"
@@ -266,7 +267,7 @@ function Notice({
       </span>
       {aim && (
         <Button size="xs" variant="secondary" onClick={aim}>
-          <Crosshair /> Viser sur la carte
+          <Crosshair /> {t('combat.attack.aimOnMap')}
           <Kbd className="ml-0.5">V</Kbd>
         </Button>
       )}
@@ -805,7 +806,7 @@ function DicePool({
               onClick={() => attackMenu.dispatch({ type: 'resetAdjustments' })}
               disabled={disabled}
             >
-              <RotateCcw /> Réinitialiser
+              <RotateCcw /> {t('audio.mixer.reset')}
             </Button>
           </span>
         ) : undefined

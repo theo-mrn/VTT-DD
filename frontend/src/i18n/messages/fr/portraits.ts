@@ -23,4 +23,7 @@ export default {
   premium: 'Premium',
   circle: 'Cercle',
   square: 'Carré',
+  recenterShort: 'Recentrer',
+  import: 'Importer',
+  library: 'Bibliothèque',
 } as const;

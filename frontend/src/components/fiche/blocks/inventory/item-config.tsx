@@ -7,6 +7,8 @@
  * les champs proposés sont ceux de la sorte. Seul ce qui diffère de l'entrée part au
  * service, en une seule demande (`ajouterLibre`).
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import {
   champsActifs,
   type Effet,
@@ -175,8 +177,10 @@ function champsPropres(
 /** Erreurs du nom (une fois le champ quitté) et de la quantité. */
 function erreursSaisie(nomTouche: boolean, nomOk: boolean, quantiteOk: boolean) {
   return {
-    erreurNom: nomTouche && !nomOk ? 'Donnez un nom à l’objet.' : null,
-    erreurQuantite: quantiteOk ? null : `Un nombre entier entre 1 et ${QUANTITE_MAX}.`,
+    erreurNom: nomTouche && !nomOk ? translate('map.objects.contents.nameRequired') : null,
+    erreurQuantite: quantiteOk
+      ? null
+      : translate('sheet.inventory.wholeNumber', { max: QUANTITE_MAX }),
   };
 }
 
@@ -187,10 +191,10 @@ function raisonBlocage(
   nomOk: boolean,
   aCorriger: boolean,
 ): string | null {
-  if (!quantiteOk) return 'Quantité à corriger';
+  if (!quantiteOk) return translate('sheet.inventory.fixQuantity');
   if (seulementUnites) return null;
-  if (!nomOk) return 'Nom à saisir';
-  if (aCorriger) return 'Valeurs à corriger';
+  if (!nomOk) return translate('sheet.inventory.enterName');
+  if (aCorriger) return translate('sheet.inventory.fixValues');
   return null;
 }
 
@@ -229,6 +233,7 @@ function Formulaire({
   onRetour(): void;
   onAjouter(modele: ModeleLibre, saisie: SaisieLibre): void;
 }>) {
+  const t = useTranslations();
   const id = useId();
   const { entree, sorte } = modele;
   const folders: InventoryFolder[] = fiche.etat.folders;
@@ -347,7 +352,7 @@ function Formulaire({
         )}
 
         <section
-          aria-label="Réglages"
+          aria-label={t('map.lights.settings')}
           className="grid grid-cols-1 overflow-hidden rounded-xl border border-border sm:grid-cols-2 [&>*]:border-b [&>*]:border-border sm:[&>*:nth-child(odd)]:border-r"
         >
           {sorte.quantites && (
@@ -419,11 +424,11 @@ function Formulaire({
           {raison}
         </p>
         <Button type="button" variant="ghost" onClick={onRetour}>
-          Retour
+          {t('common.actions.back')}
         </Button>
         <Button type="submit" disabled={!valide}>
           <Plus />
-          {seulementUnites ? libelleUnites(quantiteSaisie) : 'Ajouter'}
+          {seulementUnites ? libelleUnites(quantiteSaisie) : t('common.actions.add')}
         </Button>
       </footer>
     </form>
@@ -457,9 +462,10 @@ function SectionBonus({
   ajoutBonus: boolean;
   onAjoutBonus(ouvert: boolean): void;
 }>) {
+  const t = useTranslations();
   if (!(bonusCatalogue.length > 0 || peutBonus)) return null;
   return (
-    <section aria-label="Bonus">
+    <section aria-label={t('sheet.inventory.bonus')}>
       <SectionTitle
         action={
           !ajoutBonus && peutBonus ? (
@@ -469,7 +475,7 @@ function SectionBonus({
           ) : undefined
         }
       >
-        Bonus
+        {t('sheet.inventory.bonus')}
       </SectionTitle>
       {bonusCatalogue.length > 0 && (
         <div className="mb-2">
@@ -482,7 +488,7 @@ function SectionBonus({
         onRetirer={(i) => onEffets((x) => x.filter((_, j) => j !== i))}
       />
       {!bonusCatalogue.length && !effets.length && !ajoutBonus && (
-        <p className="text-[13px] text-subtle">Aucun bonus.</p>
+        <p className="text-[13px] text-subtle">{t('sheet.inventory.noBonus')}</p>
       )}
       {ajoutBonus && (
         <BonusForm
@@ -507,6 +513,7 @@ function EnTete({
   image,
   onRetour,
 }: Readonly<{ cible: CibleAjout; modele: ModeleLibre; image?: string; onRetour(): void }>) {
+  const t = useTranslations();
   const { entree, sorte } = modele;
   return (
     <DialogHeader className="shrink-0">
@@ -515,8 +522,8 @@ function EnTete({
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label="Revenir au catalogue (Échap)"
-          title="Revenir au catalogue (Échap)"
+          aria-label={t('sheet.inventory.backToCatalog')}
+          title={t('sheet.inventory.backToCatalog')}
           onClick={onRetour}
         >
           <ArrowLeft />
@@ -524,12 +531,12 @@ function EnTete({
         <Thumbnail image={image} sorte={sorte} />
         <div className="min-w-0 flex-1">
           <DialogTitle className="truncate">
-            {cible.libre ? 'Objet personnalisé' : entree.nom}
+            {cible.libre ? t('sheet.inventory.customItem') : entree.nom}
           </DialogTitle>
           <DialogDescription className="truncate text-xs">
             {cible.libre
-              ? 'Un objet absent du catalogue, configuré avant l’ajout'
-              : `${sorte.nom} · configurez l’objet avant de l’ajouter`}
+              ? t('sheet.inventory.customHint')
+              : t('sheet.inventory.configureHint', { kind: sorte.nom })}
           </DialogDescription>
         </div>
       </div>
@@ -580,12 +587,13 @@ function Identite({
   categorie: string;
   onCategorie(c: string): void;
 }>) {
+  const t = useTranslations();
   const { entree, sorte } = modele;
   const options = modele.categorie?.options ?? [];
   return (
-    <section aria-label="Identité" className="space-y-4">
+    <section aria-label={t('sheet.inventory.identity')} className="space-y-4">
       {choixCategorie && (
-        <Champ label="Catégorie" htmlFor={`${id}-categorie-combinee`}>
+        <Champ label={t('map.sounds.category')} htmlFor={`${id}-categorie-combinee`}>
           <SelectField
             id={`${id}-categorie-combinee`}
             value={choixCategorie.valeur}
@@ -596,10 +604,10 @@ function Identite({
       )}
       {sorte.nomExemplaire && (
         <Champ
-          label={cible.libre ? 'Nom' : 'Nom de cet exemplaire'}
+          label={cible.libre ? t('map.lights.name') : t('sheet.inventory.copyName')}
           htmlFor={`${id}-nom`}
           erreur={erreurNom}
-          aide={cible.libre ? undefined : `Par défaut : ${entree.nom}`}
+          aide={cible.libre ? undefined : t('sheet.inventory.defaultName', { name: entree.nom })}
         >
           <Input
             id={`${id}-nom`}
@@ -609,7 +617,7 @@ function Identite({
             required={cible.libre}
             aria-invalid={erreurNom ? true : undefined}
             aria-describedby={`${id}-nom-aide`}
-            placeholder={cible.libre ? 'Ration de voyage, amulette de famille…' : entree.nom}
+            placeholder={cible.libre ? t('sheet.inventory.namePlaceholder') : entree.nom}
             onChange={(e) => onNom(e.target.value)}
             onBlur={onNomQuitte}
             className="h-10 px-3"
@@ -617,12 +625,12 @@ function Identite({
         </Champ>
       )}
       {sorte.descriptionExemplaire && (
-        <Champ label="Description" htmlFor={`${id}-description`}>
+        <Champ label={t('map.scenes.description')} htmlFor={`${id}-description`}>
           <Textarea
             id={`${id}-description`}
             value={description}
             maxLength={2000}
-            placeholder="Facultative"
+            placeholder={t('sheet.inventory.optionalF')}
             onChange={(e) => onDescription(e.target.value)}
             className="min-h-[72px] text-[13px]"
           />
@@ -660,14 +668,18 @@ function CaseQuantite({
   erreurQuantite: string | null;
   onQuantite(q: string): void;
 }>) {
+  const t = useTranslations();
   return (
-    <Case titre={seulementUnites ? 'Unités ajoutées' : 'Quantité'} htmlFor={`${id}-q`}>
+    <Case
+      titre={seulementUnites ? t('sheet.inventory.unitsAdded') : t('map.objects.contents.quantity')}
+      htmlFor={`${id}-q`}
+    >
       <div className="flex items-center gap-1">
         <Button
           type="button"
           variant="ghost"
           size="icon-xs"
-          aria-label="Une unité de moins"
+          aria-label={t('sheet.inventory.oneUnitLess')}
           disabled={!quantiteOk || q <= 1}
           onClick={() => onQuantite(String(q - 1))}
         >
@@ -686,7 +698,7 @@ function CaseQuantite({
           type="button"
           variant="ghost"
           size="icon-xs"
-          aria-label="Une unité de plus"
+          aria-label={t('sheet.inventory.oneUnitMore')}
           disabled={quantiteOk && q >= QUANTITE_MAX}
           onClick={() => onQuantite(String(quantiteOk ? q + 1 : 1))}
         >
@@ -721,11 +733,15 @@ function ReglagesExemplaire({
   dossier: string;
   onDossier(d: string): void;
 }>) {
+  const t = useTranslations();
   if (seulementUnites) return null;
   return (
     <>
       {activable && (
-        <Case titre={actif ? 'Équipé' : 'Rangé'} htmlFor={`${id}-a`}>
+        <Case
+          titre={actif ? t('sheet.inventory.equipped') : t('sheet.inventory.stowed')}
+          htmlFor={`${id}-a`}
+        >
           <span className="flex items-center gap-2">
             <ShieldCheck
               aria-hidden
@@ -736,7 +752,7 @@ function ReglagesExemplaire({
         </Case>
       )}
       <Case
-        titre={visible ? 'Visible des autres joueurs' : 'Caché aux autres joueurs'}
+        titre={visible ? t('sheet.inventory.visibleOthers') : t('sheet.inventory.hiddenOthers')}
         htmlFor={`${id}-h`}
       >
         <span className="flex items-center gap-2">
@@ -749,14 +765,14 @@ function ReglagesExemplaire({
         </span>
       </Case>
       {folders.length > 0 && (
-        <Case titre="Dossier" htmlFor={`${id}-d`}>
+        <Case titre={t('map.scenes.folder')} htmlFor={`${id}-d`}>
           <SelectField
             id={`${id}-d`}
             value={dossier}
             onValueChange={onDossier}
             className="h-8 max-w-44 px-2 text-xs"
             options={[
-              { valeur: RACINE, nom: 'Sans dossier' },
+              { valeur: RACINE, nom: t('map.scenes.noFolder') },
               ...folders.map((f) => ({ valeur: f.id, nom: f.name })),
             ]}
           />
@@ -784,10 +800,15 @@ function Formules({
   cle: string;
   sorte: Sorte;
 }>) {
+  const t = useTranslations();
   if (parDefaut.length === 0) return null;
   return (
-    <section aria-label="Formules" className="space-y-3">
-      <SectionTitle>{parDefaut.some((f) => f.des) ? 'Dés et formules' : 'Formules'}</SectionTitle>
+    <section aria-label={t('sheet.inventory.formulas')} className="space-y-3">
+      <SectionTitle>
+        {parDefaut.some((f) => f.des)
+          ? t('sheet.inventory.diceFormulas')
+          : t('sheet.inventory.formulas')}
+      </SectionTitle>
       {parDefaut.map((f) => {
         const texte = formules[f.champ.id];
         const saisi = texte !== undefined && texte.trim() !== '';
@@ -831,10 +852,11 @@ function Caracteristiques({
   onChamp(cid: string, v: ValeurChamp | undefined): void;
   invalides: Set<string>;
 }>) {
+  const t = useTranslations();
   if (editables.length === 0) return null;
   return (
-    <section aria-label="Caractéristiques">
-      <SectionTitle>Caractéristiques</SectionTitle>
+    <section aria-label={t('sheet.inventory.stats')}>
+      <SectionTitle>{t('sheet.inventory.stats')}</SectionTitle>
       <dl className="grid grid-cols-1 gap-x-5 sm:grid-cols-2">
         {editables.map((c) => {
           if (!estModifiable(c)) return null;
@@ -922,6 +944,6 @@ function Case({
 
 /** « Ajouter 3 unités » ; quantité invalide : « Ajouter  unité ». */
 function libelleUnites(q: number | null): string {
-  if (q === null) return 'Ajouter  unité';
-  return `Ajouter ${q} unité${q > 1 ? 's' : ''}`;
+  if (q === null) return translate('sheet.inventory.addUnitsInvalid');
+  return translate('sheet.inventory.addUnits', { count: q });
 }

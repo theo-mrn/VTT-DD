@@ -13,6 +13,7 @@
  * leur onglet. La liste défile au-delà d'une douzaine de lignes : le bloc reste bas.
  * Rien n'est propre à un jeu : tout vient de `listerEffets` de @vtt/rules.
  */
+import { translate } from '@/i18n/runtime';
 import type { BonusLibre, Effet, EffetListe } from '@vtt/rules';
 import { ChevronRight, Plus, Search, Trash2, X } from 'lucide-react';
 import { useDeferredValue, useMemo, useState } from 'react';
@@ -654,9 +655,12 @@ function AjoutBonus({
 
 export const effectsBlock: SheetBlockDefinition<'bonus'> = {
   type: 'bonus',
-  label: 'Bonus',
-  description:
-    'Tous les bonus du personnage par source, activables un à un ; bonus libres à ajouter.',
+  get label() {
+    return translate('sheet.blocks.effects.label');
+  },
+  get description() {
+    return translate('sheet.blocks.effects.description');
+  },
   defaultSize: { w: 6, h: 6 },
   minSize: { w: 3, h: 4 },
   Component: EffectsBlock,

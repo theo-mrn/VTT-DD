@@ -193,6 +193,13 @@ export function scanSource(code, tsx) {
         if (TECHNICAL.has(s)) continue;
         hits.add(s);
       }
+      // Texte JSX après une balise, jusqu'au bout de la ligne (`<Check /> Appliqué`)
+      const after = /(?:\/>|<\/[\w.]+>|<[\w.]+(?:\s[^<>]*)?>)\s*([^<>{}=;]+)$/.exec(line);
+      if (after) {
+        const s = after[1].trim();
+        if (/[a-zà-ÿ]{2}/i.test(s) && !/[()&|]/.test(s) && !TECHNICAL.has(s) && looksLikeText(s))
+          hits.add(s);
+      }
       // Texte JSX seul sur sa ligne
       const alone = line.trim();
       if (

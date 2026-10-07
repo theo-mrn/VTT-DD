@@ -10,6 +10,7 @@
  * Les soldes des monnaies de la progression sont dans l'en-tête ; le détail s'ouvre au clic
  * (description, effets, achat ou remboursement par les opérations de la fiche).
  */
+import { translate } from '@/i18n/runtime';
 import { Coins, ListChecks, Search, TableProperties, TrendingUp, X } from 'lucide-react';
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Info } from '@/components/ui/tooltip';
@@ -399,9 +400,12 @@ function SkillsBlock({
 
 export const skillsBlock: SheetBlockDefinition<'competences'> = {
   type: 'competences',
-  label: 'Compétences',
-  description:
-    'Progression (voies en tableau ou arbres), compétences à rangs et capacités acquises.',
+  get label() {
+    return translate('sheet.blocks.skills.label');
+  },
+  get description() {
+    return translate('sheet.blocks.skills.description');
+  },
   defaultSize: { w: 12, h: 8 },
   minSize: { w: 3, h: 4 },
   Component: SkillsBlock,

@@ -7,6 +7,7 @@
  * activer, retirer), puis nouvel exemplaire, don et suppression. Tout vient de la sorte :
  * aucun champ nommé. Les éditeurs sont partagés avec la configuration avant l'ajout.
  */
+import { useTranslations } from 'next-intl';
 import type { Effet, Fiche, InventoryFolder } from '@vtt/rules';
 import {
   Check,
@@ -135,6 +136,7 @@ function Contenu({
   writes?: PanelWrites;
   onClose(): void;
 }>) {
+  const t = useTranslations();
   const { entree, sorte, possession } = item;
   const corps = useRef<HTMLDivElement>(null);
   // Ouvert depuis « Dés et formule… » ou « Bonus… » : la section visée
@@ -149,8 +151,8 @@ function Contenu({
   const sousTitre = [
     item.nom !== entree.nom ? entree.nom : sorte.nom,
     item.categorie.nom !== (sorte.nomPluriel ?? sorte.nom) ? item.categorie.nom : null,
-    item.exemplaireLabel ? `exemplaire ${item.exemplaireLabel}` : null,
-    possession ? null : 'accordé par un autre élément de la fiche',
+    item.exemplaireLabel ? t('sheet.inventory.copy', { label: item.exemplaireLabel }) : null,
+    possession ? null : t('sheet.inventory.granted'),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -181,9 +183,15 @@ function Contenu({
         <Description item={item} writes={w} />
 
         {formules.length > 0 && (
-          <section aria-label="Formules" data-section="formules" className="scroll-mt-24">
+          <section
+            aria-label={t('sheet.inventory.formulas')}
+            data-section="formules"
+            className="scroll-mt-24"
+          >
             <SectionTitle>
-              {formules.some((f) => f.des) ? 'Dés et formules' : 'Formules'}
+              {formules.some((f) => f.des)
+                ? t('sheet.inventory.diceFormulas')
+                : t('sheet.inventory.formulas')}
             </SectionTitle>
             <div className="space-y-3">
               {formules.map((f) => (
@@ -244,6 +252,7 @@ function Nom({
   item,
   onRenommer,
 }: Readonly<{ item: InventoryItem; onRenommer?: (nom: string) => void }>) {
+  const t = useTranslations();
   const [edition, setEdition] = useState(false);
   const [nom, setNom] = useState(item.nom);
   if (edition && onRenommer)
@@ -259,7 +268,7 @@ function Nom({
         <DialogTitle className="sr-only">{item.nom}</DialogTitle>
         <Input
           autoFocus
-          aria-label="Nom de l’objet"
+          aria-label={t('sheet.inventory.itemName')}
           {...ECHAP_LOCAL}
           value={nom}
           maxLength={200}
@@ -272,7 +281,7 @@ function Nom({
           }}
           className="h-8 px-2 font-display text-base"
         />
-        <Button type="submit" size="icon-xs" aria-label="Enregistrer le nom">
+        <Button type="submit" size="icon-xs" aria-label={t('sheet.inventory.saveName')}>
           <Check />
         </Button>
       </form>
@@ -284,7 +293,7 @@ function Nom({
         <Button
           variant="ghost"
           size="icon-xs"
-          aria-label="Renommer"
+          aria-label={t('common.actions.rename')}
           onClick={() => {
             setNom(item.nom);
             setEdition(true);
@@ -301,8 +310,12 @@ type Actions = ReturnType<typeof actionsDe>;
 
 /** Équipé ou rangé, avec son interrupteur. */
 function CaseEquipe({ id, item, a }: Readonly<{ id: string; item: InventoryItem; a: Actions }>) {
+  const t = useTranslations();
   return (
-    <Case titre={item.actif ? 'Équipé' : 'Rangé'} htmlFor={id}>
+    <Case
+      titre={item.actif ? t('sheet.inventory.equipped') : t('sheet.inventory.stowed')}
+      htmlFor={id}
+    >
       <span className="flex items-center gap-2">
         <ShieldCheck
           aria-hidden
@@ -325,9 +338,10 @@ function CaseVisibilite({
   item,
   a,
 }: Readonly<{ id: string; item: InventoryItem; a: Actions }>) {
+  const t = useTranslations();
   return (
     <Case
-      titre={item.hidden ? 'Caché aux autres joueurs' : 'Visible des autres joueurs'}
+      titre={item.hidden ? t('sheet.inventory.hiddenOthers') : t('sheet.inventory.visibleOthers')}
       htmlFor={id}
     >
       <span className="flex items-center gap-2">
@@ -378,12 +392,13 @@ function Reglages({
   handlers: ItemHandlers;
   writes?: PanelWrites;
 }>) {
+  const t = useTranslations();
   const id = useId();
   const a = actionsDe(item, writes ? handlers : { ouvrir: handlers.ouvrir });
   const cases: ReactNode[] = [];
   if (item.sorte.quantites)
     cases.push(
-      <Case key="q" titre="Quantité" htmlFor={`${id}-q`}>
+      <Case key="q" titre={t('map.objects.contents.quantity')} htmlFor={`${id}-q`}>
         {writes ? (
           <Quantite item={item} id={`${id}-q`} onChange={(q) => writes.quantite(item, q)} />
         ) : (
@@ -397,14 +412,14 @@ function Reglages({
   const ranger = a.ranger;
   if (ranger && (folders.length > 0 || item.folder))
     cases.push(
-      <Case key="d" titre="Dossier" htmlFor={`${id}-d`}>
+      <Case key="d" titre={t('map.scenes.folder')} htmlFor={`${id}-d`}>
         <SelectField
           id={`${id}-d`}
           value={item.folder?.id ?? ''}
           onValueChange={(v) => ranger(item, v || null)}
           className="h-8 max-w-40 px-2 text-xs"
           options={[
-            { valeur: '', nom: 'Sans dossier' },
+            { valeur: '', nom: t('map.scenes.noFolder') },
             ...folders.map((f) => ({ valeur: f.id, nom: f.name })),
           ]}
         />
@@ -448,6 +463,7 @@ function Quantite({
   id: string;
   onChange(q: number): void;
 }>) {
+  const t = useTranslations();
   const [saisie, setSaisie] = useState(String(item.quantite));
   const valider = () => {
     const q = Math.floor(Number(saisie));
@@ -459,7 +475,7 @@ function Quantite({
       <Button
         variant="ghost"
         size="icon-xs"
-        aria-label="Une unité de moins"
+        aria-label={t('sheet.inventory.oneUnitLess')}
         disabled={item.quantite <= 1}
         onClick={() => {
           onChange(item.quantite - 1);
@@ -482,7 +498,7 @@ function Quantite({
       <Button
         variant="ghost"
         size="icon-xs"
-        aria-label="Une unité de plus"
+        aria-label={t('sheet.inventory.oneUnitMore')}
         onClick={() => {
           onChange(item.quantite + 1);
           setSaisie(String(item.quantite + 1));
@@ -496,13 +512,14 @@ function Quantite({
 
 /** Description propre de l'exemplaire (champ `descriptionExemplaire`), sinon celle de l'entrée. */
 function Description({ item, writes }: Readonly<{ item: InventoryItem; writes?: PanelWrites }>) {
+  const t = useTranslations();
   const champ = item.sorte.descriptionExemplaire;
   const [edition, setEdition] = useState(false);
   const [texte, setTexte] = useState(item.description ?? '');
   const modifiable = Boolean(writes && champ);
   if (!item.description && !modifiable) return null;
   return (
-    <section aria-label="Description">
+    <section aria-label={t('map.scenes.description')}>
       <SectionTitle
         action={
           modifiable && !edition ? (
@@ -512,7 +529,7 @@ function Description({ item, writes }: Readonly<{ item: InventoryItem; writes?: 
           ) : undefined
         }
       >
-        Description
+        {t('map.scenes.description')}
       </SectionTitle>
       {edition && (
         <form
@@ -525,7 +542,7 @@ function Description({ item, writes }: Readonly<{ item: InventoryItem; writes?: 
         >
           <Textarea
             autoFocus
-            aria-label="Description"
+            aria-label={t('map.scenes.description')}
             value={texte}
             maxLength={2000}
             onChange={(e) => setTexte(e.target.value)}
@@ -533,10 +550,10 @@ function Description({ item, writes }: Readonly<{ item: InventoryItem; writes?: 
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setEdition(false)}>
-              Annuler
+              {t('common.actions.cancel')}
             </Button>
             <Button type="submit" size="sm">
-              Enregistrer
+              {t('common.actions.save')}
             </Button>
           </div>
         </form>
@@ -547,7 +564,7 @@ function Description({ item, writes }: Readonly<{ item: InventoryItem; writes?: 
         </p>
       )}
       {!edition && !item.description && (
-        <p className="text-[13px] text-subtle">Aucune description.</p>
+        <p className="text-[13px] text-subtle">{t('sheet.inventory.noDescription')}</p>
       )}
     </section>
   );
@@ -569,6 +586,7 @@ function EditeurFormule({
   formule: FormuleAffichee;
   writes?: PanelWrites;
 }>) {
+  const t = useTranslations();
   const id = useId();
   const [edition, setEdition] = useState(false);
   const [texte, setTexte] = useState(formule.texte);
@@ -592,7 +610,7 @@ function EditeurFormule({
           <p className="flex items-center gap-2 text-xs text-muted-foreground">
             {champ.nom}
             {formule.propre && (
-              <Badge ton="info" title="Formule propre à cet exemplaire">
+              <Badge ton="info" title={t('sheet.inventory.ownFormula')}>
                 propre
               </Badge>
             )}
@@ -617,8 +635,8 @@ function EditeurFormule({
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label={`Revenir à la formule du catalogue pour ${champ.nom}`}
-            title="Revenir à la formule du catalogue"
+            aria-label={t('sheet.inventory.resetFormulaFor', { name: champ.nom })}
+            title={t('sheet.inventory.resetFormula')}
             onClick={() => writes.champs(item, { [champ.id]: '' })}
           >
             <RotateCcw />
@@ -634,7 +652,7 @@ function EditeurFormule({
         <form onSubmit={enregistrer} className="mt-2">
           <FormulaField
             id={`${id}-f`}
-            label={`Formule de ${champ.nom}`}
+            label={t('sheet.inventory.formulaOf', { name: champ.nom })}
             texte={texte}
             onChange={setTexte}
             verif={verif}
@@ -646,13 +664,13 @@ function EditeurFormule({
             actions={
               <>
                 <Button type="submit" size="sm" disabled={!verif?.ok}>
-                  Enregistrer
+                  {t('common.actions.save')}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Annuler"
+                  aria-label={t('common.actions.cancel')}
                   onClick={() => setEdition(false)}
                 >
                   <X />
@@ -676,6 +694,7 @@ function Caracteristiques({
   item: InventoryItem;
   writes?: PanelWrites;
 }>) {
+  const t = useTranslations();
   const champs = champsAffiches(fiche, item.entree, item.sorte, item.possession).filter(
     (c) => c.champ.type !== 'formule' && !c.identite,
   );
@@ -704,7 +723,7 @@ function Caracteristiques({
   }
 
   return (
-    <section aria-label="Caractéristiques">
+    <section aria-label={t('sheet.inventory.stats')}>
       <SectionTitle
         action={
           modifiables && !edition ? (
@@ -714,10 +733,10 @@ function Caracteristiques({
           ) : undefined
         }
       >
-        Caractéristiques
+        {t('sheet.inventory.stats')}
       </SectionTitle>
       {lisibles.length === 0 ? (
-        <p className="text-[13px] text-subtle">Aucune caractéristique renseignée.</p>
+        <p className="text-[13px] text-subtle">{t('sheet.inventory.noStats')}</p>
       ) : (
         <dl className="grid grid-cols-1 gap-x-5 sm:grid-cols-2">
           {lisibles.map((c) => {
@@ -752,7 +771,7 @@ function Caracteristiques({
                     <span className="max-w-48 truncate">{c.valeur}</span>
                   )}
                   {c.propre && !edition && (
-                    <Badge ton="info" title="Valeur propre à cet exemplaire">
+                    <Badge ton="info" title={t('sheet.inventory.ownValue')}>
                       propre
                     </Badge>
                   )}
@@ -765,10 +784,10 @@ function Caracteristiques({
       {edition && (
         <div className="mt-3 flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={fermer}>
-            Annuler
+            {t('common.actions.cancel')}
           </Button>
           <Button size="sm" onClick={enregistrer} disabled={invalides.size > 0}>
-            Enregistrer
+            {t('common.actions.save')}
           </Button>
         </div>
       )}
@@ -791,6 +810,7 @@ function Bonus({
   mj: boolean;
   writes?: PanelWrites;
 }>) {
+  const t = useTranslations();
   const propres = bonusPropres(fiche, item);
   const nbPropres = item.possession?.effets.length ?? 0;
   const catalogue = item.bonus.slice(
@@ -803,7 +823,7 @@ function Bonus({
   if (!item.bonus.length && !nbPropres && !writes) return null;
 
   return (
-    <section aria-label="Bonus" data-section="bonus" className="scroll-mt-24">
+    <section aria-label={t('sheet.inventory.bonus')} data-section="bonus" className="scroll-mt-24">
       <SectionTitle
         action={
           writes && !ajout && peutAjouter ? (
@@ -813,7 +833,7 @@ function Bonus({
           ) : undefined
         }
       >
-        Bonus
+        {t('sheet.inventory.bonus')}
       </SectionTitle>
       {catalogue.length > 0 && (
         <div className="mb-2">
@@ -830,12 +850,10 @@ function Bonus({
           : {})}
       />
       {!item.bonus.length && !propres.length && !ajout && (
-        <p className="text-[13px] text-subtle">Aucun bonus.</p>
+        <p className="text-[13px] text-subtle">{t('sheet.inventory.noBonus')}</p>
       )}
       {item.sorte.activable && !item.actif && (item.bonus.length > 0 || propres.length > 0) && (
-        <p className="mt-1.5 text-[11px] text-subtle">
-          Les bonus s’appliquent une fois l’objet équipé.
-        </p>
+        <p className="mt-1.5 text-[11px] text-subtle">{t('sheet.inventory.bonusWhenEquipped')}</p>
       )}
       {ajout && writes && (
         <BonusForm

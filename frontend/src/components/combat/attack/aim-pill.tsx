@@ -156,7 +156,7 @@ export function AimPill({
           disabled={quick && n === 0}
           onClick={onDone}
         >
-          <Swords /> Attaquer
+          <Swords /> {t('combat.character.attack')}
         </Button>
       </div>
     </motion.div>,

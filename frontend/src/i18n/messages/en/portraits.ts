@@ -25,4 +25,7 @@ export default {
   premium: 'Premium',
   circle: 'Circle',
   square: 'Square',
+  recenterShort: 'Recenter',
+  import: 'Import',
+  library: 'Library',
 } satisfies Translation<typeof fr>;

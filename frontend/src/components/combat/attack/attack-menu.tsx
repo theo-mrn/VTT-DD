@@ -657,6 +657,7 @@ function Footer({
   onLaunchNext: () => void;
   launching: boolean;
 }>) {
+  const t = useTranslations();
   const [busy, setBusy] = useState<string | null>(null);
 
   async function run(label: string, fn: () => Promise<Parameters<typeof attackMenu.dispatch>[0]>) {
@@ -688,7 +689,7 @@ function Footer({
             }))
       }
     >
-      <Undo2 /> Abandonner
+      <Undo2 /> {t('combat.attack.abandonShort')}
     </Button>
   );
 
@@ -780,6 +781,7 @@ function SkipDefences({
   busy: string | null;
   run: Run;
 }>) {
+  const t = useTranslations();
   const waiting = awaitingReaction(attack);
   if (waiting.length === 0) return null;
   return (
@@ -798,7 +800,7 @@ function SkipDefences({
         })
       }
     >
-      <Shield /> Passer les défenses
+      <Shield /> {t('combat.attack.skipDefenses')}
     </Button>
   );
 }
@@ -829,13 +831,13 @@ function EndBar({
           variant="secondary"
           onClick={() => attackMenu.dispatch({ type: 'again', keepTargets: false })}
         >
-          <Target /> Nouvelle attaque
+          <Target /> {t('combat.attack.new')}
         </Button>
         <Button
           variant={flow.queue.length ? 'secondary' : 'default'}
           onClick={() => attackMenu.dispatch({ type: 'again', keepTargets: true })}
         >
-          <RotateCcw /> Mêmes cibles
+          <RotateCcw /> {t('combat.attack.sameTargets')}
         </Button>
         {flow.queue.length > 0 && (
           <Button

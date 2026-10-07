@@ -269,6 +269,10 @@ export default {
     slotCurrent: 'Slot {n, number}: {side} (current)',
   },
   attack: {
+    abandonShort: 'Abandon',
+    skipDefenses: 'Skip the defenses',
+    new: 'New attack',
+    sameTargets: 'Same targets',
     noDice: 'No dice',
     notYourTurn: 'Not your character’s turn',
     noneAvailableFor: '{name}: none available',

@@ -135,9 +135,10 @@ export function MarketTab({
 
       {target && (
         <p className="mb-3 text-xs text-muted-foreground">
-          « Ajouter » range l’objet dans l’inventaire de{' '}
-          <span className="font-medium text-foreground">{target.name}</span>. Aucune pièce n’est
-          dépensée.
+          {t.rich('resources.market.addHint', {
+            name: target.name,
+            b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+          })}
         </p>
       )}
 

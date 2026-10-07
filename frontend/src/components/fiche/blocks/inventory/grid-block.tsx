@@ -13,6 +13,9 @@
  * système chargé et du widget, aucune clé de jeu. Toute écriture passe par
  * `ctx.operations` (absent : lecture seule) ; le service character vérifie tout.
  */
+import { translate } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
+import type { Translator } from '@/i18n/text';
 import { acheter, type InventoryFolder } from '@vtt/rules';
 import {
   ArrowLeft,
@@ -108,7 +111,7 @@ function voisine(tuiles: HTMLElement[], i: number, sens: 'haut' | 'bas'): number
   const r = tuiles[i]!.getBoundingClientRect();
   const candidates = tuiles
     .map((t, j) => ({ j, b: t.getBoundingClientRect() }))
-    .filter(({ b }) => (sens === 'bas' ? b.top > r.top + 4 : b.top < r.top - 4));
+    .filter(({ b }) => (sens === 'bas' ? b.top > r.top + 4 : b.top < r.top - 4)); // i18n-ignore
   if (!candidates.length) return i;
   const ligne =
     sens === 'bas'
@@ -120,6 +123,7 @@ function voisine(tuiles: HTMLElement[], i: number, sens: 'haut' | 'bas'): number
 }
 
 export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'inventaire'>>) {
+  const t = useTranslations();
   const { fiche, systeme, presentation, personnage } = ctx;
   const ops = mode === 'read' ? ctx.operations : undefined;
   const editable = Boolean(ops);
@@ -194,9 +198,11 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
     const r = retirer(fiche.etat, item);
     ops.retirerPossession(r.entree, r.exemplaire, r.apercu);
     if (ouvert?.cle === item.cle) setOuvert(null);
-    toast.success(`${item.nom} supprimé`, {
-      ...(item.quantite > 1 ? { description: `${item.quantite} unités` } : {}),
-      action: { label: 'Annuler', onClick: () => restaurerExemplaire(item) },
+    toast.success(t('sheet.inventory.deleted', { name: item.nom }), {
+      ...(item.quantite > 1
+        ? { description: t('sheet.inventory.units', { count: item.quantite }) }
+        : {}),
+      action: { label: t('common.actions.cancel'), onClick: () => restaurerExemplaire(item) },
     });
   }
 
@@ -206,13 +212,13 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
 
   function creerDossier(pour?: InventoryItem) {
     setSaisie({
-      titre: 'Nouveau dossier',
-      ...(pour ? { description: `${pour.nom} y sera rangé.` } : {}),
-      label: 'Nom du dossier',
+      titre: t('sheet.inventory.newFolder'),
+      ...(pour ? { description: t('sheet.inventory.willBeFiled', { name: pour.nom }) } : {}),
+      label: t('sheet.inventory.folderName'),
       initial: '',
       type: 'texte',
       maxLength: 60,
-      valider: 'Créer',
+      valider: t('common.actions.create'),
       onValider: (name) => {
         if (!ops?.dossiers) return;
         const id = nouvelIdDossier();
@@ -223,7 +229,7 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
           const w = ranger(etat, pour, id);
           ops.possession(w.demande, w.apercu);
         }
-        toast.success(`Dossier « ${name} » créé`);
+        toast.success(t('sheet.inventory.folderCreated', { name }));
       },
     });
   }
@@ -232,7 +238,11 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
     if (!ops?.dossiers || (item.folder?.id ?? null) === folder) return;
     ecrire(ranger(fiche.etat, item, folder));
     const f = folders.find((x) => x.id === folder);
-    toast(f ? `${item.nom} rangé dans « ${f.name} »` : `${item.nom} sorti de son dossier`);
+    toast(
+      f
+        ? t('sheet.inventory.filedIn', { name: item.nom, folder: f.name })
+        : t('sheet.inventory.unfiled', { name: item.nom }),
+    );
   }
 
   /** Actions qui écrivent sur la fiche (lecture seule : aucune). */
@@ -244,40 +254,40 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
         const c = consommer(fiche.etat, item);
         if (c.type === 'quantite') {
           ecrire(c.ecriture);
-          toast(`${item.nom} : une unité consommée`, {
-            description: `Il en reste ${item.quantite - 1}.`,
+          toast(t('sheet.inventory.consumedOne', { name: item.nom }), {
+            description: t('sheet.inventory.remaining', { count: item.quantite - 1 }),
             action: {
-              label: 'Annuler',
+              label: t('common.actions.cancel'),
               onClick: () => ecrire(changerQuantite(etatCourant.current, item, item.quantite)),
             },
           });
         } else {
           o.retirerPossession(c.retrait.entree, c.retrait.exemplaire, c.retrait.apercu);
           if (ouvert?.cle === item.cle) setOuvert(null);
-          toast(`${item.nom} consommé : épuisé`, {
-            action: { label: 'Annuler', onClick: () => restaurerExemplaire(item) },
+          toast(t('sheet.inventory.consumedAll', { name: item.nom }), {
+            action: { label: t('common.actions.cancel'), onClick: () => restaurerExemplaire(item) },
           });
         }
       },
       renommer: (item: InventoryItem) =>
         setSaisie({
-          titre: 'Renommer',
-          label: 'Nom',
+          titre: t('common.actions.rename'),
+          label: t('map.lights.name'),
           initial: item.nom,
           type: 'texte',
           maxLength: 200,
-          valider: 'Renommer',
+          valider: t('common.actions.rename'),
           onValider: (nom) => ecrire(renommer(fiche.etat, item, nom)),
         }),
       quantite: (item: InventoryItem) =>
         setSaisie({
-          titre: `Quantité : ${item.nom}`,
-          label: 'Nombre d’unités',
+          titre: t('sheet.inventory.quantityOf', { name: item.nom }),
+          label: t('sheet.inventory.unitCount'),
           initial: String(item.quantite),
           type: 'nombre',
           min: 1,
           max: 1_000_000,
-          valider: 'Enregistrer',
+          valider: t('common.actions.save'),
           onValider: (q) => ecrire(changerQuantite(fiche.etat, item, Number(q))),
         }),
       ...(o.donner && personnage.roomId
@@ -286,7 +296,9 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
       cacher: (item: InventoryItem, hidden: boolean) => {
         ecrire(cacher(fiche.etat, item, hidden));
         toast(
-          hidden ? `${item.nom} est caché aux autres joueurs` : `${item.nom} est visible de tous`,
+          hidden
+            ? t('sheet.inventory.nowHidden', { name: item.nom })
+            : t('sheet.inventory.nowVisible', { name: item.nom }),
         );
       },
       ...(o.dossiers
@@ -342,14 +354,23 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
       )
       .then((ok) => {
         if (ok)
-          toast.success(`${quantite > 1 ? `${quantite} × ` : ''}${item.nom} donné à ${to.name}`);
+          toast.success(
+            t('sheet.inventory.given', {
+              item: quantite > 1 ? `${quantite} × ${item.nom}` : item.nom,
+              name: to.name,
+            }),
+          );
       });
   }
 
   function ajouterDuCatalogue(c: CatalogueEntry) {
     if (!ops || c.bloque) return;
     ecrire(dansDossier(ajouter(systeme, fiche.etat, c.entree.id), dossier?.id ?? null));
-    toast.success(`${c.entree.nom} ajouté${dossier ? ` dans « ${dossier.name} »` : ''}`);
+    toast.success(
+      dossier
+        ? t('sheet.inventory.addedIn', { name: c.entree.nom, folder: dossier.name })
+        : t('sheet.inventory.added', { name: c.entree.nom }),
+    );
   }
 
   function ajouterObjetLibre(modele: ModeleLibre, s: SaisieLibre) {
@@ -361,7 +382,7 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
         s.folder !== undefined ? s.folder : (dossier?.id ?? null),
       ),
     );
-    toast.success(`${s.nom.trim()} ajouté`);
+    toast.success(t('sheet.inventory.added', { name: s.nom.trim() }));
     setAjout(false);
   }
 
@@ -378,7 +399,10 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
     }
     ops.acheter(c.achat.achat, c.entree.id, r.etat);
     toast.success(
-      `${c.entree.nom} acheté (${c.achat.cout} ${systeme.monnaies.get(c.achat.monnaie)?.nom ?? ''})`,
+      t('sheet.inventory.bought', {
+        name: c.entree.nom,
+        price: `${c.achat.cout} ${systeme.monnaies.get(c.achat.monnaie)?.nom ?? ''}`.trim(),
+      }),
     );
   }
 
@@ -393,12 +417,12 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
 
   function renommerDossier(f: InventoryFolder) {
     setSaisie({
-      titre: 'Renommer le dossier',
-      label: 'Nom du dossier',
+      titre: t('sheet.inventory.renameFolder'),
+      label: t('sheet.inventory.folderName'),
       initial: f.name,
       type: 'texte',
       maxLength: 60,
-      valider: 'Renommer',
+      valider: t('common.actions.rename'),
       onValider: (name) => dossiers(folders.map((x) => (x.id === f.id ? { ...x, name } : x))),
     });
   }
@@ -495,8 +519,10 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
       return (
         <EtatVide
           icone={Package}
-          titre="Inventaire vide"
-          description={`Aucun élément parmi : ${nomsSortes(systeme, widget.sortes)}.`}
+          titre={t('sheet.inventory.empty')}
+          description={t('sheet.inventory.noneAmong', {
+            kinds: nomsSortes(systeme, widget.sortes),
+          })}
           className="px-4 py-8"
         />
       );
@@ -539,7 +565,7 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
             <>
               Aucun objet ne correspond à « {terme} ».{' '}
               <Button variant="link" size="sm" className="h-auto" onClick={() => setTerme('')}>
-                Effacer la recherche
+                {t('resources.clearSearch')}
               </Button>
             </>
           ) : (
@@ -642,7 +668,7 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
       <div
         ref={grille}
         role="group"
-        aria-label="Objets"
+        aria-label={t('sheet.inventory.items')}
         onKeyDown={clavier}
         className={cn(
           'relative min-h-0 flex-1 overflow-y-auto px-2.5 pb-2.5 pt-1 [scrollbar-width:thin]',
@@ -697,22 +723,22 @@ export function InventoryGrid({ ctx, widget, mode }: Readonly<SheetBlockProps<'i
           />
           <ConfirmDialog
             ouvert={aSupprimer !== null}
-            titre={`Supprimer ${aSupprimer?.nom ?? ''} ?`}
-            description={descriptionSuppression(aSupprimer)}
-            confirmer="Supprimer"
+            titre={t('sheet.inventory.deleteTitle', { name: aSupprimer?.nom ?? '' })}
+            description={descriptionSuppression(t, aSupprimer)}
+            confirmer={t('common.actions.delete')}
             onConfirmer={() => aSupprimer && supprimer(aSupprimer)}
             onClose={() => setSuppression(null)}
           />
           <ConfirmDialog
             ouvert={dossierSupprime !== null}
-            titre={`Supprimer le dossier « ${dossierSupprime?.name ?? ''} » ?`}
-            description="Les objets qu’il contient restent dans l’inventaire, hors dossier."
-            confirmer="Supprimer le dossier"
+            titre={t('sheet.inventory.deleteFolderTitle', { name: dossierSupprime?.name ?? '' })}
+            description={t('sheet.inventory.folderDeleteHint')}
+            confirmer={t('sheet.inventory.deleteFolder')}
             onConfirmer={() => {
               if (!dossierSupprime) return;
               if (dossier?.id === dossierSupprime.id) setDossier(null);
               dossiers(folders.filter((f) => f.id !== dossierSupprime.id));
-              toast(`Dossier « ${dossierSupprime.name} » supprimé`);
+              toast(t('sheet.inventory.folderDeleted', { name: dossierSupprime.name }));
             }}
             onClose={() => setDossierSupprime(null)}
           />
@@ -775,6 +801,7 @@ function Barre({
   /** Flèche vers le bas : le focus passe à la première tuile. */
   onVersGrille(): void;
 }>) {
+  const t = useTranslations();
   // Ni objet, ni dossier, ni ajout possible : pas de barre
   if (!(inv.items.length > 0 || nbDossiers > 0 || editable)) return null;
   return (
@@ -794,14 +821,14 @@ function Barre({
                 size="icon-xs"
                 className="size-6"
                 onClick={() => onTerme('')}
-                aria-label="Effacer la recherche"
+                aria-label={t('resources.clearSearch')}
               >
                 <X />
               </Button>
             ) : undefined
           }
-          placeholder="Rechercher…"
-          aria-label={`Rechercher dans ${titre}`}
+          placeholder={t('map.tokens.library.searchPlaceholder')}
+          aria-label={t('resources.catalogue.searchIn', { section: titre })}
           value={terme}
           onChange={(e) => onTerme(e.target.value)}
           onKeyDown={(e) => {
@@ -819,7 +846,7 @@ function Barre({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Affichage : trier, filtrer, regrouper"
+            aria-label={t('sheet.inventory.display')}
             title="Trier, filtrer, regrouper"
             className={cn(
               'relative [@media(pointer:coarse)]:size-11',
@@ -836,11 +863,13 @@ function Barre({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel className="text-xs text-muted-foreground">Trier par</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
+            {t('sheet.inventory.sortBy')}
+          </DropdownMenuLabel>
           <DropdownMenuRadioGroup value={tri} onValueChange={(v) => onTri(v as Tri)}>
-            {TRIS.map((t) => (
-              <DropdownMenuRadioItem key={t.cle} value={t.cle}>
-                {t.nom}
+            {TRIS.map((tri) => (
+              <DropdownMenuRadioItem key={tri} value={tri}>
+                {t(`sheet.inventory.sorts.${tri}`)}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -849,16 +878,18 @@ function Barre({
             checked={parCategorie}
             onCheckedChange={(v) => onParCategorie(v === true)}
           >
-            Regrouper par catégorie
+            {t('sheet.inventory.groupByCategory')}
           </DropdownMenuCheckboxItem>
           {inv.categories.length > 1 && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Catégorie
+                {t('map.sounds.category')}
               </DropdownMenuLabel>
               <DropdownMenuRadioGroup value={filtreActif} onValueChange={onFiltre}>
-                <DropdownMenuRadioItem value={TOUT}>Toutes</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value={TOUT}>
+                  {t('map.sounds.allCategories')}
+                </DropdownMenuRadioItem>
                 {inv.categories.map((c) => (
                   <DropdownMenuRadioItem key={c.cle} value={c.cle}>
                     <span className="flex-1 truncate">{c.nom}</span>
@@ -876,8 +907,8 @@ function Barre({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Nouveau dossier"
-          title="Nouveau dossier"
+          aria-label={t('sheet.inventory.newFolder')}
+          title={t('sheet.inventory.newFolder')}
           onClick={onCreerDossier}
           className="[@media(pointer:coarse)]:size-11"
         >
@@ -906,9 +937,10 @@ function FilAriane({
   survolee: boolean;
   onSortir(): void;
 }>) {
+  const t = useTranslations();
   return (
     <nav
-      aria-label="Fil d’Ariane"
+      aria-label={t('sheet.inventory.breadcrumb')}
       className="flex shrink-0 items-center gap-1 px-2.5 pb-1.5 text-xs"
     >
       <button
@@ -996,10 +1028,10 @@ function SortesInconnues({ sortes }: Readonly<{ sortes: string[] }>) {
 }
 
 /** Description de la confirmation de suppression d'un objet. */
-function descriptionSuppression(item: InventoryItem | null): string {
+function descriptionSuppression(t: Translator, item: InventoryItem | null): string {
   return item && item.quantite > 1
-    ? `Les ${item.quantite} unités quittent l’inventaire. Vous pourrez annuler juste après.`
-    : 'L’objet quitte l’inventaire, avec ses valeurs et bonus propres. Vous pourrez annuler juste après.';
+    ? t('sheet.inventory.deleteUnits', { count: item.quantite })
+    : t('sheet.inventory.deleteItem');
 }
 
 function nomsSortes(systeme: SheetBlockProps['ctx']['systeme'], sortes: string[]): string {
@@ -1012,6 +1044,7 @@ function nomsSortes(systeme: SheetBlockProps['ctx']['systeme'], sortes: string[]
 
 /** Monnaies des achats de ces sortes et charge déclarée par le système. */
 function Pied({ inv }: Readonly<{ inv: Inventory }>) {
+  const t = useTranslations();
   const { monnaies, charge } = inv;
   if (!monnaies.length && !charge.charges.length) return null;
   return (
@@ -1034,7 +1067,12 @@ function Pied({ inv }: Readonly<{ inv: Inventory }>) {
               <Progress
                 valeur={c.limite.valeur > 0 ? (c.valeur / c.limite.valeur) * 100 : 100}
                 ton={exces ? 'danger' : 'primaire'}
-                label={`${c.nom} : ${c.valeur} sur ${c.limite.valeur} (${c.limite.nom})`}
+                label={t('sheet.inventory.capacity', {
+                  name: c.nom,
+                  value: c.valeur,
+                  max: c.limite.valeur,
+                  limit: c.limite.nom,
+                })}
                 className="min-w-12 flex-1"
               />
             )}
@@ -1063,7 +1101,7 @@ function Pied({ inv }: Readonly<{ inv: Inventory }>) {
 
 /** Pourquoi la grille est vide, hors recherche. */
 function raisonVide(filtre: boolean, dansDossier: boolean, inventaireVide: boolean): string | null {
-  if (filtre) return 'Rien dans cette catégorie.';
-  if (dansDossier) return 'Dossier vide : déposez-y un objet, ou rangez-le depuis son menu.';
-  return inventaireVide ? 'Inventaire vide.' : null;
+  if (filtre) return translate('sheet.inventory.emptyCategory');
+  if (dansDossier) return translate('sheet.inventory.emptyFolder');
+  return inventaireVide ? translate('sheet.inventory.emptyDot') : null;
 }
