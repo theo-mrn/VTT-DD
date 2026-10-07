@@ -94,6 +94,21 @@ describe('mémoire : masque du serveur', () => {
     expect(b.api.get).not.toHaveBeenCalled();
   });
 
+  it('une relecture demandée pendant une autre en relance une après elle', async () => {
+    const b = bench();
+    let release!: () => void;
+    b.api.get.mockImplementationOnce(
+      () => new Promise((r) => (release = () => r(null))) as Promise<null>,
+    );
+    b.api.get.mockResolvedValueOnce(exploration(7));
+    const first = b.model.reload();
+    void b.model.reload();
+    release();
+    await first;
+    expect(b.api.get).toHaveBeenCalledTimes(2);
+    expect(b.model.version).toBe(7);
+  });
+
   it('un trou de version fait relire le masque ; une autre scène est ignorée', async () => {
     const b = bench();
     const win = encodeWindow(windowOf(ExplorationMask.empty(GRID), { x: 0, y: 0, w: 1, h: 1 }));
@@ -117,9 +132,8 @@ describe('mémoire : masque du serveur', () => {
       rows: 100,
       window: win,
     });
-    await b.model.reload();
+    await vi.waitFor(() => expect(b.model.version).toBe(5));
     expect(b.api.get).toHaveBeenCalledTimes(1);
-    expect(b.model.version).toBe(5);
     expect(b.model.explored(50, 50)).toBe(true);
   });
 
@@ -230,11 +244,11 @@ describe('gestes du MJ', () => {
 });
 
 describe('outil Exploration', () => {
-  function toolBench() {
+  function toolBench(opts: { known?: boolean } = {}) {
     const kit = setup();
     const scene = kit.store.getState().scene!;
     kit.store.getState().setScene({ ...scene, exploration: 'party' }, { force: true });
-    kit.store.getState().setExtra('exploration', exploration(1));
+    kit.store.getState().setExtra('exploration', opts.known === false ? null : exploration(1));
     const api = fakeApi();
     const cleanup = registerExploration(kit.engine, { api });
     kit.engine.tools.activate('exploration');
@@ -264,6 +278,16 @@ describe('outil Exploration', () => {
     expect(b.model.explored(35, 35)).toBe(false);
     b.cleanup();
     expect(explorationOf(b.engine)).toBeNull();
+  });
+
+  it('avant toute exploration du groupe : le MJ révèle déjà, à la grille de la scène', async () => {
+    const b = toolBench({ known: false });
+    expect(b.model.active).toBe(false);
+    b.drag(P(100, 100), P(200, 200));
+    await b.commands.idle();
+    expect(b.model.cols).toBe(100);
+    expect(b.model.explored(10, 10)).toBe(true);
+    b.cleanup();
   });
 
   it('chiffres 1 à 3 : la forme ; exploration coupée : l’outil ne dessine rien', () => {

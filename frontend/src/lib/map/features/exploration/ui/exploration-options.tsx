@@ -49,7 +49,6 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: Explorati
   const mode = useStore(tool.settings, (s) => s.mode);
   const enabled = useStore(module.model.ui, (s) => s.enabled);
   const known = useStore(module.model.ui, (s) => s.version !== null);
-  const ready = enabled && known;
 
   return (
     <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
@@ -77,7 +76,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: Explorati
               label={s.label}
               shortcut={s.key}
               active={shape === s.id}
-              disabled={!ready}
+              disabled={!enabled}
               onClick={() => {
                 tool.setShape(s.id, engine);
                 focusMap(engine);
@@ -101,7 +100,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: Explorati
               type="button"
               role="radio"
               aria-checked={mode === m.id}
-              disabled={!ready}
+              disabled={!enabled}
               onClick={() => {
                 tool.settings.setState({ mode: m.id });
                 focusMap(engine);
@@ -126,7 +125,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: Explorati
           variant="ghost"
           size="sm"
           className="gap-1.5 px-2"
-          disabled={!ready}
+          disabled={!enabled || !known}
           onClick={() => void resetExploration(engine)}
         >
           <RotateCcw />

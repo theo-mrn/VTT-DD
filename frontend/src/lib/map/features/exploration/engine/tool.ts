@@ -85,7 +85,7 @@ export class ExplorationTool implements Tool {
   }
 
   cursor(): string | null {
-    return this.model.active ? 'crosshair' : 'not-allowed';
+    return this.model.enabled ? 'crosshair' : 'not-allowed';
   }
 
   /** Aucune entité ne se touche avec cet outil : il ne dessine que des zones. */
@@ -122,7 +122,8 @@ export class ExplorationTool implements Tool {
   // ─── Pointeur ────────────────────────────────────────────────────────────────
 
   down(e: MapPointer): boolean {
-    if (e.button !== 0 || !this.model.active) return false;
+    // Avant toute exploration du groupe, le MJ révèle déjà : masque vide à la grille de la scène
+    if (e.button !== 0 || !this.model.ensureMask()) return false;
     this.start = e;
     this.gestureMode = this.modeOf(e);
     this.state = 'pressing';

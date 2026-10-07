@@ -16,6 +16,7 @@ import {
   applyWindow,
   decodeMask,
   decodeWindow,
+  explorationGrid,
   ExplorationMask,
   markView,
   type CellRect,
@@ -203,21 +204,50 @@ export class ExplorationModel implements MemorySource {
     this.changed();
   }
 
-  /** Relit le masque au serveur (un seul appel à la fois). */
+  /**
+   * Relit le masque au serveur : un seul appel à la fois ; une demande pendant un appel en
+   * relance un après lui (l'appel en cours a pu partir avant l'écriture qui l'a demandée).
+   */
   reload(): Promise<void> {
     if (!this.api || this.disposed) return Promise.resolve();
-    this.reloading ??= this.api
-      .get()
-      .then((e) => {
-        if (!this.disposed) this.load(e);
-      })
-      .catch(() => {
-        // La prochaine relecture rattrapera
-      })
-      .finally(() => {
-        this.reloading = null;
-      });
+    if (this.reloading) {
+      this.reloadAgain = true;
+      return this.reloading;
+    }
+    const api = this.api;
+    this.reloading = (async () => {
+      do {
+        this.reloadAgain = false;
+        try {
+          const e = await api.get();
+          if (!this.disposed) this.load(e);
+        } catch {
+          // La prochaine relecture rattrapera
+        }
+      } while (this.reloadAgain && !this.disposed);
+    })().finally(() => {
+      this.reloading = null;
+    });
     return this.reloading;
+  }
+
+  private reloadAgain = false;
+
+  /**
+   * Masque vide à la grille de la scène si aucun n'est connu (le MJ révèle avant toute
+   * exploration) : même grille que le serveur (`explorationGrid`, case de la scène). Faux si
+   * l'exploration est coupée ou la scène sans taille.
+   */
+  ensureMask(): boolean {
+    if (!this.enabled) return false;
+    if (this.mask) return true;
+    const b = this.bounds();
+    if (!b) return false;
+    this.mask = ExplorationMask.empty(
+      explorationGrid(b.width, b.height, this.engine.kindContext().pixelsPerUnit),
+    );
+    this.changed();
+    return true;
   }
 
   // ─── Gestes du MJ (optimistes) ───────────────────────────────────────────────
