@@ -1,6 +1,6 @@
 /**
  * Routes internes appelées par campaign : secret exigé, résumé d'un
- * personnage, initiative (clés de tri) et décompte des durées en fin de round.
+ * personnage, initiative (clés de tri) et décompte des durées d'un passage de tour.
  */
 import { eq, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -131,25 +131,37 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
       .where(eq(characters.id, p.id));
 
     const roomId = crypto.randomUUID();
-    const r1 = await post(`/internal/characters/${p.id}/durees/decompter`, {
-      userId: mj.id,
-      roomId,
-    });
+    const finDeRound = (n: number) =>
+      post('/internal/durations/tick', {
+        tickId: `tick:${roomId}:${n}:${crypto.randomUUID()}`,
+        campaignId: roomId,
+        userId: mj.id,
+        characterIds: [p.id],
+        events: [{ kind: 'round_end', round: n }],
+      });
+    const r1 = await finDeRound(1);
+    expect(r1.statusCode, r1.body).toBe(200);
     expect(r1.json()).toMatchObject({
-      modifie: true,
-      retirees: ['aveugle'],
-      version: p.version + 1,
+      replayed: false,
+      items: [
+        {
+          characterId: p.id,
+          version: p.version + 1,
+          expired: [{ key: 'aveugle', name: 'Aveuglé' }],
+        },
+      ],
     });
     const apres = (await o.ok(alice, 'GET', `/v1/characters/${p.id}`)).etat.possessions;
     expect(apres.find((x) => x.entree === 'aveugle')).toBeUndefined();
     expect(apres.find((x) => x.entree === 'effraye')?.duree).toBe(1);
     expect(apres.find((x) => x.entree === 'epee-longue')?.duree).toBeUndefined();
 
-    const r2 = await post(`/internal/characters/${p.id}/durees/decompter`, {});
-    expect(r2.json()).toMatchObject({ modifie: true, retirees: ['effraye'] });
+    const r2 = await finDeRound(2);
+    expect(r2.json()).toMatchObject({ items: [{ expired: [{ key: 'effraye' }] }] });
     // Plus aucune durée : rien n'est enregistré
-    const r3 = await post(`/internal/characters/${p.id}/durees/decompter`, {});
-    expect(r3.json()).toEqual({ modifie: false, retirees: [], version: p.version + 2 });
+    const r3 = await finDeRound(3);
+    expect(r3.json()).toMatchObject({ replayed: false, items: [] });
+    expect((await o.ok(alice, 'GET', `/v1/characters/${p.id}`)).version).toBe(p.version + 2);
 
     // Événement dans la salle, au nom du MJ
     const [evenement] = await t
@@ -163,7 +175,7 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
     expect(evenement!.subject).toBe(`vtt.${roomId}.character.updated`);
     expect(evenement!.envelope).toMatchObject({
       actor: { userId: mj.id, role: 'gm' },
-      payload: { retirees: ['aveugle'] },
+      payload: { retirees: ['aveugle'], tickId: expect.stringMatching(/^tick:/) },
     });
   });
 
@@ -187,12 +199,14 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
       entree: 'aveugle',
       duree: 1,
     });
-    const r = await post(`/internal/characters/${p.id}/durees/decompter`, {
-      userId: mj.id,
-      roomId,
+    const r = await post('/internal/durations/tick', {
       tickId: `tick:${crypto.randomUUID()}:1:x`,
+      campaignId: roomId,
+      userId: mj.id,
+      characterIds: [p.id],
+      events: [{ kind: 'round_end', round: 1 }],
     });
-    expect(r.json()).toMatchObject({ modifie: true, retirees: ['aveugle'] });
+    expect(r.json()).toMatchObject({ items: [{ expired: [{ key: 'aveugle' }] }] });
     const [evenement] = await t
       .db!.select({ envelope: outbox.envelope })
       .from(outbox)
@@ -220,7 +234,7 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
     try {
       const res = await sans.app.inject({
         method: 'POST',
-        url: `/internal/characters/${crypto.randomUUID()}/durees/decompter`,
+        url: '/internal/durations/tick',
         headers: interne,
         payload: {},
       });

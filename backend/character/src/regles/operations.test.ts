@@ -8,6 +8,7 @@ import {
   aleatoireImpose,
   calculer,
   charger,
+  decompterDurees,
   etapesCreation,
   solde,
   type EtatEntite,
@@ -18,7 +19,6 @@ import { catalogueReference } from './catalogue.js';
 import {
   acheterObjet,
   appliquerEtape,
-  decompterDurees,
   etatInitial,
   modifierValeurs,
   poserPossession,
@@ -566,6 +566,12 @@ describe('actions', () => {
 });
 
 describe('durées', () => {
+  /** Fin de round d'un combat (moteur de règles, docs/combat.md § 18) : clés retirées. */
+  const finDeRound = (etat: EtatEntite) => {
+    const r = decompterDurees(etat, [{ type: 'fin-round' }], { porteur: 'p' });
+    return { retirees: r.expirees.map((x) => x.cle), ...(r.etat ? { etat: r.etat } : {}) };
+  };
+
   it('fin de round : -1 round, retrait à 0, possessions sans durée intactes', () => {
     const etat = verifierEtat(dnd, {
       type: 'personnage',
@@ -576,14 +582,14 @@ describe('durées', () => {
         { entree: 'effraye', duree: 3 },
       ],
     }).etat;
-    const r = decompterDurees(etat);
+    const r = finDeRound(etat);
     expect(r.retirees).toEqual(['aveugle']);
     expect(r.etat!.possessions.map((p) => [p.entree, p.duree])).toEqual([
       ['nain', undefined],
       ['effraye', 2],
     ]);
     expect(etat.possessions).toHaveLength(3);
-    expect(decompterDurees(verifierEtat(dnd, { ...etat, possessions: [] }).etat)).toEqual({
+    expect(finDeRound(verifierEtat(dnd, { ...etat, possessions: [] }).etat)).toEqual({
       retirees: [],
     });
   });
@@ -597,7 +603,7 @@ describe('durées', () => {
         { entree: 'pistolet-blaster', exemplaire: '2', duree: 1 },
       ],
     }).etat;
-    const r = decompterDurees(etat);
+    const r = finDeRound(etat);
     expect(r.retirees).toEqual(['pistolet-blaster#2']);
     expect(
       r
@@ -618,11 +624,40 @@ describe('durées', () => {
         { id: 'anneau', nom: 'Anneau', effets, actif: true },
       ],
     }).etat;
-    const r = decompterDurees(etat);
+    const r = finDeRound(etat);
     expect(r.retirees).toEqual(['bonus:benediction']);
     expect(r.etat!.bonus.map((b) => [b.id, b.duree])).toEqual([
       ['rage', 2],
       ['anneau', undefined],
     ]);
+  });
+
+  it('possession : décompte au tour, attente posée par le serveur, retiré avec la durée', () => {
+    const base = verifierEtat(dnd, etatInitial(dnd, 'personnage')).etat;
+    const de = '0b5c1c9e-7f37-4b8a-9d55-1f2d3c4b5a69';
+    let etat = poserPossession(dnd, base, {
+      entree: 'aveugle',
+      duree: 1,
+      decompte: { moment: 'fin-tour' },
+    }).etat;
+    const aveugle = () => etat.possessions.find((p) => p.entree === 'aveugle');
+    expect(aveugle()).toMatchObject({ duree: 1, decompte: { moment: 'fin-tour', attente: true } });
+    // Même moment : l'attente est gardée ; autre ancre : reposée ; fin de round : rien à garder
+    etat = poserPossession(dnd, etat, { entree: 'aveugle', duree: 2 }).etat;
+    expect(aveugle()?.decompte).toEqual({ moment: 'fin-tour', attente: true });
+    etat = poserPossession(dnd, etat, {
+      entree: 'aveugle',
+      decompte: { moment: 'debut-tour', de },
+    }).etat;
+    expect(aveugle()?.decompte).toEqual({ moment: 'debut-tour', de });
+    etat = poserPossession(dnd, etat, { entree: 'aveugle', decompte: null }).etat;
+    expect(aveugle()?.decompte).toBeUndefined();
+    etat = poserPossession(dnd, etat, {
+      entree: 'aveugle',
+      decompte: { moment: 'fin-tour' },
+    }).etat;
+    etat = poserPossession(dnd, etat, { entree: 'aveugle', duree: null }).etat;
+    expect(aveugle()).not.toHaveProperty('duree');
+    expect(aveugle()).not.toHaveProperty('decompte');
   });
 });

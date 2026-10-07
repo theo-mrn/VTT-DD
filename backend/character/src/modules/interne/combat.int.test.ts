@@ -630,7 +630,33 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     expect(inconnue.json()).toMatchObject({ code: 'application_not_found' });
   });
 
-  // ─── Durées ──────────────────────────────────────────────────────────────────
+  // ─── Durées (docs/combat.md § 18) ────────────────────────────────────────────
+
+  interface Decompte {
+    tickId: string;
+    replayed: boolean;
+    items: { characterId: string; version: number; expired: { key: string; name: string }[] }[];
+  }
+  const decompter = async (
+    tickId: string,
+    characterIds: string[],
+    events: object[],
+  ): Promise<Decompte> => {
+    const res = await post('/internal/durations/tick', {
+      tickId,
+      campaignId: campagne,
+      userId: mj.id,
+      characterIds,
+      events,
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json() as Decompte;
+  };
+  const ROUND = { kind: 'round_end', round: 1 };
+  const debut = (characterId: string) => ({ kind: 'turn_start', characterId });
+  const fin = (characterId: string) => ({ kind: 'turn_end', characterId });
+  const possession = async (id: string, entree: string) =>
+    (await lire(id)).etat.possessions.find((x) => x.entree === entree);
 
   it('durée d’un état posé sur la fiche, décomptée une fois par tickId, annulable', async () => {
     let p: PersonnageApi = await o.nainGuerrier(alice, 'Thorin');
@@ -644,20 +670,25 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
       entree: 'effraye',
       duree: 3,
     });
-    const duree = async (entree: string) =>
-      (await lire(p.id)).etat.possessions.find((x) => x.entree === entree)?.duree;
+    const duree = async (entree: string) => (await possession(p.id, entree))?.duree;
     expect(await duree('etourdi')).toBe(1);
 
-    const tickId = `tick:${crypto.randomUUID()}:1`;
-    const t1 = await post(`/internal/characters/${p.id}/durees/decompter`, { tickId });
-    expect(t1.json()).toMatchObject({ modifie: true, retirees: ['etourdi'], replayed: false });
-    const t2 = await post(`/internal/characters/${p.id}/durees/decompter`, { tickId });
-    expect(t2.json()).toEqual({
-      modifie: true,
-      retirees: ['etourdi'],
-      version: p.version + 1,
-      replayed: true,
+    const tickId = `tick:${crypto.randomUUID()}:1:a`;
+    const t1 = await decompter(tickId, [p.id], [ROUND]);
+    expect(t1).toEqual({
+      tickId,
+      replayed: false,
+      items: [
+        {
+          characterId: p.id,
+          version: p.version + 1,
+          expired: [{ key: 'etourdi', name: 'Etourdi' }],
+        },
+      ],
     });
+    // Reprise : la réponse d'origine, rien de plus
+    const t2 = await decompter(tickId, [p.id], [ROUND]);
+    expect(t2).toEqual({ ...t1, replayed: true });
     expect(await duree('effraye')).toBe(2);
 
     // « Précédent » : l'état expiré revient avec sa durée d'avant
@@ -667,13 +698,10 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     expect(await duree('effraye')).toBe(3);
 
     // Fin de combat : tous les états à durée retirés d'un coup, annulable aussi
-    const fin = `end:${crypto.randomUUID()}`;
-    const r3 = await post(`/internal/characters/${p.id}/durees/decompter`, {
-      tickId: fin,
-      clear: true,
-    });
-    expect(r3.json()).toMatchObject({ modifie: true, retirees: ['etourdi', 'effraye'] });
-    await post('/internal/modifications/revert', { applicationId: fin });
+    const finCombat = `tick:${crypto.randomUUID()}:end`;
+    const r3 = await decompter(finCombat, [p.id], [{ kind: 'combat_end' }]);
+    expect(r3.items[0]!.expired.map((x) => x.key)).toEqual(['etourdi', 'effraye']);
+    await post('/internal/modifications/revert', { applicationId: finCombat });
     expect(await duree('effraye')).toBe(3);
 
     // Une durée retirée : la possession reste jusqu'au retrait
@@ -686,22 +714,150 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     expect(await duree('effraye')).toBeUndefined();
   });
 
-  it('état libre : un bonus sans effet, avec sa durée, décompté en fin de round', async () => {
-    const p = await o.nainGuerrier(alice, 'Thorin');
-    const res = await t.app.inject({
+  it('au tour d’un personnage : fin de son prochain tour, début du tour de la source', async () => {
+    let cible: PersonnageApi = await o.nainGuerrier(alice, 'Thorin');
+    const source = await o.nainGuerrier(bob, 'Balin');
+    // L'attente d'une fin de tour est posée par le serveur, jamais reçue
+    cible = await o.ok(alice, 'POST', `/v1/characters/${cible.id}/possessions`, {
+      version: cible.version,
+      entree: 'etourdi',
+      duree: 1,
+      decompte: { moment: 'fin-tour' },
+    });
+    cible = await o.ok(alice, 'POST', `/v1/characters/${cible.id}/possessions`, {
+      version: cible.version,
+      entree: 'effraye',
+      duree: 1,
+      decompte: { moment: 'debut-tour', de: source.id },
+    });
+    expect(await possession(cible.id, 'etourdi')).toMatchObject({
+      duree: 1,
+      decompte: { moment: 'fin-tour', attente: true },
+    });
+    const refus = await t.app.inject({
       method: 'POST',
-      url: `/v1/characters/${p.id}/bonus`,
+      url: `/v1/characters/${cible.id}/possessions`,
       headers: alice.auth,
-      payload: { version: p.version, id: 'marque', nom: 'Marqué', effets: [], duree: 1 },
+      payload: {
+        version: cible.version,
+        entree: 'aveugle',
+        duree: 1,
+        decompte: { moment: 'fin-tour', attente: false },
+      },
+    });
+    expect(refus.statusCode).toBe(400);
+
+    const ids = [cible.id, source.id];
+    // Fin du tour de Thorin, pendant lequel il a été étourdi : l'attente est levée ;
+    // début du tour de Balin : « effrayé jusqu'au début du prochain tour de Balin » expire
+    let d1 = await decompter(`tick:${campagne}:1:a`, ids, [fin(cible.id), debut(source.id)]);
+    expect(d1.items).toEqual([
+      expect.objectContaining({
+        characterId: cible.id,
+        expired: [{ key: 'effraye', name: 'Effrayé' }],
+      }),
+    ]);
+    const leve = await possession(cible.id, 'etourdi');
+    expect(leve).toMatchObject({ duree: 1, decompte: { moment: 'fin-tour' } });
+    expect(leve!.decompte!.attente).toBeUndefined();
+    // Fin de round, début de son tour suivant : rien ; sa fin : l'état expire
+    d1 = await decompter(`tick:${campagne}:1:b`, ids, [fin(source.id), ROUND, debut(cible.id)]);
+    expect(d1.items).toEqual([]);
+    d1 = await decompter(`tick:${campagne}:2:c`, ids, [fin(cible.id)]);
+    expect(d1.items[0]!.expired).toEqual([{ key: 'etourdi', name: 'Etourdi' }]);
+  });
+
+  it('une ancre absente du combat retombe sur la fin de round', async () => {
+    let p: PersonnageApi = await o.nainGuerrier(alice, 'Thorin');
+    p = await o.ok(alice, 'POST', `/v1/characters/${p.id}/possessions`, {
+      version: p.version,
+      entree: 'effraye',
+      duree: 1,
+      decompte: { moment: 'fin-tour', de: crypto.randomUUID() },
+    });
+    const d1 = await decompter(`tick:${campagne}:1:z`, [p.id], [ROUND]);
+    expect(d1.items[0]!.expired.map((x) => x.key)).toEqual(['effraye']);
+  });
+
+  it('deux décomptes du même passage en même temps : un seul s’applique', async () => {
+    let p: PersonnageApi = await o.nainGuerrier(alice, 'Thorin');
+    p = await o.ok(alice, 'POST', `/v1/characters/${p.id}/possessions`, {
+      version: p.version,
+      entree: 'effraye',
+      duree: 3,
+    });
+    const tickId = `tick:${crypto.randomUUID()}:1:x`;
+    const [a, b] = await Promise.all([
+      decompter(tickId, [p.id], [ROUND]),
+      decompter(tickId, [p.id], [ROUND]),
+    ]);
+    expect([a.replayed, b.replayed].sort()).toEqual([false, true]);
+    expect((await possession(p.id, 'effraye'))?.duree).toBe(2);
+  });
+
+  it('« Précédent » avant le décompte : la pierre tombale l’empêche de s’appliquer', async () => {
+    let p: PersonnageApi = await o.nainGuerrier(alice, 'Thorin');
+    p = await o.ok(alice, 'POST', `/v1/characters/${p.id}/possessions`, {
+      version: p.version,
+      entree: 'effraye',
+      duree: 1,
+    });
+    const tickId = `tick:${crypto.randomUUID()}:1:y`;
+    const annule = await post('/internal/modifications/revert', {
+      applicationId: tickId,
+      cancelIfMissing: true,
+    });
+    expect(annule.json()).toEqual({ applicationId: tickId, items: [] });
+    const tard = await decompter(tickId, [p.id], [ROUND]);
+    expect(tard).toEqual({ tickId, replayed: true, items: [] });
+    expect((await possession(p.id, 'effraye'))?.duree).toBe(1);
+  });
+
+  it('état libre : un bonus sans effet, avec sa durée et son décompte', async () => {
+    const p = await o.nainGuerrier(alice, 'Thorin');
+    const poser = (payload: object) =>
+      t.app.inject({
+        method: 'POST',
+        url: `/v1/characters/${p.id}/bonus`,
+        headers: alice.auth,
+        payload,
+      });
+    const res = await poser({
+      version: p.version,
+      id: 'marque',
+      nom: 'Marqué',
+      effets: [],
+      duree: 1,
+      decompte: { moment: 'fin-tour' },
     });
     expect(res.statusCode, res.body).toBe(200);
     expect((res.json() as { etat: { bonus: unknown[] } }).etat.bonus).toEqual([
-      { id: 'marque', nom: 'Marqué', effets: [], actif: true, duree: 1 },
+      {
+        id: 'marque',
+        nom: 'Marqué',
+        effets: [],
+        actif: true,
+        duree: 1,
+        decompte: { moment: 'fin-tour', attente: true },
+      },
     ]);
-    const tick = await post(`/internal/characters/${p.id}/durees/decompter`, {
-      tickId: `tick:${crypto.randomUUID()}:1`,
+    // Prolongé sans changer de moment : l'attente en cours est gardée
+    const plus = await poser({
+      version: p.version + 1,
+      id: 'marque',
+      nom: 'Marqué',
+      effets: [],
+      duree: 2,
+      decompte: { moment: 'fin-tour' },
     });
-    expect(tick.json()).toMatchObject({ modifie: true, retirees: ['bonus:marque'] });
+    const bonus = (plus.json() as { etat: { bonus: { duree: number; decompte: unknown }[] } }).etat
+      .bonus[0]!;
+    expect(bonus).toMatchObject({ duree: 2, decompte: { moment: 'fin-tour', attente: true } });
+    // Deux fins de tour : l'attente, puis un décompte ; la troisième l'achève
+    const tick = await decompter(`tick:${crypto.randomUUID()}:1`, [p.id], [fin(p.id), fin(p.id)]);
+    expect(tick.items[0]).toMatchObject({ expired: [] });
+    const tick2 = await decompter(`tick:${crypto.randomUUID()}:2`, [p.id], [fin(p.id)]);
+    expect(tick2.items[0]!.expired).toEqual([{ key: 'bonus:marque', name: 'Marqué' }]);
   });
 
   // ─── Attaque calculée dans le navigateur : jet transmis depuis la vue ────────
