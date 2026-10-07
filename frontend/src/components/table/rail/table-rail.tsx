@@ -10,7 +10,7 @@ import {
   Settings2,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { memo } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -37,13 +37,15 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
     <>
       <nav
         aria-label={t('label')}
-        className="fixed left-3 top-1/2 z-40 hidden max-h-[calc(100dvh-8rem)] -translate-y-1/2 flex-col items-center gap-1 overflow-y-auto rounded-2xl border border-border-strong bg-popover/95 p-1.5 shadow-elevated lg:flex"
+        className="fixed left-3 top-1/2 z-40 hidden -translate-y-1/2 flex-col items-center gap-1 rounded-2xl border border-border-strong bg-popover/95 p-1.5 shadow-elevated lg:flex"
       >
-        <PillGroup>
-          {visibles.map((i) => (
-            <RailButton key={i.panel.id} panel={i.panel} variante="rail" />
-          ))}
-        </PillGroup>
+        <RailScroll>
+          <PillGroup>
+            {visibles.map((i) => (
+              <RailButton key={i.panel.id} panel={i.panel} variante="rail" />
+            ))}
+          </PillGroup>
+        </RailScroll>
         <span aria-hidden className="my-1 h-px w-6 bg-border-strong" />
         <RailCustomizer layout={layout} cote="right" />
       </nav>
@@ -67,6 +69,44 @@ export const TableRail = memo(function TableRail({ layout }: { layout: RailLayou
     </>
   );
 });
+
+/**
+ * Liste du rail à hauteur plafonnée (une dizaine de panneaux), défilante sans barre ; un fondu
+ * montre qu'il en reste au-dessus ou en dessous. La marge garde visible le repère du panneau
+ * actif, qui déborde à gauche.
+ */
+function RailScroll({ children }: Readonly<{ children: ReactNode }>) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ top: false, bottom: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () =>
+      setEdges({
+        top: el.scrollTop > 1,
+        bottom: el.scrollTop + el.clientHeight < el.scrollHeight - 1,
+      });
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    for (const child of el.children) observer.observe(child);
+    return () => {
+      el.removeEventListener('scroll', update);
+      observer.disconnect();
+    };
+  }, []);
+  const fade = `linear-gradient(to bottom, ${edges.top ? 'transparent' : '#000'}, #000 1.5rem, #000 calc(100% - 1.5rem), ${edges.bottom ? 'transparent' : '#000'})`;
+  return (
+    <div
+      ref={ref}
+      style={{ maskImage: fade, WebkitMaskImage: fade }}
+      className="no-scrollbar -mx-1.5 flex max-h-[min(30rem,calc(100dvh-12rem))] flex-col items-center gap-1 overflow-y-auto overscroll-contain px-1.5"
+    >
+      {children}
+    </div>
+  );
+}
 
 function Pastille({ nombre }: Readonly<{ nombre: number }>) {
   return (
@@ -93,9 +133,15 @@ function RailButton({
   const touche = useBindingLabel(shortcutOfPanel(panel.id));
   const t = useTranslations('table');
   const nom = t(`panels.${panel.id}.label`);
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    // Ouvert par sa touche alors qu'il est hors de la partie visible du rail
+    if (actif && variante === 'rail') ref.current?.scrollIntoView({ block: 'nearest' });
+  }, [actif, variante]);
 
   const bouton = (
     <button
+      ref={ref}
       type="button"
       onClick={() => toggle(panel.id)}
       aria-expanded={actif}
