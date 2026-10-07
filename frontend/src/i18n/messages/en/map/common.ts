@@ -45,4 +45,5 @@ export default {
   resized: 'Elements adapted to the new background size',
   deleteMany: 'Delete {count, number} elements',
   character: 'Character',
+  reloaded: 'Changed meanwhile by someone else: the item was reloaded.',
 } satisfies Translation<typeof fr>;

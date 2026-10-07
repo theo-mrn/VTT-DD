@@ -10,6 +10,7 @@
  * - Plans : murs et pièces dans `gm` (MJ seulement), portes dans `adornments` (icône vue de
  *   tous).
  */
+import { translate } from '@/i18n/runtime';
 import {
   ArrowLeftRight,
   BrickWall,
@@ -53,7 +54,8 @@ import {
   defaultProps,
   nextRoomName,
   OBSTACLE_KIND,
-  OBSTACLE_LABELS,
+  convertLabel,
+  obstacleLabel,
   OBSTACLES,
   OBSTACLES_TOOL_ID,
   ROOM_KIND,
@@ -156,7 +158,7 @@ export function toggleDoors(ctx: ObstacleContext, entities: readonly MapEntity[]
   const gm = isGm(engine.viewer);
   const allowed = gm ? doors : doors.filter((e) => !obstacleOf(e).isLocked);
   if (!allowed.length) {
-    engine.notify('Cette porte est verrouillée.');
+    engine.notify(translate('map.obstacles.doorLocked'));
     return true;
   }
   const target = open ?? !allowed.every((e) => obstacleOf(e).isOpen);
@@ -164,7 +166,7 @@ export function toggleDoors(ctx: ObstacleContext, entities: readonly MapEntity[]
     engine,
     allowed,
     () => ({ isOpen: target }),
-    target ? 'Ouvrir la porte' : 'Fermer la porte',
+    target ? translate('map.obstacles.openDoor') : translate('map.obstacles.closeDoor'),
     ctx.persistences.obstacles,
     { undoable: false },
   );
@@ -177,7 +179,7 @@ export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
   const { engine, view } = ctx;
   return {
     id: OBSTACLE_KIND,
-    label: 'Obstacle',
+    label: translate('map.obstacles.obstacle'),
     collection: OBSTACLES,
     capabilities: ['select', 'move', 'delete', 'inspect', 'duplicate'],
     plane: (o) => ((o as ObstacleData).kind === 'door' ? 'adornments' : 'gm'),
@@ -195,9 +197,11 @@ export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
     },
     name: (o) => {
       const d = o as ObstacleData;
-      if (d.kind !== 'door') return OBSTACLE_LABELS[d.kind];
-      if (d.isLocked) return 'Porte verrouillée';
-      return d.isOpen ? 'Porte ouverte' : 'Porte fermée';
+      if (d.kind !== 'door') return obstacleLabel(d.kind);
+      if (d.isLocked) return translate('map.obstacles.lockedDoor');
+      return d.isOpen
+        ? translate('map.obstacles.openedDoor')
+        : translate('map.obstacles.closedDoor');
     },
     can: obstacleRights(engine),
     hitTest(e, p, tol) {
@@ -296,7 +300,7 @@ export function obstacleActions(ctx: ObstacleContext, entities: readonly MapEnti
 
   items.push({
     id: 'obstacle:connected',
-    label: 'Sélectionner les murs reliés',
+    label: translate('map.obstacles.selectLinked'),
     icon: Waypoints,
     run: () =>
       engine.selection.replace(
@@ -320,10 +324,10 @@ function doorItems(ctx: ObstacleContext, doors: readonly MapEntity[], gm: boolea
   const items: MenuItem[] = [
     {
       id: 'door:toggle',
-      label: allOpen ? 'Fermer la porte' : 'Ouvrir la porte',
+      label: allOpen ? translate('map.obstacles.closeDoor') : translate('map.obstacles.openDoor'),
       icon: allOpen ? DoorClosed : DoorOpen,
       // MJ : l'action principale de son panneau ; joueur : le clic sur la porte
-      ...(gm ? { primary: true } : { shortcut: 'Clic' }),
+      ...(gm ? { primary: true } : { shortcut: translate('map.obstacles.click') }),
       disabled: lockedForMe,
       run: () => void toggleDoors(ctx, doors, !allOpen),
     },
@@ -332,14 +336,14 @@ function doorItems(ctx: ObstacleContext, doors: readonly MapEntity[], gm: boolea
   const allLocked = doors.every((e) => obstacleOf(e).isLocked);
   items.push({
     id: 'door:lock',
-    label: allLocked ? 'Déverrouiller la porte' : 'Verrouiller la porte',
+    label: allLocked ? translate('map.obstacles.unlockDoor') : translate('map.obstacles.lockDoor'),
     icon: allLocked ? LockOpen : Lock,
     run: () =>
       void patchObstacles(
         engine,
         doors,
         () => ({ isLocked: !allLocked }),
-        allLocked ? 'Déverrouiller la porte' : 'Verrouiller la porte',
+        allLocked ? translate('map.obstacles.unlockDoor') : translate('map.obstacles.lockDoor'),
         ctx.persistences.obstacles,
       ),
   });
@@ -350,14 +354,14 @@ function doorItems(ctx: ObstacleContext, doors: readonly MapEntity[], gm: boolea
 function flipItem(ctx: ObstacleContext, entities: readonly MapEntity[]): MenuItem {
   return {
     id: 'oneway:flip',
-    label: 'Inverser le sens',
+    label: translate('map.obstacles.flip'),
     icon: ArrowLeftRight,
     run: () =>
       void patchObstacles(
         ctx.engine,
         entities,
         (o) => ({ blocksFrom: (o.blocksFrom ?? 'left') === 'left' ? 'right' : 'left' }),
-        'Inverser le sens',
+        translate('map.obstacles.flip'),
         ctx.persistences.obstacles,
       ),
   };
@@ -376,14 +380,17 @@ function convertItem(
   const segment = entities.length === 1 ? pressedSegment(ctx, entities[0]!) : null;
   return {
     id: 'obstacle:convert',
-    label: segment === null ? 'Convertir en' : 'Convertir le segment en',
+    label:
+      segment === null
+        ? translate('map.obstacles.convert')
+        : translate('map.obstacles.convertSegment'),
     icon: Repeat,
     children: kinds.map((k) => ({
       id: `obstacle:convert:${k}`,
-      label: OBSTACLE_LABELS[k],
+      label: obstacleLabel(k),
       checked: same === k,
       run: () => {
-        const label = `Convertir en ${OBSTACLE_LABELS[k].toLowerCase()}`;
+        const label = convertLabel(k);
         if (segment === null) {
           void patchObstacles(
             engine,
@@ -408,12 +415,12 @@ function toWallItem(ctx: ObstacleContext, entity: MapEntity): MenuItem {
   const { engine } = ctx;
   return {
     id: 'obstacle:to-wall',
-    label: 'Remplacer par un mur',
+    label: translate('map.obstacles.replaceWithWall'),
     icon: BrickWall,
     run: () => {
       const plan = newPlan(engine);
       const kept = replaceByWall(plan, entity.id);
-      void executePlan(engine, 'Remplacer par un mur', plan, ctx.persistences);
+      void executePlan(engine, translate('map.obstacles.replaceWithWall'), plan, ctx.persistences);
       engine.selection.replace([kept]);
     },
   };
@@ -424,13 +431,13 @@ function roomItem(ctx: ObstacleContext, loop: Point[]): MenuItem {
   const { engine } = ctx;
   return {
     id: 'obstacle:room',
-    label: 'Créer une pièce',
+    label: translate('map.obstacles.createRoom'),
     icon: Scan,
     run: () => {
       const plan = newPlan(engine);
       const room = plan.createRoom(nextRoomName(plan.rooms()), loop);
       weldRoomToWalls(plan, room.id);
-      void executePlan(engine, 'Créer une pièce', plan, ctx.persistences);
+      void executePlan(engine, translate('map.obstacles.createRoom'), plan, ctx.persistences);
     },
   };
 }
@@ -482,7 +489,7 @@ export function roomKind(ctx: ObstacleContext): EntityKind<MapDto> {
   const { engine, view } = ctx;
   return {
     id: ROOM_KIND,
-    label: 'Pièce',
+    label: translate('map.obstacles.room'),
     collection: ROOMS,
     capabilities: ['select', 'move', 'delete', 'inspect', 'duplicate'],
     plane: 'gm',
@@ -497,7 +504,7 @@ export function roomKind(ctx: ObstacleContext): EntityKind<MapDto> {
       const before = boxGeometry(d.points);
       return { ...d, points: shifted(d.points, g.x - before.x, g.y - before.y) };
     },
-    name: (r) => (r as RoomData).name?.trim() || 'Pièce',
+    name: (r) => (r as RoomData).name?.trim() || translate('map.obstacles.room'),
     can: obstacleRights(engine),
     hitTest(e, p, tol) {
       const pts = view.pointsOf(e);
@@ -523,7 +530,7 @@ export function roomKind(ctx: ObstacleContext): EntityKind<MapDto> {
         ? [
             {
               id: 'room:walls',
-              label: 'Poser les murs du contour',
+              label: translate('map.obstacles.placeOutlineWalls'),
               icon: BrickWall,
               run: () => {
                 const plan = newPlan(engine);
@@ -531,7 +538,12 @@ export function roomKind(ctx: ObstacleContext): EntityKind<MapDto> {
                   const pts = roomOf(e).points;
                   if (pts.length >= 3) addChain(plan, [...pts, pts[0]!], defaultProps('wall'));
                 }
-                void executePlan(engine, 'Poser les murs', plan, ctx.persistences);
+                void executePlan(
+                  engine,
+                  translate('map.obstacles.placeWalls'),
+                  plan,
+                  ctx.persistences,
+                );
               },
             },
           ]

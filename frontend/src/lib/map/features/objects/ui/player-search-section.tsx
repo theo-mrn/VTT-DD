@@ -4,6 +4,7 @@
  * Inspecteur d'un objet à fouiller, vu par un joueur (docs/carte.md § 10) : qui est à portée,
  * et « Fouiller ».
  */
+import { formatter, translate } from '@/i18n/runtime';
 import { PackageSearch } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -28,10 +29,13 @@ export function PlayerSearchSection({ engine, entities }: Readonly<InspectorSect
   const inRange = reach.filter((r) => r.inRange);
   const names = inRange.map((r) => nameOf(engine, r.characterId));
   const controller = searchControllerOf(engine);
-  let reachMessage = 'Aucun de vos personnages n’est sur cette carte.';
-  if (inRange.length) reachMessage = `À portée : ${names.join(', ')}.`;
+  let reachMessage = translate('map.objects.noCharacterHere');
+  if (inRange.length)
+    reachMessage = translate('map.objects.inReach', { names: formatter().list(names, 'and') });
   else if (reach.length)
-    reachMessage = `Trop loin : approchez-vous à ${(o.searchRadius ?? 0).toLocaleString('fr-FR')} ${unit} de l’objet.`;
+    reachMessage = translate('map.objects.tooFarHint', {
+      reach: `${formatter().number(o.searchRadius ?? 0)} ${unit}`,
+    });
 
   return (
     <div className="space-y-3">
@@ -42,11 +46,12 @@ export function PlayerSearchSection({ engine, entities }: Readonly<InspectorSect
         onClick={() => controller?.open(entity.id)}
       >
         <PackageSearch />
-        Fouiller
+        {translate('map.objects.searchAction')}
       </Button>
     </div>
   );
 }
 
 const nameOf = (engine: InspectorSectionProps['engine'], id: string) =>
-  engine.directory.characters().find((c) => c.id === id)?.name ?? 'Votre personnage';
+  engine.directory.characters().find((c) => c.id === id)?.name ??
+  translate('map.objects.yourCharacter');

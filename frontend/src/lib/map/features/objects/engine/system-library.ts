@@ -4,6 +4,7 @@
  * (`/asset-mappings.json`, `lib/assets.ts`). Aucune liste en dur : un système sans déclaration
  * n'a pas de bibliothèque, la campagne garde ses modèles.
  */
+import { translate } from '@/i18n/runtime';
 import type { CollectionImages } from '@vtt/rules';
 
 /** Ce que l'index des actifs donne d'une image (sous-ensemble de `Asset`). */
@@ -33,7 +34,7 @@ export function objectName(file: string): string {
     .replace(/([a-zà-ÿ])(\d)/gi, '$1 $2')
     .replace(/\s+/g, ' ')
     .trim();
-  return n ? n.charAt(0).toLocaleUpperCase('fr') + n.slice(1) : 'Objet';
+  return n ? n.charAt(0).toLocaleUpperCase('fr') + n.slice(1) : translate('map.objects.kinds.item');
 }
 
 const inFolder = (category: string, folder: string) =>

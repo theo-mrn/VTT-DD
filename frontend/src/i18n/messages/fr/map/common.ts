@@ -42,4 +42,5 @@ export default {
   resized: 'Éléments adaptés à la nouvelle taille du fond',
   deleteMany: 'Supprimer {count, number} éléments',
   character: 'Personnage',
+  reloaded: 'Modifié entre-temps par quelqu’un d’autre : l’élément a été rechargé.',
 } as const;

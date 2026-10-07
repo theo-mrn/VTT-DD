@@ -3,6 +3,7 @@
  * sorte `portal`, outil X, emprunt (proposition au joueur, portails automatiques), destination
  * du portail sélectionné, menus des tokens. L'interface est ajoutée par `index.ts`.
  */
+import { compareText, translate } from '@/i18n/runtime';
 import { DoorOpen, LogIn } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { createStore, type StoreApi } from 'zustand/vanilla';
@@ -90,7 +91,7 @@ export function registerPortals(
     engine.registerKind(portalKind(ctx)),
     engine.registerTool({
       id: PORTALS_TOOL_ID,
-      label: 'Portails',
+      label: translate('map.portals.portals'),
       icon: ui.icon ?? DoorOpen,
       shortcut: { code: 'KeyX', label: 'X' },
       order: 65,
@@ -108,7 +109,7 @@ export function registerPortals(
     unregister.push(
       engine.registerInspectorSection({
         id: 'portal',
-        title: 'Portail',
+        title: translate('map.portals.icons.portal'),
         order: 10,
         appliesTo: (es, viewer) => isGm(viewer) && es.every((e) => e.kind.id === PORTAL_KIND),
         component: ui.inspector,
@@ -158,15 +159,15 @@ function tokenMenu(ctx: PortalModule, entities: readonly MapEntity[], viewer: Ma
     return [
       {
         id: 'portal:take',
-        label: 'Emprunter un portail',
+        label: translate('map.portals.takeA'),
         icon: DoorOpen,
         children: ready
           .map((p) => ({
             id: `portal:take:${p.id}`,
-            label: `${portalLabel(p)} · ${p.kind === 'same_map' ? 'sur la carte' : sceneName(ctx, p.targetMapId)}`,
+            label: `${portalLabel(p)} · ${p.kind === 'same_map' ? translate('map.portals.onMap') : sceneName(ctx, p.targetMapId)}`,
             run: () => void ctx.travel.use(p, { characterIds: ids }),
           }))
-          .sort((a, b) => a.label.localeCompare(b.label, 'fr')),
+          .sort((a, b) => compareText(a.label, b.label)),
       },
     ];
   }
@@ -178,7 +179,7 @@ function tokenMenu(ctx: PortalModule, entities: readonly MapEntity[], viewer: Ma
       ? [
           {
             id: `portal:take:${p.id}`,
-            label: `Emprunter « ${portalLabel(p)} »`,
+            label: translate('map.portals.takeNamed', { name: portalLabel(p) }),
             icon: LogIn,
             run: () => void ctx.travel.use(p, { characterIds: inside }),
           },
@@ -216,7 +217,7 @@ function placeReturn(ctx: PortalModule, p: PortalData) {
     };
     const done = engine.execute(
       createCommand({
-        label: 'Poser le retour',
+        label: translate('map.portals.placeReturn'),
         collection: PORTALS,
         persistence: ctx.persistence,
         items: [back],
@@ -228,12 +229,12 @@ function placeReturn(ctx: PortalModule, p: PortalData) {
   const scene = ctx.scenes().find((s) => s.id === p.targetMapId);
   const at = p.target ?? (scene ? sceneArrival(scene) : null);
   if (!at) {
-    engine.notify('Scène d’arrivée introuvable.');
+    engine.notify(translate('map.portals.arrivalSceneMissing'));
     return null;
   }
   return engine.execute(
     remoteReturnCommand({
-      label: 'Poser le retour',
+      label: translate('map.portals.placeReturn'),
       api: ctx.api,
       portalId: p.id,
       remote: { mapId: p.targetMapId!, body: { ...look, pos: roundPoint(at) } },

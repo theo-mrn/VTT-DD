@@ -10,6 +10,7 @@
  * - Refus du serveur traduits en français clair (hors de portée, déjà pris, service des
  *   personnages injoignable…). Un contenu qui a changé entre-temps est relu.
  */
+import { formatter, translate } from '@/i18n/runtime';
 import type { MapObjectSearchResult } from '@vtt/contracts';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { ApiError, messageErreur } from '@/lib/api';
@@ -52,21 +53,24 @@ export function searchErrorMessage(
   if (!(err instanceof ApiError)) return messageErreur(err);
   switch (err.problem.code) {
     case 'out_of_range':
-      return `${ctx.characterName} est trop loin${ctx.reach ? ` : approchez-vous à ${ctx.reach} de l’objet` : ''}.`;
+      return ctx.reach
+        ? translate('map.objects.errors.tooFarReach', { name: ctx.characterName, reach: ctx.reach })
+        : translate('map.objects.errors.tooFar', { name: ctx.characterName });
     case 'not_searchable':
-      return 'Cet objet ne se fouille pas (ou plus).';
+      return translate('map.objects.errors.notSearchable');
     case 'character_not_engaged':
-      return `${ctx.characterName} ne fait pas partie de la campagne.`;
+      return translate('map.objects.errors.notEngaged', { name: ctx.characterName });
     case 'quantity_exceeded':
-      return 'Il n’en reste plus autant : le contenu a changé.';
+      return translate('map.objects.errors.quantityExceeded');
     case 'character_unavailable':
-      return 'Le service des personnages ne répond pas : rien n’a été pris, réessayez.';
+      return translate('map.objects.errors.unavailable');
   }
   if (err.status === 404)
     return ctx.action === 'take'
-      ? 'Déjà pris : quelqu’un est passé avant vous.'
-      : 'Cet objet n’est plus là.';
-  if (err.status === 403) return `${ctx.characterName} ne peut pas fouiller ici.`;
+      ? translate('map.objects.errors.alreadyTaken')
+      : translate('map.objects.errors.gone');
+  if (err.status === 403)
+    return translate('map.objects.errors.forbidden', { name: ctx.characterName });
   return messageErreur(err);
 }
 
@@ -97,8 +101,11 @@ export class SearchController {
   }
 
   characterName(id: string | null): string {
-    if (!id) return 'Votre personnage';
-    return this.engine.directory.characters().find((c) => c.id === id)?.name ?? 'Votre personnage';
+    if (!id) return translate('map.objects.yourCharacter');
+    return (
+      this.engine.directory.characters().find((c) => c.id === id)?.name ??
+      translate('map.objects.yourCharacter')
+    );
   }
 
   private object(id: string): ObjectData | undefined {
@@ -110,7 +117,7 @@ export class SearchController {
   reachText(o: ObjectData | undefined): string | undefined {
     if (!o) return undefined;
     const unit = this.engine.kindContext().unitName;
-    return `${(o.searchRadius ?? 0).toLocaleString('fr-FR')} ${unit}`;
+    return `${formatter().number(o.searchRadius ?? 0)} ${unit}`;
   }
 
   /** Ouvre la fenêtre et fouille avec le personnage proposé (ou celui donné). */
@@ -147,7 +154,7 @@ export class SearchController {
     if (!characterId) {
       this.state.setState({
         status: 'error',
-        error: 'Aucun de vos personnages n’est sur cette carte.',
+        error: translate('map.objects.noCharacterHere'),
       });
       return;
     }

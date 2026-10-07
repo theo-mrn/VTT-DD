@@ -14,6 +14,7 @@
  * - Direct : un objet masqué ou dans un calque masqué aux joueurs ne part qu'au MJ ; un objet
  *   « pour certains », qu'aux joueurs de ces personnages (et au MJ).
  */
+import { translate } from '@/i18n/runtime';
 import {
   Maximize2,
   Minimize2,
@@ -43,6 +44,7 @@ import {
   DECOR_KIND_ID,
   isDecor,
   OBJECT_KIND_ID,
+  objectKindLabel,
   OBJECTS_COLLECTION,
   type ObjectData,
 } from './types';
@@ -91,11 +93,10 @@ export interface ObjectKindOptions {
   openSearch?(objectId: string): void;
 }
 
-const KIND_CHOICES: { value: MapObjectKind; label: string }[] = [
-  { value: 'item', label: 'Objet' },
-  { value: 'weapon', label: 'Arme' },
-  { value: 'decor', label: 'Décor (toujours visible, sous l’obscurité)' },
-];
+const KIND_CHOICES: readonly MapObjectKind[] = ['item', 'weapon', 'decor'];
+/** Choix de la sorte au menu : le décor dit ce qui le distingue. */
+const kindChoiceLabel = (kind: MapObjectKind) =>
+  kind === 'decor' ? translate('map.objects.decorHint') : objectKindLabel(kind);
 
 /** Personnages de l'utilisateur à portée de fouille de cet objet. */
 export function reachOf(engine: MapEngine, o: ObjectData) {
@@ -115,7 +116,9 @@ function playerActions(
   return [
     {
       id: 'object:search',
-      label: inRange ? 'Fouiller' : 'Fouiller (trop loin)',
+      label: inRange
+        ? translate('map.objects.searchAction')
+        : translate('map.objects.searchTooFar'),
       icon: PackageSearch,
       primary: true,
       forPlayers: true,
@@ -134,25 +137,25 @@ function gmActions(engine: MapEngine, entities: readonly MapEntity[]): MenuItem[
   const items: MenuItem[] = [
     {
       id: 'object:size',
-      label: 'Taille',
+      label: translate('map.objects.size'),
       icon: Scaling,
       disabled: !unlocked,
       children: [
         {
           id: 'object:grow',
-          label: 'Agrandir',
+          label: translate('map.objects.enlarge'),
           icon: Maximize2,
           run: () => void scaleObjects(engine, entities, 1.25),
         },
         {
           id: 'object:shrink',
-          label: 'Rétrécir',
+          label: translate('map.objects.shrink'),
           icon: Minimize2,
           run: () => void scaleObjects(engine, entities, 0.8),
         },
         {
           id: 'object:fit',
-          label: 'Une case (proportions de l’image)',
+          label: translate('map.objects.oneSquare'),
           icon: Square,
           run: () => void fitObjects(engine, entities),
         },
@@ -160,7 +163,7 @@ function gmActions(engine: MapEngine, entities: readonly MapEntity[]): MenuItem[
     },
     {
       id: 'object:searchable',
-      label: 'Les joueurs peuvent fouiller',
+      label: translate('map.objects.playersCanSearch'),
       checked: allSearchable,
       run: () => void setSearchable(engine, entities, !allSearchable),
     },
@@ -168,19 +171,19 @@ function gmActions(engine: MapEngine, entities: readonly MapEntity[]): MenuItem[
   if (single)
     items.push({
       id: 'object:contents',
-      label: 'Contenu et fouille…',
+      label: translate('map.objects.contentsAndSearch'),
       icon: PackageOpen,
       run: () => engine.openInspector([single.id]),
     });
   items.push({
     id: 'object:kind',
-    label: 'Sorte',
+    label: translate('map.objects.kind'),
     icon: Shapes,
     children: KIND_CHOICES.map((c) => ({
-      id: `object:kind:${c.value}`,
-      label: c.label,
-      checked: kinds.size === 1 && kinds.has(c.value),
-      run: () => void setObjectKind(engine, entities, c.value),
+      id: `object:kind:${c}`,
+      label: kindChoiceLabel(c),
+      checked: kinds.size === 1 && kinds.has(c),
+      run: () => void setObjectKind(engine, entities, c),
     })),
   });
   return items;
@@ -259,7 +262,7 @@ export function createObjectKinds(
     persistence: opts.persistence,
   };
   return [
-    { ...base, id: OBJECT_KIND_ID, label: 'Objet', accepts: (o) => !isDecor(o) },
-    { ...base, id: DECOR_KIND_ID, label: 'Décor', accepts: (o) => isDecor(o) },
+    { ...base, id: OBJECT_KIND_ID, label: objectKindLabel('item'), accepts: (o) => !isDecor(o) },
+    { ...base, id: DECOR_KIND_ID, label: objectKindLabel('decor'), accepts: (o) => isDecor(o) },
   ];
 }

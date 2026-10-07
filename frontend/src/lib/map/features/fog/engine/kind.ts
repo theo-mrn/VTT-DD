@@ -7,6 +7,7 @@
  * - Dessin MJ (plan `gm`) : contour et voile léger pour `fog`, hachures pour `clear`. Le rendu du
  *   brouillard lui-même (ce que voient les joueurs) est celui du module vision.
  */
+import { translate } from '@/i18n/runtime';
 import { CloudFog, Eraser } from 'lucide-react';
 import type { Graphics } from 'pixi.js';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -96,7 +97,7 @@ export function toggleZoneMode(ctx: FogContext, entities: readonly MapEntity[]) 
   if (!changes.length) return null;
   return ctx.engine.execute(
     updateCommand({
-      label: 'Changer le mode',
+      label: translate('map.fog.changeMode'),
       collection: FOG_ZONES,
       persistence: ctx.persistence,
       changes,
@@ -198,7 +199,7 @@ export function fogZoneKind(ctx: FogContext, view: FogView): EntityKind<MapDto> 
   const { engine } = ctx;
   return {
     id: FOG_ZONE_KIND,
-    label: 'Zone de brouillard',
+    label: translate('map.fog.zone'),
     collection: FOG_ZONES,
     capabilities: ['select', 'move', 'resize', 'delete', 'inspect', 'duplicate'],
     plane: 'gm',
@@ -208,7 +209,10 @@ export function fogZoneKind(ctx: FogContext, view: FogView): EntityKind<MapDto> 
     transformDisplay: false,
     geometry: (z) => zoneGeometry(z as FogZoneData),
     applyGeometry: (z, g) => applyZoneGeometry(z as FogZoneData, g),
-    name: (z) => ((z as FogZoneData).mode === 'clear' ? 'Zone découverte' : 'Brouillard'),
+    name: (z) =>
+      (z as FogZoneData).mode === 'clear'
+        ? translate('map.fog.clearedZone')
+        : translate('map.fog.fog'),
     can: gmOnlyStrict,
     hitTest(e, p, tol) {
       const z = zoneOf(e);
@@ -236,7 +240,7 @@ export function fogZoneKind(ctx: FogContext, view: FogView): EntityKind<MapDto> 
       return [
         {
           id: 'fog:mode',
-          label: next === 'fog' ? 'En faire du brouillard' : 'En faire une zone découverte',
+          label: next === 'fog' ? translate('map.fog.toFog') : translate('map.fog.toCleared'),
           icon: next === 'fog' ? CloudFog : Eraser,
           run: () => void toggleZoneMode(ctx, entities),
         },

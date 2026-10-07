@@ -3,6 +3,7 @@
  * distance au clic, outil Mesurer (Z), mesures des autres (direct), gabarits épinglés (sorte
  * `measurement`). L'interface est ajoutée par `index.ts`.
  */
+import { translate } from '@/i18n/runtime';
 import { Ruler } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { createStore } from 'zustand/vanilla';
@@ -69,7 +70,7 @@ export function registerMeasurements(engine: MapEngine, ui: MeasureUi = {}): () 
     engine.registerKind(measurementKind(ctx, view)),
     engine.registerTool({
       id: MEASURE_TOOL_ID,
-      label: 'Mesurer',
+      label: translate('map.measurements.measureTool'),
       icon: ui.icon ?? Ruler,
       shortcut: { code: 'KeyZ', label: 'Z' },
       order: 20,
@@ -154,7 +155,7 @@ export function registerMeasurements(engine: MapEngine, ui: MeasureUi = {}): () 
     cleanups.push(
       engine.registerInspectorSection({
         id: 'measurement',
-        title: 'Gabarit',
+        title: translate('map.measurements.template'),
         order: 10,
         appliesTo: (es) =>
           es.length > 0 &&

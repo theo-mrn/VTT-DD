@@ -3,6 +3,7 @@
 /**
  * Inspecteur des zones de brouillard (MJ) : ajouter ou retirer, forme.
  */
+import { translate } from '@/i18n/runtime';
 import { CloudFog, Eraser } from 'lucide-react';
 import type { InspectorSectionProps } from '@/lib/map/engine/map-engine';
 import { toggleZoneMode } from '../engine/kind';
@@ -10,11 +11,8 @@ import type { FogZoneData } from '../engine/model';
 import { fogContextOf } from '../engine/register';
 import { cn } from '@/lib/utils';
 
-const SHAPES: Record<FogZoneData['shape'], string> = {
-  circle: 'Cercle',
-  rect: 'Rectangle',
-  polygon: 'Main levée',
-};
+/** Forme d'une zone posée, au nom de la forme de l'outil qui la trace. */
+const SHAPE_OF = { circle: 'circle', rect: 'rect', polygon: 'lasso' } as const;
 
 export function FogInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = fogContextOf(engine);
@@ -23,7 +21,11 @@ export function FogInspector({ engine, entities }: Readonly<InspectorSectionProp
   const mode = zones.every((z) => z.mode === zones[0]!.mode) ? zones[0]!.mode : null;
   return (
     <div className="space-y-3">
-      <div role="radiogroup" aria-label="Mode" className="grid grid-cols-2 gap-1">
+      <div
+        role="radiogroup"
+        aria-label={translate('map.fog.mode')}
+        className="grid grid-cols-2 gap-1"
+      >
         {(['fog', 'clear'] as const).map((m) => (
           <button
             key={m}
@@ -41,14 +43,15 @@ export function FogInspector({ engine, entities }: Readonly<InspectorSectionProp
             )}
           >
             {m === 'fog' ? <CloudFog className="size-4" /> : <Eraser className="size-4" />}
-            {m === 'fog' ? 'Brouillard' : 'Découvert'}
+            {m === 'fog' ? translate('map.fog.fog') : translate('map.fog.cleared')}
           </button>
         ))}
       </div>
       {zones.length === 1 && (
         <p className="text-xs text-muted-foreground">
-          {SHAPES[zones[0]!.shape]}. Les zones s’appliquent dans l’ordre de leur création : la plus
-          récente qui couvre un point décide.
+          {translate('map.fog.order', {
+            shape: translate(`map.fog.shapes.${SHAPE_OF[zones[0]!.shape]}.label`),
+          })}
         </p>
       )}
     </div>

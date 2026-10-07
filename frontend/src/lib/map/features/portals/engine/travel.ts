@@ -12,6 +12,7 @@
  *   vue du joueur suit).
  * - Refus en clair : trop loin, sans destination, portail disparu…
  */
+import { translate } from '@/i18n/runtime';
 import type { MapPortalUseResult } from '@vtt/contracts';
 import { createStore } from 'zustand/vanilla';
 import { ApiError, messageErreur } from '@/lib/api';
@@ -56,21 +57,21 @@ export type CrossedListener = (
 /** Message clair d'un refus du serveur. */
 export function portalErrorMessage(err: unknown, portal: Pick<PortalData, 'name' | 'icon'>) {
   if (!(err instanceof ApiError)) return messageErreur(err);
-  const name = `« ${portalLabel(portal)} »`;
+  const name = portalLabel(portal);
   switch (err.problem.code) {
     case 'out_of_range':
-      return `Entrez dans la zone de ${name} pour l’emprunter.`;
+      return translate('map.portals.errors.outOfRange', { name });
     case 'not_on_map':
-      return 'Ce personnage n’est pas sur cette scène.';
+      return translate('map.portals.errors.notOnMap');
     case 'portal_without_destination':
-      return `${name} ne mène nulle part pour l’instant.`;
+      return translate('map.portals.errors.noDestination', { name });
     case 'no_travellers':
-      return 'Personne à faire passer.';
+      return translate('map.portals.errors.noTravellers');
     case 'character_not_engaged':
-      return 'Ce personnage ne fait pas partie de la campagne.';
+      return translate('map.portals.errors.notEngaged');
   }
-  if (err.status === 404) return 'Ce portail n’est plus là.';
-  if (err.status === 403) return 'Vous ne pouvez pas emprunter ce portail avec ce personnage.';
+  if (err.status === 404) return translate('map.portals.errors.gone');
+  if (err.status === 403) return translate('map.portals.errors.forbidden');
   return messageErreur(err);
 }
 

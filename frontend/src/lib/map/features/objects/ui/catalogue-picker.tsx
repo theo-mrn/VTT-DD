@@ -6,6 +6,7 @@
  * prix viennent de la présentation du système (`references.marche`), jamais de clés en dur.
  * Un clic ajoute une unité ; la liste reste ouverte pour en ajouter d'autres.
  */
+import { translate } from '@/i18n/runtime';
 import type { Entree } from '@vtt/rules';
 import { Plus, Store } from 'lucide-react';
 import { useDeferredValue, useMemo, useState } from 'react';
@@ -66,7 +67,7 @@ export function CataloguePicker({ onPick }: Readonly<{ onPick(entry: Entree): vo
 
   if (systeme.isPending)
     return (
-      <div className="space-y-1.5 p-1" aria-label="Chargement du marché">
+      <div className="space-y-1.5 p-1" aria-label={translate('map.objects.market.loading')}>
         {Array.from({ length: 5 }, (_, i) => (
           <Skeleton key={i} className="h-9" />
         ))}
@@ -77,8 +78,8 @@ export function CataloguePicker({ onPick }: Readonly<{ onPick(entry: Entree): vo
       <p className="flex items-start gap-2 p-2 text-xs text-muted-foreground">
         <Store className="mt-0.5 size-4 shrink-0" aria-hidden />
         {systeme.isError
-          ? 'Le catalogue du système n’a pas pu être chargé.'
-          : 'Le système de la campagne ne déclare pas de marché : ajoutez des objets libres.'}
+          ? translate('map.objects.market.failed')
+          : translate('map.objects.market.none')}
       </p>
     );
 
@@ -87,8 +88,8 @@ export function CataloguePicker({ onPick }: Readonly<{ onPick(entry: Entree): vo
       <SearchField
         value={query}
         onChange={setQuery}
-        label="Rechercher dans le marché"
-        placeholder="Épée, potion, corde…"
+        label={translate('map.objects.market.search')}
+        placeholder={translate('map.objects.market.placeholder')}
         className="sm:w-full"
       />
       <ul className="max-h-64 space-y-0.5 overflow-y-auto overscroll-contain pr-1">
@@ -106,13 +107,13 @@ export function CataloguePicker({ onPick }: Readonly<{ onPick(entry: Entree): vo
                 )}
               </span>
               <Plus className="size-4 shrink-0 text-subtle" aria-hidden />
-              <span className="sr-only">Ajouter</span>
+              <span className="sr-only">{translate('map.objects.contents.addShort')}</span>
             </button>
           </li>
         ))}
         {!visible.length && (
           <li className="px-2 py-3 text-center text-xs text-muted-foreground">
-            Aucun objet ne correspond.
+            {translate('map.objects.library.noMatch')}
           </li>
         )}
       </ul>

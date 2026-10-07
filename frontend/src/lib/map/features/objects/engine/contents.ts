@@ -10,6 +10,7 @@
  * - Limites du contrat : 500 contenus, quantité de 1 à 1 000 000, nom de 200 caractères,
  *   description de 10 000.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapObjectItem } from '@vtt/contracts';
 import { randomId } from '@/lib/random-id';
 
@@ -65,11 +66,13 @@ export interface FreeItemInput {
 /** Message d'erreur d'un objet libre, ou null s'il est valable. */
 export function freeItemError(input: FreeItemInput): string | null {
   const name = input.name.trim();
-  if (!name) return 'Donnez un nom à l’objet.';
-  if (name.length > ITEM_NAME_MAX) return `${ITEM_NAME_MAX} caractères au plus pour le nom.`;
+  if (!name) return translate('map.objects.contents.nameRequired');
+  if (name.length > ITEM_NAME_MAX)
+    return translate('map.objects.contents.nameTooLong', { max: ITEM_NAME_MAX });
   if ((input.description ?? '').length > ITEM_DESCRIPTION_MAX)
-    return `${ITEM_DESCRIPTION_MAX} caractères au plus pour la description.`;
-  if (!Number.isFinite(input.quantity) || input.quantity < 1) return 'Quantité : 1 au moins.';
+    return translate('map.objects.contents.descriptionTooLong', { max: ITEM_DESCRIPTION_MAX });
+  if (!Number.isFinite(input.quantity) || input.quantity < 1)
+    return translate('map.objects.contents.quantityMin');
   return null;
 }
 

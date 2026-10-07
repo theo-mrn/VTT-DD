@@ -13,6 +13,7 @@
  *   annuler), ou la glisser sur la carte. Une image déposée depuis l'ordinateur est envoyée
  *   puis posée là où elle tombe.
  */
+import { formatter, translate } from '@/i18n/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Box, ImagePlus, LoaderCircle, Package, SquareDashed, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent } from 'react';
@@ -78,7 +79,7 @@ const nameFromFile = (file: File) =>
     .replace(/\.[a-z0-9]+$/i, '')
     .replace(/[_-]+/g, ' ')
     .trim()
-    .slice(0, 100) || 'Objet';
+    .slice(0, 100) || translate('map.objects.kinds.item');
 
 /** Outil « Objets » actif (la bibliothèque n'existe que sous lui). */
 function useObjectTool(engine: MapEngine): ObjectPlaceTool | null {
@@ -274,7 +275,7 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
     };
     const accepts = (e: globalThis.DragEvent) => {
       const types = e.dataTransfer?.types ?? [];
-      return types.includes(DRAG_TYPE) || types.includes('Files');
+      return types.includes(DRAG_TYPE) || types.includes('Files'); // i18n-ignore
     };
     const onOver = (e: globalThis.DragEvent) => {
       if (!accepts(e)) return;
@@ -327,9 +328,9 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
 
   const remove = async (t: ObjectTemplate) => {
     const ok = await engine.confirm({
-      title: 'Retirer ce modèle ?',
-      message: `« ${t.name} » quittera la bibliothèque. Les objets déjà posés restent sur la carte.`,
-      confirmLabel: 'Retirer',
+      title: translate('map.objects.library.removeTitle'),
+      message: translate('map.objects.library.removeMessage', { name: t.name }),
+      confirmLabel: translate('map.objects.remove'),
       danger: true,
     });
     if (!ok) return;
@@ -349,11 +350,11 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
   return (
     <MapPanel
       id="object-library"
-      label="Bibliothèque des objets"
+      label={translate('map.objects.library.title')}
       icon={Box}
-      title="Objets"
+      title={translate('map.objects.library.objects')}
       shortcut="I"
-      closeLabel="Fermer la bibliothèque"
+      closeLabel={translate('map.tokens.library.close')}
       onClose={() => engine.tools.activate(SELECT_TOOL_ID)}
       onKeyDown={(e) => {
         // Échap dans le panneau : l'objet choisi est rendu (la carte n'a pas le focus)
@@ -380,8 +381,8 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
         <SearchField
           value={query}
           onChange={setQuery}
-          label="Rechercher un objet"
-          placeholder="Rechercher…"
+          label={translate('map.objects.library.search')}
+          placeholder={translate('map.tokens.library.searchPlaceholder')}
           className="sm:w-full"
         />
         <CategoryChips categories={categories} value={category} onChange={setCategory} />
@@ -399,7 +400,11 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
         />
         {etat === 'grille' && (
           <ul
-            aria-label={current === 'system' ? 'Objets du système' : 'Modèles d’objets'}
+            aria-label={
+              current === 'system'
+                ? translate('map.objects.library.systemObjects')
+                : translate('map.objects.library.templates')
+            }
             className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5"
           >
             {visible.slice(0, limit).map((card) => {
@@ -449,7 +454,7 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
                       type="button"
                       variant="secondary"
                       size="icon-xs"
-                      aria-label={`Retirer « ${card.name} » de la bibliothèque`}
+                      aria-label={translate('map.objects.library.removeNamed', { name: card.name })}
                       onClick={() => void remove(card.template!)}
                       className="absolute right-0.5 top-0.5 size-6 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                     >
@@ -476,7 +481,7 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
             onClick={() => arm(ZONE_SOURCE)}
           >
             <SquareDashed />
-            Zone à fouiller
+            {translate('map.objects.library.searchZone')}
           </Button>
           <Button type="button" variant="secondary" size="sm" asChild>
             <label
@@ -495,7 +500,11 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
               )}
               {uploading ? <LoaderCircle className="animate-spin" /> : <ImagePlus />}
               <span className="relative tabular-nums">
-                {uploading ? `Envoi… ${Math.round(progress * 100)} %` : 'Envoyer une image'}
+                {uploading
+                  ? translate('map.objects.library.uploading', {
+                      progress: formatter().number(progress, 'percent'),
+                    })
+                  : translate('map.tokens.inspector.upload')}
               </span>
               <input
                 type="file"
@@ -512,14 +521,14 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
           </Button>
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          {armed ? (
-            <>
-              Cliquez sur la carte pour poser « {armed.name} ». <Kbd>⇧</Kbd> en poser plusieurs,{' '}
-              <Kbd>Alt</Kbd> aimantation inversée, <Kbd>Échap</Kbd> annuler.
-            </>
-          ) : (
-            'Choisissez un objet puis cliquez sur la carte, ou glissez-le dessus. Une image de l’ordinateur peut aussi y être déposée.'
-          )}
+          {armed
+            ? translate.rich('map.objects.library.armed', {
+                name: armed.name,
+                shift: () => <Kbd>⇧</Kbd>,
+                alt: () => <Kbd>Alt</Kbd>,
+                esc: () => <Kbd>{translate('map.tokens.library.esc')}</Kbd>,
+              })
+            : translate('map.objects.library.hint')}
         </p>
       </div>
     </MapPanel>
@@ -527,14 +536,12 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
 }
 
 /** Bibliothèque vide : selon qu'on regarde les modèles de la campagne ou le système. */
-const AUCUN_OBJET = {
-  campaign: 'Aucun modèle d’objet dans cette campagne : envoyez une image pour en créer un.',
-  system: 'Ce système ne déclare pas encore d’objets.',
-} as const;
+const aucunObjet = (source: 'campaign' | 'system') =>
+  translate(`map.objects.library.empty.${source}`);
 
 function categoryLabel(c: string): string {
-  if (c === ALL) return 'Tout';
-  return c === NO_CATEGORY ? 'Sans catégorie' : c;
+  if (c === ALL) return translate('map.objects.library.all');
+  return c === NO_CATEGORY ? translate('map.objects.library.uncategorized') : c;
 }
 
 type EtatBibliotheque = 'chargement' | 'echec' | 'vide' | 'grille';
@@ -554,9 +561,15 @@ function tabsOf(
 ): { id: Tab; label: string; count: number }[] {
   return [
     ...(declared
-      ? [{ id: 'system' as const, label: declared.titre ?? 'Système', count: systemCount }]
+      ? [
+          {
+            id: 'system' as const,
+            label: declared.titre ?? translate('map.objects.library.system'),
+            count: systemCount,
+          },
+        ]
       : []),
-    { id: 'campaign', label: 'Campagne', count: templateCount },
+    { id: 'campaign', label: translate('map.objects.library.campaign'), count: templateCount },
   ];
 }
 
@@ -570,7 +583,7 @@ function CategoryChips({
   return (
     <div
       role="group"
-      aria-label="Catégories"
+      aria-label={translate('map.objects.library.categories')}
       className="-mx-3 flex items-center gap-1 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none]"
     >
       {[ALL, ...categories].map((c) => (
@@ -605,7 +618,7 @@ function EtatListe({
     return (
       <div
         className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5"
-        aria-label="Chargement des objets"
+        aria-label={translate('map.objects.library.loading')}
       >
         {Array.from({ length: 12 }, (_, i) => (
           <Skeleton key={i} className="aspect-[4/5]" />
@@ -616,17 +629,17 @@ function EtatListe({
     return (
       <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
         {current === 'system'
-          ? 'La bibliothèque d’objets n’a pas pu être chargée.'
-          : 'Les modèles d’objets n’ont pas pu être chargés.'}
+          ? translate('map.objects.library.systemFailed')
+          : translate('map.objects.library.templatesFailed')}
         <Button variant="secondary" size="xs" onClick={onRetry}>
-          Réessayer
+          {translate('map.tokens.library.retry')}
         </Button>
       </div>
     );
   if (etat === 'vide')
     return (
       <p className="rounded-lg border border-dashed border-border-strong px-3 py-4 text-center text-[13px] text-muted-foreground">
-        {hasCards ? 'Aucun objet ne correspond.' : AUCUN_OBJET[current]}
+        {hasCards ? translate('map.objects.library.noMatch') : aucunObjet(current)}
       </p>
     );
   return null;

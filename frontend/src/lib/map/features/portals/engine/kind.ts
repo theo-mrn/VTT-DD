@@ -9,6 +9,7 @@
  *   dans sa vue (`visionSamples`) ; « Emprunter » dans la barre de la sélection si un de ses
  *   tokens est dans la zone, « Trop loin » grisé sinon.
  */
+import { translate } from '@/i18n/runtime';
 import {
   ArrowRightLeft,
   DoorOpen,
@@ -89,7 +90,7 @@ const portalCan = (action: EntityAction, _e: MapEntity, viewer: MapViewer) =>
 
 /** Nom d'une scène connue, sinon un libellé neutre. */
 export const sceneName = (ctx: Pick<PortalContext, 'scenes'>, id: string | null) =>
-  ctx.scenes().find((s) => s.id === id)?.name ?? 'une autre scène';
+  ctx.scenes().find((s) => s.id === id)?.name ?? translate('map.portals.anotherScene');
 
 /** Entrées du menu d'un portail (MJ) et « Emprunter » (joueur). */
 export function portalActions(ctx: PortalContext, entities: readonly MapEntity[]): MenuItem[] {
@@ -99,7 +100,7 @@ export function portalActions(ctx: PortalContext, entities: readonly MapEntity[]
   const allAuto = entities.every((e) => portalOf(e).auto);
   items.push({
     id: 'portal:auto',
-    label: 'Automatique',
+    label: translate('map.portals.auto'),
     icon: Zap,
     checked: allAuto,
     run: () =>
@@ -107,7 +108,7 @@ export function portalActions(ctx: PortalContext, entities: readonly MapEntity[]
         ctx,
         entities,
         () => ({ auto: !allAuto }),
-        allAuto ? 'Portail sur demande' : 'Portail automatique',
+        allAuto ? translate('map.portals.setOnDemand') : translate('map.portals.setAuto'),
       ),
   });
   return items;
@@ -119,7 +120,7 @@ function borrowItem(ctx: PortalContext, single: MapEntity): MenuItem {
   const mine = ctx.travel.charactersInside(p);
   return {
     id: 'portal:use',
-    label: mine.length ? 'Emprunter' : 'Trop loin',
+    label: mine.length ? translate('map.portals.take') : translate('map.portals.tooFar'),
     icon: LogIn,
     primary: true,
     forPlayers: true,
@@ -137,7 +138,7 @@ function singlePortalItems(ctx: PortalContext, single: MapEntity): MenuItem[] {
   const items: MenuItem[] = [
     {
       id: 'portal:party',
-      label: 'Faire passer tout le groupe',
+      label: translate('map.portals.sendParty'),
       icon: Users,
       disabled: !ready,
       run: () => void travel.use(p, { party: true }),
@@ -145,8 +146,8 @@ function singlePortalItems(ctx: PortalContext, single: MapEntity): MenuItem[] {
     {
       id: 'portal:zone',
       label: inside.length
-        ? `Faire passer la zone (${inside.length})`
-        : 'Faire passer la zone (personne)',
+        ? translate('map.portals.sendZone', { count: inside.length })
+        : translate('map.portals.sendZoneNobody'),
       icon: UsersRound,
       disabled: !ready || !inside.length,
       run: () => void travel.use(p, { characterIds: inside }),
@@ -165,7 +166,7 @@ function destinationItem(ctx: PortalContext, p: PortalData): MenuItem | null {
     const twin = p.linkedPortalId ? engine.entity(p.linkedPortalId) : undefined;
     return {
       id: 'portal:goto',
-      label: twin ? 'Aller au retour' : 'Aller à l’arrivée',
+      label: twin ? translate('map.portals.goToReturn') : translate('map.portals.goToArrival'),
       icon: Focus,
       run: () => {
         if (twin) engine.selection.replace([twin.id]);
@@ -176,7 +177,7 @@ function destinationItem(ctx: PortalContext, p: PortalData): MenuItem | null {
   if (p.kind === 'scene_change' && p.targetMapId && ctx.openScene)
     return {
       id: 'portal:open',
-      label: `Ouvrir « ${sceneName(ctx, p.targetMapId)} »`,
+      label: translate('map.portals.openScene', { name: sceneName(ctx, p.targetMapId) }),
       icon: MapPinned,
       run: () => ctx.openScene?.(p.targetMapId),
     };
@@ -194,17 +195,22 @@ function returnItems(
     return [
       {
         id: 'portal:unlink',
-        label: 'Délier le retour',
+        label: translate('map.portals.unlinkReturn'),
         icon: Link2Off,
         run: () =>
-          void patchPortals(ctx, [single], () => ({ linkedPortalId: null }), 'Délier le retour'),
+          void patchPortals(
+            ctx,
+            [single],
+            () => ({ linkedPortalId: null }),
+            translate('map.portals.unlinkReturn'),
+          ),
       },
     ];
   if (!ready) return [];
   return [
     {
       id: 'portal:return',
-      label: 'Poser le retour',
+      label: translate('map.portals.placeReturn'),
       icon: ArrowRightLeft,
       run: () => ctx.placeReturn(p),
     },
@@ -231,7 +237,7 @@ export function portalKind(ctx: PortalContext): EntityKind<MapDto> {
   const { engine, view } = ctx;
   return {
     id: PORTAL_KIND,
-    label: 'Portail',
+    label: translate('map.portals.icons.portal'),
     collection: PORTALS,
     capabilities: ['select', 'move', 'hide', 'duplicate', 'delete', 'inspect'],
     plane: 'gm',

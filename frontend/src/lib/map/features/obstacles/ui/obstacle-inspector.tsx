@@ -5,6 +5,7 @@
  * unique, couleur et transparence. S'applique à toute la sélection ; chaque réglage est une
  * commande annulable.
  */
+import { formatter, translate } from '@/i18n/runtime';
 import {
   AppWindow,
   ArrowLeftRight,
@@ -22,8 +23,9 @@ import { patchObstacles } from '../engine/commands';
 import { convertedProps } from '../engine/edits';
 import { polylineSegments } from '../engine/geometry';
 import {
-  OBSTACLE_LABELS,
-  WALL_COLORS,
+  convertLabel,
+  obstacleLabel,
+  wallColorOptions,
   type ObstacleData,
   type ObstacleKindId,
 } from '../engine/model';
@@ -60,7 +62,11 @@ export function ObstacleInspector({ engine, entities }: Readonly<InspectorSectio
 
   return (
     <div className="space-y-4">
-      <div role="radiogroup" aria-label="Type" className="grid grid-cols-4 gap-1">
+      <div
+        role="radiogroup"
+        aria-label={translate('map.obstacles.type')}
+        className="grid grid-cols-4 gap-1"
+      >
         {KINDS.map((k) => {
           const selected = kind === k.id;
           return (
@@ -69,11 +75,7 @@ export function ObstacleInspector({ engine, entities }: Readonly<InspectorSectio
               type="button"
               role="radio"
               aria-checked={selected}
-              onClick={() =>
-                patch(`Convertir en ${OBSTACLE_LABELS[k.id].toLowerCase()}`, (o) =>
-                  convertedProps(o, k.id),
-                )
-              }
+              onClick={() => patch(convertLabel(k.id), (o) => convertedProps(o, k.id))}
               className={cn(
                 'flex flex-col items-center gap-1 rounded-lg border border-border px-1 py-2 text-[11px] text-muted-foreground transition-colors',
                 'hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
@@ -82,7 +84,9 @@ export function ObstacleInspector({ engine, entities }: Readonly<InspectorSectio
             >
               <k.icon className="size-4" aria-hidden />
               <span className="leading-tight">
-                {OBSTACLE_LABELS[k.id].replace('Mur à sens unique', 'Sens unique')}
+                {k.id === 'one_way_wall'
+                  ? translate('map.obstacles.modes.oneway.label')
+                  : obstacleLabel(k.id)}
               </span>
             </button>
           );
@@ -91,27 +95,33 @@ export function ObstacleInspector({ engine, entities }: Readonly<InspectorSectio
 
       {doors && (
         <div className="space-y-1">
-          <FieldRow label="Ouverte" htmlFor={`${id}-open`}>
+          <FieldRow label={translate('map.obstacles.open')} htmlFor={`${id}-open`}>
             <Switch
               id={`${id}-open`}
               checked={data.every((o) => o.isOpen)}
               onCheckedChange={(on) =>
-                patch(on ? 'Ouvrir la porte' : 'Fermer la porte', () => ({ isOpen: on }))
+                patch(
+                  on ? translate('map.obstacles.openDoor') : translate('map.obstacles.closeDoor'),
+                  () => ({ isOpen: on }),
+                )
               }
             />
           </FieldRow>
           <FieldRow
-            label="Verrouillée"
+            label={translate('map.obstacles.locked')}
             htmlFor={`${id}-locked`}
-            hint="Un joueur ne peut pas ouvrir une porte verrouillée."
+            hint={translate('map.obstacles.lockedHint')}
           >
             <Switch
               id={`${id}-locked`}
               checked={data.every((o) => o.isLocked)}
               onCheckedChange={(on) =>
-                patch(on ? 'Verrouiller la porte' : 'Déverrouiller la porte', () => ({
-                  isLocked: on,
-                }))
+                patch(
+                  on ? translate('map.obstacles.lockDoor') : translate('map.obstacles.unlockDoor'),
+                  () => ({
+                    isLocked: on,
+                  }),
+                )
               }
             />
           </FieldRow>
@@ -120,42 +130,48 @@ export function ObstacleInspector({ engine, entities }: Readonly<InspectorSectio
 
       {oneWay && (
         <FieldRow
-          label="Sens"
-          hint="La flèche montre le sens où l’on voit : de l’autre côté, le mur bloque la vue."
+          label={translate('map.obstacles.direction')}
+          hint={translate('map.obstacles.directionHint')}
         >
           <Button
             variant="secondary"
             size="xs"
             onClick={() =>
-              patch('Inverser le sens', (o) => ({
+              patch(translate('map.obstacles.flip'), (o) => ({
                 blocksFrom: (o.blocksFrom ?? 'left') === 'left' ? 'right' : 'left',
               }))
             }
           >
             <ArrowLeftRight />
-            Inverser le sens
+            {translate('map.obstacles.flip')}
           </Button>
         </FieldRow>
       )}
 
       <div className="space-y-2">
-        <span className="text-[13px] text-foreground">Couleur</span>
+        <span className="text-[13px] text-foreground">{translate('map.grid.color')}</span>
         <Swatches
           value={color === 'mixed' ? '' : color}
-          options={WALL_COLORS}
+          options={wallColorOptions()}
           allowDefault
-          onChange={(c) => patch('Couleur', () => ({ color: c }))}
+          onChange={(c) => patch(translate('map.grid.color'), () => ({ color: c }))}
         />
       </div>
 
       <RangeField
-        label="Opacité"
+        label={translate('map.grid.opacity')}
         value={Math.round((opacity === 'mixed' ? 1 : opacity) * 100)}
         min={0}
         max={100}
         step={5}
-        format={(v) => (v >= 100 ? '100 % (bloque la vue)' : `${v} % (ombre partielle)`)}
-        onCommit={(v) => patch('Transparence', () => ({ opacity: v / 100 }))}
+        format={(v) =>
+          translate(v >= 100 ? 'map.obstacles.opacityFull' : 'map.obstacles.opacityPartial', {
+            value: formatter().number(v / 100, 'percent'),
+          })
+        }
+        onCommit={(v) =>
+          patch(translate('map.obstacles.transparency'), () => ({ opacity: v / 100 }))
+        }
       />
 
       <Summary engine={engine} entities={entities} />

@@ -5,6 +5,7 @@
  * d'un gabarit : options du cône (angle ou dimensions, bout arrondi ou plat), choix d'un effet
  * animé (vignettes de la bibliothèque), animation des effets.
  */
+import { translate } from '@/i18n/runtime';
 import { Ban } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useStore } from 'zustand';
@@ -120,12 +121,12 @@ export function ConeSettings({
   return (
     <div className="space-y-3">
       <Segmented
-        label="Définition du cône"
+        label={translate('map.measurements.coneDefinition')}
         value={value.mode}
         onChange={(mode) => set({ mode })}
         options={[
-          { value: 'angle', label: 'Angle' },
-          { value: 'dimensions', label: 'Dimensions' },
+          { value: 'angle', label: translate('map.measurements.angle') },
+          { value: 'dimensions', label: translate('map.measurements.dimensions') },
         ]}
       />
       {value.mode === 'angle' ? (
@@ -143,7 +144,7 @@ export function ConeSettings({
             ))}
           </div>
           <RangeField
-            label="Ouverture"
+            label={translate('map.measurements.opening')}
             value={Math.round(value.angle)}
             min={CONE_ANGLE_RANGE.min}
             max={CONE_ANGLE_RANGE.max}
@@ -155,28 +156,28 @@ export function ConeSettings({
       ) : (
         <div className="grid grid-cols-2 gap-2">
           <OptionalNumber
-            label="Largeur au bout"
+            label={translate('map.measurements.endWidth')}
             value={value.width}
-            placeholder="Selon l’angle"
+            placeholder={translate('map.measurements.byAngle')}
             unit={unit}
             onCommit={(width) => set({ width })}
           />
           <OptionalNumber
-            label="Longueur fixe"
+            label={translate('map.measurements.fixedLength')}
             value={value.length}
-            placeholder="Libre"
+            placeholder={translate('map.measurements.free')}
             unit={unit}
             onCommit={(length) => set({ length })}
           />
         </div>
       )}
       <Segmented
-        label="Bout du cône"
+        label={translate('map.measurements.coneEnd')}
         value={value.rounded ? 'rounded' : 'flat'}
         onChange={(v) => set({ rounded: v === 'rounded' })}
         options={[
-          { value: 'rounded', label: 'Arrondi' },
-          { value: 'flat', label: 'Plat' },
+          { value: 'rounded', label: translate('map.measurements.rounded') },
+          { value: 'flat', label: translate('map.measurements.flat') },
         ]}
       />
     </div>
@@ -216,7 +217,7 @@ export function SkinPicker({
           )}
         >
           <Ban className="size-4" />
-          Aucun
+          {translate('map.measurements.none')}
         </button>
         {options.map((o) => (
           <button
@@ -238,12 +239,18 @@ export function SkinPicker({
           </button>
         ))}
       </div>
-      {assets.isLoading && <p className="text-xs text-muted-foreground">Chargement des effets…</p>}
+      {assets.isLoading && (
+        <p className="text-xs text-muted-foreground">
+          {translate('map.measurements.loadingEffects')}
+        </p>
+      )}
       {value && !options.some((o) => o.value === value) && !assets.isLoading && (
-        <p className="text-xs text-muted-foreground">{skinLabel(value)} (introuvable)</p>
+        <p className="text-xs text-muted-foreground">
+          {translate('map.measurements.skinMissing', { name: skinLabel(value) })}
+        </p>
       )}
       <label className="flex items-center justify-between gap-3 text-[13px]">
-        Animer les effets
+        {translate('map.measurements.animateEffects')}
         <Switch checked={animate} onCheckedChange={(on) => setAnimateSkins(engine, on)} />
       </label>
     </div>

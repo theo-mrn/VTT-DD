@@ -4,6 +4,7 @@
  * Briques des barres contextuelles des outils Dessin et Texte : bouton d'option, séparateur,
  * destination (annotation ou calque), réglage numérique avec préréglages.
  */
+import { translate } from '@/i18n/runtime';
 import { ChevronDown, Layers, StickyNote } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -91,11 +92,14 @@ export function TargetMenu({
   useMapUi((s) => s.activeLayerId);
   const layer = drawingLayer(engine);
   const effective: DrawTarget = value === 'layer' && layer ? 'layer' : 'annotation';
-  const label = effective === 'layer' && layer ? `Calque « ${layer.name} »` : 'Annotation';
+  const label =
+    effective === 'layer' && layer
+      ? translate('map.drawings.layerNamed', { name: layer.name })
+      : translate('map.drawings.annotation');
   const Icon = effective === 'layer' ? Layers : StickyNote;
   return (
     <DropdownMenu>
-      <Info texte="Où poser les dessins et les textes">
+      <Info texte={translate('map.drawings.whereToPlace')}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="max-w-52 gap-1.5 px-2">
             <Icon />
@@ -105,28 +109,30 @@ export function TargetMenu({
         </DropdownMenuTrigger>
       </Info>
       <DropdownMenuContent side="top" align="center" className="w-72">
-        <DropdownMenuLabel>Poser dans</DropdownMenuLabel>
+        <DropdownMenuLabel>{translate('map.drawings.placeIn')}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={effective}
           onValueChange={(v) => onChange(v === 'layer' ? 'layer' : 'annotation')}
         >
           <DropdownMenuRadioItem value="annotation" className="items-start">
             <span className="flex flex-col gap-0.5">
-              <span className="text-foreground">Annotation</span>
+              <span className="text-foreground">{translate('map.drawings.annotation')}</span>
               <span className="text-xs text-muted-foreground">
-                Au-dessus de l’ombre : toujours visible de toute la table.
+                {translate('map.drawings.annotationAlways')}
               </span>
             </span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="layer" disabled={!layer} className="items-start">
             <span className="flex flex-col gap-0.5">
               <span className="text-foreground">
-                {layer ? `Calque « ${layer.name} »` : 'Dans un calque'}
+                {layer
+                  ? translate('map.drawings.layerNamed', { name: layer.name })
+                  : translate('map.drawings.inALayer')}
               </span>
               <span className="text-xs text-muted-foreground">
                 {layer
-                  ? 'Fait partie de la carte : sous l’ombre et le brouillard, rangé avec le reste.'
-                  : 'Aucun calque déverrouillé sur cette carte.'}
+                  ? translate('map.drawings.layerHint')
+                  : translate('map.drawings.noUnlockedLayer')}
               </span>
             </span>
           </DropdownMenuRadioItem>

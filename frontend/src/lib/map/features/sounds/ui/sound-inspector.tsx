@@ -4,6 +4,7 @@
  * Inspecteur des zones sonores (MJ) : nom, lancée, son, volume, rayon (unités). Chaque réglage
  * est une commande annulable.
  */
+import { translate } from '@/i18n/runtime';
 import { useEffect, useId, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -35,7 +36,7 @@ export function SoundInspector({ engine, entities }: Readonly<InspectorSectionPr
 
   const commitName = () => {
     const next = name.trim().slice(0, 200);
-    if (next && next !== first.name) patch('Renommer la zone sonore', () => ({ name: next }));
+    if (next && next !== first.name) patch(translate('map.sounds.rename'), () => ({ name: next }));
   };
 
   return (
@@ -43,7 +44,7 @@ export function SoundInspector({ engine, entities }: Readonly<InspectorSectionPr
       {entities.length === 1 && (
         <div className="space-y-1.5">
           <label htmlFor={`${id}-name`} className="text-[13px] text-foreground">
-            Nom
+            {translate('map.lights.name')}
           </label>
           <Input
             id={`${id}-name`}
@@ -62,44 +63,48 @@ export function SoundInspector({ engine, entities }: Readonly<InspectorSectionPr
         </div>
       )}
 
-      <FieldRow label="Lancée" htmlFor={`${id}-on`}>
+      <FieldRow label={translate('map.sounds.playing')} htmlFor={`${id}-on`}>
         <Switch
           id={`${id}-on`}
           checked={zones.every((z) => z.active)}
           onCheckedChange={(on) =>
-            patch(on ? 'Lancer la zone sonore' : 'Arrêter la zone sonore', () => ({ active: on }))
+            patch(on ? translate('map.sounds.start') : translate('map.sounds.stop'), () => ({
+              active: on,
+            }))
           }
         />
       </FieldRow>
 
       <div className="space-y-1.5">
-        <span className="text-[13px] text-foreground">Son</span>
+        <span className="text-[13px] text-foreground">{translate('map.sounds.sound')}</span>
         <SoundPicker
           campaignId={campaignId}
           value={same((z) => z.assetId)}
           onChange={(a) =>
-            patch('Son de la zone', (z) => ({
+            patch(translate('map.sounds.zoneSound'), (z) => ({
               assetId: a.id,
               url: null,
               // Nom par défaut : il suit le son
-              ...(!z.name || z.name === 'Zone sonore' ? { name: a.name.slice(0, 200) } : {}),
+              ...(!z.name || z.name === translate('map.sounds.zone')
+                ? { name: a.name.slice(0, 200) }
+                : {}),
             }))
           }
         />
       </div>
 
       <RangeField
-        label="Volume"
+        label={translate('map.sounds.volume')}
         value={same((z) => z.volume) ?? first.volume}
         min={0.05}
         max={1}
         step={0.05}
         format={percent}
         scale={100}
-        onCommit={(v) => patch('Volume de la zone sonore', () => ({ volume: v }))}
+        onCommit={(v) => patch(translate('map.sounds.zoneVolume'), () => ({ volume: v }))}
       />
       <RangeField
-        label="Rayon"
+        label={translate('map.lights.radius')}
         value={Math.round(((same((z) => z.radius) ?? first.radius) / ppu) * 100) / 100}
         min={RADIUS_RANGE.min}
         max={RADIUS_RANGE.slider}
@@ -107,7 +112,9 @@ export function SoundInspector({ engine, entities }: Readonly<InspectorSectionPr
         step={RADIUS_RANGE.step}
         format={(v) => `${v.toLocaleString('fr-FR')} ${unitName}`}
         onCommit={(v) =>
-          patch('Rayon de la zone sonore', () => ({ radius: Math.round(v * ppu * 100) / 100 }))
+          patch(translate('map.sounds.zoneRadius'), () => ({
+            radius: Math.round(v * ppu * 100) / 100,
+          }))
         }
       />
     </div>

@@ -5,6 +5,7 @@
  * celle-ci), puis l'arrivée, son point d'arrivée des joueurs par défaut ou un point choisi d'un
  * clic sur l'aperçu de son fond (coordonnées du monde = pixels du fond, comme la carte).
  */
+import { translate } from '@/i18n/runtime';
 import type { MapScene } from '@vtt/contracts';
 import { EyeOff, Film, Flag, MapPin, Search } from 'lucide-react';
 import { useMemo, useState, type MouseEvent } from 'react';
@@ -55,14 +56,17 @@ export function SceneDestination({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Chercher une scène"
-            aria-label="Chercher une scène"
+            placeholder={translate('map.portals.searchScene')}
+            aria-label={translate('map.portals.searchScene')}
             className="pl-8"
           />
         </div>
       )}
       {others.length ? (
-        <ul className="max-h-56 space-y-1 overflow-y-auto pr-1" aria-label="Scènes">
+        <ul
+          className="max-h-56 space-y-1 overflow-y-auto pr-1"
+          aria-label={translate('map.portals.scenes')}
+        >
           {others.map((s) => {
             const on = s.id === value.mapId;
             const video = isVideoBackground(s.backgroundUrl);
@@ -105,7 +109,7 @@ export function SceneDestination({
                     {!s.visibleToPlayers && (
                       <Badge className="mt-1">
                         <EyeOff />
-                        Cachée
+                        {translate('map.portals.hidden')}
                       </Badge>
                     )}
                   </span>
@@ -116,14 +120,14 @@ export function SceneDestination({
         </ul>
       ) : (
         <p className="rounded-xl border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
-          {query ? 'Aucune scène à ce nom.' : 'Aucune autre scène : créez-en une dans Scènes (E).'}
+          {query ? translate('map.portals.noSceneNamed') : translate('map.portals.noOtherScene')}
         </p>
       )}
 
       {chosen && (
         <div className="space-y-2">
           <Segmented
-            label="Arrivée"
+            label={translate('map.portals.arrival')}
             value={value.target ? 'point' : 'spawn'}
             onChange={(v) =>
               onChange({
@@ -139,8 +143,8 @@ export function SceneDestination({
               })
             }
             options={[
-              { value: 'spawn', label: 'Arrivée des joueurs', icon: Flag },
-              { value: 'point', label: 'Point choisi', icon: MapPin },
+              { value: 'spawn', label: translate('map.portals.playersArrival'), icon: Flag },
+              { value: 'point', label: translate('map.portals.chosenPoint'), icon: MapPin },
             ]}
           />
           {value.target ? (
@@ -152,8 +156,8 @@ export function SceneDestination({
           ) : (
             <p className="text-xs text-muted-foreground">
               {chosen.spawn
-                ? 'Les voyageurs arrivent au point d’arrivée de la scène.'
-                : 'La scène n’a pas de point d’arrivée : les voyageurs arrivent en son centre.'}
+                ? translate('map.portals.arriveAtSpawn')
+                : translate('map.portals.arriveAtCenter')}
             </p>
           )}
         </div>
@@ -191,7 +195,7 @@ function ScenePointPicker({
       <button
         type="button"
         onClick={pick}
-        aria-label={`Choisir l’arrivée sur « ${scene.name} »`}
+        aria-label={translate('map.portals.pickArrivalOn', { name: scene.name })}
         className="relative block w-full cursor-crosshair overflow-hidden rounded-xl border border-border bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
         style={{ aspectRatio: `${width} / ${height}`, maxHeight: '14rem' }}
       >

@@ -10,6 +10,7 @@
  * - Un joueur reçoit `target`, `targetMapId` et `linkedPortalId` nuls : il ne sait où mène un
  *   portail qu'en l'empruntant.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapPortal, MapPortalIcon } from '@vtt/contracts';
 import type { Point } from '@/lib/map/engine/geometry';
 import { tempId } from '@/lib/map/store/commands';
@@ -24,24 +25,26 @@ export const PORTALS_TOOL_ID = 'portals';
 export const TOKEN_KIND = 'token';
 
 /** Icônes (glyphes : `glyphs.ts`), dans l'ordre du choix. */
-export const PORTAL_ICONS: readonly { value: MapPortalIcon; label: string }[] = [
-  { value: 'portal', label: 'Portail' },
-  { value: 'stairs', label: 'Escalier' },
-  { value: 'door', label: 'Porte' },
-  { value: 'ladder', label: 'Échelle' },
-];
+export const PORTAL_ICONS: readonly MapPortalIcon[] = ['portal', 'stairs', 'door', 'ladder'];
 
-/** Palette proposée (donnée : elle part au serveur), celle de l'ancienne app et quelques autres. */
-export const PORTAL_COLORS: readonly { value: string; label: string }[] = [
-  { value: '#8b5cf6', label: 'Violet' },
-  { value: '#3b82f6', label: 'Bleu' },
-  { value: '#06b6d4', label: 'Cyan' },
-  { value: '#10b981', label: 'Vert' },
-  { value: '#f59e0b', label: 'Ambre' },
-  { value: '#ef4444', label: 'Rouge' },
-  { value: '#ec4899', label: 'Rose' },
-  { value: '#e7e5e4', label: 'Pierre' },
-];
+/**
+ * Palette proposée (donnée : elle part au serveur), celle de l'ancienne app et quelques autres ;
+ * nom affiché : `map.portals.colors.<name>`.
+ */
+export const PORTAL_COLORS = [
+  { value: '#8b5cf6', name: 'violet' },
+  { value: '#3b82f6', name: 'blue' },
+  { value: '#06b6d4', name: 'cyan' },
+  { value: '#10b981', name: 'green' },
+  { value: '#f59e0b', name: 'amber' },
+  { value: '#ef4444', name: 'red' },
+  { value: '#ec4899', name: 'pink' },
+  { value: '#e7e5e4', name: 'stone' },
+] as const;
+
+/** La palette avec ses noms, pour un sélecteur de couleur. */
+export const portalColorOptions = () =>
+  PORTAL_COLORS.map((c) => ({ value: c.value, label: translate(`map.portals.colors.${c.name}`) }));
 
 /** Réglages des portails posés (barre de l'outil). Rayon en cases. */
 export interface PortalDefaults {
@@ -69,8 +72,9 @@ export const RADIUS_RANGE = { min: 0.5, max: 10, step: 0.5 };
 /** Tolérance de la zone, en pixels du monde (arrondis des positions), comme le serveur. */
 const RANGE_EPSILON = 1e-6;
 
+/** Nom d'une icône (`map.portals.icons.<icône>`), « Portail » si inconnue. */
 export const iconLabel = (icon: MapPortalIcon | null | undefined) =>
-  PORTAL_ICONS.find((i) => i.value === icon)?.label ?? 'Portail';
+  translate(`map.portals.icons.${icon && PORTAL_ICONS.includes(icon) ? icon : 'portal'}`);
 
 /** Nom affiché : le sien, sinon celui de son icône (jamais celui de la scène visée). */
 export const portalLabel = (p: Pick<MapPortal, 'name' | 'icon'>) =>

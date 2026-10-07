@@ -44,7 +44,7 @@ function initial(): MeasurePrefs {
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   return {
     clickDistance: read(KEYS.clickDistance) !== '0',
-    counting: GRID_COUNTINGS.some((c) => c.value === counting)
+    counting: GRID_COUNTINGS.includes(counting as GridCounting)
       ? (counting as GridCounting)
       : 'chebyshev',
     animateSkins: skins === '0' || skins === '1' ? skins === '1' : !reduced,

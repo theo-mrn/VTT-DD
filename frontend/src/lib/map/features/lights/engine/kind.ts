@@ -10,6 +10,7 @@
  *   compris) ; elle ne se déplace pas seule.
  * - Éteinte : le serveur ne l'envoie pas aux joueurs ; son direct reste chez le MJ.
  */
+import { translate } from '@/i18n/runtime';
 import { Lightbulb, LightbulbOff, Link2, Link2Off, SlidersHorizontal, Trash2 } from 'lucide-react';
 import type { Container, Graphics, GraphicsContext } from 'pixi.js';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
@@ -276,7 +277,7 @@ export function attachItems(ctx: LightContext, entities: readonly MapEntity[]): 
   const items: MenuItem[] = [
     {
       id: 'light:attach',
-      label: 'Attacher à un token',
+      label: translate('map.lights.attachToToken'),
       icon: Link2,
       disabled: !tokens.length,
       children: tokens
@@ -291,7 +292,7 @@ export function attachItems(ctx: LightContext, entities: readonly MapEntity[]): 
               ctx,
               entities,
               () => ({ attachedTokenId: t.id }),
-              'Attacher la lumière',
+              translate('map.lights.attach'),
             ),
         })),
     },
@@ -299,14 +300,14 @@ export function attachItems(ctx: LightContext, entities: readonly MapEntity[]): 
   if (entities.some((e) => lightOf(e).attachedTokenId))
     items.push({
       id: 'light:detach',
-      label: 'Détacher du token',
+      label: translate('map.lights.detachFromToken'),
       icon: Link2Off,
       run: () =>
         void patchLights(
           ctx,
           entities,
           (l) => ({ attachedTokenId: null, pos: roundPoint(lightPosition(engine, l)) }),
-          'Détacher la lumière',
+          translate('map.lights.detach'),
         ),
     });
   return items;
@@ -334,42 +335,44 @@ export function carriedLightItems(
   return [
     {
       id: 'light:carried',
-      label: lights.length > 1 ? 'Lumières portées' : 'Lumière portée',
+      label:
+        lights.length > 1 ? translate('map.lights.carriedMany') : translate('map.lights.carried'),
       icon: Lightbulb,
       children: [
         {
           id: 'light:carried:toggle',
-          label: allOn ? 'Éteindre' : 'Allumer',
+          label: allOn ? translate('map.lights.turnOff') : translate('map.lights.turnOn'),
           icon: allOn ? LightbulbOff : Lightbulb,
           run: () =>
             void patchLights(
               ctx,
               lights,
               () => ({ visible: !allOn }),
-              allOn ? 'Éteindre la lumière' : 'Allumer la lumière',
+              allOn ? translate('map.lights.turnOffLight') : translate('map.lights.turnOnLight'),
             ),
         },
         {
           id: 'light:carried:settings',
-          label: 'Réglages',
+          label: translate('map.lights.settings'),
           icon: SlidersHorizontal,
           run: () => engine.openInspector(lights.map((l) => l.id)),
         },
         {
           id: 'light:carried:detach',
-          label: 'Détacher du token',
+          label: translate('map.lights.detachFromToken'),
           icon: Link2Off,
           run: () =>
             void patchLights(
               ctx,
               lights,
               (l) => ({ attachedTokenId: null, pos: roundPoint(lightPosition(engine, l)) }),
-              'Détacher la lumière',
+              translate('map.lights.detach'),
             ),
         },
         {
           id: 'light:carried:remove',
-          label: lights.length > 1 ? 'Retirer les lumières' : 'Retirer la lumière',
+          label:
+            lights.length > 1 ? translate('map.lights.removeMany') : translate('map.lights.remove'),
           icon: Trash2,
           danger: true,
           run: () => void engine.deleteEntities(lights),
@@ -388,7 +391,7 @@ export function lightKind(ctx: LightContext, view: LightView): EntityKind<MapDto
   const { engine } = ctx;
   return {
     id: LIGHT_KIND,
-    label: 'Lumière',
+    label: translate('map.lights.light'),
     collection: LIGHTS,
     capabilities: ['select', 'move', 'delete', 'inspect', 'duplicate'],
     plane: 'gm',
@@ -402,7 +405,7 @@ export function lightKind(ctx: LightContext, view: LightView): EntityKind<MapDto
       return { x: d.pos.x, y: d.pos.y, width: 0, height: 0, rotation: 0 };
     },
     applyGeometry: (l, g) => ({ ...(l as LightData), pos: roundPoint(g) }),
-    name: (l) => (l as LightData).name?.trim() || 'Lumière',
+    name: (l) => (l as LightData).name?.trim() || translate('map.lights.light'),
     can: gmStrict,
     hitTest: (e, p, tol) =>
       Math.hypot(p.x - e.current.x, p.y - e.current.y) <= LIGHT_ICON_PX / engine.camera.zoom + tol,
@@ -419,14 +422,14 @@ export function lightKind(ctx: LightContext, view: LightView): EntityKind<MapDto
       return [
         {
           id: 'light:toggle',
-          label: allOn ? 'Éteindre' : 'Allumer',
+          label: allOn ? translate('map.lights.turnOff') : translate('map.lights.turnOn'),
           icon: allOn ? LightbulbOff : Lightbulb,
           run: () =>
             void patchLights(
               ctx,
               entities,
               () => ({ visible: !allOn }),
-              allOn ? 'Éteindre la lumière' : 'Allumer la lumière',
+              allOn ? translate('map.lights.turnOffLight') : translate('map.lights.turnOnLight'),
             ),
         },
         ...attachItems(ctx, entities),

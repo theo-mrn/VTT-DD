@@ -110,6 +110,8 @@ beforeEach(async () => {
     ok: true,
     json: async () => ASSETS,
   } as Response);
+  // Le traducteur repart lui aussi d'un module neuf
+  await import('@/test/i18n');
   mod = await import('./skins');
 });
 afterEach(() => {

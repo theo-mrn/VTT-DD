@@ -5,6 +5,7 @@
  * « Poser aussi les murs » d'une pièce, rappel des gestes, et « Tout effacer » (confirmé,
  * annulable).
  */
+import { translate } from '@/i18n/runtime';
 import {
   AppWindow,
   ArrowRightToLine,
@@ -62,7 +63,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: ObstacleT
             return (
               <OptionButton
                 key={m.id}
-                label={m.label}
+                label={translate(`map.obstacles.modes.${m.id}.label`)}
                 shortcut={m.key}
                 active={mode === m.id}
                 onClick={() => {
@@ -79,12 +80,18 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: ObstacleT
         {mode === 'door' && (
           <>
             <OptionSeparator />
-            <div className="flex items-center gap-1" role="group" aria-label="Largeur des portes">
-              <span className="px-1 text-xs text-muted-foreground">Largeur</span>
+            <div
+              className="flex items-center gap-1"
+              role="group"
+              aria-label={translate('map.obstacles.doorWidth')}
+            >
+              <span className="px-1 text-xs text-muted-foreground">
+                {translate('map.obstacles.width')}
+              </span>
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label="Porte plus étroite"
+                aria-label={translate('map.obstacles.narrower')}
                 disabled={doorWidth <= 0.5}
                 onClick={() =>
                   tool.settings.setState({ doorWidth: Math.max(0.5, doorWidth - 0.5) })
@@ -98,7 +105,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: ObstacleT
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label="Porte plus large"
+                aria-label={translate('map.obstacles.wider')}
                 disabled={doorWidth >= 6}
                 onClick={() => tool.settings.setState({ doorWidth: Math.min(6, doorWidth + 0.5) })}
               >
@@ -115,9 +122,9 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: ObstacleT
               <Switch
                 checked={roomWalls}
                 onCheckedChange={(on) => tool.settings.setState({ roomWalls: on })}
-                aria-label="Poser aussi les murs"
+                aria-label={translate('map.obstacles.alsoWalls')}
               />
-              Poser aussi les murs
+              {translate('map.obstacles.alsoWalls')}
             </label>
           </>
         )}
@@ -126,7 +133,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: ObstacleT
         <ClearAll engine={engine} />
       </div>
       <p className="max-w-[36rem] px-2 text-center text-[11px] leading-snug text-muted-foreground">
-        {info.hint}
+        {translate(`map.obstacles.modes.${info.id}.hint`)}
       </p>
     </div>
   );
@@ -141,23 +148,23 @@ function ClearAll({ engine }: Readonly<{ engine: MapEngine }>) {
     const ctx = obstacleContextOf(engine);
     if (!ctx) return;
     const ok = await engine.confirm({
-      title: 'Tout effacer ?',
-      message: `Supprimer les ${obstacles} obstacles et ${rooms} pièces de cette scène ? L’action s’annule par ⌘/Ctrl+Z.`,
-      confirmLabel: 'Tout effacer',
+      title: translate('map.obstacles.clearAllTitle'),
+      message: translate('map.obstacles.clearAllMessage', { obstacles, rooms }),
+      confirmLabel: translate('map.obstacles.clearAll'),
       danger: true,
     });
     if (!ok) return;
     const plan = newPlan(engine);
     for (const o of [...plan.obstacles()]) plan.removeObstacle(o.id);
     for (const r of [...plan.rooms()]) plan.removeRoom(r.id);
-    void executePlan(engine, 'Tout effacer', plan, ctx.persistences);
+    void executePlan(engine, translate('map.obstacles.clearAll'), plan, ctx.persistences);
   };
   return (
-    <Info texte="Tout effacer (obstacles et pièces)">
+    <Info texte={translate('map.obstacles.clearAllHint')}>
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Tout effacer"
+        aria-label={translate('map.obstacles.clearAll')}
         disabled={!total}
         onClick={() => void clear()}
         className="hover:bg-destructive/10 hover:text-destructive"

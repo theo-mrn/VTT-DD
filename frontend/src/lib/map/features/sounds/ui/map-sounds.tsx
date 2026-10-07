@@ -9,6 +9,7 @@
  * - **Dépôt** (MJ) : un son glissé depuis la bibliothèque, ou un fichier audio de l'ordinateur
  *   (envoyé dans la bibliothèque), pose une zone au point de dépôt.
  */
+import { translate } from '@/i18n/runtime';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { toast } from 'sonner';
 import { useAudioLibrary, useSpatialAudio, type SpatialSource } from '@/lib/audio';
@@ -118,7 +119,7 @@ function useSoundDrop(
     if (!gm || !host) return;
     const accepts = (e: DragEvent) => {
       const types = e.dataTransfer?.types ?? [];
-      return types.includes(SOUND_DRAG_TYPE) || types.includes('Files');
+      return types.includes(SOUND_DRAG_TYPE) || types.includes('Files'); // i18n-ignore
     };
     const onOver = (e: DragEvent) => {
       if (!accepts(e)) return;
@@ -140,7 +141,7 @@ function useSoundDrop(
       if (dragged) {
         const asset = latest.current.assets.find((a) => a.id === dragged.assetId);
         if (asset?.source === 'youtube') {
-          toast.error('Un son YouTube ne peut pas devenir une zone sonore.');
+          toast.error(translate('map.sounds.noYoutube'));
           return;
         }
         place(dragged.assetId, asset?.name ?? dragged.name);
@@ -148,8 +149,8 @@ function useSoundDrop(
       }
       const file = audioFileOf(e.dataTransfer.files);
       if (!file) return;
-      const name = file.name.replace(/\.[^.]+$/, '').slice(0, 200) || 'Son';
-      const pending = toast.loading(`Envoi de « ${name} »…`);
+      const name = file.name.replace(/\.[^.]+$/, '').slice(0, 200) || translate('map.sounds.sound');
+      const pending = toast.loading(translate('map.sounds.uploading', { name }));
       latest.current
         .upload(file, { name, kind: 'ambience' })
         .then((asset) => {
@@ -157,7 +158,9 @@ function useSoundDrop(
           place(asset.id, asset.name);
         })
         .catch((err: unknown) => {
-          toast.error(err instanceof Error ? err.message : 'Envoi impossible', { id: pending });
+          toast.error(err instanceof Error ? err.message : translate('map.sounds.uploadFailed'), {
+            id: pending,
+          });
         });
     };
     host.addEventListener('dragover', onOver);

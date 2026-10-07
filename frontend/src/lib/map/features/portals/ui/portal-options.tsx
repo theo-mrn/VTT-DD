@@ -5,13 +5,14 @@
  * rayon, aller-retour, automatique, visible des joueurs), gardés dans le navigateur, et rappel
  * des gestes selon l'étape (entrée, arrivée, choix d'une arrivée).
  */
+import { translate } from '@/i18n/runtime';
 import { ArrowRightLeft, Eye, EyeOff, Palette, Zap } from 'lucide-react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Info } from '@/components/ui/tooltip';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { PORTAL_COLORS, PORTAL_ICONS, RADIUS_RANGE } from '../engine/model';
+import { iconLabel, PORTAL_ICONS, portalColorOptions, RADIUS_RANGE } from '../engine/model';
 import { PortalTool } from '../engine/tool';
 import {
   OptionButton,
@@ -27,43 +28,38 @@ export function PortalOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   return <Options engine={engine} tool={tool} />;
 }
 
-const HINTS = {
-  idle: 'Clic : poser l’entrée d’un portail, puis son arrivée (Alt : sans aimantation). Glisser un portail le déplace ; ses poignées règlent la zone et l’arrivée.',
-  destination:
-    'Cliquez l’arrivée sur la carte, ou choisissez une autre scène dans le panneau « Destination ». Échap : annuler.',
-  pick: 'Cliquez la nouvelle arrivée du portail sur la carte. Échap : annuler.',
-} as const;
-
 function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalTool }>) {
   const s = useStore(tool.settings);
   const state = useStore(tool.ui, (u) => u.state);
   const set = tool.settings.setState;
   const unit = engine.kindContext().unitName;
-  const hint = state === 'destination' || state === 'pick' ? HINTS[state] : HINTS.idle;
+  const hint = translate(
+    `map.portals.hints.${state === 'destination' || state === 'pick' ? state : 'idle'}`,
+  );
 
   return (
     <div className="flex max-w-full flex-col items-center gap-1">
       <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
-        <span className="px-1 text-xs text-muted-foreground">Nouveau portail</span>
+        <span className="px-1 text-xs text-muted-foreground">{translate('map.portals.new')}</span>
         {PORTAL_ICONS.map((i) => (
           <OptionButton
-            key={i.value}
-            label={i.label}
-            active={s.icon === i.value}
-            onClick={() => set({ icon: i.value })}
+            key={i}
+            label={iconLabel(i)}
+            active={s.icon === i}
+            onClick={() => set({ icon: i })}
           >
-            <PortalGlyph icon={i.value} />
+            <PortalGlyph icon={i} />
           </OptionButton>
         ))}
         <OptionSeparator />
         <Popover>
-          <Info texte="Couleur et zone">
+          <Info texte={translate('map.portals.colorZone')}>
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
                 className="gap-1.5 px-2"
-                aria-label="Couleur et zone"
+                aria-label={translate('map.portals.colorZone')}
               >
                 <span
                   aria-hidden
@@ -77,7 +73,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalToo
           <PopoverContent side="top" className="w-72 space-y-4 p-3">
             <Swatches
               value={s.color}
-              options={PORTAL_COLORS}
+              options={portalColorOptions()}
               onChange={(c) => c && set({ color: c })}
             />
             <RangeField
@@ -93,25 +89,25 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalToo
         </Popover>
         <OptionSeparator />
         <OptionButton
-          label={s.twoWay ? 'Aller-retour : le retour est posé à l’arrivée' : 'Aller simple'}
+          label={s.twoWay ? translate('map.portals.twoWay') : translate('map.portals.oneWay')}
           active={s.twoWay}
           onClick={() => set({ twoWay: !s.twoWay })}
         >
           <ArrowRightLeft />
         </OptionButton>
         <OptionButton
-          label={
-            s.auto
-              ? 'Automatique : franchi dès qu’un joueur y lâche son token'
-              : 'Sur demande : le joueur choisit de l’emprunter'
-          }
+          label={s.auto ? translate('map.portals.autoHint') : translate('map.portals.onDemandHint')}
           active={s.auto}
           onClick={() => set({ auto: !s.auto })}
         >
           <Zap />
         </OptionButton>
         <OptionButton
-          label={s.visible ? 'Visible des joueurs' : 'Masqué aux joueurs'}
+          label={
+            s.visible
+              ? translate('map.portals.visibleToPlayers')
+              : translate('map.portals.hiddenFromPlayers')
+          }
           active={s.visible}
           onClick={() => set({ visible: !s.visible })}
         >

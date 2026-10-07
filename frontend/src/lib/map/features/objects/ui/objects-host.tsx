@@ -9,6 +9,7 @@
  * - MJ : un toast quand un joueur fouille (`map_object.searched`) ou prend quelque chose
  *   (`map_object.looted`).
  */
+import { translate } from '@/i18n/runtime';
 import { useQueryClient } from '@tanstack/react-query';
 import type { MapObjectLootedPayload, MapObjectSearchedPayload } from '@vtt/contracts';
 import { useEffect } from 'react';
@@ -40,21 +41,32 @@ export function ObjectsHost({ engine }: Readonly<{ engine: MapEngine }>) {
 function GmNotices({ engine }: { engine: MapEngine }) {
   const campaignId = engine.store.getState().campaignId;
   const nameOf = (characterId: string) =>
-    engine.directory.characters().find((c) => c.id === characterId)?.name ?? 'Un personnage';
+    engine.directory.characters().find((c) => c.id === characterId)?.name ??
+    translate('map.portals.aCharacter');
   useCampaignEvents(campaignId, ['map_object.searched', 'map_object.looted'], (e) => {
     if (e.redacted) return;
     const type = e.event.type;
     const p = e.event.payload as unknown as MapObjectSearchedPayload | MapObjectLootedPayload;
     if (p.userId === engine.viewer.userId) return;
-    const object = p.name ? `« ${p.name} »` : 'un objet';
-    if (type === 'map_object.searched') toast(`${nameOf(p.characterId)} fouille ${object}.`);
+    const object = p.name
+      ? translate('map.objects.notices.named', { name: p.name })
+      : translate('map.objects.notices.anObject');
+    const who = nameOf(p.characterId);
+    if (type === 'map_object.searched')
+      toast(translate('map.objects.notices.searched', { who, object }));
     else if ('item' in p)
-      toast(`${nameOf(p.characterId)} a pris ${quantityLabel(p.item.name, p.item.quantity)}.`, {
-        description:
-          p.remaining > 0
-            ? `Dans ${object} : il en reste ${p.remaining}.`
-            : `Dans ${object} : il n’en reste plus.`,
-      });
+      toast(
+        translate('map.objects.notices.took', {
+          who,
+          item: quantityLabel(p.item.name, p.item.quantity),
+        }),
+        {
+          description: translate('map.objects.notices.remaining', {
+            object,
+            count: p.remaining,
+          }),
+        },
+      );
   });
   return null;
 }
