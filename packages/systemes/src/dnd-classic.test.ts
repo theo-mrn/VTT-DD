@@ -1152,8 +1152,10 @@ describe('dnd-classic : capacités codées', () => {
   });
 
   it('capacités à activer : durée en tours lue sur le porteur, dés compris', () => {
-    const pretre = nu([{ entree: 'pretre-priere', rang: 2 }], { SAG: 14 });
-    expect(dureeActivation(pretre, 'pretre-priere-benediction')).toEqual({ duree: 3 + 2 });
+    const druide = nu([{ entree: 'druide-animaux', rang: 4 }], { SAG: 14 });
+    expect(dureeActivation(druide, 'druide-animaux-masque-du-predateur')).toEqual({
+      duree: 5 + 2,
+    });
     const minotaure = nu([{ entree: 'race-minotaure', rang: 5 }]);
     expect(dureeActivation(minotaure, 'race-minotaure-frenesie', aleatoireImpose([4]))).toEqual({
       duree: 4,
@@ -1161,6 +1163,24 @@ describe('dnd-classic : capacités codées', () => {
     // Rage du berserk : tant qu'il reste des ennemis, sans durée
     const barbare = nu([{ entree: 'barbare-rage', rang: 3 }]);
     expect(dureeActivation(barbare, 'barbare-rage-rage-du-berserk')).toBeUndefined();
+  });
+
+  it('capacité jouée : Bénédiction donne ses effets aux alliés pour sa durée', () => {
+    const pretre = nu([{ entree: 'pretre-priere', rang: 1 }], { SAG: 14 });
+    const allie = nu();
+    const r = agir('utiliser-capacite', pretre, [], allie, {
+      capacite: 'pretre-priere-benediction',
+    });
+    expect(r.modifications).toEqual([
+      expect.objectContaining({
+        entite: 'cible',
+        entree: 'pretre-priere-benediction--effets',
+        operation: 'donner',
+        duree: 3 + 2,
+      }),
+    ]);
+    const beni = calculer(systeme, appliquerModifications(allie, r.modifications, 'cible'));
+    expect(beni.valeur('Contact')).toBe(allie.valeur('Contact') + 1);
   });
 
   it('usages limités : par combat, par jour, nombre selon la voie', () => {

@@ -229,7 +229,14 @@
 - id: prestige-voleur-maitre-des-poisons-connaissance-du-poison
   sorte: capacite
   nom: Connaissance du poison
-  champs: { voie: prestige-voleur-maitre-des-poisons, rangVoie: 1, activation: Capacité passive }
+  champs:
+    {
+      voie: prestige-voleur-maitre-des-poisons,
+      rangVoie: 1,
+      activation: Capacité passive,
+      cibles: soi,
+      jet: '1d20 + mod(@INT)',
+    }
   description: |-
     Effet : Le voleur peut effectuer un test d’INT difficulté 10 pour reconnaître, identifier ou détecter un poison.
 
@@ -254,7 +261,13 @@
 - id: prestige-voleur-maitre-des-poisons-poison-affaiblissant
   sorte: capacite
   nom: Poison affaiblissant
-  champs: { voie: prestige-voleur-maitre-des-poisons, rangVoie: 3, activation: Capacité passive }
+  champs:
+    {
+      voie: prestige-voleur-maitre-des-poisons,
+      rangVoie: 3,
+      activation: Capacité passive,
+      cibles: ennemis,
+    }
   description: |-
     Effet : Le voleur peut remplacer le poison rapide par un poison affaiblissant, les effets ne sont appliqués que sur la première attaque réussie avec cette arme.
 
@@ -375,7 +388,13 @@
   sorte: capacite
   nom: Flèche chercheuse
   usages: { par: jour }
-  champs: { voie: prestige-rodeur-archer-arcanique, rangVoie: 5, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-rodeur-archer-arcanique,
+      rangVoie: 5,
+      activation: Action limitée,
+      cibles: ennemis,
+    }
   description: |-
     Effet : Une fois par jour, le rôdeur peut enchanter une flèche afin qu’elle trouve sa cible de façon infaillible.
 
@@ -426,7 +445,14 @@
 - id: prestige-rodeur-chasseur-de-corruption-sentir-la-corruption
   sorte: capacite
   nom: Sentir la corruption
-  champs: { voie: prestige-rodeur-chasseur-de-corruption, rangVoie: 1, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-rodeur-chasseur-de-corruption,
+      rangVoie: 1,
+      activation: Action limitée,
+      cibles: ennemis,
+      jet: '1d20 + mod(@SAG)',
+    }
   description: |-
     Effet : Le rôdeur se concentre sur une créature à une portée maximum de 30 mètres.
 
@@ -455,7 +481,13 @@
 - id: prestige-rodeur-chasseur-de-corruption-frappe-preventive
   sorte: capacite
   nom: Frappe préventive
-  champs: { voie: prestige-rodeur-chasseur-de-corruption, rangVoie: 4, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-rodeur-chasseur-de-corruption,
+      rangVoie: 4,
+      activation: Action limitée,
+      cibles: ennemis,
+    }
   description: |-
     Effet : En plus d’infliger des DM normaux, cette attaque oblige la cible à faire un test d’INT difficulté 15.
     En cas d’échec, elle ne peut utiliser aucun pouvoir magique ou extraordinaire à son prochain tour.
@@ -805,11 +837,25 @@
 - id: prestige-pretre-guerisseur-immunite
   sorte: capacite
   nom: Immunité
-  champs: { voie: prestige-pretre-guerisseur, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: prestige-pretre-guerisseur,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      cibles: allies,
+      dureeDonne: '1d6 + mod(@SAG)',
+    }
   description: |-
     Effet : Le personnage touché devient immunisé aux poisons et aux maladies pour une durée de [1d6 + Mod. de SAG] tours.
 
     Si le personnage est déjà malade ou empoisonné, le sort soulage la victime et annule les effets de l’affliction pendant toute sa durée : il agit même sur les maladies magiques, incurables et sur les malédictions divines.
+  donne:
+    - {
+        sur: degats,
+        types: [poison],
+        operation: annuler,
+        description: 'Immunité : poisons et maladies',
+      }
 
 - id: prestige-pretre-guerisseur-soins-rapides
   sorte: capacite
@@ -982,7 +1028,14 @@
 - id: prestige-moine-contact-mortel-attaque-etourdissante
   sorte: capacite
   nom: Attaque étourdissante
-  champs: { voie: prestige-moine-contact-mortel, rangVoie: 1, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-moine-contact-mortel,
+      rangVoie: 1,
+      activation: Action limitée,
+      cibles: ennemis,
+      jet: '1d20 + @Contact',
+    }
   description: |-
     Effet : Le moine réalise une attaque à mains nues contre une cible humanoïde (de grande taille au maximum).
 
@@ -1010,7 +1063,14 @@
   sorte: capacite
   nom: Paume mortelle
   usages: { par: jour }
-  champs: { voie: prestige-moine-contact-mortel, rangVoie: 4, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-moine-contact-mortel,
+      rangVoie: 4,
+      activation: Action limitée,
+      cibles: ennemis,
+      jet: '1d20 + @Contact',
+    }
   description: |-
     Effet : Une fois par jour, le moine peut porter une attaque capable de tuer net un adversaire.
 
@@ -1019,7 +1079,13 @@
 - id: prestige-moine-contact-mortel-main-du-tout-puissant
   sorte: capacite
   nom: Main du tout puissant
-  champs: { voie: prestige-moine-contact-mortel, rangVoie: 5, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-moine-contact-mortel,
+      rangVoie: 5,
+      activation: Action limitée,
+      cibles: ennemis,
+    }
   description: |-
     Effet : Le poing du moine se matérialise partout à la fois.
 
@@ -1093,7 +1159,14 @@
 - id: prestige-moine-pierre-attaque-petrifiante
   sorte: capacite
   nom: Attaque pétrifiante
-  champs: { voie: prestige-moine-pierre, rangVoie: 4, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-moine-pierre,
+      rangVoie: 4,
+      activation: Action limitée,
+      cibles: ennemis,
+      jet: '1d20 + @Contact',
+    }
   description: |-
     Effet : Sur un test réussi d'attaque au contact à main nue, le moine paralyse sa cible. Elle doit réussir un test de CON difficulté [10 + Mod. de SAG] ou être incapable d'agir pendant 1d6 minutes. Tant qu'elle est paralysée son corps devient extrêmement dur et elle retranche 5 points à tous les DM subits. Si la victime perd plus de 5 PV pendant qu'elle est paralysée, l'effet prend fin. Une créature ne peut être la cible de cette capacité qu'une seule fois parcombat.
 
@@ -1529,7 +1602,15 @@
 - id: prestige-forgesort-mecanicien-arbalete-automatique
   sorte: capacite
   nom: Arbalète automatique
-  champs: { voie: prestige-forgesort-mecanicien, rangVoie: 2, activation: Capacité passive }
+  champs:
+    {
+      voie: prestige-forgesort-mecanicien,
+      rangVoie: 2,
+      activation: Capacité passive,
+      cibles: ennemis,
+      jet: '1d20 + @Distance',
+      degats: '2d4 + mod(@DEX)',
+    }
   description: |-
     Effet : Le forgesort fabrique une arbalète complexe qu’il est seul à pouvoir utiliser.
     Elle est dotée d’un chargeur de 10 carreaux et permet de tirer un carreau au prix d’une action de mouvement (il est donc possible de tirer plusieurs carreaux par tour).
@@ -1716,7 +1797,13 @@
 - id: prestige-ensorceleur-gel-verglas
   sorte: capacite
   nom: Verglas
-  champs: { voie: prestige-ensorceleur-gel, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: prestige-ensorceleur-gel,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      cibles: tous,
+    }
   description: |-
     Effet : Un verglas glissant recouvre le sol sur une surface de 10m de diamètre pour le reste du combat (vous pouvez stopper le sort plus tôt).
 
@@ -2069,7 +2156,15 @@
 - id: prestige-chevalier-chevalier-dragon-souffle-enflamme
   sorte: capacite
   nom: Souffle enflammé
-  champs: { voie: prestige-chevalier-chevalier-dragon, rangVoie: 5, activation: Capacité passive }
+  champs:
+    {
+      voie: prestige-chevalier-chevalier-dragon,
+      rangVoie: 5,
+      activation: Capacité passive,
+      cibles: ennemis,
+      degats: '4d6',
+      typeDegats: feu,
+    }
   description: |-
     Effet : Le drake du Chevalier est désormais capable de cracher du feu au prix d’une action d’attaque.
 
@@ -2412,7 +2507,8 @@
 - id: prestige-barde-conteur-histoire-a-dormir-debout
   sorte: capacite
   nom: Histoire à dormir debout
-  champs: { voie: prestige-barde-conteur, rangVoie: 4, activation: Capacité passive }
+  champs:
+    { voie: prestige-barde-conteur, rangVoie: 4, activation: Capacité passive, cibles: ennemis }
   description: |-
     Effet : Le barde touche une cible et lui raconte des événements fictifs, des souvenirs inventés ou des mensonges auxquels elle croit et se persuade d’avoir réellement vécus.
 
@@ -2475,16 +2571,31 @@
   sorte: capacite
   nom: Hourras
   usages: { par: tour }
-  champs: { voie: prestige-barde-voix, rangVoie: 3, activation: Capacité passive }
+  champs:
+    {
+      voie: prestige-barde-voix,
+      rangVoie: 3,
+      activation: Capacité passive,
+      cibles: allies,
+      dureeDonne: '1',
+    }
   description: |-
     Effet : Le barde peut utiliser cette capacité une fois par tour lorsqu’un événement positif pour lui et ses alliés se produit.
 
     Tous les alliés à portée de voix profitent alors d’un bonus de +3 pour leur prochaine action similaire. Si le groupe doit par exemple franchir une crevasse, lorsqu’un premier personnage a réussi, le barde encourage ses alliés par ses hourras et ils obtiennent un bonus de +3 à son test. En combat, pour chaque ennemi neutralisé, le barde peut utiliser cette capacité et donner un bonus de +3 (non-cumulable) au prochain test d’attaque de chacun de ses alliés.
+  donne:
+    - { sur: jet, description: Bonus aux tests, ajout: { bonus: '3' } }
 
 - id: prestige-barde-voix-chant-des-sirenes
   sorte: capacite
   nom: Chant des sirènes
-  champs: { voie: prestige-barde-voix, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: prestige-barde-voix,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+    }
   description: |-
     Effet : Le barde entonne un chant en adoptant une voix si merveilleuse qu’il parvient à fasciner toutes les créatures humanoïdes à portée d’ouïe (environ 10 mètres de rayon).
 
@@ -2664,7 +2775,15 @@
   sorte: capacite
   nom: Étreinte de l’ours
   usages: { par: combat }
-  champs: { voie: prestige-barbare-beornide, rangVoie: 4, activation: Action limitée }
+  champs:
+    {
+      voie: prestige-barbare-beornide,
+      rangVoie: 4,
+      activation: Action limitée,
+      cibles: ennemis,
+      jet: '1d20 + @Contact',
+      degats: '2d6 + mod(@FOR)',
+    }
   description: |-
     Effet : Une fois par combat, le personnage peut se saisir d’un adversaire au score de FOR inférieur et l’écraser entre ses bras puissants.
 
@@ -2742,7 +2861,15 @@
   sorte: capacite
   nom: Coup de crosse
   usages: { par: tour }
-  champs: { voie: prestige-arquebusier-flibustier, rangVoie: 2, activation: Capacité passive }
+  champs:
+    {
+      voie: prestige-arquebusier-flibustier,
+      rangVoie: 2,
+      activation: Capacité passive,
+      cibles: ennemis,
+      jet: '1d12 + @Contact',
+      degats: '1d4 + mod(@FOR)',
+    }
   description: |-
     Effet : Une fois par tour, le personnage peut, au moment de son choix, accomplir une attaque gratuite avec la crosse d’une pétoire qu’il a utilisée précédemment lors du tour pour une attaque à distance.
 
@@ -2972,7 +3099,14 @@
   sorte: capacite
   nom: Gros calibre
   champs:
-    { voie: prestige-arquebusier-chasseur-de-gros-gibier, rangVoie: 3, activation: Action limitée }
+    {
+      voie: prestige-arquebusier-chasseur-de-gros-gibier,
+      rangVoie: 3,
+      activation: Action limitée,
+      cibles: ennemis,
+      jet: '1d20 + @Distance',
+      degats: '3d6',
+    }
   description: |-
     Effet : L'arquebusier a mis au point une variante de très gros calibre du mousquet qui inflige 3d6 DM et nécessite une action limitée pour tirer.
 
@@ -3159,7 +3293,14 @@
 - id: prestige-necromancien-magie-primitive-magie-du-sang
   sorte: capacite
   nom: Magie du sang
-  champs: { voie: prestige-necromancien-magie-primitive, rangVoie: 3, activation: Capacité passive }
+  champs:
+    {
+      voie: prestige-necromancien-magie-primitive,
+      rangVoie: 3,
+      activation: Capacité passive,
+      cibles: soi,
+      jet: '1d4',
+    }
   description: |-
     Effet : En sacrifiant 1d4 PV, le nécromancien obtient la possibilité de lancer un sort en une action d'attaque à ce tour-là en lieu et place d'une action limitée.
 
@@ -3173,6 +3314,7 @@
       voie: prestige-necromancien-magie-primitive,
       rangVoie: 4,
       activation: 'Action limitée, sortilège',
+      cibles: ennemis,
     }
   description: |-
     Effet : Le nécromancien invoque des esprits torturés qui hurlent et tourmentent un ennemi pendant un nombre de tours égal à son Mod. d’INT.
@@ -3182,8 +3324,16 @@
 - id: prestige-necromancien-magie-primitive-mauvais-il
   sorte: capacite
   nom: Mauvais œil
-  champs: { voie: prestige-necromancien-magie-primitive, rangVoie: 5, activation: Capacité passive }
+  champs:
+    {
+      voie: prestige-necromancien-magie-primitive,
+      rangVoie: 5,
+      activation: Capacité passive,
+      cibles: ennemis,
+    }
   description: |-
     Effet : Tant que le nécromancien regarde sa cible avec le mauvais œil, celle-ci est accablée de malchance.
 
     Une fois ses actions terminées, le personnage peut poser le mauvais œil sur la cible de son choix à chaque tour (avec une portée de 20 mètres). La victime choisie subit une pénalité de -2 à tous les tests. Si elle obtient un résultat de 1 ou 2 au test, le joueur peut décider de lui infliger une condition critique à son test ou à son action. Il s’agit d’une créature ou d’un PNJ allié, la condition est généralement une blessure ou une défaillance spécifique (ex: une arme cassée ou une armure brisée).
+  donne:
+    - { sur: jet, description: Bonus aux tests, ajout: { bonus: '-2' } }

@@ -54,6 +54,13 @@ describe('menu Capacités', () => {
     });
   });
 
+  it('une passive qui a de quoi se jouer (dés, dégâts, effets donnés) est proposée', () => {
+    const f = fiche([{ entree: 'prestige-forgesort-mecanicien', rang: 2 }]);
+    expect(jeu(f, 'prestige-forgesort-mecanicien-arbalete-automatique')?.jeu).toMatchObject({
+      type: 'generique',
+    });
+  });
+
   it('une passive pure n’est pas proposée ; une passive à usages limités, si', () => {
     const f = fiche([
       { entree: 'barbare-brute', rang: 1 },

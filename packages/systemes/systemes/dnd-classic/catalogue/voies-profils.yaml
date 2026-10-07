@@ -327,7 +327,7 @@
 - id: barbare-pourfendeur-dechainement-d-acier
   sorte: capacite
   nom: Déchaînement d'acier
-  champs: { voie: barbare-pourfendeur, rangVoie: 4, activation: Action limitée }
+  champs: { voie: barbare-pourfendeur, rangVoie: 4, activation: Action limitée, cibles: ennemis }
   description: |-
     Effet : contact sur toutes les cibles sur 10 mètres en ligne droite.
 
@@ -337,7 +337,7 @@
   sorte: capacite
   nom: Attaque tourbillon
   usages: { par: combat }
-  champs: { voie: barbare-pourfendeur, rangVoie: 5, activation: Action limitée }
+  champs: { voie: barbare-pourfendeur, rangVoie: 5, activation: Action limitée, cibles: ennemis }
   description: |-
     Effet : contact sur 5 mètres autour du barbare.
 
@@ -481,12 +481,25 @@
   sorte: capacite
   nom: Arme secrète
   usages: { par: combat }
-  champs: { voie: barde-seduction, rangVoie: 3, activation: Capacité passive }
+  champs:
+    {
+      voie: barde-seduction,
+      rangVoie: 3,
+      activation: Capacité passive,
+      jet: '1d20 + mod(@CHA)',
+      cibles: ennemis,
+      dureeDonne: '1',
+    }
   description: |-
     Effet : subterfuge, la cible subit -10 contact, distance, magie, defense:
     Durée : 1 tour Une fois par combat,
 
     le barde peut utiliser un subterfuge de séducteur pour surprendre et déstabiliser un adversaire du sexe opposé. Ce peut être un baiser fougueux soudainement délivré au coeurd'une mêlée, un sein qui s'échappe d'un bustier par mégarde, une main qui s'égare par le plus grand des hasards... Il doit réussir un test de CHA de difficulté égale à l'INT de son adversaire. En cas de succès celui-ci subit un malus de -10 en attaque et en DEF pendant 1 tour.
+  donne:
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: -10 }
+    - { sur: attribut, attribut: Distance, operation: ajouter, valeur: -10 }
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: -10 }
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: -10 }
 
 - id: barde-seduction-suggestion
   sorte: capacite
@@ -609,12 +622,21 @@
 - id: barde-musicien-chant-des-heros
   sorte: capacite
   nom: Chant des héros
-  champs: { voie: barde-musicien, rangVoie: 1, activation: Action limitée }
+  champs:
+    {
+      voie: barde-musicien,
+      rangVoie: 1,
+      activation: Action limitée,
+      cibles: allies,
+      dureeDonne: '5 + mod(@CHA)',
+    }
   description: |-
     Effet: +1 à tous les tests si à portée de voix
     Durée : [5 mod. CHA] tours
 
     Le barde chante et inspire ses compagnons : tous les alliés à portée de voix obtiennent un bonus de +1 à tous leurs tests pendant [5+ Mod. de CHA] tours.
+  donne:
+    - { sur: jet, description: Bonus aux tests, ajout: { bonus: '1' } }
 
 - id: barde-musicien-attaque-sonore
   sorte: capacite
@@ -628,12 +650,21 @@
 - id: barde-musicien-zone-de-silence
   sorte: capacite
   nom: Zone de silence
-  champs: { voie: barde-musicien, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: barde-musicien,
+      rangVoie: 3,
+      activation: 'Action limitée, sortilège',
+      cibles: tous,
+      dureeDonne: '1d6 + mod(@CHA)',
+    }
   description: |-
     Effet: -2 aux tests Contact sur 5-30 mètres
     Durée : [1d6 + mod. CHA] tours
 
     Le barde crée une zone de silence fixe de 5 mètres de diamètre, jusqu'à une portée de 30 mètres, pendant [1d6+ Mod. de CHA] tours. Tous les sons émis dans cette sphère sont annulés. La zone n'empêche pas le lancement des sorts mais inflige un malus de -2 à tous les tests d'attaque magique.
+  donne:
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: -2 }
 
 - id: barde-musicien-danse-irresistible
   sorte: capacite
@@ -659,7 +690,8 @@
 - id: barde-musicien-musique-fascinante
   sorte: capacite
   nom: Musique fascinante
-  champs: { voie: barde-musicien, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    { voie: barde-musicien, rangVoie: 5, activation: 'Action limitée, sortilège', cibles: ennemis }
   description: |-
     Effet : contrôle toutes les cibles dans les 30 mètre dont les PV < ou = [5 + mod. CHA] du barde
 
@@ -1203,11 +1235,23 @@
   sorte: capacite
   nom: Charge fantastique
   usages: { par: combat }
-  champs: { voie: chevalier-meneur-d-homme, rangVoie: 5, activation: Action limitée }
+  champs:
+    {
+      voie: chevalier-meneur-d-homme,
+      rangVoie: 5,
+      activation: Action limitée,
+      cibles: allies,
+      dureeDonne: '1',
+    }
   description: |-
     Effet: +3 Contact,Disatnce,Magie, +1d6 DM à tous le groupe.
 
     Une fois par combat, à l'initiative du chevalier, lui-même et tous ses alliés en vue bénéficient immédiatement d'un déplacement d'un maximum de 20 m en ligne droite, suivi d'une action d'attaque avec un bonus de +3 au testde réussite et +1d6 aux dégâts. Résolvez d'abord tous les déplacements en commençant par le chevalier, puis par ordre d'initiative. Ensuite effectuez xtoutes les attaques dans le même ordre.
+  donne:
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: Distance, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: 3 }
+    - { sur: jet, description: Charge fantastique, ajout: { variable: desDM, ajouter: '1' } }
 
 - id: druide-nature
   sorte: voie
@@ -1276,7 +1320,14 @@
 - id: druide-nature-baton-de-druide
   sorte: capacite
   nom: Bâton de druide
-  champs: { voie: druide-nature, rangVoie: 4, activation: Action limitée }
+  champs:
+    {
+      voie: druide-nature,
+      rangVoie: 4,
+      activation: Action limitée,
+      cibles: ennemis,
+      degats: '1d6 + max(mod(@FOR), mod(@DEX))',
+    }
   description: |-
     Effet : 2 attaques Contact, [1d6 + mod. FOR ou DEX].
 
@@ -1504,12 +1555,24 @@
 - id: druide-vegetaux-prison-vegetale
   sorte: capacite
   nom: Prison végétale
-  champs: { voie: druide-vegetaux, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: druide-vegetaux,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      dureeDonne: '5 + mod(@SAG)',
+    }
   description: |-
     Effet : entrave : -2 Contact, Distance, Magie, DEF,
     Durée : [5 + mod. SAG] tours.
 
     Le druide peut commander à la végétationde pousser et bloquer ses ennemis (mais pas ses alliés) dans une zone de 10 m de diamètre (portée 20 m) pendant [5 + Mod. de SAG] tours. Entravées, les cibles subissent un malus de -2 en attaque et en DEF, et ne peuvent pas se déplacer. Chaque tour, une créature peut se libérer avec un test de FOR difficulté [10 + Mod. de SAG].
+  donne:
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: Distance, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: -2 }
 
 - id: druide-vegetaux-animation-d-un-arbre
   sorte: capacite
@@ -1687,11 +1750,21 @@
   sorte: capacite
   nom: Prescience
   usages: { par: combat }
-  champs: { voie: ensorceleur-divination, rangVoie: 4, activation: 'Capacité passive, sortilège' }
+  champs:
+    {
+      voie: ensorceleur-divination,
+      rangVoie: 4,
+      activation: 'Capacité passive, sortilège',
+      cibles: soi,
+      dureeDonne: '1',
+    }
   description: |-
     Effet : rejoue le dernier tour, +10 🛡️, +10 Init.
 
     Une fois par combat, à la fin d’un tour, le joueur peut décider que tout ce qui s’est passé durant ce tour n’était que la vision d’un futur possible. On rejoue alors tout depuis le début : les autres personnages ne peuvent pas changer leurs actions, contrairement à l’ensorceleur qui bénéficie d’un bonus de +10 en Initiative et en DEF.
+  donne:
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: 10 }
+    - { sur: attribut, attribut: INIT, operation: ajouter, valeur: 10 }
 
 - id: ensorceleur-divination-hyperconscience
   sorte: capacite
@@ -1782,12 +1855,26 @@
 - id: ensorceleur-air-forme-etheree
   sorte: capacite
   nom: Forme éthérée
-  champs: { voie: ensorceleur-air, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: ensorceleur-air,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      cibles: soi,
+      dureeDonne: '5 + mod(@CHA)',
+    }
   description: |-
     Effet : intangible
     Durée : [5 + mod. CHA] tours.
 
     L’ensorceleur et tout son équipement deviennent translucides et intangibles pendant [5 + Mod. de CHA] tours. Sous cette forme, il peut passer à travers murs et obstacles, et ne peut subir aucun DM physiques, ni en infliger, ni lancer des sorts.
+  donne:
+    - {
+        sur: degats,
+        types: [physique],
+        operation: annuler,
+        description: 'Forme éthérée : intangible',
+      }
 
 - id: ensorceleur-envouteur
   sorte: voie
@@ -1809,7 +1896,14 @@
 - id: ensorceleur-envouteur-injonction
   sorte: capacite
   nom: Injonction
-  champs: { voie: ensorceleur-envouteur, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: ensorceleur-envouteur,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d20 + @Magie',
+    }
   description: |-
     Effet : donne un ordre à la cible
     Durée : cible immunisée 24h en cas d’échec.
@@ -1819,7 +1913,14 @@
 - id: ensorceleur-envouteur-sommeil
   sorte: capacite
   nom: Sommeil
-  champs: { voie: ensorceleur-envouteur, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: ensorceleur-envouteur,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d6 + mod(@CHA)',
+    }
   description: |-
     Effet : [1d6 + mod. CHA] cibles tombent de sommeil.
     Réveil sur 💥 Durée : [5 + mod. CHA] minutes.
@@ -1867,7 +1968,14 @@
 - id: ensorceleur-envouteur-domination
   sorte: capacite
   nom: Domination
-  champs: { voie: ensorceleur-envouteur, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: ensorceleur-envouteur,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d20 + @Magie',
+    }
   description: |-
     Effet : prend le contrôle de la cible
     Durée : [1d4 + mod. CHA] minutes.
@@ -1899,7 +2007,13 @@
 - id: ensorceleur-illusions-image-decalee
   sorte: capacite
   nom: Image décalée
-  champs: { voie: ensorceleur-illusions, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: ensorceleur-illusions,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      cibles: soi,
+    }
   description: |-
     Effet : lance 1d6 : sur 5-6, pas de DM subits
     Durée : [5 + mod. CHA] tours.
@@ -1943,7 +2057,14 @@
   sorte: capacite
   nom: Tueur fantasmagorique
   usages: { par: jour }
-  champs: { voie: ensorceleur-illusions, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: ensorceleur-illusions,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d20 + @Magie',
+    }
   description: |-
     Effet : mort de la cible sur test Magie en opposition si test de SAG [10 + mod. CHA] de la cible raté, sinon renversée.
 
@@ -2542,7 +2663,14 @@
 - id: guerrier-bouclier-absorber-un-coup
   sorte: capacite
   nom: Absorber un coup
-  champs: { voie: guerrier-bouclier, rangVoie: 2, activation: Action limitée }
+  champs:
+    {
+      voie: guerrier-bouclier,
+      rangVoie: 2,
+      activation: Action limitée,
+      cibles: soi,
+      jet: '1d20 + @Contact',
+    }
   description: |-
     Effet : bloque l’attaque adverse sur test en opposition réussi, au prix d’une action.
 
@@ -2551,7 +2679,14 @@
 - id: guerrier-bouclier-absorber-un-sort
   sorte: capacite
   nom: Absorber un sort
-  champs: { voie: guerrier-bouclier, rangVoie: 3, activation: Action limitée }
+  champs:
+    {
+      voie: guerrier-bouclier,
+      rangVoie: 3,
+      activation: Action limitée,
+      cibles: soi,
+      jet: '1d20 + mod(@SAG) + @niveau',
+    }
   description: |-
     Effet : absorbe les dégâts magiques sur test 🗡️ en opposition au prix d’une action.
 
@@ -2604,7 +2739,14 @@
 - id: guerrier-combat-desarmer
   sorte: capacite
   nom: Désarmer
-  champs: { voie: guerrier-combat, rangVoie: 2, activation: Action limitée }
+  champs:
+    {
+      voie: guerrier-combat,
+      rangVoie: 2,
+      activation: Action limitée,
+      cibles: ennemis,
+      jet: '1d20 + @Contact',
+    }
   description: |-
     Effet : désarme son adversaire si opposition 🗡️.
 
@@ -2622,7 +2764,7 @@
 - id: guerrier-combat-attaque-circulaire
   sorte: capacite
   nom: Attaque circulaire
-  champs: { voie: guerrier-combat, rangVoie: 4, activation: Action limitée }
+  champs: { voie: guerrier-combat, rangVoie: 4, activation: Action limitée, cibles: ennemis }
   description: |-
     Effet : attaque 🗡️ contre chaque adversaire au contact.
 
@@ -2874,7 +3016,14 @@
   sorte: capacite
   nom: Conjuration d'armée
   usages: { par: jour }
-  champs: { voie: invocateur-conjuration, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: invocateur-conjuration,
+      rangVoie: 3,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      degats: 'si(rang("invocateur-conjuration") >= 5, 2d6, si(rang("invocateur-conjuration") >= 4, 1d10, 1d6))',
+    }
   description: |-
     Effet: armée 1d6 DM par tour à chaque cible, 1d10 DM au rang 4, 2D6 DM au rang 5
     Durée : [5 mod. CHA] heures.
@@ -3025,7 +3174,15 @@
 - id: invocateur-mutations-mutation-offensive
   sorte: capacite
   nom: Mutation offensive
-  champs: { voie: invocateur-mutations, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: invocateur-mutations,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d20 + @Contact + 3',
+      degats: '1d6 + mod(@FOR) + 3',
+    }
   description: |-
     Effet : appendice monstrueux, +3 FOR, Contact+3 [1d6 + mod. FOR] DM Durée : [5 + mod. CHA] tours
 
@@ -3143,7 +3300,14 @@
   sorte: capacite
   nom: Engloutissement lointain
   usages: { par: combat }
-  champs: { voie: invocateur-portes, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: invocateur-portes,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d20 + @Magie',
+    }
   description: |-
     Effet : téléporte la cible Une fois par combat
 
@@ -3263,21 +3427,22 @@
       }
 
 - id: magicien-magie-des-arcanes-agrandissement
-  sorte: capacite_active
+  sorte: capacite
   nom: Agrandissement
   champs:
     {
       voie: magicien-magie-des-arcanes,
       rangVoie: 1,
       activation: 'Action limitée, sortilège',
-      duree: '5 + mod(@INT)',
+      dureeDonne: '5 + mod(@INT)',
+      cibles: allies,
     }
   description: |-
     Effet : +2 DM 🗡️, +2 tests de FOR, -2 tests de DEX
     Durée : [5 + Mod. d'INT] tours.
 
     Le magicien ou une cible volontaire (au contact) voit sa taille augmenter de 50% pendant [5 + Mod. d'INT] tours. Il gagne +2 aux DM au contact et aux tests de FOR. Pataud, il subit un malus de -2 aux tests de DEX.
-  effets:
+  donne:
     - {
         sur: jet,
         si: 'arme.attaque == "Contact" ou score == "Contact" ou action == "coup-de-corne" ou action == "coup-de-bouclier" ou action == "griffes" ou action == "choc-electrique" ou action == "mains-d-energie" ou action == "mains-nues" ou action == "arme-d-argent" ou action == "baton-de-mage"',
@@ -3289,11 +3454,25 @@
 - id: magicien-magie-des-arcanes-forme-gazeuse
   sorte: capacite
   nom: Forme gazeuse
-  champs: { voie: magicien-magie-des-arcanes, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: magicien-magie-des-arcanes,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      cibles: soi,
+      dureeDonne: '1d4 + mod(@INT)',
+    }
   description: |-
     Effet : Transformation en gaz, insensible aux DM excepté ceux de zone Durée : [1d4 + Mod. d'INT] tours.
 
     Le magicien prend la consistance d’un gaz. Il se déplace au ras du sol (s’il chute, il se fait ralenti) avec une vitesse de 10 m par tour. Il peut s’introduire par les plus petits interstices et les conduits d’aération. Le magicien est insensible aux capacités physiques mais vulnérable aux sorts de zone DM, à l’exception des sorts de zone occasionnant des DM (comme Boule de feu). Le sort a une durée de [1d4 + Mod. d'INT] tours.
+  donne:
+    - {
+        sur: degats,
+        types: [physique],
+        operation: annuler,
+        description: 'Forme gazeuse : insensible aux DM physiques',
+      }
 
 - id: magicien-magie-des-arcanes-hate
   sorte: capacite
@@ -3635,7 +3814,14 @@
   sorte: capacite
   nom: Cercle de protection
   usages: { par: tour }
-  champs: { voie: magicien-magie-protectrice, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: magicien-magie-protectrice,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+      cibles: soi,
+      jet: '1d20 + @Magie',
+    }
   description: |-
     Effet : Annule le sort adverse
     Durée : le combat.
@@ -3645,7 +3831,14 @@
 - id: magicien-magie-protectrice-arret-du-temps
   sorte: capacite
   nom: Arrêt du temps
-  champs: { voie: magicien-magie-protectrice, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: magicien-magie-protectrice,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      cibles: soi,
+      jet: '1d6 + mod(@INT)',
+    }
   description: |-
     Effet : Stoppe le temps
     Durée : [1d6 + Mod. d'INT] tours.
@@ -4065,7 +4258,14 @@
 - id: moine-energie-vitale-pression-mortelle
   sorte: capacite
   nom: Pression mortelle
-  champs: { voie: moine-energie-vitale, rangVoie: 2, activation: Action limitée }
+  champs:
+    {
+      voie: moine-energie-vitale,
+      rangVoie: 2,
+      activation: Action limitée,
+      cibles: ennemis,
+      degats: '1d6',
+    }
   description: |-
     Effet : libère les DM accumulés +1d6 DM.
 
@@ -4235,7 +4435,14 @@
 - id: necromancien-sombre-magie-tenebres
   sorte: capacite
   nom: Ténèbres
-  champs: { voie: necromancien-sombre-magie, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: necromancien-sombre-magie,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      cibles: tous,
+      jet: '5 + mod(@INT)',
+    }
   description: |-
     Effet : aveugle tout le monde sur 10 mètres Durée : [5 + Mod. d'INT] tours.
 
@@ -4264,7 +4471,14 @@
 - id: necromancien-sombre-magie-ombre-mortelle
   sorte: capacite
   nom: Ombre mortelle
-  champs: { voie: necromancien-sombre-magie, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: necromancien-sombre-magie,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '3 + mod(@INT)',
+    }
   description: |-
     Effet : Ombre : 1 attaque par tour, att = DM de la cible, DM = 1/2 DM de la cible
     Durée : [3 + mod. d'INT] tours.
@@ -4369,7 +4583,14 @@
   sorte: capacite
   nom: Invocation d’un démon
   usages: { par: combat }
-  champs: { voie: necromancien-demon, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: necromancien-demon,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      cibles: soi,
+      jet: '1d6',
+    }
   description: |-
     Effet : sacrifie 1d6 PV, invoque un démon : FOR +5, DEX +2, CON +4, INT -2, SAG +2, CHA 0 Init 16, Defdense 7, PV [niveau x 15], Contact [Niveau du nécro], DM 1d8+5
     Durée : [5 + mod d'INT] tours.
@@ -4721,12 +4942,23 @@
   sorte: capacite
   nom: Mot de pouvoir
   usages: { par: combat }
-  champs: { voie: pretre-guerre-sainte, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: pretre-guerre-sainte,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      cibles: allies,
+      dureeDonne: '1',
+    }
   description: |-
     Effet : alliés +5 Contact, Distance, Magie, paralysie ennemies
     Durée : 1 tour Une fois par combat,
 
     le prêtre peut prononcer un mot avec la voix de son dieu. Cela dépasse l'entendement des mortels et ses ennemis à portée de vue sont paralysés de terreur pendant 1 tour tandis que tous ses alliés en vue bénéficient d'un bonus de +5 en attaque pendant cette période.
+  donne:
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: 5 }
+    - { sur: attribut, attribut: Distance, operation: ajouter, valeur: 5 }
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: 5 }
 
 - id: pretre-priere
   sorte: voie
@@ -4751,21 +4983,22 @@
     - { sur: rang, entree: pretre-priere-sagesse-heroique, valeur: 1, condition: 'rang >= 5' }
 
 - id: pretre-priere-benediction
-  sorte: capacite_active
+  sorte: capacite
   nom: Bénédiction
   champs:
     {
       voie: pretre-priere,
       rangVoie: 1,
       activation: 'Action limitée, sortilège',
-      duree: '3 + mod(@SAG)',
+      dureeDonne: '3 + mod(@SAG)',
+      cibles: allies,
     }
   description: |-
     Effet: +1 Contact, Distance, Magie, +1 tous tests
     Durée : [3 + mod. SAG] tour
 
     Le prêtre entonne un chant pour encourager ses compagnons en vue. Lui et ses alliés bénéficient d'un bonus de +1 à tous leurs tests de caractéristique et d'attaque pendant [3 + Mod. de SAG] tours.
-  effets:
+  donne:
     - { sur: attribut, attribut: Contact, operation: ajouter, valeur: '1' }
     - { sur: attribut, attribut: Distance, operation: ajouter, valeur: '1' }
     - { sur: attribut, attribut: Magie, operation: ajouter, valeur: '1' }
@@ -4788,7 +5021,14 @@
 - id: pretre-priere-sanctuaire
   sorte: capacite
   nom: Sanctuaire
-  champs: { voie: pretre-priere, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: pretre-priere,
+      rangVoie: 3,
+      activation: 'Action limitée, sortilège',
+      cibles: soi,
+      jet: '5 + mod(@SAG)',
+    }
   description: |-
     Effet: protection contre les attaques
     Durée : [5 + mod. SAG] tours
@@ -4857,20 +5097,33 @@
       }
 
 - id: pretre-spiritualite-protection-contre-le-mal
-  sorte: capacite_active
+  sorte: capacite
   nom: Protection contre le mal
-  champs: { voie: pretre-spiritualite, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: pretre-spiritualite,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      cibles: allies,
+      dureeDonne: '100',
+    }
   description: |-
     Effet: la cible (prêtre ou allié) gagne +2 DEF.
 
     Le prêtre peut lancer ce sort sur lui ou sur tout allié (portée : contact) pour la durée d'un combat. La cible obtient alors un bonus de +2 en DEF et pour tous les tests de résistance contre les attaques des mort-vivants, des démons, des élémentaires et des créatures conjurées (appelées d'un autre plan par magie).
-  effets:
+  donne:
     - { sur: attribut, attribut: Defense, operation: ajouter, valeur: '2' }
 
 - id: pretre-spiritualite-delivrance
   sorte: capacite
   nom: Délivrance
-  champs: { voie: pretre-spiritualite, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: pretre-spiritualite,
+      rangVoie: 3,
+      activation: 'Action limitée, sortilège',
+      cibles: allies,
+    }
   description: |-
     Effet: annule les pénalités et états anormaux En touchant sa cible,
 
@@ -5154,7 +5407,14 @@
 - id: psionique-telepathie-domination-psy
   sorte: capacite
   nom: Domination psy
-  champs: { voie: psionique-telepathie, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: psionique-telepathie,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d20 + @Magie',
+    }
   description: |-
     Effet : test magie vs DEF[15 + mod. carac + NC créature]
     Durée : [1d4 + mod. CHA] minutes
@@ -5244,7 +5504,13 @@
   sorte: capacite
   nom: Attaque psionique
   usages: { par: combat }
-  champs: { voie: psionique-attaque-mentale, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: psionique-attaque-mentale,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+    }
   description: |-
     Effet : attaque mentale sur (3 + mod. CHA) cibles
 
@@ -5367,7 +5633,14 @@
 - id: psionique-envouteur-injonction
   sorte: capacite
   nom: Injonction
-  champs: { voie: psionique-envouteur, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: psionique-envouteur,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d20 + @Magie',
+    }
   description: |-
     Effet : donne un ordre à la cible
     Durée : cible immunisée 24h en cas d'échec
@@ -5377,7 +5650,14 @@
 - id: psionique-envouteur-sommeil
   sorte: capacite
   nom: Sommeil
-  champs: { voie: psionique-envouteur, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: psionique-envouteur,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d6 + mod(@CHA)',
+    }
   description: |-
     Effet: [1d6 + mod. CHA] cibles tombent de somme
     Réveil sur contact Durée : [5 + mod. CHA] minutes.
@@ -5425,7 +5705,14 @@
 - id: psionique-envouteur-domination
   sorte: capacite
   nom: Domination
-  champs: { voie: psionique-envouteur, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  champs:
+    {
+      voie: psionique-envouteur,
+      rangVoie: 5,
+      activation: 'Action limitée, sortilège',
+      cibles: ennemis,
+      jet: '1d20 + @Magie',
+    }
   description: |-
     Effet : prend le contrôle de la cible
     Durée : [1d4 + mod. CHA minutes].
@@ -5933,7 +6220,7 @@
 - id: samourai-ki-course-mortelle
   sorte: capacite
   nom: Course mortelle
-  champs: { voie: samourai-ki, rangVoie: 4, activation: Action limitée }
+  champs: { voie: samourai-ki, rangVoie: 4, activation: Action limitée, cibles: ennemis }
   description: |-
     Effet : contact sur chaque cible sur 10 mètres en ligne droite
 
@@ -6025,7 +6312,8 @@
 - id: samourai-arc-et-du-cheval-tirs-successifs
   sorte: capacite
   nom: Tirs successifs
-  champs: { voie: samourai-arc-et-du-cheval, rangVoie: 4, activation: Action limitée }
+  champs:
+    { voie: samourai-arc-et-du-cheval, rangVoie: 4, activation: Action limitée, cibles: ennemis }
   description: |-
     Effet: Disatnce [2 + mod. SAG] cibles à 10 mètres sur la trajectoire, inflige des DM en contact (épée) ou distance (arc).
 
@@ -6092,7 +6380,7 @@
 - id: samourai-sabre-attaque-en-rotation
   sorte: capacite
   nom: Attaque en rotation
-  champs: { voie: samourai-sabre, rangVoie: 4, activation: Action limitée }
+  champs: { voie: samourai-sabre, rangVoie: 4, activation: Action limitée, cibles: ennemis }
   description: |-
     Effet: Contact contre tous ennemis au contact
 
@@ -6153,7 +6441,14 @@
 - id: voleur-assassin-ombre-mouvante
   sorte: capacite
   nom: Ombre mouvante
-  champs: { voie: voleur-assassin, rangVoie: 3, activation: Action limitée }
+  champs:
+    {
+      voie: voleur-assassin,
+      rangVoie: 3,
+      activation: Action limitée,
+      cibles: soi,
+      jet: '1d20 + mod(@DEX)',
+    }
   description: |-
     Effet : disparait furtivement.
 
@@ -6208,7 +6503,14 @@
 - id: voleur-aventurier-provocation
   sorte: capacite
   nom: Provocation
-  champs: { voie: voleur-aventurier, rangVoie: 2, activation: Action limitée }
+  champs:
+    {
+      voie: voleur-aventurier,
+      rangVoie: 2,
+      activation: Action limitée,
+      cibles: ennemis,
+      jet: '1d20 + mod(@CHA)',
+    }
   description: |-
     Effet: force la cible à l'attaquer sur test CHA vs INT, riposte gratuite.
 
@@ -6301,7 +6603,14 @@
 - id: voleur-deplacement-acrobaties
   sorte: capacite
   nom: Acrobaties
-  champs: { voie: voleur-deplacement, rangVoie: 3, activation: Capacité passive }
+  champs:
+    {
+      voie: voleur-deplacement,
+      rangVoie: 3,
+      activation: Capacité passive,
+      cibles: soi,
+      jet: '1d20 + mod(@DEX)',
+    }
   description: |-
     Effet : surprend son adversaire sur test de DEX.
 
@@ -6310,7 +6619,14 @@
 - id: voleur-deplacement-esquive-de-la-magie
   sorte: capacite
   nom: Esquive de la magie
-  champs: { voie: voleur-deplacement, rangVoie: 4, activation: Capacité passive }
+  champs:
+    {
+      voie: voleur-deplacement,
+      rangVoie: 4,
+      activation: Capacité passive,
+      cibles: soi,
+      jet: '1d20 + mod(@DEX)',
+    }
   description: |-
     Effet : 1/2 DM Magie subits ou annulés sur test de DEX vs Magie à chaque fois qu'un sort le prend pour cible (y compris un sort de zone ou l'affectant en plus de la personne visée)
 
@@ -6364,7 +6680,14 @@
 - id: voleur-roublard-detecter-les-pieges
   sorte: capacite
   nom: Détecter les pièges
-  champs: { voie: voleur-roublard, rangVoie: 2, activation: Capacité passive }
+  champs:
+    {
+      voie: voleur-roublard,
+      rangVoie: 2,
+      activation: Capacité passive,
+      cibles: soi,
+      jet: '1d20 + mod(@INT)',
+    }
   description: |-
     Effet : détecte les pièges sur tests d'INT.
 
@@ -6383,7 +6706,8 @@
   sorte: capacite
   nom: Attaque paralysante
   usages: { par: combat }
-  champs: { voie: voleur-roublard, rangVoie: 4, activation: Action limitée }
+  champs:
+    { voie: voleur-roublard, rangVoie: 4, activation: Action limitée, cibles: ennemis, jet: '1d4' }
   description: |-
     Effet : 1x par combat: paralyse la cible, elle ne peut encaisser de DM
     Durée : 1d4 tours.

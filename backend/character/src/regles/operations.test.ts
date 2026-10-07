@@ -597,7 +597,7 @@ describe('durées', () => {
   });
 
   it('activation : durée lue sur le porteur en l’activant, gardée si déjà active, ôtée coupée', () => {
-    const entree = 'pretre-priere-benediction';
+    const entree = 'druide-animaux-masque-du-predateur';
     const poser = (etat: EtatEntite, actif: boolean) => {
       const d = { entree, actif };
       return apresActivation(dnd, etat, poserPossession(dnd, etat, d), d, aleatoireGraine('g'));
@@ -607,12 +607,12 @@ describe('durées', () => {
       type: 'personnage',
       systeme: { id: 'dnd-classic', version: dnd.source.version },
       valeurs: { niveau: 1, SAG: 14 },
-      possessions: [{ entree: 'pretre-priere', rang: 2 }],
+      possessions: [{ entree: 'druide-animaux', rang: 4 }],
     }).etat;
     const active = poser(pretre, true);
-    expect(benediction(active)).toMatchObject({ actif: true, duree: 3 + 2 });
+    expect(benediction(active)).toMatchObject({ actif: true, duree: 5 + 2 });
     const entamee = finDeRound(active).etat!;
-    expect(benediction(poser(entamee, true))?.duree).toBe(4);
+    expect(benediction(poser(entamee, true))?.duree).toBe(6);
     const coupee = poser(entamee, false);
     expect(benediction(coupee)).toMatchObject({ actif: false });
     expect(benediction(coupee)).not.toHaveProperty('duree');

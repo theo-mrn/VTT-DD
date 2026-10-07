@@ -362,7 +362,14 @@
   sorte: capacite
   nom: Increvable
   usages: { par: tour }
-  champs: { voie: race-humain, rangVoie: 4, activation: Capacité passive }
+  champs:
+    {
+      voie: race-humain,
+      rangVoie: 4,
+      activation: Capacité passive,
+      cibles: soi,
+      jet: '1d20 + @Contact',
+    }
   description: |-
     Effet : esquive sur coup mortel
 
@@ -440,7 +447,7 @@
 - id: race-nain-resistance-a-la-magie
   sorte: capacite
   nom: Résistance à la magie
-  champs: { voie: race-nain, rangVoie: 4, activation: Capacité passive }
+  champs: { voie: race-nain, rangVoie: 4, activation: Capacité passive, cibles: soi, jet: '1d6' }
   description: |-
     Effet : ignore un sort de rang < 1d6
 
@@ -559,7 +566,7 @@
   sorte: capacite
   nom: Petit veinard
   usages: { par: combat }
-  champs: { voie: race-halfelin, rangVoie: 1, activation: Capacité passive }
+  champs: { voie: race-halfelin, rangVoie: 1, activation: Capacité passive, cibles: soi }
   description: |-
     Effet : relance 1 dé de son choix 1x par combat.
     Rang 3 : esquive gratuite 1x par combat.

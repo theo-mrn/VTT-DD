@@ -1688,6 +1688,17 @@ clic, comme une attaque :
 Les capacités se remplissent ensuite par lots, en commençant par celles qui donnent un bonus au
 groupe et les soins.
 
+Réalisé le 2026-10-07 : `Entree.donne` déplié au chargement en un « effet de capacité »
+(`effetsDonnes : { sorte, champ }`), donné par l'action générique pour `dureeDonne` tours (sans
+durée : jusqu'au retrait ; une durée « du combat » s'écrit 100, retirée à la fin du combat) ;
+soins et dégâts (RD, résistances, type `typeDegats`) ; le menu Capacités reconnaît l'action Sort
+pour les capacités « sort » et propose une passive qui a de quoi se jouer. Premier passage sur les
+capacités D&D sans mécanique (environ 260 relues) : dés, cibles, soins, dégâts, effets donnés
+renseignés pour 72 d'entre elles ; Bénédiction, Agrandissement et Protection contre le mal donnent
+désormais leurs effets aux cibles choisies. Restent en texte pour le MJ : invocations et
+compagnons, réactions, contrôle, déplacement, narration ; les 25 capacités du Rôdeur (textes à
+fournir).
+
 ### 19.3 Après
 
 Jets de sauvegarde imposés aux cibles, réactions sur événement, auras liées aux positions de la

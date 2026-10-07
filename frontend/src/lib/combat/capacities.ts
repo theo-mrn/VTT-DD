@@ -84,6 +84,7 @@ export function capacitesDeCombat(
   if (!decl) return [];
   const dediees = actionsParCapacite(systeme);
   const generique = decl.action ? (systeme.actions.get(decl.action) ?? null) : null;
+  const lus = generique ? champsLus(generique, decl.parametre) : [];
   const sortie: CapaciteCombat[] = [];
   for (const p of fiche.possessions.values()) {
     if (!decl.sortes.includes(p.sorte.id)) continue;
@@ -118,7 +119,15 @@ export function capacitesDeCombat(
           ? { type: 'generique', action: generique, parametre: decl.parametre }
           : null;
     if (!jeu) continue;
-    if (passive && !usages && jeu.type !== 'actions' && jeu.type !== 'activer') continue;
+    // Passive pure : écartée, sauf si elle a de quoi se jouer (usages, dés, effets donnés…)
+    if (
+      passive &&
+      !usages &&
+      jeu.type === 'generique' &&
+      !p.entree.donne &&
+      !lus.some((c) => valeurRenseignee(p.entree.champs[c]))
+    )
+      continue;
     sortie.push({
       entree: p.entree,
       possession: p,
@@ -131,6 +140,17 @@ export function capacitesDeCombat(
   }
   return sortie;
 }
+
+/** Champs de la capacité que l'action générique lit (`capacite.jet`, `capacite.soins`…). */
+function champsLus(action: Action, parametre: string): string[] {
+  const texte = JSON.stringify({ jet: action.jet, apres: action.apres, c: action.consequences });
+  return [
+    ...new Set([...texte.matchAll(new RegExp(`\\b${parametre}\\.(\\w+)`, 'g'))].map((m) => m[1]!)),
+  ];
+}
+
+const valeurRenseignee = (v: unknown) =>
+  v !== undefined && v !== '' && v !== 0 && !(Array.isArray(v) && !v.length);
 
 /** Le paramètre de l'action générique reçoit une entrée de cette sorte. */
 function accepteCapacite(action: Action, parametre: string, sorte: string): boolean {
