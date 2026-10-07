@@ -18,6 +18,9 @@ export const MAX_SIDE: Record<UploadUsageId, number> = {
   'npc-image': 1024,
   portrait: 1200,
   token: 512,
+  // Marketplace : tuile du catalogue (couverture) et galerie de la fiche
+  'marketplace-cover': 1600,
+  'marketplace-image': 2400,
 };
 
 /** Zone gardée, en pixels de l'image d'origine (sortie de react-easy-crop). */

@@ -18,7 +18,7 @@ lancer() { # nom dossier point-d-entrée
   (cd "backend/$2" && nohup node --env-file=.env --import ./dist/instrumentation.js "dist/$3" \
     > "$LOGS/$1.log" 2>&1 &)
 }
-for service in identity character campaign dice billing history realtime audio gateway; do
+for service in identity character campaign dice billing history realtime audio marketplace gateway; do
   lancer "$service" "$service" main.js
 done
 lancer audio-worker audio worker.js
@@ -33,7 +33,7 @@ attendre() { # url nom
   return 1
 }
 for paire in identity:3001 character:3002 campaign:3003 dice:3004 history:3005 realtime:3006 \
-  billing:3007 audio:3008 gateway:8080; do
+  billing:3007 audio:3008 marketplace:3011 gateway:8080; do
   attendre "http://localhost:${paire#*:}/healthz" "${paire%%:*}"
 done
 

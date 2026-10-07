@@ -82,7 +82,8 @@ export function fakeStripe() {
         customer: params.customer ?? null,
         customer_details: null,
         subscription: null,
-        amount_total: price?.unit_amount ?? null,
+        // Prix du catalogue, ou prix donné à la volée (vente de la marketplace)
+        amount_total: price?.unit_amount ?? params.line_items?.[0]?.price_data?.unit_amount ?? null,
         currency: 'eur',
         payment_intent: null,
         consent: null,

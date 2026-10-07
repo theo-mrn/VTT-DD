@@ -149,6 +149,9 @@ function FilAriane() {
     if (i === 1 && idCampagne) return campagne.data?.name ?? '…';
     if (i === 1 && idPersonnage) return personnage.data?.name ?? '…';
     if (segments[0] === 'joueurs' && i === 1) return 'Joueur';
+    // Marketplace : adresse d'un pack ou d'un créateur, identifiant d'un pack du studio
+    if (segments[0] === 'marketplace' && i > 0 && !(s in LIBELLES_SEGMENTS))
+      return segments[i - 1] === 'creators' ? 'Créateur' : 'Pack';
     return LIBELLES_SEGMENTS[s] ?? s;
   };
 

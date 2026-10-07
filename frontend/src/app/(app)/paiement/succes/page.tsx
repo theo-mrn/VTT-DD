@@ -16,6 +16,7 @@ import { Bouton, Carte, Message } from '@/components/compte/elements';
 import { lireSession, retourSur, type EtatSession } from '@/lib/abonnement';
 import { messageErreur } from '@/lib/api';
 import { dicePreferencesKey } from '@/lib/dice-preferences';
+import { marketplaceKeys } from '@/lib/marketplace/api';
 
 const INTERVALLE_MS = 1500;
 const ESSAIS = 20;
@@ -48,7 +49,9 @@ function Confirmation() {
         if (fini) return;
         setSession(s);
         if (s.status === 'completed') {
-          void client.invalidateQueries({ queryKey: dicePreferencesKey });
+          void client.invalidateQueries({
+            queryKey: s.kind === 'marketplace' ? marketplaceKeys.all : dicePreferencesKey,
+          });
           return;
         }
         if (s.status === 'expired') return;

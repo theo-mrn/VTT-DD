@@ -20,4 +20,10 @@ export const PAGES_FRONT = {
   paiementAnnule: '/paiement/annule',
   /** Table de dés : la collection (lien de l'e-mail d'achat). */
   des: '/des',
+  /** Marketplace : catalogue, `/<slug>` fiche d'un pack (retour de Checkout d'un achat). */
+  marketplace: '/marketplace',
+  /** Packs acquis et leurs installations. */
+  marketplaceLibrary: '/marketplace/library',
+  /** Espace du créateur (retour de l'onboarding Stripe Connect). */
+  marketplaceStudio: '/marketplace/studio',
 } as const;

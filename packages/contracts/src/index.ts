@@ -15,4 +15,5 @@ export * from './order.js';
 export * from './pages.js';
 export * from './accounts.js';
 export * from './billing.js';
+export * from './marketplace.js';
 export * from './shortcuts.js';

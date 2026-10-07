@@ -113,3 +113,85 @@ Modèles Kourrier ajoutés : `suppression-programmee`, `inactivite` (`infra/mail
   bouton de téléchargement : à garder ainsi.
 - **Polices** : Google Fonts (OFL, Apache 2.0) ; Hobbiton Brush Hand (Nancy Lorenz, « 100 %
   gratuite » sur dafont) et Aurebesh : gratuites, confirmé par Théo le 2026-10-05.
+
+## Marketplace de créateurs (à ajouter avant l'ouverture)
+
+> Liste de travail, pas de texte juridique : chaque point est à rédiger ou valider (avocat,
+> expert-comptable) avant d'ouvrir la marketplace au public, et **avant** `STRIPE_CONNECT=on`
+> pour la vente. Conception : [marketplace.md](marketplace.md). L'en-tête de ce document (« Yner
+> ne vend rien ») ne vaut plus dès que la vente est ouverte.
+
+### Conditions d'utilisation (`/terms`) : tous les membres
+
+- **Rôle de Yner** : hébergeur et intermédiaire (place de marché), pas éditeur du contenu des
+  créateurs ; responsabilité limitée au retrait prompt d'un contenu signalé (LCEN art. 6, DSA
+  art. 6).
+- **Contenus interdits** : contenu sexuel explicite, haineux, illicite, contrefaisant ; thèmes
+  durs permis s'ils sont balisés (avertissements : violence, horreur, gore, drogues, phobies).
+- **Signalement et décisions** (DSA art. 16 et 17) : mécanisme de notification (bouton
+  « Signaler », motifs), information du créateur et **motivation de chaque décision** (refus en
+  revue, retrait : motif et note), voie de recours (aujourd'hui `contact@yner.fr` ; DSA art. 20
+  à vérifier : Yner relève a priori de l'exemption micro ou petite entreprise).
+- **Avis** (art. L111-7-2 du Code de la consommation) : préciser qu'ils sont **vérifiés**
+  (seuls les acquéreurs notent), sans contrepartie, publiés sans tri, modifiables et
+  supprimables par leur auteur, retirés seulement s'ils enfreignent les règles.
+- **Classement** (art. L111-7 et D111-7 ; règlement P2B 2019/1150 pour les créateurs
+  professionnels) : paramètres du classement du catalogue — populaires (nombre d'acquisitions),
+  mieux notés (moyenne pondérée par le nombre d'avis), récents, prix ; pas de mise en avant
+  payée.
+- **Licence d'utilisation accordée à l'acquéreur** : usage dans ses parties sur Yner, selon la
+  licence déclarée par le créateur ; pas de revente ni de redistribution des fichiers ; le
+  contenu installé reste utilisable si le pack est retiré, sauf retrait pour droits d'un tiers
+  (fichiers supprimés).
+
+### Conditions des créateurs (nouveau document, accepté à la création du profil)
+
+- **Garantie des droits** : le créateur déclare détenir les droits sur tout ce qu'il publie
+  (attestation horodatée à chaque soumission, déjà en place) et garantit Yner contre les
+  réclamations de tiers ; licences tierces (SRD, CC) citées dans les crédits.
+- **Licence accordée à Yner** : héberger, reproduire et afficher le contenu pour le
+  distribuer ; conservation des fichiers d'une version pour ses acquéreurs, même après retrait
+  par le créateur ou suppression de son compte.
+- **Revue, refus, retrait** : critères, délais indicatifs, motifs, effets (retrait pour droits :
+  fichiers supprimés).
+- **Vente** : commission (15 % TTC, 0,50 € au moins, frais Stripe à la charge de Yner), prix de
+  2 € à 200 €, versements par Stripe (conditions du Stripe Connected Account Agreement à
+  accepter pendant l'onboarding), remboursements et contestations (vente annulée, commission
+  remboursée), facture émise **au nom du créateur**.
+- **Statut du créateur** (art. L111-7 Code de la consommation) : déclarer s'il agit en
+  professionnel ou non ; l'afficher sur sa page et ses fiches (à ajouter au profil de créateur)
+  et rappeler à l'acheteur que le droit de la consommation ne s'applique pas à un vendeur
+  particulier.
+- **Fiscalité et obligations du créateur** (art. 242 bis du CGI) : informer le créateur, à
+  chaque vente et par un récapitulatif annuel, de ses obligations fiscales et sociales (revenus
+  à déclarer, statut de micro-entrepreneur au-delà d'une activité occasionnelle). **DAC7**
+  (directive 2021/514, art. 1649 ter A du CGI) : à vérifier si la vente de contenu numérique
+  entre dans les « activités concernées » ; si oui, collecte des données fiscales des vendeurs
+  (Stripe Connect les collecte en partie) et déclaration annuelle à la DGFiP.
+
+### Conditions de vente (`/cgv`) : achats de packs
+
+- **Vendeur** : le créateur (identité ou dénomination, statut), Yner en intermédiaire ; prix
+  TTC.
+- **Contenu numérique livré tout de suite** : renonciation expresse au droit de rétractation
+  (art. L221-28 13°), déjà prévue dans Checkout (`STRIPE_TERMS=on`), à étendre aux packs.
+- **TVA** : sur une place de marché de services électroniques, Yner peut être réputé
+  prestataire (art. 9 bis du règlement d'exécution 282/2011) et redevable de la TVA sur la
+  vente entière ; à trancher avec un expert-comptable (statut de franchise en base, Stripe Tax,
+  mentions des factures émises au nom du créateur).
+- **Réclamations et remboursements** : qui traite (Yner en premier), délais, cas d'un pack
+  inutilisable ; médiateur de la consommation à désigner dès que Yner vend à des particuliers.
+
+### Données personnelles (`/privacy` et registre)
+
+- Nouveau traitement « Marketplace » : profil de créateur (nom public, présentation),
+  acquisitions, installations, avis, signalements (texte libre conservé hors du journal) ;
+  base légale : contrat ; durée : vie du compte (signalements gardés sans auteur).
+- Export des données (fait) : profil de créateur, packs acquis et packs publiés ajoutés à
+  `yner-donnees-….json` (`lib/data-export.ts`, rubrique `marketplace`).
+- Paiement des créateurs : données d'identité et bancaires collectées **par Stripe** (Stripe
+  responsable de traitement pour la vérification KYC) ; Yner ne garde que l'identifiant du
+  compte et son état.
+- Suppression de compte : déjà propagée (marketplace : `marketplace-events` ; billing : compte
+  connecté oublié, **à clôturer aussi dans Stripe**) ; les ventes gardent l'identifiant du
+  vendeur pour la comptabilité (10 ans, art. L123-22 du Code de commerce).

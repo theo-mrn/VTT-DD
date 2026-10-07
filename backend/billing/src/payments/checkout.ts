@@ -6,6 +6,7 @@ import type { Actor } from '@vtt/contracts';
 import type { EventContext } from '../db/outbox.js';
 import { idOf, type CheckoutSession } from '../stripe/client.js';
 import { isUuid, PREMIUM_TYPE, rememberCustomer, type PaymentDeps } from './common.js';
+import { completeSale, MARKETPLACE_TYPE } from './marketplace.js';
 import { completePurchase } from './purchases.js';
 import { syncSubscription } from './subscriptions.js';
 
@@ -40,6 +41,10 @@ export async function fulfillCheckoutSession(
   }
   if (m.type === 'dice' || m.type === 'token') {
     return (await completePurchase(deps, ctx, actor, session)) ? 'completed' : 'ignored';
+  }
+  // Vente d'un pack de la marketplace (docs/marketplace.md § 5.3)
+  if (m.type === MARKETPLACE_TYPE) {
+    return (await completeSale(deps, ctx, actor, session)) ? 'completed' : 'ignored';
   }
   return 'ignored';
 }

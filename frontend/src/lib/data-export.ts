@@ -102,6 +102,12 @@ export async function exportMyData(userId: string) {
       section(() => api('/v1/users/me/map-toolbar')),
       section(() => api('/v1/users/me/shortcuts')),
     ]);
+  // Marketplace (docs/marketplace.md) : profil de créateur, packs acquis, packs publiés
+  const [creator, library, listings] = await Promise.all([
+    section(() => api('/v1/marketplace/me')),
+    section(() => api('/v1/marketplace/library')),
+    section(() => api('/v1/marketplace/studio/listings')),
+  ]);
   return {
     exportedAt: new Date().toISOString(),
     service: 'Yner',
@@ -125,6 +131,7 @@ export async function exportMyData(userId: string) {
       mapToolbar,
       shortcuts,
     },
+    marketplace: { creator, library, listings },
   };
 }
 

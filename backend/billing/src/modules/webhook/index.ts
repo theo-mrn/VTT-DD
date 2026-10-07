@@ -34,6 +34,7 @@ import type { Module } from '../../deps.js';
 import { fulfillCheckoutSession } from '../../payments/checkout.js';
 import { SYSTEM, type PaymentDeps } from '../../payments/common.js';
 import { syncInvoice, type InvoiceTrigger } from '../../payments/invoices.js';
+import { expireSale } from '../../payments/marketplace.js';
 import { expirePurchase, withdrawPurchase } from '../../payments/purchases.js';
 import { syncSubscription } from '../../payments/subscriptions.js';
 import { idOf, verifyWebhook, type StripeEvent } from '../../stripe/client.js';
@@ -66,6 +67,7 @@ async function handle(deps: PaymentDeps, ctx: EventContext, event: StripeEvent):
     case 'checkout.session.async_payment_failed':
     case 'checkout.session.expired':
       await expirePurchase(deps.db, event.data.object.id);
+      await expireSale(deps.db, event.data.object.id);
       return 'expired';
 
     case 'customer.subscription.created':
