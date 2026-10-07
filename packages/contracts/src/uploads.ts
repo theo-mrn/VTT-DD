@@ -37,7 +37,7 @@ export interface UploadUsage {
   types: readonly UploadContentType[];
   maxBytes: number;
   /** Dossier du stockage : `<folder>/<propriétaire>/<uuidv7>.<ext>`. */
-  folder: 'avatars' | 'banners' | 'campaigns' | 'characters';
+  folder: 'avatars' | 'banners' | 'campaigns' | 'characters' | 'marketplace';
   /** Recadrage proposé avant l'envoi : rapport largeur / hauteur (null : libre). */
   aspect: number | null;
 }
@@ -117,6 +117,21 @@ export const UPLOAD_USAGES = {
     maxBytes: 5 * MB,
     folder: 'characters',
     aspect: 1,
+  },
+  // marketplace : POST /v1/marketplace/studio/listings/:id/uploads (docs/marketplace.md)
+  'marketplace-cover': {
+    label: 'Couverture du pack',
+    types: UPLOAD_IMAGE_TYPES,
+    maxBytes: 5 * MB,
+    folder: 'marketplace',
+    aspect: 16 / 9,
+  },
+  'marketplace-image': {
+    label: 'Image du pack',
+    types: UPLOAD_IMAGE_TYPES,
+    maxBytes: 10 * MB,
+    folder: 'marketplace',
+    aspect: 16 / 9,
   },
 } as const satisfies Record<string, UploadUsage>;
 
