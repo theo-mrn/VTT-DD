@@ -23,6 +23,8 @@
  * - `registerOverlay(overlay)` : une surcouche React (panneau flottant, composant sans rendu) ;
  * - `registerMenuProvider(provider)` : des entrées du menu contextuel (vide ou sélection) ;
  * - `onFrame(cb)` : une animation (renvoyer vrai tant qu'elle continue) ;
+ * - `onDrag(cb)`, `onGestureInput(cb)` : suivre un glisser fait ici, prendre une touche ou un
+ *   clic droit pendant un geste (trajet des déplacements) ;
  * - `plane(id)` : le conteneur Pixi d'un plan (vision, gm…), après le montage.
  */
 import { attachMapPerf, perfEnabled } from '@/lib/perf/monitor';
