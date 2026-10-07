@@ -8,6 +8,8 @@
  * système). Écrits par les routes de la fiche (character) : le décompte à chaque passage de
  * tour et son retour arrière restent au serveur.
  */
+import { useTranslations } from 'next-intl';
+import { compareText } from '@/i18n/runtime';
 import type { MomentDecompte, SystemeCharge } from '@vtt/rules';
 import { Hourglass, Minus, Plus, X } from 'lucide-react';
 import { useState } from 'react';
@@ -105,11 +107,12 @@ function DurationFields({
   anchors: { valeur: string; nom: string }[];
   disabled?: boolean;
 }>) {
+  const t = useTranslations();
   return (
     <>
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-count`} className="text-xs text-muted-foreground">
-          Durée
+          {t('combat.states.durationTitle')}
         </Label>
         <Input
           id={`${idPrefix}-count`}
@@ -125,7 +128,7 @@ function DurationFields({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-moment`} className="text-xs text-muted-foreground">
-          Décompte
+          {t('combat.states.countdown')}
         </Label>
         <SelectField
           id={`${idPrefix}-moment`}
@@ -138,7 +141,7 @@ function DurationFields({
       {turnBased(draft.moment) && draft.count.trim() !== '' && (
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-anchor`} className="text-xs text-muted-foreground">
-            Au tour de
+            {t('combat.states.onTurnOf')}
           </Label>
           <SelectField
             id={`${idPrefix}-anchor`}
@@ -180,12 +183,13 @@ export function StatesManager({
   actingId?: string | null;
   disabled?: boolean;
 }>) {
+  const t = useTranslations();
   const catalogue = [...systeme.entrees.values()]
     .filter((e) => stateSorts.includes(e.sorte))
-    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+    .sort((a, b) => compareText(a.nom, b.nom));
   const nameOf = (id: string) => fighters.find((f) => f.id === id)?.name;
   const anchors = [
-    { valeur: bearerId, nom: 'Lui-même' },
+    { valeur: bearerId, nom: t('combat.situation.self') },
     ...fighters.filter((f) => f.id !== bearerId).map((f) => ({ valeur: f.id, nom: f.name })),
   ];
 
@@ -224,7 +228,7 @@ export function StatesManager({
     const timed = { ...(duree ? { duree } : {}), ...(decompte ? { decompte } : {}) };
     const ok =
       choice === FREE
-        ? await run('L’état n’a pas pu être posé', () =>
+        ? await run(t('combat.states.setFailed'), () =>
             ecritures.bonus({
               nom: freeName.trim(),
               source: FREE_STATE_SOURCE,
@@ -232,7 +236,7 @@ export function StatesManager({
               ...timed,
             }),
           )
-        : await run('L’état n’a pas pu être donné', () =>
+        : await run(t('combat.states.giveFailed'), () =>
             ecritures.possession({ entree: choice, ...timed }),
           );
     if (ok) {
@@ -242,7 +246,7 @@ export function StatesManager({
   };
 
   const remove = (s: TimedState) =>
-    void run('L’état n’a pas pu être retiré', () =>
+    void run(t('combat.states.removeFailed'), () =>
       s.kind === 'bonus'
         ? ecritures.retirerBonus(s.bonusId!)
         : ecritures.retirerPossession(s.entry!, s.instance),
@@ -257,7 +261,7 @@ export function StatesManager({
     count: number | null,
     decompte?: { moment: MomentDecompte; de?: string } | null,
   ) =>
-    run('La durée n’a pas pu être changée', () => {
+    run(t('combat.states.durationFailed'), () => {
       if (s.kind === 'bonus') {
         const b = sheet.state.bonus.find((x) => x.id === s.bonusId);
         if (!b) return Promise.resolve();
@@ -299,7 +303,7 @@ export function StatesManager({
                     size="icon-xs"
                     disabled={disabled || busy || s.duration <= 1}
                     onClick={() => void changeDuration(s, s.duration! - 1)}
-                    aria-label={`Un décompte de moins pour ${s.name}`}
+                    aria-label={t('combat.states.oneCountLess', { name: s.name })}
                   >
                     <Minus />
                   </Button>
@@ -318,7 +322,7 @@ export function StatesManager({
                     size="icon-xs"
                     disabled={disabled || busy}
                     onClick={() => void changeDuration(s, s.duration! + 1)}
-                    aria-label={`Un décompte de plus pour ${s.name}`}
+                    aria-label={t('combat.states.oneCountMore', { name: s.name })}
                   >
                     <Plus />
                   </Button>
@@ -347,7 +351,7 @@ export function StatesManager({
       >
         <div className="col-span-2 space-y-1.5 sm:col-span-1">
           <Label htmlFor="state-choice" className="text-xs text-muted-foreground">
-            État
+            {t('combat.states.state')}
           </Label>
           <SelectField
             id="state-choice"
@@ -359,7 +363,7 @@ export function StatesManager({
             disabled={disabled || busy}
             options={[
               ...catalogue.map((e) => ({ valeur: e.id, nom: e.nom })),
-              { valeur: FREE, nom: 'État libre…' },
+              { valeur: FREE, nom: t('combat.states.free') },
             ]}
           />
         </div>
@@ -373,13 +377,13 @@ export function StatesManager({
         {choice === FREE && (
           <div className="col-span-2 space-y-1.5 sm:col-span-3">
             <Label htmlFor="state-free" className="text-xs text-muted-foreground">
-              Nom de l’état libre
+              {t('combat.states.freeName')}
             </Label>
             <Input
               id="state-free"
               value={freeName}
               maxLength={200}
-              placeholder="Terrifié, à terre, en feu…"
+              placeholder={t('combat.states.freePlaceholder')}
               disabled={disabled || busy}
               onChange={(e) => setFreeName(e.target.value)}
             />
@@ -392,13 +396,11 @@ export function StatesManager({
           className="col-span-2 h-9 sm:col-span-3 sm:justify-self-end"
         >
           <Hourglass />
-          Ajouter
+          {t('common.actions.add')}
         </Button>
       </form>
       {!catalogue.length && (
-        <p className="text-[11px] text-subtle">
-          Le système ne déclare pas d’états pour le combat : les états libres restent possibles.
-        </p>
+        <p className="text-[11px] text-subtle">{t('combat.states.noneDeclared')}</p>
       )}
     </div>
   );
@@ -426,6 +428,7 @@ function DurationEditor({
     decompte: { moment: MomentDecompte; de?: string } | null,
   ): Promise<boolean>;
 }>) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const initial = (): DurationDraft => ({
     count: state.duration !== null ? String(state.duration) : '',
@@ -452,14 +455,14 @@ function DurationEditor({
           type="button"
           disabled={disabled}
           title={full}
-          aria-label={`Durée de ${state.name} : ${full}`}
+          aria-label={t('combat.states.durationOf', { name: state.name, duration: full })}
           className={cn(
             'min-w-16 rounded-md px-1.5 py-0.5 text-center text-xs tabular-nums transition-colors',
             'hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
             state.duration === null ? 'text-subtle' : 'text-muted-foreground',
           )}
         >
-          {durationShort(state) ?? 'jusqu’au retrait'}
+          {durationShort(state) ?? t('combat.durations.untilRemoved')}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 space-y-3">
@@ -487,11 +490,11 @@ function DurationEditor({
                 disabled={disabled}
                 onClick={() => void save({ ...draft, count: '' })}
               >
-                Jusqu’au retrait
+                {t('combat.durations.untilRemovedCap')}
               </Button>
             )}
             <Button type="submit" size="sm" disabled={disabled}>
-              Enregistrer
+              {t('common.actions.save')}
             </Button>
           </div>
         </form>

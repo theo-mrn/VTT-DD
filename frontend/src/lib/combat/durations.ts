@@ -4,16 +4,13 @@
  * la fiche, la durée par défaut lue dans le système, et la demande envoyée à character.
  *
  * Aucune valeur de jeu : la durée par défaut d'un état est une donnée du catalogue (`duree` de
- * l'entrée) ; le libellé vient du moteur (`libelleDuree`).
+ * l'entrée). Les libellés se composent ici, dans la langue de la page, à partir du décompte
+ * (nombre, moment, ancre, attente) : ceux du moteur (`libelleDuree`) sont en français et ne
+ * servent qu'à ses propres explications (docs/i18n.md § 6).
  */
 import { DURATION_MOMENT_RULES, type AttackModificationInput } from '@vtt/contracts';
-import {
-  libelleCourtDuree,
-  libelleDuree,
-  type Decompte,
-  type MomentDecompte,
-  type SystemeCharge,
-} from '@vtt/rules';
+import type { Decompte, MomentDecompte, SystemeCharge } from '@vtt/rules';
+import { translate } from '@/i18n/runtime';
 
 /** Durée affichée : décomptes restants (null : jusqu'au retrait) et leur moment. */
 export interface Timer {
@@ -21,20 +18,29 @@ export interface Timer {
   timing?: Decompte;
 }
 
-/** Moments proposés quand on pose une durée, dans l'ordre. */
-export const DURATION_MOMENTS: readonly { value: MomentDecompte; label: string }[] = [
-  { value: 'fin-round', label: 'Fin de round' },
-  { value: 'debut-tour', label: 'Début de tour' },
-  { value: 'fin-tour', label: 'Fin de tour' },
-];
+/** Clé du nom de chaque moment (`combat.durations.moments.<clé>`). */
+const MOMENT_KEYS = {
+  'fin-round': 'roundEnd',
+  'debut-tour': 'turnStart',
+  'fin-tour': 'turnEnd',
+} as const;
+
+/** Nom d'un moment de décompte : « Fin de round », « Début de tour »… */
+export const momentLabel = (moment: MomentDecompte) =>
+  translate(`combat.durations.moments.${MOMENT_KEYS[moment]}`);
+
+/** Moments proposés quand on pose une durée, dans l'ordre (nom traduit à la lecture). */
+export const DURATION_MOMENTS: readonly { value: MomentDecompte; readonly label: string }[] = (
+  ['fin-round', 'debut-tour', 'fin-tour'] as const
+).map((value) => ({
+  value,
+  get label() {
+    return momentLabel(value);
+  },
+}));
 
 /** Le moment se décompte au tour d'un personnage (l'ancre compte). */
 export const turnBased = (moment: MomentDecompte) => moment !== 'fin-round';
-
-const minuterie = (t: Timer) => ({
-  ...(t.duration !== null ? { duree: t.duration } : {}),
-  ...(t.timing ? { decompte: t.timing } : {}),
-});
 
 /**
  * Libellé complet : « 2 rounds », « jusqu'à la fin de son prochain tour », « jusqu'au début du
@@ -44,15 +50,36 @@ export function durationText(
   t: Timer,
   o: { bearerId?: string; nameOf?: (id: string) => string | undefined } = {},
 ): string {
-  return libelleDuree(minuterie(t), {
-    ...(o.bearerId ? { porteur: o.bearerId } : {}),
-    ...(o.nameOf ? { nomDe: o.nameOf } : {}),
-  });
+  if (t.duration === null) return translate('combat.durations.untilRemoved');
+  const d = t.timing;
+  if (!d || d.moment === 'fin-round')
+    return translate('combat.durations.rounds', { count: t.duration });
+  const name =
+    d.de && d.de !== o.bearerId
+      ? (o.nameOf?.(d.de) ?? translate('combat.durations.anotherCharacter'))
+      : null;
+  const start = d.moment === 'debut-tour';
+  // « prochain » : le tour qui compte n'a pas encore commencé (début, ou fin en attente)
+  const next = start || d.attente === true;
+  const base = start ? 'untilStart' : 'untilEnd';
+  const bound = name
+    ? translate(`combat.durations.${base}Of${next ? NEXT : ''}`, { name })
+    : translate(`combat.durations.${base}Own${next ? NEXT : ''}`);
+  return t.duration === 1
+    ? bound
+    : translate('combat.durations.turnsUntil', { count: t.duration, bound });
 }
+
+/** Suffixe des clés « prochain tour » (`untilEndOfNext`…). */
+const NEXT = 'Next'; // i18n-ignore
 
 /** Libellé court : « 2 rounds », « 1 tour » ; null : jusqu'au retrait. */
 export function durationShort(t: Timer): string | null {
-  return libelleCourtDuree(minuterie(t));
+  if (t.duration === null) return null;
+  const moment = t.timing?.moment ?? 'fin-round';
+  return translate(moment === 'fin-round' ? 'combat.durations.rounds' : 'combat.durations.turns', {
+    count: t.duration,
+  });
 }
 
 /** Durée par défaut d'une entrée du catalogue (état, sort actif), si le système en déclare une. */
