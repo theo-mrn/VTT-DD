@@ -24,6 +24,7 @@ import {
   Dices,
   ListChecks,
   RotateCcw,
+  ScrollText,
   SlidersHorizontal,
   Target,
 } from 'lucide-react';
@@ -58,6 +59,10 @@ import type { AttackContext } from './use-attack-context';
 import type { AttackModel } from './use-attack-model';
 import { EntryPicker } from './weapon-cards';
 import { CapacityPicker } from './capacity-picker';
+import { AttackerStats } from './attacker-stats';
+import type { ContexteFiche } from '@/components/fiche/widgets';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Info } from '@/components/ui/tooltip';
 import {
   actionsGeneriques,
   capaciteJouee,
@@ -163,18 +168,37 @@ export function StepCompose({
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       {(model.actions.length > 1 || capacites.length > 0) && (
-        <ActionTabs
-          groups={model.groups}
-          selected={enCapacites ? null : action}
-          numbered={!card}
-          onChoose={model.choose}
-          disabled={disabled}
-          capacities={
-            capacites.length
-              ? { selected: enCapacites, onChoose: () => choisir(capacites[0]!) }
-              : undefined
-          }
-        />
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <ActionTabs
+              groups={model.groups}
+              selected={enCapacites ? null : action}
+              numbered={!card}
+              onChoose={model.choose}
+              disabled={disabled}
+              capacities={
+                capacites.length
+                  ? { selected: enCapacites, onChoose: () => choisir(capacites[0]!) }
+                  : undefined
+              }
+            />
+          </div>
+          {draft.attackerId && (
+            <StatsButton
+              ctx={{
+                systeme,
+                presentation,
+                fiche,
+                personnage: {
+                  id: draft.attackerId,
+                  name: model.sheet.name ?? ctx.known.get(draft.attackerId)?.name ?? '',
+                  roomId: ctx.campagne?.id ?? null,
+                },
+                mj: ctx.gm,
+              }}
+            />
+          )}
+        </div>
       )}
 
       {reason && (
@@ -1004,4 +1028,34 @@ function CapacitySync({
 function OpenCapacities({ onOpen }: Readonly<{ onOpen: () => void }>) {
   useEffect(() => onOpen(), []); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
+}
+
+/**
+ * Bouton discret « Statistiques » : ressources, caractéristiques et attributs de combat de
+ * l'attaquant, comme son portrait dans l'en-tête, sans quitter l'action en cours.
+ */
+function StatsButton({ ctx }: Readonly<{ ctx: ContexteFiche }>) {
+  const t = useTranslations();
+  return (
+    <Popover>
+      <Info texte={t('combat.attack.stats')}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('combat.attack.statsOf', { name: ctx.personnage.name })}
+            className="shrink-0 text-muted-foreground"
+          >
+            <ScrollText />
+          </Button>
+        </PopoverTrigger>
+      </Info>
+      <PopoverContent
+        align="end"
+        className="max-h-[min(32rem,70dvh)] w-72 overflow-y-auto [scrollbar-width:thin]"
+      >
+        <AttackerStats ctx={ctx} name={ctx.personnage.name} />
+      </PopoverContent>
+    </Popover>
+  );
 }
