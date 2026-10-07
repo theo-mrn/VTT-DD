@@ -19,12 +19,16 @@
  *
  * Puis un seul quadrilatère (le rectangle visible de la carte) et un shader composent :
  * obscurité (`darkness × (1 − vu)`), brume (densité de `mist`) là où il y a du brouillard et
- * pas de vue, lueurs × vu. Sortie en alpha prémultiplié : obscurcit et éclaire en une passe.
+ * pas de vue, lueurs × vu. Là où le groupe a déjà exploré (texture de la mémoire, un texel par
+ * case, lue en coordonnées du monde), un voile gris remplace l'obscurité (docs/exploration.md).
+ * Sortie en alpha prémultiplié : obscurcit et éclaire en une passe.
  */
 import type * as Pixi from 'pixi.js';
 import type { FogZone, Polygon, Vec } from '@vtt/vision';
 import { destroyDisplay } from '@/lib/map/engine/destroy-display';
 import type { MapTheme } from '@/lib/map/engine/entities/entity-kind';
+import { MaskTexture } from '@/lib/map/features/exploration/engine/mask-texture';
+import type { MemorySource } from '@/lib/map/features/exploration/engine/model';
 import type { LightLayer, ViewerLayer, VisionPicture } from './vision-state';
 
 /** Résolutions des textures, en part de la résolution de la vue. */
@@ -157,6 +161,11 @@ uniform float uGlowFloor;
 uniform vec3 uShadowColor;
 uniform vec3 uFogDark;
 uniform vec3 uFogLight;
+uniform sampler2D uMemory;
+uniform float uMemoryOn;
+uniform float uMemoryAlpha;
+uniform vec3 uMemoryColor;
+uniform vec4 uMemoryMap;
 
 void main() {
   float vis = texture(uVis, vUV).a;
@@ -180,6 +189,16 @@ void main() {
   float hidden = uObstacleDark * (1.0 - los);
   rgb = uShadowColor * hidden + rgb * (1.0 - hidden);
   a = hidden + a * (1.0 - hidden);
+  // Mémoire de l'exploration : là où le groupe a déjà vu et ne voit plus, un voile gris remplace
+  // obscurité, brume et noir des obstacles (bord adouci sur une case d'exploration)
+  if (uMemoryOn > 0.5) {
+    float mem = smoothstep(0.3, 0.7, texture(uMemory, vUV * uMemoryMap.xy + uMemoryMap.zw).a);
+    if (mem > 0.001) {
+      float ma = uMemoryAlpha * (1.0 - vis);
+      rgb = mix(rgb, uMemoryColor * ma, mem);
+      a = mix(a, ma, mem);
+    }
+  }
   if (uGlowOn > 0.5) {
     vec3 glow = texture(uGlow, vUV).rgb;
     rgb += glow * mix(uGlowFloor, 1.0, vis);
@@ -406,6 +425,9 @@ export class VisionRenderer {
   private readonly compositeGeometry: Pixi.MeshGeometry;
   private readonly uniforms: Pixi.UniformGroup;
   private readonly contentSprites = new Set<Pixi.Sprite>();
+  /** Mémoire de l'exploration, en texture (un texel par case). */
+  private readonly memory: MaskTexture;
+  private memoryShown = false;
 
   /** Caméra des textures (celle de leur dernier rendu). */
   private cameraKey = '';
@@ -478,7 +500,15 @@ export class VisionRenderer {
       uShadowColor: { value: rgb(mixColor(theme.background, 0x000000, 0.65)), type: 'vec3<f32>' },
       uFogDark: { value: rgb(mixColor(theme.background, theme.muted, 0.35)), type: 'vec3<f32>' },
       uFogLight: { value: rgb(mixColor(theme.muted, theme.foreground, 0.35)), type: 'vec3<f32>' },
+      uMemoryOn: { value: 0, type: 'f32' },
+      uMemoryAlpha: { value: 0, type: 'f32' },
+      uMemoryColor: {
+        value: rgb(mixColor(mixColor(theme.background, theme.muted, 0.4), 0x000000, 0.35)),
+        type: 'vec3<f32>',
+      },
+      uMemoryMap: { value: new Float32Array([1, 1, 0, 0]), type: 'vec4<f32>' },
     });
+    this.memory = new MaskTexture(pixi);
     const shader = pixi.Shader.from({
       gl: { vertex: VERTEX, fragment: COMPOSITE_FRAGMENT, name: 'vision-composite' },
       resources: {
@@ -488,6 +518,7 @@ export class VisionRenderer {
         uFog: this.targets.fog.rt.source,
         uMist: this.targets.mist.rt.source,
         uGlow: this.targets.glow.rt.source,
+        uMemory: this.memory.textureSource,
       },
     });
 
@@ -629,6 +660,15 @@ export class VisionRenderer {
   redrawAll() {
     this.shown = false;
     this.mistKey = '';
+    this.memory.invalidate();
+  }
+
+  /** Texture de la mémoire à jour ; vrai si elle est à montrer. */
+  private syncMemory(memory: MemorySource | null | undefined): boolean {
+    if (!memory) return false;
+    if (this.memory.sync(memory))
+      (this.composite.shader as Pixi.Shader).resources.uMemory = this.memory.textureSource;
+    return memory.active;
   }
 
   /**
@@ -638,7 +678,12 @@ export class VisionRenderer {
    * (même image, déplacée ou mise à l'échelle). Renvoie vrai si une image est due plus tard
    * pour les refaire à la caméra finale.
    */
-  draw(picture: VisionPicture | null, cam: CameraView, time: number): boolean {
+  draw(
+    picture: VisionPicture | null,
+    cam: CameraView,
+    time: number,
+    memory?: MemorySource | null,
+  ): boolean {
     if (this.destroyed) return false;
     if (!picture || cam.width < 1 || cam.height < 1) {
       this.composite.visible = false;
@@ -689,6 +734,7 @@ export class VisionRenderer {
     this.viewerVersion = picture.versions.viewers;
 
     if (this.hasFog) this.renderMist(tc, time, left, top, fogStale);
+    this.memoryShown = this.syncMemory(memory);
     this.updateComposite(picture, cam, tc);
     this.drawWalls(picture);
     this.shown = true;
@@ -1026,6 +1072,14 @@ export class VisionRenderer {
     u.uGlowOn = this.hasGlow ? 1 : 0;
     u.uGlowFloor = p.glowFloor;
     u.uObstacleDark = p.obstacleDarkness;
+    // Mémoire : coordonnées de texture de la vue des textures → cases de la carte
+    u.uMemoryOn = this.memoryShown ? 1 : 0;
+    u.uMemoryAlpha = p.memoryAlpha;
+    const map = u.uMemoryMap as Float32Array;
+    map[0] = texW / p.bounds.width;
+    map[1] = texH / p.bounds.height;
+    map[2] = texLeft / p.bounds.width;
+    map[3] = texTop / p.bounds.height;
     this.uniforms.update();
     this.composite.visible = true;
   }
@@ -1076,6 +1130,7 @@ export class VisionRenderer {
       destroyDisplay(root);
     for (const t of Object.values(this.targets)) t.rt.destroy(true);
     this.discTexture.destroy(true);
+    this.memory.destroy();
   }
 }
 

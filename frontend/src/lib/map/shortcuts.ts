@@ -71,6 +71,7 @@ export const MAP_SHORTCUTS: readonly ShortcutDescriptor[] = [
   tool('fog', 'Brouillard', 'KeyG', GM),
   tool('lights', 'Lumières', 'KeyL', GM),
   tool('sounds', 'Zones sonores', 'KeyF', GM),
+  tool('exploration', 'Exploration', null, GM),
   action('layers.panel', 'Calques', 'KeyK', GM),
   action('grid.toggle', 'Quadrillage', 'KeyQ'),
   action('combat.attack', 'Attaquer', 'KeyY', PLAYING),
@@ -82,6 +83,8 @@ export const MAP_SHORTCUTS: readonly ShortcutDescriptor[] = [
   action('fullscreen.toggle', 'Plein écran', null),
   action('fog.cover', 'Tout couvrir de brouillard', null, GM),
   action('fog.reveal', 'Tout découvrir', null, GM),
+  action('exploration.toggle', 'Activer ou couper l’exploration', null, GM),
+  action('exploration.reset', 'Réinitialiser l’exploration', null, GM),
 ];
 
 const BY_ID = new Map(MAP_SHORTCUTS.map((d) => [d.id, d]));

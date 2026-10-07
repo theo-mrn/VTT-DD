@@ -7,7 +7,9 @@
  *
  * `pnpm --filter @vtt/web exec vitest bench --run src/lib/map/features/vision/engine/vision-drag.bench.ts`
  */
+import { encodeMask, explorationGrid, ExplorationMask } from '@vtt/vision';
 import { bench, describe } from 'vitest';
+import { attachExploration } from '@/lib/map/features/exploration/engine/model';
 import type { EntityKind, MapViewer } from '@/lib/map/engine/entities/entity-kind';
 import { MapEngine, type MapPlayer } from '@/lib/map/engine/map-engine';
 import { spyPersistence } from '@/lib/map/engine/test-kit';
@@ -179,7 +181,15 @@ function setup(viewer: MapViewer) {
   }));
   const store = createMapStore('campagne', 'carte');
   store.getState().hydrate({
-    scene: { id: 'carte', version: 1, width: SIZE, height: SIZE, fogFull: false, display: {} },
+    scene: {
+      id: 'carte',
+      version: 1,
+      width: SIZE,
+      height: SIZE,
+      fogFull: false,
+      display: {},
+      exploration: 'party',
+    },
     settings: { version: 1, pixelsPerUnit: 50, tokenScale: 1, shadowOpacity: 1 },
     collections: {
       tokens,
@@ -232,6 +242,30 @@ const player = setup({ userId: 'alice', role: 'player', characterIds: ['c-heros'
 const heros = player.engine.entity('heros')!;
 let step = 0;
 
+// Mémoire de l'exploration (docs/exploration.md § 5.3) : masque vide connu, marqué en local
+const GRID_CELLS = explorationGrid(SIZE, SIZE, 50);
+player.engine.store.getState().setExtra('exploration', {
+  mapId: 'carte',
+  scope: 'party',
+  cols: GRID_CELLS.cols,
+  rows: GRID_CELLS.rows,
+  version: 1,
+  window: encodeMask(ExplorationMask.empty(GRID_CELLS)),
+});
+const memory = attachExploration(player.engine, null, {
+  set: () => 0,
+  clear: () => undefined,
+}).model;
+
+/** Deux vues du héros, déjà marquées : le régime établi d'un glisser. */
+const steadyViews = [0, 60].map((dx) => {
+  player.engine.setPreview(heros, { ...heros.geometry, x: heros.geometry.x + dx });
+  player.state.sync();
+  const live = player.state.liveView()!;
+  memory.markLocal(live.prep, live.view);
+  return live;
+});
+
 const gm = setup({ userId: 'mj', role: 'gm', characterIds: [] });
 const pnj = gm.engine.entity('pnj1')!;
 
@@ -251,6 +285,36 @@ describe('glisser (par image)', () => {
     });
     player.state.sync();
     applyDecisions(player.engine, player.state, player.fades, step);
+  });
+
+  bench('joueur : même chose, et la mémoire marquée à chaque image (10 Hz en vrai)', () => {
+    step += 1;
+    const dx = ((step % 80) - 40) * 3;
+    player.engine.setPreview(heros, {
+      ...heros.geometry,
+      x: heros.geometry.x + dx,
+      y: heros.geometry.y,
+    });
+    player.state.sync();
+    applyDecisions(player.engine, player.state, player.fades, step);
+    const live = player.state.liveView();
+    if (live) memory.markLocal(live.prep, live.view);
+  });
+
+  bench(
+    `mémoire : premier marquage d'une vue, ${GRID_CELLS.cols} × ${GRID_CELLS.rows} cases`,
+    () => {
+      const live = player.state.liveView();
+      if (!live) throw new Error('aucune vue');
+      memory.replaceLocal(ExplorationMask.empty(GRID_CELLS));
+      memory.markLocal(live.prep, live.view);
+    },
+  );
+
+  bench('mémoire : marquage en régime (vue déjà explorée, cases hors vue re-testées)', () => {
+    step += 1;
+    const live = steadyViews[step & 1]!;
+    memory.markLocal(live.prep, live.view);
   });
 
   bench('MJ : un PNJ glissé, audience pour 4 joueurs (15 Hz)', () => {

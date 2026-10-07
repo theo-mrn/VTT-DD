@@ -4,7 +4,15 @@
  * résumé part dans la console toutes les 5 s s'il y a eu du travail.
  */
 
-export type VisionStep = 'prepare' | 'views' | 'masking' | 'sync' | 'render' | 'frame';
+export type VisionStep =
+  | 'prepare'
+  | 'views'
+  | 'masking'
+  | 'sync'
+  | 'render'
+  | 'frame'
+  /** Marquage local de la mémoire de l'exploration (glisser d'un joueur). */
+  | 'memory';
 
 const WINDOW = 240;
 

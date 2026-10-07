@@ -32,7 +32,7 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
 | DELETE  | `/v1/campaigns/:id/maps/:mapId`         | —                                                                                                                                                | 204 (MJ) ; tout ce qui est posé dessus disparaît ; 409 `players_present` si un joueur s'y trouve    |
 | POST    | `/v1/campaigns/:id/maps/:mapId/rescale` | `{ sx, sy }` (0 à 1000 exclus)                                                                                                                   | `MapSnapshot` (MJ) : toute la géométrie mise à l'échelle en une transaction                         |
 
-`Map` (`MapScene`) : `{ id, name, description, groupId, backgroundUrl, isDefault, visibleToPlayers, spawn, width, height, weather, display, fogFull, grids, version, updatedAt }`.
+`Map` (`MapScene`) : `{ id, name, description, groupId, backgroundUrl, isDefault, visibleToPlayers, spawn, width, height, weather, display, fogFull, grids, exploration, version, updatedAt }`.
 
 - `isDefault` : le fond global de l'ancienne app (aucune scène sélectionnée), une par campagne au plus.
 - `backgroundUrl` : image (png, jpeg, webp, avif, gif) ou vidéo (webm, mp4). `width`/`height` :
@@ -56,6 +56,9 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
   tous (la grille de jeu compte même cachée aux joueurs), modifiée par le MJ (`PATCH`).
 - `fogFull` : toute la carte est sous le brouillard au départ (remplace `fullMapFog`) ; les zones
   de brouillard s'appliquent ensuite.
+- `exploration` : `off` ou `party` (défaut d'une scène neuve ; les scènes d'avant le changeset
+  0031 et celles importées restent `off`). Mémoire de ce que le groupe a vu, voir
+  « Exploration » ci-dessous et [exploration.md](exploration.md).
 - `?bbox=x1,y1,x2,y2` : ne renvoie que ce qui touche ce rectangle (index GiST), aussi sur chaque liste.
 - **Mise à l'échelle** (`rescale`, fond changé de taille) : `x × sx`, `y × sy` pour chaque
   position et chaque géométrie de la carte (tokens, objets, lumières, obstacles, pièces, zones,
@@ -66,7 +69,7 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
   élément prend une version de plus ; événements `map.updated` puis `map.rescaled` : les clients
   relisent la carte.
 
-`MapSnapshot` : `{ map, layers, tokens, objects, lights, obstacles, rooms, fogZones, drawings, notes, musicZones, portals, measurements }`.
+`MapSnapshot` : `{ map, layers, tokens, objects, lights, obstacles, rooms, fogZones, drawings, notes, musicZones, portals, measurements, exploration }` (`exploration` : `MapExploration` ou null).
 
 ## Médias
 
@@ -301,6 +304,37 @@ token. Conception : [carte.md](carte.md) § 10, Portails.
   ne change. Sinon le contenu diminue (ou disparaît), `map_object.updated`.
 - Événements du MJ : `map_object.searched { id, mapId, name, characterId, userId }` et
   `map_object.looted { id, mapId, name, characterId, userId, item, remaining }`, `gm_only`.
+
+## Exploration
+
+Mémoire de ce que les observateurs du groupe ont déjà vu ([exploration.md](exploration.md)) : un
+masque raster par scène (un quart de case, 512 cases par côté au plus), calculé par le service.
+
+| Méthode | Route                                             | Corps                                                                        | Réponse                                                                   |
+| ------- | ------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| GET     | `/v1/campaigns/:id/maps/:mapId/exploration`       | —                                                                            | `{ exploration: MapExploration \| null }` (null : coupée, ou rien encore) |
+| POST    | `/v1/campaigns/:id/maps/:mapId/exploration/trail` | `{ trails: [{ tokenId, points: [{ x, y }] }] }` (20 tokens, 32 points)       | `{ version: number \| null }`                                             |
+| POST    | `/v1/campaigns/:id/maps/:mapId/exploration`       | `{ op: 'reveal' \| 'forget', cols, rows, window }` ou `{ op: 'reset' }` (MJ) | `{ exploration: MapExploration }`                                         |
+
+- `MapExploration` : `{ mapId, scope: 'party', cols, rows, version, window }` ; `window`
+  (`MapExplorationWindow`) : `{ x, y, w, h, data }`, un rectangle de cases et son contenu en
+  plages alternées (0 d'abord) d'entiers LEB128, en base64 (`encodeWindow` de `@vtt/vision`).
+- **Calcul** : toute écriture qui change la vue des joueurs (celles qui émettent
+  `map.visibility_changed`, un token posé, l'exploration activée) met la scène en file dans sa
+  transaction ; le travailleur du service l'explore après le `COMMIT` (vue des observateurs du
+  groupe), une fois par scène quelle que soit la rafale d'écritures.
+- **Traînée** : les points du chemin d'un glisser ; le serveur explore depuis chacun, pour les
+  tokens qui sont des observateurs du groupe (rayon de vision actuel). Joueur : ses personnages
+  (403 sinon) ; token absent de la carte : 404 ; exploration coupée : `{ version: null }`.
+- **MJ** : `reveal` et `forget` ajoutent ou retirent les cases de la fenêtre ; `cols`, `rows`
+  doivent être ceux du masque (409 `exploration_grid_changed`) ; fenêtre invalide : 422
+  `invalid_exploration_window` ; exploration coupée : 409 `exploration_off` ; scène sans taille :
+  422 `map_without_size`. `reset` : toutes les cases à 0, grille refaite (taille et case du
+  moment), puis la vue actuelle du groupe est explorée de nouveau.
+- Événement `map.exploration_updated { mapId, scope, version, cols, rows, window }` (nouvel état
+  du rectangle changé, toute la grille après `reset`) : `public` pour une scène visible des
+  joueurs, sinon `gm_only` et les joueurs qui y ont un personnage présent. Rien d'autre n'est
+  envoyé : PNJ et objets restent filtrés par la vue en direct.
 
 ## Réglages et dossiers
 

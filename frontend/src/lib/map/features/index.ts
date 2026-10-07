@@ -82,6 +82,7 @@ import { soundsFeature } from './sounds';
 import { measurementsFeature } from './measurements';
 import { movementPathFeature } from './movement-path';
 import { visionFeature } from './vision';
+import { explorationFeature } from './exploration';
 import { weatherFeature } from './weather';
 import { combatFeature } from './combat';
 import { historyFeature } from './history';
@@ -133,6 +134,8 @@ export const MAP_FEATURES: readonly MapFeature[] = [
   movementPathFeature,
   // Lot 2 « Rendu de la visibilité » : ombres, brouillard, lueurs, masquage, sélecteur « Vue »
   visionFeature,
+  // Mémoire de l'exploration : ce que le groupe a vu reste grisé, outil du MJ (exploration.md)
+  explorationFeature,
   // Météo de la scène : pluie, neige, brouillard… (plan weather, espace écran)
   weatherFeature,
   // Combat : anneaux du tour et des cibles, visée, entrées « Attaquer », menu d'attaque
