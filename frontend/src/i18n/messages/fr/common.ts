@@ -50,6 +50,7 @@ export default {
     spectator: 'Spectateur',
   },
   trash: {
+    restoreFailedNamed: '« {name} » n’a pas pu être restauré',
     title: 'Corbeille',
     restore: 'Restaurer',
     restored: '« {name} » restauré',

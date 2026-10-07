@@ -7,13 +7,13 @@
 export const LEGAL_UPDATED_AT = '2026-10-05';
 
 export const PUBLISHER = {
-  name: 'Théo MORIN',
-  status: 'particulier, à titre non professionnel',
+  name: 'Théo MORIN', // i18n-ignore : nom propre
+  status: 'particulier, à titre non professionnel', // i18n-ignore : version française seulement
   email: 'contact@yner.fr',
 } as const;
 
 export const HOST = {
-  name: 'Hostinger International Ltd',
+  name: 'Hostinger International Ltd', // i18n-ignore : nom propre
   /** Pays écrit par chaque version de la page (Chypre, Cyprus). */
   address: '61 Lordou Vironos Street, 6023 Larnaca',
   contact: 'https://www.hostinger.fr/contact',

@@ -60,4 +60,17 @@ export default {
     keyValues: 'Key values',
     computedHint: 'Computed values (defense, maximums…) follow the system’s rules.',
   },
+  page: {
+    eyebrow: 'Your heroes',
+    title: 'Characters',
+    lead: 'Each sheet is computed by its system’s rules: values, bonuses and rolls are always right.',
+    searchPlaceholder: 'Search a hero…',
+    search: 'Search a character',
+    none: 'No characters',
+    noneHint:
+      'Create your first hero: the assistant guides you step by step, following the chosen system’s rules.',
+    create: 'Create a character',
+    newHero: 'New hero',
+    noMatch: 'No character matches.',
+  },
 } satisfies Translation<typeof fr>;

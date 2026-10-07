@@ -26,6 +26,7 @@ import onboarding from './onboarding';
 import portraits from './portraits';
 import resources from './resources';
 import search from './search';
+import sheet from './sheet';
 import shell from './shell';
 import shortcuts from './shortcuts';
 import table from './table';
@@ -56,6 +57,7 @@ const fr = {
   portraits,
   resources,
   search,
+  sheet,
   shell,
   shortcuts,
   table,

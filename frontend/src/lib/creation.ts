@@ -2,6 +2,7 @@
  * Outils de l'assistant de création et des fiches, sans interface : tout est
  * lu dans le système et sa présentation (aucune clé de jeu ici).
  */
+import { translate } from '@/i18n/runtime';
 import {
   chemins,
   EtatEntite,
@@ -58,7 +59,7 @@ export function prerequisManquant(fiche: Fiche, e: Entree): string | null {
   if (!f) return null;
   const r = essayer(fiche, f);
   if (!r.ok) return r.message;
-  return r.valeur === true ? null : `Prérequis : ${f.texte}`;
+  return r.valeur === true ? null : translate('sheet.effects.prerequisite', { text: f.texte });
 }
 
 function signe(n: number) {
@@ -81,14 +82,21 @@ export function texteEffet(fiche: Fiche, e: Effet): string | null {
       const cible = fiche.systeme.entrees.get(e.entree);
       if (!cible) return null;
       const seuil = /rang\s*>=\s*(\d+)/.exec(e.condition ?? '')?.[1];
-      return seuil ? `Rang ${seuil} : ${cible.nom}` : `Accorde : ${cible.nom}`;
+      return seuil
+        ? translate('sheet.effects.rank', { rank: seuil, name: cible.nom })
+        : translate('sheet.effects.grants', { name: cible.nom });
     }
     case 'marque': {
       const noms = e.entrees.map((id) => fiche.systeme.entrees.get(id)?.nom ?? id);
-      return `${noms.slice(0, 4).join(', ')}${noms.length > 4 ? ` et ${noms.length - 4} autres` : ''}`;
+      return noms.length > 4
+        ? translate('sheet.effects.andOthers', {
+            names: noms.slice(0, 4).join(', '),
+            count: noms.length - 4,
+          })
+        : noms.join(', ');
     }
     case 'jet':
-      return 'Modifie certains jets';
+      return translate('sheet.effects.rolls');
     case 'degats':
       return texteDegats(e);
   }
@@ -99,7 +107,7 @@ function texteAttribut(fiche: Fiche, e: Extract<Effet, { sur: 'attribut' }>): st
   const nom = libelleAttribut(fiche, e.attribut);
   const n = Number(e.valeur);
   const v = Number.isFinite(n) ? n : e.valeur;
-  const cond = e.condition ? ' (sous condition)' : '';
+  const cond = e.condition ? ` ${translate('sheet.effects.conditional')}` : '';
   switch (e.operation) {
     case 'ajouter':
       return `${nom} ${typeof v === 'number' ? signe(v) : `+ ${v}`}${cond}`;
@@ -108,18 +116,18 @@ function texteAttribut(fiche: Fiche, e: Extract<Effet, { sur: 'attribut' }>): st
     case 'fixer':
       return `${nom} = ${v}${cond}`;
     case 'minimum':
-      return `${nom} au moins ${v}${cond}`;
+      return translate('sheet.effects.atLeast', { name: nom, value: String(v) }) + cond;
     case 'maximum':
-      return `${nom} au plus ${v}${cond}`;
+      return translate('sheet.effects.atMost', { name: nom, value: String(v) }) + cond;
   }
   return null;
 }
 
 /** Effet sur les dégâts : immunité, résistance ou réduction. */
 function texteDegats(e: Extract<Effet, { sur: 'degats' }>): string {
-  if (e.operation === 'annuler') return 'Immunité à certains dégâts';
-  if (e.operation === 'multiplier') return 'Résistance à certains dégâts';
-  return `Réduction des dégâts ${e.valeur}`;
+  if (e.operation === 'annuler') return translate('sheet.effects.immunity');
+  if (e.operation === 'multiplier') return translate('sheet.effects.resistance');
+  return translate('sheet.effects.reduction', { value: String(e.valeur) });
 }
 
 /** Valeurs des champs d'une entrée, avec le nom du champ (taille moyenne, dé de vie…). */
@@ -176,18 +184,24 @@ export function explication(v: ValeurCalculee | undefined): string[] {
       const val = typeof l.valeur === 'number' ? l.valeur : String(l.valeur);
       // Effet coupé dans le bloc Bonus : listé, sans compter
       if (l.desactive)
-        return `${l.nom} : ${typeof val === 'number' ? signe(val) : val} (désactivé)`;
+        return translate('sheet.explain.disabled', {
+          name: l.nom,
+          value: typeof val === 'number' ? signe(val) : val,
+        });
       switch (l.operation) {
         case 'base':
-          return `Base : ${val}`;
+          return translate('sheet.explain.base', { value: String(val) });
         case 'formule':
           return `${l.nom} = ${val}`;
         case 'ajouter':
-          return `${l.nom} : ${typeof val === 'number' ? signe(val) : val}`;
+          return translate('sheet.explain.pair', {
+            name: l.nom,
+            value: typeof val === 'number' ? signe(val) : val,
+          });
         case 'multiplier':
-          return `${l.nom} : ×${val}`;
+          return translate('sheet.explain.pair', { name: l.nom, value: `×${val}` });
         default:
-          return `${l.nom} : ${val}`;
+          return translate('sheet.explain.pair', { name: l.nom, value: String(val) });
       }
     });
 }

@@ -18,6 +18,7 @@
  */
 'use client';
 
+import { translate } from '@/i18n/runtime';
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -285,7 +286,7 @@ const TYPE_UI: Record<NoteTypeApi, TypeNote> = {
 };
 
 /** Nom affiché d'un auteur dont identity n'a pas donné le profil. */
-const NOM_INCONNU = 'Joueur';
+const NOM_INCONNU = () => translate('common.roles.player');
 
 function visibiliteDe(
   n: NoteCommonApi,
@@ -308,7 +309,7 @@ function versBase(n: NoteCommonApi): BaseNote {
     roomId: n.campaignId,
     ...visibiliteDe(n),
     authorId: n.owner.id,
-    authorName: n.owner.name ?? NOM_INCONNU,
+    authorName: n.owner.name ?? NOM_INCONNU(),
     characterId: n.characterId,
     imageUrl: n.imageUrl,
     permissions: n.permissions,

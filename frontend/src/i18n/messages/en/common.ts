@@ -52,6 +52,7 @@ export default {
     spectator: 'Spectator',
   },
   trash: {
+    restoreFailedNamed: '“{name}” could not be restored',
     title: 'Trash',
     restore: 'Restore',
     restored: '“{name}” restored',

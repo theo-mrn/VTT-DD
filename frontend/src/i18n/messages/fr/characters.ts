@@ -59,4 +59,17 @@ export default {
     keyValues: 'Valeurs clés',
     computedHint: 'Les valeurs calculées (défense, maximums…) suivent les règles du système.',
   },
+  page: {
+    eyebrow: 'Vos héros',
+    title: 'Personnages',
+    lead: 'Chaque fiche est calculée par les règles de son système : valeurs, bonus et jets sont toujours justes.',
+    searchPlaceholder: 'Rechercher un héros…',
+    search: 'Rechercher un personnage',
+    none: 'Aucun personnage',
+    noneHint:
+      "Créez votre premier héros : l'assistant vous guide étape par étape, selon les règles du système choisi.",
+    create: 'Créer un personnage',
+    newHero: 'Nouveau héros',
+    noMatch: 'Aucun personnage ne correspond.',
+  },
 } as const;

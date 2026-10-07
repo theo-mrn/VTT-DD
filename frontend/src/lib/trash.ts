@@ -2,6 +2,7 @@
  * Corbeille (docs/nettoyage.md) : mes personnages supprimés depuis moins de `TRASH_DAYS` jours,
  * restaurables. Les modèles (PNJ, objets) n'en ont pas : seul le MJ les supprime.
  */
+import { translate } from '@/i18n/runtime';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { TrashItem } from '@vtt/contracts';
 import { toast } from 'sonner';
@@ -46,10 +47,10 @@ export function useRestore() {
  */
 export function undoAction(client: QueryClient, item: Pick<TrashItem, 'id' | 'name'>) {
   return {
-    label: 'Annuler',
+    label: translate('common.actions.cancel'),
     onClick: () =>
       void restoreItem(client, item.id).catch(() => {
-        toast.error(`« ${item.name} » n’a pas pu être restauré`);
+        toast.error(translate('common.trash.restoreFailedNamed', { name: item.name }));
       }),
   };
 }
