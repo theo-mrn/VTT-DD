@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Check, Clock, Swords } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Illustration } from '@/components/commun/illustration';
@@ -14,6 +15,7 @@ import { LogoYner } from '@/components/commun/logo-yner';
  * (grand écran). Sert aussi aux pages de mot de passe et de vérification.
  */
 export function CadreAuth({ children }: Readonly<{ children: ReactNode }>) {
+  const t = useTranslations('auth.frame');
   return (
     <div className="grid min-h-dvh bg-background lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <div className="relative flex flex-col px-6 py-6 sm:px-10">
@@ -24,7 +26,7 @@ export function CadreAuth({ children }: Readonly<{ children: ReactNode }>) {
         </Link>
         <main className="relative flex flex-1 items-center justify-center py-10">{children}</main>
         <footer className="relative text-xs text-subtle">
-          © {new Date().getFullYear()} Yner · Table de jeu de rôle virtuelle
+          {t('footer', { year: String(new Date().getFullYear()) })}
         </footer>
       </div>
       <Vitrine />
@@ -42,12 +44,13 @@ const entree = (delai: number) => ({
 });
 
 function Vitrine() {
+  const t = useTranslations('auth.frame.showcase');
   return (
     <aside className="relative hidden p-3 lg:block">
       <div className="relative h-full overflow-hidden rounded-[28px] border border-border">
         <Illustration
           src="https://assets.yner.fr/Map/Chateau/Illustration/Cragwind Castle_Night02_static.webp"
-          graine="Cragwind"
+          graine="Cragwind" // i18n-ignore
           initiale={false}
           className="absolute inset-0"
         />
@@ -64,7 +67,7 @@ function Vitrine() {
             className="absolute left-[8%] top-[12%] w-64 rounded-2xl border border-white/10 bg-black/70 p-4 shadow-elevated"
           >
             <p className="text-[11px] font-medium uppercase tracking-wider text-white/50">
-              Jet d&apos;attaque · 1d20 + 5
+              {t('attackRoll')}
             </p>
             <div className="mt-3 flex items-center gap-4">
               <DeVisuel faces={20} valeur={20} etat="critique" taille="lg" />
@@ -73,7 +76,7 @@ function Vitrine() {
                   25
                 </p>
                 <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-primary">
-                  Critique
+                  {t('critical')}
                 </p>
               </div>
             </div>
@@ -85,7 +88,7 @@ function Vitrine() {
           >
             <Illustration
               src="https://assets.yner.fr/Map/Cimetiere/Illustration/Graveyard_illustration_Night_04.webp"
-              graine="La Crypte d'Ashenvale"
+              graine="La Crypte d'Ashenvale" // i18n-ignore
               largeur={288}
               className="h-24"
               voile
@@ -93,10 +96,10 @@ function Vitrine() {
             <div className="space-y-3 p-4">
               <div>
                 <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-primary">
-                  <Swords className="size-3" /> Campagne
+                  <Swords className="size-3" /> {t('campaign')}
                 </p>
                 <p className="mt-1 font-display text-lg font-semibold text-white">
-                  La Crypte d&apos;Ashenvale
+                  {t('campaignName')}
                 </p>
               </div>
               <div className="flex items-center justify-between">
@@ -114,7 +117,7 @@ function Vitrine() {
                   ))}
                 </div>
                 <span className="flex items-center gap-1 text-xs text-white/60">
-                  <Clock className="size-3" /> Ce soir, 20:30
+                  <Clock className="size-3" /> {t('tonight')}
                 </span>
               </div>
             </div>
@@ -127,19 +130,19 @@ function Vitrine() {
             <div className="flex items-center gap-3">
               <Illustration
                 src="https://assets.yner.fr/images/races/Elfe.webp"
-                graine="Aelys"
+                graine="Aelys" // i18n-ignore
                 largeur={44}
                 position="top"
                 className="size-11 rounded-xl ring-1 ring-white/15"
               />
               <div>
                 <p className="font-display text-base font-semibold text-white">Aelys</p>
-                <p className="text-xs text-white/55">Elfe · Magicienne · niv. 4</p>
+                <p className="text-xs text-white/55">{t('heroLine')}</p>
               </div>
             </div>
             <div className="mt-3 space-y-1">
               <div className="flex justify-between text-[11px] text-white/60">
-                <span>Points de vie</span>
+                <span>{t('hitPoints')}</span>
                 <span className="font-mono">18 / 24</span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
@@ -151,17 +154,15 @@ function Vitrine() {
 
         <div className="absolute inset-x-0 bottom-0 p-10">
           <h2 className="max-w-md text-balance text-3xl font-semibold tracking-tight text-white">
-            Votre table de jeu, <span className="text-gradient-primary">partout</span>.
+            {t.rich('title', {
+              accent: (chunks) => <span className="text-gradient-primary">{chunks}</span>,
+            })}
           </h2>
           <ul className="mt-5 grid max-w-lg gap-2 text-sm text-white/70">
-            {[
-              'Fiches calculées par le moteur de règles, sans erreur de calcul',
-              'Dés, historique et notes partagés avec toute la table',
-              'D&D, Star Wars et vos propres systèmes',
-            ].map((t) => (
-              <li key={t} className="flex items-start gap-2.5">
+            {(['first', 'second', 'third'] as const).map((point) => (
+              <li key={point} className="flex items-start gap-2.5">
                 <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                {t}
+                {t(`points.${point}`)}
               </li>
             ))}
           </ul>

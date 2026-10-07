@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { AlertCircle, CheckCircle2, Info as IconeInfo, Loader2 } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -108,11 +109,12 @@ export function Message({
   );
 }
 
-export function Chargement({ texte = 'Chargement…' }: Readonly<{ texte?: string }>) {
+export function Chargement({ texte }: Readonly<{ texte?: string }>) {
+  const t = useTranslations('common.states');
   return (
     <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
       <Loader2 className="size-4 animate-spin text-primary" />
-      {texte}
+      {texte ?? t('loading')}
     </div>
   );
 }

@@ -17,6 +17,12 @@ export const TRANSLATED_AREAS = [
   'app/terms',
   'app/legal',
   'app/credits',
+  'components/auth',
+  'app/connexion',
+  'app/mot-de-passe-oublie',
+  'app/reinitialisation',
+  'app/verification-email',
+  'app/discord',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {

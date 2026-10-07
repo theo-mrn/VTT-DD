@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -13,6 +14,7 @@ import { useSession } from '@/lib/session';
 const verifications = new Map<string, Promise<void>>();
 
 function Verification() {
+  const t = useTranslations('auth');
   const jeton = useSearchParams().get('jeton');
   const { statut, rechargerProfil } = useSession();
   const [etat, setEtat] = useState<'attente' | 'ok' | 'erreur'>('attente');
@@ -46,30 +48,30 @@ function Verification() {
   const suite =
     statut === 'connecte' ? (
       <Bouton asChild className="h-10 w-full">
-        <Link href="/profil">Aller à mon profil</Link>
+        <Link href="/profil">{t('verify.toProfile')}</Link>
       </Bouton>
     ) : (
       <Bouton asChild className="h-10 w-full">
-        <Link href="/connexion">Se connecter</Link>
+        <Link href="/connexion">{t('form.signIn')}</Link>
       </Bouton>
     );
 
   if (!jeton)
     return (
       <div className="space-y-4">
-        <Message>Ce lien est incomplet : il manque le jeton de vérification.</Message>
+        <Message>{t('verify.missingToken')}</Message>
         {suite}
       </div>
     );
 
-  if (etat === 'attente') return <Chargement texte="Vérification de votre adresse…" />;
+  if (etat === 'attente') return <Chargement texte={t('verify.checking')} />;
 
   return (
     <div className="space-y-4">
       {etat === 'ok' ? (
-        <Message ton="succes">Adresse e-mail vérifiée, merci !</Message>
+        <Message ton="succes">{t('verify.done')}</Message>
       ) : (
-        <Message>{erreur} Vous pouvez demander un nouveau lien depuis votre profil.</Message>
+        <Message>{t('verify.failed', { error: erreur ?? '' })}</Message>
       )}
       {suite}
     </div>
@@ -77,8 +79,9 @@ function Verification() {
 }
 
 export default function PageVerificationEmail() {
+  const t = useTranslations('auth.verify');
   return (
-    <CadrePublic titre="Vérification de l'e-mail">
+    <CadrePublic titre={t('title')}>
       <Suspense fallback={<Chargement />}>
         <Verification />
       </Suspense>
