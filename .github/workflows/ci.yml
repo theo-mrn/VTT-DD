@@ -127,7 +127,7 @@ jobs:
       # applique, annule puis réapplique : un rollback cassé fait échouer la CI.
       - name: Migrations Liquibase (applique, annule, réapplique)
         run: |
-          for svc in identity character campaign dice billing history audio; do
+          for svc in identity character campaign dice billing history audio marketplace; do
             infra/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
           done
       - name: Droits et contraintes du schéma identity
@@ -144,6 +144,8 @@ jobs:
         run: bash infra/postgres/tests/history-droits.sh
       - name: Droits et contraintes du schéma audio
         run: bash infra/postgres/tests/audio-droits.sh
+      - name: Droits et contraintes du schéma marketplace
+        run: bash infra/postgres/tests/marketplace-droits.sh
       # Tests d'intégration des services sur la base migrée ci-dessus, avec le rôle
       # du service (jamais le propriétaire) : ils sont ignorés dans le job qualité.
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -206,6 +208,13 @@ jobs:
           command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
           pnpm turbo run build --filter '@vtt/audio^...'
           pnpm --filter @vtt/audio exec vitest run --coverage.enabled --coverage.reporter=lcov
+      # campaign, billing et R2 simulés : stockage en mémoire
+      - name: Tests d'intégration marketplace (Postgres réel)
+        env:
+          TEST_DATABASE_URL: postgres://marketplace_svc:marketplace-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/marketplace^...'
+          pnpm --filter @vtt/marketplace exec vitest run --coverage.enabled --coverage.reporter=lcov
       # Pas de base : canal durable sur JetStream, plusieurs réplicas reliés par Valkey
       - name: Tests d'intégration realtime (NATS et Valkey réels)
         env:
@@ -447,6 +456,16 @@ jobs:
             }
           # Worker ffmpeg du service audio (même paquet, runtime Debian avec ffmpeg)
           - { image: audio-worker, dockerfile: infra/docker/audio-worker.Dockerfile, args: '' }
+          - {
+              image: marketplace,
+              dockerfile: infra/docker/service.Dockerfile,
+              args: 'SERVICE=marketplace',
+            }
+          - {
+              image: marketplace-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=marketplace',
+            }
           # Pas de base : ni migrations ni image de migration
           - {
               image: realtime,

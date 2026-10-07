@@ -159,6 +159,47 @@ describe('gateway', () => {
     }
   });
 
+  it('relaie /v1/marketplace vers le service marketplace, avec jeton', async () => {
+    const marketplace = createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ service: 'marketplace', method: req.method, path: req.url }));
+    });
+    await new Promise<void>((r) => marketplace.listen(0, '127.0.0.1', r));
+    try {
+      const app = await buildGateway(
+        loadConfig(GatewayConfig, {
+          NODE_ENV: 'test',
+          LOG_LEVEL: 'silent',
+          JWT_ISSUER: 'https://identity.test',
+          JWT_AUDIENCE: 'vtt-api',
+          UPSTREAM_MARKETPLACE_URL: `http://127.0.0.1:${(marketplace.address() as AddressInfo).port}`,
+        }),
+        { authKeyResolver: async () => publicKey },
+      );
+      expect((await app.inject({ url: '/v1/marketplace/listings' })).statusCode).toBe(401);
+      const auth = { authorization: `Bearer ${await token()}` };
+      for (const [method, path] of [
+        ['GET', '/v1/marketplace/listings?q=crypte'],
+        ['POST', '/v1/marketplace/studio/listings'],
+        ['PUT', '/v1/marketplace/studio/versions/v1/content'],
+      ] as const) {
+        const r = await app.inject({
+          method,
+          url: path,
+          headers: auth,
+          ...(method === 'GET' ? {} : { payload: {} }),
+        });
+        expect(r.json(), `${method} ${path}`).toEqual({ service: 'marketplace', method, path });
+      }
+      expect(
+        (await app.inject({ url: '/internal/marketplace/checkout', headers: auth })).statusCode,
+      ).toBe(404);
+      await app.close();
+    } finally {
+      marketplace.close();
+    }
+  });
+
   it("laisse passer l'authentification sans jeton", async () => {
     const app = await gateway();
     const res = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: {} });
@@ -305,6 +346,8 @@ describe('estPublique', () => {
     expect(estPublique('GET', '/v1/billing/webhook')).toBe(false);
     expect(estPublique('POST', '/v1/billing/webhooks')).toBe(false);
     expect(estPublique('POST', '/v1/billing/webhook/x')).toBe(false);
+    expect(estPublique('POST', '/v1/billing/connect/webhook')).toBe(true);
+    expect(estPublique('POST', '/v1/billing/connect/onboarding')).toBe(false);
     expect(estPublique('POST', '/v1/billing/checkout')).toBe(false);
   });
 
