@@ -3,6 +3,7 @@
  * (docs/i18n.md § 4). Un espace ajouté ici l'est aussi dans `../en/index.ts`.
  */
 import account from './account';
+import audio from './audio';
 import auth from './auth';
 import campaigns from './campaigns';
 import characters from './characters';
@@ -32,6 +33,7 @@ import uploads from './uploads';
 
 const fr = {
   account,
+  audio,
   auth,
   campaigns,
   characters,

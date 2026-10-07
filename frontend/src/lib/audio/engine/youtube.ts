@@ -1,3 +1,4 @@
+// i18n-ignore-file : diagnostics du moteur (copiés pour le support), volontairement en français
 /**
  * Lecteur YouTube (décision Q1 : comme l'ancienne app) : lecteur IFrame
  * officiel caché (0×0), hôte youtube-nocookie.com, jamais de téléchargement

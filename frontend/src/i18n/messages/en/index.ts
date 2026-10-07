@@ -1,6 +1,7 @@
 /** Catalogue anglais : mêmes espaces que `../fr/index.ts`, vérifiés par le typage et par le test. */
 import type { Messages, Translation } from '../../types';
 import account from './account';
+import audio from './audio';
 import auth from './auth';
 import campaigns from './campaigns';
 import characters from './characters';
@@ -30,6 +31,7 @@ import uploads from './uploads';
 
 const en = {
   account,
+  audio,
   auth,
   campaigns,
   characters,

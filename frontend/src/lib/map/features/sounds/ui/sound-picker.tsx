@@ -16,7 +16,7 @@ import { Check, Headphones, Library, Package, Pause, Play, Square, Upload } from
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { FileSource, plain } from '@/components/audio/add-sound-dialog';
-import { formatTime, KIND_ICONS, KIND_LABELS, Segmented } from '@/components/audio/parts';
+import { formatTime, KIND_ICONS, kindLabel, Segmented } from '@/components/audio/parts';
 import { Chips, SearchField } from '@/components/resources/parts';
 import { useTable } from '@/components/table/contexte';
 import { Button } from '@/components/ui/button';
@@ -257,7 +257,7 @@ function useSoundFilters<T>(
     { value: 'all', label: translate('map.sounds.allKinds'), count: items.length },
     ...KINDS.map((k) => ({
       value: k,
-      label: KIND_LABELS[k],
+      label: kindLabel(k),
       count: items.filter((x) => kindOf(x) === k).length,
     })).filter((c) => c.count > 0),
   ];
@@ -362,7 +362,7 @@ function MineList({
               name={a.name}
               kind={a.kind}
               meta={[
-                KIND_LABELS[a.kind],
+                kindLabel(a.kind),
                 a.status === 'processing'
                   ? translate('map.sounds.processing')
                   : formatTime(a.durationMs),

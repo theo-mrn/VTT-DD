@@ -6,6 +6,7 @@
  * « Ajouter » : Musique (morceaux et playlists), Ambiance, Effets (table personnalisable).
  * Réservé au MJ : les joueurs n'ont que leur volume (panneau « Volume »).
  */
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, AudioLines, ListMusic, Music, Wind } from 'lucide-react';
 import { useState } from 'react';
 import { Notice } from '@/components/resources/parts';
@@ -22,6 +23,7 @@ import { SectionList } from './section-list';
 import { Soundboard } from './soundboard';
 
 function GmSound({ campaignId, systemId }: Readonly<{ campaignId: string; systemId: string }>) {
+  const t = useTranslations();
   const library = useAudioLibrary(campaignId);
   const music = useChannel(campaignId, 'music');
   const ambience = useChannel(campaignId, 'ambience');
@@ -35,40 +37,40 @@ function GmSound({ campaignId, systemId }: Readonly<{ campaignId: string; system
       <Notice
         tone="error"
         icon={AlertTriangle}
-        title="Bibliothèque indisponible"
-        description="Le service du son ne répond pas. Réessayez dans un instant."
+        title={t('resources.images.unavailable')}
+        description={t('audio.panel.serviceDown')}
       />
     );
 
   return (
     <>
       <Tabs defaultValue="music">
-        <TabsList variante="ligne" aria-label="Espaces du son" className="w-full">
+        <TabsList variante="ligne" aria-label={t('audio.panel.spaces')} className="w-full">
           <TabsTrigger value="music" className="flex-1">
             <Music aria-hidden />
-            Musique
+            {t('audio.kinds.music')}
           </TabsTrigger>
           <TabsTrigger value="ambience" className="flex-1">
             <Wind aria-hidden />
-            Ambiance
+            {t('audio.kinds.ambience')}
           </TabsTrigger>
           <TabsTrigger value="sfx" className="flex-1">
             <AudioLines aria-hidden />
-            Effets
+            {t('audio.buses.sfx')}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="music" className="mt-4 space-y-3">
           <Deck campaignId={campaignId} channel="music" gm />
           <Segmented
-            label="Musique"
+            label={t('audio.kinds.music')}
             value={musicView}
             onChange={(v) => setMusicView(v as typeof musicView)}
             options={[
-              { value: 'tracks', label: 'Morceaux', icon: Music },
+              { value: 'tracks', label: t('audio.panel.tracks'), icon: Music },
               {
                 value: 'playlists',
-                label: 'Playlists',
+                label: t('audio.playlists.title'),
                 icon: ListMusic,
                 count: library.playlists.length,
               },

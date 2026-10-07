@@ -1,3 +1,4 @@
+// i18n-ignore-file : diagnostics du moteur (copiés pour le support), volontairement en français
 /**
  * Voix du moteur (docs/audio.md § 3.8) :
  * - `MediaVoice` : un `HTMLAudioElement` du pool (16 au plus), branché une

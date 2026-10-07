@@ -6,6 +6,7 @@
  * fournis). Un clic sur une case joue le son pour toute la table, au même instant chez chacun.
  * « Modifier » : réordonner, retirer, ajouter depuis la bibliothèque.
  */
+import { useTranslations } from 'next-intl';
 import type { Asset } from '@vtt/contracts';
 import { ArrowLeft, ArrowRight, Check, Pencil, Plus, Square, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -33,16 +34,17 @@ export function Soundboard({
   /** Ouvre « Ajouter un effet ». */
   onAdd: () => void;
 }>) {
+  const t = useTranslations();
   const [editing, setEditing] = useState(false);
   const byId = useMemo(() => new Map(library.map((a) => [a.id, a])), [library]);
   const sounds = board.assetIds.map((id) => byId.get(id)).filter((a): a is Asset => !!a);
   const actifs = new Set(cues.active.map((c) => c.assetId));
   const fail = (label: string) => (e: unknown) =>
     toast.error(label, { description: messageErreur(e) });
-  const jouer = (a: Asset) => void cues.play(a).catch(fail('Son impossible à jouer'));
+  const jouer = (a: Asset) => void cues.play(a).catch(fail(t('audio.board.unplayable')));
 
   return (
-    <section aria-label="Table d’effets">
+    <section aria-label={t('audio.board.title')}>
       <SectionTitle
         action={
           <div className="flex items-center gap-1">
@@ -53,7 +55,7 @@ export function Soundboard({
                 onClick={() => void cues.stopAll().catch(() => undefined)}
               >
                 <Square />
-                Tout arrêter
+                {t('audio.board.stopAll')}
               </Button>
             )}
             {sounds.length > 0 && (
@@ -64,25 +66,22 @@ export function Soundboard({
                 onClick={() => setEditing((e) => !e)}
               >
                 {editing ? <Check /> : <Pencil />}
-                {editing ? 'Terminé' : 'Modifier'}
+                {editing ? t('audio.board.done') : t('common.actions.edit')}
               </Button>
             )}
           </div>
         }
       >
-        Un clic joue le son pour toute la table
+        {t('audio.board.hint')}
       </SectionTitle>
 
       {sounds.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border-strong px-4 py-5 text-center">
-          <p className="text-[13px] text-muted-foreground">
-            Placez ici les sons à déclencher d’un clic pendant la partie : bruitages, cris, sorts…
-            depuis un fichier, YouTube, les sons fournis ou vos autres sons.
-          </p>
+          <p className="text-[13px] text-muted-foreground">{t('audio.board.emptyHint')}</p>
           <div className="mt-3 flex justify-center">
             <Button size="sm" onClick={onAdd}>
               <Plus />
-              Ajouter un effet
+              {t('audio.board.add')}
             </Button>
           </div>
         </div>
@@ -101,7 +100,7 @@ export function Soundboard({
                   draggable={!editing && canDragSound(a)}
                   onDragStart={(e) => startSoundDrag(e, a)}
                   onClick={() => jouer(a)}
-                  aria-label={`Jouer ${a.name} pour la table`}
+                  aria-label={t('audio.board.play', { name: a.name })}
                   className={cn(
                     'flex h-12 w-full items-center gap-2 rounded-lg border px-2.5 text-left text-[13px] transition-colors',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
@@ -138,9 +137,7 @@ export function Soundboard({
                       size="icon-xs"
                       disabled={i === 0}
                       aria-label={`Avancer ${a.name}`}
-                      onClick={() =>
-                        void board.move(a.id, -1).catch(fail('Modification impossible'))
-                      }
+                      onClick={() => void board.move(a.id, -1).catch(fail(t('audio.editFailed')))}
                     >
                       <ArrowLeft />
                     </Button>
@@ -149,17 +146,15 @@ export function Soundboard({
                       size="icon-xs"
                       disabled={i === sounds.length - 1}
                       aria-label={`Reculer ${a.name}`}
-                      onClick={() =>
-                        void board.move(a.id, 1).catch(fail('Modification impossible'))
-                      }
+                      onClick={() => void board.move(a.id, 1).catch(fail(t('audio.editFailed')))}
                     >
                       <ArrowRight />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      aria-label={`Retirer ${a.name} de la table d’effets`}
-                      onClick={() => void board.remove(a.id).catch(fail('Modification impossible'))}
+                      aria-label={t('audio.board.remove', { name: a.name })}
+                      onClick={() => void board.remove(a.id).catch(fail(t('audio.editFailed')))}
                     >
                       <X />
                     </Button>
@@ -175,7 +170,7 @@ export function Soundboard({
               className="flex h-12 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong text-[13px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
             >
               <Plus className="size-4" aria-hidden />
-              Ajouter
+              {t('common.actions.add')}
             </button>
           </li>
         </ul>
