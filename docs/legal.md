@@ -32,6 +32,7 @@ Tenu ici (article 30 du RGPD) ; la politique de confidentialité en est la versi
 | Comptes            | e-mail, nom, mot de passe haché, profil, comptes liés | Contrat          | Vie du compte                                   | identity                                  |
 | Sessions           | IP, navigateur, dates                                 | Intérêt légitime | 30 jours après rotation, révocation, expiration | identity (`purgeExpired`)                 |
 | Jeu                | campagnes, cartes, personnages, notes, jets, audio    | Contrat          | Vie du compte                                   | campaign, character, dice, audio, history |
+| Progression        | XP, niveau, activité par jour, défis accomplis        | Contrat          | Vie du compte ; détail par jour 90 jours        | identity (`purgeExpired`)                 |
 | Fichiers envoyés   | images                                                | Contrat          | Tant que référencés                             | R2, balayage des orphelins                |
 | E-mails de service | e-mail                                                | Contrat          | Envoi                                           | Kourrier → Amazon SES (Paris)             |
 | Journaux, traces   | IP, requêtes, erreurs                                 | Intérêt légitime | 30 jours, traces 3 jours                        | Loki, Tempo                               |
@@ -86,8 +87,9 @@ consommateur appelle la fonction juste après avoir ajouté l'événement ; rejo
 
 Profil › Sécurité › « Télécharger » : `lib/data-export.ts` lit les API de chaque service avec la
 session de la personne et assemble `yner-donnees-AAAA-MM-JJ.json` (profil, titres, sessions,
-amis, clés d'API, campagnes, personnages complets, ses notes complètes, jets personnels,
-réglages des dés, du mixeur, de la barre de la carte et des raccourcis). Une rubrique illisible est notée `{ error }` sans bloquer les
+amis, clés d'API, progression du compte et son détail, campagnes, personnages complets, ses
+notes complètes, jets personnels, réglages des dés, du mixeur, de la barre de la carte et des
+raccourcis). Une rubrique illisible est notée `{ error }` sans bloquer les
 autres.
 
 ## Comptes inactifs (fait)

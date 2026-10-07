@@ -72,9 +72,20 @@ async function personalRolls() {
 
 /** Assemble l'export ; `userId` : le compte connecté. */
 export async function exportMyData(userId: string) {
-  const [profile, titles, sessions, friends, friendRequests, apiKeys] = await Promise.all([
+  const [
+    profile,
+    titles,
+    progression,
+    progressionHistory,
+    sessions,
+    friends,
+    friendRequests,
+    apiKeys,
+  ] = await Promise.all([
     section(() => api('/v1/users/me')),
     section(() => api('/v1/users/me/titles')),
+    section(() => api('/v1/users/me/progression')),
+    section(() => api('/v1/users/me/progression/history')),
     section(() => api('/v1/auth/sessions')),
     section(() => api('/v1/friends')),
     section(() => api('/v1/friends/requests')),
@@ -94,7 +105,16 @@ export async function exportMyData(userId: string) {
   return {
     exportedAt: new Date().toISOString(),
     service: 'Yner',
-    account: { profile, titles, sessions, friends, friendRequests, apiKeys },
+    account: {
+      profile,
+      titles,
+      progression,
+      progressionHistory,
+      sessions,
+      friends,
+      friendRequests,
+      apiKeys,
+    },
     game: {
       campaigns,
       characters,

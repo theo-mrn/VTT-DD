@@ -8,6 +8,7 @@
     "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
     "start": "node --import ./dist/instrumentation.js dist/main.js",
     "import:firebase": "node dist/import/cli.js",
+    "progression:backfill": "node dist/modules/progression/backfill-cli.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "lint": "prettier --check src"

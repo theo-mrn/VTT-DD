@@ -55,6 +55,8 @@ export interface ProfilPublic {
   premium: boolean;
   showPremiumBadge: boolean;
   timeSpentMinutes: number;
+  /** Niveau du compte (docs/progression.md). */
+  level: number;
 }
 
 /** GET /v1/users?search= */
@@ -123,6 +125,7 @@ export async function envoyerImage(
 export type ConditionTitre =
   | { type: 'time'; minutes: number }
   | { type: 'event'; description: string }
+  | { type: 'level'; level: number }
   | { type: 'premium' }
   | { type: string; [cle: string]: unknown };
 
@@ -134,6 +137,8 @@ export function texteCondition(c: ConditionTitre | null, description?: string | 
     return `Jouer ${duree(m)}`;
   }
   if (c.type === 'event' && typeof c.description === 'string') return c.description;
+  if (c.type === 'level' && typeof c.level === 'number')
+    return `Atteindre le niveau ${c.level} du compte`;
   if (c.type === 'premium') return 'Réservé aux membres premium';
   return description ?? 'Condition particulière';
 }

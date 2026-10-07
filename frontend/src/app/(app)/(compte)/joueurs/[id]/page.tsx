@@ -11,6 +11,7 @@ import {
   formaterDuree,
 } from '@/components/compte/elements';
 import { styleLien } from '@/components/compte/styles';
+import { LevelBadge } from '@/components/progression/level';
 import {
   accepterDemande,
   demanderEnAmi,
@@ -57,9 +58,12 @@ export default function PageJoueur() {
           <div className="-mt-16 flex flex-wrap items-end gap-4">
             <AvatarJoueur nom={p.name} url={p.avatarUrl} bordure={p.borderType} taille="xl" />
             <div className="min-w-0 flex-1">
-              <h1 className="truncate font-display text-2xl font-semibold text-foreground sm:text-3xl">
-                {p.name}
-              </h1>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <h1 className="truncate font-display text-2xl font-semibold text-foreground sm:text-3xl">
+                  {p.name}
+                </h1>
+                <LevelBadge level={p.level ?? 1} className="shrink-0" />
+              </div>
               {p.title && <p className="text-primary">{p.title}</p>}
             </div>
             <div className="flex gap-2">

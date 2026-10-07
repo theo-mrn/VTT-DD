@@ -13,7 +13,8 @@ le même flux (voir « Le tunnel d'historique » dans [refacto.md](refacto.md)).
 - Un seul flux, `VTT_EVENTS`, sur `vtt.>` : stockage fichier, rétention 7 jours (rejeu après une
   panne), fenêtre de dédoublonnage 10 minutes. `connectBus` le crée ou le met à jour.
 - Consommateurs (`consumeEvents`) : history en durable (tout rejouer, ack explicite), realtime en
-  éphémère ordonné (seulement le nouveau), identity en durable `identity-titles` (voir plus bas) ; dice
+  éphémère ordonné (seulement le nouveau), identity en durables `identity-titles` et
+  `identity-progression` (voir plus bas) ; dice
   (`dice-rights`) et identity (`identity-rights`) en durable sur
   `vtt.global.billing.entitlements_changed` (droits publiés par billing, voir
   [paiement.md](paiement.md)).
@@ -52,7 +53,8 @@ transaction du service : donnée + INSERT INTO <schéma>.outbox
   COMMIT, la ligne est republiée au lot suivant et JetStream l'écarte (`duplicate: true`) tant
   qu'on reste dans la fenêtre de 10 minutes.
 - Côté consommateur : la livraison est « au moins une fois » ; chaque consommateur dédoublonne par
-  `event.id` (table `inbox`, clé primaire de `history.events`).
+  `event.id` (table `inbox`, clé primaire de `history.events`). Dans identity, la clé de l'inbox
+  est `(consumer, event_id)` : plusieurs consommateurs du service enregistrent le même événement.
 
 ## Vérifier en local
 
@@ -288,16 +290,19 @@ côté client (`dice-roller.tsx`, `challenge-tracker.ts`). Code : `backend/ident
 | Éternel Malchanceux                        | `dice.rolled`             | 10 échecs critiques : premier dé du jet = d20 à 1       |
 | Orateur Novice, Conteur Bavard, Barde Lég. | `campaign.message_posted` | 1, 50 et 200 messages (seuils des défis, pas 100 / 500) |
 
+Aventurier Confirmé, Héros Accompli, Légende Vivante, Pilier de la Table et Mythe Vivant (niveaux
+5, 10, 20, 30 et 50 du **compte**, condition `{ type: 'level' }`) sont débloqués par la progression
+du compte (voir plus bas).
+
 Titres « événement » sans source dans le nouveau système (jamais débloqués pour l'instant) :
-Aventurier Confirmé (niveau 5), Collectionneur Débutant, Accumulateur Compulsif, Maître d'Armes,
-Étudiant (l'ancienne app les recalculait depuis l'état du personnage joué ; `character.updated`
-ne porte ni le propriétaire ni cet état), Héros Accompli et Légende Vivante (les défis niveau 10
-et 20 donnaient un skin de dé, jamais ce titre), Combattant Novice, Vétéran de Guerre, Fléau des
-Dragons (défis désactivés dans l'ancienne app).
+Collectionneur Débutant, Accumulateur Compulsif, Maître d'Armes, Étudiant (l'ancienne app les
+recalculait depuis l'état du personnage joué ; `character.updated` ne porte ni le propriétaire ni
+cet état), Combattant Novice, Vétéran de Guerre, Fléau des Dragons (défis désactivés dans
+l'ancienne app).
 
 Événement produit : `identity.title_unlocked` (sujet `vtt.global.identity.title_unlocked`,
 `roomId` null, visibilité `owner`, agrégat `user`), payload `{ slug, label, source }` avec
-`source` = `event` (bus) ou `time` (temps de jeu). Pour un déblocage par le bus, `correlationId` et
+`source` = `event` (bus), `time` (temps de jeu) ou `level` (palier de la progression du compte). Pour un déblocage par le bus, `correlationId` et
 `traceparent` sont ceux de l'événement source et `causationId` est son id.
 
 Les e-mails de l'ancienne app au premier « Maudit des dés » / « Béni des Dieux » ne sont pas
@@ -309,3 +314,23 @@ envoyés : reportés au futur service d'e-mails, qui consommera `identity.title_
 TEST_DATABASE_URL=postgres://identity_svc:identity-dev@localhost:5432/vtt \
   NATS_URL=nats://127.0.0.1:4222 pnpm --filter @vtt/identity test
 ```
+
+## Consommateur de la progression du compte (identity)
+
+XP, niveaux et défis du compte ([progression.md](progression.md)). Code :
+`backend/identity/src/modules/progression/` (`activities.ts` pour les activités tirées des
+événements, `rules.ts` pour les gains et plafonds, `consumer.ts` pour le traitement).
+
+- Durable `identity-progression`, démarré comme `identity-titles` (même connexion, `deliver: new`).
+  Sujets : `vtt.*.dice.rolled`, `vtt.*.campaign.{message_posted,created,member_joined,session_scheduled}`,
+  `vtt.*.note.created`, `vtt.*.character.created`,
+  `vtt.global.identity.{play_time_added,friend_request_accepted,profile_updated}`.
+- Une seule fois par événement : l'id entre dans `identity.inbox` (consommateur
+  `identity-progression`) dans la transaction qui écrit l'XP, les compteurs, les défis et les
+  événements. Un événement sans activité n'écrit rien ; un compte inconnu, rien non plus.
+- Événements produits (sujet `vtt.global.identity.*`, visibilité `owner`, agrégat `user`,
+  causalité de l'événement source) : `identity.level_reached` `{ level, previousLevel, xp,
+rewards: [{ level, type, id }] }`, `identity.challenge_completed` `{ challengeId, kind, period,
+xp }`, et `identity.title_unlocked` (`source: 'level'`) aux paliers.
+- L'existant (avant le déploiement) est repris par `pnpm --filter @vtt/identity
+progression:backfill` (progression.md § 9).

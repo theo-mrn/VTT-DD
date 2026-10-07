@@ -14,6 +14,12 @@ const contexteInterne = (): EventContext => ({ correlationId: `titres-${uuidv7()
 
 const acteur = (userId: string) => ({ userId, role: 'user' as const, characterId: null });
 
+/**
+ * Origine d'un déblocage (payload.source de identity.title_unlocked) : temps de
+ * jeu, événement du bus (titres), palier de la progression du compte.
+ */
+export type TitleSource = 'time' | 'event' | 'level';
+
 /** Titre débloqué : slug et libellé (repris dans l'événement identity.title_unlocked). */
 export interface UnlockedTitle {
   slug: string;
@@ -25,7 +31,7 @@ async function evenementDeblocage(
   ctx: EventContext,
   userId: string,
   titre: UnlockedTitle,
-  source: 'time' | 'event',
+  source: TitleSource,
 ) {
   await appendEvent(tx, ctx, {
     type: 'identity.title_unlocked',
@@ -46,7 +52,7 @@ export async function unlockTitleInTx(
   ctx: EventContext,
   userId: string,
   slug: string,
-  source: 'time' | 'event' = 'event',
+  source: TitleSource = 'event',
 ): Promise<UnlockedTitle | null> {
   const res = await tx.execute<{ slug: string; label: string }>(sql`
     with ins as (
