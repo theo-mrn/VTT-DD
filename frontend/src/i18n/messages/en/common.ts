@@ -61,6 +61,9 @@ export default {
   },
   time: {
     justNow: 'just now',
+    never: 'never',
+    today: 'today',
+    session: '{day} · {time}',
     minutes: '{count, plural, one {# min} other {# min}}',
     hours: '{count, plural, one {# h} other {# h}}',
     hoursMinutes: '{hours} h {minutes} min',

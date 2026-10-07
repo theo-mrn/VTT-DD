@@ -19,13 +19,14 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
 import { EtatVide, Panneau } from '@/components/commun/page';
-import { AvatarJoueur, formaterDepuis } from '@/components/compte/elements';
+import { AvatarJoueur } from '@/components/compte/elements';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +47,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
+import { useDates } from '@/i18n/dates';
 import { messageErreur } from '@/lib/api';
 import {
   useAnnulerInvitation,
@@ -65,12 +67,13 @@ import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { useNomSysteme } from './carte-campagne';
-import { BadgeRole, BadgeVisibilite, formaterDans, formaterSession } from './elements';
+import { BadgeRole, BadgeVisibilite, useLibelleEtiquette } from './elements';
 import { ReglagesCampagne } from './reglages-campagne';
 import { PanneauReglesOptionnelles } from './reglages-regles';
 
 /** Salon d'une campagne : présentation, table (joueurs et héros), invitation, sessions. */
 export function SalonCampagne({ id }: Readonly<{ id: string }>) {
+  const t = useTranslations('campaigns.lobby');
   const profil = useProfil();
   const campagne = useCampagne(id);
   const personnages = usePersonnagesCampagne(id);
@@ -83,11 +86,11 @@ export function SalonCampagne({ id }: Readonly<{ id: string }>) {
       <div className="px-4 py-16 sm:px-8">
         <EtatVide
           icone={DoorOpen}
-          titre="Campagne introuvable"
-          description="Elle a peut-être été supprimée, ou vous n'en faites plus partie."
+          titre={t('notFound')}
+          description={t('notFoundText')}
           action={
             <Button asChild variant="secondary">
-              <Link href="/campagnes">Retour aux campagnes</Link>
+              <Link href="/campagnes">{t('backToCampaigns')}</Link>
             </Button>
           }
         />
@@ -112,7 +115,7 @@ export function SalonCampagne({ id }: Readonly<{ id: string }>) {
             gm={role === 'gm'}
           />
           {c.description && (
-            <Panneau titre="Présentation">
+            <Panneau titre={t('presentation')}>
               <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/85">
                 {c.description}
               </p>
@@ -133,25 +136,27 @@ export function SalonCampagne({ id }: Readonly<{ id: string }>) {
 
 /** Invitations nominatives en attente (MJ) : l'invité voit l'invitation et rejoint sans code. */
 function InvitationsEnAttente({ campagne: c }: Readonly<{ campagne: DetailCampagne }>) {
+  const t = useTranslations('campaigns.lobby');
+  const dates = useDates();
   const annuler = useAnnulerInvitation(c.id);
   return (
-    <Panneau titre="Invitations en attente" corps={false}>
+    <Panneau titre={t('pendingInvites')} corps={false}>
       <ul className="divide-y divide-border">
         {c.invitations.map((i) => (
           <li key={i.userId} className="group flex items-center gap-3 px-5 py-3">
             <AvatarJoueur nom={i.name} url={i.avatarUrl} taille="sm" />
             <span className="min-w-0 flex-1 truncate text-sm">{i.name}</span>
-            <span className="text-xs text-subtle">{formaterDepuis(i.invitedAt)}</span>
-            <Info texte="Annuler l'invitation">
+            <span className="text-xs text-subtle">{dates.since(i.invitedAt)}</span>
+            <Info texte={t('cancelInvite')}>
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label={`Annuler l'invitation de ${i.name}`}
+                aria-label={t('cancelInviteOf', { name: i.name })}
                 className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                 disabled={annuler.isPending}
                 onClick={() =>
                   annuler.mutate(i.userId, {
-                    onSuccess: () => toast.success(`Invitation de ${i.name} annulée`),
+                    onSuccess: () => toast.success(t('inviteCancelled', { name: i.name })),
                     onError: (e) => toast.error(messageErreur(e)),
                   })
                 }
@@ -177,6 +182,8 @@ function Banniere({
   role: Membre['role'] | null;
   monPerso: Personnage | null;
 }>) {
+  const t = useTranslations('campaigns.lobby');
+  const libelleEtiquette = useLibelleEtiquette();
   const profil = useProfil();
   const nomSysteme = useNomSysteme(c.system);
   const [reglages, setReglages] = useState(false);
@@ -207,9 +214,9 @@ function Banniere({
             <BadgeRole role={role} />
             <Badge ton="verre">{nomSysteme}</Badge>
             <BadgeVisibilite campagne={c} />
-            {c.tags.map((t) => (
-              <Badge key={t} ton="verre" className="text-white/70">
-                {t}
+            {c.tags.map((tag) => (
+              <Badge key={tag} ton="verre" className="text-white/70">
+                {libelleEtiquette(tag)}
               </Badge>
             ))}
           </div>
@@ -224,14 +231,14 @@ function Banniere({
             <Button size="lg" asChild className="shadow-glow">
               <Link href={`/campagnes/${c.id}/table`}>
                 <Play />
-                Entrer à la table
+                {t('enterTable')}
               </Link>
             </Button>
           ) : (
             <Button size="lg" asChild className="shadow-glow">
               <Link href={`/campagnes/${c.id}/personnage`}>
                 <UserRound />
-                Choisir mon héros
+                {t('pickHero')}
               </Link>
             </Button>
           )}
@@ -239,7 +246,7 @@ function Banniere({
             <Button size="lg" variant="secondary" asChild>
               <Link href={`/campagnes/${c.id}/personnage`}>
                 {role === 'gm' ? <Crown /> : <UserRound />}
-                {libelleHeros(Boolean(monPerso), role === 'gm')}
+                {t(cleHeros(Boolean(monPerso), role === 'gm'))}
               </Link>
             </Button>
           )}
@@ -248,7 +255,7 @@ function Banniere({
               <Button
                 variant="secondary"
                 size="icon"
-                aria-label="Plus d'actions"
+                aria-label={t('moreActions')}
                 className="size-11"
               >
                 <MoreHorizontal />
@@ -258,13 +265,13 @@ function Banniere({
               {role === 'gm' && (
                 <DropdownMenuItem onSelect={() => setReglages(true)} className="cursor-pointer">
                   <Settings2 />
-                  Réglages de la campagne
+                  {t('settings')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem asChild className="cursor-pointer">
                 <Link href={`/notes?nouvelle=1&campagne=${c.id}`}>
                   <NotebookPen />
-                  Nouvelle note de campagne
+                  {t('newNote')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -274,7 +281,7 @@ function Banniere({
                   className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
                 >
                   <Trash2 />
-                  Supprimer la campagne
+                  {t('delete')}
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem
@@ -282,7 +289,7 @@ function Banniere({
                   className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
                 >
                   <LogOut />
-                  Quitter la campagne
+                  {t('leave')}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -304,6 +311,8 @@ function DialogueSortie({
   mode: 'supprimer' | 'quitter' | null;
   onFerme: () => void;
 }>) {
+  const t = useTranslations('campaigns.lobby');
+  const tc = useTranslations('common.actions');
   const router = useRouter();
   const profil = useProfil();
   const sortir = useSortirCampagne(campagne.id, profil.id);
@@ -314,7 +323,7 @@ function DialogueSortie({
     if (!mode) return;
     try {
       await sortir.mutateAsync(mode);
-      toast.success(supprimer ? 'Campagne supprimée' : 'Vous avez quitté la campagne');
+      toast.success(supprimer ? t('deleted') : t('left'));
       router.replace('/campagnes');
     } catch (err) {
       toast.error(messageErreur(err));
@@ -325,20 +334,16 @@ function DialogueSortie({
     <Dialog open={mode !== null} onOpenChange={(v) => !v && (onFerme(), setConfirmation(''))}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {supprimer ? 'Supprimer la campagne ?' : 'Quitter la campagne ?'}
-          </DialogTitle>
-          <DialogDescription>
-            {supprimer
-              ? 'Les joueurs perdront l’accès au salon, aux notes et à l’historique. Cette action est définitive.'
-              : 'Vous pourrez revenir avec le code de la campagne.'}
-          </DialogDescription>
+          <DialogTitle>{supprimer ? t('deleteTitle') : t('leaveTitle')}</DialogTitle>
+          <DialogDescription>{supprimer ? t('deleteText') : t('leaveText')}</DialogDescription>
         </DialogHeader>
         {supprimer && (
           <div className="space-y-2">
             <p className="text-[13px] text-muted-foreground">
-              Tapez <span className="font-medium text-foreground">{campagne.name}</span> pour
-              confirmer.
+              {t.rich('typeToConfirm', {
+                name: campagne.name,
+                b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+              })}
             </p>
             <Input
               value={confirmation}
@@ -349,7 +354,7 @@ function DialogueSortie({
         )}
         <DialogFooter>
           <Button variant="ghost" onClick={onFerme}>
-            Annuler
+            {tc('cancel')}
           </Button>
           <Button
             variant="destructive"
@@ -357,7 +362,7 @@ function DialogueSortie({
             loading={sortir.isPending}
             disabled={supprimer && confirmation.trim() !== campagne.name}
           >
-            {supprimer ? 'Supprimer' : 'Quitter'}
+            {supprimer ? t('deleteButton') : t('leaveButton')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -368,6 +373,8 @@ function DialogueSortie({
 // ─── Bandeau après création ──────────────────────────────────────────────────
 
 function BandeauBienvenue({ campagne }: Readonly<{ campagne: DetailCampagne }>) {
+  const t = useTranslations('campaigns.lobby');
+  const tc = useTranslations('common.actions');
   const router = useRouter();
   const nouvelle = useSearchParams().get('bienvenue') === '1';
   if (!nouvelle) return null;
@@ -382,17 +389,20 @@ function BandeauBienvenue({ campagne }: Readonly<{ campagne: DetailCampagne }>) 
           <PartyPopper className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">Votre campagne est prête !</p>
+          <p className="font-semibold">{t('readyTitle')}</p>
           <p className="text-[13px] text-muted-foreground">
-            Partagez le code{' '}
-            <span className="font-mono font-semibold text-primary-strong">{campagne.code}</span> à
-            vos joueurs, ou planifiez la première session.
+            {t.rich('readyText', {
+              code: campagne.code,
+              b: (chunks) => (
+                <span className="font-mono font-semibold text-primary-strong">{chunks}</span>
+              ),
+            })}
           </p>
         </div>
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Fermer"
+          aria-label={tc('close')}
           onClick={() => router.replace(`/campagnes/${campagne.id}`, { scroll: false })}
         >
           <X />
@@ -415,6 +425,7 @@ function Table({
   moi: string;
   gm: boolean;
 }>) {
+  const t = useTranslations('campaigns.lobby');
   const retirer = useRetirerMembre(c.id);
   const mj = c.members.filter((m) => m.role === 'gm');
   const joueurs = c.members.filter((m) => m.role === 'player');
@@ -425,9 +436,9 @@ function Table({
       titre={
         <span className="flex items-center gap-2">
           <Users className="size-4 text-primary" />
-          La table
+          {t('table')}
           <span className="text-[13px] font-normal text-subtle">
-            {joueurs.length} {joueurs.length > 1 ? 'joueurs' : 'joueur'}
+            {t('players', { count: joueurs.length })}
           </span>
         </span>
       }
@@ -443,7 +454,11 @@ function Table({
                 gm && m.userId !== c.ownerId ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-xs" aria-label={`Actions pour ${m.name}`}>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={t('actionsFor', { name: m.name })}
+                      >
                         <MoreHorizontal />
                       </Button>
                     </DropdownMenuTrigger>
@@ -452,13 +467,13 @@ function Table({
                         className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
                         onSelect={() =>
                           retirer.mutate(m.userId, {
-                            onSuccess: () => toast.success(`${m.name} a été retiré de la table`),
+                            onSuccess: () => toast.success(t('removed', { name: m.name })),
                             onError: (e) => toast.error(messageErreur(e)),
                           })
                         }
                       >
                         <UserMinus />
-                        Retirer de la campagne
+                        {t('remove')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -482,6 +497,7 @@ function SiegeMembre({
   estMoi: boolean;
   action: React.ReactNode;
 }>) {
+  const t = useTranslations('campaigns.lobby');
   return (
     <div
       className={cn(
@@ -496,8 +512,8 @@ function SiegeMembre({
           <span className="truncate">{m.name}</span>
         </p>
         <p className="truncate text-xs text-muted-foreground">
-          {ROLES[m.role] ?? 'Joueur'}
-          {estMoi && ' · vous'}
+          {t(`roles.${m.role === 'gm' || m.role === 'spectator' ? m.role : 'player'}`)}
+          {estMoi && t('you')}
         </p>
       </div>
       {action && (
@@ -512,6 +528,7 @@ function SiegeMembre({
 // ─── Invitation ──────────────────────────────────────────────────────────────
 
 function CarteInvitation({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: boolean }>) {
+  const t = useTranslations('campaigns.lobby.invite');
   const [copie, setCopie] = useState<'code' | 'lien' | null>(null);
   const nouveauCode = useNouveauCode(c.id);
 
@@ -523,22 +540,22 @@ function CarteInvitation({ campagne: c, gm }: Readonly<{ campagne: DetailCampagn
       setCopie(quoi);
       setTimeout(() => setCopie(null), 1600);
     } catch {
-      toast.error('Copie impossible : sélectionnez le code à la main.');
+      toast.error(t('copyFailed'));
     }
   }
 
   return (
-    <Panneau titre="Inviter des joueurs" description="Le code suffit pour rejoindre la table.">
+    <Panneau titre={t('title')} description={t('lead')}>
       <div className="flex items-center justify-between gap-2 rounded-xl border border-border-strong bg-surface-2 p-2 pl-4">
         <span className="font-mono text-2xl font-semibold tracking-[0.3em] text-primary-strong">
           {c.code}
         </span>
-        <Info texte={copie === 'code' ? 'Copié !' : 'Copier le code'}>
+        <Info texte={copie === 'code' ? t('copied') : t('copyCode')}>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => void copier('code')}
-            aria-label="Copier le code"
+            aria-label={t('copyCode')}
           >
             {copie === 'code' ? <Check className="text-success" /> : <Copy />}
           </Button>
@@ -552,23 +569,23 @@ function CarteInvitation({ campagne: c, gm }: Readonly<{ campagne: DetailCampagn
           onClick={() => void copier('lien')}
         >
           {copie === 'lien' ? <Check className="text-success" /> : <Copy />}
-          {copie === 'lien' ? 'Lien copié' : 'Copier le lien'}
+          {copie === 'lien' ? t('linkCopied') : t('copyLink')}
         </Button>
         {gm && (
-          <Info texte="Nouveau code : l'ancien ne fonctionnera plus">
+          <Info texte={t('newCodeHint')}>
             <Button
               variant="ghost"
               size="sm"
               loading={nouveauCode.isPending}
               onClick={() =>
                 nouveauCode.mutate(undefined, {
-                  onSuccess: () => toast.success('Nouveau code généré'),
+                  onSuccess: () => toast.success(t('newCode')),
                   onError: (e) => toast.error(messageErreur(e)),
                 })
               }
             >
               {!nouveauCode.isPending && <RefreshCw />}
-              Changer
+              {t('change')}
             </Button>
           </Info>
         )}
@@ -580,6 +597,10 @@ function CarteInvitation({ campagne: c, gm }: Readonly<{ campagne: DetailCampagn
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 function Sessions({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: boolean }>) {
+  const t = useTranslations('campaigns.lobby.sessions');
+  const tc = useTranslations('common.actions');
+  const dates = useDates();
+  const format = useFormatter();
   const planifier = usePlanifier(c.id);
   const deplanifier = useDeplanifier(c.id);
   const sessions = useSessionsCampagne(c.id);
@@ -600,7 +621,7 @@ function Sessions({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: 
       setDate('');
       setTitre('');
       setAjout(false);
-      toast.success('Session planifiée');
+      toast.success(t('planned'));
     } catch (err) {
       toast.error(messageErreur(err));
     }
@@ -608,12 +629,12 @@ function Sessions({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: 
 
   return (
     <Panneau
-      titre="Sessions"
+      titre={t('title')}
       action={
         gm && !ajout ? (
           <Button variant="ghost" size="xs" onClick={() => setAjout(true)}>
             <CalendarPlus />
-            Planifier
+            {t('plan')}
           </Button>
         ) : null
       }
@@ -628,31 +649,27 @@ function Sessions({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: 
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
-            aria-label="Date et heure"
+            aria-label={t('dateTime')}
             className="[color-scheme:dark]"
           />
           <Input
             value={titre}
             onChange={(e) => setTitre(e.target.value)}
-            placeholder="Titre (facultatif) : « Session 3 — Le col »"
+            placeholder={t('titlePlaceholder')}
             maxLength={80}
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setAjout(false)}>
-              Annuler
+              {tc('cancel')}
             </Button>
             <Button type="submit" size="sm" loading={planifier.isPending}>
-              Planifier
+              {t('plan')}
             </Button>
           </div>
         </form>
       )}
       {aVenir.length === 0 ? (
-        <p className="py-4 text-center text-[13px] text-subtle">
-          {gm
-            ? 'Aucune session prévue. Fixez la prochaine date !'
-            : 'Aucune session prévue pour le moment.'}
-        </p>
+        <p className="py-4 text-center text-[13px] text-subtle">{gm ? t('noneGm') : t('none')}</p>
       ) : (
         <ul className="space-y-2">
           {aVenir.map((s, i) => {
@@ -667,7 +684,7 @@ function Sessions({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: 
               >
                 <span className="flex w-11 shrink-0 flex-col items-center rounded-lg bg-surface-3 py-1">
                   <span className="text-[10px] font-medium uppercase text-primary">
-                    {d.toLocaleDateString('fr-FR', { month: 'short' })}
+                    {format.dateTime(d, { month: 'short' })}
                   </span>
                   <span className="font-mono text-base font-semibold leading-tight">
                     {d.getDate()}
@@ -675,10 +692,13 @@ function Sessions({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: 
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">
-                    {s.title ?? 'Session de jeu'}
+                    {s.title ?? t('defaultTitle')}
                   </span>
                   <span className="block text-xs text-subtle">
-                    {formaterSession(s.startsAt)} · {formaterDans(s.startsAt)}
+                    {t('when', {
+                      date: dates.session(s.startsAt),
+                      relative: dates.inDays(s.startsAt),
+                    })}
                   </span>
                 </span>
                 {gm && (
@@ -686,7 +706,7 @@ function Sessions({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: 
                     variant="ghost"
                     size="icon-xs"
                     className="opacity-0 transition-opacity group-hover:opacity-100"
-                    aria-label="Annuler la session"
+                    aria-label={t('cancel')}
                     onClick={() =>
                       deplanifier.mutate(s.id, { onError: (e) => toast.error(messageErreur(e)) })
                     }
@@ -706,26 +726,27 @@ function Sessions({ campagne: c, gm }: Readonly<{ campagne: DetailCampagne; gm: 
 // ─── Notes de la campagne ────────────────────────────────────────────────────
 
 function NotesCampagne({ campagneId }: Readonly<{ campagneId: string }>) {
+  const t = useTranslations('campaigns.lobby.notes');
+  const tc = useTranslations('common.states');
+  const dates = useDates();
   const notes = useNotes({ campaignId: campagneId, limit: 6 });
   // Notes de la campagne tenues à jour en direct (écrites ou partagées par les autres)
   useNotesSync(campagneId);
   const liste = notes.data ?? [];
   return (
     <Panneau
-      titre="Notes de campagne"
+      titre={t('title')}
       action={
         <Button variant="ghost" size="xs" asChild>
           <Link href={`/notes?nouvelle=1&campagne=${campagneId}`}>
             <NotebookPen />
-            Écrire
+            {t('write')}
           </Link>
         </Button>
       }
     >
       {liste.length === 0 ? (
-        <p className="py-4 text-center text-[13px] text-subtle">
-          Journal de session, PNJ croisés, indices : gardez tout ici.
-        </p>
+        <p className="py-4 text-center text-[13px] text-subtle">{t('empty')}</p>
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2">
           {liste.map((n) => (
@@ -737,9 +758,9 @@ function NotesCampagne({ campagneId }: Readonly<{ campagneId: string }>) {
                 <span className="text-lg">{iconeNote(n)}</span>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium">
-                    {n.title || 'Sans titre'}
+                    {n.title || tc('untitled')}
                   </span>
-                  <span className="block text-xs text-subtle">{formaterDepuis(n.updatedAt)}</span>
+                  <span className="block text-xs text-subtle">{dates.since(n.updatedAt)}</span>
                 </span>
               </Link>
             </li>
@@ -768,9 +789,7 @@ function SalonSquelette() {
   );
 }
 
-const ROLES: Partial<Record<string, string>> = { gm: 'Maître du jeu', spectator: 'Spectateur' };
-
-function libelleHeros(aUnHeros: boolean, mj: boolean): string {
-  if (aUnHeros) return 'Changer de héros';
-  return mj ? 'Jouer un héros' : 'Mon héros';
+function cleHeros(aUnHeros: boolean, mj: boolean): 'changeHero' | 'playHero' | 'myHero' {
+  if (aUnHeros) return 'changeHero';
+  return mj ? 'playHero' : 'myHero';
 }

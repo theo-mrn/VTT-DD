@@ -139,6 +139,8 @@ export function scanSource(code, tsx) {
     }
     if (tsx) {
       for (const m of line.matchAll(/>([^<>{}]+)</g)) {
+        // Flèche de fonction suivie d'un type générique (`=> api<T>`) : du code
+        if (line[(m.index ?? 0) - 1] === '=') continue;
         const s = m[1].trim();
         if (/[;=()&|]/.test(s) || /^[,.]/.test(s) || !/[a-zà-ÿ]{2}/i.test(s)) continue;
         hits.add(s);

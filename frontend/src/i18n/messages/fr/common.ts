@@ -58,7 +58,11 @@ export default {
     until: 'jusqu’au {date}',
   },
   time: {
-    justNow: "à l'instant",
+    justNow: 'à l’instant',
+    never: 'jamais',
+    today: 'aujourd’hui',
+    /** Jour puis heure d'une session : « sam. 4 oct. · 20:30 ». */
+    session: '{day} · {time}',
     minutes: '{count, plural, one {# min} other {# min}}',
     hours: '{count, plural, one {# h} other {# h}}',
     hoursMinutes: '{hours} h {minutes} min',

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Check, Dices, Library, ListChecks } from 'lucide-react';
 import { Illustration } from '@/components/commun/illustration';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +27,7 @@ export function CarteSysteme({
   multiple?: boolean;
   compacte?: boolean;
 }>) {
+  const t = useTranslations('campaigns.systemCard');
   const etapes = systeme.creation[0]?.etapes.length ?? 0;
   return (
     <button
@@ -84,18 +86,18 @@ export function CarteSysteme({
         <span className="mt-auto flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-subtle">
           <span className="flex items-center gap-1">
             <Library className="size-3" />
-            {systeme.entrees.toLocaleString('fr-FR')} entrées
+            {t('entries', { count: systeme.entrees })}
           </span>
           {etapes > 0 && (
             <span className="flex items-center gap-1">
               <ListChecks className="size-3" />
-              Création en {etapes} étapes
+              {t('steps', { count: etapes })}
             </span>
           )}
           {systeme.desSymboles && (
             <span className="flex items-center gap-1">
               <Dices className="size-3" />
-              Dés à symboles
+              {t('symbolDice')}
             </span>
           )}
         </span>

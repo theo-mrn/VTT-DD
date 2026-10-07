@@ -50,6 +50,13 @@ describe.each(LOCALES)('catalogue %s', (locale) => {
     expect(extra, 'clés en trop').toEqual([]);
   });
 
+  it('ne donne jamais à une balise le nom d’un argument', () => {
+    for (const [key, value] of messages) {
+      const { args, tags } = readIcu(value);
+      for (const tag of tags) expect(args.has(tag), `${key} : <${tag}>`).toBe(false);
+    }
+  });
+
   it('garde les arguments et les balises de chaque message', () => {
     for (const [key, source] of reference) {
       const translated = messages.get(key);

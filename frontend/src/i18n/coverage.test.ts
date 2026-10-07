@@ -27,6 +27,12 @@ export const TRANSLATED_AREAS = [
   'components/search',
   'components/commun',
   'components/compte/onglets-compte.tsx',
+  'components/campagnes',
+  'components/systemes',
+  'app/(app)/accueil',
+  'app/(app)/campagnes',
+  'app/(focus)/join',
+  'app/(focus)/campagnes',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {

@@ -1,6 +1,7 @@
 'use client';
 
 import { Check, Globe, ImagePlus, Lock } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
@@ -47,6 +48,8 @@ export function ReglagesForm({
   /** Classes de la barre d'actions (collante en bas dans la page de la table). */
   pied?: string;
 }>) {
+  const t = useTranslations('campaigns');
+  const tc = useTranslations('common.actions');
   const modifier = useModifierCampagne(c.id);
   const reglages = useCampaignSettings(c.id);
   const modifierReglages = useUpdateCampaignSettings(c.id);
@@ -89,11 +92,11 @@ export function ReglagesForm({
     try {
       const suivante = await envoi.mutateAsync(fichier);
       maj({ coverUrl: suivante.coverUrl });
-      toast.success('Couverture importée');
+      toast.success(t('settings.coverImported'));
     } catch (err) {
       toast.error(
         err instanceof ApiError && err.status === 503
-          ? "L'envoi d'images n'est pas disponible sur ce serveur."
+          ? t('settings.uploadUnavailable')
           : messageErreur(err),
       );
     }
@@ -116,7 +119,7 @@ export function ReglagesForm({
           ...(lanceur ? { dice: { hiddenAttributes: retires } } : {}),
           ...(options ? { rules: { options: regles } } : {}),
         });
-      toast.success('Campagne mise à jour');
+      toast.success(t('settings.updated'));
       setRetires(null);
       setRegles(null);
       onTermine?.();
@@ -125,9 +128,7 @@ export function ReglagesForm({
         void reglages.refetch();
         setRetires(null);
         setRegles(null);
-        toast.error(
-          'Les réglages de la table ont changé entre-temps : vérifiez-les et recommencez.',
-        );
+        toast.error(t('settings.conflict'));
       } else toast.error(messageErreur(err));
     }
   }
@@ -136,7 +137,7 @@ export function ReglagesForm({
     <>
       <div className="flex-1 space-y-7 overflow-y-auto px-6 py-6">
         <div className="space-y-2">
-          <Label htmlFor="r-nom">Titre</Label>
+          <Label htmlFor="r-nom">{t('settings.name')}</Label>
           <Input
             id="r-nom"
             value={f.name}
@@ -145,7 +146,7 @@ export function ReglagesForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="r-accroche">Accroche</Label>
+          <Label htmlFor="r-accroche">{t('settings.pitch')}</Label>
           <Input
             id="r-accroche"
             value={f.pitch}
@@ -154,7 +155,7 @@ export function ReglagesForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="r-description">Présentation</Label>
+          <Label htmlFor="r-description">{t('settings.description')}</Label>
           <Textarea
             id="r-description"
             value={f.description}
@@ -165,13 +166,13 @@ export function ReglagesForm({
         </div>
 
         <div className="space-y-3">
-          <Label>Couverture</Label>
+          <Label>{t('settings.cover')}</Label>
           <div className="grid grid-cols-4 gap-2">
             {COUVERTURES.map((cv) => (
               <button
                 key={cv.url}
                 type="button"
-                aria-label={cv.nom}
+                aria-label={t(`covers.${cv.nom}`)}
                 aria-pressed={f.coverUrl === cv.url}
                 onClick={() => maj({ coverUrl: cv.url })}
                 className={cn(
@@ -208,7 +209,7 @@ export function ReglagesForm({
               className="flex aspect-[16/10] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border-strong text-[11px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
             >
               <ImagePlus className="size-4" />
-              {envoi.isPending ? 'Envoi…' : 'Importer'}
+              {envoi.isPending ? t('settings.sending') : t('settings.import')}
             </button>
             <input
               ref={champFichier}
@@ -221,13 +222,13 @@ export function ReglagesForm({
         </div>
 
         <div className="space-y-3">
-          <Label>Couleur d&apos;ambiance</Label>
+          <Label>{t('settings.color')}</Label>
           <div className="flex flex-wrap gap-2">
             {AMBIANCES.map((a) => (
               <button
                 key={a.id}
                 type="button"
-                aria-label={a.nom}
+                aria-label={t(`ambiances.${a.id}`)}
                 aria-pressed={f.ambiance === a.id}
                 onClick={() => maj({ ambiance: a.id })}
                 className={cn(
@@ -260,7 +261,7 @@ export function ReglagesForm({
               )}
             >
               {v === 'private' ? <Lock className="size-4" /> : <Globe className="size-4" />}
-              {v === 'private' ? 'Privée' : 'Publique'}
+              {v === 'private' ? t('badges.private') : t('badges.public')}
             </button>
           ))}
         </div>
@@ -268,8 +269,8 @@ export function ReglagesForm({
         <Interrupteur
           actif={f.freeCreation}
           onChange={(v) => maj({ freeCreation: v })}
-          label="Création libre des personnages"
-          description="Les joueurs créent leur héros eux-mêmes."
+          label={t('settings.freeCreation')}
+          description={t('settings.freeCreationText')}
         />
 
         <ReglagesRegles
@@ -289,7 +290,7 @@ export function ReglagesForm({
       <div className={cn('flex justify-end gap-2 border-t border-border px-6 py-4', pied)}>
         {onTermine && (
           <Button variant="ghost" onClick={onTermine}>
-            Annuler
+            {tc('cancel')}
           </Button>
         )}
         <Button
@@ -297,7 +298,7 @@ export function ReglagesForm({
           loading={modifier.isPending || modifierReglages.isPending}
           disabled={f.name.trim().length < 3}
         >
-          Enregistrer
+          {tc('save')}
         </Button>
       </div>
     </>
@@ -314,15 +315,16 @@ export function ReglagesCampagne({
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
 }>) {
+  const t = useTranslations('campaigns.settings');
   const [vue, setVue] = useState<'campagne' | 'stockage'>('campagne');
   return (
     <Dialog open={ouvert} onOpenChange={onOuvert}>
       <SheetContent cote="right" className="w-[94vw] max-w-lg" data-ambiance={c.ambiance}>
         <div className="space-y-4 border-b border-border px-6 py-5">
           <div>
-            <DialogTitle className="text-lg font-semibold">Réglages de la campagne</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">{t('title')}</DialogTitle>
             <DialogDescription className="text-[13px] text-muted-foreground">
-              Visibles par toute la table. Le système de jeu ne change pas.
+              {t('lead')}
             </DialogDescription>
           </div>
           <OngletsReglages vue={vue} onVue={setVue} />
