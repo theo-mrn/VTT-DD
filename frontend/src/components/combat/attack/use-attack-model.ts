@@ -278,6 +278,7 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
         rollMode: body.rollMode ?? 'per_target',
         adjustments: body.adjustments,
         combat: combatContextOf(ctx.combat, body.attackerId, body.targets),
+        attackerId: body.attackerId,
       },
       browserDice,
     );

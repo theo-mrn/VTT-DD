@@ -12,7 +12,7 @@
 
 import { useQueries, useQuery } from '@tanstack/react-query';
 import type { CampaignSide } from '@vtt/contracts';
-import type { Fiche, IconeEtat, Presentation, SystemeCharge } from '@vtt/rules';
+import type { Decompte, Fiche, IconeEtat, Presentation, SystemeCharge } from '@vtt/rules';
 import { useMemo, useRef } from 'react';
 import {
   estRessource,
@@ -115,8 +115,10 @@ export interface TimedState {
   name: string;
   /** Icône de l'état (présentation), l'icône générique pour un état libre. */
   icon: IconeEtat;
-  /** Rounds restants ; null : jusqu'au retrait. */
+  /** Décomptes restants (rounds par défaut) ; null : jusqu'au retrait. */
   duration: number | null;
+  /** Moment du décompte (début ou fin d'un tour) ; absent : fin de round (docs/combat.md § 18). */
+  timing?: Decompte;
 }
 
 /** Source des états libres posés depuis le panneau Combat (bonus sans effet, nommé). */
@@ -146,6 +148,7 @@ export function statesOf(
       name: entry?.nom ?? p.entree,
       icon: stateIconOf(stateIcons, p.entree),
       duration: p.duree ?? null,
+      ...(p.duree !== undefined && p.decompte ? { timing: p.decompte } : {}),
     });
   }
   for (const b of sheet.state.bonus ?? []) {
@@ -157,6 +160,7 @@ export function statesOf(
       name: b.nom,
       icon: stateIconOf(stateIcons, null),
       duration: b.duree ?? null,
+      ...(b.duree !== undefined && b.decompte ? { timing: b.decompte } : {}),
     });
   }
   return out;

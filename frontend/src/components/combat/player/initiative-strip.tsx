@@ -54,15 +54,13 @@ export function upcomingRows<T extends { current: boolean; defeated: boolean }>(
   return { current, next: rest.slice(0, max), more: Math.max(0, rest.length - max) };
 }
 
-/** Durées décomptées ou rendues par un passage de tour, annoncées au MJ. */
+/**
+ * Décompte des durées qui n'a pas abouti, signalé au MJ (il sera rejoué au passage suivant) ;
+ * les fins de durée sont annoncées à toute la table par `useDurationNotices`.
+ */
 function announceDurations(r: CombatTurnResponse, nameOf: (id: string) => string) {
-  const expired = (r.durationUpdates ?? []).filter((u) => u.expired.length);
-  if (expired.length)
-    toast.info(
-      `Durées : ${expired.map((u) => `${nameOf(u.characterId)} (${u.expired.length})`).join(', ')}`,
-    );
   if (r.durationFailures?.length)
-    toast.warning('Certaines fiches n’ont pas répondu pendant le décompte des durées', {
+    toast.warning('Durées non décomptées ou non rendues pour certaines fiches', {
       description: r.durationFailures.map(nameOf).join(', '),
     });
 }

@@ -141,6 +141,7 @@ export function toInput(m: AttackModification): AttackModificationInput {
     ranks: m.ranks,
   };
   if (m.duration !== undefined) out.duration = m.duration;
+  if (m.duration !== undefined && m.timing) out.timing = m.timing;
   if (m.instance !== undefined) out.instance = m.instance;
   return out;
 }
@@ -311,8 +312,11 @@ export function setDuration(
 ): AttackModificationInput[] {
   return mods.map((m, i) => {
     if (i !== index || m.kind !== 'entry') return m;
-    const { duration: _old, ...rest } = m;
-    return duration && duration > 0 ? { ...rest, duration: Math.round(duration) } : rest;
+    // Jusqu'au retrait : ni nombre ni moment ; sinon le moment du décompte est gardé
+    const { duration: _old, timing, ...rest } = m;
+    return duration && duration > 0
+      ? { ...rest, duration: Math.round(duration), ...(timing ? { timing } : {}) }
+      : rest;
   });
 }
 

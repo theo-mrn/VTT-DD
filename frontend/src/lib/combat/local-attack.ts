@@ -61,6 +61,8 @@ export interface LocalAttackInput {
   adjustments?: RollAdjustments;
   /** Contexte du combat (`@combat.*`), sans l'attaque en cours ; absent : hors combat. */
   combat?: AttackCombatContext;
+  /** Attaquant : source d'une durée qui se décompte à son tour (docs/combat.md § 18). */
+  attackerId?: string;
 }
 
 /** Faces d'une étape : dé par dé, tirées dans le navigateur (`clientRunner`). */
@@ -269,7 +271,7 @@ export function runLocal(
         characterId: id,
         status: 'awaiting_dice',
         error: null,
-        result: w.partiel ? targetResult(systeme, w.partiel) : null,
+        result: w.partiel ? targetResult(systeme, w.partiel, input.attackerId) : null,
         view: w.partiel ? targetView(systeme, w.partiel) : null,
       };
     const c = done.get(id);
@@ -285,14 +287,18 @@ export function runLocal(
       characterId: id,
       status: 'resolved',
       error: null,
-      result: targetResult(systeme, c.resultat),
+      result: targetResult(systeme, c.resultat, input.attackerId),
       view: targetView(systeme, c.resultat),
     };
   });
   // Toutes les cibles refusées par les règles : rien n'est lancé (comme le serveur, 422)
   if (targets.every((t) => t.status === 'failed'))
     throw new LocalRefusal([...new Set(targets.map((t) => t.error ?? ''))].join(' ; '));
-  return { step, targets, actor: r.acteur.map(toModification) };
+  return {
+    step,
+    targets,
+    actor: r.acteur.map((m) => toModification(m, input.attackerId)),
+  };
 }
 
 // ─── Déroulé : étapes jouées dans le navigateur ──────────────────────────────

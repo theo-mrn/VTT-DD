@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Info } from '@/components/ui/tooltip';
 import { useLiveReports } from '@/components/combat/live-reports/use-live-reports';
 import { ReactionPrompts } from '@/components/combat/player/reaction-prompt';
+import { useDurationNotices } from '@/components/combat/duration-notices';
+import { useCast } from '@/components/combat/turns/use-cast';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { useCombat } from '@/lib/combat/use-combat';
 import type { DetailCampagne } from '@/lib/campagnes';
@@ -48,6 +50,9 @@ export const HudCombat = memo(function HudCombat({ table }: { table: Table }) {
   );
   const reacts = role === 'player' && mine.size > 0;
   const sys = useCampaignSystem(reacts ? c.system : null, c.id);
+  // Fin des états et bonus à durée, annoncée à toute la table (docs/combat.md § 18.7)
+  const cast = useCast(c.id);
+  useDurationNotices(c.id, cast.nameOf);
   if (role !== 'gm' && !reacts) return null;
   return (
     <div className="pointer-events-none flex min-w-0 max-w-full flex-1 flex-col items-center gap-2">

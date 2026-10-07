@@ -527,8 +527,12 @@ function effectUpdated({ p, ctx, who, line }: UpdateScope): Formatted | null {
   );
 }
 
-/** États arrivés au bout de leur durée. */
+/**
+ * États arrivés au bout de leur durée. Un décompte du combat (`tickId`) est raconté par
+ * `combat.durations_expired`, pour toute la table : il n'est pas répété ici.
+ */
 function durationsCounted({ p, ctx, who, changes, line }: UpdateScope): Formatted | null {
+  if (detail(p, 'tickId') !== undefined) return null;
   const retirees = detail(p, 'retirees');
   const names = (Array.isArray(retirees) ? retirees : [])
     .filter((r): r is string => typeof r === 'string')
@@ -834,6 +838,27 @@ const COMBAT_FORMATTERS: Record<string, Formatter> = {
       message: `${bold(characterName(ctx, id))} est hors de combat !`,
     };
   }),
+
+  // Fin des durées d'un passage de tour (docs/combat.md § 18.7) : « Aria n'est plus Bénie »
+  'combat.durations_expired': (e, ctx) => {
+    const expirations = Array.isArray(e.payload.expirations) ? e.payload.expirations : [];
+    const parts = expirations.flatMap((x) => {
+      const o = obj(x);
+      const id = str(o?.characterId);
+      const names = (Array.isArray(o?.entries) ? o.entries : [])
+        .map((entry) => str(obj(entry)?.name))
+        .filter((n): n is string => Boolean(n));
+      return id && names.length
+        ? [{ id, text: `${bold(characterName(ctx, id))} n'est plus ${names.map(bold).join(', ')}` }]
+        : [];
+    });
+    if (!parts.length) return null;
+    return {
+      ...characterFields(ctx, parts.length === 1 ? parts[0]!.id : undefined),
+      type: 'combat',
+      message: `${parts.map((x) => x.text).join(' ; ')}.`,
+    };
+  },
 };
 
 /** Combattants ajoutés en cours de combat. */
@@ -1108,16 +1133,16 @@ export function formatHistoryEvent(e: HistoryEvent, ctx: FormatContext): GameEve
  * ne reçoit jamais la première, rien ne change pour lui).
  */
 export function withoutRedactedTwins(events: readonly HistoryEvent[]): HistoryEvent[] {
-  const turnKey = (e: HistoryEvent) => `${e.aggregate.id}:${String(e.payload.version)}`;
-  const full = new Set(
-    events
-      .filter((e) => e.type === 'combat.turn_changed' && e.visibility === 'gm_only')
-      .map(turnKey),
-  );
+  // Même passage de tour (version), ou même décompte des durées (`tickId`)
+  const twinKey = (e: HistoryEvent) =>
+    e.type === 'combat.durations_expired'
+      ? `${e.type}:${String(e.payload.tickId)}`
+      : `${e.type}:${e.aggregate.id}:${String(e.payload.version)}`;
+  const twinned = (e: HistoryEvent) =>
+    e.type === 'combat.turn_changed' || e.type === 'combat.durations_expired';
+  const full = new Set(events.filter((e) => twinned(e) && e.visibility === 'gm_only').map(twinKey));
   if (!full.size) return [...events];
-  return events.filter(
-    (e) => !(e.type === 'combat.turn_changed' && e.visibility === 'public' && full.has(turnKey(e))),
-  );
+  return events.filter((e) => !(twinned(e) && e.visibility === 'public' && full.has(twinKey(e))));
 }
 
 /**

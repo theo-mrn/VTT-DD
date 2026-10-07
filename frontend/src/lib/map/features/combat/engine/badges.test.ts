@@ -17,8 +17,11 @@ describe('badges d’états des tokens', () => {
     expect(r.more).toBe(2);
   });
 
-  it('libellé au survol : noms et durées restantes', () => {
+  it('libellé au survol : noms et durées restantes, en toutes lettres si on les a', () => {
     expect(badgeLabel([state('Aveuglé', 2), state('Concentré')])).toBe('Aveuglé (2) · Concentré');
+    expect(
+      badgeLabel([{ ...state('Étourdi', 1), label: 'jusqu’à la fin de son prochain tour' }]),
+    ).toBe('Étourdi (jusqu’à la fin de son prochain tour)');
   });
 
   it('fiches lues : toutes pour le MJ ; pour un joueur, jamais celle d’un PNJ ennemi (Q4)', () => {
