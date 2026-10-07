@@ -57,6 +57,12 @@ const TECHNICAL = new Set([
   'Safari',
   'Edge',
   'Opera',
+  'Ctrl',
+  'Fn',
+  'Unidentified',
+  'Char:',
+  'Code:',
+  'Space Enter',
 ]);
 
 const FRENCH_WORDS =

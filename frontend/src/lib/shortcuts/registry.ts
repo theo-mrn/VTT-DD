@@ -2,6 +2,7 @@
  * Raccourcis du site (docs/raccourcis.md § 3) : description des commandes et conflits. Pur,
  * sans DOM : l'aiguilleur (`dispatcher.ts`) et l'éditeur s'en servent.
  */
+import type { Text } from '@/i18n/text';
 import { bindingsClash, parseBinding } from './chord';
 
 /**
@@ -20,7 +21,8 @@ export const SCOPES: readonly ShortcutScope[] = ['global', 'table', 'map', 'dice
 export interface ShortcutDescriptor {
   /** `table.panel.chat`, `map.tool.draw`, `dice.reroll`, `custom.<id>`… */
   id: string;
-  label: string;
+  /** Clé du catalogue (commandes du code) ou texte du joueur (raccourci créé). */
+  label: Text;
   scope: ShortcutScope;
   /** Touche par défaut (`Shift+KeyN`, `Space Enter`), ou null : aucune. */
   defaultBinding: string | null;
@@ -28,8 +30,8 @@ export interface ShortcutDescriptor {
   roles?: readonly ShortcutRole[];
   /** Geste standard (Échap, ⌘Z…) : affiché, non modifiable. */
   fixed?: boolean;
-  /** Touche affichée d'un geste qui n'est pas une touche unique (« ↑ ↓ ← → »). */
-  fixedLabel?: string;
+  /** Touche affichée d'un geste qui n'est pas une touche unique (« ↑ ↓ ← → », « 1 à 9 »). */
+  fixedLabel?: Text;
   /** Une seule frappe, pas de séquence (carte : aiguillée par la carte). */
   single?: boolean;
   /** Marche aussi pendant la saisie (⌘K). */

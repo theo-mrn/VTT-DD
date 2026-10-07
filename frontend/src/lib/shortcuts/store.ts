@@ -60,7 +60,7 @@ export function normalizePrefs(raw: unknown): ShortcutPrefs {
 /** Commande d'un raccourci créé (une formule, lancée par la table de dés affichée). */
 export const customDescriptor = (u: UserShortcut): ShortcutDescriptor => ({
   id: `custom.${u.id}`,
-  label: u.label,
+  label: { text: u.label },
   scope: 'dice',
   defaultBinding: null,
   late: true,

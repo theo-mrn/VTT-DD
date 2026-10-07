@@ -11,9 +11,12 @@ import home from './home';
 import landing from './landing';
 import legal from './legal';
 import locale from './locale';
+import map from './map';
 import meta from './meta';
 import search from './search';
 import shell from './shell';
+import shortcuts from './shortcuts';
+import table from './table';
 
 const fr = {
   account,
@@ -25,9 +28,12 @@ const fr = {
   landing,
   legal,
   locale,
+  map,
   meta,
   search,
   shell,
+  shortcuts,
+  table,
 } as const;
 
 export default fr;

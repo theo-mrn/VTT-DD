@@ -18,7 +18,7 @@ import {
 
 const chat: ShortcutDescriptor = {
   id: 'table.panel.chat',
-  label: 'Chat',
+  label: { text: 'Chat' },
   scope: 'table',
   defaultBinding: 'KeyC',
 };

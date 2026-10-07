@@ -9,9 +9,12 @@ import home from './home';
 import landing from './landing';
 import legal from './legal';
 import locale from './locale';
+import map from './map';
 import meta from './meta';
 import search from './search';
 import shell from './shell';
+import shortcuts from './shortcuts';
+import table from './table';
 
 const en = {
   account,
@@ -23,9 +26,12 @@ const en = {
   landing,
   legal,
   locale,
+  map,
   meta,
   search,
   shell,
+  shortcuts,
+  table,
 } satisfies Translation<Messages>;
 
 export default en;

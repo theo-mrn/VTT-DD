@@ -6,7 +6,9 @@
  * retour ; le personnage choisi est dans l'adresse (`?personnage=`), partageable. On arrive
  * sur le sien, sinon sur le premier.
  */
+import { compareText } from '@/i18n/runtime';
 import { MessageSquareLock, UserRound } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { EtatVide, Page } from '@/components/commun/page';
@@ -32,6 +34,7 @@ interface Present {
 }
 
 export function PanneauJoueurs() {
+  const t = useTranslations('table.characters');
   const { campagne } = useTable();
   const moi = useProfil().id;
   const choisi = useSearchParams().get(TABLE_PARAMS.character);
@@ -53,9 +56,7 @@ export function PanneauJoueurs() {
     };
     return (personnages.data ?? [])
       .map((p) => ({ personnage: p, joueur: joueurDe.get(p.id) ?? null }))
-      .sort(
-        (a, b) => rang(a) - rang(b) || a.personnage.name.localeCompare(b.personnage.name, 'fr'),
-      );
+      .sort((a, b) => rang(a) - rang(b) || compareText(a.personnage.name, b.personnage.name));
   }, [campagne.members, personnages.data, moi]);
 
   const actif = presents.find((p) => p.personnage.id === choisi) ?? presents[0] ?? null;
@@ -72,7 +73,7 @@ export function PanneauJoueurs() {
       <Page>
         <EtatVide
           icone={UserRound}
-          titre="Personnages indisponibles"
+          titre={t('unavailable')}
           description={messageErreur(personnages.error)}
         />
       </Page>
@@ -80,11 +81,7 @@ export function PanneauJoueurs() {
   if (!actif)
     return (
       <Page>
-        <EtatVide
-          icone={UserRound}
-          titre="Aucun personnage à la table"
-          description="Les personnages joueurs de la campagne apparaissent ici."
-        />
+        <EtatVide icone={UserRound} titre={t('none')} description={t('noneText')} />
       </Page>
     );
 
@@ -92,7 +89,7 @@ export function PanneauJoueurs() {
     <div className="flex min-h-full flex-col">
       {/* Onglets des personnages : collés en haut du panneau pendant le défilement de la fiche */}
       <nav
-        aria-label="Personnages de la table"
+        aria-label={t('nav')}
         className="sticky top-14 z-20 border-b border-border bg-background/95"
       >
         <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 sm:px-6 lg:px-8">
@@ -141,9 +138,7 @@ export function PanneauJoueurs() {
                         {p.name}
                       </span>
                       <span className="block max-w-40 truncate text-[11px] text-muted-foreground">
-                        {j
-                          ? `${nomJoueur(j, moi)}${horsLigne(enLigne.has(j.userId))}`
-                          : 'Non incarné'}
+                        {j ? nomJoueur(j, moi, enLigne.has(j.userId), t) : t('notPlayed')}
                       </span>
                     </span>
                   </PanelLink>
@@ -152,12 +147,12 @@ export function PanneauJoueurs() {
             })}
           </ul>
           {actif.joueur && actif.joueur.userId !== moi && (
-            <Info texte={`Chuchoter à ${actif.joueur.name}`}>
+            <Info texte={t('whisper', { name: actif.joueur.name })}>
               <Button variant="ghost" size="icon-sm" asChild>
                 <PanelLink
                   panel="chat"
                   params={{ [TABLE_PARAMS.whisper]: actif.joueur.userId }}
-                  aria-label={`Chuchoter à ${actif.joueur.name}`}
+                  aria-label={t('whisper', { name: actif.joueur.name })}
                 >
                   <MessageSquareLock />
                 </PanelLink>
@@ -172,8 +167,12 @@ export function PanneauJoueurs() {
   );
 }
 
-const horsLigne = (enLigne: boolean) => (enLigne ? '' : ' · hors ligne');
-
-function nomJoueur(j: { userId: string; name: string }, moi: string): string {
-  return j.userId === moi ? 'Vous' : j.name;
+function nomJoueur(
+  j: { userId: string; name: string },
+  moi: string,
+  enLigne: boolean,
+  t: ReturnType<typeof useTranslations<'table.characters'>>,
+): string {
+  const nom = j.userId === moi ? t('you') : j.name;
+  return enLigne ? nom : t('offline', { name: nom });
 }

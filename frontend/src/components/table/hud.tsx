@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { CombatState } from '@vtt/contracts';
@@ -20,11 +21,12 @@ import { useHudPrefs, useHudPrefsHydration } from './hud-prefs';
 
 /** Sortie seule (retour au salon), quand aucune scène n'affiche la barre du groupe. */
 export const HudExit = memo(function HudExit({ table }: { table: Table }) {
+  const t = useTranslations('table.scene');
   return (
     <div data-hud-exit className={HUD_BAR}>
-      <Info texte="Retour au salon" cote="bottom">
+      <Info texte={t('backToLobby')} cote="bottom">
         <Button variant="ghost" size="icon-sm" asChild className={HUD_CONTROL}>
-          <Link href={`/campagnes/${table.campagne.id}`} aria-label="Retour au salon">
+          <Link href={`/campagnes/${table.campagne.id}`} aria-label={t('backToLobby')}>
             <ArrowLeft />
           </Link>
         </Button>
