@@ -46,7 +46,10 @@ export interface ObjectSource {
 /** Zone à fouiller sans image, à poser sur un coffre peint dans le fond de la carte. */
 export const ZONE_SOURCE: ObjectSource = {
   key: 'zone',
-  name: translate('map.objects.library.searchZone'),
+  /** Lu à l'usage : traduire au chargement du module casse le rendu serveur. */
+  get name() {
+    return translate('map.objects.library.searchZone');
+  },
   imageUrl: '',
   kind: 'item',
   aspect: 1,
