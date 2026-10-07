@@ -11,6 +11,7 @@
  * - les réglages de l'inspecteur (sections des modules), dépliables ;
  * - « Supprimer » à part, en dernier.
  */
+import { translate } from '@/i18n/runtime';
 import {
   Check,
   ChevronRight,
@@ -52,7 +53,7 @@ function selectionHeader(
 ): { title: string; subtitle: string; thumbnail: string | null } {
   if (!single)
     return {
-      title: `${entities.length} éléments`,
+      title: translate('map.ui.items', { count: entities.length }),
       subtitle: [...new Set(entities.map((e) => e.kind.label))].join(', '),
       thumbnail: null,
     };
@@ -107,7 +108,7 @@ export function SelectionPanel() {
   return (
     <MapPanel
       id="selection"
-      label={`Sélection : ${title}`}
+      label={translate('map.ui.selectionOf', { title })}
       icon={MousePointer2}
       title={title}
       subtitle={subtitle}
@@ -121,7 +122,7 @@ export function SelectionPanel() {
           />
         ) : undefined
       }
-      closeLabel="Désélectionner"
+      closeLabel={translate('map.ui.deselect')}
       onClose={() => engine.selection.replace([])}
       className="w-72"
     >
@@ -209,7 +210,7 @@ function CharacterQuick({
         className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] font-medium transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       >
         <SlidersVertical className="size-4 text-primary" aria-hidden />
-        <span className="flex-1">Modifier les stats</span>
+        <span className="flex-1">{translate('map.ui.editStats')}</span>
         <ChevronRight className="size-4 text-subtle" aria-hidden />
       </button>
     </div>
@@ -309,7 +310,7 @@ function Settings({ children, forced }: Readonly<{ children: React.ReactNode; fo
         className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium transition-colors hover:bg-surface-2"
       >
         <SlidersHorizontal className="size-4 text-muted-foreground" aria-hidden />
-        <span className="flex-1">Réglages</span>
+        <span className="flex-1">{translate('map.lights.settings')}</span>
         <ChevronRight
           className={cn('size-4 text-subtle transition-transform', open && 'rotate-90')}
           aria-hidden

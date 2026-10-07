@@ -19,10 +19,13 @@ import party from './party';
 import portals from './portals';
 import presence from './presence';
 import scene from './scene';
+import scenes from './scenes';
 import snap from './snap';
 import sounds from './sounds';
 import tokens from './tokens';
+import toolbar from './toolbar';
 import tools from './tools';
+import ui from './ui';
 import vision from './vision';
 import weather from './weather';
 
@@ -46,10 +49,13 @@ export default {
   portals,
   presence,
   scene,
+  scenes,
   snap,
   sounds,
   tokens,
+  toolbar,
   tools,
+  ui,
   vision,
   weather,
 } satisfies Translation<typeof fr>;

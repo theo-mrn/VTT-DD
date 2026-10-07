@@ -5,6 +5,7 @@
  * centrale (`MapStage`). Le moteur et PixiJS ne sont chargés que côté client, dans leur propre
  * morceau de code. Sans scène, la toile d'attente de la table.
  */
+import { translate } from '@/i18n/runtime';
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import { AttackMenuHost } from '@/components/combat/attack/attack-menu-host';
@@ -40,7 +41,10 @@ export function TableMap() {
     const names = new Map((personnages.data ?? []).map((p) => [p.id, p.name]));
     return campagne.characters
       .filter((c) => c.side === 'players')
-      .map((c) => ({ id: c.characterId, name: names.get(c.characterId) ?? 'Personnage' }));
+      .map((c) => ({
+        id: c.characterId,
+        name: names.get(c.characterId) ?? translate('map.common.character'),
+      }));
   }, [campagne.characters, personnages.data]);
   const members = useMemo(
     () => campagne.members.map((m) => ({ userId: m.userId, name: m.name })),
@@ -61,11 +65,10 @@ export function TableMap() {
     [campagne.members, campagne.characters],
   );
 
-  let empty = 'Le MJ n’a pas encore ouvert de scène.';
-  if (target.loading) empty = 'Ouverture de la scène…';
-  else if (gm && target.maps.length)
-    empty = 'Aucune scène ouverte : choisissez-en une dans Scènes (E).';
-  else if (gm) empty = 'Aucune scène : créez la première dans Scènes (E).';
+  let empty = translate('map.scenes.gmNotOpened');
+  if (target.loading) empty = translate('map.scenes.opening');
+  else if (gm && target.maps.length) empty = translate('map.scenes.noneOpened');
+  else if (gm) empty = translate('map.scenes.noneYet');
 
   return (
     <>

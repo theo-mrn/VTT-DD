@@ -6,6 +6,7 @@
  * (`engine.directory.characters()` : personnages du camp des joueurs), la même que celle des
  * menus « Visible pour… » et « Pour certains joueurs ».
  */
+import { translate } from '@/i18n/runtime';
 import { useMapEngine } from './engine-context';
 import { cn } from '@/lib/utils';
 
@@ -38,9 +39,7 @@ export function CharacterChoice({
   const engine = useMapEngine();
   const characters = engine.directory.characters();
   if (!characters.length)
-    return (
-      <p className="text-xs text-muted-foreground">Aucun personnage joueur dans la campagne.</p>
-    );
+    return <p className="text-xs text-muted-foreground">{translate('map.ui.noPlayerCharacter')}</p>;
   return (
     <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
       {all && (
@@ -51,7 +50,7 @@ export function CharacterChoice({
           className={chip(all.checked)}
           onClick={all.onSelect}
         >
-          Tous les joueurs
+          {translate('map.ui.allPlayers')}
         </button>
       )}
       {characters.map((c) => {

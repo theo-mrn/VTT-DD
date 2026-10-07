@@ -43,6 +43,8 @@ export const TRANSLATED_AREAS = [
   'components/des',
   'components/dice',
   'app/(app)/des',
+  'lib/map',
+  'components/map',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {

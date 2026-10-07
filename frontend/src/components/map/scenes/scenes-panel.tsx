@@ -11,6 +11,7 @@
  * - créer, modifier (nom, description, dossier, fond image ou vidéo), supprimer ;
  * - dossiers : créer, renommer, supprimer (leurs scènes restent, sans dossier).
  */
+import { translate } from '@/i18n/runtime';
 import type { MapGroup, MapScene } from '@vtt/contracts';
 import {
   Crown,
@@ -91,7 +92,10 @@ export function ScenesPanel() {
     const names = new Map((personnages.data ?? []).map((p) => [p.id, p.name]));
     return campagne.characters
       .filter((c) => c.side === 'players')
-      .map((c) => ({ id: c.characterId, name: names.get(c.characterId) ?? 'Personnage' }));
+      .map((c) => ({
+        id: c.characterId,
+        name: names.get(c.characterId) ?? translate('map.common.character'),
+      }));
   }, [campagne.characters, personnages.data]);
 
   const sections = useMemo(() => {
@@ -128,7 +132,7 @@ export function ScenesPanel() {
       <div className="p-4">
         <EtatVide
           icone={MapPin}
-          titre="Scènes indisponibles"
+          titre={translate('map.scenes.unavailable')}
           description={messageErreur(maps.error)}
         />
       </div>
@@ -140,16 +144,16 @@ export function ScenesPanel() {
       <div className="flex items-center gap-2">
         <InputGroup
           avant={<Search className="size-4 text-subtle" aria-hidden />}
-          placeholder="Rechercher une scène"
-          aria-label="Rechercher une scène"
+          placeholder={translate('map.scenes.search')}
+          aria-label={translate('map.scenes.search')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <Info texte="Nouveau dossier">
+        <Info texte={translate('map.scenes.newFolder')}>
           <Button
             variant="secondary"
             size="icon"
-            aria-label="Nouveau dossier"
+            aria-label={translate('map.scenes.newFolder')}
             onClick={() => setFolder({ group: null })}
           >
             <FolderPlus />
@@ -157,16 +161,16 @@ export function ScenesPanel() {
         </Info>
         <Button onClick={() => setEditing({ scene: null })}>
           <Plus />
-          Scène
+          {translate('map.scenes.scene')}
         </Button>
       </div>
 
       {active.mapId && partyMapId && active.mapId !== partyMapId && (
         <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
-          <span className="min-w-0 flex-1">Vous regardez une autre scène que celle du groupe.</span>
+          <span className="min-w-0 flex-1">{translate('map.scenes.elsewhere')}</span>
           <Button variant="ghost" size="sm" onClick={() => openScene(null)}>
             <Undo2 />
-            Revenir au groupe
+            {translate('map.scenes.backToParty')}
           </Button>
         </div>
       )}
@@ -174,12 +178,12 @@ export function ScenesPanel() {
       {!count ? (
         <EtatVide
           icone={MapPinned}
-          titre="Aucune scène"
-          description="Une scène, c’est un fond (image ou vidéo) où poser personnages, objets et murs."
+          titre={translate('map.scenes.none')}
+          description={translate('map.scenes.noneHint')}
           action={
             <Button onClick={() => setEditing({ scene: null })}>
               <Plus />
-              Créer la première scène
+              {translate('map.scenes.createFirst')}
             </Button>
           }
         />
@@ -189,7 +193,7 @@ export function ScenesPanel() {
             <header className="flex items-center gap-2">
               <Folder className="size-4 text-subtle" aria-hidden />
               <h3 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-subtle">
-                {section.group?.name ?? 'Sans dossier'}
+                {section.group?.name ?? translate('map.scenes.noFolder')}
               </h3>
               <span className="text-[11px] tabular-nums text-subtle">{section.scenes.length}</span>
               {section.group && (
@@ -229,7 +233,7 @@ export function ScenesPanel() {
               </ul>
             ) : (
               <p className="rounded-xl border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">
-                Aucune scène dans ce dossier.
+                {translate('map.scenes.emptyFolder')}
               </p>
             )}
           </section>
@@ -306,7 +310,7 @@ function SceneRow({
         onClick={() => openScene(scene.id)}
         className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
         aria-current={shown ? 'true' : undefined}
-        title="Ouvrir cette scène pour moi"
+        title={translate('map.scenes.openForMe')}
       >
         <span className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg ring-1 ring-border">
           {video && !poster ? (
@@ -333,25 +337,25 @@ function SceneRow({
             {party && (
               <Badge ton="primaire">
                 <Crown />
-                Groupe
+                {translate('map.scenes.party')}
               </Badge>
             )}
-            {shown && <Badge ton="info">Affichée</Badge>}
+            {shown && <Badge ton="info">{translate('map.scenes.shown')}</Badge>}
             {!scene.visibleToPlayers && (
               <Badge>
                 <EyeOff />
-                Cachée
+                {translate('map.portals.hidden')}
               </Badge>
             )}
           </span>
         </span>
       </button>
 
-      <Info texte="Faire venir le groupe">
+      <Info texte={translate('map.scenes.bringParty')}>
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={`Faire venir le groupe sur ${scene.name}`}
+          aria-label={translate('map.scenes.bringPartyTo', { name: scene.name })}
           onClick={onTravel}
         >
           <Navigation />
@@ -360,7 +364,11 @@ function SceneRow({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={`Options de ${scene.name}`}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={translate('map.scenes.optionsOf', { name: scene.name })}
+          >
             <Ellipsis />
           </Button>
         </DropdownMenuTrigger>
@@ -368,19 +376,21 @@ function SceneRow({
           <DropdownMenuLabel>{scene.name}</DropdownMenuLabel>
           <DropdownMenuItem onSelect={() => openScene(scene.id)}>
             <Eye />
-            Ouvrir pour moi
+            {translate('map.scenes.openForMeShort')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onTravel}>
             <Navigation />
-            Faire venir le groupe…
+            {translate('map.scenes.bringPartyEllipsis')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onParty} disabled={party}>
             <Crown />
-            Scène du groupe
+            {translate('map.scenes.partyScene')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={toggleVisible}>
             {scene.visibleToPlayers ? <EyeOff /> : <Eye />}
-            {scene.visibleToPlayers ? 'Cacher aux joueurs' : 'Rendre visible des joueurs'}
+            {scene.visibleToPlayers
+              ? translate('map.scenes.hideFromPlayers')
+              : translate('map.scenes.showToPlayers')}
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={!onSpawn}
@@ -390,19 +400,19 @@ function SceneRow({
             }}
           >
             <MapPin />
-            {onSpawn ? 'Placer le point d’apparition' : 'Point d’apparition (ouvrez la scène)'}
+            {onSpawn ? translate('map.scenes.placeSpawn') : translate('map.scenes.spawnOpenFirst')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={onEdit}>
             <Pencil />
-            Modifier…
+            {translate('map.scenes.editEllipsis')}
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={onDelete}
             className="text-destructive focus:bg-destructive/10 focus:text-destructive [&>svg]:text-destructive"
           >
             <Trash2 />
-            Supprimer…
+            {translate('map.scenes.deleteEllipsis')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -424,18 +434,22 @@ function GroupMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-xs" aria-label={`Options du dossier ${group.name}`}>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={translate('map.scenes.folderOptionsOf', { name: group.name })}
+        >
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuItem onSelect={onAdd}>
           <Plus />
-          Nouvelle scène ici
+          {translate('map.scenes.newSceneHere')}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={onRename}>
           <Pencil />
-          Renommer
+          {translate('map.objects.rename')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -443,7 +457,7 @@ function GroupMenu({
           className="text-destructive focus:bg-destructive/10 focus:text-destructive [&>svg]:text-destructive"
         >
           <Trash2 />
-          Supprimer le dossier
+          {translate('map.scenes.deleteFolder')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -494,11 +508,13 @@ function FolderDialog({
           }}
         >
           <DialogHeader>
-            <DialogTitle>{group ? 'Renommer le dossier' : 'Nouveau dossier'}</DialogTitle>
-            <DialogDescription>Villes, donjons, étages…</DialogDescription>
+            <DialogTitle>
+              {group ? translate('map.scenes.renameFolder') : translate('map.scenes.newFolder')}
+            </DialogTitle>
+            <DialogDescription>{translate('map.scenes.folderPlaceholder')}</DialogDescription>
           </DialogHeader>
           <Input
-            aria-label="Nom du dossier"
+            aria-label={translate('map.scenes.folderName')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={100}
@@ -506,14 +522,14 @@ function FolderDialog({
           />
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>
-              Annuler
+              {translate('common.actions.cancel')}
             </Button>
             <Button
               type="submit"
               disabled={!name.trim()}
               loading={actions.createGroup.isPending || actions.updateGroup.isPending}
             >
-              {group ? 'Renommer' : 'Créer'}
+              {group ? translate('map.objects.rename') : translate('map.scenes.create')}
             </Button>
           </DialogFooter>
         </form>
@@ -544,15 +560,14 @@ function DeleteSceneDialog({
     <Dialog open={!!scene} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Supprimer « {scene?.name} » ?</DialogTitle>
-          <DialogDescription>
-            Tout ce qui est posé dessus disparaît avec elle (personnages, objets, murs, dessins).
-            Les personnages eux-mêmes restent dans la campagne.
-          </DialogDescription>
+          <DialogTitle>
+            {translate('map.scenes.deleteTitle', { name: scene?.name ?? '' })}
+          </DialogTitle>
+          <DialogDescription>{translate('map.scenes.deleteMessage')}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Annuler
+            {translate('common.actions.cancel')}
           </Button>
           <Button
             variant="destructive"
@@ -560,7 +575,7 @@ function DeleteSceneDialog({
             loading={actions.removeScene.isPending}
           >
             <Trash2 />
-            Supprimer
+            {translate('map.common.delete')}
           </Button>
         </DialogFooter>
       </DialogContent>

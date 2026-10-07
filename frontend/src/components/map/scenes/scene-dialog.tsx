@@ -5,6 +5,7 @@
  * glisser, coller ou choisir, envoyé sur le stockage aussitôt ; ou une adresse), visible des
  * joueurs.
  */
+import { translate } from '@/i18n/runtime';
 import type { MapGroup, MapScene } from '@vtt/contracts';
 import { ImageIcon } from 'lucide-react';
 import { useEffect, useId, useState, type FormEvent } from 'react';
@@ -101,19 +102,21 @@ export function SceneDialog({
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={(e) => void submit(e)} className="grid gap-5">
           <DialogHeader>
-            <DialogTitle>{scene ? 'Modifier la scène' : 'Nouvelle scène'}</DialogTitle>
+            <DialogTitle>
+              {scene ? translate('map.scenes.edit') : translate('map.scenes.new')}
+            </DialogTitle>
             <DialogDescription className="sr-only">
-              Le fond fixe la taille de la carte : une image, ou une vidéo muette en boucle.
+              {translate('map.scenes.dialogHint')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-2">
-            <Label htmlFor={`${ids}-name`}>Nom</Label>
+            <Label htmlFor={`${ids}-name`}>{translate('map.lights.name')}</Label>
             <Input
               id={`${ids}-name`}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="La taverne du Poney fringant"
+              placeholder={translate('map.scenes.namePlaceholder')}
               maxLength={100}
               required
               autoFocus
@@ -121,32 +124,32 @@ export function SceneDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor={`${ids}-desc`}>Description</Label>
+            <Label htmlFor={`${ids}-desc`}>{translate('map.scenes.description')}</Label>
             <Textarea
               id={`${ids}-desc`}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               maxLength={2000}
-              placeholder="Pour vous seulement : ce que la scène prépare."
+              placeholder={translate('map.scenes.descriptionHint')}
             />
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor={`${ids}-group`}>Dossier</Label>
+            <Label htmlFor={`${ids}-group`}>{translate('map.scenes.folder')}</Label>
             <SelectField
               id={`${ids}-group`}
               value={groupId}
               onValueChange={setGroupId}
               options={[
-                { valeur: '', nom: 'Sans dossier' },
+                { valeur: '', nom: translate('map.scenes.noFolder') },
                 ...groups.map((g) => ({ valeur: g.id, nom: g.name })),
               ]}
             />
           </div>
 
           <div className="grid gap-2">
-            <span className="text-sm font-medium">Fond</span>
+            <span className="text-sm font-medium">{translate('map.scenes.backgroundShort')}</span>
             <BackgroundField url={url} onOpen={() => setPicking(true)} />
             <BackgroundPicker
               open={picking}
@@ -158,18 +161,18 @@ export function SceneDialog({
           </div>
 
           <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-2/50 px-3 py-2.5">
-            <Info texte="Sinon, seuls les joueurs dont un personnage s’y trouve la voient.">
-              <span className="text-sm font-medium">Visible des joueurs</span>
+            <Info texte={translate('map.scenes.visibleHint')}>
+              <span className="text-sm font-medium">{translate('map.grid.visible')}</span>
             </Info>
             <Switch checked={visible} onCheckedChange={setVisible} />
           </label>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+              {translate('common.actions.cancel')}
             </Button>
             <Button type="submit" loading={saving} disabled={!name.trim()}>
-              {scene ? 'Enregistrer' : 'Créer la scène'}
+              {scene ? translate('map.scenes.save') : translate('map.scenes.createScene')}
             </Button>
           </DialogFooter>
         </form>
@@ -213,7 +216,7 @@ function BackgroundField({ url, onOpen }: Readonly<{ url: string | null; onOpen(
         )}
       >
         <ImageIcon className="size-4" aria-hidden />
-        {url ? 'Changer le fond' : 'Choisir un fond'}
+        {url ? translate('map.scenes.changeBackground') : translate('map.scenes.pickBackground')}
       </span>
     </button>
   );

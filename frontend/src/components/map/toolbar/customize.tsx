@@ -5,6 +5,7 @@
  * ce viewer par groupe, glisser pour réordonner dans le groupe (ou Alt+↑↓), œil pour masquer
  * (la touche marche toujours), « Rétablir ». Ouverte d'un clic droit sur la barre.
  */
+import { translate } from '@/i18n/runtime';
 import { Eye, EyeOff, GripVertical, RotateCcw } from 'lucide-react';
 import { useState, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -20,12 +21,8 @@ import {
 } from '@/lib/map/engine/toolbar';
 import { cn } from '@/lib/utils';
 
-const GROUP_LABELS: Record<ToolbarGroup, string> = {
-  tools: 'Outils',
-  history: 'Historique',
-  view: 'Vue',
-  assist: 'Aides',
-};
+/** Nom d'un groupe de la barre (`map.toolbar.groups.<groupe>`). */
+const groupLabel = (group: ToolbarGroup) => translate(`map.toolbar.groups.${group}`);
 
 export function ToolbarCustomizer({
   sections,
@@ -43,7 +40,7 @@ export function ToolbarCustomizer({
   const changed = layout.order.length > 0 || layout.hidden.length > 0;
   return (
     <div className="flex max-h-[min(32rem,70vh)] flex-col">
-      <p className="px-2 pb-1 pt-1 text-sm font-semibold">Barre d’outils</p>
+      <p className="px-2 pb-1 pt-1 text-sm font-semibold">{translate('map.toolbar.title')}</p>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
         {sections.map((section) => (
           <Group
@@ -67,7 +64,7 @@ export function ToolbarCustomizer({
       <div className="flex justify-end border-t border-border pt-2">
         <Button variant="ghost" size="sm" disabled={!changed} onClick={onReset}>
           <RotateCcw />
-          Rétablir
+          {translate('map.toolbar.reset')}
         </Button>
       </div>
     </div>
@@ -101,9 +98,9 @@ function Group({
   };
 
   return (
-    <section aria-label={GROUP_LABELS[section.group]}>
+    <section aria-label={groupLabel(section.group)}>
       <p className="px-2 pb-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {GROUP_LABELS[section.group]}
+        {groupLabel(section.group)}
       </p>
       <ol className="space-y-0.5" onDragOver={(e) => dragging && e.preventDefault()} onDrop={drop}>
         {section.slots.map((slot, index) => (

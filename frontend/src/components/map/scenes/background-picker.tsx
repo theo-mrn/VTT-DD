@@ -6,6 +6,7 @@
  * réencodée avant l'envoi). Vignettes légères : images redimensionnées par le CDN, affiche WebP
  * pour une carte animée, qui ne joue (variante 1080p) qu'au survol.
  */
+import { translate } from '@/i18n/runtime';
 import { Film, ImageOff, Images, Map as MapIcon, Search, X } from 'lucide-react';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { DotsBackdrop } from '@/components/combat/backdrop';
@@ -36,15 +37,11 @@ interface BackgroundItem {
 
 const PAGE = 48;
 
-/** Noms des dossiers de la bibliothèque, en français. */
-const FOLDERS: Record<string, string> = {
-  Foret: 'Forêt',
-  Tavern: 'Taverne',
-  Cimetiere: 'Cimetière',
-  Chateau: 'Château',
-  Lake: 'Lac',
-  Cave: 'Grotte',
-};
+/** Dossiers connus de la bibliothèque (nom affiché : `map.scenes.folders.<dossier>`). */
+const FOLDERS = ['Foret', 'Tavern', 'Cimetiere', 'Chateau', 'Lake', 'Cave', 'others'] as const; // i18n-ignore
+const isKnownFolder = (id: string): id is (typeof FOLDERS)[number] =>
+  (FOLDERS as readonly string[]).includes(id);
+const folderName = (id: string) => (isKnownFolder(id) ? translate(`map.scenes.folders.${id}`) : id);
 
 /** « Camp_Day_Fog_Audio_NoGrid » → « Camp Day Fog » : mots techniques retirés. */
 function prettyName(file: string): string {
@@ -60,7 +57,7 @@ function prettyName(file: string): string {
 
 function toItem(a: Asset): BackgroundItem {
   const parts = a.category.split('/');
-  const folder = parts[1] ?? 'Autres';
+  const folder = parts[1] ?? 'others';
   const animated = a.type === 'video';
   const variant = animated ? videoVariant(a.path) : null;
   const base = a.name.replace(/\.[^.]+$/, '');
@@ -133,7 +130,7 @@ function Body({
     const counts = new Map<string, number>();
     for (const i of items) counts.set(i.folder, (counts.get(i.folder) ?? 0) + 1);
     return [...counts.entries()]
-      .map(([id, n]) => ({ id, name: FOLDERS[id] ?? id, n }))
+      .map(([id, n]) => ({ id, name: folderName(id), n }))
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   }, [items]);
 
@@ -171,9 +168,9 @@ function Body({
           <MapIcon className="size-4" aria-hidden />
         </span>
         <div className="min-w-0">
-          <DialogTitle className="text-base">Fond de la scène</DialogTitle>
+          <DialogTitle className="text-base">{translate('map.scenes.background')}</DialogTitle>
           <DialogDescription className="sr-only">
-            Choisir une carte de la bibliothèque ou importer un fichier.
+            {translate('map.scenes.backgroundHint')}
           </DialogDescription>
         </div>
         <div className="relative ml-auto w-full max-w-xs sm:w-64">
@@ -184,8 +181,8 @@ function Body({
           <Input
             value={query}
             onChange={(e) => reset(setQuery)(e.target.value)}
-            placeholder="Rechercher"
-            aria-label="Rechercher une carte"
+            placeholder={translate('map.scenes.searchShort')}
+            aria-label={translate('map.scenes.searchMap')}
             className="h-9 pl-8"
           />
         </div>
@@ -194,7 +191,12 @@ function Body({
             <ImageOff /> Sans fond
           </Button>
         )}
-        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fermer">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label={translate('common.actions.close')}
+        >
           <X />
         </Button>
       </header>
@@ -205,7 +207,7 @@ function Body({
           <nav className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
             <FolderButton
               active={folder === null}
-              label="Toutes"
+              label={translate('map.scenes.kinds.all')}
               count={items.length}
               onClick={() => reset(setFolder)(null)}
             />
@@ -225,7 +227,7 @@ function Body({
               usage="map-background"
               value={null}
               onChange={(url) => url && onPick(url)}
-              label="Importer un fond"
+              label={translate('map.scenes.importBackground')}
               cropAspect={null}
             />
           </div>
@@ -240,10 +242,10 @@ function Body({
             >
               {(
                 [
-                  ['all', 'Toutes', null],
-                  ['map', 'Cartes', MapIcon],
-                  ['animated', 'Animées', Film],
-                  ['illustration', 'Illustrations', Images],
+                  ['all', translate('map.scenes.kinds.all'), null],
+                  ['map', translate('map.scenes.kinds.map'), MapIcon],
+                  ['animated', translate('map.scenes.kinds.animated'), Film],
+                  ['illustration', translate('map.scenes.kinds.illustration'), Images],
                 ] as const
               ).map(([id, label, Icon]) => (
                 <button
@@ -276,7 +278,9 @@ function Body({
               </div>
             )}
             {!assets.isLoading && shown.length === 0 && (
-              <p className="py-16 text-center text-sm text-muted-foreground">Aucune carte</p>
+              <p className="py-16 text-center text-sm text-muted-foreground">
+                {translate('map.scenes.noMap')}
+              </p>
             )}
             {!assets.isLoading && shown.length > 0 && (
               <>
@@ -305,7 +309,7 @@ function Body({
               usage="map-background"
               value={null}
               onChange={(url) => url && onPick(url)}
-              label="Importer un fond"
+              label={translate('map.scenes.importBackground')}
               cropAspect={null}
             />
           </div>
@@ -399,10 +403,15 @@ function Tile({
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-white">{item.name}</span>
         {item.grid && (
           <span className="shrink-0 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/80">
-            Grille
+            {translate('map.scenes.grid')}
           </span>
         )}
-        {item.animated && <Film className="size-3.5 shrink-0 text-white/80" aria-label="Animée" />}
+        {item.animated && (
+          <Film
+            className="size-3.5 shrink-0 text-white/80"
+            aria-label={translate('map.scenes.animated')}
+          />
+        )}
       </span>
     </button>
   );
