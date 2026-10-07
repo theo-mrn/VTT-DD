@@ -11,7 +11,10 @@ import type { Db } from '../../db/client.js';
 import { titles } from '../../db/schema.js';
 
 export type ConditionTitre =
-  { type: 'time'; minutes: number } | { type: 'event'; description: string } | { type: 'premium' };
+  | { type: 'time'; minutes: number }
+  | { type: 'event'; description: string }
+  | { type: 'level'; level: number }
+  | { type: 'premium' };
 
 export interface DefinitionTitre {
   label: string;
@@ -49,6 +52,8 @@ export const ALIAS_SLUGS: Readonly<Record<string, string>> = {
 
 const temps = (minutes: number): ConditionTitre => ({ type: 'time', minutes });
 const evenement = (description: string): ConditionTitre => ({ type: 'event', description });
+/** Palier de la progression du compte (progression/levels.ts, LEVEL_REWARDS). */
+const niveau = (level: number): ConditionTitre => ({ type: 'level', level });
 
 export const DEFINITIONS_TITRES: readonly DefinitionTitre[] = [
   // Rangs de progression
@@ -115,22 +120,28 @@ export const DEFINITIONS_TITRES: readonly DefinitionTitre[] = [
     condition: evenement('Envoyer 500 messages'),
   },
 
-  // Défis : progression
+  // Progression du compte : paliers débloqués par identity-progression (docs/progression.md § 5)
   {
     label: 'Aventurier Confirmé',
     defaultUnlocked: false,
-    condition: evenement('Atteindre le niveau 5'),
+    condition: niveau(5),
   },
   {
     label: 'Héros Accompli',
     defaultUnlocked: false,
-    condition: evenement('Atteindre le niveau 10'),
+    condition: niveau(10),
   },
   {
     label: 'Légende Vivante',
     defaultUnlocked: false,
-    condition: evenement('Atteindre le niveau 20'),
+    condition: niveau(20),
   },
+  {
+    label: 'Pilier de la Table',
+    defaultUnlocked: false,
+    condition: niveau(30),
+  },
+  { label: 'Mythe Vivant', defaultUnlocked: false, condition: niveau(50) },
 
   // Défis : collection
   {
@@ -185,6 +196,8 @@ export function descriptionDe(condition: ConditionTitre | null | undefined): str
       return `Jouer ${condition.minutes} minutes`;
     case 'event':
       return condition.description;
+    case 'level':
+      return `Atteindre le niveau ${condition.level} du compte`;
     case 'premium':
       return 'Réservé aux membres premium';
   }

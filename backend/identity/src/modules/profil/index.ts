@@ -11,6 +11,7 @@ import type { Deps, Module, ServiceApp } from '../../deps.js';
 import { debloquerTitresParTemps } from '../titres/service.js';
 import {
   ajouterTempsDeJeu,
+  BordureVerrouillee,
   lireMonProfil,
   lireProfilPublic,
   modifierProfil,
@@ -56,6 +57,7 @@ const ProfilPublicReponse = z.object({
   premium: z.boolean(),
   showPremiumBadge: z.boolean(),
   timeSpentMinutes: z.number(),
+  level: z.number(),
 });
 
 const ResultatRechercheReponse = z.array(
@@ -116,6 +118,14 @@ export async function registerProfil(
       try {
         champs = await modifierProfil(deps.db, contexte(req), userId, req.body, base);
       } catch (err) {
+        if (err instanceof BordureVerrouillee) {
+          throw new HttpError(
+            403,
+            'Bordure verrouillée',
+            'border_locked',
+            'Cette bordure se débloque avec le niveau du compte ou le premium',
+          );
+        }
         if (err instanceof UrlImageRefusee) {
           throw HttpError.badRequest(
             "L'image doit avoir été envoyée par POST /v1/users/me/uploads",

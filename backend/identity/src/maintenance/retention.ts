@@ -5,7 +5,8 @@
  *   qui revient est encore reconnu et révoque sa famille (vol probable) ; le dernier jeton
  *   d'une session ouverte n'est jamais concerné ;
  * - jetons envoyés par e-mail : supprimés un jour après leur utilisation ou leur expiration
- *   (le temps d'afficher « lien déjà utilisé » plutôt que « lien invalide »).
+ *   (le temps d'afficher « lien déjà utilisé » plutôt que « lien invalide ») ;
+ * - détail par jour de la progression du compte : 90 jours (docs/progression.md § 10).
  */
 import { uuidv7 } from '@vtt/contracts';
 import type { Logger } from '@vtt/platform';
@@ -21,6 +22,7 @@ import {
   purgeRequestedDeletions,
   requestDeletion,
 } from '../modules/securite/account-lifecycle.js';
+import { purgeProgressionDaily } from '../modules/progression/service.js';
 import { lienConnexion } from '../modules/securite/jetons.js';
 import { mailInactivite, mailSuppressionProgrammee } from '../modules/securite/mails.js';
 
@@ -31,7 +33,7 @@ export const EMAIL_TOKENS_KEPT_DAYS = 1;
 export async function purgeExpired(
   db: Db,
   now: Date = new Date(),
-): Promise<{ sessions: number; emailTokens: number }> {
+): Promise<{ sessions: number; emailTokens: number; progressionDays: number }> {
   const sessionsBefore = new Date(now.getTime() - SESSIONS_KEPT_DAYS * DAY_MS);
   const tokensBefore = new Date(now.getTime() - EMAIL_TOKENS_KEPT_DAYS * DAY_MS);
   const purgedSessions = await db
@@ -47,7 +49,12 @@ export async function purgeExpired(
     .delete(emailTokens)
     .where(lt(sql`coalesce(${emailTokens.usedAt}, ${emailTokens.expiresAt})`, tokensBefore))
     .returning({ hash: emailTokens.tokenHash });
-  return { sessions: purgedSessions.length, emailTokens: purgedTokens.length };
+  const progressionDays = await purgeProgressionDaily(db, now);
+  return {
+    sessions: purgedSessions.length,
+    emailTokens: purgedTokens.length,
+    progressionDays,
+  };
 }
 
 /**

@@ -14,6 +14,7 @@ import { register as mapToolbar } from './modules/map-toolbar/index.js';
 import { register as shortcuts } from './modules/shortcuts/index.js';
 import { register as oauth } from './modules/oauth/index.js';
 import { register as profil } from './modules/profil/index.js';
+import { register as progression } from './modules/progression/index.js';
 import { register as securite } from './modules/securite/index.js';
 import { register as titres } from './modules/titres/index.js';
 import { pgSessionStore } from './db/session-store.js';
@@ -104,6 +105,7 @@ export async function buildIdentity(
     discord,
     profil,
     titres,
+    progression,
     amis,
     clesApi,
     mapToolbar,

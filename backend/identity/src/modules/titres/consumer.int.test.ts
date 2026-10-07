@@ -228,12 +228,24 @@ describe.skipIf(!TEST_DATABASE_URL)('consommateur des titres', () => {
       try {
         const e = roll(j.id, [20], '3d', room);
         await publishEvent(bus, e);
+        const consommateurs = async () =>
+          (
+            await t.db
+              .select({ consumer: inbox.consumer })
+              .from(inbox)
+              .where(eq(inbox.eventId, e.id))
+          ).map((r) => r.consumer);
         const limite = Date.now() + 10_000;
-        while (!(await titresDe(j.id)).includes('beni-des-dieux') && Date.now() < limite) {
+        while (!(await consommateurs()).includes(CONSUMER) && Date.now() < limite) {
           await new Promise((r) => setTimeout(r, 100));
         }
         expect(await titresDe(j.id)).toEqual(['apprenti-lanceur', 'beni-des-dieux', 'chanceux']);
-        expect(await compteurs(j.id)).toEqual({ dice_rolls: 1, critical_successes: 1 });
+        // L'inbox dédoublonne par consommateur : un identity local branché sur la même base
+        // (durable identity-titles) compte aussi ce jet
+        const n = (await consommateurs()).filter(
+          (c) => c === CONSUMER || c === 'identity-titles',
+        ).length;
+        expect(await compteurs(j.id)).toEqual({ dice_rolls: n, critical_successes: n });
       } finally {
         await stop();
         await bus.jsm.consumers.delete(EVENTS_STREAM, CONSUMER).catch(() => undefined);
