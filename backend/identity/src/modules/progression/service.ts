@@ -35,6 +35,7 @@ import {
 } from './challenges.js';
 import {
   bordersForLevel,
+  legacyLevelForMinutes,
   LEVEL_REWARDS,
   levelForXp,
   nextReward,
@@ -56,9 +57,47 @@ interface Progress {
   level: number;
 }
 
-/** Crée au besoin puis verrouille la ligne de progression du joueur. */
-async function lockProgress(tx: Tx, userId: string): Promise<Progress> {
-  await tx.insert(accountProgress).values({ userId }).onConflictDoNothing();
+/** Niveau d'avant d'un compte (temps de jeu gardé en base), null si le profil n'existe pas. */
+async function legacyStart(tx: Tx | Db, userId: string): Promise<Progress | null> {
+  const [p] = await tx
+    .select({ minutes: profiles.timeSpentMinutes })
+    .from(profiles)
+    .where(eq(profiles.userId, userId));
+  if (!p) return null;
+  const level = legacyLevelForMinutes(p.minutes);
+  return { level, xp: xpForLevel(level) };
+}
+
+/**
+ * Crée la ligne de progression au premier besoin, au niveau d'avant (docs/progression.md § 9) :
+ * l'XP de ce niveau, les titres des paliers déjà atteints, et les Premiers pas tenus pour faits
+ * quand le joueur a déjà joué (niveau 2 au moins). Sans XP ajoutée ni notification de niveau.
+ * Automatique, au premier événement ou au premier affichage : aucune reprise à lancer.
+ */
+async function ensureProgress(tx: Tx, ctx: EventContext, userId: string): Promise<void> {
+  const start = await legacyStart(tx, userId);
+  if (!start) return;
+  const created = await tx
+    .insert(accountProgress)
+    .values({ userId, xp: start.xp, level: start.level })
+    .onConflictDoNothing()
+    .returning({ level: accountProgress.level });
+  if (created.length === 0 || start.level <= 1) return;
+  for (const r of rewardsBetween(1, start.level))
+    if (r.type === 'title') await unlockTitleInTx(tx, ctx, userId, r.id, 'level');
+  const firstSteps = PERMANENT_CHALLENGES.filter((c) => c.group === 'first_steps');
+  if (firstSteps.length)
+    await tx
+      .insert(progressionChallenges)
+      .values(
+        firstSteps.map((c) => ({ userId, challengeId: c.id, period: PERMANENT_PERIOD, xp: 0 })),
+      )
+      .onConflictDoNothing();
+}
+
+/** Crée au besoin (niveau d'avant) puis verrouille la ligne de progression du joueur. */
+async function lockProgress(tx: Tx, ctx: EventContext, userId: string): Promise<Progress> {
+  await ensureProgress(tx, ctx, userId);
   const [row] = await tx
     .select({ xp: accountProgress.xp, level: accountProgress.level })
     .from(accountProgress)
@@ -287,7 +326,7 @@ export async function recordActivitiesInTx(
   at: Date,
 ): Promise<RecordResult | null> {
   if (!(await userExists(tx, userId))) return null;
-  const before = await lockProgress(tx, userId);
+  const before = await lockProgress(tx, ctx, userId);
   const day = parisDay(at);
 
   let gained = 0;
@@ -310,21 +349,16 @@ export async function recordActivitiesInTx(
 
 // ─── Reprise de l'existant (docs/progression.md § 9) ─────────────────────────
 
-/** Clé de l'ancienneté : une seule fois par compte. */
-export const SENIORITY_KEY = 'seniority-v1';
-/** Ancienneté : 1 XP par minute de jeu déjà comptée, au plus 100 heures. */
-export const SENIORITY_MAX_XP = 6000;
-
 export interface BackfillResult {
   counters: number;
   completed: CompletedChallenge[];
-  seniorityXp: number;
   level: number;
 }
 
 /**
- * Reprend l'existant d'un joueur : compteurs à vie relevés (jamais baissés),
- * défis permanents atteints accomplis, ancienneté accordée une fois. Rejouable.
+ * Facultatif : relève les compteurs à vie d'un joueur depuis les autres services (jamais
+ * baissés) et accomplit les défis permanents atteints. Rejouable. Le niveau, lui, n'en dépend
+ * pas : il part du niveau d'avant, automatiquement (`ensureProgress`).
  */
 export async function backfillUserInTx(
   tx: Tx,
@@ -332,10 +366,9 @@ export async function backfillUserInTx(
   userId: string,
   totals: Partial<Record<ActivityKind, number>>,
   keys: readonly { activity: ActivityKind; key: string }[],
-  playMinutes: number,
 ): Promise<BackfillResult | null> {
   if (!(await userExists(tx, userId))) return null;
-  const before = await lockProgress(tx, userId);
+  const before = await lockProgress(tx, ctx, userId);
 
   const touched = new Set<ActivityKind>();
   let counters = 0;
@@ -367,13 +400,9 @@ export async function backfillUserInTx(
     'permanent',
   );
 
-  let seniorityXp = 0;
-  if (playMinutes > 0 && (await claimKey(tx, userId, 'play_minutes', SENIORITY_KEY)))
-    seniorityXp = Math.min(SENIORITY_MAX_XP, Math.floor(playMinutes));
-
-  const gained = completed.reduce((sum, c) => sum + c.xp, 0) + seniorityXp;
+  const gained = completed.reduce((sum, c) => sum + c.xp, 0);
   const after = await applyXp(tx, ctx, userId, before, gained);
-  return { counters, completed, seniorityXp, level: after.level };
+  return { counters, completed, level: after.level };
 }
 
 // ─── Lecture ─────────────────────────────────────────────────────────────────
@@ -431,7 +460,7 @@ export async function levelOf(tx: Tx | Db, userId: string): Promise<number> {
     .select({ level: accountProgress.level })
     .from(accountProgress)
     .where(eq(accountProgress.userId, userId));
-  return row?.level ?? 1;
+  return row?.level ?? (await legacyStart(tx, userId))?.level ?? 1;
 }
 
 /** Progression affichée au joueur à l'instant `now`. */
@@ -439,7 +468,10 @@ export async function readProgression(
   db: Db,
   userId: string,
   now: Date = new Date(),
+  ctx: EventContext = { correlationId: crypto.randomUUID() },
 ): Promise<ProgressionView> {
+  // Premier affichage : le compte démarre à son niveau d'avant
+  await db.transaction((tx) => ensureProgress(tx, ctx, userId));
   const periods = periodsAt(now);
   const days = weekDays(periods.day);
   const [[progress], dailyRows, counterRows, completions] = await Promise.all([

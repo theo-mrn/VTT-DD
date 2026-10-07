@@ -335,5 +335,6 @@ XP, niveaux et défis du compte ([progression.md](progression.md)). Code :
   causalité de l'événement source) : `identity.level_reached` `{ level, previousLevel, xp,
 rewards: [{ level, type, id }] }`, `identity.challenge_completed` `{ challengeId, kind, period,
 xp }`, et `identity.title_unlocked` (`source: 'level'`) aux paliers.
-- L'existant (avant le déploiement) est repris par `pnpm --filter @vtt/identity
-progression:backfill` (progression.md § 9).
+- Chaque compte démarre au niveau que lui donnait l'ancienne app (temps de jeu), automatiquement ;
+  les compteurs à vie peuvent être repris par la commande facultative `pnpm --filter
+@vtt/identity progression:backfill` (progression.md § 9).
