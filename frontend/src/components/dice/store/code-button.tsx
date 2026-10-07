@@ -5,6 +5,7 @@
  * premium offert, un skin de dés ou un cadre. Les dés possédés sont relus après
  * coup (le service dice applique le droit à réception de l'événement).
  */
+import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ticket } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
@@ -16,13 +17,8 @@ import { utiliserCode, type CodeUtilise } from '@/lib/abonnement';
 import { messageErreur } from '@/lib/api';
 import { dicePreferencesKey } from '@/lib/dice-preferences';
 
-const RECOMPENSE: Record<CodeUtilise['kind'], string> = {
-  premium: 'Premium activé',
-  dice_skin: 'Dés débloqués',
-  token_frame: 'Cadre débloqué',
-};
-
 export function CodeButton({ onUtilise }: Readonly<{ onUtilise?: (r: CodeUtilise) => void }>) {
+  const t = useTranslations('dice.store');
   const client = useQueryClient();
   const [ouvert, setOuvert] = useState(false);
   const [code, setCode] = useState('');
@@ -38,7 +34,7 @@ export function CodeButton({ onUtilise }: Readonly<{ onUtilise?: (r: CodeUtilise
       const relire = () => void client.invalidateQueries({ queryKey: dicePreferencesKey });
       relire();
       setTimeout(relire, 1500);
-      toast.success(RECOMPENSE[r.kind]);
+      toast.success(t(`rewards.${r.kind}`));
       setCode('');
       setOuvert(false);
       onUtilise?.(r);
@@ -60,7 +56,7 @@ export function CodeButton({ onUtilise }: Readonly<{ onUtilise?: (r: CodeUtilise
       <PopoverTrigger asChild>
         <Button variant="secondary" size="sm">
           <Ticket aria-hidden />
-          Code
+          {t('code')}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-3">
@@ -68,7 +64,7 @@ export function CodeButton({ onUtilise }: Readonly<{ onUtilise?: (r: CodeUtilise
           <div className="flex gap-2">
             <Input
               autoFocus
-              aria-label="Code"
+              aria-label={t('code')}
               placeholder="YNER-XXXX-XXXX"
               autoComplete="off"
               spellCheck={false}
@@ -81,7 +77,7 @@ export function CodeButton({ onUtilise }: Readonly<{ onUtilise?: (r: CodeUtilise
               className="font-mono uppercase"
             />
             <Button type="submit" loading={envoi} disabled={!code.trim()}>
-              OK
+              {t('codeOk')}
             </Button>
           </div>
           {erreur && (

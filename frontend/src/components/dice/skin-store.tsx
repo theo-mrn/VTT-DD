@@ -16,6 +16,8 @@
  *
  * Module chargé à la demande, à la première ouverture.
  */
+import { useSkinText } from './skin-text';
+import { useTranslations } from 'next-intl';
 import {
   ArrowDownWideNarrow,
   ArrowLeft,
@@ -78,12 +80,17 @@ import { SkinPanel } from './store/skin-panel';
 import { SkinTile } from './store/skin-tile';
 import { getSkinById } from './three/dice-definitions';
 
-const POSSESSIONS: { id: Possession; libelle: string; Icone: LucideIcon }[] = [
-  { id: 'tous', libelle: 'Tous', Icone: LayoutGrid },
-  { id: 'collection', libelle: 'Ma collection', Icone: Backpack },
-  { id: 'a-debloquer', libelle: 'À débloquer', Icone: Lock },
+/** Onglets de possession ; libellé : `dice.store.ownership.<cle>`. */
+const POSSESSIONS: {
+  id: Possession;
+  cle: 'tous' | 'collection' | 'toUnlock';
+  Icone: LucideIcon;
+}[] = [
+  { id: 'tous', cle: 'tous', Icone: LayoutGrid },
+  { id: 'collection', cle: 'collection', Icone: Backpack },
+  { id: 'a-debloquer', cle: 'toUnlock', Icone: Lock },
 ];
-const TRIS: Record<Tri, string> = { rarete: 'Rareté', prix: 'Prix', nom: 'Nom' };
+const TRIS: readonly Tri[] = ['rarete', 'prix', 'nom'];
 
 export default function SkinStore({
   open,
@@ -92,6 +99,7 @@ export default function SkinStore({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }>) {
+  const t = useTranslations('dice.store');
   const prefs = useDicePreferences();
   const p = prefs.data;
   const [ficheMobile, setFicheMobile] = useState(false);
@@ -116,12 +124,10 @@ export default function SkinStore({
           }
         }}
       >
-        <DialogDescription className="sr-only">
-          Vitrine des dés : équiper, acheter, essayer.
-        </DialogDescription>
+        <DialogDescription className="sr-only">{t('lead')}</DialogDescription>
         <header className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3 sm:px-5">
           <Store className="size-5 shrink-0 text-primary" aria-hidden />
-          <DialogTitle className="mr-auto truncate text-base">Boutique de dés</DialogTitle>
+          <DialogTitle className="mr-auto truncate text-base">{t('title')}</DialogTitle>
           <CodeButton
             onUtilise={(r) => {
               if (r.kind !== 'dice_skin' || !r.itemId) return;
@@ -133,22 +139,22 @@ export default function SkinStore({
             }}
           />
           {p?.allSkins ? (
-            <Info texte="Tous les dés, présents et à venir">
+            <Info texte={t('allDice')}>
               <Badge ton="primaire" taille="md">
                 <Crown aria-hidden />
-                Premium
+                {t('premium')}
               </Badge>
             </Info>
           ) : (
             <Button size="sm" asChild>
               <Link href={PAGES_FRONT.abonnement}>
                 <Crown aria-hidden />
-                Premium
+                {t('premium')}
               </Link>
             </Button>
           )}
           <DialogClose asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Fermer" className="-mr-1.5">
+            <Button variant="ghost" size="icon-sm" aria-label={t('close')} className="-mr-1.5">
               <X aria-hidden />
             </Button>
           </DialogClose>
@@ -157,7 +163,7 @@ export default function SkinStore({
         {prefs.isPending && <Chargement />}
         {!prefs.isPending && (prefs.isError || !p) && (
           <p className="py-16 text-center text-sm text-destructive">
-            Préférences de dés indisponibles : {messageErreur(prefs.error)}
+            {t('prefsUnavailable', { error: messageErreur(prefs.error) })}
           </p>
         )}
         {p && (
@@ -187,6 +193,8 @@ function Vitrine({
   ficheMobile: boolean;
   onFicheMobile: (ouvert: boolean) => void;
 }>) {
+  const t = useTranslations('dice.store');
+  const textes = useSkinText();
   const modifier = useUpdateDicePreferences();
   const [recherche, setRecherche] = useState('');
   const [possession, setPossession] = useState<Possession>('tous');
@@ -195,8 +203,8 @@ function Vitrine({
   const [achat, setAchat] = useState(false);
 
   const liste = useMemo(
-    () => filtrer(CATALOGUE, p, { recherche, possession, rarete, tri }),
-    [p, recherche, possession, rarete, tri],
+    () => filtrer(CATALOGUE, p, { recherche, possession, rarete, tri }, (s) => textes.name(s.id)),
+    [p, recherche, possession, rarete, tri, textes],
   );
   const compte = useMemo(() => compter(CATALOGUE, p), [p]);
   // Sans choix, la fiche montre le dé équipé
@@ -216,9 +224,9 @@ function Vitrine({
     try {
       await modifier.mutateAsync({ skinId: skin.id });
       if (p.animation3d) prepareDice3D([skin.id]);
-      toast.success(`${skin.name} équipé`);
+      toast.success(t('equipped', { name: textes.name(skin.id) }));
     } catch (err) {
-      toast.error('Impossible d’équiper ces dés', { description: messageErreur(err) });
+      toast.error(t('equipFailed'), { description: messageErreur(err) });
     }
   }
 
@@ -227,7 +235,7 @@ function Vitrine({
     try {
       await lancerAchat(skin.id);
     } catch (err) {
-      toast.error('Paiement indisponible', { description: messageErreur(err) });
+      toast.error(t('paymentUnavailable'), { description: messageErreur(err) });
       setAchat(false);
     }
   }
@@ -266,7 +274,7 @@ function Vitrine({
           {liste.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-24 text-subtle">
               <Package className="size-10" aria-hidden />
-              <p className="text-sm">Aucun dé</p>
+              <p className="text-sm">{t('noDice')}</p>
             </div>
           ) : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
@@ -296,7 +304,7 @@ function Vitrine({
               onClick={() => onFicheMobile(false)}
             >
               <ArrowLeft aria-hidden />
-              Retour
+              {t('back')}
             </Button>
             <div className="min-h-0 flex-1">{fiche}</div>
           </div>
@@ -330,13 +338,14 @@ function Filtres({
   tri: Tri;
   onTri: (v: Tri) => void;
 }>) {
+  const t = useTranslations('dice.store');
   const onglets = POSSESSIONS.filter((o) => !(premium && o.id === 'a-debloquer'));
   return (
     <div className="shrink-0 border-b border-border">
       <div className="flex flex-wrap items-center gap-3 px-4 pt-3 sm:px-5">
         <PillGroup>
-          <div role="tablist" aria-label="Dés affichés" className="flex gap-1">
-            {onglets.map(({ id, libelle, Icone }) => {
+          <div role="tablist" aria-label={t('shown')} className="flex gap-1">
+            {onglets.map(({ id, cle, Icone }) => {
               const actif = possession === id;
               return (
                 <button
@@ -352,7 +361,7 @@ function Filtres({
                 >
                   {actif && <ActivePill className="border border-primary/30 bg-primary/10" />}
                   <Icone className="size-4" aria-hidden />
-                  {libelle}
+                  {t(`ownership.${cle}`)}
                   <span
                     className={cn(
                       'rounded-full px-1.5 text-xs tabular-nums',
@@ -374,8 +383,8 @@ function Filtres({
           <Input
             value={recherche}
             onChange={(e) => onRecherche(e.target.value)}
-            placeholder="Chercher un dé…"
-            aria-label="Chercher un dé"
+            placeholder={t('search')}
+            aria-label={t('searchLabel')}
             className="h-9 pl-9"
           />
         </div>
@@ -383,26 +392,26 @@ function Filtres({
 
       <div className="flex items-center gap-1.5 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] sm:px-5">
         <Puce actif={rarete === null} onClick={() => onRarete(null)}>
-          Toutes raretés
+          {t('allRarities')}
         </Puce>
         {ORDRE_RARETES.map((r) => (
           <Puce key={r} actif={rarete === r} onClick={() => onRarete(rarete === r ? null : r)}>
             <span className={cn('size-2 rounded-full', RARETES[r].teinte)} aria-hidden />
-            {RARETES[r].libelle}
+            {t(`rarities.${r}`)}
           </Puce>
         ))}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="ml-auto shrink-0 text-muted-foreground">
               <ArrowDownWideNarrow aria-hidden />
-              {TRIS[tri]}
+              {t(`sort.${tri}`)}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
-            {(Object.keys(TRIS) as Tri[]).map((t) => (
-              <DropdownMenuItem key={t} onSelect={() => onTri(t)}>
-                <span className="flex-1">{TRIS[t]}</span>
-                {tri === t && <Check className="text-primary" aria-hidden />}
+            {TRIS.map((choix) => (
+              <DropdownMenuItem key={choix} onSelect={() => onTri(choix)}>
+                <span className="flex-1">{t(`sort.${choix}`)}</span>
+                {tri === choix && <Check className="text-primary" aria-hidden />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

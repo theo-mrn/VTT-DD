@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { ChevronsDown, ChevronsUp, Minus, Plus, SlidersHorizontal } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
@@ -86,6 +87,7 @@ export function OptionsJet({
     onPersonnage: (id: string | null) => void;
   } | null;
 }>) {
+  const t = useTranslations('dice.options');
   const modifie = mode !== 'normal' || bonus !== 0 || libelle.trim() !== '';
   const basculer = (m: ModeD20) => onMode(mode === m ? 'normal' : m);
 
@@ -94,8 +96,8 @@ export function OptionsJet({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`Options du jet${modifie ? ' (modifiées)' : ''}`}
-          title="Avantage, bonus, modificateurs, macros"
+          aria-label={modifie ? t('labelModified') : t('label')}
+          title={t('title')}
           className={cn(
             ICONE_BARRE,
             'relative',
@@ -114,13 +116,13 @@ export function OptionsJet({
         <div className="flex flex-wrap items-center gap-2">
           <div
             role="group"
-            aria-label="Avantage ou désavantage sur le d20"
+            aria-label={t('advantageGroup')}
             className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5"
           >
             {(
               [
-                ['avantage', 'Avantage', ChevronsUp, '2d20k1'],
-                ['desavantage', 'Désavantage', ChevronsDown, '2d20kl1'],
+                ['avantage', t('advantage'), ChevronsUp, '2d20k1'],
+                ['desavantage', t('disadvantage'), ChevronsDown, '2d20kl1'],
               ] as const
             ).map(([valeur, nom, Icone, formule]) => (
               <button
@@ -143,12 +145,12 @@ export function OptionsJet({
           </div>
           <div
             role="group"
-            aria-label="Bonus"
+            aria-label={t('bonus')}
             className="inline-flex items-center rounded-lg border border-border bg-surface p-0.5"
           >
             <button
               type="button"
-              aria-label="Diminuer le bonus"
+              aria-label={t('bonusDown')}
               onClick={() => onBonus(bonus - 1)}
               className={cn(PETIT, 'w-8 px-0 text-muted-foreground hover:bg-surface-3')}
             >
@@ -156,7 +158,7 @@ export function OptionsJet({
             </button>
             <output
               aria-live="polite"
-              aria-label={`Bonus ${signe(bonus)}`}
+              aria-label={t('bonusValue', { value: signe(bonus) })}
               className={cn(
                 'w-9 text-center font-mono text-[13px] tabular',
                 bonus === 0 ? 'text-subtle' : 'font-semibold text-foreground',
@@ -166,7 +168,7 @@ export function OptionsJet({
             </output>
             <button
               type="button"
-              aria-label="Augmenter le bonus"
+              aria-label={t('bonusUp')}
               onClick={() => onBonus(bonus + 1)}
               className={cn(PETIT, 'w-8 px-0 text-muted-foreground hover:bg-surface-3')}
             >
@@ -176,7 +178,7 @@ export function OptionsJet({
           <button
             type="button"
             onClick={onD100}
-            aria-label={`Ajouter un d100${nbD100 ? `, ${nbD100} dans la formule` : ''}`}
+            aria-label={t('addD100', { count: nbD100 })}
             className={cn(
               PETIT,
               'border font-mono',
@@ -193,15 +195,15 @@ export function OptionsJet({
           value={libelle}
           onChange={(e) => onLibelle(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onOuvert(false)}
-          placeholder="Libellé du jet (facultatif)"
-          aria-label="Libellé du jet"
+          placeholder={t('rollLabel')}
+          aria-label={t('rollLabelAria')}
           maxLength={80}
           autoComplete="off"
           className="h-9 text-[13px] [@media(pointer:coarse)]:h-11"
         />
 
         {personnage && (
-          <Section titre={`Attributs de ${personnage.name}`}>
+          <Section titre={t('attributesOf', { name: personnage.name })}>
             <PastillesAttributs
               groupes={groupes}
               chargement={fiche.chargement || chargementAttributs}
@@ -212,7 +214,7 @@ export function OptionsJet({
           </Section>
         )}
 
-        <Section titre="Macros">
+        <Section titre={t('macros')}>
           <PucesMacros
             formuleValide={formuleValide}
             onLancer={(m) => {
@@ -228,13 +230,13 @@ export function OptionsJet({
         </Section>
 
         {contexte && (
-          <Section titre="Contexte">
+          <Section titre={t('context')}>
             <div className="flex flex-wrap gap-1.5">
               <SelecteurContexte
-                etiquette="Campagne"
+                etiquette={t('campaign')}
                 icone={ICONES_CONTEXTE.campagne}
-                aucun="Jets personnels"
-                vide="Aucune campagne pour l’instant."
+                aucun={t('personalRolls')}
+                vide={t('noCampaign')}
                 chargement={contexte.campagnes.chargement}
                 valeur={contexte.campagneId}
                 onChange={contexte.onCampagne}
@@ -245,10 +247,10 @@ export function OptionsJet({
                 }))}
               />
               <SelecteurContexte
-                etiquette="Personnage"
+                etiquette={t('character')}
                 icone={ICONES_CONTEXTE.personnage}
-                aucun="Sans personnage"
-                vide="Aucun personnage pour l’instant."
+                aucun={t('noCharacter')}
+                vide={t('noCharacters')}
                 chargement={contexte.personnages.chargement}
                 valeur={contexte.personnageId}
                 onChange={contexte.onPersonnage}

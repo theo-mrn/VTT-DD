@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import type { GroupeDes } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 import { etatDe, type EtatDe } from './de-visuel';
@@ -29,16 +30,20 @@ export function ValeursDes({
   const tous = groupes.flatMap((g, i) =>
     g.dice.map((d, j) => ({ faces: g.faces, d, cle: `${i}-${j}` })),
   );
+  const t = useTranslations('dice.result');
   if (!tous.length) return null;
   return (
-    <ul className={cn('flex flex-wrap items-center gap-1', className)} aria-label="Dés">
+    <ul className={cn('flex flex-wrap items-center gap-1', className)} aria-label={t('dice')}>
       {tous.slice(0, max).map(({ faces, d, cle }) => {
         const etat = etatDe(faces, d, seulD20);
         return (
           <li
             key={cle}
             title={`d${faces}`}
-            aria-label={`d${faces} : ${d.value}${etat === 'ecarte' ? ', écarté' : ''}`}
+            aria-label={t(etat === 'ecarte' ? 'dieDropped' : 'dieValue', {
+              faces: String(faces),
+              value: String(d.value),
+            })}
             className={cn(
               'inline-flex h-6 min-w-6 items-center justify-center rounded-md border px-1 font-mono text-xs font-semibold tabular',
               TEINTES[etat],

@@ -40,6 +40,9 @@ export const TRANSLATED_AREAS = [
   'components/shortcuts',
   'lib/shortcuts',
   'lib/map/shortcuts.ts',
+  'components/des',
+  'components/dice',
+  'app/(app)/des',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {

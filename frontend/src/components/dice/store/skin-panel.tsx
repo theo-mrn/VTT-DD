@@ -7,6 +7,8 @@
  * de changement de skin sur un contexte actif. Actions : équiper, acheter
  * (Stripe Checkout), premium, essayer un lancer (lanceur 3D de l'app).
  */
+import { useSkinText } from '../skin-text';
+import { useTranslations } from 'next-intl';
 import { Check, Crown, Dices, ShoppingCart } from 'lucide-react';
 import { PAGES_FRONT } from '@vtt/contracts';
 import dynamic from 'next/dynamic';
@@ -58,7 +60,11 @@ export function SkinPanel({
   onAcheter: () => void;
   className?: string;
 }>) {
-  const r = RARETES[rareteDe(skin)];
+  const t = useTranslations('dice.store');
+  const textes = useSkinText();
+  const rarete = rareteDe(skin);
+  const r = RARETES[rarete];
+  const description = textes.description(skin.id);
   const stable = useStable(skin.id, DELAI_3D_MS);
   // Skin dont le dé 3D est dessiné : la vignette s'efface (fond du canevas transparent)
   const [pret, setPret] = useState<string | null>(null);
@@ -96,17 +102,17 @@ export function SkinPanel({
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pt-4">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <Badge ton={r.ton}>{r.libelle}</Badge>
+            <Badge ton={r.ton}>{t(`rarities.${rarete}`)}</Badge>
             {equipe && (
               <Badge ton="primaire">
                 <Check aria-hidden />
-                Équipé
+                {t('equippedBadge')}
               </Badge>
             )}
           </div>
-          <h3 className="text-xl font-semibold tracking-tight">{skin.name}</h3>
-          {skin.description && (
-            <p className="text-sm leading-relaxed text-muted-foreground">{skin.description}</p>
+          <h3 className="text-xl font-semibold tracking-tight">{textes.name(skin.id)}</h3>
+          {description && (
+            <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
           )}
         </div>
 
@@ -121,10 +127,10 @@ export function SkinPanel({
               {equipe ? (
                 <>
                   <Check aria-hidden />
-                  Équipé
+                  {t('equippedBadge')}
                 </>
               ) : (
-                'Équiper'
+                t('equip')
               )}
             </Button>
           ) : (
@@ -135,9 +141,9 @@ export function SkinPanel({
               </Button>
               {!premium && (
                 <Button size="lg" variant="secondary" asChild>
-                  <Link href={PAGES_FRONT.abonnement} title="Tous les dés avec Premium">
+                  <Link href={PAGES_FRONT.abonnement} title={t('premiumHint')}>
                     <Crown aria-hidden />
-                    Premium
+                    {t('premium')}
                   </Link>
                 </Button>
               )}
@@ -149,7 +155,7 @@ export function SkinPanel({
             onClick={() => previewDice3D([{ type: 'd20', count: 1 }], skin.id)}
           >
             <Dices aria-hidden />
-            Essayer un lancer
+            {t('tryRoll')}
           </Button>
         </div>
       </div>

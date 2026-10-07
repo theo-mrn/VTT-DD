@@ -4,6 +4,8 @@ import account from './account';
 import auth from './auth';
 import campaigns from './campaigns';
 import common from './common';
+import dice from './dice';
+import diceSkins from './diceSkins';
 import errors from './errors';
 import home from './home';
 import landing from './landing';
@@ -21,6 +23,8 @@ const en = {
   auth,
   campaigns,
   common,
+  dice,
+  diceSkins,
   errors,
   home,
   landing,

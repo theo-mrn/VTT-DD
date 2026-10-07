@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import React, {
   useState,
   useRef,
@@ -323,13 +324,14 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
   (
     {
       className = '',
-      buttonText = 'Lancer pour le fun',
+      buttonText,
       defaultDiceType = 'd20',
       hideButton = false,
       overlayZIndex = 100,
     },
     ref,
   ) => {
+    const t = useTranslations('dice.settings');
     const [dice, setDice] = useState<FunDieState[]>([]);
     // Dés arrêtés (ids) : quand tous le sont, la boucle de rendu passe en
     // « à la demande ».
@@ -496,7 +498,7 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
             onFocus={() => warm()}
             className="px-4 py-2 bg-[var(--bg-canvas)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--bg-panel)] hover:border-[var(--accent-brown)] transition-colors shadow-sm font-medium z-10 relative"
           >
-            🎲 {buttonText}
+            🎲 {buttonText ?? t('funRoll')}
           </button>
         )}
 

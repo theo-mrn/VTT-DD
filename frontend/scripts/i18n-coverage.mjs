@@ -63,6 +63,8 @@ const TECHNICAL = new Set([
   'Char:',
   'Code:',
   'Space Enter',
+  'Static',
+  'Segoe UI',
 ]);
 
 const FRENCH_WORDS =
@@ -110,7 +112,7 @@ export function stripComments(code) {
 export function looksLikeText(s) {
   const t = s.trim();
   if (t.length < 2 || !/[a-zà-ÿ]/i.test(t)) return false;
-  if (TECHNICAL.has(t)) return false;
+  if (TECHNICAL.has(t) || t.includes('#include')) return false;
   // Chemins, URL, clés pointées, identifiants, classes CSS, sélecteurs, formats
   if (/^(\.{0,2}\/|@\/|https?:|data:|#|\[|\(|--|[a-z]+:\/\/)/.test(t)) return false;
   if (/^[a-z0-9]+([._-][a-z0-9]+)+$/i.test(t) && !ACCENTS.test(t)) return false;
@@ -135,7 +137,7 @@ export function scanSource(code, tsx) {
   lines.forEach((line, index) => {
     if (raw[index]?.includes('i18n-ignore')) return;
     if (/^\s*(import|export \* from|export \{[^}]*\} from)\b/.test(line)) return;
-    if (/displayName\s*=/.test(line)) return;
+    if (/displayName\s*=|#include/.test(line)) return;
     if (/new Error\(|console\.|'use (client|server)'|className=|class=/.test(line)) {
       // Une ligne className peut porter aussi un libellé : on ne garde que les attributs utiles
       if (!/(title|placeholder|aria-label|alt|label)=["'][^"']+["']/.test(line)) return;

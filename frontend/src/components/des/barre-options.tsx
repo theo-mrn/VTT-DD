@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Box, Check, Store, Volume2, VolumeX } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
@@ -36,13 +37,14 @@ const REPOS = 'border-border text-muted-foreground hover:bg-surface-3 hover:text
 const ACTIF = 'border-primary/45 bg-primary/10 text-primary-strong';
 
 function useReglages() {
+  const t = useTranslations('dice.bar');
   const prefs = useDicePreferences();
   const modifier = useUpdateDicePreferences();
   async function changer(patch: DicePreferencesUpdate) {
     try {
       await modifier.mutateAsync(patch);
     } catch (err) {
-      toast.error('Réglage non enregistré', { description: messageErreur(err) });
+      toast.error(t('notSaved'), { description: messageErreur(err) });
     }
   }
   return { p: prefs.data, changer };
@@ -62,14 +64,16 @@ export function VisibiliteMenu({
   /** Jets personnels (hors campagne) : vous seul les voyez. */
   personnel: boolean;
 }>) {
+  const t = useTranslations('dice.visibility');
   const vis = infoVisibilite(personnel ? 'self' : valeur);
   const Icone = vis.icone;
+  const libelle = t(`${vis.valeur}.label`);
   if (personnel)
     return (
-      <Info texte="Jets personnels : vous seul les voyez">
+      <Info texte={t('personal')}>
         <span
           role="img"
-          aria-label="Visibilité : jets personnels, vous seul"
+          aria-label={t('personalLabel')}
           className={cn(ICONE_BARRE, REPOS, 'opacity-60')}
         >
           <Icone aria-hidden />
@@ -79,14 +83,14 @@ export function VisibiliteMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={`Visibilité : ${vis.libelle}`}
-        title={`Visibilité : ${vis.libelle}`}
+        aria-label={t('current', { label: libelle })}
+        title={t('current', { label: libelle })}
         className={cn(ICONE_BARRE, teinteVisibilite(valeur))}
       >
         <Icone aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>Qui voit le jet</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('who')}</DropdownMenuLabel>
         {OPTIONS_VISIBILITE.map((o) => (
           <DropdownMenuItem
             key={o.valeur}
@@ -95,8 +99,10 @@ export function VisibiliteMenu({
           >
             <o.icone aria-hidden className="mt-0.5" />
             <span className="min-w-0 flex-1">
-              <span className="block text-foreground">{o.libelle}</span>
-              <span className="block text-[11px] leading-snug text-subtle">{o.aide}</span>
+              <span className="block text-foreground">{t(`${o.valeur}.label`)}</span>
+              <span className="block text-[11px] leading-snug text-subtle">
+                {t(`${o.valeur}.help`)}
+              </span>
             </span>
             {o.valeur === valeur && <Check className="mt-0.5 text-primary" aria-hidden />}
           </DropdownMenuItem>
@@ -108,14 +114,15 @@ export function VisibiliteMenu({
 
 /** Animation 3D : ses faces lues à l'arrêt font le jet ; coupée, le service tire les dés. */
 export function Bascule3D() {
+  const t = useTranslations('dice.bar');
   const { p, changer } = useReglages();
   const actif = Boolean(p?.animation3d);
   return (
-    <Info texte={actif ? 'Dés 3D : leurs faces font le jet' : 'Dés 3D coupés : le serveur tire'}>
+    <Info texte={actif ? t('animationOn') : t('animationOff')}>
       <button
         type="button"
         aria-pressed={actif}
-        aria-label="Animation 3D des dés"
+        aria-label={t('animation')}
         disabled={!p}
         onClick={() => p && void changer({ animation3d: !p.animation3d })}
         className={cn(ICONE_BARRE, actif ? ACTIF : REPOS)}
@@ -128,6 +135,7 @@ export function Bascule3D() {
 
 /** Son des dés, en bascule. */
 export function BasculeSon() {
+  const t = useTranslations('dice.bar');
   const { p, changer } = useReglages();
   const actif = Boolean(p?.sound);
   return (
@@ -148,21 +156,22 @@ export function BasculeSon() {
       ) : (
         <VolumeX className="size-3.5" aria-hidden />
       )}
-      Son des dés
+      {t('sound')}
     </button>
   );
 }
 
 /** Boutique des skins de dés. */
 export function BoutonBoutique() {
+  const t = useTranslations('dice.bar');
   const [ouvert, setOuvert] = useState(false);
   const [chargee, setChargee] = useState(false);
   return (
     <>
-      <Info texte="Boutique : skins de dés">
+      <Info texte={t('store')}>
         <button
           type="button"
-          aria-label="Boutique des skins de dés"
+          aria-label={t('storeLabel')}
           aria-haspopup="dialog"
           onClick={() => {
             setChargee(true);

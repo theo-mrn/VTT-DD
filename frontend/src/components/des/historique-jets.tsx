@@ -1,5 +1,7 @@
 'use client';
 
+import { compareText } from '@/i18n/runtime';
+import { useTranslations } from 'next-intl';
 import { EyeOff, Filter, History, RotateCcw, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -50,11 +52,12 @@ export function HistoriqueJets({
   /** Pages suivantes du service, une fois les jets chargés tous affichés. */
   plusAnciens?: PlusAnciens;
 }>) {
+  const t = useTranslations('dice.history');
   const maintenant = useMaintenant();
   const [limite, setLimite] = useState(PAR_PAGE);
   const [joueur, setJoueur] = useState<string | null>(null);
   const joueurs = useMemo(
-    () => [...new Set(jets.map((j) => j.userName))].sort((a, b) => a.localeCompare(b, 'fr')),
+    () => [...new Set(jets.map((j) => j.userName))].sort(compareText),
     [jets],
   );
   const filtres = useMemo(
@@ -64,7 +67,7 @@ export function HistoriqueJets({
 
   if (chargement)
     return (
-      <div className="space-y-2 p-3" aria-label="Chargement de l’historique">
+      <div className="space-y-2 p-3" aria-label={t('loading')}>
         {Array.from({ length: 4 }, (_, i) => (
           <Skeleton key={i} className="h-[84px] rounded-xl" />
         ))}
@@ -74,7 +77,7 @@ export function HistoriqueJets({
   if (erreur)
     return (
       <p className="p-6 text-center text-sm text-destructive">
-        Historique indisponible : {messageErreur(erreur)}
+        {t('unavailable', { error: messageErreur(erreur) })}
       </p>
     );
 
@@ -82,7 +85,7 @@ export function HistoriqueJets({
     return (
       <div className="flex flex-col items-center px-6 py-8 text-center">
         <History className="mb-2 size-5 text-subtle" aria-hidden />
-        <p className="text-xs italic text-subtle">Aucun lancer récent…</p>
+        <p className="text-xs italic text-subtle">{t('empty')}</p>
       </div>
     );
 
@@ -91,7 +94,7 @@ export function HistoriqueJets({
       {joueurs.length > 1 && (
         <div
           role="group"
-          aria-label="Filtrer par lanceur"
+          aria-label={t('filter')}
           className="flex items-center gap-1 overflow-x-auto border-b border-border pb-2 [scrollbar-width:thin]"
         >
           <Filter className="mr-0.5 size-3 shrink-0 text-subtle" aria-hidden />
@@ -113,7 +116,7 @@ export function HistoriqueJets({
                 TACTILE,
               )}
             >
-              {j ?? 'Tous'}
+              {j ?? t('all')}
             </button>
           ))}
         </div>
@@ -132,7 +135,7 @@ export function HistoriqueJets({
           ))}
         </ul>
       ) : (
-        <p className="py-6 text-center text-xs italic text-subtle">Aucun lancer récent…</p>
+        <p className="py-6 text-center text-xs italic text-subtle">{t('empty')}</p>
       )}
 
       {filtres.length > limite ? (
@@ -142,7 +145,7 @@ export function HistoriqueJets({
           className="w-full"
           onClick={() => setLimite((l) => l + PAR_PAGE)}
         >
-          Afficher {Math.min(PAR_PAGE, filtres.length - limite)} jets de plus
+          {t('showMore', { count: Math.min(PAR_PAGE, filtres.length - limite) })}
         </Button>
       ) : (
         plusAnciens?.possible && (
@@ -156,7 +159,7 @@ export function HistoriqueJets({
               plusAnciens.charger();
             }}
           >
-            Charger des jets plus anciens
+            {t('loadOlder')}
           </Button>
         )
       )}
@@ -182,11 +185,12 @@ function Avatar({ nom, url }: Readonly<{ nom: string; url: string | null }>) {
 
 /** Résultat d'un jet de l'historique : total ou symboles, mention critique ; ou masqué. */
 function ResultatCarte({ jet, cache }: Readonly<{ jet: Jet; cache: boolean }>) {
+  const t = useTranslations('dice.history');
   if (cache)
     return (
       <span className="flex items-center gap-1.5 text-xs text-subtle">
         <EyeOff className="size-3.5" aria-hidden />
-        Résultat masqué
+        {t('hidden')}
       </span>
     );
   return (
@@ -199,10 +203,10 @@ function ResultatCarte({ jet, cache }: Readonly<{ jet: Jet; cache: boolean }>) {
         !jet.symbolResult && !jet.critical && 'text-foreground',
       )}
     >
-      {jet.symbolResult ?? `Total : ${jet.total}`}
+      {jet.symbolResult ?? t('total', { total: String(jet.total) })}
       {jet.critical && (
         <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wider">
-          {jet.critical === 'success' ? 'critique' : 'échec critique'}
+          {jet.critical === 'success' ? t('critical') : t('fumble')}
         </span>
       )}
     </span>
@@ -214,11 +218,17 @@ function CarteJet({
   quand,
   onRelancer,
 }: Readonly<{ jet: Jet; quand: string; onRelancer: () => void }>) {
+  const t = useTranslations('dice');
   const vis = infoVisibilite(jet.visibility);
   const cache = jet.hidden || jet.total === null;
   return (
     <article
-      aria-label={`${jet.userName}, ${jet.label ? `${jet.label}, ` : ''}${jet.formula} : ${cache ? 'résultat caché' : (jet.symbolResult ?? jet.total)}`}
+      aria-label={t('history.cardLabel', {
+        user: jet.userName,
+        label: jet.label ? `${jet.label}, ` : '',
+        formula: jet.formula,
+        result: cache ? t('history.cardHidden') : String(jet.symbolResult ?? jet.total),
+      })}
       className="group relative flex items-start gap-3 rounded-xl border border-border/60 bg-surface-2/40 p-2.5 transition-colors hover:border-border hover:bg-surface-2"
     >
       <Avatar nom={jet.userName} url={jet.userAvatar} />
@@ -232,7 +242,7 @@ function CarteJet({
                   'size-3',
                   jet.visibility === 'gm' ? 'text-destructive' : 'text-primary',
                 )}
-                aria-label={vis.libelle}
+                aria-label={t(`visibility.${vis.valeur}.label`)}
               />
             )}
             {quand}
@@ -250,8 +260,11 @@ function CarteJet({
           <button
             type="button"
             onClick={onRelancer}
-            aria-label={`Relancer ${jet.label ? `« ${jet.label} » ` : ''}${jet.formula}`}
-            title="Relancer"
+            aria-label={t('history.rerollLabel', {
+              label: jet.label ? `« ${jet.label} » ` : '',
+              formula: jet.formula,
+            })}
+            title={t('history.reroll')}
             className={cn(
               'flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-3/60 text-muted-foreground transition-[opacity,color] hover:text-foreground',
               'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100',
@@ -284,6 +297,7 @@ export function EffacerHistorique({
   desactive: boolean;
   onEfface: () => void;
 }>) {
+  const t = useTranslations('dice.history');
   const [ouvert, setOuvert] = useState(false);
   const effacer = useEffacerJets(roomId);
 
@@ -292,9 +306,9 @@ export function EffacerHistorique({
       await effacer.mutateAsync();
       setOuvert(false);
       onEfface();
-      toast.success('Historique effacé');
+      toast.success(t('cleared'));
     } catch (err) {
-      toast.error('Impossible d’effacer l’historique', {
+      toast.error(t('clearFailed'), {
         description: messageErreur(err),
       });
     }
@@ -302,34 +316,32 @@ export function EffacerHistorique({
 
   return (
     <Dialog open={ouvert} onOpenChange={setOuvert}>
-      <Info texte="Effacer l’historique">
+      <Info texte={t('clear')}>
         <Button
           variant="ghost"
           size="icon-sm"
           className={TACTILE}
           disabled={desactive}
           onClick={() => setOuvert(true)}
-          aria-label="Effacer l’historique"
+          aria-label={t('clear')}
         >
           <Trash2 />
         </Button>
       </Info>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Effacer l’historique ?</DialogTitle>
+          <DialogTitle>{t('clearTitle')}</DialogTitle>
           <DialogDescription>
-            {campagne
-              ? `Tous les jets de « ${campagne} » seront supprimés, ceux de tous les joueurs, pour toute la table. Les statistiques de la campagne repartiront de zéro. Cette action est définitive.`
-              : 'Tous vos jets personnels seront supprimés. Vos jets de campagne restent. Cette action est définitive.'}
+            {campagne ? t('clearCampaign', { campaign: campagne }) : t('clearPersonal')}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="ghost">Annuler</Button>
+            <Button variant="ghost">{t('cancel')}</Button>
           </DialogClose>
           <Button variant="destructive" onClick={confirmer} loading={effacer.isPending}>
             {!effacer.isPending && <Trash2 aria-hidden />}
-            Effacer
+            {t('clearButton')}
           </Button>
         </DialogFooter>
       </DialogContent>
