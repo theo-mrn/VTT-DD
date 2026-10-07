@@ -304,3 +304,74 @@ describe('mesure (outil Mesurer)', () => {
     ]);
   });
 });
+
+describe('trajet d’un token glissé', () => {
+  it('part quand il change, avec le glisser s’ils ont la même audience, puis la fin', () => {
+    const { live, sent } = channel();
+    live.path('a', [10.04, 20, 60, 20], 'public');
+    live.drag([['a', 80, 20]]);
+    vi.advanceTimersByTime(100);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.data).toMatchObject({ drag: [['a', 80, 20]], path: [['a', [10, 20, 60, 20]]] });
+    // Trajet inchangé : il ne repart pas avec le glisser suivant
+    live.drag([['a', 90, 20]]);
+    vi.advanceTimersByTime(100);
+    expect(sent[1]!.data.path).toBeUndefined();
+    live.path('a', [10, 20, 60, 20, 90, 20], 'public');
+    live.end();
+    vi.advanceTimersByTime(100);
+    expect(sent[2]!.data).toMatchObject({ path: [['a', [10, 20, 60, 20, 90, 20]]], end: true });
+  });
+
+  it('à sa propre audience ; quand elle change : effacé chez l’ancienne, puis envoyé à la nouvelle', () => {
+    const { live, sent } = channel();
+    live.path('a', [0, 0], { users: ['u1', 'u2'] });
+    live.drag([['a', 50, 0]]);
+    vi.advanceTimersByTime(100);
+    expect(sent.map((s) => [s.options, s.data.drag ? 'drag' : '', s.data.path])).toEqual([
+      [{}, 'drag', undefined],
+      [{ toUsers: ['u1', 'u2'] }, '', [['a', [0, 0]]]],
+    ]);
+    // Un point de passage que u2 ne voit pas : le trajet ne va plus qu'à u1. Effacé chez
+    // l'ancienne audience à cet envoi, envoyé à la nouvelle au suivant
+    live.path('a', [0, 0, 50, 0], { users: ['u1'] });
+    vi.advanceTimersByTime(200);
+    expect(sent.slice(-2).map((s) => [s.options, s.data.path])).toEqual([
+      [{ toUsers: ['u1', 'u2'] }, [['a', []]]],
+      [{ toUsers: ['u1'] }, [['a', [0, 0, 50, 0]]]],
+    ]);
+    const seqs = sent.map((s) => s.data.s);
+    expect(seqs).toEqual([...seqs].sort((x, y) => x - y));
+    // La fin va à toutes les audiences du geste
+    live.end();
+    vi.advanceTimersByTime(100);
+    const ends = sent.filter((s) => s.data.end).map((s) => s.options);
+    expect(ends).toEqual(
+      expect.arrayContaining([{}, { toUsers: ['u1', 'u2'] }, { toUsers: ['u1'] }]),
+    );
+    // Geste suivant : rien de l'ancien trajet ne repart
+    const before = sent.length;
+    live.drag([['b', 1, 1]]);
+    vi.advanceTimersByTime(100);
+    expect(sent.slice(before).every((s) => !s.data.path)).toBe(true);
+  });
+
+  it('réception : trajets d’un autre, effacement, fin de son geste', () => {
+    const { live } = channel();
+    const got: unknown[] = [];
+    live.onPath((e) => got.push(e));
+    const from = { userId: 'u2', role: 'player' };
+    const receive = (data: Record<string, unknown>) =>
+      live.receive({ kind: LIVE_KIND, data: { m: 'carte', ...data }, from });
+    receive({ s: 1, path: [['a', [1, 2, 3, 4]]] });
+    receive({ s: 2, path: [['a', []]] });
+    receive({ s: 3, end: true });
+    // Points impairs : message refusé
+    receive({ s: 4, path: [['a', [1, 2, 3]]] });
+    expect(got).toEqual([
+      { userId: 'u2', paths: [['a', [1, 2, 3, 4]]], end: false },
+      { userId: 'u2', paths: [['a', []]], end: false },
+      { userId: 'u2', paths: [], end: true },
+    ]);
+  });
+});
