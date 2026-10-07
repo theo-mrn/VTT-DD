@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import {
   calculer,
   creationDe,
@@ -91,6 +93,7 @@ export function AssistantPersonnage({
   campagneId: string;
   personnageId?: string | null;
 }>) {
+  const t = useTranslations();
   const router = useRouter();
   const profil = useProfil();
   const campagne = useCampagne(campagneId);
@@ -267,7 +270,7 @@ export function AssistantPersonnage({
     setEnvoi(true);
     try {
       const p = await ops.terminer();
-      toast.success(`${p.name} est prêt pour l'aventure !`);
+      toast.success(t('creation.ready', { name: p.name }));
       // Le héros est déjà incarné (création dans la campagne) : direction la table
       router.replace(`/campagnes/${campagneId}/table`);
     } catch (err) {
@@ -428,16 +431,13 @@ type EtatEtapeCreation = ReturnType<typeof etapesCreation>[number];
 
 /** Campagne ou héros introuvable. */
 function Introuvable({ campagne }: Readonly<{ campagne: boolean }>) {
+  const t = useTranslations();
   return (
     <div className="px-4 py-20">
       <EtatVide
         icone={AlertTriangle}
-        titre={campagne ? 'Campagne introuvable' : 'Héros introuvable'}
-        description={
-          campagne
-            ? 'Impossible de créer un héros pour cette campagne.'
-            : 'Ce héros a peut-être été supprimé.'
-        }
+        titre={campagne ? t('characters.picker.notFound') : t('creation.heroNotFound')}
+        description={campagne ? t('creation.cantCreate') : t('creation.heroDeleted')}
       />
     </div>
   );
@@ -445,14 +445,15 @@ function Introuvable({ campagne }: Readonly<{ campagne: boolean }>) {
 
 /** Création réservée au MJ : retour au choix d'un héros terminé. */
 function CreationFermee({ quitter }: Readonly<{ quitter: string }>) {
+  const t = useTranslations();
   return (
     <EtatVide
       icone={Lock}
-      titre="Création réservée au MJ"
-      description="Le maître du jeu attribue les personnages de cette campagne : choisissez un héros terminé."
+      titre={t('creation.gmOnly')}
+      description={t('creation.gmOnlyHint')}
       action={
         <Button asChild variant="secondary">
-          <Link href={quitter}>Retour au choix du héros</Link>
+          <Link href={quitter}>{t('creation.backToChoice')}</Link>
         </Button>
       }
     />
@@ -469,6 +470,7 @@ function HerosEnCours({
   campagneId: string;
   onReprendre(id: string): void;
 }>) {
+  const t = useTranslations();
   const premier = enCours[0];
   if (!premier) return null;
   return (
@@ -476,8 +478,8 @@ function HerosEnCours({
       <Hammer className="size-5 shrink-0 text-primary" />
       <p className="min-w-0 flex-1 text-sm">
         {enCours.length > 1
-          ? `${enCours.length} héros sont déjà en création dans cette campagne.`
-          : `${premier.name} est déjà en création dans cette campagne.`}
+          ? t('creation.manyInProgress', { count: enCours.length })
+          : t('creation.oneInProgress', { name: premier.name })}
       </p>
       <Button size="sm" variant="secondary" asChild>
         <Link
@@ -511,7 +513,8 @@ function EtapeRegle({
   onEtat(apercu: EtatEntite, op: OperationCreation): void;
   onTirer: Parameters<typeof EtapeTirer>[0]['onTirer'];
 }>) {
-  if (!systeme || !etat || !fiche) return <Chargement texte="Chargement des règles…" />;
+  const t = useTranslations();
+  if (!systeme || !etat || !fiche) return <Chargement texte={t('creation.loadingRules')} />;
   return (
     <>
       {regle.type === 'choisir' && (
@@ -568,20 +571,21 @@ function Navigation({
   onTerminer(): void;
   onContinuer(): void;
 }>) {
+  const t = useTranslations();
   return (
     <div className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">
       <Button variant="ghost" onClick={onRetour} className={cn(index === 0 && 'invisible')}>
         <ArrowLeft />
-        Retour
+        {t('common.actions.back')}
       </Button>
       {recap ? (
         <Button size="lg" onClick={onTerminer} loading={envoi} disabled={!creable}>
           <Check />
-          Créer le personnage
+          {t('creation.create')}
         </Button>
       ) : (
         <Button size="lg" onClick={onContinuer} loading={envoi} disabled={!continuable}>
-          Continuer
+          {t('common.actions.continue')}
           <ArrowRight />
         </Button>
       )}
@@ -603,10 +607,13 @@ function ApercuLateral({
   portraitUrl: string | null;
   statuts: EtatEtapeCreation[];
 }>) {
+  const t = useTranslations();
   return (
     <aside className="hidden lg:block">
       <div className="sticky top-24 space-y-4">
-        <p className="text-xs font-medium uppercase tracking-[0.14em] text-subtle">Votre héros</p>
+        <p className="text-xs font-medium uppercase tracking-[0.14em] text-subtle">
+          {t('creation.yourHero')}
+        </p>
         {fiche ? (
           <ApercuFiche
             fiche={fiche}
@@ -616,7 +623,7 @@ function ApercuLateral({
           />
         ) : (
           <div className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-subtle">
-            Chargement des règles de la campagne…
+            {t('creation.loadingCampaignRules')}
           </div>
         )}
         {statuts.length > 0 && (
@@ -652,10 +659,10 @@ function herosEnCours(
 function etapesUI(systeme: SystemeCharge | null): EtapeUI[] {
   const regles = systeme ? (creationDe(systeme, TYPE_HEROS)?.etapes ?? []) : [];
   return [
-    { id: 'identite' as const, nom: 'Identité' },
+    { id: 'identite' as const, nom: translate('creation.steps.identity') },
     ...regles.map((r) => ({ id: `regle:${r.id}`, nom: r.nom, regle: r })),
-    { id: 'portrait' as const, nom: 'Portrait' },
-    { id: 'recap' as const, nom: 'Récapitulatif' },
+    { id: 'portrait' as const, nom: translate('creation.steps.portrait') },
+    { id: 'recap' as const, nom: translate('creation.steps.recap') },
   ];
 }
 
@@ -674,6 +681,7 @@ function EnTeteEtape({
   recommencer: (() => void) | undefined;
   suppression: boolean;
 }>) {
+  const t = useTranslations();
   return (
     <div className="mb-8 flex items-start justify-between gap-4">
       <div className="space-y-2">
@@ -696,7 +704,7 @@ function EnTeteEtape({
           className="shrink-0"
         >
           {!suppression && <RotateCcw />}
-          <span className="hidden sm:inline">Recommencer</span>
+          <span className="hidden sm:inline">{t('creation.restart')}</span>
         </Button>
       )}
     </div>
@@ -706,11 +714,11 @@ function EnTeteEtape({
 function titreEtape(e: EtapeUI): string {
   switch (e.id) {
     case 'identite':
-      return 'Qui est votre héros ?';
+      return translate('creation.titles.identity');
     case 'portrait':
-      return 'Donnez-lui un visage';
+      return translate('creation.titles.portrait');
     case 'recap':
-      return 'Prêt pour l’aventure ?';
+      return translate('creation.titles.recap');
     default:
       return e.nom;
   }
@@ -753,50 +761,51 @@ function Identite({
   details: DetailsPersonnage;
   setDetails: (d: DetailsPersonnage) => void;
 }>) {
+  const t = useTranslations();
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="p-nom">Nom</Label>
+        <Label htmlFor="p-nom">{t('map.lights.name')}</Label>
         <Input
           id="p-nom"
           autoFocus
           maxLength={60}
           value={nom}
           onChange={(e) => setNom(e.target.value)}
-          placeholder="Aelys Vent-d'Argent"
+          placeholder={t('creation.namePlaceholder')}
           className="h-12 font-display text-xl"
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="p-concept">Concept</Label>
+        <Label htmlFor="p-concept">{t('sheet.page.concept')}</Label>
         <Input
           id="p-concept"
           maxLength={120}
           value={details.concept}
           onChange={(e) => setDetails({ ...details, concept: e.target.value })}
-          placeholder="Une mage exilée qui cherche à racheter la faute de sa lignée."
+          placeholder={t('creation.conceptPlaceholder')}
         />
       </div>
       <div className="grid gap-6 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="p-apparence">Apparence</Label>
+          <Label htmlFor="p-apparence">{t('sheet.page.appearance')}</Label>
           <Textarea
             id="p-apparence"
             maxLength={2000}
             value={details.appearance}
             onChange={(e) => setDetails({ ...details, appearance: e.target.value })}
-            placeholder="Cheveux d'argent, cicatrice à la joue, toujours une plume à la main…"
+            placeholder={t('creation.appearancePlaceholder')}
             className="min-h-[140px]"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="p-histoire">Histoire</Label>
+          <Label htmlFor="p-histoire">{t('sheet.page.story')}</Label>
           <Textarea
             id="p-histoire"
             maxLength={8000}
             value={details.backstory}
             onChange={(e) => setDetails({ ...details, backstory: e.target.value })}
-            placeholder="D'où vient-il, que cherche-t-il, qui l'attend ?"
+            placeholder={t('creation.storyPlaceholder')}
             className="min-h-[140px]"
           />
         </div>
@@ -818,16 +827,20 @@ function Recapitulatif({
   identiteOk: boolean;
   details: DetailsPersonnage;
 }>) {
+  const t = useTranslations();
   const restantes = statuts.filter((s) => s.statut !== 'faite');
   return (
     <div className="space-y-5">
       {restantes.length > 0 || !identiteOk ? (
         <Message>
           Il reste à faire :{' '}
-          {[...(identiteOk ? [] : ['Nom']), ...restantes.flatMap((s) => s.raisons)].join(' · ')}
+          {[
+            ...(identiteOk ? [] : [t('map.lights.name')]),
+            ...restantes.flatMap((s) => s.raisons),
+          ].join(' · ')}
         </Message>
       ) : (
-        <Message ton="succes">Tout est en ordre : les règles valident votre personnage.</Message>
+        <Message ton="succes">{t('creation.allGood')}</Message>
       )}
       <ul className="grid gap-2 sm:grid-cols-2">
         {statuts.map((s) => (

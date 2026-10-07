@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   repartirEtape,
   saisirEtape,
@@ -158,6 +159,7 @@ export function EtapeRepartir({
   /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
   onEtat: (e: EtatEntite, op: OperationCreation) => void;
 }>) {
+  const t = useTranslations();
   const [erreur, setErreur] = useState<string | null>(null);
   const attributs = vises(fiche, etape, (a) => a.nature === 'base');
   const budget = statut?.budget ?? 0;
@@ -178,7 +180,7 @@ export function EtapeRepartir({
     <div className="space-y-5">
       <div className="rounded-2xl border border-border bg-card p-5 shadow-surface">
         <div className="mb-2 flex items-baseline justify-between">
-          <p className="text-sm font-semibold">Points dépensés</p>
+          <p className="text-sm font-semibold">{t('creation.spent')}</p>
           <p
             className={cn(
               'font-mono text-lg font-semibold',

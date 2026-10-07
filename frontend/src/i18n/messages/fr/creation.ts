@@ -1,0 +1,76 @@
+/** Assistant de création d’un héros. */
+export default {
+  ready: '{name} est prêt pour l’aventure !',
+  manyInProgress: '{count, number} héros sont déjà en création dans cette campagne.',
+  oneInProgress: '{name} est déjà en création dans cette campagne.',
+  steps: {
+    identity: 'Identité',
+    portrait: 'Portrait',
+    recap: 'Récapitulatif',
+  },
+  titles: {
+    identity: 'Qui est votre héros ?',
+    portrait: 'Donnez-lui un visage',
+    recap: 'Prêt pour l’aventure ?',
+  },
+  heroNotFound: 'Héros introuvable',
+  cantCreate: 'Impossible de créer un héros pour cette campagne.',
+  heroDeleted: 'Ce héros a peut-être été supprimé.',
+  gmOnly: 'Création réservée au MJ',
+  gmOnlyHint:
+    'Le maître du jeu attribue les personnages de cette campagne : choisissez un héros terminé.',
+  backToChoice: 'Retour au choix du héros',
+  loadingRules: 'Chargement des règles…',
+  create: 'Créer le personnage',
+  yourHero: 'Votre héros',
+  loadingCampaignRules: 'Chargement des règles de la campagne…',
+  restart: 'Recommencer',
+  namePlaceholder: "Aelys Vent-d'Argent",
+  conceptPlaceholder: 'Une mage exilée qui cherche à racheter la faute de sa lignée.',
+  appearancePlaceholder: "Cheveux d'argent, cicatrice à la joue, toujours une plume à la main…",
+  storyPlaceholder: "D'où vient-il, que cherche-t-il, qui l'attend ?",
+  allGood: 'Tout est en ordre : les règles valident votre personnage.',
+  pick: {
+    title: 'Pour quelle campagne ?',
+    none: "Aucune campagne pour l'instant",
+    noneHint:
+      'Rejoignez la campagne de votre MJ avec son code, une campagne ouverte, ou créez la vôtre.',
+    lead: 'Un héros naît dans une campagne : son système de jeu, ses règles de création et sa table en dépendent.',
+  },
+  choose: {
+    suggested: 'Suggérées',
+    chosen: 'Choisie',
+    suggestedOne: 'Suggérée',
+    atLeast: '{name} : {min, number} au moins',
+    atMost: '{name} : {max, number} au plus',
+    single: '{count, number} options, une seule à choisir.',
+    multi:
+      '{count, plural, one {# choisie} other {# choisies}} · entre {min, number} et {max, number}.',
+  },
+  roll: {
+    inOrder: 'Les valeurs sont attribuées dans l’ordre.',
+    distribute: 'Vous répartissez ensuite les valeurs entre les attributs.',
+    roll: 'Lancer les dés',
+    pick: 'Choisir une valeur…',
+    validate: 'Valider la répartition',
+    valueFor: 'Valeur pour {name}',
+  },
+  buy: {
+    unavailable: 'Indisponibles',
+    filter: 'Filtrer…',
+    filterLabel: 'Filtrer les achats',
+    new: 'Nouvelle acquisition',
+    title: 'Achats de création',
+    cancel: 'Annuler cet achat',
+  },
+  portrait: {
+    yours: 'Votre image',
+    none: 'Sans portrait',
+    fromChoices: 'Illustrations de vos choix',
+  },
+  preview: {
+    hero: 'Héros',
+    unnamed: 'Sans nom',
+  },
+  spent: 'Points dépensés',
+} as const;

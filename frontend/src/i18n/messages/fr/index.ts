@@ -10,6 +10,7 @@ import characters from './characters';
 import chat from './chat';
 import combat from './combat';
 import common from './common';
+import creation from './creation';
 import dice from './dice';
 import diceSkins from './diceSkins';
 import encounters from './encounters';
@@ -42,6 +43,7 @@ const fr = {
   chat,
   combat,
   common,
+  creation,
   dice,
   diceSkins,
   encounters,

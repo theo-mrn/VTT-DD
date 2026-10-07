@@ -5,6 +5,8 @@
  * fiche), état vide, et en personnalisation la surface de déplacement avec ses commandes.
  * Le bloc lui-même vient du registre (components/fiche/blocks) et ne sait rien de la grille.
  */
+import { useTranslations } from 'next-intl';
+import { translate } from '@/i18n/runtime';
 import type { Widget } from '@vtt/rules';
 import { GripVertical, RotateCw, TriangleAlert, X } from 'lucide-react';
 import {
@@ -41,7 +43,7 @@ class BlockBoundary extends Component<
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.warn(
-      `Bloc « ${this.props.title} » : erreur isolée`,
+      `Bloc « ${this.props.title} » : erreur isolée`, // i18n-ignore : journal technique
       error.message,
       info.componentStack,
     );
@@ -57,7 +59,7 @@ class BlockBoundary extends Component<
     if (!this.state.error) return this.props.children;
     return (
       <EmptyCard title={this.props.title} icon>
-        <p>Ce bloc n’a pas pu s’afficher. Le reste de la fiche fonctionne toujours.</p>
+        <p>{translate('sheet.frame.failed')}</p>
         <Button
           variant="secondary"
           size="xs"
@@ -65,7 +67,7 @@ class BlockBoundary extends Component<
           onClick={() => this.setState({ error: false })}
         >
           <RotateCw />
-          Réessayer
+          {translate('common.actions.retry')}
         </Button>
       </EmptyCard>
     );
@@ -112,6 +114,7 @@ function BlockContent({
   mode: 'read' | 'edit';
   height: HeightMode;
 }>) {
+  const t = useTranslations();
   const ref = useRef<HTMLDivElement>(null);
   const [vide, setVide] = useState(false);
   useLayoutEffect(() => {
@@ -137,17 +140,15 @@ function BlockContent({
       </div>
       {vide && (
         <EmptyCard title={block.widget?.titre ?? definition.label}>
-          Rien à afficher pour l’instant.
+          {t('sheet.frame.nothing')}
         </EmptyCard>
       )}
     </>
   );
 }
 
-const HAUTEURS: [HeightMode, string][] = [
-  ['auto', 'Automatique'],
-  ['fixed', 'Définie'],
-];
+/** Modes de hauteur ; nom : `sheet.frame.heights.<mode>`. */
+const HAUTEURS: readonly HeightMode[] = ['auto', 'fixed'];
 
 /** « Hauteur : Automatique | Définie » : suit le contenu, ou se règle au coin et défile. */
 function HeightSwitch({
@@ -159,16 +160,17 @@ function HeightSwitch({
   value: HeightMode;
   onChange: (mode: HeightMode) => void;
 }>) {
+  const t = useTranslations();
   return (
     <div
       role="radiogroup"
-      aria-label={`Hauteur du bloc ${title}`}
+      aria-label={t('sheet.frame.heightOf', { name: title })}
       className="sheet-no-drag ml-1 flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-surface-2 p-0.5 text-[11px]"
     >
       <span aria-hidden className="px-1 text-subtle">
-        Hauteur
+        {t('sheet.frame.height')}
       </span>
-      {HAUTEURS.map(([mode, label]) => (
+      {HAUTEURS.map((mode) => (
         <button
           key={mode}
           type="button"
@@ -182,7 +184,7 @@ function HeightSwitch({
               : 'text-muted-foreground hover:bg-surface-3 hover:text-foreground',
           )}
         >
-          {label}
+          {t(`sheet.frame.heights.${mode}`)}
         </button>
       ))}
     </div>
@@ -223,6 +225,7 @@ export const BlockFrame = memo(function BlockFrame({
   onWidgetChange: (widget: Widget) => void;
   onRemove: () => void;
 }) {
+  const t = useTranslations();
   const auto = heightMode === 'auto';
   // Hauteur naturelle du contenu : elle ne dépend pas de la case (pas de h-full), donc la
   // mesure ne boucle pas
@@ -313,7 +316,7 @@ export const BlockFrame = memo(function BlockFrame({
                 size="icon-xs"
                 className="sheet-no-drag shrink-0"
                 onClick={onRemove}
-                aria-label={`Retirer le bloc ${titre}`}
+                aria-label={t('sheet.frame.remove', { name: titre })}
                 tabIndex={-1}
               >
                 <X />
@@ -360,18 +363,14 @@ function FrameContent({
   editing: boolean;
   heightMode: HeightMode;
 }>) {
+  const t = useTranslations();
   if (!definition || !block.widget)
     return (
       <EmptyCard title={titre} icon>
-        Ce bloc n’est plus proposé par les règles du personnage. Retirez-le de la fiche.
+        {t('sheet.frame.obsolete')}
       </EmptyCard>
     );
-  if (empty)
-    return (
-      <EmptyCard title={titre}>
-        Vide pour l’instant : ce bloc est caché hors personnalisation.
-      </EmptyCard>
-    );
+  if (empty) return <EmptyCard title={titre}>{t('sheet.frame.emptyHidden')}</EmptyCard>;
   return (
     <BlockBoundary
       title={titre}

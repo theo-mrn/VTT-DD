@@ -5,6 +5,7 @@
  * `quantites`, `rangs`), groupes, natures et visibilité des attributs, arbres, achats,
  * monnaies et actions. Aucune clé de jeu.
  */
+import { translate } from '@/i18n/runtime';
 import { monnaiesDe, optionPermet, type Widget } from '@vtt/rules';
 import {
   actionsDisponibles,
@@ -51,7 +52,7 @@ export function candidateWidgets(ctx: ContexteFiche): Widget[] {
   const generes: Widget[] = [
     {
       type: 'details',
-      titre: 'Profil',
+      titre: translate('sheet.blocks.details.label'),
       sortes: uniques.map((s) => s.id),
       attributs: [],
     },
@@ -66,21 +67,33 @@ export function candidateWidgets(ctx: ContexteFiche): Widget[] {
       ? [
           {
             type: 'ressources' as const,
-            titre: 'Ressources',
+            titre: translate('sheet.blocks.resources.label'),
             attributs: ressources.map((a) => a.cle),
           },
         ]
       : []),
-    ...(competences ? [{ type: 'competences' as const, titre: 'Compétences' }] : []),
+    ...(competences
+      ? [{ type: 'competences' as const, titre: translate('sheet.blocks.skills.label') }]
+      : []),
     ...(objets.length
-      ? [{ type: 'inventaire' as const, titre: 'Inventaire', sortes: objets.map((s) => s.id) }]
+      ? [
+          {
+            type: 'inventaire' as const,
+            titre: translate('sheet.blocks.inventory.label'),
+            sortes: objets.map((s) => s.id),
+          },
+        ]
       : []),
     ...sortes
       .filter((s) => s.maximum !== 1)
       .map((s) => ({ type: 'possessions' as const, titre: nomDe(s), sorte: s.id })),
-    ...(monnaiesDe(fiche).length ? [{ type: 'monnaies' as const, titre: 'Monnaies' }] : []),
-    { type: 'bonus', titre: 'Effets actifs' },
-    ...(actionsDisponibles(ctx).length ? [{ type: 'actions' as const, titre: 'Actions' }] : []),
+    ...(monnaiesDe(fiche).length
+      ? [{ type: 'monnaies' as const, titre: translate('sheet.blocks.currencies.label') }]
+      : []),
+    { type: 'bonus', titre: translate('sheet.grid.activeEffects') },
+    ...(actionsDisponibles(ctx).length
+      ? [{ type: 'actions' as const, titre: translate('sheet.blocks.actions.label') }]
+      : []),
     ...textes.map((a) => ({ type: 'texte' as const, titre: a.nom, attribut: a.cle })),
   ];
 

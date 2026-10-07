@@ -63,6 +63,8 @@ export const TRANSLATED_AREAS = [
   'components/combat',
   'lib/combat',
   'components/fiche',
+  'components/sheet-grid',
+  'components/creation',
 ];
 
 describe.each(TRANSLATED_AREAS)('zone traduite %s', (area) => {
