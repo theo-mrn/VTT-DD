@@ -10,5 +10,4 @@ export default {
   fog: 'Brouillard',
   lights: 'Lumières',
   sounds: 'Zones sonores',
-  exploration: 'Exploration',
 } as const;

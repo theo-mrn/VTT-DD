@@ -75,7 +75,6 @@ export const MAP_SHORTCUTS: readonly ShortcutDescriptor[] = [
   tool('fog', 'map.tools.fog', 'KeyG', GM),
   tool('lights', 'map.tools.lights', 'KeyL', GM),
   tool('sounds', 'map.tools.sounds', 'KeyF', GM),
-  tool('exploration', 'map.tools.exploration', null, GM),
   action('layers.panel', 'map.actions.layersPanel', 'KeyK', GM),
   action('grid.toggle', 'map.actions.gridToggle', 'KeyQ'),
   action('combat.attack', 'map.actions.combatAttack', 'KeyY', PLAYING),

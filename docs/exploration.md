@@ -193,18 +193,21 @@ packBits / unpackBits : stockage
 - La couche locale est vidée 3 s après le dernier marquage (le serveur a répondu entre-temps) et
   à tout oubli ou réinitialisation reçus. Elle n'est jamais envoyée : le serveur recalcule.
 
-### 5.4 MJ : outil Exploration, actions
+### 5.4 MJ : dans l'outil Brouillard, actions
 
-- Outil **Exploration** (MJ, groupe des outils, après Brouillard et Lumières ; sans touche par
-  défaut : toutes les lettres sont prises, l'éditeur des raccourcis en donne une). Icône
-  `Footprints`.
-  - Formes : 1 Rectangle, 2 Cercle, 3 Main levée (mêmes gestes que le brouillard) ; mode
-    **Révéler** ou **Oublier** (Alt inverse le temps du geste) ; chaque geste est une commande
-    annulable.
-  - Tant que l'outil est actif, la mémoire est surlignée (couleur primaire, 28 %) : on voit ce
-    qu'on révèle ou oublie.
-  - Barre contextuelle : formes, mode, interrupteur « Exploration » de la scène, « Réinitialiser »
-    (confirmation). Pas de texte d'aide : infobulles.
+Pas d'outil à part : la mémoire se règle depuis l'outil **Brouillard** (G), qui couvre tout ce
+que les joueurs voient de la carte (`features/fog/engine/tool.ts`, gestes dans
+`features/exploration/engine/memory.ts`). Barre contextuelle, sans texte d'aide (infobulles) :
+
+- Formes 1 à 4 (Sélection : zones de brouillard seulement, désactivée sur la mémoire).
+- **Brouillard** : Ajouter | Retirer (zones de brouillard).
+- **Mémoire** : interrupteur de la scène (« les joueurs gardent en gris ce qu'ils ont déjà vu »)
+  et, allumée, **Marquer vu** | **Oublier**. Alt inverse le temps du geste ; chaque geste est
+  une commande annulable, sans zone de brouillard posée. Pendant ces gestes la mémoire est
+  surlignée (couleur primaire, 28 %) : on voit ce qu'on marque ou fait oublier. Mémoire coupée
+  pendant un de ces gestes : retour à Ajouter.
+- « … » : Tout couvrir, Tout découvrir, Effacer la mémoire (confirmation).
+
 - Actions (sans touche par défaut, `lib/map/shortcuts.ts`) : `exploration.toggle` (activer ou
   couper sur la scène), `exploration.reset` (réinitialiser, avec confirmation).
 - « Vue de … » (menu Vue) montre la mémoire exactement comme ce joueur.

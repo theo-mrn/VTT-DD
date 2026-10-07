@@ -4,29 +4,15 @@ export default {
     clear: 'Retirer du brouillard',
   },
   shapes: {
-    rect: {
-      label: 'Rectangle',
-      hint: 'Glisser un rectangle. Alt : mode inverse le temps du geste.',
-    },
-    circle: {
-      label: 'Cercle',
-      hint: 'Glisser depuis le centre. ⇧ : rayon en cases entières. Alt : mode inverse.',
-    },
-    lasso: {
-      label: 'Main levée',
-      hint: 'Tracer le contour à main levée. Alt : mode inverse.',
-    },
-    select: {
-      label: 'Sélection',
-      hint: 'Cliquer, glisser, redimensionner ou supprimer (Suppr) les zones.',
-    },
+    rect: { label: 'Rectangle' },
+    circle: { label: 'Cercle' },
+    lasso: { label: 'Main levée' },
+    select: { label: 'Sélection' },
   },
   shape: 'Forme',
   mode: 'Mode',
   add: 'Ajouter',
   remove: 'Retirer',
-  coverAllHint: 'Toute la carte sous le brouillard (les zones posées disparaissent)',
-  clearAllHint: 'Plus aucun brouillard (les zones posées disparaissent)',
   coverAll: 'Tout couvrir',
   clearAll: 'Tout découvrir',
   fog: 'Brouillard',
@@ -38,5 +24,13 @@ export default {
   clearedZone: 'Zone découverte',
   toFog: 'En faire du brouillard',
   toCleared: 'En faire une zone découverte',
+  memory: {
+    label: 'Mémoire',
+    hint: 'Les joueurs gardent en gris ce qu’ils ont déjà vu',
+    reveal: { label: 'Marquer vu', hint: 'Les joueurs s’en souviendront (Alt : l’inverse)' },
+    forget: { label: 'Oublier', hint: 'Les joueurs l’oublient (Alt : l’inverse)' },
+    reset: 'Effacer la mémoire',
+  },
+  more: 'Plus d’actions',
   coverAllWithFog: 'Tout couvrir de brouillard',
 } as const;
