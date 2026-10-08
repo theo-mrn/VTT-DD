@@ -67,6 +67,8 @@ networkPolicy:
     - podSelector: {matchLabels: {app.kubernetes.io/name: dice}}
     # identity demande quels fichiers ses tables référencent (/internal/storage)
     - podSelector: {matchLabels: {app.kubernetes.io/name: identity}}
+    # voice : rôle de l'appelant dans la campagne (route interne)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: voice}}
 migrations:
   enabled: true
   image:
