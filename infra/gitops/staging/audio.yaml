@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-audio
-  digest: 'sha256:e1f2cb09e8e11f0e7358badffce0fcba4378acd23ea02f7a7bb2a3d2764d7ec9'
+  digest: 'sha256:1068ebf23e5f6d84abaa713bca7ca6e90132fb35a30b514c794bf6ca967c7cd8'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -52,7 +52,7 @@ migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-audio-migrations
-    digest: 'sha256:9cf181c0e980b2dc3e790f9400f3aa22dac2153e8f69a2c74fc812ae20870061'
+    digest: 'sha256:e67f07569449ecaafbf436d7eb8271f7e79ebb1ef615392774e5ab16a5bf7373'
     tag: 'main'
   schema: audio
   # Secret généré par CloudNativePG pour le rôle audio_owner
