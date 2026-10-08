@@ -1,0 +1,48 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-voice
+  digest: ''
+  tag: 'main'
+# Voix de la table (docs/voix.md) : signalisation seulement, le son passe par Cloudflare
+# Realtime ; salle dans Valkey, une réplique suffit
+replicaCount: 1
+pdb:
+  enabled: false
+autoscaling:
+  enabled: false
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
+  # Salle vocale (participants, sessions Cloudflare) : clés à durée de vie
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
+  # Annonces voice.* relayées par realtime
+  NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.staging.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json
+  # Rôle de l'appelant dans une campagne (route interne, secret partagé)
+  CAMPAIGN_URL: http://campaign.vtt-staging.svc
+# Mots de passe NATS et Valkey (docs/bus.md) ; secret interne lu dans celui d'identity (même
+# valeur partout), comme discord
+secretEnv:
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
+  INTERNAL_API_SECRET: {secret: identity-secrets, key: INTERNAL_API_SECRET}
+# Secret voice-secrets (scellé) : CLOUDFLARE_REALTIME_APP_ID, CLOUDFLARE_REALTIME_APP_TOKEN,
+# CLOUDFLARE_TURN_KEY_ID, CLOUDFLARE_TURN_KEY_TOKEN
+envFromSecrets:
+  - name: voice-secrets
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : voice n'est joignable que par la gateway
+ingress:
+  enabled: false
+# Sorties déjà permises par le chart : NATS et Valkey, campaign (http), Cloudflare (443)
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}

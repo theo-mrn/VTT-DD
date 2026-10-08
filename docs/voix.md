@@ -162,8 +162,11 @@ voix sans enregistrement), docs/legal.md.
 - Sous-titres, transcription : à concevoir avec les textes légaux.
 - Vidéo (caméras) : même transport, hors de ce chantier.
 
-## 10. À préparer par Théo
+## 10. Déploiement (staging)
 
-- Créer l'application **Cloudflare Realtime** (SFU) et une **clé TURN** dans le compte
-  Cloudflare ; me donner les noms des secrets à créer (identifiant d'app, jeton, identifiant et
-  jeton de la clé TURN) pour le staging et le dev (`.env` du service voice).
+- Image `vtt-voice` publiée par release.yml, valeurs dans `infra/gitops/staging/voice.yaml`, route
+  `UPSTREAM_VOICE_URL` de la gateway.
+- Secret interne lu dans `identity-secrets` (comme discord) ; clés Cloudflare dans le secret scellé
+  `voice-secrets` (`infra/cluster/secrets/staging/vtt-staging-voice-secrets.yaml`), scellé à part
+  pour ne pas faire tourner les autres secrets.
+- Sans ce secret, le pod voice ne démarre pas ; le reste du staging n'est pas touché.

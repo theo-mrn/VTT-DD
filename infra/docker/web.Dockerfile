@@ -23,6 +23,7 @@ COPY backend/realtime/package.json ./backend/realtime/
 COPY backend/discord/package.json ./backend/discord/
 COPY backend/audio/package.json ./backend/audio/
 COPY backend/marketplace/package.json ./backend/marketplace/
+COPY backend/voice/package.json ./backend/voice/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY backend/platform/package.json ./backend/platform/
 COPY packages/rules/package.json ./packages/rules/

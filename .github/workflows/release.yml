@@ -105,6 +105,8 @@ jobs:
             }
           # Bot de dés Discord (docs/discord.md), sans base non plus
           - { image: discord, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=discord' }
+          # Voix de la table (docs/voix.md), sans base
+          - { image: voice, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=voice' }
     outputs:
       digest-gateway: ${{ steps.out.outputs.digest-gateway }}
       digest-web: ${{ steps.out.outputs.digest-web }}
@@ -122,6 +124,7 @@ jobs:
       digest-history-migrations: ${{ steps.out.outputs.digest-history-migrations }}
       digest-realtime: ${{ steps.out.outputs.digest-realtime }}
       digest-discord: ${{ steps.out.outputs.digest-discord }}
+      digest-voice: ${{ steps.out.outputs.digest-voice }}
       digest-audio: ${{ steps.out.outputs.digest-audio }}
       digest-audio-migrations: ${{ steps.out.outputs.digest-audio-migrations }}
       digest-audio-worker: ${{ steps.out.outputs.digest-audio-worker }}
@@ -225,6 +228,7 @@ jobs:
           DIGEST_HISTORY_MIGRATIONS: ${{ needs.publish.outputs.digest-history-migrations }}
           DIGEST_REALTIME: ${{ needs.publish.outputs.digest-realtime }}
           DIGEST_DISCORD: ${{ needs.publish.outputs.digest-discord }}
+          DIGEST_VOICE: ${{ needs.publish.outputs.digest-voice }}
           DIGEST_AUDIO: ${{ needs.publish.outputs.digest-audio }}
           DIGEST_AUDIO_MIGRATIONS: ${{ needs.publish.outputs.digest-audio-migrations }}
           DIGEST_AUDIO_WORKER: ${{ needs.publish.outputs.digest-audio-worker }}
@@ -235,7 +239,8 @@ jobs:
           for pair in "gateway:$DIGEST_GATEWAY" "web:$DIGEST_WEB" "identity:$DIGEST_IDENTITY" \
             "character:$DIGEST_CHARACTER" "campaign:$DIGEST_CAMPAIGN" "dice:$DIGEST_DICE" \
             "billing:$DIGEST_BILLING" "history:$DIGEST_HISTORY" "realtime:$DIGEST_REALTIME" \
-            "audio:$DIGEST_AUDIO" "audio-worker:$DIGEST_AUDIO_WORKER" "discord:$DIGEST_DISCORD"; do
+            "audio:$DIGEST_AUDIO" "audio-worker:$DIGEST_AUDIO_WORKER" "discord:$DIGEST_DISCORD" \
+            "voice:$DIGEST_VOICE"; do
             svc=${pair%%:*}; digest=${pair#*:}
             test -n "$digest"
             yq -i ".image.digest = \"$digest\"" "infra/gitops/$TARGET/$svc.yaml"

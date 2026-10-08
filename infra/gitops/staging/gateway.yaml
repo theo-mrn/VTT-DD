@@ -31,6 +31,8 @@ env:
   UPSTREAM_HISTORY_URL: http://history.vtt-staging.svc
   # Son : bibliothèque, canaux, effets, horloge, mixeur
   UPSTREAM_AUDIO_URL: http://audio.vtt-staging.svc
+  # Voix de la table : signalisation WebRTC (Cloudflare Realtime), docs/voix.md
+  UPSTREAM_VOICE_URL: http://voice.vtt-staging.svc
 # Mot de passe de valkey-staging (secret messaging-credentials), substitué dans REDIS_URL :
 # voir « Déploiement » dans docs/bus.md
 secretEnv:
