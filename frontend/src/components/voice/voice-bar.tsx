@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
-import { messageErreur } from '@/lib/api';
+import { ApiError, messageErreur } from '@/lib/api';
 import type { Membre } from '@/lib/campagnes';
 import { useCampaignEvents } from '@/lib/realtime';
 import { cn } from '@/lib/utils';
@@ -104,7 +104,7 @@ export const VoiceBar = memo(function VoiceBar({
 
       {status === 'idle' || status === 'error' ? (
         <Info
-          texte={status === 'error' ? messageErreur(error, t('unavailable')) : t('join')}
+          texte={status === 'error' ? failureText(error, t('unavailable')) : t('join')}
           cote="bottom"
         >
           <Button
@@ -174,6 +174,12 @@ export const VoiceBar = memo(function VoiceBar({
     </div>
   );
 });
+
+/** Raison d'un échec : le message du service, sinon celui du navigateur (WebRTC, micro). */
+function failureText(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) return messageErreur(error, fallback);
+  return error instanceof Error && error.message ? `${fallback} : ${error.message}` : fallback;
+}
 
 function VolumeButton({ label }: Readonly<{ label: string }>) {
   const volume = useVoice((s) => s.volume);

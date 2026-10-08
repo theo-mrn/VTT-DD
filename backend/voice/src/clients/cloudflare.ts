@@ -61,6 +61,18 @@ export interface Realtime {
   iceServers(ttlSeconds: number): Promise<VoiceIceServers>;
 }
 
+/**
+ * Adresses sur le port 53 retirées : Cloudflare en propose (STUN et TURN), mais des navigateurs
+ * les refusent (Firefox lève une erreur dès `new RTCPeerConnection`) ou les laissent expirer.
+ */
+export function withoutPort53(servers: VoiceIceServers['iceServers']): VoiceIceServers {
+  const kept = servers.flatMap((server) => {
+    const urls = [server.urls].flat().filter((u) => !/:53(\?|$)/.test(u));
+    return urls.length ? [{ ...server, urls }] : [];
+  });
+  return { iceServers: kept };
+}
+
 /** Panne ou refus du SFU : 502, sans révéler la réponse de Cloudflare au navigateur. */
 export function realtimeError(detail: string): HttpError {
   return new HttpError(502, 'Voix indisponible', 'voice_upstream', detail);
@@ -155,7 +167,7 @@ export function cloudflareRealtime(o: {
         { ttl },
         IceResponse,
       );
-      return { iceServers: Array.isArray(r.iceServers) ? r.iceServers : [r.iceServers] };
+      return withoutPort53(Array.isArray(r.iceServers) ? r.iceServers : [r.iceServers]);
     },
   };
 }

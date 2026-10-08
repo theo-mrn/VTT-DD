@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cloudflareRealtime } from './cloudflare.js';
+import { cloudflareRealtime, withoutPort53 } from './cloudflare.js';
 
 function fake(responses: { status?: number; body: unknown }[]) {
   const calls: { url: string; method: string; body: unknown; auth: string }[] = [];
@@ -74,5 +74,32 @@ describe('Cloudflare Realtime', () => {
     ]);
     await expect(rt.newSession()).rejects.toMatchObject({ status: 502, code: 'voice_upstream' });
     await expect(rt.newSession()).rejects.toMatchObject({ status: 502, detail: 'offre invalide' });
+  });
+
+  it('retire les adresses sur le port 53 (refusées par les navigateurs)', () => {
+    const { iceServers } = withoutPort53([
+      { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.cloudflare.com:53'] },
+      {
+        urls: [
+          'turn:turn.cloudflare.com:3478?transport=udp',
+          'turn:turn.cloudflare.com:53?transport=udp',
+          'turns:turn.cloudflare.com:443?transport=tcp',
+        ],
+        username: 'u',
+        credential: 'c',
+      },
+      { urls: 'stun:only.example:53' },
+    ]);
+    expect(iceServers).toEqual([
+      { urls: ['stun:stun.cloudflare.com:3478'] },
+      {
+        urls: [
+          'turn:turn.cloudflare.com:3478?transport=udp',
+          'turns:turn.cloudflare.com:443?transport=tcp',
+        ],
+        username: 'u',
+        credential: 'c',
+      },
+    ]);
   });
 });

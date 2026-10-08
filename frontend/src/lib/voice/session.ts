@@ -121,9 +121,8 @@ interface Remote {
   userId: string;
   stream: MediaStream;
   element: HTMLAudioElement;
-  source: MediaStreamAudioSourceNode;
-  gain: GainNode;
-  analyser: AnalyserNode;
+  /** Graphe Web Audio ; null : le navigateur l'a refusé, la voix passe par l'élément. */
+  nodes: { source: MediaStreamAudioSourceNode; gain: GainNode; analyser: AnalyserNode } | null;
 }
 
 const codeOf = (e: unknown) => (e as { problem?: { code?: string } } | null)?.problem?.code;
@@ -271,6 +270,7 @@ export class VoiceSession {
   private readonly report = (e: unknown) => this.env.report?.(e);
 
   private fail(e: unknown) {
+    this.report(e);
     this.teardown();
     this.set({ status: 'error', error: e, participants: [], speaking: new Set() });
   }
@@ -321,21 +321,30 @@ export class VoiceSession {
     element.srcObject = stream;
     void element.play?.().catch(() => undefined);
     const { context, bus } = this.audio;
-    const source = context.createMediaStreamSource(stream);
-    const gain = context.createGain();
-    source.connect(gain).connect(bus);
-    const analyser = context.createAnalyser();
-    analyser.fftSize = 512;
-    source.connect(analyser);
-    this.remotes.set(userId, { userId, stream, element, source, gain, analyser });
+    let nodes: Remote['nodes'] = null;
+    try {
+      const source = context.createMediaStreamSource(stream);
+      const gain = context.createGain();
+      source.connect(gain).connect(bus);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      nodes = { source, gain, analyser };
+    } catch (e) {
+      // Web Audio refusé (fréquences différentes sous Firefox…) : l'élément joue la voix
+      this.report(e);
+      element.muted = false;
+    }
+    this.remotes.set(userId, { userId, stream, element, nodes });
+    this.applyVolume();
   }
 
   private drop(userId: string) {
     const r = this.remotes.get(userId);
     if (!r) return;
-    r.source.disconnect();
-    r.gain.disconnect();
-    r.analyser.disconnect();
+    r.nodes?.source.disconnect();
+    r.nodes?.gain.disconnect();
+    r.nodes?.analyser.disconnect();
     r.element.srcObject = null;
     this.remotes.delete(userId);
     this.lastHeard.delete(userId);
@@ -343,10 +352,16 @@ export class VoiceSession {
 
   private analyse(stream: MediaStream): AnalyserNode | null {
     if (!this.audio) return null;
-    const analyser = this.audio.context.createAnalyser();
-    analyser.fftSize = 512;
-    this.audio.context.createMediaStreamSource(stream).connect(analyser);
-    return analyser;
+    // Mesure seulement (qui parle) : un refus du navigateur ne bloque pas la voix
+    try {
+      const analyser = this.audio.context.createAnalyser();
+      analyser.fftSize = 512;
+      this.audio.context.createMediaStreamSource(stream).connect(analyser);
+      return analyser;
+    } catch (e) {
+      this.report(e);
+      return null;
+    }
   }
 
   private startTimers(campaignId: string, generation: number) {
@@ -370,7 +385,7 @@ export class VoiceSession {
         if (rms(samples) > SPEAKING_RMS) this.lastHeard.set(userId, now);
       };
       measure(this.me, this.micAnalyser, this.state.muted || this.state.deafened);
-      for (const r of this.remotes.values()) measure(r.userId, r.analyser, false);
+      for (const r of this.remotes.values()) measure(r.userId, r.nodes?.analyser ?? null, false);
       const speaking = new Set(
         [...this.lastHeard].filter(([, t]) => now - t < SPEAKING_HOLD_MS).map(([u]) => u),
       );
@@ -386,9 +401,10 @@ export class VoiceSession {
   }
 
   private applyVolume() {
+    const v = this.state.deafened ? 0 : this.state.volume;
+    for (const r of this.remotes.values()) if (!r.nodes) r.element.volume = v;
     const bus = this.audio?.bus as GainNode | undefined;
     if (!bus?.gain || !this.audio) return;
-    const v = this.state.deafened ? 0 : this.state.volume;
     bus.gain.setTargetAtTime(v, this.audio.context.currentTime, SMOOTH_S);
   }
 
