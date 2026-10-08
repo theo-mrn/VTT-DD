@@ -32,7 +32,7 @@ séparément, dans notre application.
 ```
 navigateur A ──(WebRTC : 1 piste micro envoyée, N pistes reçues)──► Cloudflare Realtime (SFU, TURN)
      │                                                                      ▲
-     │ REST /v1/campaigns/:id/voice/*  (gateway)                            │ API HTTPS (secret)
+     │ REST /v1/voice/campaigns/:id/*  (gateway)                            │ API HTTPS (secret)
      ▼                                                                      │
  service voice ─────────────────────────────────────────────────────────────┘
      │ NATS  vtt.<campagne>.voice.*            Valkey : salle vocale (qui, pistes, canaux privés)
@@ -53,20 +53,25 @@ Nouveau service, sur le modèle des autres (Fastify, `@vtt/platform`, OTel, Helm
   (même campagne ; piste privée : son seul destinataire, § 5).
 - **État de la salle vocale** dans Valkey (clé par campagne, TTL) : participants, leur session
   Cloudflare, leurs pistes (micro, privée), personnage incarné ; rien en base de données.
-- **Événements** NATS `vtt.<campagne>.voice.{joined,left,tracks,muted,private}` relayés par
-  realtime ; « qui parle » passe par le canal éphémère de realtime (pas de journal).
+- **Événements** NATS `vtt.<campagne>.voice.{joined,updated,left}` relayés par realtime ;
+  « qui parle » se mesure chez chacun, sur les voix reçues (rien ne passe par le réseau).
+- **Présence** : battement toutes les 30 s (`…/heartbeat`), clé expirée au bout de 90 s ; un
+  onglet fermé sans départ sort de la salle tout seul.
 - **Aucun enregistrement** de la voix : le média ne traverse que Cloudflare.
 
 ### 3.2 Navigateur : connexion
 
-1. `GET …/voice/ice` : serveurs ICE (STUN + TURN Cloudflare à durée courte).
+1. `GET …/ice` : serveurs ICE (STUN + TURN Cloudflare à durée courte).
 2. `getUserMedia({ audio: { echoCancellation, noiseSuppression, autoGainControl } })`.
-3. Une `RTCPeerConnection` ; offre → `POST …/voice/join` (le service crée la session Cloudflare,
+3. Une `RTCPeerConnection` ; offre → `POST …/join` (le service crée la session Cloudflare,
    pousse la piste micro, rend la réponse SDP) ; réponse appliquée.
-4. Arrivée d'un autre participant (`voice.joined`) : `POST …/voice/pull` (pistes à tirer) ; la
-   réponse est une offre de Cloudflare → réponse locale → `PUT …/voice/renegotiate`.
-5. Départ, coupure réseau : `voice.left`, nettoyage des pistes ; reprise : reconnexion à la
-   salle (ICE restart, puis nouvelle session si besoin).
+4. Arrivée d'un autre participant (`voice.joined`) : `POST …/pull` (pistes à tirer) ; la
+   réponse est une offre de Cloudflare → réponse locale → `PUT …/renegotiate`.
+5. Départ, coupure réseau : `voice.left`, nettoyage des pistes ; reprise : le battement suivant
+   répond « plus dans la salle » (présence expirée) → nouvelle session.
+
+Le contexte audio du moteur est tenu éveillé pendant la voix (`engine.hold()`) : sinon la veille
+(10 s sans son du moteur) couperait les voix reçues.
 
 Contrainte connue de Chrome : une piste WebRTC distante ne passe dans Web Audio que si son
 `MediaStream` est aussi attaché à un élément `<audio>` (muet). On le fait systématiquement.
@@ -121,10 +126,12 @@ Sans texte explicatif (UI sans blabla) :
 
 ## 7. Contrats
 
-- Gateway : `'/v1/campaigns/:id/voice': 'UPSTREAM_VOICE_URL'`.
-- `packages/contracts/src/voice.ts` : `VoiceParticipant`, `JoinVoice`, `PullTracks`,
-  `Renegotiate`, `VoiceIceServers`, `VoiceSceneSettings { mode, clearRange, maxRange }`,
-  `PrivateChannel`, charges des événements.
+- Gateway : `'/v1/voice': 'UPSTREAM_VOICE_URL'` (service voice, port 3012) ; routes
+  `/v1/voice/campaigns/:id/{ice,join,pull,renegotiate,heartbeat,leave}` et `GET
+/v1/voice/campaigns/:id` (la salle).
+- `packages/contracts/src/voice.ts` : `VoiceParticipant`, `VoiceRoom`, `JoinVoice`, `PullVoice`,
+  `RenegotiateVoice`, `VoiceHeartbeat`, `VoiceIceServers`, charges des événements ; à venir :
+  `VoiceSceneSettings { mode, clearRange, maxRange }`, `PrivateChannel`.
 - Réglages de scène (`mode`, portées) : service campaign, avec la scène (une migration).
 - Raccourcis : `voice.push-to-talk`, `voice.mute`, `voice.deafen` (docs/raccourcis.md).
 
@@ -132,7 +139,9 @@ Sans texte explicatif (UI sans blabla) :
 
 1. **Socle** : service voice (Cloudflare, Valkey, NATS), contrats, gateway, Helm, secrets ;
    rejoindre et quitter, entendre tout le monde en mode Table, muet et sourdine, qui parle,
-   reprise après coupure.
+   reprise après coupure. _Fait le 2026-10-08 (service, contrats, gateway, `lib/voice`, barre
+   vocale en haut à droite de la table) ; reste Helm et secrets, après la création de l'app
+   Cloudflare._
 2. **Proximité** : réglages de scène, mixage spatial (distance, murs, panoramique), auditeur du
    MJ, bus « voix » du mixeur.
 3. **Canal privé** MJ ↔ joueur (pistes privées gardées par le service).

@@ -8,6 +8,9 @@ export default {
   /** Par code de problème des services (`code` de la réponse). */
   api: {
     version_conflict: 'Modifié entre-temps : rechargez puis réessayez.',
+    voice_unconfigured: 'La voix n’est pas encore disponible sur ce serveur.',
+    voice_upstream: 'Le service de voix ne répond pas, réessayez dans un instant.',
+    voice_not_joined: 'Vous n’êtes plus dans la voix.',
     campaign_not_found: 'Campagne introuvable.',
     character_not_found: 'Personnage introuvable.',
     note_not_found: 'Note introuvable.',

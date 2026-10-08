@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { memo, useEffect, useMemo, type ReactNode } from 'react';
 import { EtatVide } from '@/components/commun/page';
 import { TableAudio } from '@/components/audio/table-audio';
+import { VoiceBar } from '@/components/voice/voice-bar';
 import { TableSearch } from './table-search';
 import { useDicePreferences } from '@/lib/dice-preferences';
 import { prepareDice3D } from '@/lib/dice-throw';
@@ -192,7 +193,14 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
         <div className="flex min-w-0 justify-center">
           <HudCombat table={table} />
         </div>
-        <div aria-hidden />
+        {/* Voix de la table (docs/voix.md) */}
+        <div className="flex min-w-0 justify-end">
+          <VoiceBar
+            campaignId={table.campagne.id}
+            me={table.moi.userId}
+            members={table.campagne.members}
+          />
+        </div>
       </div>
 
       <TableRail layout={rail} />

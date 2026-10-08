@@ -172,6 +172,23 @@ describe('moteur', () => {
     vi.useRealTimers();
   });
 
+  it('prise (voix de la table) : pas de veille tant qu’elle tient', async () => {
+    vi.useFakeTimers();
+    disposeAllVoices();
+    const { engine, ctx } = setup();
+    await engine.unlock();
+    const release = engine.hold();
+    vi.advanceTimersByTime(IDLE_SUSPEND_MS + 1_000);
+    engine.scan();
+    expect(ctx.state).toBe('running');
+    release();
+    release();
+    vi.advanceTimersByTime(IDLE_SUSPEND_MS + 1_000);
+    engine.scan();
+    expect(ctx.state).toBe('suspended');
+    vi.useRealTimers();
+  });
+
   it('verrouillé : rien ne joue mais le bandeau est demandé ; déverrouillé : départ à la position de la ligne de temps', async () => {
     const { engine, elements, serverNow } = setup();
     engine.attachCampaign(CAMPAIGN);

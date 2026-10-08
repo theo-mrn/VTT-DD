@@ -6,6 +6,9 @@ export default {
   generic: 'Something went wrong.',
   api: {
     version_conflict: 'This was changed in the meantime: reload and try again.',
+    voice_unconfigured: 'Voice is not available on this server yet.',
+    voice_upstream: 'The voice service is not responding, please try again in a moment.',
+    voice_not_joined: 'You are no longer in voice.',
     campaign_not_found: 'Campaign not found.',
     character_not_found: 'Character not found.',
     note_not_found: 'Note not found.',

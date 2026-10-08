@@ -81,6 +81,8 @@ export class AudioEngine implements EngineHost {
   private unsupported = false;
   private soundWanted = false;
   private unlockBound = false;
+  /** Prises en cours (voix de la table) : pas de veille tant qu'il en reste une. */
+  private holds = 0;
   private resyncTimer: ReturnType<typeof setInterval> | null = null;
   private scanTimer: ReturnType<typeof setInterval> | null = null;
   private liveSounds: LiveSound[] = [];
@@ -202,7 +204,7 @@ export class AudioEngine implements EngineHost {
    */
   private settle() {
     const now = Date.now();
-    if (voiceCount() > 0 || this.cues.list.length > 0) {
+    if (this.holds > 0 || voiceCount() > 0 || this.cues.list.length > 0) {
       this.lastActiveAt = now;
       return;
     }
@@ -267,8 +269,25 @@ export class AudioEngine implements EngineHost {
     }
     this.stopScan();
     // Onglet caché sans voix ni effet : personne n'écoute, veille tout de suite
-    if (voiceCount() === 0 && this.cues.list.length === 0 && !this.waking) this.suspendIdle();
+    if (this.holds === 0 && voiceCount() === 0 && this.cues.list.length === 0 && !this.waking)
+      this.suspendIdle();
   };
+
+  /**
+   * Garde le contexte éveillé (voix de la table : un flux continu que le relevé ne voit pas) ;
+   * la fonction rendue relâche la prise.
+   */
+  hold(): () => void {
+    this.holds++;
+    this.touch();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.holds--;
+      this.lastActiveAt = Date.now();
+    };
+  }
 
   // ── État observable ──
 
@@ -363,7 +382,7 @@ export class AudioEngine implements EngineHost {
             // Hors graphe : le volume du bus visé (preview : le général seul)
             gainFor: (node) => {
               const name = this.graph?.nameOf(node) ?? 'master';
-              return this.externalGain(name === 'preview' ? 'master' : name);
+              return this.externalGain(name === 'preview' || name === 'voice' ? 'master' : name);
             },
           }
         : null,

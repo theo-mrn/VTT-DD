@@ -8,7 +8,11 @@
  */
 import type { BusName } from '@vtt/contracts';
 
-export type AudioBus = BusName | 'preview';
+/**
+ * `voice` : voix de la table (docs/voix.md § 4), propre au front (son volume est un réglage de
+ * la voix, pas du mixeur du service audio) ; `preview` : écoute dans la bibliothèque.
+ */
+export type AudioBus = BusName | 'preview' | 'voice';
 export const AUDIO_BUS_LIST: readonly AudioBus[] = [
   'master',
   'music',
@@ -17,6 +21,7 @@ export const AUDIO_BUS_LIST: readonly AudioBus[] = [
   'zones',
   'dice',
   'preview',
+  'voice',
 ];
 
 /** Constante de temps des changements de volume du mixeur (≈ 150 ms pour 95 %). */
