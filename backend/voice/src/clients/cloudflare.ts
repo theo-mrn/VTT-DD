@@ -58,6 +58,11 @@ export interface Realtime {
   newSession(offer?: VoiceSdp): Promise<{ sessionId: string; answer?: VoiceSdp }>;
   tracks(sessionId: string, tracks: TrackRequest[], offer?: VoiceSdp): Promise<TracksResponse>;
   renegotiate(sessionId: string, answer: VoiceSdp): Promise<void>;
+  /**
+   * Ferme des pistes de la session, sans échange SDP (`force`) : une piste publiée cesse pour
+   * tous ceux qui la tirent (fin d'un canal privé, docs/voix.md § 5).
+   */
+  closeTracks(sessionId: string, mids: string[]): Promise<void>;
   iceServers(ttlSeconds: number): Promise<VoiceIceServers>;
 }
 
@@ -149,6 +154,18 @@ export function cloudflareRealtime(o: {
         { ...(offer ? { sessionDescription: offer } : {}), tracks },
         TracksResponse,
       );
+    },
+    async closeTracks(sessionId, mids) {
+      const r = await call(
+        'PUT',
+        `${app}/sessions/${encodeURIComponent(sessionId)}/tracks/close`,
+        o.appToken,
+        { tracks: mids.map((mid) => ({ mid })), force: true },
+        TracksResponse,
+      );
+      // Déjà fermée (close_track_error) : le but est atteint ; toute autre erreur remonte
+      const failed = r.tracks.filter((t) => t.errorCode && t.errorCode !== 'close_track_error');
+      if (failed.length) throw realtimeError('La voix privée n’a pas pu être coupée');
     },
     async renegotiate(sessionId, answer) {
       await call(

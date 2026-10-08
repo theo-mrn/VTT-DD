@@ -1,6 +1,9 @@
 /** Routes du service voice (gateway `/v1/voice`, docs/voix.md § 7). */
 import type {
   JoinVoice,
+  OpenPrivateVoice,
+  PushPrivateVoice,
+  PushPrivateVoiceResult,
   JoinVoiceResult,
   PullVoice,
   PullVoiceResult,
@@ -28,6 +31,11 @@ export const voiceApi: VoiceSignaling = {
     api<void>(`${base(c)}/renegotiate`, json('PUT', body)),
   heartbeat: (c, body: VoiceHeartbeat) =>
     api<VoiceRoom>(`${base(c)}/heartbeat`, json('POST', body)),
+  openPrivate: (c, body: OpenPrivateVoice) =>
+    api<VoiceRoom>(`${base(c)}/private`, json('POST', body)),
+  pushPrivate: (c, body: PushPrivateVoice) =>
+    api<PushPrivateVoiceResult>(`${base(c)}/private/track`, json('POST', body)),
+  closePrivate: (c) => api<VoiceRoom>(`${base(c)}/private/close`, json('POST', {})),
   // keepalive : le départ part même quand l'onglet se ferme
   leave: (c) => api<void>(`${base(c)}/leave`, { ...json('POST', {}), keepalive: true }),
 };

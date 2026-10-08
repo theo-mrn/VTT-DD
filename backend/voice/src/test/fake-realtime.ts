@@ -6,7 +6,10 @@ import type { Realtime, TrackRequest } from '../clients/cloudflare.js';
 
 export function fakeRealtime() {
   let n = 0;
-  const sessions = new Map<string, { pushed: string[]; pulled: TrackRequest[] }>();
+  const sessions = new Map<
+    string,
+    { pushed: string[]; pulled: TrackRequest[]; closed: string[] }
+  >();
   const calls: string[] = [];
   let down = false;
   const sdp = (type: 'offer' | 'answer') => ({ type, sdp: `v=0 ${type} ${++n}` });
@@ -15,7 +18,7 @@ export function fakeRealtime() {
     async newSession(offer) {
       if (down) throw new Error('panne');
       const sessionId = `s${++n}`;
-      sessions.set(sessionId, { pushed: [], pulled: [] });
+      sessions.set(sessionId, { pushed: [], pulled: [], closed: [] });
       calls.push(`newSession ${offer ? 'offre' : 'vide'}`);
       return { sessionId, ...(offer ? { answer: sdp('answer') } : {}) };
     },
@@ -41,6 +44,11 @@ export function fakeRealtime() {
           ? { requiresImmediateRenegotiation: true, sessionDescription: sdp('offer') }
           : {}),
       };
+    },
+    async closeTracks(sessionId, mids) {
+      calls.push(`close ${sessionId} ${mids.join(',')}`);
+      const s = sessions.get(sessionId);
+      if (s) s.closed.push(...mids);
     },
     async renegotiate(sessionId) {
       calls.push(`renegotiate ${sessionId}`);

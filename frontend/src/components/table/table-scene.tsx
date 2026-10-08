@@ -198,6 +198,7 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
           <VoiceBar
             campaignId={table.campagne.id}
             me={table.moi.userId}
+            gm={table.gm}
             members={table.campagne.members}
           />
         </div>

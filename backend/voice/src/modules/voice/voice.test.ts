@@ -81,7 +81,7 @@ describe('salle vocale', () => {
     expect(res.statusCode, res.body).toBe(200);
     const body = res.json();
     expect(body.offer.type).toBe('offer');
-    expect(body.tracks).toEqual([{ userId: mj.id, mid: '10' }]);
+    expect(body.tracks).toEqual([{ userId: mj.id, mid: '10', private: false }]);
     expect(
       (await call(joueur, 'PUT', `${c}/renegotiate`, { answer: { type: 'answer', sdp: 'x' } }))
         .statusCode,
@@ -133,5 +133,96 @@ describe('salle vocale', () => {
     const c = t.services.campaign({ [mj.id]: 'gm' });
     const r = (await call(mj, 'GET', `${c}/ice`)).json();
     expect(r.iceServers[1]).toMatchObject({ username: 'u3600' });
+  });
+});
+
+describe('canal privé MJ ↔ joueur', () => {
+  async function table() {
+    const [mj, alice, bob] = [await t.user(), await t.user(), await t.user()];
+    const c = t.services.campaign({ [mj.id]: 'gm', [alice.id]: 'player', [bob.id]: 'player' });
+    for (const u of [mj, alice, bob]) await join(u, c);
+    return { mj, alice, bob, c };
+  }
+
+  it('le MJ seul l’ouvre ; les deux portent la pastille, vue de toute la table', async () => {
+    const { mj, alice, bob, c } = await table();
+    expect((await call(alice, 'POST', `${c}/private`, { userId: bob.id })).json().code).toBe(
+      'voice_gm_only',
+    );
+    const res = await call(mj, 'POST', `${c}/private`, { userId: alice.id });
+    expect(res.statusCode, res.body).toBe(200);
+    const room = (await call(bob, 'GET', c)).json();
+    const byId = (id: string) => room.participants.find((p: { userId: string }) => p.userId === id);
+    expect(byId(mj.id)).toMatchObject({ privateWith: alice.id, privateLive: false });
+    expect(byId(alice.id)).toMatchObject({ privateWith: mj.id, privateLive: false });
+    expect(byId(bob.id)).toMatchObject({ privateWith: null });
+  });
+
+  it('la voix privée ne se tire que par son correspondant', async () => {
+    const { mj, alice, bob, c } = await table();
+    await call(mj, 'POST', `${c}/private`, { userId: alice.id });
+    const pushed = await call(mj, 'POST', `${c}/private/track`, { offer, mid: '3' });
+    expect(pushed.statusCode, pushed.body).toBe(200);
+    expect(pushed.json().answer.type).toBe('answer');
+    // Un autre joueur : refusé
+    const volee = await call(bob, 'POST', `${c}/pull`, { privateUserIds: [mj.id] });
+    expect([volee.statusCode, volee.json().code]).toEqual([403, 'voice_private_forbidden']);
+    // Le correspondant : la voix privée, marquée comme telle
+    const ok = await call(alice, 'POST', `${c}/pull`, { privateUserIds: [mj.id] });
+    expect(ok.statusCode, ok.body).toBe(200);
+    expect(ok.json().tracks).toEqual([expect.objectContaining({ userId: mj.id, private: true })]);
+    // Le nom de la piste privée ne sort jamais du service
+    expect(ok.body).not.toContain('private-');
+  });
+
+  it('fermer : les pistes privées sont coupées chez Cloudflare, pour les deux', async () => {
+    const { mj, alice, c } = await table();
+    await call(mj, 'POST', `${c}/private`, { userId: alice.id });
+    await call(mj, 'POST', `${c}/private/track`, { offer, mid: '3' });
+    await call(alice, 'POST', `${c}/private/track`, { offer, mid: '4' });
+    // Le joueur peut fermer aussi
+    const res = await call(alice, 'POST', `${c}/private/close`);
+    expect(res.statusCode, res.body).toBe(200);
+    const closes = t.cf.calls.filter((x) => x.startsWith('close '));
+    expect(closes).toHaveLength(2);
+    expect(closes.some((x) => x.endsWith(' 3'))).toBe(true);
+    expect(closes.some((x) => x.endsWith(' 4'))).toBe(true);
+    expect(res.json().participants.every((p: { privateWith: unknown }) => !p.privateWith)).toBe(
+      true,
+    );
+    // Plus rien à tirer
+    const apres = await call(alice, 'POST', `${c}/pull`, { privateUserIds: [mj.id] });
+    expect(apres.statusCode).toBe(403);
+  });
+
+  it('un nouveau canal ferme l’ancien : un ancien correspondant ne reçoit plus rien', async () => {
+    const { mj, alice, bob, c } = await table();
+    await call(mj, 'POST', `${c}/private`, { userId: alice.id });
+    await call(mj, 'POST', `${c}/private/track`, { offer, mid: '3' });
+    await call(mj, 'POST', `${c}/private`, { userId: bob.id });
+    expect(t.cf.calls.filter((x) => x.startsWith('close '))).toHaveLength(1);
+    expect((await call(alice, 'POST', `${c}/pull`, { privateUserIds: [mj.id] })).statusCode).toBe(
+      403,
+    );
+    const room = (await call(alice, 'GET', c)).json();
+    expect(
+      room.participants.find((p: { userId: string }) => p.userId === alice.id).privateWith,
+    ).toBe(null);
+  });
+
+  it('partir ferme le canal privé', async () => {
+    const { mj, alice, c } = await table();
+    await call(mj, 'POST', `${c}/private`, { userId: alice.id });
+    await call(alice, 'POST', `${c}/private/track`, { offer, mid: '4' });
+    await call(alice, 'POST', `${c}/leave`);
+    expect(t.cf.calls.filter((x) => x.startsWith('close '))).toHaveLength(1);
+    const room = (await call(mj, 'GET', c)).json();
+    expect(room.participants[0]).toMatchObject({ userId: mj.id, privateWith: null });
+  });
+
+  it('envoyer une voix privée sans canal : 409', async () => {
+    const { alice, c } = await table();
+    const res = await call(alice, 'POST', `${c}/private/track`, { offer, mid: '4' });
+    expect([res.statusCode, res.json().code]).toEqual([409, 'voice_not_private']);
   });
 });

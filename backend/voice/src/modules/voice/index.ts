@@ -10,9 +10,20 @@
  *   PUT  /v1/voice/campaigns/:id/renegotiate  réponse à l'offre d'un tirage
  *   POST /v1/voice/campaigns/:id/heartbeat    présence prolongée, micro coupé ou non → la salle
  *   POST /v1/voice/campaigns/:id/leave        départ
+ *   POST /v1/voice/campaigns/:id/private        canal privé MJ ↔ joueur ouvert (MJ)
+ *   POST /v1/voice/campaigns/:id/private/track  voix privée envoyée → réponse du SFU
+ *   POST /v1/voice/campaigns/:id/private/close  canal privé fermé (MJ ou son joueur)
+ *
+ * Canal privé (docs/voix.md § 5) : chacun des deux envoie une copie de son micro sur une piste
+ * au nom unique, que seul son correspondant peut tirer. À la fermeture, ces pistes sont fermées
+ * chez Cloudflare : plus personne ne les reçoit, pas même un ancien correspondant.
  */
+import { randomUUID } from 'node:crypto';
 import {
   JoinVoice,
+  OpenPrivateVoice,
+  PushPrivateVoice,
+  PushPrivateVoiceResult,
   JoinVoiceResult,
   PullVoice,
   PullVoiceResult,
@@ -40,8 +51,23 @@ export const MIC_TRACK = 'mic';
 const currentUser = (req: FastifyRequest) => req.user!.userId.toLowerCase();
 
 export function participantOf(p: Presence): VoiceParticipant {
-  return { userId: p.userId, speaker: p.micTrack !== null, muted: p.muted, joinedAt: p.joinedAt };
+  return {
+    userId: p.userId,
+    speaker: p.micTrack !== null,
+    muted: p.muted,
+    joinedAt: p.joinedAt,
+    privateWith: p.privateWith ?? null,
+    privateLive: !!p.privateTrack,
+  };
 }
+
+/** Présence sans canal privé. */
+const withoutPrivate = (p: Presence): Presence => ({
+  ...p,
+  privateWith: null,
+  privateTrack: null,
+  privateMid: null,
+});
 
 const notFound = () =>
   new HttpError(404, 'Ressource introuvable', 'campaign_not_found', 'Campagne introuvable');
@@ -49,6 +75,8 @@ const notJoined = () =>
   new HttpError(409, 'Pas dans la salle vocale', 'voice_not_joined', 'Rejoignez d’abord la voix');
 const unconfigured = () =>
   new HttpError(503, 'Voix indisponible', 'voice_unconfigured', 'La voix n’est pas configurée');
+const notPrivate = () =>
+  new HttpError(409, 'Pas en privé', 'voice_not_private', 'Aucun canal privé ouvert');
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -68,7 +96,51 @@ export const register: Module = async (app, deps) => {
   }
 
   async function room(campaignId: string) {
-    return { participants: (await rooms.list(campaignId)).map(participantOf) };
+    const all = await rooms.list(campaignId);
+    const here = new Set(all.map((p) => p.userId));
+    // Correspondant parti sans fermer (présence expirée) : plus de pastille « privé »
+    return {
+      participants: all.map((p) =>
+        participantOf(p.privateWith && !here.has(p.privateWith) ? withoutPrivate(p) : p),
+      ),
+    };
+  }
+
+  /** Annonce l'état d'un participant à la table. */
+  async function updated(campaignId: string, p: Presence, role: CampaignRole, req: FastifyRequest) {
+    await announce({
+      type: 'voice.updated',
+      campaignId,
+      userId: p.userId,
+      role,
+      participant: participantOf(p),
+      correlationId: req.id,
+    });
+  }
+
+  /**
+   * Ferme le canal privé de `userId` (et celui de son correspondant) : pistes privées fermées
+   * chez Cloudflare, présences remises, annonces. Sans canal : rien.
+   */
+  async function closePrivate(
+    campaignId: string,
+    userId: string,
+    role: CampaignRole,
+    req: FastifyRequest,
+  ) {
+    const self = await rooms.get(campaignId, userId);
+    if (!self?.privateWith) return false;
+    const other = await rooms.get(campaignId, self.privateWith);
+    const pair = [self, ...(other?.privateWith === userId ? [other] : [])];
+    for (const p of pair) {
+      if (p.privateMid) await realtime().closeTracks(p.sessionId, [p.privateMid]);
+    }
+    for (const p of pair) {
+      const next = withoutPrivate(p);
+      await rooms.put(campaignId, next);
+      await updated(campaignId, next, role, req);
+    }
+    return true;
   }
 
   async function me(campaignId: string, userId: string): Promise<Presence> {
@@ -167,17 +239,37 @@ export const register: Module = async (app, deps) => {
             request: { location: 'remote', sessionId: p.sessionId, trackName: p.micTrack },
           });
       }
-      if (!wanted.length) return { tracks: [] };
+      // Voix privée : seulement celle de son correspondant, qui l'a envoyée
+      const wantedPrivate: typeof wanted = [];
+      for (const id of new Set(req.body.privateUserIds.map((u) => u.toLowerCase()))) {
+        const p = await rooms.get(campaignId, id);
+        if (!p || p.privateWith !== userId || self.privateWith !== id || !p.privateTrack)
+          throw new HttpError(
+            403,
+            'Voix privée refusée',
+            'voice_private_forbidden',
+            'Cette voix privée ne vous est pas destinée',
+          );
+        wantedPrivate.push({
+          userId: id,
+          request: { location: 'remote', sessionId: p.sessionId, trackName: p.privateTrack },
+        });
+      }
+      if (!wanted.length && !wantedPrivate.length) return { tracks: [] };
       const res = await realtime().tracks(
         self.sessionId,
-        wanted.map((w) => w.request),
+        [...wanted, ...wantedPrivate].map((w) => w.request),
       );
-      const tracks = wanted.flatMap((w) => {
+      const found = (w: (typeof wanted)[number], isPrivate: boolean) => {
         const t = res.tracks.find(
           (x) => x.sessionId === w.request.sessionId && x.trackName === w.request.trackName,
         );
-        return t?.mid && !t.errorCode ? [{ userId: w.userId, mid: t.mid }] : [];
-      });
+        return t?.mid && !t.errorCode ? [{ userId: w.userId, mid: t.mid, private: isPrivate }] : [];
+      };
+      const tracks = [
+        ...wanted.flatMap((w) => found(w, false)),
+        ...wantedPrivate.flatMap((w) => found(w, true)),
+      ];
       return {
         ...(res.requiresImmediateRenegotiation && res.sessionDescription
           ? { offer: res.sessionDescription }
@@ -232,10 +324,95 @@ export const register: Module = async (app, deps) => {
       const userId = currentUser(req);
       const role = await roleOf(campaignId, userId);
       if (await rooms.get(campaignId, userId)) {
+        await closePrivate(campaignId, userId, role, req).catch((e) => req.log.warn(e));
         await rooms.remove(campaignId, userId);
         await announce({ type: 'voice.left', campaignId, userId, role, correlationId: req.id });
       }
       return { ok: true as const };
+    },
+  );
+
+  r.post(
+    '/v1/voice/campaigns/:id/private',
+    { ...auth, schema: { params: Params, body: OpenPrivateVoice, response: { 200: VoiceRoom } } },
+    async (req) => {
+      const campaignId = req.params.id;
+      const userId = currentUser(req);
+      const role = await roleOf(campaignId, userId);
+      if (role !== 'gm')
+        throw new HttpError(
+          403,
+          'Réservé au MJ',
+          'voice_gm_only',
+          'Seul le MJ ouvre un canal privé',
+        );
+      const target = req.body.userId.toLowerCase();
+      if (target === userId) throw HttpError.badRequest('Pas en privé avec soi-même', 'voice_self');
+      const self = await me(campaignId, userId);
+      const other = await rooms.get(campaignId, target);
+      if (!self.micTrack || !other?.micTrack) throw notJoined();
+      // Un seul canal à la fois, de chaque côté : l'ancien est fermé d'abord
+      if (self.privateWith === target && other.privateWith === userId) return room(campaignId);
+      await closePrivate(campaignId, userId, role, req);
+      await closePrivate(campaignId, target, role, req);
+      for (const p of [
+        { ...withoutPrivate((await rooms.get(campaignId, userId))!), privateWith: target },
+        { ...withoutPrivate((await rooms.get(campaignId, target))!), privateWith: userId },
+      ]) {
+        await rooms.put(campaignId, p);
+        await updated(campaignId, p, role, req);
+      }
+      return room(campaignId);
+    },
+  );
+
+  r.post(
+    '/v1/voice/campaigns/:id/private/track',
+    {
+      ...auth,
+      schema: { params: Params, body: PushPrivateVoice, response: { 200: PushPrivateVoiceResult } },
+    },
+    async (req) => {
+      const campaignId = req.params.id;
+      const userId = currentUser(req);
+      const role = await roleOf(campaignId, userId);
+      const self = await me(campaignId, userId);
+      if (!self.privateWith || !self.micTrack) throw notPrivate();
+      // Nom unique par canal : un ancien correspondant ne peut rien tirer du suivant
+      const trackName = `private-${randomUUID()}`;
+      const pushed = await realtime().tracks(
+        self.sessionId,
+        [{ location: 'local', mid: req.body.mid, trackName }],
+        req.body.offer,
+      );
+      if (pushed.tracks.some((t) => t.errorCode) || !pushed.sessionDescription)
+        throw realtimeError('La voix privée n’a pas pu être envoyée');
+      // Fermé entre-temps : la piste ne sert à rien, elle est refermée aussitôt
+      const now = await rooms.get(campaignId, userId);
+      if (now?.privateWith !== self.privateWith) {
+        await realtime().closeTracks(self.sessionId, [req.body.mid]);
+        throw notPrivate();
+      }
+      // Voix privée renvoyée (nouvelle négociation) : l'ancienne piste ne reste pas ouverte
+      if (now.privateMid && now.privateMid !== req.body.mid)
+        await realtime().closeTracks(self.sessionId, [now.privateMid]);
+      const next = { ...now, privateTrack: trackName, privateMid: req.body.mid };
+      await rooms.put(campaignId, next);
+      await updated(campaignId, next, role, req);
+      return { answer: pushed.sessionDescription };
+    },
+  );
+
+  r.post(
+    '/v1/voice/campaigns/:id/private/close',
+    { ...auth, schema: { params: Params, response: { 200: VoiceRoom } } },
+    async (req) => {
+      const campaignId = req.params.id;
+      const userId = currentUser(req);
+      const role = await roleOf(campaignId, userId);
+      await me(campaignId, userId);
+      await closePrivate(campaignId, userId, role, req);
+      return room(campaignId);
     },
   );
 };

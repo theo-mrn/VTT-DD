@@ -98,6 +98,10 @@ export default {
     unavailable: 'Voice unavailable',
     muted: '{name} · muted',
     you: 'You',
+    talkPrivate: 'Talk privately with {name}',
+    endPrivate: 'End private talk',
+    endPrivateWith: 'End private talk with {name}',
+    inPrivate: '{name} · talking privately with {other}',
   },
   characters: {
     unavailable: 'Characters unavailable',

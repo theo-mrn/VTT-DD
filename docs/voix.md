@@ -119,6 +119,16 @@ Un client modifié pourrait entendre de loin. Seul le canal privé est garanti p
   (`enabled = false` : silence envoyé aux autres). Fin du privé : l'inverse.
 - Le joueur peut répondre en privé : même mécanisme, sa piste privée n'est tirable que par le MJ.
 - Interface : pastille « privé » sur les deux portraits, son de début et de fin discret.
+- **Réalisation** (2026-10-09) : routes `POST …/private` (MJ, ouvre le canal avec un joueur),
+  `…/private/track` (sa copie du micro, piste au nom unique `private-<uuid>` par canal) et
+  `…/private/close` (MJ ou joueur ; aussi au départ, et quand le MJ ouvre un autre canal). Le
+  tirage d'une voix privée (`privateUserIds`) n'est permis qu'à son correspondant (403 sinon). À
+  la fermeture, le service ferme les pistes privées chez Cloudflare (`tracks/close`, `force`) :
+  elles cessent pour tous ceux qui les tiraient. Le canal est dans les deux sens : chacun envoie
+  sa copie, et sa voix publique se tait (`enabled = false`) tant qu'il dure. Interface : menu
+  « Parler en privé » sur le portrait d'un joueur (MJ, barre vocale), cadenas sur les deux
+  portraits, bouton « Fin du privé », son grave montant à l'ouverture, descendant à la fin ; la
+  voix privée reçue n'est jamais mixée par la proximité.
 
 ## 6. Interface
 
@@ -153,7 +163,8 @@ Sans texte explicatif (UI sans blabla) :
 2. **Proximité** : réglages de scène, mixage spatial (distance, murs, panoramique), auditeur du
    MJ, bus « voix » du mixeur. _Fait le 2026-10-09, sauf le bus « voix » dans le mixeur
    personnel (le volume des voix reste dans la barre vocale)._
-3. **Canal privé** MJ ↔ joueur (pistes privées gardées par le service).
+3. **Canal privé** MJ ↔ joueur (pistes privées gardées par le service). _Fait le 2026-10-09 ;
+   le menu du token et le panneau Personnages viendront avec le confort._
 4. **Confort** : appui pour parler et détection de voix, test du micro, volume par participant,
    activité Discord (voix de la table désactivée).
 5. **Lots suivants** : réverbération de lieu, effets de voix par personnage, le MJ parle à travers

@@ -97,6 +97,10 @@ export default {
     unavailable: 'Voix indisponible',
     muted: '{name} · micro coupé',
     you: 'Vous',
+    talkPrivate: 'Parler en privé avec {name}',
+    endPrivate: 'Fin du privé',
+    endPrivateWith: 'Fin du privé avec {name}',
+    inPrivate: '{name} · en privé avec {other}',
   },
   characters: {
     unavailable: 'Personnages indisponibles',

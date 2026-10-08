@@ -19,6 +19,11 @@ export interface Presence {
   micTrack: string | null;
   muted: boolean;
   joinedAt: string;
+  /** Canal privé (docs/voix.md § 5) : avec qui ; absent des présences d'avant. */
+  privateWith?: string | null;
+  /** Sa voix privée publiée : nom de la piste (unique par canal) et `mid` dans sa session. */
+  privateTrack?: string | null;
+  privateMid?: string | null;
 }
 
 export interface RoomStore {

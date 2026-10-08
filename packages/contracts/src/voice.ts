@@ -34,6 +34,13 @@ export const VoiceParticipant = z.object({
   speaker: z.boolean(),
   muted: z.boolean(),
   joinedAt: z.iso.datetime({ offset: true }),
+  /**
+   * Canal privé MJ ↔ joueur (docs/voix.md § 5) : avec qui il parle en privé (vu de toute la
+   * table : pastille « privé »), null sinon.
+   */
+  privateWith: z.uuid().nullable().default(null),
+  /** Sa voix privée est envoyée : son correspondant peut la tirer. */
+  privateLive: z.boolean().default(false),
 });
 export type VoiceParticipant = z.infer<typeof VoiceParticipant>;
 
@@ -58,16 +65,38 @@ export const JoinVoiceResult = z.object({
 });
 export type JoinVoiceResult = z.infer<typeof JoinVoiceResult>;
 
-/** Tirer les voix de ces participants ; réponse : l'offre du SFU et le `mid` de chaque voix. */
-export const PullVoice = z.object({ userIds: z.array(z.uuid()).min(1).max(50) });
-export type PullVoice = z.infer<typeof PullVoice>;
+/**
+ * Tirer les voix de ces participants (et la voix privée de son correspondant) ; réponse :
+ * l'offre du SFU et le `mid` de chaque voix.
+ */
+export const PullVoice = z
+  .object({
+    userIds: z.array(z.uuid()).max(50).default([]),
+    /** Voix privée de ce participant : seulement s'il est en privé avec l'appelant. */
+    privateUserIds: z.array(z.uuid()).max(1).default([]),
+  })
+  .refine((b) => b.userIds.length + b.privateUserIds.length > 0, 'Rien à tirer');
+export type PullVoice = z.input<typeof PullVoice>;
 
 export const PullVoiceResult = z.object({
   /** Absente si aucune piste n'a pu être tirée (participants partis). */
   offer: VoiceSdp.optional(),
-  tracks: z.array(z.object({ userId: z.uuid(), mid: z.string() })),
+  tracks: z.array(
+    z.object({ userId: z.uuid(), mid: z.string(), private: z.boolean().default(false) }),
+  ),
 });
 export type PullVoiceResult = z.infer<typeof PullVoiceResult>;
+
+/** Ouvrir un canal privé (MJ seulement) avec ce joueur. */
+export const OpenPrivateVoice = z.object({ userId: z.uuid() });
+export type OpenPrivateVoice = z.infer<typeof OpenPrivateVoice>;
+
+/** Envoyer sa voix privée : offre avec le transceiver de la copie du micro (`mid`). */
+export const PushPrivateVoice = z.object({ offer: VoiceSdp, mid: z.string().min(1).max(32) });
+export type PushPrivateVoice = z.infer<typeof PushPrivateVoice>;
+
+export const PushPrivateVoiceResult = z.object({ answer: VoiceSdp });
+export type PushPrivateVoiceResult = z.infer<typeof PushPrivateVoiceResult>;
 
 /** Réponse à une offre du SFU (après un tirage). */
 export const RenegotiateVoice = z.object({ answer: VoiceSdp });

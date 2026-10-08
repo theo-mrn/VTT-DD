@@ -15,6 +15,8 @@ const P = (userId: string, speaker = true, muted = false): VoiceParticipant => (
   speaker,
   muted,
   joinedAt: '2026-10-08T10:00:00.000Z',
+  privateWith: null,
+  privateLive: false,
 });
 
 describe('voix : calculs', () => {
@@ -38,13 +40,20 @@ describe('voix : calculs', () => {
 class FakeTrack {
   enabled = true;
   stopped = false;
+  clones: FakeTrack[] = [];
   stop() {
     this.stopped = true;
+  }
+  clone() {
+    const c = new FakeTrack();
+    this.clones.push(c);
+    return c;
   }
 }
 
 class FakeTransceiver {
   mid: string | null = null;
+  readonly sender = { replaceTrack: vi.fn(async () => undefined) };
   constructor(readonly receiver: { track: unknown }) {}
 }
 
@@ -125,6 +134,7 @@ function fakeAudio() {
 function setup(room: (me: string) => VoiceRoom) {
   const peer = new FakePeer();
   const mic = new FakeTrack();
+  let pulls = 0;
   const audio = fakeAudio();
   const signaling: VoiceSignaling = {
     ice: vi.fn(async () => ({ iceServers: [] })),
@@ -132,10 +142,19 @@ function setup(room: (me: string) => VoiceRoom) {
       answer: { type: 'answer' as const, sdp: 'cf' },
       room: room('moi'),
     })),
-    pull: vi.fn(async (_c: string, { userIds }: PullVoice) => ({
-      offer: { type: 'offer' as const, sdp: userIds.map((_, i) => `r${i}`).join(',') },
-      tracks: userIds.map((userId, i) => ({ userId, mid: `r${i}` })),
-    })),
+    pull: vi.fn(async (_c: string, { userIds = [], privateUserIds = [] }: PullVoice) => {
+      const all = [
+        ...userIds.map((userId) => ({ userId, private: false })),
+        ...privateUserIds.map((userId) => ({ userId, private: true })),
+      ].map((t, i) => ({ ...t, mid: `p${++pulls}-${i}` }));
+      return {
+        offer: { type: 'offer' as const, sdp: all.map((t) => t.mid).join(',') },
+        tracks: all,
+      };
+    }),
+    openPrivate: vi.fn(async () => room('moi')),
+    pushPrivate: vi.fn(async () => ({ answer: { type: 'answer' as const, sdp: 'cf-privé' } })),
+    closePrivate: vi.fn(async () => room('moi')),
     renegotiate: vi.fn(async () => undefined),
     heartbeat: vi.fn(async () => room('moi')),
     leave: vi.fn(async () => undefined),
@@ -174,7 +193,7 @@ describe('voix : session', () => {
       micMid: '0',
       muted: false,
     });
-    expect(signaling.pull).toHaveBeenCalledWith('c1', { userIds: ['a'] });
+    expect(signaling.pull).toHaveBeenCalledWith('c1', { userIds: ['a'], privateUserIds: [] });
     expect(signaling.renegotiate).toHaveBeenCalledWith('c1', {
       answer: { type: 'answer', sdp: 'réponse' },
     });
@@ -203,7 +222,7 @@ describe('voix : session', () => {
     session.onEvent('voice.joined', { userId: 'b', participant: P('b') });
     await settle();
     await settle();
-    expect(signaling.pull).toHaveBeenCalledWith('c1', { userIds: ['b'] });
+    expect(signaling.pull).toHaveBeenCalledWith('c1', { userIds: ['b'], privateUserIds: [] });
     expect(session.state.participants.map((p) => p.userId)).toEqual(['moi', 'b']);
     session.onEvent('voice.left', { userId: 'b' });
     expect(session.state.participants.map((p) => p.userId)).toEqual(['moi']);
@@ -270,6 +289,58 @@ describe('voix : session', () => {
     // Plus d'entrée : retour au mode Table
     session.setMixes(new Map());
     expect(voice.gain.setTargetAtTime).toHaveBeenLastCalledWith(1, 0, expect.any(Number));
+    await session.leave();
+  });
+
+  it('canal privé (MJ) : copie du micro envoyée, voix publique coupée, puis rétablie', async () => {
+    let state = { participants: [P('moi'), P('a')] };
+    const { session, signaling, mic } = setup(() => state);
+    await session.join('c1', 'moi');
+    await settle();
+    // Le service ouvre le canal : je suis en privé avec « a »
+    state = {
+      participants: [
+        { ...P('moi'), privateWith: 'a' },
+        { ...P('a'), privateWith: 'moi' },
+      ],
+    };
+    await session.openPrivate('a');
+    for (let i = 0; i < 4; i++) await settle();
+    expect(signaling.openPrivate).toHaveBeenCalledWith('c1', { userId: 'a' });
+    expect(signaling.pushPrivate).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ mid: expect.any(String) }),
+    );
+    expect(mic.enabled).toBe(false);
+    expect(mic.clones[0]!.enabled).toBe(true);
+    // Fermeture : la copie s'arrête, la voix publique revient
+    state = { participants: [P('moi'), P('a')] };
+    await session.closePrivate();
+    for (let i = 0; i < 4; i++) await settle();
+    expect(mic.clones[0]!.stopped).toBe(true);
+    expect(mic.enabled).toBe(true);
+    await session.leave();
+  });
+
+  it('canal privé (joueur) : la voix privée du MJ est tirée et jamais mixée', async () => {
+    const { session, signaling, audio } = setup(() => ({ participants: [P('moi'), P('mj')] }));
+    await session.join('c1', 'moi');
+    for (let i = 0; i < 4; i++) await settle();
+    session.onEvent('voice.updated', {
+      userId: 'moi',
+      participant: { ...P('moi'), privateWith: 'mj' },
+    });
+    session.onEvent('voice.updated', {
+      userId: 'mj',
+      participant: { ...P('mj'), privateWith: 'moi', privateLive: true },
+    });
+    for (let i = 0; i < 6; i++) await settle();
+    expect(signaling.pull).toHaveBeenLastCalledWith('c1', { userIds: [], privateUserIds: ['mj'] });
+    // La proximité coupe la voix publique du MJ, pas sa voix privée
+    session.setMixes(new Map([['mj', { gain: 0, pan: 1, cutoffHz: 500 }]]));
+    const [publique, privee] = audio.made;
+    expect(publique!.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, expect.any(Number));
+    expect(privee!.gain.setTargetAtTime).toHaveBeenLastCalledWith(1, 0, expect.any(Number));
     await session.leave();
   });
 });

@@ -12,6 +12,9 @@ import {
   VOICE_HEARTBEAT_S,
   type JoinVoice,
   type JoinVoiceResult,
+  type OpenPrivateVoice,
+  type PushPrivateVoice,
+  type PushPrivateVoiceResult,
   type PullVoice,
   type PullVoiceResult,
   type RenegotiateVoice,
@@ -62,6 +65,9 @@ export interface VoiceSignaling {
   renegotiate(campaignId: string, body: RenegotiateVoice): Promise<void>;
   heartbeat(campaignId: string, body: VoiceHeartbeat): Promise<VoiceRoom>;
   leave(campaignId: string): Promise<void>;
+  openPrivate(campaignId: string, body: OpenPrivateVoice): Promise<VoiceRoom>;
+  pushPrivate(campaignId: string, body: PushPrivateVoice): Promise<PushPrivateVoiceResult>;
+  closePrivate(campaignId: string): Promise<VoiceRoom>;
 }
 
 /** Ce que la session demande au navigateur (remplacé dans les tests). */
@@ -117,8 +123,16 @@ export function rms(samples: Float32Array): number {
   return samples.length ? Math.sqrt(sum / samples.length) : 0;
 }
 
+/** Clé d'une voix privée reçue, à côté de la voix publique du même participant. */
+const PRIVATE_KEY = '#private';
+const keyOf = (userId: string, isPrivate: boolean) => (isPrivate ? userId + PRIVATE_KEY : userId);
+
 interface Remote {
+  /** Clé dans `remotes` : l'utilisateur, ou sa voix privée (`<id>#private`). */
+  key: string;
   userId: string;
+  /** Voix privée (canal MJ ↔ joueur) : jamais mixée par la proximité. */
+  private: boolean;
   stream: MediaStream;
   element: HTMLAudioElement;
   /** Graphe Web Audio ; null : le navigateur l'a refusé, la voix passe par l'élément. */
@@ -154,6 +168,14 @@ export class VoiceSession {
   private micAnalyser: AnalyserNode | null = null;
   private audio: VoiceAudio | null = null;
   private readonly remotes = new Map<string, Remote>();
+  /** Ma voix privée envoyée : copie du micro, pour ce correspondant. */
+  private privateOut: {
+    with: string;
+    track: MediaStreamTrack;
+    transceiver: RTCRtpTransceiver;
+  } | null = null;
+  /** Correspondant privé connu (sons de début et de fin). */
+  private privatePartner: string | null = null;
   /** Mixage voulu par voix (la carte le règle, même avant l'arrivée de la voix). */
   private readonly mixes = new Map<string, VoiceMix>();
   private queue: Promise<void> = Promise.resolve();
@@ -282,17 +304,36 @@ export class VoiceSession {
     this.applyVolume();
   }
 
+  /** Parler en privé avec ce joueur (MJ) : les autres ne l'entendent plus, ni lui. */
+  async openPrivate(userId: string): Promise<void> {
+    const c = this.state.campaignId;
+    if (!c || this.state.status !== 'connected') return;
+    this.onRoom(await this.env.signaling.openPrivate(c, { userId }));
+  }
+
+  /** Fin du canal privé (MJ ou son joueur). */
+  async closePrivate(): Promise<void> {
+    const c = this.state.campaignId;
+    if (!c || this.state.status !== 'connected') return;
+    this.onRoom(await this.env.signaling.closePrivate(c));
+  }
+
   /** Annonce du bus (`voice.joined`, `voice.updated`, `voice.left`). */
   onEvent(type: string, payload: { userId?: unknown; participant?: VoiceParticipant }) {
     if (this.state.status !== 'connected' || typeof payload.userId !== 'string') return;
     const userId = payload.userId;
-    if (userId === this.me) return;
+    const self = userId === this.me;
+    // Mon propre départ se gère ici ; mes mises à jour (canal privé) comptent
+    if (self && type === 'voice.left') return;
     const others = this.state.participants.filter((p) => p.userId !== userId);
     if (type === 'voice.left') {
       this.set({ participants: others });
     } else if (payload.participant) {
       // Une nouvelle arrivée (nouvelle session) : sa voix d'avant ne vaut plus
-      if (type === 'voice.joined') this.drop(userId);
+      if (type === 'voice.joined' && !self) {
+        this.drop(userId);
+        this.drop(keyOf(userId, true));
+      }
       this.set({ participants: [...others, payload.participant] });
     }
     this.reconcile();
@@ -321,11 +362,32 @@ export class VoiceSession {
     this.queue = this.queue
       .then(async () => {
         if (generation !== this.generation || !this.pc) return;
-        const received = new Set(this.remotes.keys());
-        for (const u of voicesToDrop(this.state.participants, received)) this.drop(u);
-        const wanted = voicesToPull(this.state.participants, received, this.me);
-        if (!wanted.length) return;
-        const res = await this.env.signaling.pull(campaignId, { userIds: wanted });
+        const { participants } = this.state;
+        const partner = participants.find((p) => p.userId === this.me)?.privateWith ?? null;
+        this.privateChanged(partner);
+        // Canal privé fini ou changé : ma copie du micro s'arrête, sa voix privée aussi
+        if (this.privateOut && this.privateOut.with !== partner) this.stopPrivateOut();
+        for (const r of [...this.remotes.values()])
+          if (r.private && r.userId !== partner) this.drop(r.key);
+        if (partner && !this.privateOut && this.mic) await this.pushPrivate(campaignId, partner);
+        if (generation !== this.generation || !this.pc) return;
+
+        const received = new Set(
+          [...this.remotes.values()].filter((r) => !r.private).map((r) => r.userId),
+        );
+        for (const u of voicesToDrop(participants, received)) this.drop(u);
+        const wanted = voicesToPull(participants, received, this.me);
+        const other = participants.find((p) => p.userId === partner);
+        const wantPrivate =
+          !!partner &&
+          other?.privateWith === this.me &&
+          other.privateLive &&
+          !this.remotes.has(keyOf(partner, true));
+        if (!wanted.length && !wantPrivate) return;
+        const res = await this.env.signaling.pull(campaignId, {
+          userIds: wanted,
+          privateUserIds: wantPrivate ? [partner] : [],
+        });
         if (generation !== this.generation || !this.pc) return;
         const pc = this.pc;
         if (res.offer) {
@@ -338,16 +400,17 @@ export class VoiceSession {
         }
         for (const t of res.tracks) {
           const receiver = pc.getTransceivers().find((x) => x.mid === t.mid)?.receiver;
-          if (receiver) this.attach(t.userId, receiver.track);
+          if (receiver) this.attach(t.userId, receiver.track, t.private);
         }
       })
       .catch(this.report);
   }
 
   /** Joue une voix reçue dans le bus « voix » et mesure si elle parle. */
-  private attach(userId: string, track: MediaStreamTrack) {
+  private attach(userId: string, track: MediaStreamTrack, isPrivate = false) {
     if (!this.audio) return;
-    this.drop(userId);
+    const key = keyOf(userId, isPrivate);
+    this.drop(key);
     const stream = new MediaStream([track]);
     const element = this.env.createAudioElement();
     element.muted = true;
@@ -371,14 +434,14 @@ export class VoiceSession {
       this.report(e);
       element.muted = false;
     }
-    const remote: Remote = { userId, stream, element, nodes };
-    this.remotes.set(userId, remote);
+    const remote: Remote = { key, userId, private: isPrivate, stream, element, nodes };
+    this.remotes.set(key, remote);
     this.applyMix(remote, true);
     this.applyVolume();
   }
 
-  private drop(userId: string) {
-    const r = this.remotes.get(userId);
+  private drop(key: string) {
+    const r = this.remotes.get(key);
     if (!r) return;
     r.nodes?.source.disconnect();
     r.nodes?.gain.disconnect();
@@ -386,8 +449,74 @@ export class VoiceSession {
     r.nodes?.panner.disconnect();
     r.nodes?.analyser.disconnect();
     r.element.srcObject = null;
-    this.remotes.delete(userId);
-    this.lastHeard.delete(userId);
+    this.remotes.delete(key);
+    this.lastHeard.delete(r.userId);
+  }
+
+  /** Envoie ma voix privée : une copie du micro sur un nouveau transceiver, négociée à part. */
+  private async pushPrivate(campaignId: string, partner: string) {
+    const pc = this.pc;
+    const mic = this.mic?.getAudioTracks()[0];
+    if (!pc || !mic) return;
+    const track = mic.clone();
+    track.enabled = !(this.state.muted || this.state.deafened);
+    const transceiver = pc.addTransceiver(track, { direction: 'sendonly' });
+    this.privateOut = { with: partner, track, transceiver };
+    this.applyMic();
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const res = await this.env.signaling.pushPrivate(campaignId, {
+        offer: { type: 'offer', sdp: pc.localDescription!.sdp },
+        mid: transceiver.mid!,
+      });
+      await pc.setRemoteDescription(res.answer);
+    } catch (e) {
+      this.stopPrivateOut();
+      throw e;
+    }
+  }
+
+  /** Ma copie du micro s'arrête (le service a fermé la piste chez Cloudflare). */
+  private stopPrivateOut() {
+    const out = this.privateOut;
+    if (!out) return;
+    this.privateOut = null;
+    out.track.stop();
+    void out.transceiver.sender.replaceTrack(null).catch(() => undefined);
+    this.applyMic();
+  }
+
+  /** Début ou fin du privé me concernant : un son grave et discret. */
+  private privateChanged(partner: string | null) {
+    if (partner === this.privatePartner) return;
+    const opening = !!partner && !this.privatePartner;
+    const closing = !partner && !!this.privatePartner;
+    this.privatePartner = partner;
+    this.applyMic();
+    if (opening || closing) this.chime(opening);
+  }
+
+  private chime(opening: boolean) {
+    const ctx = this.audio?.context;
+    if (!ctx || this.state.deafened) return;
+    try {
+      const t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      // Grave, montant à l'ouverture, descendant à la fermeture
+      osc.frequency.setValueAtTime(opening ? 196 : 247, t);
+      osc.frequency.exponentialRampToValueAtTime(opening ? 247 : 196, t + 0.18);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      osc.connect(gain).connect(this.audio!.bus);
+      osc.start(t);
+      osc.stop(t + 0.32);
+    } catch {
+      // Son de confort : sans Web Audio, rien
+    }
   }
 
   private analyse(stream: MediaStream): AnalyserNode | null {
@@ -436,14 +565,17 @@ export class VoiceSession {
   }
 
   private applyMic() {
+    const silent = this.state.muted || this.state.deafened;
     const track = this.mic?.getAudioTracks()[0];
-    if (track) track.enabled = !(this.state.muted || this.state.deafened);
+    // En privé, la voix publique se tait : les autres n'entendent plus rien de moi
+    if (track) track.enabled = !silent && !this.privatePartner;
+    if (this.privateOut) this.privateOut.track.enabled = !silent;
   }
 
   /** Applique le mixage voulu d'une voix (lissé ; d'un coup à son arrivée). */
   private applyMix(r: Remote, immediate: boolean) {
     if (!r.nodes || !this.audio) return;
-    const mix = this.mixes.get(r.userId) ?? NEUTRAL_MIX;
+    const mix = (!r.private && this.mixes.get(r.userId)) || NEUTRAL_MIX;
     const t = this.audio.context.currentTime;
     const smooth = immediate ? 0.001 : SMOOTH_S;
     r.nodes.gain.gain.setTargetAtTime(mix.gain, t, smooth);
@@ -454,7 +586,8 @@ export class VoiceSession {
   private applyVolume() {
     const v = this.state.deafened ? 0 : this.state.volume;
     for (const r of this.remotes.values())
-      if (!r.nodes) r.element.volume = v * (this.mixes.get(r.userId) ?? NEUTRAL_MIX).gain;
+      if (!r.nodes)
+        r.element.volume = v * ((!r.private && this.mixes.get(r.userId)) || NEUTRAL_MIX).gain;
     const bus = this.audio?.bus as GainNode | undefined;
     if (!bus?.gain || !this.audio) return;
     bus.gain.setTargetAtTime(v, this.audio.context.currentTime, SMOOTH_S);
@@ -464,7 +597,9 @@ export class VoiceSession {
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
     if (this.speakingTimer) clearInterval(this.speakingTimer);
     this.heartbeatTimer = this.speakingTimer = null;
-    for (const u of [...this.remotes.keys()]) this.drop(u);
+    for (const k of [...this.remotes.keys()]) this.drop(k);
+    this.stopPrivateOut();
+    this.privatePartner = null;
     this.micAnalyser?.disconnect();
     this.micAnalyser = null;
     for (const t of this.mic?.getTracks() ?? []) t.stop();
