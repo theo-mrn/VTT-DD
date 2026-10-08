@@ -7,8 +7,8 @@ dans `docs/ci.md`.
 ## Principe
 
 ```
-push main ──► release.yml : 18 images (services, migrations, web, worker audio)
-                │            construites, signées (cosign keyless), SBOM + provenance
+push main ──► release.yml : ~22 images (services, migrations, web, worker audio)
+                │            reprises si inchangées, sinon construites, signées (cosign keyless), SBOM + provenance
                 ▼
               commit des digests dans infra/gitops/staging/*.yaml  [skip ci]
                 │
@@ -20,6 +20,23 @@ Argo CD (ApplicationSet vtt-services) ──► namespace vtt-staging
 La CI ne touche jamais le cluster : elle écrit des digests dans Git, Argo CD synchronise.
 Kyverno refuse dans `vtt-*` toute image `ghcr.io/theo-mrn/vtt-*` qui n'est pas signée par le
 workflow de ce dépôt.
+
+### Images reprises (clé de contenu)
+
+Chaque image a une **clé de contenu** : l'empreinte de ce qui y entre (dossier du service,
+`backend/platform`, `packages`, lockfile, Dockerfile, arguments, variables du dépôt ; pour une
+image de migration, son seul dossier `db`). Si `vtt-<image>:src-<clé>` existe déjà sur ghcr,
+la release reprend son digest sans rien reconstruire : le fichier GitOps ne change pas, Argo CD
+ne redéploie rien, les nœuds ne téléchargent rien. Le tag `src-<clé>` n'est posé qu'après
+signature et attestation.
+
+Pourquoi : jusqu'au 2026-10-08, chaque push reconstruisait et redéployait les ~22 images (digests
+jamais identiques). Les nœuds accumulaient des dizaines de Go d'images ; le master a atteint
+98 % de disque et le staging est tombé. Côté nœuds, le kubelet supprime désormais les images
+inutilisées dès 70 % (rôle Ansible `kubelet_image_gc`, dépôt `infra`), et des alertes disque
+(80 / 90 %) et processeur volé partent vers n8n (`node-alerts.yml`, dépôt `argocd_registry`).
+
+Pour tout reconstruire quand même : changer `v1` dans l'étape `key` de release.yml.
 
 ## Ce qui tourne où
 
