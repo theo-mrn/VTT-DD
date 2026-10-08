@@ -155,7 +155,9 @@ export class VoiceSession {
 
   /** Rejoint la salle vocale de la campagne (au clic : déverrouille l'audio). */
   async join(campaignId: string, me: string): Promise<void> {
-    if (this.state.campaignId === campaignId && this.state.status !== 'idle') return;
+    // Déjà en route ou connecté ; après un échec, un nouveau clic réessaie
+    const busy = this.state.status === 'connecting' || this.state.status === 'connected';
+    if (this.state.campaignId === campaignId && busy) return;
     await this.leave();
     const generation = ++this.generation;
     this.me = me;

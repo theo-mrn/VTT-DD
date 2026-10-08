@@ -223,4 +223,15 @@ describe('voix : session', () => {
     expect(session.state.status).toBe('error');
     expect(peer.closed).toBe(true);
   });
+
+  it('après un échec, un nouveau clic réessaie', async () => {
+    const { session, signaling } = setup(() => ({ participants: [P('moi')] }));
+    vi.mocked(signaling.join).mockRejectedValueOnce(new Error('panne'));
+    await session.join('c1', 'moi');
+    expect(session.state.status).toBe('error');
+    await session.join('c1', 'moi');
+    expect(session.state.status).toBe('connected');
+    expect(signaling.join).toHaveBeenCalledTimes(2);
+    await session.leave();
+  });
 });
