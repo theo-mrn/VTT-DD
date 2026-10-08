@@ -140,7 +140,43 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Clé de contenu : empreinte de ce qui entre dans l'image (dossiers git, lockfile,
+      # Dockerfile, arguments, variables du dépôt). Une image déjà publiée pour cette clé est
+      # reprise telle quelle : même digest, rien à redéployer ni à télécharger sur les nœuds
+      # (incident du 2026-10-08 : chaque push reconstruisait et redéployait tout).
+      - id: key
+        env:
+          IMAGE: ${{ matrix.image }}
+          DOCKERFILE: ${{ matrix.dockerfile }}
+          ARGS: ${{ matrix.args }}
+          VARS: ${{ toJSON(vars) }}
+          REPO: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          root='pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json'
+          case "$IMAGE" in
+            web) paths="frontend packages $root" ;;
+            audio-worker) paths="backend/audio backend/platform packages $root" ;;
+            *-migrations) paths="backend/${IMAGE%-migrations}/db" ;;
+            *) paths="backend/$IMAGE backend/platform packages $root" ;;
+          esac
+          key=$(
+            {
+              echo "v1 $GITHUB_REF_NAME $ARGS"
+              printf '%s' "$VARS" | sha256sum
+              for f in $paths "$DOCKERFILE"; do
+                echo "$f $(git rev-parse "HEAD:$f" 2>/dev/null || echo absent)"
+              done
+            } | sha256sum | cut -c1-32
+          )
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          if digest=$(docker buildx imagetools inspect "$REPO:src-$key" --format '{{json .Manifest}}' 2>/dev/null | jq -r .digest) \
+            && [ -n "$digest" ] && [ "$digest" != null ]; then
+            echo "Inchangée : $REPO@$digest reprise (src-$key)"
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          fi
       - id: meta
+        if: steps.key.outputs.digest == ''
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}
@@ -149,6 +185,7 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
       - id: build
+        if: steps.key.outputs.digest == ''
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -175,26 +212,40 @@ jobs:
           provenance: mode=max
           sbom: true
       - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+        if: steps.key.outputs.digest == ''
       - name: Signer l'image (keyless, identité du workflow)
+        if: steps.key.outputs.digest == ''
         env:
           REF: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}@${{ steps.build.outputs.digest }}
         run: cosign sign --yes "$REF"
       - name: SBOM SPDX
+        if: steps.key.outputs.digest == ''
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
           image: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}@${{ steps.build.outputs.digest }}
           format: spdx-json
           output-file: sbom-${{ matrix.image }}.spdx.json
       - name: Attestation de provenance (SLSA)
+        if: steps.key.outputs.digest == ''
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.key.outputs.digest == ''
         with: { name: 'sbom-${{ matrix.image }}', path: 'sbom-${{ matrix.image }}.spdx.json' }
+      # Clé posée seulement une fois l'image signée et attestée : une image reprise plus tard
+      # passe toujours la vérification de Kyverno
+      - name: Marquer la clé de contenu
+        if: steps.key.outputs.digest == ''
+        env:
+          REPO: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}
+          KEY: ${{ steps.key.outputs.key }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: docker buildx imagetools create -t "$REPO:src-$KEY" "$REPO@$DIGEST"
       - id: out
-        run: echo "digest-${{ matrix.image }}=${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+        run: echo "digest-${{ matrix.image }}=${{ steps.key.outputs.digest || steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
 
   deploy:
     name: Déployer (${{ startsWith(github.ref, 'refs/tags/') && 'prod' || 'staging' }})
