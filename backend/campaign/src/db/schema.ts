@@ -14,8 +14,10 @@ import {
   type MapExplorationMode,
   type MapExplorationScope,
   type MapGrid,
+  type MapVoice,
   type MapWeather,
   type RollStep,
+  DEFAULT_MAP_VOICE,
   MapBlocksFrom,
   MapDrawingTool,
   MapFogMode,
@@ -596,6 +598,8 @@ export const maps = campaignSchema.table('maps', {
   grids: jsonb('grids').$type<MapGrid[]>().notNull().default([]),
   /** Mémoire de l'exploration (0031, docs/exploration.md) : `party` pour une scène neuve. */
   exploration: text('exploration').$type<MapExplorationMode>().notNull().default('party'),
+  /** Voix à la table (0032, docs/voix.md § 4) : `table` par défaut. */
+  voice: jsonb('voice').$type<MapVoice>().notNull().default(DEFAULT_MAP_VOICE),
   version: integer('version').notNull().default(1),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),

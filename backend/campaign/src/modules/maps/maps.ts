@@ -95,6 +95,7 @@ export const mapApi = (m: MapRow): MapScene => ({
   fogFull: m.fogFull,
   grids: m.grids,
   exploration: m.exploration,
+  voice: m.voice,
   version: m.version,
   updatedAt: m.updatedAt.toISOString(),
 });

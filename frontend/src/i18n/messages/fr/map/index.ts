@@ -32,6 +32,7 @@ import toolbar from './toolbar';
 import tools from './tools';
 import ui from './ui';
 import vision from './vision';
+import voice from './voice';
 import weather from './weather';
 
 export default {
@@ -64,5 +65,6 @@ export default {
   tools,
   ui,
   vision,
+  voice,
   weather,
 } as const;

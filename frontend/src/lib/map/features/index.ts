@@ -83,6 +83,7 @@ import { measurementsFeature } from './measurements';
 import { movementPathFeature } from './movement-path';
 import { visionFeature } from './vision';
 import { explorationFeature } from './exploration';
+import { voiceFeature } from './voice';
 import { weatherFeature } from './weather';
 import { combatFeature } from './combat';
 import { historyFeature } from './history';
@@ -138,6 +139,8 @@ export const MAP_FEATURES: readonly MapFeature[] = [
   explorationFeature,
   // Météo de la scène : pluie, neige, brouillard… (plan weather, espace écran)
   weatherFeature,
+  // Voix à la table : Table ou Proximité par scène, mixage selon les tokens (docs/voix.md)
+  voiceFeature,
   // Combat : anneaux du tour et des cibles, visée, entrées « Attaquer », menu d'attaque
   combatFeature,
 ];

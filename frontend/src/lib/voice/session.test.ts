@@ -89,17 +89,37 @@ class FakePeer {
   }
 }
 
+const param = () => ({ value: 0, setTargetAtTime: vi.fn() });
 const node = () => ({ connect: vi.fn((n: unknown) => n), disconnect: vi.fn() });
 
 function fakeAudio() {
-  const bus = { ...node(), gain: { setTargetAtTime: vi.fn() } };
+  const bus = { ...node(), gain: param() };
+  const made: {
+    gain: ReturnType<typeof param>;
+    pan: ReturnType<typeof param>;
+    freq: ReturnType<typeof param>;
+  }[] = [];
   const context = {
     currentTime: 0,
     createMediaStreamSource: vi.fn(() => node()),
-    createGain: vi.fn(() => node()),
+    createGain: vi.fn(() => {
+      const g = { ...node(), gain: param() };
+      made.push({ gain: g.gain, pan: param(), freq: param() });
+      return g;
+    }),
+    createBiquadFilter: vi.fn(() => {
+      const f = { ...node(), type: '', frequency: param() };
+      made.at(-1)!.freq = f.frequency;
+      return f;
+    }),
+    createStereoPanner: vi.fn(() => {
+      const p = { ...node(), pan: param() };
+      made.at(-1)!.pan = p.pan;
+      return p;
+    }),
     createAnalyser: vi.fn(() => ({ ...node(), fftSize: 0, getFloatTimeDomainData: vi.fn() })),
   };
-  return { bus, context, release: vi.fn() };
+  return { bus, context, release: vi.fn(), made };
 }
 
 function setup(room: (me: string) => VoiceRoom) {
@@ -232,6 +252,24 @@ describe('voix : session', () => {
     await session.join('c1', 'moi');
     expect(session.state.status).toBe('connected');
     expect(signaling.join).toHaveBeenCalledTimes(2);
+    await session.leave();
+  });
+
+  it('mixage de proximité : volume, position et étouffement de chaque voix reçue', async () => {
+    const { session, audio } = setup(() => ({ participants: [P('moi'), P('a')] }));
+    await session.join('c1', 'moi');
+    await settle();
+    await settle();
+    const voice = audio.made[0]!;
+    // Mode Table à l'arrivée
+    expect(voice.gain.setTargetAtTime).toHaveBeenLastCalledWith(1, 0, expect.any(Number));
+    session.setMixes(new Map([['a', { gain: 0.25, pan: -0.5, cutoffHz: 1_200 }]]));
+    expect(voice.gain.setTargetAtTime).toHaveBeenLastCalledWith(0.25, 0, expect.any(Number));
+    expect(voice.pan.setTargetAtTime).toHaveBeenLastCalledWith(-0.5, 0, expect.any(Number));
+    expect(voice.freq.setTargetAtTime).toHaveBeenLastCalledWith(1_200, 0, expect.any(Number));
+    // Plus d'entrée : retour au mode Table
+    session.setMixes(new Map());
+    expect(voice.gain.setTargetAtTime).toHaveBeenLastCalledWith(1, 0, expect.any(Number));
     await session.leave();
   });
 });

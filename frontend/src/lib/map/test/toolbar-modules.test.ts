@@ -33,6 +33,7 @@ describe('barre d’outils, modules de l’app', () => {
     expect(bar.view).toEqual([
       'vision:view',
       'weather:menu',
+      'voice:menu',
       'grid:menu',
       'grid:scale',
       'layers.panel',

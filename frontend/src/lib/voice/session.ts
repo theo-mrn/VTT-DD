@@ -122,8 +122,26 @@ interface Remote {
   stream: MediaStream;
   element: HTMLAudioElement;
   /** Graphe Web Audio ; null : le navigateur l'a refusé, la voix passe par l'élément. */
-  nodes: { source: MediaStreamAudioSourceNode; gain: GainNode; analyser: AnalyserNode } | null;
+  nodes: {
+    source: MediaStreamAudioSourceNode;
+    gain: GainNode;
+    filter: BiquadFilterNode;
+    panner: StereoPannerNode;
+    analyser: AnalyserNode;
+  } | null;
 }
+
+/** Mixage d'une voix (mode Proximité, docs/voix.md § 4) : volume, position, étouffement. */
+export interface VoiceMix {
+  gain: number;
+  pan: number;
+  cutoffHz: number;
+}
+
+/** Fréquence de coupure sans étouffement. */
+export const OPEN_CUTOFF_HZ = 20_000;
+/** Mode Table : comme un appel. */
+export const NEUTRAL_MIX: VoiceMix = { gain: 1, pan: 0, cutoffHz: OPEN_CUTOFF_HZ };
 
 const codeOf = (e: unknown) => (e as { problem?: { code?: string } } | null)?.problem?.code;
 
@@ -136,6 +154,8 @@ export class VoiceSession {
   private micAnalyser: AnalyserNode | null = null;
   private audio: VoiceAudio | null = null;
   private readonly remotes = new Map<string, Remote>();
+  /** Mixage voulu par voix (la carte le règle, même avant l'arrivée de la voix). */
+  private readonly mixes = new Map<string, VoiceMix>();
   private queue: Promise<void> = Promise.resolve();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private speakingTimer: ReturnType<typeof setInterval> | null = null;
@@ -251,6 +271,17 @@ export class VoiceSession {
     this.applyVolume();
   }
 
+  /**
+   * Mixage des voix reçues (mode Proximité) : une entrée par participant ; absent, il est
+   * entendu comme en mode Table. Appelé à chaque image de la carte (15 Hz au plus).
+   */
+  setMixes(mixes: ReadonlyMap<string, VoiceMix>) {
+    this.mixes.clear();
+    for (const [userId, mix] of mixes) this.mixes.set(userId, mix);
+    for (const r of this.remotes.values()) this.applyMix(r, false);
+    this.applyVolume();
+  }
+
   /** Annonce du bus (`voice.joined`, `voice.updated`, `voice.left`). */
   onEvent(type: string, payload: { userId?: unknown; participant?: VoiceParticipant }) {
     if (this.state.status !== 'connected' || typeof payload.userId !== 'string') return;
@@ -327,17 +358,22 @@ export class VoiceSession {
     try {
       const source = context.createMediaStreamSource(stream);
       const gain = context.createGain();
-      source.connect(gain).connect(bus);
+      const filter = context.createBiquadFilter();
+      filter.type = 'lowpass';
+      const panner = context.createStereoPanner();
+      source.connect(gain).connect(filter).connect(panner).connect(bus);
       const analyser = context.createAnalyser();
       analyser.fftSize = 512;
       source.connect(analyser);
-      nodes = { source, gain, analyser };
+      nodes = { source, gain, filter, panner, analyser };
     } catch (e) {
       // Web Audio refusé (fréquences différentes sous Firefox…) : l'élément joue la voix
       this.report(e);
       element.muted = false;
     }
-    this.remotes.set(userId, { userId, stream, element, nodes });
+    const remote: Remote = { userId, stream, element, nodes };
+    this.remotes.set(userId, remote);
+    this.applyMix(remote, true);
     this.applyVolume();
   }
 
@@ -346,6 +382,8 @@ export class VoiceSession {
     if (!r) return;
     r.nodes?.source.disconnect();
     r.nodes?.gain.disconnect();
+    r.nodes?.filter.disconnect();
+    r.nodes?.panner.disconnect();
     r.nodes?.analyser.disconnect();
     r.element.srcObject = null;
     this.remotes.delete(userId);
@@ -402,9 +440,21 @@ export class VoiceSession {
     if (track) track.enabled = !(this.state.muted || this.state.deafened);
   }
 
+  /** Applique le mixage voulu d'une voix (lissé ; d'un coup à son arrivée). */
+  private applyMix(r: Remote, immediate: boolean) {
+    if (!r.nodes || !this.audio) return;
+    const mix = this.mixes.get(r.userId) ?? NEUTRAL_MIX;
+    const t = this.audio.context.currentTime;
+    const smooth = immediate ? 0.001 : SMOOTH_S;
+    r.nodes.gain.gain.setTargetAtTime(mix.gain, t, smooth);
+    r.nodes.panner.pan.setTargetAtTime(mix.pan, t, smooth);
+    r.nodes.filter.frequency.setTargetAtTime(mix.cutoffHz, t, smooth);
+  }
+
   private applyVolume() {
     const v = this.state.deafened ? 0 : this.state.volume;
-    for (const r of this.remotes.values()) if (!r.nodes) r.element.volume = v;
+    for (const r of this.remotes.values())
+      if (!r.nodes) r.element.volume = v * (this.mixes.get(r.userId) ?? NEUTRAL_MIX).gain;
     const bus = this.audio?.bus as GainNode | undefined;
     if (!bus?.gain || !this.audio) return;
     bus.gain.setTargetAtTime(v, this.audio.context.currentTime, SMOOTH_S);

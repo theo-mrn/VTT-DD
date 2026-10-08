@@ -209,6 +209,28 @@ export function scenePixelsPerUnit(
   return typeof ppu === 'number' && ppu > 0 ? ppu : 50;
 }
 
+/**
+ * Voix à la table sur une scène (docs/voix.md § 4) : tout le monde s'entend (`table`), ou selon
+ * la distance et les murs (`proximity`). Portées en cases de la scène : plein volume jusqu'à
+ * `clearRange`, silence à `maxRange`.
+ */
+export const MapVoiceMode = z.enum(['table', 'proximity']);
+export type MapVoiceMode = z.infer<typeof MapVoiceMode>;
+
+const MapVoiceShape = z.strictObject({
+  mode: MapVoiceMode,
+  clearRange: z.number().min(0).max(200),
+  maxRange: z.number().min(1).max(500),
+});
+export const MapVoice = MapVoiceShape.refine((v) => v.maxRange > v.clearRange, {
+  message: 'La portée maximale doit dépasser la portée claire',
+  path: ['maxRange'],
+});
+export type MapVoice = z.infer<typeof MapVoiceShape>;
+
+/** Réglage d'une scène qui n'en a pas : tout le monde s'entend. */
+export const DEFAULT_MAP_VOICE: MapVoice = { mode: 'table', clearRange: 6, maxRange: 24 };
+
 export const MapScene = z.object({
   id: Id,
   name: z.string(),
@@ -231,6 +253,8 @@ export const MapScene = z.object({
   grids: z.array(MapGrid),
   /** Mémoire de l'exploration (docs/exploration.md) : coupée, ou partagée par le groupe. */
   exploration: MapExplorationMode,
+  /** Voix à la table (docs/voix.md § 4) ; absente (ancienne donnée) : mode table. */
+  voice: MapVoiceShape.default(DEFAULT_MAP_VOICE),
   version: z.number().int(),
   updatedAt: Timestamp,
 });
@@ -251,6 +275,7 @@ export const MapSceneFields = z.strictObject({
   fogFull: z.boolean(),
   grids: MapGrids,
   exploration: MapExplorationMode,
+  voice: MapVoice,
 });
 
 /** `width` et `height` vont ensemble. */

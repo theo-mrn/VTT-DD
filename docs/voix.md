@@ -88,14 +88,22 @@ piste distante ─► MediaStreamSource ─► [effets de voix : lots suivants] 
 - **Mode « Table »** : gain 1, panoramique 0, pas de murs : comme un appel.
 - **Mode « Proximité »** (le MJ le choisit par scène) :
   - auditeur : mon token (joueur) ; pour le MJ, le token sélectionné, sinon le centre de la vue ;
-  - source : le token du personnage incarné par celui qui parle ; le MJ hors token parle
-    « partout » (gain 1, le narrateur) ;
+  - source : le token du personnage incarné par celui qui parle ; le MJ, et tout orateur sans
+    token sur la scène, parle « partout » (gain 1, le narrateur) ; un auditeur sans token
+    (spectateur, joueur absent de la scène) entend tout le monde comme en mode Table ;
   - distance en cases : plein volume jusqu'à `portée claire`, puis décroissance jusqu'au silence
     à `portée max` (réglages de la scène, défauts 6 et 24 cases), courbe reprise de `zoneMix` ;
   - murs : le même comptage que les zones sonores (`@vtt/vision`), le même étouffement (`muffle`) :
     volume divisé par deux par mur, passe-bas ;
   - panoramique : selon l'écart horizontal, comme les zones ;
-  - mise à jour à chaque image (positions des tokens), paramètres lissés (`setTargetAtTime`).
+  - mise à jour à chaque image de la carte, 15 fois par seconde au plus (positions des tokens),
+    paramètres lissés (`setTargetAtTime`).
+- **Réalisation** (2026-10-09) : réglage `maps.voice { mode, clearRange, maxRange }` (campaign,
+  migration 0032, `MapVoice` dans les contrats) ; module de carte `lib/map/features/voice` :
+  calcul pur `engine/mix.ts` (courbe `1 − t²` entre les deux portées, murs et panoramique),
+  auditeur et orateurs `engine/hearing.ts`, composant `MapVoices` qui transmet le mixage à la
+  session (`VoiceSession.setMixes`), bouton « Voix de la scène » du MJ dans la barre d'outils ;
+  chaque voix reçue passe par volume → passe-bas → panoramique → bus « voix ».
 - **Mixeur** : bus « voix » dans le mixeur personnel, volume par participant, sourdine.
 - **Budgets** : 12 voix spatialisées au plus par auditeur ; mixage < 1 ms par image ; débit Opus
   ~32 kbit/s par voix (une séance de 3 h à 6 joueurs ≈ 1,3 Go sortant chez Cloudflare).
@@ -143,7 +151,8 @@ Sans texte explicatif (UI sans blabla) :
    vocale en haut à droite de la table) ; reste Helm et secrets, après la création de l'app
    Cloudflare._
 2. **Proximité** : réglages de scène, mixage spatial (distance, murs, panoramique), auditeur du
-   MJ, bus « voix » du mixeur.
+   MJ, bus « voix » du mixeur. _Fait le 2026-10-09, sauf le bus « voix » dans le mixeur
+   personnel (le volume des voix reste dans la barre vocale)._
 3. **Canal privé** MJ ↔ joueur (pistes privées gardées par le service).
 4. **Confort** : appui pour parler et détection de voix, test du micro, volume par participant,
    activité Discord (voix de la table désactivée).
