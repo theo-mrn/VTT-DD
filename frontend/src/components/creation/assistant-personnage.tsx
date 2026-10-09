@@ -20,6 +20,7 @@ import {
   ArrowRight,
   Check,
   Circle,
+  FileInput,
   Hammer,
   Lock,
   RotateCcw,
@@ -340,6 +341,16 @@ export function AssistantPersonnage({
                           setId(heros);
                         }}
                       />
+                      {!id && (
+                        <Button asChild variant="outline" size="sm" className="mb-6">
+                          <Link
+                            href={`/personnages/nouveau?${new URLSearchParams({ campagne: campagneId, import: '' })}`}
+                          >
+                            <FileInput />
+                            {t('creation.import.entry')}
+                          </Link>
+                        </Button>
+                      )}
                       <Identite
                         nom={nom}
                         setNom={setNom}
@@ -444,7 +455,7 @@ function Introuvable({ campagne }: Readonly<{ campagne: boolean }>) {
 }
 
 /** Création réservée au MJ : retour au choix d'un héros terminé. */
-function CreationFermee({ quitter }: Readonly<{ quitter: string }>) {
+export function CreationFermee({ quitter }: Readonly<{ quitter: string }>) {
   const t = useTranslations();
   return (
     <EtatVide

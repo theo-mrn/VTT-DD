@@ -1,0 +1,180 @@
+{
+  "source": {
+    "kind": "link",
+    "site": "nooblieeschroniques.fr",
+    "url": "https://nooblieeschroniques.fr/index.php?sheet=exemple"
+  },
+  "name": "Askel Hendriksen",
+  "portraitUrl": "https://nooblieeschroniques.fr/illu/barbare.png",
+  "fields": [
+    {
+      "label": "FOR",
+      "value": "16"
+    },
+    {
+      "label": "DEX",
+      "value": "10"
+    },
+    {
+      "label": "CON",
+      "value": "15"
+    },
+    {
+      "label": "INT",
+      "value": "10"
+    },
+    {
+      "label": "SAG",
+      "value": "13"
+    },
+    {
+      "label": "CHA",
+      "value": "11"
+    },
+    {
+      "label": "Niveau",
+      "value": "1"
+    },
+    {
+      "label": "PV",
+      "value": "14"
+    },
+    {
+      "label": "PV max",
+      "value": "14"
+    },
+    {
+      "label": "Défense",
+      "value": "10"
+    },
+    {
+      "label": "Contact",
+      "value": "4"
+    },
+    {
+      "label": "Distance",
+      "value": "1"
+    },
+    {
+      "label": "Magie",
+      "value": "1"
+    },
+    {
+      "label": "Initiative",
+      "value": "10"
+    },
+    {
+      "label": "Points de chance",
+      "value": "3"
+    },
+    {
+      "label": "Points de récupération",
+      "value": "5"
+    },
+    {
+      "label": "Taille",
+      "value": "1,92 m"
+    },
+    {
+      "label": "Poids",
+      "value": "102 Kg"
+    },
+    {
+      "label": "Âge",
+      "value": "21 ans"
+    },
+    {
+      "label": "Sexe",
+      "value": "M"
+    }
+  ],
+  "entries": [
+    {
+      "name": "Humain",
+      "kind": "race"
+    },
+    {
+      "name": "Barbare",
+      "kind": "profil"
+    },
+    {
+      "name": "Voie de la brute",
+      "kind": "voie",
+      "rank": 2,
+      "ranks": [
+        "Argument de taille",
+        "Tour de force",
+        "Attaque brutale (L)",
+        "Briseur d’os",
+        "Force héroïque"
+      ]
+    },
+    {
+      "name": "Voie de la rage",
+      "kind": "voie",
+      "rank": 0,
+      "ranks": [
+        "Cri de guerre (L)",
+        "Défier la mort",
+        "Rage du berserk (L)",
+        "Même pas mal",
+        "Furie du berserk (L)"
+      ]
+    },
+    {
+      "name": "Voie du pagne",
+      "kind": "voie",
+      "rank": 0,
+      "ranks": ["Vigueur", "Peau de pierre", "Tatouages", "Peau d’acier", "Constitution héroïque"]
+    },
+    {
+      "name": "Voie du pourfendeur",
+      "kind": "voie",
+      "rank": 0,
+      "ranks": [
+        "Réflexes félins",
+        "Charge (L)",
+        "Enchaînement",
+        "Déchaînement d’acier (L)",
+        "Attaque tourbillon (L)"
+      ]
+    },
+    {
+      "name": "Voie de l’humain",
+      "kind": "voie",
+      "rank": 1,
+      "ranks": ["Adaptable*", "Loup parmi les loups", "Versatile", "Increvable", "Polyvalence"]
+    },
+    {
+      "name": "Voie du héros",
+      "kind": "voie",
+      "rank": 0,
+      "ranks": [
+        "Ignorer la douleur",
+        "Piqures d’insecte",
+        "Laissez-le-moi !",
+        "Seul contre tous (L)",
+        "Charisme héroïque"
+      ]
+    },
+    {
+      "name": "Masse",
+      "kind": "arme",
+      "details": "DM 1d6"
+    },
+    {
+      "name": "Vêtement en tissu",
+      "kind": "armure"
+    }
+  ],
+  "texts": [
+    {
+      "label": "Capacité raciale",
+      "text": "Instinct de survie : Lorsqu’une attaque devrait amener le personnage à 0 PV, les DM qu’elle inflige sont divisés par 2 (minimum 1)."
+    },
+    {
+      "label": "Notes",
+      "text": "Né dans les montagnes du nord."
+    }
+  ]
+}

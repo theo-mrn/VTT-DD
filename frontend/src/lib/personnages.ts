@@ -28,7 +28,7 @@ import {
   type Tirage,
   type Valeur,
 } from '@vtt/rules';
-import type { PortraitStudio } from '@vtt/contracts';
+import type { PortraitStudio, SheetSource } from '@vtt/contracts';
 import { useMemo } from 'react';
 import { api, ApiError } from './api';
 import {
@@ -41,6 +41,7 @@ import {
   type CampaignCharacterApi,
 } from './campagnes';
 import { useProfil } from './session';
+import { importFile } from './uploads/uploader';
 
 // ─── Contrat de l'API (schémas Zod de backend/character/src/modules/personnages) ─
 
@@ -82,6 +83,8 @@ interface CharacterApi {
   summary: SummaryApi;
   /** Mise en page de la fiche ; null : disposition par défaut de la présentation. */
   sheetLayout?: SheetLayout | null;
+  /** Importé d'une fiche (docs/import-fiche.md) ; null : créé dans l'app. */
+  sheetImport?: SheetImport | null;
   /** Droits de l'appelant : renvoyés par la lecture et par le changement de mise en page. */
   permissions?: PermissionsFiche;
   version: number;
@@ -168,8 +171,17 @@ export interface SheetLayout {
   layouts: Partial<Record<SheetBreakpoint, SheetLayoutItem[]>>;
 }
 
+/** Marque d'un personnage importé d'une fiche : date, source, écarts aux règles (pour le MJ). */
+export interface SheetImport {
+  at: string;
+  source: SheetSource;
+  ecarts: string[];
+}
+
 /** Personnage complet : état saisi (calculé par le moteur), présentation, version. */
 export interface FichePersonnage extends Personnage {
+  /** Importé d'une fiche ; null : créé dans l'app. */
+  sheetImport: SheetImport | null;
   /** Token fabriqué par le Studio du portrait ; null : le portrait sert de token. */
   tokenUrl: string | null;
   /** Réglages du Studio du portrait, pour le rouvrir. */
@@ -311,6 +323,7 @@ function versFiche(p: CharacterApi): FichePersonnage {
     state,
     details: p.details,
     sheetLayout: p.sheetLayout ?? null,
+    sheetImport: p.sheetImport ?? null,
     permissions: p.permissions ?? null,
     version: p.version,
     createdAt: p.createdAt,
@@ -975,6 +988,79 @@ export function useCreerPersonnage() {
     },
     onSuccess: (p, n) => {
       // Son créateur en est le propriétaire : tous les droits
+      client.setQueryData(clesPersonnages.un(p.id), {
+        ...p,
+        permissions: { write: true, layout: true },
+      });
+      invaliderListes(client);
+      void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+      void client.invalidateQueries({ queryKey: clesCampagnes.une(n.campagneId) });
+    },
+  });
+}
+
+/** Corps de `POST /v1/characters/import` (docs/import-fiche.md § 5.1). */
+export interface DemandeImport {
+  systemeId: string;
+  type: string;
+  nom: string;
+  details: Partial<DetailsPersonnage>;
+  valeurs: Record<string, Valeur>;
+  possessions: {
+    entree: string;
+    rang?: number;
+    quantite?: number;
+    champs?: Record<string, string>;
+  }[];
+  entrees: Entree[];
+  lues: Record<string, number>;
+  source: SheetSource;
+}
+
+/**
+ * Import d'une fiche vérifiée (docs/import-fiche.md) : le personnage naît terminé dans
+ * character, est engagé dans la campagne et incarné, comme avec l'assistant ; si la campagne le
+ * refuse, il est supprimé. Le portrait de la fiche est repris ensuite, sans bloquer l'import.
+ */
+export function useImporterPersonnage() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (n: {
+      campagneId: string;
+      demande: DemandeImport;
+      portraitUrl?: string;
+    }): Promise<FichePersonnage> => {
+      let p = versFiche(
+        await api<CharacterApi>('/v1/characters/import', { method: 'POST', ...json(n.demande) }),
+      );
+      try {
+        await campagnes.engager(n.campagneId, p.id);
+        const engages = await campagnes.incarner(n.campagneId, p.id);
+        client.setQueryData(clesPersonnages.campagne(n.campagneId), engages);
+      } catch (err) {
+        await personnages.supprimer(p.id).catch(() => undefined);
+        throw err;
+      }
+      if (n.portraitUrl) {
+        try {
+          const copie = await importFile(
+            { kind: 'character', id: p.id },
+            'portrait',
+            n.portraitUrl,
+          );
+          p = versFiche(
+            await api<CharacterApi>(url(p.id), {
+              method: 'PATCH',
+              ...json({ version: p.version, avatarUrl: copie.publicUrl }),
+            }),
+          );
+        } catch {
+          // Portrait illisible ou refusé : le personnage reste, sans portrait
+        }
+      }
+      return p;
+    },
+    onSuccess: (p, n) => {
       client.setQueryData(clesPersonnages.un(p.id), {
         ...p,
         permissions: { write: true, layout: true },

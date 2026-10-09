@@ -69,6 +69,7 @@ import { useProfil } from '@/lib/session';
 import { undoAction } from '@/lib/trash';
 import { cn } from '@/lib/utils';
 import { BannerIdentity, BannerStats } from './banner';
+import { ImportBadge } from './import-badge';
 import { styleThemeSysteme } from './theme';
 import { actionsProgression, ProgressionDialog } from './progression-dialog';
 import { ValuesDialog } from './values-dialog';
@@ -370,6 +371,7 @@ function EnTeteFiche({
                     </Link>
                   </>
                 )}
+                {p.sheetImport && <ImportBadge sheetImport={p.sheetImport} mj={!!ctx?.mj} />}
               </p>
               <h1
                 className={cn(

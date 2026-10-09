@@ -116,6 +116,13 @@ Le MJ voit sur la fiche un badge « Importé » ; au survol, la liste des écart
 
 Un personnage importé est créé par le joueur : l'import suit la même règle que l'assistant. Si le MJ n'autorise pas la création de personnages dans sa campagne (`characterCreation`), l'entrée « Importer une fiche PDF » n'apparaît pas pour les joueurs, et campaign traite un personnage importé comme un personnage en création : engagement refusé (le résumé interne de character porte `imported`).
 
+## 5.4 Front
+
+- Entrée : « Importer une fiche » dans la première étape de l'assistant, vers `/personnages/nouveau?campagne=<id>&import` (`components/creation/import-fiche.tsx`).
+- Détection : `detectSheet(systeme, type, lecture)` (`lib/import-fiche/detect.ts`), fonction pure testée sur la fiche Noobliés de référence avec D&D classique et Nooblies. Attributs par clé, nom ou abréviation ; sortes par l'indice de la fiche (`kind`) rapproché de leurs noms ; entrées par nom exact, approché (≥ 85 %) ou par les noms de leurs rangs ; voie inconnue → voie libre (éditeur de voie libre) ; objet inconnu → entrée générique de sa sorte, à son nom ; le reste en apparence et en histoire.
+- Vérification : nom, valeurs, entrées par sorte (case, rang, rapprochement incertain signalé), voies libres, non reconnu, apparence, histoire, portrait ; aperçu de la fiche calculé par le moteur (rangs posés, bases déduites comme le fera le service).
+- Fiche : pastille « Importé » ; au survol, les écarts pour le MJ, la source pour le joueur.
+
 ## 6. Découpage
 
 | Lot | Contenu                                                                                                                                                             |
