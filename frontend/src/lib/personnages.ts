@@ -1030,6 +1030,8 @@ export function useImporterPersonnage() {
       campagneId: string;
       demande: DemandeImport;
       portraitUrl?: string;
+      /** false : engagé sans être incarné (le MJ importe pour la table). */
+      incarner?: boolean;
     }): Promise<FichePersonnage> => {
       let p = versFiche(
         await api<CharacterApi>('/v1/characters/import', { method: 'POST', ...json(n.demande) }),
@@ -1037,8 +1039,10 @@ export function useImporterPersonnage() {
       try {
         // Un héros est toujours du camp des joueurs, même créé par le MJ
         await campagnes.engager(n.campagneId, p.id, 'players');
-        const engages = await campagnes.incarner(n.campagneId, p.id);
-        client.setQueryData(clesPersonnages.campagne(n.campagneId), engages);
+        if (n.incarner !== false) {
+          const engages = await campagnes.incarner(n.campagneId, p.id);
+          client.setQueryData(clesPersonnages.campagne(n.campagneId), engages);
+        } else void client.invalidateQueries({ queryKey: clesPersonnages.campagne(n.campagneId) });
       } catch (err) {
         await personnages.supprimer(p.id).catch(() => undefined);
         throw err;

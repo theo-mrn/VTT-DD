@@ -4,17 +4,20 @@
  * Personnages de la table : un onglet par personnage joueur de la campagne, incarné ou non
  * (le joueur qui l'incarne, sinon « Non incarné »), et sa fiche juste en dessous. Un clic passe d'une fiche à l'autre, sans
  * retour ; le personnage choisi est dans l'adresse (`?personnage=`), partageable. On arrive
- * sur le sien, sinon sur le premier.
+ * sur le sien, sinon sur le premier. « Importer une fiche » ouvre l'import dans un panneau,
+ * sans quitter la table (docs/import-fiche.md) ; le personnage importé s'ouvre ensuite ici.
  */
 import { compareText } from '@/i18n/runtime';
-import { MessageSquareLock, UserRound } from 'lucide-react';
+import { FileInput, MessageSquareLock, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { EtatVide, Page } from '@/components/commun/page';
 import { Illustration } from '@/components/commun/illustration';
+import { ImportFicheForm } from '@/components/creation/import-fiche';
 import { FichePersonnage } from '@/components/fiche/fiche-personnage';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogDescription, DialogTitle, SheetContent } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
@@ -24,7 +27,7 @@ import { useCampaignPresence } from '@/lib/realtime';
 import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { useTable } from '../contexte';
-import { PanelLink } from '../panels/navigation';
+import { PanelLink, usePanels } from '../panels/navigation';
 import { TABLE_PARAMS } from '../panels/registry';
 
 interface Present {
@@ -35,8 +38,46 @@ interface Present {
 
 export function PanneauJoueurs() {
   const t = useTranslations('table.characters');
-  const { campagne } = useTable();
+  const { campagne, gm } = useTable();
   const moi = useProfil().id;
+  const { open } = usePanels();
+  const [importer, setImporter] = useState(false);
+  // Comme la création : le MJ, ou les joueurs si la campagne la leur ouvre
+  const peutImporter = gm || (campagne.freeCreation && campagne.role !== 'spectator');
+  const ti = useTranslations('creation.import');
+  const boutonImport = peutImporter && (
+    <Info texte={ti('entry')}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={ti('entry')}
+        onClick={() => setImporter(true)}
+      >
+        <FileInput />
+      </Button>
+    </Info>
+  );
+  const panneauImport = peutImporter && (
+    <Dialog open={importer} onOpenChange={setImporter}>
+      <SheetContent cote="right" className="w-[94vw] max-w-2xl overflow-y-auto">
+        <div className="space-y-6 px-6 py-6">
+          <DialogTitle className="text-lg font-semibold">{ti('title')}</DialogTitle>
+          <DialogDescription className="sr-only">{ti('title')}</DialogDescription>
+          {importer && (
+            <ImportFicheForm
+              panel
+              campagneId={campagne.id}
+              incarner={!gm}
+              onImported={(p) => {
+                setImporter(false);
+                open('joueurs', { [TABLE_PARAMS.character]: p.id });
+              }}
+            />
+          )}
+        </div>
+      </SheetContent>
+    </Dialog>
+  );
   const choisi = useSearchParams().get(TABLE_PARAMS.character);
   const personnages = usePersonnagesCampagne(campagne.id);
   const presence = useCampaignPresence(campagne.id);
@@ -81,7 +122,20 @@ export function PanneauJoueurs() {
   if (!actif)
     return (
       <Page>
-        <EtatVide icone={UserRound} titre={t('none')} description={t('noneText')} />
+        <EtatVide
+          icone={UserRound}
+          titre={t('none')}
+          description={t('noneText')}
+          action={
+            peutImporter ? (
+              <Button variant="secondary" onClick={() => setImporter(true)}>
+                <FileInput />
+                {ti('entry')}
+              </Button>
+            ) : undefined
+          }
+        />
+        {panneauImport}
       </Page>
     );
 
@@ -146,6 +200,7 @@ export function PanneauJoueurs() {
               );
             })}
           </ul>
+          {boutonImport}
           {actif.joueur && actif.joueur.userId !== moi && (
             <Info texte={t('whisper', { name: actif.joueur.name })}>
               <Button variant="ghost" size="icon-sm" asChild>
@@ -163,6 +218,7 @@ export function PanneauJoueurs() {
       </nav>
 
       <FichePersonnage key={actif.personnage.id} id={actif.personnage.id} dansPanneau />
+      {panneauImport}
     </div>
   );
 }

@@ -31,7 +31,12 @@ import { api, messageErreur } from '@/lib/api';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { useCampagne } from '@/lib/campagnes';
 import { detectSheet, type DetectedEntry, type SheetDetection } from '@/lib/import-fiche/detect';
-import { TYPE_HEROS, useImporterPersonnage, type DemandeImport } from '@/lib/personnages';
+import {
+  TYPE_HEROS,
+  useImporterPersonnage,
+  type DemandeImport,
+  type FichePersonnage,
+} from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import {
   entriesOf,
@@ -179,9 +184,34 @@ function Toggle({
   );
 }
 
+/** Page d'import (`/personnages/nouveau?campagne=…&import`) : la fiche s'ouvre une fois créée. */
 export function ImportFiche({ campagneId }: Readonly<{ campagneId: string }>) {
-  const t = useTranslations();
   const router = useRouter();
+  return (
+    <ImportFicheForm
+      campagneId={campagneId}
+      onImported={(p) => router.replace(`/personnages/${p.id}`)}
+    />
+  );
+}
+
+/**
+ * Import d'une fiche : en page (avec l'aperçu de la fiche à côté), ou dans un panneau de la
+ * table (`panel`), sans quitter la campagne.
+ */
+export function ImportFicheForm({
+  campagneId,
+  onImported,
+  panel = false,
+  incarner = true,
+}: Readonly<{
+  campagneId: string;
+  onImported(p: FichePersonnage): void;
+  panel?: boolean;
+  /** false : le personnage est engagé sans être incarné (le MJ importe pour la table). */
+  incarner?: boolean;
+}>) {
+  const t = useTranslations();
   const campagne = useCampagne(campagneId);
   const sys = useCampaignSystem(campagne.data?.system, campagneId);
   const systeme = sys.data?.systeme ?? null;
@@ -232,10 +262,11 @@ export function ImportFiche({ campagneId }: Readonly<{ campagneId: string }>) {
       const p = await importer.mutateAsync({
         campagneId,
         demande: request,
+        incarner,
         ...(draft.portrait && detection?.portraitUrl ? { portraitUrl: detection.portraitUrl } : {}),
       });
       toast.success(t('creation.import.created', { name: p.name }));
-      router.replace(`/personnages/${p.id}`);
+      onImported(p);
     } catch (err) {
       toast.error(messageErreur(err));
     }
@@ -249,6 +280,280 @@ export function ImportFiche({ campagneId }: Readonly<{ campagneId: string }>) {
   // Entrées rangées par sorte, dans l'ordre de la fiche
   const groups = new Map<string, number[]>();
   draft?.entries.forEach((e, i) => groups.set(e.sorte, [...(groups.get(e.sorte) ?? []), i]));
+
+  const contenu = (
+    <>
+      {fermee ? (
+        <CreationFermee quitter={quitter} />
+      ) : !systeme ? (
+        <Chargement />
+      ) : (
+        <>
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void read();
+            }}
+          >
+            <div className="relative min-w-0 flex-1">
+              <Link2
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle"
+                aria-hidden
+              />
+              <Input
+                aria-label={t('creation.import.link')}
+                placeholder="https://"
+                inputMode="url"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                className="pl-9"
+                autoFocus
+              />
+            </div>
+            <Button type="submit" disabled={!link.trim() || busy} loading={busy}>
+              {t('creation.import.read')}
+            </Button>
+          </form>
+
+          {draft && detection && entity && (
+            <>
+              <Section title={t('creation.import.identity')}>
+                <Input
+                  aria-label={t('map.lights.name')}
+                  value={draft.name}
+                  maxLength={100}
+                  onChange={(e) => set({ name: e.target.value })}
+                />
+              </Section>
+
+              {Object.keys(draft.values).length > 0 && (
+                <Section title={t('creation.import.values')}>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                    {Object.entries(draft.values).map(([key, value]) => {
+                      const a = entity.attributs.get(key);
+                      const id = `import-${key}`;
+                      return (
+                        <div key={key} className="space-y-1">
+                          <Label htmlFor={id} className="text-[12px] text-muted-foreground">
+                            {a?.nom ?? key}
+                          </Label>
+                          <Input
+                            id={id}
+                            value={String(value)}
+                            inputMode={typeof value === 'number' ? 'numeric' : undefined}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const n = Number(v);
+                              set({
+                                values: {
+                                  ...draft.values,
+                                  [key]:
+                                    typeof value === 'number' && v.trim() && Number.isFinite(n)
+                                      ? n
+                                      : v,
+                                },
+                              });
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
+              {draft.entries.length > 0 && (
+                <Section title={t('creation.import.entries')}>
+                  <div className="space-y-4">
+                    {[...groups].map(([sorte, indexes]) => {
+                      const s = systeme.sortes.get(sorte);
+                      return (
+                        <div
+                          key={sorte}
+                          className="rounded-xl border border-border bg-surface-2/40"
+                        >
+                          <p className="px-3 pt-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">
+                            {s?.nomPluriel ?? s?.nom ?? sorte}
+                          </p>
+                          <ul className="divide-y divide-border">
+                            {indexes.map((i) => {
+                              const e = draft.entries[i]!;
+                              const entree = systeme.entrees.get(e.entry);
+                              const nom =
+                                (e.fields && s?.nomExemplaire && e.fields[s.nomExemplaire]) ||
+                                entree?.nom ||
+                                e.entry;
+                              const setEntry = (patch: Partial<Draft['entries'][number]>) =>
+                                set({
+                                  entries: draft.entries.map((x, j) =>
+                                    j === i ? { ...x, ...patch } : x,
+                                  ),
+                                });
+                              return (
+                                <li
+                                  key={i}
+                                  className="flex min-h-11 items-center gap-3 px-3 py-1.5"
+                                >
+                                  <Toggle
+                                    on={e.on}
+                                    onChange={(on) => setEntry({ on })}
+                                    label={nom}
+                                  />
+                                  <span
+                                    className={cn(
+                                      'min-w-0 flex-1 truncate text-sm',
+                                      !e.on && 'text-subtle line-through',
+                                    )}
+                                  >
+                                    {nom}
+                                  </span>
+                                  {e.confidence === 'probable' && (
+                                    <Info texte={t('creation.import.probable', { from: e.from })}>
+                                      <CircleHelp
+                                        className="size-4 shrink-0 text-warning"
+                                        aria-hidden
+                                      />
+                                    </Info>
+                                  )}
+                                  {s?.rangs && (
+                                    <Input
+                                      aria-label={`${t('creation.import.rank')} : ${nom}`}
+                                      inputMode="numeric"
+                                      className="h-8 w-16 text-center"
+                                      value={String(e.rank ?? 0)}
+                                      onChange={(ev) => {
+                                        const n = Number(ev.target.value);
+                                        if (Number.isInteger(n) && n >= 0) setEntry({ rank: n });
+                                      }}
+                                    />
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
+              {draft.free.length > 0 && (
+                <Section title={t('creation.import.freePaths')}>
+                  <ul className="divide-y divide-border rounded-xl border border-border bg-surface-2/40">
+                    {draft.free.map((f, i) => {
+                      const setFree = (patch: Partial<FreePath>) =>
+                        set({
+                          free: draft.free.map((x, j) => (j === i ? { ...x, ...patch } : x)),
+                        });
+                      return (
+                        <li
+                          key={f.entries[0]!.id}
+                          className="flex min-h-11 items-center gap-3 px-3 py-1.5"
+                        >
+                          <Toggle on={f.on} onChange={(on) => setFree({ on })} label={f.name} />
+                          <Info
+                            texte={f.entries
+                              .slice(1)
+                              .map((e) => e.nom)
+                              .join(' · ')}
+                          >
+                            <span
+                              className={cn(
+                                'min-w-0 flex-1 truncate text-sm',
+                                !f.on && 'text-subtle line-through',
+                              )}
+                            >
+                              {f.name}
+                            </span>
+                          </Info>
+                          <Input
+                            aria-label={`${t('creation.import.rank')} : ${f.name}`}
+                            inputMode="numeric"
+                            className="ml-auto h-8 w-16 text-center"
+                            value={String(f.rank)}
+                            onChange={(ev) => {
+                              const n = Number(ev.target.value);
+                              if (Number.isInteger(n) && n >= 0) setFree({ rank: n });
+                            }}
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Section>
+              )}
+
+              {detection.unmatched.length > 0 && (
+                <Section title={t('creation.import.unmatched')}>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {detection.unmatched.map((u) => (
+                      <li
+                        key={u}
+                        className="rounded-full border border-border px-2.5 py-1 text-[12px] text-muted-foreground"
+                      >
+                        {u}
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              )}
+
+              <Section title={t('creation.import.appearance')}>
+                <Textarea
+                  aria-label={t('creation.import.appearance')}
+                  value={draft.appearance}
+                  maxLength={2000}
+                  rows={3}
+                  onChange={(e) => set({ appearance: e.target.value })}
+                />
+              </Section>
+              <Section title={t('creation.import.backstory')}>
+                <Textarea
+                  aria-label={t('creation.import.backstory')}
+                  value={draft.backstory}
+                  maxLength={8000}
+                  rows={6}
+                  onChange={(e) => set({ backstory: e.target.value })}
+                />
+              </Section>
+
+              {detection.portraitUrl && (
+                <label className="flex items-center gap-3">
+                  <Toggle
+                    on={draft.portrait}
+                    onChange={(portrait) => set({ portrait })}
+                    label={t('creation.import.portrait')}
+                  />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={detection.portraitUrl}
+                    alt=""
+                    className="size-12 rounded-lg border border-border object-cover"
+                  />
+                  <span className="text-sm">{t('creation.import.portrait')}</span>
+                </label>
+              )}
+
+              <div className="flex justify-end">
+                <Button
+                  size="lg"
+                  disabled={draft.name.trim().length < 2 || importer.isPending}
+                  loading={importer.isPending}
+                  onClick={() => void create()}
+                >
+                  {t('creation.import.create')}
+                </Button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </>
+  );
+
+  if (panel) return <div className="space-y-8">{contenu}</div>;
 
   return (
     <div className="flex min-h-dvh flex-col" data-ambiance={campagne.data?.ambiance}>
@@ -266,282 +571,7 @@ export function ImportFiche({ campagneId }: Readonly<{ campagneId: string }>) {
               </h1>
             </div>
 
-            {fermee ? (
-              <CreationFermee quitter={quitter} />
-            ) : !systeme ? (
-              <Chargement />
-            ) : (
-              <>
-                <form
-                  className="flex gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void read();
-                  }}
-                >
-                  <div className="relative min-w-0 flex-1">
-                    <Link2
-                      className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle"
-                      aria-hidden
-                    />
-                    <Input
-                      aria-label={t('creation.import.link')}
-                      placeholder="https://"
-                      inputMode="url"
-                      value={link}
-                      onChange={(e) => setLink(e.target.value)}
-                      className="pl-9"
-                      autoFocus
-                    />
-                  </div>
-                  <Button type="submit" disabled={!link.trim() || busy} loading={busy}>
-                    {t('creation.import.read')}
-                  </Button>
-                </form>
-
-                {draft && detection && entity && (
-                  <>
-                    <Section title={t('creation.import.identity')}>
-                      <Input
-                        aria-label={t('map.lights.name')}
-                        value={draft.name}
-                        maxLength={100}
-                        onChange={(e) => set({ name: e.target.value })}
-                      />
-                    </Section>
-
-                    {Object.keys(draft.values).length > 0 && (
-                      <Section title={t('creation.import.values')}>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                          {Object.entries(draft.values).map(([key, value]) => {
-                            const a = entity.attributs.get(key);
-                            const id = `import-${key}`;
-                            return (
-                              <div key={key} className="space-y-1">
-                                <Label htmlFor={id} className="text-[12px] text-muted-foreground">
-                                  {a?.nom ?? key}
-                                </Label>
-                                <Input
-                                  id={id}
-                                  value={String(value)}
-                                  inputMode={typeof value === 'number' ? 'numeric' : undefined}
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    const n = Number(v);
-                                    set({
-                                      values: {
-                                        ...draft.values,
-                                        [key]:
-                                          typeof value === 'number' &&
-                                          v.trim() &&
-                                          Number.isFinite(n)
-                                            ? n
-                                            : v,
-                                      },
-                                    });
-                                  }}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </Section>
-                    )}
-
-                    {draft.entries.length > 0 && (
-                      <Section title={t('creation.import.entries')}>
-                        <div className="space-y-4">
-                          {[...groups].map(([sorte, indexes]) => {
-                            const s = systeme.sortes.get(sorte);
-                            return (
-                              <div
-                                key={sorte}
-                                className="rounded-xl border border-border bg-surface-2/40"
-                              >
-                                <p className="px-3 pt-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">
-                                  {s?.nomPluriel ?? s?.nom ?? sorte}
-                                </p>
-                                <ul className="divide-y divide-border">
-                                  {indexes.map((i) => {
-                                    const e = draft.entries[i]!;
-                                    const entree = systeme.entrees.get(e.entry);
-                                    const nom =
-                                      (e.fields && s?.nomExemplaire && e.fields[s.nomExemplaire]) ||
-                                      entree?.nom ||
-                                      e.entry;
-                                    const setEntry = (patch: Partial<Draft['entries'][number]>) =>
-                                      set({
-                                        entries: draft.entries.map((x, j) =>
-                                          j === i ? { ...x, ...patch } : x,
-                                        ),
-                                      });
-                                    return (
-                                      <li
-                                        key={i}
-                                        className="flex min-h-11 items-center gap-3 px-3 py-1.5"
-                                      >
-                                        <Toggle
-                                          on={e.on}
-                                          onChange={(on) => setEntry({ on })}
-                                          label={nom}
-                                        />
-                                        <span
-                                          className={cn(
-                                            'min-w-0 flex-1 truncate text-sm',
-                                            !e.on && 'text-subtle line-through',
-                                          )}
-                                        >
-                                          {nom}
-                                        </span>
-                                        {e.confidence === 'probable' && (
-                                          <Info
-                                            texte={t('creation.import.probable', { from: e.from })}
-                                          >
-                                            <CircleHelp
-                                              className="size-4 shrink-0 text-warning"
-                                              aria-hidden
-                                            />
-                                          </Info>
-                                        )}
-                                        {s?.rangs && (
-                                          <Input
-                                            aria-label={`${t('creation.import.rank')} : ${nom}`}
-                                            inputMode="numeric"
-                                            className="h-8 w-16 text-center"
-                                            value={String(e.rank ?? 0)}
-                                            onChange={(ev) => {
-                                              const n = Number(ev.target.value);
-                                              if (Number.isInteger(n) && n >= 0)
-                                                setEntry({ rank: n });
-                                            }}
-                                          />
-                                        )}
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </Section>
-                    )}
-
-                    {draft.free.length > 0 && (
-                      <Section title={t('creation.import.freePaths')}>
-                        <ul className="divide-y divide-border rounded-xl border border-border bg-surface-2/40">
-                          {draft.free.map((f, i) => {
-                            const setFree = (patch: Partial<FreePath>) =>
-                              set({
-                                free: draft.free.map((x, j) => (j === i ? { ...x, ...patch } : x)),
-                              });
-                            return (
-                              <li
-                                key={f.entries[0]!.id}
-                                className="flex min-h-11 items-center gap-3 px-3 py-1.5"
-                              >
-                                <Toggle
-                                  on={f.on}
-                                  onChange={(on) => setFree({ on })}
-                                  label={f.name}
-                                />
-                                <Info
-                                  texte={f.entries
-                                    .slice(1)
-                                    .map((e) => e.nom)
-                                    .join(' · ')}
-                                >
-                                  <span
-                                    className={cn(
-                                      'min-w-0 flex-1 truncate text-sm',
-                                      !f.on && 'text-subtle line-through',
-                                    )}
-                                  >
-                                    {f.name}
-                                  </span>
-                                </Info>
-                                <Input
-                                  aria-label={`${t('creation.import.rank')} : ${f.name}`}
-                                  inputMode="numeric"
-                                  className="ml-auto h-8 w-16 text-center"
-                                  value={String(f.rank)}
-                                  onChange={(ev) => {
-                                    const n = Number(ev.target.value);
-                                    if (Number.isInteger(n) && n >= 0) setFree({ rank: n });
-                                  }}
-                                />
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </Section>
-                    )}
-
-                    {detection.unmatched.length > 0 && (
-                      <Section title={t('creation.import.unmatched')}>
-                        <ul className="flex flex-wrap gap-1.5">
-                          {detection.unmatched.map((u) => (
-                            <li
-                              key={u}
-                              className="rounded-full border border-border px-2.5 py-1 text-[12px] text-muted-foreground"
-                            >
-                              {u}
-                            </li>
-                          ))}
-                        </ul>
-                      </Section>
-                    )}
-
-                    <Section title={t('creation.import.appearance')}>
-                      <Textarea
-                        aria-label={t('creation.import.appearance')}
-                        value={draft.appearance}
-                        maxLength={2000}
-                        rows={3}
-                        onChange={(e) => set({ appearance: e.target.value })}
-                      />
-                    </Section>
-                    <Section title={t('creation.import.backstory')}>
-                      <Textarea
-                        aria-label={t('creation.import.backstory')}
-                        value={draft.backstory}
-                        maxLength={8000}
-                        rows={6}
-                        onChange={(e) => set({ backstory: e.target.value })}
-                      />
-                    </Section>
-
-                    {detection.portraitUrl && (
-                      <label className="flex items-center gap-3">
-                        <Toggle
-                          on={draft.portrait}
-                          onChange={(portrait) => set({ portrait })}
-                          label={t('creation.import.portrait')}
-                        />
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={detection.portraitUrl}
-                          alt=""
-                          className="size-12 rounded-lg border border-border object-cover"
-                        />
-                        <span className="text-sm">{t('creation.import.portrait')}</span>
-                      </label>
-                    )}
-
-                    <div className="flex justify-end">
-                      <Button
-                        size="lg"
-                        disabled={draft.name.trim().length < 2 || importer.isPending}
-                        loading={importer.isPending}
-                        onClick={() => void create()}
-                      >
-                        {t('creation.import.create')}
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
+            {contenu}
           </main>
 
           {fiche && draft && (
