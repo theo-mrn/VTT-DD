@@ -684,7 +684,7 @@ const minotaure = perso('salleNB', 'mino1', {
   v1: 1,
 });
 
-describe('Noobliés : minotaure barbare', () => {
+describe('Noobliés : minotaure barbare, migré comme D&D classique', () => {
   const { r, f } = migrer(minotaure, {
     systemeId: 'nooblies',
     systemes,
@@ -692,27 +692,22 @@ describe('Noobliés : minotaure barbare', () => {
     bonus: [bonus('b1', { FOR: 2, active: true, category: 'Inventaire', name: 'Ceinture' })],
   });
 
-  it('caractéristiques, défense et attaques', () => {
-    // FOR 14 + 4 (minotaure) + 2 (bonus « Ceinture » saisi à la main)
-    expect(['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'].map((k) => f.valeur(k))).toEqual([
-      20, 13, 12, 10, 6, 9,
-    ]);
-    expect(r.etat.valeurs).toMatchObject({ FOR: 14, INT: 10, CHA: 11 });
-    expect(f.valeur('Defense')).toBe(19); // 18 + mod DEX 1
-    expect(f.valeur('Contact')).toBe(6); // 1 + mod FOR 5
+  it('race, profil et voies du catalogue de D&D classique', () => {
+    expect(r.etat.possessions.map((p) => p.entree)).toEqual(
+      expect.arrayContaining(['minotaure', 'barbare']),
+    );
+    expect(rang(f, 'barbare-brute')).toBe(1);
   });
 
-  it('PV : jet de dé de vie retrouvé', () => {
-    expect(r.etat.valeurs.jetDeVie).toBe(9);
-    expect(f.valeur('PV_Max')).toBe(11);
+  it('PV : jet de dé de vie retrouvé, voie de la brute comprise', () => {
+    // 11 au legacy = 1 + mod CON 1 + jet 5 + Argument de taille (mod FOR 4) ; la ceinture
+    // (+2 FOR, bonus saisi) monte ce modificateur à 5, comme pour un personnage D&D classique
+    expect(r.etat.valeurs.jetsDeVie).toBe(5);
+    expect(f.valeur('PV_Max')).toBe(12);
     expect(f.valeur('PV')).toBe(7);
   });
 
-  it('capacités raciales ; voies et équipement signalés, bonus gardé en bonus libre', () => {
-    expect(rang(f, 'coup-de-corne')).toBe(1);
-    avertit(r, /Voie « Barbare1 » \(rang 1\) non migrée : pas de voies/);
-    // Pas de catalogue d'équipement : un objet personnalisé
-    expect(r.etat.possessions.find((p) => p.entree === 'objet-libre')?.champs.nom).toBe('Hache');
+  it('bonus saisi à la main gardé en bonus libre', () => {
     expect(r.etat.bonus.map((b) => b.nom)).toEqual(['Ceinture']);
   });
 });

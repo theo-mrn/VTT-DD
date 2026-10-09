@@ -10,6 +10,18 @@
  *   presentation.yaml  présentation (skins, couleurs, fiche) : document séparé
  *   bestiaire/*.yaml   créatures de référence (docs/ressources.md) : document séparé
  *
+ * `herite` (dans `systeme.yaml`) part d'un autre système et n'y déclare que ses différences :
+ *
+ *   herite:
+ *     de: dnd-classic
+ *     sansFichiers: [dnd-classic/catalogue/races.yaml]   # listes du parent écartées
+ *     sans: { catalogue: [samourai] }                     # éléments du parent écartés
+ *
+ * Les listes à identifiant (`id`, `cle`, `entite`) se fusionnent élément par élément (un
+ * attribut redéfini ne change que ce qu'il redéclare) ; une entrée du catalogue redéfinie
+ * remplace celle du parent en entier ; le reste remplace la valeur du parent. Une correction
+ * du parent vaut pour les deux systèmes.
+ *
  * Découper en fichiers ne sert qu'à la lisibilité : le résultat est un seul
  * document, validé par `charger()` de @vtt/rules.
  */
@@ -19,16 +31,18 @@ import { parse } from 'yaml';
 
 export const RACINE = new URL('../systemes/', import.meta.url).pathname;
 
+function lireListe(fichier: string): unknown[] {
+  const v = parse(readFileSync(fichier, 'utf8')) as unknown;
+  if (!Array.isArray(v)) throw new Error(`${fichier} : une liste YAML est attendue`);
+  return v;
+}
+
 function lireListes(dossier: string): unknown[] {
   if (!existsSync(dossier)) return [];
   return readdirSync(dossier)
     .filter((f) => f.endsWith('.yaml'))
     .sort()
-    .flatMap((f) => {
-      const v = parse(readFileSync(join(dossier, f), 'utf8')) as unknown;
-      if (!Array.isArray(v)) throw new Error(`${join(dossier, f)} : une liste YAML est attendue`);
-      return v;
-    });
+    .flatMap((f) => lireListe(join(dossier, f)));
 }
 
 function lireTextes(dossier: string): { id: string; titre: string; contenu: string }[] {
@@ -43,13 +57,52 @@ function lireTextes(dossier: string): { id: string; titre: string; contenu: stri
     });
 }
 
+type Objet = Record<string, unknown>;
+const estObjet = (v: unknown): v is Objet =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Clé d'un élément de liste : `id`, `cle` (attribut) ou `entite` (création). */
+function cleDe(v: unknown): string | undefined {
+  if (!estObjet(v)) return undefined;
+  for (const k of ['id', 'cle', 'entite']) if (typeof v[k] === 'string') return v[k];
+  return undefined;
+}
+
+/** Fusion d'un système enfant sur son parent (voir `herite`). */
+function fusionner(parent: unknown, enfant: unknown, chemin: string): unknown {
+  if (Array.isArray(parent) && Array.isArray(enfant)) {
+    if (!enfant.every((x) => cleDe(x) !== undefined) || !parent.every((x) => cleDe(x)))
+      return enfant;
+    const parCle = new Map(enfant.map((x) => [cleDe(x)!, x]));
+    // Une entrée du catalogue redéfinie remplace celle du parent en entier
+    const remplace = chemin === 'catalogue';
+    const r = parent.map((x) => {
+      const e = parCle.get(cleDe(x)!);
+      if (e === undefined) return x;
+      return remplace ? e : fusionner(x, e, `${chemin}/*`);
+    });
+    const connues = new Set(parent.map((x) => cleDe(x)));
+    return [...r, ...enfant.filter((x) => !connues.has(cleDe(x)))];
+  }
+  if (estObjet(parent) && estObjet(enfant)) {
+    const r: Objet = { ...parent };
+    for (const [k, v] of Object.entries(enfant))
+      r[k] = k in parent ? fusionner(parent[k], v, chemin ? `${chemin}/${k}` : k) : v;
+    return r;
+  }
+  return enfant;
+}
+
+interface Heritage {
+  de: string;
+  sansFichiers?: string[];
+  sans?: Record<string, string[]>;
+}
+
 /** Assemble le document brut d'un système (non validé). */
 export function lireSysteme(id: string, racine = RACINE): Record<string, unknown> {
   const dossier = join(racine, id);
-  const base = parse(readFileSync(join(dossier, 'systeme.yaml'), 'utf8')) as Record<
-    string,
-    unknown
-  >;
+  const base = parse(readFileSync(join(dossier, 'systeme.yaml'), 'utf8')) as Objet;
   const concat = (cle: string, ajout: unknown[]) => {
     if (!ajout.length) return;
     base[cle] = [...((base[cle] as unknown[] | undefined) ?? []), ...ajout];
@@ -58,13 +111,46 @@ export function lireSysteme(id: string, racine = RACINE): Record<string, unknown
   concat('arbres', lireListes(join(dossier, 'arbres')));
   concat('tables', lireListes(join(dossier, 'tables')));
   concat('textes', lireTextes(join(dossier, 'textes')));
-  return base;
+
+  const heritage = base.herite as Heritage | undefined;
+  if (!heritage) return base;
+  delete base.herite;
+  const parent = lireSysteme(heritage.de, racine);
+  // Listes et éléments du parent écartés avant la fusion
+  const ecartes = new Set(
+    (heritage.sansFichiers ?? []).flatMap((f) => lireListe(join(racine, f)).map(cleDe)),
+  );
+  for (const [cle, ids] of Object.entries(heritage.sans ?? {})) for (const x of ids) ecartes.add(x);
+  for (const [cle, v] of Object.entries(parent))
+    if (Array.isArray(v)) parent[cle] = v.filter((x) => !ecartes.has(cleDe(x)));
+  return fusionner(parent, base, '') as Objet;
 }
 
 /** Présentation du système (`presentation.yaml`), si elle existe (non validée). */
 export function lirePresentation(id: string, racine = RACINE): unknown {
   const f = join(racine, id, 'presentation.yaml');
-  return existsSync(f) ? (parse(readFileSync(f, 'utf8')) as unknown) : undefined;
+  const propre = existsSync(f) ? (parse(readFileSync(f, 'utf8')) as unknown) : undefined;
+  // Système hérité : la présentation du parent, complétée de la sienne
+  const parent = parentDe(id, racine);
+  const herite = parent === undefined ? undefined : lirePresentation(parent, racine);
+  if (!estObjet(herite)) return propre;
+  return { ...(fusionner(herite, propre ?? {}, '') as Objet), systeme: id };
+}
+
+/** Système dont `id` hérite (`herite.de`), s'il y en a un. */
+export function parentDe(id: string, racine = RACINE): string | undefined {
+  const base = parse(readFileSync(join(racine, id, 'systeme.yaml'), 'utf8')) as Objet;
+  return (base.herite as Heritage | undefined)?.de;
+}
+
+/**
+ * Dossier d'un fichier propre au système (police) : le sien, sinon celui du système dont il
+ * hérite.
+ */
+export function dossierDe(id: string, fichier: string, racine = RACINE): string | undefined {
+  for (let s: string | undefined = id; s !== undefined; s = parentDe(s, racine))
+    if (existsSync(join(racine, s, fichier))) return join(racine, s);
+  return undefined;
 }
 
 /**
@@ -72,7 +158,10 @@ export function lirePresentation(id: string, racine = RACINE): unknown {
  * validé) : document séparé, chargé seulement par l'onglet Bestiaire des ressources.
  */
 export function lireBestiaire(id: string, racine = RACINE): unknown {
-  const creatures = lireListes(join(racine, id, 'bestiaire'));
+  // Système hérité : les créatures du parent, puis les siennes
+  const parent = parentDe(id, racine);
+  const heritees = parent === undefined ? [] : lireListes(join(racine, parent, 'bestiaire'));
+  const creatures = [...heritees, ...lireListes(join(racine, id, 'bestiaire'))];
   return creatures.length ? { format: 1, systeme: id, creatures } : undefined;
 }
 

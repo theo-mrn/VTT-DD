@@ -36,7 +36,6 @@ import {
   type SystemeCharge,
 } from '@vtt/rules';
 import * as dnd from './correspondances/dnd-classic.js';
-import * as nooblies from './correspondances/nooblies.js';
 import * as sw from './correspondances/star-wars-eote.js';
 import {
   entier,
@@ -1119,33 +1118,6 @@ function migrerDnd(b: Brouillon, p: PersonnageLegacy, options: OptionsTransforma
   if ((entier(p.Stress) ?? 0) > 0) b.avertir('Stress non migré : pas de stress dans ce système');
 }
 
-// ─── Noobliés ────────────────────────────────────────────────────────────────
-
-function migrerNooblies(b: Brouillon, p: PersonnageLegacy, options: OptionsTransformation): void {
-  const race = texte(p.Race);
-  const r = race && b.entree(nooblies.RACES[race] ?? slug(race), 'race');
-  if (r) b.posseder(r.id);
-  else b.avertir(race ? `Race inconnue « ${race} »` : 'Aucune race');
-  const profil = texte(p.Profile);
-  const pr = profil && b.entree(nooblies.PROFILS[profil] ?? slug(profil), 'profil');
-  if (pr) b.posseder(pr.id);
-  else b.avertir(profil ? `Profil inconnu « ${profil} »` : 'Aucun profil');
-
-  for (const { fichier, rang } of voiesLegacy(p))
-    b.avertir(`Voie « ${fichier} » (rang ${rang}) non migrée : pas de voies dans ce système`);
-  const objets = migrerInventaire(b, options.inventaire ?? [], { sortes: ['objet'], alias: {} });
-
-  // Bases et PV max sans les bonus saisis à la main, ajoutés ensuite comme à l'affichage
-  b.ajusterBases(caracteristiquesLegacy(p));
-  const pvMax = entier(p.PV_Max);
-  if (pvMax !== undefined) b.ajusterPar('jetDeVie', 'PV_Max', pvMax);
-  migrerBonus(b, options.bonus ?? [], objets);
-  pvLegacy(b, p, options);
-  const niveau = entier(p.niveau);
-  if (niveau !== undefined && niveau > 1)
-    b.avertir(`Niveau ${niveau} non migré : pas de niveaux dans ce système`);
-}
-
 // ─── Vérifications finales ───────────────────────────────────────────────────
 
 /** Choix déjà faits, par sorte (`sorte/choix`). */
@@ -1225,11 +1197,10 @@ function migrerSelonSysteme(
       case 'star-wars-eote':
         migrerStarWars(b, p, options);
         break;
+      // Nooblies hérite de D&D classique (même catalogue, mêmes voies) : même migration
       case 'dnd-classic':
-        migrerDnd(b, p, options);
-        break;
       case 'nooblies':
-        migrerNooblies(b, p, options);
+        migrerDnd(b, p, options);
         break;
       default:
         b.avertir(`Système ${systemeId} sans migration : personnage vide`);

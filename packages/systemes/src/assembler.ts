@@ -7,7 +7,7 @@
  */
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { charger, checkBestiary, verifierPresentation } from '@vtt/rules';
-import { idsSystemes, lireBestiaire, lirePresentation, lireSysteme, RACINE } from './sources.js';
+import { dossierDe, idsSystemes, lireBestiaire, lirePresentation, lireSysteme } from './sources.js';
 
 const sortie = new URL('../dist/systemes/', import.meta.url).pathname;
 const sortieBestiaires = `${sortie}bestiaires/`;
@@ -57,7 +57,9 @@ for (const id of idsSystemes()) {
   }
   // Polices apportées par le système : `systemes/<id>/polices/` → `dist/systemes/polices/<id>/`
   const fichiers = p.presentation.theme?.polices.fichiers ?? [];
-  const manquants = fichiers.filter((f) => !existsSync(`${RACINE}${id}/polices/${f.fichier}`));
+  // Polices du système, ou de celui dont il hérite
+  const sources = fichiers.map((f) => ({ f, dossier: dossierDe(id, `polices/${f.fichier}`) }));
+  const manquants = sources.filter((x) => x.dossier === undefined).map((x) => x.f);
   if (manquants.length) {
     echec = true;
     for (const f of manquants)
@@ -66,8 +68,8 @@ for (const id of idsSystemes()) {
   }
   if (fichiers.length) {
     mkdirSync(`${sortie}polices/${id}/`, { recursive: true });
-    for (const f of fichiers)
-      copyFileSync(`${RACINE}${id}/polices/${f.fichier}`, `${sortie}polices/${id}/${f.fichier}`);
+    for (const { f, dossier } of sources)
+      copyFileSync(`${dossier}/polices/${f.fichier}`, `${sortie}polices/${id}/${f.fichier}`);
   }
   writeFileSync(`${sortie}${id}.presentation.json`, JSON.stringify(p.presentation));
   console.log(`✓ ${id} : présentation${fichiers.length ? `, ${fichiers.length} police(s)` : ''}`);

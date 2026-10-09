@@ -236,33 +236,6 @@ describe('dnd-classic : le type d’attaque au jet, l’arme après, si l’atta
   });
 });
 
-// ─── Nooblies ────────────────────────────────────────────────────────────────
-
-describe('nooblies : le toucher, puis les dégâts', () => {
-  const systeme = chargerSource('nooblies');
-  const fiche = fabrique(systeme);
-  const base = { FOR: 14, DEX: 11, CON: 16, SAG: 9, INT: 12, CHA: 13, jetDeVie: 7 };
-  const nain = fiche({ valeurs: base, possessions: [{ entree: 'nain' }, { entree: 'guerrier' }] });
-
-  it('deux étapes : le d20, puis les dés de dégâts choisis', () => {
-    const { etapes, final } = parEtapes(
-      systeme,
-      {
-        action: 'attaque',
-        acteur: nain,
-        parametres: { score: 'Contact', nbDes: 2, faces: 6, bonus: 1 },
-        cibles: [{ id: 'n', fiche: nain }],
-      },
-      (d) => (d.phase === 'jet' ? 20 : 4),
-    );
-    expect(etapes.map((e) => e.des.map((d) => `${d.phase}:${d.faces}`))).toEqual([
-      ['jet:20'],
-      ['apres:6', 'apres:6'],
-    ]);
-    expect(issue(final, 'n')!.variables.degats).toBe(9);
-  });
-});
-
 // ─── Star Wars ───────────────────────────────────────────────────────────────
 
 describe('star-wars-eote : la réserve dit tout, la blessure critique est une étape', () => {

@@ -71,7 +71,7 @@ attributs des statistiques.
 | Système        | Capacités                                                 | Marché                                  | Bestiaire                            | Images                      |
 | -------------- | --------------------------------------------------------- | --------------------------------------- | ------------------------------------ | --------------------------- |
 | dnd-classic    | Races, Profils, Prestiges                                 | armes, armures, objets + tarifs (texte) | référence (334 créatures) + campagne | Personnages, Cartes, Photos |
-| nooblies       | Races, Profils, Capacités raciales                        | — (pas de catalogue d'équipement)       | campagne                             | Personnages, Cartes, Photos |
+| nooblies       | comme dnd-classic (hérité, docs/regles.md)                | comme dnd-classic                       | comme dnd-classic + campagne         | Personnages, Cartes, Photos |
 | star-wars-eote | Espèces, Carrières, Spécialisations, Talents, Compétences | armes, armures, équipement, accessoires | campagne                             | —                           |
 
 ## Sources de données

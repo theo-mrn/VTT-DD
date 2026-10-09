@@ -229,6 +229,8 @@ Deux systèmes complets sont écrits en données dès le départ, et prouvent qu
 
 Chaque système est un dossier versionné de `packages/systemes/systemes/<id>/` : `systeme.yaml` pour les règles, `catalogue/*.yaml`, `arbres/*.yaml`, `tables/*.yaml` et `textes/*.md`. Le build de `@vtt/systemes` assemble chaque système, le valide entièrement et échoue à la moindre erreur ; la CI vérifie donc chaque système à chaque commit. Les systèmes créés par les MJ dans l'app suivent exactement le même schéma, mais sont stockés en base.
 
+Un système peut **hériter** d'un autre (`herite: { de: <id> }` dans `systeme.yaml`) et n'y déclarer que ses différences : il reprend tout le parent (règles, catalogue, voies, actions, présentation, polices). Les listes à identifiant (`id`, `cle`, `entite`) se fusionnent élément par élément (une étape de création redéfinie ne change que ce qu'elle redéclare) ; une entrée du catalogue redéfinie remplace celle du parent en entier ; `sansFichiers` et `sans` écartent des listes ou des éléments du parent. Nooblies Chroniques hérite ainsi de D&D classique et n'en change que le tirage des caractéristiques (1d15 + 5, décision du 2026-10-09 : tout ce qui peut l'être vient du système de référence, rien n'est recopié).
+
 ## Ce que ça change pour la suite
 
 - **character** calcule et fait autorité avec `packages/rules` : fiche, achats, jets.
