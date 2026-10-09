@@ -98,3 +98,34 @@ spec:
     retry:
       limit: 10
       backoff: { duration: 10s, factor: 2, maxDuration: 5m }
+---
+# Valkey de la PRODUCTION (docs/deploiement.md) : secret valkey-prod-users (seal-prod.sh)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: messaging-valkey-prod
+  namespace: argocd
+spec:
+  project: messaging
+  sources:
+    - repoURL: https://valkey.io/valkey-helm/
+      chart: valkey
+      targetRevision: 0.12.0
+      helm:
+        # Nom du Service (valkey-prod.messaging.svc) et du secret valkey-prod-users
+        releaseName: valkey-prod
+        skipTests: true
+        valueFiles:
+          - $values/infra/messaging/valkey.yaml
+    - repoURL: https://github.com/theo-mrn/VTT-DD.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: messaging
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ServerSideApply=true]
+    retry:
+      limit: 10
+      backoff: { duration: 10s, factor: 2, maxDuration: 5m }

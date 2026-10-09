@@ -18,7 +18,7 @@ spec:
     - repoURL: https://github.com/theo-mrn/VTT-DD.git
       targetRevision: main
       path: infra/cluster/backup
-      directory: { include: '{logical-backup.yaml,restore-test.yaml}' }
+      directory: { include: '{logical-backup.yaml,logical-backup-prod.yaml,restore-test.yaml}' }
   destination:
     server: https://kubernetes.default.svc
     namespace: data
@@ -52,6 +52,31 @@ spec:
     automated: { prune: false, selfHeal: true }
     syncOptions: [CreateNamespace=true]
     # Les secrets de data et messaging attendent que leurs namespaces existent
+    retry:
+      limit: 10
+      backoff: { duration: 10s, factor: 2, maxDuration: 5m }
+---
+# Secrets scellés de la PRODUCTION (infra/cluster/secrets/seal-prod.sh) : base vtt-pg-prod (data),
+# Valkey de prod (messaging), services (vtt-prod).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vtt-secrets-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-2'
+spec:
+  project: vtt
+  source:
+    repoURL: https://github.com/theo-mrn/VTT-DD.git
+    targetRevision: main
+    path: infra/cluster/secrets/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vtt-prod
+  syncPolicy:
+    automated: { prune: false, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
     retry:
       limit: 10
       backoff: { duration: 10s, factor: 2, maxDuration: 5m }

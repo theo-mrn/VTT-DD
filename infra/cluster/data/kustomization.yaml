@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: data
 resources:
   - postgres-cluster.yaml
+  - postgres-prod.yaml
   - podmonitor.yaml
   - backup.yaml
 configMapGenerator:

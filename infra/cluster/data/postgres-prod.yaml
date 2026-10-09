@@ -1,0 +1,152 @@
+# PostgreSQL de la production (docs/deploiement.md, « Production ») : un serveur à part de celui
+# du staging (vtt-pg). Mêmes noms de rôles (écrits en dur dans les migrations), autres mots de
+# passe (secrets pg-prod-*, seal-prod.sh) : les identifiants du staging n'ouvrent jamais la prod.
+# Créé vide (schemas.sql : extensions, rôles, schémas), puis rempli une fois par le clonage du
+# staging (infra/cluster/backup/clone-staging-to-prod.sh) ; ensuite, les deux vivent séparés.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: vtt-pg-prod
+  namespace: data
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
+  primaryUpdateStrategy: unsupervised
+  # Mesuré sur le staging : ~300 Mo en usage réel
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 1536Mi }
+
+  postgresql:
+    shared_preload_libraries: [pg_stat_statements]
+    parameters:
+      wal_level: logical
+      max_connections: '200'
+      shared_buffers: 192MB
+      log_min_duration_statement: '250ms'
+      pg_stat_statements.track: all
+      idle_in_transaction_session_timeout: '30s'
+
+  bootstrap:
+    initdb:
+      database: vtt
+      owner: vtt_owner
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - { name: vtt-pg-init, key: schemas.sql }
+
+  managed:
+    roles:
+      # Propriétaires des schémas : utilisés seulement par les Jobs Liquibase (DDL)
+      - {
+          name: identity_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-identity-owner },
+        }
+      - {
+          name: billing_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-billing-owner },
+        }
+      - {
+          name: campaign_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-campaign-owner },
+        }
+      - {
+          name: characters_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-characters-owner },
+        }
+      - {
+          name: dice_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-dice-owner },
+        }
+      - {
+          name: history_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-history-owner },
+        }
+      - {
+          name: audio_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-audio-owner },
+        }
+      # Rôles des services : données uniquement (DML)
+      - {
+          name: identity_svc,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-identity },
+        }
+      - {
+          name: billing_svc,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-billing },
+        }
+      - {
+          name: campaign_svc,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-campaign },
+        }
+      - {
+          name: characters_svc,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-characters },
+        }
+      - { name: dice_svc, ensure: present, login: true, passwordSecret: { name: pg-prod-dice } }
+      - {
+          name: history_svc,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-prod-history },
+        }
+      - { name: audio_svc, ensure: present, login: true, passwordSecret: { name: pg-prod-audio } }
+      - {
+          name: backup_ro,
+          ensure: present,
+          login: true,
+          inRoles: [pg_read_all_data],
+          passwordSecret: { name: pg-prod-backup-ro },
+        }
+
+  storage:
+    size: 20Gi
+    storageClass: local-path
+  walStorage:
+    size: 5Gi
+    storageClass: local-path
+
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+
+  monitoring:
+    enablePodMonitor: false
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: vtt-pg-prod-pooler
+  namespace: data
+spec:
+  cluster: { name: vtt-pg-prod }
+  instances: 1
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: '1000'
+      default_pool_size: '20'
+      ignore_startup_parameters: 'extra_float_digits, options, statement_timeout'
