@@ -20,7 +20,7 @@ import { HttpError, type UploadReserve } from '@vtt/platform';
 import { eq } from 'drizzle-orm';
 import { characters } from '../../db/schema.js';
 import { campaignIndisponible } from '../../droits/campaign.js';
-import { achatsPossibles, creationDe, etapesCreation } from '@vtt/rules';
+import { achatsPossibles, creationDe, Entree, etapesCreation } from '@vtt/rules';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -39,12 +39,14 @@ import {
   etatInitial,
   modifierValeurs,
   poserBonus,
+  poserEntreesLibres,
   apresActivation,
   poserPossession,
   rembourserLigne,
   reposer,
   utiliserEntree,
   retirerBonus,
+  retirerEntreeLibre,
   retirerPossession,
   saisieReserveeMj,
   terminer,
@@ -747,6 +749,50 @@ export const register: Module = async (app, deps) => {
         },
         [await optionsDe(id), await optionsDe(to)],
       );
+      return api(ligne);
+    },
+  );
+
+  // ─── Entrées libres (docs/entrees-libres.md) ───────────────────────────────
+
+  r.put(
+    '/v1/characters/:id/entries',
+    {
+      ...auth,
+      schema: {
+        params: Params,
+        body: z.object({ version: Version, entries: z.array(Entree).min(1).max(50) }),
+        response: { 200: Personnage },
+      },
+    },
+    async (req) => {
+      const { entries } = req.body;
+      const ligne = await modifierPour(req, req.params.id, req.body.version, (l) => ({
+        changement: { etat: poserEntreesLibres(l.etat, entries) },
+        operation: 'entree-libre',
+        details: { entries: entries.map((e) => ({ id: e.id, nom: e.nom, sorte: e.sorte })) },
+      }));
+      return api(ligne);
+    },
+  );
+
+  r.delete(
+    '/v1/characters/:id/entries/:entryId',
+    {
+      ...auth,
+      schema: {
+        params: z.object({ id: IdPersonnage, entryId: Id }),
+        querystring: z.object({ version: z.coerce.number().int().positive() }),
+        response: { 200: Personnage },
+      },
+    },
+    async (req) => {
+      const { entryId } = req.params;
+      const ligne = await modifierPour(req, req.params.id, req.query.version, (l) => ({
+        changement: { etat: retirerEntreeLibre(l.etat, entryId) },
+        operation: 'entree-libre.retrait',
+        details: { entryId },
+      }));
       return api(ligne);
     },
   );

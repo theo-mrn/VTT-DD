@@ -15,6 +15,7 @@ import {
   nettoyerEffetsDesactives,
   compilerEffets,
   Effet,
+  erreursEntreesLibres,
   estExemplaire,
   nouvellePossession,
   nouvelExemplaire,
@@ -22,6 +23,7 @@ import {
   refusSaisie,
   reporterEffetsDesactives,
   sourceExemplaire,
+  systemePour,
   variablesSource,
   verifierChampsExemplaire,
   appliquerModifications,
@@ -47,7 +49,7 @@ import {
   tirerEtape,
   type Attribut,
   type Decompte,
-  type Entree,
+  Entree,
   type Fiche,
   type Generateur,
   type Possession,
@@ -122,8 +124,15 @@ export function verifierEtat(
     throw refus(`État d’un autre système : ${etat.systeme.id}`, 'etat_invalide');
   if (!systeme.entites.has(etat.type))
     throw refus(`Type d’entité inconnu : ${etat.type}`, 'etat_invalide');
+  const libres = erreursEntreesLibres(systeme, etat);
+  if (libres.length)
+    throw refus(
+      `Entrée libre invalide : ${libres.map((e) => `${e.chemin} : ${e.message}`).join(' ; ')}`,
+      'entree_libre_invalide',
+    );
+  const vu = systemePour(systeme, etat);
   for (const p of etat.possessions) {
-    if (!systeme.entrees.has(p.entree))
+    if (!vu.entrees.has(p.entree))
       throw refus(`Entrée inconnue du système : ${p.entree}`, 'etat_invalide');
   }
   const coupes = erreursEffetsDesactives(etat);
@@ -987,6 +996,57 @@ export function verifierInventaire(etat: EtatEntite): void {
   for (const p of etat.possessions)
     if (p.folder !== undefined && !ids.has(p.folder))
       throw refus(`Dossier d’inventaire inconnu : ${p.folder}`, 'dossier_inconnu');
+}
+
+// ─── Entrées libres (docs/entrees-libres.md) ─────────────────────────────────
+
+/**
+ * Pose des entrées libres (une voie et ses capacités, qui se citent l'une l'autre : posées
+ * ensemble), ou remplace celles qui ont le même identifiant, à leur place. La vérification
+ * (sorte personnalisable, formules) est celle de toute écriture (`verifierEtat`).
+ */
+export function poserEntreesLibres(etat: EtatEntite, poses: readonly Entree[]): EtatEntite {
+  const parId = new Map(poses.map((e) => [e.id, e]));
+  if (parId.size !== poses.length) throw refus('Entrée libre en double dans la demande');
+  const entrees = etat.entrees.map((e) => parId.get(e.id) ?? e);
+  const connues = new Set(etat.entrees.map((e) => e.id));
+  return { ...etat, entrees: [...entrees, ...poses.filter((e) => !connues.has(e.id))] };
+}
+
+/** Entrées libres que `e` donne par ses effets (capacités d'une voie). */
+const donneesPar = (e: Entree) =>
+  e.effets.flatMap((f) => ('entree' in f && typeof f.entree === 'string' ? [f.entree] : []));
+
+/**
+ * Retire une entrée libre, ses possessions, et les entrées libres qu'elle seule donnait (une
+ * voie libre emporte ses capacités). Ce qui les cite encore dans les autres entrées libres
+ * (effet, champ) est retiré avec elles.
+ */
+export function retirerEntreeLibre(etat: EtatEntite, id: string): EtatEntite {
+  const cible = etat.entrees.find((e) => e.id === id);
+  if (!cible) throw HttpError.notFound(`Entrée libre introuvable : ${id}`);
+  const restes = etat.entrees.filter((e) => e.id !== id);
+  const ailleurs = new Set(restes.flatMap(donneesPar));
+  const partis = new Set([
+    id,
+    ...donneesPar(cible).filter((x) => !ailleurs.has(x) && restes.some((e) => e.id === x)),
+  ]);
+  const cite = (v: unknown) =>
+    typeof v === 'string' ? partis.has(v) : Array.isArray(v) && v.some((x) => partis.has(x));
+  const entrees = restes
+    .filter((e) => !partis.has(e.id))
+    .map((e) => ({
+      ...e,
+      effets: e.effets.filter((f) => !('entree' in f && cite(f.entree))),
+      champs: Object.fromEntries(Object.entries(e.champs).filter(([, v]) => !cite(v))),
+    }));
+  const usages = Object.fromEntries(Object.entries(etat.usages).filter(([k]) => !partis.has(k)));
+  return {
+    ...etat,
+    entrees,
+    usages,
+    possessions: etat.possessions.filter((p) => !partis.has(p.entree)),
+  };
 }
 
 // ─── Bonus libres ─────────────────────────────────────────────────────────────

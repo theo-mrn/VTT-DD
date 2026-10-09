@@ -24,6 +24,7 @@ import {
   avecOptions,
   EtatEntite,
   ficheJson,
+  systemePour,
   type FicheJson,
   type ReglagesOptions,
   type SystemeCharge,
@@ -262,17 +263,19 @@ export function accesA(
 
 /**
  * Système d'un personnage enregistré (introuvable : données incohérentes, erreur 500),
- * réglé avec les règles optionnelles de sa campagne (`options`, voir `droits.options`) :
- * tout calcul qui en part (fiche, achats, création, actions) les respecte.
+ * réglé avec les règles optionnelles de sa campagne (`options`, voir `droits.options`) et
+ * complété de ses entrées libres (docs/entrees-libres.md) quand son état est donné : tout
+ * calcul qui en part (fiche, achats, création, actions) les respecte.
  */
 export function systemeDe(
   catalogue: Catalogue,
-  ligne: Pick<Ligne, 'systemId'>,
+  ligne: Pick<Ligne, 'systemId'> & Partial<Pick<Ligne, 'etat'>>,
   options?: ReglagesOptions,
 ): SystemeCharge {
   const s = catalogue.charge(ligne.systemId);
   if (!s) throw new Error(`Système ${ligne.systemId} absent du catalogue`);
-  return avecOptions(s, options);
+  const regle = avecOptions(s, options);
+  return ligne.etat ? systemePour(regle, ligne.etat) : regle;
 }
 
 /** Résumé d'un personnage enregistré (fiche recalculée seulement hors cache). */

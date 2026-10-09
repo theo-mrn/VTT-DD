@@ -36,12 +36,14 @@ entrees: Entree[]   // même schéma que le catalogue, 200 au plus
 
 ## 3. Service character
 
-| Méthode | Route                                 | Corps                        | Réponse       |
-| ------- | ------------------------------------- | ---------------------------- | ------------- |
-| PUT     | `/v1/characters/:id/entries/:entryId` | `{ version, entry: Entree }` | le personnage |
-| DELETE  | `/v1/characters/:id/entries/:entryId` | `?version=`                  | le personnage |
+| Méthode | Route                                 | Corps                            | Réponse       |
+| ------- | ------------------------------------- | -------------------------------- | ------------- |
+| PUT     | `/v1/characters/:id/entries`          | `{ version, entries: Entree[] }` | le personnage |
+| DELETE  | `/v1/characters/:id/entries/:entryId` | `?version=`                      | le personnage |
 
-Mêmes droits que les autres écritures. Retirer une entrée libre retire aussi ses possessions et ce qui la référence dans les autres entrées libres (une voie libre retirée emporte ses capacités).
+`PUT` pose ou remplace plusieurs entrées libres en une écriture (50 au plus) : une voie et ses capacités se citent l'une l'autre (effets de la voie, champ `voie` des capacités), elles se posent ensemble. Mêmes droits que les autres écritures ; une entrée invalide refuse toute l'écriture (422 `entree_libre_invalide`, avec le détail).
+
+`DELETE` retire l'entrée, ses possessions, et les entrées libres qu'elle seule donnait (une voie libre emporte ses capacités) ; ce qui les cite encore dans les autres entrées libres est retiré avec elles.
 
 ## 4. Interface
 
