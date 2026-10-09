@@ -303,6 +303,8 @@ sortes:
       dès qu'elle atteint le rang N.
     pour: [personnage]
     rangs: { max: 5 }
+    # Voie maison sur un personnage (docs/entrees-libres.md)
+    personnalisable: true
   - id: capacite
     nom: Capacité
     description: >-
@@ -313,6 +315,7 @@ sortes:
       étiquette « sort » : sort d'attaque lancé par l'action « Sort ».
     pour: [personnage]
     rangs: { max: 1 }
+    personnalisable: true
     champs: &champs-capacite
       - { id: voie, nom: Voie, type: entree, sorte: voie }
       - { id: rangVoie, nom: Rang dans la voie, type: nombre }
@@ -365,6 +368,7 @@ sortes:
       « Durée », en tours) l'éteint d'elle-même au bout du compte, en combat.
     pour: [personnage]
     rangs: { max: 1 }
+    personnalisable: true
     activable: true
     actifParDefaut: false
     dureeActivation: { champ: duree }

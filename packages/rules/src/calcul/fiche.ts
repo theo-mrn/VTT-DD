@@ -19,6 +19,7 @@ import {
   formuleChamp,
   optionPermet,
   optionsResolues,
+  systemePour,
   variablesObjet,
   variablesSource as variablesDeSorte,
 } from '../chargement/index.js';
@@ -243,9 +244,13 @@ export function calculer(
   etat: EtatEntite,
   contexteCalcul: ContexteCalcul = {},
 ): Fiche {
-  const systeme = contexteCalcul.options
-    ? avecOptions(systemeDonne, { ...systemeDonne.optionsCampagne, ...contexteCalcul.options })
-    : systemeDonne;
+  // Règles de la campagne, puis entrées libres de l'entité (docs/entrees-libres.md)
+  const systeme = systemePour(
+    contexteCalcul.options
+      ? avecOptions(systemeDonne, { ...systemeDonne.optionsCampagne, ...contexteCalcul.options })
+      : systemeDonne,
+    etat,
+  );
   const options = Object.freeze(optionsResolues(systeme));
   const attributActif = (cle: string) => {
     const a = systeme.entites.get(etat.type)?.attributs.get(cle);
@@ -1050,6 +1055,7 @@ function possedeeUneFois(entree: Entree, sorte: Sorte): string {
 }
 
 export function erreursPossessions(systeme: SystemeCharge, etat: EtatEntite): ErreurCalcul[] {
+  systeme = systemePour(systeme, etat);
   const erreurs: ErreurCalcul[] = [];
   const compte: ComptePossessions = { vus: new Set(), parEntree: new Map(), parSorte: new Map() };
   for (const p of etat.possessions) {

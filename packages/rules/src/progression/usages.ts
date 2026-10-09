@@ -4,6 +4,7 @@
  * (`etat.usages`), rendues à la fin de leur période : fin de round pour `tour`, fin du combat
  * pour `tour` et `combat`, repos pour toutes.
  */
+import { systemePour } from '../chargement/entrees-libres.js';
 import type { Fiche } from '../calcul/index.js';
 import { chemins, type SystemeCharge } from '../chargement/index.js';
 import type { EtatEntite, PeriodeUsages } from '../schema/index.js';
@@ -76,6 +77,7 @@ export function remettreUsages(
   etat: EtatEntite,
   periodes: readonly PeriodeUsages[],
 ): EtatEntite | undefined {
+  systeme = systemePour(systeme, etat);
   const closes = new Set(periodes);
   const usages: Record<string, number> = {};
   let change = false;

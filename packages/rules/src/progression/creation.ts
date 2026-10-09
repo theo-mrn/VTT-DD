@@ -7,6 +7,7 @@
  * Chaque appliquateur vérifie l'étape et renvoie un nouvel état ; il ne mute
  * jamais l'état reçu.
  */
+import { systemePour } from '../chargement/entrees-libres.js';
 import { calculer, type Fiche } from '../calcul/index.js';
 import { chemins, optionPermet, optionsResolues, type SystemeCharge } from '../chargement/index.js';
 import type { FormuleVerifiee, Generateur, JetDes, Valeur } from '../formules/index.js';
@@ -389,6 +390,7 @@ function examiner(fiche: Fiche, et: EtapeCreation): Examen {
 
 /** Avancement de chaque étape de création déclarée pour le type de l'entité. */
 export function etapesCreation(systeme: SystemeCharge, etat: EtatEntite): EtatEtape[] {
+  systeme = systemePour(systeme, etat);
   const creation = creationDe(systeme, etat.type);
   if (!creation) return [];
   const fiche = calculer(systeme, etat);
@@ -480,6 +482,7 @@ export function choisirEtape(
   etapeId: string,
   selection: Selection[],
 ): ResultatEtat {
+  systeme = systemePour(systeme, etat);
   const p = preparer(systeme, etat, etapeId, 'choisir');
   if (!p.ok) return p;
   const et = p.etape;
@@ -516,6 +519,7 @@ export function repartirEtape(
   etapeId: string,
   valeurs: Record<string, number>,
 ): ResultatEtat {
+  systeme = systemePour(systeme, etat);
   const p = preparer(systeme, etat, etapeId, 'repartir');
   if (!p.ok) return p;
   const cibles = new Set(ciblesBase(systeme, etat, p.etape).map((a) => a.cle));
@@ -547,6 +551,7 @@ export function tirerEtape(
   etapeId: string,
   aleatoire: Generateur,
 ): ResultatTirage {
+  systeme = systemePour(systeme, etat);
   const p = preparer(systeme, etat, etapeId, 'tirer');
   if (!p.ok) return { ...p, tirages: [] };
   const et = p.etape;
@@ -657,6 +662,7 @@ export function saisirEtape(
   etapeId: string,
   valeurs: Record<string, Valeur>,
 ): ResultatEtat {
+  systeme = systemePour(systeme, etat);
   const p = preparer(systeme, etat, etapeId, 'saisir');
   if (!p.ok) return p;
   const cibles = new Map(ciblesSaisie(systeme, etat, p.etape).map((a) => [a.cle, a]));
@@ -682,6 +688,7 @@ export function acheterEtape(
   etapeId: string,
   demande: DemandeAchat,
 ): ResultatAchat {
+  systeme = systemePour(systeme, etat);
   const p = preparer(systeme, etat, etapeId, 'acheter');
   if (!p.ok) return p;
   if (!p.etape.achats.includes(demande.achat)) {
@@ -698,6 +705,7 @@ export function acheterEtape(
  * ressources non saisies à leur valeur initiale.
  */
 export function terminerCreation(systeme: SystemeCharge, etat: EtatEntite): ResultatEtat {
+  systeme = systemePour(systeme, etat);
   if (!etat.creation) return { ok: false, erreur: 'La création est déjà terminée' };
   const restantes = etapesCreation(systeme, etat).filter((e) => e.statut !== 'faite');
   if (restantes.length) return echec(restantes.flatMap((e) => e.raisons));

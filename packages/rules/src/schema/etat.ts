@@ -3,7 +3,7 @@
  * a saisi, acheté ou tiré. Tout le reste est recalculé par le moteur.
  */
 import { z } from 'zod';
-import { Cle, Effet, Id, MomentDecompte, type Entree, type Sorte } from './systeme.js';
+import { Cle, Effet, Entree, Id, MomentDecompte, type Sorte } from './systeme.js';
 
 /**
  * Comment une durée posée se décompte (docs/combat.md § 18.1). Absent : à chaque fin de round.
@@ -194,6 +194,12 @@ export function lireCleEffet(cle: string): { source: string; index: number } | u
   return { source: cle.slice(0, i), index: Number(cle.slice(i + 1)) };
 }
 
+/** Nombre maximal d'entrées libres par entité. */
+export const MAX_ENTREES_LIBRES = 200;
+
+/** Préfixe des identifiants d'entrées libres : jamais en collision avec le catalogue. */
+export const PREFIXE_ENTREE_LIBRE = 'perso-';
+
 /** Nombre maximal d'effets désactivés par entité. */
 export const MAX_EFFETS_DESACTIVES = 1000;
 
@@ -231,6 +237,12 @@ export const EtatEntite = z.object({
    * remises à zéro à la fin de leur période (`remettreUsages`). Absente : aucune.
    */
   usages: z.record(Id, z.number().int().nonnegative().max(1000)).default({}),
+  /**
+   * Entrées libres : hors du catalogue du système, propres à l'entité (voie maison et ses
+   * capacités), d'une sorte `personnalisable`. Le moteur les ajoute au catalogue pour cette
+   * entité (`systemePour`, docs/entrees-libres.md).
+   */
+  entrees: z.array(Entree).max(MAX_ENTREES_LIBRES).default([]),
   /** Vrai tant que la création n'est pas terminée. */
   creation: z.boolean().default(false),
 });

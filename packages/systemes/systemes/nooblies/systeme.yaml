@@ -257,6 +257,7 @@ sortes:
       Étiquette « test » : bonus situationnel invoqué au test de caractéristique.
     pour: [personnage]
     rangs: { max: 1 }
+    personnalisable: true
     champs:
       - { id: bonusTest, nom: Bonus au test invoqué, type: formule }
   - id: objet

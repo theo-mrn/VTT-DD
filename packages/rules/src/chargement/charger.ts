@@ -99,6 +99,11 @@ export interface SystemeCharge {
   formules: Map<string, FormuleVerifiee>;
   /** Formule compilée à un chemin ; lève une erreur si absente (bug du moteur). */
   formule(chemin: string): FormuleVerifiee;
+  /**
+   * Système étendu des entrées libres d'une entité (`systemePour`) : le système d'où il part
+   * et la clé de ces entrées. Absent : système sans entrée libre.
+   */
+  libres?: { base: SystemeCharge; cle: string };
 }
 
 export type ResultatChargement =
@@ -155,6 +160,18 @@ export function charger(saisi: unknown): ResultatChargement {
   const deplie = deplierEffetsDonnes(forme.data);
   if (!deplie.ok) return { ok: false, erreurs: deplie.erreurs };
   return new Chargeur(deplie.systeme).charger();
+}
+
+/**
+ * Système complété d'entrées hors catalogue (entrées libres d'une entité, docs/entrees-libres.md).
+ * Seules ces entrées sont vérifiées et compilées ; l'ordre de calcul des attributs est refait,
+ * une entrée pouvant viser un attribut. Le reste du système est repris tel quel.
+ */
+export function etendre(base: SystemeCharge, ajouts: readonly Entree[]): ResultatChargement {
+  return new Chargeur({ ...base.source, catalogue: [...base.source.catalogue, ...ajouts] }).etendre(
+    base,
+    ajouts,
+  );
 }
 
 /** Identifiant de l'entrée qui porte les effets donnés par `id`. */
@@ -217,6 +234,52 @@ class Chargeur {
   private typesDegats = new Set<string>();
 
   constructor(private readonly s: Systeme) {}
+
+  /** Voir `etendre`. */
+  etendre(base: SystemeCharge, ajouts: readonly Entree[]): ResultatChargement {
+    for (const [id, e] of base.entites)
+      this.entites.set(id, { type: e.type, attributs: e.attributs, ordre: [], sortes: e.sortes });
+    this.sortes = base.sortes;
+    this.achats = base.achats;
+    this.arbres = base.arbres;
+    this.actions = base.actions;
+    this.tables = base.tables;
+    this.monnaies = base.monnaies;
+    this.options = base.options;
+    for (const m of base.marques) this.marques.add(m);
+    for (const [k, f] of base.formules) this.formules.set(k, f);
+    this.symboles = new Set(this.s.des?.symboles.map((x) => x.id));
+    this.sortesDes = new Set(this.s.des?.sortes.map((x) => x.id));
+    this.typesDegats = new Set(this.s.typesDegats.map((x) => x.id));
+
+    this.entrees = new Map(base.entrees);
+    for (const e of ajouts) {
+      if (this.entrees.has(e.id)) this.erreur(`catalogue/${e.id}`, `Entrée en double : ${e.id}`);
+      this.entrees.set(e.id, e);
+      for (const f of e.effets) if (f.sur === 'marque') this.marques.add(f.marque);
+      for (const c of e.choix) if (c.donne.type === 'marque') this.marques.add(c.donne.marque);
+    }
+    for (const e of ajouts) this.verifierEntree(e);
+    this.calculerOrdres();
+    if (this.erreurs.length) return { ok: false, erreurs: this.erreurs };
+    const formules = this.formules;
+    return {
+      ok: true,
+      systeme: {
+        ...base,
+        source: this.s,
+        entites: this.entites,
+        entrees: this.entrees,
+        marques: this.marques,
+        formules,
+        formule(chemin) {
+          const f = formules.get(chemin);
+          if (!f) throw new Error(`Formule absente : ${chemin}`);
+          return f;
+        },
+      },
+    };
+  }
 
   charger(): ResultatChargement {
     this.indexer();

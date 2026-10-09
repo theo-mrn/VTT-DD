@@ -13,6 +13,7 @@
  * listée dans `erreurs`. Seules les données fournies par l'appelant (action,
  * entités, paramètres) sont refusées.
  */
+import { systemePour } from '../chargement/entrees-libres.js';
 import { type Fiche, type PossessionEffective, type SourceEffets } from '../calcul/index.js';
 import { reduireDegats } from './degats.js';
 import {
@@ -235,6 +236,7 @@ export function executer(
   demande: DemandeAction,
   options: { apercu?: boolean } = {},
 ): ExecutionInterne {
+  systeme = systemePour(systeme, demande.acteur.etat);
   const { acteur, cible, aleatoire } = demande;
   const action = systeme.actions.get(demande.action);
   if (!action) return { ok: false, erreurs: [{ message: `Action inconnue : ${demande.action}` }] };

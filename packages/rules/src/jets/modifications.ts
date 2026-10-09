@@ -4,6 +4,7 @@
  * ces modifications, que l'appelant applique (ou non) avec
  * `appliquerModifications`.
  */
+import { systemePour } from '../chargement/entrees-libres.js';
 import type { Fiche } from '../calcul/index.js';
 import type { Valeur } from '../formules/index.js';
 import type { SystemeCharge } from '../chargement/index.js';
@@ -256,6 +257,7 @@ export function appliquerTirage(
   etat: EtatEntite,
   tirage: { ligne: { entree?: string } | null },
 ): EtatEntite {
+  systeme = systemePour(systeme, etat);
   const id = tirage.ligne?.entree;
   if (!id || !systeme.entrees.has(id)) return etat;
   return { ...etat, possessions: donnerEntree(systeme, etat.possessions, id, { rangs: 1 }) };

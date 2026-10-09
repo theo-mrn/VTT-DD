@@ -23,6 +23,7 @@
  * pour une sorte `exemplaires` ; sinon l'achat est bloqué (`deja`). Le
  * `maximum` de la sorte compte les exemplaires.
  */
+import { systemePour } from '../chargement/entrees-libres.js';
 import { calculer, type Fiche, type PossessionEffective } from '../calcul/index.js';
 import { donnerEntree, retirerEntree } from '../jets/modifications.js';
 import { chemins, type SystemeCharge } from '../chargement/index.js';
@@ -452,6 +453,7 @@ export function acheter(
   etat: EtatEntite,
   demande: DemandeAchat,
 ): ResultatAchat {
+  systeme = systemePour(systeme, etat);
   const fiche = calculer(systeme, etat);
   const ex = examinerAchat(fiche, demande.achat, demande.objet);
   if (!ex.ok) return ex;
@@ -506,6 +508,7 @@ export function rembourser(
   etat: EtatEntite,
   index: number,
 ): ResultatRemboursement {
+  systeme = systemePour(systeme, etat);
   const ligne = etat.journal[index];
   if (!ligne) return { ok: false, erreur: `Aucun achat à la ligne ${index} du journal` };
   const achat = systeme.achats.get(ligne.achat);

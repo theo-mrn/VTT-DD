@@ -301,6 +301,11 @@ export const Sorte = z.object({
   pour: z.array(Id).min(1),
   /** Rang maximal (formule), si les entrées se possèdent par rangs. */
   rangs: z.object({ max: Formule }).optional(),
+  /**
+   * Un personnage peut porter des entrées de cette sorte hors du catalogue (voie maison,
+   * capacité inventée : `etat.entrees`, docs/entrees-libres.md).
+   */
+  personnalisable: z.boolean().default(false),
   /** Nombre maximal d'entrées de cette sorte par entité (1 pour une espèce). */
   maximum: z.number().int().positive().optional(),
   /** Les entrées de cette sorte peuvent être équipées / activées (variable `actif`). */
