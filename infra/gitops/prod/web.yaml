@@ -1,45 +1,31 @@
 image:
   repository: ghcr.io/theo-mrn/vtt-web
-  digest: ''
+  digest: 'sha256:aa441e491916e8f3f33578a8202f99410e6bd350ca2f010b0fbd023701a04d2e'
   tag: 'main'
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 resources:
-  requests: { cpu: 100m, memory: 256Mi }
-  limits: { memory: 768Mi }
+  requests: {cpu: 100m, memory: 256Mi}
+  limits: {memory: 768Mi}
 env:
   NODE_ENV: production
-envFromSecrets:
-  - name: web-secrets # SOPS : clés Firebase/Stripe/Resend tant que la migration n'est pas finie
+# Pas de secret : le front ne parle qu'à la gateway (/v1, même origine)
 probes:
-  liveness: /api/healthz
-  readiness: /api/healthz
+  liveness: /healthz
+  readiness: /healthz
 writablePaths:
   - /app/frontend/.next/cache
-# Remplacent les crons de l'ancien vercel.json (supprimé).
-# Horaires laissés en UTC, comme sur Vercel, pour ne rien décaler.
-cronJobs:
-  session-reminder:
-    schedule: '0 8 * * *'
-    timeZone: Etc/UTC
-    path: /api/session-reminder
-    secretName: web-secrets
-  optimize-images:
-    schedule: '0 2 * * *'
-    timeZone: Etc/UTC
-    path: /api/cron/optimize-images
-    # La route se limite déjà à 60 s de traitement par lots
-    timeoutSeconds: 120
-    secretName: web-secrets
 ingress:
   enabled: true
-  host: yner.fr
+  host: app.yner.fr
   # API et temps réel sur le même hôte, envoyés par Traefik à la gateway : le serveur Next ne
   # relaie pas l'upgrade WebSocket de ses réécritures, et les cookies restent sur la même origine
   extraPaths:
-    - { path: /v1, service: gateway }
-  # Plugin CrowdSec : filtrage par IP ET WAF OWASP CRS (SQLi, XSS, LFI,
-  # RCE). Pose des maintenant, avant meme que la prod existe, pour qu'elle
-  # soit protegee des son premier deploiement plutot que de dependre d'un
-  # ajout a posteriori qu'on oublierait.
+    - {path: /v1, service: gateway}
+  # Bouncer CrowdSec : hote expose publiquement. Traefik interroge le bouncer
+  # a chaque requete (forwardAuth) et renvoie 403 si l'IP porte une decision.
   middlewares:
     - crowdsec-crowdsec-appsec@kubernetescrd

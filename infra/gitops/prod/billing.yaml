@@ -1,35 +1,40 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-billing
-  digest: ''
+  digest: 'sha256:bbecf896a99ef4818571e3a2195a9e81b610a5abfd59d3ce8e1a103cc1859c35'
   tag: 'main'
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
   JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
   # Retours de Stripe Checkout (/paiement/succes, /paiement/annule) et du portail
-  APP_URL: https://yner.fr
+  APP_URL: https://app.yner.fr
   # E-mails de paiement envoyés par Kourrier (namespace kourrier), avec la clé
   # KOURRIER_API_KEY du secret ci-dessous. Templates : infra/mails/templates/yner/.
   KOURRIER_URL: http://kourrier.kourrier.svc:8080
   # Bus d'événements : droits publiés pour dice et identity (billing.entitlements_changed)
   NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
-# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+# Mots de passe du compte NATS STAGING et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL :
 # voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret billing-secrets (SOPS) :
 #   DATABASE_URL             rôle billing_svc
 #   KOURRIER_API_KEY         kr_… du tenant yner (même clé qu'identity)
-#   STRIPE_SECRET_KEY        sk_… (ou clé restreinte rk_…) ; mode test en staging
+#   STRIPE_SECRET_KEY        rk_live_… (clé restreinte) : le staging encaisse en live (2026-10-06)
 #   DATABASE_DIRECT_URL      même rôle vers vtt-pg-rw.data.svc en direct (LISTEN du relais
 #                            d'outbox, hors PgBouncer ; sans elle : réveil par le poll de 5 s)
 #   STRIPE_WEBHOOK_SECRET    whsec_… de l'endpoint https://api.yner.fr/v1/billing/webhook
@@ -45,19 +50,19 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+  # Sortie HTTPS (443) vers api.stripe.com : déjà ouverte par le chart (Internet
+  # public hors plages privées ; une NetworkPolicy ne filtre pas par nom de domaine).
   # Kourrier : envoi des e-mails (la NetworkPolicy du namespace kourrier autorise
   # billing en retour, dans argocd_registry)
   extraEgress:
-    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kourrier } } }]
-      ports: [{ port: 8080 }]
-  # Sortie HTTPS (443) vers api.stripe.com : déjà ouverte par le chart (Internet
-  # public hors plages privées ; une NetworkPolicy ne filtre pas par nom de domaine)
+    - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kourrier}}}]
+      ports: [{port: 8080}]
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-billing-migrations
-    digest: ''
+    digest: 'sha256:c3039af06648ceb3451cb996e6258bc8b3163fd7bfcfd68a44982bd4f22fb2ae'
     tag: 'main'
   schema: billing
   # Secret généré par CloudNativePG pour le rôle billing_owner

@@ -1,15 +1,20 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-gateway
-  digest: ''
+  digest: 'sha256:9461311f5d2c0e01e2c3f82b2cc6bbe775d9dba512cb02192527e4ccae71b286'
   tag: 'main'
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
-  CORS_ORIGINS: https://yner.fr
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
+  CORS_ORIGINS: https://app.yner.fr
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
   JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
@@ -19,28 +24,29 @@ env:
   UPSTREAM_DICE_URL: http://dice.vtt-prod.svc
   # Paiements Stripe ; /v1/billing/webhook passe sans jeton (signature vérifiée par billing)
   UPSTREAM_BILLING_URL: http://billing.vtt-prod.svc
+  UPSTREAM_DISCORD_URL: http://discord.vtt-prod.svc
   # Temps réel : WebSocket Socket.IO (/v1/realtime/socket.io), jeton vérifié par realtime
   UPSTREAM_REALTIME_URL: http://realtime.vtt-prod.svc
   # Journal d'historique : timeline d'une campagne, vérification de la chaîne de hash
   UPSTREAM_HISTORY_URL: http://history.vtt-prod.svc
   # Son : bibliothèque, canaux, effets, horloge, mixeur
   UPSTREAM_AUDIO_URL: http://audio.vtt-prod.svc
+  # Voix de la table : signalisation WebRTC (Cloudflare Realtime), docs/voix.md
+  UPSTREAM_VOICE_URL: http://voice.vtt-prod.svc
 # Mot de passe de valkey-prod (secret messaging-credentials), substitué dans REDIS_URL :
 # voir « Déploiement » dans docs/bus.md
 secretEnv:
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 ingress:
   enabled: true
   # Connexions WebSocket longues (realtime)
   websocket: true
   host: api.yner.fr
-  # Plugin CrowdSec : filtrage par IP ET WAF OWASP CRS (SQLi, XSS, LFI,
-  # RCE). Pose des maintenant, avant meme que la prod existe, pour qu'elle
-  # soit protegee des son premier deploiement plutot que de dependre d'un
-  # ajout a posteriori qu'on oublierait.
+  # Bouncer CrowdSec : hote expose publiquement. Traefik interroge le bouncer
+  # a chaque requete (forwardAuth) et renvoie 403 si l'IP porte une decision.
   middlewares:
     - crowdsec-crowdsec-appsec@kubernetescrd
 networkPolicy:
   enabled: true
 autoscaling:
-  enabled: true
+  enabled: false

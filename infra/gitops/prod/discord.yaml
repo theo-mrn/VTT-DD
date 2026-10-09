@@ -1,0 +1,40 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-discord
+  digest: 'sha256:c7675faea18dab470ee42f848d7e15698785df616ffc8af769d63ce30817bc02'
+  tag: 'main'
+# Bot de dés Discord (docs/discord.md) : sans état, une réplique suffit
+replicaCount: 1
+pdb:
+  enabled: false
+autoscaling:
+  enabled: false
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
+  # Application « Yner bot » (celle du bot du legacy) : identifiant et clé publique, publics
+  DISCORD_APPLICATION_ID: '1486015721740959794'
+  DISCORD_PUBLIC_KEY: '4e7fb334e3b59898121095be750326b6fb7ca87335ce3f69e41aa1a34660babd'
+  # Jetons délégués (identity), puis appels au nom du joueur
+  IDENTITY_URL: http://identity.vtt-prod.svc
+  CAMPAIGN_URL: http://campaign.vtt-prod.svc
+  DICE_URL: http://dice.vtt-prod.svc
+  CHARACTER_URL: http://character.vtt-prod.svc
+  APP_URL: https://app.yner.fr
+# Même secret interne qu'identity, lu dans son Secret : rien de plus à sceller. Le jeton du
+# bot ne sert qu'à enregistrer les commandes (commands:register), jamais au service.
+secretEnv:
+  INTERNAL_API_SECRET: {secret: identity-secrets, key: INTERNAL_API_SECRET}
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : les interactions arrivent par la gateway (/v1/discord/interactions)
+ingress:
+  enabled: false
+# Sorties déjà permises par le chart : services du namespace (http) et Discord (443)
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}

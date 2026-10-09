@@ -1,16 +1,21 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-character
-  digest: ''
+  digest: 'sha256:3507fd012f342bc8852d3d15d4ad1a2e709c1bea48cd25cbdfa6a48a08c555a2'
   tag: 'main'
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   # Bus d'événements : le relais d'outbox y publie (NATS JetStream, namespace messaging)
   NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
@@ -19,16 +24,15 @@ env:
   CAMPAIGN_URL: http://campaign.vtt-prod.svc
   # Historique des jets : chaque jet d'action est transmis à dice (/internal/rolls)
   DICE_URL: http://dice.vtt-prod.svc
-  # Fichiers orphelins de ses dossiers (docs/nettoyage.md § Fichiers) : chaque autre service qui
-  # garde des adresses de fichiers (même INTERNAL_API_SECRET partout) ; essai tant que les
-  # journaux n'ont pas été vérifiés, puis « on »
   STORAGE_REFERENCE_URLS: http://campaign.vtt-prod.svc,http://identity.vtt-prod.svc,http://dice.vtt-prod.svc
-  ORPHAN_SWEEP: dry-run
-# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+  # Prod et staging sur le même bucket (vtt-dd-assets, décision du 2026-10-09) : le nettoyage des fichiers orphelins
+  # ne tourne jamais ici, il supprimerait des fichiers de l'autre environnement
+  ORPHAN_SWEEP: 'off'
+# Mots de passe du compte NATS STAGING et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret character-secrets (SOPS) : DATABASE_URL (rôle characters_svc), INTERNAL_API_SECRET
 # (même valeur que campaign et dice)
 # + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
@@ -44,18 +48,20 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+    # Bot de dés Discord : jetons délégués et appels au nom du joueur (docs/discord.md)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: discord}}
     # campaign appelle les routes /internal (initiative, durées, résumé)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: campaign}}
     # dice lit la fiche d'un personnage pour les variables de ses jets (/internal)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: dice}}
     # identity demande quels fichiers ses tables référencent (/internal/storage)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: identity } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: identity}}
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-character-migrations
-    digest: ''
+    digest: 'sha256:7b31037f92b3d806cfadbe8b421d1d06752db3f343d046a44b1bfd680c38c97b'
     tag: 'main'
   # Schéma « characters » : CHARACTER est un mot réservé SQL
   schema: characters

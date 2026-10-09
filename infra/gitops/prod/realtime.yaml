@@ -1,25 +1,30 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-realtime
-  digest: ''
+  digest: 'sha256:43046639e0ff6f876ab8bdc00858789c6af247aef2bf203bfae2fb3bfbb8c0d0'
   tag: 'main'
 # Chaque réplica lit tout le flux NATS et n'émet qu'à ses propres connexions : on peut en
 # ajouter sans qu'un client reçoive un événement deux fois. Pas de sessions collantes
 # (WebSocket seulement) ; l'adaptateur Redis relie les réplicas (éphémère, présence).
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 autoscaling:
-  enabled: true
+  enabled: false
   minReplicas: 2
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   # Cache des droits (campaign) et adaptateur Socket.IO entre réplicas
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   # Bus d'événements : diffusion en direct et rejeu après reconnexion (NATS JetStream)
   NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
@@ -33,11 +38,11 @@ env:
   EPHEMERAL_RATE_PER_SECOND: '30'
   EPHEMERAL_BURST: '60'
   EPHEMERAL_MAX_BYTES: '4096'
-# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+# Mots de passe du compte NATS STAGING et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret realtime-secrets (SOPS) : INTERNAL_API_SECRET (même valeur que campaign). Pas de base :
 # ni DATABASE_URL ni migrations.
 envFromSecrets:
@@ -54,4 +59,4 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}

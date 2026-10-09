@@ -1,16 +1,21 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-dice
-  digest: ''
+  digest: 'sha256:333eb92b4cb241b4490e8c0ab0a3c629f066d6e06774ac6a043d2aad8c23ba2b'
   tag: 'main'
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   # Bus d'événements : le relais d'outbox y publie (NATS JetStream, namespace messaging)
   NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
@@ -23,11 +28,11 @@ env:
   # Jets par minute : par IP, et par utilisateur (compté en base)
   RATE_LIMIT_ROLLS_MAX: '120'
   RATE_LIMIT_ROLLS_PER_USER: '60'
-# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+# Mots de passe du compte NATS STAGING et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret dice-secrets (SOPS) : DATABASE_URL (rôle dice_svc), INTERNAL_API_SECRET (même valeur
 # que campaign et character)
 # + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
@@ -43,17 +48,19 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+    # Bot de dés Discord : jetons délégués et appels au nom du joueur (docs/discord.md)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: discord}}
     # character transmet les jets d'action (/internal/rolls, secret partagé)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: character}}
     # campaign et identity demandent quels fichiers ses tables référencent
-    - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
-    - podSelector: { matchLabels: { app.kubernetes.io/name: identity } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: campaign}}
+    - podSelector: {matchLabels: {app.kubernetes.io/name: identity}}
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-dice-migrations
-    digest: ''
+    digest: 'sha256:8fc5eee8341bffe636e81f3329b4aaba25d4885b5dd4eefbbd73b4574757d7c3'
     tag: 'main'
   schema: dice
   # Secret généré par CloudNativePG pour le rôle dice_owner

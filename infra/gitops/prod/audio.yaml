@@ -1,16 +1,21 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-audio
-  digest: ''
+  digest: 'sha256:1e9d02749b002f9f6807b35684406d8fd71ebd29ba2372e1376e4e7758e350cc'
   tag: 'main'
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   # Bus d'événements : relais d'outbox et consommateur campaign.deleted (NATS JetStream)
   NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
@@ -22,11 +27,11 @@ env:
   AUDIO_CATALOG_ORIGINS: https://assets.yner.fr
   # Enchaînements automatiques : chaque réplica passe toutes les 500 ms (SKIP LOCKED)
   SCHEDULER_INTERVAL_MS: '500'
-# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+# Mots de passe du compte NATS STAGING et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret audio-secrets (SOPS) : DATABASE_URL (rôle audio_svc), DATABASE_DIRECT_URL (même rôle,
 # vtt-pg-rw.data.svc en direct pour le LISTEN du relais), INTERNAL_API_SECRET (même valeur que
 # campaign), R2_ENDPOINT, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL (mêmes
@@ -42,12 +47,12 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-audio-migrations
-    digest: ''
+    digest: 'sha256:03ca4707fede30684223615711c9aa5020b8d540e9a95e3b3a8f5ade7c6cee83'
     tag: 'main'
   schema: audio
   # Secret généré par CloudNativePG pour le rôle audio_owner

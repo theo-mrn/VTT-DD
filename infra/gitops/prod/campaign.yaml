@@ -1,16 +1,21 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-campaign
-  digest: ''
+  digest: 'sha256:60f3593bb963922cc358daaa3a5560f6d1b8c7f1c007e76c0d770b768ef0983d'
   tag: 'main'
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   # Bus d'événements : le relais d'outbox y publie (NATS JetStream, namespace messaging)
   NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
@@ -19,20 +24,19 @@ env:
   CHARACTER_URL: http://character.vtt-prod.svc
   IDENTITY_URL: http://identity.vtt-prod.svc
   # Liens d'invitation <APP_URL>/join/<code>
-  APP_URL: https://yner.fr
+  APP_URL: https://app.yner.fr
   # Images des campagnes : même bucket qu'identity (dossier campaigns/). La signature des URL
   # d'envoi se calcule sur place : aucun flux réseau vers le stockage depuis le pod.
   R2_REGION: auto
-  # Fichiers orphelins de ses dossiers (docs/nettoyage.md § Fichiers) : chaque autre service qui
-  # garde des adresses de fichiers (même INTERNAL_API_SECRET partout) ; essai tant que les
-  # journaux n'ont pas été vérifiés, puis « on »
   STORAGE_REFERENCE_URLS: http://character.vtt-prod.svc,http://identity.vtt-prod.svc,http://dice.vtt-prod.svc
-  ORPHAN_SWEEP: dry-run
-# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+  # Prod et staging sur le même bucket (vtt-dd-assets, décision du 2026-10-09) : le nettoyage des fichiers orphelins
+  # ne tourne jamais ici, il supprimerait des fichiers de l'autre environnement
+  ORPHAN_SWEEP: 'off'
+# Mots de passe du compte NATS STAGING et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret campaign-secrets (SOPS) : DATABASE_URL (rôle campaign_svc), INTERNAL_API_SECRET
 # (même valeur que character), R2_ENDPOINT, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
 # R2_PUBLIC_URL (mêmes valeurs qu'identity)
@@ -50,19 +54,26 @@ networkPolicy:
   enabled: true
   allowFrom:
     # audio demande le rôle de l'appelant (/internal, secret partagé)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: audio } }
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: audio}}
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+    # Temps réel et historique : vérification des jetons (JWKS) et droits dans la campagne
+    - podSelector: {matchLabels: {app.kubernetes.io/name: realtime}}
+    - podSelector: {matchLabels: {app.kubernetes.io/name: history}}
+    # Bot de dés Discord : jetons délégués et appels au nom du joueur (docs/discord.md)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: discord}}
     # character demande les droits des campagnes (/internal, secret partagé)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: character}}
     # dice demande le rôle de l'appelant (/internal) et le détail d'une campagne
-    - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: dice}}
     # identity demande quels fichiers ses tables référencent (/internal/storage)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: identity } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: identity}}
+    # voice : rôle de l'appelant dans la campagne (route interne)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: voice}}
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-campaign-migrations
-    digest: ''
+    digest: 'sha256:00b3abf7aea1995adc69db9cc7395453a32fb352cbd02a595bffb4d5630a2b52'
     tag: 'main'
   schema: campaign
   # Secret généré par CloudNativePG pour le rôle campaign_owner

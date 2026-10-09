@@ -2,7 +2,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-audio-worker
-  digest: ''
+  digest: 'sha256:9ca63b38044728a2ab717ca76cac1d147917a8ebc04c82cc6e52cf1042b3a215'
   tag: 'main'
 # Un réplica, deux jobs à la fois (WORKER_CONCURRENCY) ; plusieurs réplicas resteraient sûrs
 # (SKIP LOCKED), mais ffmpeg est gourmand : on scale la concurrence avant les pods
@@ -14,10 +14,11 @@ pdb:
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   # Bus d'événements : relais d'outbox et consommateur campaign.deleted (NATS JetStream)
   NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Sondes /healthz et /readyz sur le port du conteneur
   WORKER_PORT: '3000'
   WORKER_CONCURRENCY: '2'
@@ -27,16 +28,16 @@ env:
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Même secret que le service : DATABASE_URL, DATABASE_DIRECT_URL (LISTEN audio_jobs), S3_*
 envFromSecrets:
   - name: audio-secrets
 # /tmp : fichiers en cours de traitement (original, transcodage)
 tmpSizeLimit: 1Gi
 resources:
-  requests: { cpu: 250m, memory: 256Mi }
-  limits: { cpu: '2', memory: 1Gi }
+  requests: {cpu: 250m, memory: 256Mi}
+  limits: {cpu: '2', memory: 1Gi}
 probes:
   liveness: /healthz
   readiness: /readyz

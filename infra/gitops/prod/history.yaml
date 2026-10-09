@@ -1,18 +1,23 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-history
-  digest: ''
+  digest: 'sha256:4828621600cfebe8e02633ba535d2f45ca051ed221536608e6867a3f1ea05a38'
   tag: 'main'
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   # Bus d'événements : history consomme tout vtt.> (NATS JetStream, namespace messaging)
   NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
   # Consommateur durable partagé par les réplicas (JetStream répartit les messages)
   HISTORY_CONSUMER: history
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
@@ -21,11 +26,11 @@ env:
   CAMPAIGN_URL: http://campaign.vtt-prod.svc
   # Partitions mensuelles de history.events créées à l'avance (mois courant compris)
   PARTITION_MONTHS_AHEAD: '3'
-# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+# Mots de passe du compte NATS STAGING et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret history-secrets (SOPS) : DATABASE_URL (rôle history_svc), INTERNAL_API_SECRET (même
 # valeur que campaign)
 envFromSecrets:
@@ -41,12 +46,12 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-history-migrations
-    digest: ''
+    digest: 'sha256:3a32a2b188ba2989cd6a819f7dc0508bce380adac62420ff4ed7016f77896bfb'
     tag: 'main'
   schema: history
   # Secret généré par CloudNativePG pour le rôle history_owner

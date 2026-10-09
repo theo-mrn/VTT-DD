@@ -1,37 +1,41 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-identity
-  digest: ''
+  digest: 'sha256:0855f0b6f15deffa0d2e99dbb3079f6297cfc64c203be94c8cdfcd7cebce7fcd'
   tag: 'main'
-replicaCount: 2
+# Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
+# le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
 env:
   NODE_ENV: production
   LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
   REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   # Bus d'événements : le relais d'outbox y publie (NATS JetStream, namespace messaging)
   NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
-  APP_URL: https://yner.fr
+  APP_URL: https://app.yner.fr
   # E-mails : envoyés par Kourrier (namespace kourrier, AWS SES derrière), avec la
   # clé KOURRIER_API_KEY du secret ci-dessous. Templates : infra/mails/templates/.
   KOURRIER_URL: http://kourrier.kourrier.svc:8080
   MAIL_FROM: 'YNER <contact@yner.fr>'
   R2_REGION: auto
-  # Fichiers orphelins de ses dossiers (docs/nettoyage.md § Fichiers) : chaque autre service qui
-  # garde des adresses de fichiers (même INTERNAL_API_SECRET partout) ; essai tant que les
-  # journaux n'ont pas été vérifiés, puis « on »
   STORAGE_REFERENCE_URLS: http://character.vtt-prod.svc,http://campaign.vtt-prod.svc,http://dice.vtt-prod.svc
-  ORPHAN_SWEEP: dry-run
-# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+  # Prod et staging sur le même bucket (vtt-dd-assets, décision du 2026-10-09) : le nettoyage des fichiers orphelins
+  # ne tourne jamais ici, il supprimerait des fichiers de l'autre environnement
+  ORPHAN_SWEEP: 'off'
+# Mots de passe du compte NATS STAGING et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
 secretEnv:
-  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
-  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
+  NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret identity-secrets (SOPS) : DATABASE_URL (rôle identity_svc), JWT_PRIVATE_JWKS,
-# INTERNAL_API_SECRET, KOURRIER_API_KEY, S3_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
+# INTERNAL_API_SECRET, KOURRIER_API_KEY, R2_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
 # + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
 #   d'outbox ne traverse pas PgBouncer (sans elle : DATABASE_URL, réveil par le poll de 5 s)
 envFromSecrets:
@@ -46,26 +50,33 @@ networkPolicy:
   enabled: true
   allowFrom:
     # audio : JWKS
-    - podSelector: { matchLabels: { app.kubernetes.io/name: audio } }
-    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: audio}}
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+    # Temps réel et historique : vérification des jetons (JWKS) et droits dans la campagne
+    - podSelector: {matchLabels: {app.kubernetes.io/name: realtime}}
+    - podSelector: {matchLabels: {app.kubernetes.io/name: history}}
+    # Bot de dés Discord : jetons délégués et appels au nom du joueur (docs/discord.md)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: discord}}
     # character et campaign vérifient les jetons avec le JWKS d'identity
-    - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: character}}
     # campaign lit aussi les profils publics des membres (noms, avatars)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: campaign}}
     # dice : JWKS et profils publics des lanceurs
-    - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: dice}}
     # billing : JWKS (vérification des jetons)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: billing } }
+    - podSelector: {matchLabels: {app.kubernetes.io/name: billing}}
+    # voice : JWKS (vérification des jetons)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: voice}}
   # Kourrier : envoi des e-mails (la NetworkPolicy du namespace kourrier autorise
   # identity en retour, dans argocd_registry)
   extraEgress:
-    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kourrier } } }]
-      ports: [{ port: 8080 }]
+    - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kourrier}}}]
+      ports: [{port: 8080}]
 migrations:
   enabled: true
   image:
     repository: ghcr.io/theo-mrn/vtt-identity-migrations
-    digest: ''
+    digest: 'sha256:dd9bcd2ccecb00e5c03bdabe8d334640f4284710c9261ffa546c739f99ccc9b3'
     tag: 'main'
   schema: identity
   # Secret généré par CloudNativePG pour le rôle identity_owner

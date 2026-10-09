@@ -97,3 +97,34 @@ synchronise.
 3. Argo CD crée `data`, `messaging`, puis `vtt-staging` ; les Jobs de migration passent avant
    chaque service.
 4. Vérifier `https://staging.yner.fr` et `https://api.staging.yner.fr/healthz`.
+
+## Production (décisions de Théo, 2026-10-09)
+
+| Sujet    | Choix                                                                                                                                                                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Base     | **Serveur PostgreSQL à part** : cluster CNPG `vtt-pg-prod` (namespace `data`), mêmes rôles que le staging mais d'autres mots de passe — les rôles sont écrits en dur dans les migrations, un serveur commun aurait partagé les identifiants |
+| Données  | **Clonées une fois** depuis le staging (`pg_dump` de `vtt` → `vtt-pg-prod`), puis séparées                                                                                                                                                  |
+| Fichiers | **Même bucket R2** que le staging (un fichier supprimé d'un côté disparaît de l'autre)                                                                                                                                                      |
+| Adresses | **Provisoire d'abord** : `app.yner.fr` (front, `/v1` vers la gateway) et `api.yner.fr` (OAuth, webhooks) ; le legacy reste sur `yner.fr` (Vercel) jusqu'à validation, puis bascule                                                          |
+| Stripe   | **Live partout** : la prod a son propre webhook live, le staging garde le sien                                                                                                                                                              |
+
+### Étapes
+
+1. **Base de prod** (dépôt) : `infra/cluster/data-prod/` (cluster `vtt-pg-prod`, une instance,
+   réservation 512 Mo, 20 Go `local-path` ; pooler `vtt-pg-prod-pooler` ; sauvegarde logique
+   quotidienne vers R2, préfixe `prod/`) et son Application Argo CD.
+2. **Messagerie** (dépôt) : Valkey `valkey-prod` (Application `messaging-valkey-prod`) ; le compte
+   NATS `PROD` existe déjà (`nats-accounts.PROD_PASSWORD`).
+3. **Secrets de prod** (Théo, `infra/cluster/secrets/seal-prod.sh`) : mots de passe PostgreSQL et
+   Valkey de prod, secret interne et clés JWT neufs ; mot de passe NATS de prod relu dans le
+   cluster ; valeurs externes reprises de `~/.config/vtt/staging.env` (R2, Stripe live, OAuth,
+   Kourrier, Cloudflare Realtime, Firebase) plus le secret du webhook Stripe de prod.
+4. **Services** (dépôt) : `infra/gitops/prod/*.yaml` régénérés à partir du staging (namespace
+   `vtt-prod`, adresses ci-dessus, une réplique) ; l'ApplicationSet couvre `prod` ; une release
+   de prod part d'un tag `v*.*.*` (approbation de l'environnement `production`).
+5. **Clonage des données** (une fois, avant le premier démarrage des services de prod) : dump du
+   staging, restauration dans `vtt-pg-prod`.
+6. **À régler par Théo** : DNS `app.yner.fr` et `api.yner.fr` (Cloudflare, proxifiés, vers
+   `76.13.44.160`) ; redirections OAuth Google et Discord vers `api.yner.fr` ; webhook Stripe
+   live `https://api.yner.fr/v1/billing/webhook`.
+7. **Bascule** : après validation sur `app.yner.fr`, `yner.fr` passe de Vercel au cluster.
