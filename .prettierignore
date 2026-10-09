@@ -7,6 +7,8 @@ infra/mails/templates/
 # Réécrits par yq à chaque release (digests des images) : le format de yq fait foi
 infra/gitops/
 README.md
+# Pages réelles gardées telles quelles pour les tests (le JSON de la page fait foi)
+**/fixtures/*.html
 .claude/
 
 # Sorties compilées : jamais reformatées
