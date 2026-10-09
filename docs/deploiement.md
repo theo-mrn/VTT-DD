@@ -117,14 +117,13 @@ synchronise.
    NATS `PROD` existe déjà (`nats-accounts.PROD_PASSWORD`).
 3. **Secrets de prod** (Théo, `infra/cluster/secrets/seal-prod.sh`) : mots de passe PostgreSQL et
    Valkey de prod, secret interne et clés JWT neufs ; mot de passe NATS de prod relu dans le
-   cluster ; valeurs externes reprises de `~/.config/vtt/staging.env` (R2, Stripe live, OAuth,
-   Kourrier, Cloudflare Realtime, Firebase) plus le secret du webhook Stripe de prod.
+   cluster ; valeurs externes copiées des secrets du staging (R2, Stripe live et son webhook,
+   OAuth, Kourrier, Cloudflare Realtime, Firebase).
 4. **Services** (dépôt) : `infra/gitops/prod/*.yaml` régénérés à partir du staging (namespace
    `vtt-prod`, adresses ci-dessus, une réplique) ; l'ApplicationSet couvre `prod` ; une release
    de prod part d'un tag `v*.*.*` (approbation de l'environnement `production`).
 5. **Clonage des données** (une fois, avant le premier démarrage des services de prod) : dump du
    staging, restauration dans `vtt-pg-prod`.
 6. **À régler par Théo** : DNS `app.yner.fr` et `api.yner.fr` (Cloudflare, proxifiés, vers
-   `76.13.44.160`) ; redirections OAuth Google et Discord vers `api.yner.fr` ; webhook Stripe
-   live `https://api.yner.fr/v1/billing/webhook`.
+   `76.13.44.160`) ; redirections OAuth Google et Discord vers `api.yner.fr`.
 7. **Bascule** : après validation sur `app.yner.fr`, `yner.fr` passe de Vercel au cluster.

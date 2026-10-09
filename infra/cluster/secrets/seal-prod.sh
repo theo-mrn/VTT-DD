@@ -3,17 +3,15 @@
 # infra/cluster/secrets/prod/ (docs/deploiement.md, « Production »). Seuls les fichiers scellés
 # sont commités : les valeurs en clair ne quittent jamais la machine.
 #
-#   STRIPE_WEBHOOK_SECRET_PROD=whsec_… infra/cluster/secrets/seal-prod.sh
+#   infra/cluster/secrets/seal-prod.sh
 #
 # Neufs, propres à la prod : mots de passe PostgreSQL (cluster vtt-pg-prod), Valkey de prod,
 # secret interne, clés JWT, secret d'envoi audio.
 # Relus dans le cluster (mêmes comptes externes que le staging, décision du 2026-10-09) :
 #   - mot de passe NATS du compte PROD (messaging/nats-accounts) ;
 #   - R2 (même bucket), Google et Discord OAuth, Kourrier, Firebase (identity-secrets,
-#     campaign-secrets du staging), Stripe live (billing-secrets), Cloudflare Realtime
-#     (voice-secrets).
-# Fourni : STRIPE_WEBHOOK_SECRET_PROD, le secret du webhook live de la prod
-#   (https://api.yner.fr/v1/billing/webhook) ; absent, les paiements de la prod restent coupés.
+#     campaign-secrets du staging), Stripe live et secret du webhook (billing-secrets),
+#     Cloudflare Realtime (voice-secrets).
 #
 # Relancer le script fait tourner TOUS les secrets de prod : sessions perdues, services
 # redémarrés. Prérequis : kubectl (accès au cluster), kubeseal, jq, node, openssl.
@@ -72,6 +70,7 @@ for k in KOURRIER_API_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET DISCORD_CLIENT_I
   externes+=("$k=$(lire $S identity-secrets "$k")")
 done
 stripe_key=$(lire $S billing-secrets STRIPE_SECRET_KEY)
+stripe_webhook=$(lire $S billing-secrets STRIPE_WEBHOOK_SECRET)
 cloudflare=()
 for k in CLOUDFLARE_REALTIME_APP_ID CLOUDFLARE_REALTIME_APP_TOKEN CLOUDFLARE_TURN_KEY_ID \
   CLOUDFLARE_TURN_KEY_TOKEN; do
@@ -114,7 +113,7 @@ secret vtt-prod identity-secrets Opaque \
   "INTERNAL_API_SECRET=$interne" "JWT_PRIVATE_JWKS=$jwks" "${r2[@]}" "${externes[@]}"
 secret vtt-prod billing-secrets Opaque \
   "DATABASE_URL=$url_billing" "DATABASE_DIRECT_URL=$direct_billing" \
-  "STRIPE_SECRET_KEY=$stripe_key" "STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET_PROD:-}"
+  "STRIPE_SECRET_KEY=$stripe_key" "STRIPE_WEBHOOK_SECRET=$stripe_webhook"
 secret vtt-prod campaign-secrets Opaque \
   "DATABASE_URL=$url_campaign" "DATABASE_DIRECT_URL=$direct_campaign" \
   "INTERNAL_API_SECRET=$interne" "${r2[@]}"
@@ -132,7 +131,5 @@ secret vtt-prod audio-secrets Opaque \
 secret vtt-prod realtime-secrets Opaque "INTERNAL_API_SECRET=$interne"
 secret vtt-prod voice-secrets Opaque "${cloudflare[@]}"
 
-[ -n "${STRIPE_WEBHOOK_SECRET_PROD:-}" ] ||
-  echo "STRIPE_WEBHOOK_SECRET_PROD absent : paiements de la prod coupés (relancer avec)" >&2
 echo "Secrets scellés dans $sortie :" >&2
 ls "$sortie" >&2
