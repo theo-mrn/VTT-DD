@@ -24,5 +24,7 @@ databaseChangeLog:
   - include: { file: changes/0012-trash.sql, relativeToChangelogFile: true }
   # Les modèles n'ont pas de corbeille : supprimés par le MJ seulement, aussitôt
   - include: { file: changes/0013-templates-without-trash.sql, relativeToChangelogFile: true }
+  # Personnage importé d'une fiche : date, source et écarts aux règles (docs/import-fiche.md)
+  - include: { file: changes/0014-character-sheet-import.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

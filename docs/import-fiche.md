@@ -27,13 +27,13 @@ Un PDF sans texte (scan, photo) est signalé tout de suite : rien à détecter, 
 - **Champs de formulaire** (AcroForm) : paires nom → valeur. C'est la source la plus fiable (fiches officielles remplissables, exports de générateurs).
 - **Texte positionné** : chaque morceau de texte avec sa page et sa position, regroupé en lignes. Sert aux fiches « à plat » et complète les formulaires.
 
-Le résultat brut (`LectureFiche`) ne contient que du texte : aucune règle de jeu à ce stade.
+Le résultat brut (`SheetReading`) ne contient que du texte : aucune règle de jeu à ce stade.
 
 ### 2.1 Fiche par lien
 
-Reprise du legacy (`legacy/src/app/api/import-noobles`, perdu dans la refonte) et généralisée. Le joueur colle l'adresse de sa fiche ; le service character la télécharge (le navigateur ne le peut pas, CORS) et la convertit en `LectureFiche`, la même forme que pour un PDF : la suite (détection, vérification, création) est commune.
+Reprise du legacy (`legacy/src/app/api/import-noobles`, perdu dans la refonte) et généralisée. Le joueur colle l'adresse de sa fiche ; le service character la télécharge (le navigateur ne le peut pas, CORS) et la convertit en `SheetReading`, la même forme que pour un PDF : la suite (détection, vérification, création) est commune.
 
-`POST /v1/characters/import/link { url }` → `LectureFiche`. Un **adaptateur par site**, sur liste fermée d'hôtes (aucune adresse libre : pas de requête du serveur vers n'importe où), avec délai et taille de page bornés.
+`POST /v1/characters/import/link { url }` → `SheetReading` (`@vtt/contracts`, sheet-import.ts : `fields` libellé → valeur, `entries` nommées avec leur sorte supposée, rang et noms de rangs, `texts`, `portraitUrl`). Un **adaptateur par site**, sur liste fermée d'hôtes (aucune adresse libre : pas de requête du serveur vers n'importe où), avec délai et taille de page bornés.
 
 Premier adaptateur, **Noobliés Chroniques** (`nooblieeschroniques.fr`) : la page porte la fiche en JSON (`var tmp = {…}`), lue comme le legacy. Il ne connaît que le format du site, jamais le système : il en sort des champs nommés (`cname`, `FOR`, `PV`…), des entrées nommées avec leur rang (race, profil, voies, rang = dernier rang coché, noms des rangs), des objets (armes, armures, besace) et les notes. Le portrait (`illu`) est proposé à l'import d'image existant (`/uploads/import`). Toutes ces détections sont **sûres** (§ 3.3).
 
@@ -82,7 +82,7 @@ Disposition de l'assistant actuel (cadre focus), sans texte explicatif (info-bul
 
 ### 5.1 Route
 
-`POST /v1/characters/import` (service character) :
+`POST /v1/characters/import` (service character, `regles/import.ts`) :
 
 ```ts
 {
@@ -90,35 +90,37 @@ Disposition de l'assistant actuel (cadre focus), sans texte explicatif (info-bul
   type: string;
   nom: string;
   details?: { concept?, appearance?, backstory? };
-  valeurs: Record<string, number | string | boolean>;  // attributs saisissables seulement
-  possessions: { entree: string; rang?: number; quantite?: number }[];
-  noeuds?: Record<string, string[]>;                   // arbre → nœuds
+  valeurs: Record<string, number | string | boolean>; // attributs saisissables seulement
+  possessions: { entree: string; rang?: number; quantite?: number; champs?: {...} }[];
+  entrees?: Entree[];               // entrées libres : voies absentes du catalogue
+  lues?: Record<string, number>;    // valeurs calculées lues sur la fiche (PV max, Défense…)
+  source: { kind: 'pdf' | 'link'; site?: string; url?: string };
 }
 ```
 
-Le service construit l'état : `etatInitial`, puis valeurs, possessions et nœuds, `creation: false`. Il vérifie avec le moteur (schéma, entrées et attributs connus, types des valeurs, bornes min/max) : ce qui est **invalide** est refusé en 422 ; ce qui est seulement **hors règles de création** passe (§ 5.2). Réponse : le personnage, comme `POST /v1/characters`. Le front l'engage ensuite dans la campagne et l'incarne, exactement comme l'assistant.
+Le service construit l'état, création terminée : valeurs d'abord (elles fixent les soldes), possessions sans rangs, puis **rangs rejoués par les achats du système** (chaque rang passe par l'achat qui le donne et s'inscrit au journal ; un rang que les règles refusent est gardé, avec son écart). Les bases que la fiche ne donne pas sont **déduites de ses valeurs calculées** (`deduireBases` de `@vtt/rules` : le PV max lu retrouve le jet de dé de vie, par les dépendances de la formule, sans attribut nommé). Un attribut ou une entrée inconnus, une valeur calculée saisie, une entrée libre invalide : refus 422. Réponse : le personnage (201), comme `POST /v1/characters`. Le front l'engage ensuite dans la campagne et l'incarne, comme l'assistant.
 
 ### 5.2 Marque « importé » et écarts
 
-Nouvelle colonne `characters.import` (jsonb, nulle hors import), migration `0014-character-import.sql` :
+Colonne `characters.sheet_import` (jsonb, nulle hors import), changeset `0014-character-sheet-import.sql`, renvoyée en `sheetImport` :
 
 ```ts
-{ at: string; ecarts: string[] }
+{ at: string; source: SheetSource; ecarts: string[] }
 ```
 
-`ecarts` est calculé par le moteur au moment de l'import : on rejoue `etapesCreation()` sur une copie de l'état remise en création, et chaque étape `invalide` ou `a-faire` donne ses raisons (« Caractéristiques : 15 points dépensés sur 12 », « Voies : 3 rangs de trop »). S'y ajoutent les dérivées lues dans le PDF qui ne correspondent pas au calcul (« PV max : 24 sur la fiche PDF, 18 calculés »).
+Les écarts : rangs refusés par les règles (« Voie de l’humain, rang 1 : Solde insuffisant : 1 requis, 0 disponible »), étapes de création invalides (`etapesCreation()` rejoué sur l'état remis en création), valeurs lues qui diffèrent du calcul (« PV max : 24 sur la fiche, 18 calculé »).
 
 Le MJ voit sur la fiche un badge « Importé » ; au survol, la liste des écarts. Le joueur voit le badge, pas de liste. Rien ne bloque : le MJ corrige s'il le veut, avec ses droits habituels.
 
 ### 5.3 Campagne qui interdit la création
 
-Un personnage importé est créé par le joueur : l'import suit la même règle que l'assistant. Si le MJ n'autorise pas la création de personnages dans sa campagne (`characterCreation`), l'entrée « Importer une fiche PDF » n'apparaît pas pour les joueurs, et campaign traite un personnage importé comme un personnage en création : engagement refusé (le résumé que character lui envoie porte `imported`).
+Un personnage importé est créé par le joueur : l'import suit la même règle que l'assistant. Si le MJ n'autorise pas la création de personnages dans sa campagne (`characterCreation`), l'entrée « Importer une fiche PDF » n'apparaît pas pour les joueurs, et campaign traite un personnage importé comme un personnage en création : engagement refusé (le résumé interne de character porte `imported`).
 
 ## 6. Découpage
 
 | Lot | Contenu                                                                                                                                                             |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A   | `LectureFiche`, `import.alias` dans le schéma des systèmes ; `detecterFiche` (pur, `@vtt/rules` ou `frontend/src/lib/import`) et ses tests sur des PDF de référence |
+| A   | `SheetReading`, `import.alias` dans le schéma des systèmes ; `detecterFiche` (pur, `@vtt/rules` ou `frontend/src/lib/import`) et ses tests sur des PDF de référence |
 | B   | Route `POST /v1/characters/import`, colonne `import`, calcul des écarts, règle de campagne (§ 5.3)                                                                  |
 | C   | Lecture pdf.js, écran de vérification, entrée dans « Nouveau personnage », badge « Importé » sur la fiche                                                           |
 | C'  | Import par lien : route, liste d'hôtes, adaptateur Noobliés                                                                                                         |

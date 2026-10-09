@@ -68,6 +68,7 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
       type: 'personnage',
       kind: 'pc',
       creation: false, // nainGuerrier termine la création
+      imported: false,
       summary: { tagline: expect.stringContaining('Nain'), highlights: expect.any(Array) },
     });
     const inconnu = await t.app.inject({

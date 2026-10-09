@@ -15,6 +15,7 @@ import {
   FileUploadRequest,
   FileUploadTicket,
   PortraitStudio,
+  SheetSource,
 } from '@vtt/contracts';
 import { HttpError, type UploadReserve } from '@vtt/platform';
 import { eq } from 'drizzle-orm';
@@ -54,6 +55,7 @@ import {
   verifierEtat,
   vuePublique,
 } from '../../regles/operations.js';
+import { DemandeImport, etatImporte } from '../../regles/import.js';
 import { CharacterSummary } from '../../regles/summary.js';
 import { jouerAction } from './actions.js';
 import {
@@ -97,6 +99,10 @@ const Personnage = z.object({
   summary: CharacterSummary,
   /** Mise en page de la fiche (forme : ./layout.ts) ; null : disposition par défaut. */
   sheetLayout: z.unknown().nullable(),
+  /** Importé d'une fiche (docs/import-fiche.md) : date, source, écarts aux règles. */
+  sheetImport: z
+    .object({ at: z.string(), source: SheetSource, ecarts: z.array(z.string()) })
+    .nullable(),
   /** Droits de l'appelant : renvoyés par la lecture et par le changement de mise en page. */
   permissions: Permissions.optional(),
   version: z.number().int(),
@@ -225,6 +231,36 @@ export const register: Module = async (app, deps) => {
         throw HttpError.badRequest(`Système inconnu : ${req.body.systemeId}`, 'systeme_inconnu');
       const etat = verifierEtat(systeme, etatInitial(systeme, req.body.type)).etat;
       const ligne = await creer(db, contexte(req), moi(req), { nom: req.body.nom, etat });
+      reply.code(201);
+      return api(ligne);
+    },
+  );
+
+  // Import d'une fiche vérifiée par le joueur (docs/import-fiche.md § 5) : création terminée,
+  // valeurs de la fiche reprises, écarts aux règles gardés pour le MJ
+  r.post(
+    '/v1/characters/import',
+    {
+      ...auth,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } } as FastifyContextConfig,
+      schema: { body: DemandeImport, response: { 201: Personnage } },
+    },
+    async (req, reply) => {
+      const d = req.body;
+      const systeme = catalogue.charge(d.systemeId);
+      if (!systeme)
+        throw HttpError.badRequest(`Système inconnu : ${d.systemeId}`, 'systeme_inconnu');
+      const { etat, ecarts } = etatImporte(systeme, d);
+      const ligne = await creer(db, contexte(req), moi(req), {
+        nom: d.nom,
+        etat: verifierEtat(systeme, etat).etat,
+        details: {
+          concept: d.details?.concept ?? '',
+          appearance: d.details?.appearance ?? '',
+          backstory: d.details?.backstory ?? '',
+        },
+        sheetImport: { at: date(), source: d.source, ecarts },
+      });
       reply.code(201);
       return api(ligne);
     },

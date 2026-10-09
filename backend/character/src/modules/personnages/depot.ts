@@ -35,6 +35,7 @@ import { campaignIndisponible, type Droits, type DroitsCampagnes } from '../../d
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
 import { characters, type CharacterDetails, type PendingRoll } from '../../db/schema.js';
 import type { Catalogue } from '../../regles/catalogue.js';
+import type { SheetImportInfo } from '../../regles/import.js';
 import { verifierEtat, verifierInventaire, vuePublique } from '../../regles/operations.js';
 import { summaryOf, type CharacterSummary } from '../../regles/summary.js';
 import type { Permissions, SheetLayout } from './layout.js';
@@ -65,6 +66,8 @@ export interface Personnage {
   summary: CharacterSummary;
   /** Mise en page de la fiche ; null : disposition par défaut de la présentation. */
   sheetLayout: SheetLayout | null;
+  /** Importé d'une fiche : date, source, écarts aux règles (docs/import-fiche.md). */
+  sheetImport: SheetImportInfo | null;
   /** Droits de l'appelant (lecture d'un personnage : `GET /v1/characters/:id`). */
   permissions?: Permissions;
   version: number;
@@ -318,6 +321,7 @@ export function versApi(
     details: detailsApi(ligne.details),
     summary: summaryOf(catalogue, ligne, () => complet.fiche, o.options),
     sheetLayout: ligne.sheetLayout ?? null,
+    sheetImport: ligne.sheetImport ?? null,
     version: ligne.version,
     createdAt: ligne.createdAt.toISOString(),
     updatedAt: ligne.updatedAt.toISOString(),
@@ -402,7 +406,12 @@ export async function creer(
   db: Db,
   ctx: EventContext,
   owner: string,
-  donnees: { nom: string; etat: EtatEntite },
+  donnees: {
+    nom: string;
+    etat: EtatEntite;
+    details?: CharacterDetails;
+    sheetImport?: SheetImportInfo;
+  },
 ): Promise<Ligne> {
   const id = uuidv7();
   return db.transaction(async (tx) => {
@@ -416,6 +425,8 @@ export async function creer(
         systemVersion: donnees.etat.systeme.version,
         type: donnees.etat.type,
         etat: donnees.etat,
+        ...(donnees.details ? { details: donnees.details } : {}),
+        ...(donnees.sheetImport ? { sheetImport: donnees.sheetImport } : {}),
       })
       .returning();
     await appendEvent(tx, ctx, {

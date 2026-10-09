@@ -140,6 +140,8 @@ export const register: Module = async (app, deps) => {
             kind: z.enum(['pc', 'npc']),
             /** Création non terminée (campaign : `creationPersonnages`). */
             creation: z.boolean(),
+            /** Importé d'une fiche : campaign le traite comme une création (docs/import-fiche.md). */
+            imported: z.boolean(),
             /** Résumé des listes (table de la campagne). */
             summary: CharacterSummary,
           }),
@@ -158,6 +160,7 @@ export const register: Module = async (app, deps) => {
         type: l.type,
         kind: l.kind,
         creation: l.etat.creation,
+        imported: l.sheetImport !== null,
         summary: resumeDe(catalogue, l, await deps.droits.options(l.id)),
       };
     },

@@ -50,6 +50,8 @@ const SummaryResponse = z.object({
    * de character : vaut alors false.
    */
   creation: z.boolean().default(false),
+  /** Importé d'une fiche (docs/import-fiche.md) ; absent des anciennes versions : false. */
+  imported: z.boolean().default(false),
   /** Résumé des listes (entrées uniques, valeurs clés) ; absent des anciennes versions. */
   summary: z
     .object({
@@ -78,6 +80,8 @@ export interface CharacterSummary {
   /** Personnage joueur (`pc`) ou PNJ (`npc`) ; null si character ne le dit pas. */
   kind: CharacterKind | null;
   inCreation: boolean;
+  /** Importé d'une fiche : engagé comme un personnage en création. */
+  imported: boolean;
   summary: CharacterListSummary | null;
 }
 
@@ -530,6 +534,7 @@ export function characterClient(o: {
           type: r.type,
           kind: r.kind,
           inCreation: r.creation,
+          imported: r.imported,
           summary: r.summary,
         };
       } catch (e) {

@@ -17,6 +17,8 @@ const EXCEPTIONS: Record<string, string> = {
     'billet d’envoi signé : le fichier n’est rattaché qu’au PATCH du portrait, qui émet',
   'POST /v1/characters/:id/uploads/import':
     'copie d’une image distante sur le stockage : rattachée ensuite par le PATCH du portrait',
+  'POST /v1/characters/import/link':
+    'lecture d’une fiche en ligne, sans rien écrire : la création importée émet (character.created)',
 };
 
 describe('garde-fou : chaque route d’écriture émet un événement', () => {

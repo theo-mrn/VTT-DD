@@ -245,7 +245,12 @@ export const register: Module = async (app, deps) => {
           'system_mismatch',
           `Ce personnage est du système ${summary.system.id}, la campagne joue ${a.campaign.systemId}`,
         );
-      if (summary.inCreation && a.role !== 'gm' && !a.campaign.characterCreation)
+      // Un personnage importé d'une fiche est créé par le joueur : même règle (docs/import-fiche.md)
+      if (
+        (summary.inCreation || summary.imported) &&
+        a.role !== 'gm' &&
+        !a.campaign.characterCreation
+      )
         throw new HttpError(
           403,
           'Accès refusé',

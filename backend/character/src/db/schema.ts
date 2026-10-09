@@ -1,4 +1,5 @@
 import type { PortraitStudio } from '@vtt/contracts';
+import type { SheetImportInfo } from '../regles/import.js';
 /**
  * Schéma Drizzle du service character : sert uniquement à typer les requêtes.
  * La source de vérité est le changelog Liquibase (backend/character/db) ; ce
@@ -55,6 +56,8 @@ export const characters = schemaCharacters.table('characters', {
   kind: text('kind').$type<'pc' | 'npc'>().notNull().default('pc'),
   /** Mise en page de la fiche ; null : disposition par défaut de la présentation. */
   sheetLayout: jsonb('sheet_layout').$type<SheetLayout>(),
+  /** Importé d'une fiche (0014) : date, source, écarts aux règles ; null : créé dans l'app. */
+  sheetImport: jsonb('sheet_import').$type<SheetImportInfo>(),
   /** Instance de PNJ (0009) : modèle copié (trace, sans clé étrangère). */
   templateId: uuid('template_id'),
   /** Instance de PNJ (0009) : campagne pour laquelle elle a été créée (numérotation). */
