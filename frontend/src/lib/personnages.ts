@@ -977,7 +977,8 @@ export function useCreerPersonnage() {
               ...json({ version: p.version, details }),
             }),
           );
-        await campagnes.engager(n.campagneId, p.id);
+        // Un héros est toujours du camp des joueurs, même créé par le MJ
+        await campagnes.engager(n.campagneId, p.id, 'players');
         const engages = await campagnes.incarner(n.campagneId, p.id);
         client.setQueryData(clesPersonnages.campagne(n.campagneId), engages);
       } catch (err) {
@@ -1034,7 +1035,8 @@ export function useImporterPersonnage() {
         await api<CharacterApi>('/v1/characters/import', { method: 'POST', ...json(n.demande) }),
       );
       try {
-        await campagnes.engager(n.campagneId, p.id);
+        // Un héros est toujours du camp des joueurs, même créé par le MJ
+        await campagnes.engager(n.campagneId, p.id, 'players');
         const engages = await campagnes.incarner(n.campagneId, p.id);
         client.setQueryData(clesPersonnages.campagne(n.campagneId), engages);
       } catch (err) {
@@ -1089,7 +1091,8 @@ export function useJouerPersonnage(campagneId: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: async (p: Pick<Personnage, 'id' | 'roomId'> | null) => {
-      if (p && p.roomId !== campagneId) await campagnes.engager(campagneId, p.id);
+      // Personnage incarné : du camp des joueurs, même pour le MJ
+      if (p && p.roomId !== campagneId) await campagnes.engager(campagneId, p.id, 'players');
       return campagnes.incarner(campagneId, p?.id ?? null);
     },
     onSuccess: (engages) => {

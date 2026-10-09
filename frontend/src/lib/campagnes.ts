@@ -505,12 +505,15 @@ export const campagnes = {
       ...json({ characterId }),
     }),
 
-  /** Engage un de mes personnages dans la campagne (du système de la campagne). */
-  engager: async (id: string, characterId: string) =>
+  /**
+   * Engage un de mes personnages dans la campagne (du système de la campagne). Sans camp, celui
+   * de mon rôle : ennemis pour le MJ, joueurs sinon ; un héros passe donc `players`.
+   */
+  engager: async (id: string, characterId: string, side?: 'players' | 'enemies' | 'allies') =>
     versDetail(
       await api<CampaignApi>(url(id, '/characters'), {
         method: 'POST',
-        ...json({ characterId }),
+        ...json({ characterId, ...(side ? { side } : {}) }),
       }),
     ),
 
