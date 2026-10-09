@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-dice
-  digest: 'sha256:567e9e4bb46121088e453fd585479ec6e8c071da5f6d93d10827481b63d3ff48'
+  digest: 'sha256:5f6aeed6f378fb197e1cbef2835ec862556610102f4036810f6b41f75f22b810'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud

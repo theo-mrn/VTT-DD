@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-realtime
-  digest: 'sha256:c68e3f2ace461c520a606bc6610fa4653f215b69cea21c037511b446cbad4545'
+  digest: 'sha256:b28a36bd63f4b6f8de52926d490eb759f96e44df989dc590d792c44712542f13'
   tag: 'main'
 # Chaque réplica lit tout le flux NATS et n'émet qu'à ses propres connexions : on peut en
 # ajouter sans qu'un client reçoive un événement deux fois. Pas de sessions collantes

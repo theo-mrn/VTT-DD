@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-audio
-  digest: 'sha256:a87d5c68f27da0af90a8059b2f1993f516253e8a49abfb1d4fc59ca047f9b5e9'
+  digest: 'sha256:7e1f9dfbb04c99702609b76add6ad29ad4b9d24e625e725cbe2dad48eee917b0'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
