@@ -40,7 +40,7 @@ secretEnv:
 # Secret campaign-secrets (SOPS) : DATABASE_URL (rôle campaign_svc), INTERNAL_API_SECRET
 # (même valeur que character), R2_ENDPOINT, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
 # R2_PUBLIC_URL (mêmes valeurs qu'identity)
-# + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
+# + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-prod-rw.data.svc en direct : le LISTEN du relais
 #   d'outbox ne traverse pas PgBouncer (sans elle : DATABASE_URL, réveil par le poll de 5 s)
 envFromSecrets:
   - name: campaign-secrets
@@ -71,6 +71,8 @@ networkPolicy:
     - podSelector: {matchLabels: {app.kubernetes.io/name: voice}}
 migrations:
   enabled: true
+  # Base de la PRODUCTION (vtt-pg-prod), pas celle du staging (défaut du chart)
+  jdbcUrl: 'jdbc:postgresql://vtt-pg-prod-rw.data.svc:5432/vtt'
   image:
     repository: ghcr.io/theo-mrn/vtt-campaign-migrations
     digest: 'sha256:00b3abf7aea1995adc69db9cc7395453a32fb352cbd02a595bffb4d5630a2b52'

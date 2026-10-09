@@ -35,7 +35,7 @@ secretEnv:
   REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret dice-secrets (SOPS) : DATABASE_URL (rôle dice_svc), INTERNAL_API_SECRET (même valeur
 # que campaign et character)
-# + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
+# + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-prod-rw.data.svc en direct : le LISTEN du relais
 #   d'outbox ne traverse pas PgBouncer (sans elle : DATABASE_URL, réveil par le poll de 5 s)
 envFromSecrets:
   - name: dice-secrets
@@ -58,6 +58,8 @@ networkPolicy:
     - podSelector: {matchLabels: {app.kubernetes.io/name: identity}}
 migrations:
   enabled: true
+  # Base de la PRODUCTION (vtt-pg-prod), pas celle du staging (défaut du chart)
+  jdbcUrl: 'jdbc:postgresql://vtt-pg-prod-rw.data.svc:5432/vtt'
   image:
     repository: ghcr.io/theo-mrn/vtt-dice-migrations
     digest: 'sha256:8fc5eee8341bffe636e81f3329b4aaba25d4885b5dd4eefbbd73b4574757d7c3'

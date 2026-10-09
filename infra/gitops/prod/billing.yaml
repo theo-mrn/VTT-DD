@@ -35,7 +35,7 @@ secretEnv:
 #   DATABASE_URL             rôle billing_svc
 #   KOURRIER_API_KEY         kr_… du tenant yner (même clé qu'identity)
 #   STRIPE_SECRET_KEY        rk_live_… (clé restreinte) : le staging encaisse en live (2026-10-06)
-#   DATABASE_DIRECT_URL      même rôle vers vtt-pg-rw.data.svc en direct (LISTEN du relais
+#   DATABASE_DIRECT_URL      même rôle vers vtt-pg-prod-rw.data.svc en direct (LISTEN du relais
 #                            d'outbox, hors PgBouncer ; sans elle : réveil par le poll de 5 s)
 #   STRIPE_WEBHOOK_SECRET    whsec_… de l'endpoint https://api.yner.fr/v1/billing/webhook
 # Prix : `catalog:sync --apply` avec la même clé ; événements de l'endpoint : docs/paiement.md
@@ -60,6 +60,8 @@ networkPolicy:
       ports: [{port: 8080}]
 migrations:
   enabled: true
+  # Base de la PRODUCTION (vtt-pg-prod), pas celle du staging (défaut du chart)
+  jdbcUrl: 'jdbc:postgresql://vtt-pg-prod-rw.data.svc:5432/vtt'
   image:
     repository: ghcr.io/theo-mrn/vtt-billing-migrations
     digest: 'sha256:c3039af06648ceb3451cb996e6258bc8b3163fd7bfcfd68a44982bd4f22fb2ae'

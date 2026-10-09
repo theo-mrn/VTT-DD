@@ -33,7 +33,7 @@ secretEnv:
   NATS_PASSWORD: {secret: messaging-credentials, key: NATS_PASSWORD}
   REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret audio-secrets (SOPS) : DATABASE_URL (rôle audio_svc), DATABASE_DIRECT_URL (même rôle,
-# vtt-pg-rw.data.svc en direct pour le LISTEN du relais), INTERNAL_API_SECRET (même valeur que
+# vtt-pg-prod-rw.data.svc en direct pour le LISTEN du relais), INTERNAL_API_SECRET (même valeur que
 # campaign), R2_ENDPOINT, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL (mêmes
 # valeurs que campaign), AUDIO_UPLOAD_SECRET (32 caractères au moins, propre à audio)
 envFromSecrets:
@@ -50,6 +50,8 @@ networkPolicy:
     - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
 migrations:
   enabled: true
+  # Base de la PRODUCTION (vtt-pg-prod), pas celle du staging (défaut du chart)
+  jdbcUrl: 'jdbc:postgresql://vtt-pg-prod-rw.data.svc:5432/vtt'
   image:
     repository: ghcr.io/theo-mrn/vtt-audio-migrations
     digest: 'sha256:03ca4707fede30684223615711c9aa5020b8d540e9a95e3b3a8f5ade7c6cee83'

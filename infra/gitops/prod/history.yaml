@@ -49,6 +49,8 @@ networkPolicy:
     - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
 migrations:
   enabled: true
+  # Base de la PRODUCTION (vtt-pg-prod), pas celle du staging (défaut du chart)
+  jdbcUrl: 'jdbc:postgresql://vtt-pg-prod-rw.data.svc:5432/vtt'
   image:
     repository: ghcr.io/theo-mrn/vtt-history-migrations
     digest: 'sha256:3a32a2b188ba2989cd6a819f7dc0508bce380adac62420ff4ed7016f77896bfb'

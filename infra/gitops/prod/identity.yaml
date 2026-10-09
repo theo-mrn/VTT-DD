@@ -36,7 +36,7 @@ secretEnv:
   REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 # Secret identity-secrets (SOPS) : DATABASE_URL (rôle identity_svc), JWT_PRIVATE_JWKS,
 # INTERNAL_API_SECRET, KOURRIER_API_KEY, R2_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
-# + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
+# + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-prod-rw.data.svc en direct : le LISTEN du relais
 #   d'outbox ne traverse pas PgBouncer (sans elle : DATABASE_URL, réveil par le poll de 5 s)
 envFromSecrets:
   - name: identity-secrets
@@ -74,6 +74,8 @@ networkPolicy:
       ports: [{port: 8080}]
 migrations:
   enabled: true
+  # Base de la PRODUCTION (vtt-pg-prod), pas celle du staging (défaut du chart)
+  jdbcUrl: 'jdbc:postgresql://vtt-pg-prod-rw.data.svc:5432/vtt'
   image:
     repository: ghcr.io/theo-mrn/vtt-identity-migrations
     digest: 'sha256:dd9bcd2ccecb00e5c03bdabe8d334640f4284710c9261ffa546c739f99ccc9b3'
