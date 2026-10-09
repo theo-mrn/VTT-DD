@@ -21,6 +21,7 @@ import {
 } from './edit';
 import { isNpc, ownsToken, visibilityLabel, VISIBILITY_ORDER, type TokenData } from './model';
 import type { TokensState } from './state';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 /** Rayons de vision proposés, en cases (× `pixelsPerUnit`). */
 export const VISION_PRESETS = [0, 1, 2, 3, 6, 12, 24] as const;
@@ -94,7 +95,6 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
 
   // ── Vision ──
   const ctx = engine.kindContext();
-  const unit = ctx.unitName;
   const radii = new Set(entities.map((e) => e.data.visionRadius));
   const radius = radii.size === 1 ? [...radii][0]! : null;
   items.push({
@@ -108,7 +108,7 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
         const px = n * ctx.pixelsPerUnit;
         return {
           id: `token:vision:${n}`,
-          label: n === 0 ? translate('map.tokens.noVision') : `${n} ${unit}`,
+          label: n === 0 ? translate('map.tokens.noVision') : formatDistance(n, ctx),
           checked: radius !== null && Math.abs(radius - px) < 0.5,
           run: () => void setVisionRadius(tokens, entities, px),
         };

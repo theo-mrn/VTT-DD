@@ -244,6 +244,8 @@ export const settingsApi = (campaignId: string, s: SettingsRow | undefined): Map
   tokenScale: s?.tokenScale ?? 1,
   pixelsPerUnit: s?.pixelsPerUnit ?? 50,
   unitName: s?.unitName ?? 'm',
+  unitsPerCell: s?.unitsPerCell ?? 1.5,
+  diagonals: s?.diagonals ?? 'chebyshev',
   shadowOpacity: s?.shadowOpacity ?? 1,
   dungeonMode: s?.dungeonMode ?? false,
   music: s?.music ?? null,

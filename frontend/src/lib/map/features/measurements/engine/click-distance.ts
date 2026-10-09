@@ -91,14 +91,18 @@ export function playGrid(engine: MapEngine): GridLike | null {
     : null;
 }
 
-/** Ce qu'il faut pour écrire une distance sur cette carte. */
-export function unitContext(engine: MapEngine, prefs: MeasurePrefs): UnitContext {
+/**
+ * Ce qu'il faut pour écrire une distance sur cette carte : la case, la distance par case et
+ * l'unité de la scène, la règle des diagonales de la table.
+ */
+export function unitContext(engine: MapEngine): UnitContext {
   const k = engine.kindContext();
   return {
     pixelsPerUnit: k.pixelsPerUnit,
     unitName: k.unitName,
+    unitsPerCell: k.unitsPerCell,
     grid: playGrid(engine),
-    counting: prefs.counting,
+    counting: k.diagonals,
   };
 }
 
@@ -221,7 +225,7 @@ export class ClickDistance {
       out.from.y = o.y;
       out.to.x = c.point.x;
       out.to.y = c.point.y;
-      out.label = distanceText(out.from, out.to, unitContext(this.engine, prefs));
+      out.label = distanceText(out.from, out.to, unitContext(this.engine));
       this.labelDeps = [kind, prefs];
     }
     out.fading = age >= CLICK_HOLD_MS;

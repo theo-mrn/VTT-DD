@@ -14,6 +14,7 @@ import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { lightColorOptions, RADIUS_RANGE } from '../engine/model';
 import { LightTool } from '../engine/tool';
 import { OptionSeparator, RangeField, Swatches } from '@/lib/map/features/obstacles/ui/controls';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 export function LightOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const tool = engine.tools.active;
@@ -28,7 +29,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: LightTool
   const color = useStore(tool.settings, (s) => s.color);
   const intensity = useStore(tool.settings, (s) => s.intensity);
   const falloff = useStore(tool.settings, (s) => s.falloff);
-  const unit = engine.kindContext().unitName;
+  const distance = engine.kindContext();
   const set = tool.settings.setState;
 
   return (
@@ -90,7 +91,9 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: LightTool
             max={RADIUS_RANGE.slider}
             inputMax={RADIUS_RANGE.max}
             step={RADIUS_RANGE.step}
-            format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
+            format={(v) => formatDistance(v, distance)}
+
+            scale={distance.unitsPerCell}
             onCommit={(v) => set({ radius: v })}
           />
         </div>

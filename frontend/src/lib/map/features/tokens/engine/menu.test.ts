@@ -103,10 +103,11 @@ describe('menu d’un token (MJ)', () => {
     expect(t.data('g1')).toMatchObject({ visibility: 'custom', visibleTo: ['brom'] });
   });
 
-  it('Vision ▸ : rayon en cases (unité de la carte), vision augmentée', async () => {
+  it('Vision ▸ : rayon en cases, affiché dans l’unité de la scène ; vision augmentée', async () => {
     const t = setup();
     const vision = find(t.menu('g1'), 'token:vision')!;
-    expect(vision.children!.map((c) => c.label)).toContain('6 m');
+    // 6 cases × 1,5 m (distance par case par défaut)
+    expect(vision.children!.map((c) => c.label)).toContain('9 m');
     expect(find(vision.children!, 'token:vision:2')!.checked).toBe(true); // 100 px = 2 cases
     find(vision.children!, 'token:vision:6')!.run!();
     find(t.menu('g1'), 'token:vision-boost')!.run!();

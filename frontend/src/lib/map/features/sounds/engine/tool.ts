@@ -32,6 +32,7 @@ import {
   type SoundDefaults,
   type SoundZoneData,
 } from './model';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 export type SoundToolState = 'idle' | 'pressing' | 'radius' | 'select';
 
@@ -299,9 +300,8 @@ export class SoundTool implements Tool {
     g.circle(h.at.x, h.at.y, (active ? RADIUS_HANDLE_PX + 1 : RADIUS_HANDLE_PX) * u * 0.8)
       .fill({ color: background })
       .stroke({ width: 1.5 * u, color: primary });
-    // Valeur du rayon, en unités
-    const unit = rc.unitName;
-    label.text = `${radius.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${unit}`;
+    // Valeur du rayon : cases × distance par case
+    label.text = formatDistance(radius, rc, 2);
     label.visible = true;
     label.scale.set(u);
     label.position.set(h.at.x + 12 * u, h.at.y - 8 * u);

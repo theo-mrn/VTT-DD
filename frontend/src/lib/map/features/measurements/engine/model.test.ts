@@ -16,7 +16,13 @@ import {
 } from './model';
 
 const P = (x: number, y: number) => ({ x, y });
-const U: UnitContext = { pixelsPerUnit: 50, unitName: 'm', grid: null, counting: 'chebyshev' };
+const U: UnitContext = {
+  pixelsPerUnit: 50,
+  unitName: 'm',
+  unitsPerCell: 1,
+  grid: null,
+  counting: 'chebyshev',
+};
 const spec = (
   shape: MeasureSpec['shape'],
   end = P(200, 0),
@@ -109,5 +115,14 @@ describe('formes', () => {
     expect(p.x).toBeCloseTo(Math.hypot(100, 8));
     expect(p.y).toBeCloseTo(0);
     expect(outlineBounds(spec('circle', P(100, 0)), 50)).toMatchObject({ width: 200, height: 200 });
+  });
+});
+
+describe('distance par case (« 1 case = 1,5 m »)', () => {
+  it('la distance affichée vaut les cases × la distance par case', () => {
+    const u = { ...U, unitsPerCell: 1.5 };
+    // 200 px = 4 cases = 6 m
+    expect(distanceText(P(0, 0), P(200, 0), u)).toBe('6 m');
+    expect(measureLabel(spec('circle', P(100, 0)), u)).toContain('3 m');
   });
 });

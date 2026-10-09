@@ -1,6 +1,7 @@
 export default {
   layersPanel: 'Calques',
   gridToggle: 'Quadrillage',
+  scalePanel: 'Échelle et quadrillage',
   combatAttack: 'Attaquer',
   presenceCursor: 'Montrer mon curseur',
   movementPathToggle: 'Trajets des déplacements',

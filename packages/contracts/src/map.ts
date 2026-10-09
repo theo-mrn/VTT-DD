@@ -169,13 +169,13 @@ export const MapGrid = z.strictObject({
 });
 export type MapGrid = z.infer<typeof MapGrid>;
 
-export const MAP_GRIDS_MAX = 4;
+/** Un seul quadrillage par scène, celui du jeu (docs/carte.md § 4, migration 0033). */
+export const MAP_GRIDS_MAX = 1;
 
 export const MapGrids = z
   .array(MapGrid)
-  .max(MAP_GRIDS_MAX, `${MAP_GRIDS_MAX} quadrillages au plus`)
-  .refine((gs) => gs.filter((g) => g.primary).length <= 1, 'Une seule grille de jeu')
-  .refine((gs) => new Set(gs.map((g) => g.id)).size === gs.length, 'Identifiants en double');
+  .max(MAP_GRIDS_MAX, 'Un seul quadrillage par scène')
+  .refine((gs) => gs.every((g) => g.primary), 'Le quadrillage de la scène est sa grille de jeu');
 
 /** Grille de jeu d'une scène, null sans elle. */
 export function playGridOf(
@@ -208,6 +208,37 @@ export function scenePixelsPerUnit(
   const ppu = settings?.pixelsPerUnit;
   return typeof ppu === 'number' && ppu > 0 ? ppu : 50;
 }
+
+/**
+ * Distance par case (docs/carte.md § 4) : « 1 case = 1,5 m ». Les portées restent stockées en
+ * cases ; toute distance affichée vaut cases × `unitsPerCell`, suivie de `unitName`.
+ */
+export const MapScale = z.strictObject({
+  unitsPerCell: z.number().positive().max(100_000),
+  unitName: z.string().trim().min(1).max(20),
+});
+export type MapScale = z.infer<typeof MapScale>;
+
+/** Distance d'une scène : la sienne (`maps.scale`), sinon celle de la campagne. */
+export function sceneScale(
+  scene: { scale?: MapScale | null } | null | undefined,
+  settings: { unitsPerCell?: number | null; unitName?: string | null } | null | undefined,
+): MapScale {
+  if (scene?.scale) return scene.scale;
+  const per = settings?.unitsPerCell;
+  return {
+    unitsPerCell: typeof per === 'number' && per > 0 ? per : 1.5,
+    unitName: settings?.unitName?.trim() || 'm',
+  };
+}
+
+/**
+ * Décompte des cases en diagonale (règle de la table, choisie par le MJ) : une case
+ * (`chebyshev`), alternées 1-2-1 (`alternating`), sans diagonale (`manhattan`), pas de
+ * décompte (`off`, distance seule).
+ */
+export const MapDiagonals = z.enum(['chebyshev', 'alternating', 'manhattan', 'off']);
+export type MapDiagonals = z.infer<typeof MapDiagonals>;
 
 /**
  * Voix à la table sur une scène (docs/voix.md § 4) : tout le monde s'entend (`table`), ou selon
@@ -255,6 +286,8 @@ export const MapScene = z.object({
   exploration: MapExplorationMode,
   /** Voix à la table (docs/voix.md § 4) ; absente (ancienne donnée) : mode table. */
   voice: MapVoiceShape.default(DEFAULT_MAP_VOICE),
+  /** Distance par case propre à la scène ; null : celle de la campagne. */
+  scale: MapScale.nullable().default(null),
   version: z.number().int(),
   updatedAt: Timestamp,
 });
@@ -276,6 +309,7 @@ export const MapSceneFields = z.strictObject({
   grids: MapGrids,
   exploration: MapExplorationMode,
   voice: MapVoice,
+  scale: MapScale.nullable(),
 });
 
 /** `width` et `height` vont ensemble. */
@@ -411,6 +445,10 @@ export const MapSettings = z.object({
   /** Pixels du monde pour une unité de jeu (une case). */
   pixelsPerUnit: z.number(),
   unitName: z.string(),
+  /** Distance d'une case dans `unitName` (« 1 case = 1,5 m »). */
+  unitsPerCell: z.number(),
+  /** Décompte des diagonales, règle de la table. */
+  diagonals: MapDiagonals,
   /** Opacité de l'obscurité hors de vue (1 = noir). */
   shadowOpacity: z.number(),
   dungeonMode: z.boolean(),
@@ -427,6 +465,8 @@ export const UpdateMapSettings = z
     tokenScale: z.number().positive().max(100),
     pixelsPerUnit: z.number().positive().max(100_000),
     unitName: z.string().trim().min(1).max(20),
+    unitsPerCell: z.number().positive().max(100_000),
+    diagonals: MapDiagonals,
     shadowOpacity: z.number().min(0).max(1),
     dungeonMode: z.boolean(),
     music: z.record(z.string(), z.unknown()).nullable(),

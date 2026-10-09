@@ -10,6 +10,7 @@ import { RADIUS_RANGE } from '../engine/model';
 import { SoundTool } from '../engine/tool';
 import { OptionSeparator, RangeField } from '@/lib/map/features/obstacles/ui/controls';
 import { SoundPicker } from './sound-picker';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 export function SoundOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const tool = engine.tools.active;
@@ -23,7 +24,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: SoundTool
   const radius = useStore(tool.settings, (s) => s.radius);
   const volume = useStore(tool.settings, (s) => s.volume);
   const assetId = useStore(tool.settings, (s) => s.assetId);
-  const unit = engine.kindContext().unitName;
+  const distance = engine.kindContext();
   const set = tool.settings.setState;
 
   return (
@@ -44,7 +45,9 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: SoundTool
           max={RADIUS_RANGE.slider}
           inputMax={RADIUS_RANGE.max}
           step={RADIUS_RANGE.step}
-          format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
+          format={(v) => formatDistance(v, distance)}
+
+          scale={distance.unitsPerCell}
           onCommit={(v) => set({ radius: v })}
         />
       </div>

@@ -163,7 +163,8 @@ describe('mon trajet', () => {
     h = await mountMap({ viewer: GM });
     speedDirectory(h.engine).replace(new Map([['c-heros', 2]]));
     grab(h, { x: 300, y: 300 }, { x: 500, y: 300 });
-    expect(labels(h)).toEqual(['4 / 2 m']);
+    // 4 cases × 1,5 m (distance par case par défaut) face à un déplacement de 2 m
+    expect(labels(h)).toEqual(['6 / 2 m']);
     release(h, { x: 500, y: 300 });
   });
 });

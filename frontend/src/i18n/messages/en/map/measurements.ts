@@ -51,9 +51,6 @@ export default {
   ephemeral: 'Temporary measure: it fades after 6 s (Enter: pin)',
   visibleToPlayers: 'Measure visible to players',
   gmOnly: 'Measure for GMs only',
-  countingTitle: 'Square counting',
-  countingHint:
-    'With a play grid, measures also tell the number of squares to cross. This setting only affects your screen.',
   clearSome: 'Clear templates',
   clearMine: 'Clear my templates',
   clearAll: 'Clear all templates',

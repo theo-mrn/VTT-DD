@@ -9,6 +9,7 @@
  * (réponse REST, événement du bus) n'est appliquée que si elle est plus récente ; l'optimisme
  * des commandes passe par `force`.
  */
+import { sceneScale, type MapDiagonals, type MapScale } from '@vtt/contracts';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { DisplaySetting } from '../engine/planes';
 
@@ -49,6 +50,19 @@ export interface SettingsLike {
 /** Nom de l'unité de la carte (« m », « cases »…), comme le serveur par défaut : `m`. */
 export const unitNameOf = (settings: SettingsLike | null | undefined): string =>
   typeof settings?.unitName === 'string' && settings.unitName.trim() ? settings.unitName : 'm';
+
+/** Distance par case de la scène (la sienne, sinon celle de la campagne), docs/carte.md § 4. */
+export const scaleOf = (state: { scene: SceneLike | null; settings: SettingsLike | null }) =>
+  sceneScale(
+    state.scene as { scale?: MapScale | null } | null,
+    state.settings as { unitsPerCell?: number; unitName?: string } | null,
+  );
+
+/** Décompte des diagonales, règle de la table ; `chebyshev` par défaut, comme le serveur. */
+export const diagonalsOf = (settings: SettingsLike | null | undefined): MapDiagonals => {
+  const d = settings?.diagonals;
+  return d === 'alternating' || d === 'manhattan' || d === 'off' ? d : 'chebyshev';
+};
 
 export type MapStatus = 'loading' | 'ready' | 'error' | 'gone';
 

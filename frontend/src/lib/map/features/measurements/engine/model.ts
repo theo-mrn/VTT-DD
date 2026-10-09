@@ -2,10 +2,10 @@
  * Mesures de la carte (docs/carte.md § 10, Mesures) : unités, cases, formes. Données pures,
  * sans Pixi ni DOM, testées à blanc.
  *
- * - Distance **euclidienne** entre deux points du monde, divisée par la case de la scène
- *   (`pixelsPerUnit`), arrondie à la demi-unité, écrite avec `unitName` (« 4,5 m »). Aucune
- *   règle de jeu : le nombre de cases à parcourir, avec une grille de jeu, suit un réglage de
- *   comptage choisi par chacun (`GridCounting`).
+ * - Distance **euclidienne** entre deux points du monde, en cases (÷ `pixelsPerUnit`), puis
+ *   × la distance par case (`unitsPerCell`), arrondie à la demi-unité, écrite avec `unitName`
+ *   (« 4,5 m »). Le nombre de cases à parcourir, avec une grille de jeu, suit la règle des
+ *   diagonales de la table (`map_settings.diagonals`, réglée par le MJ).
  * - Formes (`MapMeasurement.shape`) : règle (`line`), cône, cercle, carré (`cube`). Une mesure va
  *   de `start` (origine ou centre) à `end` (le pointeur) ; ses options gardent les noms de
  *   l'ancienne app (`coneAngle`, `coneMode`, `coneWidth`, `fixedLength`, `coneShape`).
@@ -67,18 +67,19 @@ export const roundHalf = (n: number) => Math.round(n * 2) / 2;
 const number = (n: number, digits = 1) =>
   n.toLocaleString(activeLocale(), { maximumFractionDigits: digits });
 
-/** « 4,5 m » : unités arrondies à la demi-unité. */
-export function formatUnits(units: number, unitName: string): string {
-  return `${number(roundHalf(units))} ${unitName}`;
+/** « 4,5 m » : des cases × la distance par case, arrondies à la demi-unité. */
+export function formatUnits(cells: number, unitName: string, unitsPerCell = 1): string {
+  return `${number(roundHalf(cells * unitsPerCell))} ${unitName}`;
 }
 
-/** Aire lisible : entière à partir de 10, sinon au dixième. */
-export function formatArea(area: number, unitName: string): string {
+/** Aire lisible (de `cells²` cases) : entière à partir de 10, sinon au dixième. */
+export function formatArea(cells2: number, unitName: string, unitsPerCell = 1): string {
+  const area = cells2 * unitsPerCell * unitsPerCell;
   return `${number(area, area >= 10 ? 0 : 1)} ${unitName}²`;
 }
 
 /**
- * Comptage des cases à parcourir (réglage de chacun, jamais une règle de jeu dans le code) :
+ * Comptage des cases à parcourir (règle de la table, `map_settings.diagonals`) :
  * diagonale comptée pour une case (pas de roi), diagonales alternées (1, 2, 1…), sans
  * diagonale, ou pas de comptage.
  */
@@ -129,6 +130,8 @@ const casesLabel = (n: number) => translate('map.measurements.squares', { count:
 export interface UnitContext {
   pixelsPerUnit: number;
   unitName: string;
+  /** Distance d'une case dans `unitName` (« 1 case = 1,5 m »). */
+  unitsPerCell: number;
   /** Grille de jeu de la scène (null : aucune, pas de cases). */
   grid: GridLike | null;
   counting: GridCounting;
@@ -140,7 +143,7 @@ export const unitsBetween = (a: Point, b: Point, pixelsPerUnit: number) =>
 
 /** « 12 m · 8 cases » (les cases seulement avec une grille de jeu et un comptage). */
 export function distanceText(a: Point, b: Point, u: UnitContext): string {
-  const text = formatUnits(unitsBetween(a, b, u.pixelsPerUnit), u.unitName);
+  const text = formatUnits(unitsBetween(a, b, u.pixelsPerUnit), u.unitName, u.unitsPerCell);
   const steps = u.grid ? gridSteps(a, b, u.grid, u.counting) : null;
   return steps === null ? text : `${text} · ${casesLabel(steps)}`;
 }
@@ -381,27 +384,28 @@ export function measureLabel(spec: MeasureSpec, u: UnitContext): string {
   const ppu = u.pixelsPerUnit > 0 ? u.pixelsPerUnit : 50;
   const units = reach(spec).length / ppu;
   const unit = u.unitName;
+  const per = u.unitsPerCell;
   switch (spec.shape) {
     case 'line':
       return distanceText(spec.start, spec.end, u);
     case 'circle':
       return translate('map.measurements.radiusArea', {
-        length: formatUnits(units, unit),
-        area: formatArea(Math.PI * units * units, unit),
+        length: formatUnits(units, unit, per),
+        area: formatArea(Math.PI * units * units, unit, per),
       });
     case 'cube': {
       const side = 2 * units;
       return translate('map.measurements.sideArea', {
-        length: formatUnits(side, unit),
-        area: formatArea(side * side, unit),
+        length: formatUnits(side, unit, per),
+        area: formatArea(side * side, unit, per),
       });
     }
     case 'cone': {
       const c = coneOptions(spec.options);
       if (c.mode === 'dimensions' && c.width)
-        return `${number(roundHalf(units))} × ${number(roundHalf(c.width))} ${unit}`;
+        return `${number(roundHalf(units * per))} × ${number(roundHalf(c.width * per))} ${unit}`;
       const degrees = (coneHalfAngle(spec, ppu) * 360) / Math.PI;
-      return `${formatUnits(units, unit)} · ${Math.round(degrees)}°`;
+      return `${formatUnits(units, unit, per)} · ${Math.round(degrees)}°`;
     }
   }
 }

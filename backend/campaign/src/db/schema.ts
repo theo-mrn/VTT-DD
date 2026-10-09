@@ -13,7 +13,9 @@ import {
   type DurationEvent,
   type MapExplorationMode,
   type MapExplorationScope,
+  type MapDiagonals,
   type MapGrid,
+  type MapScale,
   type MapVoice,
   type MapWeather,
   type RollStep,
@@ -600,6 +602,8 @@ export const maps = campaignSchema.table('maps', {
   exploration: text('exploration').$type<MapExplorationMode>().notNull().default('party'),
   /** Voix à la table (0032, docs/voix.md § 4) : `table` par défaut. */
   voice: jsonb('voice').$type<MapVoice>().notNull().default(DEFAULT_MAP_VOICE),
+  /** Distance par case propre à la scène (0033) ; null : celle de la campagne. */
+  scale: jsonb('scale').$type<MapScale | null>(),
   version: integer('version').notNull().default(1),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),
@@ -658,6 +662,10 @@ export const mapSettings = campaignSchema.table('map_settings', {
   tokenScale: real('token_scale').notNull().default(1),
   pixelsPerUnit: real('pixels_per_unit').notNull().default(50),
   unitName: text('unit_name').notNull().default('m'),
+  /** Distance d'une case (0033, docs/carte.md § 4). */
+  unitsPerCell: real('units_per_cell').notNull().default(1.5),
+  /** Décompte des diagonales, règle de la table (0033). */
+  diagonals: text('diagonals').$type<MapDiagonals>().notNull().default('chebyshev'),
   shadowOpacity: real('shadow_opacity').notNull().default(1),
   dungeonMode: boolean('dungeon_mode').notNull().default(false),
   music: jsonb('music').$type<Record<string, unknown> | null>(),

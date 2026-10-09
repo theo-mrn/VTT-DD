@@ -79,6 +79,7 @@ import {
 } from './model';
 import { ObstacleSnapper, SNAP_PX, type SnapTarget } from './snap';
 import { dashedPolyline, zoomStep, unitAt } from './overlay';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 export type ObstacleMode = 'wall' | 'rect' | 'door' | 'window' | 'oneway' | 'room' | 'edit';
 
@@ -161,10 +162,12 @@ const isMine = (e: MapEntity) => e.kind.id === OBSTACLE_KIND || e.kind.id === RO
 const collectionOfEntity = (e: MapEntity) =>
   e.kind.id === ROOM_KIND ? ('rooms' as const) : ('obstacles' as const);
 
-/** Longueur en cases, lisible (« 2,5 m »). */
-export function formatLength(px: number, ppu: number, unit: string): string {
-  const v = px / (ppu || 50);
-  return `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} ${unit}`;
+/** Longueur lisible dans l'unité de la scène (« 2,5 m ») : cases × distance par case. */
+export function formatLength(
+  px: number,
+  s: { pixelsPerUnit: number; unitName: string; unitsPerCell: number },
+): string {
+  return formatDistance(px / (s.pixelsPerUnit || 50), s);
 }
 
 export class ObstacleTool implements Tool {
@@ -1186,11 +1189,7 @@ export class ObstacleTool implements Tool {
       drawSnapMark(g, s, u, rc.theme);
       // Glisser un sommet : longueur des segments voisins
       if (this.state === 'vertex' && this.vertexDrag) {
-        const text = formatLength(
-          distance(this.vertexDrag.origin, s.point),
-          rc.pixelsPerUnit,
-          rc.unitName,
-        );
+        const text = formatLength(distance(this.vertexDrag.origin, s.point), rc);
         this.showLabel(g, text, s.point, u, rc.theme.background);
       }
     }
@@ -1233,7 +1232,7 @@ export class ObstacleTool implements Tool {
     if (cursor && this.state === 'chain') {
       dashedPolyline(g, [last, cursor], 6 * u, 4 * u);
       g.stroke({ width: 2 * u, color, alpha: 0.9 });
-      const text = formatLength(distance(last, cursor), rc.pixelsPerUnit, rc.unitName);
+      const text = formatLength(distance(last, cursor), rc);
       this.showLabel(g, text, cursor, u, rc.theme.background);
     }
     // Premier point : cible de fermeture
@@ -1247,8 +1246,6 @@ export class ObstacleTool implements Tool {
   private drawRect(g: Graphics, rect: { a: Point; b: Point }, u: number, rc: RenderContext) {
     const { a, b } = rect;
     const { primary } = rc.theme;
-    const ppu = rc.pixelsPerUnit;
-    const unit = rc.unitName;
     const pts: Pts = [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
     g.poly(
       pts.flatMap((p) => [p.x, p.y]),
@@ -1258,7 +1255,7 @@ export class ObstacleTool implements Tool {
     g.stroke({ width: 2 * u, color: primary });
     this.showLabel(
       g,
-      `${formatLength(Math.abs(b.x - a.x), ppu, unit)} × ${formatLength(Math.abs(b.y - a.y), ppu, unit)}`,
+      `${formatLength(Math.abs(b.x - a.x), rc)} × ${formatLength(Math.abs(b.y - a.y), rc)}`,
       b,
       u,
       rc.theme.background,
@@ -1276,7 +1273,7 @@ export class ObstacleTool implements Tool {
       g.circle(p.x, p.y, 3.5 * u)
         .fill({ color: background })
         .stroke({ width: 1.5 * u, color: success });
-    const text = formatLength(distance(a, b), rc.pixelsPerUnit, rc.unitName);
+    const text = formatLength(distance(a, b), rc);
     this.showLabel(g, text, dh.at, u, background);
   }
 }

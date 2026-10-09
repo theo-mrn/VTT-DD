@@ -59,7 +59,8 @@ import {
   type MapStore,
   type MapStoreState,
   type SceneLike,
-  unitNameOf,
+  diagonalsOf,
+  scaleOf,
 } from '../store/map-store';
 import { Camera, cameraStorageKey, loadCamera, saveCamera } from './camera';
 import { commonActions } from './entities/common-actions';
@@ -893,7 +894,12 @@ export class MapEngine {
         typeof settings?.tokenScale === 'number' && settings.tokenScale > 0
           ? settings.tokenScale
           : 1,
-      unitName: unitNameOf(settings),
+      // Distance par case : celle de la scène, sinon de la campagne (docs/carte.md § 4)
+      ...(() => {
+        const { unitName, unitsPerCell } = scaleOf(s);
+        return { unitName, unitsPerCell };
+      })(),
+      diagonals: diagonalsOf(settings),
     };
   }
 

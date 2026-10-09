@@ -96,6 +96,7 @@ export const mapApi = (m: MapRow): MapScene => ({
   grids: m.grids,
   exploration: m.exploration,
   voice: m.voice,
+  scale: m.scale ?? null,
   version: m.version,
   updatedAt: m.updatedAt.toISOString(),
 });

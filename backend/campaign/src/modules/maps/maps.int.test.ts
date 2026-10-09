@@ -491,7 +491,7 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
     }
   });
 
-  it('quadrillages : par scène, lus par tous ; la grille de jeu donne la case de la scène', async () => {
+  it('quadrillage : un seul par scène, lu par tous ; il donne la case de la scène', async () => {
     const map = await newMap();
     const base = url(`/maps/${map.id}`);
     const grid = {
@@ -506,24 +506,22 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
       visibleToPlayers: true,
       primary: true,
     };
-    const zones = { ...grid, id: 'zones', name: 'Zones', size: 500, primary: false };
-    // Lumière de 2 unités : 100 px avec la case de la campagne (50), 200 px avec la grille (100)
+    // Lumière de 2 cases : 100 px avec la case de la campagne (50), 200 px avec le quadrillage (100)
     await h.ok(gm, 'POST', `${base}/lights`, { pos: { x: 300, y: 300 }, radius: 2 });
     const lit = async () =>
       (await h.ok<{ lights: Item[] }>(gm, 'GET', `${base}/at?x=450&y=300`)).lights.length;
     expect(await lit()).toBe(0);
 
-    const updated = await h.ok<Item>(gm, 'PATCH', base, { grids: [grid, zones] });
-    expect(updated.grids).toEqual([grid, zones]);
+    const updated = await h.ok<Item>(gm, 'PATCH', base, { grids: [grid] });
+    expect(updated.grids).toEqual([grid]);
     expect(await lit()).toBe(1);
     const snap = await h.ok<{ map: Item }>(alice, 'GET', base);
-    expect(snap.map.grids).toEqual([grid, zones]);
+    expect(snap.map.grids).toEqual([grid]);
 
-    // Une seule grille de jeu ; le MJ seul règle les quadrillages
-    expect(
-      (await h.request(gm, 'PATCH', base, { grids: [grid, { ...zones, primary: true }] }))
-        .statusCode,
-    ).toBe(400);
+    // Un seul quadrillage, et c'est la grille de jeu ; le MJ seul le règle
+    const decor = { ...grid, id: 'decor', primary: false };
+    expect((await h.request(gm, 'PATCH', base, { grids: [grid, decor] })).statusCode).toBe(400);
+    expect((await h.request(gm, 'PATCH', base, { grids: [decor] })).statusCode).toBe(400);
     expect((await h.request(alice, 'PATCH', base, { grids: [] })).statusCode).toBe(403);
 
     // Mise à l'échelle du fond : la case et l'origine suivent
@@ -531,6 +529,32 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
     await h.ok(gm, 'POST', `${base}/rescale`, { sx: 2, sy: 2 });
     const [scaled] = (await h.ok<{ map: Item }>(gm, 'GET', base)).map.grids as (typeof grid)[];
     expect(scaled).toMatchObject({ size: 200, offsetX: 20, offsetY: 40 });
+  });
+
+  it('distance par case : celle de la campagne, remplacée pour une scène ; diagonales du MJ', async () => {
+    const settings = await h.ok<Item>(gm, 'GET', url('/map-settings'));
+    expect(settings).toMatchObject({ unitsPerCell: 1.5, unitName: 'm', diagonals: 'chebyshev' });
+    const after = await h.ok<Item>(gm, 'PATCH', url('/map-settings'), {
+      unitsPerCell: 5,
+      unitName: 'ft',
+      diagonals: 'alternating',
+    });
+    expect(after).toMatchObject({ unitsPerCell: 5, unitName: 'ft', diagonals: 'alternating' });
+    expect(
+      (await h.request(gm, 'PATCH', url('/map-settings'), { diagonals: 'hexagonal' })).statusCode,
+    ).toBe(400);
+    expect(
+      (await h.request(alice, 'PATCH', url('/map-settings'), { unitsPerCell: 2 })).statusCode,
+    ).toBe(403);
+
+    const map = await newMap();
+    expect(map.scale).toBeNull();
+    const world = await h.ok<Item>(gm, 'PATCH', url(`/maps/${map.id}`), {
+      scale: { unitsPerCell: 10, unitName: 'km' },
+    });
+    expect(world.scale).toEqual({ unitsPerCell: 10, unitName: 'km' });
+    const back = await h.ok<Item>(gm, 'PATCH', url(`/maps/${map.id}`), { scale: null });
+    expect(back.scale).toBeNull();
   });
 
   it('personnages joueurs : sur la scène du groupe dès leur arrivée, sans s’empiler', async () => {

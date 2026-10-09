@@ -66,7 +66,7 @@ export function registerMovementPath(engine: MapEngine, ui: MovementPathUi = {})
     const kind = engine.kindContext();
     const prefs = measurePrefs(engine).getState();
     if (unitsFor?.kind !== kind || unitsFor.prefs !== prefs)
-      unitsFor = { kind, prefs, units: unitContext(engine, prefs) };
+      unitsFor = { kind, prefs, units: unitContext(engine) };
     return unitsFor.units;
   };
 

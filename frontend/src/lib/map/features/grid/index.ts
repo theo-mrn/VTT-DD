@@ -16,9 +16,10 @@ import type { MapGrid } from '@vtt/contracts';
 import { Grid3x3, Ruler } from 'lucide-react';
 import type { Container, Graphics } from 'pixi.js';
 import type { StoreApi } from 'zustand/vanilla';
-import { GridControls } from './ui/grid-menu';
+import { useStore } from 'zustand';
 import { GridScaleAssistant } from './ui/scale-assistant';
-import { ScaleMenu } from './ui/scale-menu';
+import { ScalePanel } from './ui/scale-panel';
+import { scalePanelOf, toggleScalePanel } from './engine/panel';
 import { isGm, type RenderContext } from '@/lib/map/engine/entities/entity-kind';
 import { destroyDisplay } from '@/lib/map/engine/destroy-display';
 import type { Point } from '@/lib/map/engine/geometry';
@@ -280,26 +281,22 @@ export const gridFeature: MapFeature = {
         available: isGm,
         create: () => new CalibrateTool(settings),
       }),
-      // Afficher ou masquer (tous, sur son écran) ; réglages à côté (MJ)
-      engine.registerToolbarEntry({
-        kind: 'custom',
-        id: 'grid:menu',
-        label: translate('map.grid.title'),
-        icon: Grid3x3,
-        group: 'view',
-        order: 20,
-        component: GridControls,
-      }),
-      // Échelle de la scène (MJ) : case, taille des tokens, détecter, calibrer
-      engine.registerToolbarEntry({
-        kind: 'custom',
-        id: 'grid:scale',
-        label: translate('map.grid.sceneScale'),
+      // Échelle et quadrillage (MJ) : un panneau latéral, case, distance, apparence, tokens
+      engine.registerAction({
+        id: 'grid.panel',
+        label: translate('map.grid.panel'),
         icon: Ruler,
-        group: 'view',
-        order: 21,
         available: isGm,
-        component: ScaleMenu,
+        run: (e) => toggleScalePanel(e),
+        useStatus: (e) => ({ active: useStore(scalePanelOf(e), (s) => s.open) }),
+        toolbar: { group: 'view', order: 21 },
+      }),
+      engine.registerOverlay({
+        id: 'grid.panel',
+        slot: 'right',
+        order: 20,
+        available: isGm,
+        component: ScalePanel,
       }),
       // Échelle d'un nouveau fond : quadrillage détecté, ou calibrage proposé (MJ)
       engine.registerOverlay({
@@ -308,13 +305,18 @@ export const gridFeature: MapFeature = {
         available: isGm,
         component: GridScaleAssistant,
       }),
+      // Quadrillage (Q) : afficher ou masquer, sur son écran seulement (tous)
       engine.registerAction({
         id: 'grid.toggle',
         label: translate('map.grid.title'),
         icon: Grid3x3,
         shortcut: GRID_TOGGLE_SHORTCUT,
+        available: () => true,
         run: () => setGridShown(!gridDisplay.getState().shown),
+        useStatus: () => ({ active: useStore(gridDisplay, (s) => s.shown) }),
+        toolbar: { group: 'view', order: 20 },
       }),
+      () => toggleScalePanel(engine, false),
       engine.whenMounted(() => {
         const plane = engine.plane('grid');
         if (!plane || !engine.pixi) return;

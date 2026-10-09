@@ -4,6 +4,7 @@ import type { Translation } from '../../../types';
 export default {
   layersPanel: 'Layers',
   gridToggle: 'Grid',
+  scalePanel: 'Scale and grid',
   combatAttack: 'Attack',
   presenceCursor: 'Show my cursor',
   movementPathToggle: 'Movement paths',

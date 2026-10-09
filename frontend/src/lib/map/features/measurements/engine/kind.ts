@@ -130,7 +130,7 @@ export class TemplateView {
       pixelsPerUnit: ppu,
       zoom: 1 / this.redraw.unit,
       fill: !skinned,
-      label: shown ? measureLabel(spec, unitContext(engine, this.ctx.prefs.getState())) : null,
+      label: shown ? measureLabel(spec, unitContext(engine)) : null,
       emphasis: emphasisOf(e.state),
     });
   }

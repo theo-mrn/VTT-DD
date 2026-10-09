@@ -323,6 +323,8 @@ function fakeContext(viewer = GM) {
     scene: null,
     settings: null,
     pixelsPerUnit: 50,
+    unitsPerCell: 1.5,
+    diagonals: 'chebyshev',
     unitName: 'm',
     tokenScale: 1,
     pixi,

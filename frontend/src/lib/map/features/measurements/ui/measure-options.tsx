@@ -6,13 +6,12 @@
  * comptage des cases, effacement des gabarits, et rappel des gestes. Réglages gardés dans le
  * navigateur.
  */
-import { formatter, translate } from '@/i18n/runtime';
+import { translate } from '@/i18n/runtime';
 import {
   Circle,
   Eye,
   EyeOff,
   Flame,
-  Grid3x3,
   Minus,
   Palette,
   Pin,
@@ -29,7 +28,6 @@ import { Info } from '@/components/ui/tooltip';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import type { MeasureModule } from '../engine/context';
 import {
-  GRID_COUNTINGS,
   measureColorOptions,
   MEASURE_SHAPES,
   measureShapeLabel,
@@ -37,7 +35,6 @@ import {
   type MeasureShape,
 } from '../engine/model';
 import { clearTemplates } from '../engine/operations';
-import { setGridCounting } from '../engine/prefs';
 import { measureModuleOf } from '../engine/register';
 import { skinFor } from '../engine/settings';
 import { skinnable } from '../engine/skins';
@@ -50,6 +47,7 @@ import {
   Swatches,
 } from '@/lib/map/features/obstacles/ui/controls';
 import { ConeSettings, SkinPicker } from './measure-controls';
+import { formatDistance, type DistanceScale } from '@/lib/map/engine/distance';
 
 const SHAPE_ICONS: Record<MeasureShape, ComponentType<{ className?: string }>> = {
   line: Minus,
@@ -66,10 +64,9 @@ export function MeasureOptions({ engine }: Readonly<{ engine: MapEngine }>) {
 
 function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModule }>) {
   const s = useStore(ctx.settings);
-  const counting = useStore(ctx.prefs, (p) => p.counting);
   const set = ctx.settings.setState;
   const gm = engine.viewer.role === 'gm';
-  const unit = engine.kindContext().unitName;
+  const scale = engine.kindContext();
   const skin = skinFor(s, s.shape);
 
   return (
@@ -132,12 +129,12 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
                   aria-label={translate('map.measurements.shapes.cone')}
                 >
                   <Triangle />
-                  <span className="text-xs tabular-nums">{coneLabel(s.cone, unit)}</span>
+                  <span className="text-xs tabular-nums">{coneLabel(s.cone, scale)}</span>
                 </Button>
               </PopoverTrigger>
             </Info>
             <PopoverContent side="top" className="w-72 p-3">
-              <ConeSettings value={s.cone} unit={unit} onChange={(cone) => set({ cone })} />
+              <ConeSettings value={s.cone} scale={scale} onChange={(cone) => set({ cone })} />
             </PopoverContent>
           </Popover>
         )}
@@ -205,56 +202,6 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
         )}
 
         <Popover>
-          <Info texte={translate('map.measurements.countingTitle')}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={translate('map.measurements.countingTitle')}
-                className={cn(counting !== 'off' && 'text-primary')}
-              >
-                <Grid3x3 />
-              </Button>
-            </PopoverTrigger>
-          </Info>
-          <PopoverContent side="top" className="w-72 p-2">
-            <p className="px-2 pb-1 pt-1 text-sm font-semibold">
-              {translate('map.measurements.countingTitle')}
-            </p>
-            <div
-              role="radiogroup"
-              aria-label={translate('map.measurements.countingTitle')}
-              className="space-y-0.5"
-            >
-              {GRID_COUNTINGS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  role="radio"
-                  aria-checked={c === counting}
-                  onClick={() => setGridCounting(engine, c)}
-                  className={cn(
-                    'w-full rounded-md px-2 py-1.5 text-left transition-colors hover:bg-surface-2',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-                    c === counting && 'text-primary',
-                  )}
-                >
-                  <span className="block text-[13px] font-medium">
-                    {translate(`map.measurements.counting.${c}.label`)}
-                  </span>
-                  <span className="block text-[11px] text-muted-foreground">
-                    {translate(`map.measurements.counting.${c}.hint`)}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <p className="px-2 pb-1 pt-2 text-[11px] text-muted-foreground">
-              {translate('map.measurements.countingHint')}
-            </p>
-          </PopoverContent>
-        </Popover>
-
-        <Popover>
           <Info texte={translate('map.measurements.clearSome')}>
             <PopoverTrigger asChild>
               <Button
@@ -299,9 +246,9 @@ function Options({ engine, ctx }: Readonly<{ engine: MapEngine; ctx: MeasureModu
 }
 
 /** Réglage du cône affiché : son angle, sa largeur, ou « Dim. » sans largeur fixée. */
-function coneLabel(cone: ConeOptions, unit: string): string {
+function coneLabel(cone: ConeOptions, scale: DistanceScale): string {
   if (cone.mode === 'angle') return `${Math.round(cone.angle)}°`;
   return cone.width
-    ? `${formatter().number(cone.width)} ${unit}`
+    ? formatDistance(cone.width, scale)
     : translate('map.measurements.dimensionsShort');
 }

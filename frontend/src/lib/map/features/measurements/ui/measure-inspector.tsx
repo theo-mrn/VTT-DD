@@ -72,7 +72,10 @@ export function MeasureInspector({ engine, entities }: Readonly<InspectorSection
   const shapes = new Set(items.map((m) => m.shape));
   const shape = shapes.size === 1 ? first.shape : null;
   const ppu = engine.kindContext().pixelsPerUnit || 50;
-  const unit = engine.kindContext().unitName;
+  const scale = engine.kindContext();
+  const unit = scale.unitName;
+  // Longueur saisie dans l'unité de la scène : cases × distance par case
+  const per = scale.unitsPerCell || 1;
   const patch = (label: string, fn: (m: MeasurementData) => MeasurementData) =>
     void updateTemplates(ctx, label, entities, fn);
   const sameColor = items.every((m) => m.color === first.color) ? first.color : '';
@@ -96,12 +99,12 @@ export function MeasureInspector({ engine, entities }: Readonly<InspectorSection
           <FieldRow label={lengthLabel(single.shape)} htmlFor={`${id}-length`}>
             <NumberField
               id={`${id}-length`}
-              value={r.length / ppu}
+              value={(r.length / ppu) * per}
               suffix={unit}
               onCommit={(v) =>
                 patch(translate('map.measurements.templateLength'), (m) => ({
                   ...m,
-                  end: endFor(m, v, (reach(m).angle * 180) / Math.PI),
+                  end: endFor(m, v / per, (reach(m).angle * 180) / Math.PI),
                 }))
               }
             />
@@ -140,7 +143,7 @@ export function MeasureInspector({ engine, entities }: Readonly<InspectorSection
           </span>
           <ConeSettings
             value={coneOptions(first.options)}
-            unit={unit}
+            scale={scale}
             onChange={(cone) =>
               patch(translate('map.measurements.templateCone'), (m) => ({
                 ...m,

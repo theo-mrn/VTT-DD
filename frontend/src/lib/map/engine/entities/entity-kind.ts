@@ -29,6 +29,7 @@
  * });
  * ```
  */
+import type { MapDiagonals } from '@vtt/contracts';
 import type { ComponentType } from 'react';
 import type * as Pixi from 'pixi.js';
 import type { EntityGeometry, Point, Rect } from '../geometry';
@@ -122,8 +123,15 @@ export interface KindContext {
   pixelsPerUnit: number;
   /** Échelle globale des tokens (`map_settings.tokenScale`, 1 par défaut). */
   tokenScale: number;
-  /** Nom de l'unité (`map_settings.unitName`, « m » par défaut, comme le serveur). */
+  /**
+   * Unité des distances affichées : celle de la scène (`maps.scale`), sinon de la campagne
+   * (`map_settings.unitName`, « m » par défaut, comme le serveur).
+   */
   unitName: string;
+  /** Distance d'une case dans `unitName` (« 1 case = 1,5 m ») ; × les portées en cases. */
+  unitsPerCell: number;
+  /** Décompte des diagonales, règle de la table (`map_settings.diagonals`). */
+  diagonals: MapDiagonals;
 }
 
 /** Couleurs du thème, lues dans les variables CSS de la page (jamais de couleur en dur). */

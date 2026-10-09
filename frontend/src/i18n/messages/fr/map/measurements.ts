@@ -48,9 +48,6 @@ export default {
   ephemeral: 'Mesure éphémère : elle s’efface après 6 s (Entrée : épingler)',
   visibleToPlayers: 'Mesure visible des joueurs',
   gmOnly: 'Mesure pour les MJ seulement',
-  countingTitle: 'Comptage des cases',
-  countingHint:
-    'Avec une grille de jeu, les mesures disent aussi le nombre de cases à parcourir. Réglage de votre écran seulement.',
   clearSome: 'Effacer des gabarits',
   clearMine: 'Effacer mes gabarits',
   clearAll: 'Effacer tous les gabarits',

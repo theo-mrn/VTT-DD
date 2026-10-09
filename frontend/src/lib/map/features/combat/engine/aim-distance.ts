@@ -36,7 +36,7 @@ export function aimDistanceText(
   if (!attackerId || !targetIds.length) return null;
   const from = visibleToken(engine, attackerId);
   if (!from) return null;
-  const u = unitContext(engine, measurePrefs(engine).getState());
+  const u = unitContext(engine);
   const targets = targetIds
     .filter((id) => id !== attackerId)
     .map((id) => visibleToken(engine, id))

@@ -83,7 +83,7 @@ export class MeasureLayer {
         label = {
           spec: m.spec,
           deps: [kind, prefs],
-          text: measureLabel(m.spec, unitContext(engine, prefs)),
+          text: measureLabel(m.spec, unitContext(engine)),
         };
         this.labels.set(m.key, label);
       }

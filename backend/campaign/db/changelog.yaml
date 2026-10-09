@@ -62,5 +62,7 @@ databaseChangeLog:
   - include: { file: changes/0031-map-exploration.sql, relativeToChangelogFile: true }
   # Voix à la table : mode et portées par scène (docs/voix.md § 4)
   - include: { file: changes/0032-map-voice.sql, relativeToChangelogFile: true }
+  # Case, distance et quadrillage : distance par case, diagonales, un seul quadrillage (docs/carte.md § 4)
+  - include: { file: changes/0033-map-scale.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

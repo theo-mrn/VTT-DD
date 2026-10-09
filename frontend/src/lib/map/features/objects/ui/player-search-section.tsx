@@ -13,13 +13,14 @@ import { reachOf } from '../engine/object-kind';
 import { searchControllerOf } from '../engine/search';
 import type { ObjectData } from '../engine/types';
 import { useMapState } from '@/components/map/engine-context';
-import { unitNameOf } from '@/lib/map/store/map-store';
+import { useDistanceScale } from '@/components/map/use-distance';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 export function PlayerSearchSection({ engine, entities }: Readonly<InspectorSectionProps>) {
   const entity = entities[0]!;
   const o = entity.data as ObjectData;
   const tokens = useMapState((s) => s.collections.tokens);
-  const unit = useMapState((s) => unitNameOf(s.settings));
+  const scale = useDistanceScale();
   const reach = useMemo(
     () => reachOf(engine, o),
     // Les tokens changent : la portée aussi
@@ -34,7 +35,7 @@ export function PlayerSearchSection({ engine, entities }: Readonly<InspectorSect
     reachMessage = translate('map.objects.inReach', { names: formatter().list(names, 'and') });
   else if (reach.length)
     reachMessage = translate('map.objects.tooFarHint', {
-      reach: `${formatter().number(o.searchRadius ?? 0)} ${unit}`,
+      reach: formatDistance(o.searchRadius ?? 0, scale),
     });
 
   return (

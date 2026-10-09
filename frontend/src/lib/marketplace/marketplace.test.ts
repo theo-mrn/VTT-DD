@@ -36,6 +36,7 @@ function snapshot(): MapSnapshot {
       fogFull: true,
       exploration: 'off',
       voice: { mode: 'table', clearRange: 6, maxRange: 24 },
+      scale: null,
       grids: [],
       version: 3,
       updatedAt: '',

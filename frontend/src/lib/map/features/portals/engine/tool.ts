@@ -14,7 +14,7 @@
  * Entrée et arrivée s'aimantent au centre de la case, comme le glisser commun (Alt : libre).
  * Aller-retour (réglage) : le retour est posé à l'arrivée, relié, en la même commande.
  */
-import { activeLocale, translate } from '@/i18n/runtime';
+import { translate } from '@/i18n/runtime';
 import type { MapPortalIcon } from '@vtt/contracts';
 import type { BitmapText, Container, Graphics } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
@@ -48,6 +48,7 @@ import {
   type PortalData,
   type PortalDefaults,
 } from './model';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 export type PortalToolState =
   'idle' | 'pressing' | 'destination' | 'pick' | 'radius' | 'arrival' | 'select';
@@ -661,7 +662,7 @@ export class PortalTool implements Tool {
     const units =
       this.radiusDrag?.units ??
       portalOf(radius.entity).radius / (engine.kindContext().pixelsPerUnit || 50);
-    text.text = `${units.toLocaleString(activeLocale(), { maximumFractionDigits: 2 })} ${rc.unitName}`;
+    text.text = formatDistance(units, rc, 2);
     text.visible = true;
     text.scale.set(u);
     text.position.set(radius.at.x + 12 * u, radius.at.y - 8 * u);

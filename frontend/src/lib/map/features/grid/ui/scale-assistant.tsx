@@ -34,17 +34,23 @@ function dismissed(key: string): boolean {
   }
 }
 
-/** Lance le calibrage de la grille de jeu (créée au besoin, à la case actuelle de la scène). */
-export function calibrateScene(engine: MapEngine) {
+/**
+ * Lance le calibrage du quadrillage (créé au besoin, à la case actuelle de la scène) : glisser
+ * sur `cells` × `cells` cases dessinées dans le fond.
+ */
+export function calibrateScene(engine: MapEngine, cells = 1) {
   const grids = gridsOf(engine);
   let play = playGridOf({ grids });
   const run = () => {
     if (!play) return;
-    calibrateSettings(engine).setState({ gridId: play.id, cells: 1 });
+    calibrateSettings(engine).setState({ gridId: play.id, cells });
     engine.tools.activate(GRID_CALIBRATE_TOOL_ID);
-    toast(translate('map.grid.dragOne'), {
-      description: translate('map.grid.escapeToCancel'),
-    });
+    toast(
+      cells === 1
+        ? translate('map.grid.dragOne')
+        : translate('map.grid.dragMany', { cells: String(cells) }),
+      { description: translate('map.grid.escapeToCancel') },
+    );
   };
   if (play) return run();
   const s = engine.store.getState();

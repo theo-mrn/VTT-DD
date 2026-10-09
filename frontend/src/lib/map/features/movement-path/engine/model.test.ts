@@ -26,6 +26,7 @@ const at = (col: number, row: number) => ({ x: col * 50 + 25, y: row * 50 + 25 }
 const units = (extra: Partial<UnitContext> = {}): UnitContext => ({
   pixelsPerUnit: 50,
   unitName: 'm',
+  unitsPerCell: 1,
   grid,
   counting: 'chebyshev',
   ...extra,
@@ -147,5 +148,15 @@ describe('direct', () => {
     ];
     expect(flatten(pts)).toEqual([1, 2, 3, 4]);
     expect(unflatten([1, 2, 3, 4, 5])).toEqual(pts);
+  });
+});
+
+describe('trajet et distance par case', () => {
+  it('la distance du trajet est dans l’unité de la scène, comparée au déplacement', () => {
+    // 3 cases à 1,5 m : 4,5 m, au-delà d'un déplacement de 3 m
+    const m = measurePath([at(0, 0), at(3, 0)], units({ unitsPerCell: 1.5 }));
+    expect(m.units).toBeCloseTo(4.5);
+    expect(exceeds(m.units, 3)).toBe(true);
+    expect(exceeds(m.units, 9)).toBe(false);
   });
 });

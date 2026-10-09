@@ -38,7 +38,6 @@ import {
 import { objectKindLabel, type ObjectData } from '../engine/types';
 import { cn } from '@/lib/utils';
 import { CharacterChoice } from '@/components/map/character-choice';
-import { useMapState } from '@/components/map/engine-context';
 import {
   CommitInput,
   CommitNumber,
@@ -48,7 +47,7 @@ import {
   ToggleRow,
 } from './fields';
 import { OBJECT_IMAGE_ACCEPT } from './object-library';
-import { unitNameOf } from '@/lib/map/store/map-store';
+import { useDistanceScale } from '@/components/map/use-distance';
 
 const kindOptions = () =>
   (['item', 'weapon', 'decor'] as const satisfies readonly MapObjectKind[]).map((value) => ({
@@ -150,7 +149,10 @@ function ManyObjects({
 
 function SingleObject({ engine, entity }: Readonly<{ engine: MapEngine; entity: MapEntity }>) {
   const o = entity.data as ObjectData;
-  const unit = useMapState((s) => unitNameOf(s.settings));
+  const scale = useDistanceScale();
+  const unit = scale.unitName;
+  // Taille saisie dans l'unité de la scène : cases × distance par case
+  const per = scale.unitsPerCell;
   const ppu = engine.kindContext().pixelsPerUnit;
   const g = entity.geometry;
   const locked = entity.state.locked;
@@ -196,23 +198,25 @@ function SingleObject({ engine, entity }: Readonly<{ engine: MapEngine; entity: 
         <div className="grid grid-cols-2 gap-2">
           <CommitNumber
             aria-label={translate('map.objects.widthIn', { unit })}
-            value={g.width / ppu}
+            value={(g.width / ppu) * per}
             min={0.2}
             max={2000}
             step={0.25}
             suffix="L"
             disabled={locked}
-            onCommit={(w) => transform(translate('map.objects.resize'), { width: w * ppu })}
+            onCommit={(w) => transform(translate('map.objects.resize'), { width: (w / per) * ppu })}
           />
           <CommitNumber
             aria-label={translate('map.objects.heightIn', { unit })}
-            value={g.height / ppu}
+            value={(g.height / ppu) * per}
             min={0.2}
             max={2000}
             step={0.25}
             suffix="H"
             disabled={locked}
-            onCommit={(h) => transform(translate('map.objects.resize'), { height: h * ppu })}
+            onCommit={(h) =>
+              transform(translate('map.objects.resize'), { height: (h / per) * ppu })
+            }
           />
         </div>
         <SizeButtons engine={engine} entities={[entity]} />

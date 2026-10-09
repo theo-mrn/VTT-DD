@@ -77,6 +77,7 @@ export const MAP_SHORTCUTS: readonly ShortcutDescriptor[] = [
   tool('sounds', 'map.tools.sounds', 'KeyF', GM),
   action('layers.panel', 'map.actions.layersPanel', 'KeyK', GM),
   action('grid.toggle', 'map.actions.gridToggle', 'KeyQ'),
+  action('grid.panel', 'map.actions.scalePanel', null, GM),
   action('combat.attack', 'map.actions.combatAttack', 'KeyY', PLAYING),
   action('presence.cursor', 'map.actions.presenceCursor', null, PLAYING),
   action('movement-path.toggle', 'map.actions.movementPathToggle', 'Shift+KeyT'),

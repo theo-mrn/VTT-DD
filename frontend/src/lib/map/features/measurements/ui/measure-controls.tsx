@@ -25,6 +25,7 @@ import { measurePrefs, setAnimateSkins } from '../engine/prefs';
 import { skinLabel, skinOptions } from '../engine/skins';
 import { cn } from '@/lib/utils';
 import { RangeField } from '@/lib/map/features/obstacles/ui/controls';
+import type { DistanceScale } from '@/lib/map/engine/distance';
 
 /** Deux à quatre choix exclusifs, en boutons. */
 export function Segmented<T extends string>({
@@ -62,32 +63,39 @@ export function Segmented<T extends string>({
   );
 }
 
-/** Nombre positif facultatif (vide : aucun), validé à la sortie du champ ou par Entrée. */
-function OptionalNumber({
+/**
+ * Distance positive facultative (vide : aucune), validée à la sortie du champ ou par Entrée.
+ * Saisie dans l'unité de la scène, rendue en cases (× / ÷ la distance par case).
+ */
+function OptionalDistance({
   label,
   value,
   placeholder,
-  unit,
+  scale,
   onCommit,
 }: Readonly<{
   label: string;
+  /** En cases. */
   value: number | null;
   placeholder: string;
-  unit: string;
+  scale: DistanceScale;
   onCommit(v: number | null): void;
 }>) {
   const id = useId();
-  const [text, setText] = useState(value ? String(value) : '');
-  useEffect(() => setText(value ? String(value) : ''), [value]);
+  const shown = (v: number | null) =>
+    v ? String(Math.round(v * scale.unitsPerCell * 100) / 100).replace('.', ',') : '';
+  const [text, setText] = useState(shown(value));
+  useEffect(() => setText(shown(value)), [value, scale.unitsPerCell]); // eslint-disable-line react-hooks/exhaustive-deps
   const commit = () => {
     const n = Number(text.replace(',', '.'));
-    const next = text.trim() && Number.isFinite(n) && n > 0 ? Math.min(n, 1000) : null;
-    if (next !== value) onCommit(next);
+    const cells =
+      text.trim() && Number.isFinite(n) && n > 0 ? Math.min(n / scale.unitsPerCell, 1000) : null;
+    if (cells !== value) onCommit(cells);
   };
   return (
     <div className="space-y-1">
       <label htmlFor={id} className="text-xs text-muted-foreground">
-        {label} ({unit})
+        {label} ({scale.unitName})
       </label>
       <Input
         id={id}
@@ -110,11 +118,12 @@ const ANGLE_LABEL = (a: number) => (a === DEFAULT_CONE_ANGLE ? '53° (1:1)' : `$
 /** Options d'un cône : angle ou dimensions, bout arrondi ou plat. */
 export function ConeSettings({
   value,
-  unit,
+  scale,
   onChange,
 }: Readonly<{
   value: ConeOptions;
-  unit: string;
+  /** Distance par case de la scène : largeur et longueur saisies dans son unité. */
+  scale: DistanceScale;
   onChange(next: ConeOptions): void;
 }>) {
   const set = (patch: Partial<ConeOptions>) => onChange({ ...value, ...patch });
@@ -155,18 +164,18 @@ export function ConeSettings({
         </>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <OptionalNumber
+          <OptionalDistance
             label={translate('map.measurements.endWidth')}
             value={value.width}
             placeholder={translate('map.measurements.byAngle')}
-            unit={unit}
+            scale={scale}
             onCommit={(width) => set({ width })}
           />
-          <OptionalNumber
+          <OptionalDistance
             label={translate('map.measurements.fixedLength')}
             value={value.length}
             placeholder={translate('map.measurements.free')}
-            unit={unit}
+            scale={scale}
             onCommit={(length) => set({ length })}
           />
         </div>

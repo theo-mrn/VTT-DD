@@ -240,7 +240,8 @@ function VisionField({ tokens, entities: es }: Readonly<FieldProps>) {
   const { engine } = tokens;
   const ctx = engine.kindContext();
   const unit = ctx.unitName;
-  const ppu = ctx.pixelsPerUnit;
+  // Saisie dans l'unité de la scène (cases × distance par case), stockée en pixels du monde
+  const ppu = ctx.pixelsPerUnit / (ctx.unitsPerCell || 1);
   const radius = common(es, (d) => d.visionRadius);
   const units = radius === null ? null : Math.round((radius / ppu) * 10) / 10;
   const [draft, setDraft] = useState<number | null>(null);
@@ -251,7 +252,7 @@ function VisionField({ tokens, entities: es }: Readonly<FieldProps>) {
         <Slider
           aria-label={translate('map.tokens.visionRadius')}
           min={0}
-          max={30}
+          max={30 * (ctx.unitsPerCell || 1)}
           step={0.5}
           value={[shown]}
           onValueChange={([v]) => setDraft(v ?? 0)}

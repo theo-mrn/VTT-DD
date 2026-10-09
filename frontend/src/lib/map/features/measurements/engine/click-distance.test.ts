@@ -30,8 +30,9 @@ function bench(opts: { viewer?: MapViewer; tokens?: Box[]; objects?: Box[]; deco
   s.replaceCollection('tokens', opts.tokens ?? []);
   s.replaceCollection('objects', opts.objects ?? []);
   s.replaceCollection('decors', opts.decor ?? []);
-  // Distance au clic activée, quel que soit ce qu'un test précédent a gardé
-  measurePrefs(e).setState({ clickDistance: true, counting: 'chebyshev' });
+  // Distance au clic activée, quel que soit ce qu'un test précédent a gardé ; 1 case = 1 m
+  measurePrefs(e).setState({ clickDistance: true });
+  s.patchSettings({ unitsPerCell: 1, diagonals: 'chebyshev' });
   cleanup = registerMeasurements(e);
   const cd = measureModuleOf(e)!.clickDistance;
   /** Mesure affichée juste après le clic. */
@@ -150,9 +151,10 @@ describe('distance au clic : unités et cases', () => {
     // 3 cases en diagonale : 4,24 unités → « 4 m », 3 cases (diagonale : 1 case)
     b.click(P(275, 275));
     expect(b.shown()!.label).toBe('4 m · 3 cases');
-    measurePrefs(b.engine).setState({ counting: 'alternating' });
+    // Règle des diagonales de la table (MJ)
+    b.engine.store.getState().patchSettings({ diagonals: 'alternating' });
     expect(b.shown()!.label).toBe('4 m · 4 cases');
-    measurePrefs(b.engine).setState({ counting: 'off' });
+    b.engine.store.getState().patchSettings({ diagonals: 'off' });
     expect(b.shown()!.label).toBe('4 m');
   });
 });

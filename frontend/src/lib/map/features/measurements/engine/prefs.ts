@@ -1,23 +1,20 @@
 /**
  * Préférences locales des mesures (confort de chacun, jamais partagées), gardées dans
- * `localStorage` quand il répond : distance au clic, comptage des cases, effets animés.
+ * `localStorage` quand il répond : distance au clic, effets animés. Le décompte des diagonales
+ * est une règle de la table, réglée par le MJ (`map_settings.diagonals`).
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { GRID_COUNTINGS, type GridCounting } from './model';
 
 export interface MeasurePrefs {
   /** Distance depuis mon personnage au clic (activée par défaut). */
   clickDistance: boolean;
-  /** Comptage des cases, avec une grille de jeu. */
-  counting: GridCounting;
   /** Effets animés des gabarits (éteints avec « mouvement réduit » : image fixe). */
   animateSkins: boolean;
 }
 
 const KEYS = {
   clickDistance: 'vtt:carte:distance-clic',
-  counting: 'vtt:carte:comptage-cases',
   animateSkins: 'vtt:carte:effets-animes',
 } as const;
 
@@ -38,15 +35,11 @@ function write(key: string, value: string) {
 }
 
 function initial(): MeasurePrefs {
-  const counting = read(KEYS.counting);
   const skins = read(KEYS.animateSkins);
   const reduced =
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   return {
     clickDistance: read(KEYS.clickDistance) !== '0',
-    counting: GRID_COUNTINGS.includes(counting as GridCounting)
-      ? (counting as GridCounting)
-      : 'chebyshev',
     animateSkins: skins === '0' || skins === '1' ? skins === '1' : !reduced,
   };
 }
@@ -66,12 +59,6 @@ export function measurePrefs(engine: MapEngine): StoreApi<MeasurePrefs> {
 export function setClickDistance(engine: MapEngine, on: boolean) {
   measurePrefs(engine).setState({ clickDistance: on });
   write(KEYS.clickDistance, on ? '1' : '0');
-  engine.invalidate();
-}
-
-export function setGridCounting(engine: MapEngine, counting: GridCounting) {
-  measurePrefs(engine).setState({ counting });
-  write(KEYS.counting, counting);
   engine.invalidate();
 }
 

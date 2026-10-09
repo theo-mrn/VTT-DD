@@ -192,10 +192,9 @@ function Summary({
       length += Math.hypot(b.x - a.x, b.y - a.y);
     }
   const kc = engine.kindContext();
-  const unit = kc.unitName;
   return (
     <p className="text-xs text-muted-foreground">
-      {segments} segment{segments > 1 ? 's' : ''} · {formatLength(length, kc.pixelsPerUnit, unit)}
+      {segments} segment{segments > 1 ? 's' : ''} · {formatLength(length, kc)}
     </p>
   );
 }

@@ -10,7 +10,7 @@
  * - Refus du serveur traduits en français clair (hors de portée, déjà pris, service des
  *   personnages injoignable…). Un contenu qui a changé entre-temps est relu.
  */
-import { formatter, translate } from '@/i18n/runtime';
+import { translate } from '@/i18n/runtime';
 import type { MapObjectSearchResult } from '@vtt/contracts';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { ApiError, messageErreur } from '@/lib/api';
@@ -20,6 +20,7 @@ import { quantityLabel } from './contents';
 import { reachOf } from './object-kind';
 import { preferredSearcher } from './reach';
 import { OBJECTS_COLLECTION, type ObjectData } from './types';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 export type SearchStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -116,8 +117,7 @@ export class SearchController {
   /** Portée lisible (« 1,5 m »). */
   reachText(o: ObjectData | undefined): string | undefined {
     if (!o) return undefined;
-    const unit = this.engine.kindContext().unitName;
-    return `${formatter().number(o.searchRadius ?? 0)} ${unit}`;
+    return formatDistance(o.searchRadius ?? 0, this.engine.kindContext());
   }
 
   /** Ouvre la fenêtre et fouille avec le personnage proposé (ou celui donné). */

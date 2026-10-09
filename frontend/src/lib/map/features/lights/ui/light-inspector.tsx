@@ -22,6 +22,7 @@ import {
 import { lightContextOf } from '../engine/register';
 import { useMapState } from '@/components/map/engine-context';
 import { FieldRow, RangeField, Swatches } from '@/lib/map/features/obstacles/ui/controls';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 const percent = (v: number) => `${Math.round(v * 100)} %`;
 const NONE = '';
@@ -41,7 +42,7 @@ export function LightInspector({ engine, entities }: Readonly<InspectorSectionPr
     lights.every((l) => pick(l) === pick(first)) ? pick(first) : null;
   const patch = (label: string, fn: (l: LightData) => Partial<LightData>) =>
     void patchLights(ctx, entities, fn, label);
-  const unit = engine.kindContext().unitName;
+  const distance = engine.kindContext();
   const attached = same((l) => l.attachedTokenId);
   const tokens = engine
     .entitiesOfKind(TOKEN_KIND)
@@ -101,7 +102,9 @@ export function LightInspector({ engine, entities }: Readonly<InspectorSectionPr
         max={RADIUS_RANGE.slider}
         inputMax={RADIUS_RANGE.max}
         step={RADIUS_RANGE.step}
-        format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
+        format={(v) => formatDistance(v, distance)}
+
+        scale={distance.unitsPerCell}
         onCommit={(v) => patch(translate('map.lights.lightRadius'), () => ({ radius: v }))}
       />
 

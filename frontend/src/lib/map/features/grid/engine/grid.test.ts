@@ -55,7 +55,8 @@ describe('quadrillage : calculs', () => {
     expect(next[1]!.offsetX).toBe(50);
     // Premier quadrillage : la grille de jeu, à la case de la scène
     expect(newGrid([], 88)).toMatchObject({ primary: true, size: 88 });
-    expect(newGrid([grid('a', { primary: true })], 88)).toMatchObject({ primary: false });
+    // Un seul quadrillage par scène
+    expect(newGrid([grid('a', { primary: true })], 88)).toBeNull();
   });
 
   it('densité : trop fin à l’écran, il s’efface ; les joueurs ne voient que les leurs', () => {

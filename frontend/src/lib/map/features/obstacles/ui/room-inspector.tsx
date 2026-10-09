@@ -17,6 +17,7 @@ import { signedArea } from '../engine/geometry';
 import { newPlan } from '../engine/kinds';
 import { defaultProps, type RoomData } from '../engine/model';
 import { obstacleContextOf } from '../engine/register';
+import { formatAreaOf } from '@/lib/map/engine/distance';
 
 export function RoomInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = obstacleContextOf(engine);
@@ -38,7 +39,6 @@ export function RoomInspector({ engine, entities }: Readonly<InspectorSectionPro
     );
   };
   const kc = engine.kindContext();
-  const unit = kc.unitName;
   const area = Math.abs(signedArea(room.points)) / (kc.pixelsPerUnit || 50) ** 2;
 
   return (
@@ -63,8 +63,7 @@ export function RoomInspector({ engine, entities }: Readonly<InspectorSectionPro
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        {room.points.length} sommets · {area.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}{' '}
-        {unit}²
+        {room.points.length} sommets · {formatAreaOf(area, kc)}
       </p>
       <p className="text-xs text-muted-foreground">{translate('map.obstacles.roomHint')}</p>
       <Button

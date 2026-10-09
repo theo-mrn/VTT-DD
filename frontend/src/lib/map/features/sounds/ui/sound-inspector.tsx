@@ -14,6 +14,7 @@ import { RADIUS_RANGE, type SoundZoneData } from '../engine/model';
 import { soundContextOf } from '../engine/register';
 import { FieldRow, RangeField } from '@/lib/map/features/obstacles/ui/controls';
 import { SoundPicker } from './sound-picker';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 const percent = (v: number) => `${Math.round(v * 100)} %`;
 
@@ -30,7 +31,8 @@ export function SoundInspector({ engine, entities }: Readonly<InspectorSectionPr
     zones.every((z) => pick(z) === pick(first)) ? pick(first) : null;
   const patch = (label: string, fn: (z: SoundZoneData) => Partial<SoundZoneData>) =>
     void patchZones(ctx, entities, fn, label);
-  const { unitName, pixelsPerUnit } = engine.kindContext();
+  const { pixelsPerUnit } = engine.kindContext();
+  const distance = engine.kindContext();
   const ppu = pixelsPerUnit || 50;
   const campaignId = engine.store.getState().campaignId;
 
@@ -110,7 +112,9 @@ export function SoundInspector({ engine, entities }: Readonly<InspectorSectionPr
         max={RADIUS_RANGE.slider}
         inputMax={RADIUS_RANGE.max}
         step={RADIUS_RANGE.step}
-        format={(v) => `${v.toLocaleString('fr-FR')} ${unitName}`}
+        format={(v) => formatDistance(v, distance)}
+
+        scale={distance.unitsPerCell}
         onCommit={(v) =>
           patch(translate('map.sounds.zoneRadius'), () => ({
             radius: Math.round(v * ppu * 100) / 100,

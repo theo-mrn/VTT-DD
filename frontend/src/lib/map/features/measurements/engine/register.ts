@@ -82,8 +82,18 @@ export function registerMeasurements(engine: MapEngine, ui: MeasureUi = {}): () 
     prefs.subscribe((s, prev) => {
       // Préférence coupée : la mesure affichée s'efface tout de suite
       if (!s.clickDistance && prev.clickDistance) ctx.clickDistance.clear();
-      if (s.counting !== prev.counting) view.refreshAll();
       if (s.animateSkins !== prev.animateSkins) skins.setAnimate(s.animateSkins);
+    }),
+    // Distance par case ou règle des diagonales changées : les étiquettes se refont
+    engine.store.subscribe((s, prev) => {
+      if (
+        s.settings?.unitsPerCell !== prev.settings?.unitsPerCell ||
+        s.settings?.unitName !== prev.settings?.unitName ||
+        s.settings?.diagonals !== prev.settings?.diagonals ||
+        (s.scene as { scale?: unknown } | null)?.scale !==
+          (prev.scene as { scale?: unknown } | null)?.scale
+      )
+        view.refreshAll();
     }),
     // Un effet animé arrivé : les gabarits qui l'attendent se redessinent
     skins.onReady(() => view.refreshAll()),

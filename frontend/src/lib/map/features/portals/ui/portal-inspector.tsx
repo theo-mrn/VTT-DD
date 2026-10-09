@@ -38,6 +38,7 @@ import {
 } from '@/lib/map/features/obstacles/ui/controls';
 import { PortalGlyph } from './portal-glyph';
 import { SceneDestination } from './scene-destination';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 export function PortalInspector({ engine, entities }: Readonly<InspectorSectionProps>) {
   const ctx = portalModuleOf(engine);
@@ -61,7 +62,7 @@ export function PortalInspector({ engine, entities }: Readonly<InspectorSectionP
   const patch = (label: string, fn: (p: PortalData) => Partial<PortalData>) =>
     void patchPortals(ctx, entities, fn, label);
   const ppu = engine.kindContext().pixelsPerUnit || 50;
-  const unit = engine.kindContext().unitName;
+  const distance = engine.kindContext();
 
   const commitName = () => {
     const next = name.trim().slice(0, 200);
@@ -125,7 +126,9 @@ export function PortalInspector({ engine, entities }: Readonly<InspectorSectionP
         min={RADIUS_RANGE.min}
         max={RADIUS_RANGE.max}
         step={RADIUS_RANGE.step}
-        format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
+        format={(v) => formatDistance(v, distance)}
+
+        scale={distance.unitsPerCell}
         onCommit={(v) =>
           patch(translate('map.portals.portalZone'), () => ({
             radius: Math.round(v * ppu * 100) / 100,

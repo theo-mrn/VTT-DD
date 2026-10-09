@@ -170,25 +170,41 @@ abonnements au store, et renvoie son nettoyage.
 - **Monde = pixels du fond.** Coordonnées du monde = pixels de l'image ou de la vidéo de fond,
   à sa taille naturelle (`maps.width/height`), comme le backend. Aucune coordonnée d'écran n'est
   stockée.
-- **Unité de jeu.** Une case (unité `unitName`) mesure, en pixels du monde, la case de la grille
-  de jeu de la scène si elle en a une, sinon `map_settings.pixelsPerUnit` (réglage de la
-  campagne) : `scenePixelsPerUnit` (@vtt/contracts), même règle pour le client et le serveur.
-  Ci-dessous, `pixelsPerUnit` désigne cette case de la scène.
-- **Quadrillages** (`maps.grids`, quatre au plus par scène, menu « Quadrillage » du MJ).
-  - Chacun est défini en pixels du monde : case (`size`), origine (`offsetX`, `offsetY`, par
-    où passent une ligne verticale et une horizontale), couleur, opacité, épaisseur du trait
-    (pixels d'écran, la même à tous les zooms), montré ou non aux joueurs. Il tombe donc au même
-    endroit de l'image pour tous, quels que soient l'écran et le zoom.
-  - La **grille de jeu** (une au plus) donne la case de la scène : taille des jetons, rayons en
-    unités (lumières, fouille), aimantation, qui tombe sur ses lignes. Les autres sont décoratifs
-    (grandes zones, repères).
-  - Barre d'outils : un interrupteur « Afficher / Masquer le quadrillage » (tous, sur son écran
-    seulement, gardé dans le navigateur, touche Q) et, à côté pour le MJ, les réglages.
-  - « Ajuster sur l'image » : glisser sur 1 à 10 × 1 à 10 cases dessinées dans le fond ; la case
-    et l'origine s'y alignent (une commande annulable).
+- **Case et distance** (refonte du 2026-10-09, décisions de Théo : un seul quadrillage, distance
+  de la campagne modifiable par scène, panneau latéral, diagonales réglées par le MJ).
+  - **Case de la scène** (pixels du monde) : la case du quadrillage de la scène s'il en a un,
+    sinon une part de la largeur du fond (`FALLBACK_CELLS_ACROSS`), sinon
+    `map_settings.pixelsPerUnit` : `scenePixelsPerUnit` (@vtt/contracts), même règle pour le
+    client et le serveur. Dans le code, `pixelsPerUnit` désigne toujours cette case.
+  - **Toutes les portées restent stockées en cases** (lumières, sons, fouille, portails, vue
+    des tokens, gabarits) : aucune donnée ne change d'unité.
+  - **Distance par case** : `map_settings.unitsPerCell` et `unitName` (campagne, « 1 case =
+    1,5 m » par défaut), remplacés pour une scène par `maps.scale { unitsPerCell, unitName }`
+    (null : ceux de la campagne). Toute distance affichée vaut cases × `unitsPerCell` suivie de
+    `unitName` ; toute distance saisie est reconvertie en cases (`KindContext.distance`).
+  - **Diagonales** : `map_settings.diagonals` (`chebyshev`, `alternating`, `manhattan`, `off`),
+    règle de la table choisie par le MJ, la même pour tous (mesures, trajets, distance de visée).
+- **Quadrillage** (`maps.grids`, **un seul** par scène, `primary`) : case (`size`), origine
+  (`offsetX`, `offsetY`), couleur, opacité, épaisseur du trait (pixels d'écran), montré ou non
+  aux joueurs. Il tombe au même endroit de l'image pour tous, à tous les zooms. Sans
+  quadrillage, la case de la scène vaut le repli ci-dessus ; les tokens, les rayons et
+  l'aimantation suivent la case de la scène. Les scènes qui avaient plusieurs quadrillages
+  (migration 0033) gardent leur grille de jeu, les quadrillages décoratifs sont retirés.
+  - Barre d'outils : **Quadrillage** (Q), un simple interrupteur afficher / masquer sur son écran
+    (tous, gardé dans le navigateur) ; **Échelle et quadrillage** (MJ), un panneau latéral (comme
+    Calques), qui reste ouvert pendant qu'on calibre :
+    - Case : taille en pixels, « Détecter » (quadrillage dessiné dans le fond), « Calibrer »
+      (glisser sur 1 à 10 × 1 à 10 cases du fond : case et origine s'y alignent), « Auto »
+      (retire le quadrillage, repli) ;
+    - Distance : « 1 case = [1,5] [m] » de la campagne ; « Propre à cette scène » ;
+      diagonales ;
+    - Apparence : montré aux joueurs, couleur, opacité, épaisseur, décalage (origine) ;
+    - Tokens : taille des tokens (toute la campagne, `tokenScale`).
+  - Chaque changement est une commande annulable ; l'assistant d'un nouveau fond (détection ou
+    proposition de calibrer) est gardé.
   - Dessin (module `grid`, plan `grid` entre le fond et les calques) : seules les lignes dans la
-    vue et dans la carte, redessinées quand la caméra ou les quadrillages changent ; sous 6 px
-    à l'écran par case, le quadrillage s'efface. Le MJ voit à moitié ceux cachés aux joueurs.
+    vue et dans la carte, redessinées quand la caméra ou le quadrillage changent ; sous 6 px à
+    l'écran par case, il s'efface. Le MJ voit à moitié un quadrillage caché aux joueurs.
   - Mise à l'échelle du fond (`rescale`) : case × √(sx·sy), origine × (sx, sy).
 - **Taille des éléments.**
   - Un token mesure `pixelsPerUnit × token.scale × tokenScale` pixels du monde.

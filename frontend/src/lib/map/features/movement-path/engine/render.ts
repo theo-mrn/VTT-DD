@@ -189,7 +189,9 @@ export class PathView {
     seen.clear();
     // Une case revisitée est au-delà si l'un de ses passages l'est
     for (const c of m.cells) {
-      const beyond = m.counted && look.speed !== null && c.cost > look.speed;
+      // Coût en cases, déplacement dans l'unité de la scène
+      const per = look.units.unitsPerCell > 0 ? look.units.unitsPerCell : 1;
+      const beyond = m.counted && look.speed !== null && c.cost * per > look.speed;
       seen.set(cellKey(c), (seen.get(cellKey(c)) ?? false) || beyond);
     }
     const { primary, destructive } = this.theme;
@@ -240,7 +242,7 @@ export class PathView {
     const ppu = look.units.pixelsPerUnit > 0 ? look.units.pixelsPerUnit : 50;
     const split =
       !m.counted && look.speed !== null && exceeds(m.units, look.speed)
-        ? pointAlong(vertices, look.speed * ppu)
+        ? pointAlong(vertices, (look.speed / (look.units.unitsPerCell || 1)) * ppu)
         : null;
     if (split) {
       polyline([...vertices.slice(0, split.segment), split.point], 0, split.segment);

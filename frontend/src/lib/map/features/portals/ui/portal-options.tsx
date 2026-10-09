@@ -21,6 +21,7 @@ import {
   Swatches,
 } from '@/lib/map/features/obstacles/ui/controls';
 import { PortalGlyph } from './portal-glyph';
+import { formatDistance } from '@/lib/map/engine/distance';
 
 export function PortalOptions({ engine }: Readonly<{ engine: MapEngine }>) {
   const tool = engine.tools.active;
@@ -32,7 +33,7 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalToo
   const s = useStore(tool.settings);
   const state = useStore(tool.ui, (u) => u.state);
   const set = tool.settings.setState;
-  const unit = engine.kindContext().unitName;
+  const distance = engine.kindContext();
   const hint = translate(
     `map.portals.hints.${state === 'destination' || state === 'pick' ? state : 'idle'}`,
   );
@@ -82,7 +83,9 @@ function Options({ engine, tool }: Readonly<{ engine: MapEngine; tool: PortalToo
               min={RADIUS_RANGE.min}
               max={RADIUS_RANGE.max}
               step={RADIUS_RANGE.step}
-              format={(v) => `${v.toLocaleString('fr-FR')} ${unit}`}
+              format={(v) => formatDistance(v, distance)}
+
+              scale={distance.unitsPerCell}
               onCommit={(v) => set({ radius: v })}
             />
           </PopoverContent>

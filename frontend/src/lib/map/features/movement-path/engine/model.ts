@@ -161,7 +161,11 @@ export function pointAlong(
 
 /** Mesure d'un trajet. */
 export interface PathMeasure {
-  /** Distance en unités : cases avec une grille de jeu et un comptage, sinon euclidienne. */
+  /**
+   * Distance dans l'unité de la scène (cases × distance par case) : cases comptées avec une
+   * grille de jeu et un décompte, sinon longueur euclidienne. Comparée au déplacement du
+   * personnage, dans la même unité.
+   */
   units: number;
   /** Cases traversées (grille de jeu seulement), sinon null. */
   cells: PathCell[] | null;
@@ -171,10 +175,11 @@ export interface PathMeasure {
 
 export function measurePath(vertices: readonly Point[], u: UnitContext): PathMeasure {
   const ppu = u.pixelsPerUnit > 0 ? u.pixelsPerUnit : 50;
-  if (!u.grid) return { units: pathLength(vertices) / ppu, cells: null, counted: false };
+  const per = u.unitsPerCell > 0 ? u.unitsPerCell : 1;
+  if (!u.grid) return { units: (pathLength(vertices) / ppu) * per, cells: null, counted: false };
   const { cells, steps } = gridPath(vertices, u.grid, u.counting);
   const counted = u.counting !== 'off';
-  return { units: counted ? steps : pathLength(vertices) / ppu, cells, counted };
+  return { units: (counted ? steps : pathLength(vertices) / ppu) * per, cells, counted };
 }
 
 const number = (n: number) => n.toLocaleString(activeLocale(), { maximumFractionDigits: 1 });
