@@ -5,6 +5,8 @@ export default {
   items: '{count, plural, one {# item} other {# items}}',
   selectionOf: 'Selection: {title}',
   deselect: 'Deselect',
+  allKinds: 'All',
+  kindFilter: 'Selected types',
   editStats: 'Edit stats',
   inspectorOf: 'Inspector: {title}',
   closeInspector: 'Close the inspector',

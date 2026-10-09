@@ -1,7 +1,8 @@
 /**
  * Murs avec l'outil sélection (V) : un clic sur un mur, quand rien d'autre n'est dessous, le
  * sélectionne (menu, inspecteur, Suppr) ; un token posé contre lui reste prioritaire ; un mur
- * ne se glisse pas hors de l'outil murs (soudures) et le lasso ne le prend pas.
+ * ne se glisse pas hors de l'outil murs (soudures) ; le lasso le prend (filtre par type dans le
+ * panneau), sans le rendre glissable.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { SELECT_TOOL_ID } from '@/lib/map/engine/tools/tool-manager';
@@ -61,13 +62,15 @@ describe('murs avec l’outil sélection', () => {
     expect(b.engine.selection.ids).toEqual(['mur']);
   });
 
-  it('le mur ne se glisse pas hors de l’outil murs (la carte bouge), le lasso ne le prend pas', async () => {
+  it('le mur ne se glisse pas hors de l’outil murs (la carte bouge) ; le lasso le prend', async () => {
     const b = bench([box('t', 300, 250)]);
     b.drag(P(450, 300), P(450, 450));
     await b.commands.idle();
     expect(b.points()).toEqual([P(100, 300), P(500, 300)]);
     b.engine.selection.replace([]);
     b.drag(P(50, 200), P(600, 400), { shift: true });
-    expect(b.engine.selection.ids).toEqual(['t']);
+    expect([...b.engine.selection.ids].sort()).toEqual(['mur', 't']);
+    // Glisser la sélection déplace le token, jamais le mur (soudures)
+    expect(b.engine.movableSelection(b.engine.entity('t')!).map((e) => e.id)).toEqual(['t']);
   });
 });

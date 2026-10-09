@@ -238,15 +238,17 @@ export interface EntityKind<D extends MapDto = MapDto> {
   readonly display?: DisplayKey;
   /**
    * Outil qui édite cette sorte (murs et pièces : `obstacles`, W) : hors de lui, elle ne se
-   * sélectionne pas (ni clic, ni lasso, ni menu) ; seule son action de clic (`click`) reste
-   * permise. Un mur ne vole ainsi jamais le clic d'un token posé contre lui.
+   * sélectionne pas au clic ni au menu ; seule son action de clic (`click`) reste permise. Un mur
+   * ne vole ainsi jamais le clic d'un token posé contre lui. Le lasso de l'outil Sélection la
+   * prend quand même (`entitiesInLasso`).
    */
   readonly editTool?: string;
   /**
    * Avec `editTool` : hors de son outil (outil sélection), l'entité se touche quand même, mais
    * en dernier recours, seulement si rien d'autre n'est sous le pointeur. On la sélectionne, on
    * ouvre son menu et son inspecteur, on la supprime ; on ne la glisse pas (son outil garde les
-   * gestes qui la déforment : soudures des murs) et le lasso ne la prend pas. Murs, pièces,
+   * gestes qui la déforment : soudures des murs). Le lasso (⇧ + glisser) la prend, comme toute
+   * sorte sélectionnable (`entitiesInLasso`), sans la rendre glissable. Murs, pièces,
    * lumières ; pas les zones de brouillard, qui couvrent la carte et prendraient chaque clic.
    */
   readonly pickOutsideTool?: boolean;

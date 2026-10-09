@@ -82,6 +82,7 @@ import {
   normalizeDegrees,
   type Point,
   type Rect,
+  rectContainsRect,
   rectsConfusable,
   rectsIntersect,
 } from './geometry';
@@ -1414,6 +1415,35 @@ export class MapEngine {
         out.push(e);
     }
     return out.sort((a, b) => this.compareStack(a, b));
+  }
+
+  /**
+   * Lasso de l'outil Sélection (⇧ + glisser) : tout ce qu'on peut sélectionner dans le
+   * rectangle, sortes à outil dédié comprises (murs, portes, lumières, sons, portails,
+   * brouillard) ; le panneau de la sélection filtre ensuite par type. Une sorte qui couvre la
+   * carte sans se toucher hors de son outil (zone de brouillard) n'est prise qu'entière dans le
+   * rectangle : sinon chaque lasso l'emporterait.
+   */
+  entitiesInLasso(rect: Rect): MapEntity[] {
+    const out: MapEntity[] = [];
+    for (const id of this.index.queryRect(rect)) {
+      const e = this.entityMap.get(id);
+      if (!e || !this.isSelectable(e)) continue;
+      const box = e.bounds();
+      const inside =
+        e.kind.editTool && !e.kind.pickOutsideTool
+          ? rectContainsRect(rect, box)
+          : rectsIntersect(box, rect);
+      if (inside) out.push(e);
+    }
+    return out.sort((a, b) => this.compareStack(a, b));
+  }
+
+  /** Sélectionnable par qui regarde, quel que soit l'outil actif (lasso). */
+  private isSelectable(e: MapEntity): boolean {
+    if (e.masks.size || e.state.sidelined) return false;
+    if (!hasCapability(e.kind, 'select') || !e.kind.can('select', e, this.viewer)) return false;
+    return !e.layerId || this.layerAllows(e, e.layerId);
   }
 
   /** Sélection déplaçable avec l'entité tenue (vide si celle-ci ne bouge pas). */

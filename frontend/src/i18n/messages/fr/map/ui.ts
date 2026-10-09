@@ -2,6 +2,8 @@ export default {
   items: '{count, plural, one {# élément} other {# éléments}}',
   selectionOf: 'Sélection : {title}',
   deselect: 'Désélectionner',
+  allKinds: 'Tout',
+  kindFilter: 'Types sélectionnés',
   editStats: 'Modifier les stats',
   inspectorOf: 'Inspecteur : {title}',
   closeInspector: 'Fermer l’inspecteur',

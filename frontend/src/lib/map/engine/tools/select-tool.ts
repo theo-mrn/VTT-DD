@@ -10,7 +10,7 @@
  * | `dragging`  | aperçu, direct, aimantation (Alt : sans) | lâcher → une commande ; Échap → annule   |
  * | `void`      | +4 px → `panning` (⇧ : `lasso`)          | lâcher → désélectionne (Alt : ping)      |
  * | `panning`   | la carte suit le pointeur                | lâcher → la vue reste là                 |
- * | `lasso`     | rectangle (⇧ + glisser dans le vide)     | lâcher → sélection, ajoutée à l'actuelle |
+ * | `lasso`     | rectangle (⇧ + glisser dans le vide)     | lâcher → tout type, ajouté à l'actuelle  |
  * | `handle`    | rotation ou taille                       | lâcher → une commande ; Échap → annule   |
  * | `measure`   | ⌘/Ctrl + bouton ; +4 px → `panning`      | lâcher → clic de mesure, sélection gardée |
  *
@@ -262,7 +262,7 @@ export class SelectTool implements Tool {
   /** Lasso lâché : les entités du rectangle sélectionnées (ajoutées avec ⇧). */
   private selectInLasso(start: MapPointer, e: MapPointer, engine: MapEngine) {
     const rect = rectFromPoints(start.world, e.world);
-    const ids = engine.entitiesInRect(rect).map((x) => x.id);
+    const ids = engine.entitiesInLasso(rect).map((x) => x.id);
     if (this.lassoAdditive) engine.selection.add(ids);
     else engine.selection.replace(ids);
     engine.showSelectionPanel();

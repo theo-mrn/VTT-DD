@@ -195,3 +195,24 @@ describe('Tout couvrir, tout découvrir', () => {
     expect(setFogFull(b.engine, false)).toBeNull();
   });
 });
+
+describe('lasso de l’outil Sélection et brouillard', () => {
+  it('une zone de brouillard n’est prise qu’entière dans le rectangle', () => {
+    const b = bench({
+      zones: [
+        zone('petite'),
+        zone('grande', { points: [P(0, 0), P(5000, 0), P(5000, 5000), P(0, 5000)] }),
+      ],
+    });
+    b.engine.tools.activate('select');
+    const ids = (x0: number, y0: number, x1: number, y1: number) =>
+      b.engine
+        .entitiesInLasso({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 })
+        .map((e) => e.id)
+        .sort();
+    // Le rectangle couvre la petite zone en entier, la grande en partie
+    expect(ids(50, 50, 400, 400)).toEqual(['petite']);
+    // Il ne fait que toucher la petite zone : rien
+    expect(ids(250, 250, 400, 400)).toEqual([]);
+  });
+});

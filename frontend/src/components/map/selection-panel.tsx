@@ -10,6 +10,9 @@
  *   se déplie sur place ; une case cochée se voit ;
  * - les réglages de l'inspecteur (sections des modules), dépliables ;
  * - « Supprimer » à part, en dernier.
+ *
+ * Plusieurs types d'éléments choisis ensemble (lasso) : une rangée de filtres garde un seul type
+ * (seulement les murs, seulement les zones sonores…) ou revient à tous.
  */
 import { translate } from '@/i18n/runtime';
 import {
@@ -76,6 +79,12 @@ export function SelectionPanel() {
   const inspecting = useMapUi((s) => s.inspector);
   // Sur demande seulement : pas pendant ni après un déplacement (engine.showSelectionPanel)
   const requested = useMapUi((s) => s.selectionPanel);
+  // Lot du dernier lasso : le filtre par type y choisit, « Tout » y revient
+  const [pool, setPool] = useState<readonly string[]>(ids);
+  useEffect(() => {
+    if (!ids.every((id) => pool.includes(id))) setPool(ids);
+  }, [ids, pool]);
+  const poolEntities = useEntities(pool);
 
   const items = useMemo(() => {
     // Panneau fermé (déplacement, rien demandé) : pas d'actions à calculer
@@ -131,6 +140,8 @@ export function SelectionPanel() {
         // Un clic dans le panneau ne part pas à la carte (pas de désélection, pas de pan)
         onPointerDown={(e) => e.stopPropagation()}
       >
+        <KindFilter engine={engine} pool={poolEntities} selected={ids} />
+
         {single?.kind.id === TOKEN_KIND_ID && (
           <CharacterQuick engine={engine} characterId={(single.data as TokenData).characterId} />
         )}
@@ -169,6 +180,60 @@ export function SelectionPanel() {
         )}
       </div>
     </MapPanel>
+  );
+}
+
+/** Plusieurs types dans le lot : n'en garder qu'un, ou revenir à tous. */
+function KindFilter({
+  engine,
+  pool,
+  selected,
+}: Readonly<{ engine: MapEngine; pool: readonly SelectedEntity[]; selected: readonly string[] }>) {
+  const groups = useMemo(() => {
+    const byKind = new Map<string, { label: string; ids: string[] }>();
+    for (const e of pool) {
+      const g = byKind.get(e.kind.id) ?? { label: e.kind.label, ids: [] };
+      g.ids.push(e.id);
+      byKind.set(e.kind.id, g);
+    }
+    return [...byKind.entries()].map(([kind, g]) => ({ kind, ...g }));
+  }, [pool]);
+  if (groups.length < 2) return null;
+  const current = new Set(selected);
+  const same = (ids: readonly string[]) =>
+    ids.length === current.size && ids.every((id) => current.has(id));
+  const pick = (ids: readonly string[]) => {
+    engine.selection.replace(ids);
+    // Changer la sélection referme le panneau : il reste ouvert sur le choix
+    engine.showSelectionPanel();
+  };
+  const all = pool.map((e) => e.id);
+  const chip = (key: string, label: string, ids: readonly string[]) => (
+    <button
+      key={key}
+      type="button"
+      aria-pressed={same(ids)}
+      onClick={() => pick(ids)}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+        same(ids)
+          ? 'border-primary/50 bg-primary/15 text-primary'
+          : 'border-border text-muted-foreground hover:bg-surface-2 hover:text-foreground',
+      )}
+    >
+      {label}
+      <span className="font-mono tabular-nums opacity-70">{ids.length}</span>
+    </button>
+  );
+  return (
+    <div
+      role="group"
+      aria-label={translate('map.ui.kindFilter')}
+      className="flex flex-wrap gap-1.5"
+    >
+      {chip('all', translate('map.ui.allKinds'), all)}
+      {groups.map((g) => chip(g.kind, g.label, g.ids))}
+    </div>
   );
 }
 
