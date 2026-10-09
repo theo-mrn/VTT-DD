@@ -64,13 +64,14 @@ for k in R2_ENDPOINT R2_BUCKET_NAME R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_PUB
   r2+=("$k=$v")
 done
 externes=()
-for k in KOURRIER_API_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET DISCORD_CLIENT_ID \
+for k in KOURRIER_API_KEY SMTP_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET DISCORD_CLIENT_ID \
   DISCORD_CLIENT_SECRET FIREBASE_SCRYPT_SIGNER_KEY FIREBASE_SCRYPT_SALT_SEPARATOR \
   FIREBASE_SCRYPT_ROUNDS FIREBASE_SCRYPT_MEM_COST; do
   externes+=("$k=$(lire $S identity-secrets "$k")")
 done
 stripe_key=$(lire $S billing-secrets STRIPE_SECRET_KEY)
 stripe_webhook=$(lire $S billing-secrets STRIPE_WEBHOOK_SECRET)
+kourrier=$(lire $S identity-secrets KOURRIER_API_KEY)
 cloudflare=()
 for k in CLOUDFLARE_REALTIME_APP_ID CLOUDFLARE_REALTIME_APP_TOKEN CLOUDFLARE_TURN_KEY_ID \
   CLOUDFLARE_TURN_KEY_TOKEN; do
@@ -113,7 +114,8 @@ secret vtt-prod identity-secrets Opaque \
   "INTERNAL_API_SECRET=$interne" "JWT_PRIVATE_JWKS=$jwks" "${r2[@]}" "${externes[@]}"
 secret vtt-prod billing-secrets Opaque \
   "DATABASE_URL=$url_billing" "DATABASE_DIRECT_URL=$direct_billing" \
-  "STRIPE_SECRET_KEY=$stripe_key" "STRIPE_WEBHOOK_SECRET=$stripe_webhook"
+  "STRIPE_SECRET_KEY=$stripe_key" "STRIPE_WEBHOOK_SECRET=$stripe_webhook" \
+  "INTERNAL_API_SECRET=$interne" "KOURRIER_API_KEY=$kourrier"
 secret vtt-prod campaign-secrets Opaque \
   "DATABASE_URL=$url_campaign" "DATABASE_DIRECT_URL=$direct_campaign" \
   "INTERNAL_API_SECRET=$interne" "${r2[@]}"
