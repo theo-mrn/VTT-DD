@@ -440,7 +440,12 @@ function EnTeteFiche({
       )}
       {peutModifier && <EditionIdentite personnage={p} ouvert={edition} onOuvert={setEdition} />}
       {proprietaire && (
-        <DialogueSuppression personnage={p} ouvert={suppression} onOuvert={setSuppression} />
+        <DialogueSuppression
+          personnage={p}
+          ouvert={suppression}
+          onOuvert={setSuppression}
+          dansPanneau={dansPanneau}
+        />
       )}
     </section>
   );
@@ -757,10 +762,13 @@ function DialogueSuppression({
   personnage: p,
   ouvert,
   onOuvert,
+  dansPanneau,
 }: Readonly<{
   personnage: Fiche;
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
+  /** Fiche dans un panneau de la table : on y reste, le panneau suit la liste. */
+  dansPanneau: boolean;
 }>) {
   const t = useTranslations();
   const router = useRouter();
@@ -797,7 +805,9 @@ function DialogueSuppression({
                   toast.success(t('sheet.page.left', { name: p.name }), {
                     action: undoAction(client, { id: p.id, name: p.name }),
                   });
-                  router.replace('/personnages');
+                  // À la table, on y reste : seule la page de la fiche ramène aux personnages
+                  if (dansPanneau) onOuvert(false);
+                  else router.replace('/personnages');
                 },
                 onError: (e) => toast.error(messageErreur(e)),
               })
