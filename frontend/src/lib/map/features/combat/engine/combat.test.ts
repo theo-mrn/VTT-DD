@@ -89,14 +89,12 @@ describe('entrées « Attaquer » de la carte', () => {
     expect(flow.phase === 'compose' && flow.draft.attackerId).toBe('gobelin');
   });
 
-  it('MJ, plusieurs tokens : cibles de la sélection, ou PNJ à la suite', () => {
+  it('MJ, plusieurs tokens : ils deviennent les cibles, jamais plusieurs attaquants', () => {
     const t = setup();
     const items = t.items('g1', 'l1');
     expect(find(items, 'combat:attack')!.label).toBe('Attaquer (2)');
-    find(items, 'combat:attack-with-selection')!.run!();
-    const flow = t.menu.flow();
-    expect(flow.phase === 'compose' && flow.draft.attackerId).toBe('gobelin');
-    expect(flow.phase === 'compose' && flow.queue).toEqual(['loup']);
+    expect(find(items, 'combat:attack-with')).toBeUndefined();
+    expect(items.some((i) => i.id === 'combat:attack-with-selection')).toBe(false);
   });
 
   it('joueur : « Attaquer » au clic droit seulement, jamais dans sa barre', () => {

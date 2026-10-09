@@ -6,8 +6,8 @@
  *   ou pour le MJ le PNJ qui agit, sinon le choix). Un joueur ne l'a qu'au clic droit : son
  *   clic simple sur un PNJ ouvre directement la visée (`quickAimTarget`), et il clique sans
  *   cesse son propre token pour le déplacer, sans qu'aucune barre ne s'ouvre.
- * - MJ : « Attaquer avec » (le personnage du token attaque) et « Attaquer avec la sélection »
- *   (plusieurs PNJ à la suite, § 8.2).
+ * - MJ : « Attaquer avec » (le personnage du token attaque) ; un seul attaquant à la fois, jamais
+ *   la sélection entière.
  * - Capacités : le menu d'attaque sur l'onglet Capacités, pour son personnage (joueur, son
  *   token) ou le personnage du token (MJ).
  * - Gabarit : « Attaquer la zone (n) » (tokens vus dans la forme), à côté de « Sélectionner les
@@ -87,13 +87,6 @@ export function combatMenu(ctx: MenuContext, open: AttackOpener): MenuItem[] {
       label: translate('map.combat.attackWith'),
       icon: Swords,
       run: () => open({ origin, attackerId: characters[0]! }),
-    });
-  if (gm && characters.length > 1)
-    items.push({
-      id: 'combat:attack-with-selection',
-      label: translate('map.combat.attackWithSelection', { count: characters.length }),
-      icon: Swords,
-      run: () => open({ origin: 'selection', attackers: characters }),
     });
   return items;
 }
