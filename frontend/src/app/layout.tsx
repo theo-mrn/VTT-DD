@@ -3,6 +3,7 @@ import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import localFont from 'next/font/local';
 import { Fournisseurs } from '@/components/fournisseurs';
+import { NewRelic } from '@/components/new-relic';
 import { I18nProvider } from '@/i18n/provider';
 import './globals.css';
 import { MAP_FONT_VARIABLES } from './map-fonts';
@@ -77,6 +78,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       className={`dark ${geist.variable} ${geistMono.variable} ${cinzel.variable} ${aclonica.variable} ${MAP_FONT_VARIABLES}`}
     >
       <body suppressHydrationWarning>
+        <NewRelic />
         <I18nProvider locale={locale} messages={messages}>
           <Fournisseurs>{children}</Fournisseurs>
         </I18nProvider>
