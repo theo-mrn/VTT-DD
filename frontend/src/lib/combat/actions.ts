@@ -187,7 +187,8 @@ function setEntryFields(
   value: string,
 ) {
   const id = value.split('#', 1)[0]!;
-  const entry = systeme.entrees.get(id);
+  // Système de la fiche : entrées libres comprises (docs/entrees-libres.md)
+  const entry = fiche.systeme.entrees.get(id);
   values.set(`${param}.rang`, fiche.possessions.get(id)?.rang ?? 0);
   for (const [champ, v] of Object.entries(entry?.champs ?? {}))
     if (typeof v === 'number' || typeof v === 'boolean') values.set(`${param}.${champ}`, v);

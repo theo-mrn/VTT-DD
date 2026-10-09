@@ -11,11 +11,13 @@
  */
 import { useTranslations } from 'next-intl';
 import { translate } from '@/i18n/runtime';
-import { Check, ChevronDown, Lock, Plus } from 'lucide-react';
+import { Check, ChevronDown, Lock, Pencil, Plus } from 'lucide-react';
+import { Info } from '@/components/ui/tooltip';
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
 import type { PathRankView } from '../tree/model';
 import type { PathRow } from './abilities';
+import { estLibre } from './free-path';
 
 type CellState = 'owned' | 'available' | 'blocked' | 'locked' | 'empty';
 
@@ -119,6 +121,7 @@ export function PathsTable({
   narrow,
   currencyName,
   onSelect,
+  onEdit,
 }: Readonly<{
   paths: PathRow[];
   columns: number;
@@ -127,6 +130,8 @@ export function PathsTable({
   narrow: boolean;
   currencyName: (id: string) => string;
   onSelect: (path: PathRow, rank: PathRankView) => void;
+  /** Modifier une voie libre (docs/entrees-libres.md) ; absent : lecture seule. */
+  onEdit?: (path: PathRow) => void;
 }>) {
   const t = useTranslations();
   if (!paths.length)
@@ -134,7 +139,7 @@ export function PathsTable({
       <p className="py-6 text-center text-sm text-muted-foreground">{t('sheet.skills.noPath')}</p>
     );
   return narrow ? (
-    <PathsList paths={paths} currencyName={currencyName} onSelect={onSelect} />
+    <PathsList paths={paths} currencyName={currencyName} onSelect={onSelect} onEdit={onEdit} />
   ) : (
     <PathsGrid
       paths={paths}
@@ -142,7 +147,25 @@ export function PathsTable({
       caption={caption}
       currencyName={currencyName}
       onSelect={onSelect}
+      onEdit={onEdit}
     />
+  );
+}
+
+/** Crayon d'une voie libre : ouvre son panneau. */
+function EditButton({ path, onEdit }: Readonly<{ path: PathRow; onEdit(path: PathRow): void }>) {
+  const t = useTranslations();
+  return (
+    <Info texte={t('sheet.skills.freePath.edit')}>
+      <button
+        type="button"
+        aria-label={`${t('sheet.skills.freePath.edit')} : ${path.entry.nom}`}
+        onClick={() => onEdit(path)}
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-subtle hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Pencil className="size-3.5" aria-hidden />
+      </button>
+    </Info>
   );
 }
 
@@ -152,12 +175,14 @@ function PathsGrid({
   caption,
   currencyName,
   onSelect,
+  onEdit,
 }: Readonly<{
   paths: PathRow[];
   columns: number;
   caption: string;
   currencyName: (id: string) => string;
   onSelect: (path: PathRow, rank: PathRankView) => void;
+  onEdit?: (path: PathRow) => void;
 }>) {
   const t = useTranslations();
   const ranks = Array.from({ length: columns }, (_, i) => i + 1);
@@ -225,11 +250,14 @@ function PathsGrid({
           {paths.map((path, row) => (
             <tr key={path.entry.id}>
               <th scope="row" className="px-1 py-0 text-left align-middle font-normal">
-                <span
-                  className="block truncate text-[13px] font-semibold text-foreground"
-                  title={path.entry.nom}
-                >
-                  {path.entry.nom}
+                <span className="flex items-center gap-1">
+                  <span
+                    className="block min-w-0 truncate text-[13px] font-semibold text-foreground"
+                    title={path.entry.nom}
+                  >
+                    {path.entry.nom}
+                  </span>
+                  {onEdit && estLibre(path.entry.id) && <EditButton path={path} onEdit={onEdit} />}
                 </span>
                 <span className="flex items-center gap-1.5 text-[11px] text-subtle">
                   {path.source && <span className="truncate">{path.source}</span>}
@@ -296,10 +324,12 @@ function PathsList({
   paths,
   currencyName,
   onSelect,
+  onEdit,
 }: Readonly<{
   paths: PathRow[];
   currencyName: (id: string) => string;
   onSelect: (path: PathRow, rank: PathRankView) => void;
+  onEdit?: (path: PathRow) => void;
 }>) {
   const [open, setOpen] = useState<Set<string>>(() => {
     const first = paths.find((p) => p.ranks.some((r) => r.offer?.possible)) ?? paths[0];
@@ -356,6 +386,11 @@ function PathsList({
                 aria-hidden
               />
             </button>
+            {expanded && onEdit && estLibre(path.entry.id) && (
+              <div className="flex justify-end px-2">
+                <EditButton path={path} onEdit={onEdit} />
+              </div>
+            )}
             {expanded && (
               <ol id={panel} className="space-y-1 px-2 pb-2">
                 {path.ranks.map((rank) => {

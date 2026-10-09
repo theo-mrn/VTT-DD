@@ -14,7 +14,8 @@
  */
 import { useTranslations } from 'next-intl';
 import { translate } from '@/i18n/runtime';
-import { Coins, ListChecks, Search, TableProperties, TrendingUp, X } from 'lucide-react';
+import { Coins, ListChecks, Plus, Search, TableProperties, TrendingUp, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { bonusDeJet } from '@/components/des/bonus-jet';
 import { Info } from '@/components/ui/tooltip';
@@ -35,6 +36,8 @@ import { BlockShell } from './block-shell';
 import type { SkillCard } from './model';
 import { OwnedList } from './owned-list';
 import { SkillDialog } from './parts';
+import { freePathKinds } from './free-path';
+import { FreePathEditor, type FreePathTarget } from './free-path-editor';
 import { PathsTable } from './paths-table';
 import { RankedList } from './ranked-list';
 import { ViewSwitch, type ViewOption } from './view-switch';
@@ -193,6 +196,13 @@ function ProgressionView({
   title: string;
   onSelect(selection: TreeSelection): void;
 }>) {
+  const t = useTranslations();
+  const [freePath, setFreePath] = useState<FreePathTarget>(null);
+  // Voie libre : le système le permet et la fiche s'écrit (docs/entrees-libres.md)
+  const libre =
+    !!writes &&
+    !!ctx.operations?.entreesLibres &&
+    freePathKinds(ctx.systeme, ctx.fiche.etat.type).paths.length > 0;
   return (
     <>
       {data.paths.length > 0 && (
@@ -203,8 +213,18 @@ function ProgressionView({
           narrow={narrow}
           currencyName={(id: string | undefined) => currencyName(ctx.systeme, id)}
           onSelect={(path, rank) => onSelect({ kind: 'rank', path, rank })}
+          {...(libre ? { onEdit: (path) => setFreePath({ kind: 'edit', path: path.entry }) } : {})}
         />
       )}
+      {libre && (
+        <div className="mt-2 flex justify-end">
+          <Button variant="ghost" size="sm" onClick={() => setFreePath({ kind: 'new' })}>
+            <Plus />
+            {t('sheet.skills.freePath.add')}
+          </Button>
+        </div>
+      )}
+      {libre && <FreePathEditor ctx={ctx} target={freePath} onClose={() => setFreePath(null)} />}
       {data.trees.length > 0 && (
         <div
           className={cn(

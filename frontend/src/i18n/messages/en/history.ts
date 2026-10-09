@@ -50,6 +50,8 @@ export default {
     discarded: '{who} threw away/lost {item}.',
     benefits: '{who} benefits from {name}.',
     loses: '{who} loses {name}.',
+    freeEntries: '{who} creates or edits {name}.',
+    aFreeEntry: 'a custom entry',
     rested: '{who} took a rest.',
     critical: 'critical',
     hit: 'hit',

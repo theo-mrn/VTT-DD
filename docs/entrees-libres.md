@@ -47,7 +47,9 @@ entrees: Entree[]   // même schéma que le catalogue, 200 au plus
 
 ## 4. Interface
 
-Sur la fiche, à côté de l'ajout d'une voie du catalogue : **« Voie libre »**. Un éditeur en panneau : nom de la voie, puis ses rangs, chacun avec sa capacité (nom, description, champs du système repliés, effets). La voie s'ajoute possédée au rang choisi. Une capacité libre se modifie depuis sa carte sur la fiche.
+Bloc Compétences, vue Progression : **« Voie libre »** sous le tableau des voies (quand le système a une sorte de voie personnalisable et que la fiche s'écrit), et un crayon sur chaque voie libre. Le panneau (à droite) : nom et description de la voie, puis une capacité par rang (nom, type parmi les sortes de capacités personnalisables, description, champs du système repliés : texte, nombres, choix, formules en clés nues vérifiées en direct). Une nouvelle voie est prise au **rang de départ** choisi (0 par défaut : les rangs s'achètent ensuite comme ceux du catalogue). Les bonus d'une capacité se posent depuis sa carte, comme pour le catalogue. « Supprimer la voie » retire la voie et ses capacités.
+
+Le contexte de la fiche (`ContexteFiche.systeme`) est le système de la fiche (`fiche.systeme`) : tout ce qui lit le catalogue sur la fiche voit les entrées libres.
 
 ## 5. Découpage
 

@@ -48,6 +48,8 @@ export default {
     discarded: '{who} a jeté/perdu {item}.',
     benefits: '{who} bénéficie de {name}.',
     loses: '{who} perd {name}.',
+    freeEntries: '{who} crée ou modifie {name}.',
+    aFreeEntry: 'une entrée libre',
     rested: '{who} a pris du repos.',
     critical: 'critique',
     hit: 'touché',

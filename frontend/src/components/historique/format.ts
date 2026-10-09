@@ -656,6 +656,26 @@ const UPDATE_FORMATTERS: Record<string, UpdateFormatter> = {
       }),
     );
   },
+  // Entrées libres (docs/entrees-libres.md) : voie maison et capacités, posées ensemble
+  'entree-libre': ({ p, who, line }) => {
+    const entries = detail(p, 'entries');
+    const first = Array.isArray(entries) ? str(obj(entries[0])?.nom) : null;
+    return line(
+      'stats',
+      translate('history.lines.freeEntries', {
+        who,
+        name: bold(first ?? translate('history.lines.aFreeEntry')),
+      }),
+    );
+  },
+  'entree-libre.retrait': ({ p, ctx, who, line }) =>
+    line(
+      'stats',
+      translate('history.lines.loses', {
+        who,
+        name: bold(str(detail(p, 'nom')) ?? entryName(ctx, str(detail(p, 'entryId')))),
+      }),
+    ),
   effet: effectUpdated,
   'durees.decompte': durationsCounted,
   // Décision du MJ appliquée par le combat (docs/combat.md § 7.2) : valeurs et états touchés

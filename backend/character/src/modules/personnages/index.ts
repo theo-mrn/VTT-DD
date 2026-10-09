@@ -791,7 +791,8 @@ export const register: Module = async (app, deps) => {
       const ligne = await modifierPour(req, req.params.id, req.query.version, (l) => ({
         changement: { etat: retirerEntreeLibre(l.etat, entryId) },
         operation: 'entree-libre.retrait',
-        details: { entryId },
+        // Le nom part avec l'entrée : l'historique le garde
+        details: { entryId, nom: l.etat.entrees.find((e) => e.id === entryId)?.nom ?? entryId },
       }));
       return api(ligne);
     },

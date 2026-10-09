@@ -113,6 +113,16 @@ export function useFicheCalculee(id: string | null | undefined) {
       dossiers: (folders, apercu) => void ecritures.dossiers(folders, apercu).catch(signaler),
       bonus: (d, apercu) => void ecritures.bonus(d, apercu).catch(signaler),
       retirerBonus: (b, apercu) => void ecritures.retirerBonus(b, apercu).catch(signaler),
+      entreesLibres: (entries, apercu) =>
+        ecritures.entreesLibres(entries, apercu).then(
+          () => true,
+          (e: unknown) => {
+            signaler(e);
+            return false;
+          },
+        ),
+      retirerEntreeLibre: (entryId, apercu) =>
+        void ecritures.retirerEntreeLibre(entryId, apercu).catch(signaler),
       effet: (cle, actif, apercu) => void ecritures.effet(cle, actif, apercu).catch(signaler),
       rembourser: (index, apercu) => void ecritures.rembourser(index, apercu).catch(signaler),
       usage: (entree, rendre, apercu) =>
@@ -149,7 +159,8 @@ export function useFicheCalculee(id: string | null | undefined) {
     () =>
       p && sys.data && fiche
         ? {
-            systeme: sys.data.systeme,
+            // Système vu par ce personnage : règles de sa campagne et ses entrées libres
+            systeme: fiche.systeme,
             presentation: sys.data.presentation,
             fiche,
             personnage: { id: p.id, name: p.name, roomId: p.roomId, portraitUrl: p.portraitUrl },

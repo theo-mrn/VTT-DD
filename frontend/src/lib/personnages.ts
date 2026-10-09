@@ -22,6 +22,7 @@ import {
   EtatEntite,
   type BonusLibre,
   type Effet,
+  type Entree,
   type MomentDecompte,
   type ResultatAction,
   type Tirage,
@@ -595,6 +596,13 @@ export interface OperationsPersonnage {
   bonus(d: DemandeBonus, apercu?: EtatEntite): Promise<FichePersonnage>;
   retirerBonus(id: string, apercu?: EtatEntite): Promise<FichePersonnage>;
   /**
+   * Pose ou remplace des entrées libres ensemble (une voie maison et ses capacités, qui se
+   * citent : docs/entrees-libres.md).
+   */
+  entreesLibres(entries: Entree[], apercu?: EtatEntite): Promise<FichePersonnage>;
+  /** Retire une entrée libre, ses possessions et les capacités qu'elle seule donnait. */
+  retirerEntreeLibre(id: string, apercu?: EtatEntite): Promise<FichePersonnage>;
+  /**
    * Active ou coupe des effets d'entrées possédées ou d'exemplaires (clés `<source>/<index>`),
    * sans toucher à leur source : l'objet reste équipé.
    */
@@ -754,6 +762,28 @@ export function useOperationsPersonnage(id: string): OperationsPersonnage {
             (version) =>
               api<CharacterApi>(
                 `${url(id, `/bonus/${encodeURIComponent(bonusId)}`)}?version=${version}`,
+                { method: 'DELETE' },
+              ),
+            apercu,
+          )
+        ).fiche,
+      entreesLibres: async (entries, apercu) =>
+        (
+          await w(
+            (version) =>
+              api<CharacterApi>(url(id, '/entries'), {
+                method: 'PUT',
+                ...json({ version, entries }),
+              }),
+            apercu,
+          )
+        ).fiche,
+      retirerEntreeLibre: async (entryId, apercu) =>
+        (
+          await w(
+            (version) =>
+              api<CharacterApi>(
+                `${url(id, `/entries/${encodeURIComponent(entryId)}`)}?version=${version}`,
                 { method: 'DELETE' },
               ),
             apercu,
