@@ -1,15 +1,14 @@
 import { useTranslations } from 'next-intl';
 import {
   BookOpen,
-  CloudRain,
   DoorOpen,
-  Flame,
   History,
   Images,
   Layers,
-  Snowflake,
-  Wind,
-  Zap,
+  MessagesSquare,
+  Mic,
+  MousePointerClick,
+  Music,
 } from 'lucide-react';
 import Image from 'next/image';
 import type { ReactNode } from 'react';
@@ -42,29 +41,6 @@ function Case({
       <h3 className="text-base font-semibold text-foreground">{titre}</h3>
       <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{texte}</p>
     </Apparition>
-  );
-}
-
-/** Égaliseur : des barres qui battent, comme une piste qui joue. */
-function Egaliseur() {
-  const t = useTranslations('landing.tools.sound');
-  const barres = [0.45, 0.8, 0.55, 1, 0.7, 0.4, 0.9, 0.6, 0.75, 0.5, 0.95, 0.65, 0.4, 0.85];
-  return (
-    <div className="flex w-full items-center gap-5">
-      <div className="flex h-16 items-end gap-1" aria-hidden>
-        {barres.map((h, i) => (
-          <span
-            key={i}
-            className="w-1.5 origin-bottom rounded-full bg-primary/80 motion-safe:animate-[egaliseur_1.2s_ease-in-out_infinite]"
-            style={{ height: `${h * 100}%`, animationDelay: `${(i % 5) * -0.21}s` }}
-          />
-        ))}
-      </div>
-      <div className="min-w-0 text-sm">
-        <p className="truncate font-medium text-foreground">{t('track')}</p>
-        <p className="text-subtle">{t('zone')}</p>
-      </div>
-    </div>
   );
 }
 
@@ -128,22 +104,6 @@ function CodeInvitation() {
   );
 }
 
-/** Les effets de météo, en icônes. */
-function Meteo() {
-  return (
-    <div className="flex gap-3" aria-hidden>
-      {[CloudRain, Snowflake, Flame, Wind].map((Icone, i) => (
-        <span
-          key={i}
-          className="flex size-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]"
-        >
-          <Icone className="size-5 text-primary" />
-        </span>
-      ))}
-    </div>
-  );
-}
-
 /** Gabarits de sorts : cône, cercle, ligne. */
 function Gabarits() {
   return (
@@ -195,15 +155,18 @@ function Systemes() {
 }
 
 const SIMPLES = [
+  { Icone: Music, id: 'sound' },
+  { Icone: MessagesSquare, id: 'chat' },
+  { Icone: MousePointerClick, id: 'ping' },
+  { Icone: Mic, id: 'voice' },
   { Icone: BookOpen, id: 'notes' },
   { Icone: History, id: 'history' },
   { Icone: Images, id: 'library' },
   { Icone: DoorOpen, id: 'portals' },
   { Icone: Layers, id: 'layers' },
-  { Icone: Zap, id: 'realtime' },
 ] as const;
 
-/** Le reste de la table : une mosaïque, visuels en code, sans capture. */
+/** Le reste de la table : une mosaïque de visuels en code, puis les autres fonctions en bref. */
 export function Outils() {
   const t = useTranslations('landing.tools');
   return (
@@ -218,37 +181,24 @@ export function Outils() {
 
         <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-6">
           <Case
-            className="lg:col-span-3"
-            visuel={<Egaliseur />}
-            titre={t('sound.title')}
-            texte={t('sound.text')}
-          />
-          <Case
-            className="lg:col-span-3"
-            delai={0.06}
+            className="lg:col-span-2"
             visuel={<Bestiaire />}
             titre={t('bestiary.title')}
             texte={t('bestiary.text')}
           />
           <Case
             className="lg:col-span-2"
+            delai={0.06}
             visuel={<CommandeDiscord />}
             titre={t('discord.title')}
             texte={t('discord.text')}
           />
           <Case
             className="lg:col-span-2"
-            delai={0.06}
+            delai={0.12}
             visuel={<CodeInvitation />}
             titre={t('invite.title')}
             texte={t('invite.text')}
-          />
-          <Case
-            className="lg:col-span-2"
-            delai={0.12}
-            visuel={<Meteo />}
-            titre={t('weather.title')}
-            texte={t('weather.text')}
           />
           <Case
             className="lg:col-span-2"

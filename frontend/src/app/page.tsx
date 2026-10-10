@@ -8,6 +8,7 @@ import { Hero } from '@/components/landing/hero';
 import { Navigation } from '@/components/landing/navigation';
 import { Outils } from '@/components/landing/outils';
 import { Pied } from '@/components/landing/pied';
+import { Promo } from '@/components/landing/promo';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta');
@@ -23,6 +24,7 @@ export default function Accueil() {
         <Fonctionnalites />
         <Des />
         <Outils />
+        <Promo />
         <Appel />
       </main>
       <Pied />

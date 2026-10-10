@@ -1,6 +1,6 @@
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import { Apparition } from './apparition';
+import { Boucle } from './boucle';
 import { BoutonCommencer } from './boutons';
 
 const ATOUTS = ['free', 'noInstall', 'systems'] as const;
@@ -56,15 +56,7 @@ export function Hero() {
 
       <Apparition delai={0.2} className="relative mx-auto mt-20 max-w-6xl px-4 sm:px-6">
         <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_40px_120px_-30px_hsl(var(--primary)/0.35)] sm:p-2">
-          <Image
-            src="/landing/table.webp"
-            alt={t('imageAlt')}
-            width={2400}
-            height={1500}
-            priority
-            sizes="(min-width: 1152px) 1152px, 100vw"
-            className="h-auto w-full rounded-2xl"
-          />
+          <Boucle nom="hero" alt={t('imageAlt')} className="rounded-2xl" />
         </div>
       </Apparition>
     </section>

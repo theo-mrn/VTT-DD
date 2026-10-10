@@ -1,19 +1,15 @@
 import { EyeOff, Palette, Shapes } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
-import { cn } from '@/lib/utils';
 import { Apparition } from './apparition';
+import { Boucle } from './boucle';
 
-/** Une rangée de dés de la collection, cuits par le moteur 3D (public/dice). */
 const POINTS = [
   { Icone: EyeOff, id: 'visibility' },
   { Icone: Shapes, id: 'symbols' },
   { Icone: Palette, id: 'skins' },
 ] as const;
 
-const DES = ['kyber_violet', 'beholder_orb', 'gold', 'magma', 'resine_jade', 'singularite', 'ruby'];
-
-/** Les dés 3D : la collection, en rangée flottante. */
+/** Les dés 3D : gros plans de skins de la boutique, filmés dans l'app. */
 export function Des() {
   const t = useTranslations('landing.dice');
   return (
@@ -32,29 +28,10 @@ export function Des() {
           </h2>
           <p className="mt-5 text-pretty text-lg text-muted-foreground">{t('lead')}</p>
         </Apparition>
-        <Apparition delai={0.1}>
-          <ul className="mt-16 flex flex-wrap items-center justify-center gap-2 lg:flex-nowrap">
-            {DES.map((d, i) => (
-              <li
-                key={d}
-                className={cn(
-                  'w-[30%] motion-safe:animate-[flotter_6s_ease-in-out_infinite] sm:w-[23%] lg:w-auto lg:flex-1',
-                  // Six sur petit écran : deux rangées pleines
-                  i === DES.length - 1 && 'hidden lg:block',
-                )}
-                style={{ animationDelay: `${i * -0.85}s` }}
-              >
-                <Image
-                  src={`/dice/${d}.webp`}
-                  alt=""
-                  width={512}
-                  height={512}
-                  sizes="(min-width: 1024px) 180px, 30vw"
-                  className="h-auto w-full drop-shadow-[0_24px_30px_rgba(0,0,0,0.6)]"
-                />
-              </li>
-            ))}
-          </ul>
+        <Apparition delai={0.1} className="mx-auto mt-14 max-w-sm">
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_40px_120px_-30px_hsl(var(--primary)/0.35)]">
+            <Boucle nom="des" alt={t('videoAlt')} ratio="1 / 1" className="rounded-[22px]" />
+          </div>
         </Apparition>
         <Apparition delai={0.15}>
           <ul className="mt-14 flex flex-wrap justify-center gap-x-10 gap-y-4 text-[15px] text-muted-foreground">

@@ -1,28 +1,23 @@
 import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Apparition } from './apparition';
+import { Boucle } from './boucle';
 
 /** Un bloc par grande fonctionnalité : textes dans `landing.features.<id>`. */
 const POINTS = ['first', 'second', 'third'] as const;
 
+/** Bloc : textes `landing.features.<id>`, boucle `<boucle>` (promotion/landing.mjs). */
 const BLOCS = [
-  {
-    id: 'combat',
-    image: { src: '/landing/combat-initiative.webp', width: 1800, height: 1245 },
-  },
-  {
-    id: 'vision',
-    image: { src: '/landing/vision-cimetiere.webp', width: 1800, height: 1301 },
-  },
-  {
-    id: 'sheets',
-    image: { src: '/landing/fiche-aelwen.webp', width: 1800, height: 1218 },
-  },
+  { id: 'combat', boucle: 'combat' },
+  { id: 'vision', boucle: 'ombres' },
+  { id: 'weather', boucle: 'meteo' },
+  { id: 'sheets', boucle: 'fiche' },
+  { id: 'attack', boucle: 'attaque' },
+  { id: 'audio', boucle: 'zone-sonore' },
 ] as const;
 
-/** Les grandes fonctionnalités, une par rangée, capture et texte en alternance. */
+/** Les grandes fonctionnalités, une par rangée, séquence filmée et texte en alternance. */
 export function Fonctionnalites() {
   const t = useTranslations('landing.features');
   return (
@@ -66,14 +61,7 @@ export function Fonctionnalites() {
                 className={cn('lg:col-span-7', i % 2 === 1 && 'lg:order-1 lg:col-start-1')}
               >
                 <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_30px_90px_-40px_rgba(0,0,0,0.9)]">
-                  <Image
-                    src={b.image.src}
-                    alt={t(`${b.id}.imageAlt`)}
-                    width={b.image.width}
-                    height={b.image.height}
-                    sizes="(min-width: 1024px) 660px, 100vw"
-                    className="h-auto w-full rounded-[14px]"
-                  />
+                  <Boucle nom={b.boucle} alt={t(`${b.id}.imageAlt`)} className="rounded-[14px]" />
                 </div>
               </Apparition>
             </article>

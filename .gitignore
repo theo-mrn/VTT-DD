@@ -11,7 +11,7 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 coverage/
-
+promotion/ 
 # ── Tests ──────────────────────────────────────────────────────────────────────
 test-results/
 playwright-report/

@@ -24,7 +24,7 @@ export default {
       systems: 'D&D, Star Wars and more',
     },
     imageAlt:
-      'The Yner game table: a tavern at night, the party facing bandits, the combat initiative order at the top of the screen.',
+      'The Yner game table: flying over an animated goblin camp, the party and the goblins on the map.',
   },
   features: {
     title: 'Everything to play, nothing in the way',
@@ -44,14 +44,14 @@ export default {
     vision: {
       eyebrow: 'Vision',
       title: 'Your players only see what their character sees',
-      text: 'Fog of war, lines of sight, dynamic lights and weather: the map reveals itself as the party explores, and whatever lurks in the shadows stays there.',
+      text: 'Walls, shadows and fog, live: the GM draws a wall, your players’ view is cut instantly. Whatever lurks in the shadows stays there.',
       points: {
         first: 'Fog and lines of sight',
         second: 'Real-time lights and shadows',
         third: 'Rain, snow, embers, storms',
       },
       imageAlt:
-        'A player’s view in a graveyard: the chapel and graves in sight, a tomb’s shadow hiding what lies behind it, fog on the side.',
+        'Kaelith’s view in a graveyard: as she walks, the tombs’ shadows turn; a wall drawn by the GM cuts her view.',
     },
     sheets: {
       eyebrow: 'Sheets',
@@ -65,6 +65,39 @@ export default {
       imageAlt:
         'The sheet of Aelwen, elf ranger: portrait, abilities, hit points, defense, attacks and ability paths.',
     },
+    weather: {
+      eyebrow: 'Weather',
+      title: 'Storm, blizzard, fog: change the mood in one click',
+      text: 'Set the weather on the map and tune it down to the wind. The whole table sees it fall, live.',
+      points: {
+        first: 'Rain, snow, embers, storm, fog',
+        second: 'Adjustable intensity and wind',
+        third: 'Seen by the whole table',
+      },
+      imageAlt: 'The goblin camp under a storm, then a blizzard, then fog.',
+    },
+    attack: {
+      eyebrow: 'Attack',
+      title: 'Aim, pick your weapon, the GM decides',
+      text: 'One click on the target, a weapon from your inventory, the dice are rolled. The report reaches the GM, who applies or adjusts it.',
+      points: {
+        first: 'Inventory weapons, dice and bonuses included',
+        second: 'Report sent to the GM',
+        third: 'Half, double, resistance, condition',
+      },
+      imageAlt: 'Borin attacks a skeleton with his axe, then the GM applies the damage.',
+    },
+    audio: {
+      eyebrow: 'Sound zones',
+      title: 'Get closer: the sound swells',
+      text: 'Place music or an ambience on the map. Each player hears it according to their character’s distance.',
+      points: {
+        first: 'Volume follows distance',
+        second: 'Built-in ambiences, files or YouTube',
+        third: 'One zone per place, nothing to tweak',
+      },
+      imageAlt: 'Vorthax walks toward the campfire, the ambience volume rises.',
+    },
   },
   dice: {
     eyebrow: '3D dice',
@@ -76,6 +109,8 @@ export default {
       skins: 'Every player picks their own skin',
     },
     rollD20: 'Roll a d20',
+    videoAlt:
+      'Six dice from the shop in 3D close-up: Wandering Soul, Cyber Neon, Eclipse, Singularity, Sapphire Marble, Smoked Resin.',
     rollHint: 'Roll a die',
   },
   tools: {
@@ -86,6 +121,18 @@ export default {
       text: 'Music placed on the map that swells as you get closer. Files or YouTube.',
       track: 'The Elfsong Tavern',
       zone: 'Music zone · 6 squares',
+    },
+    chat: {
+      title: 'Table chat',
+      text: 'Write to the whole table or in private, mention a player.',
+    },
+    ping: {
+      title: 'Ping',
+      text: 'Alt + click: the whole table looks at the same spot.',
+    },
+    voice: {
+      title: 'Voice at the table',
+      text: 'Talk to each other directly, in Table or Proximity mode.',
     },
     bestiary: {
       title: 'Bestiary',
@@ -117,7 +164,7 @@ export default {
     },
     notes: {
       title: 'Notes and handouts',
-      text: 'Letters, maps and clues, shown to the players at the right moment.',
+      text: 'Everyone keeps their own notes: journals, NPCs, places, quests. Share what you want.',
     },
     history: {
       title: 'History',
@@ -139,6 +186,12 @@ export default {
       title: 'Real time',
       text: 'Every move syncs instantly for the whole table.',
     },
+  },
+  promo: {
+    eyebrow: 'On video',
+    title: 'Two minutes around the table',
+    lead: 'A session at the goblin camp, filmed in Yner.',
+    play: 'Play the video',
   },
   finalCta: {
     title: 'Your next session <accent>starts here</accent>',

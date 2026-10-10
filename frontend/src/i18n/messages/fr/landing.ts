@@ -23,7 +23,7 @@ export default {
       systems: 'D&D, Star Wars et plus',
     },
     imageAlt:
-      'La table de jeu Yner : une taverne de nuit, le groupe face aux bandits, l’ordre d’initiative du combat en haut de l’écran.',
+      'La table de jeu Yner : survol d’un camp gobelin animé, le groupe et les gobelins posés sur la carte.',
   },
   features: {
     title: 'Tout pour jouer, rien de superflu',
@@ -43,14 +43,14 @@ export default {
     vision: {
       eyebrow: 'Vision',
       title: 'Vos joueurs ne voient que ce que leur personnage voit',
-      text: 'Brouillard de guerre, lignes de vue, lumières dynamiques et météo : la carte se dévoile au fil de l’exploration, et ce qui rôde dans l’ombre y reste.',
+      text: 'Murs, ombres et brouillard, en direct : le MJ trace un mur, la vue de vos joueurs se coupe à l’instant. Ce qui rôde dans l’ombre y reste.',
       points: {
         first: 'Brouillard et lignes de vue',
         second: 'Lumières et ombres en temps réel',
         third: 'Pluie, neige, braises, tempête',
       },
       imageAlt:
-        'La vue d’une joueuse dans un cimetière : la chapelle et les tombes visibles, l’ombre d’un tombeau qui cache ce qui se trouve derrière, le brouillard sur le côté.',
+        'La vue de Kaelith dans un cimetière : en marchant, les ombres des tombes tournent ; un mur posé par le MJ coupe sa vue.',
     },
     sheets: {
       eyebrow: 'Fiches',
@@ -64,6 +64,39 @@ export default {
       imageAlt:
         'La fiche d’Aelwen, rôdeuse elfe : portrait, caractéristiques, points de vie, défense, attaques et voies de capacités.',
     },
+    weather: {
+      eyebrow: 'Météo',
+      title: 'Orage, blizzard, brouillard : l’ambiance change d’un clic',
+      text: 'Posez une météo sur la carte et réglez-la jusqu’au vent. Toute la table la voit tomber en direct.',
+      points: {
+        first: 'Pluie, neige, braises, orage, brouillard',
+        second: 'Intensité et vent réglables',
+        third: 'Visible de toute la table',
+      },
+      imageAlt: 'Le camp gobelin sous l’orage, puis le blizzard, puis le brouillard.',
+    },
+    attack: {
+      eyebrow: 'Attaque',
+      title: 'Visez, choisissez votre arme, le MJ décide',
+      text: 'Un clic sur la cible, l’arme de votre inventaire, les dés sont lancés. Le rapport arrive chez le MJ, qui l’applique ou l’ajuste.',
+      points: {
+        first: 'Armes de l’inventaire, dés et bonus inclus',
+        second: 'Rapport envoyé au MJ',
+        third: 'Moitié, double, résistance, état',
+      },
+      imageAlt: 'Borin attaque un squelette à la hache, puis le MJ applique les dégâts.',
+    },
+    audio: {
+      eyebrow: 'Zones sonores',
+      title: 'Approchez-vous : le son monte',
+      text: 'Posez une musique ou une ambiance sur la carte. Chaque joueur l’entend selon la distance de son personnage.',
+      points: {
+        first: 'Volume selon la distance',
+        second: 'Ambiances fournies, fichiers ou YouTube',
+        third: 'Une zone par lieu, sans réglage',
+      },
+      imageAlt: 'Vorthax s’approche du feu de camp, le volume de l’ambiance monte.',
+    },
   },
   dice: {
     eyebrow: 'Dés 3D',
@@ -75,6 +108,8 @@ export default {
       skins: 'Chaque joueur choisit son skin',
     },
     rollD20: 'Lancer un dé 20',
+    videoAlt:
+      'Six dés de la boutique en gros plan, en 3D : Âme Errante, Cyber Néon, Éclipse, Singularité, Marbre Saphir, Résine Fumée.',
     rollHint: 'Lancer un dé',
   },
   tools: {
@@ -85,6 +120,18 @@ export default {
       text: 'Des musiques posées sur la carte, qui montent quand on s’approche. Fichiers ou YouTube.',
       track: 'La Taverne d’Elfsong',
       zone: 'Zone musicale · 6 cases',
+    },
+    chat: {
+      title: 'Chat de la table',
+      text: 'Écrivez à toute la table ou en privé, mentionnez un joueur.',
+    },
+    ping: {
+      title: 'Ping',
+      text: 'Alt + clic : toute la table regarde au même endroit.',
+    },
+    voice: {
+      title: 'Voix à la table',
+      text: 'Parlez-vous directement, en mode Table ou Proximité.',
     },
     bestiary: {
       title: 'Bestiaire',
@@ -116,7 +163,7 @@ export default {
     },
     notes: {
       title: 'Notes et documents',
-      text: 'Lettres, cartes et indices, montrés aux joueurs au bon moment.',
+      text: 'Chacun tient ses notes : journaux, PNJ, lieux, quêtes. Partagez ce que vous voulez.',
     },
     history: {
       title: 'Historique',
@@ -138,6 +185,12 @@ export default {
       title: 'Temps réel',
       text: 'Chaque geste se synchronise à l’instant pour toute la table.',
     },
+  },
+  promo: {
+    eyebrow: 'En vidéo',
+    title: 'Deux minutes autour de la table',
+    lead: 'Une partie au camp gobelin, filmée dans Yner.',
+    play: 'Lire la vidéo',
   },
   finalCta: {
     /** « commence ici » est mis en valeur. */
