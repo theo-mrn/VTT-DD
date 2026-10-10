@@ -28,4 +28,8 @@ ingress:
   # Bouncer CrowdSec : hote expose publiquement. Traefik interroge le bouncer
   # a chaque requete (forwardAuth) et renvoie 403 si l'IP porte une decision.
   middlewares:
-    - crowdsec-crowdsec-appsec@kubernetescrd
+    # DESACTIVE : le WAF renvoyait 403 sur la navigation normale du site.
+    # Le CRS est generique et reagit aux payloads applicatifs riches de VTT
+    # (JSON de map, contenu de chat). A reprendre en analysant d'abord
+    # quelles regles se declenchent, avant de rebrancher.
+    # - crowdsec-crowdsec-appsec@kubernetescrd
