@@ -61,6 +61,16 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: messaging
+  # Kubernetes ajoute apiVersion et kind dans les volumeClaimTemplates, que le chart n'écrit
+  # pas : différence permanente, et le self-heal resynchronisait en boucle (problème connu
+  # d'Argo CD avec les StatefulSets). Seuls ces deux champs sont ignorés.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: nats
+      jqPathExpressions:
+        - .spec.volumeClaimTemplates[]?.apiVersion
+        - .spec.volumeClaimTemplates[]?.kind
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [ServerSideApply=true]
