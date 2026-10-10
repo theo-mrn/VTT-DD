@@ -175,8 +175,7 @@ spec:
   monitoring:
     enablePodMonitor: false
 
-  # Archivage continu des WAL et sauvegardes de base (plugin Barman Cloud, backup-prod.yaml).
-  # enabled écrit explicitement : valeur par défaut du CRD, sinon Argo CD voit un écart permanent.
+  # Archivage continu (backup-prod.yaml)
   plugins:
     - name: barman-cloud.cloudnative-pg.io
       enabled: true

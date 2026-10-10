@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
-# Secret R2 de l'archivage continu de la PRODUCTION (WAL et sauvegardes de base du cluster
-# vtt-pg-prod, plugin Barman Cloud), scellé pour le namespace data dans
-# infra/cluster/secrets/prod/data-pg-prod-wal-r2.yaml.
-#
-#   infra/cluster/secrets/seal-wal-prod.sh
-#
-# Bucket et jeton propres à la prod (bucket vtt-pg-prod-wal, jeton R2 limité à ce bucket) :
-# une erreur sur l'archive du staging ne touche pas celle de la prod, et inversement.
-# Les clés sont demandées au clavier sans écho : elles ne passent ni par un fichier ni par
-# l'historique du shell. Seule la version scellée est écrite.
-#
-# Ne touche à aucun autre secret, contrairement à seal-prod.sh qui les fait tous tourner.
+# Scelle le secret R2 de l'archivage WAL de la prod (prod/data-pg-prod-wal-r2.yaml).
+# Clés saisies au clavier ; ne touche à aucun autre secret, contrairement à seal-prod.sh.
 set -euo pipefail
 cd "$(dirname "$0")"
 command -v kubeseal >/dev/null || { echo "kubeseal introuvable" >&2; exit 1; }
