@@ -42,42 +42,56 @@ spec:
           name: identity_owner,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-identity-owner },
         }
       - {
           name: billing_owner,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-billing-owner },
         }
       - {
           name: campaign_owner,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-campaign-owner },
         }
       - {
           name: characters_owner,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-characters-owner },
         }
       - {
           name: dice_owner,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-dice-owner },
         }
       - {
           name: history_owner,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-history-owner },
         }
       - {
           name: audio_owner,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-audio-owner },
         }
       # Rôles des services : données uniquement (DML)
@@ -85,38 +99,64 @@ spec:
           name: identity_svc,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-identity },
         }
       - {
           name: billing_svc,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-billing },
         }
       - {
           name: campaign_svc,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-campaign },
         }
       - {
           name: characters_svc,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-characters },
         }
-      - { name: dice_svc, ensure: present, login: true, passwordSecret: { name: pg-prod-dice } }
+      - {
+          name: dice_svc,
+          ensure: present,
+          login: true,
+          inherit: true,
+          connectionLimit: -1,
+          passwordSecret: { name: pg-prod-dice },
+        }
       - {
           name: history_svc,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           passwordSecret: { name: pg-prod-history },
         }
-      - { name: audio_svc, ensure: present, login: true, passwordSecret: { name: pg-prod-audio } }
+      - {
+          name: audio_svc,
+          ensure: present,
+          login: true,
+          inherit: true,
+          connectionLimit: -1,
+          passwordSecret: { name: pg-prod-audio },
+        }
       - {
           name: backup_ro,
           ensure: present,
           login: true,
+          inherit: true,
+          connectionLimit: -1,
           inRoles: [pg_read_all_data],
           passwordSecret: { name: pg-prod-backup-ro },
         }
