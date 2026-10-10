@@ -1,0 +1,50 @@
+# Archivage continu de la PRODUCTION (cluster vtt-pg-prod) : WAL et sauvegarde de base
+# quotidienne vers R2, comme le staging (backup.yaml), mais dans un bucket et avec un jeton à
+# elle (vtt-pg-prod-wal, secret pg-prod-wal-r2 : infra/cluster/secrets/seal-wal-prod.sh).
+#
+# Avant (jusqu'au 2026-10-10) : seul le dump logique de 03h45 protégeait la prod, soit jusqu'à
+# 24 h de données perdues. Avec les WAL, restauration à la seconde près (pitr.sh).
+# Ne pas se fier à la condition ContinuousArchiving du Cluster : sans plugin, elle valait
+# déjà True (« working ») alors que rien n'était archivé. La preuve est dans le bucket.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: vtt-pg-prod-wal
+  namespace: data
+spec:
+  # Plus long que le staging (7 j) : une corruption de prod peut être remarquée tard
+  retentionPolicy: 14d
+  instanceSidecarConfiguration:
+    resources:
+      requests: { cpu: 10m, memory: 64Mi }
+      limits: { memory: 256Mi }
+  configuration:
+    destinationPath: s3://vtt-pg-prod-wal/
+    endpointURL: https://f00be9d5ebfccacba59c27991e8a41b5.r2.cloudflarestorage.com
+    s3Credentials:
+      accessKeyId: { name: pg-prod-wal-r2, key: ACCESS_KEY_ID }
+      secretAccessKey: { name: pg-prod-wal-r2, key: ACCESS_SECRET_KEY }
+    wal:
+      compression: gzip
+      maxParallel: 2
+    data:
+      compression: gzip
+      jobs: 2
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: vtt-pg-prod-daily
+  namespace: data
+spec:
+  # 04h15 : après celle du staging (04h00), pour ne pas charger les deux en même temps
+  schedule: '0 15 4 * * *'
+  # Une première sauvegarde de base dès la création : sans elle, les WAL archivés ne
+  # serviraient à rien (une restauration part toujours d'une sauvegarde de base)
+  immediate: true
+  backupOwnerReference: self
+  cluster:
+    name: vtt-pg-prod
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io

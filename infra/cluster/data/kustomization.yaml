@@ -6,6 +6,7 @@ resources:
   - postgres-prod.yaml
   - podmonitor.yaml
   - backup.yaml
+  - backup-prod.yaml
 configMapGenerator:
   - name: vtt-pg-init
     files:
