@@ -5,7 +5,7 @@ image:
   tag: 'main'
 # Voix de la table (docs/voix.md) : signalisation seulement, le son passe par Cloudflare
 # Realtime ; salle dans Valkey, une réplique suffit
-replicaCount: 0  # TEMPORAIRE 2026-10-10 : master k3s sature (OOM + datastore), remettre 1 apres correction
+replicaCount: 0 # TEMPORAIRE 2026-10-10 : master k3s sature (OOM + datastore), remettre 1 apres correction
 pdb:
   enabled: false
 autoscaling:
