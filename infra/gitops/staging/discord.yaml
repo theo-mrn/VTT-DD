@@ -4,7 +4,7 @@ image:
   digest: 'sha256:c8cc5c02a4d39ba0a5af7ac064a748fa9fe68a8ae15187dfc282fb95e0e8f461'
   tag: 'main'
 # Bot de dés Discord (docs/discord.md) : sans état, une réplique suffit
-replicaCount: 1
+replicaCount: 0  # TEMPORAIRE 2026-10-10 : master k3s sature (OOM + datastore), remettre 1 apres correction
 pdb:
   enabled: false
 autoscaling:

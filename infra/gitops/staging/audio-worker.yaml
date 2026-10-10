@@ -6,7 +6,7 @@ image:
   tag: 'main'
 # Un réplica, deux jobs à la fois (WORKER_CONCURRENCY) ; plusieurs réplicas resteraient sûrs
 # (SKIP LOCKED), mais ffmpeg est gourmand : on scale la concurrence avant les pods
-replicaCount: 1
+replicaCount: 0  # TEMPORAIRE 2026-10-10 : master k3s sature (OOM + datastore), remettre 1 apres correction
 autoscaling:
   enabled: false
 pdb:

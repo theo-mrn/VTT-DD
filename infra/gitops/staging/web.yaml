@@ -4,7 +4,7 @@ image:
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
-replicaCount: 1
+replicaCount: 0  # TEMPORAIRE 2026-10-10 : master k3s sature (OOM + datastore), remettre 1 apres correction
 pdb:
   enabled: false
 resources:
