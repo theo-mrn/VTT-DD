@@ -218,6 +218,13 @@ spec:
   cluster: { name: vtt-pg }
   instances: 1
   type: rw
+  template:
+    spec:
+      containers:
+        - name: pgbouncer
+          resources:
+            requests: { cpu: 25m, memory: 96Mi }
+            limits: { memory: 256Mi }
   pgbouncer:
     poolMode: transaction
     parameters:
