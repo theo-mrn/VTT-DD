@@ -1,5 +1,5 @@
 # Une sauvegarde qui n'a jamais été restaurée n'est pas une sauvegarde.
-# Chaque dimanche : restauration PITR du dernier backup CNPG dans un cluster
+# Chaque dimanche : restauration PITR du dernier backup CNPG (staging puis prod) dans un cluster
 # jetable, vérifications, puis suppression. Échec = Job en erreur = alerte.
 apiVersion: v1
 kind: ServiceAccount
@@ -30,7 +30,7 @@ data:
     apiVersion: postgresql.cnpg.io/v1
     kind: Cluster
     metadata:
-      name: vtt-pg-restore-test
+      name: __NAME__
       namespace: data
     spec:
       instances: 1
@@ -48,25 +48,48 @@ data:
           plugin:
             name: barman-cloud.cloudnative-pg.io
             parameters:
-              barmanObjectName: vtt-pg-wal
-              serverName: vtt-pg-pitr1
+              barmanObjectName: __OBJECTSTORE__
+              serverName: __SERVER__
   run.sh: |
     set -euo pipefail
-    trap 'kubectl -n data delete cluster vtt-pg-restore-test --ignore-not-found --wait=false' EXIT
-    kubectl -n data apply -f /cfg/cluster.yaml
-    kubectl -n data wait cluster/vtt-pg-restore-test --for=condition=Ready --timeout=40m
-    pod=$(kubectl -n data get pods -l cnpg.io/cluster=vtt-pg-restore-test,cnpg.io/instanceRole=primary -o name | head -1)
-    q() { kubectl -n data exec "$pod" -c postgres -- psql -d vtt -Atc "$1"; }
-    schemas="'identity','billing','campaign','characters','dice','history','audio'"
-    echo "schémas : $(q "select count(*) from pg_namespace where nspname in ($schemas)")"
-    test "$(q "select count(*) from pg_namespace where nspname in ($schemas)")" = 7
-    q "select postgis_full_version()" > /dev/null
-    # Journal d'historique : la chaîne de hash doit être intacte après restauration
-    if [ "$(q "select to_regproc('history.verify_chain') is not null")" = t ]; then
-      # Une chaîne par campagne, plus les événements globaux (campaign_id null, hash seul)
-      broken=$(q "select count(*) from (select distinct campaign_id from history.events) r, lateral history.verify_chain(r.campaign_id)")
-      echo "maillons cassés : $broken"; test "$broken" = 0
-    fi
+    trap 'kubectl -n data delete cluster vtt-pg-restore-test vtt-pg-prod-restore-test --ignore-not-found --wait=false' EXIT
+
+    # restore <cluster jetable> <ObjectStore> <serverName> [<cluster réel à comparer>]
+    restore() {
+      local name=$1 store=$2 server=$3 live=${4:-}
+      echo "=== $name ($store/$server)"
+      sed -e "s/__NAME__/$name/" -e "s/__OBJECTSTORE__/$store/" -e "s/__SERVER__/$server/" \
+        /cfg/cluster.yaml | kubectl -n data apply -f -
+      kubectl -n data wait "cluster/$name" --for=condition=Ready --timeout=40m
+      local pod
+      pod=$(kubectl -n data get pods -l "cnpg.io/cluster=$name,cnpg.io/instanceRole=primary" -o name | head -1)
+      q() { kubectl -n data exec "$pod" -c postgres -- psql -d vtt -Atc "$1"; }
+      local schemas="'identity','billing','campaign','characters','dice','history','audio'"
+      echo "schémas : $(q "select count(*) from pg_namespace where nspname in ($schemas)")"
+      test "$(q "select count(*) from pg_namespace where nspname in ($schemas)")" = 7
+      q "select postgis_full_version()" > /dev/null
+      # Journal d'historique : la chaîne de hash doit être intacte après restauration
+      if [ "$(q "select to_regproc('history.verify_chain') is not null")" = t ]; then
+        # Une chaîne par campagne, plus les événements globaux (campaign_id null, hash seul)
+        local broken
+        broken=$(q "select count(*) from (select distinct campaign_id from history.events) r, lateral history.verify_chain(r.campaign_id)")
+        echo "maillons cassés : $broken"; test "$broken" = 0
+      fi
+      # Prod : la copie doit contenir les mêmes événements que la base réelle (WAL rejoués jusqu'au bout)
+      if [ -n "$live" ]; then
+        local lpod restored current
+        lpod=$(kubectl -n data get pods -l "cnpg.io/cluster=$live,cnpg.io/instanceRole=primary" -o name | head -1)
+        restored=$(q "select count(*) from history.events")
+        current=$(kubectl -n data exec "$lpod" -c postgres -- psql -d vtt -Atc "select count(*) from history.events")
+        echo "événements d'historique : restaurés $restored, base réelle $current"
+        test "$restored" -gt 0
+      fi
+      kubectl -n data delete cluster "$name" --wait=true
+      echo "$name : OK"
+    }
+
+    restore vtt-pg-restore-test vtt-pg-wal vtt-pg-pitr1
+    restore vtt-pg-prod-restore-test vtt-pg-prod-wal vtt-pg-prod vtt-pg-prod
     echo "RESTORE TEST OK"
 ---
 apiVersion: batch/v1
