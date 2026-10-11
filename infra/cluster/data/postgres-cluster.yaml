@@ -182,16 +182,17 @@ spec:
           inRoles: [pg_read_all_data],
           passwordSecret: { name: pg-backup-ro },
         }
-      # Lecture seule, pour consulter les données depuis un poste (kftray + VS Code)
+      # Administrateur, pour travailler sur les données depuis un poste (kftray + VS Code)
       - {
-          name: theo_ro,
+          name: theo,
           ensure: present,
           login: true,
+          superuser: true,
           inherit: true,
           connectionLimit: -1,
-          inRoles: [pg_read_all_data],
-          passwordSecret: { name: pg-theo-ro },
+          passwordSecret: { name: pg-theo },
         }
+      - { name: theo_ro, ensure: absent, inherit: true, connectionLimit: -1 }
 
   # Archivage continu des WAL et sauvegardes de base (plugin Barman Cloud, backup.yaml)
   plugins:
