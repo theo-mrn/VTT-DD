@@ -239,8 +239,18 @@ export async function buildGateway(
       },
       ...optionsWebSocket(prefix),
       replyOptions: {
-        // Propagation de la corrélation ; traceparent est ajouté par l'instrumentation http
-        rewriteRequestHeaders: (req, { [EN_TETE_SECRET_INTERNE]: _secret, ...headers }) => ({
+        // Propagation de la corrélation. L'instrumentation ajoute son traceparent sans retirer
+        // celui du navigateur : relayés tous deux, ils forment une valeur invalide en aval.
+        rewriteRequestHeaders: (
+          req,
+          {
+            [EN_TETE_SECRET_INTERNE]: _secret,
+            traceparent: _traceparent,
+            tracestate: _tracestate,
+            newrelic: _newrelic,
+            ...headers
+          },
+        ) => ({
           ...headers,
           // Une clé d'API brute n'est jamais relayée (routes publiques)
           authorization: /^ApiKey /i.test(headers.authorization ?? '')

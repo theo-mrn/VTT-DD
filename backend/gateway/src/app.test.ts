@@ -66,6 +66,23 @@ describe('gateway', () => {
     expect(lastHeaders['x-request-id']).toBeDefined();
   });
 
+  it('ne relaie pas les en-têtes de trace du navigateur', async () => {
+    const app = await gateway();
+    const res = await app.inject({
+      url: '/v1/campaigns/c1',
+      headers: {
+        authorization: `Bearer ${await token()}`,
+        traceparent: '00-d7afd8b5e0e7ec3d79cc325f9b030c59-6f5c109cc5612e8b-01',
+        tracestate: '8603324@nr=0-1-8603324-538913404-6f5c109cc5612e8b----1791743410143',
+        newrelic: 'eyJ2IjpbMCwxXX0=',
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(lastHeaders.traceparent).toBeUndefined();
+    expect(lastHeaders.tracestate).toBeUndefined();
+    expect(lastHeaders.newrelic).toBeUndefined();
+  });
+
   it("ne relaie plus l'ancien préfixe /v1/rooms", async () => {
     const app = await gateway();
     const res = await app.inject({
