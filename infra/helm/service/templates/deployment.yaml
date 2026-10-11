@@ -3,9 +3,6 @@ kind: Deployment
 metadata:
   name: {{ include "svc.name" . }}
   labels: {{- include "svc.labels" . | nindent 4 }}
-    {{- with .Values.deploymentLabels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}

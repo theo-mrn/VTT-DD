@@ -5,9 +5,6 @@ image:
   tag: 'main'
 # Bot de dés Discord (docs/discord.md) : sans état, une réplique suffit
 replicaCount: 1
-deploymentLabels:
-  sablier.enable: 'true'
-  sablier.group: vtt-staging
 pdb:
   enabled: false
 autoscaling:

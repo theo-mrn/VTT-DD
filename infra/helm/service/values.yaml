@@ -9,8 +9,6 @@ image:
   pullPolicy: IfNotPresent
 
 replicaCount: 2
-# Labels du Deployment (staging : mise en veille par Sablier)
-deploymentLabels: {}
 containerPort: 3000
 
 env: {}

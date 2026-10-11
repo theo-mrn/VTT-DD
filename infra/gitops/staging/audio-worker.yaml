@@ -7,9 +7,6 @@ image:
 # Un réplica, deux jobs à la fois (WORKER_CONCURRENCY) ; plusieurs réplicas resteraient sûrs
 # (SKIP LOCKED), mais ffmpeg est gourmand : on scale la concurrence avant les pods
 replicaCount: 1
-deploymentLabels:
-  sablier.enable: 'true'
-  sablier.group: vtt-staging
 autoscaling:
   enabled: false
 pdb:
