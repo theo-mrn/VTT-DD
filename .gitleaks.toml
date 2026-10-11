@@ -14,4 +14,6 @@ regexes = [
   '''['"]secret-interne-de-test-[0-9a-f]+['"]''',
   # Clé publique d'une application Discord (signature des interactions) : publique par nature
   '''^\s*DISCORD_PUBLIC_KEY:\s*'[0-9a-f]{64}'\s*$''',
+  # Clé navigateur New Relic : servie dans chaque page, elle n'autorise que l'envoi de données
+  '''licenseKey:"NRJS-[0-9a-f]{19}"''',
 ]
