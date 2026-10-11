@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-campaign
-  digest: 'sha256:4e7054ff62536e3525b6aa78716c4d731ae951cdc7807b79aa56bd0f2aa5a50f'
+  digest: 'sha256:349666ef47cbbcc50016013797096ddde4d312d139a133ce4f58a0ff0fcb4e13'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
