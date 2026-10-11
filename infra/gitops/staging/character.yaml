@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-character
-  digest: 'sha256:a5fb8f6c0748be93454d2b113e2b33395449a3795433222ad3f9ffe2b7ec0b45'
+  digest: 'sha256:fda6023c799e5c9c898aa98107e8b765ff0ced9e35d1daf988aa8b3644d1c997'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
