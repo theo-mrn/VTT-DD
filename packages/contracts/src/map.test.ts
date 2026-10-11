@@ -186,12 +186,11 @@ describe('contrat de la carte', () => {
       visibleToPlayers: true,
       primary,
     });
-    expect(MapGrids.safeParse([grid('a', true), grid('b', false, 350)]).success).toBe(true);
+    expect(MapGrids.safeParse([]).success).toBe(true);
+    expect(MapGrids.safeParse([grid('a', true, 350)]).success).toBe(true);
+    expect(MapGrids.safeParse([grid('a', false)]).success).toBe(false);
+    expect(MapGrids.safeParse([grid('a', true), grid('b', false)]).success).toBe(false);
     expect(MapGrids.safeParse([grid('a', true), grid('b', true)]).success).toBe(false);
-    expect(MapGrids.safeParse([grid('a', false), grid('a', false)]).success).toBe(false);
-    expect(MapGrids.safeParse([1, 2, 3, 4, 5].map((i) => grid(`g${i}`, false))).success).toBe(
-      false,
-    );
     expect(scenePixelsPerUnit({ grids: [grid('a', false), grid('b', true, 88)] }, null)).toBe(88);
     expect(scenePixelsPerUnit({ grids: [grid('a', false)] }, { pixelsPerUnit: 64 })).toBe(64);
     expect(scenePixelsPerUnit(null, null)).toBe(50);

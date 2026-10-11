@@ -25,7 +25,7 @@ test('le MJ crée la campagne, le joueur la rejoint par le code avec son héros'
     await mjPage.getByRole('button', { name: 'Continuer' }).click();
     await mjPage
       .getByRole('radiogroup', { name: 'Système de jeu' })
-      .getByRole('radio', { name: /D&D classique/ })
+      .getByRole('radio', { name: /^D&D classique/ })
       .click();
     await mjPage.getByRole('button', { name: 'Continuer' }).click();
     await mjPage.getByRole('button', { name: 'Continuer' }).click();

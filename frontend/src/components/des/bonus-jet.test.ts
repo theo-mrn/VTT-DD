@@ -1,11 +1,11 @@
 /**
- * Bonus du lanceur de dés sur le vrai système D&D (public/systemes) : actifs, capacités à
+ * Bonus du lanceur de dés sur le vrai système D&D (@vtt/systemes) : actifs, capacités à
  * invoquer, inactifs à activer, usages limités.
  */
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { calculer, charger, EtatEntite, Presentation, type EtatEntiteSaisi } from '@vtt/rules';
 import { describe, expect, it } from 'vitest';
+import { SYSTEMES } from '../../test/systemes';
 import {
   avecBonusRetenus,
   bonusAUsage,
@@ -15,12 +15,11 @@ import {
   type BonusJet,
 } from './bonus-jet';
 
-const PUBLIC = fileURLToPath(new URL('../../../public/systemes/', import.meta.url));
-const r = charger(JSON.parse(readFileSync(`${PUBLIC}dnd-classic.json`, 'utf8')));
+const r = charger(JSON.parse(readFileSync(`${SYSTEMES}dnd-classic.json`, 'utf8')));
 if (!r.ok) throw new Error(r.erreurs[0]?.message);
 const systeme = r.systeme;
 const presentation = Presentation.parse(
-  JSON.parse(readFileSync(`${PUBLIC}dnd-classic.presentation.json`, 'utf8')),
+  JSON.parse(readFileSync(`${SYSTEMES}dnd-classic.presentation.json`, 'utf8')),
 );
 
 const fiche = (possessions: EtatEntiteSaisi['possessions']) =>

@@ -155,6 +155,7 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes et membres', () => {
 
   it('le MJ modifie la campagne ; le système ne change plus une fois des personnages engagés', async () => {
     const id = await h.campaign(gm);
+    const avant = await h.ok<Campaign>(gm, 'GET', `/v1/campaigns/${id}`);
     const c = await h.ok<Campaign>(gm, 'PATCH', `/v1/campaigns/${id}`, {
       name: 'Nouvelle table',
       systemId: 'nooblies',
@@ -175,6 +176,7 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes et membres', () => {
       changes: [
         { path: 'name', before: 'La Table', after: 'Nouvelle table' },
         { path: 'systemId', before: 'dnd-classic', after: 'nooblies' },
+        { path: 'systemVersion', before: avant.system.version, after: c.system.version },
       ],
     });
     await h.engage(id, gm, { systemId: 'nooblies' });

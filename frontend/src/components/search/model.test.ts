@@ -1,21 +1,19 @@
 /**
- * Index de la recherche ⌘K sur les vrais systèmes (public/systemes) : rubriques déclarées par
+ * Index de la recherche ⌘K sur les vrais systèmes (@vtt/systemes) : rubriques déclarées par
  * chaque système, classement et recherche sans accents.
  */
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { charger, Presentation, type SystemeCharge } from '@vtt/rules';
 import { describe, expect, it } from 'vitest';
+import { SYSTEMES } from '../../test/systemes';
 import type { BestiaryItem } from '../resources/model/bestiary';
 import { ALL, buildSearchIndex, searchIndex } from './model';
 
-const PUBLIC = fileURLToPath(new URL('../../../public/systemes/', import.meta.url));
-
 function load(id: string): { systeme: SystemeCharge; presentation: Presentation } {
-  const r = charger(JSON.parse(readFileSync(`${PUBLIC}${id}.json`, 'utf8')));
+  const r = charger(JSON.parse(readFileSync(`${SYSTEMES}${id}.json`, 'utf8')));
   if (!r.ok) throw new Error(r.erreurs[0]?.message);
   const presentation = Presentation.parse(
-    JSON.parse(readFileSync(`${PUBLIC}${id}.presentation.json`, 'utf8')),
+    JSON.parse(readFileSync(`${SYSTEMES}${id}.presentation.json`, 'utf8')),
   );
   return { systeme: r.systeme, presentation };
 }
