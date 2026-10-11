@@ -10,11 +10,13 @@ metadata:
   namespace: data
 spec:
   instances: 1
+  # PgBouncer garde ses connexions : sans cela, un arrêt attend 180 s
+  smartShutdownTimeout: 15
   imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
   primaryUpdateStrategy: unsupervised
   # Mesuré sur le staging : ~300 Mo en usage réel
   resources:
-    requests: { cpu: 250m, memory: 512Mi }
+    requests: { cpu: 100m, memory: 512Mi }
     limits: { memory: 1536Mi }
 
   postgresql:

@@ -11,6 +11,8 @@ metadata:
 spec:
   # Passer à 2 ou 3 pour la prod (réplicas, service -ro), jamais par kubectl edit
   instances: 1
+  # PgBouncer garde ses connexions : sans cela, un arrêt attend 180 s
+  smartShutdownTimeout: 15
   # PostgreSQL 17 + PostGIS 3.5, build 177 de CloudNativePG (le tag « 17-3.5 »
   # seul n'existe pas), épinglé par digest. Image publiée en amd64 uniquement :
   # les nœuds k3s qui portent Postgres doivent être en x86_64.
@@ -19,7 +21,7 @@ spec:
   # Réservées : sans elles, la base tombe la première quand son nœud sature (sondes en retard,
   # redémarrage, tous les services sans base). Mémoire : shared_buffers + connexions + marge.
   resources:
-    requests: { cpu: 250m, memory: 1Gi }
+    requests: { cpu: 75m, memory: 1Gi }
     limits: { memory: 2Gi }
 
   postgresql:
