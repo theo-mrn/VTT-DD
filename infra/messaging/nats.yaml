@@ -59,7 +59,7 @@ container:
     # Laisse de la marge au ramasse-miettes sous la limite du conteneur
     GOMEMLIMIT: 900MiB
   resources:
-    requests: { cpu: 100m, memory: 256Mi }
+    requests: { cpu: 25m, memory: 256Mi }
     limits: { memory: 1Gi }
   merge:
     securityContext:

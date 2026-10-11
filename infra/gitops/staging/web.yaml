@@ -8,7 +8,7 @@ replicaCount: 1
 pdb:
   enabled: false
 resources:
-  requests: {cpu: 100m, memory: 256Mi}
+  requests: {cpu: 25m, memory: 256Mi}
   limits: {memory: 768Mi}
 env:
   NODE_ENV: production

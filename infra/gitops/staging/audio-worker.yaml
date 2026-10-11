@@ -36,7 +36,7 @@ envFromSecrets:
 # /tmp : fichiers en cours de traitement (original, transcodage)
 tmpSizeLimit: 1Gi
 resources:
-  requests: {cpu: 250m, memory: 256Mi}
+  requests: {cpu: 50m, memory: 256Mi}
   limits: {cpu: '2', memory: 1Gi}
 probes:
   liveness: /healthz
