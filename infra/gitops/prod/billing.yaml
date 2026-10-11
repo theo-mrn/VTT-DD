@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-billing
-  digest: 'sha256:bbecf896a99ef4818571e3a2195a9e81b610a5abfd59d3ce8e1a103cc1859c35'
+  digest: 'sha256:b908b9a2c9672d13ef79d220ffdd643b9e08a7d85f9e706d11bb4af11400220d'
   tag: 'main'
 # Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -64,7 +64,7 @@ migrations:
   jdbcUrl: 'jdbc:postgresql://vtt-pg-prod-rw.data.svc:5432/vtt'
   image:
     repository: ghcr.io/theo-mrn/vtt-billing-migrations
-    digest: 'sha256:c3039af06648ceb3451cb996e6258bc8b3163fd7bfcfd68a44982bd4f22fb2ae'
+    digest: 'sha256:7d46178b2f49e669f6252d41139415c01ab45001289dad44288f67c3d3a50a5f'
     tag: 'main'
   schema: billing
   # Secret généré par CloudNativePG pour le rôle billing_owner
