@@ -162,6 +162,16 @@ spec:
           inRoles: [pg_read_all_data],
           passwordSecret: { name: pg-prod-backup-ro },
         }
+      # Lecture seule, pour consulter les données depuis un poste (kftray + VS Code)
+      - {
+          name: theo_ro,
+          ensure: present,
+          login: true,
+          inherit: true,
+          connectionLimit: -1,
+          inRoles: [pg_read_all_data],
+          passwordSecret: { name: pg-prod-theo-ro },
+        }
 
   storage:
     size: 20Gi
