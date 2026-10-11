@@ -25,3 +25,42 @@ spec:
                     issuer: https://token.actions.githubusercontent.com
                     subject: 'https://github.com/theo-mrn/VTT-DD/.github/workflows/release.yml@refs/heads/main'
                     rekor: { url: https://rekor.sigstore.dev }
+---
+# Même règle au format ImageValidatingPolicy (CEL), qui remplace ClusterPolicy
+apiVersion: policies.kyverno.io/v1
+kind: ImageValidatingPolicy
+metadata:
+  name: vtt-verify-images
+spec:
+  validationActions: [Deny]
+  failurePolicy: Fail
+  webhookConfiguration:
+    timeoutSeconds: 15
+  matchConstraints:
+    namespaceSelector:
+      matchLabels:
+        kyverno.vtt/verify: 'true'
+    resourceRules:
+      - apiGroups: ['']
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  matchImageReferences:
+    - glob: 'ghcr.io/theo-mrn/vtt-*'
+  validationConfigurations:
+    mutateDigest: true
+    verifyDigest: true
+    required: true
+  attestors:
+    - name: ci
+      cosign:
+        keyless:
+          identities:
+            - issuer: https://token.actions.githubusercontent.com
+              subject: 'https://github.com/theo-mrn/VTT-DD/.github/workflows/release.yml@refs/heads/main'
+        ctlog:
+          url: https://rekor.sigstore.dev
+  validations:
+    - expression: >-
+        images.containers.map(image, verifyImageSignatures(image, [attestors.ci])).all(e, e > 0)
+      message: image non signée par la CI de VTT-DD (release.yml sur main)
