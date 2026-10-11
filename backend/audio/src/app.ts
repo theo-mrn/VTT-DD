@@ -1,4 +1,4 @@
-import { createService, type ServiceOptions, withoutTrailingSlashes } from '@vtt/platform';
+import { createDatabaseService, type ServiceOptions, withoutTrailingSlashes } from '@vtt/platform';
 import { sql } from 'drizzle-orm';
 import { createCatalog, type Catalog } from './catalog/index.js';
 import { campaignRights, noCampaigns } from './clients/campaign.js';
@@ -41,24 +41,12 @@ export async function buildAudio(
     random,
     ...options
   } = extra;
-  if (!config.JWKS_URL && !options.authKeyResolver) {
-    throw new Error('Configuration invalide : JWKS_URL est requis pour vérifier les jetons');
-  }
   const connection = providedDb ? null : createDb(config.DATABASE_URL);
   const db = providedDb ?? connection!.db;
-
-  const app = await createService({
-    config,
-    ...options,
-    readiness: {
-      postgres: async () => {
-        await db.execute(sql`select 1`);
-        return true;
-      },
-      ...options.readiness,
-    },
-    onShutdown: [...(options.onShutdown ?? []), async () => connection?.pool.end()],
-  });
+  const app = await createDatabaseService(
+    { config, ...options },
+    { ping: () => db.execute(sql`select 1`), close: async () => connection?.pool.end() },
+  );
 
   const secret = config.INTERNAL_API_SECRET;
   if (!secret || !config.CAMPAIGN_URL)

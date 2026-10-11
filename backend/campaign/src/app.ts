@@ -1,5 +1,5 @@
 import {
-  createService,
+  createDatabaseService,
   registerStorageReferences,
   type ServiceOptions,
   Uploads,
@@ -49,24 +49,12 @@ export async function buildCampaign(
     places,
     ...options
   } = extra;
-  if (!config.JWKS_URL && !options.authKeyResolver) {
-    throw new Error('Configuration invalide : JWKS_URL est requis pour vérifier les jetons');
-  }
   const connection = providedDb ? null : createDb(config.DATABASE_URL);
   const db = providedDb ?? connection!.db;
-
-  const app = await createService({
-    config,
-    ...options,
-    readiness: {
-      postgres: async () => {
-        await db.execute(sql`select 1`);
-        return true;
-      },
-      ...options.readiness,
-    },
-    onShutdown: [...(options.onShutdown ?? []), async () => connection?.pool.end()],
-  });
+  const app = await createDatabaseService(
+    { config, ...options },
+    { ping: () => db.execute(sql`select 1`), close: async () => connection?.pool.end() },
+  );
 
   const s3Signer = signer ?? createS3Signer(config);
   const deps: Deps = {

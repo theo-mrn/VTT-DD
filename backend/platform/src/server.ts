@@ -47,6 +47,36 @@ declare module 'fastify' {
  * → auth JWT → idempotence → routes, avec logs JSON corrélés aux traces,
  * erreurs RFC 9457, OpenAPI généré depuis les schémas Zod, sondes k8s.
  */
+/**
+ * Service adossé à Postgres : /readyz interroge la base (`ping`), l'arrêt ferme sa connexion
+ * (`close`), après les fermetures du service. JWKS_URL est requis, sauf résolveur de clé fourni
+ * (tests).
+ */
+export async function createDatabaseService(
+  opts: ServiceOptions & { config: BaseConfig & { JWKS_URL?: string | undefined } },
+  db: { ping(): Promise<unknown>; close(): Promise<unknown> },
+) {
+  if (!opts.config.JWKS_URL && !opts.authKeyResolver) {
+    throw new Error('Configuration invalide : JWKS_URL est requis pour vérifier les jetons');
+  }
+  return createService({
+    ...opts,
+    readiness: {
+      postgres: async () => {
+        await db.ping();
+        return true;
+      },
+      ...opts.readiness,
+    },
+    onShutdown: [
+      ...(opts.onShutdown ?? []),
+      async () => {
+        await db.close();
+      },
+    ],
+  });
+}
+
 export async function createService(opts: ServiceOptions) {
   const c = opts.config;
 
