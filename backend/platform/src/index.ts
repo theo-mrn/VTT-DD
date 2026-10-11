@@ -21,3 +21,4 @@ export * from './storage.js';
 export * from './internal-secret.js';
 export * from './orphans.js';
 export * from './strings.js';
+export * from './campaign-rights.js';
