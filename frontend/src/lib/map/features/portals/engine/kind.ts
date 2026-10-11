@@ -30,7 +30,7 @@ import {
   type MenuItem,
 } from '@/lib/map/engine/entities/entity-kind';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { updateCommand, type Persistence } from '@/lib/map/store/commands';
+import { patchChanges, updateCommand, type Persistence } from '@/lib/map/store/commands';
 import type { MapDto } from '@/lib/map/store/map-store';
 import type { PortalApi } from './api';
 import {
@@ -70,14 +70,7 @@ export function patchPortals(
   patch: (p: PortalData) => Partial<PortalData>,
   label: string,
 ) {
-  const changes = entities.flatMap((e) => {
-    const before = portalOf(e);
-    const p = patch(before);
-    const changed = Object.entries(p).some(
-      ([k, v]) => JSON.stringify((before as Record<string, unknown>)[k]) !== JSON.stringify(v),
-    );
-    return changed ? [{ before: before as MapDto, after: { ...before, ...p } as MapDto }] : [];
-  });
+  const changes = patchChanges(entities.map(portalOf), patch);
   if (!changes.length) return null;
   return ctx.engine.execute(
     updateCommand({ label, collection: PORTALS, persistence: ctx.persistence, changes }),

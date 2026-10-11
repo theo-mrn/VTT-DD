@@ -14,6 +14,7 @@ import { translate } from '@/i18n/runtime';
 import { Lightbulb, LightbulbOff, Link2, Link2Off, SlidersHorizontal, Trash2 } from 'lucide-react';
 import type { Container, Graphics, GraphicsContext } from 'pixi.js';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
+import { iconFrame } from '@/lib/map/engine/entities/icon-frame';
 import {
   isGm,
   type EntityAction,
@@ -24,7 +25,7 @@ import {
 } from '@/lib/map/engine/entities/entity-kind';
 import type { Point } from '@/lib/map/engine/geometry';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { updateCommand, type Persistence } from '@/lib/map/store/commands';
+import { patchChanges, updateCommand, type Persistence } from '@/lib/map/store/commands';
 import type { MapDto } from '@/lib/map/store/map-store';
 import {
   OverlayRedraw,
@@ -58,14 +59,7 @@ export function patchLights(
   patch: (l: LightData) => Partial<LightData>,
   label: string,
 ) {
-  const changes = entities.flatMap((e) => {
-    const before = lightOf(e);
-    const p = patch(before);
-    const changed = Object.entries(p).some(
-      ([k, v]) => JSON.stringify((before as Record<string, unknown>)[k]) !== JSON.stringify(v),
-    );
-    return changed ? [{ before: before as MapDto, after: { ...before, ...p } as MapDto }] : [];
-  });
+  const changes = patchChanges(entities.map(lightOf), patch);
   if (!changes.length) return null;
   return ctx.engine.execute(
     updateCommand({ label, collection: LIGHTS, persistence: ctx.persistence, changes }),
@@ -218,20 +212,7 @@ export class LightView {
     };
     const R = LIGHT_ICON_PX;
     this.contexts = {
-      base: make((c, t) =>
-        c
-          .circle(0, 0, R)
-          .fill({ color: t.background, alpha: 0.9 })
-          .stroke({ width: 1.5, color: t.muted }),
-      ),
-      selected: make((c, t) =>
-        c
-          .circle(0, 0, R + 3)
-          .stroke({ width: 2, color: t.primary })
-          .circle(0, 0, R)
-          .fill({ color: t.background, alpha: 0.9 })
-          .stroke({ width: 1.5, color: t.primary }),
-      ),
+      ...iconFrame(make, R),
       // Blanc : teinté de la couleur de la lumière
       on: make((c) => {
         c.circle(0, 0, 4.5).fill({ color: 0xffffff });

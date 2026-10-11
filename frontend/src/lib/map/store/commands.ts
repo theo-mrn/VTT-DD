@@ -150,6 +150,23 @@ interface CollectionCommand<D extends MapDto> {
   persistence: Persistence<D>;
 }
 
+/**
+ * Changements d'éléments par un correctif de leurs données : seuls ceux qu'il change vraiment
+ * (comparaison champ par champ), prêts pour `updateCommand`.
+ */
+export function patchChanges<T extends { id: string; version: number }>(
+  items: readonly T[],
+  patch: (item: T) => Partial<T>,
+): { before: MapDto; after: MapDto }[] {
+  return items.flatMap((before) => {
+    const p = patch(before);
+    const changed = Object.entries(p).some(
+      ([k, v]) => JSON.stringify((before as Record<string, unknown>)[k]) !== JSON.stringify(v),
+    );
+    return changed ? [{ before: before as MapDto, after: { ...before, ...p } as MapDto }] : [];
+  });
+}
+
 /** Modifie des éléments d'une couche (déplacer, verrouiller, masquer, propriétés…). */
 export function updateCommand<D extends MapDto>(
   opts: CollectionCommand<D> & { changes: readonly { before: D; after: D }[] },

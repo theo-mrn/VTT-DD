@@ -12,6 +12,7 @@ import { translate } from '@/i18n/runtime';
 import { Play, Square } from 'lucide-react';
 import type { Container, Graphics, GraphicsContext } from 'pixi.js';
 import type { MapEntity } from '@/lib/map/engine/entities/entity';
+import { iconFrame } from '@/lib/map/engine/entities/icon-frame';
 import {
   isGm,
   type EntityAction,
@@ -22,7 +23,12 @@ import {
 } from '@/lib/map/engine/entities/entity-kind';
 import type { Point } from '@/lib/map/engine/geometry';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { createCommand, updateCommand, type Persistence } from '@/lib/map/store/commands';
+import {
+  createCommand,
+  patchChanges,
+  updateCommand,
+  type Persistence,
+} from '@/lib/map/store/commands';
 import type { MapDto } from '@/lib/map/store/map-store';
 import {
   OverlayRedraw,
@@ -58,14 +64,7 @@ export function patchZones(
   patch: (z: SoundZoneData) => Partial<SoundZoneData>,
   label: string,
 ) {
-  const changes = entities.flatMap((e) => {
-    const before = zoneOf(e);
-    const p = patch(before);
-    const changed = Object.entries(p).some(
-      ([k, v]) => JSON.stringify((before as Record<string, unknown>)[k]) !== JSON.stringify(v),
-    );
-    return changed ? [{ before: before as MapDto, after: { ...before, ...p } as MapDto }] : [];
-  });
+  const changes = patchChanges(entities.map(zoneOf), patch);
   if (!changes.length) return null;
   return ctx.engine.execute(
     updateCommand({ label, collection: SOUND_ZONES, persistence: ctx.persistence, changes }),
@@ -249,20 +248,7 @@ export class SoundZoneView {
       c.stroke({ width: 1.6, color: 0xffffff, cap: 'round', join: 'round' });
     };
     this.contexts = {
-      base: make((c, t) =>
-        c
-          .circle(0, 0, R)
-          .fill({ color: t.background, alpha: 0.9 })
-          .stroke({ width: 1.5, color: t.muted }),
-      ),
-      selected: make((c, t) =>
-        c
-          .circle(0, 0, R + 3)
-          .stroke({ width: 2, color: t.primary })
-          .circle(0, 0, R)
-          .fill({ color: t.background, alpha: 0.9 })
-          .stroke({ width: 1.5, color: t.primary }),
-      ),
+      ...iconFrame(make, R),
       on: make((c) => note(c)),
       off: make((c) => {
         note(c);

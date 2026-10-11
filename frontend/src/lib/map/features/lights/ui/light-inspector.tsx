@@ -6,7 +6,6 @@
  */
 import { translate } from '@/i18n/runtime';
 import { useEffect, useId, useState } from 'react';
-import { Input } from '@/components/ui/input';
 import { SelectField } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import type { InspectorSectionProps } from '@/lib/map/engine/map-engine';
@@ -21,7 +20,12 @@ import {
 } from '../engine/model';
 import { lightContextOf } from '../engine/register';
 import { useMapState } from '@/components/map/engine-context';
-import { FieldRow, RangeField, Swatches } from '@/lib/map/features/obstacles/ui/controls';
+import {
+  FieldRow,
+  NameField,
+  RangeField,
+  Swatches,
+} from '@/lib/map/features/obstacles/ui/controls';
 import { formatDistance } from '@/lib/map/engine/distance';
 
 const percent = (v: number) => `${Math.round(v * 100)} %`;
@@ -57,25 +61,13 @@ export function LightInspector({ engine, entities }: Readonly<InspectorSectionPr
   return (
     <div className="space-y-4">
       {entities.length === 1 && (
-        <div className="space-y-1.5">
-          <label htmlFor={`${id}-name`} className="text-[13px] text-foreground">
-            {translate('map.lights.name')}
-          </label>
-          <Input
-            id={`${id}-name`}
-            value={name}
-            maxLength={200}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={commitName}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                commitName();
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-          />
-        </div>
+        <NameField
+          id={`${id}-name`}
+          label={translate('map.lights.name')}
+          value={name}
+          onChange={setName}
+          onCommit={commitName}
+        />
       )}
 
       <FieldRow

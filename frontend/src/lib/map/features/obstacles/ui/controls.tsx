@@ -10,6 +10,7 @@ import { Check, Pipette } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { EditableValue } from '@/components/ui/editable-value';
+import { Input } from '@/components/ui/input';
 import { Kbd } from '@/components/ui/kbd';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
@@ -87,6 +88,46 @@ export function FieldRow({
         {children}
       </div>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+/**
+ * Nom d'un élément dans son inspecteur : enregistré en quittant le champ ou par Entrée
+ * (`onCommit`), jamais à chaque frappe.
+ */
+export function NameField({
+  id,
+  label,
+  value,
+  onChange,
+  onCommit,
+}: Readonly<{
+  id: string;
+  label: string;
+  value: string;
+  onChange(value: string): void;
+  onCommit(): void;
+}>) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-[13px] text-foreground">
+        {label}
+      </label>
+      <Input
+        id={id}
+        value={value}
+        maxLength={200}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onCommit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            onCommit();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+      />
     </div>
   );
 }

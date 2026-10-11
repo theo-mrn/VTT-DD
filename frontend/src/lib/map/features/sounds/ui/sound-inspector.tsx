@@ -6,13 +6,12 @@
  */
 import { translate } from '@/i18n/runtime';
 import { useEffect, useId, useState } from 'react';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import type { InspectorSectionProps } from '@/lib/map/engine/map-engine';
 import { patchZones } from '../engine/kind';
 import { RADIUS_RANGE, type SoundZoneData } from '../engine/model';
 import { soundContextOf } from '../engine/register';
-import { FieldRow, RangeField } from '@/lib/map/features/obstacles/ui/controls';
+import { FieldRow, NameField, RangeField } from '@/lib/map/features/obstacles/ui/controls';
 import { SoundPicker } from './sound-picker';
 import { formatDistance } from '@/lib/map/engine/distance';
 
@@ -44,25 +43,13 @@ export function SoundInspector({ engine, entities }: Readonly<InspectorSectionPr
   return (
     <div className="space-y-4">
       {entities.length === 1 && (
-        <div className="space-y-1.5">
-          <label htmlFor={`${id}-name`} className="text-[13px] text-foreground">
-            {translate('map.lights.name')}
-          </label>
-          <Input
-            id={`${id}-name`}
-            value={name}
-            maxLength={200}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={commitName}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                commitName();
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-          />
-        </div>
+        <NameField
+          id={`${id}-name`}
+          label={translate('map.lights.name')}
+          value={name}
+          onChange={setName}
+          onCommit={commitName}
+        />
       )}
 
       <FieldRow label={translate('map.sounds.playing')} htmlFor={`${id}-on`}>
