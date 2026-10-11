@@ -64,7 +64,7 @@ import {
   viewerVision,
   type Audience,
 } from './vision.js';
-import type { MemberVision } from './vision-rules.js';
+import type { MemberVision } from '@vtt/vision';
 import { queueExploration } from './exploration-queue.js';
 
 export type TokenRow = typeof mapTokens.$inferSelect;
@@ -103,7 +103,7 @@ const BOOST = 3;
 
 /**
  * Tokens présents sur la carte que l'appelant voit ; `null` pour le MJ (tout). Règles :
- * `vision-rules.ts` (ligne de vue, pièces fermées, brouillard, lumières, calques masqués).
+ * `map-rules.ts` de `@vtt/vision` (ligne de vue, pièces fermées, brouillard, lumières, calques masqués).
  */
 export async function visibleTokenIds(
   db: Db | Tx,

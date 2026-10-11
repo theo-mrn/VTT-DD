@@ -10,7 +10,7 @@
  *   mais n'est jamais gardée (elle pourrait être annulée).
  * - Lumières, tokens (observateurs), calques masqués et réglages : relus à chaque appel ; la
  *   scène éclairée (`withLights`) est gardée tant que les lumières ne bougent pas.
- * - Règles : `vision-rules.ts` (miroir exact du client).
+ * - Règles : `map-rules.ts` de `@vtt/vision`, les mêmes que le client.
  */
 import {
   pointInPolygon,
@@ -51,7 +51,7 @@ import {
   type VisionMember,
   type VisionObject,
   type VisionToken,
-} from './vision-rules.js';
+} from '@vtt/vision';
 
 type Conn = Db | Tx;
 

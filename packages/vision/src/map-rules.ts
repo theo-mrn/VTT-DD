@@ -1,39 +1,28 @@
 /**
- * Règles de visibilité de la carte sur `@vtt/vision` (docs/carte.md § 9), sans base de données :
- * conversion des éléments de la carte en scène de visibilité, observateurs d'un joueur, et ce
- * qu'il voit (tokens, objets). Le client en a le miroir exact
- * (`frontend/src/lib/map/features/vision/engine/rules.ts`) : mêmes entrées, mêmes réponses, mêmes tests.
+ * Règles de visibilité de la carte (docs/carte.md § 9), sans base de données ni DOM : conversion
+ * des éléments de la carte en scène de visibilité, observateurs d'un joueur, et ce qu'il voit
+ * (tokens, objets). Une seule source, lue par le service campaign (ce qu'un joueur reçoit) et par
+ * le navigateur (ce qui est affiché) : ce qui est affiché est donc ce qui est envoyé.
  *
  * Ce qu'un joueur voit :
  * - ses observateurs : ses tokens (possédés ou incarnés, sauf `invisible`) et les tokens `ally`
  *   hors d'un calque masqué ; rayon `visionRadius` tel qu'enregistré (déjà triplé par
  *   « Vision augmentée ») ;
- * - `Vu(joueur) = ⋃ Vu(O)` (paquet `@vtt/vision`) ; un token `hidden` n'est vu que dans un rayon
- *   de vision ou une zone éclairée : même formule sur la scène entièrement sous le brouillard ;
+ * - `Vu(joueur) = ⋃ Vu(O)` ; un token `hidden` n'est vu que dans un rayon de vision ou une zone
+ *   éclairée : même formule sur la scène entièrement sous le brouillard ;
  * - sans observateur sur la carte (spectateur, personnage ailleurs) : vue « d'en haut », hors
  *   du brouillard et des pièces fermées, plus les zones éclairées ; aucune ombre de mur ;
  * - réglage d'affichage `obstacles: false` (MJ) : murs et pièces sans effet, comme avant.
  */
-import {
-  inFog,
-  innermostRoom,
-  playerView,
-  pointInPolygon,
-  sampleCircle,
-  sampleRect,
-  segmentsFromPolyline,
-  type FogZone,
-  type Light,
-  type LightArea,
-  type PreparedScene,
-  type Room,
-  type Segment,
-  type Vec,
-  type View,
-  type Viewer,
-  type VisionScene,
-} from '@vtt/vision';
-import { compareCodeUnits } from '@vtt/contracts';
+import { pointInPolygon } from './geometry.js';
+import { inFog, innermostRoom, type PreparedScene } from './prepare.js';
+import { sampleCircle, sampleRect } from './sampling.js';
+import { segmentsFromPolyline } from './segments.js';
+import type { FogZone, Light, Room, Segment, Vec, Viewer, VisionScene } from './types.js';
+import { playerView, type LightArea, type View } from './view.js';
+
+/** Ordre des unités de code (sans dépendance vers les contrats). */
+const compareCodeUnits = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** Taille de la carte tant que son fond n'est pas connu (la vue y est bornée). */
 export const DEFAULT_MAP_SIZE = 100_000;

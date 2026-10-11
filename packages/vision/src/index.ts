@@ -69,3 +69,6 @@ export {
   type ExplorationShape,
   type MarkStats,
 } from './exploration.js';
+
+// Règles de la carte (tokens, objets, observateurs), communes au service campaign et au navigateur
+export * from './map-rules.js';

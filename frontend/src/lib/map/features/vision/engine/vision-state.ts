@@ -45,7 +45,7 @@ import {
   type MemberVision,
   type VisionMember,
   type VisionToken,
-} from './rules';
+} from '@vtt/vision';
 import {
   geometryInput,
   geometryKey,

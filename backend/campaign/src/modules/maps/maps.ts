@@ -77,7 +77,7 @@ import { listTokens } from './tokens.js';
 import { explorationFor } from './exploration.js';
 import { queueExploration } from './exploration-queue.js';
 import { lineOfSight, notifyVisibilityChanged, viewerVision } from './vision.js';
-import { occlusionOn } from './vision-rules.js';
+import { occlusionOn } from '@vtt/vision';
 
 export const mapApi = (m: MapRow): MapScene => ({
   id: m.id,

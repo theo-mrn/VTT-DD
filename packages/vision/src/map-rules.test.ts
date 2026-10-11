@@ -2,7 +2,7 @@
  * Règles de visibilité du serveur (vision-rules.ts), sans base : mêmes cas que le miroir du
  * client (frontend/src/lib/map/features/vision/engine/rules.test.ts).
  */
-import { prepareScene, withLights } from '@vtt/vision';
+import { prepareScene, withLights } from './prepare.js';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MAP_SIZE,
@@ -15,7 +15,7 @@ import {
   type LightInput,
   type VisionObject,
   type VisionToken,
-} from './vision-rules.js';
+} from './map-rules.js';
 
 const square = (x: number, y: number, w: number) => [
   { x, y },

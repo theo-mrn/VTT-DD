@@ -20,7 +20,7 @@ import type {
   TokenVisibility,
   VisionObject,
   VisionToken,
-} from './rules';
+} from '@vtt/vision';
 
 const num = (v: unknown, fallback: number) =>
   typeof v === 'number' && Number.isFinite(v) ? v : fallback;

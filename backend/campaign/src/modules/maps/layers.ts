@@ -71,7 +71,7 @@ import {
   portalBeforeWrite,
   portalForPlayer,
 } from './portal-links.js';
-import type { MemberVision } from './vision-rules.js';
+import type { MemberVision } from '@vtt/vision';
 import {
   eventTarget,
   lostSight,

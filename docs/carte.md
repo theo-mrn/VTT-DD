@@ -848,10 +848,9 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
 - **Occlusion coupée** : le réglage d'affichage `obstacles: false` du MJ rend murs et pièces
   sans effet, comme l'ancienne carte. Les réglages `fog` et `lights` ne cachent que le dessin
   (brume, lueurs), jamais la règle.
-- **Une seule écriture des règles** : `packages/vision` pour la géométrie ; conversion et règles
-  des entités dans `backend/campaign/src/modules/maps/vision-rules.ts`, dont
-  `frontend/src/lib/map/features/vision/engine/rules.ts` est la copie exacte (un test compare les deux
-  fichiers et rejoue les mêmes cas des deux côtés).
+- **Une seule écriture des règles** : `packages/vision`, pour la géométrie comme pour la
+  conversion et les règles des entités (`map-rules.ts`), lues telles quelles par le service
+  campaign et par le navigateur.
 - **Personnages joueurs** : toujours vus. Hors de ma vue, ils sont dans le plan `allies` à 60 %
   (moteur : `setPlaneOverride`), comme les alliés, mes propres tokens et les `custom` qui me
   visent.
@@ -990,7 +989,7 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 
 ### Serveur
 
-- **Filtrage** (`backend/campaign/src/modules/maps/vision.ts`, règles : `vision-rules.ts`) sur
+- **Filtrage** (`backend/campaign/src/modules/maps/vision.ts`, règles : `packages/vision/src/map-rules.ts`) sur
   `@vtt/vision`, plus de `ST_Intersects` : tokens `visible` et `hidden`, objets (non décor),
   calques masqués, `GET …/line-of-sight`. Le chargement garde le filtre `bbox` sur les index
   GiST. La scène préparée est gardée en mémoire par carte (LRU de 64) sous une empreinte relue
