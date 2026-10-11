@@ -46,3 +46,14 @@ spec:
         retry:
           limit: 5
           backoff: { duration: 10s, factor: 2, maxDuration: 3m }
+  # Staging seulement : Sablier gère le nombre de réplicas
+  templatePatch: |
+    {{- if eq (index .path.segments 2) "staging" }}
+    spec:
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jsonPointers: [/spec/replicas]
+      syncPolicy:
+        syncOptions: [CreateNamespace=true, ServerSideApply=true, RespectIgnoreDifferences=true]
+    {{- end }}

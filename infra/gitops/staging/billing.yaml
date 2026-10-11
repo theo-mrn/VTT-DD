@@ -6,6 +6,9 @@ image:
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
 replicaCount: 1
+deploymentLabels:
+  sablier.enable: 'true'
+  sablier.group: vtt-staging
 pdb:
   enabled: false
 env:
