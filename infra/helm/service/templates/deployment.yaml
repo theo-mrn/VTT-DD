@@ -68,16 +68,20 @@ spec:
             - secretRef: { name: {{ .name }} }
             {{- end }}
           {{- end }}
+          # Timeouts larges : à 1 s (défaut), un nœud chargé faisait tuer des pods sains
           startupProbe:
             httpGet: { path: {{ .Values.probes.liveness }}, port: http }
-            periodSeconds: 2
-            failureThreshold: 30
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 40
           livenessProbe:
             httpGet: { path: {{ .Values.probes.liveness }}, port: http }
             periodSeconds: 10
+            timeoutSeconds: 5
           readinessProbe:
             httpGet: { path: {{ .Values.probes.readiness }}, port: http }
             periodSeconds: 5
+            timeoutSeconds: 3
             failureThreshold: 2
           resources: {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
