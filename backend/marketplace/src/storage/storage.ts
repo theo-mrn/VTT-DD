@@ -72,7 +72,7 @@ export function createS3PackStorage(settings: StorageSettings): PackStorage | un
         new CopyObjectCommand({
           Bucket: bucket,
           Key: targetKey,
-          CopySource: `${bucket}/${encodeURIComponent(sourceKey).replace(/%2F/g, '/')}`,
+          CopySource: `${bucket}/${encodeURIComponent(sourceKey).replaceAll('%2F', '/')}`,
           ContentType: contentType,
           MetadataDirective: 'REPLACE',
           // Fichier immuable : le CDN peut le garder longtemps

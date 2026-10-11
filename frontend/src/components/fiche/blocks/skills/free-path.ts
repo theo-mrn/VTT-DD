@@ -111,7 +111,7 @@ export function freeId(nom: string, pris: ReadonlySet<string>): string {
       .replace(/^-|-$/g, '')
       .slice(0, 40) || 'entree';
   for (;;) {
-    const id = `${PREFIXE_ENTREE_LIBRE}${base}-${Math.random().toString(36).slice(2, 6)}`;
+    const id = `${PREFIXE_ENTREE_LIBRE}${base}-${crypto.randomUUID().slice(0, 4)}`;
     if (!pris.has(id)) return id;
   }
 }

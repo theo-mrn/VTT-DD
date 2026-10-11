@@ -179,8 +179,15 @@ export function normalizeText(text: string): string {
 }
 
 /** Adresse lisible (`les-cryptes-de-sel`), 60 caractères au plus. */
+/** Texte sans ses tirets de fin (« pack-- » → « pack »), sans expression régulière. */
+export function trimTrailingDashes(s: string): string {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === '-') end--;
+  return s.slice(0, end);
+}
+
 export function slugify(text: string): string {
-  return normalizeText(text).replace(/\s+/g, '-').slice(0, 60).replace(/-+$/, '') || 'pack';
+  return trimTrailingDashes(normalizeText(text).replace(/\s+/g, '-').slice(0, 60)) || 'pack';
 }
 
 export const Slug = z

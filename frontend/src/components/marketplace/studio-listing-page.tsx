@@ -6,6 +6,7 @@
  * notes, soumission à la revue, historique et motifs de refus).
  */
 import {
+  compareCodeUnits,
   CONTENT_WARNINGS,
   LICENSES,
   nextVersionNumber,
@@ -213,7 +214,10 @@ function ListingForm({
     if (attribution.trim() !== listing.attribution) p.attribution = attribution.trim();
     const t = parseTags(tags);
     if (t.join(',') !== listing.tags.join(',')) p.tags = t;
-    if ([...warnings].sort().join() !== [...listing.contentWarnings].sort().join())
+    if (
+      [...warnings].sort(compareCodeUnits).join() !==
+      [...listing.contentWarnings].sort(compareCodeUnits).join()
+    )
       p.contentWarnings = warnings;
     if (priceCents !== null && priceCents !== listing.priceCents) p.priceCents = priceCents;
     return p;

@@ -468,8 +468,9 @@ export async function readProgression(
   db: Db,
   userId: string,
   now: Date = new Date(),
-  ctx: EventContext = { correlationId: crypto.randomUUID() },
+  contexte?: EventContext,
 ): Promise<ProgressionView> {
+  const ctx = contexte ?? { correlationId: crypto.randomUUID() };
   // Premier affichage : le compte démarre à son niveau d'avant
   await db.transaction((tx) => ensureProgress(tx, ctx, userId));
   const periods = periodsAt(now);

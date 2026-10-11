@@ -1,5 +1,5 @@
 /** Adresses lisibles uniques (`les-cryptes-de-sel`, `les-cryptes-de-sel-2`…). */
-import { slugify } from '@vtt/contracts';
+import { slugify, trimTrailingDashes } from '@vtt/contracts';
 import { like, or, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import type { Tx } from '../db/outbox.js';
@@ -11,7 +11,7 @@ export async function uniqueSlug(
   table: 'listings' | 'creators',
   text: string,
 ): Promise<string> {
-  const base = slugify(text).slice(0, 72).replace(/-+$/, '') || 'pack';
+  const base = trimTrailingDashes(slugify(text).slice(0, 72)) || 'pack';
   const column = table === 'listings' ? listings.slug : creators.slug;
   const source = table === 'listings' ? listings : creators;
   const taken = new Set(

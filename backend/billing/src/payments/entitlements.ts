@@ -8,7 +8,7 @@
  * croissante (billing.entitlements_changed). dice et identity l'appliquent ;
  * un service arrêté rattrape au redémarrage (bus durable).
  */
-import { ENTITLEMENTS_CHANGED, uuidv7, type Actor } from '@vtt/contracts';
+import { compareCodeUnits, ENTITLEMENTS_CHANGED, uuidv7, type Actor } from '@vtt/contracts';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { appendEvent, type EventContext, type Tx } from '../db/outbox.js';
@@ -105,7 +105,7 @@ export async function rightsOf(db: Db | Tx, userId: string): Promise<Rights> {
     .from(entitlements)
     .where(and(eq(entitlements.userId, userId), isNull(entitlements.revokedAt)));
   const items = (kind: EntitlementKind) =>
-    [...new Set(rows.filter((r) => r.kind === kind).map((r) => r.itemId))].sort();
+    [...new Set(rows.filter((r) => r.kind === kind).map((r) => r.itemId))].sort(compareCodeUnits);
   return {
     premium: rows.some((r) => r.kind === 'premium'),
     diceSkins: items('dice_skin'),

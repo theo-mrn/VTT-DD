@@ -8,7 +8,7 @@
  * activités pour chaque joueur concerné. Une relivraison est reconnue et
  * ignorée ; un événement sans activité n'écrit rien.
  */
-import type { EventEnvelope } from '@vtt/contracts';
+import { compareCodeUnits, type EventEnvelope } from '@vtt/contracts';
 import { consumeEvents, type Bus, type ConsumeOptions } from '@vtt/platform';
 import type { Db } from '../../db/client.js';
 import type { EventContext } from '../../db/outbox.js';
@@ -63,7 +63,7 @@ export async function handleProgressionEvent(
 
     const users: Record<string, RecordResult> = {};
     // Ordre stable des verrous : deux événements croisés (amis) ne s'interbloquent pas
-    for (const userId of [...byUser.keys()].sort()) {
+    for (const userId of [...byUser.keys()].sort(compareCodeUnits)) {
       const r = await recordActivitiesInTx(tx, ctx, userId, byUser.get(userId)!, at);
       if (r) users[userId] = r;
     }

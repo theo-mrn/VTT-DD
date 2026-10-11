@@ -8,13 +8,26 @@
 import type { SheetEntry, SheetReading } from '@vtt/contracts';
 import type { Attribut, Entree, Sorte, SystemeCharge } from '@vtt/rules';
 
+/** Texte sans ce qui est entre parenthèses (marques de fiche : « (L) », « (prestige) »). */
+function withoutParentheses(s: string): string {
+  let out = '';
+  let depth = 0;
+  for (const c of s) {
+    if (c === '(') depth++;
+    else if (c === ')') depth = Math.max(0, depth - 1);
+    else if (depth === 0) out += c;
+  }
+  return out;
+}
+
 /** Texte comparable : minuscules, sans accents ni ponctuation, marques de fiche retirées. */
 export function plain(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, ' ')
+  return withoutParentheses(
+    s
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase(),
+  )
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
@@ -79,7 +92,7 @@ export interface SheetDetection {
 
 /** Noms sous lesquels un attribut se reconnaît. */
 const attributeNames = (a: Attribut) =>
-  [a.cle, a.cle.replace(/_/g, ' '), a.nom, 'abrege' in a ? a.abrege : undefined]
+  [a.cle, a.cle.replaceAll('_', ' '), a.nom, 'abrege' in a ? a.abrege : undefined]
     .filter((x): x is string => !!x)
     .map(plain);
 
