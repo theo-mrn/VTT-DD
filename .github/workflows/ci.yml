@@ -296,6 +296,17 @@ jobs:
       - name: SonarQube non configuré
         if: env.SONAR_TOKEN == ''
         run: echo "::warning title=SonarQube::secret SONAR_TOKEN absent (docs/ci.md)"
+      # SonarQube est mis en veille par Sablier : la première requête le réveille (2 à 3 min)
+      - name: Réveil de SonarQube
+        if: env.SONAR_TOKEN != ''
+        run: |
+          for i in $(seq 1 30); do
+            s=$(curl -s --max-time 330 "$SONAR_HOST_URL/api/system/status" | jq -r '.status // empty')
+            echo "SonarQube : ${s:-injoignable}"
+            [ "$s" = "UP" ] && exit 0
+            sleep 10
+          done
+          exit 1
       # Échoue si le Quality Gate échoue : nouveau code couvert, sans bug ni faille ajoutés
       - name: Analyse et Quality Gate
         if: env.SONAR_TOKEN != ''

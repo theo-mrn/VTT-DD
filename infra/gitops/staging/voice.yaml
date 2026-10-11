@@ -6,6 +6,9 @@ image:
 # Voix de la table (docs/voix.md) : signalisation seulement, le son passe par Cloudflare
 # Realtime ; salle dans Valkey, une réplique suffit
 replicaCount: 1
+deploymentLabels:
+  sablier.enable: 'true'
+  sablier.group: vtt-staging
 pdb:
   enabled: false
 autoscaling:
