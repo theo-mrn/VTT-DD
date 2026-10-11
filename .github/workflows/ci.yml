@@ -301,7 +301,8 @@ jobs:
         if: env.SONAR_TOKEN != ''
         run: |
           for i in $(seq 1 30); do
-            s=$(curl -s --max-time 330 "$SONAR_HOST_URL/api/system/status" | jq -r '.status // empty')
+            # Pendant le réveil, Traefik peut répondre en texte (504) : pas du JSON
+            s=$(curl -s --max-time 330 "$SONAR_HOST_URL/api/system/status" | jq -r '.status // empty' 2>/dev/null || true)
             echo "SonarQube : ${s:-injoignable}"
             [ "$s" = "UP" ] && exit 0
             sleep 10
