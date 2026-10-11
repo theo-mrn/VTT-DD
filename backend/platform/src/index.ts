@@ -22,3 +22,4 @@ export * from './internal-secret.js';
 export * from './orphans.js';
 export * from './strings.js';
 export * from './campaign-rights.js';
+export * from './outbox-entry.js';
