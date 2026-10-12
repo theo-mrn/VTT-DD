@@ -426,7 +426,7 @@ function Choice({
     <div
       className="flex min-h-0 flex-1 flex-col"
       onDragEnter={(e) => {
-        if (e.dataTransfer.types.includes('Files')) onImport();
+        if (e.dataTransfer.types.includes('Files')) onImport(); // i18n-ignore
       }}
     >
       <StepHeader title={translate('map.scenes.background')} onClose={onClose} />
