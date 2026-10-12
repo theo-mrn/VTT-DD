@@ -117,16 +117,18 @@ export function CatalogueTab({
         }
       />
     ) : (
-      <div className="space-y-4">
+      <div className="space-y-5">
         {groups.map((g) => (
           <section key={g.name ?? '—'} aria-label={g.name ?? section.titre}>
             {g.name !== null && (
-              <h3 className="mb-1.5 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-subtle">
+              <h3 className="mb-1.5 flex items-center gap-2 px-2 text-[13px] font-semibold">
                 {g.name}
-                <span className="font-normal normal-case">{g.entries.length}</span>
+                <span className="rounded-md bg-surface-2 px-1.5 text-[11px] font-medium tabular-nums text-subtle">
+                  {g.entries.length}
+                </span>
               </h3>
             )}
-            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            <ul className="space-y-0.5">
               {g.entries.map((e) => (
                 <li key={e.id}>
                   <EntryRow
@@ -241,14 +243,14 @@ function EntryRow({
       onClick={onSelect}
       aria-current={selected || undefined}
       className={cn(
-        'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50',
-        selected ? 'bg-primary/10' : 'hover:bg-surface-2',
+        'flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+        selected ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-surface-2/80',
       )}
     >
       {image && (
-        <span className="size-9 shrink-0 overflow-hidden rounded-lg bg-surface-2">
-          <Thumb src={image} alt="" width={36} className="size-full object-cover" fallback={null} />
+        <span className="size-10 shrink-0 overflow-hidden rounded-xl bg-surface-2 ring-1 ring-border/60">
+          <Thumb src={image} alt="" width={40} className="size-full object-cover" fallback={null} />
         </span>
       )}
       <span className="min-w-0 flex-1">

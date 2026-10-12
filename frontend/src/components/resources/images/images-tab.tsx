@@ -124,7 +124,7 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
       </Toolbar>
 
       {etat === 'chargement' && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-busy="true">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5" aria-busy="true">
           {Array.from({ length: 10 }, (_, i) => (
             <Skeleton key={i} className="aspect-square rounded-xl" />
           ))}
@@ -146,13 +146,13 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
       {etat === 'vide' && <Notice icon={ImageIcon} title={t('resources.images.none')} />}
       {etat === 'liste' && (
         <>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {visibles.map((img, i) => (
               <li key={img.url}>
                 <button
                   type="button"
                   onClick={() => setOuverte(page * PAGE + i)}
-                  className="group relative block aspect-square w-full overflow-hidden rounded-xl border border-border bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  className="group relative block aspect-square w-full overflow-hidden rounded-2xl bg-surface-2 ring-1 ring-border/70 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-elevated hover:ring-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
                   <ImageIcon
                     className="absolute left-1/2 top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 text-subtle/50"

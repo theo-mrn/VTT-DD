@@ -72,13 +72,13 @@ export function MasterDetail({
   const wide = useWide();
   const variant = useResourcesVariant();
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-start">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
       <div className="min-w-0">{list}</div>
       {wide ? (
         <aside
           aria-label={title}
           className={cn(
-            'min-w-0 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card shadow-surface lg:sticky',
+            'min-w-0 overflow-y-auto overscroll-contain rounded-3xl border border-border/70 bg-card shadow-elevated lg:sticky',
             STICKY[variant],
           )}
         >
@@ -122,7 +122,7 @@ export function SearchField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={label}
-        className="h-9 [&::-webkit-search-cancel-button]:hidden"
+        className="h-9 rounded-xl [&::-webkit-search-cancel-button]:hidden"
         apres={
           value ? (
             <Button
@@ -170,18 +170,21 @@ export function Chips({
               aria-pressed={actif}
               onClick={() => onChange(o.value)}
               className={cn(
-                'relative isolate inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors duration-200',
+                'relative isolate inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium transition-colors duration-200',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]',
                 actif
-                  ? 'border-primary/50 text-primary-strong'
-                  : 'border-border-strong text-muted-foreground hover:text-foreground',
+                  ? 'text-primary-foreground'
+                  : 'bg-surface-2/70 text-muted-foreground hover:bg-surface-3 hover:text-foreground',
               )}
             >
-              {actif && <ActivePill className="bg-primary/15" />}
+              {actif && <ActivePill className="bg-primary shadow-sm" />}
               {o.label}
               {o.count !== undefined && (
                 <span
-                  className={cn('text-[11px]', actif ? 'text-primary-strong/80' : 'text-subtle')}
+                  className={cn(
+                    'text-[11px] tabular-nums',
+                    actif ? 'text-primary-foreground/75' : 'text-subtle',
+                  )}
                 >
                   {o.count}
                 </span>
@@ -201,7 +204,7 @@ export function Toolbar({
   return (
     <div
       className={cn(
-        'mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between',
+        'mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between',
         className,
       )}
     >
@@ -229,15 +232,15 @@ export function Notice({
   return (
     <div
       role={tone === 'error' ? 'alert' : undefined}
-      className="flex flex-col items-center rounded-2xl border border-dashed border-border-strong px-6 py-12 text-center"
+      className="flex flex-col items-center rounded-3xl bg-surface-2/40 px-6 py-14 text-center"
     >
       <span
         className={cn(
-          'mb-3 grid size-10 place-items-center rounded-xl border border-border-strong bg-surface-2',
-          tone === 'error' ? 'text-destructive' : 'text-primary',
+          'mb-4 grid size-12 place-items-center rounded-2xl',
+          tone === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary',
         )}
       >
-        <Icon className="size-4" aria-hidden />
+        <Icon className="size-5" aria-hidden />
       </span>
       <p className="text-sm font-semibold">{title}</p>
       {description && (
@@ -256,7 +259,7 @@ export function ListSkeleton({
   return (
     <div className={cn('space-y-2', className)} aria-busy="true" aria-label={t('history.loading')}>
       {Array.from({ length: rows }, (_, i) => (
-        <Skeleton key={i} className="h-12 w-full" />
+        <Skeleton key={i} className="h-14 w-full rounded-xl" />
       ))}
     </div>
   );

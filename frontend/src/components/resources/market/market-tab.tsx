@@ -168,11 +168,7 @@ export function MarketTab({
       {!choisie && !recherche && textes.length > 0 && (
         <div className="mt-8 space-y-4">
           {textes.map((t) => (
-            <section
-              key={t.id}
-              aria-label={t.titre}
-              className="rounded-2xl border border-border bg-card p-5 shadow-surface"
-            >
+            <section key={t.id} aria-label={t.titre} className="rounded-3xl bg-surface-2/40 p-6">
               <h3 className="mb-2 text-[15px] font-semibold">{t.titre}</h3>
               <CatalogueText text={t.contenu} skipTitle className="sm:columns-2 sm:gap-8" />
             </section>
@@ -226,43 +222,45 @@ function MarketTable({
   return (
     <section aria-label={section.title}>
       {titled && (
-        <h3 className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-subtle">
+        <h3 className="mb-2 flex items-center gap-2 px-1 text-[13px] font-semibold">
           {section.title}
-          <span className="font-normal normal-case">{rows.length}</span>
+          <span className="rounded-md bg-surface-2 px-1.5 text-[11px] font-medium tabular-nums text-subtle">
+            {rows.length}
+          </span>
         </h3>
       )}
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card">
         <table className="w-full min-w-[32rem] border-collapse text-[13px]">
           <thead>
-            <tr className="border-b border-border bg-surface-2/60 text-left text-[11px] uppercase tracking-wide text-subtle">
-              <th scope="col" className="px-3 py-2 font-medium">
+            <tr className="border-b border-border/70 text-left text-xs text-subtle">
+              <th scope="col" className="px-4 py-2.5 font-medium">
                 {t('map.lights.name')}
               </th>
               {section.columns.map((c) => (
-                <th key={c.id} scope="col" className="px-3 py-2 font-medium">
+                <th key={c.id} scope="col" className="px-4 py-2.5 font-medium">
                   {c.name}
                 </th>
               ))}
               {prix && (
-                <th scope="col" className="px-3 py-2 text-right font-medium">
+                <th scope="col" className="px-4 py-2.5 text-right font-medium">
                   {prix}
                 </th>
               )}
               {target && (
-                <th scope="col" className="w-0 px-3 py-2">
+                <th scope="col" className="w-0 px-4 py-2.5">
                   <span className="sr-only">{t('common.actions.add')}</span>
                 </th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-border/50">
             {rows.map((r) => (
               <tr
                 key={r.entry.id}
                 onClick={() => onOpen(r.entry.id)}
-                className="cursor-pointer transition-colors hover:bg-surface-2"
+                className="cursor-pointer transition-colors hover:bg-surface-2/60"
               >
-                <th scope="row" className="px-3 py-2 text-left font-medium">
+                <th scope="row" className="px-4 py-2.5 text-left font-medium">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -281,13 +279,13 @@ function MarketTable({
                 {r.cells.map((c, i) => (
                   <td
                     key={section.columns[i]?.id ?? i}
-                    className={cn('px-3 py-2', c ? 'text-muted-foreground' : 'text-subtle')}
+                    className={cn('px-4 py-2.5', c ? 'text-muted-foreground' : 'text-subtle')}
                   >
                     {c ?? '—'}
                   </td>
                 ))}
                 {prix && (
-                  <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-primary-strong">
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right font-medium tabular-nums text-primary-strong">
                     {r.priceText ?? <span className="font-normal text-subtle">—</span>}
                   </td>
                 )}

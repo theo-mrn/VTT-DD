@@ -75,15 +75,23 @@ export function EntryDetail({
       )}
 
       {image && (
-        <div className="relative h-44 overflow-hidden border-b border-border bg-surface-2 sm:h-56">
+        <div className="relative h-44 overflow-hidden bg-surface-2 sm:h-60">
           <Thumb src={image} alt="" className="size-full object-cover" fallback={null} />
+          <span
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-card to-transparent"
+          />
         </div>
       )}
 
-      <div className="space-y-5 p-5">
+      <div className="space-y-6 p-6">
         <header className="space-y-1.5 pr-8 lg:pr-0">
-          {sorte && <p className="text-xs font-medium text-primary">{sorte.nom}</p>}
-          <h3 className="text-lg font-semibold leading-tight tracking-tight">{entry.nom}</h3>
+          {sorte && (
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+              {sorte.nom}
+            </p>
+          )}
+          <h3 className="text-xl font-semibold leading-tight tracking-tight">{entry.nom}</h3>
           {fields.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {fields.map((f) => (
@@ -102,9 +110,9 @@ export function EntryDetail({
         {effects.length > 0 && (
           <section aria-label={t('resources.catalogue.effects')}>
             <h4 className="mb-2 text-sm font-semibold">{t('resources.catalogue.effects')}</h4>
-            <ul className="divide-y divide-border rounded-xl border border-border bg-surface-2/40">
+            <ul className="space-y-1.5">
               {effects.map((e, i) => (
-                <li key={i} className="px-3 py-2">
+                <li key={i} className="rounded-xl bg-surface-2/60 px-3.5 py-2.5">
                   <p className="text-[13px] font-medium">{e.label}</p>
                   {e.detail && <p className="text-xs text-muted-foreground">{e.detail}</p>}
                 </li>
@@ -133,7 +141,7 @@ export function EntryDetail({
                   ),
                 )
               ) : (
-                <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+                <ul className="divide-y divide-border/50 overflow-hidden rounded-xl bg-surface-2/40">
                   {g.links.map((l) => (
                     <li key={`${l.entry.id}:${l.note ?? ''}`}>
                       <LinkRow systeme={systeme} link={l} onOpen={onOpen} flat />

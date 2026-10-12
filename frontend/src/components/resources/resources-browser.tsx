@@ -10,7 +10,8 @@ import { useTranslations } from 'next-intl';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { BookOpen, ImageIcon, Library, Skull, Store, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ActivePill, PillGroup } from '@/components/ui/active-pill';
+import { cn } from '@/lib/utils';
 import { BestiaryTab } from './bestiary/bestiary-tab';
 import { CatalogueTab } from './catalogue/catalogue-tab';
 import { ImagesTab } from './images/images-tab';
@@ -107,39 +108,63 @@ export function ResourcesBrowser({
 
   return (
     <ResourcesVariantProvider value={variant}>
-      <Tabs value={actif} onValueChange={changer}>
+      <div className="mx-auto w-full max-w-7xl">
         {onglets.length > 1 && (
-          <TabsList aria-label={t('resources.title')} className="max-w-full overflow-x-auto">
-            {onglets.map((id) => {
-              const Icone = ONGLETS.find((o) => o.id === id)!.icon;
-              return (
-                <TabsTrigger key={id} value={id}>
-                  <Icone aria-hidden />
-                  {titre(id)}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
+          <PillGroup>
+            <div
+              role="tablist"
+              aria-label={t('resources.title')}
+              className="mb-6 flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-surface-2/50 p-1 [scrollbar-width:none] sm:w-fit"
+            >
+              {onglets.map((id) => {
+                const Icone = ONGLETS.find((o) => o.id === id)!.icon;
+                const on = id === actif;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => changer(id)}
+                    className={cn(
+                      'relative isolate flex h-9 shrink-0 items-center gap-2 rounded-xl px-4 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+                      on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {on && <ActivePill className="bg-card shadow-surface ring-1 ring-border" />}
+                    <Icone className={cn('size-4', on && 'text-primary')} aria-hidden />
+                    {titre(id)}
+                  </button>
+                );
+              })}
+            </div>
+          </PillGroup>
         )}
-        {onglets.map((id) => (
-          <TabsContent key={id} value={id} className={onglets.length > 1 ? 'mt-5' : 'mt-0'}>
-            {id === 'capacites' && <CatalogueTab systeme={systeme} presentation={presentation} />}
-            {id === 'marche' && (
-              <MarketTab systeme={systeme} presentation={presentation} target={access.inventory} />
-            )}
-            {id === 'bestiaire' && (
-              <BestiaryTab
-                systemId={systemId}
-                systeme={systeme}
-                presentation={presentation}
-                campaignId={access.campaignBestiary}
-                reference={access.systemBestiary}
-              />
-            )}
-            {id === 'images' && <ImagesTab presentation={presentation} />}
-          </TabsContent>
-        ))}
-      </Tabs>
+        {onglets
+          .filter((id) => id === actif)
+          .map((id) => (
+            <div key={id} role="tabpanel">
+              {id === 'capacites' && <CatalogueTab systeme={systeme} presentation={presentation} />}
+              {id === 'marche' && (
+                <MarketTab
+                  systeme={systeme}
+                  presentation={presentation}
+                  target={access.inventory}
+                />
+              )}
+              {id === 'bestiaire' && (
+                <BestiaryTab
+                  systemId={systemId}
+                  systeme={systeme}
+                  presentation={presentation}
+                  campaignId={access.campaignBestiary}
+                  reference={access.systemBestiary}
+                />
+              )}
+              {id === 'images' && <ImagesTab presentation={presentation} />}
+            </div>
+          ))}
+      </div>
     </ResourcesVariantProvider>
   );
 }

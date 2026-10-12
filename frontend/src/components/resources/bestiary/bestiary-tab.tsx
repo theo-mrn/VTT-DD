@@ -139,7 +139,7 @@ export function BestiaryTab({
       />
       {vue === 'grille' && (
         <>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
             {filtres.slice(0, limite).map((i) => (
               <li key={i.key}>
                 <CreatureCard item={i} onOpen={() => setOuverte(i)} />
@@ -247,7 +247,7 @@ function EtatBestiaire({
   switch (vue) {
     case 'chargement':
       return (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-busy="true">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4" aria-busy="true">
           {Array.from({ length: 8 }, (_, i) => (
             <Skeleton key={i} className="h-56 rounded-xl" />
           ))}
@@ -316,9 +316,9 @@ function CreatureCard({ item, onOpen }: Readonly<{ item: BestiaryItem; onOpen():
     <button
       type="button"
       onClick={onOpen}
-      className="group flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left shadow-surface transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      className="group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card text-left transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
     >
-      <span className="relative grid aspect-[4/3] place-items-center overflow-hidden bg-surface-2">
+      <span className="relative grid aspect-[4/3] place-items-center overflow-hidden bg-[radial-gradient(circle_at_50%_40%,hsl(var(--surface-3)),hsl(var(--surface-2))_75%)]">
         <Skull className="absolute size-8 text-subtle/60" aria-hidden />
         <Thumb
           src={item.image}
@@ -328,7 +328,7 @@ function CreatureCard({ item, onOpen }: Readonly<{ item: BestiaryItem; onOpen():
           fallback={null}
         />
       </span>
-      <span className="flex flex-1 flex-col gap-1 p-3">
+      <span className="flex flex-1 flex-col gap-1 px-3.5 py-3">
         <span className="truncate text-[13px] font-semibold">{item.name}</span>
         {(item.subtitle ?? item.category) && (
           <span className="truncate text-xs text-muted-foreground">
