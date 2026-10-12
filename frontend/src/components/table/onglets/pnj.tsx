@@ -244,7 +244,7 @@ export function OngletPnj() {
     );
 
   return (
-    <div className="space-y-4 px-4 py-5 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:px-6">
       <div className="flex flex-wrap items-center gap-2">
         <SearchField
           value={query}
@@ -301,12 +301,12 @@ export function OngletPnj() {
         />
       )}
       {cards.length > 0 && !shown.length && (
-        <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-[13px] text-muted-foreground">
+        <p className="rounded-2xl bg-surface-2/40 px-4 py-8 text-center text-[13px] text-muted-foreground">
           {t('noMatch')}
         </p>
       )}
       {shown.length > 0 && (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-2.5">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-4">
           {shown.map(({ template: t, item }) => (
             <li key={t.id}>
               <TemplateCard
@@ -432,33 +432,43 @@ function TemplateCard({
   const tr = useTranslations('table.npcs');
   const [confirm, setConfirm] = useState(false);
   return (
-    <div className="group relative flex gap-3 rounded-xl border border-border bg-surface p-2.5 transition-colors hover:border-border-strong">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-elevated">
       <button
         type="button"
         onClick={onEdit}
         aria-label={tr('editOf', { name })}
-        className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       />
-      <Thumb
-        src={image}
-        width={56}
-        alt=""
-        className="size-14 shrink-0 rounded-lg bg-surface-2 object-cover object-top"
-        fallback={
-          <span className="grid size-14 shrink-0 place-items-center rounded-lg bg-surface-2 text-subtle">
-            <Skull className="size-6" aria-hidden />
-          </span>
-        }
-      />
-      <div className="min-w-0 flex-1">
+      <div className="pointer-events-none relative aspect-[4/3] overflow-hidden bg-[radial-gradient(circle_at_50%_35%,hsl(var(--surface-3)),hsl(var(--surface-2))_75%)]">
+        <Skull
+          className="absolute left-1/2 top-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-subtle/50"
+          aria-hidden
+        />
+        <Thumb
+          src={image}
+          width={240}
+          alt=""
+          className="relative size-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+          fallback={null}
+        />
+        <span
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent"
+        />
+      </div>
+      <div className="pointer-events-none relative -mt-3 flex flex-1 flex-col gap-0.5 px-3 pb-3">
         <p className="truncate text-sm font-semibold">{name}</p>
         <p className="truncate text-xs text-muted-foreground">
           {[subtitle, category].filter(Boolean).join(' · ') || tr('noCategory')}
         </p>
         {stats.length > 0 && (
-          <p className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
+          <p className="mt-auto flex flex-wrap gap-1 pt-2">
             {stats.map((s) => (
-              <span key={s.key} title={s.name}>
+              <span
+                key={s.key}
+                title={s.name}
+                className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              >
                 {s.label}{' '}
                 <span className="font-semibold tabular-nums text-foreground">{s.value}</span>
               </span>
@@ -472,7 +482,7 @@ function TemplateCard({
             variant="ghost"
             size="icon-xs"
             aria-label={tr('actionsFor', { name })}
-            className="relative z-10 shrink-0 self-start"
+            className="absolute right-2 top-2 z-10 bg-black/45 text-white/90 opacity-0 backdrop-blur-sm transition-opacity hover:bg-black/65 hover:text-white focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
           >
             <MoreHorizontal />
           </Button>

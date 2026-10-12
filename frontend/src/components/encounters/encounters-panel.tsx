@@ -1,22 +1,24 @@
 'use client';
 
 /**
- * Panneau Rencontres du MJ (touche M) : le générateur de l'ancienne app, refait sur les règles
- * que déclare le système (`Systeme.rencontres`). À gauche, le groupe (personnages joueurs et
- * leur niveau, chacun ajustable ou écarté), la difficulté et les filtres ; à droite, une
- * rubrique par forme de rencontre, chacune avec ses propositions éditables (jauge recalculée
- * à chaque changement), enregistrables dans Mes PNJ.
+ * Panneau Rencontres du MJ (touche M) : générateur sur les règles que déclare le système
+ * (`Systeme.rencontres`). En haut, une barre de commande : le groupe (personnages joueurs,
+ * niveau ajustable, un clic les écarte), la difficulté, les filtres (menu) et Générer. Dessous,
+ * une rubrique par forme de rencontre, chacune avec ses propositions éditables (jauge
+ * recalculée à chaque changement), enregistrables dans Mes PNJ.
  */
 import { useTranslations } from 'next-intl';
-import { ChevronDown, Dices, Minus, Plus, SlidersHorizontal, Swords } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { Dices, Minus, Plus, SlidersHorizontal, Swords } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { EtatVide, Page } from '@/components/commun/page';
+import { Illustration } from '@/components/commun/illustration';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Info } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { messageErreur } from '@/lib/api';
 import { npcTemplatesApi, useRefreshNpcTemplates } from '@/lib/bestiary';
 import {
@@ -33,8 +35,7 @@ import {
 } from '@/lib/encounters/generator';
 import { cn } from '@/lib/utils';
 import { useTable } from '../table/contexte';
-import { DotsBackdrop } from '../combat/backdrop';
-import { CTA, LABEL } from '../combat/live-reports/look';
+import { CTA } from '../combat/live-reports/look';
 import { ProposalCard, type EncounterEdit } from './proposal-card';
 import { useEncounterData } from './use-encounter-data';
 
@@ -61,7 +62,6 @@ export function EncountersPanel() {
   const [difficulty, setDifficulty] = useState<string | null>(null);
   const difficultyId = difficulty ?? rules?.difficultes[1]?.id ?? rules?.difficultes[0]?.id ?? '';
   const [filters, setFilters] = useState<EncounterFilters>({});
-  const [showFilters, setShowFilters] = useState(false);
   const [proposals, setProposals] = useState<Proposals>({});
   const [scenario, setScenario] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -148,105 +148,107 @@ export function EncountersPanel() {
   };
 
   return (
-    <div className="grid min-h-full gap-5 p-4 sm:p-6 lg:grid-cols-[20rem_1fr]">
-      {/* Réglages */}
-      <aside className="relative isolate space-y-5 self-start overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-surface lg:sticky lg:top-20">
-        <DotsBackdrop />
-        <section className="space-y-2">
-          <h3 className={LABEL}>{t('encounters.party')}</h3>
-          <ul className="space-y-1">
-            {data.party.map((m) => {
-              const excluded = out.has(m.id);
-              const level = levels[m.id] ?? m.level;
-              return (
-                <li
-                  key={m.id}
-                  className={cn(
-                    'flex items-center gap-2 rounded-xl px-1.5 py-1',
-                    excluded && 'opacity-45',
-                  )}
-                >
-                  <button
-                    type="button"
-                    aria-pressed={!excluded}
-                    onClick={() =>
-                      setOut((s) => {
-                        const n = new Set(s);
-                        if (n.has(m.id)) n.delete(m.id);
-                        else n.add(m.id);
-                        return n;
-                      })
-                    }
-                    className="min-w-0 flex-1 truncate text-left text-sm font-medium"
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 sm:p-6">
+      {/* Commande : groupe, difficulté, filtres, générer */}
+      <section className="flex flex-wrap items-end gap-x-6 gap-y-4 rounded-3xl border border-border/70 bg-card p-4 sm:p-5">
+        <div className="min-w-0 flex-1 basis-80 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">{t('encounters.party')}</p>
+          {data.party.length ? (
+            <ul className="flex flex-wrap gap-1.5">
+              {data.party.map((m) => {
+                const excluded = out.has(m.id);
+                return (
+                  <li
+                    key={m.id}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-full bg-surface-2/70 py-1 pl-1 pr-1 transition-opacity',
+                      excluded && 'opacity-40',
+                    )}
                   >
-                    {m.name}
-                  </button>
-                  <Stepper
-                    value={level}
-                    min={1}
-                    max={rules.difficultes[0]!.parNiveau.length}
-                    label={t('encounters.levelOf', { name: m.name })}
-                    onChange={(v) => setLevels((l) => ({ ...l, [m.id]: v }))}
-                    disabled={excluded}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-          {!data.party.length && (
+                    <button
+                      type="button"
+                      aria-pressed={!excluded}
+                      onClick={() =>
+                        setOut((s) => {
+                          const n = new Set(s);
+                          if (n.has(m.id)) n.delete(m.id);
+                          else n.add(m.id);
+                          return n;
+                        })
+                      }
+                      className="flex min-w-0 items-center gap-2 rounded-full pr-1 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                    >
+                      <Illustration
+                        graine={m.name}
+                        src={null}
+                        className="size-7 shrink-0 rounded-full"
+                      />
+                      <span className="max-w-[8rem] truncate">{m.name}</span>
+                    </button>
+                    <Stepper
+                      value={levels[m.id] ?? m.level}
+                      min={1}
+                      max={rules.difficultes[0]!.parNiveau.length}
+                      label={t('encounters.levelOf', { name: m.name })}
+                      onChange={(v) => setLevels((l) => ({ ...l, [m.id]: v }))}
+                      disabled={excluded}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
             <p className="text-[13px] text-muted-foreground">{t('encounters.noPlayerCharacter')}</p>
           )}
-        </section>
+        </div>
 
-        <section className="space-y-2">
-          <h3 className={LABEL}>{t('encounters.difficulty')}</h3>
-          <div className="grid grid-cols-2 gap-1.5">
-            {rules.difficultes.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                aria-pressed={d.id === difficultyId}
-                onClick={() => setDifficulty(d.id)}
-                className={cn(
-                  'h-9 rounded-xl border text-sm font-medium transition-colors',
-                  d.id === difficultyId
-                    ? 'border-primary/50 bg-primary/15 text-primary-strong'
-                    : 'border-border bg-background/40 text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {d.nom}
-              </button>
-            ))}
-          </div>
-        </section>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">{t('encounters.difficulty')}</p>
+          <PillGroup>
+            <div className="flex gap-1 rounded-2xl bg-surface-2/60 p-1">
+              {rules.difficultes.map((d) => {
+                const on = d.id === difficultyId;
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setDifficulty(d.id)}
+                    className={cn(
+                      'relative isolate h-9 whitespace-nowrap rounded-xl px-3.5 text-[13px] font-medium transition-colors',
+                      on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {on && <ActivePill className="bg-card shadow-surface ring-1 ring-border" />}
+                    {d.nom}
+                  </button>
+                );
+              })}
+            </div>
+          </PillGroup>
+        </div>
 
-        <section className="space-y-2">
-          <button
-            type="button"
-            aria-expanded={showFilters}
-            onClick={() => setShowFilters((v) => !v)}
-            className={cn(LABEL, 'flex w-full items-center gap-1.5')}
-          >
-            <SlidersHorizontal className="size-3.5" />
-            {t('encounters.filters')}
-            {countFilters(filters) > 0 && (
-              <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
-                {countFilters(filters)}
-              </span>
-            )}
-            <span className="flex-1" />
-            <ChevronDown
-              className={cn('size-3.5 transition-transform', showFilters && 'rotate-180')}
-            />
-          </button>
-          <AnimatePresence initial={false}>
-            {showFilters && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="space-y-3 overflow-hidden"
-              >
+        <div className="flex items-center gap-2">
+          <Popover>
+            <Info texte={t('encounters.filters')}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  aria-label={t('encounters.filters')}
+                  className="relative size-11 rounded-xl"
+                >
+                  <SlidersHorizontal />
+                  {countFilters(filters) > 0 && (
+                    <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                      {countFilters(filters)}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+            </Info>
+            <PopoverContent align="end" className="w-80 space-y-4 p-4">
+              {data.categories.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {data.categories.map((c) => {
                     const on = filters.categories?.includes(c) ?? false;
@@ -264,10 +266,10 @@ export function EncountersPanel() {
                           }))
                         }
                         className={cn(
-                          'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                          'rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
                           on
-                            ? 'border-primary/50 bg-primary/15 text-primary-strong'
-                            : 'border-border text-muted-foreground hover:text-foreground',
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-surface-2/70 text-muted-foreground hover:bg-surface-3 hover:text-foreground',
                         )}
                       >
                         {c}
@@ -275,6 +277,8 @@ export function EncountersPanel() {
                     );
                   })}
                 </div>
+              )}
+              <div className="space-y-2">
                 <Range
                   label={rules.nomPuissance}
                   value={{ min: filters.minPower, max: filters.maxPower }}
@@ -288,82 +292,103 @@ export function EncountersPanel() {
                     onChange={(r) => setFilters((f) => ({ ...f, ranges: { ...f.ranges, [k]: r } }))}
                   />
                 ))}
-                <p className="text-[11px] text-subtle tabular-nums">
-                  {pool.length} créature{pool.length > 1 ? 's' : ''}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </section>
-
-        <Button
-          size="lg"
-          className={cn(CTA, 'h-11 w-full')}
-          onClick={run}
-          disabled={!pool.length || !party.length}
-        >
-          <Dices />
-          {generated ? t('encounters.reroll') : t('encounters.generate')}
-        </Button>
-      </aside>
-
-      {/* Propositions */}
-      <main className="min-w-0 space-y-4">
-        <Tabs value={activeScenario} onValueChange={setScenario}>
-          <TabsList className="w-full">
-            {rules.scenarios.map((s) => (
-              <TabsTrigger key={s.id} value={s.id} className="flex-1" title={s.description}>
-                {s.nom}
-                {proposals[s.id] && (
-                  <span className="ml-1 font-mono text-[10px] text-subtle tabular-nums">
-                    {proposals[s.id]!.length}
-                  </span>
-                )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-
-        {!generated && (
-          <div className="relative isolate grid min-h-[20rem] place-items-center overflow-hidden rounded-2xl border border-dashed border-border">
-            <DotsBackdrop />
-            <div className="text-center">
-              <Dices className="mx-auto size-10 text-primary" aria-hidden />
-              <p className="mt-3 font-display text-lg font-semibold">
-                {party.length} personnage{party.length > 1 ? 's' : ''}, niveau{' '}
-                {Math.round(
-                  (party.reduce((s, m) => s + m.level, 0) / Math.max(1, party.length)) * 10,
-                ) / 10}
+              </div>
+              <p className="text-[11px] tabular-nums text-subtle">
+                {pool.length} créature{pool.length > 1 ? 's' : ''}
               </p>
-            </div>
+            </PopoverContent>
+          </Popover>
+          <Button
+            size="lg"
+            className={cn(CTA, 'h-11 rounded-xl px-6')}
+            onClick={run}
+            disabled={!pool.length || !party.length}
+          >
+            <Dices />
+            {generated ? t('encounters.reroll') : t('encounters.generate')}
+          </Button>
+        </div>
+      </section>
+
+      {/* Formes de rencontre */}
+      {generated && (
+        <PillGroup>
+          <div
+            role="tablist"
+            className="flex max-w-full gap-1 self-start overflow-x-auto rounded-2xl border border-border/70 bg-surface-2/50 p-1 [scrollbar-width:none]"
+          >
+            {rules.scenarios.map((s) => {
+              const on = s.id === activeScenario;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  title={s.description}
+                  onClick={() => setScenario(s.id)}
+                  className={cn(
+                    'relative isolate flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-4 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+                    on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {on && <ActivePill className="bg-card shadow-surface ring-1 ring-border" />}
+                  {s.nom}
+                  {proposals[s.id] && (
+                    <span className="rounded-md bg-surface-3 px-1.5 text-[10px] tabular-nums text-subtle">
+                      {proposals[s.id]!.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        )}
-        {generated && list.length > 0 && (
-          <div className="grid gap-3 xl:grid-cols-2">
-            {list.map((e, i) => (
-              <ProposalCard
-                key={e.id}
-                index={i}
-                encounter={e}
-                rules={rules}
-                party={party}
-                pool={pool}
-                busy={busy}
-                onChange={(a) => edit(i, a)}
-                onReroll={() => again(i)}
-                onSave={() => void save(e, i)}
-              />
-            ))}
+        </PillGroup>
+      )}
+
+      {!generated && (
+        <div className="grid min-h-[22rem] place-items-center rounded-3xl bg-surface-2/40">
+          <div className="text-center">
+            <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-primary/10 text-primary">
+              <Swords className="size-7" aria-hidden />
+            </span>
+            <p className="mt-4 text-lg font-semibold tracking-tight">
+              {party.length} personnage{party.length > 1 ? 's' : ''}, niveau{' '}
+              {Math.round(
+                (party.reduce((s, m) => s + m.level, 0) / Math.max(1, party.length)) * 10,
+              ) / 10}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {rules.difficultes.find((d) => d.id === difficultyId)?.nom}
+            </p>
           </div>
-        )}
-        {generated && list.length === 0 && (
-          <EtatVide
-            icone={Swords}
-            titre={t('encounters.noProposal')}
-            description={t('encounters.noProposalHint')}
-          />
-        )}
-      </main>
+        </div>
+      )}
+      {generated && list.length > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {list.map((e, i) => (
+            <ProposalCard
+              key={e.id}
+              index={i}
+              encounter={e}
+              rules={rules}
+              party={party}
+              pool={pool}
+              busy={busy}
+              onChange={(a) => edit(i, a)}
+              onReroll={() => again(i)}
+              onSave={() => void save(e, i)}
+            />
+          ))}
+        </div>
+      )}
+      {generated && list.length === 0 && (
+        <EtatVide
+          icone={Swords}
+          titre={t('encounters.noProposal')}
+          description={t('encounters.noProposalHint')}
+        />
+      )}
     </div>
   );
 }
@@ -393,11 +418,7 @@ function Stepper({
 }>) {
   const t = useTranslations();
   return (
-    <span
-      role="group"
-      aria-label={label}
-      className="flex items-center rounded-lg border border-border bg-background/40"
-    >
+    <span role="group" aria-label={label} className="flex items-center rounded-full bg-card">
       <button
         type="button"
         disabled={disabled || value <= min}
