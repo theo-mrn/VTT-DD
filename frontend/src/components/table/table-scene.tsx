@@ -28,7 +28,8 @@ import { HudCombat, HudExit } from './hud';
 import { TABLE_HUD_LEFT } from './hud-slots';
 import { PanelLocationSync } from './panels/navigation';
 import { PanelHost } from './panels/panel-host';
-import { panelsFor, type TableRole } from './panels/registry';
+import { featuresFor, type TablePanel, type TableRole } from './panels/registry';
+import { OverlayHost } from './features/overlay-host';
 import { PanelStoreProvider, usePanelStore } from './panels/store';
 import { useActivityBadges } from './panels/use-activity-badges';
 import { useTableShortcuts } from './panels/use-table-shortcuts';
@@ -161,15 +162,19 @@ function useDicePreheat() {
 const Plateau = memo(function Plateau({ table, children }: { table: Table; children: ReactNode }) {
   useDicePreheat();
   const role: TableRole = table.gm ? 'gm' : table.moi.role;
-  const panels = useMemo(() => panelsFor(role), [role]);
+  const features = useMemo(() => featuresFor(role), [role]);
+  const panels = useMemo(
+    () => features.filter((f): f is TablePanel => f.kind === 'panel'),
+    [features],
+  );
   const permis = useMemo(() => new Set(panels.map((p) => p.id)), [panels]);
-  useTableShortcuts(panels);
+  useTableShortcuts(features);
   const viewer = useMemo(
     () => ({ userId: table.moi.userId, gm: table.gm }),
     [table.moi.userId, table.gm],
   );
   useActivityBadges(table.campagne.id, viewer, panels);
-  const rail = useRailLayout(table.moi.userId, table.campagne.id, panels);
+  const rail = useRailLayout(table.moi.userId, table.campagne.id, features);
 
   return (
     <div
@@ -206,6 +211,7 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
 
       <TableRail layout={rail} />
       <PanelHost panels={panels} />
+      <OverlayHost />
       {/* Son de la campagne : canaux synchronisés, effets, mixeur, bandeau d'activation */}
       <TableAudio campaignId={table.campagne.id} gm={table.gm} />
       {/* Recherche dans les règles : ⌘K / Ctrl+K (docs/recherche.md) */}

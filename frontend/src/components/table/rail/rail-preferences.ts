@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { usePreferenceLocale } from '@/lib/preference-locale';
-import { resolvePanelId, type PanelId, type TablePanel } from '../panels/registry';
+import { resolveFeatureId, type FeatureId, type TableFeatureItem } from '../panels/registry';
 
 /**
  * Personnalisation du rail : ordre et panneaux masqués, par utilisateur et par campagne (chaque
@@ -10,11 +10,13 @@ import { resolvePanelId, type PanelId, type TablePanel } from '../panels/registr
  * reste ouvrable au clavier et par ses liens.
  */
 interface RailLayout {
-  order: PanelId[];
-  hidden: PanelId[];
+  order: FeatureId[];
+  hidden: FeatureId[];
+  /** Fonctions en plus (`extra`) ajoutées à la barre par l'utilisateur. */
+  shown: FeatureId[];
 }
 
-const VIDE: RailLayout = { order: [], hidden: [] };
+const VIDE: RailLayout = { order: [], hidden: [], shown: [] };
 
 /** Ne garde que des identifiants connus, sans doublon (la valeur vient du stockage local). */
 function nettoyer(valeur: unknown): RailLayout {
@@ -25,37 +27,41 @@ function nettoyer(valeur: unknown): RailLayout {
       ? [
           ...new Set(
             v
-              .map((x) => (typeof x === 'string' ? resolvePanelId(x) : null))
-              .filter((x): x is PanelId => x !== null),
+              .map((x) => (typeof x === 'string' ? resolveFeatureId(x) : null))
+              .filter((x): x is FeatureId => x !== null),
           ),
         ]
       : [];
   const brut = valeur as Partial<Record<keyof RailLayout, unknown>>;
-  return { order: ids(brut.order), hidden: ids(brut.hidden) };
+  return { order: ids(brut.order), hidden: ids(brut.hidden), shown: ids(brut.shown) };
 }
 
 export interface RailItem {
-  panel: TablePanel;
+  feature: TableFeatureItem;
   hidden: boolean;
 }
 
-export function useRailLayout(userId: string, campaignId: string, available: TablePanel[]) {
+export function useRailLayout(userId: string, campaignId: string, available: TableFeatureItem[]) {
   const [brut, definir] = usePreferenceLocale<unknown>(`table-rail:${userId}:${campaignId}`, VIDE);
   const layout = useMemo(() => nettoyer(brut), [brut]);
 
-  /** Tous les panneaux du rôle : ordre choisi d'abord, les nouveaux à la suite. */
+  /** Toutes les fonctions du rôle : ordre choisi d'abord, les nouvelles à la suite. */
   const items = useMemo<RailItem[]>(() => {
     const parId = new Map(available.map((p) => [p.id, p]));
     const ordre = [
       ...layout.order.filter((id) => parId.has(id)),
       ...available.map((p) => p.id).filter((id) => !layout.order.includes(id)),
     ];
-    return ordre.map((id) => ({ panel: parId.get(id)!, hidden: layout.hidden.includes(id) }));
+    return ordre.map((id) => {
+      const feature = parId.get(id)!;
+      const hidden = feature.extra ? !layout.shown.includes(id) : layout.hidden.includes(id);
+      return { feature, hidden };
+    });
   }, [available, layout]);
 
   const move = useCallback(
-    (id: PanelId, delta: -1 | 1) => {
-      const ordre = items.map((i) => i.panel.id);
+    (id: FeatureId, delta: -1 | 1) => {
+      const ordre = items.map((i) => i.feature.id);
       const de = ordre.indexOf(id);
       const vers = de + delta;
       if (de < 0 || vers < 0 || vers >= ordre.length) return;
@@ -66,17 +72,20 @@ export function useRailLayout(userId: string, campaignId: string, available: Tab
   );
 
   const setHidden = useCallback(
-    (id: PanelId, hidden: boolean) =>
-      definir({
-        ...layout,
-        hidden: hidden ? [...layout.hidden, id] : layout.hidden.filter((x) => x !== id),
-      }),
-    [layout, definir],
+    (id: FeatureId, hidden: boolean) => {
+      const sans = (l: FeatureId[]) => l.filter((x) => x !== id);
+      // Fonction en plus : on l'ajoute (ou la retire) ; les autres : on les masque (ou montre)
+      if (available.find((f) => f.id === id)?.extra)
+        definir({ ...layout, shown: hidden ? sans(layout.shown) : [...sans(layout.shown), id] });
+      else
+        definir({ ...layout, hidden: hidden ? [...sans(layout.hidden), id] : sans(layout.hidden) });
+    },
+    [available, layout, definir],
   );
 
   const reset = useCallback(() => definir(VIDE), [definir]);
 
-  const customized = layout.order.length > 0 || layout.hidden.length > 0;
+  const customized = layout.order.length > 0 || layout.hidden.length > 0 || layout.shown.length > 0;
 
   // Stable entre deux rendus : le rail (mémoïsé) ne se re-rend que si sa disposition change
   return useMemo(
