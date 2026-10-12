@@ -21,7 +21,7 @@ import {
   SendHorizontal,
   Swords,
   Users,
-  VenetianMask,
+  Skull,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -202,7 +202,7 @@ export function PartyBar() {
                 transition={{ duration: 0.15 }}
                 className="grid place-items-center"
               >
-                {mode === 'players' ? <Users /> : <VenetianMask />}
+                {mode === 'players' ? <Users /> : <Skull />}
               </motion.span>
             </AnimatePresence>
           </Button>
