@@ -94,4 +94,10 @@ export default {
   noneOpened: 'No scene open: pick one in Scenes (E).',
   noneYet: 'No scenes: create the first one in Scenes (E).',
   noBackground: 'No background',
+  currentBackground: 'Current',
+  importFormats: 'Image or video',
+  library: 'Library',
+  libraryCount: '{count, plural, one {# map} other {# maps}}',
+  seeAll: 'See all',
+  withGrid: 'Version with grid',
 } satisfies Translation<typeof fr>;

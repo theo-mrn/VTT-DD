@@ -91,4 +91,10 @@ export default {
   noneOpened: 'Aucune scène ouverte : choisissez-en une dans Scènes (E).',
   noneYet: 'Aucune scène : créez la première dans Scènes (E).',
   noBackground: 'Sans fond',
+  currentBackground: 'Actuel',
+  importFormats: 'Image ou vidéo',
+  library: 'Bibliothèque',
+  libraryCount: '{count, plural, one {# carte} other {# cartes}}',
+  seeAll: 'Tout voir',
+  withGrid: 'Version avec grille',
 } as const;
