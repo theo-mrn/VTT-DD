@@ -14,6 +14,57 @@ import { cn } from '@/lib/utils';
 /** Type des données glissées depuis la bibliothèque vers la scène. */
 export const NPC_DRAG_TYPE = 'application/x-vtt-npc';
 
+/** Diamètre de l'aperçu glissé (px CSS). */
+const DRAG_SIZE = 56;
+
+/**
+ * Aperçu du glisser : le portrait de la carte en rond (comme le jeton), au lieu de la carte
+ * entière. Dessiné dans un canevas posé hors écran le temps que le navigateur le capture.
+ */
+export function setRoundDragImage(e: DragEvent) {
+  const img = (e.currentTarget as HTMLElement).querySelector('img');
+  if (!img?.complete || !img.naturalWidth) return;
+  const ratio = window.devicePixelRatio || 1;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = DRAG_SIZE * ratio;
+  Object.assign(canvas.style, {
+    position: 'fixed',
+    top: '-1000px',
+    left: '-1000px',
+    width: `${DRAG_SIZE}px`,
+    height: `${DRAG_SIZE}px`,
+  });
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const r = (DRAG_SIZE * ratio) / 2;
+  const side = Math.min(img.naturalWidth, img.naturalHeight);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(r, r, r - 2 * ratio, 0, Math.PI * 2);
+  ctx.clip();
+  // Recadrage carré, centré (haut de l'image pour un portrait)
+  ctx.drawImage(
+    img,
+    (img.naturalWidth - side) / 2,
+    img.naturalHeight > img.naturalWidth ? 0 : (img.naturalHeight - side) / 2,
+    side,
+    side,
+    0,
+    0,
+    r * 2,
+    r * 2,
+  );
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(r, r, r - ratio, 0, Math.PI * 2);
+  ctx.lineWidth = 2 * ratio;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.stroke();
+  document.body.appendChild(canvas);
+  e.dataTransfer.setDragImage(canvas, DRAG_SIZE / 2, DRAG_SIZE / 2);
+  setTimeout(() => canvas.remove(), 0);
+}
+
 export interface CardDrag {
   onDragStart(e: DragEvent, source: PlacementSource): void;
   onDragEnd(): void;
@@ -43,7 +94,10 @@ export function LibraryCard({
         name: subtitle ? `${source.name}, ${subtitle}` : source.name,
       })}
       onClick={onArm}
-      onDragStart={(e) => drag.onDragStart(e, source)}
+      onDragStart={(e) => {
+        setRoundDragImage(e);
+        drag.onDragStart(e, source);
+      }}
       onDragEnd={drag.onDragEnd}
       className={cn(
         'group flex w-full cursor-grab items-center gap-3 rounded-xl border p-2 text-left transition-colors active:cursor-grabbing',
