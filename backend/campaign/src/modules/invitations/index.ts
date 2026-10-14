@@ -40,6 +40,7 @@ import {
   campaignSummaries,
   clearInvitation,
   gmAccess,
+  hasMembers,
   headcounts,
   lockCampaign,
   userApi,
@@ -446,7 +447,7 @@ export const register: Module = async (app, deps) => {
         })
         .from(campaignInvitees)
         .innerJoin(campaigns, eq(campaigns.id, campaignInvitees.campaignId))
-        .innerJoin(headcount, eq(headcount.campaignId, campaigns.id))
+        .innerJoinLateral(headcount, hasMembers(headcount))
         .where(eq(campaignInvitees.userId, userId))
         .orderBy(desc(campaignInvitees.invitedAt), asc(campaigns.id));
       const [summaries, profiles] = await Promise.all([

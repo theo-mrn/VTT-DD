@@ -208,20 +208,27 @@ function campaignFields(
   };
 }
 
-/** Effectif des campagnes : membres, et joueurs (membres qui ne sont pas MJ). */
+/**
+ * Effectif de chaque campagne de la requête : membres, et joueurs (membres qui ne sont pas MJ).
+ * Sous-requête corrélée à `campaigns.id`, jointe en LATERAL : seules les campagnes listées
+ * sont comptées, au lieu d'agréger tous les membres de toutes les campagnes.
+ */
 export function headcounts(db: Db | Tx) {
   return db
     .select({
-      campaignId: campaignMembers.campaignId,
       memberCount: count().as('member_count'),
       playerCount: sql<number>`count(*) filter (where ${campaignMembers.role} <> 'gm')`
         .mapWith(Number)
         .as('player_count'),
     })
     .from(campaignMembers)
-    .groupBy(campaignMembers.campaignId)
+    .where(eq(campaignMembers.campaignId, campaigns.id))
     .as('headcount');
 }
+
+/** Condition de jointure de `headcounts` : une campagne sans membre reste exclue. */
+export const hasMembers = (headcount: ReturnType<typeof headcounts>) =>
+  sql`${headcount.memberCount} > 0`;
 
 /** Campagnes d'une liste, avec le profil de leur propriétaire. */
 export async function campaignSummaries(

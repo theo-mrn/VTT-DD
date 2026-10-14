@@ -13,7 +13,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { activeCampaigns, campaignMembers, campaigns } from '../../db/schema.js';
 import type { Deps, Module } from '../../deps.js';
-import { headcounts, myCampaignSummaries } from '../campaigns/repository.js';
+import { hasMembers, headcounts, myCampaignSummaries } from '../campaigns/repository.js';
 import { CampaignId, currentUser, MyCampaignSummary } from '../schemas.js';
 
 const codePg = (err: unknown) =>
@@ -34,7 +34,7 @@ async function resume(deps: Deps, req: FastifyRequest, campaignId: string) {
     })
     .from(campaignMembers)
     .innerJoin(campaigns, eq(campaigns.id, campaignMembers.campaignId))
-    .innerJoin(headcount, eq(headcount.campaignId, campaigns.id))
+    .innerJoinLateral(headcount, hasMembers(headcount))
     .where(and(eq(campaignMembers.userId, userId), eq(campaignMembers.campaignId, campaignId)));
   if (rows.length === 0) return null;
   const [summary] = await myCampaignSummaries(deps, rows, userId, req.headers.authorization);

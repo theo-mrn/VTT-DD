@@ -59,6 +59,7 @@ import {
   campaignEvent,
   campaignSummaries,
   gmAccess,
+  hasMembers,
   headcounts,
   lockCampaign,
   myCampaignSummaries,
@@ -166,7 +167,7 @@ export const register: Module = async (app, deps) => {
         })
         .from(campaignMembers)
         .innerJoin(campaigns, eq(campaigns.id, campaignMembers.campaignId))
-        .innerJoin(headcount, eq(headcount.campaignId, campaigns.id))
+        .innerJoinLateral(headcount, hasMembers(headcount))
         .where(
           and(
             eq(campaignMembers.userId, currentUser(req)),
@@ -225,7 +226,7 @@ export const register: Module = async (app, deps) => {
             playerCount: headcount.playerCount,
           })
           .from(campaigns)
-          .innerJoin(headcount, eq(headcount.campaignId, campaigns.id))
+          .innerJoinLateral(headcount, hasMembers(headcount))
           .leftJoin(myMembership, eq(myMembership.campaignId, campaigns.id))
           .where(filter)
           .orderBy(desc(campaigns.updatedAt), desc(campaigns.id))
