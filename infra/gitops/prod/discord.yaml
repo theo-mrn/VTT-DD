@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-discord
-  digest: 'sha256:037d7e72421f8c4db486f97be365ac7edb319bcb1b4ea87c4ba2c305d62dd594'
+  digest: 'sha256:8c72c202dc952eb63ee496ba5351a3be8a26df8937fb0b6d2347a4fabbf02bbb'
   tag: 'main'
 # Bot de dés Discord (docs/discord.md) : sans état, une réplique suffit
 replicaCount: 1
