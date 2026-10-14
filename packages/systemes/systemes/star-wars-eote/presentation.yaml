@@ -35,7 +35,13 @@ des:
   sortes:
     fortune: { skin: kyber_bleu, couleur: '#4aa8e0', forme: d6, court: Fortune, original: Boost }
     infortune:
-      { skin: hyperespace, couleur: '#9a9aa2', forme: d6, court: Infortune, original: Setback }
+      {
+        skin: resine_obsidienne,
+        couleur: '#9a9aa2',
+        forme: d6,
+        court: Infortune,
+        original: Setback,
+      }
     aptitude:
       { skin: kyber_vert, couleur: '#3fbf6a', forme: d8, court: Aptitude, original: Ability }
     difficulte:

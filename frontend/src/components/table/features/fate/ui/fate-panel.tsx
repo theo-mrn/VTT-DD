@@ -4,10 +4,10 @@ import { useTranslations } from 'next-intl';
 import { Minus, Plus, Star } from 'lucide-react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
-import { useCampaignEphemeral } from '@/lib/realtime';
+import { toast } from 'sonner';
+import { messageErreur } from '@/lib/api';
 import { useTable } from '../../../contexte';
-import { enqueue } from '../../shared/outbox';
-import { fate, fateActions, FATE_MAX, FATE_SPEND_KIND } from '../state';
+import { fate, fateActions, FATE_MAX } from '../state';
 import { FateToken } from './fate-token';
 
 /**
@@ -15,9 +15,8 @@ import { FateToken } from './fate-token';
  */
 export function FatePanel() {
   const t = useTranslations('table.fate');
-  const { campagne, gm, moi } = useTable();
+  const { gm } = useTable();
   const p = useStore(fate.store, (s) => s.value);
-  const { send, live } = useCampaignEphemeral(campagne.id, [FATE_SPEND_KIND], () => undefined);
 
   if (!p)
     return (
@@ -32,11 +31,10 @@ export function FatePanel() {
       </div>
     );
 
-  const depenser = () => {
-    if (gm) fateActions.spend(moi.name);
-    else
-      enqueue(`spend:${crypto.randomUUID()}`, () => send(FATE_SPEND_KIND, null, { gmOnly: true }));
-  };
+  const depenser = () =>
+    void fateActions
+      .spend()
+      .catch((e: unknown) => toast.error(t('spendFailed'), { description: messageErreur(e) }));
 
   return (
     <div className="space-y-5 p-4">
@@ -46,7 +44,7 @@ export function FatePanel() {
         ))}
       </div>
 
-      <Button className="w-full" disabled={p.count === 0 || (!gm && !live)} onClick={depenser}>
+      <Button className="w-full" disabled={p.count === 0} onClick={depenser}>
         <Star />
         {t('spend')}
       </Button>

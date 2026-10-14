@@ -3,84 +3,46 @@
 import { useTranslations } from 'next-intl';
 import { Hourglass } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useRef } from 'react';
-import { useCampaignEphemeral } from '@/lib/realtime';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTable } from '../../../contexte';
-import { enqueue } from '../../shared/outbox';
-import { unwrap, wrap } from '../../shared/tab';
-import {
-  formatRemaining,
-  fromWire,
-  TIMER_ASK_KIND,
-  TIMER_KIND,
-  timerStore,
-  toWire,
-} from '../state';
+import { formatRemaining, timer as commandes } from '../state';
 import { useTimer } from './use-timer';
 
 /** Délai d'affichage de « Temps écoulé » avant que le minuteur disparaisse. */
 const OVER_MS = 6000;
 
 /**
- * Minuteur vu de toute la table : pastille en haut au centre, sous la barre du combat. Tient
- * aussi l'abonnement au canal éphémère (reçoit le minuteur du MJ, répond aux arrivants).
+ * Minuteur vu de toute la table : pastille en haut au centre, sous la barre du combat (état de
+ * la table, serveur).
  */
 export function TimerOverlay() {
   const t = useTranslations('table.timer');
-  const { campagne, gm } = useTable();
+  const { gm } = useTable();
   const { timer, remaining } = useTimer();
 
-  const { send, live } = useCampaignEphemeral(campagne.id, [TIMER_KIND, TIMER_ASK_KIND], (m) => {
-    // Ses propres envois s'ignorent par onglet (un même compte peut en avoir plusieurs)
-    const recu = unwrap(m.data);
-    if (!recu) return;
-    if (m.kind === TIMER_ASK_KIND) {
-      // Un arrivant demande l'état : le MJ le lui renvoie
-      const courant = timerStore.getState().timer;
-      if (gm && courant)
-        enqueue(TIMER_KIND, () => envoi.current(TIMER_KIND, wrap(toWire(courant))));
-      return;
-    }
-    // Seul un MJ pilote le minuteur
-    if (m.from.role === 'gm') timerStore.setState({ timer: fromWire(recu.value) });
-  });
-
-  // `send` change à chaque rendu : la commande posée dans le magasin passe par une référence
-  const envoi = useRef(send);
-  envoi.current = send;
-  useEffect(() => {
-    timerStore.setState({
-      send: (w) => enqueue(TIMER_KIND, () => envoi.current(TIMER_KIND, wrap(w))),
-    });
-    return () => timerStore.setState({ send: null });
-  }, []);
-
-  // Arrivée : demander le minuteur en cours
-  const demande = useRef(false);
-  useEffect(() => {
-    if (!live || gm || demande.current) return;
-    demande.current = true;
-    enqueue(TIMER_ASK_KIND, () => envoi.current(TIMER_ASK_KIND, wrap(null)));
-  }, [live, gm]);
+  // Fini et écarté (le temps de « Temps écoulé ») : l'échéance qu'on ne montre plus
+  const [ecarte, setEcarte] = useState<number | null>(null);
 
   // Fini : « Temps écoulé » quelques secondes, puis le MJ l'arrête pour tous
   const fini = timer !== null && timer.endsAt !== null && remaining === 0;
   useEffect(() => {
     if (!fini) return;
+    const echeance = timer.endsAt;
     const id = setTimeout(() => {
-      if (gm) timerStore.getState().send?.(null);
-      timerStore.setState({ timer: null });
+      // Le MJ l'arrête pour tous ; sans lui, chacun le retire de son écran
+      if (gm) commandes.stop();
+      setEcarte(echeance);
     }, OVER_MS);
     return () => clearTimeout(id);
-  }, [fini, gm]);
+  }, [fini, gm, timer]);
 
   const ratio = timer ? remaining / Math.max(1, timer.durationMs) : 0;
   const urgent = timer !== null && remaining <= 10_000;
 
   return (
     <AnimatePresence>
-      {timer && (
+      {timer && !(ecarte !== null && timer.endsAt === ecarte) && (
         <motion.div
           key="timer"
           role="timer"

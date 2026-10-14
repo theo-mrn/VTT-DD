@@ -154,7 +154,7 @@ export const VoiceBar = memo(function VoiceBar({
       {status === 'idle' || status === 'error' ? (
         <Info
           texte={status === 'error' ? failureText(error, t('unavailable')) : t('join')}
-          cote="bottom"
+          cote="top"
         >
           <Button
             variant="ghost"
@@ -179,7 +179,7 @@ export const VoiceBar = memo(function VoiceBar({
       ) : (
         <>
           {partner && (
-            <Info texte={t('endPrivateWith', { name: nameOf(partner) })} cote="bottom">
+            <Info texte={t('endPrivateWith', { name: nameOf(partner) })} cote="top">
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -191,10 +191,7 @@ export const VoiceBar = memo(function VoiceBar({
               </Button>
             </Info>
           )}
-          <Info
-            texte={listenOnly ? t('listenOnly') : muted ? t('unmute') : t('mute')}
-            cote="bottom"
-          >
+          <Info texte={listenOnly ? t('listenOnly') : muted ? t('unmute') : t('mute')} cote="top">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -207,7 +204,7 @@ export const VoiceBar = memo(function VoiceBar({
               {muted || listenOnly ? <MicOff /> : <Mic />}
             </Button>
           </Info>
-          <Info texte={deafened ? t('undeafen') : t('deafen')} cote="bottom">
+          <Info texte={deafened ? t('undeafen') : t('deafen')} cote="top">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -220,7 +217,7 @@ export const VoiceBar = memo(function VoiceBar({
             </Button>
           </Info>
           <VolumeButton label={t('volume')} />
-          <Info texte={t('leave')} cote="bottom">
+          <Info texte={t('leave')} cote="top">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -251,20 +248,20 @@ function FaceMenu({
 }>) {
   if (!enabled)
     return (
-      <Info texte={label} cote="bottom">
+      <Info texte={label} cote="top">
         {children}
       </Info>
     );
   return (
     <DropdownMenu>
-      <Info texte={label} cote="bottom">
+      <Info texte={label} cote="top">
         <DropdownMenuTrigger asChild>
           <button type="button" className="rounded-full" aria-label={label}>
             {children}
           </button>
         </DropdownMenuTrigger>
       </Info>
-      <DropdownMenuContent side="bottom" align="end">
+      <DropdownMenuContent side="top" align="end">
         <DropdownMenuItem onSelect={() => void item.run()}>
           <Lock />
           {item.text}
@@ -284,14 +281,14 @@ function VolumeButton({ label }: Readonly<{ label: string }>) {
   const volume = useVoice((s) => s.volume);
   return (
     <Popover>
-      <Info texte={label} cote="bottom">
+      <Info texte={label} cote="top">
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon-sm" className={HUD_CONTROL} aria-label={label}>
             <Volume2 />
           </Button>
         </PopoverTrigger>
       </Info>
-      <PopoverContent side="bottom" align="end" className="w-48 p-3">
+      <PopoverContent side="top" align="end" className="w-48 p-3">
         <Slider
           aria-label={label}
           min={0}

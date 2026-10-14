@@ -1,7 +1,8 @@
 'use client';
 
 import { Suspense } from 'react';
-import { tableFeatures } from '.';
+import { tableFeatures, tableOverlays } from '.';
+import { useTableStateSync } from './shared/table-state';
 
 /**
  * Surcouches des fonctions (`overlay` d'un manifeste) : toujours montées au-dessus de la carte,
@@ -11,6 +12,7 @@ import { tableFeatures } from '.';
 export function OverlayHost() {
   return (
     <>
+      <TableStateSync />
       {tableFeatures.map((f) => {
         const Overlay = 'overlay' in f ? f.overlay : undefined;
         return Overlay ? (
@@ -19,6 +21,17 @@ export function OverlayHost() {
           </Suspense>
         ) : null;
       })}
+      {tableOverlays.map(({ id, component: Overlay }) => (
+        <Suspense key={id} fallback={null}>
+          <Overlay />
+        </Suspense>
+      ))}
     </>
   );
+}
+
+/** État des outils de table (serveur), tenu à jour une fois pour tout l'onglet. */
+function TableStateSync() {
+  useTableStateSync();
+  return null;
 }

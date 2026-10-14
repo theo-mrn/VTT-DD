@@ -29,7 +29,7 @@ import { normalizeWeather, WEATHER_FPS, WEATHER_FPS_ECONOMY } from './engine/mod
 import { WeatherOverlay } from './engine/overlay';
 import { WeatherRenderer } from './engine/renderer';
 import { WeatherSim } from './engine/simulation';
-import { displayedWeather, weatherPreview, weatherPrefs } from './engine/state';
+import { displayedWeather, personalWeather, weatherPreview, weatherPrefs } from './engine/state';
 import { exposeWeatherStats, WeatherStats } from './engine/stats';
 
 /** Coût moyen du module par image au-delà duquel le budget de particules est divisé. */
@@ -272,6 +272,7 @@ export const weatherFeature: MapFeature = {
       }),
       prefs.subscribe(() => request()),
       preview.subscribe(() => request()),
+      personalWeather.subscribe(() => request()),
       () => {
         if (typeof document !== 'undefined')
           document.removeEventListener('visibilitychange', onVisibility);

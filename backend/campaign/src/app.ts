@@ -14,6 +14,7 @@ import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
 import { register as active } from './modules/active/index.js';
 import { register as attacks } from './modules/attacks/index.js';
+import { register as automations } from './modules/automations/index.js';
 import { register as campaigns } from './modules/campaigns/index.js';
 import { register as characters } from './modules/characters/index.js';
 import { register as combat } from './modules/combat/index.js';
@@ -27,6 +28,7 @@ import { register as sessions } from './modules/sessions/index.js';
 import { register as storage } from './modules/storage/index.js';
 import { placesChecker } from './modules/storage/runtime.js';
 import { register as settings } from './modules/settings/index.js';
+import { register as table } from './modules/table/index.js';
 import { createS3Signer } from './storage/images.js';
 import { referenceCatalog, type Catalog } from './systems/catalog.js';
 
@@ -93,6 +95,8 @@ export async function buildCampaign(
     messages,
     notes,
     handouts,
+    table,
+    automations,
     storage,
     internal,
   ]) {

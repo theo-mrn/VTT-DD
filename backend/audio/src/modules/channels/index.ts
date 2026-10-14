@@ -27,16 +27,9 @@ import {
   requireGm,
   sendProblem,
 } from '../common.js';
-import { applyCommand, MachineError } from './machine.js';
-import {
-  buildState,
-  loadAssets,
-  lockChannel,
-  playlistOrder,
-  readChannel,
-  saveTransition,
-  toMachine,
-} from './repository.js';
+import { executeChannelCommand } from './execute.js';
+import { MachineError } from './machine.js';
+import { readChannel } from './repository.js';
 
 /** Fenêtre glissante en mémoire : COMMAND_RATE_PER_CHANNEL commandes par seconde et par canal. */
 function rateLimiter(max: number, windowMs = 1_000) {
@@ -54,11 +47,17 @@ function rateLimiter(max: number, windowMs = 1_000) {
   };
 }
 
-/** Commandes qui (re)lancent le son : ancre posée dans le futur. */
-const STARTS = new Set<Command['type']>(['play', 'resume', 'seek', 'next', 'previous']);
-
-/** Assets désignés par une commande (à charger avec la file). */
-const commandAssets = (c: Command): string[] => (c.type === 'play' && c.assetId ? [c.assetId] : []);
+/** Erreur de la machine d'état → réponse HTTP. */
+function asHttp(e: unknown): never {
+  if (e instanceof MachineError)
+    throw new HttpError(
+      e.status,
+      e.status === 409 ? 'Conflit' : 'Commande impossible',
+      e.code,
+      e.message,
+    );
+  throw e;
+}
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -116,70 +115,13 @@ export const register: Module = async (app, deps) => {
           'Trop de commandes sur ce canal',
         );
 
-      const outcome = await db
-        .transaction(async (tx) => {
-          const now = deps.now();
-          const row = await lockChannel(tx, campaignId, channel, now);
-          const playlistId =
-            command.type === 'play' && command.playlistId ? command.playlistId : row.playlistId;
-          const playlist = playlistId
-            ? { id: playlistId, assetIds: await playlistOrder(tx, playlistId) }
-            : null;
-          const { rows, infos } = await loadAssets(tx, [
-            ...row.queue,
-            ...(row.assetId ? [row.assetId] : []),
-            ...(playlist?.assetIds ?? []),
-            ...commandAssets(command),
-          ]);
-          // Assets d'une autre campagne : invisibles
-          for (const [id, a] of rows)
-            if (a.campaignId !== campaignId) {
-              rows.delete(id);
-              infos.delete(id);
-            }
-          if (command.type === 'play' && command.assetId && !rows.has(command.assetId))
-            throw HttpError.notFound('Son introuvable');
-          if (
-            command.type === 'play' &&
-            command.playlistId &&
-            playlist &&
-            !playlist.assetIds.every((a) => rows.has(a))
-          )
-            throw HttpError.notFound('Playlist introuvable');
-
-          if (command.expectedVersion !== undefined && command.expectedVersion !== row.version)
-            return { conflict: buildState(row, rows, infos, deps.storage) } as const;
-
-          // Départ différé pour tous les clients (voir CHANNEL_START_LEAD_MS)
-          const at = STARTS.has(command.type) ? now + deps.config.CHANNEL_START_LEAD_MS : now;
-          const next = applyCommand(toMachine(row), command, at, {
-            assets: infos,
-            playlist,
-            random: deps.random,
-          });
-          const { state } = await saveTransition(tx, {
-            row,
-            next,
-            rows,
-            infos,
-            storage: deps.storage,
-            cause: command.type,
-            actor: actorOf(userId, role),
-            ctx: eventContext(req),
-            nowMs: now,
-          });
-          return { state } as const;
-        })
-        .catch((e: unknown) => {
-          if (e instanceof MachineError)
-            throw new HttpError(
-              e.status,
-              e.status === 409 ? 'Conflit' : 'Commande impossible',
-              e.code,
-              e.message,
-            );
-          throw e;
-        });
+      const outcome = await executeChannelCommand(deps, {
+        campaignId,
+        channel,
+        command,
+        actor: actorOf(userId, role),
+        ctx: eventContext(req),
+      }).catch(asHttp);
 
       if ('conflict' in outcome)
         return sendProblem(reply, 409, 'Conflit', 'version_conflict', {

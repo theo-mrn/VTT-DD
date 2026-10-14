@@ -17,7 +17,7 @@ export function ClocksOverlay() {
   const montrees = liste.filter((c) => gm || c.visible);
 
   return (
-    <div className="pointer-events-none fixed bottom-[calc(var(--table-dock-h)+1rem)] right-3 z-30 flex flex-col items-end gap-1.5">
+    <div className="pointer-events-none fixed bottom-[calc(var(--table-dock-h)+4.5rem)] right-3 z-30 flex flex-col items-end gap-1.5">
       <AnimatePresence initial={false}>
         {montrees.map((c) => (
           <motion.div

@@ -12,6 +12,54 @@ export default {
   },
   resine_fumee: { name: 'Smoke Resin', description: 'Smoky amber laced with milky swirls.' },
   resine_jade: { name: 'Jade Resin', description: 'Marbled jade with pale inclusions.' },
+  resine_abysse: {
+    name: 'Abyss Resin',
+    description: 'Deep-sea blue, pale mists drifting through the resin.',
+  },
+  resine_sang_dragon: {
+    name: 'Dragonblood Resin',
+    description: 'Dark red, with rosy wisps caught inside.',
+  },
+  resine_quartz_rose: {
+    name: 'Rose Quartz Resin',
+    description: 'Deep pink, with pearly veils caught inside.',
+  },
+  resine_aurore: {
+    name: 'Aurora Resin',
+    description: 'Deep purple crossed by lilac veils.',
+  },
+  resine_obsidienne: {
+    name: 'Obsidian Resin',
+    description: 'Volcanic glass black, with silver smoke.',
+  },
+  resine_glacier: {
+    name: 'Glacier Resin',
+    description: 'Ice blue, with milky frost suspended inside.',
+  },
+  resine_miel: {
+    name: 'Honey Resin',
+    description: 'Golden honey, with creamy veils floating inside.',
+  },
+  resine_emeraude: {
+    name: 'Emerald Resin',
+    description: 'Deep green, with pale mists like a forest floor.',
+  },
+  resine_braise: {
+    name: 'Ember Resin',
+    description: 'Dark ash shot through with orange glows.',
+  },
+  resine_marbre_noir: {
+    name: 'Black Marble Resin',
+    description: 'Black marble veined with gold, under a glossy varnish.',
+  },
+  resine_cosmos: {
+    name: 'Cosmos Resin',
+    description: 'Magenta night, with pink stardust.',
+  },
+  resine_turquoise: {
+    name: 'Turquoise Resin',
+    description: 'Marbled turquoise with pale inclusions.',
+  },
   kyber_bleu: {
     name: 'Kyber Crystal — Blue',
     description: 'The heart of a Jedi saber. The blade still hums, trapped in the crystal.',
@@ -32,11 +80,6 @@ export default {
     name: 'Kyber Crystal — Gold',
     description: 'The crystal of masters. Its golden blade never wavers — the mark of triumph.',
   },
-  etoile_mort: {
-    name: 'Death Star',
-    description:
-      'This battle station is your ultimate weapon. The superlaser charges with every roll.',
-  },
   cote_obscur: {
     name: 'Dark Side',
     description: 'The Force in anger. Lightning crawls beneath the surface, seeking prey.',
@@ -49,14 +92,6 @@ export default {
   esprit_force: {
     name: 'Spirit of the Force',
     description: 'The Force itself: light and darkness intertwined, forever in balance.',
-  },
-  hyperespace: {
-    name: 'Hyperspace Jump',
-    description: 'Hold on. The stars stretch and the universe races by — off to lightspeed.',
-  },
-  aqua_orb: {
-    name: 'Aquatic Orb',
-    description: 'A living glass shell with a floating heart of light.',
   },
   eye_orb: {
     name: 'Guardian’s Eye',
@@ -189,6 +224,10 @@ export default {
   cuir_ancien: { name: 'Ancient Leather', description: 'Smells of old books and adventure.' },
   pierre_donjon: { name: 'Dungeon Stone', description: 'As cold as a cell floor.' },
   fer_rouille: { name: 'Rusted Iron', description: 'Long forgotten, but still solid.' },
+  acier_chevalier: {
+    name: 'Knight’s Steel',
+    description: 'Polished blued steel with golden glints: a knight’s armour.',
+  },
   roche_volcanique: { name: 'Volcanic Rock', description: 'Careful, it’s hot!' },
   glace_eternelle: { name: 'Eternal Ice', description: 'Never melts, even in a volcano.' },
   ecorce_ancienne: { name: 'Ancient Bark', description: 'Nature always takes back what is hers.' },

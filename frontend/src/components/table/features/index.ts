@@ -44,10 +44,12 @@ import { pollFeature } from './poll';
 import { worldTimeFeature } from './worldTime';
 import { safetyFeature } from './safety';
 import { spotlightFeature } from './spotlight';
-import { npcGeneratorFeature } from './npcGenerator';
 import { clocksFeature } from './clocks';
 import { pauseFeature } from './pause';
 import { fateFeature } from './fate';
+import { groupRollFeature } from './groupRoll';
+import { screenFxOverlay } from './screenFx';
+import { automationsFeature } from './automations';
 
 export const tableFeatures = [
   desFeature,
@@ -63,11 +65,12 @@ export const tableFeatures = [
   pnjFeature,
   rencontresFeature,
   randomTablesFeature,
+  groupRollFeature,
+  automationsFeature,
   timerFeature,
   worldTimeFeature,
   pollFeature,
   spotlightFeature,
-  npcGeneratorFeature,
   clocksFeature,
   fateFeature,
   pauseFeature,
@@ -75,3 +78,9 @@ export const tableFeatures = [
   scenesFeature,
   reglagesFeature,
 ] as const;
+
+/**
+ * Surcouches sans bouton de la barre : leur commande vit ailleurs (effets d'écran : menu Météo
+ * de la carte), elles jouent chez tous.
+ */
+export const tableOverlays = [{ id: 'screenFx', component: screenFxOverlay }] as const;

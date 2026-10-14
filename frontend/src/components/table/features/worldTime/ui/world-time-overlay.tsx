@@ -3,7 +3,6 @@
 import { useTranslations } from 'next-intl';
 import { EyeOff } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useTable } from '../../../contexte';
 import { clock, partsOf, periodOf, worldTime } from '../state';
@@ -18,14 +17,7 @@ export function WorldTimeOverlay() {
   const { value, minutes } = useWorldTime();
   const montre = value !== null && (gm || value.visible);
   const p = value ? partsOf(minutes) : null;
-  const coule = (value?.rate ?? 0) > 0;
 
-  // MJ : le temps qui coule est enregistré régulièrement (il le retrouve à la séance suivante)
-  useEffect(() => {
-    if (!gm || !coule) return;
-    const id = setInterval(worldTime.save, 30_000);
-    return () => clearInterval(id);
-  }, [gm, coule]);
   const period = p ? periodOf(p.hour) : 'morning';
   const Icone = PERIOD_ICON[period];
 
@@ -37,7 +29,7 @@ export function WorldTimeOverlay() {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
-          className="pointer-events-none fixed right-3 top-[4.75rem] z-30"
+          className="pointer-events-none fixed right-3 top-3 z-30"
         >
           <div className="flex items-center gap-2.5 rounded-2xl border border-border-strong bg-popover/95 py-1.5 pl-2 pr-3.5 shadow-elevated backdrop-blur">
             <span

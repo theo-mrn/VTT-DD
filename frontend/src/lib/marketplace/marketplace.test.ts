@@ -37,6 +37,7 @@ function snapshot(): MapSnapshot {
       exploration: 'off',
       voice: { mode: 'table', clearRange: 6, maxRange: 24 },
       scale: null,
+      music: null,
       grids: [],
       version: 3,
       updatedAt: '',

@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import {
   BedDouble,
+  FileDown,
   Crop,
   Hammer,
   LayoutGrid,
@@ -69,6 +70,8 @@ import { useProfil } from '@/lib/session';
 import { undoAction } from '@/lib/trash';
 import { cn } from '@/lib/utils';
 import { BannerIdentity, BannerStats } from './banner';
+import { SheetExportDialog } from './export/export-dialog';
+import { useSheetSnapshot } from './export/use-sheet-snapshot';
 import { ImportBadge } from './import-badge';
 import { styleThemeSysteme } from './theme';
 import { actionsProgression, ProgressionDialog } from './progression-dialog';
@@ -311,6 +314,8 @@ function EnTeteFiche({
   personnaliser?: () => void;
 }>) {
   const nomSysteme = useNomSysteme(p.system.id);
+  const [exportOuvert, setExportOuvert] = useState(false);
+  const snapshot = useSheetSnapshot();
   const campagne = useCampagne(p.roomId);
   const [edition, setEdition] = useState(false);
   const [suppression, setSuppression] = useState(false);
@@ -399,6 +404,7 @@ function EnTeteFiche({
               onPersonnaliser={personnaliser}
               onModifier={() => setEdition(true)}
               onSupprimer={() => setSuppression(true)}
+              onExporter={ctx ? () => setExportOuvert(true) : undefined}
             />
           </div>
           {ctx ? (
@@ -439,6 +445,15 @@ function EnTeteFiche({
         </MonteSiOuvert>
       )}
       {peutModifier && <EditionIdentite personnage={p} ouvert={edition} onOuvert={setEdition} />}
+      {ctx && exportOuvert && (
+        <SheetExportDialog
+          open={exportOuvert}
+          onOpenChange={setExportOuvert}
+          candidates={[{ id: p.id, name: p.name }]}
+          build={() => [snapshot(ctx, nomSysteme ?? '', p.details.concept)]}
+          fileBase={p.name}
+        />
+      )}
       {proprietaire && (
         <DialogueSuppression
           personnage={p}
@@ -467,6 +482,7 @@ function MenuFiche({
   onPersonnaliser,
   onModifier,
   onSupprimer,
+  onExporter,
 }: Readonly<{
   personnage: Fiche;
   proprietaire: boolean;
@@ -478,6 +494,8 @@ function MenuFiche({
   onPersonnaliser?: () => void;
   onModifier: () => void;
   onSupprimer: () => void;
+  /** Présent quand la fiche est calculée : export PDF. */
+  onExporter?: () => void;
 }>) {
   const t = useTranslations();
   const dates = useDates();
@@ -488,7 +506,8 @@ function MenuFiche({
     !onRepos &&
     !onPersonnaliser &&
     !peutModifier &&
-    !proprietaire
+    !proprietaire &&
+    !onExporter
   )
     return null;
   return (
@@ -535,6 +554,12 @@ function MenuFiche({
           <DropdownMenuItem onSelect={onModifier}>
             <Pencil />
             {t('sheet.page.editIdentity')}
+          </DropdownMenuItem>
+        )}
+        {onExporter && (
+          <DropdownMenuItem onSelect={onExporter}>
+            <FileDown />
+            {t('sheet.export.menu')}
           </DropdownMenuItem>
         )}
         {(peutModifier || proprietaire) && (

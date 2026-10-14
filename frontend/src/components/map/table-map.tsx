@@ -72,7 +72,12 @@ export function TableMap() {
 
   return (
     <>
-      <MapStage backdropUrl={campagne.coverUrl} seed={campagne.name} emptyMessage={empty}>
+      <MapStage
+        backdropUrl={campagne.coverUrl}
+        seed={campagne.name}
+        emptyMessage={empty}
+        loading={target.loading}
+      >
         {target.mapId ? (
           <MapCanvas
             key={target.mapId}

@@ -96,10 +96,21 @@ export function sceneWeather(engine: MapEngine): MapWeather | null {
   return (engine.store.getState().scene?.weather as MapWeather | null | undefined) ?? null;
 }
 
-/** Météo à dessiner : l'aperçu du MJ s'il y en a un, sinon celle de la scène. */
+/**
+ * Météo d'un seul personnage, sur l'écran de qui le joue : posée par la table (état de la table,
+ * `personalWeather`), elle passe devant celle de la scène. `undefined` : il suit la scène ;
+ * null : temps clair pour lui.
+ */
+export const personalWeather = createStore<{ weather: MapWeather | null | undefined }>()(() => ({
+  weather: undefined,
+}));
+
+/** Météo à dessiner : l'aperçu du MJ, sinon la sienne (personnage), sinon celle de la scène. */
 export function displayedWeather(engine: MapEngine): MapWeather | null {
   const preview = weatherPreview(engine).getState().weather;
-  return preview !== undefined ? preview : sceneWeather(engine);
+  if (preview !== undefined) return preview;
+  const perso = personalWeather.getState().weather;
+  return perso !== undefined ? perso : sceneWeather(engine);
 }
 
 /** Enregistre la météo de la scène : une commande annulable (« Météo »), l'aperçu effacé. */

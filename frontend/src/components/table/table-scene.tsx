@@ -198,15 +198,17 @@ const Plateau = memo(function Plateau({ table, children }: { table: Table; child
         <div className="flex min-w-0 justify-center">
           <HudCombat table={table} />
         </div>
-        {/* Voix de la table (docs/voix.md) */}
-        <div className="flex min-w-0 justify-end">
-          <VoiceBar
-            campaignId={table.campagne.id}
-            me={table.moi.userId}
-            gm={table.gm}
-            members={table.campagne.members}
-          />
-        </div>
+        <div />
+      </div>
+
+      {/* Voix de la table (docs/voix.md) : en bas à droite, au-dessus de la barre du bas */}
+      <div className="pointer-events-none fixed bottom-[calc(var(--table-dock-h)+1rem)] right-3 z-30 flex justify-end">
+        <VoiceBar
+          campaignId={table.campagne.id}
+          me={table.moi.userId}
+          gm={table.gm}
+          members={table.campagne.members}
+        />
       </div>
 
       <TableRail layout={rail} />

@@ -1,5 +1,6 @@
 'use client';
 
+import { IconeChargement } from '@/components/shell/ecran-chargement';
 import { useTranslations } from 'next-intl';
 import { Map as IconeCarte } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -18,6 +19,8 @@ export interface MapStageProps {
   children?: ReactNode;
   /** Message de la toile d'attente (aucune scène ouverte, scène en cours d'ouverture). */
   emptyMessage?: string;
+  /** Scène en cours d'ouverture : l'indicateur de chargement à la place du message. */
+  loading?: boolean;
 }
 
 /**
@@ -25,7 +28,13 @@ export interface MapStageProps {
  * surcouches. Aucune logique de carte ici : le moteur (`components/map/table-map.tsx`) se
  * branche comme enfant, et reçoit tout l'espace (`absolute inset-0`).
  */
-export function MapStage({ backdropUrl, seed, children, emptyMessage }: Readonly<MapStageProps>) {
+export function MapStage({
+  backdropUrl,
+  seed,
+  children,
+  emptyMessage,
+  loading,
+}: Readonly<MapStageProps>) {
   const t = useTranslations('table.scene');
   return (
     <section aria-label={t('map')} className="absolute inset-0 overflow-hidden bg-background">
@@ -43,10 +52,14 @@ export function MapStage({ backdropUrl, seed, children, emptyMessage }: Readonly
             className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,hsl(var(--background))_75%)]"
           />
           <div className="absolute inset-0 grid place-items-center p-6">
-            <p className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2 text-sm text-muted-foreground">
-              <IconeCarte className="size-4 text-primary" aria-hidden />
-              {emptyMessage ?? t('mapSoon')}
-            </p>
+            {loading ? (
+              <IconeChargement texte={emptyMessage} />
+            ) : (
+              <p className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2 text-sm text-muted-foreground">
+                <IconeCarte className="size-4 text-primary" aria-hidden />
+                {emptyMessage ?? t('mapSoon')}
+              </p>
+            )}
           </div>
         </>
       )}

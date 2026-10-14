@@ -93,6 +93,17 @@ export interface NpcFormResult {
   categoryId: string | null;
   /** Valeurs changées (création : par rapport au défaut ; modification : à l'ouverture). */
   valeurs: Record<string, Valeur>;
+  /** Création depuis une créature du bestiaire (son état, ses actions), si le type est resté. */
+  bestiaryKey?: string;
+}
+
+/** Création pré-remplie (générateur) : nom, type, image, valeurs clés, créature de base. */
+export interface NpcFormPreset {
+  name: string;
+  type: string;
+  imageUrl: string | null;
+  valeurs: Record<string, Valeur>;
+  bestiaryKey?: string;
 }
 
 export interface NpcFormInitial {
@@ -108,6 +119,7 @@ export function NpcForm({
   presentation,
   categories,
   initial,
+  preset,
   defaultCategoryId,
   submitLabel,
   submitIcon,
@@ -122,6 +134,8 @@ export function NpcForm({
   categories: readonly NpcTemplateCategory[];
   /** Modèle à modifier (son type ne change pas) ; absent : création. */
   initial?: NpcFormInitial;
+  /** Création pré-remplie (un nouveau tirage remonte le formulaire). */
+  preset?: NpcFormPreset;
   /** Création : catégorie choisie d'avance (celle affichée dans la liste). */
   defaultCategoryId?: string | null;
   submitLabel: string;
@@ -139,9 +153,13 @@ export function NpcForm({
     [systeme],
   );
   const editing = Boolean(initial);
-  const [type, setType] = useState(initial?.etat?.type ?? types[0]?.id ?? '');
-  const [name, setName] = useState(initial?.name ?? '');
-  const [image, setImage] = useState(initial?.imageUrl ?? '');
+  const [type, setType] = useState(
+    initial?.etat?.type ??
+      (preset && types.some((x) => x.id === preset.type) ? preset.type : types[0]?.id) ??
+      '',
+  );
+  const [name, setName] = useState(initial?.name ?? preset?.name ?? '');
+  const [image, setImage] = useState(initial?.imageUrl ?? preset?.imageUrl ?? '');
   const [category, setCategory] = useState(
     (initial ? initial.categoryId : defaultCategoryId) ?? NONE,
   );
@@ -156,7 +174,17 @@ export function NpcForm({
     const valeurs = initial?.etat?.type === type ? (initial.etat.valeurs ?? {}) : {};
     return (a: Attribut) => saisieOf(valeurs[a.cle], a);
   }, [initial, type]);
-  const [saisies, setSaisies] = useState<Record<string, Saisie>>({});
+  const [saisies, setSaisies] = useState<Record<string, Saisie>>(() =>
+    preset && preset.type === type
+      ? Object.fromEntries(
+          keyAttributes(systeme, presentation, type).flatMap((a) =>
+            preset.valeurs[a.cle] === undefined
+              ? []
+              : [[a.cle, saisieOf(preset.valeurs[a.cle], a)]],
+          ),
+        )
+      : {},
+  );
 
   const imageCheck = image.trim() ? MediaUrl.safeParse(image.trim()) : null;
   const imageError = imageCheck && !imageCheck.success ? t('map.tokens.inspector.urlHint') : null;
@@ -177,6 +205,9 @@ export function NpcForm({
           imageUrl: imageCheck?.success ? imageCheck.data : null,
           categoryId: category === NONE ? null : category,
           valeurs: valeursDe(attributs, saisies, depart),
+          ...(preset?.bestiaryKey && preset.type === type
+            ? { bestiaryKey: preset.bestiaryKey }
+            : {}),
         });
       }}
     >

@@ -27,7 +27,8 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { NpcForm, type NpcFormResult } from '@/components/personnages/npc-form';
+import { NpcForm, type NpcFormPreset, type NpcFormResult } from '@/components/personnages/npc-form';
+import { NpcGenerator } from '@/components/personnages/npc-generator/npc-generator';
 import { templateItem, type BestiaryItem } from '@/components/resources/model/bestiary';
 import { normaliser } from '@/components/resources/model/catalogue';
 import { Chips, ListSkeleton, Notice, SearchField, Thumb } from '@/components/resources/parts';
@@ -112,6 +113,8 @@ export function OngletPnj() {
   const [category, setCategory] = useState(ALL);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Dernier tirage du générateur (nouveau PNJ) ; `n` remonte le formulaire à chaque tirage. */
+  const [tirage, setTirage] = useState<{ n: number; preset: NpcFormPreset } | null>(null);
 
   const categories = useMemo(() => templates.data?.categories ?? [], [templates.data]);
   const cards = useMemo(() => {
@@ -174,6 +177,7 @@ export function OngletPnj() {
                 imageUrl: r.imageUrl,
                 systemeId: campagne.system,
                 type: r.type,
+                ...(r.bestiaryKey ? { bestiary: { key: r.bestiaryKey } } : {}),
                 ...valeurs,
               }),
             t('created', { name: r.name }),
@@ -187,7 +191,16 @@ export function OngletPnj() {
             }),
           );
     setBusy(false);
-    if (ok) setEditing(null);
+    if (ok) fermer();
+  };
+
+  const ouvrirNouveau = () => {
+    setTirage(null);
+    setEditing({ mode: 'new' });
+  };
+  const fermer = () => {
+    setEditing(null);
+    setTirage(null);
   };
 
   // Copie complète de l'état (un modèle à l'état illisible ne se duplique pas)
@@ -255,7 +268,7 @@ export function OngletPnj() {
         />
         <div className="ml-auto flex items-center gap-1.5">
           <CategoryManager campaignId={campagne.id} categories={categories} onChanged={refresh} />
-          <Button size="sm" onClick={() => setEditing({ mode: 'new' })}>
+          <Button size="sm" onClick={ouvrirNouveau}>
             <Plus />
             {t('newNpc')}
           </Button>
@@ -293,7 +306,7 @@ export function OngletPnj() {
           title={t('empty')}
           description={t('emptyText')}
           action={
-            <Button size="sm" onClick={() => setEditing({ mode: 'new' })}>
+            <Button size="sm" onClick={ouvrirNouveau}>
               <Plus />
               {t('newNpc')}
             </Button>
@@ -327,8 +340,13 @@ export function OngletPnj() {
         </ul>
       )}
 
-      <Dialog open={editing !== null} onOpenChange={(open) => !open && !busy && setEditing(null)}>
-        <DialogContent className="sm:max-w-lg">
+      <Dialog open={editing !== null} onOpenChange={(open) => !open && !busy && fermer()}>
+        <DialogContent
+          className={cn(
+            'max-h-[calc(100dvh-2rem)] overflow-y-auto',
+            editing?.mode === 'new' ? 'sm:max-w-2xl' : 'sm:max-w-lg',
+          )}
+        >
           <DialogHeader>
             <DialogTitle>
               {editing?.mode === 'edit'
@@ -339,9 +357,18 @@ export function OngletPnj() {
               {editing?.mode === 'edit' ? t('editText') : t('newText')}
             </DialogDescription>
           </DialogHeader>
+          {editing?.mode === 'new' && (
+            <NpcGenerator
+              systemId={campagne.system}
+              systeme={sys.data.systeme}
+              presentation={sys.data.presentation}
+              onRoll={(preset) => setTirage((x) => ({ n: (x?.n ?? 0) + 1, preset }))}
+            />
+          )}
           {editing && (
             <EditorForm
-              key={editing.mode === 'edit' ? editing.template.id : 'new'}
+              key={editing.mode === 'edit' ? editing.template.id : `new-${tirage?.n ?? 0}`}
+              preset={tirage?.preset}
               campaignId={campagne.id}
               systeme={sys.data.systeme}
               presentation={sys.data.presentation}
@@ -350,7 +377,7 @@ export function OngletPnj() {
               defaultCategory={category !== ALL && category !== NONE ? category : null}
               busy={busy}
               onSubmit={(r) => void save(r)}
-              onCancel={() => setEditing(null)}
+              onCancel={fermer}
             />
           )}
         </DialogContent>
@@ -360,6 +387,7 @@ export function OngletPnj() {
 }
 
 function EditorForm({
+  preset,
   campaignId,
   systeme,
   presentation,
@@ -370,6 +398,7 @@ function EditorForm({
   onSubmit,
   onCancel,
 }: Readonly<{
+  preset?: NpcFormPreset;
   campaignId: string;
   systeme: SystemeCharge;
   presentation: Parameters<typeof NpcForm>[0]['presentation'];
@@ -393,6 +422,7 @@ function EditorForm({
           ? { name: t.name, imageUrl: t.imageUrl, categoryId: t.categoryId, etat: t.etat }
           : undefined
       }
+      preset={preset}
       defaultCategoryId={defaultCategory}
       columns={3}
       submitLabel={t ? tr('save') : tr('create')}

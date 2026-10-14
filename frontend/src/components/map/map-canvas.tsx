@@ -10,6 +10,7 @@
  * compris) et remonte une carte neuve. La pile d'annulation, elle, est gardée par utilisateur
  * et par carte le temps de la session.
  */
+import { IconeChargement } from '@/components/shell/ecran-chargement';
 import { translate } from '@/i18n/runtime';
 import { effectiveBinding } from '@/lib/shortcuts/store';
 import { AlertTriangle, MapPinOff, RotateCw } from 'lucide-react';
@@ -214,10 +215,7 @@ function MapRuntime({
 
         {(status === 'loading' || (!mounted && !failure)) && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
-            <p className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2 text-sm text-muted-foreground">
-              <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden />
-              {translate('map.scenes.loading')}
-            </p>
+            <IconeChargement texte={translate('map.scenes.loading')} />
           </div>
         )}
 

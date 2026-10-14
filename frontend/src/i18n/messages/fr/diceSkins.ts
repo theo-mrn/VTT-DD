@@ -14,6 +14,54 @@ export default {
   },
   resine_fumee: { name: 'Résine Fumée', description: 'Ambre fumé traversé de volutes laiteuses.' },
   resine_jade: { name: 'Résine Jade', description: 'Jade marbré aux inclusions claires.' },
+  resine_abysse: {
+    name: 'Résine Abysse',
+    description: 'Bleu des grands fonds, brumes pâles qui dérivent dans la résine.',
+  },
+  resine_sang_dragon: {
+    name: 'Résine Sang-de-dragon',
+    description: 'Rouge sombre, volutes rosées prises dans la masse.',
+  },
+  resine_quartz_rose: {
+    name: 'Résine Quartz rose',
+    description: 'Rose profond, voiles nacrés pris dans la masse.',
+  },
+  resine_aurore: {
+    name: 'Résine Aurore',
+    description: 'Pourpre profond traversé de voiles lilas.',
+  },
+  resine_obsidienne: {
+    name: 'Résine Obsidienne',
+    description: "Noir de verre volcanique, fumées d'argent.",
+  },
+  resine_glacier: {
+    name: 'Résine Glacier',
+    description: 'Bleu de glace, givre laiteux en suspension.',
+  },
+  resine_miel: {
+    name: 'Résine Miel',
+    description: 'Miel doré, voiles crème qui flottent dans la masse.',
+  },
+  resine_emeraude: {
+    name: 'Résine Émeraude',
+    description: 'Vert profond, brumes pâles comme sous un sous-bois.',
+  },
+  resine_braise: {
+    name: 'Résine Braise',
+    description: 'Cendre sombre traversée de lueurs orangées.',
+  },
+  resine_marbre_noir: {
+    name: 'Résine Marbre noir',
+    description: "Marbre noir veiné d'or, sous un vernis brillant.",
+  },
+  resine_cosmos: {
+    name: 'Résine Cosmos',
+    description: 'Nuit magenta, poussière d’étoiles roses.',
+  },
+  resine_turquoise: {
+    name: 'Résine Turquoise',
+    description: 'Turquoise marbrée aux inclusions claires.',
+  },
   kyber_bleu: {
     name: 'Cristal Kyber — Bleu',
     description: "Le cœur d'un sabre Jedi. La lame bourdonne encore, prisonnière du cristal.",
@@ -35,11 +83,6 @@ export default {
     name: 'Cristal Kyber — Or',
     description: "Le cristal des maîtres. Sa lame d'or ne tremble jamais — la marque du triomphe.",
   },
-  etoile_mort: {
-    name: 'Étoile de la Mort',
-    description:
-      'Cette station de combat est votre arme ultime. Le superlaser se charge à chaque lancer.',
-  },
   cote_obscur: {
     name: 'Côté Obscur',
     description: 'La Force en colère. Les éclairs rampent sous la surface, cherchant une proie.',
@@ -52,15 +95,6 @@ export default {
   esprit_force: {
     name: 'Esprit de la Force',
     description: 'La Force elle-même : lumière et ténèbres enlacées, éternellement en équilibre.',
-  },
-  hyperespace: {
-    name: 'Saut Hyperespace',
-    description:
-      "Accroche-toi. Les étoiles s'étirent et l'univers file — c'est parti pour la vitesse-lumière.",
-  },
-  aqua_orb: {
-    name: 'Orbe Aquatique',
-    description: 'Une coque de verre vivante avec un cœur de lumière flottant.',
   },
   eye_orb: {
     name: 'Œil du Gardien',
@@ -191,6 +225,10 @@ export default {
   fer_rouille: {
     name: 'Fer Rouillé',
     description: 'Oublié depuis longtemps, mais toujours solide.',
+  },
+  acier_chevalier: {
+    name: 'Acier du Chevalier',
+    description: "Acier bleui poli, reflets d'or : l'armure d'un chevalier.",
   },
   roche_volcanique: { name: 'Roche Volcanique', description: "Attention, c'est chaud !" },
   glace_eternelle: { name: 'Glace Éternelle', description: 'Ne fond jamais, même dans un volcan.' },

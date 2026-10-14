@@ -35,7 +35,7 @@ describe('catalogue de la boutique', () => {
         expect(i.id).toMatch(/^[A-Za-z0-9_]{1,64}$/);
       }
     }
-    expect(DICE_ITEMS).toHaveLength(71);
+    expect(DICE_ITEMS).toHaveLength(68);
   });
 });
 

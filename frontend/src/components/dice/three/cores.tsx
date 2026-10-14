@@ -413,16 +413,17 @@ const ModelCore = ({ skin, url, rig }: { skin: DiceSkin; url: string; rig: CoreR
       );
     // Subtle floating bob on the outer group (keeps the presentation tilt).
     if (bobRef.current) bobRef.current.position.y = Math.sin(t * 1.2) * 0.06;
-    // Idle spin around the model's own up axis, so an inclined ring keeps
-    // showing its face (never edge-on) while rotating.
-    if (spinRef.current && spin) spinRef.current.rotation.y = t * spin;
+    // Rotation libre sur les trois axes, à des vitesses sans rapport simple entre elles :
+    // l'objet roule sur lui-même comme en apesanteur, sans jamais repasser par le même cycle.
+    if (spinRef.current && spin)
+      spinRef.current.rotation.set(t * spin * 0.53, t * spin, t * spin * 0.31);
   });
 
   const rot = skin.coreRotation ?? [0, 0, 0];
 
   return (
     <group ref={rootRef}>
-      {/* outer = presentation tilt + bob ; inner = idle spin */}
+      {/* extérieur = inclinaison de présentation + flottement ; intérieur = rotation libre */}
       <group ref={bobRef} rotation={rot as [number, number, number]}>
         <group ref={spinRef}>
           <primitive object={normalized} />

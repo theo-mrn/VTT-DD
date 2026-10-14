@@ -38,7 +38,7 @@ describe('garde-fou : chaque route d’écriture émet un événement', () => {
     const cmd = routes.find(
       (r) => routeKey(r) === 'POST /v1/audio/campaigns/:id/channels/:channel/commands',
     );
-    expect(cmd?.emitPath).toEqual(['saveTransition', 'appendEvent']);
+    expect(cmd?.emitPath).toEqual(['executeChannelCommand', 'saveTransition', 'appendEvent']);
   });
 
   it('chaque route publique émet un événement ou est une exception justifiée', () => {

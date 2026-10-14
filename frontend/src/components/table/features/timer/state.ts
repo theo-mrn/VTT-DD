@@ -1,13 +1,10 @@
 /**
- * Minuteur de la table : un compte à rebours lancé par le MJ, vu de tous. Passe par le canal
- * éphémère de la campagne (`table.timer`, jamais enregistré) ; un arrivant demande l'état
- * (`table.timer.ask`) et le MJ le lui renvoie. Les durées voyagent en « reste à courir » : chaque
- * appareil en déduit son échéance sur sa propre horloge (pas d'écart d'horloge entre appareils).
+ * Minuteur de la table : un compte à rebours lancé par le MJ, vu de tous. Gardé par le service
+ * campaign (état de la table) : l'échéance est un instant du serveur, ramené à l'horloge locale.
+ * Les automatismes le lancent, et réagissent quand il arrive à zéro.
  */
 import { createStore } from 'zustand/vanilla';
-
-export const TIMER_KIND = 'table.timer';
-export const TIMER_ASK_KIND = 'table.timer.ask';
+import { createTableSlice, toLocal } from '../shared/table-state';
 
 /** Ce qui voyage ; null : minuteur arrêté. */
 export interface TimerWire {
@@ -25,14 +22,6 @@ export interface TimerState {
   /** Reste à courir quand le minuteur est en pause. */
   remainingMs: number;
 }
-
-interface TimerStore {
-  timer: TimerState | null;
-  /** Envoi à la table, posé par la surcouche une fois abonnée. */
-  send: ((wire: TimerWire | null) => void) | null;
-}
-
-export const timerStore = createStore<TimerStore>(() => ({ timer: null, send: null }));
 
 export const remainingOf = (t: TimerState, now = Date.now()) =>
   t.endsAt === null ? t.remainingMs : Math.max(0, t.endsAt - now);
@@ -58,10 +47,25 @@ export function fromWire(w: unknown, now = Date.now()): TimerState | null {
   };
 }
 
+/** Tranche de l'état de table (serveur). */
+const slice = createTableSlice<TimerState>(
+  (s) =>
+    s.timer && {
+      label: s.timer.label,
+      durationMs: s.timer.durationMs,
+      remainingMs: s.timer.remainingMs,
+      endsAt: s.timer.endsAt ? toLocal(s.timer.endsAt) : null,
+    },
+  (t) => ({ timer: toWire(t) }),
+);
+
+/** Le minuteur en cours (lecture). */
+export const timerStore = createStore<{ timer: TimerState | null }>(() => ({ timer: null }));
+slice.store.subscribe((s) => timerStore.setState({ timer: s.value }));
+
 /** Change le minuteur ici et chez tous. */
 function apply(next: TimerState | null) {
-  timerStore.setState({ timer: next });
-  timerStore.getState().send?.(toWire(next));
+  slice.set(next);
 }
 
 /** Commandes du MJ. */

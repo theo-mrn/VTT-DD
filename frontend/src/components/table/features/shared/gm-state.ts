@@ -8,12 +8,14 @@
  * (`campaign-prefs.ts`), et revient à sa prochaine séance.
  *
  * ```ts
- * export const worldTime = createGmSharedState<WorldTime>('table.worldtime', {
- *   decode: normalizeWorldTime,
- *   persist: 'worldTime',
+ * export const boundaries = createGmSharedState<Boundaries>('table.boundaries', {
+ *   decode: normalizeBoundaries,
+ *   persist: 'boundaries',
  * });
- * // Une fois, dans la surcouche de la fonction : worldTime.useSync();
- * // Lecture : useStore(worldTime.store, (s) => s.value) ; MJ : worldTime.set(next)
+ * // Une fois, dans la surcouche de la fonction : boundaries.useSync();
+ * // Lecture : useStore(boundaries.store, (s) => s.value) ; MJ : boundaries.set(next)
+ *
+ * Ce qui doit survivre au MJ ou servir aux automatismes vit au serveur (`table-state.ts`).
  * ```
  */
 import { useEffect, useRef } from 'react';

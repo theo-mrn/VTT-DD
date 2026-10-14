@@ -1,11 +1,10 @@
 /**
  * Temps du monde : jour et heure de la fiction, réglés par le MJ, vus de la table (ou gardés
  * pour lui). Il s'écoule seul à la vitesse choisie (minutes de jeu par minute réelle, 0 : figé),
- * chaque appareil le calculant sur sa propre horloge depuis le dernier réglage reçu. Gardé sur
- * le compte du MJ pour la campagne : il retrouve l'heure à la séance suivante, sans que le temps
- * ait coulé entre deux séances.
+ * chaque appareil le calculant depuis l'instant d'ancrage du serveur. Gardé par le service
+ * campaign (état de la table) : il continue de couler entre deux séances s'il n'est pas figé.
  */
-import { createGmSharedState } from '../shared/gm-state';
+import { createTableSlice, toLocal } from '../shared/table-state';
 
 export interface WorldTime {
   /** Minutes écoulées depuis le jour 1 à 0 h, à l'instant `since`. */
@@ -48,12 +47,19 @@ export function normalizeWorldTime(raw: unknown, now = Date.now()): WorldTime | 
   };
 }
 
-export const worldTime = createGmSharedState<WorldTime>('table.worldtime', {
-  decode: (raw) => normalizeWorldTime(raw),
-  // Voyage (et s'enregistre) en heure présente : chacun repart de son horloge à la réception
-  encode: (t) => ({ minutes: currentMinutes(t), visible: t.visible, rate: t.rate }),
-  persist: 'worldTime',
-});
+/** Tranche de l'état de table (serveur) ; l'heure part de l'instant d'ancrage du serveur. */
+export const worldTime = createTableSlice<WorldTime>(
+  (s) =>
+    s.worldTime && {
+      minutes: s.worldTime.minutes,
+      visible: s.worldTime.visible,
+      rate: s.worldTime.rate,
+      since: toLocal(s.worldTime.anchorAt),
+    },
+  (t) => ({
+    worldTime: t && { minutes: currentMinutes(t), visible: t.visible, rate: t.rate },
+  }),
+);
 
 /** MJ : change le temps, en repartant de l'heure présente. */
 export function updateWorldTime(

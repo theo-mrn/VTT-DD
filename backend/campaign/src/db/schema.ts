@@ -16,6 +16,11 @@ import {
   type MapDiagonals,
   type MapGrid,
   type MapScale,
+  type AutomationParams,
+  type AutomationTrigger,
+  type RuleAction,
+  type RuleCondition,
+  type RuleTrigger,
   type MapVoice,
   type MapWeather,
   type RollStep,
@@ -538,6 +543,80 @@ const mapElement = () => ({
   id: uuid('id').primaryKey(),
   campaignId: uuid('campaign_id').notNull(),
   mapId: uuid('map_id').notNull(),
+  version: integer('version').notNull().default(1),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+
+/** État des outils de table (0036), une ligne par campagne ; forme : `StoredTableState`. */
+export const tableStates = campaignSchema.table('table_states', {
+  campaignId: uuid('campaign_id')
+    .primaryKey()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  state: jsonb('state').$type<Record<string, unknown>>().notNull().default({}),
+  /** Mémoire de l'exécuteur des automatismes (0037) : de quoi voir ce qui a changé. */
+  memory: jsonb('memory').$type<Record<string, unknown>>().notNull().default({}),
+  version: integer('version').notNull().default(1),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+
+/** Règles des automatismes (0037) : quand / si / alors, validées par le contrat. */
+export const automationRules = campaignSchema.table('automation_rules', {
+  id: uuid('id').primaryKey(),
+  campaignId: uuid('campaign_id')
+    .notNull()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  enabled: boolean('enabled').notNull().default(true),
+  trigger: jsonb('trigger').$type<RuleTrigger>().notNull(),
+  conditions: jsonb('conditions').$type<RuleCondition[]>().notNull().default([]),
+  actions: jsonb('actions').$type<RuleAction[]>().notNull().default([]),
+  cooldownSec: integer('cooldown_sec').notNull().default(0),
+  once: boolean('once').notNull().default(false),
+  sortOrder: bigint('sort_order', { mode: 'number' }).notNull().default(0),
+  lastRunAt: timestampTz('last_run_at'),
+  version: integer('version').notNull().default(1),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+
+/** Journal des exécutions (0037). */
+export const automationRuns = campaignSchema.table('automation_runs', {
+  id: uuid('id').primaryKey(),
+  campaignId: uuid('campaign_id')
+    .notNull()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  ruleId: uuid('rule_id').references(() => automationRules.id, { onDelete: 'set null' }),
+  ruleName: text('rule_name').notNull(),
+  trigger: text('trigger').notNull(),
+  ok: boolean('ok').notNull(),
+  error: text('error'),
+  at: timestampTz('at').notNull().defaultNow(),
+});
+
+/** File des actions différées et des échéances (0037), lue par l'ouvrier. */
+export const automationJobs = campaignSchema.table('automation_jobs', {
+  id: uuid('id').primaryKey(),
+  campaignId: uuid('campaign_id')
+    .notNull()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  kind: text('kind').$type<'actions' | 'timer.end' | 'time.hour'>().notNull(),
+  runAt: timestampTz('run_at').notNull(),
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+});
+
+/** Automatismes du MJ (0035) : réglages complets et déclencheurs, validés par le contrat. */
+export const automations = campaignSchema.table('automations', {
+  id: uuid('id').primaryKey(),
+  campaignId: uuid('campaign_id')
+    .notNull()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  params: jsonb('params').$type<AutomationParams>().notNull().default({}),
+  triggers: jsonb('triggers').$type<AutomationTrigger[]>().notNull().default([]),
+  sceneIds: jsonb('scene_ids').$type<string[]>().notNull().default([]),
+  sortOrder: bigint('sort_order', { mode: 'number' }).notNull().default(0),
   version: integer('version').notNull().default(1),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),

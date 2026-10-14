@@ -1,9 +1,9 @@
 /**
  * Horloges de progression (à la Blades in the Dark) : un cercle découpé en segments que le MJ
  * remplit à mesure qu'une menace ou un projet avance (« La garde arrive » 3/6). Visibles des
- * joueurs ou secrètes ; gardées sur le compte du MJ pour la campagne.
+ * joueurs ou secrètes ; gardées par le service campaign (état de la table).
  */
-import { createGmSharedState } from '../shared/gm-state';
+import { createTableSlice } from '../shared/table-state';
 
 export interface Clock {
   id: string;
@@ -35,12 +35,11 @@ export function normalizeClocks(raw: unknown): Clock[] | null {
     .slice(0, MAX_CLOCKS);
 }
 
-export const clocks = createGmSharedState<Clock[]>('table.clocks', {
-  decode: normalizeClocks,
-  // Les horloges secrètes ne quittent pas l'appareil du MJ
-  share: (list) => list.filter((c) => c.visible),
-  persist: 'clocks',
-});
+/** Tranche de l'état de table (serveur) ; les joueurs ne reçoivent pas les horloges secrètes. */
+export const clocks = createTableSlice<Clock[]>(
+  (s) => s.clocks,
+  (list) => ({ clocks: list ?? [] }),
+);
 
 const list = () => clocks.store.getState().value ?? [];
 

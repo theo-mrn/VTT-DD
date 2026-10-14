@@ -21,6 +21,9 @@ import {
   CloudRain,
   CloudSnow,
   CloudSun,
+  Check,
+  Map as MapIcon,
+  RotateCcw,
   Flame,
   Leaf,
   RadioTower,
@@ -29,7 +32,7 @@ import {
   Tornado,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -48,6 +51,7 @@ import {
 } from '../engine/effects';
 import { clampIntensity, effectOf, MAX_INTENSITY, windOf } from '../engine/model';
 import {
+  personalWeather,
   saveWeather,
   setWeatherAnimated,
   setWeatherFlashes,
@@ -56,6 +60,15 @@ import {
 } from '../engine/state';
 import { cn } from '@/lib/utils';
 import { useMapState } from '@/components/map/engine-context';
+import {
+  AmbienceSection,
+  AmbienceTile,
+  EffectGrid,
+  MoodGrid,
+  useCharacterTargets,
+  useScreenMood,
+} from '@/components/table/features/screenFx/ui/screen-fx-controls';
+import { personalMoods, personalWeathers } from '@/components/table/features/screenFx/state';
 
 const ICONS: Record<WeatherType, LucideIcon> = {
   rain: CloudRain,
@@ -99,11 +112,16 @@ const percent = (intensity: number) => `${toSlider(intensity)} %`;
 
 export function WeatherControls({ engine }: Readonly<{ engine: MapEngine }>) {
   const gm = engine.viewer.role === 'gm';
-  const weather = useMapState(readWeather);
+  const scene = useMapState(readWeather);
+  const perso = useStore(personalWeather, (s) => s.weather);
+  // Joueur : la sienne (personnage) passe devant celle de la scène
+  const weather = !gm && perso !== undefined ? perso : scene;
   const effect = effectOf(weather);
   const active = !!effect && clampIntensity(weather?.intensity) > 0;
+  const mood = useScreenMood();
   if (!gm && !active) return null;
   const Icon = active ? ICONS[effect.id] : CloudSun;
+  const lit = active || (gm && !!mood);
   const label = active
     ? translate('map.weather.current', { name: weatherName(effect.id).toLowerCase() })
     : translate('map.weather.title');
@@ -117,7 +135,7 @@ export function WeatherControls({ engine }: Readonly<{ engine: MapEngine }>) {
             size="icon-sm"
             aria-label={label}
             className={cn(
-              active && 'bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary',
+              lit && 'bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary',
             )}
           >
             <Icon />
@@ -126,18 +144,24 @@ export function WeatherControls({ engine }: Readonly<{ engine: MapEngine }>) {
       </Info>
       <PopoverContent
         side="top"
-        className="max-h-[75vh] w-80 overflow-y-auto p-3"
+        align="center"
+        className={cn('overflow-hidden p-0', gm ? 'w-[min(54rem,calc(100vw-1.5rem))]' : 'w-72')}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {gm ? (
-          <GmWeather engine={engine} weather={weather} />
+          <GmPanel engine={engine} weather={scene} />
         ) : (
-          <p className="mb-3 text-sm">
-            <span className="font-semibold">{weatherName(effect!.id)}</span>
-            <span className="ml-1.5 text-xs text-muted-foreground">
-              {percent(clampIntensity(weather!.intensity))}
+          <div className="flex items-center gap-3 p-4">
+            <span className="grid size-12 place-items-center rounded-2xl bg-primary/15 text-primary">
+              <Icon className="size-6" aria-hidden />
             </span>
-          </p>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-semibold">{weatherName(effect!.id)}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {percent(clampIntensity(weather!.intensity))}
+              </span>
+            </span>
+          </div>
         )}
         <ComfortPrefs engine={engine} />
       </PopoverContent>
@@ -145,16 +169,242 @@ export function WeatherControls({ engine }: Readonly<{ engine: MapEngine }>) {
   );
 }
 
+/**
+ * MJ : à gauche, qui (la table, ou un personnage, chez qui le joue) ; à droite, tout ce qu'on
+ * lui applique — météo, ambiance, effets — d'un coup d'œil. Un personnage suit la table tant
+ * qu'on ne lui donne rien ; ses réglages passent devant ceux de la table.
+ */
+function GmPanel({ engine, weather }: Readonly<{ engine: MapEngine; weather: MapWeather | null }>) {
+  const targets = useCharacterTargets();
+  const [choix, setChoix] = useState<readonly string[]>([]);
+  const choisis = targets.filter((c) => choix.includes(c.id));
+  const persoW = useStore(personalWeathers.store, (s) => s.value) ?? {};
+  const persoM = useStore(personalMoods.store, (s) => s.value) ?? {};
+  const uids = choisis.map((c) => c.userId);
+  const ontLeursReglages = uids.some((u) => u in persoW || !!persoM[u]);
+  const basculer = (id: string) =>
+    setChoix((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]));
+  // Un aperçu ne survit pas au menu
+  useEffect(() => () => setWeatherPreview(engine, undefined), [engine]);
+
+  // Météo dont on règle la force et le vent : celle de la scène, ou la première des personnages
+  const reglee = choisis.length
+    ? (uids.map((u) => persoW[u]).find((w): w is MapWeather => !!w && !!effectOf(w)) ?? null)
+    : effectOf(weather) && weather && clampIntensity(weather.intensity) > 0
+      ? weather
+      : null;
+  const enregistrer = (w: MapWeather, label: string) => {
+    if (!choisis.length) return void saveWeather(engine, w, label);
+    // Personnages : leur effet garde le sien, la force et le vent sont ceux réglés
+    const out = { ...persoW };
+    for (const u of uids) {
+      const avant = persoW[u];
+      if (!avant) continue;
+      const { wind: _vent, ...sans } = avant;
+      out[u] = { ...sans, intensity: w.intensity, ...(w.wind ? { wind: w.wind } : {}) };
+    }
+    personalWeathers.set(out);
+  };
+
+  const remettre = () => {
+    const w = { ...persoW };
+    const m = { ...persoM };
+    for (const u of uids) {
+      delete w[u];
+      delete m[u];
+    }
+    personalWeathers.set(w);
+    personalMoods.set(m);
+  };
+
+  return (
+    <div className="flex max-h-[min(36rem,75vh)] flex-col sm:flex-row">
+      {/* Pour qui : la table, ou un ou plusieurs personnages */}
+      {targets.length > 0 && (
+        <div className="flex shrink-0 flex-col border-b border-border bg-surface-2/30 sm:w-48 sm:border-b-0 sm:border-r">
+          <div
+            role="group"
+            aria-label={translate('table.screenFx.target')}
+            className="flex min-h-0 flex-1 gap-1 overflow-auto p-2 [scrollbar-width:thin] sm:flex-col"
+          >
+            <TargetChip
+              on={!choisis.length}
+              onClick={() => setChoix([])}
+              label={translate('map.weather.wholeTable')}
+              avatar={<MapIcon className="size-3.5" aria-hidden />}
+            />
+            {targets.map((c) => (
+              <TargetChip
+                key={c.id}
+                on={choix.includes(c.id)}
+                onClick={() => basculer(c.id)}
+                label={c.name}
+                marked={c.userId in persoW || !!persoM[c.userId]}
+                avatar={
+                  c.portrait ? (
+                    <img src={c.portrait} alt="" className="size-full object-cover" />
+                  ) : (
+                    <span className="text-[11px] font-semibold">
+                      {c.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )
+                }
+              />
+            ))}
+          </div>
+          {ontLeursReglages && (
+            <div className="hidden border-t border-border p-2 sm:block">
+              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={remettre}>
+                <RotateCcw />
+                {translate('map.weather.resetCharacter')}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="min-w-0 flex-1 space-y-5 overflow-y-auto p-4">
+        {choisis.length ? (
+          <CharacterWeather userIds={uids} weathers={persoW} />
+        ) : (
+          <GmWeather engine={engine} weather={weather} />
+        )}
+        <div className={cn('grid gap-5', !reglee && 'sm:grid-cols-2')}>
+          <MoodGrid userIds={uids} />
+          <EffectGrid userIds={uids} />
+        </div>
+      </div>
+
+      {/* Réglages de la météo choisie : seulement quand il y en a une */}
+      {reglee && (
+        <div className="shrink-0 overflow-y-auto border-t border-border bg-surface-2/30 p-4 sm:w-60 sm:border-l sm:border-t-0">
+          <WeatherSettings
+            weather={reglee}
+            onSave={enregistrer}
+            onPreview={choisis.length ? undefined : (w) => setWeatherPreview(engine, w)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Une cible de la colonne : avatar, nom ; un point quand le personnage a ses propres réglages. */
+function TargetChip({
+  on,
+  onClick,
+  label,
+  avatar,
+  marked,
+}: Readonly<{
+  on: boolean;
+  onClick(): void;
+  label: string;
+  avatar: React.ReactNode;
+  marked?: boolean;
+}>) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      title={label}
+      className={cn(
+        'flex h-10 shrink-0 items-center gap-2.5 rounded-lg px-1.5 text-left text-[13px] font-medium transition-colors sm:w-full',
+        on
+          ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/50'
+          : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground',
+      )}
+    >
+      <span
+        className={cn(
+          'relative grid size-7 shrink-0 place-items-center rounded-full',
+          on ? 'bg-primary text-primary-foreground' : 'bg-surface-3',
+        )}
+      >
+        <span className="grid size-full place-items-center overflow-hidden rounded-full">
+          {avatar}
+        </span>
+        {marked && (
+          <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary ring-2 ring-popover" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1 truncate pr-1">{label}</span>
+    </button>
+  );
+}
+
+function WeatherTiles({
+  current,
+  onPick,
+  follow,
+}: Readonly<{
+  /** Type choisi ; null : aucune ; undefined : suit la scène ; `mixed` : personnages différents. */
+  current: WeatherType | null | undefined | 'mixed';
+  onPick(type: WeatherType | null | undefined): void;
+  /** Tuile « Comme la scène » (personnage). */
+  follow?: boolean;
+}>) {
+  const nature = WEATHER_EFFECT_LIST.filter((e) => e.group === 'nature');
+  const scifi = WEATHER_EFFECT_LIST.filter((e) => e.group === 'scifi');
+  const grille = 'grid grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] gap-1.5';
+  return (
+    <div role="radiogroup" aria-label={translate('map.weather.sceneWeather')} className="space-y-3">
+      <div className={grille}>
+        {follow && (
+          <AmbienceTile
+            icon={MapIcon}
+            label={translate('map.weather.followScene')}
+            on={current === undefined}
+            onClick={() => onPick(undefined)}
+          />
+        )}
+        <AmbienceTile
+          icon={Ban}
+          label={translate('map.weather.clearSky')}
+          on={current === null}
+          onClick={() => onPick(null)}
+        />
+        {nature.map((e) => (
+          <AmbienceTile
+            key={e.id}
+            icon={ICONS[e.id]}
+            label={weatherName(e.id)}
+            on={current === e.id}
+            onClick={() => onPick(e.id)}
+          />
+        ))}
+      </div>
+      <div className="flex items-center gap-2" aria-hidden>
+        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-subtle">
+          {translate('map.weather.scifi')}
+        </span>
+        <span className="h-px flex-1 bg-border/60" />
+      </div>
+      <div className={grille}>
+        {scifi.map((e) => (
+          <AmbienceTile
+            key={e.id}
+            icon={ICONS[e.id]}
+            label={weatherName(e.id)}
+            on={current === e.id}
+            onClick={() => onPick(e.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Météo de la scène (toute la table) : effet, intensité, vent ; commandes annulables. */
 function GmWeather({
   engine,
   weather,
 }: Readonly<{ engine: MapEngine; weather: MapWeather | null }>) {
   const effect = effectOf(weather);
   const intensity = effect ? clampIntensity(weather!.intensity) : 0;
-  // Un aperçu ne survit pas au menu
-  useEffect(() => () => setWeatherPreview(engine, undefined), [engine]);
 
-  const pick = (type: WeatherType | null) => {
+  const pick = (type: WeatherType | null | undefined) => {
     if (!type) return void saveWeather(engine, null);
     if (type === effect?.id) return;
     const next: MapWeather = { type, intensity: effect ? intensity : DEFAULT_INTENSITY };
@@ -163,123 +413,109 @@ function GmWeather({
     void saveWeather(engine, next);
   };
 
-  const nature = WEATHER_EFFECT_LIST.filter((e) => e.group === 'nature');
-  const scifi = WEATHER_EFFECT_LIST.filter((e) => e.group === 'scifi');
-
   return (
-    <div className="space-y-3">
-      <div>
-        <p className="text-sm font-semibold">{translate('map.weather.title')}</p>
-        <p className="text-xs text-muted-foreground">{translate('map.weather.lead')}</p>
-      </div>
-      <div
-        role="radiogroup"
-        aria-label={translate('map.weather.sceneWeather')}
-        className="space-y-2"
-      >
-        <div className="grid grid-cols-3 gap-1.5">
-          <Tile
-            label={translate('map.weather.none')}
-            icon={Ban}
-            on={!effect}
-            onClick={() => pick(null)}
-          />
-          {nature.map((e) => (
-            <EffectTile key={e.id} effect={e} on={effect?.id === e.id} onPick={pick} />
-          ))}
-        </div>
-        <p className="pt-1 text-[11px] text-muted-foreground">{translate('map.weather.scifi')}</p>
-        <div className="grid grid-cols-3 gap-1.5">
-          {scifi.map((e) => (
-            <EffectTile key={e.id} effect={e} on={effect?.id === e.id} onPick={pick} />
-          ))}
-        </div>
-      </div>
+    <AmbienceSection title={translate('map.weather.title')}>
+      <WeatherTiles current={effect?.id ?? null} onPick={pick} />
+    </AmbienceSection>
+  );
+}
 
-      {effect && weather && (
-        <SliderRow
-          label={translate('map.weather.intensity')}
-          value={toSlider(intensity)}
-          min={5}
-          max={100}
-          step={5}
-          format={(v) => formatter().number(v / 100, 'percent')}
-          onPreview={(v) => setWeatherPreview(engine, { ...weather, intensity: fromSlider(v) })}
-          onCommit={(v) =>
-            void saveWeather(
-              engine,
-              { ...weather, intensity: fromSlider(v) },
-              translate('map.weather.weatherIntensity'),
-            )
-          }
-        />
-      )}
-      {effect?.wind && weather && (
-        <WindControls engine={engine} weather={weather} effect={effect} />
+/** Météo de personnages : la leur, ou celle de la scène ; leur intensité (commune). */
+function CharacterWeather({
+  userIds,
+  weathers,
+}: Readonly<{ userIds: readonly string[]; weathers: Record<string, MapWeather | null> }>) {
+  const leurs = userIds.map((u) => (u in weathers ? (weathers[u] ?? null) : undefined));
+  const types = leurs.map((w) => (w === undefined ? undefined : (effectOf(w)?.id ?? null)));
+  // Tuile allumée si tous ont la même ; sinon aucune
+  const commun = types.every((x) => x === types[0]) ? types[0] : ('mixed' as const);
+  const ecrire = (
+    next: (avant: MapWeather | null | undefined) => MapWeather | null | undefined,
+  ) => {
+    const out = { ...weathers };
+    for (const u of userIds) {
+      const w = next(u in weathers ? (weathers[u] ?? null) : undefined);
+      if (w === undefined) delete out[u];
+      else out[u] = w;
+    }
+    personalWeathers.set(out);
+  };
+  const pick = (type: WeatherType | null | undefined) =>
+    ecrire((avant) =>
+      type === undefined || type === null
+        ? type
+        : {
+            type,
+            intensity: avant ? clampIntensity(avant.intensity) : DEFAULT_INTENSITY,
+            ...(avant?.wind ? { wind: avant.wind } : {}),
+          },
+    );
+  return (
+    <AmbienceSection title={translate('map.weather.title')}>
+      <WeatherTiles current={commun} onPick={pick} follow />
+    </AmbienceSection>
+  );
+}
+
+/**
+ * Colonne des réglages de la météo choisie : son nom, sa force, son vent (direction, force) quand
+ * l'effet en a un. Pour la table, aperçu pendant le geste et commande annulable au lâcher ; pour
+ * des personnages, écrit chez chacun.
+ */
+function WeatherSettings({
+  weather,
+  onSave,
+  onPreview,
+}: Readonly<{
+  weather: MapWeather;
+  onSave(w: MapWeather, label: string): void;
+  onPreview?(w: MapWeather): void;
+}>) {
+  const effect = effectOf(weather);
+  if (!effect) return null;
+  const Icon = ICONS[effect.id];
+  const intensity = clampIntensity(weather.intensity);
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary">
+          <Icon className="size-5" aria-hidden />
+        </span>
+        <span className="truncate text-[14px] font-semibold">{weatherName(effect.id)}</span>
+      </div>
+      <SliderRow
+        label={translate('map.weather.intensity')}
+        value={toSlider(intensity)}
+        min={5}
+        max={100}
+        step={5}
+        format={(v) => formatter().number(v / 100, 'percent')}
+        onPreview={(v) => onPreview?.({ ...weather, intensity: fromSlider(v) })}
+        onCommit={(v) =>
+          onSave(
+            { ...weather, intensity: fromSlider(v) },
+            translate('map.weather.weatherIntensity'),
+          )
+        }
+      />
+      {effect.wind && (
+        <WindControls weather={weather} effect={effect} onSave={onSave} onPreview={onPreview} />
       )}
     </div>
   );
 }
 
-function EffectTile({
-  effect,
-  on,
-  onPick,
-}: Readonly<{
-  effect: WeatherEffect;
-  on: boolean;
-  onPick: (type: WeatherType) => void;
-}>) {
-  return (
-    <Tile
-      label={weatherName(effect.id)}
-      icon={ICONS[effect.id]}
-      on={on}
-      onClick={() => onPick(effect.id)}
-    />
-  );
-}
-
-function Tile({
-  label,
-  icon: Icon,
-  on,
-  onClick,
-}: Readonly<{
-  label: string;
-  icon: LucideIcon;
-  on: boolean;
-  onClick: () => void;
-}>) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={on}
-      onClick={onClick}
-      className={cn(
-        'flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border px-1.5 py-2 text-center text-[11px] leading-tight transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-        on
-          ? 'border-primary/60 bg-primary/10 text-primary'
-          : 'border-border text-muted-foreground hover:border-border-strong hover:bg-surface-2 hover:text-foreground',
-      )}
-    >
-      <Icon className="size-5" aria-hidden />
-      {label}
-    </button>
-  );
-}
-
 /** Rose des vents (où va le vent) et force ; « Vent de l’effet » revient au vent par défaut. */
 function WindControls({
-  engine,
   weather,
   effect,
+  onSave,
+  onPreview,
 }: Readonly<{
-  engine: MapEngine;
   weather: MapWeather;
   effect: WeatherEffect;
+  onSave(w: MapWeather, label: string): void;
+  onPreview?(w: MapWeather): void;
 }>) {
   const wind = windOf(effect, weather.wind);
   const stored = weather.wind;
@@ -288,7 +524,7 @@ function WindControls({
   const save = (next: MapWeather['wind'], label = translate('map.weather.wind')) => {
     const w: MapWeather = { type: weather.type, intensity: weather.intensity };
     if (next) w.wind = next;
-    void saveWeather(engine, w, label);
+    onSave(w, label);
   };
   const strength = stored?.strength ?? effect.wind?.strength ?? 0;
 
@@ -367,7 +603,10 @@ function WindControls({
             );
           })}
         </div>
-        <div className="min-w-0 flex-1">
+        <div
+          className="min-w-0 flex-1"
+          title={effect.minWind !== undefined ? translate('map.weather.minWind') : undefined}
+        >
           <SliderRow
             label={translate('map.weather.strength')}
             value={Math.round(strength * 100)}
@@ -378,10 +617,7 @@ function WindControls({
               v === 0 ? translate('map.weather.calm') : formatter().number(v / 100, 'percent')
             }
             onPreview={(v) =>
-              setWeatherPreview(engine, {
-                ...weather,
-                wind: { direction: wind.direction, strength: v / 100 },
-              })
+              onPreview?.({ ...weather, wind: { direction: wind.direction, strength: v / 100 } })
             }
             onCommit={(v) =>
               save(
@@ -390,9 +626,6 @@ function WindControls({
               )
             }
           />
-          {effect.minWind !== undefined && (
-            <p className="text-[11px] text-muted-foreground">{translate('map.weather.minWind')}</p>
-          )}
         </div>
       </div>
     </div>
@@ -455,50 +688,32 @@ function SliderRow({
   );
 }
 
-/** Confort de chacun, sur son écran seulement (gardé dans le navigateur). */
+/** Confort de chacun, sur son écran seulement (gardé dans le navigateur) : une ligne en pied. */
 function ComfortPrefs({ engine }: Readonly<{ engine: MapEngine }>) {
   const animate = useStore(weatherPrefs(engine), (s) => s.animate);
   const flashes = useStore(weatherPrefs(engine), (s) => s.flashes);
   return (
-    <div className="mt-3 space-y-2 border-t border-border pt-3">
-      <p className="text-[11px] text-muted-foreground">{translate('map.weather.onYourScreen')}</p>
-      <PrefRow
-        id="weather-animate"
-        label={translate('map.weather.animate')}
-        hint={animate ? undefined : translate('map.weather.still')}
-        checked={animate}
-        onChange={(on) => setWeatherAnimated(engine, on)}
-      />
-      <PrefRow
-        id="weather-flashes"
-        label={translate('map.weather.flashes')}
-        checked={flashes}
-        onChange={(on) => setWeatherFlashes(engine, on)}
-      />
-    </div>
-  );
-}
-
-function PrefRow({
-  id,
-  label,
-  hint,
-  checked,
-  onChange,
-}: Readonly<{
-  id: string;
-  label: string;
-  hint?: ReactNode;
-  checked: boolean;
-  onChange: (on: boolean) => void;
-}>) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <label htmlFor={id} className="text-[13px]">
-        {label}
-        {hint && <span className="ml-1.5 text-[11px] text-muted-foreground">{hint}</span>}
+    <div className="flex items-center gap-3 border-t border-border bg-surface-2/30 px-3 py-2 text-[12px] text-muted-foreground">
+      <span className="mr-auto">{translate('map.weather.onYourScreen')}</span>
+      <label
+        className="flex items-center gap-1.5"
+        title={animate ? undefined : translate('map.weather.still')}
+      >
+        <Switch
+          checked={animate}
+          onCheckedChange={(on) => setWeatherAnimated(engine, on)}
+          className="scale-90"
+        />
+        {translate('map.weather.animate')}
       </label>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <label className="flex items-center gap-1.5">
+        <Switch
+          checked={flashes}
+          onCheckedChange={(on) => setWeatherFlashes(engine, on)}
+          className="scale-90"
+        />
+        {translate('map.weather.flashes')}
+      </label>
     </div>
   );
 }

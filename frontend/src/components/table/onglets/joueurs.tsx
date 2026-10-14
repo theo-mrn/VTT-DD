@@ -15,6 +15,7 @@ import { useMemo, useState } from 'react';
 import { EtatVide, Page } from '@/components/commun/page';
 import { Illustration } from '@/components/commun/illustration';
 import { ImportFicheForm } from '@/components/creation/import-fiche';
+import { ExportAllSheets } from '@/components/fiche/export/export-all';
 import { FichePersonnage } from '@/components/fiche/fiche-personnage';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogDescription, DialogTitle, SheetContent } from '@/components/ui/dialog';
@@ -201,6 +202,14 @@ export function PanneauJoueurs() {
             })}
           </ul>
           {boutonImport}
+          {gm && (
+            <ExportAllSheets
+              campaignId={campagne.id}
+              systemId={campagne.system}
+              characters={presents.map((x) => ({ id: x.personnage.id, name: x.personnage.name }))}
+              fileBase={campagne.name}
+            />
+          )}
           {actif.joueur && actif.joueur.userId !== moi && (
             <Info texte={t('whisper', { name: actif.joueur.name })}>
               <Button variant="ghost" size="icon-sm" asChild>

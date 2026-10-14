@@ -46,13 +46,6 @@ export const DICE_ITEMS: readonly CatalogEntry[] = [
     description: "Le cristal des maîtres. Sa lame d'or ne tremble jamais — la marque du triomphe.",
   },
   {
-    id: 'etoile_mort',
-    name: 'Étoile de la Mort',
-    price: 2500,
-    description:
-      'Cette station de combat est votre arme ultime. Le superlaser se charge à chaque lancer.',
-  },
-  {
     id: 'cote_obscur',
     name: 'Côté Obscur',
     price: 2500,
@@ -70,19 +63,6 @@ export const DICE_ITEMS: readonly CatalogEntry[] = [
     name: 'Esprit de la Force',
     price: 2500,
     description: 'La Force elle-même : lumière et ténèbres enlacées, éternellement en équilibre.',
-  },
-  {
-    id: 'hyperespace',
-    name: 'Saut Hyperespace',
-    price: 2000,
-    description:
-      "Accroche-toi. Les étoiles s'étirent et l'univers file — c'est parti pour la vitesse-lumière.",
-  },
-  {
-    id: 'aqua_orb',
-    name: 'Orbe Aquatique',
-    price: 500,
-    description: 'Une coque de verre vivante avec un cœur de lumière flottant.',
   },
   {
     id: 'eye_orb',

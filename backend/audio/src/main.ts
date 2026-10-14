@@ -1,6 +1,7 @@
 import { connectBus, loadConfig, start, startOutboxRelayWithBus } from '@vtt/platform';
 import { buildAudio } from './app.js';
 import { AudioConfig } from './config.js';
+import { startAutomationsConsumer } from './consumer/automations.js';
 import { startCampaignConsumer } from './consumer/campaigns.js';
 import { startScheduler } from './modules/channels/scheduler.js';
 
@@ -57,8 +58,15 @@ if (config.NATS_URL) {
           now: app.deps.now,
           logger: app.log,
         });
+        // Automatismes : demandes de son du service campaign
+        const stopAutomations = await startAutomationsConsumer({
+          bus,
+          deps: app.deps,
+          logger: app.log,
+        });
         stops.push(async () => {
           await stop();
+          await stopAutomations();
           await bus.close();
         });
         return;

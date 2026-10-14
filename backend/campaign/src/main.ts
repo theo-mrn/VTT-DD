@@ -4,6 +4,11 @@ import { CampaignConfig } from './config.js';
 import { createDb } from './db/client.js';
 import { ACCOUNTS_CONSUMER, startAccountsConsumer } from './modules/accounts/consumer.js';
 import { startExplorationWorker } from './modules/maps/exploration-worker.js';
+import {
+  AUTOMATIONS_CONSUMER,
+  startAutomationsConsumer,
+  startAutomationWorker,
+} from './modules/automations/executor.js';
 import { startStorageInventory } from './modules/storage/runtime.js';
 
 const config = loadConfig(CampaignConfig);
@@ -47,8 +52,11 @@ stopInventory = startStorageInventory(config, app.log);
   // après le COMMIT des écritures qui la remplissent ; petit pool à part
   const explorationDb = createDb(config.DATABASE_URL);
   const stop = startExplorationWorker({ db: explorationDb.db, logger: app.log });
+  // Automatismes (docs/automatismes.md) : actions différées et échéances, même pool
+  const stopAutomations = startAutomationWorker({ db: explorationDb.db, logger: app.log });
   stopExploration = async () => {
     await stop();
+    await stopAutomations();
     await explorationDb.pool.end().catch(() => undefined);
   };
 }
@@ -70,6 +78,11 @@ if (config.NATS_URL) {
         // Comptes supprimés (docs/legal.md) : campagnes de MJ, adhésions, notes, messages
         name: ACCOUNTS_CONSUMER,
         start: (bus) => startAccountsConsumer({ bus, db: accountsDb.db, logger: app.log }),
+      },
+      {
+        // Automatismes : règles appliquées sur la scène, le combat et l'état de la table
+        name: AUTOMATIONS_CONSUMER,
+        start: (bus) => startAutomationsConsumer({ bus, db: accountsDb.db, logger: app.log }),
       },
     ],
   });

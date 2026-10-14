@@ -64,5 +64,13 @@ databaseChangeLog:
   - include: { file: changes/0032-map-voice.sql, relativeToChangelogFile: true }
   # Case, distance et quadrillage : distance par case, diagonales, un seul quadrillage (docs/carte.md § 4)
   - include: { file: changes/0033-map-scale.sql, relativeToChangelogFile: true }
+  # Musique par scène : lancée quand la scène devient celle du groupe
+  - include: { file: changes/0034-map-music.sql, relativeToChangelogFile: true }
+  # Automatismes : réglages complets et déclencheurs ; remplacent la musique par scène
+  - include: { file: changes/0035-automations.sql, relativeToChangelogFile: true }
+  # État des outils de table côté serveur (heure, horloges, minuteur, jetons, écran, pause)
+  - include: { file: changes/0036-table-state.sql, relativeToChangelogFile: true }
+  # Moteur des automatismes : règles, journal, file des actions différées, mémoire
+  - include: { file: changes/0037-automation-rules.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }
