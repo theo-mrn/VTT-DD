@@ -479,7 +479,10 @@ export const register: Module = async (app, deps) => {
         id,
         CAMPAIGN_UPLOAD_USAGES,
         req.log,
-        reserveFor(deps, id),
+        reserveFor(deps, id, {
+          uploadedBy: currentUser(req),
+          ...(req.body.folderId ? { folderId: req.body.folderId } : {}),
+        }),
       );
     },
   );

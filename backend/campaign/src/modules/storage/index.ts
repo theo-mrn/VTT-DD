@@ -34,11 +34,11 @@ const unavailable = () =>
 
 /** Réserve la place d'un envoi de cette campagne (route `POST …/uploads`, réservation interne). */
 export const reserveFor =
-  (deps: Deps, campaignId: string) =>
+  (deps: Deps, campaignId: string, by: { uploadedBy?: string; folderId?: string } = {}) =>
   (f: { key: string; size: number; usage: string; contentType: string | null }) =>
     reserveStorage(
       deps.db,
-      { campaignId, ...f },
+      { campaignId, ...f, ...by },
       deps.config.CAMPAIGN_STORAGE_QUOTA_BYTES,
       deps.now(),
     );
@@ -107,10 +107,14 @@ export const register: Module = async (app, deps) => {
       schema: { hide: true, body: ReserveStorage },
     },
     async (req, reply) => {
-      const { campaignId, characterId, ...file } = req.body;
+      const { campaignId, characterId, uploadedBy, folderId, ...file } = req.body;
       const id = campaignId ?? (characterId ? await campaignOfCharacter(db, characterId) : null);
       // Personnage hors campagne : rien à compter
-      if (id) await reserveFor(deps, id)(file);
+      if (id)
+        await reserveFor(deps, id, {
+          ...(uploadedBy ? { uploadedBy } : {}),
+          ...(folderId ? { folderId } : {}),
+        })(file);
       reply.code(204);
     },
   );

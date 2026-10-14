@@ -22,6 +22,7 @@ import { register as handouts } from './modules/handouts/index.js';
 import { register as internal } from './modules/internal/index.js';
 import { register as invitations } from './modules/invitations/index.js';
 import { register as maps } from './modules/maps/index.js';
+import { register as media } from './modules/media/index.js';
 import { register as messages } from './modules/messages/index.js';
 import { register as notes } from './modules/notes/index.js';
 import { register as sessions } from './modules/sessions/index.js';
@@ -98,6 +99,7 @@ export async function buildCampaign(
     table,
     automations,
     storage,
+    media,
     internal,
   ]) {
     await module(app, deps);

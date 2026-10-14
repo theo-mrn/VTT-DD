@@ -40,6 +40,8 @@ export function requestTicket(
   target: UploadTarget,
   usage: UploadUsageId,
   file: { type: string; size: number; name?: string },
+  /** Dossier de la médiathèque de la campagne où le ranger (docs/mediatheque.md). */
+  folderId?: string | null,
 ): Promise<FileUploadTicket> {
   return api<FileUploadTicket>(uploadRoute(target), {
     method: 'POST',
@@ -48,6 +50,7 @@ export function requestTicket(
       contentType: file.type,
       size: file.size,
       ...(file.name ? { name: file.name.slice(0, 255) } : {}),
+      ...(folderId ? { folderId } : {}),
     }),
   });
 }
@@ -82,7 +85,12 @@ export async function uploadFile(
   target: UploadTarget,
   usage: UploadUsageId,
   file: File,
-  o: { onProgress?: (p: UploadProgress) => void; signal?: AbortSignal } = {},
+  o: {
+    onProgress?: (p: UploadProgress) => void;
+    signal?: AbortSignal;
+    /** Dossier de la médiathèque de la campagne (campagne ou personnage d'une campagne). */
+    folderId?: string | null;
+  } = {},
 ): Promise<string> {
   const refus = uploadRefusal(usage, file);
   if (refus) throw new Error(refus);
@@ -102,11 +110,12 @@ export async function uploadFile(
     signRequest: async (req) => {
       const f = uppy.getFile(req.key);
       if (!f || req.method !== 'PUT') throw new Error('Envoi inattendu');
-      const ticket = await requestTicket(target, usage, {
-        type: f.type ?? file.type,
-        size: f.size ?? file.size,
-        name: f.name,
-      });
+      const ticket = await requestTicket(
+        target,
+        usage,
+        { type: f.type ?? file.type, size: f.size ?? file.size, name: f.name },
+        o.folderId,
+      );
       tickets.set(f.id, ticket);
       return { url: ticket.url, key: ticket.key, headers: ticket.headers };
     },

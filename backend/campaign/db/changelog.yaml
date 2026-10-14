@@ -72,5 +72,7 @@ databaseChangeLog:
   - include: { file: changes/0036-table-state.sql, relativeToChangelogFile: true }
   # Moteur des automatismes : règles, journal, file des actions différées, mémoire
   - include: { file: changes/0037-automation-rules.sql, relativeToChangelogFile: true }
+  # Médiathèque : dossiers des images, auteur et visibilité des fichiers
+  - include: { file: changes/0038-media.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

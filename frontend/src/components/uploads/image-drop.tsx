@@ -15,7 +15,17 @@ import {
   type UploadUsage,
   type UploadUsageId,
 } from '@vtt/contracts';
-import { CloudUpload, Crop, ImageOff, Link2, Loader2, RefreshCw, Trash2, X } from 'lucide-react';
+import {
+  CloudUpload,
+  Crop,
+  ImageOff,
+  Images,
+  Link2,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useId, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
 import Cropper, { type Area } from 'react-easy-crop';
@@ -27,7 +37,10 @@ import { Info } from '@/components/ui/tooltip';
 import { fetchImage, isProcessable, type CropArea } from '@/lib/uploads/image';
 import { prepareUpload } from '@/lib/uploads/prepare';
 import { uploadFile, type UploadProgress, type UploadTarget } from '@/lib/uploads/uploader';
+import { lastMediaFolder } from '@/lib/media';
 import { cn } from '@/lib/utils';
+import { useTableOptionnelle } from '../table/contexte';
+import { MediaLibrary } from './media-library';
 import { DotsBackdrop } from '../combat/backdrop';
 
 type Phase =
@@ -58,6 +71,7 @@ export function ImageDrop({
   label,
   cropAspect,
   disabled = false,
+  campaignId,
 }: Readonly<{
   target: UploadTarget | null;
   usage: UploadUsageId;
@@ -69,6 +83,11 @@ export function ImageDrop({
   /** Format du recadrage ; défaut : celui de l'usage (null : pas de recadrage). */
   cropAspect?: number | null;
   disabled?: boolean;
+  /**
+   * Campagne dont la médiathèque est proposée (docs/mediatheque.md) ; défaut : celle de la cible,
+   * sinon celle de la table. Seulement pour un envoi de campagne ou de personnage.
+   */
+  campaignId?: string | null;
 }>) {
   const t = useTranslations();
   const u: UploadUsage = UPLOAD_USAGES[usage];
@@ -83,6 +102,14 @@ export function ImageDrop({
   const [url, setUrl] = useState('');
   const busy = phase.kind === 'upload';
   const accept = u.types.join(',');
+  const table = useTableOptionnelle();
+  const mediatheque =
+    target?.kind === 'campaign'
+      ? (campaignId ?? target.id)
+      : target?.kind === 'character'
+        ? (campaignId ?? table?.campagne.id ?? null)
+        : null;
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   // Aperçus locaux libérés quand ils changent ou au départ du composant
   const previews = useRef(new Set<string>());
@@ -118,6 +145,8 @@ export function ImageDrop({
       });
       setPhase((p) => (p.kind === 'upload' ? { ...p, encoding: null } : p));
       const publicUrl = await uploadFile(target, usage, ready, {
+        // Rangé dans le dernier dossier ouvert de la médiathèque
+        folderId: mediatheque ? (lastMediaFolder.getState()[mediatheque] ?? null) : null,
         signal: ctrl.signal,
         onProgress: (progress) => setPhase((p) => (p.kind === 'upload' ? { ...p, progress } : p)),
       });
@@ -348,18 +377,48 @@ export function ImageDrop({
           </form>
         )}
         {pied === 'bouton' && (
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            className="text-muted-foreground"
-            disabled={disabled || busy}
-            onClick={() => setUrlMode(true)}
-          >
-            <Link2 /> {t('uploads.pasteAddress')}
-          </Button>
+          <>
+            {mediatheque && (
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                className="text-muted-foreground"
+                disabled={disabled || busy}
+                onClick={() => setLibraryOpen(true)}
+              >
+                <Images /> {t('uploads.library.title')}
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="text-muted-foreground"
+              disabled={disabled || busy}
+              onClick={() => setUrlMode(true)}
+            >
+              <Link2 /> {t('uploads.pasteAddress')}
+            </Button>
+          </>
         )}
       </div>
+
+      {mediatheque && (
+        <MediaLibrary
+          campaignId={mediatheque}
+          kind={u.types.some((type) => type.startsWith('video/')) ? 'visual' : 'image'}
+          value={value}
+          open={libraryOpen}
+          onOpenChange={setLibraryOpen}
+          onPick={onChange}
+          onUploadHere={(folderId) => {
+            lastMediaFolder.setState({ [mediatheque]: folderId });
+            setLibraryOpen(false);
+            input.current?.click();
+          }}
+        />
+      )}
 
       <CropDialog
         phase={phase}

@@ -84,6 +84,9 @@ export const ReserveStorage = z
     /** Usage de l'envoi (`portrait`, `map-background`…) ou `sound`. */
     usage: z.string().min(1).max(50),
     contentType: z.string().max(100).nullable(),
+    /** Qui envoie, et le dossier de la médiathèque choisi (docs/mediatheque.md). */
+    uploadedBy: z.uuid().optional(),
+    folderId: z.uuid().optional(),
   })
   .refine((r) => r.campaignId || r.characterId, 'campagne ou personnage attendu');
 export type ReserveStorage = z.infer<typeof ReserveStorage>;

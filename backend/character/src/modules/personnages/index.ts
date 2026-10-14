@@ -359,7 +359,7 @@ export const register: Module = async (app, deps) => {
    * instance de PNJ, sinon campaign retrouve celle où il est engagé.
    */
   const reserve =
-    (id: string): UploadReserve =>
+    (id: string, by: { uploadedBy: string; folderId?: string | undefined }): UploadReserve =>
     async (f) => {
       if (!deps.droits.reserver) return;
       const [p] = await db
@@ -372,6 +372,9 @@ export const register: Module = async (app, deps) => {
         size: f.size,
         usage: f.usage,
         contentType: f.contentType,
+        // Médiathèque de la campagne (docs/mediatheque.md) : qui envoie, dans quel dossier
+        uploadedBy: by.uploadedBy,
+        ...(by.folderId ? { folderId: by.folderId } : {}),
       });
     };
 
@@ -391,7 +394,13 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const { id } = req.params;
       await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
-      return deps.uploads.ticket(req.body, id, ['portrait', 'token'], req.log, reserve(id));
+      return deps.uploads.ticket(
+        req.body,
+        id,
+        ['portrait', 'token'],
+        req.log,
+        reserve(id, { uploadedBy: moi(req), folderId: req.body.folderId }),
+      );
     },
   );
 
@@ -411,7 +420,13 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const { id } = req.params;
       await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
-      return deps.uploads.importFromUrl(req.body, id, ['portrait', 'token'], req.log, reserve(id));
+      return deps.uploads.importFromUrl(
+        req.body,
+        id,
+        ['portrait', 'token'],
+        req.log,
+        reserve(id, { uploadedBy: moi(req) }),
+      );
     },
   );
 

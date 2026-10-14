@@ -26,6 +26,7 @@ import {
   campaignStorageInventories,
   mapTokens,
 } from '../../db/schema.js';
+import { uploadFolder } from '../media/index.js';
 import { categoryOf, placeLabels } from './places.js';
 
 /** Une réservation jamais vue sur le stockage est oubliée au bout d'une heure. */
@@ -64,12 +65,22 @@ export const quotaExceeded = (used: number, quota: number) =>
 /** Réserve la place d'un envoi ; 422 `storage_quota_exceeded` s'il n'y en a plus. */
 export async function reserveStorage(
   db: Db,
-  r: { campaignId: string; key: string; size: number; usage: string; contentType: string | null },
+  r: {
+    campaignId: string;
+    key: string;
+    size: number;
+    usage: string;
+    contentType: string | null;
+    /** Qui envoie, et le dossier de la médiathèque choisi (docs/mediatheque.md). */
+    uploadedBy?: string;
+    folderId?: string;
+  },
   quota: number,
   now: Date,
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await lock(tx, r.campaignId);
+    const folderId = await uploadFolder(tx, r.campaignId, r.folderId, r.uploadedBy);
     const used = await usedBytes(tx, r.campaignId, now);
     if (used + r.size > quota) throw quotaExceeded(used, quota);
     await tx
@@ -82,6 +93,8 @@ export async function reserveStorage(
         usage: r.usage,
         state: 'pending',
         createdAt: now,
+        folderId,
+        uploadedBy: r.uploadedBy ?? null,
       })
       .onConflictDoNothing();
   });

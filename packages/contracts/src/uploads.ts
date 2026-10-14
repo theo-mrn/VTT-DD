@@ -159,6 +159,8 @@ export const FileUploadRequest = z.strictObject({
   size: z.number().int().min(1),
   /** Nom d'origine, pour les journaux seulement (jamais dans la clé). */
   name: z.string().max(255).optional(),
+  /** Dossier de la médiathèque de la campagne où ranger le fichier (docs/mediatheque.md). */
+  folderId: z.uuid().optional(),
 });
 export type FileUploadRequest = z.input<typeof FileUploadRequest>;
 

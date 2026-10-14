@@ -1031,6 +1031,19 @@ export const notePins = campaignSchema.table(
 
 export type StorageFileState = 'pending' | 'stored';
 
+/** Dossiers de la médiathèque de la campagne (docs/mediatheque.md), trois niveaux au plus. */
+export const campaignMediaFolders = campaignSchema.table('campaign_media_folders', {
+  id: uuid('id').primaryKey(),
+  campaignId: uuid('campaign_id').notNull(),
+  parentId: uuid('parent_id'),
+  name: text('name').notNull(),
+  ownerId: uuid('owner_id').notNull(),
+  visibleToPlayers: boolean('visible_to_players').notNull().default(false),
+  version: integer('version').notNull().default(1),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+
 /** Fichiers d'une campagne sur le stockage : réservés à l'envoi, puis vus par l'inventaire. */
 export const campaignStorageFiles = campaignSchema.table('campaign_storage_files', {
   key: text('key').primaryKey(),
@@ -1042,6 +1055,11 @@ export const campaignStorageFiles = campaignSchema.table('campaign_storage_files
   usedBy: text('used_by').array().notNull().default([]),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
   seenAt: timestampTz('seen_at'),
+  /** Dossier de la médiathèque ; null : racine. */
+  folderId: uuid('folder_id'),
+  /** Qui l'a envoyé (réservation) ; null : fichier antérieur ou trouvé par l'inventaire. */
+  uploadedBy: uuid('uploaded_by'),
+  visibleToPlayers: boolean('visible_to_players').notNull().default(false),
 });
 
 export const campaignStorageInventories = campaignSchema.table('campaign_storage_inventories', {
