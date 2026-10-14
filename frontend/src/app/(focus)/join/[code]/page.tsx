@@ -25,10 +25,15 @@ export default function PageRejoindreParLien() {
   useEffect(() => {
     if (lance.current) return;
     lance.current = true;
-    rejoindre.mutate(decodeURIComponent(code), {
-      onSuccess: (c) => router.replace(`/campagnes/${c.id}/personnage`),
-    });
+    rejoindre.mutate(decodeURIComponent(code));
   }, [code, rejoindre, router]);
+
+  // Redirection portée par la donnée de la mutation, pas par le rappel de `mutate` (ignoré si
+  // l'observateur a été réinitialisé entre-temps) : une adhésion réussie mène toujours au héros
+  const rejointe = rejoindre.data?.id;
+  useEffect(() => {
+    if (rejointe) router.replace(`/campagnes/${rejointe}/personnage`);
+  }, [rejointe, router]);
 
   if (!rejoindre.isError) return <Chargement texte={t('entering')} />;
   return (
