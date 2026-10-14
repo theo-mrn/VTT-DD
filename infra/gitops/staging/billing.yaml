@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-billing
-  digest: 'sha256:e0fa9882a98b6303c7af5e17288a1206b5c577320d6cc0a31180b3209672a0e1'
+  digest: 'sha256:4749deed8f387c880f53139a9c630e970cf081cc9d21cafb893ed9b5e7b18d63'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud

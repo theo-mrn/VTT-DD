@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-history
-  digest: 'sha256:502f93441d99eb30fe932b9633ea29990c26eb5fb4c06b32da3dd42805dad848'
+  digest: 'sha256:da451dbec386d05ca3134731968f4078e5bb498ec08a657b0bda8aeb2fe76a37'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
