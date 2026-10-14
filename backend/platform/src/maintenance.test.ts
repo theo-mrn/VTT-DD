@@ -3,21 +3,29 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { periodic, withAdvisoryLock } from './maintenance.js';
 import { memoryObjectStore, removePrefix } from './storage.js';
 
-/** Pool factice : une seule session détient chaque verrou. */
+/** Pool factice : un verrou de transaction est rendu à la fin de la transaction qui l'a pris. */
 function fakePool(held: Set<string>) {
-  const client = {
-    query: vi.fn(async (q: string, [name]: [string]) => {
-      if (q.includes('pg_try_advisory_lock')) {
-        const ok = !held.has(name);
-        held.add(name);
-        return { rows: [{ ok }] };
-      }
-      held.delete(name);
-      return { rows: [] };
-    }),
-    release: vi.fn(),
+  const release = vi.fn();
+  const connect = async () => {
+    const mine: string[] = [];
+    return {
+      query: vi.fn(async (q: string, params?: [string]) => {
+        if (q.includes('pg_try_advisory_xact_lock')) {
+          const name = params![0];
+          const ok = !held.has(name);
+          if (ok) {
+            held.add(name);
+            mine.push(name);
+          }
+          return { rows: [{ ok }] };
+        }
+        if (q === 'COMMIT') for (const name of mine.splice(0)) held.delete(name);
+        return { rows: [] };
+      }),
+      release,
+    };
   };
-  return { pool: { connect: async () => client } as unknown as pg.Pool, client };
+  return { pool: { connect } as unknown as pg.Pool, client: { release } };
 }
 
 describe('entretien', () => {

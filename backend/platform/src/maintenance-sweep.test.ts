@@ -24,7 +24,7 @@ const KEPT = `characters/${U}/${U.replace('1', '3')}.webp`;
 function pool(lockFree = true) {
   const client = {
     query: vi.fn(async (text: string) => {
-      if (text.includes('pg_try_advisory_lock')) return { rows: [{ ok: lockFree }] };
+      if (text.includes('pg_try_advisory_xact_lock')) return { rows: [{ ok: lockFree }] };
       if (text.includes('information_schema')) return { rows: [{ name: 'characters' }] };
       if (text.includes('regexp')) return { rows: [{ key: KEPT }] };
       return { rows: [] };

@@ -16,8 +16,13 @@ import { withSpan } from './tracing.js';
 import type { StorageSettings } from './uploads.js';
 
 /**
- * Exécute `fn` si le verrou `name` est libre (session dédiée), sinon ne fait rien : une autre
- * instance du service fait déjà la passe. Renvoie false dans ce cas.
+ * Exécute `fn` si le verrou `name` est libre, sinon ne fait rien : une autre instance du service
+ * fait déjà la passe. Renvoie false dans ce cas.
+ *
+ * Verrou de transaction, gardé par une transaction ouverte (sans écriture) le temps de la passe.
+ * Pas de verrou de session : derrière PgBouncer en mode transaction, une session serveur passe
+ * d'un client à l'autre entre deux requêtes, un second réplica y reprenait le verrou déjà pris et
+ * le déverrouillage partait sur une autre session (verrou resté en place).
  */
 export async function withAdvisoryLock(
   pool: pg.Pool,
@@ -25,20 +30,24 @@ export async function withAdvisoryLock(
   fn: () => Promise<void>,
 ): Promise<boolean> {
   const client = await pool.connect();
+  let broken: Error | undefined;
   try {
+    await client.query('BEGIN');
+    // La transaction attend la fin de la passe : pas de coupure pour inactivité
+    await client.query('SET LOCAL idle_in_transaction_session_timeout = 0');
     const { rows } = await client.query<{ ok: boolean }>(
-      'SELECT pg_try_advisory_lock(hashtext($1)) AS ok',
+      'SELECT pg_try_advisory_xact_lock(hashtext($1)) AS ok',
       [name],
     );
     if (!rows[0]?.ok) return false;
-    try {
-      await fn();
-    } finally {
-      await client.query('SELECT pg_advisory_unlock(hashtext($1))', [name]);
-    }
+    await fn();
     return true;
   } finally {
-    client.release();
+    // La fin de la transaction rend le verrou ; une connexion en échec n'est pas réutilisée
+    await client.query('COMMIT').catch((err: unknown) => {
+      broken = err as Error;
+    });
+    client.release(broken);
   }
 }
 
