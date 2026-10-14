@@ -20,6 +20,8 @@ export const Handout = z.object({
   url: z.string(),
   contentType: z.string(),
   createdAt: z.iso.datetime(),
+  /** Dossier de la campagne (docs/mediatheque.md) ; null : racine. */
+  folderId: z.uuid().nullable(),
 });
 export type Handout = z.infer<typeof Handout>;
 
@@ -53,10 +55,17 @@ export type DocumentsResponse = z.infer<typeof DocumentsResponse>;
 export const CreateHandout = z.strictObject({
   name: z.string().trim().min(1).max(200),
   url: z.string().url().max(2048),
+  folderId: z.uuid().nullable().optional(),
 });
 export type CreateHandout = z.infer<typeof CreateHandout>;
 
-export const UpdateHandout = z.strictObject({ name: z.string().trim().min(1).max(200) });
+/** Renommer, ou ranger dans un dossier (null : racine). */
+export const UpdateHandout = z
+  .strictObject({
+    name: z.string().trim().min(1).max(200).optional(),
+    folderId: z.uuid().nullable().optional(),
+  })
+  .refine((b) => b.name !== undefined || b.folderId !== undefined, 'Rien à modifier');
 
 export const ShareHandout = z.strictObject({
   mode: HandoutMode,

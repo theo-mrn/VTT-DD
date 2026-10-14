@@ -207,7 +207,7 @@ export function MediaLibrary({
 }
 
 /** Un niveau du fil d'Ariane : l'ouvrir, ou y déposer une image. */
-function Etape({
+export function Etape({
   actif,
   onClick,
   onDrop,
@@ -248,7 +248,7 @@ function Etape({
   );
 }
 
-function NomDossier({
+export function NomDossier({
   initial = '',
   onDone,
 }: Readonly<{ initial?: string; onDone(name: string | null): void }>) {
@@ -276,7 +276,7 @@ function NomDossier({
   );
 }
 
-function CarteDossier({
+export function CarteDossier({
   folder: f,
   gm,
   onOpen,

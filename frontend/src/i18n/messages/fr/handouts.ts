@@ -2,6 +2,7 @@
 export default {
   document: 'Document',
   view: 'Vue',
+  loadFailed: 'La bibliothèque n’a pas pu être chargée',
   library: 'Bibliothèque',
   shared: 'Partagés',
   campaignDocument: 'Document de la campagne',

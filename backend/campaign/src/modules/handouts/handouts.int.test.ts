@@ -90,6 +90,39 @@ describe.skipIf(!TEST_DATABASE_URL)('projection et documents', () => {
     ]);
   });
 
+  it('dossiers : créé dans un dossier, rangé ailleurs, remonté quand le dossier disparaît', async () => {
+    const cartes = await h.ok<{ id: string }>(gm, 'POST', `${base()}/media/folders`, {
+      name: 'Cartes',
+    });
+    const donjon = await h.ok<{ id: string }>(gm, 'POST', `${base()}/media/folders`, {
+      name: 'Donjon',
+      parentId: cartes.id,
+    });
+    const doc = await h.ok<{ id: string; folderId: string | null }>(
+      gm,
+      'POST',
+      `${base()}/handouts`,
+      { name: 'Plan', url: file('webp'), folderId: donjon.id },
+    );
+    expect(doc.folderId).toBe(donjon.id);
+    expect(
+      (
+        await h.request(gm, 'PATCH', `${base()}/handouts/${doc.id}`, {
+          folderId: crypto.randomUUID(),
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect((await h.request(gm, 'DELETE', `${base()}/media/folders/${donjon.id}`)).statusCode).toBe(
+      204,
+    );
+    const lib = await h.ok<{ items: { folderId: string | null }[] }>(
+      gm,
+      'GET',
+      `${base()}/handouts`,
+    );
+    expect(lib.items[0]!.folderId).toBe(cartes.id);
+  });
+
   it('projeter à tous, envoyer à un seul ; projection en cours, arrêt, suppression', async () => {
     const video = await h.ok<{ id: string }>(gm, 'POST', `${base()}/handouts`, {
       name: 'Le dragon',

@@ -25,10 +25,13 @@ export const handoutKeys = {
 export const handoutsApi = {
   library: async (campaignId: string) =>
     (await api<{ items: Handout[] }>(`${base(campaignId)}/handouts`)).items,
-  create: (campaignId: string, body: { name: string; url: string }) =>
+  create: (campaignId: string, body: { name: string; url: string; folderId?: string | null }) =>
     api<Handout>(`${base(campaignId)}/handouts`, json('POST', body)),
   rename: (campaignId: string, id: string, name: string) =>
     api<Handout>(`${base(campaignId)}/handouts/${id}`, json('PATCH', { name })),
+  /** Ranger dans un dossier de la campagne (null : racine). */
+  move: (campaignId: string, id: string, folderId: string | null) =>
+    api<Handout>(`${base(campaignId)}/handouts/${id}`, json('PATCH', { folderId })),
   remove: (campaignId: string, id: string) =>
     api<void>(`${base(campaignId)}/handouts/${id}`, json('DELETE')),
   share: (
@@ -100,7 +103,13 @@ export function useHandoutLibrary(campaignId: string, enabled: boolean) {
     () => client.invalidateQueries({ queryKey: ['handouts', campaignId] }),
     [client, campaignId],
   );
-  return { items: q.data ?? [], loading: q.isPending && enabled, refresh };
+  return {
+    items: q.data ?? [],
+    loading: q.isPending && enabled,
+    /** Lecture impossible : à dire, jamais une liste vide. */
+    failed: q.isError,
+    refresh,
+  };
 }
 
 export const isVideo = (contentType: string) => contentType.startsWith('video/');

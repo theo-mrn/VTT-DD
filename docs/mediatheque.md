@@ -53,4 +53,8 @@
    fait (migration 0038, module `media`, `media.int.test.ts`).
 2. Vue « Mes images » dans la zone d'envoi — fait (`components/uploads/media-library.tsx`,
    `lib/media.ts`) : bouton « Mes images » sous la zone, envoi dans le dernier dossier ouvert.
-3. Dossiers dans l'écran Stockage du MJ.
+3. **Documents › Bibliothèque** (panneau de la table, la médiathèque du MJ) : mêmes dossiers —
+   fait (migration 0039 : `campaign_handouts.folder_id` ; fil d'Ariane, tuiles, glisser un
+   document sur un dossier, dépôt dans le dossier ouvert ; un dossier supprimé remonte aussi
+   ses documents).
+4. Dossiers dans l'écran Stockage du MJ.

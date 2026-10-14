@@ -4,6 +4,7 @@ import type { Translation } from '../../types';
 export default {
   document: 'Document',
   view: 'View',
+  loadFailed: 'The library could not be loaded',
   library: 'Library',
   shared: 'Shared',
   campaignDocument: 'Campaign document',

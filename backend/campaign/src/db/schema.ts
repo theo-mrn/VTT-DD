@@ -1077,6 +1077,8 @@ export const campaignHandouts = campaignSchema.table('campaign_handouts', {
   contentType: text('content_type').notNull(),
   createdBy: uuid('created_by').notNull(),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
+  /** Dossier de la campagne (médiathèque) ; null : racine. */
+  folderId: uuid('folder_id'),
 });
 
 export const campaignHandoutShares = campaignSchema.table('campaign_handout_shares', {

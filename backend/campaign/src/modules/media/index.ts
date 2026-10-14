@@ -30,7 +30,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Db } from '../../db/client.js';
 import type { EventContext, Tx } from '../../db/outbox.js';
-import { campaignMediaFolders, campaignStorageFiles } from '../../db/schema.js';
+import { campaignHandouts, campaignMediaFolders, campaignStorageFiles } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import {
   mapEvent,
@@ -301,6 +301,10 @@ export const register: Module = async (app, { db, config }) => {
           .update(campaignStorageFiles)
           .set({ folderId: f.parentId })
           .where(eq(campaignStorageFiles.folderId, f.id));
+        await tx
+          .update(campaignHandouts)
+          .set({ folderId: f.parentId })
+          .where(eq(campaignHandouts.folderId, f.id));
         await tx.delete(campaignMediaFolders).where(eq(campaignMediaFolders.id, f.id));
         await changed(tx, ctx, v);
       });

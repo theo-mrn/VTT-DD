@@ -4,15 +4,19 @@
  * Panneau « Documents » de la table (docs/projection.md).
  *
  * - Joueur : les documents reçus, du plus récent au plus ancien ; un clic l'agrandit.
- * - MJ : sa bibliothèque (dépôt de fichiers, renommer, supprimer, « Projeter » en plein écran ou
- *   « Envoyer », à toute la table ou à certains joueurs) et l'historique des partages
+ * - MJ : sa bibliothèque, rangée dans les dossiers de la campagne (docs/mediatheque.md : fil
+ *   d'Ariane, dossiers sur trois niveaux, glisser un document sur un dossier pour l'y ranger,
+ *   dépôt dans le dossier ouvert), renommer, supprimer, « Projeter » en plein écran ou
+ *   « Envoyer », à toute la table ou à certains joueurs ; l'historique des partages
  *   (« Arrêter » sur la projection en cours).
  */
 import { useFormatter, useTranslations } from 'next-intl';
 import type { Handout, SharedDocument } from '@vtt/contracts';
 import {
   Check,
+  ChevronRight,
   CloudUpload,
+  FolderPlus,
   Film,
   Library,
   MoreHorizontal,
@@ -23,8 +27,10 @@ import {
   Trash2,
   Users,
 } from 'lucide-react';
-import { useMemo, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { toast } from 'sonner';
+import { useStore } from 'zustand';
+import { CarteDossier, Etape, NomDossier } from '@/components/uploads/media-library';
 import { Segmented } from '@/components/audio/parts';
 import { useTable } from '@/components/table/contexte';
 import { Button } from '@/components/ui/button';
@@ -40,10 +46,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
 import { handoutsApi, isVideo, useDocuments, useHandoutLibrary } from '@/lib/handouts';
+import { lastMediaFolder, useMediaListing, useMediaMutations } from '@/lib/media';
 import { prepareUpload } from '@/lib/uploads/prepare';
 import { uploadFile } from '@/lib/uploads/uploader';
 import { translate } from '@/i18n/runtime';
 import { cn } from '@/lib/utils';
+
+/** Type du glisser d'un document vers un dossier. */
+const GLISSE_DOC = 'application/x-vtt-handout';
 
 /** Jour et heure d'un partage : « 4 oct., 20:30 ». */
 const QUAND = { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } as const;
@@ -197,6 +207,32 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
   const [destinataires, setDestinataires] = useState<string[] | null>(null);
   const joueurs = campagne.members.filter((m) => m.role !== 'gm');
 
+  // Dossiers de la campagne (les mêmes que la médiathèque des formulaires)
+  const dossier = useStore(lastMediaFolder, (s) => s[campaignId] ?? null);
+  const ouvrir = (id: string | null) => lastMediaFolder.setState({ [campaignId]: id });
+  const listing = useMediaListing(campaignId, dossier, 'visual');
+  const m = useMediaMutations(campaignId);
+  const [nouveau, setNouveau] = useState(false);
+  const chemin = listing.data?.path ?? [];
+  const dossiers = listing.data?.folders ?? [];
+  const ici = library.items.filter((h) => (h.folderId ?? null) === dossier);
+  // Dossier disparu : retour à la racine
+  useEffect(() => {
+    if (listing.isError && dossier) ouvrir(null);
+  }, [listing.isError, dossier]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const ranger = (id: string, folderId: string | null) =>
+    handoutsApi
+      .move(campaignId, id, folderId)
+      .then(() => void library.refresh())
+      .catch((e) => toast.error(t('uploads.library.failed'), { description: messageErreur(e) }));
+  const deposer = (folderId: string | null) => (e: DragEvent) => {
+    const id = e.dataTransfer.getData(GLISSE_DOC);
+    if (!id) return;
+    e.preventDefault();
+    ranger(id, folderId);
+  };
+
   async function envoyer(files: File[]) {
     for (const file of files) {
       const id = crypto.randomUUID();
@@ -205,10 +241,11 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
       try {
         const prepared = await prepareUpload(file, 'handout');
         const url = await uploadFile({ kind: 'campaign', id: campaignId }, 'handout', prepared, {
+          folderId: dossier,
           onProgress: (p) =>
             setEnvois((l) => l.map((e) => (e.id === id ? { ...e, ratio: p.progress } : e))),
         });
-        await handoutsApi.create(campaignId, { name, url });
+        await handoutsApi.create(campaignId, { name, url, folderId: dossier });
         void library.refresh();
       } catch (e) {
         toast.error(t('handouts.notUploaded', { name }), { description: messageErreur(e) });
@@ -280,14 +317,95 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
 
       <Destinataires joueurs={joueurs} value={destinataires} onChange={setDestinataires} />
 
+      {/* Dossiers : fil d'Ariane, création, tuiles (on y glisse un document pour l'y ranger) */}
+      <div className="flex items-center gap-1">
+        <nav
+          aria-label={t('uploads.library.path')}
+          className="flex min-w-0 flex-1 items-center gap-0.5 text-sm"
+        >
+          <Etape
+            actif={!dossier}
+            onClick={() => ouvrir(null)}
+            onDrop={deposer(null)}
+            icone={<Library className="size-4" aria-hidden />}
+          >
+            {t('handouts.library')}
+          </Etape>
+          {chemin.map((p) => (
+            <span key={p.id} className="flex min-w-0 items-center gap-0.5">
+              <ChevronRight className="size-3.5 shrink-0 text-subtle" aria-hidden />
+              <Etape actif={p.id === dossier} onClick={() => ouvrir(p.id)} onDrop={deposer(p.id)}>
+                {p.name}
+              </Etape>
+            </span>
+          ))}
+        </nav>
+        {chemin.length < 3 && (
+          <Info texte={t('uploads.library.newFolder')}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t('uploads.library.newFolder')}
+              onClick={() => setNouveau(true)}
+            >
+              <FolderPlus />
+            </Button>
+          </Info>
+        )}
+      </div>
+      {(nouveau || dossiers.length > 0) && (
+        <ul className="grid grid-cols-2 gap-2">
+          {nouveau && (
+            <li>
+              <NomDossier
+                onDone={(name) => {
+                  setNouveau(false);
+                  if (name) m.createFolder.mutate({ name, parentId: dossier });
+                }}
+              />
+            </li>
+          )}
+          {dossiers.map((f) => (
+            <li key={f.id}>
+              <CarteDossier
+                folder={f}
+                gm={listing.data?.gm ?? true}
+                onOpen={() => ouvrir(f.id)}
+                onDrop={deposer(f.id)}
+                onRename={(name) =>
+                  m.updateFolder.mutate({ id: f.id, body: { name, version: f.version } })
+                }
+                onVisible={(visibleToPlayers) =>
+                  m.updateFolder.mutate({
+                    id: f.id,
+                    body: { visibleToPlayers, version: f.version },
+                  })
+                }
+                onDelete={() =>
+                  m.removeFolder.mutate(f.id, { onSuccess: () => void library.refresh() })
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
       {library.loading && (
         <p className="py-6 text-center text-[13px] text-muted-foreground">
           {t('common.states.loading')}
         </p>
       )}
-      {!library.loading && library.items.length > 0 && (
+      {library.failed && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-[13px]">
+          <span>{t('handouts.loadFailed')}</span>
+          <Button size="xs" variant="secondary" onClick={() => void library.refresh()}>
+            {t('common.actions.retry')}
+          </Button>
+        </div>
+      )}
+      {!library.loading && ici.length > 0 && (
         <ul className="grid grid-cols-2 gap-3">
-          {library.items.map((h) => (
+          {ici.map((h) => (
             <Document
               key={h.id}
               h={h}
@@ -386,7 +504,14 @@ function Document({
         .catch((e) => toast.error(t('handouts.renameFailed'), { description: messageErreur(e) }));
   };
   return (
-    <li className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-surface duration-200 ease-out animate-in fade-in-0 zoom-in-[0.98]">
+    <li
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(GLISSE_DOC, h.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      className="group flex cursor-grab flex-col overflow-hidden rounded-xl border border-border bg-card shadow-surface duration-200 ease-out animate-in fade-in-0 zoom-in-[0.98] active:cursor-grabbing"
+    >
       <Vignette h={h} className="aspect-video" />
       <div className="flex items-center gap-1 px-2 pt-1.5">
         {renaming !== null ? (

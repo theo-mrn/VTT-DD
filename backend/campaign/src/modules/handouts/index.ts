@@ -28,7 +28,12 @@ import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
-import { campaignHandouts, campaignHandoutShares, campaignMembers } from '../../db/schema.js';
+import {
+  campaignHandouts,
+  campaignHandoutShares,
+  campaignMediaFolders,
+  campaignMembers,
+} from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { access, actorRole, gmAccess } from '../campaigns/repository.js';
 import { CampaignId, currentUser, eventContext, Uuid } from '../schemas.js';
@@ -57,6 +62,7 @@ export const handoutApi = (h: HandoutRow) => ({
   url: h.url,
   contentType: h.contentType,
   createdAt: h.createdAt.toISOString(),
+  folderId: h.folderId,
 });
 
 export const shareApi = (s: ShareRow) => ({
@@ -106,6 +112,19 @@ export const register: Module = async (app, deps) => {
   const auth = { preValidation: app.authenticate };
   const Params = z.object({ id: CampaignId });
   const HandoutParams = Params.extend({ handoutId: Uuid('Identifiant de document invalide') });
+
+  /** Dossier de cette campagne (404 sinon) ; null : racine. */
+  const folderOf = async (tx: Tx, campaignId: string, folderId: string | null) => {
+    if (!folderId) return null;
+    const [f] = await tx
+      .select({ id: campaignMediaFolders.id })
+      .from(campaignMediaFolders)
+      .where(
+        and(eq(campaignMediaFolders.id, folderId), eq(campaignMediaFolders.campaignId, campaignId)),
+      );
+    if (!f) throw HttpError.notFound('Dossier introuvable');
+    return f.id;
+  };
 
   const findHandout = async (tx: Tx, campaignId: string, handoutId: string) => {
     const [h] = await tx
@@ -168,6 +187,7 @@ export const register: Module = async (app, deps) => {
             contentType,
             createdBy: userId,
             createdAt: deps.now(),
+            folderId: await folderOf(tx, a.campaign.id, req.body.folderId ?? null),
           })
           .returning();
         await handoutEvent(tx, eventContext(req), {
@@ -193,9 +213,15 @@ export const register: Module = async (app, deps) => {
       return db.transaction(async (tx) => {
         const a = await gmAccess(tx, req.params.id, userId);
         await findHandout(tx, a.campaign.id, req.params.handoutId);
+        const { name, folderId } = req.body;
         const [h] = await tx
           .update(campaignHandouts)
-          .set({ name: req.body.name })
+          .set({
+            ...(name !== undefined ? { name } : {}),
+            ...(folderId !== undefined
+              ? { folderId: await folderOf(tx, a.campaign.id, folderId) }
+              : {}),
+          })
           .where(eq(campaignHandouts.id, req.params.handoutId))
           .returning();
         await handoutEvent(tx, eventContext(req), {
