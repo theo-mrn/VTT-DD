@@ -26,8 +26,10 @@ await start(app, config);
     from: config.MAIL_FROM,
     log: app.log,
   });
+  // Deux connexions : le verrou consultatif garde la sienne pendant toute la passe, qui a besoin
+  // d'une autre (avec une seule, la passe attendait indéfiniment une connexion libre)
   const retention = createDb(config.DATABASE_URL, {
-    max: 1,
+    max: 2,
     applicationName: `${config.SERVICE_NAME}-retention`,
   });
   const stop = periodic({
