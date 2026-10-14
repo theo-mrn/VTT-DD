@@ -1,12 +1,11 @@
+import { randomId } from '@/lib/random-id';
+
 /**
  * Identifiant de cet onglet : un même compte peut avoir plusieurs onglets à la table (MJ sur
  * deux écrans, test en double). On ignore ses propres envois par onglet, jamais par utilisateur,
  * sinon ses autres onglets ne recevraient rien.
  */
-export const TAB_ID =
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
+export const TAB_ID = randomId();
 
 /** Message d'état : la valeur et l'onglet qui l'envoie. */
 export interface TabMessage<T = unknown> {

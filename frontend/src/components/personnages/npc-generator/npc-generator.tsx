@@ -20,11 +20,12 @@ import {
   type Gender,
   type GeneratedNpc,
 } from './generate';
+import { pickRandom } from '@/lib/random-id';
 
 const ANY = '__any';
 const NONE = '__none';
 
-const pick = <T,>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)]!;
+const pick = pickRandom;
 
 /**
  * Tirage d'un PNJ dans « Nouveau PNJ » : peuple, genre et base (une famille du bestiaire du

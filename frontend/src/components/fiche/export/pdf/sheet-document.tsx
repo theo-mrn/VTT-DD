@@ -14,7 +14,7 @@ import { PDF_THEMES, type PdfTheme, type SheetStyle } from './themes';
  */
 const HORS_JEU = /[^\x20-\x7E\xA0-\xFF–—‘’“”…•€ŒœŸ\n]/g;
 export const pdfText = (s: string) =>
-  s.replace(/−/g, '-').replace(/[   ]/g, ' ').replace(/[‐‑]/g, '-').replace(HORS_JEU, '');
+  s.replaceAll('−', '-').replace(/[   ]/g, ' ').replace(/[‐‑]/g, '-').replace(HORS_JEU, '');
 
 export interface SheetLabels {
   footer: string;
@@ -38,7 +38,7 @@ function styles(t: PdfTheme) {
       gap: 14,
       marginBottom: 16,
       padding: t.ornate ? 12 : 0,
-      paddingBottom: t.ornate ? 12 : 12,
+      paddingBottom: 12,
       borderWidth: t.ornate ? 1.5 : 0,
       borderBottomWidth: t.ornate ? 1.5 : 1,
       borderColor: t.ornate ? t.boxBorder : t.rule,

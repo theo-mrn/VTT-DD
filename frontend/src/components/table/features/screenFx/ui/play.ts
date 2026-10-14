@@ -4,6 +4,7 @@
  * ni secousse ni séisme, l'éclair et le battement restent doux.
  */
 import type { OneShot } from '../state';
+import { random } from '@/lib/random-id';
 
 const reduit = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -16,10 +17,10 @@ function secousse(amplitude: number, ms: number) {
   if (!el || reduit()) return;
   const pas = Array.from({ length: 10 }, (_, i) => {
     const a = amplitude * (1 - i / 10);
-    const x = (i % 2 ? -1 : 1) * a * (0.6 + Math.random() * 0.4);
-    const y = (Math.random() - 0.5) * a;
+    const x = (i % 2 ? -1 : 1) * a * (0.6 + random() * 0.4);
+    const y = (random() - 0.5) * a;
     return {
-      transform: `translate(${x}px, ${y}px) rotate(${(Math.random() - 0.5) * a * 0.08}deg)`,
+      transform: `translate(${x}px, ${y}px) rotate(${(random() - 0.5) * a * 0.08}deg)`,
     };
   });
   el.animate([{ transform: 'none' }, ...pas, { transform: 'none' }], {

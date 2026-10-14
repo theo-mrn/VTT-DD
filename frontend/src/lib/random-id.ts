@@ -10,3 +10,16 @@ export function randomId(): string {
     b.toString(16).padStart(2, '0'),
   ).join('');
 }
+
+/**
+ * Nombre aléatoire dans [0, 1), tiré par `crypto.getRandomValues` (même usage que
+ * `Math.random`, sans générateur prévisible).
+ */
+export function random(): number {
+  const buf = new Uint32Array(1);
+  globalThis.crypto.getRandomValues(buf);
+  return buf[0]! / 2 ** 32;
+}
+
+/** Un élément d'une liste non vide, au hasard. */
+export const pickRandom = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)]!;

@@ -7,6 +7,7 @@
 import type { Attribut, Valeur } from '@vtt/rules';
 import en from './data/en.json';
 import fr from './data/fr.json';
+import { pickRandom, random } from '@/lib/random-id';
 
 export type NpcData = typeof fr;
 export type Culture = NpcData['cultures'][number];
@@ -48,7 +49,7 @@ const LISTS: Record<Field, keyof Omit<NpcData, 'cultures'>> = {
 
 export const dataFor = (locale: string): NpcData => (locale.startsWith('en') ? en : fr);
 
-const pick = <T>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)]!;
+const pick = pickRandom;
 
 export function generateName(culture: Culture, gender: Gender) {
   return { first: pick(culture[gender]), last: pick(culture.last) };
@@ -81,7 +82,7 @@ export function generateNpc(
 
 /** Borne numérique d'un attribut (une formule qui n'est pas un simple nombre ne borne pas). */
 const borne = (f: unknown) => {
-  const n = typeof f === 'number' ? f : typeof f === 'string' ? Number(f) : NaN;
+  const n = typeof f === 'number' ? f : typeof f === 'string' ? Number(f) : Number.NaN;
   return Number.isFinite(n) ? n : null;
 };
 
@@ -90,19 +91,19 @@ const borne = (f: unknown) => {
  * de son défaut (au moins ±2), dans ses bornes ; un choix prend une option au hasard. Aucune clé
  * de jeu en dur : tout vient des attributs.
  */
-export function rollValues(attributs: readonly Attribut[], random = Math.random) {
+export function rollValues(attributs: readonly Attribut[], rand = random) {
   const out: Record<string, Valeur> = {};
   for (const a of attributs) {
     if (a.nature === 'base') {
       const ecart = Math.max(2, Math.round(Math.abs(a.defaut) * 0.4));
-      let v = a.defaut + Math.round((random() * 2 - 1) * ecart);
+      let v = a.defaut + Math.round((rand() * 2 - 1) * ecart);
       const min = borne(a.min);
       const max = borne(a.max);
       if (min !== null) v = Math.max(min, v);
       if (max !== null) v = Math.min(max, v);
       out[a.cle] = v;
     } else if (a.nature === 'choix') {
-      out[a.cle] = a.options[Math.floor(random() * a.options.length)]!.valeur;
+      out[a.cle] = a.options[Math.floor(rand() * a.options.length)]!.valeur;
     }
   }
   return out;

@@ -42,10 +42,14 @@ export function pdfFileName(base: string) {
   const propre = base
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/[^\w-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-  return `${propre || 'fiche'}.pdf`;
+    .replace(/[^\w-]+/g, '-');
+  // Tirets retirés aux deux bouts (sans expression régulière à retours en arrière)
+  let debut = 0;
+  let fin = propre.length;
+  while (debut < fin && propre[debut] === '-') debut++;
+  while (fin > debut && propre[fin - 1] === '-') fin--;
+  const nom = propre.slice(debut, fin).slice(0, 80);
+  return `${nom || 'fiche'}.pdf`;
 }
 
 export async function downloadSheetsPdf(options: {
