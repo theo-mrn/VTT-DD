@@ -1,6 +1,7 @@
 {{- if .Values.ingress.enabled }}
-# Certificat Let's Encrypt par le résolveur ACME de Traefik (challenge HTTP-01 sur l'entrypoint
-# web) : pas de cert-manager sur le cluster, pas de Secret TLS à gérer.
+{{- if .Values.ingress.direct }}
+# Accès par l'IP publique (entrée websecure). Certificat Let's Encrypt par le résolveur ACME
+# de Traefik (challenge HTTP-01 sur l'entrypoint web).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -17,23 +18,52 @@ spec:
   ingressClassName: {{ .Values.ingress.className }}
   tls:
     - hosts: [{{ .Values.ingress.host | quote }}]
-  rules:
-    - host: {{ .Values.ingress.host | quote }}
-      http:
-        paths:
-          {{- /* Chemins confiés à un autre service du namespace (ex. /v1 → gateway) */}}
-          {{- range .Values.ingress.extraPaths }}
-          - path: {{ .path }}
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ .service }}
-                port: { name: http }
-          {{- end }}
-          - path: {{ .Values.ingress.path }}
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "svc.name" . }}
-                port: { name: http }
+  rules: {{- include "svc.ingressRules" . | nindent 4 }}
+{{- end }}
+{{- if .Values.ingress.tunnel }}
+---
+# Accès par le tunnel Cloudflare : entrée `tunnel` de Traefik, que seuls les pods cloudflared
+# atteignent (argocd_registry, docs/decisions/entree-tunnel-cloudflare.md).
+#
+# Pas de Let's Encrypt ici : derrière le tunnel, le challenge HTTP-01 n'arrive plus et le
+# renouvellement échouerait sans bruit. Le visiteur voit le certificat de Cloudflare ;
+# cloudflared vérifie celui-ci avec l'autorité interne.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "svc.name" . }}-tunnel
+  labels: {{- include "svc.labels" . | nindent 4 }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: tunnel
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    {{- with .Values.ingress.middlewares }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ join "," . | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts: [{{ .Values.ingress.host | quote }}]
+      secretName: {{ include "svc.name" . }}-tunnel-tls
+  rules: {{- include "svc.ingressRules" . | nindent 4 }}
+---
+# Traefik relit le Secret à son renouvellement ; cloudflared ne lit que l'autorité.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "svc.name" . }}-tunnel
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "svc.name" . }}-tunnel-tls
+  dnsNames: [{{ .Values.ingress.host | quote }}]
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  usages: [server auth]
+  issuerRef:
+    name: {{ .Values.ingress.tunnelIssuer }}
+    kind: ClusterIssuer
+    group: cert-manager.io
+{{- end }}
 {{- end }}

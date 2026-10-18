@@ -41,7 +41,14 @@ ingress:
   className: traefik
   host: ''
   path: /
-  # Résolveur ACME de Traefik (certificats Let's Encrypt)
+  # Accès par l'IP publique (entrée websecure, Let's Encrypt). À passer à false une fois
+  # l'hôte basculé sur le tunnel : c'est ce qui ferme le contournement de Cloudflare.
+  direct: true
+  # Accès par le tunnel Cloudflare (entrée tunnel, certificat de l'autorité interne)
+  tunnel: false
+  # ClusterIssuer cert-manager du certificat du tunnel
+  tunnelIssuer: internal-ca
+  # Résolveur ACME de Traefik (certificats Let's Encrypt), accès direct seulement
   certResolver: letsencrypt
   # Autres chemins du même hôte vers un service du namespace : [{ path: /v1, service: gateway }]
   extraPaths: []
