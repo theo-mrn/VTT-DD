@@ -41,10 +41,16 @@ env:
 secretEnv:
   REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
 ingress:
+  # Reste à true, sans aucun Ingress rendu (direct et tunnel à false) : c'est ce qui garde la
+  # règle réseau « depuis Traefik », par laquelle /v1 de staging.yner.fr (Ingress de web)
+  # arrive à la gateway. À false, l'API du staging serait coupée.
   enabled: true
   # Connexions WebSocket longues (realtime)
   websocket: true
+  # Plus servi depuis le 2026-10-18 (aucun enregistrement DNS) : tout passe par
+  # staging.yner.fr/v1 via le tunnel Cloudflare, webhook Stripe compris.
   host: api.staging.yner.fr
+  direct: false
   # Bouncer CrowdSec : hote expose publiquement. Traefik interroge le bouncer
   # a chaque requete (forwardAuth) et renvoie 403 si l'IP porte une decision.
   middlewares:

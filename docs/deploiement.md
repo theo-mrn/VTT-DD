@@ -58,9 +58,12 @@ synchronise.
 - **Sealed Secrets** (déjà sur le cluster) au lieu de SOPS : manifests chiffrés dans
   `infra/cluster/secrets/staging/`, produits par `infra/cluster/secrets/seal-staging.sh`.
 - **Kyverno** installé pour vérifier les signatures à l'admission.
-- **TLS** par le résolveur `letsencrypt` de Traefik (HTTP-01), pas de cert-manager.
-- **Domaine** `yner.fr` : `staging.yner.fr` (web) et `api.staging.yner.fr` (gateway), en A
-  vers `76.13.44.160` (LoadBalancer Traefik).
+- **Entrée** : depuis le 2026-10-18, `staging.yner.fr`, `app.yner.fr` et `api.yner.fr`
+  n'arrivent que par le tunnel Cloudflare `vtt` (certificats de l'autorité interne côté
+  origine, `ingress.tunnel` du chart). Décision et procédures : `argocd_registry`,
+  `docs/decisions/entree-tunnel-cloudflare.md`.
+- **Domaine** `yner.fr` : `staging.yner.fr` sert le front ET l'API (Traefik envoie `/v1` à la
+  gateway). `api.staging.yner.fr` n'existe plus (ni DNS, ni Ingress).
 - **Fichiers** sur Cloudflare R2 (bucket applicatif), sauvegardes logiques dans un autre bucket.
 - **PostgreSQL** en instance unique (décision du cluster, `docs/decisions/postgres-mono-instance.md`
   dans `argocd_registry`). Pas d'archivage WAL tant que le plugin Barman Cloud n'est pas installé
@@ -70,14 +73,15 @@ synchronise.
 
 ## À fournir par Théo
 
-1. **DNS** : `staging.yner.fr` et `api.staging.yner.fr` en A vers `76.13.44.160`. Le front et
-   l'API partagent `staging.yner.fr` (Traefik envoie `/v1` à la gateway, WebSocket compris) ;
-   `api.staging.yner.fr` sert aux retours OAuth et au webhook Stripe.
+1. **DNS** : `staging.yner.fr` en CNAME proxifié vers le tunnel
+   (`cloudflared tunnel route dns vtt staging.yner.fr`). Le front et l'API partagent cet hôte
+   (`/v1` vers la gateway, WebSocket compris), retours OAuth et webhook Stripe
+   (`https://staging.yner.fr/v1/billing/webhook`) compris.
 2. **`~/.config/vtt/staging.env`** (jamais commité), lu par `infra/cluster/secrets/seal-staging.sh` :
    - R2 applicatif : `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
      `R2_PUBLIC_URL` (domaine public du bucket) ;
    - facultatif : `GOOGLE_CLIENT_ID/SECRET` et `DISCORD_CLIENT_ID/SECRET` (retours sur
-     `https://api.staging.yner.fr/v1/auth/oauth/<fournisseur>/callback`), `KOURRIER_API_KEY`
+     `https://staging.yner.fr/v1/auth/oauth/<fournisseur>/callback`, bâtis sur `APP_URL`), `KOURRIER_API_KEY`
      (envoi des e-mails : voir `infra/mails/README.md`),
      `STRIPE_*` (mode test), `FIREBASE_SCRYPT_*` (comptes importés) ;
    - sauvegarde : `BACKUP_R2_ACCESS_KEY_ID/SECRET_ACCESS_KEY` (bucket `vtt-logical-backups`,
@@ -96,7 +100,8 @@ synchronise.
    `kyverno.vtt/verify=true`, posé par l'ApplicationSet sur `vtt-staging`).
 3. Argo CD crée `data`, `messaging`, puis `vtt-staging` ; les Jobs de migration passent avant
    chaque service.
-4. Vérifier `https://staging.yner.fr` et `https://api.staging.yner.fr/healthz`.
+4. Vérifier `https://staging.yner.fr` et `https://staging.yner.fr/healthz` (le web ; la santé
+   de la gateway n'est pas exposée sous `/v1`).
 
 ## Production (décisions de Théo, 2026-10-09)
 
