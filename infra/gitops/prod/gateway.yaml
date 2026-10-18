@@ -42,6 +42,9 @@ ingress:
   # Connexions WebSocket longues (realtime)
   websocket: true
   host: api.yner.fr
+  # Tunnel Cloudflare (argocd_registry, docs/decisions/entree-tunnel-cloudflare.md) : Ingress
+  # supplémentaire sur l'entrée tunnel ; l'accès direct reste tant que le DNS n'a pas basculé
+  tunnel: true
   # Bouncer CrowdSec : hote expose publiquement. Traefik interroge le bouncer
   # a chaque requete (forwardAuth) et renvoie 403 si l'IP porte une decision.
   middlewares:
