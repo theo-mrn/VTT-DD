@@ -21,9 +21,11 @@ writablePaths:
 ingress:
   enabled: true
   host: app.yner.fr
-  # Tunnel Cloudflare (argocd_registry, docs/decisions/entree-tunnel-cloudflare.md) : Ingress
-  # supplémentaire sur l'entrée tunnel ; l'accès direct reste tant que le DNS n'a pas basculé
+  # Uniquement par le tunnel Cloudflare (argocd_registry, docs/decisions/entree-tunnel-cloudflare.md).
+  # Accès direct coupé le 2026-10-18 : par l'IP du master, cet hôte répond 404, ce qui empêche de
+  # contourner Cloudflare. Retour arrière : direct: true AVANT de remettre le DNS sur l'IP.
   tunnel: true
+  direct: false
   # API et temps réel sur le même hôte, envoyés par Traefik à la gateway : le serveur Next ne
   # relaie pas l'upgrade WebSocket de ses réécritures, et les cookies restent sur la même origine
   extraPaths:
