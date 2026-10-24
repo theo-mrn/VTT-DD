@@ -10,13 +10,14 @@
  *   affichée) ;
  * - créer, modifier (nom, description, dossier, fond image ou vidéo), supprimer ;
  * - dossiers : créer, renommer, supprimer (leurs scènes restent, sans dossier) ;
- * - ranger : glisser une scène sur un dossier (ou sa puce du filtre), ou « Déplacer vers » ;
- * - filtrer sur un dossier (puces, retenu par campagne le temps de la session).
+ * - ranger : glisser une scène sur un dossier, ou « Déplacer vers » ;
+ * - filtrer sur un dossier (menu des dossiers, retenu par campagne le temps de la session).
  */
 import { translate } from '@/i18n/runtime';
 import type { MapGroup, MapScene } from '@vtt/contracts';
 import {
   Check,
+  ChevronDown,
   Crown,
   Ellipsis,
   Eye,
@@ -25,7 +26,9 @@ import {
   Folder,
   FolderInput,
   FolderPlus,
+  FolderX,
   GripVertical,
+  LayoutGrid,
   MapPin,
   MapPinned,
   Navigation,
@@ -35,7 +38,14 @@ import {
   Trash2,
   Undo2,
 } from 'lucide-react';
-import { useMemo, useState, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  Fragment,
+  useMemo,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { useStore } from 'zustand';
 import { EtatVide } from '@/components/commun/page';
 import { Illustration } from '@/components/commun/illustration';
@@ -60,7 +70,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { InputGroup, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
@@ -227,6 +236,14 @@ export function ScenesPanel() {
   return (
     <div className="space-y-4 px-4 py-4">
       <div className="flex items-center gap-2">
+        <FolderFilter
+          value={shownFilter}
+          folders={folders}
+          total={count}
+          counts={counts}
+          onChange={setFilter}
+          onNewFolder={() => setFolder({ group: null })}
+        />
         <InputGroup
           avant={<Search className="size-4 text-subtle" aria-hidden />}
           placeholder={translate('map.scenes.search')}
@@ -234,57 +251,11 @@ export function ScenesPanel() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <Info texte={translate('map.scenes.newFolder')}>
-          <Button
-            variant="secondary"
-            size="icon"
-            aria-label={translate('map.scenes.newFolder')}
-            onClick={() => setFolder({ group: null })}
-          >
-            <FolderPlus />
-          </Button>
-        </Info>
         <Button onClick={() => setEditing({ scene: null, groupId: newSceneGroup })}>
           <Plus />
           {translate('map.scenes.scene')}
         </Button>
       </div>
-
-      {folders.length > 0 && count > 0 && (
-        <PillGroup>
-          <nav
-            aria-label={translate('map.scenes.filterByFolder')}
-            className="-mt-1 flex flex-wrap gap-1"
-          >
-            <FilterChip
-              label={translate('map.scenes.allScenes')}
-              count={count}
-              active={shownFilter === 'all'}
-              dragging={false}
-              onClick={() => setFilter('all')}
-            />
-            {folders.map((g) => (
-              <FilterChip
-                key={g.id}
-                label={g.name}
-                count={counts.get(g.id) ?? 0}
-                active={shownFilter === g.id}
-                dragging={!!dragging}
-                onClick={() => setFilter(g.id)}
-                onDropScene={(id) => move(id, g.id)}
-              />
-            ))}
-            <FilterChip
-              label={translate('map.scenes.noFolder')}
-              count={counts.get(null) ?? 0}
-              active={shownFilter === 'none'}
-              dragging={!!dragging}
-              onClick={() => setFilter('none')}
-              onDropScene={(id) => move(id, null)}
-            />
-          </nav>
-        </PillGroup>
-      )}
 
       {active.mapId && partyMapId && active.mapId !== partyMapId && (
         <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
@@ -395,40 +366,75 @@ export function ScenesPanel() {
   );
 }
 
-/** Puce du filtre : n'afficher que ce dossier ; on peut aussi y déposer une scène. */
-function FilterChip({
-  label,
-  count,
-  active,
-  dragging,
-  onClick,
-  onDropScene,
+/** Filtre de dossier : toutes les scènes, un dossier ou celles sans dossier ; et créer un dossier. */
+function FolderFilter({
+  value,
+  folders,
+  total,
+  counts,
+  onChange,
+  onNewFolder,
 }: Readonly<{
-  label: string;
-  count: number;
-  active: boolean;
-  dragging: boolean;
-  onClick(): void;
-  onDropScene?(sceneId: string): void;
+  value: SceneFolderFilter;
+  folders: readonly MapGroup[];
+  total: number;
+  counts: ReadonlyMap<string | null, number>;
+  onChange(filter: SceneFolderFilter): void;
+  onNewFolder(): void;
 }>) {
-  const { over, zone } = useSceneDrop(dragging && !!onDropScene, (id) => onDropScene?.(id));
+  const options: { id: SceneFolderFilter; name: string; count: number; icon: typeof Folder }[] = [
+    { id: 'all', name: translate('map.scenes.allScenes'), count: total, icon: LayoutGrid },
+    ...folders.map((g) => ({ id: g.id, name: g.name, count: counts.get(g.id) ?? 0, icon: Folder })),
+    {
+      id: 'none',
+      name: translate('map.scenes.noFolder'),
+      count: counts.get(null) ?? 0,
+      icon: FolderX,
+    },
+  ];
+  const current = options.find((o) => o.id === value) ?? options[0]!;
+  const CurrentIcon = current.icon;
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      {...(onDropScene ? zone : {})}
-      className={cn(
-        'relative isolate flex max-w-full items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-medium transition-colors',
-        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-        dragging && onDropScene && 'outline-dashed outline-1 outline-border-strong',
-        over && 'bg-primary/15 text-primary outline-primary/60',
-      )}
-    >
-      {active && <ActivePill className="bg-surface-3 shadow-sm" />}
-      <span className="truncate">{label}</span>
-      <span className="text-[11px] tabular-nums text-subtle">{count}</span>
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="secondary"
+          aria-label={translate('map.scenes.filterByFolder')}
+          className={cn(
+            'min-w-0 max-w-[11rem] shrink-0 justify-start gap-1.5 px-2.5',
+            value !== 'all' && 'text-primary',
+          )}
+        >
+          <CurrentIcon />
+          <span className="truncate">{current.name}</span>
+          <ChevronDown className="ml-auto opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-80 w-60">
+        {options.map((o, i) => {
+          const Icon = o.icon;
+          return (
+            <Fragment key={o.id}>
+              {i === options.length - 1 && <DropdownMenuSeparator />}
+              <DropdownMenuItem
+                onSelect={() => onChange(o.id)}
+                className={cn(o.id === value && 'text-foreground')}
+              >
+                <Icon />
+                <span className="min-w-0 flex-1 truncate">{o.name}</span>
+                <span className="text-[11px] tabular-nums text-subtle">{o.count}</span>
+                <Check className={cn(o.id !== value && 'invisible')} />
+              </DropdownMenuItem>
+            </Fragment>
+          );
+        })}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onNewFolder}>
+          <FolderPlus />
+          {translate('map.scenes.newFolderEllipsis')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
