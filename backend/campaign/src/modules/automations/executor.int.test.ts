@@ -49,6 +49,17 @@ describe.skipIf(!TEST_DATABASE_URL)('exécuteur des automatismes', () => {
     correlationId: 'test',
   });
 
+  it('campagne supprimée depuis : événement écarté, sans échec (pas de relivraison sans fin)', async () => {
+    const ghost = {
+      ...event('combat.turn_changed', { version: 3, round: 1 }),
+      roomId: randomUUID(),
+    };
+    expect(await handleAutomationEvent(t.db!, ghost)).toBe(false);
+    expect(
+      await handleAutomationEvent(t.db!, { ...event('combat.ended'), roomId: randomUUID() }),
+    ).toBe(false);
+  });
+
   it('fin de combat → ambiance danger tout de suite, pause 2 s plus tard ; journal', async () => {
     await h.ok<Rule>(gm, 'POST', url('/automation-rules'), {
       name: 'Après la bataille',

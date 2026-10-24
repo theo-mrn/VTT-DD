@@ -30,6 +30,7 @@ import {
   automationRuns,
   campaignCharacters,
   campaignCombatParticipants,
+  campaigns,
   campaignCombats,
   inbox,
   mapSettings,
@@ -304,6 +305,14 @@ export async function handleAutomationEvent(
   if (!campaignId) return false;
   const depth = depthOf(event.correlationId);
   return db.transaction(async (tx) => {
+    // Campagne supprimée depuis (événement en retard, relivré) : rien à faire, et surtout pas
+    // d'échec relivré sans fin ; verrouillée, elle ne peut plus disparaître pendant le traitement
+    const [live] = await tx
+      .select({ id: campaigns.id })
+      .from(campaigns)
+      .where(eq(campaigns.id, campaignId))
+      .for('key share');
+    if (!live) return false;
     const [fresh] = await tx
       .insert(inbox)
       .values({ eventId: event.id, consumer: AUTOMATIONS_CONSUMER })
