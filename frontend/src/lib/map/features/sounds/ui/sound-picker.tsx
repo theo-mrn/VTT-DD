@@ -17,7 +17,8 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { FileSource, plain } from '@/components/audio/add-sound-dialog';
 import { formatTime, KIND_ICONS, kindLabel, Segmented } from '@/components/audio/parts';
-import { Chips, SearchField } from '@/components/resources/parts';
+import { SearchField } from '@/components/resources/parts';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { useTable } from '@/components/table/contexte';
 import { Button } from '@/components/ui/button';
 import {
@@ -279,22 +280,24 @@ function useSoundFilters<T>(
     keep: (x: T) =>
       (kind === 'all' || kindOf(x) === kind) && (active === 'all' || categoryOf(x) === active),
     chips: (
-      <>
-        <Chips
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterMenu
+          allValue="all"
           label={translate('map.sounds.type')}
           value={kind}
           onChange={setKind}
           options={kindChips}
         />
         {categoryChips && (
-          <Chips
+          <FilterMenu
+            allValue="all"
             label={translate('map.sounds.category')}
             value={active}
             onChange={setCategory}
             options={categoryChips}
           />
         )}
-      </>
+      </div>
     ),
   };
 }

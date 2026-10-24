@@ -12,7 +12,8 @@ import type { CombatState } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { CheckCheck, EyeOff, ScrollText, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Chips, ListSkeleton, Notice } from '@/components/resources/parts';
+import { ListSkeleton, Notice } from '@/components/resources/parts';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { Button } from '@/components/ui/button';
 import { SelectField } from '@/components/ui/select';
 import { Info } from '@/components/ui/tooltip';
@@ -93,7 +94,8 @@ export function ReportsSection({
           </Info>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Chips
+          <FilterMenu
+            allValue="all"
             label={tr('combat.list.reports')}
             value={view.filter}
             onChange={(v) => onView({ ...view, filter: v as ReportFilter })}

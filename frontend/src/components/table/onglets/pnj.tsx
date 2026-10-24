@@ -5,7 +5,7 @@
  * On les crée et les range ici (catégories), puis on les pose sur la carte (bibliothèque des
  * personnages, A) : chaque PNJ posé est une instance du modèle, qui reste.
  *
- * - Recherche, catégories en pastilles, gestion des catégories (ajouter, renommer, supprimer :
+ * - Recherche, catégories en menu déroulant, gestion des catégories (ajouter, renommer, supprimer :
  *   ses modèles restent, sans catégorie).
  * - Carte d'un modèle : portrait, nom, type, statistiques de la présentation du système ; clic :
  *   modifier ; menu : dupliquer, changer de catégorie, supprimer (les PNJ déjà posés restent).
@@ -31,8 +31,9 @@ import { NpcForm, type NpcFormPreset, type NpcFormResult } from '@/components/pe
 import { NpcGenerator } from '@/components/personnages/npc-generator/npc-generator';
 import { templateItem, type BestiaryItem } from '@/components/resources/model/bestiary';
 import { normaliser } from '@/components/resources/model/catalogue';
-import { Chips, ListSkeleton, Notice, SearchField, Thumb } from '@/components/resources/parts';
+import { ListSkeleton, Notice, SearchField, Thumb } from '@/components/resources/parts';
 import { Button } from '@/components/ui/button';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import {
   Dialog,
   DialogContent,
@@ -266,6 +267,26 @@ export function OngletPnj() {
           placeholder={t('searchPlaceholder')}
           className="sm:w-64"
         />
+        {categories.length > 0 && (
+          <FilterMenu
+            label={t('categories')}
+            icon={Tags}
+            value={category}
+            allValue={ALL}
+            onChange={setCategory}
+            options={[
+              { value: ALL, label: t('all'), count: cards.length },
+              ...categories.map((c) => ({
+                value: c.id,
+                label: c.name,
+                count: counts.get(c.id) ?? 0,
+              })),
+              ...(withoutCategory
+                ? [{ value: NONE, label: t('noCategory'), count: counts.get('') ?? 0 }]
+                : []),
+            ]}
+          />
+        )}
         <div className="ml-auto flex items-center gap-1.5">
           <CategoryManager campaignId={campagne.id} categories={categories} onChanged={refresh} />
           <Button size="sm" onClick={ouvrirNouveau}>
@@ -274,31 +295,6 @@ export function OngletPnj() {
           </Button>
         </div>
       </div>
-
-      {categories.length > 0 && (
-        <Chips
-          label={t('categories')}
-          value={category}
-          onChange={setCategory}
-          options={[
-            { value: ALL, label: t('all'), count: cards.length },
-            ...categories.map((c) => ({
-              value: c.id,
-              label: c.name,
-              count: counts.get(c.id) ?? 0,
-            })),
-            ...(withoutCategory
-              ? [
-                  {
-                    value: NONE,
-                    label: t('noCategory'),
-                    count: counts.get('') ?? 0,
-                  },
-                ]
-              : []),
-          ]}
-        />
-      )}
 
       {!cards.length && (
         <Notice

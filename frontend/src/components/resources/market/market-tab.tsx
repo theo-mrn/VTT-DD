@@ -23,7 +23,8 @@ import {
   type MarketSection,
   type MarketSort,
 } from '../model/market';
-import { CatalogueText, Chips, Notice, SearchField, Toolbar } from '../parts';
+import { CatalogueText, Notice, SearchField, Toolbar } from '../parts';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import type { InventoryTarget } from './use-inventory-target';
 
 const TOUT = '';
@@ -80,7 +81,8 @@ export function MarketTab({
   return (
     <div>
       <Toolbar>
-        <Chips
+        <FilterMenu
+          allValue={TOUT}
           label={t('resources.market.kinds')}
           value={sorte}
           onChange={(v) => {

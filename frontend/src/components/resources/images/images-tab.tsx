@@ -23,7 +23,8 @@ import { SelectField } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAssets } from '@/lib/assets';
 import { categoriesOf, collectionImages } from '../model/images';
-import { Chips, Notice, Thumb, Toolbar } from '../parts';
+import { Notice, Thumb, Toolbar } from '../parts';
+import { FilterMenu } from '@/components/ui/filter-menu';
 
 const PAGE = 60;
 const TOUTES = '';
@@ -89,7 +90,7 @@ export function ImagesTab({ presentation }: Readonly<{ presentation: Presentatio
     <div>
       <Toolbar>
         {collections.length > 1 ? (
-          <Chips
+          <FilterMenu
             label={t('resources.images.collections')}
             value={String(index)}
             onChange={(v) => {

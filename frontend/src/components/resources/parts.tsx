@@ -13,7 +13,6 @@ import { Dialog, DialogDescription, DialogTitle, SheetContent } from '@/componen
 import { InputGroup } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { surCdn, vignette } from '@/lib/assets';
-import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { cn } from '@/lib/utils';
 
 // ─── Mise en page ────────────────────────────────────────────────────────────
@@ -137,63 +136,6 @@ export function SearchField({
         }
       />
     </div>
-  );
-}
-
-export interface ChipOption {
-  value: string;
-  label: ReactNode;
-  count?: number;
-}
-
-/** Filtre exclusif en pastilles (sections, sortes, collections). */
-export function Chips({
-  options,
-  value,
-  onChange,
-  label,
-}: Readonly<{
-  options: ChipOption[];
-  value: string;
-  onChange(v: string): void;
-  label: string;
-}>) {
-  return (
-    <PillGroup>
-      <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
-        {options.map((o) => {
-          const actif = o.value === value;
-          return (
-            <button
-              key={o.value}
-              type="button"
-              aria-pressed={actif}
-              onClick={() => onChange(o.value)}
-              className={cn(
-                'relative isolate inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium transition-colors duration-200',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97]',
-                actif
-                  ? 'text-primary-foreground'
-                  : 'bg-surface-2/70 text-muted-foreground hover:bg-surface-3 hover:text-foreground',
-              )}
-            >
-              {actif && <ActivePill className="bg-primary shadow-sm" />}
-              {o.label}
-              {o.count !== undefined && (
-                <span
-                  className={cn(
-                    'text-[11px] tabular-nums',
-                    actif ? 'text-primary-foreground/75' : 'text-subtle',
-                  )}
-                >
-                  {o.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </PillGroup>
   );
 }
 

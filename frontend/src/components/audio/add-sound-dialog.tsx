@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { toast } from 'sonner';
-import { Chips, SearchField } from '@/components/resources/parts';
+import { SearchField } from '@/components/resources/parts';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -455,21 +456,24 @@ function CatalogSource({
 
   return (
     <div className="space-y-2 pt-1">
-      <SearchField
-        value={query}
-        onChange={setQuery}
-        placeholder={t('map.sounds.searchProvided')}
-        label={t('map.sounds.searchProvided')}
-        className="sm:w-full"
-      />
-      {chips.length > 2 && (
-        <Chips
-          label={t('map.sounds.category')}
-          value={category}
-          onChange={setCategory}
-          options={chips}
+      <div className="flex items-center gap-2">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder={t('map.sounds.searchProvided')}
+          label={t('map.sounds.searchProvided')}
+          className="min-w-0 flex-1 sm:w-full"
         />
-      )}
+        {chips.length > 2 && (
+          <FilterMenu
+            allValue="all"
+            label={t('map.sounds.category')}
+            value={category}
+            onChange={setCategory}
+            options={chips}
+          />
+        )}
+      </div>
       {catalog.loading ? (
         <p className="py-6 text-center text-[13px] text-muted-foreground">
           {t('common.states.loading')}
@@ -577,22 +581,27 @@ function MineSource({
   return (
     <div className="space-y-2 pt-1">
       <p className="text-xs text-muted-foreground">{t('audio.add.mineHint')}</p>
-      {library.assets.length > 6 && (
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          placeholder={t('map.sounds.searchMine')}
-          label={t('map.sounds.searchMine')}
-          className="sm:w-full"
-        />
-      )}
-      {chips.length > 2 && (
-        <Chips
-          label={t('audio.add.filing')}
-          value={where}
-          onChange={(v) => setWhere(v as Where)}
-          options={chips}
-        />
+      {(library.assets.length > 6 || chips.length > 2) && (
+        <div className="flex items-center gap-2">
+          {library.assets.length > 6 && (
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder={t('map.sounds.searchMine')}
+              label={t('map.sounds.searchMine')}
+              className="min-w-0 flex-1 sm:w-full"
+            />
+          )}
+          {chips.length > 2 && (
+            <FilterMenu
+              allValue="all"
+              label={t('audio.add.filing')}
+              value={where}
+              onChange={(v) => setWhere(v as Where)}
+              options={chips}
+            />
+          )}
+        </div>
       )}
       {items.length === 0 ? (
         <p className="py-6 text-center text-[13px] text-muted-foreground">

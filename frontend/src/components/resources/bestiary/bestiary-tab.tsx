@@ -18,7 +18,8 @@ import { messageErreur } from '@/lib/api';
 import { useNpcTemplates, useSystemBestiary } from '@/lib/bestiary';
 import { creatureItem, templateItem, type BestiaryItem } from '../model/bestiary';
 import { normaliser } from '../model/catalogue';
-import { CatalogueText, Chips, Notice, SearchField, Thumb, Toolbar } from '../parts';
+import { CatalogueText, Notice, SearchField, Thumb, Toolbar } from '../parts';
+import { FilterMenu } from '@/components/ui/filter-menu';
 
 type Source = 'campaign' | 'system';
 
@@ -205,7 +206,7 @@ function ChoixSource({
       </p>
     );
   return (
-    <Chips
+    <FilterMenu
       label={t('resources.bestiary.source')}
       value={source}
       onChange={onSource}

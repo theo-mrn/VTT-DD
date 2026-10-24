@@ -20,7 +20,7 @@ import {
 import { useFormatter, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Chips } from '@/components/resources/parts';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { Button } from '@/components/ui/button';
 import { SelectField } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -216,8 +216,14 @@ export function StockageCampagne({ campaignId }: Readonly<{ campaignId: string }
       </section>
 
       {s.files.length > 0 && (
-        <div className="space-y-3">
-          <Chips label={t('categoryLabel')} value={filtre} onChange={setFiltre} options={options} />
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterMenu
+            allValue="all"
+            label={t('categoryLabel')}
+            value={filtre}
+            onChange={setFiltre}
+            options={options}
+          />
           <SelectField
             aria-label={t('sort')}
             value={tri}

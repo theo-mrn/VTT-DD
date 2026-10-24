@@ -19,7 +19,8 @@ import {
   searchEntry,
   type SearchHit,
 } from '../model/catalogue';
-import { Chips, MasterDetail, Notice, SearchField, Thumb, Toolbar } from '../parts';
+import { MasterDetail, Notice, SearchField, Thumb, Toolbar } from '../parts';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { EntryDetail } from './entry-detail';
 import { stripTags } from '@/lib/strip-tags';
 
@@ -150,7 +151,7 @@ export function CatalogueTab({
     <div>
       <Toolbar>
         {sections.length > 1 ? (
-          <Chips
+          <FilterMenu
             label={t('resources.catalogue.sections')}
             value={String(index)}
             onChange={changerSection}
