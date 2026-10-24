@@ -65,7 +65,7 @@ export interface GroupeTableDes {
   /** Joueurs qui incarnent un héros (aucun : bouton désactivé). */
   joueurs: number;
   demander(jet: { formule: string; libelle: string; visibilite: VisibiliteJet }): void;
-  /** Suivi du jet en cours (résultats, clore, redemander), sous le lanceur. */
+  /** Suivi du jet en cours (résultats, clore, redemander), en bas du lanceur. */
   suivi?: ReactNode;
 }
 
@@ -126,6 +126,8 @@ export function TableDes({
     [enregistre, contexte?.campagneId, contexte?.personnage?.id, contexte?.personnages], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const [dernier, setDernier] = useState<Jet | null>(null);
+  // MJ : « Lancer » demande le jet à tous les joueurs ; repasse au jet normal une fois demandé
+  const [enGroupe, setEnGroupe] = useState(false);
   const refFormule = useRef<HTMLInputElement>(null);
   const refResultat = useRef<HTMLDivElement>(null);
   const enCours = useRef(false);
@@ -397,7 +399,16 @@ export function TableDes({
                   }
                 : { liste: personnages.data ?? [], chargement: personnages.isPending }
             }
-            onLancer={() => void lancerPlateau()}
+            onLancer={() => {
+              const groupe = contexte?.groupe;
+              if (!enGroupe || !groupe) return void lancerPlateau();
+              groupe.demander({
+                formule: etat.formule,
+                libelle: etat.libelle,
+                visibilite: etat.visibilite,
+              });
+              setEnGroupe(false);
+            }}
             enCours={lancer.isPending}
             onLancerMacro={(m) => void lancerFormule(m.formula, m.name)}
             onChargerMacro={(m) => {
@@ -411,17 +422,13 @@ export function TableDes({
               ? {
                   groupe: {
                     joueurs: contexte.groupe.joueurs,
-                    onDemander: () =>
-                      contexte.groupe!.demander({
-                        formule: etat.formule,
-                        libelle: etat.libelle,
-                        visibilite: etat.visibilite,
-                      }),
+                    actif: enGroupe && contexte.groupe.joueurs > 0,
+                    onActif: setEnGroupe,
+                    suivi: contexte.groupe.suivi,
                   },
                 }
               : {})}
           />
-          {contexte?.groupe?.suivi}
         </div>
         {avecBonus && (
           <BonusJetListe

@@ -27,7 +27,9 @@ export default {
     title: 'Dice roller',
     clear: 'Clear',
     clearLabel: 'Clear the formula',
-    group: 'Group',
+    groupMode: 'Group roll',
+    groupTargets: '{count, plural, one {# player} other {All # players}}',
+    ask: 'Ask',
     askGroup:
       '{count, plural, one {Ask the player for this roll} other {Ask the # players for this roll}}',
     noPlayers: 'No player is playing a hero',

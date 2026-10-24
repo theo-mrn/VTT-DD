@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Send, UsersRound } from 'lucide-react';
-import { forwardRef, useMemo, useState, type FormEvent } from 'react';
+import { forwardRef, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import type { Campagne } from '@/lib/campagnes';
 import type { Jet, Macro, Verification, VisibiliteJet } from '@/lib/jets';
 import type { Personnage } from '@/lib/personnages';
@@ -43,7 +43,8 @@ export interface EtatPlateau {
  * droite, la formule en grand, le dernier résultat en petit dessous et une seule
  * rangée d'actions (boutique, 3D, visibilité, options, vider, lancer).
  * Avantage, bonus, libellé, modificateurs et macros sont dans le « + ». Le MJ d'une table a en
- * plus « Groupe » : le jet du plateau demandé à tous les joueurs (jet de groupe).
+ * plus le mode groupe (icône de l'en-tête) : « Lancer » devient « Demander », le jet du plateau
+ * part à tous les joueurs, et son suivi s'affiche en bas du lanceur.
  */
 export const Lanceur = forwardRef<
   HTMLInputElement,
@@ -67,8 +68,15 @@ export const Lanceur = forwardRef<
     jet: Jet | null;
     anime: boolean;
     onRelancer: () => void;
-    /** MJ d'une table : demander le jet du plateau à tous les joueurs (`joueurs` : leur nombre). */
-    groupe?: { joueurs: number; onDemander: () => void };
+    /** MJ d'une table : mode groupe (le jet du plateau demandé à tous les joueurs) et son suivi. */
+    groupe?: {
+      /** Joueurs qui incarnent un héros (aucun : mode indisponible). */
+      joueurs: number;
+      actif: boolean;
+      onActif: (actif: boolean) => void;
+      /** Suivi du jet de groupe en cours, en bas du lanceur. */
+      suivi?: ReactNode;
+    };
   }
 >(function Lanceur(
   {
@@ -143,7 +151,34 @@ export const Lanceur = forwardRef<
             }}
             avecPersonnage={Boolean(fiche.fiche)}
           />
-          <span className="ml-auto min-w-0 truncate text-[11px] text-subtle">{sousTitre}</span>
+          <span
+            className={cn(
+              'ml-auto min-w-0 truncate text-[11px]',
+              groupe?.actif ? 'font-medium text-primary' : 'text-subtle',
+            )}
+          >
+            {groupe?.actif ? t('groupTargets', { count: groupe.joueurs }) : sousTitre}
+          </span>
+          {groupe && (
+            <Info texte={groupe.joueurs ? t('groupMode') : t('noPlayers')}>
+              <button
+                type="button"
+                aria-pressed={groupe.actif}
+                aria-label={t('groupMode')}
+                disabled={!groupe.joueurs}
+                onClick={() => groupe.onActif(!groupe.actif)}
+                className={cn(
+                  '-my-1 grid size-6 shrink-0 place-items-center rounded-md transition-colors disabled:opacity-40',
+                  groupe.actif
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-subtle hover:bg-surface-3 hover:text-foreground',
+                  FOCUS,
+                )}
+              >
+                <UsersRound className="size-3.5" aria-hidden />
+              </button>
+            </Info>
+          )}
         </div>
 
         <div className="flex flex-1 flex-col justify-center gap-1 py-1.5">
@@ -204,28 +239,6 @@ export const Lanceur = forwardRef<
             }
           />
           <div className="ml-auto flex items-center gap-1.5">
-            {groupe && (
-              <Info
-                texte={groupe.joueurs ? t('askGroup', { count: groupe.joueurs }) : t('noPlayers')}
-              >
-                <button
-                  type="button"
-                  onClick={groupe.onDemander}
-                  disabled={!formule.trim() || !groupe.joueurs}
-                  aria-label={
-                    groupe.joueurs ? t('askGroup', { count: groupe.joueurs }) : t('noPlayers')
-                  }
-                  className={cn(
-                    'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background/40 px-2.5 text-[11px] font-bold tracking-wide text-muted-foreground transition-colors hover:text-foreground disabled:opacity-45',
-                    FOCUS,
-                    TACTILE,
-                  )}
-                >
-                  <UsersRound className="size-3.5" aria-hidden />
-                  {t('group')}
-                </button>
-              </Info>
-            )}
             <button
               type="button"
               onClick={() => ecrire('')}
@@ -241,7 +254,10 @@ export const Lanceur = forwardRef<
             </button>
             <button
               type="submit"
-              disabled={!verification.ok || enCours}
+              disabled={
+                enCours || (groupe?.actif ? !formule.trim() || !groupe.joueurs : !verification.ok)
+              }
+              {...(groupe?.actif ? { 'aria-label': t('askGroup', { count: groupe.joueurs }) } : {})}
               aria-busy={enCours || undefined}
               aria-keyshortcuts="Enter"
               className={cn(
@@ -250,14 +266,19 @@ export const Lanceur = forwardRef<
                 '[@media(pointer:coarse)]:h-11',
               )}
             >
-              {t('roll')}
-              <Send
-                className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
-                aria-hidden
-              />
+              {groupe?.actif ? t('ask') : t('roll')}
+              {groupe?.actif ? (
+                <UsersRound className="size-4" aria-hidden />
+              ) : (
+                <Send
+                  className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                  aria-hidden
+                />
+              )}
             </button>
           </div>
         </div>
+        {groupe?.suivi}
       </div>
 
       <EditionMacroDialogue
