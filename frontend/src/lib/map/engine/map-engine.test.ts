@@ -1,3 +1,4 @@
+import { mapClipboard } from './clipboard';
 import { describe, expect, it, vi } from 'vitest';
 import { LiveChannel, LIVE_KIND } from '../live/live-channel';
 import { CommandHistory, CommandManager } from '../store/commands';
@@ -44,6 +45,7 @@ describe('MapEngine', () => {
       'lock',
       'rotate',
       'duplicate',
+      'copy',
       'arrange',
       'box:open',
       'delete',
@@ -61,7 +63,7 @@ describe('MapEngine', () => {
     expect(mixed).not.toContain('box:open');
     expect(mixed).not.toContain('crate:open');
     expect(mixed[mixed.length - 1]).toBe('delete');
-    expect(mixed).toEqual(['lock', 'rotate', 'duplicate', 'arrange', 'delete']);
+    expect(mixed).toEqual(['lock', 'rotate', 'duplicate', 'copy', 'arrange', 'delete']);
   });
 
   it('contexte des sortes : échelle et nom de l’unité, défauts du serveur', () => {
@@ -92,6 +94,61 @@ describe('MapEngine', () => {
     const [copy] = t.engine.selection.ids;
     expect(copy).toMatch(/^srv-tmp-/);
     expect(t.engine.entity(copy!)?.geometry).toMatchObject({ x: 150, y: 150 });
+  });
+
+  it('copier puis coller : sous le pointeur, copies sélectionnées ; autre campagne : rien', async () => {
+    const t = setup({ boxes: [box('a', 100, 100), box('b', 200, 100)] });
+    t.engine.selection.replace(['a', 'b']);
+    expect(t.engine.copySelection()).toBe(2);
+    await t.engine.pasteClipboard({ x: 500, y: 500 });
+    await t.commands.idle();
+    const copies = t.engine.selection.ids.map((id) => t.engine.entity(id)!.geometry);
+    // Le groupe garde sa forme, centré sur le point de collage
+    expect(copies.map((g) => [g.x, g.y]).sort()).toEqual([
+      [450, 500],
+      [550, 500],
+    ]);
+    mapClipboard.write({ ...mapClipboard.read()!, campaignId: 'autre-campagne' });
+    expect(t.engine.canPaste()).toBe(false);
+    expect(t.engine.pasteClipboard({ x: 0, y: 0 })).toBeNull();
+  });
+
+  it('coller depuis une autre scène : un calque d’ici remplace celui d’origine', async () => {
+    const t = setup({ boxes: [] });
+    mapClipboard.write({
+      campaignId: 'campagne',
+      mapId: 'autre-carte',
+      items: [
+        {
+          kindId: 'box',
+          data: box('z', 0, 0, { layerId: 'calque-ailleurs' }),
+          center: { x: 0, y: 0 },
+        },
+      ],
+    });
+    await t.engine.pasteClipboard({ x: 300, y: 300 });
+    await t.commands.idle();
+    const [copy] = t.engine.selection.ids;
+    const e = t.engine.entity(copy!)!;
+    expect(e.geometry).toMatchObject({ x: 300, y: 300 });
+    expect(e.layerId).not.toBe('calque-ailleurs');
+  });
+
+  it('touchée hors de son outil : glissable seulement si la sorte le permet (portail, pas mur)', () => {
+    const mur = setup({
+      boxes: [box('a', 100, 100)],
+      kind: { editTool: 'w', pickOutsideTool: true },
+    });
+    mur.engine.selection.replace(['a']);
+    expect(mur.engine.movableSelection(mur.engine.entity('a')!)).toEqual([]);
+    const portail = setup({
+      boxes: [box('a', 100, 100)],
+      kind: { editTool: 'p', pickOutsideTool: true, moveOutsideTool: true },
+    });
+    portail.engine.selection.replace(['a']);
+    expect(portail.engine.movableSelection(portail.engine.entity('a')!).map((e) => e.id)).toEqual([
+      'a',
+    ]);
   });
 
   it('les fantômes des autres suivent le direct, puis se posent', () => {

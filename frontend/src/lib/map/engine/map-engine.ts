@@ -30,7 +30,7 @@
 import { translate } from '@/i18n/runtime';
 import { attachMapPerf, perfEnabled } from '@/lib/perf/monitor';
 import { playGridOf, scenePixelsPerUnit, type MapGrid } from '@vtt/contracts';
-import { Crosshair, Focus, MousePointer2, Radio } from 'lucide-react';
+import { ClipboardPaste, Crosshair, Focus, MousePointer2, Radio } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type * as Pixi from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
@@ -109,6 +109,7 @@ import { SelectTool } from './tools/select-tool';
 import type { BindingResolver } from '@/lib/shortcuts/dispatcher';
 import { mapActionShortcut } from '../shortcuts';
 import type { MapAction, ToolbarEntry } from './toolbar';
+import { centerOf, mapClipboard } from './clipboard';
 import type { MapKey, MapPointer, ToolDefinition } from './tools/tool';
 import { SELECT_TOOL_ID, ToolManager } from './tools/tool-manager';
 
@@ -1307,14 +1308,35 @@ export class MapEngine {
   /**
    * Éléments presque confondus sous ce point : le plus haut et ceux qui le recouvrent presque
    * (taille comparable, boîtes recouvertes à 60 %). Un token sur un grand tapis n'en fait pas
-   * partie. null s'il n'y a pas d'ambiguïté.
+   * partie. S'y ajoutent les icônes visées (son, lumière, portail) posées sur autre chose : hors
+   * de leur outil, elles ne se touchent qu'en dernier recours, et sans ce choix ne se prendraient
+   * jamais sur une scène garnie ; sauf celle que porte un élément de la pile (torche d'un token).
+   * null s'il n'y a pas d'ambiguïté.
    */
   confusablesAt(world: Point): MapEntity[] | null {
     const [top, ...rest] = this.hitCandidates(world);
-    if (!top) return null;
-    const box = top.bounds();
-    const stack = [top, ...rest.filter((e) => rectsConfusable(box, e.bounds()))];
+    const near = top ? [top, ...rest.filter((e) => rectsConfusable(top.bounds(), e.bounds()))] : [];
+    const icons = this.iconsAt(world).filter((e) => {
+      const carrier = e.kind.carriedBy?.(e.data);
+      return !carrier || !near.some((n) => n.id === carrier);
+    });
+    const stack = [...icons, ...near];
     return stack.length > 1 ? stack : null;
+  }
+
+  /**
+   * Icônes sous ce point touchées hors de leur outil, des sortes qui s'y glissent aussi
+   * (`moveOutsideTool`), de la plus haute à la plus basse.
+   */
+  private iconsAt(world: Point): MapEntity[] {
+    const tol = this.camera.screenToWorldLength(HIT_TOLERANCE_PX);
+    const out: MapEntity[] = [];
+    for (const id of this.index.queryPoint(world, tol * 2)) {
+      const e = this.entityMap.get(id);
+      if (!e?.kind.moveOutsideTool || !this.isFallbackPick(e) || !this.isInteractive(e)) continue;
+      if (e.hitTest(world, tol)) out.push(e);
+    }
+    return out.sort((a, b) => this.compareStack(b, a));
   }
 
   /** Propose de choisir parmi des éléments superposés (menu ancré au point de l'écran). */
@@ -1456,7 +1478,7 @@ export class MapEngine {
   movableSelection(primary: MapEntity): MapEntity[] {
     const canMove = (e: MapEntity) =>
       hasCapability(e.kind, 'move') &&
-      !this.isFallbackPick(e) &&
+      (!this.isFallbackPick(e) || !!e.kind.moveOutsideTool) &&
       !!e.kind.applyGeometry &&
       !e.state.locked &&
       e.kind.can('move', e, this.viewer);
@@ -2012,6 +2034,74 @@ export class MapEngine {
     return this.duplicateEntities(this.selectedEntities());
   }
 
+  /** Copie dans le presse-papiers de la carte ce que je peux dupliquer ; rend le nombre copié. */
+  copyEntities(entities: readonly MapEntity[]): number {
+    const items = this.allowed(entities, 'duplicate')
+      .filter((e) => e.kind.duplicate && e.kind.persistence.create)
+      .map((e) => ({
+        kindId: e.kind.id,
+        data: structuredClone(e.data),
+        center: { x: e.geometry.x, y: e.geometry.y },
+      }));
+    if (!items.length) return 0;
+    const s = this.store.getState();
+    mapClipboard.write({ campaignId: s.campaignId, mapId: s.mapId, items });
+    return items.length;
+  }
+
+  copySelection() {
+    return this.copyEntities(this.selectedEntities());
+  }
+
+  /** Il y a de quoi coller ici (même campagne). */
+  canPaste() {
+    return mapClipboard.has(this.store.getState().campaignId);
+  }
+
+  /**
+   * Colle le presse-papiers centré sur `at` (le pointeur, ou le point du menu) ; sans point : au
+   * centre de la vue, ou décalé d'une case sur la scène d'origine (comme Dupliquer). Sur une
+   * autre scène, chaque copie prend un calque d'ici. Les copies sont sélectionnées.
+   */
+  pasteClipboard(at?: Point | null) {
+    const clip = mapClipboard.read();
+    const s = this.store.getState();
+    if (!clip || clip.campaignId !== s.campaignId || !clip.items.length) return null;
+    const ici = clip.mapId === s.mapId;
+    const cell = this.grid()?.size ?? 50;
+    const centre = centerOf(clip.items.map((i) => i.center));
+    const vp = this.camera.viewport;
+    const cible = at ?? this.camera.screenToWorld({ x: vp.width / 2, y: vp.height / 2 });
+    const offset =
+      ici && !at ? { x: cell, y: cell } : { x: cible.x - centre.x, y: cible.y - centre.y };
+    const groups = new Map<string, { kind: EntityKind; items: MapDto[] }>();
+    for (const item of clip.items) {
+      const kind = this.kinds.get(item.kindId);
+      if (!kind?.duplicate || !kind.persistence.create || !hasCapability(kind, 'duplicate'))
+        continue;
+      let copy: MapDto = { ...kind.duplicate(item.data, offset, this.kindCtx), id: tempId() };
+      if (!ici) {
+        copy = kind.fromOtherMap?.(copy, clip.mapId) ?? copy;
+        // Les calques sont propres à chaque scène : celui d'ici où poser cette sorte
+        const stacking = kind.stacking;
+        const layerId = stacking?.layerId.get(copy);
+        if (stacking && layerId && !this.layer(layerId))
+          copy = stacking.layerId.set(copy, this.targetLayer(stacking.defaultRole));
+      }
+      const g = groups.get(kind.collection) ?? { kind, items: [] };
+      g.items.push(copy);
+      groups.set(kind.collection, g);
+    }
+    const label = translate('map.common.paste');
+    const cmds = [...groups.entries()].map(([collection, g]) =>
+      createCommand({ label, collection, persistence: g.kind.persistence, items: g.items }),
+    );
+    if (!cmds.length) return null;
+    const result = this.execute(groupCommands(label, cmds));
+    this.selection.replace([...groups.values()].flatMap((g) => g.items.map((i) => i.id)));
+    return result;
+  }
+
   /** Supprime (confirmation si une sorte la demande : instance de PNJ). */
   async deleteEntities(entities: readonly MapEntity[]): Promise<boolean> {
     const targets = this.allowed(entities, 'delete');
@@ -2231,9 +2321,21 @@ export class MapEngine {
     return trimSeparators(items);
   }
 
-  /** Menu du vide : ping, amener tout le monde ici (MJ), recadrer. */
+  /** Menu du vide : coller, ping, amener tout le monde ici (MJ), recadrer. */
   private mapMenu(world: Point): MenuItem[] {
     return [
+      ...(this.canPaste()
+        ? [
+            separator('paste'),
+            {
+              id: 'map:paste',
+              label: translate('map.common.pasteHere'),
+              icon: pasteIcon,
+              shortcut: '⌘V',
+              run: () => void this.pasteClipboard(world),
+            },
+          ]
+        : []),
       separator('map'),
       {
         id: 'map:ping',
@@ -2364,6 +2466,7 @@ export class MapEngine {
 
 const selectIcon = MousePointer2;
 const pingIcon = Radio;
+const pasteIcon = ClipboardPaste;
 const focusIcon = Crosshair;
 const fitIcon = Focus;
 

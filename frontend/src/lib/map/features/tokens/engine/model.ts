@@ -40,6 +40,8 @@ export type TokenData = MapToken &
     draft?: TokenDraft;
     /** Copie d'un PNJ (Dupliquer) : identifiant du token copié. */
     duplicateOf?: string;
+    /** Copie collée depuis une autre scène : la carte du token copié. */
+    duplicateFromMap?: string;
     /** Instance de PNJ créée par une commande : la retirer supprime aussi le personnage. */
     npcInstance?: boolean;
   };

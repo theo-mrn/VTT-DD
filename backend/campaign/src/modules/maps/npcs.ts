@@ -254,6 +254,11 @@ export const registerNpcs: Module = async (app, deps: Deps) => {
       const v = await viewerOf(db, req.params.id, userId);
       requireGm(v);
       const map = await loadMap(db, v, req.params.mapId);
+      // Copier-coller d'une autre scène : le PNJ d'origine est sur sa carte à elle
+      const source = req.body.fromMapId ? await loadMap(db, v, req.body.fromMapId) : map;
+      const ailleurs = source.id !== map.id;
+      const layerCible = ailleurs ? (req.body.layerId ?? null) : undefined;
+      if (layerCible) await checkLayer(db, v, map.id, layerCible);
       const [original] = await db
         .select({ token: mapTokens, side: campaignCharacters.side })
         .from(mapTokens)
@@ -267,7 +272,7 @@ export const registerNpcs: Module = async (app, deps: Deps) => {
         .where(
           and(
             eq(mapTokens.id, req.params.itemId),
-            eq(mapTokens.mapId, map.id),
+            eq(mapTokens.mapId, source.id),
             eq(mapTokens.present, true),
           ),
         );
@@ -296,7 +301,8 @@ export const registerNpcs: Module = async (app, deps: Deps) => {
               notes: t.notes,
               audio: t.audio,
               interactions: t.interactions,
-              layerId: t.layerId,
+              // Autre scène : ses calques ne sont pas ceux d'ici
+              layerId: (layerCible === undefined ? t.layerId : layerCible) ?? undefined,
             },
           });
         },

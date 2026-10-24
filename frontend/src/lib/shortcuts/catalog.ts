@@ -119,6 +119,20 @@ export const FIXED_SHORTCUTS: readonly ShortcutDescriptor[] = [
     fixed: true,
   },
   {
+    id: 'fixed.copy',
+    label: 'shortcuts.commands.copy',
+    scope: 'map',
+    defaultBinding: 'Mod+KeyC',
+    fixed: true,
+  },
+  {
+    id: 'fixed.paste',
+    label: 'shortcuts.commands.paste',
+    scope: 'map',
+    defaultBinding: 'Mod+KeyV',
+    fixed: true,
+  },
+  {
     id: 'fixed.delete',
     label: 'shortcuts.commands.delete',
     scope: 'map',

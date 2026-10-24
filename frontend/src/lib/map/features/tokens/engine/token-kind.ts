@@ -138,6 +138,8 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
       delete copy.draft;
       return copy;
     },
+    // Collé sur une autre scène : le PNJ est copié depuis sa carte d'origine
+    fromOtherMap: (copy, sourceMapId) => ({ ...copy, duplicateFromMap: sourceMapId }),
     confirmDelete: (entities) => confirmNpcDeletion(tokens, entities),
     remove: (entities) => removeTokens(tokens, entities),
     liveAudience,

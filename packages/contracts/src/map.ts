@@ -636,6 +636,12 @@ export type MapNpcsCreated = z.infer<typeof MapNpcsCreated>;
 export const DuplicateMapToken = z.strictObject({
   pos: MapPoint,
   count: z.number().int().min(1).max(20).default(1),
+  /**
+   * Copier-coller d'une autre scène de la campagne : la carte du PNJ d'origine, et le calque de
+   * cette carte-ci où poser la copie (null : celui par défaut).
+   */
+  fromMapId: z.uuid().optional(),
+  layerId: z.uuid().nullable().optional(),
 });
 export type DuplicateMapToken = z.input<typeof DuplicateMapToken>;
 

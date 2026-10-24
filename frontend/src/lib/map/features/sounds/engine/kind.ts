@@ -278,6 +278,8 @@ export function soundZoneKind(ctx: SoundContext, view: SoundZoneView): EntityKin
     display: 'music',
     editTool: SOUNDS_TOOL_ID,
     pickOutsideTool: true,
+    // Se déplace aussi avec l'outil sélection (V), pas seulement dans son outil
+    moveOutsideTool: true,
     selfOutline: true,
     transformDisplay: false,
     geometry: (z) => {

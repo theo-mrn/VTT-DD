@@ -236,6 +236,8 @@ export function portalKind(ctx: PortalContext): EntityKind<MapDto> {
     plane: 'gm',
     editTool: PORTALS_TOOL_ID,
     pickOutsideTool: true,
+    // Se déplace aussi avec l'outil sélection (V), pas seulement dans son outil
+    moveOutsideTool: true,
     selfOutline: true,
     selfHiddenMark: true,
     showsName: true,

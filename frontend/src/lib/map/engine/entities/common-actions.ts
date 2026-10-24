@@ -7,6 +7,7 @@
  */
 import { translate } from '@/i18n/runtime';
 import {
+  ClipboardCopy,
   ArrowDown,
   ArrowDownToLine,
   ArrowUp,
@@ -160,6 +161,19 @@ const duplicateItem: Section = (engine, entities) => {
   };
 };
 
+/** Copier (presse-papiers de la carte : collé ici ou sur une autre scène). */
+const copyItem: Section = (engine, entities) => {
+  if (!allCan(engine, entities, 'duplicate') || !entities.every((e) => e.kind.duplicate))
+    return null;
+  return {
+    id: 'copy',
+    label: translate('map.common.copy'),
+    icon: ClipboardCopy,
+    shortcut: '⌘C',
+    run: () => void engine.copyEntities(entities),
+  };
+};
+
 /**
  * Disposition ▸ : un seul menu pour l'empilement, devant ou derrière dans son calque, puis le
  * calque lui-même (l'étage : tout ce qui est dans un calque plus haut passe devant).
@@ -250,6 +264,7 @@ const SECTIONS: readonly Section[] = [
   restrictItem,
   rotateItem,
   duplicateItem,
+  copyItem,
   arrangeItem,
   deleteItem,
 ];

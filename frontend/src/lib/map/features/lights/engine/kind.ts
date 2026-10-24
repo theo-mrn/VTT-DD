@@ -379,6 +379,8 @@ export function lightKind(ctx: LightContext, view: LightView): EntityKind<MapDto
     display: 'lights',
     editTool: LIGHTS_TOOL_ID,
     pickOutsideTool: true,
+    // Se déplace aussi avec l'outil sélection (V), pas seulement dans son outil
+    moveOutsideTool: true,
     selfOutline: true,
     transformDisplay: false,
     geometry: (l) => {
@@ -386,6 +388,7 @@ export function lightKind(ctx: LightContext, view: LightView): EntityKind<MapDto
       return { x: d.pos.x, y: d.pos.y, width: 0, height: 0, rotation: 0 };
     },
     applyGeometry: (l, g) => ({ ...(l as LightData), pos: roundPoint(g) }),
+    carriedBy: (l) => (l as LightData).attachedTokenId ?? null,
     name: (l) => (l as LightData).name?.trim() || translate('map.lights.light'),
     can: gmStrict,
     hitTest: (e, p, tol) =>

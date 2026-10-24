@@ -383,6 +383,10 @@ même ordre partout (`entities/common-actions.ts`) :
 - Visible pour… ;
 - Pivoter ;
 - Dupliquer ;
+- Copier (⌘C) et coller (⌘V, ou « Coller ici » au menu du vide) : presse-papiers de l'onglet
+  (`engine/clipboard.ts`), partagé par les scènes d'une campagne ; collé sous le pointeur, un
+  calque d'ici sur une autre scène (`EntityKind.fromOtherMap` : un PNJ est copié depuis sa carte,
+  `…/duplicate { fromMapId, layerId }`) ;
 - Disposition ▸ : devant ou derrière dans son calque, puis le calque (§ 5, Calques) ;
 - puis les actions propres à la sorte (une seule sorte sélectionnée) ;
 - Supprimer, toujours en dernier.

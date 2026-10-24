@@ -207,7 +207,14 @@ export function npcAwarePersistence(
       return Promise.all(
         drafts.map(async (d) => {
           if (d.duplicateOf) {
-            const r = await api.duplicate(d.duplicateOf, { pos: d.pos, count: 1 });
+            const r = await api.duplicate(d.duplicateOf, {
+              pos: d.pos,
+              count: 1,
+              // Autre scène : copié depuis sa carte, posé dans un calque d'ici
+              ...(d.duplicateFromMap
+                ? { fromMapId: d.duplicateFromMap, layerId: d.layerId ?? null }
+                : {}),
+            });
             const token = r.items[0] as MapToken | undefined;
             if (!token) throw new Error('Copie du PNJ introuvable dans la réponse');
             return token as TokenData;

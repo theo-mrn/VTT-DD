@@ -33,6 +33,8 @@ export default {
     bubble: 'Bulle',
     undo: 'Annuler',
     redo: 'Refaire',
+    copy: 'Copier la sélection',
+    paste: 'Coller (ici ou sur une autre scène)',
     duplicate: 'Dupliquer la sélection',
     delete: 'Supprimer la sélection',
     rotate: 'Tourner la sélection (⇧ : dans l’autre sens)',

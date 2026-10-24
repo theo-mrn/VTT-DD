@@ -34,6 +34,8 @@ export default {
     bubble: 'Bubble',
     undo: 'Undo',
     redo: 'Redo',
+    copy: 'Copy the selection',
+    paste: 'Paste (here or on another scene)',
     duplicate: 'Duplicate the selection',
     delete: 'Delete the selection',
     rotate: 'Rotate the selection (⇧: the other way)',

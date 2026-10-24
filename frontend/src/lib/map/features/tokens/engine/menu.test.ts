@@ -52,6 +52,7 @@ describe('menu d’un token (MJ)', () => {
     expect(ids).toEqual([
       'inspect',
       'duplicate',
+      'copy',
       'arrange',
       'token:sheet',
       'token:visibility',
@@ -62,6 +63,7 @@ describe('menu d’un token (MJ)', () => {
     expect(t.menu('h1').some((i) => i.id === 'token:remove-from-map')).toBe(true);
     // Un personnage joueur ne se duplique pas
     expect(t.menu('h1').some((i) => i.id === 'duplicate')).toBe(false);
+    expect(t.menu('h1').some((i) => i.id === 'copy')).toBe(false);
   });
 
   it('Fiche ouvre le panneau de la fiche du personnage', () => {

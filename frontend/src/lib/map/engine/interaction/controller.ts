@@ -375,7 +375,7 @@ export class InteractionController {
     return false;
   }
 
-  /** Raccourcis avec ⌘/Ctrl : ordre et calque, annuler, rétablir, dupliquer. */
+  /** Raccourcis avec ⌘/Ctrl : ordre et calque, annuler, rétablir, dupliquer, copier, coller. */
   private modifiedKey(k: MapKey): boolean {
     const engine = this.engine;
     if ((k.key === 'ArrowUp' || k.key === 'ArrowDown') && this.mode === 'none')
@@ -392,7 +392,24 @@ export class InteractionController {
       void engine.duplicateSelection();
       return true;
     }
+    // Copier : seulement s'il y a une sélection (sinon le navigateur garde son ⌘C)
+    if (k.code === 'KeyC') return engine.selection.size > 0 && engine.copySelection() > 0;
+    // Coller : sous le pointeur s'il est sur la carte
+    if (k.code === 'KeyV') {
+      if (!engine.canPaste()) return false;
+      void engine.pasteClipboard(this.pointerWorld());
+      return true;
+    }
     return false;
+  }
+
+  /** Point de la carte sous le pointeur, s'il est dans la vue. */
+  private pointerWorld() {
+    const p = this.lastPointer;
+    const vp = this.engine.camera.viewport;
+    if (!p || p.screen.x < 0 || p.screen.y < 0 || p.screen.x > vp.width || p.screen.y > vp.height)
+      return null;
+    return this.engine.camera.screenToWorld(p.screen);
   }
 
   /** ⌘/Ctrl+↑↓ un cran, +⇧ premier plan / arrière-plan, +⌥ changer de calque. */

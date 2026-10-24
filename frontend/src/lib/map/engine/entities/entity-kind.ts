@@ -261,6 +261,12 @@ export interface EntityKind<D extends MapDto = MapDto> {
    */
   readonly pickOutsideTool?: boolean;
   /**
+   * Avec `pickOutsideTool` : se glisse aussi hors de son outil, avec l'outil sélection. Pour une
+   * sorte dont le déplacement ne déforme rien (portail : son centre bouge, sa zone le suit) ;
+   * jamais les murs, dont les soudures se règlent dans leur outil.
+   */
+  readonly moveOutsideTool?: boolean;
+  /**
    * La sorte dessine elle-même sa marque « masqué aux joueurs » (voile, badge) : le moteur ne
    * pose pas ses hachures ni son badge commun (token rond : voile blanc et œil barré).
    */
@@ -344,6 +350,16 @@ export interface EntityKind<D extends MapDto = MapDto> {
   doubleClick?(entity: MapEntity<D>, ctx: ActionContext & { world: Point }): boolean;
   /** Copie à dupliquer, décalée (capacité `duplicate`) ; l'identifiant est fourni par le moteur. */
   duplicate?(data: D, offset: Point, ctx: KindContext): D;
+  /**
+   * Entité qui porte celle-ci et la déplace avec elle (torche d'un token), ou null. Un clic sur
+   * le porteur ne propose pas l'élément porté parmi les éléments superposés (`confusablesAt`).
+   */
+  carriedBy?(data: D): string | null;
+  /**
+   * Copie collée depuis une autre scène (presse-papiers) : ce que la sorte doit changer pour
+   * l'y créer (PNJ : copié depuis la carte d'origine). Absente : la copie telle quelle.
+   */
+  fromOtherMap?(copy: D, sourceMapId: string): D;
   /** Message de confirmation avant suppression (instance de PNJ), ou null. */
   confirmDelete?(entities: readonly MapEntity<D>[]): string | null;
   /**

@@ -183,6 +183,39 @@ describe.skipIf(!TEST_DATABASE_URL)('carte : PNJ et fouille', () => {
     expect(tokens).toEqual([]);
   });
 
+  it('coller un PNJ copié sur une autre scène : copie sur la carte d’arrivée, son calque à elle', async () => {
+    const depart = await newMap();
+    const arrivee = await newMap();
+    const [orc] = (
+      await h.ok<{ items: Token[] }>(gm, 'POST', url(`/maps/${depart.id}/npcs`), {
+        source: { quick: { name: 'Orque', type: 'personnage' } },
+        pos: { x: 100, y: 100 },
+        side: 'enemies',
+      })
+    ).items;
+    // Sans fromMapId, le PNJ n'est pas sur cette carte
+    expect(
+      (
+        await h.request(gm, 'POST', url(`/maps/${arrivee.id}/tokens/${orc!.id}/duplicate`), {
+          pos: { x: 0, y: 0 },
+        })
+      ).statusCode,
+    ).toBe(404);
+    const copie = await h.ok<{ items: Token[] }>(
+      gm,
+      'POST',
+      url(`/maps/${arrivee.id}/tokens/${orc!.id}/duplicate`),
+      { pos: { x: 50, y: 60 }, fromMapId: depart.id, layerId: null },
+    );
+    const [posee] = await t
+      .db!.select()
+      .from(mapTokens)
+      .where(eq(mapTokens.id, copie.items[0]!.id));
+    expect(posee).toMatchObject({ mapId: arrivee.id });
+    // Jamais un calque de la scène de départ
+    if (orc!.layerId) expect(posee!.layerId).not.toBe(orc!.layerId);
+  });
+
   it('dupliquer un PNJ posé, supprimer un PNJ avec son personnage', async () => {
     const map = await newMap();
     const [orc] = (
