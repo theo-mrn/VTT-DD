@@ -20,13 +20,17 @@ peerDependencyRules:
 # Correctifs de sécurité forcés sur des dépendances transitives
 # (à retirer quand les paquets parents auront publié une version corrigée)
 overrides:
-  '@react-email/preview-server>next': ^16.3.8
+  '@react-email/preview-server>next': ^16.4.1
   'protobufjs@>=8.0.0 <8.4.1': ^8.8.0
   # Firestore (ancienne app, export Firebase) fige grpc-js en 1.9 : GHSA-m9gg-hp2v-232j
   '@grpc/grpc-js@<1.13.6': ^1.14.5
   # Via next : librsvg (sharp) et déni de service (source-map-js de postcss)
   'sharp@<0.35.5': ^0.35.5
   'source-map-js@<1.2.2': ^1.2.2
+  # Via @fastify/reply-from (proxy de la gateway) : GHSA-xjj6-f33q-929c
+  'undici@>=7.18.0 <7.30.1': ^7.30.1
+  # Via axios de deepl-node (ancienne app) : GHSA-q3jh-wrc6-jgq8, GHSA-8r9p-f939-6h3c
+  'follow-redirects@>=1.16.0 <1.16.1': ^1.16.1
 # Avis connus sans correctif publié, ignorés par l'audit bloquant de la CI (à revoir à chaque
 # nouvelle version) :
 auditConfig:
@@ -38,3 +42,6 @@ auditConfig:
     # tailwindcss 3 (chokidar, fast-glob), outil de build ; ses motifs viennent de notre config,
     # jamais d'une entrée utilisateur
     - GHSA-vfj7-8cjw-p6xm
+    # zod < 4.6.6, corrigé en 4.6.6 seulement : la plateforme est en zod 4 à jour ; reste zod 3,
+    # tiré par @discord/embedded-app-sdk de l'ancienne app (legacy/), sans correctif 3.x publié
+    - GHSA-mrhx-c7xc-m3w5
