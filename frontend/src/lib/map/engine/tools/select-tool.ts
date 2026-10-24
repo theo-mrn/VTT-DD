@@ -13,6 +13,7 @@
  * | `lasso`     | rectangle (⇧ + glisser dans le vide)     | lâcher → tout type, ajouté à l'actuelle  |
  * | `handle`    | rotation ou taille                       | lâcher → une commande ; Échap → annule   |
  * | `measure`   | ⌘/Ctrl + bouton ; +4 px → `panning`      | lâcher → clic de mesure, sélection gardée |
+ * | `lent`      | poignée prêtée par l'outil de l'entité seule sélectionnée (rayon d'un son, d'une lumière) | lâcher → son outil enregistre |
  *
  * Un clic simple (`pressing`, `void`, `measure` lâchés sans glisser) est signalé aux modules
  * après son effet (`engine.emitMapClick`) : la distance au clic s'y branche (§ 10, Mesures).
@@ -24,16 +25,17 @@
  * Une sorte à action de clic (`EntityKind.click` : porte) la reçoit au lâcher d'un clic simple,
  * sans que la sélection change ; hors de son outil, elle ne se sélectionne ni ne se glisse.
  */
+import type { Container } from 'pixi.js';
 import { rectFromPoints, type Rect } from '../geometry';
 import type { MapEntity } from '../entities/entity';
-import { hasCapability } from '../entities/entity-kind';
+import { hasCapability, type RenderContext } from '../entities/entity-kind';
 import { DragSession, exceedsThreshold, TransformSession } from '../interaction/drag';
 import type { MapEngine } from '../map-engine';
-import type { MapPointer, Tool } from './tool';
+import type { LentHandles, MapPointer, Tool } from './tool';
 import { SELECT_TOOL_ID } from './tool-manager';
 
 export type SelectState =
-  'idle' | 'pressing' | 'dragging' | 'void' | 'panning' | 'lasso' | 'handle' | 'measure';
+  'idle' | 'pressing' | 'dragging' | 'void' | 'panning' | 'lasso' | 'handle' | 'measure' | 'lent';
 
 export class SelectTool implements Tool {
   readonly id = SELECT_TOOL_ID;
@@ -51,18 +53,50 @@ export class SelectTool implements Tool {
   private panFrom: { x: number; y: number } | null = null;
   /** Sélection au bouton (avant que le clic la change), pour le clic signalé aux modules. */
   private selectionBefore: readonly string[] = [];
+  /** Poignées prêtées dont le geste est en cours (`lent`). */
+  private lender: LentHandles | null = null;
+  /** Poignées prêtées dessinées à la dernière image (cachées quand la sélection change). */
+  private shownLender: LentHandles | null = null;
+
+  /** Poignées que prête l'outil de l'entité seule sélectionnée (rayon d'un son, d'une lumière). */
+  private lent(engine: MapEngine): LentHandles | null {
+    if (engine.selection.size !== 1) return null;
+    return engine.tools.lenderFor(engine.entity(engine.selection.ids[0]!));
+  }
 
   cursor(engine: MapEngine): string | null {
+    if (this.state === 'lent') return this.lender?.cursor(engine) ?? 'default';
     if (this.state === 'dragging' || this.state === 'handle' || this.state === 'panning')
       return 'grabbing';
     if (this.state === 'lasso') return 'crosshair';
+    if (this.state === 'idle') {
+      const lent = this.lent(engine)?.cursor(engine);
+      if (lent) return lent;
+    }
     return engine.hoverCursor();
+  }
+
+  /** Poignées prêtées, dans le calque de l'outil (appelé avec l'aperçu, à chaque image). */
+  renderLent(layer: Container, rc: RenderContext, engine: MapEngine) {
+    const lent = this.lent(engine);
+    if (this.shownLender && this.shownLender !== lent) this.shownLender.hide();
+    this.shownLender = lent;
+    lent?.render(layer, rc);
   }
 
   down(e: MapPointer, engine: MapEngine): boolean {
     if (e.button !== 0) return false;
     this.start = e;
     this.selectionBefore = engine.selection.ids;
+
+    // Poignée prêtée par l'outil de l'entité seule sélectionnée (rayon d'un son, d'une lumière)
+    const lent = this.lent(engine);
+    if (lent?.down(e, engine)) {
+      this.lender = lent;
+      this.state = 'lent';
+      engine.refreshCursor();
+      return true;
+    }
 
     // Poignée de l'entité seule sélectionnée
     const handle = engine.gizmoAt(e.world);
@@ -120,7 +154,12 @@ export class SelectTool implements Tool {
   move(e: MapPointer, engine: MapEngine) {
     switch (this.state) {
       case 'idle':
-        if (e.buttons === 0) engine.setHovered(engine.hitTest(e.world)?.id ?? null, e);
+        if (e.buttons !== 0) return;
+        this.lent(engine)?.hover(e, engine);
+        engine.setHovered(engine.hitTest(e.world)?.id ?? null, e);
+        return;
+      case 'lent':
+        this.lender?.move(e, engine);
         return;
       case 'pressing':
         this.movePressing(e, engine);
@@ -202,8 +241,12 @@ export class SelectTool implements Tool {
     const target = this.target;
     const start = this.start;
     const selectionBefore = this.selectionBefore;
+    const lender = this.lender;
     this.reset();
     switch (state) {
+      case 'lent':
+        lender?.up(e, engine);
+        break;
       case 'pressing':
         if (target) this.clickEntity(target, e, engine);
         break;
@@ -294,6 +337,7 @@ export class SelectTool implements Tool {
     const state = this.state;
     if (state === 'dragging') this.drag?.cancel();
     if (state === 'handle') this.transform?.cancel();
+    if (state === 'lent') this.lender?.cancel(engine);
     this.reset();
     this.drag = null;
     this.transform = null;
@@ -305,6 +349,8 @@ export class SelectTool implements Tool {
 
   deactivate(engine: MapEngine) {
     this.cancel(engine);
+    this.shownLender?.hide();
+    this.shownLender = null;
     engine.setHovered(null);
   }
 
@@ -322,6 +368,7 @@ export class SelectTool implements Tool {
 
   private reset() {
     this.state = 'idle';
+    this.lender = null;
     this.start = null;
     this.target = null;
     this.lasso = null;

@@ -10,6 +10,9 @@
  * | `pressing` | +4 px : lasso (gestes communs)                | lâcher : une entité posée                 |
  * | `radius`   | rayon en unités (pas de l'outil ; Alt : libre), affiché | lâcher : une commande ; Échap : rien |
  * | `select`   | clic, glisser, lasso (gestes communs, entités de l'outil) | lâcher                          |
+ *
+ * La poignée de rayon est aussi prêtée à l'outil sélection (`lend`) : une entité seule
+ * sélectionnée avec V se règle de la même façon, sans changer d'outil.
  */
 import type { BitmapText, Container, Graphics } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
@@ -20,7 +23,7 @@ import { exceedsThreshold } from '@/lib/map/engine/interaction/drag';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { formatDistance } from '@/lib/map/engine/distance';
 import { SelectTool } from './select-tool';
-import type { MapPointer, Tool } from './tool';
+import type { LentHandles, MapPointer, Tool } from './tool';
 
 export type RadiusToolState = 'idle' | 'pressing' | 'radius' | 'select';
 
@@ -116,18 +119,7 @@ export abstract class RadiusTool<S extends object> implements Tool {
 
   down(e: MapPointer, engine: MapEngine): boolean {
     if (e.button !== 0) return false;
-    const grabbed = this.onHandle(engine, e.world);
-    if (grabbed) {
-      this.state = 'radius';
-      this.radiusDrag = {
-        entity: grabbed,
-        radius: this.storedRadius(grabbed, this.ppu(engine)),
-        pointer: e.world,
-      };
-      engine.setHovered(null);
-      engine.refreshCursor();
-      return true;
-    }
+    if (this.startRadius(e, engine)) return true;
     if (engine.hitTest(e.world)) {
       this.state = 'select';
       return this.select.down(e, engine);
@@ -141,11 +133,7 @@ export abstract class RadiusTool<S extends object> implements Tool {
     switch (this.state) {
       case 'idle': {
         if (e.buttons !== 0) return;
-        const on = !!this.onHandle(engine, e.world);
-        if (on !== this.hoverHandle) {
-          this.hoverHandle = on;
-          engine.invalidate();
-        }
+        this.hoverRadius(e, engine);
         this.select.move(e, engine);
         engine.refreshCursor();
         return;
@@ -163,21 +151,9 @@ export abstract class RadiusTool<S extends object> implements Tool {
         this.select.move(e, engine);
         return;
       }
-      case 'radius': {
-        const drag = this.radiusDrag;
-        if (!drag) return;
-        const c = drag.entity.current;
-        const ppu = this.ppu(engine);
-        drag.radius = this.radiusFromDistance(
-          Math.hypot(e.world.x - c.x, e.world.y - c.y),
-          ppu,
-          e.alt,
-        );
-        drag.pointer = e.world;
-        this.previewRadius({ id: drag.entity.id, radius: drag.radius }, ppu);
-        engine.invalidate();
+      case 'radius':
+        this.moveRadius(e, engine);
         return;
-      }
     }
   }
 
@@ -192,13 +168,9 @@ export abstract class RadiusTool<S extends object> implements Tool {
         this.press = null;
         this.place(engine, e);
         break;
-      case 'radius': {
-        const drag = this.radiusDrag;
-        this.radiusDrag = null;
-        this.previewRadius(null, this.ppu(engine));
-        if (drag) this.commitRadius(drag.entity, drag.radius, this.ppu(engine));
+      case 'radius':
+        this.endRadius(engine, true);
         break;
-      }
     }
     engine.refreshCursor();
     engine.invalidate();
@@ -213,13 +185,77 @@ export abstract class RadiusTool<S extends object> implements Tool {
     this.state = 'idle';
     this.press = null;
     if (state === 'select') return this.select.cancel(engine);
-    if (state === 'radius') {
-      this.radiusDrag = null;
-      this.previewRadius(null, this.ppu(engine));
-    }
+    if (state === 'radius') this.endRadius(engine, false);
     engine.invalidate();
     return state !== 'idle';
   }
+
+  // ─── Geste de la poignée (cet outil, ou prêté à l'outil sélection) ─────────
+
+  /** Bouton sur la poignée : le rayon se règle (vrai), sinon rien. */
+  private startRadius(e: MapPointer, engine: MapEngine): boolean {
+    const grabbed = this.onHandle(engine, e.world);
+    if (!grabbed) return false;
+    this.state = 'radius';
+    this.radiusDrag = {
+      entity: grabbed,
+      radius: this.storedRadius(grabbed, this.ppu(engine)),
+      pointer: e.world,
+    };
+    engine.setHovered(null);
+    engine.refreshCursor();
+    return true;
+  }
+
+  private moveRadius(e: MapPointer, engine: MapEngine) {
+    const drag = this.radiusDrag;
+    if (!drag) return;
+    const c = drag.entity.current;
+    const ppu = this.ppu(engine);
+    drag.radius = this.radiusFromDistance(Math.hypot(e.world.x - c.x, e.world.y - c.y), ppu, e.alt);
+    drag.pointer = e.world;
+    this.previewRadius({ id: drag.entity.id, radius: drag.radius }, ppu);
+    engine.invalidate();
+  }
+
+  /** Fin du geste : le rayon est enregistré (`commit`), ou l'aperçu simplement retiré. */
+  private endRadius(engine: MapEngine, commit: boolean) {
+    const drag = this.radiusDrag;
+    this.radiusDrag = null;
+    this.state = 'idle';
+    this.previewRadius(null, this.ppu(engine));
+    if (commit && drag) this.commitRadius(drag.entity, drag.radius, this.ppu(engine));
+  }
+
+  private hoverRadius(e: MapPointer, engine: MapEngine) {
+    const on = !!this.onHandle(engine, e.world);
+    if (on === this.hoverHandle) return;
+    this.hoverHandle = on;
+    engine.invalidate();
+  }
+
+  /** La poignée de rayon, prêtée à l'outil sélection (V). */
+  readonly lend: LentHandles = {
+    down: (e, engine) => e.button === 0 && this.startRadius(e, engine),
+    move: (e, engine) => this.moveRadius(e, engine),
+    up: (_e, engine) => {
+      this.endRadius(engine, true);
+      engine.refreshCursor();
+      engine.invalidate();
+    },
+    cancel: (engine) => {
+      this.endRadius(engine, false);
+      engine.invalidate();
+    },
+    hover: (e, engine) => this.hoverRadius(e, engine),
+    cursor: () => (this.state === 'radius' || this.hoverHandle ? 'ew-resize' : null),
+    render: (layer, rc) => this.renderPreview(layer, rc),
+    hide: () => {
+      this.hoverHandle = false;
+      if (this.root) this.root.visible = false;
+      this.drawn.zoom = 0;
+    },
+  };
 
   // ─── Aperçu ────────────────────────────────────────────────────────────────
 

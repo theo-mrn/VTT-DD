@@ -79,6 +79,28 @@ export interface Tool {
    * murs et pièces : un token posé contre un mur ne lui vole pas le clic.
    */
   targets?(entity: MapEntity): boolean;
+  /**
+   * Poignées prêtées à l'outil sélection (V) quand une seule entité de cet outil est
+   * sélectionnée (rayon d'un son, d'une lumière) : il les dessine et leur confie le geste qui
+   * commence dessus (`ToolManager.lenderFor`).
+   */
+  readonly lend?: LentHandles;
+}
+
+/** Poignées d'un outil, prêtées à l'outil sélection (même machine, mêmes réglages). */
+export interface LentHandles {
+  /** Bouton sur une poignée : le geste commence et lui revient (vrai), sinon rien. */
+  down(e: MapPointer, engine: MapEngine): boolean;
+  move(e: MapPointer, engine: MapEngine): void;
+  up(e: MapPointer, engine: MapEngine): void;
+  cancel(engine: MapEngine): void;
+  /** Survol, bouton relâché : la poignée sous le pointeur se marque. */
+  hover(e: MapPointer, engine: MapEngine): void;
+  /** Curseur sur la poignée ou pendant son geste ; null ailleurs. */
+  cursor(engine: MapEngine): string | null;
+  render(layer: Container, ctx: RenderContext): void;
+  /** L'outil sélection ne les montre plus (autre sélection, autre outil). */
+  hide(): void;
 }
 
 /** Un outil et son entrée de barre d'outils. */

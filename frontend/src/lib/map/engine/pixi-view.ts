@@ -686,6 +686,9 @@ class PixiView implements EngineView {
           .stroke({ width: 1 / zoom, color: this.theme.primary, alpha: 0.9 });
     }
     (tool as Tool).renderPreview?.(this.plane('tool'), this.renderContext());
+    // Poignées prêtées à la sélection par l'outil de l'entité choisie (rayon d'un son)
+    if (tool instanceof SelectTool)
+      tool.renderLent(this.plane('tool'), this.renderContext(), this.engine);
   }
 
   // ─── Destruction ───────────────────────────────────────────────────────────

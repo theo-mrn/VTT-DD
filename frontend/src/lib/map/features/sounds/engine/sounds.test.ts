@@ -131,6 +131,38 @@ describe('outil Zones sonores', () => {
     expect(b.persistence.update).toHaveBeenCalledTimes(1);
   });
 
+  it('poignée de rayon prêtée à l’outil sélection (V) : même réglage, sans changer d’outil', async () => {
+    const b = bench();
+    b.store.getState().replaceCollection(SOUND_ZONES, [
+      {
+        id: 'z',
+        mapId: 'carte',
+        version: 1,
+        updatedAt: '',
+        name: 'Feu',
+        pos: P(500, 500),
+        radius: 200,
+        url: null,
+        assetId: null,
+        volume: 0.5,
+        color: null,
+        active: true,
+      },
+    ]);
+    b.engine.tools.activate('select');
+    b.engine.selection.replace(['z']);
+    b.drag(P(700, 500), P(820, 500), {}, false);
+    expect(b.engine.tools.active.state).toBe('lent');
+    b.engine.controller.pointerUp(b.pointer(P(820, 500), { buttons: 0 }));
+    expect(b.engine.tools.getActiveId()).toBe('select');
+    expect(b.zones()[0]!.radius).toBe(325);
+    await b.commands.idle();
+    expect(b.persistence.update).toHaveBeenCalledTimes(1);
+    // Hors de la poignée : les gestes communs (ici la carte se déplace, le rayon ne change pas)
+    b.drag(P(900, 900), P(950, 900));
+    expect(b.zones()[0]!.radius).toBe(325);
+  });
+
   it('glisser depuis la bibliothèque : données lues, le reste ignoré', () => {
     expect(readSoundDrag('{"assetId":"x","name":"Pluie"}')).toEqual({
       assetId: 'x',
