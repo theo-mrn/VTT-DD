@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-identity
-  digest: 'sha256:ce5b3dcf4a0185c43900b3d9cf3f4d625b4b961204f5d25a07c0a3970d6417a9'
+  digest: 'sha256:5969ed82a72fc1c0f856adf8b0946b67259d2d9f220429bee128180b53f0d0c2'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
