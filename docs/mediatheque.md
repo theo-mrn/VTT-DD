@@ -57,4 +57,9 @@
    fait (migration 0039 : `campaign_handouts.folder_id` ; fil d'Ariane, tuiles, glisser un
    document sur un dossier, dépôt dans le dossier ouvert ; un dossier supprimé remonte aussi
    ses documents).
-4. Dossiers dans l'écran Stockage du MJ.
+4. **Bibliothèque des joueurs** (Documents) — fait (migration 0040 :
+   `campaign_handout_placements`) : un joueur voit les documents reçus et ceux des dossiers
+   montrés par le MJ (jamais un dossier caché, ni son nom) ; il crée ses propres dossiers et y
+   range ces documents, rangement personnel que personne d'autre ne voit (`PATCH …/handouts/:id
+{ folderId }` côté joueur : seulement ses dossiers, seulement un document qu'il voit).
+5. Dossiers dans l'écran Stockage du MJ.

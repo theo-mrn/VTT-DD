@@ -3,6 +3,8 @@ export default {
   document: 'Document',
   view: 'Vue',
   loadFailed: 'La bibliothèque n’a pas pu être chargée',
+  received: 'Reçus',
+  noneHere: 'Rien ici pour l’instant',
   library: 'Bibliothèque',
   shared: 'Partagés',
   campaignDocument: 'Document de la campagne',

@@ -80,7 +80,10 @@ describe.skipIf(!TEST_DATABASE_URL)('projection et documents', () => {
       (await h.request(alice, 'POST', `${base()}/handouts`, { name: 'x', url: file('png') }))
         .statusCode,
     ).toBe(403);
-    expect((await h.request(alice, 'GET', `${base()}/handouts`)).statusCode).toBe(403);
+    // Joueur : rien de reçu ni de montré, bibliothèque vide
+    expect((await h.ok<{ items: unknown[] }>(alice, 'GET', `${base()}/handouts`)).items).toEqual(
+      [],
+    );
     await h.ok(gm, 'PATCH', `${base()}/handouts/${map.id}`, { name: 'Carte' });
     const lib = await h.ok<{ items: { name: string }[] }>(gm, 'GET', `${base()}/handouts`);
     expect(lib.items.map((i) => i.name)).toEqual(['Carte']);
@@ -121,6 +124,84 @@ describe.skipIf(!TEST_DATABASE_URL)('projection et documents', () => {
       `${base()}/handouts`,
     );
     expect(lib.items[0]!.folderId).toBe(cartes.id);
+  });
+
+  it('bibliothèque d’un joueur : reçus et dossiers montrés, rangés dans ses propres dossiers', async () => {
+    const lib = () =>
+      h.ok<{ items: { id: string; name: string; folderId: string | null }[] }>(
+        alice,
+        'GET',
+        `${base()}/handouts`,
+      );
+    const secret = await h.ok<{ id: string; version: number }>(
+      gm,
+      'POST',
+      `${base()}/media/folders`,
+      {
+        name: 'Secret',
+      },
+    );
+    const pourEux = await h.ok<{ id: string; version: number }>(
+      gm,
+      'POST',
+      `${base()}/media/folders`,
+      {
+        name: 'Pour eux',
+      },
+    );
+    const cache = await h.ok<{ id: string }>(gm, 'POST', `${base()}/handouts`, {
+      name: 'Caché',
+      url: file('webp'),
+      folderId: secret.id,
+    });
+    const montre = await h.ok<{ id: string }>(gm, 'POST', `${base()}/handouts`, {
+      name: 'Carte',
+      url: file('webp'),
+      folderId: pourEux.id,
+    });
+    const recu = await h.ok<{ id: string }>(gm, 'POST', `${base()}/handouts`, {
+      name: 'Lettre',
+      url: file('png'),
+      folderId: secret.id,
+    });
+    expect((await lib()).items).toEqual([]);
+
+    // Le MJ montre « Pour eux » et envoie la lettre (rangée dans un dossier caché)
+    await h.ok(gm, 'PATCH', `${base()}/media/folders/${pourEux.id}`, { visibleToPlayers: true });
+    await h.ok(gm, 'POST', `${base()}/handouts/${recu.id}/share`, { mode: 'send' });
+    let vue = await lib();
+    expect(vue.items.map((d) => [d.name, d.folderId]).sort()).toEqual([
+      ['Carte', pourEux.id],
+      ['Lettre', null],
+    ]);
+    expect(vue.items.some((d) => d.id === cache.id)).toBe(false);
+
+    // Le joueur range la lettre dans son dossier : chez lui seulement
+    const mien = await h.ok<{ id: string }>(alice, 'POST', `${base()}/media/folders`, {
+      name: 'Indices',
+    });
+    await h.ok(alice, 'PATCH', `${base()}/handouts/${recu.id}`, { folderId: mien.id });
+    vue = await lib();
+    expect(vue.items.find((d) => d.id === recu.id)?.folderId).toBe(mien.id);
+    const mj = await h.ok<{ items: { id: string; folderId: string | null }[] }>(
+      gm,
+      'GET',
+      `${base()}/handouts`,
+    );
+    expect(mj.items.find((d) => d.id === recu.id)?.folderId).toBe(secret.id);
+
+    // Ni renommer, ni ranger chez le MJ, ni toucher un document qu'il ne voit pas
+    expect(
+      (await h.request(alice, 'PATCH', `${base()}/handouts/${recu.id}`, { name: 'x' })).statusCode,
+    ).toBe(403);
+    expect(
+      (await h.request(alice, 'PATCH', `${base()}/handouts/${recu.id}`, { folderId: pourEux.id }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await h.request(alice, 'PATCH', `${base()}/handouts/${cache.id}`, { folderId: null }))
+        .statusCode,
+    ).toBe(404);
   });
 
   it('projeter à tous, envoyer à un seul ; projection en cours, arrêt, suppression', async () => {

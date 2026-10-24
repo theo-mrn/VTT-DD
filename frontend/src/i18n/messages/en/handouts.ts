@@ -5,6 +5,8 @@ export default {
   document: 'Document',
   view: 'View',
   loadFailed: 'The library could not be loaded',
+  received: 'Received',
+  noneHere: 'Nothing here yet',
   library: 'Library',
   shared: 'Shared',
   campaignDocument: 'Campaign document',

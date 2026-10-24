@@ -1081,6 +1081,18 @@ export const campaignHandouts = campaignSchema.table('campaign_handouts', {
   folderId: uuid('folder_id'),
 });
 
+/** Rangement personnel d'un document par un membre (bibliothèque des joueurs). */
+export const campaignHandoutPlacements = campaignSchema.table(
+  'campaign_handout_placements',
+  {
+    campaignId: uuid('campaign_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    handoutId: uuid('handout_id').notNull(),
+    folderId: uuid('folder_id'),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.handoutId] })],
+);
+
 export const campaignHandoutShares = campaignSchema.table('campaign_handout_shares', {
   id: uuid('id').primaryKey(),
   campaignId: uuid('campaign_id').notNull(),

@@ -47,6 +47,7 @@ import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
 import { handoutsApi, isVideo, useDocuments, useHandoutLibrary } from '@/lib/handouts';
 import { lastMediaFolder, useMediaListing, useMediaMutations } from '@/lib/media';
+import { useCampaignEvents } from '@/lib/realtime';
 import { prepareUpload } from '@/lib/uploads/prepare';
 import { uploadFile } from '@/lib/uploads/uploader';
 import { translate } from '@/i18n/runtime';
@@ -69,7 +70,25 @@ export function DocumentsPanel() {
   const t = useTranslations();
   const { campagne, gm } = useTable();
   const [vue, setVue] = useState<'library' | 'shared'>('library');
-  if (!gm) return <Recus campaignId={campagne.id} />;
+  if (!gm)
+    return (
+      <div className="space-y-4 px-5 py-4">
+        <Segmented
+          label={t('handouts.view')}
+          value={vue}
+          onChange={(v) => setVue(v as 'library' | 'shared')}
+          options={[
+            { value: 'library', label: t('handouts.library'), icon: Library },
+            { value: 'shared', label: t('handouts.received'), icon: Send },
+          ]}
+        />
+        {vue === 'library' ? (
+          <Bibliotheque campaignId={campagne.id} />
+        ) : (
+          <Recus campaignId={campagne.id} />
+        )}
+      </div>
+    );
   return (
     <div className="space-y-4 px-5 py-4">
       <Segmented
@@ -154,7 +173,7 @@ function Recus({ campaignId }: Readonly<{ campaignId: string }>) {
     );
   }, [docs.data?.items]);
   return (
-    <div className="px-5 py-4">
+    <div>
       {docs.isPending && (
         <p className="py-8 text-center text-[13px] text-muted-foreground">
           {t('common.states.loading')}
@@ -198,8 +217,11 @@ function Recus({ campaignId }: Readonly<{ campaignId: string }>) {
 
 function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
   const t = useTranslations();
-  const { campagne } = useTable();
+  const { campagne, gm } = useTable();
   const library = useHandoutLibrary(campaignId, true);
+  const [agrandi, setAgrandi] = useState<Handout | null>(null);
+  // Un dossier montré ou caché, un document partagé : la vue de chacun change
+  useCampaignEvents(campaignId, ['media.changed', 'handout.*'], () => void library.refresh());
   const input = useRef<HTMLInputElement>(null);
   const [survol, setSurvol] = useState(false);
   const [envois, setEnvois] = useState<{ id: string; name: string; ratio: number }[]>([]);
@@ -265,57 +287,61 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
 
   return (
     <div className="space-y-4">
-      <input
-        ref={input}
-        type="file"
-        multiple
-        accept="image/*,video/webm,video/mp4"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={(e) => {
-          void envoyer([...(e.target.files ?? [])]);
-          e.target.value = '';
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => input.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setSurvol(true);
-        }}
-        onDragLeave={() => setSurvol(false)}
-        onDrop={(e: DragEvent) => {
-          e.preventDefault();
-          setSurvol(false);
-          void envoyer([...e.dataTransfer.files]);
-        }}
-        className={cn(
-          'flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-5 text-[13px] transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-          survol
-            ? 'border-primary bg-primary/[0.06] text-foreground'
-            : 'border-border-strong text-muted-foreground hover:border-primary/50 hover:text-foreground',
-        )}
-      >
-        <CloudUpload className="size-4" aria-hidden />
-        {t('handouts.drop')}
-      </button>
+      {gm && (
+        <>
+          <input
+            ref={input}
+            type="file"
+            multiple
+            accept="image/*,video/webm,video/mp4"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => {
+              void envoyer([...(e.target.files ?? [])]);
+              e.target.value = '';
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => input.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setSurvol(true);
+            }}
+            onDragLeave={() => setSurvol(false)}
+            onDrop={(e: DragEvent) => {
+              e.preventDefault();
+              setSurvol(false);
+              void envoyer([...e.dataTransfer.files]);
+            }}
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-5 text-[13px] transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+              survol
+                ? 'border-primary bg-primary/[0.06] text-foreground'
+                : 'border-border-strong text-muted-foreground hover:border-primary/50 hover:text-foreground',
+            )}
+          >
+            <CloudUpload className="size-4" aria-hidden />
+            {t('handouts.drop')}
+          </button>
 
-      {envois.map((e) => (
-        <div key={e.id} className="space-y-1">
-          <p className="truncate text-[12px] text-muted-foreground">{e.name}</p>
-          <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-            <div
-              className="h-full rounded-full bg-primary transition-[width] duration-200"
-              style={{ width: `${Math.round(e.ratio * 100)}%` }}
-            />
-          </div>
-        </div>
-      ))}
+          {envois.map((e) => (
+            <div key={e.id} className="space-y-1">
+              <p className="truncate text-[12px] text-muted-foreground">{e.name}</p>
+              <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-200"
+                  style={{ width: `${Math.round(e.ratio * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
 
-      <Destinataires joueurs={joueurs} value={destinataires} onChange={setDestinataires} />
+          <Destinataires joueurs={joueurs} value={destinataires} onChange={setDestinataires} />
+        </>
+      )}
 
       {/* Dossiers : fil d'Ariane, création, tuiles (on y glisse un document pour l'y ranger) */}
       <div className="flex items-center gap-1">
@@ -371,7 +397,8 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
                 folder={f}
                 gm={listing.data?.gm ?? true}
                 onOpen={() => ouvrir(f.id)}
-                onDrop={deposer(f.id)}
+                // Un joueur ne range que dans ses propres dossiers
+                onDrop={gm || f.mine ? deposer(f.id) : () => {}}
                 onRename={(name) =>
                   m.updateFolder.mutate({ id: f.id, body: { name, version: f.version } })
                 }
@@ -403,12 +430,19 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
           </Button>
         </div>
       )}
+      {!library.loading && !library.failed && !gm && ici.length === 0 && dossiers.length === 0 && (
+        <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-[13px] text-muted-foreground">
+          {t('handouts.noneHere')}
+        </p>
+      )}
       {!library.loading && ici.length > 0 && (
         <ul className="grid grid-cols-2 gap-3">
           {ici.map((h) => (
             <Document
               key={h.id}
               h={h}
+              gm={gm}
+              onOpen={() => setAgrandi(h)}
               campaignId={campaignId}
               onShow={() => void partager(h, 'show')}
               onSend={() => void partager(h, 'send')}
@@ -417,6 +451,7 @@ function Bibliotheque({ campaignId }: Readonly<{ campaignId: string }>) {
           ))}
         </ul>
       )}
+      <Agrandi doc={agrandi} onClose={() => setAgrandi(null)} />
     </div>
   );
 }
@@ -481,12 +516,17 @@ function Destinataires({
 
 function Document({
   h,
+  gm,
+  onOpen,
   campaignId,
   onShow,
   onSend,
   onChanged,
 }: Readonly<{
   h: Handout;
+  /** Joueur : la carte ne fait qu'ouvrir le document (et se glisse dans ses dossiers). */
+  gm: boolean;
+  onOpen: () => void;
   campaignId: string;
   onShow: () => void;
   onSend: () => void;
@@ -503,6 +543,26 @@ function Document({
         .then(onChanged)
         .catch((e) => toast.error(t('handouts.renameFailed'), { description: messageErreur(e) }));
   };
+  if (!gm)
+    return (
+      <li
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData(GLISSE_DOC, h.id);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        className="duration-200 ease-out animate-in fade-in-0 zoom-in-[0.98]"
+      >
+        <button
+          type="button"
+          onClick={onOpen}
+          className="group flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left shadow-surface transition-[border-color,transform] duration-200 hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 active:scale-[0.98]"
+        >
+          <Vignette h={h} className="aspect-video" />
+          <span className="truncate px-2.5 py-2 text-[13px] font-medium">{h.name}</span>
+        </button>
+      </li>
+    );
   return (
     <li
       draggable

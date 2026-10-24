@@ -101,6 +101,25 @@ describe.skipIf(!TEST_DATABASE_URL)('médiathèque', () => {
     ).toBe(403);
   });
 
+  it('un joueur ne reçoit jamais le nom d’un dossier caché, même parent d’un dossier montré', async () => {
+    const secret = await h.ok<Folder>(gm, 'POST', url('/folders'), { name: 'Cartes secrètes' });
+    const donjon = await h.ok<Folder>(gm, 'POST', url('/folders'), {
+      name: 'Donjon',
+      parentId: secret.id,
+    });
+    await h.ok(gm, 'PATCH', url(`/folders/${donjon.id}`), { visibleToPlayers: true });
+
+    const racine = await h.request(alice, 'GET', url());
+    expect(racine.body).not.toContain('Cartes secrètes');
+    expect((racine.json() as Listing).folders.map((f) => f.name)).toEqual(['Donjon']);
+    const dedans = await h.request(alice, 'GET', url(`?folder=${donjon.id}`));
+    expect(dedans.body).not.toContain('Cartes secrètes');
+    expect((dedans.json() as Listing).path.map((p) => p.name)).toEqual(['Donjon']);
+    // Le MJ, lui, voit le vrai chemin
+    const mj = await h.ok<Listing>(gm, 'GET', url(`?folder=${donjon.id}`));
+    expect(mj.path.map((p) => p.name)).toEqual(['Cartes secrètes', 'Donjon']);
+  });
+
   it('supprimer un dossier remonte son contenu, jamais un fichier', async () => {
     const parent = await h.ok<Folder>(alice, 'POST', url('/folders'), { name: 'Portraits' });
     const enfant = await h.ok<Folder>(alice, 'POST', url('/folders'), {

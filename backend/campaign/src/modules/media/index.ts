@@ -30,7 +30,12 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Db } from '../../db/client.js';
 import type { EventContext, Tx } from '../../db/outbox.js';
-import { campaignHandouts, campaignMediaFolders, campaignStorageFiles } from '../../db/schema.js';
+import {
+  campaignHandoutPlacements,
+  campaignHandouts,
+  campaignMediaFolders,
+  campaignStorageFiles,
+} from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import {
   mapEvent,
@@ -52,7 +57,7 @@ const interdit = () =>
   new HttpError(403, 'Interdit', 'forbidden', 'Seul son auteur ou le MJ range cet élément');
 
 /** Dossiers de la campagne, avec leur visibilité réelle (un parent visible rend visible). */
-async function foldersOf(db: Db | Tx, campaignId: string) {
+export async function foldersOf(db: Db | Tx, campaignId: string) {
   const rows = await db
     .select()
     .from(campaignMediaFolders)
@@ -73,9 +78,9 @@ async function foldersOf(db: Db | Tx, campaignId: string) {
   return { rows, byId, visible, depth };
 }
 
-type Folders = Awaited<ReturnType<typeof foldersOf>>;
+export type Folders = Awaited<ReturnType<typeof foldersOf>>;
 
-const voitDossier = (v: Viewer, fs: Folders, f: FolderRow) =>
+export const voitDossier = (v: Viewer, fs: Folders, f: FolderRow) =>
   v.isGm || f.ownerId === v.userId || fs.visible(f);
 
 const voitFichier = (v: Viewer, fs: Folders, f: FileRow) => {
@@ -85,7 +90,20 @@ const voitFichier = (v: Viewer, fs: Folders, f: FileRow) => {
 };
 
 /** Un dossier où ce membre peut ranger : le sien, ou n'importe lequel pour le MJ ; null : racine. */
-function dossierRangeable(v: Viewer, fs: Folders, id: string | null) {
+/**
+ * Le dossier où ce membre voit un élément rangé dans `id` : lui-même s'il le voit, sinon le
+ * premier dossier visible au-dessus ; null : la racine. Un joueur ne reçoit ainsi jamais le
+ * nom d'un dossier caché.
+ */
+export function dossierVu(v: Viewer, fs: Folders, id: string | null): string | null {
+  for (let x = id ? fs.byId.get(id) : undefined, n = 0; x && n <= MEDIA_MAX_DEPTH; n++) {
+    if (voitDossier(v, fs, x)) return x.id;
+    x = x.parentId ? fs.byId.get(x.parentId) : undefined;
+  }
+  return null;
+}
+
+export function dossierRangeable(v: Viewer, fs: Folders, id: string | null) {
   if (id === null) return null;
   const f = fs.byId.get(id);
   if (!f) throw notFound('Dossier');
@@ -120,9 +138,9 @@ export async function uploadFolder(
   }
 }
 
-const folderApi = (v: Viewer, f: FolderRow): MediaFolder => ({
+const folderApi = (v: Viewer, f: FolderRow, parentId = f.parentId): MediaFolder => ({
   id: f.id,
-  parentId: f.parentId,
+  parentId,
   name: f.name,
   visibleToPlayers: f.visibleToPlayers,
   mine: f.ownerId === v.userId,
@@ -162,14 +180,21 @@ export const register: Module = async (app, { db, config }) => {
       const ouvert = req.query.folder ? fs.byId.get(req.query.folder) : undefined;
       if (req.query.folder && (!ouvert || !voitDossier(v, fs, ouvert))) throw notFound('Dossier');
 
+      // Un joueur ne reçoit jamais le nom d'un dossier qu'il ne voit pas : ni dans le fil
+      // d'Ariane, ni comme parent ; un dossier visible sous un dossier caché remonte sous le
+      // premier dossier visible au-dessus de lui (ou à la racine)
+      const parentVu = (f: FolderRow) => dossierVu(v, fs, f.parentId);
       const path: MediaListing['path'] = [];
-      for (let x = ouvert; x; x = x.parentId ? fs.byId.get(x.parentId) : undefined)
+      for (let x = ouvert; x;) {
         path.unshift({ id: x.id, name: x.name });
+        const p = parentVu(x);
+        x = p ? fs.byId.get(p) : undefined;
+      }
 
       const folders = fs.rows
-        .filter((f) => (f.parentId ?? null) === (ouvert?.id ?? null) && voitDossier(v, fs, f))
+        .filter((f) => voitDossier(v, fs, f) && parentVu(f) === (ouvert?.id ?? null))
         .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-        .map((f) => folderApi(v, f));
+        .map((f) => folderApi(v, f, parentVu(f)));
 
       const types =
         req.query.kind === 'visual'
@@ -305,6 +330,10 @@ export const register: Module = async (app, { db, config }) => {
           .update(campaignHandouts)
           .set({ folderId: f.parentId })
           .where(eq(campaignHandouts.folderId, f.id));
+        await tx
+          .update(campaignHandoutPlacements)
+          .set({ folderId: f.parentId })
+          .where(eq(campaignHandoutPlacements.folderId, f.id));
         await tx.delete(campaignMediaFolders).where(eq(campaignMediaFolders.id, f.id));
         await changed(tx, ctx, v);
       });
