@@ -62,6 +62,8 @@ export default {
   },
   page: {
     eyebrow: 'Your heroes',
+    systemFilter: 'System',
+    allSystems: 'All systems',
     title: 'Characters',
     lead: 'Each sheet is computed by its system’s rules: values, bonuses and rolls are always right.',
     searchPlaceholder: 'Search a hero…',

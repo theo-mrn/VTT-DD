@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Plus, Search, Swords, UserRound } from 'lucide-react';
+import { BookOpen, Plus, Search, Swords, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { EnTetePage, EtatVide, Page } from '@/components/commun/page';
@@ -13,6 +13,7 @@ import {
 } from '@/components/personnages/carte-personnage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { InputGroup } from '@/components/ui/input';
 import { useCampagnes } from '@/lib/campagnes';
 import { lienPersonnage, usePersonnages } from '@/lib/personnages';
@@ -64,24 +65,29 @@ export default function PagePersonnages() {
 
       {(personnages.data?.length ?? 0) > 0 && (
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {[null, ...utilises].map((id) => (
-              <button
-                key={id ?? 'tous'}
-                type="button"
-                aria-pressed={systeme === id}
-                onClick={() => setSysteme(id)}
-                className={cn(
-                  'h-8 rounded-full border px-3.5 text-[13px] transition-colors',
-                  systeme === id
-                    ? 'border-primary/50 bg-primary/15 text-primary-strong'
-                    : 'border-border-strong text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {id ? nomSysteme(id) : `Tous · ${personnages.data?.length}`}
-              </button>
-            ))}
-          </div>
+          {utilises.length > 1 ? (
+            <FilterMenu
+              label={t('characters.page.systemFilter')}
+              icon={BookOpen}
+              value={systeme ?? ''}
+              allValue=""
+              onChange={(v) => setSysteme(v || null)}
+              options={[
+                {
+                  value: '',
+                  label: t('characters.page.allSystems'),
+                  count: personnages.data?.length ?? 0,
+                },
+                ...utilises.map((id) => ({
+                  value: id,
+                  label: nomSysteme(id),
+                  count: (personnages.data ?? []).filter((p) => p.system.id === id).length,
+                })),
+              ]}
+            />
+          ) : (
+            <span />
+          )}
           <div className="sm:w-72">
             <InputGroup
               avant={<Search />}

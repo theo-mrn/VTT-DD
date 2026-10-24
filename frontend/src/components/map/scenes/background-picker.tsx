@@ -24,6 +24,7 @@ import {
 import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { Button } from '@/components/ui/button';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -287,19 +288,18 @@ function Body({
           </Button>
         </header>
 
-        {/* Petit écran : collections en bande */}
-        <div className="flex gap-1.5 overflow-x-auto border-b border-border px-4 py-2.5 [scrollbar-width:none] md:hidden">
-          {[{ id: null, name: translate('map.scenes.kinds.all') }, ...folders].map((f) => (
-            <Button
-              key={f.id ?? ''}
-              size="sm"
-              variant={folder === f.id ? 'secondary' : 'ghost'}
-              className="shrink-0"
-              onClick={() => choose(f.id)}
-            >
-              {f.name}
-            </Button>
-          ))}
+        {/* Petit écran : collections en menu */}
+        <div className="border-b border-border px-4 py-2.5 md:hidden">
+          <FilterMenu
+            label={translate('map.scenes.library')}
+            value={folder ?? ''}
+            allValue=""
+            onChange={(v) => choose(v || null)}
+            options={[
+              { value: '', label: translate('map.scenes.kinds.all'), count: matching.length },
+              ...folders.map((f) => ({ value: f.id, label: f.name, count: f.n })),
+            ]}
+          />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 [scrollbar-width:thin] sm:px-6">

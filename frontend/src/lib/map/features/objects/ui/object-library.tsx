@@ -15,12 +15,13 @@
  */
 import { formatter, translate } from '@/i18n/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Box, ImagePlus, LoaderCircle, Package, SquareDashed, Trash2 } from 'lucide-react';
+import { Box, ImagePlus, LoaderCircle, Package, SquareDashed, Tags, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent } from 'react';
 import { toast } from 'sonner';
 import { SearchField } from '@/components/resources/parts';
 import { normaliser } from '@/components/resources/model/catalogue';
 import { Button } from '@/components/ui/button';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { Kbd } from '@/components/ui/kbd';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -378,14 +379,34 @@ function ObjectLibrary({ engine }: Readonly<{ engine: MapEngine }>) {
             </TabsList>
           </Tabs>
         )}
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          label={translate('map.objects.library.search')}
-          placeholder={translate('map.tokens.library.searchPlaceholder')}
-          className="sm:w-full"
-        />
-        <CategoryChips categories={categories} value={category} onChange={setCategory} />
+        <div className="flex items-center gap-2">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            label={translate('map.objects.library.search')}
+            placeholder={translate('map.tokens.library.searchPlaceholder')}
+            className="min-w-0 flex-1 sm:w-full"
+          />
+          {categories.length > 1 && (
+            <FilterMenu
+              label={translate('map.objects.library.categories')}
+              icon={Tags}
+              value={category}
+              allValue={ALL}
+              onChange={setCategory}
+              className="max-w-[9rem]"
+              options={[ALL, ...categories].map((c) => ({
+                value: c,
+                label: categoryLabel(c),
+                count:
+                  c === ALL
+                    ? cards.length
+                    : cards.filter((o) => (c === NO_CATEGORY ? !o.category : o.category === c))
+                        .length,
+              }))}
+            />
+          )}
+        </div>
       </div>
 
       <div
@@ -571,40 +592,6 @@ function tabsOf(
       : []),
     { id: 'campaign', label: translate('map.objects.library.campaign'), count: templateCount },
   ];
-}
-
-/** Filtre par catégorie (« Tout », chaque catégorie, « Sans catégorie »). */
-function CategoryChips({
-  categories,
-  value,
-  onChange,
-}: Readonly<{ categories: string[]; value: string; onChange(c: string): void }>) {
-  if (categories.length <= 1) return null;
-  return (
-    <div
-      role="group"
-      aria-label={translate('map.objects.library.categories')}
-      className="-mx-3 flex items-center gap-1 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none]"
-    >
-      {[ALL, ...categories].map((c) => (
-        <button
-          key={c || 'all'}
-          type="button"
-          aria-pressed={value === c}
-          onClick={() => onChange(c)}
-          className={cn(
-            'h-7 shrink-0 rounded-full border px-2.5 text-xs transition-colors',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-            value === c
-              ? 'border-primary/50 bg-primary/15 text-primary-strong'
-              : 'border-border-strong text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {categoryLabel(c)}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 /** Liste sans grille : squelette, échec (et réessayer), ou aucun objet. */

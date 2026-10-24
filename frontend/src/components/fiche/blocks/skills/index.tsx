@@ -16,6 +16,7 @@ import { useTranslations } from 'next-intl';
 import { translate } from '@/i18n/runtime';
 import { Coins, ListChecks, Plus, Search, TableProperties, TrendingUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { bonusDeJet } from '@/components/des/bonus-jet';
 import { Info } from '@/components/ui/tooltip';
@@ -132,7 +133,7 @@ function withSearch(view: SkillsViewId, ownedCount: number, rankedCount: number)
 type Ctx = SheetBlockProps<'competences'>['ctx'];
 type Writes = ReturnType<typeof sheetWrites>;
 
-/** Pastilles de filtre de la vue Capacités (« Toutes », puis chaque type, avec leur nombre). */
+/** Filtre de la vue Capacités par type (« Toutes », puis chaque type, avec leur nombre). */
 function FilterChips({
   total,
   filters,
@@ -146,35 +147,16 @@ function FilterChips({
 }>) {
   const t = useTranslations();
   return (
-    <div
-      className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:thin]"
-      role="group"
-      aria-label={t('sheet.skills.filterType')}
-    >
-      {[{ key: null, label: t('map.sounds.allCategories'), count: total }, ...filters].map((f) => {
-        const on = filter === f.key;
-        return (
-          <button
-            key={f.key ?? '*'}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onFilter(on && f.key !== null ? null : f.key)}
-            className={cn(
-              'relative flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium sm:h-6',
-              "after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] sm:after:hidden",
-              'transition-colors duration-150 motion-reduce:transition-none',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              on
-                ? 'border-primary/40 bg-primary/10 text-primary-strong'
-                : 'border-border-strong text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {f.label}
-            <span className="font-mono tabular opacity-60">{f.count}</span>
-          </button>
-        );
-      })}
-    </div>
+    <FilterMenu
+      label={t('sheet.skills.filterType')}
+      value={filter ?? ''}
+      allValue=""
+      onChange={(v) => onFilter(v || null)}
+      options={[
+        { value: '', label: t('map.sounds.allCategories'), count: total },
+        ...filters.map((f) => ({ value: f.key, label: f.label, count: f.count })),
+      ]}
+    />
   );
 }
 

@@ -61,6 +61,8 @@ export default {
   },
   page: {
     eyebrow: 'Vos héros',
+    systemFilter: 'Système',
+    allSystems: 'Tous les systèmes',
     title: 'Personnages',
     lead: 'Chaque fiche est calculée par les règles de son système : valeurs, bonus et jets sont toujours justes.',
     searchPlaceholder: 'Rechercher un héros…',
