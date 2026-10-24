@@ -9,18 +9,23 @@
  * - scène du groupe (`partyMapId`), visible des joueurs, point d'apparition (sur la scène
  *   affichée) ;
  * - créer, modifier (nom, description, dossier, fond image ou vidéo), supprimer ;
- * - dossiers : créer, renommer, supprimer (leurs scènes restent, sans dossier).
+ * - dossiers : créer, renommer, supprimer (leurs scènes restent, sans dossier) ;
+ * - ranger : glisser une scène sur un dossier (ou sa puce du filtre), ou « Déplacer vers » ;
+ * - filtrer sur un dossier (puces, retenu par campagne le temps de la session).
  */
 import { translate } from '@/i18n/runtime';
 import type { MapGroup, MapScene } from '@vtt/contracts';
 import {
+  Check,
   Crown,
   Ellipsis,
   Eye,
   EyeOff,
   Film,
   Folder,
+  FolderInput,
   FolderPlus,
+  GripVertical,
   MapPin,
   MapPinned,
   Navigation,
@@ -30,7 +35,8 @@ import {
   Trash2,
   Undo2,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type DragEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useStore } from 'zustand';
 import { EtatVide } from '@/components/commun/page';
 import { Illustration } from '@/components/commun/illustration';
 import { Badge } from '@/components/ui/badge';
@@ -49,8 +55,12 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ActivePill, PillGroup } from '@/components/ui/active-pill';
 import { InputGroup, Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
@@ -67,12 +77,58 @@ import { SceneDialog } from './scene-dialog';
 import { TravelDialog } from './travel-dialog';
 import {
   isVideoBackground,
+  sceneFolderFilter,
   useScenesActions,
   useScenesData,
+  type SceneFolderFilter,
   type ScenesActions,
 } from './use-scenes';
 
 type Editing = { scene: MapScene | null; groupId?: string | null } | null;
+/** Dossier créé ou renommé ; `moving` : la scène à y ranger une fois créé. */
+type FolderState = { group: MapGroup | null; moving?: MapScene } | null;
+
+/** Type du glisser d'une scène : seules les zones du panneau l'acceptent (rien d'autre n'est transporté). */
+const SCENE_DRAG = 'application/x-vtt-scene';
+const carriesScene = (e: DragEvent) => e.dataTransfer.types.includes(SCENE_DRAG);
+
+/**
+ * Zone de dépôt d'une scène. Le compteur suit les entrées et sorties des enfants (pas de
+ * clignotement au passage d'un élément à l'autre) ; remis à zéro à la fin du glisser.
+ */
+function useSceneDrop(dragging: boolean, onDrop: (sceneId: string) => void) {
+  const [depth, setDepth] = useState(0);
+  const [wasDragging, setWasDragging] = useState(dragging);
+  if (dragging !== wasDragging) {
+    setWasDragging(dragging);
+    if (!dragging) setDepth(0);
+  }
+  return {
+    over: dragging && depth > 0,
+    zone: {
+      onDragEnter: (e: DragEvent) => {
+        if (!carriesScene(e)) return;
+        e.preventDefault();
+        setDepth((d) => d + 1);
+      },
+      onDragOver: (e: DragEvent) => {
+        if (!carriesScene(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      },
+      onDragLeave: (e: DragEvent) => {
+        if (carriesScene(e)) setDepth((d) => Math.max(0, d - 1));
+      },
+      onDrop: (e: DragEvent) => {
+        if (!carriesScene(e)) return;
+        e.preventDefault();
+        setDepth(0);
+        const id = e.dataTransfer.getData(SCENE_DRAG);
+        if (id) onDrop(id);
+      },
+    },
+  };
+}
 
 export function ScenesPanel() {
   const { campagne } = useTable();
@@ -84,8 +140,11 @@ export function ScenesPanel() {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Editing>(null);
   const [travelTo, setTravelTo] = useState<MapScene | null>(null);
-  const [folder, setFolder] = useState<{ group: MapGroup | null } | null>(null);
+  const [folder, setFolder] = useState<FolderState>(null);
   const [deleting, setDeleting] = useState<MapScene | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const filter = useStore(sceneFolderFilter, (s) => s[campaignId] ?? 'all');
+  const setFilter = (f: SceneFolderFilter) => sceneFolderFilter.setState({ [campaignId]: f });
 
   const partyMapId = settings.data?.partyMapId ?? null;
   const characters = useMemo(() => {
@@ -98,26 +157,51 @@ export function ScenesPanel() {
       }));
   }, [campagne.characters, personnages.data]);
 
+  const folders = useMemo(
+    () =>
+      [...(groups.data ?? [])].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'fr'),
+      ),
+    [groups.data],
+  );
+  // Dossier d'une scène ; celui d'un dossier disparu ne compte pas (scène « sans dossier »)
+  const folderOf = useMemo(() => {
+    const known = new Set(folders.map((g) => g.id));
+    return (m: MapScene) => (m.groupId && known.has(m.groupId) ? m.groupId : null);
+  }, [folders]);
+  // Filtre sur un dossier supprimé depuis : toutes les scènes
+  const shownFilter =
+    filter === 'all' || filter === 'none' || folders.some((g) => g.id === filter) ? filter : 'all';
+
+  const counts = useMemo(() => {
+    const n = new Map<string | null, number>();
+    for (const m of maps.data ?? []) n.set(folderOf(m), (n.get(folderOf(m)) ?? 0) + 1);
+    return n;
+  }, [maps.data, folderOf]);
+
   const sections = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('fr');
     const list = (maps.data ?? []).filter((m) => !q || m.name.toLocaleLowerCase('fr').includes(q));
-    const sorted = [...(groups.data ?? [])].sort(
-      (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'fr'),
-    );
     const byName = (a: MapScene, b: MapScene) => a.name.localeCompare(b.name, 'fr');
-    return [
-      ...sorted.map((g) => ({
+    const all = [
+      ...folders.map((g) => ({
         group: g as MapGroup | null,
-        scenes: list.filter((m) => m.groupId === g.id).sort(byName),
+        scenes: list.filter((m) => folderOf(m) === g.id).sort(byName),
       })),
-      {
-        group: null,
-        scenes: list
-          .filter((m) => !m.groupId || !sorted.some((g) => g.id === m.groupId))
-          .sort(byName),
-      },
-    ].filter((s) => s.group || s.scenes.length || !q);
-  }, [maps.data, groups.data, query]);
+      { group: null, scenes: list.filter((m) => !folderOf(m)).sort(byName) },
+    ];
+    if (shownFilter === 'none') return all.filter((s) => !s.group);
+    if (shownFilter !== 'all') return all.filter((s) => s.group?.id === shownFilter);
+    return all.filter((s) => s.group || s.scenes.length || !q);
+  }, [maps.data, folders, folderOf, query, shownFilter]);
+
+  /** Range une scène dans un dossier (null : sans dossier) ; rien si elle y est déjà. */
+  const move = (sceneId: string, groupId: string | null) => {
+    // Rangée, la ligne change de liste : son dragend peut ne jamais arriver
+    setDragging(null);
+    const scene = maps.data?.find((m) => m.id === sceneId);
+    if (scene && folderOf(scene) !== groupId) actions.moveScene.mutate({ scene, groupId });
+  };
 
   if (maps.isLoading)
     return (
@@ -139,6 +223,7 @@ export function ScenesPanel() {
     );
 
   const count = maps.data?.length ?? 0;
+  const newSceneGroup = shownFilter === 'all' || shownFilter === 'none' ? null : shownFilter;
   return (
     <div className="space-y-4 px-4 py-4">
       <div className="flex items-center gap-2">
@@ -159,11 +244,47 @@ export function ScenesPanel() {
             <FolderPlus />
           </Button>
         </Info>
-        <Button onClick={() => setEditing({ scene: null })}>
+        <Button onClick={() => setEditing({ scene: null, groupId: newSceneGroup })}>
           <Plus />
           {translate('map.scenes.scene')}
         </Button>
       </div>
+
+      {folders.length > 0 && count > 0 && (
+        <PillGroup>
+          <nav
+            aria-label={translate('map.scenes.filterByFolder')}
+            className="-mt-1 flex flex-wrap gap-1"
+          >
+            <FilterChip
+              label={translate('map.scenes.allScenes')}
+              count={count}
+              active={shownFilter === 'all'}
+              dragging={false}
+              onClick={() => setFilter('all')}
+            />
+            {folders.map((g) => (
+              <FilterChip
+                key={g.id}
+                label={g.name}
+                count={counts.get(g.id) ?? 0}
+                active={shownFilter === g.id}
+                dragging={!!dragging}
+                onClick={() => setFilter(g.id)}
+                onDropScene={(id) => move(id, g.id)}
+              />
+            ))}
+            <FilterChip
+              label={translate('map.scenes.noFolder')}
+              count={counts.get(null) ?? 0}
+              active={shownFilter === 'none'}
+              dragging={!!dragging}
+              onClick={() => setFilter('none')}
+              onDropScene={(id) => move(id, null)}
+            />
+          </nav>
+        </PillGroup>
+      )}
 
       {active.mapId && partyMapId && active.mapId !== partyMapId && (
         <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
@@ -189,31 +310,39 @@ export function ScenesPanel() {
         />
       ) : (
         sections.map((section) => (
-          <section key={section.group?.id ?? 'none'} className="space-y-2">
-            <header className="flex items-center gap-2">
-              <Folder className="size-4 text-subtle" aria-hidden />
-              <h3 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-subtle">
-                {section.group?.name ?? translate('map.scenes.noFolder')}
-              </h3>
-              <span className="text-[11px] tabular-nums text-subtle">{section.scenes.length}</span>
-              {section.group && (
+          <FolderSection
+            key={section.group?.id ?? 'none'}
+            group={section.group}
+            count={section.scenes.length}
+            dragging={!!dragging}
+            onDropScene={(id) => move(id, section.group?.id ?? null)}
+            menu={
+              section.group && (
                 <GroupMenu
                   group={section.group}
                   actions={actions}
                   onRename={() => setFolder({ group: section.group })}
                   onAdd={() => setEditing({ scene: null, groupId: section.group!.id })}
                 />
-              )}
-            </header>
+              )
+            }
+          >
             {section.scenes.length ? (
               <ul className="space-y-1.5">
                 {section.scenes.map((scene) => (
                   <SceneRow
                     key={scene.id}
                     scene={scene}
+                    folderId={folderOf(scene)}
+                    folders={folders}
                     party={scene.id === partyMapId}
                     shown={scene.id === active.mapId}
+                    dragged={dragging === scene.id}
                     actions={actions}
+                    onDragStart={() => setDragging(scene.id)}
+                    onDragEnd={() => setDragging(null)}
+                    onMove={(groupId) => move(scene.id, groupId)}
+                    onMoveToNew={() => setFolder({ group: null, moving: scene })}
                     onEdit={() => setEditing({ scene })}
                     onTravel={() => setTravelTo(scene)}
                     onDelete={() => setDeleting(scene)}
@@ -236,7 +365,7 @@ export function ScenesPanel() {
                 {translate('map.scenes.emptyFolder')}
               </p>
             )}
-          </section>
+          </FolderSection>
         ))
       )}
 
@@ -245,7 +374,7 @@ export function ScenesPanel() {
         open={editing !== null}
         scene={editing?.scene ?? null}
         defaultGroupId={editing?.groupId ?? null}
-        groups={groups.data ?? []}
+        groups={folders}
         actions={actions}
         onOpenChange={(open) => !open && setEditing(null)}
       />
@@ -257,7 +386,7 @@ export function ScenesPanel() {
       />
       <FolderDialog
         state={folder}
-        count={groups.data?.length ?? 0}
+        count={folders.length}
         actions={actions}
         onClose={() => setFolder(null)}
       />
@@ -266,11 +395,94 @@ export function ScenesPanel() {
   );
 }
 
+/** Puce du filtre : n'afficher que ce dossier ; on peut aussi y déposer une scène. */
+function FilterChip({
+  label,
+  count,
+  active,
+  dragging,
+  onClick,
+  onDropScene,
+}: Readonly<{
+  label: string;
+  count: number;
+  active: boolean;
+  dragging: boolean;
+  onClick(): void;
+  onDropScene?(sceneId: string): void;
+}>) {
+  const { over, zone } = useSceneDrop(dragging && !!onDropScene, (id) => onDropScene?.(id));
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      {...(onDropScene ? zone : {})}
+      className={cn(
+        'relative isolate flex max-w-full items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-medium transition-colors',
+        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+        dragging && onDropScene && 'outline-dashed outline-1 outline-border-strong',
+        over && 'bg-primary/15 text-primary outline-primary/60',
+      )}
+    >
+      {active && <ActivePill className="bg-surface-3 shadow-sm" />}
+      <span className="truncate">{label}</span>
+      <span className="text-[11px] tabular-nums text-subtle">{count}</span>
+    </button>
+  );
+}
+
+/** Un dossier (ou « sans dossier ») : en-tête et scènes ; toute la section reçoit le dépôt. */
+function FolderSection({
+  group,
+  count,
+  dragging,
+  onDropScene,
+  menu,
+  children,
+}: Readonly<{
+  group: MapGroup | null;
+  count: number;
+  dragging: boolean;
+  onDropScene(sceneId: string): void;
+  menu: ReactNode;
+  children: ReactNode;
+}>) {
+  const { over, zone } = useSceneDrop(dragging, onDropScene);
+  return (
+    <section
+      {...zone}
+      className={cn(
+        '-mx-1.5 space-y-2 rounded-xl px-1.5 py-1 transition-colors',
+        dragging && 'outline-dashed outline-1 outline-border',
+        over && 'bg-primary/10 outline-primary/60',
+      )}
+    >
+      <header className="flex items-center gap-2">
+        <Folder className={cn('size-4 text-subtle', over && 'text-primary')} aria-hidden />
+        <h3 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-subtle">
+          {group?.name ?? translate('map.scenes.noFolder')}
+        </h3>
+        <span className="text-[11px] tabular-nums text-subtle">{count}</span>
+        {menu}
+      </header>
+      {children}
+    </section>
+  );
+}
+
 function SceneRow({
   scene,
+  folderId,
+  folders,
   party,
   shown,
+  dragged,
   actions,
+  onDragStart,
+  onDragEnd,
+  onMove,
+  onMoveToNew,
   onEdit,
   onTravel,
   onDelete,
@@ -278,9 +490,18 @@ function SceneRow({
   onParty,
 }: Readonly<{
   scene: MapScene;
+  /** Dossier où la scène est rangée (null : sans dossier). */
+  folderId: string | null;
+  folders: readonly MapGroup[];
   party: boolean;
   shown: boolean;
+  /** Scène en cours de glisser. */
+  dragged: boolean;
   actions: ScenesActions;
+  onDragStart(): void;
+  onDragEnd(): void;
+  onMove(groupId: string | null): void;
+  onMoveToNew(): void;
   onEdit(): void;
   onTravel(): void;
   onDelete(): void;
@@ -297,18 +518,45 @@ function SceneRow({
       mapId: scene.id,
       patch: { visibleToPlayers: !scene.visibleToPlayers, version: scene.version },
     });
+  const openOnKey = (e: KeyboardEvent) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    openScene(scene.id);
+  };
+  const destinations = [{ id: null, name: translate('map.scenes.noFolder') }, ...folders];
 
   return (
     <li
+      draggable
+      onDragStart={(e) => {
+        // La scène seule : ni l'image ni son adresse (la carte accepterait une image déposée)
+        e.dataTransfer.clearData();
+        e.dataTransfer.setData(SCENE_DRAG, scene.id);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setDragImage(e.currentTarget, 24, 24);
+        // Après le dragstart : Chrome annule un glisser dont la page change pendant celui-ci
+        requestAnimationFrame(onDragStart);
+      }}
+      onDragEnd={onDragEnd}
       className={cn(
-        'group flex items-center gap-3 rounded-xl border p-1.5 pr-2 transition-colors',
-        shown ? 'border-primary/50 bg-primary/10' : 'border-border hover:bg-surface-2',
+        'group flex items-center gap-2 rounded-xl border p-1.5 pr-2 transition-[background-color,border-color,opacity]',
+        shown
+          ? 'border-primary/50 bg-primary/10'
+          : 'border-border bg-background hover:bg-surface-2',
+        dragged && 'opacity-40',
       )}
     >
-      <button
-        type="button"
+      <GripVertical
+        className="-ml-0.5 -mr-1 size-3.5 shrink-0 cursor-grab text-subtle opacity-0 transition-opacity group-hover:opacity-100"
+        aria-hidden
+      />
+      {/* Pas un <button> : Firefox ne laisse pas glisser la ligne depuis un bouton */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => openScene(scene.id)}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        onKeyDown={openOnKey}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
         aria-current={shown ? 'true' : undefined}
         title={translate('map.scenes.openForMe')}
       >
@@ -349,7 +597,7 @@ function SceneRow({
             )}
           </span>
         </span>
-      </button>
+      </div>
 
       <Info texte={translate('map.scenes.bringParty')}>
         <Button
@@ -403,6 +651,29 @@ function SceneRow({
             {onSpawn ? translate('map.scenes.placeSpawn') : translate('map.scenes.spawnOpenFirst')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-[13px] text-muted-foreground focus:text-foreground data-[state=open]:text-foreground">
+              <FolderInput />
+              {translate('map.scenes.moveTo')}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-72 w-52 overflow-y-auto">
+              {destinations.map((g) => (
+                <DropdownMenuItem
+                  key={g.id ?? 'none'}
+                  disabled={g.id === folderId}
+                  onSelect={() => onMove(g.id)}
+                >
+                  {g.id === folderId ? <Check /> : <Folder />}
+                  <span className="truncate">{g.name}</span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={onMoveToNew}>
+                <FolderPlus />
+                {translate('map.scenes.newFolderEllipsis')}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuItem onSelect={onEdit}>
             <Pencil />
             {translate('map.scenes.editEllipsis')}
@@ -471,7 +742,7 @@ function FolderDialog({
   actions,
   onClose,
 }: Readonly<{
-  state: { group: MapGroup | null } | null;
+  state: FolderState;
   count: number;
   actions: ScenesActions;
   onClose(): void;
@@ -491,7 +762,13 @@ function FolderDialog({
           groupId: group.id,
           patch: { name: name.trim(), version: group.version },
         });
-      else await actions.createGroup.mutateAsync({ name: name.trim(), sortOrder: count });
+      else {
+        const created = await actions.createGroup.mutateAsync({
+          name: name.trim(),
+          sortOrder: count,
+        });
+        if (state?.moving) actions.moveScene.mutate({ scene: state.moving, groupId: created.id });
+      }
       onClose();
     } catch {
       // Toast déjà affiché

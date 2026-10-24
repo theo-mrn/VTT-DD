@@ -8,14 +8,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreateMapGroup,
   CreateMapScene,
+  MapScene,
   TravelToMap,
   UpdateMapGroup,
   UpdateMapScene,
   UpdateMapSettings,
 } from '@vtt/contracts';
 import { toast } from 'sonner';
+import { createStore } from 'zustand/vanilla';
 import { messageErreur } from '@/lib/api';
 import { mapKeys, mapsApi } from '@/lib/map/api';
+
+/** Filtre de dossier du panneau, par campagne : `all`, `none` (sans dossier) ou un dossier. */
+export type SceneFolderFilter = 'all' | 'none' | string;
+export const sceneFolderFilter = createStore<Record<string, SceneFolderFilter>>(() => ({}));
 
 export function useScenesData(campaignId: string) {
   const maps = useQuery({
@@ -48,6 +54,29 @@ export function useScenesActions(campaignId: string) {
     mutationFn: (v: { mapId: string; patch: UpdateMapScene }) =>
       mapsApi.update(campaignId, v.mapId, v.patch),
     ...options,
+  });
+  // Rangement dans un dossier : la scène change de place aussitôt, et y revient en cas d'échec
+  const listKey = mapKeys.list(campaignId);
+  const moveScene = useMutation({
+    mutationFn: (v: { scene: MapScene; groupId: string | null }) =>
+      mapsApi.update(campaignId, v.scene.id, { groupId: v.groupId, version: v.scene.version }),
+    onMutate: async ({ scene, groupId }) => {
+      await qc.cancelQueries({ queryKey: listKey });
+      const before = qc.getQueryData<MapScene[]>(listKey);
+      qc.setQueryData<MapScene[]>(listKey, (list) =>
+        list?.map((m) => (m.id === scene.id ? { ...m, groupId } : m)),
+      );
+      return { before };
+    },
+    onSuccess: (saved) =>
+      qc.setQueryData<MapScene[]>(listKey, (list) =>
+        list?.map((m) => (m.id === saved.id ? saved : m)),
+      ),
+    onError: (err, _v, ctx) => {
+      if (ctx?.before) qc.setQueryData(listKey, ctx.before);
+      fail(err);
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: listKey }),
   });
   const removeScene = useMutation({
     mutationFn: (mapId: string) => mapsApi.remove(campaignId, mapId),
@@ -83,6 +112,7 @@ export function useScenesActions(campaignId: string) {
   return {
     createScene,
     updateScene,
+    moveScene,
     removeScene,
     travel,
     updateSettings,
