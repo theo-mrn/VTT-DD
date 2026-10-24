@@ -1,12 +1,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Send } from 'lucide-react';
+import { Send, UsersRound } from 'lucide-react';
 import { forwardRef, useMemo, useState, type FormEvent } from 'react';
 import type { Campagne } from '@/lib/campagnes';
 import type { Jet, Macro, Verification, VisibiliteJet } from '@/lib/jets';
 import type { Personnage } from '@/lib/personnages';
 import { useRollableAttributes } from '@/lib/rollable-attributes';
+import { Info } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Bascule3D, BoutonBoutique, VisibiliteMenu } from './barre-options';
 import { AideLanceur, ChampFormule } from './champ-formule';
@@ -41,7 +42,8 @@ export interface EtatPlateau {
  * Lanceur de dés, sur le modèle de l'ancien : la grille des dés à gauche ; à
  * droite, la formule en grand, le dernier résultat en petit dessous et une seule
  * rangée d'actions (boutique, 3D, visibilité, options, vider, lancer).
- * Avantage, bonus, libellé, modificateurs et macros sont dans le « + ».
+ * Avantage, bonus, libellé, modificateurs et macros sont dans le « + ». Le MJ d'une table a en
+ * plus « Groupe » : le jet du plateau demandé à tous les joueurs (jet de groupe).
  */
 export const Lanceur = forwardRef<
   HTMLInputElement,
@@ -65,6 +67,8 @@ export const Lanceur = forwardRef<
     jet: Jet | null;
     anime: boolean;
     onRelancer: () => void;
+    /** MJ d'une table : demander le jet du plateau à tous les joueurs (`joueurs` : leur nombre). */
+    groupe?: { joueurs: number; onDemander: () => void };
   }
 >(function Lanceur(
   {
@@ -84,6 +88,7 @@ export const Lanceur = forwardRef<
     jet,
     anime,
     onRelancer,
+    groupe,
   },
   refFormule,
 ) {
@@ -199,6 +204,28 @@ export const Lanceur = forwardRef<
             }
           />
           <div className="ml-auto flex items-center gap-1.5">
+            {groupe && (
+              <Info
+                texte={groupe.joueurs ? t('askGroup', { count: groupe.joueurs }) : t('noPlayers')}
+              >
+                <button
+                  type="button"
+                  onClick={groupe.onDemander}
+                  disabled={!formule.trim() || !groupe.joueurs}
+                  aria-label={
+                    groupe.joueurs ? t('askGroup', { count: groupe.joueurs }) : t('noPlayers')
+                  }
+                  className={cn(
+                    'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background/40 px-2.5 text-[11px] font-bold tracking-wide text-muted-foreground transition-colors hover:text-foreground disabled:opacity-45',
+                    FOCUS,
+                    TACTILE,
+                  )}
+                >
+                  <UsersRound className="size-3.5" aria-hidden />
+                  {t('group')}
+                </button>
+              </Info>
+            )}
             <button
               type="button"
               onClick={() => ecrire('')}

@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { aleatoireCrypto, evaluerChampEntree } from '@vtt/rules';
 import { useDiceShortcuts } from './raccourcis-des';
 import { MotionConfig } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { EnTetePage, Page } from '@/components/commun/page';
 import {
@@ -25,7 +25,14 @@ import { ApiError, messageErreur } from '@/lib/api';
 import { useCampagnes } from '@/lib/campagnes';
 import { useDicePreferences } from '@/lib/dice-preferences';
 import { prepareDice3D } from '@/lib/dice-throw';
-import { useJets, useLancer, useSynchroJets, verifierFormule, type Jet } from '@/lib/jets';
+import {
+  useJets,
+  useLancer,
+  useSynchroJets,
+  verifierFormule,
+  type Jet,
+  type VisibiliteJet,
+} from '@/lib/jets';
 import { useOperationsPersonnage, usePersonnages, type Personnage } from '@/lib/personnages';
 import { usePreferenceLocale } from '@/lib/preference-locale';
 import { cn } from '@/lib/utils';
@@ -49,6 +56,17 @@ export interface ContexteTableDes {
   personnage: Personnage | null;
   /** MJ : personnages de la campagne, au choix (leurs modificateurs et leurs bonus). */
   personnages?: Personnage[];
+  /** MJ : le jet du plateau demandé à tous les joueurs (jet de groupe), et son suivi. */
+  groupe?: GroupeTableDes;
+}
+
+/** Jet de groupe depuis le lanceur du MJ : la demande, et le suivi du jet en cours. */
+export interface GroupeTableDes {
+  /** Joueurs qui incarnent un héros (aucun : bouton désactivé). */
+  joueurs: number;
+  demander(jet: { formule: string; libelle: string; visibilite: VisibiliteJet }): void;
+  /** Suivi du jet en cours (résultats, clore, redemander), sous le lanceur. */
+  suivi?: ReactNode;
 }
 
 /** Campagne, personnage et salle du jet : ceux de la table d'une campagne, sinon les choix gardés. */
@@ -389,7 +407,21 @@ export function TableDes({
             jet={affiche}
             anime={dernier !== null && affiche === dernier}
             onRelancer={() => void relancer()}
+            {...(contexte?.groupe
+              ? {
+                  groupe: {
+                    joueurs: contexte.groupe.joueurs,
+                    onDemander: () =>
+                      contexte.groupe!.demander({
+                        formule: etat.formule,
+                        libelle: etat.libelle,
+                        visibilite: etat.visibilite,
+                      }),
+                  },
+                }
+              : {})}
           />
+          {contexte?.groupe?.suivi}
         </div>
         {avecBonus && (
           <BonusJetListe

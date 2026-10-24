@@ -25,6 +25,10 @@ export default {
     title: 'Lanceur de dés',
     clear: 'Vider',
     clearLabel: 'Vider la formule',
+    group: 'Groupe',
+    askGroup:
+      '{count, plural, one {Demander ce jet au joueur} other {Demander ce jet aux # joueurs}}',
+    noPlayers: 'Aucun joueur n’incarne de héros',
     roll: 'Lancer',
     personal: 'Jets personnels',
     withSources: 'Avec {sources}',

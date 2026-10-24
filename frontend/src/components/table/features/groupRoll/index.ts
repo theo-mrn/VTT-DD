@@ -1,23 +1,11 @@
-import { Dices } from 'lucide-react';
 import { lazy } from 'react';
-import type { PanelFeature } from '../types';
 
 /**
- * Jet de groupe : le MJ demande un jet à tous les joueurs, chacun le lance d'un clic, les
- * résultats se rangent en direct (`state.ts`).
+ * Jet de groupe : le MJ le demande depuis son lanceur de dés (bouton « Groupe » : la formule et
+ * l'intitulé du plateau ; partagé si le jet est public), chaque joueur le lance d'un clic, et les
+ * résultats se rangent en direct sous le lanceur du MJ (`state.ts`). Pas de bouton à part dans
+ * la barre : la surcouche porte l'invite chez les joueurs et reçoit les résultats chez le MJ.
  */
-export const groupRollFeature = {
-  kind: 'panel',
-  id: 'groupRoll',
-  icon: Dices,
-  width: 'compact',
-  mode: 'floating',
-  roles: ['gm'],
-  extra: true,
-  component: lazy(() =>
-    import('./ui/group-roll-panel').then((m) => ({ default: m.GroupRollPanel })),
-  ),
-  overlay: lazy(() =>
-    import('./ui/group-roll-overlay').then((m) => ({ default: m.GroupRollOverlay })),
-  ),
-} as const satisfies PanelFeature;
+export const groupRollOverlay = lazy(() =>
+  import('./ui/group-roll-overlay').then((m) => ({ default: m.GroupRollOverlay })),
+);

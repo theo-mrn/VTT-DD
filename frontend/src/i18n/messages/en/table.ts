@@ -86,10 +86,6 @@ export default {
       label: 'Fate tokens',
       description: 'Shared pool of tokens the players spend',
     },
-    groupRoll: {
-      label: 'Group roll',
-      description: 'Ask the whole table for a roll and watch the results live',
-    },
     automations: {
       label: 'Automations',
       description: 'Complete presets run in one click or by a trigger',
@@ -243,12 +239,6 @@ export default {
     crit: 'Critical success',
     fumble: 'Critical failure',
     waiting: 'Waiting',
-    label: 'Roll label',
-    labelPlaceholder: 'Perception',
-    formula: 'Formula',
-    shared: 'Results visible to players',
-    ask: '{count, plural, one {Ask the player} other {Ask the # players}}',
-    noPlayers: 'No player is playing a hero',
     close: 'Close',
     again: 'Ask again',
     clear: 'Remove',

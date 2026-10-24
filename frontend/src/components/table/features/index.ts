@@ -47,7 +47,7 @@ import { spotlightFeature } from './spotlight';
 import { clocksFeature } from './clocks';
 import { pauseFeature } from './pause';
 import { fateFeature } from './fate';
-import { groupRollFeature } from './groupRoll';
+import { groupRollOverlay } from './groupRoll';
 import { screenFxOverlay } from './screenFx';
 import { automationsFeature } from './automations';
 
@@ -65,7 +65,6 @@ export const tableFeatures = [
   pnjFeature,
   rencontresFeature,
   randomTablesFeature,
-  groupRollFeature,
   automationsFeature,
   timerFeature,
   worldTimeFeature,
@@ -81,6 +80,9 @@ export const tableFeatures = [
 
 /**
  * Surcouches sans bouton de la barre : leur commande vit ailleurs (effets d'écran : menu Météo
- * de la carte), elles jouent chez tous.
+ * de la carte ; jet de groupe : bouton « Groupe » du lanceur de dés du MJ), elles jouent chez tous.
  */
-export const tableOverlays = [{ id: 'screenFx', component: screenFxOverlay }] as const;
+export const tableOverlays = [
+  { id: 'screenFx', component: screenFxOverlay },
+  { id: 'groupRoll', component: groupRollOverlay },
+] as const;

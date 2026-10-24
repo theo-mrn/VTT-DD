@@ -85,10 +85,6 @@ export default {
       label: 'Jetons de destin',
       description: 'Réserve commune de jetons que les joueurs dépensent',
     },
-    groupRoll: {
-      label: 'Jet de groupe',
-      description: 'Demander un jet à toute la table et voir les résultats en direct',
-    },
     automations: {
       label: 'Automatismes',
       description: 'Réglages complets lancés d’un clic ou par un déclencheur',
@@ -242,12 +238,6 @@ export default {
     crit: 'Réussite critique',
     fumble: 'Échec critique',
     waiting: 'En attente',
-    label: 'Intitulé du jet',
-    labelPlaceholder: 'Perception',
-    formula: 'Formule',
-    shared: 'Résultats visibles des joueurs',
-    ask: '{count, plural, one {Demander au joueur} other {Demander aux # joueurs}}',
-    noPlayers: 'Aucun joueur n’incarne de héros',
     close: 'Clore',
     again: 'Redemander',
     clear: 'Retirer',
