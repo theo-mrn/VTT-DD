@@ -23,6 +23,7 @@ export default {
   backToChoice: 'Back to hero choice',
   loadingRules: 'Loading the rules…',
   create: 'Create the character',
+  nameRequired: 'Your hero needs a name',
   yourHero: 'Your hero',
   loadingCampaignRules: 'Loading the campaign’s rules…',
   restart: 'Start over',

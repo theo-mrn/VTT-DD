@@ -1,10 +1,11 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { Info } from '@/components/ui/tooltip';
 import { useProfilRequis } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { EcranChargement } from './ecran-chargement';
@@ -112,6 +113,77 @@ export function ProgressionEtapes({
         })}
       </p>
     </div>
+  );
+}
+
+/**
+ * Stepper d'un assistant : une pastille par étape (son numéro, une coche une fois faite), l'étape
+ * courante avec son nom en clair, les autres en info-bulle ; une étape accessible se rouvre d'un
+ * clic. Défile seul sur petit écran.
+ */
+export function EtapesFocus({
+  etapes,
+  courante,
+  onAller,
+}: Readonly<{
+  etapes: { id: string; nom: string; faite?: boolean; accessible?: boolean }[];
+  courante: number;
+  onAller?: (i: number) => void;
+}>) {
+  const t = useTranslations('shell.focus');
+  return (
+    <ol
+      aria-label={t('steps')}
+      className="flex min-w-0 max-w-full items-center overflow-x-auto px-1 py-1 [scrollbar-width:none]"
+    >
+      {etapes.map((e, i) => {
+        const actuelle = i === courante;
+        const faite = !actuelle && (i < courante || e.faite);
+        const ouvrable = !!onAller && !actuelle && (i < courante || e.accessible || e.faite);
+        const pastille = (
+          <button
+            type="button"
+            disabled={!ouvrable}
+            onClick={() => onAller?.(i)}
+            aria-label={t('step', { index: i + 1, name: e.nom })}
+            aria-current={actuelle ? 'step' : undefined}
+            className={cn(
+              'flex h-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums transition-colors duration-200',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-default',
+              actuelle && 'gap-1.5 bg-primary px-3 text-primary-foreground shadow-sm',
+              faite && 'w-7 bg-primary/15 text-primary enabled:hover:bg-primary/25',
+              !actuelle &&
+                !faite &&
+                'w-7 border border-border-strong text-subtle enabled:hover:border-primary/60 enabled:hover:text-foreground',
+            )}
+          >
+            {faite ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : i + 1}
+            {actuelle && <span className="max-w-[12rem] truncate">{e.nom}</span>}
+          </button>
+        );
+        return (
+          <li key={e.id} className="flex shrink-0 items-center">
+            {i > 0 && (
+              <span
+                aria-hidden
+                className={cn(
+                  'mx-1 h-px w-3 sm:mx-1.5 sm:w-5',
+                  i <= courante ? 'bg-primary/60' : 'bg-border-strong',
+                )}
+              />
+            )}
+            {actuelle ? (
+              pastille
+            ) : (
+              // Enveloppée : un bouton désactivé (étape à venir) ne reçoit pas le survol
+              <Info texte={e.nom}>
+                <span className="inline-flex">{pastille}</span>
+              </Info>
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

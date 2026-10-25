@@ -79,6 +79,7 @@ export default {
     home: 'Home',
     step: 'Step {index, number}: {name}',
     stepOf: 'Step {index, number} of {total, number} · <b>{name}</b>',
+    steps: 'Steps',
   },
   loading: 'Opening your table…',
   untitled: 'Untitled',

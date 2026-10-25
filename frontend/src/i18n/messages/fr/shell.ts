@@ -79,6 +79,7 @@ export default {
     home: 'Accueil',
     step: 'Étape {index, number} : {name}',
     stepOf: 'Étape {index, number} sur {total, number} · <b>{name}</b>',
+    steps: 'Étapes',
   },
   loading: 'Ouverture de votre table…',
   untitled: 'Sans titre',

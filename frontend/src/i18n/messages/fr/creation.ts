@@ -22,6 +22,7 @@ export default {
   backToChoice: 'Retour au choix du héros',
   loadingRules: 'Chargement des règles…',
   create: 'Créer le personnage',
+  nameRequired: 'Le nom du héros est requis',
   yourHero: 'Votre héros',
   loadingCampaignRules: 'Chargement des règles de la campagne…',
   restart: 'Recommencer',

@@ -31,7 +31,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { EtatVide } from '@/components/commun/page';
 import { Chargement, Message } from '@/components/compte/elements';
-import { EnTeteFocus, ProgressionEtapes } from '@/components/shell/cadre-focus';
+import { EnTeteFocus, EtapesFocus } from '@/components/shell/cadre-focus';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -293,12 +293,13 @@ export function AssistantPersonnage({
     <div className="flex min-h-dvh flex-col" data-ambiance={campagne.data?.ambiance}>
       <EnTeteFocus
         centre={
-          <ProgressionEtapes
-            etapes={etapes.map((e) => ({
+          <EtapesFocus
+            etapes={etapes.map((e, i) => ({
               id: e.id,
               nom: e.nom,
               // Portrait et récapitulatif n'ont rien à valider : faits une fois dépassés
               faite: e.id === 'portrait' || e.id === 'recap' ? false : valide(e),
+              accessible: etapes.slice(0, i).every(valide),
             }))}
             courante={index}
             onAller={(i) => (i <= index || etapes.slice(0, i).every(valide)) && void avancer(i)}
@@ -309,7 +310,7 @@ export function AssistantPersonnage({
 
       <div className="relative flex-1">
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-halo" />
-        <div className="relative mx-auto grid w-full max-w-7xl gap-10 px-5 py-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:py-12">
+        <div className="relative mx-auto grid w-full max-w-7xl gap-10 px-5 py-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:py-10">
           <main className="min-w-0">
             <EnTeteEtape
               campagne={campagne.data?.name}
@@ -410,19 +411,6 @@ export function AssistantPersonnage({
                 </motion.section>
               </AnimatePresence>
             )}
-
-            {!creationFermee && (
-              <Navigation
-                index={index}
-                recap={etape.id === 'recap'}
-                envoi={envoi}
-                creable={toutesValides && Boolean(id)}
-                continuable={valide(etape) && Boolean(campagne.data)}
-                onRetour={() => aller(index - 1)}
-                onTerminer={() => void terminer()}
-                onContinuer={() => void avancer(index + 1)}
-              />
-            )}
           </main>
 
           <ApercuLateral
@@ -434,8 +422,45 @@ export function AssistantPersonnage({
           />
         </div>
       </div>
+
+      {!creationFermee && (
+        <Navigation
+          index={index}
+          recap={etape.id === 'recap'}
+          envoi={envoi}
+          creable={toutesValides && Boolean(id)}
+          continuable={valide(etape) && Boolean(campagne.data)}
+          manque={manqueEtape(etape, nom, statut, statuts)}
+          onRetour={() => aller(index - 1)}
+          onTerminer={() => void terminer()}
+          onContinuer={() => void avancer(index + 1)}
+        />
+      )}
     </div>
   );
+}
+
+/** Ce qui retient l'étape (raisons des règles, nom manquant), en une ligne ; null si rien. */
+function manqueEtape(
+  etape: EtapeUI,
+  nom: string,
+  statut: (id: string) => EtatEtapeCreation | undefined,
+  statuts: EtatEtapeCreation[],
+): string | null {
+  if (etape.id === 'identite')
+    return nom.trim().length >= 2 ? null : translate('creation.nameRequired');
+  if ('regle' in etape) {
+    const s = statut(etape.regle.id);
+    return s && s.statut !== 'faite' && s.raisons.length ? s.raisons.join(' · ') : null;
+  }
+  if (etape.id === 'recap') {
+    const raisons = [
+      ...(nom.trim().length >= 2 ? [] : [translate('creation.nameRequired')]),
+      ...statuts.filter((s) => s.statut !== 'faite').flatMap((s) => s.raisons),
+    ];
+    return raisons.length ? raisons.join(' · ') : null;
+  }
+  return null;
 }
 
 type EtatEtapeCreation = ReturnType<typeof etapesCreation>[number];
@@ -557,18 +582,22 @@ function EtapeRegle({
       {regle.type === 'acheter' && (
         <EtapeAcheter systeme={systeme} etat={etat} fiche={fiche} etape={regle} onEtat={onEtat} />
       )}
-      <RaisonsEtape statut={statut} />
     </>
   );
 }
 
-/** Retour, puis Continuer, ou Créer le personnage au récapitulatif. */
+/**
+ * Barre d'actions collée au bas de l'écran, quelle que soit la longueur de l'étape : Retour, ce
+ * qui manque pour avancer, Continuer (ou Créer le personnage au récapitulatif). ⌘/Ctrl + Entrée
+ * avance aussi.
+ */
 function Navigation({
   index,
   recap,
   envoi,
   creable,
   continuable,
+  manque,
   onRetour,
   onTerminer,
   onContinuer,
@@ -578,28 +607,65 @@ function Navigation({
   envoi: boolean;
   creable: boolean;
   continuable: boolean;
+  manque: string | null;
   onRetour(): void;
   onTerminer(): void;
   onContinuer(): void;
 }>) {
   const t = useTranslations();
+  const peut = recap ? creable : continuable;
+  const suivant = useRef(() => {});
+  suivant.current = () => {
+    if (envoi || !peut) return;
+    if (recap) onTerminer();
+    else onContinuer();
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey) || e.defaultPrevented) return;
+      e.preventDefault();
+      suivant.current();
+    };
+    globalThis.addEventListener('keydown', onKey);
+    return () => globalThis.removeEventListener('keydown', onKey);
+  }, []);
   return (
-    <div className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">
-      <Button variant="ghost" onClick={onRetour} className={cn(index === 0 && 'invisible')}>
-        <ArrowLeft />
-        {t('common.actions.back')}
-      </Button>
-      {recap ? (
-        <Button size="lg" onClick={onTerminer} loading={envoi} disabled={!creable}>
-          <Check />
-          {t('creation.create')}
+    <div className="sticky bottom-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <Button variant="ghost" onClick={onRetour} className={cn(index === 0 && 'invisible')}>
+          <ArrowLeft />
+          <span className="hidden sm:inline">{t('common.actions.back')}</span>
         </Button>
-      ) : (
-        <Button size="lg" onClick={onContinuer} loading={envoi} disabled={!continuable}>
-          {t('common.actions.continue')}
-          <ArrowRight />
-        </Button>
-      )}
+        <p
+          className="min-w-0 flex-1 truncate text-right text-[13px] text-muted-foreground"
+          title={manque ?? undefined}
+        >
+          {!peut && manque}
+        </p>
+        {recap ? (
+          <Button
+            size="lg"
+            onClick={onTerminer}
+            loading={envoi}
+            disabled={!creable}
+            aria-keyshortcuts="Control+Enter Meta+Enter"
+          >
+            <Check />
+            {t('creation.create')}
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            onClick={onContinuer}
+            loading={envoi}
+            disabled={!continuable}
+            aria-keyshortcuts="Control+Enter Meta+Enter"
+          >
+            {t('common.actions.continue')}
+            <ArrowRight />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -744,21 +810,6 @@ function PastilleStatut({ statut }: Readonly<{ statut: StatutEtape }>) {
     );
   if (statut === 'invalide') return <AlertTriangle className="size-4 text-destructive" />;
   return <Circle className="size-4 text-subtle" />;
-}
-
-function RaisonsEtape({
-  statut,
-}: Readonly<{
-  statut: { statut: StatutEtape; raisons: string[] } | undefined;
-}>) {
-  if (!statut || statut.statut === 'faite' || statut.raisons.length === 0) return null;
-  return (
-    <div className="mt-6">
-      <Message ton={statut.statut === 'invalide' ? 'erreur' : 'info'}>
-        {statut.raisons.join(' · ')}
-      </Message>
-    </div>
-  );
 }
 
 function Identite({
