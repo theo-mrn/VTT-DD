@@ -30,8 +30,6 @@ export const ATLAS: Readonly<Record<AtlasFrame, AtlasRect>> = {
   leaf0: { x: 84, y: 0, w: 32, h: 20, nominal: 32 },
   leaf1: { x: 84, y: 24, w: 32, h: 20, nominal: 32 },
   leaf2: { x: 120, y: 0, w: 32, h: 20, nominal: 32 },
-  // Lueur : petit cœur vif, large halo (lucioles)
-  glow: { x: 120, y: 24, w: 32, h: 32, nominal: 28 },
   // Anneau d'éclaboussure : rayon visible ~ 26 px dans 64
   ring: { x: 168, y: 0, w: 64, h: 64, nominal: 52 },
 };

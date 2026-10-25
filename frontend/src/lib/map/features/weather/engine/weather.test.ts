@@ -501,16 +501,6 @@ describe('météo : textures calculées', () => {
     expect(alphaAt(31, 19)).toBe(0);
   });
 
-  it('atlas : une lueur vive au centre, un halo qui s’éteint avant les bords', () => {
-    const px = paint(32, 32, ATLAS_SHADES.glow);
-    const alphaAt = (x: number, y: number) => px[(y * 32 + x) * 4 + 3]!;
-    expect(alphaAt(16, 16)).toBe(255);
-    expect(alphaAt(22, 16)).toBeGreaterThan(30);
-    expect(alphaAt(22, 16)).toBeLessThan(200);
-    expect(alphaAt(0, 16)).toBeLessThan(3);
-    expect(alphaAt(0, 0)).toBe(0);
-  });
-
   it('nuages : des plages pleines et du ciel clair entre elles', () => {
     const size = 128;
     const px = paintClouds(size, prng(7));

@@ -12,7 +12,7 @@
 import { translate } from '@/i18n/runtime';
 
 /** Frames de l'atlas des particules (`textures.ts`). */
-export type AtlasFrame = 'streak' | 'dot' | 'flake' | 'leaf0' | 'leaf1' | 'leaf2' | 'ring' | 'glow';
+export type AtlasFrame = 'streak' | 'dot' | 'flake' | 'leaf0' | 'leaf1' | 'leaf2' | 'ring';
 
 export type Range = readonly [number, number];
 
@@ -117,7 +117,6 @@ export const WEATHER_TYPES = [
   'clouds',
   'leaves',
   'embers',
-  'fireflies',
   'sandstorm',
   'alert',
   'static',
@@ -348,30 +347,6 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
         drift: 80,
         sway: { amp: [8, 20], freq: [0.3, 0.7] },
         flicker: [1.5, 3.5],
-      },
-    ],
-  },
-  fireflies: {
-    id: 'fireflies',
-    group: 'nature',
-    strong: { density: 2.4, speed: 1.2, alpha: 1.15 },
-    // Sans vent par défaut : chacune erre à son gré ; avec du vent, elles dérivent
-    wind: { direction: 0, strength: 0 },
-    veil: { color: 0x0a1420, alpha: [0.03, 0.12] },
-    emitters: [
-      {
-        id: 'fireflies',
-        frames: ['glow'],
-        tints: [0xc8ff4a, 0xe8ff6a, 0xfff07a],
-        blend: 'add',
-        density: 40,
-        size: [24, 40],
-        alpha: [0.7, 1],
-        fall: [-14, 14],
-        drift: 40,
-        depth: [0.5, 1],
-        sway: { amp: [18, 42], freq: [0.08, 0.22] },
-        flicker: [0.3, 0.8],
       },
     ],
   },

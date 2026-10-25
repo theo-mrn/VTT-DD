@@ -1,6 +1,6 @@
 /**
  * Module « météo » de la carte (docs/carte.md § 10, Météo) : pluie, orage, neige, blizzard,
- * brouillard, nuages, feuilles, cendres et braises, lucioles, sable, alerte rouge, parasites.
+ * brouillard, nuages, feuilles, cendres et braises, sable, alerte rouge, parasites.
  *
  * - État durable de la scène (`maps.weather`), le même pour tous ; le MJ le règle par le bouton
  *   « Météo » (commande annulable), les joueurs n'ont que leurs préférences de confort.

@@ -16,7 +16,6 @@ import type { MapWeather } from '@vtt/contracts';
 import {
   ArrowRight,
   Ban,
-  Bug,
   CloudFog,
   CloudLightning,
   CloudRain,
@@ -81,7 +80,6 @@ const ICONS: Record<WeatherType, LucideIcon> = {
   clouds: Cloudy,
   leaves: Leaf,
   embers: Flame,
-  fireflies: Bug,
   sandstorm: Tornado,
   alert: Siren,
   static: RadioTower,

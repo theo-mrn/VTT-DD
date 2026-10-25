@@ -8,7 +8,6 @@ export default {
     clouds: 'Nuages',
     leaves: 'Feuilles au vent',
     embers: 'Cendres et braises',
-    fireflies: 'Lucioles',
     sandstorm: 'Tempête de sable',
     alert: 'Alerte rouge',
     static: 'Parasites',

@@ -1,6 +1,6 @@
 /**
  * Textures de la météo, faites une fois au montage (docs/carte.md § 10, Météo) :
- * - l'atlas des particules (traînée, point doux, flocon, trois feuilles, anneau, lueur), en
+ * - l'atlas des particules (traînée, point doux, flocon, trois feuilles, anneau), en
  *   blanc et gris, teinté par particule ;
  * - deux bruits fractals périodiques : les nappes (brouillard, blizzard, sable) et les nuages ;
  * - la vignette (alerte), le grain et les trames (parasites).
@@ -66,12 +66,6 @@ export const ATLAS_SHADES: Readonly<Record<AtlasFrame, Shade>> = {
   ring: (x, y) => {
     const d = Math.hypot(x - 32, y - 32);
     return [1, 0.9 * Math.exp(-(((d - 26) / 2.2) ** 2))];
-  },
-  // Lueur : cœur plein de 2,5 px de rayon, large halo gaussien jusqu'au bord
-  glow: (x, y) => {
-    const d = Math.hypot(x - 16, y - 16);
-    const core = clamp01(1 - (d - 2.5) / 2);
-    return [1, Math.min(1, core + 0.65 * Math.exp(-((d / 7) ** 2)))];
   },
 };
 

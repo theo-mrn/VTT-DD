@@ -11,7 +11,6 @@ export default {
     clouds: 'Clouds',
     leaves: 'Leaves in the wind',
     embers: 'Ash and embers',
-    fireflies: 'Fireflies',
     sandstorm: 'Sandstorm',
     alert: 'Red alert',
     static: 'Static',

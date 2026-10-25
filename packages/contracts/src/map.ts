@@ -126,7 +126,7 @@ export type MapWeatherWind = z.infer<typeof MapWeatherWind>;
 
 /**
  * Météo d'une scène (docs/carte.md § 10, Météo), la même pour tous. `type` : l'effet (`rain`,
- * `storm`, `snow`, `blizzard`, `fog`, `clouds`, `leaves`, `embers`, `fireflies`, `sandstorm`,
+ * `storm`, `snow`, `blizzard`, `fog`, `clouds`, `leaves`, `embers`, `sandstorm`,
  * `alert`, `static`) ; un type inconnu est gardé et n'affiche rien. `intensity` : 0 à 2, 1 étant
  * l'ancien maximum (au milieu du curseur) ; jusqu'à 10 accepté, compris comme 2. `wind` absent :
  * le vent de l'effet.

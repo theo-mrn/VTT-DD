@@ -11,7 +11,7 @@ import { WeatherRenderer, type WeatherViewport } from './renderer';
 import { WeatherSim } from './simulation';
 import type { WeatherTextures } from './textures';
 
-const FRAMES: AtlasFrame[] = ['streak', 'dot', 'flake', 'leaf0', 'leaf1', 'leaf2', 'ring', 'glow'];
+const FRAMES: AtlasFrame[] = ['streak', 'dot', 'flake', 'leaf0', 'leaf1', 'leaf2', 'ring'];
 
 function fakeTextures(): WeatherTextures & { destroyed: boolean } {
   const white = PIXI.Texture.WHITE;
