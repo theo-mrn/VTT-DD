@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-voice
-  digest: 'sha256:2d890007d8dc953cf5c90dd79f5acfbc14981f7ce5c85161dcd145ba9947e069'
+  digest: 'sha256:c00775d31db3dc9ee03a1ce90b1019a7e1e143cb2006a72827237f1b0a5c7884'
   tag: 'main'
 # Voix de la table (docs/voix.md) : signalisation seulement, le son passe par Cloudflare
 # Realtime ; salle dans Valkey, une réplique suffit
