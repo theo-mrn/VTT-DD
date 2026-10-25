@@ -7,8 +7,8 @@
  * - En arrivant sans voie, celles que désignent la race et le profil (suggestions) sont prises.
  * - Une carte par voie : ses capacités par rang (un clic : la description), Changer (une autre
  *   voie à sa place) et Retirer.
- * - « + » : ajouter une voie, choisie dans un sélecteur (recherche, groupes par étiquettes, les
- *   capacités de chaque voie en aperçu).
+ * - « + » : ajouter une voie, choisie dans un sélecteur : un onglet par genre (profil, race,
+ *   prestige), un menu pour la classe ou la race, une recherche, les capacités en aperçu.
  *
  * Chaque écriture passe par le moteur (`choisirEtape`) ; une erreur laisse l'état inchangé.
  */
@@ -34,8 +34,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { FilterMenu } from '@/components/ui/filter-menu';
 import { InputGroup } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Info } from '@/components/ui/tooltip';
 import { entreesDeSorte, prerequisManquant, suggestions } from '@/lib/creation';
 import type { OperationCreation } from '@/lib/personnages';
@@ -178,6 +180,7 @@ export function EtapeVoies({
         sorte={etape.sorte}
         max={max}
         prises={ids}
+        possedees={etat.possessions.map((p) => p.entree)}
         onChoisir={choisir}
         onFermer={() => setSelecteur(null)}
       />
@@ -274,7 +277,46 @@ function CarteVoie({
   );
 }
 
-/** Choisir une voie à ajouter, ou à mettre à la place d'une autre. */
+/** Onglet du sélecteur : une première étiquette (profil, race, prestige) et ses voies. */
+interface Onglet {
+  id: string;
+  nom: string;
+  voies: Entree[];
+}
+
+/**
+ * Onglets par première étiquette : celles qui nomment une sorte (profil, race) d'abord, sous son
+ * nom, puis les autres (prestige) ; chaque groupe du plus fourni au moins fourni.
+ */
+function ongletsDe(systeme: SystemeCharge, voies: readonly Entree[]): Onglet[] {
+  const parEtiquette = new Map<string, Entree[]>();
+  for (const v of voies) {
+    const cle = v.etiquettes[0] ?? '';
+    parEtiquette.set(cle, [...(parEtiquette.get(cle) ?? []), v]);
+  }
+  return [...parEtiquette.entries()]
+    .map(([id, liste]) => {
+      const sorte = systeme.sortes.get(id);
+      return {
+        id,
+        nom: sorte ? (sorte.nomPluriel ?? sorte.nom) : id ? etiquette(id) : '—',
+        voies: liste,
+        rang: sorte ? 0 : 1,
+      };
+    })
+    .sort((a, b) => a.rang - b.rang || b.voies.length - a.voies.length)
+    .map(({ rang: _rang, ...o }) => o);
+}
+
+/** Nom d'une seconde étiquette : l'entrée qu'elle désigne (Barde, Elfe noir), sinon elle-même. */
+const nomSousGroupe = (systeme: SystemeCharge, id: string) =>
+  systeme.entrees.get(id)?.nom ?? etiquette(id.replaceAll('_', ' '));
+
+/**
+ * Choisir une voie à ajouter, ou à mettre à la place d'une autre : un onglet par genre de voie
+ * (profil, race, prestige), un menu pour la classe ou la race, et une recherche. À l'ouverture :
+ * le genre et le groupe de la voie remplacée, sinon ceux du héros (sa classe, sa race).
+ */
 function SelecteurVoie({
   ouvert,
   remplace,
@@ -283,6 +325,7 @@ function SelecteurVoie({
   sorte,
   max,
   prises,
+  possedees,
   onChoisir,
   onFermer,
 }: Readonly<{
@@ -293,12 +336,17 @@ function SelecteurVoie({
   sorte: string;
   max: number;
   prises: readonly string[];
+  /** Entrées du héros (profil, race…) : le groupe ouvert d'office. */
+  possedees: readonly string[];
   onChoisir(id: string): void;
   onFermer(): void;
 }>) {
   const t = useTranslations('creation.paths');
   const [recherche, setRecherche] = useState('');
+  const [onglet, setOnglet] = useState('');
+  const [groupe, setGroupe] = useState('');
   const toutes = useMemo(() => entreesDeSorte(systeme, sorte), [systeme, sorte]);
+  const onglets = useMemo(() => ongletsDe(systeme, toutes), [systeme, toutes]);
   // Capacités de chaque voie, calculées une fois à l'ouverture (recherche et aperçu)
   const capacites = useMemo(
     () =>
@@ -307,56 +355,117 @@ function SelecteurVoie({
       ),
     [ouvert, toutes, fiche, max],
   );
-  const terme = recherche.trim().toLocaleLowerCase('fr');
-  const groupes = useMemo(() => {
-    const filtrees = toutes.filter((e) => {
-      if (!terme) return true;
-      return [e.nom, ...e.etiquettes, ...(capacites.get(e.id) ?? [])]
-        .join(' ')
-        .toLocaleLowerCase('fr')
-        .includes(terme);
-    });
-    const parGroupe = new Map<string, Entree[]>();
-    for (const e of filtrees) {
-      const cle = e.etiquettes.slice(0, 2).map(etiquette).join(' · ') || '—';
-      parGroupe.set(cle, [...(parGroupe.get(cle) ?? []), e]);
+
+  // Ouverture : l'onglet et le groupe de la voie remplacée, sinon ceux du héros
+  const [ouvertPour, setOuvertPour] = useState<Entree | null | false>(false);
+  if (ouvert && ouvertPour !== remplace) {
+    setOuvertPour(remplace);
+    const premier = onglets[0]?.id ?? '';
+    const cible = remplace?.etiquettes[0] ?? premier;
+    const voiesOnglet = onglets.find((o) => o.id === cible)?.voies ?? [];
+    const groupes = new Set(voiesOnglet.map((v) => v.etiquettes[1]).filter(Boolean));
+    setOnglet(onglets.some((o) => o.id === cible) ? cible : premier);
+    setGroupe(remplace?.etiquettes[1] ?? possedees.find((p) => groupes.has(p)) ?? '');
+    setRecherche('');
+  }
+  if (!ouvert && ouvertPour !== false) setOuvertPour(false);
+
+  const courant = onglets.find((o) => o.id === onglet) ?? onglets[0];
+  const groupesOnglet = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const v of courant?.voies ?? []) {
+      const g = v.etiquettes[1];
+      if (g) n.set(g, (n.get(g) ?? 0) + 1);
     }
-    return [...parGroupe.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'));
-  }, [toutes, terme, capacites]);
+    return [...n.entries()]
+      .map(([id, count]) => ({ id, nom: nomSousGroupe(systeme, id), count }))
+      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  }, [courant, systeme]);
+
+  const terme = recherche.trim().toLocaleLowerCase('fr');
+  const visibles = (courant?.voies ?? []).filter(
+    (v) =>
+      (!groupe || v.etiquettes[1] === groupe) &&
+      (!terme ||
+        [v.nom, ...v.etiquettes, ...(capacites.get(v.id) ?? [])]
+          .join(' ')
+          .toLocaleLowerCase('fr')
+          .includes(terme)),
+  );
+  // Tout le genre affiché : rangé par groupe (classe, race)
+  const sections = groupe
+    ? [{ id: groupe, voies: visibles }]
+    : groupesOnglet
+        .map((g) => ({ id: g.id, voies: visibles.filter((v) => v.etiquettes[1] === g.id) }))
+        .concat([{ id: '', voies: visibles.filter((v) => !v.etiquettes[1]) }])
+        .filter((g) => g.voies.length);
 
   return (
-    <Dialog
-      open={ouvert}
-      onOpenChange={(o) => {
-        if (!o) {
-          onFermer();
-          setRecherche('');
-        }
-      }}
-    >
-      <DialogContent className="flex h-[min(40rem,85dvh)] flex-col gap-3 sm:max-w-2xl">
+    <Dialog open={ouvert} onOpenChange={(o) => !o && onFermer()}>
+      <DialogContent className="flex h-[min(42rem,88dvh)] flex-col gap-3 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {remplace ? t('replaceTitle', { name: remplace.nom }) : t('add')}
           </DialogTitle>
           <DialogDescription className="sr-only">{t('pickHint')}</DialogDescription>
         </DialogHeader>
-        <InputGroup
-          avant={<Search />}
-          autoFocus
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          placeholder={t('search')}
-          aria-label={t('search')}
-        />
+
+        {onglets.length > 1 && (
+          <Tabs
+            value={courant?.id ?? ''}
+            onValueChange={(v) => {
+              setOnglet(v);
+              const voiesOnglet = onglets.find((o) => o.id === v)?.voies ?? [];
+              const groupes = new Set(voiesOnglet.map((x) => x.etiquettes[1]).filter(Boolean));
+              setGroupe(possedees.find((p) => groupes.has(p)) ?? '');
+            }}
+          >
+            <TabsList className="w-full">
+              {onglets.map((o) => (
+                <TabsTrigger key={o.id} value={o.id} className="flex-1 gap-1.5">
+                  {o.nom}
+                  <span className="text-[11px] tabular-nums opacity-60">{o.voies.length}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
+
+        <div className="flex items-center gap-2">
+          <InputGroup
+            avant={<Search />}
+            autoFocus
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder={t('search')}
+            aria-label={t('search')}
+            className="min-w-0 flex-1"
+          />
+          {groupesOnglet.length > 1 && (
+            <FilterMenu
+              label={courant?.nom ?? ''}
+              value={groupe}
+              allValue=""
+              onChange={setGroupe}
+              className="max-w-[11rem]"
+              options={[
+                { value: '', label: t('all'), count: courant?.voies.length ?? 0 },
+                ...groupesOnglet.map((g) => ({ value: g.id, label: g.nom, count: g.count })),
+              ]}
+            />
+          )}
+        </div>
+
         <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 [scrollbar-width:thin]">
-          {groupes.map(([groupe, voies]) => (
-            <section key={groupe} className="mb-4">
-              <h4 className="sticky top-0 z-10 bg-popover py-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">
-                {groupe}
-              </h4>
+          {sections.map((section) => (
+            <section key={section.id || 'autres'} className="mb-4">
+              {!groupe && (
+                <h4 className="sticky top-0 z-10 bg-popover py-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">
+                  {section.id ? nomSousGroupe(systeme, section.id) : '—'}
+                </h4>
+              )}
               <ul className="space-y-1">
-                {voies.map((v) => {
+                {section.voies.map((v) => {
                   const prise = prises.includes(v.id);
                   const bloque = prise ? null : prerequisManquant(fiche, v);
                   return (
@@ -385,7 +494,7 @@ function SelecteurVoie({
               </ul>
             </section>
           ))}
-          {groupes.length === 0 && (
+          {sections.length === 0 && (
             <p className="py-10 text-center text-sm text-subtle">{t('none')}</p>
           )}
         </div>
