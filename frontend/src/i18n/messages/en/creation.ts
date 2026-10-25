@@ -39,6 +39,9 @@ export default {
     lead: 'A hero is born in a campaign: its game system, its creation rules and its table depend on it.',
   },
   paths: {
+    addThis: 'Add this path',
+    putInsteadOf: 'Put in place of {name}',
+    taken: 'Already taken',
     all: 'All',
     add: 'Add a path',
     addSuggested:

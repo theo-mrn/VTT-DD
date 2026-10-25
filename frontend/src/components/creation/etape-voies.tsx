@@ -22,7 +22,16 @@ import {
   type Selection,
   type SystemeCharge,
 } from '@vtt/rules';
-import { ArrowLeftRight, Check, ListPlus, Lock, Plus, Search, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  Check,
+  ListPlus,
+  Lock,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Message } from '@/components/compte/elements';
 import { grantsOf, maxRank } from '@/components/fiche/blocks/tree/model';
@@ -343,6 +352,8 @@ function SelecteurVoie({
 }>) {
   const t = useTranslations('creation.paths');
   const [recherche, setRecherche] = useState('');
+  // Voie ouverte en grand avant de la prendre (null : la liste)
+  const [apercu, setApercu] = useState<Entree | null>(null);
   const [onglet, setOnglet] = useState('');
   const [groupe, setGroupe] = useState('');
   const toutes = useMemo(() => entreesDeSorte(systeme, sorte), [systeme, sorte]);
@@ -367,6 +378,7 @@ function SelecteurVoie({
     setOnglet(onglets.some((o) => o.id === cible) ? cible : premier);
     setGroupe(remplace?.etiquettes[1] ?? possedees.find((p) => groupes.has(p)) ?? '');
     setRecherche('');
+    setApercu(null);
   }
   if (!ouvert && ouvertPour !== false) setOuvertPour(false);
 
@@ -402,7 +414,15 @@ function SelecteurVoie({
 
   return (
     <Dialog open={ouvert} onOpenChange={(o) => !o && onFermer()}>
-      <DialogContent className="flex h-[min(42rem,88dvh)] flex-col gap-3 sm:max-w-2xl">
+      <DialogContent
+        className="flex h-[min(42rem,88dvh)] flex-col gap-3 sm:max-w-2xl"
+        onEscapeKeyDown={(e) => {
+          // Échap dans l'aperçu : retour à la liste, pas fermeture
+          if (!apercu) return;
+          e.preventDefault();
+          setApercu(null);
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {remplace ? t('replaceTitle', { name: remplace.nom }) : t('add')}
@@ -410,95 +430,196 @@ function SelecteurVoie({
           <DialogDescription className="sr-only">{t('pickHint')}</DialogDescription>
         </DialogHeader>
 
-        {onglets.length > 1 && (
-          <Tabs
-            value={courant?.id ?? ''}
-            onValueChange={(v) => {
-              setOnglet(v);
-              const voiesOnglet = onglets.find((o) => o.id === v)?.voies ?? [];
-              const groupes = new Set(voiesOnglet.map((x) => x.etiquettes[1]).filter(Boolean));
-              setGroupe(possedees.find((p) => groupes.has(p)) ?? '');
-            }}
-          >
-            <TabsList className="w-full">
-              {onglets.map((o) => (
-                <TabsTrigger key={o.id} value={o.id} className="flex-1 gap-1.5">
-                  {o.nom}
-                  <span className="text-[11px] tabular-nums opacity-60">{o.voies.length}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+        {apercu && (
+          <ApercuVoie
+            voie={apercu}
+            fiche={fiche}
+            max={max}
+            prise={prises.includes(apercu.id)}
+            bloque={prises.includes(apercu.id) ? null : prerequisManquant(fiche, apercu)}
+            remplace={remplace}
+            onPrendre={() => onChoisir(apercu.id)}
+            onRetour={() => setApercu(null)}
+          />
         )}
 
-        <div className="flex items-center gap-2">
-          <InputGroup
-            avant={<Search />}
-            autoFocus
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            placeholder={t('search')}
-            aria-label={t('search')}
-            className="min-w-0 flex-1"
-          />
-          {groupesOnglet.length > 1 && (
-            <FilterMenu
-              label={courant?.nom ?? ''}
-              value={groupe}
-              allValue=""
-              onChange={setGroupe}
-              className="max-w-[11rem]"
-              options={[
-                { value: '', label: t('all'), count: courant?.voies.length ?? 0 },
-                ...groupesOnglet.map((g) => ({ value: g.id, label: g.nom, count: g.count })),
-              ]}
-            />
+        {/* La liste reste montée sous l'aperçu : on la retrouve là où on l'avait laissée */}
+        <div className={cn('flex min-h-0 flex-1 flex-col gap-3', apercu && 'hidden')}>
+          {onglets.length > 1 && (
+            <Tabs
+              value={courant?.id ?? ''}
+              onValueChange={(v) => {
+                setOnglet(v);
+                const voiesOnglet = onglets.find((o) => o.id === v)?.voies ?? [];
+                const groupes = new Set(voiesOnglet.map((x) => x.etiquettes[1]).filter(Boolean));
+                setGroupe(possedees.find((p) => groupes.has(p)) ?? '');
+              }}
+            >
+              <TabsList className="w-full">
+                {onglets.map((o) => (
+                  <TabsTrigger key={o.id} value={o.id} className="flex-1 gap-1.5">
+                    {o.nom}
+                    <span className="text-[11px] tabular-nums opacity-60">{o.voies.length}</span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
           )}
-        </div>
 
-        <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 [scrollbar-width:thin]">
-          {sections.map((section) => (
-            <section key={section.id || 'autres'} className="mb-4">
-              {!groupe && (
-                <h4 className="sticky top-0 z-10 bg-popover py-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">
-                  {section.id ? nomSousGroupe(systeme, section.id) : '—'}
-                </h4>
-              )}
-              <ul className="space-y-1">
-                {section.voies.map((v) => {
-                  const prise = prises.includes(v.id);
-                  const bloque = prise ? null : prerequisManquant(fiche, v);
-                  return (
-                    <li key={v.id}>
-                      <button
-                        type="button"
-                        disabled={prise || Boolean(bloque)}
-                        onClick={() => onChoisir(v.id)}
-                        title={bloque ?? undefined}
-                        className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
-                      >
-                        <span className="mt-0.5 grid size-5 shrink-0 place-items-center text-primary">
-                          {prise && <Check className="size-4" aria-hidden />}
-                          {bloque && <Lock className="size-3.5 text-subtle" aria-hidden />}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold">{v.nom}</span>
-                          <span className="mt-0.5 line-clamp-1 block text-xs text-muted-foreground">
-                            {(capacites.get(v.id) ?? []).join(' · ')}
+          <div className="flex items-center gap-2">
+            <InputGroup
+              avant={<Search />}
+              autoFocus
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder={t('search')}
+              aria-label={t('search')}
+              className="min-w-0 flex-1"
+            />
+            {groupesOnglet.length > 1 && (
+              <FilterMenu
+                label={courant?.nom ?? ''}
+                value={groupe}
+                allValue=""
+                onChange={setGroupe}
+                className="max-w-[11rem]"
+                options={[
+                  { value: '', label: t('all'), count: courant?.voies.length ?? 0 },
+                  ...groupesOnglet.map((g) => ({ value: g.id, label: g.nom, count: g.count })),
+                ]}
+              />
+            )}
+          </div>
+
+          <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 [scrollbar-width:thin]">
+            {sections.map((section) => (
+              <section key={section.id || 'autres'} className="mb-4">
+                {!groupe && (
+                  <h4 className="sticky top-0 z-10 bg-popover py-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">
+                    {section.id ? nomSousGroupe(systeme, section.id) : '—'}
+                  </h4>
+                )}
+                <ul className="space-y-1">
+                  {section.voies.map((v) => {
+                    const prise = prises.includes(v.id);
+                    const bloque = prise ? null : prerequisManquant(fiche, v);
+                    return (
+                      <li key={v.id}>
+                        <button
+                          type="button"
+                          onClick={() => setApercu(v)}
+                          title={bloque ?? undefined}
+                          className={cn(
+                            'flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none',
+                            (prise || bloque) && 'opacity-60',
+                          )}
+                        >
+                          <span className="mt-0.5 grid size-5 shrink-0 place-items-center text-primary">
+                            {prise && <Check className="size-4" aria-hidden />}
+                            {bloque && <Lock className="size-3.5 text-subtle" aria-hidden />}
                           </span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-          {sections.length === 0 && (
-            <p className="py-10 text-center text-sm text-subtle">{t('none')}</p>
-          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold">{v.nom}</span>
+                            <span className="mt-0.5 line-clamp-1 block text-xs text-muted-foreground">
+                              {(capacites.get(v.id) ?? []).join(' · ')}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+            {sections.length === 0 && (
+              <p className="py-10 text-center text-sm text-subtle">{t('none')}</p>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Une voie en grand dans le sélecteur, avant de la prendre : ses capacités rang par rang avec
+ * leur description ; Retour (la liste), ou Ajouter (Mettre à la place, quand on en remplace une).
+ */
+function ApercuVoie({
+  voie,
+  fiche,
+  max,
+  prise,
+  bloque,
+  remplace,
+  onPrendre,
+  onRetour,
+}: Readonly<{
+  voie: Entree;
+  fiche: Fiche;
+  max: number;
+  prise: boolean;
+  bloque: string | null;
+  remplace: Entree | null;
+  onPrendre(): void;
+  onRetour(): void;
+}>) {
+  const t = useTranslations();
+  const rangs = grantsOf(fiche, voie, max);
+  let action = t('creation.paths.addThis');
+  let Icone = Plus;
+  if (prise) {
+    action = t('creation.paths.taken');
+    Icone = Check;
+  } else if (remplace) {
+    action = t('creation.paths.putInsteadOf', { name: remplace.nom });
+    Icone = ArrowLeftRight;
+  }
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="pb-3">
+        <h3 className="font-display text-2xl font-semibold leading-tight text-primary-strong">
+          {voie.nom}
+        </h3>
+        {voie.etiquettes.length > 0 && (
+          <p className="mt-1 text-[11px] uppercase tracking-wider text-subtle">
+            {voie.etiquettes.map(etiquette).join(' · ')}
+          </p>
+        )}
+      </div>
+      <ol className="-mx-2 min-h-0 flex-1 space-y-2 overflow-y-auto px-2 [scrollbar-width:thin]">
+        {rangs.map((r) => (
+          <li key={r.entry.id} className="flex gap-3 rounded-xl bg-surface-2/60 p-3">
+            <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/15 font-mono text-sm font-semibold tabular-nums text-primary">
+              {r.rank}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">{r.entry.nom}</p>
+              {r.entry.description && (
+                <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground">
+                  {r.entry.description}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {bloque && (
+        <p className="flex items-center gap-2 pt-3 text-[13px] text-warning">
+          <Lock className="size-3.5 shrink-0" aria-hidden />
+          {bloque}
+        </p>
+      )}
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
+        <Button variant="ghost" onClick={onRetour}>
+          <ArrowLeft />
+          {t('common.actions.back')}
+        </Button>
+        <Button onClick={onPrendre} disabled={prise || Boolean(bloque)} autoFocus>
+          <Icone />
+          <span className="max-w-[16rem] truncate">{action}</span>
+        </Button>
+      </div>
+    </div>
   );
 }
