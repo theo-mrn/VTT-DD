@@ -1388,7 +1388,7 @@ de météo ne redessine pas la carte), plafonné, et arrêté dès qu'il ne sert
   | `snow`      | Neige              | flocons sur deux profondeurs (petits et lents, gros et plus rapides) qui se balancent                          |
   | `blizzard`  | Blizzard           | flocons et traînées fouettés par le vent, rafales de bruit blanc, voile blanc                                  |
   | `fog`       | Brouillard         | deux nappes de bruit qui dérivent à des vitesses différentes et respirent, voile gris                          |
-  | `clouds`    | Nuages             | ombres portées : deux couches de grandes plages sombres, séparées de ciel clair, poussées par le vent          |
+  | `clouds`    | Nuages             | nuages blancs translucides séparés de ciel clair, leur ombre portée décalée dessous, poussés par le vent       |
   | `leaves`    | Feuilles au vent   | feuilles d'automne (trois formes, quatre teintes) qui tournoient et se retournent                              |
   | `embers`    | Cendres et braises | cendres grises qui tombent, braises qui montent en scintillant (fusion additive), voile chaud                  |
   | `fireflies` | Lucioles           | lueurs vert-jaune qui errent et pulsent lentement (fusion additive), sans vent par défaut, voile de crépuscule |
@@ -1430,7 +1430,8 @@ de météo ne redessine pas la carte), plafonné, et arrêté dès qu'il ne sert
   - nappes : 1 ou 2 `TilingSprite` d'un bruit fractal périodique (256 × 256, calculé une
     fois), agrandis 3 à 8 fois, qui dérivent avec le vent. Deux motifs : les volutes (brouillard,
     blizzard, sable) et les nuages (seuil plus haut et plus serré : des plages nettes et du ciel
-    clair entre elles) ;
+    clair entre elles). Une nappe peut suivre la précédente, décalée (`offset`) : le nuage au-dessus
+    de son ombre ;
   - émetteurs : un `ParticleContainer` par émetteur (2 au plus par effet). Les particules sont
     les objets de la simulation eux-mêmes (compatibles `IParticle`, aucune copie), tous sur un
     **atlas unique** (traînée, point doux, flocon, trois feuilles, anneau, lueur) dessiné une fois au

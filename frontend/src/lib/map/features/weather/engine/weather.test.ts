@@ -524,6 +524,23 @@ describe('météo : textures calculées', () => {
     expect(full / (size * size)).toBeGreaterThan(0.1);
   });
 
+  it('nuages : le nuage reste au-dessus de son ombre, décalé, quoi qu’il arrive', () => {
+    const s = new WeatherSim(prng(3));
+    s.configure(normalizeWeather({ type: 'clouds', intensity: 1 }), 1200, 800, {});
+    const gap = () => {
+      const [shadow, cloud] = s.frame.mists;
+      const period = 256 * shadow!.scale;
+      const wrap = (v: number) => ((v % period) + period) % period;
+      return [wrap(cloud!.x - shadow!.x), wrap(cloud!.y - shadow!.y)].map((v) =>
+        Math.round(v > period / 2 ? v - period : v),
+      );
+    };
+    expect(gap()).toEqual([-90, -60]);
+    for (let k = 0; k < 60; k++) s.step(1 / 30);
+    s.shift(37, -12);
+    expect(gap()).toEqual([-90, -60]);
+  });
+
   it('chaque émetteur ne tire que des images de l’atlas', () => {
     for (const t of WEATHER_TYPES)
       for (const e of WEATHER_EFFECTS[t].emitters)

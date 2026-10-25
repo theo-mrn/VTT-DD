@@ -231,14 +231,20 @@ export class WeatherSim {
       this.emitters = effect ? effect.emitters.map((spec) => new EmitterState(spec)) : [];
       this.structure += 1;
       this.time = 0;
-      this.frame.mists = (effect?.mists ?? []).map((m) => ({
-        texture: m.texture ?? 'mist',
-        color: m.color,
-        alpha: 0,
-        scale: m.scale,
-        x: this.rng() * NOISE_SIZE * m.scale,
-        y: this.rng() * NOISE_SIZE * m.scale,
-      }));
+      const mists: MistState[] = [];
+      for (const m of effect?.mists ?? []) {
+        const period = NOISE_SIZE * m.scale;
+        const prev = mists.at(-1);
+        mists.push({
+          texture: m.texture ?? 'mist',
+          color: m.color,
+          alpha: 0,
+          scale: m.scale,
+          x: m.offset && prev ? mod(prev.x + m.offset[0], period) : this.rng() * period,
+          y: m.offset && prev ? mod(prev.y + m.offset[1], period) : this.rng() * period,
+        });
+      }
+      this.frame.mists = mists;
       this.strikeT = -1;
       this.strikeIn = this.nextStrike();
     }

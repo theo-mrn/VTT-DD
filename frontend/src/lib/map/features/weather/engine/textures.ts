@@ -67,11 +67,11 @@ export const ATLAS_SHADES: Readonly<Record<AtlasFrame, Shade>> = {
     const d = Math.hypot(x - 32, y - 32);
     return [1, 0.9 * Math.exp(-(((d - 26) / 2.2) ** 2))];
   },
-  // Lueur : cœur plein de 2 px de rayon, halo gaussien jusqu'au bord
+  // Lueur : cœur plein de 2,5 px de rayon, large halo gaussien jusqu'au bord
   glow: (x, y) => {
     const d = Math.hypot(x - 16, y - 16);
-    const core = clamp01(1 - (d - 2) / 2);
-    return [1, Math.min(1, core + 0.5 * Math.exp(-((d / 5.5) ** 2)))];
+    const core = clamp01(1 - (d - 2.5) / 2);
+    return [1, Math.min(1, core + 0.65 * Math.exp(-((d / 7) ** 2)))];
   },
 };
 
@@ -145,7 +145,7 @@ export function paintClouds(size: number, rng: () => number): Uint8ClampedArray 
   const n = tileableNoise(size, [3, 6, 12, 24], rng);
   return paint(size, size, (x, y) => [
     1,
-    smooth(0.48, 0.66, n[Math.floor(y) * size + Math.floor(x)]!),
+    smooth(0.52, 0.64, n[Math.floor(y) * size + Math.floor(x)]!),
   ]);
 }
 

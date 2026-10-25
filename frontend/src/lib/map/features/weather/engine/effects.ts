@@ -66,6 +66,11 @@ export interface MistSpec {
   angle?: number;
   /** Respiration : période (s) et amplitude (fraction de l'opacité). */
   breathe?: { period: number; depth: number };
+  /**
+   * Décalage (px) avec la nappe précédente : elle part du même endroit, décalée, et dérive avec
+   * elle (même agrandissement, même vitesse, même angle) ; un nuage au-dessus de son ombre.
+   */
+  offset?: readonly [number, number];
 }
 
 export type MistTexture = 'mist' | 'clouds';
@@ -274,10 +279,17 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     group: 'nature',
     strong: { density: 1, speed: 1.3, alpha: 1.4 },
     wind: { direction: 20, strength: 0.3 },
-    // Ombres portées des nuages : deux couches qui ne dérivent ni ensemble ni à la même vitesse
+    // L'ombre portée au sol, puis le nuage translucide au-dessus, décalé vers le haut à gauche
     mists: [
-      { texture: 'clouds', color: 0x0a101c, alpha: [0.1, 0.34], scale: 8, speed: 55, angle: 0 },
-      { texture: 'clouds', color: 0x0a101c, alpha: [0.04, 0.14], scale: 5, speed: 80, angle: 12 },
+      { texture: 'clouds', color: 0x05080f, alpha: [0.12, 0.32], scale: 6, speed: 90 },
+      {
+        texture: 'clouds',
+        color: 0xf2f4f8,
+        alpha: [0.18, 0.42],
+        scale: 6,
+        speed: 90,
+        offset: [-90, -60],
+      },
     ],
     emitters: [],
   },
@@ -350,10 +362,10 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
       {
         id: 'fireflies',
         frames: ['glow'],
-        tints: [0xd8ff6a, 0xf2f08a, 0xb6f05e],
+        tints: [0xc8ff4a, 0xe8ff6a, 0xfff07a],
         blend: 'add',
-        density: 26,
-        size: [10, 18],
+        density: 40,
+        size: [24, 40],
         alpha: [0.7, 1],
         fall: [-14, 14],
         drift: 40,
