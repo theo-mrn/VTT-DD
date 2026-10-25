@@ -38,8 +38,8 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
 - `backgroundUrl` : image (png, jpeg, webp, avif, gif) ou vidéo (webm, mp4). `width`/`height` :
   taille naturelle du fond, envoyée par le client du MJ une fois le fond chargé (taille du monde).
 - `weather` : `{ type, intensity, wind? }` ou `null` (lu par tous, réglé par le MJ, diffusé par
-  `map.updated`). `type` : `rain`, `storm`, `snow`, `blizzard`, `fog`, `leaves`, `embers`,
-  `sandstorm`, `alert`, `static` (texte libre de 50 caractères au plus : un type inconnu est gardé,
+  `map.updated`). `type` : `rain`, `storm`, `snow`, `blizzard`, `fog`, `clouds`, `leaves`,
+  `embers`, `fireflies`, `sandstorm`, `alert`, `static` (texte libre de 50 caractères au plus : un type inconnu est gardé,
   le client n'affiche rien) ; `intensity` : 0 à 10, comprise de 0 à 2 (au-delà : 2) ; 1 est
   l'ancien maximum, au milieu du curseur du MJ, 2 le plus fort ; `wind` facultatif,
   `{ direction, strength }` : direction où va le vent en degrés (0 à 360 ; 0 vers l'est, 90 vers

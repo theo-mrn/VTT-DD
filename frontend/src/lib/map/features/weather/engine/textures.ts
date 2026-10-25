@@ -1,8 +1,8 @@
 /**
  * Textures de la météo, faites une fois au montage (docs/carte.md § 10, Météo) :
- * - l'atlas des particules (traînée, point doux, flocon, trois feuilles, anneau), en blanc
- *   et gris, teinté par particule ;
- * - un bruit fractal périodique (nappes du brouillard, du blizzard, du sable) ;
+ * - l'atlas des particules (traînée, point doux, flocon, trois feuilles, anneau, lueur), en
+ *   blanc et gris, teinté par particule ;
+ * - deux bruits fractals périodiques : les nappes (brouillard, blizzard, sable) et les nuages ;
  * - la vignette (alerte), le grain et les trames (parasites).
  * Les pixels sont calculés sans DOM (`paint*`, testés) ; seul `createWeatherTextures` passe
  * par un canevas 2D.
@@ -66,6 +66,12 @@ export const ATLAS_SHADES: Readonly<Record<AtlasFrame, Shade>> = {
   ring: (x, y) => {
     const d = Math.hypot(x - 32, y - 32);
     return [1, 0.9 * Math.exp(-(((d - 26) / 2.2) ** 2))];
+  },
+  // Lueur : cœur plein de 2 px de rayon, halo gaussien jusqu'au bord
+  glow: (x, y) => {
+    const d = Math.hypot(x - 16, y - 16);
+    const core = clamp01(1 - (d - 2) / 2);
+    return [1, Math.min(1, core + 0.5 * Math.exp(-((d / 5.5) ** 2)))];
   },
 };
 
@@ -134,6 +140,15 @@ export function paintMist(size: number, rng: () => number): Uint8ClampedArray {
   ]);
 }
 
+/** Nuages : grandes plages au bord adouci, séparées de ciel clair (seuil plus haut et plus serré). */
+export function paintClouds(size: number, rng: () => number): Uint8ClampedArray {
+  const n = tileableNoise(size, [3, 6, 12, 24], rng);
+  return paint(size, size, (x, y) => [
+    1,
+    smooth(0.48, 0.66, n[Math.floor(y) * size + Math.floor(x)]!),
+  ]);
+}
+
 /** Vignette : transparente au centre, pleine aux coins. */
 export const paintVignette = (size: number) =>
   paint(size, size, (x, y) => {
@@ -148,6 +163,7 @@ export const paintGrain = (size: number, rng: () => number) =>
 export interface WeatherTextures {
   atlas: Record<AtlasFrame, Pixi.Texture>;
   mist: Pixi.Texture;
+  clouds: Pixi.Texture;
   vignette: Pixi.Texture;
   grain: Pixi.Texture;
   scanlines: Pixi.Texture;
@@ -192,6 +208,7 @@ export function createWeatherTextures(pixi: typeof Pixi): WeatherTextures {
       source: new pixi.CanvasSource({ resource: canvas, addressMode: 'repeat', scaleMode }),
     });
   const mist = repeat(canvasOf(NOISE_SIZE, NOISE_SIZE, paintMist(NOISE_SIZE, rng)), 'linear');
+  const clouds = repeat(canvasOf(NOISE_SIZE, NOISE_SIZE, paintClouds(NOISE_SIZE, rng)), 'linear');
   const grain = repeat(canvasOf(128, 128, paintGrain(128, rng)), 'nearest');
   const scanlines = repeat(
     canvasOf(
@@ -208,13 +225,14 @@ export function createWeatherTextures(pixi: typeof Pixi): WeatherTextures {
   return {
     atlas,
     mist,
+    clouds,
     vignette,
     grain,
     scanlines,
     destroy() {
       for (const t of Object.values(atlas)) t.destroy(false);
       atlasSource.destroy();
-      for (const t of [mist, grain, scanlines, vignette]) t.destroy(true);
+      for (const t of [mist, clouds, grain, scanlines, vignette]) t.destroy(true);
     },
   };
 }

@@ -11,13 +11,14 @@ import { WeatherRenderer, type WeatherViewport } from './renderer';
 import { WeatherSim } from './simulation';
 import type { WeatherTextures } from './textures';
 
-const FRAMES: AtlasFrame[] = ['streak', 'dot', 'flake', 'leaf0', 'leaf1', 'leaf2', 'ring'];
+const FRAMES: AtlasFrame[] = ['streak', 'dot', 'flake', 'leaf0', 'leaf1', 'leaf2', 'ring', 'glow'];
 
 function fakeTextures(): WeatherTextures & { destroyed: boolean } {
   const white = PIXI.Texture.WHITE;
   return {
     atlas: Object.fromEntries(FRAMES.map((f) => [f, white])) as Record<AtlasFrame, PIXI.Texture>,
     mist: white,
+    clouds: white,
     vignette: white,
     grain: white,
     scanlines: white,

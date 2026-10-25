@@ -30,7 +30,7 @@ import {
   setWeatherPreview,
   weatherPrefs,
 } from './state';
-import { paint, ATLAS_SHADES, tileableNoise } from './textures';
+import { paint, paintClouds, ATLAS_SHADES, tileableNoise } from './textures';
 
 /** Générateur à graine : tirages reproductibles. */
 function prng(seed: number) {
@@ -499,6 +499,35 @@ describe('météo : textures calculées', () => {
     expect(alphaAt(16, 10)).toBeGreaterThan(200);
     expect(alphaAt(0, 0)).toBe(0);
     expect(alphaAt(31, 19)).toBe(0);
+  });
+
+  it('atlas : une lueur vive au centre, un halo qui s’éteint avant les bords', () => {
+    const px = paint(32, 32, ATLAS_SHADES.glow);
+    const alphaAt = (x: number, y: number) => px[(y * 32 + x) * 4 + 3]!;
+    expect(alphaAt(16, 16)).toBe(255);
+    expect(alphaAt(22, 16)).toBeGreaterThan(30);
+    expect(alphaAt(22, 16)).toBeLessThan(200);
+    expect(alphaAt(0, 16)).toBeLessThan(3);
+    expect(alphaAt(0, 0)).toBe(0);
+  });
+
+  it('nuages : des plages pleines et du ciel clair entre elles', () => {
+    const size = 128;
+    const px = paintClouds(size, prng(7));
+    let clear = 0;
+    let full = 0;
+    for (let i = 3; i < px.length; i += 4) {
+      if (px[i] === 0) clear += 1;
+      else if (px[i] === 255) full += 1;
+    }
+    expect(clear / (size * size)).toBeGreaterThan(0.25);
+    expect(full / (size * size)).toBeGreaterThan(0.1);
+  });
+
+  it('chaque émetteur ne tire que des images de l’atlas', () => {
+    for (const t of WEATHER_TYPES)
+      for (const e of WEATHER_EFFECTS[t].emitters)
+        for (const f of e.frames) expect(ATLAS_SHADES[f]).toBeTypeOf('function');
   });
 });
 

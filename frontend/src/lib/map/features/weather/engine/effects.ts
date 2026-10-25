@@ -12,7 +12,7 @@
 import { translate } from '@/i18n/runtime';
 
 /** Frames de l'atlas des particules (`textures.ts`). */
-export type AtlasFrame = 'streak' | 'dot' | 'flake' | 'leaf0' | 'leaf1' | 'leaf2' | 'ring';
+export type AtlasFrame = 'streak' | 'dot' | 'flake' | 'leaf0' | 'leaf1' | 'leaf2' | 'ring' | 'glow';
 
 export type Range = readonly [number, number];
 
@@ -54,6 +54,8 @@ export interface EmitterSpec {
 
 export interface MistSpec {
   color: number;
+  /** Motif : bruit en volutes (défaut) ou grandes plages séparées de ciel clair (nuages). */
+  texture?: MistTexture;
   /** Opacité à intensité 0 et 1. */
   alpha: Range;
   /** Agrandissement du bruit (256 px). */
@@ -65,6 +67,8 @@ export interface MistSpec {
   /** Respiration : période (s) et amplitude (fraction de l'opacité). */
   breathe?: { period: number; depth: number };
 }
+
+export type MistTexture = 'mist' | 'clouds';
 
 export interface StrongSpec {
   density: number;
@@ -105,8 +109,10 @@ export const WEATHER_TYPES = [
   'snow',
   'blizzard',
   'fog',
+  'clouds',
   'leaves',
   'embers',
+  'fireflies',
   'sandstorm',
   'alert',
   'static',
@@ -263,6 +269,18 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     ],
     emitters: [],
   },
+  clouds: {
+    id: 'clouds',
+    group: 'nature',
+    strong: { density: 1, speed: 1.3, alpha: 1.4 },
+    wind: { direction: 20, strength: 0.3 },
+    // Ombres portées des nuages : deux couches qui ne dérivent ni ensemble ni à la même vitesse
+    mists: [
+      { texture: 'clouds', color: 0x0a101c, alpha: [0.1, 0.34], scale: 8, speed: 55, angle: 0 },
+      { texture: 'clouds', color: 0x0a101c, alpha: [0.04, 0.14], scale: 5, speed: 80, angle: 12 },
+    ],
+    emitters: [],
+  },
   leaves: {
     id: 'leaves',
     group: 'nature',
@@ -318,6 +336,30 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
         drift: 80,
         sway: { amp: [8, 20], freq: [0.3, 0.7] },
         flicker: [1.5, 3.5],
+      },
+    ],
+  },
+  fireflies: {
+    id: 'fireflies',
+    group: 'nature',
+    strong: { density: 2.4, speed: 1.2, alpha: 1.15 },
+    // Sans vent par défaut : chacune erre à son gré ; avec du vent, elles dérivent
+    wind: { direction: 0, strength: 0 },
+    veil: { color: 0x0a1420, alpha: [0.03, 0.12] },
+    emitters: [
+      {
+        id: 'fireflies',
+        frames: ['glow'],
+        tints: [0xd8ff6a, 0xf2f08a, 0xb6f05e],
+        blend: 'add',
+        density: 26,
+        size: [10, 18],
+        alpha: [0.7, 1],
+        fall: [-14, 14],
+        drift: 40,
+        depth: [0.5, 1],
+        sway: { amp: [18, 42], freq: [0.08, 0.22] },
+        flicker: [0.3, 0.8],
       },
     ],
   },

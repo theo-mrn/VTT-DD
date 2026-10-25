@@ -174,13 +174,15 @@ export class WeatherRenderer {
     }
   }
 
-  /** Nappes de brume. */
+  /** Nappes de brume ou de nuages. */
   private drawMists(f: WeatherFrame) {
     for (let i = 0; i < this.mists.length; i++) {
       const mist = this.mists[i]!;
       const m = f.mists[i];
       mist.visible = !!m && m.alpha > 0.001;
       if (!m || !mist.visible) continue;
+      const texture = this.textures[m.texture];
+      if (mist.texture !== texture) mist.texture = texture;
       mist.tint = m.color;
       mist.alpha = m.alpha;
       mist.tileScale.set(m.scale);
@@ -227,6 +229,7 @@ export class WeatherRenderer {
     for (const t of [
       ...Object.values(this.textures.atlas),
       this.textures.mist,
+      this.textures.clouds,
       this.textures.grain,
       this.textures.scanlines,
       this.textures.vignette,

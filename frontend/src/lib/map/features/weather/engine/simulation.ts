@@ -12,7 +12,7 @@
  */
 import type { Texture } from 'pixi.js';
 import { ATLAS } from './atlas';
-import type { AtlasFrame, EmitterSpec, Range, WeatherEffect } from './effects';
+import type { AtlasFrame, EmitterSpec, MistTexture, Range, WeatherEffect } from './effects';
 import { baseLevel, overdrive, particleBudget, STILL_ALPHA, type WeatherSettings } from './model';
 
 /** Marge hors de la vue où les particules continuent de vivre (px). */
@@ -127,6 +127,7 @@ export class EmitterState {
 }
 
 export interface MistState {
+  texture: MistTexture;
   color: number;
   alpha: number;
   scale: number;
@@ -231,6 +232,7 @@ export class WeatherSim {
       this.structure += 1;
       this.time = 0;
       this.frame.mists = (effect?.mists ?? []).map((m) => ({
+        texture: m.texture ?? 'mist',
         color: m.color,
         alpha: 0,
         scale: m.scale,

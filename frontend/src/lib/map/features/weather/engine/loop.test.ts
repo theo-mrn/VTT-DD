@@ -76,6 +76,7 @@ vi.mock('./textures', async () => {
     createWeatherTextures: () => ({
       atlas: new Proxy({}, { get: () => white }),
       mist: white,
+      clouds: white,
       vignette: white,
       grain: white,
       scanlines: white,
