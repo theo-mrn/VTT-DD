@@ -189,7 +189,6 @@ export function EtapeVoies({
         sorte={etape.sorte}
         max={max}
         prises={ids}
-        possedees={etat.possessions.map((p) => p.entree)}
         onChoisir={choisir}
         onFermer={() => setSelecteur(null)}
       />
@@ -324,7 +323,7 @@ const nomSousGroupe = (systeme: SystemeCharge, id: string) =>
 /**
  * Choisir une voie à ajouter, ou à mettre à la place d'une autre : un onglet par genre de voie
  * (profil, race, prestige), un menu pour la classe ou la race, et une recherche. À l'ouverture :
- * le genre et le groupe de la voie remplacée, sinon ceux du héros (sa classe, sa race).
+ * le genre de la voie remplacée (sinon le premier), les filtres sur tout.
  */
 function SelecteurVoie({
   ouvert,
@@ -334,7 +333,6 @@ function SelecteurVoie({
   sorte,
   max,
   prises,
-  possedees,
   onChoisir,
   onFermer,
 }: Readonly<{
@@ -345,8 +343,6 @@ function SelecteurVoie({
   sorte: string;
   max: number;
   prises: readonly string[];
-  /** Entrées du héros (profil, race…) : le groupe ouvert d'office. */
-  possedees: readonly string[];
   onChoisir(id: string): void;
   onFermer(): void;
 }>) {
@@ -367,16 +363,14 @@ function SelecteurVoie({
     [ouvert, toutes, fiche, max],
   );
 
-  // Ouverture : l'onglet et le groupe de la voie remplacée, sinon ceux du héros
+  // Ouverture : l'onglet de la voie remplacée (sinon le premier), filtre sur tout
   const [ouvertPour, setOuvertPour] = useState<Entree | null | false>(false);
   if (ouvert && ouvertPour !== remplace) {
     setOuvertPour(remplace);
     const premier = onglets[0]?.id ?? '';
     const cible = remplace?.etiquettes[0] ?? premier;
-    const voiesOnglet = onglets.find((o) => o.id === cible)?.voies ?? [];
-    const groupes = new Set(voiesOnglet.map((v) => v.etiquettes[1]).filter(Boolean));
     setOnglet(onglets.some((o) => o.id === cible) ? cible : premier);
-    setGroupe(remplace?.etiquettes[1] ?? possedees.find((p) => groupes.has(p)) ?? '');
+    setGroupe('');
     setRecherche('');
     setApercu(null);
   }
@@ -450,9 +444,7 @@ function SelecteurVoie({
               value={courant?.id ?? ''}
               onValueChange={(v) => {
                 setOnglet(v);
-                const voiesOnglet = onglets.find((o) => o.id === v)?.voies ?? [];
-                const groupes = new Set(voiesOnglet.map((x) => x.etiquettes[1]).filter(Boolean));
-                setGroupe(possedees.find((p) => groupes.has(p)) ?? '');
+                setGroupe('');
               }}
             >
               <TabsList className="w-full">
