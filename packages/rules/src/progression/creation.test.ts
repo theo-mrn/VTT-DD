@@ -6,6 +6,7 @@ import { EtatEntite, type EtatEntiteSaisi, type SystemeSaisi } from '../schema/i
 import { miniD20, miniSymboles } from '../test/mini-systemes.js';
 import {
   acheterEtape,
+  appliquerFixes,
   choisirEtape,
   etapesCreation,
   optionsChoix,
@@ -421,5 +422,87 @@ describe('saisie et choix facultatif', () => {
     const d20 = systeme(miniD20);
     expect(etapesCreation(d20, etat(d20))).toEqual([]);
     expect(valide(terminerCreation(d20, etat(d20))).creation).toBe(false);
+  });
+});
+
+// ─── Attributs fixés d'office ────────────────────────────────────────────────
+
+describe('attributs fixés d’office à la fin de la création', () => {
+  // PV max = 1 + mod. CON + jets de dés de vie ; au niveau 1, le maximum du dé (d10 de l'elfe)
+  const base = miniD20.entites[0]!;
+  const dv = systeme({
+    ...miniD20,
+    entites: [
+      {
+        ...base,
+        attributs: [
+          ...base.attributs.filter((a) => a.cle !== 'PV_Max'),
+          { cle: 'jetsDeVie', nom: 'Jets de dés de vie', nature: 'base', defaut: 0, min: 0 },
+          {
+            cle: 'PV_Max',
+            nom: 'PV max',
+            nature: 'derivee',
+            formule: '1 + mod(@CON) + @jetsDeVie',
+          },
+        ],
+      },
+    ],
+    creation: [
+      {
+        entite: 'personnage',
+        etapes: [{ id: 'race', nom: 'Race', type: 'choisir', sorte: 'race' }],
+        fixer: [{ attribut: 'jetsDeVie', formule: 'si(compte("race") > 0, 10, 8)' }],
+      },
+    ],
+  });
+
+  it('aperçu pendant la création, puis valeur et ressources fixées à la fin', () => {
+    const e0 = etat(dv, { valeurs: { CON: 14 } });
+    expect(appliquerFixes(dv, e0).valeurs.jetsDeVie).toBe(8);
+    // Choix final pris en compte (la race change la formule)
+    const e1 = valide(choisirEtape(dv, e0, 'race', [{ entree: 'elfe' }]));
+    expect(appliquerFixes(dv, e1).valeurs.jetsDeVie).toBe(10);
+    expect(e1.valeurs.jetsDeVie).toBeUndefined();
+
+    const fin = valide(terminerCreation(dv, e1));
+    expect(fin.valeurs.jetsDeVie).toBe(10);
+    // Les PV de départ partent du maximum ainsi fixé : 1 + mod. CON (race comprise) + 10
+    const f = calculer(dv, fin);
+    const modCon = Math.floor((Number(f.valeur('CON')) - 10) / 2);
+    expect(f.valeur('PV_Max')).toBe(1 + modCon + 10);
+    expect(fin.valeurs.PV).toBe(f.valeur('PV_Max'));
+  });
+
+  it('une valeur déjà posée (jet de l’ancien parcours, saisie du MJ) est gardée', () => {
+    const e = valide(
+      choisirEtape(dv, etat(dv, { valeurs: { CON: 14, jetsDeVie: 3 } }), 'race', [
+        { entree: 'elfe' },
+      ]),
+    );
+    expect(valide(terminerCreation(dv, e)).valeurs.jetsDeVie).toBe(3);
+  });
+
+  it('refusé au chargement : attribut inconnu ou dérivé', () => {
+    const r = charger({
+      ...miniD20,
+      creation: [
+        {
+          entite: 'personnage',
+          etapes: [{ id: 'race', nom: 'Race', type: 'choisir', sorte: 'race' }],
+          fixer: [
+            { attribut: 'inconnu', formule: '1' },
+            { attribut: 'Defense', formule: '1' },
+          ],
+        },
+      ],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok)
+      expect(r.erreurs.map((e) => e.message)).toEqual(
+        expect.arrayContaining([
+          'Attribut inconnu : inconnu',
+          'Defense n’est pas un attribut de base',
+        ]),
+      );
   });
 });

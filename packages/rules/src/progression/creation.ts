@@ -701,15 +701,35 @@ export function acheterEtape(
 }
 
 /**
- * Termine la création si toutes les étapes sont faites, et fixe les
- * ressources non saisies à leur valeur initiale.
+ * Attributs fixés d'office (`creation.fixer`) encore sans valeur : leur formule évaluée sur
+ * l'état. Pour l'aperçu pendant la création, et pour de bon à sa fin (`terminerCreation`).
+ */
+export function appliquerFixes(systeme: SystemeCharge, etat: EtatEntite): EtatEntite {
+  systeme = systemePour(systeme, etat);
+  const libres = (creationDe(systeme, etat.type)?.fixer ?? []).filter(
+    (f) => typeof etat.valeurs[f.attribut] !== 'number',
+  );
+  if (!libres.length) return etat;
+  const fiche = calculer(systeme, etat);
+  const suivant = copier(etat);
+  for (const f of libres) {
+    const formule = systeme.formules.get(chemins.fixe(etat.type, f.attribut));
+    const r = formule ? essayer(fiche, formule) : null;
+    if (r?.ok && typeof r.valeur === 'number') suivant.valeurs[f.attribut] = r.valeur;
+  }
+  return suivant;
+}
+
+/**
+ * Termine la création si toutes les étapes sont faites : fixe les attributs fixés d'office, puis
+ * les ressources non saisies à leur valeur initiale (elles peuvent en dépendre : PV et dé de vie).
  */
 export function terminerCreation(systeme: SystemeCharge, etat: EtatEntite): ResultatEtat {
   systeme = systemePour(systeme, etat);
   if (!etat.creation) return { ok: false, erreur: 'La création est déjà terminée' };
   const restantes = etapesCreation(systeme, etat).filter((e) => e.statut !== 'faite');
   if (restantes.length) return echec(restantes.flatMap((e) => e.raisons));
-  const suivant = copier(etat);
+  const suivant = copier(appliquerFixes(systeme, etat));
   suivant.creation = false;
   const fiche = calculer(systeme, suivant);
   for (const a of fiche.entite.attributs.values()) {

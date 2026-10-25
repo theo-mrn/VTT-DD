@@ -12,6 +12,7 @@ import {
   appliquerModifications,
   calculer,
   chemins,
+  creationDe,
   EtatEntite,
   executerAction,
   initiative,
@@ -543,10 +544,14 @@ describe('dnd-classic : voies et création', () => {
     expect(cumul).toEqual([1, 2, 4, 6, 8]);
   });
 
-  it('tirage du dé de vie avec le dé du profil', () => {
-    const f = systeme.formule(chemins.etape('personnage', 'de-de-vie', 'formule'));
-    expect(thorin().evaluer(f, { aleatoire: aleatoireImpose([10]) })).toBe(10);
-    expect(() => grok().evaluer(f, { aleatoire: aleatoireImpose([13]) })).toThrow();
+  it('dé de vie au niveau 1 : le maximum du dé du profil, fixé sans étape ni jet', () => {
+    const creation = creationDe(systeme, 'personnage')!;
+    expect(creation.etapes.map((e) => e.id)).not.toContain('de-de-vie');
+    expect(creation.fixer.map((x) => x.attribut)).toEqual(['jetsDeVie']);
+    const f = systeme.formule(chemins.fixe('personnage', 'jetsDeVie'));
+    // Sans dé : la valeur du dé de vie du profil (d12 du barbare)
+    expect(grok().evaluer(f)).toBe(12);
+    expect(thorin().evaluer(f)).toBe(thorin().valeur('deVie'));
   });
 
   it('tirage relancé jusqu’à 3 valeurs paires et +6 de modificateurs', () => {

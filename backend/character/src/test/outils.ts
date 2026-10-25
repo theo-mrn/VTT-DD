@@ -58,7 +58,6 @@ export function outils(t: Contexte) {
       ['profil', { entrees: [{ entree: 'guerrier' }] }],
       ['voies', { entrees: [{ entree: 'guerrier-resistance' }] }],
       ['caracteristiques', {}],
-      ['de-de-vie', {}],
     ]);
     p = await ok(u, 'POST', `/v1/characters/${p.id}/creation/terminer`, { version: p.version });
     return ok(u, 'POST', `/v1/characters/${p.id}/possessions`, {

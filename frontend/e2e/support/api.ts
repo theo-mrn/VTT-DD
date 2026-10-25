@@ -106,7 +106,6 @@ export async function creerHeros(joueur: Compte, nom = `Brom ${unique()}`): Prom
     ['profil', { entrees: [{ entree: 'guerrier' }] }],
     ['voies', { entrees: [{ entree: 'guerrier-resistance' }] }],
     ['caracteristiques', {}],
-    ['de-de-vie', {}],
   ] as const)
     p = await appel<Personnage>(joueur, 'POST', `/v1/characters/${p.id}/creation/${etape}`, {
       version: p.version,

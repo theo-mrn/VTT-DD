@@ -175,7 +175,6 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
         ['profil', { entrees: [{ entree: 'guerrier' }] }],
         ['voies', { entrees: [{ entree: 'guerrier-resistance' }] }],
         ['caracteristiques', {}],
-        ['de-de-vie', {}],
       ] as const)
         p = await okSheet(u, 'POST', `/v1/characters/${p.id}/creation/${step}`, {
           version: p.version,

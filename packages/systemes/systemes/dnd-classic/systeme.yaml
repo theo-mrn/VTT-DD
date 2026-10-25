@@ -128,8 +128,8 @@ entites:
       - cle: jetsDeVie
         nom: Jets de dés de vie
         description: >-
-          Somme des dés de vie tirés : un à la création, puis un à chaque passage de niveau (saisi
-          par le MJ).
+          Somme des dés de vie : le maximum du dé au niveau 1 (fixé à la création), puis un jet à
+          chaque passage de niveau (saisi par le MJ).
         nature: base
         defaut: 0
         min: 0
@@ -215,7 +215,7 @@ entites:
       - cle: PV_Max
         nom: PV max
         description: >-
-          1 + mod. CON + dé de vie à la création, puis dé de vie + mod. CON à chaque niveau.
+          1 + mod. CON + maximum du dé de vie au niveau 1, puis dé de vie + mod. CON à chaque niveau.
         nature: derivee
         formule: 1 + @niveau * mod(@CON) + @jetsDeVie
         groupe: vitalite
@@ -517,12 +517,12 @@ creation:
         attribution: ordre
         contrainte: pairs == 3 et somme_modificateurs == 6
         relancer: true
-      - id: de-de-vie
-        nom: Dé de vie
-        description: PV max de départ = 1 + mod. CON + ce jet.
-        type: tirer
-        attributs: [jetsDeVie]
-        formule: des(1, @deVie)
+    # Niveau 1 : le maximum du dé de vie du profil, sans jet (décision du 2026-10-25) ; fixé à la
+    # fin de la création d'après le profil final. Les passages de niveau lancent le dé.
+    fixer:
+      - attribut: jetsDeVie
+        description: 'Niveau 1 : la valeur maximale du dé de vie du profil.'
+        formule: '@deVie'
 
 # ─── Jets et actions ────────────────────────────────────────────────────────
 # Avantage : 2d20 garder le meilleur ; désavantage : le pire ; les deux s'annulent.

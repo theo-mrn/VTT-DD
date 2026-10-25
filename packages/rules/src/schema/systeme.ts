@@ -545,7 +545,19 @@ export const EtapeCreation = z.discriminatedUnion('type', [
 ]);
 export type EtapeCreation = z.output<typeof EtapeCreation>;
 
-export const Creation = z.object({ entite: Id, etapes: z.array(EtapeCreation).min(1) });
+/**
+ * Attribut de base fixé d'office à la fin de la création, par une formule, s'il n'a pas déjà de
+ * valeur (PV de départ au maximum du dé de vie du profil…) : aucun geste du joueur, et calculé
+ * d'après ses choix finaux. L'aperçu de la création l'applique aussi (`appliquerFixes`).
+ */
+export const FixeCreation = z.object({ attribut: Cle, formule: Formule, description: Description });
+export type FixeCreation = z.output<typeof FixeCreation>;
+
+export const Creation = z.object({
+  entite: Id,
+  etapes: z.array(EtapeCreation).min(1),
+  fixer: z.array(FixeCreation).default([]),
+});
 export type Creation = z.output<typeof Creation>;
 
 // ─── Arbres ──────────────────────────────────────────────────────────────────

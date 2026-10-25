@@ -133,6 +133,7 @@ export const chemins = {
   achat: (id: string, champ: 'cout' | 'plafond' | 'condition') => `achats/${id}/${champ}`,
   monnaie: (id: string) => `monnaies/${id}/total`,
   etape: (entite: string, etape: string, champ: string) => `creation/${entite}/${etape}/${champ}`,
+  fixe: (entite: string, attribut: string) => `creation/${entite}/fixer/${attribut}`,
   rangsMax: (sorte: string) => `sortes/${sorte}/rangs/max`,
   noeud: (arbre: string, noeud: string) => `arbres/${arbre}/${noeud}/cout`,
   resultat: (cle: string) => `des/resultats/${cle}`,
@@ -982,6 +983,19 @@ class Chargeur {
     }
     this.unique(c.etapes, (x) => x.id, chemin, 'Étape');
     for (const et of c.etapes) this.verifierEtape(c.entite, e, et);
+    this.unique(c.fixer, (x) => x.attribut, `${chemin}/fixer`, 'Attribut fixé');
+    for (const f of c.fixer) {
+      const a = e.attributs.get(f.attribut);
+      if (!a) this.erreur(`${chemin}/fixer`, `Attribut inconnu : ${f.attribut}`);
+      else if (a.nature !== 'base')
+        this.erreur(`${chemin}/fixer`, `${f.attribut} n’est pas un attribut de base`);
+      this.compiler(
+        chemins.fixe(c.entite, f.attribut),
+        f.formule,
+        { entite: [e.attributs] },
+        'nombre',
+      );
+    }
   }
 
   /** Attributs et groupe visés par une étape de création : connus de l'entité. */

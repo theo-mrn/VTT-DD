@@ -91,7 +91,6 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
       ['profil', { entrees: [{ entree: 'guerrier' }] }],
       ['voies', { entrees: [{ entree: 'guerrier-resistance' }] }],
       ['caracteristiques', {}],
-      ['de-de-vie', {}],
     ]);
     p = await ok(u, 'POST', `/v1/characters/${p.id}/creation/terminer`, { version: p.version });
     return ok(u, 'POST', `/v1/characters/${p.id}/possessions`, {
@@ -341,10 +340,6 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
     expect(cars.every((v) => v >= 3 && v <= 18)).toBe(true);
     expect(cars.filter((v) => v % 2 === 0)).toHaveLength(3);
 
-    t.des.imposer(8);
-    p = await etapes(alice, p, [['de-de-vie', {}]]);
-    expect(p.etat.valeurs.jetsDeVie).toBe(8);
-
     // Le tirage est gardé dans l'événement, pour l'historique
     const tirage = (await evenements(p.id)).find(
       (e) =>
@@ -359,6 +354,8 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
 
     p = await ok(alice, 'POST', `/v1/characters/${p.id}/creation/terminer`, { version: p.version });
     expect(p.etat.creation).toBe(false);
+    // Dé de vie au niveau 1 : le maximum du d10 du guerrier, sans jet
+    expect(p.etat.valeurs.jetsDeVie).toBe(10);
     expect(p.etat.valeurs.PV).toBe(p.fiche.valeurs.PV?.max);
   });
 

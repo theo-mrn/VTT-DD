@@ -177,7 +177,7 @@ describe('création Star Wars', () => {
 });
 
 describe('création D&D', () => {
-  it('race, profil, voie, caractéristiques et dé de vie tirés par le serveur', () => {
+  it('race, profil, voie et caractéristiques tirées par le serveur ; dé de vie au maximum', () => {
     let e = etapes(dnd, etatInitial(dnd, 'personnage'), [
       ['race', { entrees: [{ entree: 'nain' }] }],
       ['profil', { entrees: [{ entree: 'guerrier' }] }],
@@ -190,10 +190,10 @@ describe('création D&D', () => {
     expect(tirage.details).toMatchObject({ essais: 1 });
     expect((tirage.details.retenu as { valeurs: number[] }).valeurs).toHaveLength(6);
 
-    e = appliquerEtape(dnd, e, 'de-de-vie', {}, aleatoireImpose([7]), DATE).etat;
-    expect(e.valeurs.jetsDeVie).toBe(7);
     const fini = terminer(dnd, e);
     expect(fini.creation).toBe(false);
+    // Dé de vie au niveau 1 : le maximum du d10 du guerrier, fixé à la fin sans jet
+    expect(fini.valeurs.jetsDeVie).toBe(10);
     // Ressources fixées à leur valeur initiale à la fin de la création
     expect(fini.valeurs.PV).toBe(calculer(dnd, fini).valeurs.get('PV')?.max);
   });

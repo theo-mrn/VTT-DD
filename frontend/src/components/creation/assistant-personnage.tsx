@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { translate } from '@/i18n/runtime';
 import {
+  appliquerFixes,
   calculer,
   creationDe,
   etapesCreation,
@@ -128,7 +129,11 @@ export function AssistantPersonnage({
   const vierge = useMemo(() => (systeme ? etatInitial(systeme, TYPE_HEROS) : null), [systeme]);
   const etat: EtatEntite | null = perso.data?.state ?? (id ? null : vierge);
 
-  const fiche = useMemo(() => (systeme && etat ? calculer(systeme, etat) : null), [systeme, etat]);
+  // Aperçu : les attributs fixés d'office à la fin (dé de vie au maximum…) le sont déjà ici
+  const fiche = useMemo(
+    () => (systeme && etat ? calculer(systeme, appliquerFixes(systeme, etat)) : null),
+    [systeme, etat],
+  );
   const statuts = useMemo(
     () => (systeme && etat ? etapesCreation(systeme, etat) : []),
     [systeme, etat],
