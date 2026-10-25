@@ -39,6 +39,11 @@ export default {
     lead: 'A hero is born in a campaign: its game system, its creation rules and its table depend on it.',
   },
   paths: {
+    createPath: 'Create a path',
+    custom: 'Homebrew',
+    customPath: 'Homebrew path',
+    edit: 'Edit the path',
+    editOf: 'Edit {name}',
     addThis: 'Add this path',
     putInsteadOf: 'Put in place of {name}',
     taken: 'Already taken',

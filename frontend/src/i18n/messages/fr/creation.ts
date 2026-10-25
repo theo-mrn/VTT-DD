@@ -39,6 +39,11 @@ export default {
     lead: 'Un héros naît dans une campagne : son système de jeu, ses règles de création et sa table en dépendent.',
   },
   paths: {
+    createPath: 'Créer une voie',
+    custom: 'Maison',
+    customPath: 'Voie maison',
+    edit: 'Modifier la voie',
+    editOf: 'Modifier {name}',
     addThis: 'Ajouter cette voie',
     putInsteadOf: 'Mettre à la place de {name}',
     taken: 'Déjà prise',

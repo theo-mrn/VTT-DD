@@ -14,6 +14,7 @@
  */
 import { useTranslations } from 'next-intl';
 import { translate } from '@/i18n/runtime';
+import { nouvellePossession } from '@vtt/rules';
 import { Coins, ListChecks, Plus, Search, TableProperties, TrendingUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FilterMenu } from '@/components/ui/filter-menu';
@@ -38,7 +39,7 @@ import type { SkillCard } from './model';
 import { OwnedList } from './owned-list';
 import { SkillDialog } from './parts';
 import { freePathKinds } from './free-path';
-import { FreePathEditor, type FreePathTarget } from './free-path-editor';
+import { FreePathEditor, type FreePathHost, type FreePathTarget } from './free-path-editor';
 import { PathsTable } from './paths-table';
 import { RankedList } from './ranked-list';
 import { ViewSwitch, type ViewOption } from './view-switch';
@@ -206,7 +207,13 @@ function ProgressionView({
           </Button>
         </div>
       )}
-      {libre && <FreePathEditor ctx={ctx} target={freePath} onClose={() => setFreePath(null)} />}
+      {libre && (
+        <FreePathEditor
+          host={freePathHost(ctx)}
+          target={freePath}
+          onClose={() => setFreePath(null)}
+        />
+      )}
       {data.trees.length > 0 && (
         <div
           className={cn(
@@ -484,3 +491,20 @@ export const skillsBlock: SheetBlockDefinition<'competences'> = {
   minSize: { w: 3, h: 4 },
   Component: SkillsBlock,
 };
+
+/** L'éditeur de voie libre depuis la fiche : la nouvelle voie est possédée au rang de départ. */
+function freePathHost(ctx: Ctx): FreePathHost {
+  const ops = ctx.operations!;
+  return {
+    systeme: ctx.systeme,
+    fiche: ctx.fiche,
+    entreesLibres: ops.entreesLibres!,
+    ...(ops.retirerEntreeLibre ? { retirerEntreeLibre: ops.retirerEntreeLibre } : {}),
+    rangDepart: true,
+    prendre: (voie, rang, apercu) =>
+      ops.possession(
+        { entree: voie, rang },
+        { ...apercu, possessions: [...apercu.possessions, nouvellePossession(voie, rang)] },
+      ),
+  };
+}

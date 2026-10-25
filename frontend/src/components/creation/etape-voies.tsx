@@ -10,8 +10,17 @@
  * - « + » : ajouter une voie, choisie dans un sélecteur : un onglet par genre (profil, race,
  *   prestige), un menu pour la classe ou la race, une recherche, les capacités en aperçu.
  *
+ * - Voies maison (docs/entrees-libres.md) : « Créer une voie » dans le sélecteur et « Modifier »
+ *   sur leur carte, avec l'éditeur de la fiche ; la nouvelle voie rejoint l'étape.
+ *
  * Chaque écriture passe par le moteur (`choisirEtape`) ; une erreur laisse l'état inchangé.
  */
+
+/** Écritures des entrées libres du héros (absentes : pas de voie maison). */
+export interface VoiesLibres {
+  entreesLibres(entries: Entree[], apercu: EtatEntite): Promise<boolean>;
+  retirerEntreeLibre(id: string, apercu: EtatEntite): void;
+}
 import { useTranslations } from 'next-intl';
 import {
   choisirEtape,
@@ -28,12 +37,19 @@ import {
   Check,
   ListPlus,
   Lock,
+  Pencil,
   Plus,
   Search,
   Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Message } from '@/components/compte/elements';
+import {
+  FreePathEditor,
+  type FreePathHost,
+  type FreePathTarget,
+} from '@/components/fiche/blocks/skills/free-path-editor';
+import { estLibre, freePathKinds } from '@/components/fiche/blocks/skills/free-path';
 import { grantsOf, maxRank } from '@/components/fiche/blocks/tree/model';
 import { Button } from '@/components/ui/button';
 import {
@@ -64,31 +80,39 @@ export function EtapeVoies({
   etat,
   fiche,
   etape,
+  libres,
   onEtat,
 }: Readonly<{
   systeme: SystemeCharge;
   etat: EtatEntite;
   fiche: Fiche;
   etape: Etape;
+  libres: VoiesLibres | null;
   onEtat: (e: EtatEntite, op: OperationCreation) => void;
 }>) {
   const t = useTranslations('creation.paths');
+  // Système de la fiche : le catalogue complété des voies maison du héros
+  const sys = fiche.systeme;
+  const [editeur, setEditeur] = useState<FreePathTarget>(null);
+  // Voie à remplacer par celle qu'on crée (création lancée depuis « Changer »)
+  const remplaceParCreee = useRef<string | null>(null);
+  const maison =
+    !!libres && freePathKinds(systeme, etat.type).paths.some((s) => s.id === etape.sorte);
   const tc = useTranslations('creation.choose');
   const [erreur, setErreur] = useState<string | null>(null);
   const [selecteur, setSelecteur] = useState<Selecteur>(null);
 
   const sorte = systeme.sortes.get(etape.sorte)!;
   const max = maxRank(fiche, sorte) ?? 5;
-  const prises = etat.possessions.filter(
-    (p) => systeme.entrees.get(p.entree)?.sorte === etape.sorte,
-  );
+  const prises = etat.possessions.filter((p) => sys.entrees.get(p.entree)?.sorte === etape.sorte);
   const selection: Selection[] = prises.map((p) => ({ entree: p.entree, choix: p.choix }));
   const ids = selection.map((s) => s.entree);
   const suggerees = suggestions(systeme, etat, etape.sorte);
   const manquantes = suggerees.filter((s) => !ids.includes(s));
 
-  function appliquer(suivante: Selection[]) {
-    const r = choisirEtape(systeme, etat, etape.id, suivante);
+  /** `base` : l'état à partir duquel choisir (celui qui porte une voie maison tout juste créée). */
+  function appliquer(suivante: Selection[], base: EtatEntite = etat) {
+    const r = choisirEtape(systeme, base, etape.id, suivante);
     if (r.ok) {
       setErreur(null);
       onEtat(r.etat, { type: 'etape', etape: etape.id, corps: { entrees: suivante } });
@@ -116,6 +140,26 @@ export function EtapeVoies({
     if (remplace) appliquer(selection.map((s) => (s.entree === remplace ? { entree: id } : s)));
     else appliquer([...selection, { entree: id }]);
   }
+
+  const host: FreePathHost | null = libres
+    ? {
+        systeme,
+        fiche,
+        entreesLibres: libres.entreesLibres,
+        retirerEntreeLibre: libres.retirerEntreeLibre,
+        // Nouvelle voie : à la place de celle qu'on changeait, sinon en plus
+        prendre: (voie, _rang, apercu) => {
+          const remplace = remplaceParCreee.current;
+          remplaceParCreee.current = null;
+          appliquer(
+            remplace
+              ? selection.map((s) => (s.entree === remplace ? { entree: voie } : s))
+              : [...selection, { entree: voie }],
+            apercu,
+          );
+        },
+      }
+    : null;
 
   const plein = ids.length >= etape.max;
   return (
@@ -146,7 +190,7 @@ export function EtapeVoies({
 
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {ids.map((id) => {
-          const voie = systeme.entrees.get(id);
+          const voie = sys.entrees.get(id);
           if (!voie) return null;
           return (
             <li key={id}>
@@ -155,6 +199,9 @@ export function EtapeVoies({
                 fiche={fiche}
                 max={max}
                 suggeree={suggerees.includes(id)}
+                {...(maison && estLibre(id)
+                  ? { onModifier: () => setEditeur({ kind: 'edit', path: voie }) }
+                  : {})}
                 onChanger={() => setSelecteur({ remplace: id })}
                 onRetirer={() => retirer(id)}
               />
@@ -183,15 +230,27 @@ export function EtapeVoies({
 
       <SelecteurVoie
         ouvert={selecteur !== null}
-        remplace={selecteur?.remplace ? (systeme.entrees.get(selecteur.remplace) ?? null) : null}
-        systeme={systeme}
+        remplace={selecteur?.remplace ? (sys.entrees.get(selecteur.remplace) ?? null) : null}
+        systeme={sys}
         fiche={fiche}
         sorte={etape.sorte}
         max={max}
         prises={ids}
         onChoisir={choisir}
         onFermer={() => setSelecteur(null)}
+        {...(maison
+          ? {
+              onCreer: () => {
+                remplaceParCreee.current = selecteur?.remplace ?? null;
+                setSelecteur(null);
+                setEditeur({ kind: 'new' });
+              },
+            }
+          : {})}
       />
+      {host && maison && (
+        <FreePathEditor host={host} target={editeur} onClose={() => setEditeur(null)} />
+      )}
     </div>
   );
 }
@@ -202,6 +261,7 @@ function CarteVoie({
   fiche,
   max,
   suggeree,
+  onModifier,
   onChanger,
   onRetirer,
 }: Readonly<{
@@ -209,6 +269,8 @@ function CarteVoie({
   fiche: Fiche;
   max: number;
   suggeree: boolean;
+  /** Voie maison : la rouvrir dans l'éditeur. */
+  onModifier?(): void;
   onChanger(): void;
   onRetirer(): void;
 }>) {
@@ -226,12 +288,22 @@ function CarteVoie({
           <h3 className="truncate font-display text-lg font-semibold leading-tight text-primary-strong">
             {voie.nom}
           </h3>
-          {voie.etiquettes.length > 0 && (
-            <p className="mt-0.5 truncate text-[11px] uppercase tracking-wider text-subtle">
-              {voie.etiquettes.map(etiquette).join(' · ')}
-            </p>
-          )}
+          <p className="mt-0.5 truncate text-[11px] uppercase tracking-wider text-subtle">
+            {voie.etiquettes.length ? voie.etiquettes.map(etiquette).join(' · ') : t('customPath')}
+          </p>
         </div>
+        {onModifier && (
+          <Info texte={t('edit')}>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t('editOf', { name: voie.nom })}
+              onClick={onModifier}
+            >
+              <Pencil />
+            </Button>
+          </Info>
+        )}
         <Info texte={t('change')}>
           <Button
             size="icon-sm"
@@ -296,7 +368,12 @@ interface Onglet {
  * Onglets par première étiquette : celles qui nomment une sorte (profil, race) d'abord, sous son
  * nom, puis les autres (prestige) ; chaque groupe du plus fourni au moins fourni.
  */
-function ongletsDe(systeme: SystemeCharge, voies: readonly Entree[]): Onglet[] {
+function ongletsDe(
+  systeme: SystemeCharge,
+  voies: readonly Entree[],
+  /** Nom de l'onglet des voies sans étiquette (voies maison). */
+  sansEtiquette: string,
+): Onglet[] {
   const parEtiquette = new Map<string, Entree[]>();
   for (const v of voies) {
     const cle = v.etiquettes[0] ?? '';
@@ -307,7 +384,7 @@ function ongletsDe(systeme: SystemeCharge, voies: readonly Entree[]): Onglet[] {
       const sorte = systeme.sortes.get(id);
       return {
         id,
-        nom: sorte ? (sorte.nomPluriel ?? sorte.nom) : id ? etiquette(id) : '—',
+        nom: sorte ? (sorte.nomPluriel ?? sorte.nom) : id ? etiquette(id) : sansEtiquette,
         voies: liste,
         rang: sorte ? 0 : 1,
       };
@@ -335,6 +412,7 @@ function SelecteurVoie({
   prises,
   onChoisir,
   onFermer,
+  onCreer,
 }: Readonly<{
   ouvert: boolean;
   remplace: Entree | null;
@@ -345,6 +423,8 @@ function SelecteurVoie({
   prises: readonly string[];
   onChoisir(id: string): void;
   onFermer(): void;
+  /** Voies maison permises : « Créer une voie » ouvre l'éditeur. */
+  onCreer?(): void;
 }>) {
   const t = useTranslations('creation.paths');
   const [recherche, setRecherche] = useState('');
@@ -353,7 +433,7 @@ function SelecteurVoie({
   const [onglet, setOnglet] = useState('');
   const [groupe, setGroupe] = useState('');
   const toutes = useMemo(() => entreesDeSorte(systeme, sorte), [systeme, sorte]);
-  const onglets = useMemo(() => ongletsDe(systeme, toutes), [systeme, toutes]);
+  const onglets = useMemo(() => ongletsDe(systeme, toutes, t('custom')), [systeme, toutes, t]);
   // Capacités de chaque voie, calculées une fois à l'ouverture (recherche et aperçu)
   const capacites = useMemo(
     () =>
@@ -480,6 +560,12 @@ function SelecteurVoie({
                   ...groupesOnglet.map((g) => ({ value: g.id, label: g.nom, count: g.count })),
                 ]}
               />
+            )}
+            {onCreer && (
+              <Button variant="secondary" onClick={onCreer} className="shrink-0">
+                <Plus />
+                <span className="hidden sm:inline">{t('createPath')}</span>
+              </Button>
             )}
           </div>
 

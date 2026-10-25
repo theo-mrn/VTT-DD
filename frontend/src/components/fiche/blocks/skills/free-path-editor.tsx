@@ -7,7 +7,7 @@
  * Les bonus d'une capacité se gèrent ensuite depuis sa carte, comme pour le catalogue.
  */
 import { useTranslations } from 'next-intl';
-import { nouvellePossession, type Entree, type EtatEntite, type Sorte } from '@vtt/rules';
+import type { Entree, EtatEntite, Fiche, Sorte, SystemeCharge } from '@vtt/rules';
 import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,6 @@ import { SelectField } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Info } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { ContexteFiche } from '../../widgets';
 import { estModifiable, FieldInput, FormulaField } from '../inventory/editors';
 import { cleExemple, verifierFormuleObjet, type ChampFormule } from '../inventory/model';
 import {
@@ -35,13 +34,28 @@ import {
 /** Voie ouverte dans le panneau : une voie libre possédée, ou une nouvelle voie. */
 export type FreePathTarget = { kind: 'new' } | { kind: 'edit'; path: Entree } | null;
 
+/**
+ * Ce dont l'éditeur a besoin, quel que soit l'écran qui l'ouvre (fiche, création) : le système
+ * (sans les entrées libres), la fiche, l'écriture des entrées libres, et comment prendre une
+ * nouvelle voie (fiche : possession au rang de départ ; création : voie de l'étape).
+ */
+export interface FreePathHost {
+  systeme: SystemeCharge;
+  fiche: Fiche;
+  entreesLibres(entries: Entree[], apercu: EtatEntite): Promise<boolean>;
+  retirerEntreeLibre?(id: string, apercu: EtatEntite): void;
+  prendre(voie: string, rang: number, apercu: EtatEntite): void;
+  /** Le rang de départ d'une nouvelle voie se choisit (sinon : rang 0). */
+  rangDepart?: boolean;
+}
+
 function AbilityFields({
-  ctx,
+  host,
   sortes,
   value,
   onChange,
 }: Readonly<{
-  ctx: ContexteFiche;
+  host: FreePathHost;
   sortes: Sorte[];
   value: FreeAbilityDraft;
   onChange(v: FreeAbilityDraft): void;
@@ -49,7 +63,7 @@ function AbilityFields({
   const t = useTranslations('sheet.skills.freePath');
   const id = useId();
   const [open, setOpen] = useState(false);
-  const sorte = ctx.systeme.sortes.get(value.sorte);
+  const sorte = host.systeme.sortes.get(value.sorte);
   const champs = (sorte?.champs ?? []).filter(estModifiable);
   const formules = (sorte?.champs ?? []).filter((c): c is ChampFormule => c.type === 'formule');
   // Texte saisi des formules (clés nues), enregistré normalisé quand il est valide
@@ -79,7 +93,7 @@ function AbilityFields({
     quantite: 1,
   };
   const verifier = (c: ChampFormule, texte: string) =>
-    objet ? verifierFormuleObjet(ctx.fiche, objet, c, texte) : null;
+    objet ? verifierFormuleObjet(host.fiche, objet, c, texte) : null;
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
@@ -158,7 +172,7 @@ function AbilityFields({
                     }}
                     verif={verif}
                     des={c.des === true}
-                    cle={cleExemple(ctx.fiche)}
+                    cle={cleExemple(host.fiche)}
                     sorte={sorte}
                   />
                 );
@@ -172,21 +186,20 @@ function AbilityFields({
 }
 
 export function FreePathEditor({
-  ctx,
+  host,
   target,
   onClose,
 }: Readonly<{
-  ctx: ContexteFiche;
+  host: FreePathHost;
   target: FreePathTarget;
   onClose(): void;
 }>) {
   const t = useTranslations('sheet.skills.freePath');
   const id = useId();
-  const { fiche } = ctx;
-  const ops = ctx.operations;
+  const { fiche } = host;
   const kinds = useMemo(
-    () => freePathKinds(ctx.systeme, fiche.etat.type),
-    [ctx.systeme, fiche.etat.type],
+    () => freePathKinds(host.systeme, fiche.etat.type),
+    [host.systeme, fiche.etat.type],
   );
   const [draft, setDraft] = useState<FreePathDraft | null>(null);
   const [initial, setInitial] = useState<FreePathDraft | null>(null);
@@ -221,10 +234,10 @@ export function FreePathEditor({
     setDraft((d) => d && { ...d, ranks: d.ranks.map((x, j) => (j === i ? r : x)) });
 
   const save = async () => {
-    if (!draft || !ops?.entreesLibres || !draftValid(draft)) return;
+    if (!draft || !draftValid(draft)) return;
     const etat = fiche.etat;
     const pris = new Set([...etat.entrees.map((e) => e.id), ...fiche.systeme.entrees.keys()]);
-    const { entries, removed } = entriesOf(ctx.systeme, draft, initial, pris);
+    const { entries, removed } = entriesOf(host.systeme, draft, initial, pris);
     const parId = new Map(entries.map((e) => [e.id, e]));
     const apercu: EtatEntite = {
       ...etat,
@@ -235,20 +248,14 @@ export function FreePathEditor({
     };
     setBusy(true);
     try {
-      if (!(await ops.entreesLibres(entries, apercu))) return;
+      if (!(await host.entreesLibres(entries, apercu))) return;
       let apres = apercu;
       for (const r of removed) {
         apres = { ...apres, entrees: apres.entrees.filter((e) => e.id !== r) };
-        ops.retirerEntreeLibre?.(r, apres);
+        host.retirerEntreeLibre?.(r, apres);
       }
       // Nouvelle voie : prise au rang de départ (les rangs suivants s'achètent)
-      if (!draft.id) {
-        const voie = entries[0]!.id;
-        ops.possession(
-          { entree: voie, rang: startRank },
-          { ...apres, possessions: [...apres.possessions, nouvellePossession(voie, startRank)] },
-        );
-      }
+      if (!draft.id) host.prendre(entries[0]!.id, startRank, apres);
       onClose();
     } finally {
       setBusy(false);
@@ -256,9 +263,9 @@ export function FreePathEditor({
   };
 
   const remove = () => {
-    if (!draft?.id || !ops?.retirerEntreeLibre) return;
+    if (!draft?.id || !host.retirerEntreeLibre) return;
     const sans = fiche.etat.entrees.filter((e) => e.id !== draft.id);
-    ops.retirerEntreeLibre(draft.id, { ...fiche.etat, entrees: sans });
+    host.retirerEntreeLibre(draft.id, { ...fiche.etat, entrees: sans });
     onClose();
   };
 
@@ -313,7 +320,7 @@ export function FreePathEditor({
                   </div>
                   {r ? (
                     <AbilityFields
-                      ctx={ctx}
+                      host={host}
                       sortes={kinds.abilities}
                       value={r}
                       onChange={(v) => setRank(i, v)}
@@ -332,7 +339,7 @@ export function FreePathEditor({
               ))}
             </ol>
 
-            {!draft.id && (
+            {!draft.id && host.rangDepart && (
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor={`${id}-rang`}>{t('startRank')}</Label>
                 <SelectField
@@ -350,7 +357,7 @@ export function FreePathEditor({
           </div>
         )}
         <div className="flex items-center gap-2 border-t border-border px-6 py-4">
-          {draft?.id && ops?.retirerEntreeLibre && (
+          {draft?.id && host.retirerEntreeLibre && (
             <Button variant="ghost" className="text-destructive" onClick={remove}>
               <Trash2 />
               {t('remove')}

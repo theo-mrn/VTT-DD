@@ -60,7 +60,7 @@ import { EtapeChoisir } from './etape-choisir';
 import { EtapePortrait } from './etape-portrait';
 import { EtapeRepartir, EtapeSaisir } from './etape-saisir';
 import { EtapeTirer } from './etape-tirer';
-import { EtapeVoies } from './etape-voies';
+import { EtapeVoies, type VoiesLibres } from './etape-voies';
 
 type EtapeUI =
   | { id: 'identite' | 'portrait' | 'recap'; nom: string }
@@ -373,6 +373,24 @@ export function AssistantPersonnage({
                       statut={statut(regle.id)}
                       onEtat={enregistrer}
                       onTirer={(affectation) => tirer(regle.id, affectation)}
+                      libres={
+                        id
+                          ? {
+                              entreesLibres: (entries, apercu) =>
+                                ops.entreesLibres(entries, apercu).then(
+                                  () => true,
+                                  (err: unknown) => {
+                                    toast.error(messageErreur(err));
+                                    return false;
+                                  },
+                                ),
+                              retirerEntreeLibre: (entryId, apercu) =>
+                                void ops
+                                  .retirerEntreeLibre(entryId, apercu)
+                                  .catch((err: unknown) => toast.error(messageErreur(err))),
+                            }
+                          : null
+                      }
                     />
                   )}
 
@@ -541,6 +559,7 @@ function EtapeRegle({
   statut,
   onEtat,
   onTirer,
+  libres,
 }: Readonly<{
   regle: EtapeCreation;
   systeme: SystemeCharge | null;
@@ -550,6 +569,8 @@ function EtapeRegle({
   statut: EtatEtapeCreation | undefined;
   onEtat(apercu: EtatEntite, op: OperationCreation): void;
   onTirer: Parameters<typeof EtapeTirer>[0]['onTirer'];
+  /** Écritures des voies maison (absentes avant la naissance du héros). */
+  libres: VoiesLibres | null;
 }>) {
   const t = useTranslations();
   if (!systeme || !etat || !fiche) return <Chargement texte={t('creation.loadingRules')} />;
@@ -561,7 +582,14 @@ function EtapeRegle({
   return (
     <>
       {regle.type === 'choisir' && voies && (
-        <EtapeVoies systeme={systeme} etat={etat} fiche={fiche} etape={regle} onEtat={onEtat} />
+        <EtapeVoies
+          systeme={systeme}
+          etat={etat}
+          fiche={fiche}
+          etape={regle}
+          libres={libres}
+          onEtat={onEtat}
+        />
       )}
       {regle.type === 'choisir' && !voies && (
         <EtapeChoisir
