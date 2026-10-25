@@ -38,6 +38,19 @@ export default {
     noneHint: 'Join your GM’s campaign with its code, an open campaign, or create your own.',
     lead: 'A hero is born in a campaign: its game system, its creation rules and its table depend on it.',
   },
+  paths: {
+    add: 'Add a path',
+    addSuggested:
+      '{count, plural, one {Take back the suggested path} other {Take back the # suggested paths}}',
+    change: 'Change path',
+    changeOf: 'Change {name}',
+    remove: 'Remove',
+    removeOf: 'Remove {name}',
+    replaceTitle: 'Replace {name}',
+    pickHint: 'Pick a path; its abilities are listed under its name.',
+    search: 'Search a path or an ability',
+    none: 'No path matches.',
+  },
   choose: {
     suggested: 'Suggested',
     chosen: 'Chosen',

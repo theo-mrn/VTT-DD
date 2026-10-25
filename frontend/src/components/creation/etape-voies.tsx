@@ -1,0 +1,395 @@
+'use client';
+
+/**
+ * Étape « choisir » d'une sorte qui se lit comme des voies (rangs successifs accordant chacun une
+ * entrée : `pathSortes`) : les voies du héros, pas tout le catalogue.
+ *
+ * - En arrivant sans voie, celles que désignent la race et le profil (suggestions) sont prises.
+ * - Une carte par voie : ses capacités par rang (un clic : la description), Changer (une autre
+ *   voie à sa place) et Retirer.
+ * - « + » : ajouter une voie, choisie dans un sélecteur (recherche, groupes par étiquettes, les
+ *   capacités de chaque voie en aperçu).
+ *
+ * Chaque écriture passe par le moteur (`choisirEtape`) ; une erreur laisse l'état inchangé.
+ */
+import { useTranslations } from 'next-intl';
+import {
+  choisirEtape,
+  type EtapeCreation,
+  type EtatEntite,
+  type Entree,
+  type Fiche,
+  type Selection,
+  type SystemeCharge,
+} from '@vtt/rules';
+import { ArrowLeftRight, Check, ListPlus, Lock, Plus, Search, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Message } from '@/components/compte/elements';
+import { grantsOf, maxRank } from '@/components/fiche/blocks/tree/model';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { InputGroup } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Info } from '@/components/ui/tooltip';
+import { entreesDeSorte, prerequisManquant, suggestions } from '@/lib/creation';
+import type { OperationCreation } from '@/lib/personnages';
+import { cn } from '@/lib/utils';
+
+type Etape = Extract<EtapeCreation, { type: 'choisir' }>;
+
+/** Voie à ajouter (`remplace` absent) ou à mettre à la place d'une autre. */
+type Selecteur = { remplace: string | null } | null;
+
+const etiquette = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replaceAll('-', ' ');
+
+export function EtapeVoies({
+  systeme,
+  etat,
+  fiche,
+  etape,
+  onEtat,
+}: Readonly<{
+  systeme: SystemeCharge;
+  etat: EtatEntite;
+  fiche: Fiche;
+  etape: Etape;
+  onEtat: (e: EtatEntite, op: OperationCreation) => void;
+}>) {
+  const t = useTranslations('creation.paths');
+  const tc = useTranslations('creation.choose');
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [selecteur, setSelecteur] = useState<Selecteur>(null);
+
+  const sorte = systeme.sortes.get(etape.sorte)!;
+  const max = maxRank(fiche, sorte) ?? 5;
+  const prises = etat.possessions.filter(
+    (p) => systeme.entrees.get(p.entree)?.sorte === etape.sorte,
+  );
+  const selection: Selection[] = prises.map((p) => ({ entree: p.entree, choix: p.choix }));
+  const ids = selection.map((s) => s.entree);
+  const suggerees = suggestions(systeme, etat, etape.sorte);
+  const manquantes = suggerees.filter((s) => !ids.includes(s));
+
+  function appliquer(suivante: Selection[]) {
+    const r = choisirEtape(systeme, etat, etape.id, suivante);
+    if (r.ok) {
+      setErreur(null);
+      onEtat(r.etat, { type: 'etape', etape: etape.id, corps: { entrees: suivante } });
+    } else setErreur(r.erreur);
+  }
+
+  // Première arrivée : les voies de la race et du profil, sans rien demander
+  const initialise = useRef(false);
+  useEffect(() => {
+    if (initialise.current) return;
+    initialise.current = true;
+    if (!ids.length && suggerees.length)
+      appliquer(suggerees.slice(0, etape.max).map((entree) => ({ entree })));
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function retirer(id: string) {
+    if (ids.length <= etape.min)
+      return setErreur(tc('atLeast', { name: etape.nom, min: etape.min }));
+    appliquer(selection.filter((s) => s.entree !== id));
+  }
+
+  function choisir(id: string) {
+    const remplace = selecteur?.remplace ?? null;
+    setSelecteur(null);
+    if (remplace) appliquer(selection.map((s) => (s.entree === remplace ? { entree: id } : s)));
+    else appliquer([...selection, { entree: id }]);
+  }
+
+  const plein = ids.length >= etape.max;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[13px] text-muted-foreground">
+          {tc('multi', { count: ids.length, min: etape.min, max: etape.max })}
+        </p>
+        {manquantes.length > 0 && !plein && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto"
+            onClick={() =>
+              appliquer([
+                ...selection,
+                ...manquantes.slice(0, etape.max - ids.length).map((entree) => ({ entree })),
+              ])
+            }
+          >
+            <ListPlus />
+            {t('addSuggested', { count: manquantes.length })}
+          </Button>
+        )}
+      </div>
+
+      {erreur && <Message>{erreur}</Message>}
+
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {ids.map((id) => {
+          const voie = systeme.entrees.get(id);
+          if (!voie) return null;
+          return (
+            <li key={id}>
+              <CarteVoie
+                voie={voie}
+                fiche={fiche}
+                max={max}
+                suggeree={suggerees.includes(id)}
+                onChanger={() => setSelecteur({ remplace: id })}
+                onRetirer={() => retirer(id)}
+              />
+            </li>
+          );
+        })}
+        <li>
+          <button
+            type="button"
+            disabled={plein}
+            onClick={() => setSelecteur({ remplace: null })}
+            title={plein ? tc('atMost', { name: etape.nom, max: etape.max }) : undefined}
+            className={cn(
+              'flex h-full min-h-[13rem] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border-strong text-muted-foreground transition-colors',
+              'hover:border-primary/60 hover:bg-primary/[0.04] hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+            )}
+          >
+            <span className="grid size-10 place-items-center rounded-full bg-surface-2">
+              <Plus className="size-5" aria-hidden />
+            </span>
+            <span className="text-sm font-medium">{t('add')}</span>
+          </button>
+        </li>
+      </ul>
+
+      <SelecteurVoie
+        ouvert={selecteur !== null}
+        remplace={selecteur?.remplace ? (systeme.entrees.get(selecteur.remplace) ?? null) : null}
+        systeme={systeme}
+        fiche={fiche}
+        sorte={etape.sorte}
+        max={max}
+        prises={ids}
+        onChoisir={choisir}
+        onFermer={() => setSelecteur(null)}
+      />
+    </div>
+  );
+}
+
+/** Une voie du héros : nom, étiquettes, capacités par rang, Changer et Retirer. */
+function CarteVoie({
+  voie,
+  fiche,
+  max,
+  suggeree,
+  onChanger,
+  onRetirer,
+}: Readonly<{
+  voie: Entree;
+  fiche: Fiche;
+  max: number;
+  suggeree: boolean;
+  onChanger(): void;
+  onRetirer(): void;
+}>) {
+  const t = useTranslations('creation.paths');
+  const rangs = grantsOf(fiche, voie, max);
+  return (
+    <article
+      className={cn(
+        'group flex h-full flex-col rounded-2xl border bg-card shadow-surface',
+        suggeree ? 'border-border' : 'border-primary/40',
+      )}
+    >
+      <header className="flex items-start gap-2 px-4 pb-2 pt-3.5">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate font-display text-lg font-semibold leading-tight text-primary-strong">
+            {voie.nom}
+          </h3>
+          {voie.etiquettes.length > 0 && (
+            <p className="mt-0.5 truncate text-[11px] uppercase tracking-wider text-subtle">
+              {voie.etiquettes.map(etiquette).join(' · ')}
+            </p>
+          )}
+        </div>
+        <Info texte={t('change')}>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t('changeOf', { name: voie.nom })}
+            onClick={onChanger}
+          >
+            <ArrowLeftRight />
+          </Button>
+        </Info>
+        <Info texte={t('remove')}>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t('removeOf', { name: voie.nom })}
+            onClick={onRetirer}
+            className="hover:text-destructive"
+          >
+            <Trash2 />
+          </Button>
+        </Info>
+      </header>
+      <ol className="flex-1 space-y-1 px-2.5 pb-3">
+        {rangs.map((r) => (
+          <li key={r.entry.id}>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left text-[13px] transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
+                >
+                  <span className="grid size-5 shrink-0 place-items-center rounded-md bg-surface-3 font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
+                    {r.rank}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{r.entry.nom}</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-80">
+                <p className="text-sm font-semibold">{r.entry.nom}</p>
+                {r.entry.description ? (
+                  <p className="mt-1.5 max-h-60 overflow-y-auto whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground">
+                    {r.entry.description}
+                  </p>
+                ) : null}
+              </PopoverContent>
+            </Popover>
+          </li>
+        ))}
+      </ol>
+    </article>
+  );
+}
+
+/** Choisir une voie à ajouter, ou à mettre à la place d'une autre. */
+function SelecteurVoie({
+  ouvert,
+  remplace,
+  systeme,
+  fiche,
+  sorte,
+  max,
+  prises,
+  onChoisir,
+  onFermer,
+}: Readonly<{
+  ouvert: boolean;
+  remplace: Entree | null;
+  systeme: SystemeCharge;
+  fiche: Fiche;
+  sorte: string;
+  max: number;
+  prises: readonly string[];
+  onChoisir(id: string): void;
+  onFermer(): void;
+}>) {
+  const t = useTranslations('creation.paths');
+  const [recherche, setRecherche] = useState('');
+  const toutes = useMemo(() => entreesDeSorte(systeme, sorte), [systeme, sorte]);
+  // Capacités de chaque voie, calculées une fois à l'ouverture (recherche et aperçu)
+  const capacites = useMemo(
+    () =>
+      new Map(
+        ouvert ? toutes.map((e) => [e.id, grantsOf(fiche, e, max).map((g) => g.entry.nom)]) : [],
+      ),
+    [ouvert, toutes, fiche, max],
+  );
+  const terme = recherche.trim().toLocaleLowerCase('fr');
+  const groupes = useMemo(() => {
+    const filtrees = toutes.filter((e) => {
+      if (!terme) return true;
+      return [e.nom, ...e.etiquettes, ...(capacites.get(e.id) ?? [])]
+        .join(' ')
+        .toLocaleLowerCase('fr')
+        .includes(terme);
+    });
+    const parGroupe = new Map<string, Entree[]>();
+    for (const e of filtrees) {
+      const cle = e.etiquettes.slice(0, 2).map(etiquette).join(' · ') || '—';
+      parGroupe.set(cle, [...(parGroupe.get(cle) ?? []), e]);
+    }
+    return [...parGroupe.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'));
+  }, [toutes, terme, capacites]);
+
+  return (
+    <Dialog
+      open={ouvert}
+      onOpenChange={(o) => {
+        if (!o) {
+          onFermer();
+          setRecherche('');
+        }
+      }}
+    >
+      <DialogContent className="flex h-[min(40rem,85dvh)] flex-col gap-3 sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            {remplace ? t('replaceTitle', { name: remplace.nom }) : t('add')}
+          </DialogTitle>
+          <DialogDescription className="sr-only">{t('pickHint')}</DialogDescription>
+        </DialogHeader>
+        <InputGroup
+          avant={<Search />}
+          autoFocus
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          placeholder={t('search')}
+          aria-label={t('search')}
+        />
+        <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 [scrollbar-width:thin]">
+          {groupes.map(([groupe, voies]) => (
+            <section key={groupe} className="mb-4">
+              <h4 className="sticky top-0 z-10 bg-popover py-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">
+                {groupe}
+              </h4>
+              <ul className="space-y-1">
+                {voies.map((v) => {
+                  const prise = prises.includes(v.id);
+                  const bloque = prise ? null : prerequisManquant(fiche, v);
+                  return (
+                    <li key={v.id}>
+                      <button
+                        type="button"
+                        disabled={prise || Boolean(bloque)}
+                        onClick={() => onChoisir(v.id)}
+                        title={bloque ?? undefined}
+                        className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
+                      >
+                        <span className="mt-0.5 grid size-5 shrink-0 place-items-center text-primary">
+                          {prise && <Check className="size-4" aria-hidden />}
+                          {bloque && <Lock className="size-3.5 text-subtle" aria-hidden />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold">{v.nom}</span>
+                          <span className="mt-0.5 line-clamp-1 block text-xs text-muted-foreground">
+                            {(capacites.get(v.id) ?? []).join(' · ')}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+          {groupes.length === 0 && (
+            <p className="py-10 text-center text-sm text-subtle">{t('none')}</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -53,12 +53,14 @@ import {
 import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
+import { pathSortes } from '@/components/fiche/blocks/tree/model';
 import { ApercuFiche } from './apercu-fiche';
 import { EtapeAcheter } from './etape-acheter';
 import { EtapeChoisir } from './etape-choisir';
 import { EtapePortrait } from './etape-portrait';
 import { EtapeRepartir, EtapeSaisir } from './etape-saisir';
 import { EtapeTirer } from './etape-tirer';
+import { EtapeVoies } from './etape-voies';
 
 type EtapeUI =
   | { id: 'identite' | 'portrait' | 'recap'; nom: string }
@@ -551,9 +553,17 @@ function EtapeRegle({
 }>) {
   const t = useTranslations();
   if (!systeme || !etat || !fiche) return <Chargement texte={t('creation.loadingRules')} />;
+  // Plusieurs entrées d'une sorte qui se lit comme des voies : les voies du héros, éditables
+  const voies =
+    regle.type === 'choisir' &&
+    regle.max > 1 &&
+    pathSortes(systeme, etat.type).some((s) => s.id === regle.sorte);
   return (
     <>
-      {regle.type === 'choisir' && (
+      {regle.type === 'choisir' && voies && (
+        <EtapeVoies systeme={systeme} etat={etat} fiche={fiche} etape={regle} onEtat={onEtat} />
+      )}
+      {regle.type === 'choisir' && !voies && (
         <EtapeChoisir
           systeme={systeme}
           presentation={presentation}

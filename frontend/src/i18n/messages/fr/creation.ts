@@ -38,6 +38,19 @@ export default {
       'Rejoignez la campagne de votre MJ avec son code, une campagne ouverte, ou créez la vôtre.',
     lead: 'Un héros naît dans une campagne : son système de jeu, ses règles de création et sa table en dépendent.',
   },
+  paths: {
+    add: 'Ajouter une voie',
+    addSuggested:
+      '{count, plural, one {Reprendre la voie suggérée} other {Reprendre les # voies suggérées}}',
+    change: 'Changer de voie',
+    changeOf: 'Changer {name}',
+    remove: 'Retirer',
+    removeOf: 'Retirer {name}',
+    replaceTitle: 'Remplacer {name}',
+    pickHint: 'Choisissez une voie ; ses capacités s’affichent sous son nom.',
+    search: 'Rechercher une voie ou une capacité',
+    none: 'Aucune voie ne correspond.',
+  },
   choose: {
     suggested: 'Suggérées',
     chosen: 'Choisie',
