@@ -109,6 +109,12 @@ export interface ResumePersonnage {
   highlights: { label: string; value: string }[];
 }
 
+/** Entrée possédée remplacée par une entrée libre posée par la même écriture. */
+export interface Substitution {
+  de: string;
+  vers: string;
+}
+
 export interface DetailsPersonnage {
   concept: string;
   appearance: string;
@@ -610,9 +616,14 @@ export interface OperationsPersonnage {
   retirerBonus(id: string, apercu?: EtatEntite): Promise<FichePersonnage>;
   /**
    * Pose ou remplace des entrées libres ensemble (une voie maison et ses capacités, qui se
-   * citent : docs/entrees-libres.md).
+   * citent : docs/entrees-libres.md). `substitutions` : entrées possédées remplacées par une
+   * variante posée ici (voie du catalogue modifiée), leurs rangs et achats repris.
    */
-  entreesLibres(entries: Entree[], apercu?: EtatEntite): Promise<FichePersonnage>;
+  entreesLibres(
+    entries: Entree[],
+    apercu?: EtatEntite,
+    substitutions?: Substitution[],
+  ): Promise<FichePersonnage>;
   /** Retire une entrée libre, ses possessions et les capacités qu'elle seule donnait. */
   retirerEntreeLibre(id: string, apercu?: EtatEntite): Promise<FichePersonnage>;
   /**
@@ -780,13 +791,17 @@ export function useOperationsPersonnage(id: string): OperationsPersonnage {
             apercu,
           )
         ).fiche,
-      entreesLibres: async (entries, apercu) =>
+      entreesLibres: async (entries, apercu, substitutions) =>
         (
           await w(
             (version) =>
               api<CharacterApi>(url(id, '/entries'), {
                 method: 'PUT',
-                ...json({ version, entries }),
+                ...json({
+                  version,
+                  entries,
+                  ...(substitutions?.length ? { substitutions } : {}),
+                }),
               }),
             apercu,
           )

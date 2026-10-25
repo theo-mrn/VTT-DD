@@ -18,7 +18,11 @@
 
 /** Écritures des entrées libres du héros (absentes : pas de voie maison). */
 export interface VoiesLibres {
-  entreesLibres(entries: Entree[], apercu: EtatEntite): Promise<boolean>;
+  entreesLibres(
+    entries: Entree[],
+    apercu: EtatEntite,
+    substitutions?: Substitution[],
+  ): Promise<boolean>;
   retirerEntreeLibre(id: string, apercu: EtatEntite): void;
 }
 import { useTranslations } from 'next-intl';
@@ -65,7 +69,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Info } from '@/components/ui/tooltip';
 import { entreesDeSorte, prerequisManquant, suggestions } from '@/lib/creation';
-import type { OperationCreation } from '@/lib/personnages';
+import type { OperationCreation, Substitution } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 
 type Etape = Extract<EtapeCreation, { type: 'choisir' }>;
@@ -108,7 +112,11 @@ export function EtapeVoies({
   const selection: Selection[] = prises.map((p) => ({ entree: p.entree, choix: p.choix }));
   const ids = selection.map((s) => s.entree);
   const suggerees = suggestions(systeme, etat, etape.sorte);
-  const manquantes = suggerees.filter((s) => !ids.includes(s));
+  // Voie suggérée couverte par sa variante maison (même nom) : pas à reprendre
+  const couverte = (id: string) =>
+    ids.includes(id) ||
+    ids.some((x) => estLibre(x) && sys.entrees.get(x)?.nom === sys.entrees.get(id)?.nom);
+  const manquantes = suggerees.filter((s) => !couverte(s));
 
   /** `base` : l'état à partir duquel choisir (celui qui porte une voie maison tout juste créée). */
   function appliquer(suivante: Selection[], base: EtatEntite = etat) {
@@ -199,8 +207,12 @@ export function EtapeVoies({
                 fiche={fiche}
                 max={max}
                 suggeree={suggerees.includes(id)}
-                {...(maison && estLibre(id)
-                  ? { onModifier: () => setEditeur({ kind: 'edit', path: voie }) }
+                {...(maison
+                  ? {
+                      onModifier: () => setEditeur({ kind: 'edit', path: voie }),
+                      onCapacite: (rang: number, action: 'remplacer' | 'personnaliser') =>
+                        setEditeur({ kind: 'edit', path: voie, rang, action }),
+                    }
                   : {})}
                 onChanger={() => setSelecteur({ remplace: id })}
                 onRetirer={() => retirer(id)}
@@ -262,6 +274,7 @@ function CarteVoie({
   max,
   suggeree,
   onModifier,
+  onCapacite,
   onChanger,
   onRetirer,
 }: Readonly<{
@@ -269,8 +282,10 @@ function CarteVoie({
   fiche: Fiche;
   max: number;
   suggeree: boolean;
-  /** Voie maison : la rouvrir dans l'éditeur. */
+  /** Voie maison ou variante : l'ouvrir dans l'éditeur. */
   onModifier?(): void;
+  /** Capacité d'un rang : la remplacer ou la personnaliser (la voie devient une variante). */
+  onCapacite?(rang: number, action: 'remplacer' | 'personnaliser'): void;
   onChanger(): void;
   onRetirer(): void;
 }>) {
@@ -348,6 +363,26 @@ function CarteVoie({
                     {r.entry.description}
                   </p>
                 ) : null}
+                {onCapacite && (
+                  <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border pt-3">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => onCapacite(r.rank, 'remplacer')}
+                    >
+                      <ArrowLeftRight />
+                      {t('replaceAbility')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onCapacite(r.rank, 'personnaliser')}
+                    >
+                      <Pencil />
+                      {t('customizeAbility')}
+                    </Button>
+                  </div>
+                )}
               </PopoverContent>
             </Popover>
           </li>

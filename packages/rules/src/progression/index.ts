@@ -6,3 +6,4 @@ export * from './creation.js';
 export * from './repos.js';
 export * from './usages.js';
 export * from './deduction.js';
+export * from './substitution.js';

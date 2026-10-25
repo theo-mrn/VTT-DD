@@ -381,8 +381,8 @@ export function AssistantPersonnage({
                       libres={
                         id
                           ? {
-                              entreesLibres: (entries, apercu) =>
-                                ops.entreesLibres(entries, apercu).then(
+                              entreesLibres: (entries, apercu, substitutions) =>
+                                ops.entreesLibres(entries, apercu, substitutions).then(
                                   () => true,
                                   (err: unknown) => {
                                     toast.error(messageErreur(err));

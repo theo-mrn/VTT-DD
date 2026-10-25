@@ -41,6 +41,7 @@ import {
   modifierValeurs,
   poserBonus,
   poserEntreesLibres,
+  substituerPossessions,
   apresActivation,
   poserPossession,
   rembourserLigne,
@@ -812,16 +813,34 @@ export const register: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: Params,
-        body: z.object({ version: Version, entries: z.array(Entree).min(1).max(50) }),
+        body: z.object({
+          version: Version,
+          entries: z.array(Entree).min(1).max(50),
+          /** Entrées possédées remplacées par une variante posée ici (voie du catalogue modifiée). */
+          substitutions: z
+            .array(z.object({ de: Id, vers: Id }))
+            .max(10)
+            .default([]),
+        }),
         response: { 200: Personnage },
       },
     },
     async (req) => {
-      const { entries } = req.body;
-      const ligne = await modifierPour(req, req.params.id, req.body.version, (l) => ({
-        changement: { etat: poserEntreesLibres(l.etat, entries) },
+      const { entries, substitutions } = req.body;
+      const ligne = await modifierPour(req, req.params.id, req.body.version, (l, systeme) => ({
+        changement: {
+          etat: substituerPossessions(
+            systeme,
+            poserEntreesLibres(l.etat, entries),
+            entries,
+            substitutions,
+          ),
+        },
         operation: 'entree-libre',
-        details: { entries: entries.map((e) => ({ id: e.id, nom: e.nom, sorte: e.sorte })) },
+        details: {
+          entries: entries.map((e) => ({ id: e.id, nom: e.nom, sorte: e.sorte })),
+          ...(substitutions.length ? { substitutions } : {}),
+        },
       }));
       return api(ligne);
     },

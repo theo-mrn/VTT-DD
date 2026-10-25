@@ -123,4 +123,83 @@ describe.skipIf(!TEST_DATABASE_URL)('entrées libres par HTTP', () => {
     expect(formule.statusCode).toBe(422);
     expect(formule.json().detail).toContain('SAGESSE');
   });
+
+  it('variante maison d’une voie du catalogue : possédée au même rang, une capacité remplacée', async () => {
+    let p = (
+      await envoyer('POST', '/v1/characters', {
+        systemeId: 'dnd-classic',
+        type: 'personnage',
+        nom: 'Aldo',
+      })
+    ).json() as Personnage;
+    const prise = await envoyer('POST', `/v1/characters/${p.id}/possessions`, {
+      version: p.version,
+      entree: 'guerrier-resistance',
+      rang: 2,
+    });
+    expect(prise.statusCode, prise.body).toBe(200);
+    p = prise.json() as Personnage;
+
+    // Rang 2 remplacé par une capacité maison (+3 DEF) ; le rang 1 reste celle du catalogue
+    const voie = {
+      id: 'perso-resistance',
+      sorte: 'voie',
+      nom: 'Voie de la résistance',
+      effets: [
+        {
+          sur: 'rang',
+          entree: 'guerrier-resistance-robustesse',
+          valeur: 1,
+          condition: 'rang >= 1',
+        },
+        { sur: 'rang', entree: 'perso-peau-de-pierre', valeur: 1, condition: 'rang >= 2' },
+      ],
+    };
+    const res = await envoyer('PUT', `/v1/characters/${p.id}/entries`, {
+      version: p.version,
+      entries: [
+        voie,
+        {
+          ...capacite('perso-peau-de-pierre', 'Peau de pierre', 2, [
+            { sur: 'attribut', attribut: 'Defense', operation: 'ajouter', valeur: 3 },
+          ]),
+          champs: { voie: 'perso-resistance', rangVoie: 2, activation: 'Capacité passive' },
+        },
+      ],
+      substitutions: [{ de: 'guerrier-resistance', vers: 'perso-resistance' }],
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    p = res.json() as Personnage;
+    expect(p.etat.possessions.filter((x) => x.entree.includes('resistance'))).toEqual([
+      expect.objectContaining({ entree: 'perso-resistance', rang: 2 }),
+    ]);
+    expect(p.etat.entrees.map((e) => e.id)).toEqual(['perso-resistance', 'perso-peau-de-pierre']);
+    // Fiche toujours calculée : la variante compte comme la voie qu'elle remplace
+    expect(typeof p.fiche.valeurs.Defense!.valeur).toBe('number');
+  });
+
+  it('refuse une substitution vers une entrée non posée, ou depuis une entrée non possédée', async () => {
+    const p = (
+      await envoyer('POST', '/v1/characters', {
+        systemeId: 'dnd-classic',
+        type: 'personnage',
+        nom: 'Aldo',
+      })
+    ).json() as Personnage;
+    const voie = { id: 'perso-v', sorte: 'voie', nom: 'V', effets: [] };
+    const absente = await envoyer('PUT', `/v1/characters/${p.id}/entries`, {
+      version: p.version,
+      entries: [voie],
+      substitutions: [{ de: 'guerrier-resistance', vers: 'perso-autre' }],
+    });
+    expect(absente.statusCode).toBe(422);
+    expect(absente.json().detail).toContain('n’est pas posée');
+    const nonPossedee = await envoyer('PUT', `/v1/characters/${p.id}/entries`, {
+      version: p.version,
+      entries: [voie],
+      substitutions: [{ de: 'guerrier-resistance', vers: 'perso-v' }],
+    });
+    expect(nonPossedee.statusCode).toBe(422);
+    expect(nonPossedee.json().detail).toContain('n’est pas possédée');
+  });
 });

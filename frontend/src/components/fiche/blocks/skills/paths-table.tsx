@@ -17,7 +17,6 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
 import type { PathRankView } from '../tree/model';
 import type { PathRow } from './abilities';
-import { estLibre } from './free-path';
 
 type CellState = 'owned' | 'available' | 'blocked' | 'locked' | 'empty';
 
@@ -257,7 +256,7 @@ function PathsGrid({
                   >
                     {path.entry.nom}
                   </span>
-                  {onEdit && estLibre(path.entry.id) && <EditButton path={path} onEdit={onEdit} />}
+                  {onEdit && <EditButton path={path} onEdit={onEdit} />}
                 </span>
                 <span className="flex items-center gap-1.5 text-[11px] text-subtle">
                   {path.source && <span className="truncate">{path.source}</span>}
@@ -386,7 +385,7 @@ function PathsList({
                 aria-hidden
               />
             </button>
-            {expanded && onEdit && estLibre(path.entry.id) && (
+            {expanded && onEdit && (
               <div className="flex justify-end px-2">
                 <EditButton path={path} onEdit={onEdit} />
               </div>

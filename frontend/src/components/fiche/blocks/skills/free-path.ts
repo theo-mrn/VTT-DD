@@ -19,6 +19,11 @@ export type ChampLibre = string | number | boolean;
 export interface FreeAbilityDraft {
   /** Identifiant de l'entrée libre (absent : nouvelle capacité). */
   id?: string;
+  /**
+   * Capacité du catalogue gardée telle quelle à ce rang (son identifiant) : ni copiée ni
+   * modifiable ici, ses effets restent ceux du catalogue.
+   */
+  ref?: string;
   sorte: string;
   nom: string;
   description: string;
@@ -32,6 +37,9 @@ export interface FreeAbilityDraft {
 export interface FreePathDraft {
   /** Identifiant de la voie (absent : nouvelle voie). */
   id?: string;
+  /** Voie du catalogue dont celle-ci est la variante maison : elle la remplace à l'enregistrement. */
+  base?: string;
+  etiquettes?: string[];
   sorte: string;
   nom: string;
   description: string;
@@ -73,30 +81,63 @@ export function emptyDraft(fiche: Fiche, sorte: Sorte): FreePathDraft {
   };
 }
 
-/** Brouillon d'une voie libre existante, ses capacités placées à leur rang. */
+/** Champs d'une entrée repris dans un brouillon (les listes, choix multiples, restent hors). */
+const champsLibres = (e: Entree) =>
+  Object.fromEntries(
+    Object.entries(e.champs).filter((kv): kv is [string, ChampLibre] => !Array.isArray(kv[1])),
+  );
+
+/** Capacité du catalogue mise à un rang, gardée telle quelle (ses effets, sa description). */
+export const refDraft = (e: Entree): FreeAbilityDraft => ({
+  ref: e.id,
+  sorte: e.sorte,
+  nom: e.nom,
+  description: e.description ?? '',
+  champs: {},
+  effets: [],
+});
+
+/**
+ * Copie modifiable d'une capacité (nouvelle entrée libre, mêmes effets et champs) ; null si une
+ * entrée libre ne peut pas la porter (effets donnés aux cibles, entrée générique).
+ */
+export function copieModifiable(e: Entree): FreeAbilityDraft | null {
+  if (e.donne || e.libre) return null;
+  return {
+    sorte: e.sorte,
+    nom: e.nom,
+    description: e.description ?? '',
+    champs: champsLibres(e),
+    effets: e.effets,
+  };
+}
+
+/**
+ * Brouillon d'une voie : ses capacités à leur rang, libres (modifiables) ou du catalogue (par
+ * référence). Une voie du catalogue donne le brouillon de sa variante maison (`base`).
+ */
 export function draftOf(fiche: Fiche, path: Entree): FreePathDraft {
   const sorte = fiche.systeme.sortes.get(path.sorte)!;
   const draft = emptyDraft(fiche, sorte);
   for (const g of grantsOf(fiche, path, draft.ranks.length)) {
-    if (!estLibre(g.entry.id) || draft.ranks[g.rank - 1]) continue;
-    draft.ranks[g.rank - 1] = {
-      id: g.entry.id,
-      sorte: g.entry.sorte,
-      nom: g.entry.nom,
-      description: g.entry.description ?? '',
-      champs: Object.fromEntries(
-        Object.entries(g.entry.champs).filter(
-          (kv): kv is [string, ChampLibre] => !Array.isArray(kv[1]),
-        ),
-      ),
-      effets: g.entry.effets,
-    };
+    if (draft.ranks[g.rank - 1]) continue;
+    draft.ranks[g.rank - 1] = estLibre(g.entry.id)
+      ? {
+          id: g.entry.id,
+          sorte: g.entry.sorte,
+          nom: g.entry.nom,
+          description: g.entry.description ?? '',
+          champs: champsLibres(g.entry),
+          effets: g.entry.effets,
+        }
+      : refDraft(g.entry);
   }
   return {
     ...draft,
-    id: path.id,
+    ...(estLibre(path.id) ? { id: path.id } : { base: path.id }),
     nom: path.nom,
     description: path.description ?? '',
+    etiquettes: path.etiquettes,
   };
 }
 
@@ -133,7 +174,12 @@ export function entriesOf(
   d: FreePathDraft,
   avant: FreePathDraft | null,
   pris: ReadonlySet<string>,
-): { entries: Entree[]; removed: string[] } {
+): {
+  entries: Entree[];
+  removed: string[];
+  /** Variante d'une voie du catalogue : la voie qu'elle remplace (possédée), et elle. */
+  remplace: { de: string; vers: string } | null;
+} {
   const ids = new Set(pris);
   const take = (nom: string) => {
     const id = freeId(nom, ids);
@@ -145,6 +191,12 @@ export function entriesOf(
   const effets: Effet[] = [];
   d.ranks.forEach((r, i) => {
     if (!r) return;
+    const condition = `rang >= ${i + 1}`;
+    // Capacité du catalogue : la voie la donne telle quelle
+    if (r.ref) {
+      effets.push({ sur: 'rang', entree: r.ref, valeur: '1', condition } as Effet);
+      return;
+    }
     const id = r.id ?? take(r.nom);
     const sorte = systeme.sortes.get(r.sorte);
     const champs: Record<string, ChampLibre> = { ...r.champs };
@@ -162,14 +214,14 @@ export function entriesOf(
       choix: [],
       choixAttributs: [],
     });
-    effets.push({ sur: 'rang', entree: id, valeur: '1', condition: `rang >= ${i + 1}` } as Effet);
+    effets.push({ sur: 'rang', entree: id, valeur: '1', condition } as Effet);
   });
   const path: Entree = {
     id: pathId,
     sorte: d.sorte,
     nom: d.nom.trim(),
     ...(d.description.trim() ? { description: d.description.trim() } : {}),
-    etiquettes: [],
+    etiquettes: d.etiquettes ?? [],
     libre: false,
     champs: {},
     effets,
@@ -178,5 +230,9 @@ export function entriesOf(
   };
   const gardes = new Set(abilities.map((a) => a.id));
   const removed = (avant?.ranks ?? []).flatMap((r) => (r?.id && !gardes.has(r.id) ? [r.id] : []));
-  return { entries: [path, ...abilities], removed };
+  return {
+    entries: [path, ...abilities],
+    removed,
+    remplace: d.base ? { de: d.base, vers: pathId } : null,
+  };
 }

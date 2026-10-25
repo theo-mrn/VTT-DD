@@ -23,6 +23,7 @@ import {
   refusSaisie,
   reporterEffetsDesactives,
   sourceExemplaire,
+  substituerEntree,
   systemePour,
   variablesSource,
   verifierChampsExemplaire,
@@ -1011,6 +1012,31 @@ export function poserEntreesLibres(etat: EtatEntite, poses: readonly Entree[]): 
   const entrees = etat.entrees.map((e) => parId.get(e.id) ?? e);
   const connues = new Set(etat.entrees.map((e) => e.id));
   return { ...etat, entrees: [...entrees, ...poses.filter((e) => !connues.has(e.id))] };
+}
+
+/**
+ * Variantes maison (docs/entrees-libres.md) : chaque entrée possédée `de` passe à l'entrée libre
+ * `vers`, posée par la même écriture et de même sorte. Rangs, choix, journal des achats, effets
+ * coupés et usages suivent (`substituerEntree`) : une voie du catalogue modifiée garde ses rangs.
+ */
+export function substituerPossessions(
+  systeme: SystemeCharge,
+  etat: EtatEntite,
+  poses: readonly Entree[],
+  substitutions: readonly { de: string; vers: string }[],
+): EtatEntite {
+  const vu = systemePour(systeme, etat);
+  let suivant = etat;
+  for (const { de, vers } of substitutions) {
+    const cible = poses.find((e) => e.id === vers);
+    if (!cible) throw refus(`Substitution : ${vers} n’est pas posée par cette écriture`);
+    if (!suivant.possessions.some((p) => p.entree === de))
+      throw refus(`Substitution : ${de} n’est pas possédée`);
+    if (vu.entrees.get(de)?.sorte !== cible.sorte)
+      throw refus(`Substitution : ${de} et ${vers} ne sont pas de la même sorte`);
+    suivant = substituerEntree(suivant, de, vers);
+  }
+  return suivant;
 }
 
 /** Entrées libres que `e` donne par ses effets (capacités d'une voie). */

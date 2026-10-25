@@ -7,8 +7,16 @@
  * Les bonus d'une capacité se gèrent ensuite depuis sa carte, comme pour le catalogue.
  */
 import { useTranslations } from 'next-intl';
-import type { Entree, EtatEntite, Fiche, Sorte, SystemeCharge } from '@vtt/rules';
-import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
+import {
+  substituerEntree,
+  type Entree,
+  type EtatEntite,
+  type Fiche,
+  type Sorte,
+  type SystemeCharge,
+} from '@vtt/rules';
+import type { Substitution } from '@/lib/personnages';
+import { ArrowLeftRight, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogDescription, DialogTitle, SheetContent } from '@/components/ui/dialog';
@@ -21,18 +29,29 @@ import { cn } from '@/lib/utils';
 import { estModifiable, FieldInput, FormulaField } from '../inventory/editors';
 import { cleExemple, verifierFormuleObjet, type ChampFormule } from '../inventory/model';
 import {
+  copieModifiable,
   draftOf,
   draftValid,
   emptyDraft,
   entriesOf,
   freePathKinds,
+  refDraft,
   type ChampLibre,
   type FreeAbilityDraft,
   type FreePathDraft,
 } from './free-path';
+import { AbilityPicker } from './ability-picker';
 
 /** Voie ouverte dans le panneau : une voie libre possédée, ou une nouvelle voie. */
-export type FreePathTarget = { kind: 'new' } | { kind: 'edit'; path: Entree } | null;
+/**
+ * Voie ouverte dans le panneau : une nouvelle voie, ou une voie possédée (libre, ou du catalogue :
+ * sa variante maison). `rang` et `action` : la capacité de ce rang à remplacer ou personnaliser
+ * dès l'ouverture (clic sur une capacité).
+ */
+export type FreePathTarget =
+  | { kind: 'new' }
+  | { kind: 'edit'; path: Entree; rang?: number; action?: 'remplacer' | 'personnaliser' }
+  | null;
 
 /**
  * Ce dont l'éditeur a besoin, quel que soit l'écran qui l'ouvre (fiche, création) : le système
@@ -42,7 +61,11 @@ export type FreePathTarget = { kind: 'new' } | { kind: 'edit'; path: Entree } | 
 export interface FreePathHost {
   systeme: SystemeCharge;
   fiche: Fiche;
-  entreesLibres(entries: Entree[], apercu: EtatEntite): Promise<boolean>;
+  entreesLibres(
+    entries: Entree[],
+    apercu: EtatEntite,
+    substitutions?: Substitution[],
+  ): Promise<boolean>;
   retirerEntreeLibre?(id: string, apercu: EtatEntite): void;
   prendre(voie: string, rang: number, apercu: EtatEntite): void;
   /** Le rang de départ d'une nouvelle voie se choisit (sinon : rang 0). */
@@ -205,6 +228,9 @@ export function FreePathEditor({
   const [initial, setInitial] = useState<FreePathDraft | null>(null);
   const [startRank, setStartRank] = useState(0);
   const [busy, setBusy] = useState(false);
+  // Rang (index) dont on choisit la capacité dans le catalogue
+  const [picking, setPicking] = useState<number | null>(null);
+  const entree = (id: string) => fiche.systeme.entrees.get(id);
 
   // Brouillon repris à chaque ouverture
   useEffect(() => {
@@ -216,9 +242,16 @@ export function FreePathEditor({
         : sorte
           ? emptyDraft(fiche, sorte)
           : null;
-    setDraft(d);
+    const i = target.kind === 'edit' && target.rang ? target.rang - 1 : null;
+    const ref = i !== null ? d?.ranks[i]?.ref : undefined;
+    const copie =
+      target.kind === 'edit' && target.action === 'personnaliser' && ref
+        ? copieModifiable(entree(ref)!)
+        : null;
+    setDraft(d && copie ? { ...d, ranks: d.ranks.map((r, j) => (j === i ? copie : r)) } : d);
     setInitial(target.kind === 'edit' ? d : null);
     setStartRank(0);
+    setPicking(target.kind === 'edit' && target.action === 'remplacer' ? i : null);
     // Seulement à l'ouverture : la fiche change pendant l'édition (écritures, temps réel)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);
@@ -237,25 +270,28 @@ export function FreePathEditor({
     if (!draft || !draftValid(draft)) return;
     const etat = fiche.etat;
     const pris = new Set([...etat.entrees.map((e) => e.id), ...fiche.systeme.entrees.keys()]);
-    const { entries, removed } = entriesOf(host.systeme, draft, initial, pris);
+    const { entries, removed, remplace } = entriesOf(host.systeme, draft, initial, pris);
     const parId = new Map(entries.map((e) => [e.id, e]));
-    const apercu: EtatEntite = {
+    let apercu: EtatEntite = {
       ...etat,
       entrees: [
         ...etat.entrees.map((e) => parId.get(e.id) ?? e),
         ...entries.filter((e) => !etat.entrees.some((x) => x.id === e.id)),
       ],
     };
+    // Variante d'une voie possédée : elle la remplace, rangs et achats repris
+    const substitue = remplace && etat.possessions.some((p) => p.entree === remplace.de);
+    if (substitue) apercu = substituerEntree(apercu, remplace.de, remplace.vers);
     setBusy(true);
     try {
-      if (!(await host.entreesLibres(entries, apercu))) return;
+      if (!(await host.entreesLibres(entries, apercu, substitue ? [remplace] : undefined))) return;
       let apres = apercu;
       for (const r of removed) {
         apres = { ...apres, entrees: apres.entrees.filter((e) => e.id !== r) };
         host.retirerEntreeLibre?.(r, apres);
       }
       // Nouvelle voie : prise au rang de départ (les rangs suivants s'achètent)
-      if (!draft.id) host.prendre(entries[0]!.id, startRank, apres);
+      if (!draft.id && !substitue) host.prendre(entries[0]!.id, startRank, apres);
       onClose();
     } finally {
       setBusy(false);
@@ -274,7 +310,7 @@ export function FreePathEditor({
       <SheetContent cote="right" className="w-[94vw] max-w-lg">
         <div className="border-b border-border px-6 py-5">
           <DialogTitle className="text-lg font-semibold">
-            {draft?.id ? draft.nom || t('title') : t('title')}
+            {draft?.id || draft?.base ? draft.nom || t('title') : t('title')}
           </DialogTitle>
           <DialogDescription className="sr-only">{t('title')}</DialogDescription>
         </div>
@@ -304,21 +340,70 @@ export function FreePathEditor({
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
                       {t('rank', { rank: i + 1 })}
                     </span>
-                    {r && (
-                      <Info texte={t('removeAbility')}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7"
-                          aria-label={t('removeAbility')}
-                          onClick={() => setRank(i, null)}
+                    <span className="ml-auto flex items-center">
+                      {r?.ref && (
+                        <Info
+                          texte={
+                            copieModifiable(entree(r.ref)!) ? t('customize') : t('cannotCustomize')
+                          }
                         >
-                          <X />
-                        </Button>
-                      </Info>
-                    )}
+                          <span className="inline-flex">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              aria-label={t('customize')}
+                              disabled={!copieModifiable(entree(r.ref)!)}
+                              onClick={() => setRank(i, copieModifiable(entree(r.ref!)!))}
+                            >
+                              <Pencil />
+                            </Button>
+                          </span>
+                        </Info>
+                      )}
+                      {r && (
+                        <Info texte={t('replace')}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            aria-label={t('replace')}
+                            onClick={() => setPicking(i)}
+                          >
+                            <ArrowLeftRight />
+                          </Button>
+                        </Info>
+                      )}
+                      {r && (
+                        <Info texte={t('removeAbility')}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            aria-label={t('removeAbility')}
+                            onClick={() => setRank(i, null)}
+                          >
+                            <X />
+                          </Button>
+                        </Info>
+                      )}
+                    </span>
                   </div>
-                  {r ? (
+                  {r?.ref ? (
+                    <div className="space-y-1">
+                      <p className="flex items-center gap-2 text-sm font-medium">
+                        {r.nom}
+                        <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-subtle">
+                          {t('fromCatalog')}
+                        </span>
+                      </p>
+                      {r.description && (
+                        <p className="line-clamp-3 whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
+                          {r.description}
+                        </p>
+                      )}
+                    </div>
+                  ) : r ? (
                     <AbilityFields
                       host={host}
                       sortes={kinds.abilities}
@@ -326,20 +411,26 @@ export function FreePathEditor({
                       onChange={(v) => setRank(i, v)}
                     />
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRank(i, defaultAbility())}
-                    >
-                      <Plus />
-                      {t('addAbility')}
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRank(i, defaultAbility())}
+                      >
+                        <Plus />
+                        {t('addAbility')}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setPicking(i)}>
+                        <Search />
+                        {t('pickFromCatalog')}
+                      </Button>
+                    </div>
                   )}
                 </li>
               ))}
             </ol>
 
-            {!draft.id && host.rangDepart && (
+            {!draft.id && !draft.base && host.rangDepart && (
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor={`${id}-rang`}>{t('startRank')}</Label>
                 <SelectField
@@ -373,6 +464,13 @@ export function FreePathEditor({
           </Button>
         </div>
       </SheetContent>
+      <AbilityPicker
+        rang={picking === null ? null : picking + 1}
+        fiche={fiche}
+        sortes={kinds.abilities.map((k) => k.id)}
+        onChoisir={(e) => picking !== null && setRank(picking, refDraft(e))}
+        onFermer={() => setPicking(null)}
+      />
     </Dialog>
   );
 }

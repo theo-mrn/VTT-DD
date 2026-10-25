@@ -117,8 +117,8 @@ export function useFicheCalculee(id: string | null | undefined) {
       dossiers: (folders, apercu) => void ecritures.dossiers(folders, apercu).catch(signaler),
       bonus: (d, apercu) => void ecritures.bonus(d, apercu).catch(signaler),
       retirerBonus: (b, apercu) => void ecritures.retirerBonus(b, apercu).catch(signaler),
-      entreesLibres: (entries, apercu) =>
-        ecritures.entreesLibres(entries, apercu).then(
+      entreesLibres: (entries, apercu, substitutions) =>
+        ecritures.entreesLibres(entries, apercu, substitutions).then(
           () => true,
           (e: unknown) => {
             signaler(e);

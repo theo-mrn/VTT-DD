@@ -37,6 +37,7 @@ import type {
   DemandeDossier,
   DemandePossession,
   OperationsPersonnage,
+  Substitution,
 } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { EntryBonuses } from './blocks/effects/entry-bonuses';
@@ -72,7 +73,11 @@ export interface OperationsFiche {
    * Pose ou remplace des entrées libres ensemble (voie maison et capacités) ; vrai si le
    * service les a enregistrées (une erreur est déjà signalée).
    */
-  entreesLibres?(entries: Entree[], apercu: EtatEntite): Promise<boolean>;
+  entreesLibres?(
+    entries: Entree[],
+    apercu: EtatEntite,
+    substitutions?: Substitution[],
+  ): Promise<boolean>;
   /** Retire une entrée libre et ce qu'elle seule donnait. */
   retirerEntreeLibre?(id: string, apercu: EtatEntite): void;
   /** Active ou coupe des effets (clés `<source>/<index>`) sans toucher à leur source. */
