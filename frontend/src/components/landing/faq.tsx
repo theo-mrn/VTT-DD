@@ -61,7 +61,7 @@ export function Faq() {
       <script
         type="application/ld+json"
         // Contenu de nos traductions, sérialisé : pas d'entrée utilisateur
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, '\\u003c') }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replaceAll('<', '\\u003c') }}
       />
     </section>
   );
