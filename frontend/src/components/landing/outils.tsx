@@ -1,234 +1,136 @@
-import { useTranslations } from 'next-intl';
 import {
   BookOpen,
+  ChatsCircle,
+  Cursor,
+  DiscordLogo,
   DoorOpen,
-  History,
-  Images,
-  Layers,
-  MessagesSquare,
-  Mic,
-  MousePointerClick,
-  Music,
-} from 'lucide-react';
+  Ghost,
+  ImagesSquare,
+  Microphone,
+  Stack,
+} from '@phosphor-icons/react/ssr';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Apparition } from './apparition';
+import { Boucle } from './boucle';
 
-/** Case de la mosaïque : un visuel facultatif, un titre, une ligne. */
-function Case({
-  titre,
-  texte,
-  visuel,
-  className,
-  delai = 0,
-}: Readonly<{
-  titre: string;
-  texte: string;
-  visuel?: ReactNode;
-  className?: string;
-  delai?: number;
-}>) {
-  return (
-    <Apparition
-      delai={delai}
-      className={cn(
-        'flex flex-col rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7 transition-colors duration-300 hover:border-white/[0.12]',
-        className,
-      )}
-    >
-      {visuel && <div className="mb-7 flex min-h-[112px] items-center">{visuel}</div>}
-      <h3 className="text-base font-semibold text-foreground">{titre}</h3>
-      <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{texte}</p>
-    </Apparition>
-  );
-}
-
-const CREATURES = ['goblin', 'skeleton', 'owlbear', 'adult-red-dragon'];
-
-/** Quelques créatures du bestiaire, en pile. */
-function Bestiaire() {
-  const t = useTranslations('landing.tools.bestiary');
-  return (
-    <div className="flex items-center gap-5">
-      <div className="flex -space-x-4" aria-hidden>
-        {CREATURES.map((id) => (
-          <Image
-            key={id}
-            src={`/landing/bestiaire-${id}.webp`}
-            alt=""
-            width={96}
-            height={96}
-            className="size-16 rounded-full border-2 border-background bg-surface-2 object-cover"
-          />
-        ))}
-      </div>
-      <p className="text-sm text-subtle">
-        <span className="block text-2xl font-semibold tabular-nums text-foreground">334</span>
-        {t('count')}
-      </p>
-    </div>
-  );
-}
-
-/** Une commande du bot dans un salon Discord. */
-function CommandeDiscord() {
-  return (
-    <div className="w-full space-y-2 font-mono text-[13px]" aria-hidden>
-      <p className="w-fit rounded-lg bg-white/[0.06] px-3 py-1.5 text-muted-foreground">
-        <span className="text-[#8b9cf7]">/roll</span> 1d20+DEX
-      </p>
-      <p className="w-fit rounded-lg border border-primary/25 bg-primary/10 px-3 py-1.5 text-foreground">
-        Aelwen · <span className="text-primary">17</span> = 14 + 3
-      </p>
-    </div>
-  );
-}
-
-/** Code d'invitation d'une campagne. */
-function CodeInvitation() {
-  return (
-    <div className="flex gap-1.5 font-mono text-xl font-semibold text-foreground" aria-hidden>
-      {'K7F2QX'.split('').map((c, i) => (
-        <span
-          key={i}
-          className={cn(
-            'flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]',
-            i === 3 && 'ml-2',
-          )}
-        >
-          {c}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-/** Gabarits de sorts : cône, cercle, ligne. */
-function Gabarits() {
-  return (
-    <svg viewBox="0 0 220 110" className="h-[110px] w-full max-w-[260px]" aria-hidden>
-      <defs>
-        <linearGradient id="cone" x1="0" x2="1">
-          <stop offset="0" stopColor="hsl(var(--primary))" stopOpacity="0.55" />
-          <stop offset="1" stopColor="hsl(var(--primary))" stopOpacity="0.08" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M18 55 L120 14 A110 110 0 0 1 120 96 Z"
-        fill="url(#cone)"
-        stroke="hsl(var(--primary))"
-        strokeOpacity="0.6"
-      />
-      <circle cx="18" cy="55" r="6" fill="hsl(var(--primary))" />
-      <circle
-        cx="178"
-        cy="55"
-        r="30"
-        fill="hsl(var(--primary))"
-        fillOpacity="0.12"
-        stroke="hsl(var(--primary))"
-        strokeOpacity="0.5"
-        strokeDasharray="4 4"
-      />
-    </svg>
-  );
-}
-
-const SYSTEMES = ['dnd', 'starWars', 'nooblies'] as const;
-
-/** Les systèmes de jeu inclus. */
-function Systemes() {
-  const t = useTranslations('landing.tools.systems');
-  return (
-    <ul className="flex flex-wrap gap-2" aria-hidden>
-      {SYSTEMES.map((s) => (
-        <li
-          key={s}
-          className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-foreground"
-        >
-          {t(s)}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-const SIMPLES = [
-  { Icone: Music, id: 'sound' },
-  { Icone: MessagesSquare, id: 'chat' },
-  { Icone: MousePointerClick, id: 'ping' },
-  { Icone: Mic, id: 'voice' },
-  { Icone: BookOpen, id: 'notes' },
-  { Icone: History, id: 'history' },
-  { Icone: Images, id: 'library' },
-  { Icone: DoorOpen, id: 'portals' },
-  { Icone: Layers, id: 'layers' },
+/** Fonctions filmées (`landing.tools.<id>`) : la boucle de l'app, et leur largeur dans la grille. */
+const FILMEES = [
+  { id: 'chat', boucle: 'chat', Icone: ChatsCircle, place: 'lg:col-span-3' },
+  { id: 'ping', boucle: 'ping', Icone: Cursor, place: 'lg:col-span-3' },
+  { id: 'voice', boucle: 'voix', Icone: Microphone, place: 'lg:col-span-2' },
+  { id: 'notes', boucle: 'notes', Icone: BookOpen, place: 'lg:col-span-2' },
 ] as const;
 
-/** Le reste de la table : une mosaïque de visuels en code, puis les autres fonctions en bref. */
+/** Le reste, en une ligne chacun. */
+const AUTRES = [
+  { id: 'library', Icone: ImagesSquare },
+  { id: 'portals', Icone: DoorOpen },
+  { id: 'layers', Icone: Stack },
+  { id: 'discord', Icone: DiscordLogo },
+] as const;
+
+/** Jetons du bestiaire, en éventail ; au survol ils s'écartent. */
+const CREATURES = [
+  { src: 'bestiaire-goblin', ecart: 'group-hover:-translate-x-4 group-hover:-rotate-6' },
+  { src: 'bestiaire-skeleton', ecart: 'group-hover:-translate-x-2 group-hover:-rotate-3' },
+  { src: 'bestiaire-owlbear', ecart: 'group-hover:translate-x-2 group-hover:rotate-3' },
+  { src: 'bestiaire-adult-red-dragon', ecart: 'group-hover:translate-x-4 group-hover:rotate-6' },
+] as const;
+
+/** Carte de la grille : cadre 16 px, marge 8 px, le média garde 8 px d'arrondi. */
+const CARTE =
+  'group flex h-full flex-col rounded-2xl border border-white/10 bg-[#181818] p-2 transition-[border-color,transform] duration-500 ease-weighted hover:-translate-y-1 hover:border-white/20';
+
+function Legende({
+  titre,
+  texte,
+  Icone,
+}: Readonly<{ titre: string; texte: string; Icone: typeof Ghost }>) {
+  return (
+    <div className="p-4">
+      <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+        <Icone weight="duotone" className="size-5 text-primary" aria-hidden />
+        {titre}
+      </h3>
+      <p className="mt-2 text-pretty text-sm text-muted-foreground">{texte}</p>
+    </div>
+  );
+}
+
+/** Le reste de la table : les fonctions filmées en grande grille, puis les autres en ligne. */
 export function Outils() {
   const t = useTranslations('landing.tools');
   return (
-    <section className="py-24 lg:py-32">
-      <div className="mx-auto max-w-6xl px-6">
-        <Apparition className="max-w-2xl">
-          <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
+    <section className="px-4 py-16 sm:py-24">
+      <div className="mx-auto max-w-6xl">
+        <Apparition className="mx-auto max-w-[680px] text-center">
+          <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {t('title')}
           </h2>
-          <p className="mt-5 text-pretty text-lg text-muted-foreground">{t('lead')}</p>
+          <p className="mt-6 text-pretty text-lg text-muted-foreground">{t('lead')}</p>
         </Apparition>
 
-        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-          <Case
-            className="lg:col-span-2"
-            visuel={<Bestiaire />}
-            titre={t('bestiary.title')}
-            texte={t('bestiary.text')}
-          />
-          <Case
-            className="lg:col-span-2"
-            delai={0.06}
-            visuel={<CommandeDiscord />}
-            titre={t('discord.title')}
-            texte={t('discord.text')}
-          />
-          <Case
-            className="lg:col-span-2"
-            delai={0.12}
-            visuel={<CodeInvitation />}
-            titre={t('invite.title')}
-            texte={t('invite.text')}
-          />
-          <Case
-            className="lg:col-span-2"
-            visuel={<Gabarits />}
-            titre={t('templates.title')}
-            texte={t('templates.text')}
-          />
-          <Case
-            className="md:col-span-2 lg:col-span-4"
-            delai={0.06}
-            visuel={<Systemes />}
-            titre={t('systems.title')}
-            texte={t('systems.text')}
-          />
-        </div>
-
-        <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SIMPLES.map(({ Icone, id }, i) => (
-            <li key={id}>
-              <Apparition
-                delai={(i % 3) * 0.06}
-                className="flex h-full gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6"
-              >
-                <Icone className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
-                <div>
-                  <h3 className="text-base font-semibold text-foreground">{t(`${id}.title`)}</h3>
-                  <p className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground">
-                    {t(`${id}.text`)}
-                  </p>
+        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          {FILMEES.map(({ id, boucle, Icone, place }, i) => (
+            <li key={id} className={place}>
+              <Apparition delai={(i % 2) * 0.1} className="h-full">
+                <article className={CARTE}>
+                  <div className="overflow-hidden rounded-lg">
+                    <Boucle
+                      nom={boucle}
+                      alt={t(`${id}.title`)}
+                      className="transition-transform duration-500 ease-weighted group-hover:scale-105"
+                    />
+                  </div>
+                  <Legende titre={t(`${id}.title`)} texte={t(`${id}.text`)} Icone={Icone} />
+                </article>
+              </Apparition>
+            </li>
+          ))}
+          <li className="sm:col-span-2 lg:col-span-2">
+            <Apparition delai={0.2} className="h-full">
+              <article className={CARTE}>
+                <div className="grid aspect-video place-items-center rounded-lg bg-[#272727]">
+                  <div className="flex" aria-hidden>
+                    {CREATURES.map((c, i) => (
+                      <Apparition key={c.src} delai={0.4 + i * 0.1} className="-ml-6 first:ml-0">
+                        <Image
+                          src={`/landing/${c.src}.webp`}
+                          alt=""
+                          width={80}
+                          height={80}
+                          className={cn(
+                            'size-20 rounded-full ring-4 ring-[#272727] transition-transform duration-500 ease-weighted',
+                            c.ecart,
+                          )}
+                        />
+                      </Apparition>
+                    ))}
+                  </div>
                 </div>
+                <Legende titre={t('bestiary.title')} texte={t('bestiary.text')} Icone={Ghost} />
+              </article>
+            </Apparition>
+          </li>
+        </ul>
+
+        <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {AUTRES.map(({ id, Icone }, i) => (
+            <li key={id}>
+              <Apparition delai={i * 0.08} className="h-full">
+                <article className="group flex h-full items-start gap-4 rounded-2xl border border-white/10 bg-[#181818] p-4 transition-colors duration-300 ease-weighted hover:border-white/20">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#272727] transition-transform duration-500 ease-weighted group-hover:scale-110">
+                    <Icone weight="duotone" className="size-5 text-primary" aria-hidden />
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">{t(`${id}.title`)}</h3>
+                    <p className="mt-1 text-pretty text-sm text-muted-foreground">
+                      {t(`${id}.text`)}
+                    </p>
+                  </div>
+                </article>
               </Apparition>
             </li>
           ))}

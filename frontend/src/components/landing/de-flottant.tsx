@@ -61,7 +61,7 @@ export function DeFlottant() {
 
   return (
     <div className="group fixed bottom-6 right-6 z-30 flex flex-col items-end gap-2">
-      <span className="pointer-events-none pr-1 text-[10px] uppercase tracking-[0.2em] text-white/40 opacity-0 transition-opacity group-hover:opacity-100">
+      <span className="pointer-events-none pr-1 text-xs font-semibold text-white/40 opacity-0 transition-opacity duration-300 ease-weighted group-hover:opacity-100">
         {t('rollHint')}
       </span>
       <button
@@ -70,7 +70,7 @@ export function DeFlottant() {
         onPointerDown={ensureLoaded}
         onFocus={ensureLoaded}
         aria-label={t('rollD20')}
-        className="relative flex size-16 cursor-pointer items-center justify-center transition-transform duration-300 hover:scale-110"
+        className="relative flex size-16 cursor-pointer items-center justify-center transition-transform duration-300 ease-weighted hover:scale-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
       >
         {/* Image cuite du dé (dice:bake) : aucun WebGL avant le premier lancer */}
         <Image

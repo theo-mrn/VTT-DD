@@ -3,10 +3,13 @@
 import { MotionConfig, motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 
-/** Courbe commune des apparitions : départ vif, arrivée douce. */
-export const EASE = [0.16, 1, 0.3, 1] as const;
+/** Courbe commune de la landing : arrivée lestée, qui ralentit en se posant. */
+export const EASE = [0.22, 1, 0.36, 1] as const;
 
-/** Apparition au défilement (une fois), désactivée si l'utilisateur réduit les animations. */
+/**
+ * Apparition au défilement, une seule fois : la section monte de 32 px en s'affichant. Avec les
+ * animations réduites, seule l'opacité change.
+ */
 export function Apparition({
   children,
   className,
@@ -16,7 +19,7 @@ export function Apparition({
     <MotionConfig reducedMotion="user">
       <motion.div
         className={className}
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 32 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-80px' }}
         transition={{ duration: 0.7, ease: EASE, delay: delai }}

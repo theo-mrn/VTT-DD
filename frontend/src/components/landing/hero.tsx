@@ -3,60 +3,30 @@ import { Apparition } from './apparition';
 import { Boucle } from './boucle';
 import { BoutonCommencer } from './boutons';
 
-const ATOUTS = ['free', 'noInstall', 'systems'] as const;
-
-/** Promesse, action principale, puis la vraie table en grand. */
+/** Promesse (deux lignes, coupées là où la phrase respire), l'action, une preuve, la vraie table. */
 export function Hero() {
   const t = useTranslations('landing.hero');
   return (
-    <section className="relative overflow-hidden pb-24 pt-36 sm:pt-44 lg:pb-32">
-      {/* Halo doré derrière le titre et la capture */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-0 h-[720px] w-[1200px] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.16),transparent_62%)]"
-      />
-      <div className="relative mx-auto max-w-6xl px-6 text-center">
+    <section className="px-4 pb-16 pt-24 sm:pb-24">
+      <div className="mx-auto flex max-w-6xl flex-col items-center pt-12 text-center">
         <Apparition>
-          <p className="text-xs font-medium uppercase tracking-[0.28em] text-primary">
-            {t('eyebrow')}
-          </p>
-          <h1 className="mx-auto mt-6 max-w-4xl text-balance text-[2.6rem] font-semibold leading-[1.05] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-            {t.rich('title', {
-              accent: (chunks) => (
-                <span className="font-display font-normal text-primary">{chunks}</span>
-              ),
-            })}
+          <p className="text-sm font-semibold text-primary">{t('eyebrow')}</p>
+          <h1 className="mx-auto mt-4 max-w-[680px] text-balance bg-gradient-to-r from-white to-[#9B9B9B] bg-clip-text text-5xl font-semibold tracking-tight text-transparent sm:text-6xl">
+            {t.rich('title', { l: (chunks) => <span className="block">{chunks}</span> })}
           </h1>
-          <p className="mx-auto mt-7 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
+          <p className="mx-auto mt-6 max-w-[680px] text-pretty text-lg text-muted-foreground">
             {t('lead')}
           </p>
         </Apparition>
-        <Apparition delai={0.1} className="mt-10 flex flex-col items-center gap-6">
-          <div className="flex flex-col items-center gap-3 sm:flex-row">
-            <BoutonCommencer />
-            <a
-              href="#fonctionnalites"
-              className="inline-flex h-12 items-center rounded-full border border-white/10 px-7 text-[15px] text-foreground transition-colors hover:border-white/20 hover:bg-white/[0.04]"
-            >
-              {t('discover')}
-            </a>
-          </div>
-          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-subtle">
-            {ATOUTS.map((a, i) => (
-              <li key={a} className="flex items-center gap-5">
-                {i > 0 && (
-                  <span aria-hidden className="hidden size-1 rounded-full bg-white/20 sm:block" />
-                )}
-                {t(`perks.${a}`)}
-              </li>
-            ))}
-          </ul>
+        <Apparition delai={0.1} className="mt-8 flex flex-col items-center gap-4">
+          <BoutonCommencer />
+          <p className="text-pretty text-sm text-subtle">{t('proof')}</p>
         </Apparition>
       </div>
-
-      <Apparition delai={0.2} className="relative mx-auto mt-20 max-w-6xl px-4 sm:px-6">
-        <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-1.5 shadow-[0_40px_120px_-30px_hsl(var(--primary)/0.35)] sm:p-2">
-          <Boucle nom="hero" alt={t('imageAlt')} className="rounded-2xl" />
+      <Apparition delai={0.2} className="mx-auto mt-16 max-w-6xl">
+        {/* Cadre 16 px, marge 8 px : la vidéo garde 8 px d'arrondi */}
+        <div className="rounded-2xl border border-white/10 bg-[#181818] p-2">
+          <Boucle nom="hero" alt={t('imageAlt')} className="rounded-lg" />
         </div>
       </Apparition>
     </section>

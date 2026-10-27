@@ -2,27 +2,20 @@ import { useTranslations } from 'next-intl';
 import { Apparition } from './apparition';
 import { BoutonCommencer } from './boutons';
 
-/** Dernier appel, centré, avant le pied de page. */
+/** Dernier appel, identique à celui du haut, avec ce qui lève le risque. */
 export function Appel() {
   const t = useTranslations('landing.finalCta');
   return (
-    <section className="relative overflow-hidden py-28 lg:py-40">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[480px] w-[900px] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.14),transparent_65%)]"
-      />
-      <Apparition className="relative mx-auto max-w-3xl px-6 text-center">
-        <h2 className="text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-6xl">
-          {t.rich('title', {
-            accent: (chunks) => (
-              <span className="font-display font-normal text-primary">{chunks}</span>
-            ),
-          })}
+    <section className="px-4 py-16 sm:py-24">
+      <Apparition className="mx-auto flex max-w-[680px] flex-col items-center rounded-3xl border border-white/10 bg-[#181818] px-6 py-16 text-center">
+        <h2 className="text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          {t('title')}
         </h2>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">{t('lead')}</p>
-        <div className="mt-10 flex justify-center">
-          <BoutonCommencer libelle={t('button')} />
+        <p className="mt-6 text-pretty text-lg text-muted-foreground">{t('lead')}</p>
+        <div className="mt-8">
+          <BoutonCommencer />
         </div>
+        <p className="mt-4 text-pretty text-sm text-subtle">{t('reassurance')}</p>
       </Apparition>
     </section>
   );

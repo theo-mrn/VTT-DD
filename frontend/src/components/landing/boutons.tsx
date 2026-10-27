@@ -1,39 +1,61 @@
 'use client';
 
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight } from '@phosphor-icons/react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
-/** Bouton principal : inscription pour un visiteur, l'application pour un joueur connecté. */
+/** Courbe et durée des survols de la landing. */
+export const SURVOL = 'duration-300 ease-weighted';
+
+const ANNEAU =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black';
+
+/** Action principale : créer sa table pour un visiteur, ouvrir l'application une fois connecté. */
 export function BoutonCommencer({
   libelle,
+  compact = false,
   className,
-}: Readonly<{ libelle?: string; className?: string }>) {
+}: Readonly<{ libelle?: string; compact?: boolean; className?: string }>) {
   const t = useTranslations('landing');
   const { statut } = useSession();
   const connecte = statut === 'connecte';
   return (
-    <Button size="lg" asChild className={cn('group h-12 rounded-full px-7 text-[15px]', className)}>
-      <Link href={connecte ? '/accueil' : '/connexion?mode=inscription'}>
-        {connecte ? t('cta.openApp') : (libelle ?? t('cta.startFree'))}
-        <ArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" />
-      </Link>
-    </Button>
+    <Link
+      href={connecte ? '/accueil' : '/connexion?mode=inscription'}
+      className={cn(
+        'group inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 font-semibold text-primary-foreground transition-[transform,background-color] hover:bg-primary/90 active:scale-[0.98]',
+        SURVOL,
+        ANNEAU,
+        compact ? 'text-sm' : 'text-base',
+        className,
+      )}
+    >
+      {connecte ? t('cta.openApp') : (libelle ?? t('cta.start'))}
+      <ArrowRight
+        weight="bold"
+        aria-hidden
+        className={cn('size-4 transition-transform group-hover:translate-x-0.5', SURVOL)}
+      />
+    </Link>
   );
 }
 
-/** Lien de connexion de la barre de navigation, masqué une fois connecté. */
-export function LienConnexion() {
+/** Connexion, dans la barre ; rien une fois connecté. */
+export function LienConnexion({ className }: Readonly<{ className?: string }>) {
   const t = useTranslations('landing.nav');
   const { statut } = useSession();
   if (statut === 'connecte') return null;
   return (
     <Link
       href="/connexion"
-      className="whitespace-nowrap rounded-full px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:px-4"
+      className={cn(
+        'whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground active:scale-[0.98]',
+        SURVOL,
+        ANNEAU,
+        className,
+      )}
     >
       {t('signIn')}
     </Link>
