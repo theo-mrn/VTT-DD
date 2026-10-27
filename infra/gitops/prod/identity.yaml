@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-identity
-  digest: 'sha256:30b1edcfec4f8690e99a5857620afe3100e11fe7af2fe3fc855de4eb6b88563a'
+  digest: 'sha256:961017d7641ce09d6064ff7e5b6f6c4603f39c1db4b4ab27db505ac34a7f86f2'
   tag: 'main'
 # Prod (comme le staging pour l'instant) : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
@@ -78,7 +78,7 @@ migrations:
   jdbcUrl: 'jdbc:postgresql://vtt-pg-prod-rw.data.svc:5432/vtt'
   image:
     repository: ghcr.io/theo-mrn/vtt-identity-migrations
-    digest: 'sha256:eaf667493422ec4036410b2254fb69d4dd18de0fca68be00044a43872ae367ca'
+    digest: 'sha256:1c1f900541f8f0541cd926a9d7104699cad452bb40cef8ade9f50b6e3a1c1fa9'
     tag: 'main'
   schema: identity
   # Secret généré par CloudNativePG pour le rôle identity_owner
