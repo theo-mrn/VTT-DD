@@ -54,6 +54,8 @@ networkPolicy:
   allowFrom:
     # audio : JWKS
     - podSelector: {matchLabels: {app.kubernetes.io/name: audio}}
+    # library : JWKS (fonds de scène, docs/bibliotheque.md)
+    - podSelector: {matchLabels: {app.kubernetes.io/name: library}}
     - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
     # Temps réel et historique : vérification des jetons (JWKS) et droits dans la campagne
     - podSelector: {matchLabels: {app.kubernetes.io/name: realtime}}
