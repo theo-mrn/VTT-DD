@@ -69,7 +69,7 @@ secret() {
 base=vtt
 pooler=vtt-pg-pooler.data.svc:5432 # PgBouncer, mode transaction
 direct=vtt-pg-rw.data.svc:5432     # LISTEN du relais d'outbox : jamais par PgBouncer
-for s in identity billing campaign characters dice history audio; do
+for s in identity billing campaign characters dice history audio library; do
   owner=$(pw)
   svc=$(pw)
   # Mots de passe lus par CloudNativePG (rôles gérés) dans data, et par les Jobs Liquibase
@@ -133,6 +133,7 @@ secret vtt-staging audio-secrets Opaque \
   "DATABASE_URL=$url_audio" "DATABASE_DIRECT_URL=$direct_audio" \
   "INTERNAL_API_SECRET=$interne" "AUDIO_UPLOAD_SECRET=$(pw)" "${r2[@]}"
 secret vtt-staging realtime-secrets Opaque "INTERNAL_API_SECRET=$interne"
+secret vtt-staging library-secrets Opaque "DATABASE_URL=$url_library"
 
 # ─── Sauvegardes de la base : secrets à part, rejouables seuls ───────────────────────────
 # logical-backup-rclone et pg-wal-r2 : voir seal-backups.sh

@@ -116,6 +116,14 @@ spec:
           connectionLimit: -1,
           passwordSecret: { name: pg-audio-owner },
         }
+      - {
+          name: library_owner,
+          ensure: present,
+          login: true,
+          inherit: true,
+          connectionLimit: -1,
+          passwordSecret: { name: pg-library-owner },
+        }
       # Rôles des services : données uniquement (DML)
       - {
           name: identity_svc,
@@ -172,6 +180,14 @@ spec:
           inherit: true,
           connectionLimit: -1,
           passwordSecret: { name: pg-audio },
+        }
+      - {
+          name: library_svc,
+          ensure: present,
+          login: true,
+          inherit: true,
+          connectionLimit: -1,
+          passwordSecret: { name: pg-library },
         }
       - {
           name: backup_ro,

@@ -82,7 +82,7 @@ done
 base=vtt
 pooler=vtt-pg-prod-pooler.data.svc:5432 # PgBouncer, mode transaction
 direct=vtt-pg-prod-rw.data.svc:5432     # LISTEN du relais d'outbox : jamais par PgBouncer
-for s in identity billing campaign characters dice history audio; do
+for s in identity billing campaign characters dice history audio library; do
   owner=$(pw)
   svc=$(pw)
   # Rôles gérés par CNPG (data, préfixe pg-prod-) ; propriétaire relu par les Jobs Liquibase
@@ -131,6 +131,7 @@ secret vtt-prod audio-secrets Opaque \
   "DATABASE_URL=$url_audio" "DATABASE_DIRECT_URL=$direct_audio" \
   "INTERNAL_API_SECRET=$interne" "AUDIO_UPLOAD_SECRET=$(pw)" "${r2[@]}"
 secret vtt-prod realtime-secrets Opaque "INTERNAL_API_SECRET=$interne"
+secret vtt-prod library-secrets Opaque "DATABASE_URL=$url_library"
 secret vtt-prod voice-secrets Opaque "${cloudflare[@]}"
 
 echo "Secrets scellés dans $sortie :" >&2
