@@ -127,7 +127,7 @@ jobs:
       # applique, annule puis réapplique : un rollback cassé fait échouer la CI.
       - name: Migrations Liquibase (applique, annule, réapplique)
         run: |
-          for svc in identity character campaign dice billing history audio marketplace; do
+          for svc in identity character campaign dice billing history audio marketplace library; do
             infra/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
           done
       - name: Droits et contraintes du schéma identity
@@ -146,6 +146,8 @@ jobs:
         run: bash infra/postgres/tests/audio-droits.sh
       - name: Droits et contraintes du schéma marketplace
         run: bash infra/postgres/tests/marketplace-droits.sh
+      - name: Droits et contraintes du schéma library
+        run: bash infra/postgres/tests/library-droits.sh
       # Tests d'intégration des services sur la base migrée ci-dessus, avec le rôle
       # du service (jamais le propriétaire) : ils sont ignorés dans le job qualité.
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -215,6 +217,13 @@ jobs:
         run: |
           pnpm turbo run build --filter '@vtt/marketplace^...'
           pnpm --filter @vtt/marketplace exec vitest run --coverage.enabled --coverage.reporter=lcov
+      # Bibliothèque partagée : recherche des fonds sur un Postgres réel
+      - name: Tests d'intégration library (Postgres réel)
+        env:
+          TEST_DATABASE_URL: postgres://library_svc:library-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/library^...'
+          pnpm --filter @vtt/library exec vitest run --coverage.enabled --coverage.reporter=lcov
       # Pas de base : canal durable sur JetStream, plusieurs réplicas reliés par Valkey
       - name: Tests d'intégration realtime (NATS et Valkey réels)
         env:
@@ -477,6 +486,12 @@ jobs:
               image: marketplace-migrations,
               dockerfile: infra/docker/migrations.Dockerfile,
               args: 'SERVICE=marketplace',
+            }
+          - { image: library, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=library' }
+          - {
+              image: library-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=library',
             }
           # Pas de base : ni migrations ni image de migration
           - {

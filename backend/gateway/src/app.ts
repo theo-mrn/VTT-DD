@@ -19,6 +19,7 @@ export const GatewayConfig = BaseConfig.extend({
   UPSTREAM_DISCORD_URL: z.string().url().optional(),
   UPSTREAM_MARKETPLACE_URL: z.string().url().optional(),
   UPSTREAM_VOICE_URL: z.string().url().optional(),
+  UPSTREAM_LIBRARY_URL: z.string().url().optional(),
   /**
    * Secret partagé avec identity pour échanger les clés d'API (en-tête
    * x-internal-secret). Absent : « Authorization: ApiKey … » est refusé.
@@ -56,6 +57,8 @@ export const ROUTES = {
   '/v1/marketplace': 'UPSTREAM_MARKETPLACE_URL',
   // Voix à la table : salle vocale, signalisation du SFU Cloudflare Realtime (docs/voix.md)
   '/v1/voice': 'UPSTREAM_VOICE_URL',
+  // Bibliothèque partagée : fonds de scène, recherche par contexte (docs/bibliotheque.md)
+  '/v1/library': 'UPSTREAM_LIBRARY_URL',
 } as const satisfies Record<string, keyof GatewayConfig>;
 
 /**

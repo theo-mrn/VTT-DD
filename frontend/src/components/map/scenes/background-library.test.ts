@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Asset } from '@/lib/assets';
-import { groupBackgrounds, prettyName } from './background-library';
-
-const asset = (category: string, name: string, type: Asset['type'] = 'image'): Asset =>
-  ({ category, name, type, path: `/lib/${category}/${name}` }) as Asset;
+import { fileItem, prettyName } from './background-library';
 
 describe('prettyName', () => {
   it('retire les mots techniques et sépare les mots collés', () => {
@@ -14,39 +10,15 @@ describe('prettyName', () => {
   });
 });
 
-describe('groupBackgrounds', () => {
-  it('regroupe formats et grille, la version sans grille par défaut', () => {
-    const items = groupBackgrounds([
-      asset('Map/Foret/Static', 'Crossroads_Fire_day.png'),
-      asset('Map/Foret/Static', 'Crossroads_Fire_dayJPG.jpg'),
-      asset('Map/Foret/Static', 'Crossroads_Fire_day_grid46x26.png'),
-      asset('Map/Foret/Static', 'Crossroads_Fire_day_grid46x26JPG.jpg'),
-      asset('Map/Foret/Static', 'Crossroads_Fire_night.png'),
-    ]);
-    expect(items).toHaveLength(2);
-    const day = items.find((i) => i.name === 'Crossroads Fire day')!;
-    expect(day.url).toMatch(/Crossroads_Fire_dayJPG\.jpg$/);
-    expect(day.gridUrl).toMatch(/Crossroads_Fire_day_grid46x26JPG\.jpg$/);
-    expect(day.urls).toHaveLength(4);
-    expect(items.find((i) => i.name === 'Crossroads Fire night')!.gridUrl).toBeNull();
-  });
-
-  it('sépare dossiers, animations et illustrations', () => {
-    const items = groupBackgrounds([
-      asset('Map/Camp/Static', 'CampForest.webp'),
-      asset('Map/Camp/Animated', 'CampForest_NoGrid_Audio.webm', 'video'),
-      asset('Map/Camp/Illustrations', 'CampForest.webp'),
-      asset('Map/Foret/Static', 'CampForest.webp'),
-      asset('Portraits/Elfe', 'elfe.webp'),
-    ]);
-    expect(items).toHaveLength(4);
-    expect(items.filter((i) => i.animated)).toHaveLength(1);
-    expect(items.filter((i) => i.illustration)).toHaveLength(1);
-  });
-
-  it('garde une carte qui n’existe qu’avec grille', () => {
-    const [item] = groupBackgrounds([asset('Map/Cave/Static', 'Cave01_Grid.webp')]);
-    expect(item!.url).toMatch(/Cave01_Grid\.webp$/);
-    expect(item!.gridUrl).toBeNull();
+describe('fileItem', () => {
+  it('nomme un fichier importé, vignette pour une image, aucune pour une vidéo', () => {
+    const image = fileItem('https://example.test/campaigns/c/Ma_Carte_Grid.webp');
+    expect(image).toMatchObject({ name: 'Ma Carte', animated: false });
+    expect(image.poster).toBe('https://example.test/campaigns/c/Ma_Carte_Grid.webp');
+    expect(fileItem('https://example.test/x/Brume%20du%20lac.mp4')).toMatchObject({
+      name: 'Brume du lac',
+      animated: true,
+      poster: null,
+    });
   });
 });
