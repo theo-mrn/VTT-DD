@@ -1,0 +1,46 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-library
+  digest: 'sha256:659b7c6b539ad1caeae811aa31290771f990c42bae4cc7d9e958d343e5114ac4'
+  tag: '3.0.10'
+# Une réplique (mémoire du cluster), sans budget de disruption qui bloquerait le drainage d'un nœud
+replicaCount: 1
+pdb:
+  enabled: false
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  # Traces et métriques OTLP vers Alloy (docs/observabilite.md)
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring.svc:4318
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
+# Mot de passe de valkey-prod (secret messaging-credentials), substitué dans REDIS_URL
+secretEnv:
+  REDIS_PASSWORD: {secret: messaging-credentials, key: REDIS_PASSWORD}
+# Secret library-secrets (seal-library.sh) : DATABASE_URL (rôle library_svc)
+envFromSecrets:
+  - name: library-secrets
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : library n'est joignable que par la gateway
+ingress:
+  enabled: false
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: {matchLabels: {app.kubernetes.io/name: gateway}}
+migrations:
+  enabled: true
+  # Base de la PRODUCTION (vtt-pg-prod), pas celle du staging (défaut du chart)
+  jdbcUrl: 'jdbc:postgresql://vtt-pg-prod-rw.data.svc:5432/vtt'
+  image:
+    repository: ghcr.io/theo-mrn/vtt-library-migrations
+    digest: 'sha256:8042a6a16f832813935c2866c063518d5c2c858b331e085d0b45ded595dce87e'
+    tag: '3.0.10'
+  schema: library
+  # Secret du rôle library_owner (seal-library.sh)
+  secretName: pg-library-owner
