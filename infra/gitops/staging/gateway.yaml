@@ -1,7 +1,7 @@
 # Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
 image:
   repository: ghcr.io/theo-mrn/vtt-gateway
-  digest: 'sha256:605709437f5f55943e8bad6c757f011e04415f1d49a74177e77894a0d95b994e'
+  digest: 'sha256:9ad3be6ea56eb1b94d2551d6a3e3660e777fd15291ab7f33b9c45ddc68c0e619'
   tag: 'main'
 # Staging : une réplique (mémoire du cluster), sans budget de disruption qui bloquerait
 # le drainage d'un nœud
