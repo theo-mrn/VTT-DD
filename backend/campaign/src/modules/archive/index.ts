@@ -128,6 +128,14 @@ export const register: Module = async (app, deps) => {
       const { ownerId, options, tables: rows, foreignIds } = req.body;
       if ((rows.campaigns ?? []).length !== 1)
         throw HttpError.badRequest('L’archive doit contenir une campagne', 'archive_invalid');
+      const systemId = String(rows.campaigns![0]!.systemId ?? '');
+      if (!deps.catalog.system(systemId))
+        throw new HttpError(
+          422,
+          'Refusé',
+          'archive_unknown_system',
+          `Système inconnu : ${systemId}`,
+        );
       const known = new Set([...rowIds(Object.values(rows)), ...foreignIds, campaignId]);
       if (!known.has(campaignId)) throw HttpError.badRequest('Campagne absente', 'archive_invalid');
 

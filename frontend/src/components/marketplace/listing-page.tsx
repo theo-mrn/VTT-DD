@@ -35,14 +35,7 @@ import {
   priceLabel,
 } from '@/lib/marketplace/format';
 import { cn } from '@/lib/utils';
-import {
-  Cover,
-  KindBadges,
-  MarketplaceTabs,
-  RatingSummary,
-  useSystemName,
-  WarningBadges,
-} from './elements';
+import { Cover, KindBadges, RatingSummary, useSystemName, WarningBadges } from './elements';
 import { InstallDialog } from './install-dialog';
 import { ReportDialog } from './report-dialog';
 import { ReviewsSection } from './reviews';
@@ -56,10 +49,7 @@ export function ListingPage({ slug }: Readonly<{ slug: string }>) {
   const listing = useListing(slug);
   return (
     <Page large>
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="sr-only">{listing.data?.title ?? t('fallbackTitle')}</h1>
-        <MarketplaceTabs className="ml-auto" />
-      </header>
+      <h1 className="sr-only">{listing.data?.title ?? t('fallbackTitle')}</h1>
       {listing.isError && <Message>{messageErreur(listing.error)}</Message>}
       {listing.isPending && <ListingSkeleton />}
       {listing.data && <Listing listing={listing.data} />}

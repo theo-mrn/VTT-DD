@@ -48,6 +48,7 @@ import {
 import type { Deps, Module } from '../../deps.js';
 import { AssetsRejected, InvalidPack, readContent, storeContent } from '../../domain/content.js';
 import { ownListing, ownVersion, refreshSearch, versionsOf } from '../../domain/listings.js';
+import { publishVersion } from '../../domain/publish.js';
 import { retryOnSlugConflict } from '../../domain/retry.js';
 import { uniqueSlug } from '../../domain/slugs.js';
 import { studioListingView, studioVersionView } from '../../domain/views.js';
@@ -563,6 +564,14 @@ export const register: Module = async (app, deps) => {
           aggregate: versionAggregate(version.id),
           payload: { listingId: listing.id, versionId: version.id, number: version.number },
         });
+        // Sans revue préalable : en ligne tout de suite, modération après coup
+        if (config.MARKETPLACE_PRE_REVIEW === 'off')
+          return publishVersion(tx, eventContext(req), {
+            version: updated!,
+            listing,
+            actor: userActor(userId),
+            reviewedBy: null,
+          });
         return updated!;
       });
       return studioVersionView(row);

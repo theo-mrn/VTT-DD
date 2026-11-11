@@ -20,6 +20,7 @@ export const GatewayConfig = BaseConfig.extend({
   UPSTREAM_MARKETPLACE_URL: z.string().url().optional(),
   UPSTREAM_VOICE_URL: z.string().url().optional(),
   UPSTREAM_LIBRARY_URL: z.string().url().optional(),
+  UPSTREAM_ARCHIVE_URL: z.string().url().optional(),
   /**
    * Secret partagé avec identity pour échanger les clés d'API (en-tête
    * x-internal-secret). Absent : « Authorization: ApiKey … » est refusé.
@@ -59,6 +60,8 @@ export const ROUTES = {
   '/v1/voice': 'UPSTREAM_VOICE_URL',
   // Bibliothèque partagée : fonds de scène, recherche par contexte (docs/bibliotheque.md)
   '/v1/library': 'UPSTREAM_LIBRARY_URL',
+  // Export, import et duplication des campagnes, centre des exports (docs/export-campagne.md)
+  '/v1/archives': 'UPSTREAM_ARCHIVE_URL',
 } as const satisfies Record<string, keyof GatewayConfig>;
 
 /**

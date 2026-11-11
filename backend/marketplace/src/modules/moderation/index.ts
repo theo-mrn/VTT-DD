@@ -28,6 +28,7 @@ import { listings, listingVersions, reports, reviews } from '../../db/schema.js'
 import type { Module } from '../../deps.js';
 import { readContent } from '../../domain/content.js';
 import { listingById, versionById } from '../../domain/listings.js';
+import { publishVersion } from '../../domain/publish.js';
 import { studioListingView, studioVersionView } from '../../domain/views.js';
 import { listingFolder } from '../../storage/storage.js';
 import { eventContext, IdParams, notFound, requireModerator, userActor, Uuid } from '../common.js';
@@ -144,48 +145,12 @@ export const register: Module = async (app, deps) => {
           .for('update');
         if (!listing || listing.status === 'removed')
           throw HttpError.conflict('Ce pack a été retiré', 'listing_removed');
-        const [published] = await tx
-          .update(listingVersions)
-          .set({
-            status: 'published',
-            reviewedAt: sql`now()`,
-            reviewedBy: moderator,
-            publishedAt: sql`now()`,
-            updatedAt: sql`now()`,
-          })
-          .where(eq(listingVersions.id, version.id))
-          .returning();
-        const first = listing.status === 'draft';
-        const counts = version.counts!;
-        await tx
-          .update(listings)
-          .set({
-            currentVersionId: version.id,
-            kinds: [
-              ...(counts.scenes ? ['scenes'] : []),
-              ...(counts.npcTemplates ? ['npcs'] : []),
-              ...(counts.objectTemplates ? ['objects'] : []),
-            ],
-            ...(version.systemId ? { systemId: version.systemId } : {}),
-            ...(first ? { status: 'published' as const, publishedAt: sql`now()` } : {}),
-            // La revue a vu la fiche telle qu'elle est
-            needsRecheck: false,
-            updatedAt: sql`now()`,
-            version: sql`${listings.version} + 1`,
-          })
-          .where(eq(listings.id, listing.id));
-        await appendEvent(tx, eventContext(req), {
-          type: MARKETPLACE_EVENTS.versionPublished,
+        return publishVersion(tx, eventContext(req), {
+          version,
+          listing,
           actor: userActor(moderator),
-          aggregate: versionAggregate(version.id),
-          payload: {
-            listingId: listing.id,
-            versionId: version.id,
-            number: version.number,
-            first,
-          },
+          reviewedBy: moderator,
         });
-        return published!;
       });
       return studioVersionView(row);
     },

@@ -12,6 +12,7 @@ export default {
     resources: 'Ressources',
     notes: 'Notes',
     newCampaign: 'Nouvelle campagne',
+    backups: 'Sauvegardes',
     newCharacter: 'Nouveau personnage',
     welcome: 'Bienvenue',
   },

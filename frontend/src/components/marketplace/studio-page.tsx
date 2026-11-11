@@ -5,35 +5,17 @@
  * (Stripe Connect, par billing ; seulement quand la vente est ouverte).
  */
 import type { CreatorProfile, StudioListing } from '@vtt/contracts';
-import {
-  CircleDollarSign,
-  ExternalLink,
-  Loader2,
-  PackagePlus,
-  RefreshCw,
-  Wand2,
-} from 'lucide-react';
+import { CircleDollarSign, ExternalLink, Loader2, PackagePlus, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Message } from '@/components/compte/elements';
+import { AvatarJoueur, Message } from '@/components/compte/elements';
 import { EtatVide, Page, Panneau } from '@/components/commun/page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
 import {
@@ -46,114 +28,67 @@ import {
   useSales,
   useStudio,
 } from '@/lib/marketplace/api';
-import { Cover, MarketplaceTabs } from './elements';
+import { Cover } from './elements';
+import { PublishButton } from './publish-dialog';
 import { useStudioLabels } from './studio-labels';
+import { useProfil } from '@/lib/session';
 
 export function StudioPage() {
-  const t = useTranslations('marketplace.studio.page');
+  const tp = useTranslations('marketplace.publish');
   const me = useMarketplaceMe();
   const creator = me.data?.creator ?? null;
   return (
     <Page large>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{t('title')}</h1>
-        <MarketplaceTabs />
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{tp('mine')}</h1>
+        <PublishButton />
       </header>
       {me.isError && <Message>{messageErreur(me.error)}</Message>}
       {me.isPending && <Skeleton className="h-40 w-full rounded-2xl" />}
-      {me.data && !creator && <CreatorSetup />}
+      {me.data && <CreatorFromAccount creator={creator} />}
+      {me.data && !creator && <Skeleton className="h-40 w-full rounded-2xl" />}
       {creator && <Studio creator={creator} />}
     </Page>
   );
 }
 
-/** Première visite : nom public et présentation. */
-function CreatorSetup() {
-  const t = useTranslations('marketplace.studio.page');
-  return (
-    <EtatVide
-      icone={Wand2}
-      titre={t('setupTitle')}
-      action={<CreatorDialogButton creator={null} label={t('setupAction')} />}
-    />
-  );
+/** Nom public d'un créateur : celui du compte, dans les bornes du serveur (2 à 40). */
+function creatorName(name: string): string {
+  const n = name.trim().slice(0, 40);
+  return n.length >= 2 ? n : n.padEnd(2, '·');
 }
 
-function CreatorDialogButton({
-  creator,
-  label,
-}: Readonly<{ creator: CreatorProfile | null; label: string }>) {
-  const t = useTranslations('marketplace.studio.creator');
-  const tc = useTranslations('common.actions');
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState(creator?.displayName ?? '');
-  const [bio, setBio] = useState(creator?.bio ?? '');
+/**
+ * Le profil de créateur est celui du compte : créé à la première visite du Studio, puis remis
+ * à jour quand le nom ou la présentation du compte changent. Aucun formulaire à part.
+ */
+function CreatorFromAccount({ creator }: Readonly<{ creator: CreatorProfile | null }>) {
+  const profil = useProfil();
+  const displayName = creatorName(profil.name);
+  const bio = (profil.bio ?? '').trim().slice(0, 1000);
+  const synced = useRef<string | null>(null);
   const save = useMarketplaceMutation(() =>
     marketplaceApi.saveCreator({
-      displayName: name.trim(),
-      bio: bio.trim(),
+      displayName,
+      bio,
       ...(creator ? { version: creator.version } : {}),
     }),
   );
+  const wanted = `${displayName}\n${bio}`;
+  const upToDate = creator && creator.displayName === displayName && creator.bio === bio;
 
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    save.mutate(undefined, {
-      onSuccess: () => {
-        setOpen(false);
-        toast.success(t('saved'));
-      },
-    });
-  }
+  useEffect(() => {
+    if (upToDate || synced.current === wanted || save.isPending) return;
+    synced.current = wanted;
+    save.mutate(undefined, { onError: (e) => toast.error(messageErreur(e)) });
+  }, [upToDate, wanted, save]);
 
-  return (
-    <>
-      <Button variant={creator ? 'secondary' : 'default'} onClick={() => setOpen(true)}>
-        {label}
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={submit} className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>{t('title')}</DialogTitle>
-              <DialogDescription className="sr-only">{t('description')}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-1.5">
-              <Label htmlFor="creator-name">{t('name')}</Label>
-              <Input
-                id="creator-name"
-                value={name}
-                minLength={2}
-                maxLength={40}
-                required
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="creator-bio">{t('bio')}</Label>
-              <Textarea
-                id="creator-bio"
-                value={bio}
-                maxLength={1000}
-                rows={4}
-                onChange={(e) => setBio(e.target.value)}
-              />
-            </div>
-            {save.isError && <Message>{messageErreur(save.error)}</Message>}
-            <DialogFooter>
-              <Button type="submit" loading={save.isPending} disabled={name.trim().length < 2}>
-                {tc('save')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
+  return null;
 }
 
 function Studio({ creator }: Readonly<{ creator: CreatorProfile }>) {
   const t = useTranslations('marketplace.studio.page');
+  const profil = useProfil();
   const router = useRouter();
   const studio = useStudio();
   const config = useMarketplaceConfig();
@@ -191,11 +126,22 @@ function Studio({ creator }: Readonly<{ creator: CreatorProfile }>) {
       <aside className="space-y-4">
         <Panneau
           titre={creator.displayName}
-          action={<CreatorDialogButton creator={creator} label={t('editProfile')} />}
+          action={
+            <Button variant="secondary" size="sm" asChild>
+              <Link href="/profil">{t('editProfile')}</Link>
+            </Button>
+          }
         >
-          <p className="line-clamp-4 whitespace-pre-line text-[13px] text-muted-foreground">
-            {creator.bio || '—'}
-          </p>
+          <div className="flex items-start gap-3">
+            <AvatarJoueur
+              nom={creator.displayName}
+              url={profil.avatarUrl}
+              bordure={profil.borderType}
+            />
+            <p className="line-clamp-4 min-w-0 flex-1 whitespace-pre-line text-[13px] text-muted-foreground">
+              {creator.bio || '—'}
+            </p>
+          </div>
           <Link
             href={`/marketplace/creators/${creator.slug}`}
             className="mt-3 inline-flex items-center gap-1 text-[13px] text-primary hover:underline"

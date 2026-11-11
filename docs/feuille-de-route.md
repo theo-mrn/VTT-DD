@@ -41,8 +41,8 @@ Depuis le 2026-10-07, les changements sont poussés directement sur `main` (PR s
 - ✅ Création, invitation par code ou lien, rôles MJ, joueur et spectateur
 - ✅ Système de jeu imposé par la campagne, règles optionnelles activables
 - ✅ Salon de campagne, planification de la prochaine séance (accueil, salon)
-- ➕ Export ou import d'une campagne entière
-- ➕ Dupliquer ou archiver une campagne ; modèles de campagne prêts à jouer (one-shots)
+- ✅ Export ou import d'une campagne entière (archive `.yner`, centre « Exports », docs/export-campagne.md)
+- ✅ Dupliquer une campagne · ➕ modèles de campagne prêts à jouer (one-shots)
 
 ## 3. Personnages et fiches
 

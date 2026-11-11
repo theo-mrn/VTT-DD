@@ -23,6 +23,7 @@ import {
 } from '@/lib/campagnes';
 import { TYPES_IMAGE, verifierImage } from '@/lib/profil';
 import { cn } from '@/lib/utils';
+import { ArchiveCampagne } from './archive-links';
 import { AMBIANCES, COUVERTURES } from './elements';
 import { ReglagesLanceur } from './reglages-lanceur';
 import { ReglagesRegles } from './reglages-regles';
@@ -286,6 +287,8 @@ export function ReglagesForm({
           onChange={setRetires}
           loading={reglages.isPending}
         />
+
+        <ArchiveCampagne campaignId={c.id} />
       </div>
       <div className={cn('flex justify-end gap-2 border-t border-border px-6 py-4', pied)}>
         {onTermine && (

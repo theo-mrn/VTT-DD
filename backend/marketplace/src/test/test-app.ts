@@ -49,6 +49,8 @@ export async function testApp(overrides: Record<string, string> = {}) {
     JWT_ISSUER: ISSUER,
     JWT_AUDIENCE: AUDIENCE,
     MARKETPLACE_MODERATORS: moderator,
+    // Les parcours de revue sont testés avec elle ; la publication directe a son test
+    MARKETPLACE_PRE_REVIEW: 'on',
     ...overrides,
   });
   const app = await buildMarketplace(config, {

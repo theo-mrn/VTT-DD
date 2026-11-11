@@ -11,15 +11,15 @@ de `backend/billing` et les écrans `frontend/src/{lib,components}/marketplace` 
 
 ### v1 (livrée)
 
-| Domaine    | Contenu                                                                                                                                                                        |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Contenu    | Pack versionné : scènes (fond, dimensions, grilles, murs et portes, lumières, pièces, objets posés), modèles de PNJ (état du système), modèles d'objets (images de décor)      |
-| Créateurs  | Profil de créateur (nom public, présentation), fiches produit, brouillon → en revue → publié / refusé, retrait et remise en vente, versions et notes de version                |
-| Acheteurs  | Catalogue (recherche, filtres système, type, prix ; tris), fiche produit, acquisition gratuite ou payante, bibliothèque, installation dans une campagne, mises à jour, avis    |
-| Paiement   | Par billing : Stripe Connect (comptes créateurs, commission, versements, factures émises au nom du créateur), **désactivé par défaut**, testé sur un Stripe simulé             |
-| Modération | Revue de chaque version avant publication, file des modérateurs, signalements, retrait (et purge des fichiers pour droit d'auteur), contrôle a posteriori des fiches modifiées |
-| Confiance  | Licence déclarée, attestation des droits à chaque soumission, contenu sexuel exclu, avertissements de contenu balisés, limites d'envoi et de débit                             |
-| Stockage   | R2 seulement : fichiers du pack copiés dans `marketplace/<fiche>/…`, immuables une fois soumis                                                                                 |
+| Domaine    | Contenu                                                                                                                                                                                                                                                           |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contenu    | Pack versionné : scènes (fond, dimensions, grilles, murs et portes, lumières, pièces, objets posés), modèles de PNJ (état du système), modèles d'objets (images de décor)                                                                                         |
+| Créateurs  | Profil de créateur (nom public, présentation), fiches produit, brouillon → en revue → publié / refusé, retrait et remise en vente, versions et notes de version                                                                                                   |
+| Acheteurs  | Catalogue (recherche, filtres système, type, prix ; tris), fiche produit, acquisition gratuite ou payante, bibliothèque, installation dans une campagne, mises à jour, avis                                                                                       |
+| Paiement   | Par billing : Stripe Connect (comptes créateurs, commission, versements, factures émises au nom du créateur), **désactivé par défaut**, testé sur un Stripe simulé                                                                                                |
+| Modération | Publication directe par défaut (`MARKETPLACE_PRE_REVIEW=off`, 2026-11-11 ; `on` : revue de chaque version avant publication), file des modérateurs, signalements, retrait (et purge des fichiers pour droit d'auteur), contrôle a posteriori des fiches modifiées |
+| Confiance  | Licence déclarée, attestation des droits à chaque soumission, contenu sexuel exclu, avertissements de contenu balisés, limites d'envoi et de débit                                                                                                                |
+| Stockage   | R2 seulement : fichiers du pack copiés dans `marketplace/<fiche>/…`, immuables une fois soumis                                                                                                                                                                    |
 
 ### Plus tard (v2 et au-delà)
 
@@ -141,7 +141,9 @@ reste lisible par son créateur ; il en crée une nouvelle).
 
 ### 4.1 Créateur
 
-1. **Devenir créateur** : nom public et présentation (`PUT /v1/marketplace/me/creator`).
+1. **Devenir créateur** : rien à remplir. Le profil de créateur reprend le compte (nom,
+   présentation, avatar) : le Studio l'enregistre à la première visite et le remet à jour quand le
+   compte change (`PUT /v1/marketplace/me/creator`, 2026-11-11).
 2. **Nouvelle fiche** (brouillon) : titre, résumé, description, système, licence, crédits,
    étiquettes, avertissements, prix (0 tant que la vente est coupée), couverture et galerie.
 3. **Composer le pack** depuis une campagne dont il est MJ : il coche des scènes, des modèles de

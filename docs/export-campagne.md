@@ -119,9 +119,12 @@ efface les archives expirées (R2 et ligne).
    signée, 5 Gio au plus), puis `POST /v1/archives/imports` → tâche.
 2. Lecture du zip **par plages** (répertoire central puis entrées à la demande : R2 accepte
    `Range`), validation complète : schémas, empreintes, système connu, version lisible.
-3. Créer la campagne (quota de campagnes du compte), réserver la place des fichiers d'un coup
-   (`/internal/storage/reserve`), copier les fichiers sous `campaigns/<nouvelle>/…`,
-   `characters/<nouveau>/…`, `audio/assets/<nouvelle>/…`.
+3. Renouveler tous les identifiants (`remapIds`), clés de fichiers comprises ; ne garder que
+   les fichiers qui tombent sous la nouvelle campagne ou un de ses nouveaux personnages, d'un
+   type sûr (images, vidéos, sons : jamais de HTML ni de SVG servi depuis notre domaine) ;
+   refuser au-delà du quota d'une campagne (5 Gio, `storage_quota_exceeded`) ; recopier les
+   fichiers sous leurs nouvelles clés, empreinte vérifiée au fil de la lecture. L'inventaire de
+   campaign les retrouve ensuite (pas de réservation : la campagne est neuve).
 4. Écrire le contenu par les routes internes d'import de chaque service
    (`POST /internal/campaigns/:id/archive`), chacune en une transaction.
 5. **Tout ou rien** : un échec après la création de la campagne la supprime par la suppression
@@ -167,32 +170,48 @@ Règles appliquées :
 - **État de jeu** (`keepProgress`) : jetons, zones de brouillard, exploration, mesures, état des
   outils de table.
 
-## 6. API (via la gateway)
+## 6. API (via la gateway, service archive, `/v1/archives`)
 
-| Route                                | Effet                                                         |
-| ------------------------------------ | ------------------------------------------------------------- |
-| `POST /v1/campaigns/:id/exports`     | lance un export (MJ)                                          |
-| `POST /v1/campaigns/:id/duplicate`   | lance une duplication (MJ)                                    |
-| `POST /v1/archives/imports/upload`   | URL d'envoi signée pour une archive                           |
-| `POST /v1/archives/imports`          | lance l'import d'une archive envoyée                          |
-| `GET /v1/archives/jobs`              | le centre : mes tâches, récentes d'abord                      |
-| `GET /v1/archives/jobs/:id/download` | URL de lecture signée (5 min), archive `ready` et non expirée |
-| `DELETE /v1/archives/jobs/:id`       | efface l'archive et la ligne (ou annule une tâche en attente) |
+| Route                                | Effet                                                     |
+| ------------------------------------ | --------------------------------------------------------- |
+| `POST /v1/archives/exports`          | `{ campaignId, keepProgress = true }` : export (MJ)       |
+| `POST /v1/archives/duplicates`       | `{ campaignId, keepProgress = false }` : duplication (MJ) |
+| `POST /v1/archives/imports`          | `{ size }` : tâche `uploading` et URL PUT signée (1 h)    |
+| `POST /v1/archives/jobs/:id/start`   | archive envoyée (taille vérifiée) : la tâche part         |
+| `GET /v1/archives/jobs`              | le centre : mes 50 dernières tâches                       |
+| `GET /v1/archives/jobs/:id/download` | URL de lecture signée (5 min), export prêt et non expiré  |
+| `DELETE /v1/archives/jobs/:id`       | efface l'archive et la tâche (pas pendant qu'elle tourne) |
 
-Chaque écriture émet un événement (garde des événements, comme ailleurs) : identifiants,
-statuts, tailles et codes seulement.
+Session seulement (une clé d'API est refusée), 10 tâches par compte et par jour, un export ou
+une duplication à la fois par campagne (409 `archive_busy`). Événements : `archive.*_requested`,
+`archive.import_started`, `archive.export_ready`, `archive.import_completed`,
+`archive.duplicate_completed`, `archive.job_failed`, `archive.job_deleted`, `archive.job_expired`,
+`archive.user_erased`.
+
+Ouvrier dans le processus du service (`ARCHIVE_WORKERS`, 1 par défaut), file en base
+(`FOR UPDATE SKIP LOCKED`), verrou de 10 min prolongé à chaque avancement ; panne passagère
+réessayée 3 fois, erreur de l'archive ou refus d'un service définitif. Entretien toutes les
+10 min : archives expirées, envois abandonnés (1 h), échecs de plus de 7 jours. Compte supprimé
+(`identity.user_deleted`) : tâches et archives effacées.
 
 ## 7. Interface
 
-- **Réglages de la campagne › Général** (MJ) : « Exporter » et « Dupliquer », deux boutons ;
-  la tâche part et un toast renvoie au centre.
-- **Profil › Mes exports** (le centre) : une ligne par tâche, icône du type, nom de la
-  campagne, barre d'avancement ou taille et date d'expiration, actions « Télécharger »,
-  « Ouvrir la campagne » (import, duplication), « Effacer ». Interrogé toutes les 3 s tant
-  qu'une tâche tourne, sinon jamais.
-- **Liste des campagnes** : « Importer » à côté de « Nouvelle campagne » (icône seule, info-
-  bulle), fenêtre courte : fichier, aperçu du manifeste (nom, système, compteurs, taille),
-  lancer.
+Page **Sauvegardes** (`/backups`, navigation principale, pleine largeur avec la barre latérale), composants séparés dans
+`components/backups/` :
+
+- **En-tête** (`backups-hero`) : titre, chiffres (campagnes de MJ, archives prêtes, espace),
+  bouton Importer.
+- **Archives** (`archive-card`) : vignette de la campagne, sorte, barre d'avancement animée
+  pendant la tâche, puis taille et expiration ou erreur ; Télécharger, Ouvrir, Effacer.
+  Rafraîchi toutes les 3 s tant qu'une tâche tourne.
+- **Import** (`import-drop`) : zone de dépôt dans la page, et tout l'écran devient cible dès
+  qu'un fichier `.yner` y est glissé ; carte d'envoi avec progression.
+- **Vos campagnes** (`campaign-backup-card`) : campagnes dont on est MJ en grandes cartes
+  illustrées, dernier export, Exporter et Dupliquer.
+- **Choix de l'avancement** (`backup-dialog`) : deux grands choix, « Reprendre où on en était »
+  ou « Repartir à zéro » (par défaut : le premier pour Exporter, le second pour Dupliquer).
+- Raccourcis : réglages du MJ (Exporter, Dupliquer → la page avec la fenêtre ouverte) et
+  icône dans l'en-tête de la liste des campagnes.
 
 ## 8. Limites et sécurité
 
@@ -221,7 +240,7 @@ statuts, tailles et codes seulement.
 | --- | ---------------------------------------------------------------------------------------- | ------- |
 | 1   | Format : `@vtt/contracts/archive.ts` (manifeste, chemins, fichiers, identifiants), testé | fait    |
 | 2   | Instantanés et imports internes de campaign, character, audio (une transaction chacun)   | fait    |
-| 3   | Service : tâches, export en flux vers R2, centre (API), expiration                       | à faire |
-| 4   | Import : envoi, lecture par plages, validation, tout ou rien ; duplication               | à faire |
-| 5   | Interface : boutons des réglages, Profil › Mes exports, import depuis la liste           | à faire |
+| 3   | Service : tâches, export en flux vers R2, centre (API), expiration                       | fait    |
+| 4   | Import : envoi, lecture par plages, validation, tout ou rien ; duplication               | fait    |
+| 5   | Interface : boutons des réglages, Profil › Mes exports, import depuis la liste           | fait    |
 | 6   | Déploiement (image, rôles, secrets, route de la gateway), staging puis prod              | à faire |

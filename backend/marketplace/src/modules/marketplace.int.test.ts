@@ -118,6 +118,25 @@ describe.skipIf(!TEST_DATABASE_URL)('marketplace', () => {
     return { ...d, mod };
   }
 
+  it('sans revue préalable : en ligne dès la soumission', async () => {
+    await t.close();
+    t = await testApp({ MARKETPLACE_PRE_REVIEW: 'off' });
+    h = helpers(t);
+    creator = await t.user();
+    buyer = await t.user();
+    const { listing, version } = await draftListing();
+    const submitted = await h.ok(
+      creator,
+      'POST',
+      `/v1/marketplace/studio/versions/${version.id}/submit`,
+      { rightsAttested: true },
+    );
+    expect(submitted.status).toBe('published');
+    const res = await h.request(buyer, 'GET', `/v1/marketplace/listings/${listing.slug}`);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().currentVersion?.id ?? res.json().versions?.[0]?.id).toBe(version.id);
+  });
+
   it('du brouillon à la publication : copie des fichiers, revue, catalogue', async () => {
     const { listing, version, files } = await draftListing();
     expect(version.counts).toEqual({ scenes: 1, npcTemplates: 0, objectTemplates: 1, assets: 2 });

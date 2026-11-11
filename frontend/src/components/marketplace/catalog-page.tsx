@@ -38,8 +38,9 @@ import {
 } from '@/lib/marketplace/api';
 import { KIND_LABELS } from '@/lib/marketplace/format';
 import { useSystemes } from '@/lib/systemes';
-import { Chip, KIND_ICONS, MarketplaceTabs } from './elements';
+import { Chip, KIND_ICONS } from './elements';
 import { ListingTile, ListingTileSkeleton } from './listing-tile';
+import { PublishButton } from './publish-dialog';
 
 /** Tris du catalogue et leur clé de libellé (`catalog.sorts.*`, `catalog.sortTips.*`). */
 const SORTS: Record<CatalogSort, 'popular' | 'recent' | 'rating' | 'priceAsc' | 'priceDesc'> = {
@@ -101,7 +102,7 @@ export function CatalogPage() {
     <Page large>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{t('title')}</h1>
-        <MarketplaceTabs />
+        <PublishButton />
       </header>
 
       <div className="mb-5 space-y-3">

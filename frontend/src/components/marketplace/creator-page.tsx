@@ -8,7 +8,6 @@ import { EtatVide, Page } from '@/components/commun/page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { messageErreur } from '@/lib/api';
 import { useCreatorPage } from '@/lib/marketplace/api';
-import { MarketplaceTabs } from './elements';
 import { ListingTile } from './listing-tile';
 
 export function CreatorPage({ slug }: Readonly<{ slug: string }>) {
@@ -26,7 +25,6 @@ export function CreatorPage({ slug }: Readonly<{ slug: string }>) {
             <Skeleton className="h-8 w-48" />
           )}
         </div>
-        <MarketplaceTabs />
       </header>
       {page.isError && <Message>{messageErreur(page.error)}</Message>}
       {page.data?.creator.bio && (

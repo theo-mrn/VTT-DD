@@ -9,7 +9,7 @@ export default {
     label: 'Marketplace',
     catalog: 'Catalogue',
     library: 'Bibliothèque',
-    studio: 'Studio',
+    studio: 'Publier',
     moderation: 'Modération',
   },
   price: {

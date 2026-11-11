@@ -13,8 +13,8 @@ import {
   Shield,
   Star,
   Store,
+  Upload,
   Users,
-  Wand2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -32,7 +32,7 @@ type Section = 'catalog' | 'library' | 'studio' | 'moderation';
 const TABS: { section: Section; href: string; icon: typeof Store }[] = [
   { section: 'catalog', href: '/marketplace', icon: Store },
   { section: 'library', href: '/marketplace/library', icon: Library },
-  { section: 'studio', href: '/marketplace/studio', icon: Wand2 },
+  { section: 'studio', href: '/marketplace/studio', icon: Upload },
   { section: 'moderation', href: '/marketplace/moderation', icon: Shield },
 ];
 

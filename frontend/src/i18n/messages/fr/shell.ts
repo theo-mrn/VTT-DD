@@ -15,6 +15,7 @@ export default {
     security: 'Sécurité',
     shortcuts: 'Raccourcis',
     apiKeys: 'Clés d’API',
+    backups: 'Sauvegardes',
     subscription: 'Abonnement',
     payment: 'Paiement',
     paymentSuccess: 'Confirmé',

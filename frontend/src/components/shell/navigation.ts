@@ -1,4 +1,5 @@
 import {
+  Archive,
   CreditCard,
   Dices,
   Home,
@@ -36,6 +37,7 @@ export const NAV_PRINCIPALE: LienNav[] = [
   { href: '/resources', label: 'resources', icone: Library },
   { href: '/des', label: 'dice', icone: Dices },
   { href: '/marketplace', label: 'marketplace', icone: Package },
+  { href: '/backups', label: 'backups', icone: Archive },
 ];
 
 export const NAV_SOCIALE: LienNav[] = [{ href: '/amis', label: 'friends', icone: Users }];
@@ -70,6 +72,7 @@ export const LIBELLES_SEGMENTS: Partial<Record<string, NavLabel>> = {
   securite: 'security',
   raccourcis: 'shortcuts',
   'cles-api': 'apiKeys',
+  backups: 'backups',
   abonnement: 'subscription',
   paiement: 'payment',
   succes: 'paymentSuccess',

@@ -57,6 +57,11 @@ export const MarketplaceConfig = BaseConfig.extend({
    * un prix non nul est refusé. À passer à on avec STRIPE_CONNECT=on dans billing.
    */
   MARKETPLACE_PAID_LISTINGS: z.enum(['on', 'off']).default('off'),
+  /**
+   * Revue préalable par un modérateur (docs/marketplace.md § 5) : off, une version soumise est
+   * en ligne tout de suite (modération après coup : signalements, retrait).
+   */
+  MARKETPLACE_PRE_REVIEW: z.enum(['on', 'off']).default('off'),
   /** Comptes modérateurs (identifiants séparés par des virgules). */
   MARKETPLACE_MODERATORS: uuidList,
   /** Soumissions de versions par créateur et par jour. */

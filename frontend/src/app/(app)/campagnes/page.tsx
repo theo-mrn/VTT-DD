@@ -1,6 +1,6 @@
 'use client';
 
-import { KeyRound, Plus, Search, Swords } from 'lucide-react';
+import { Archive, KeyRound, Plus, Search, Swords } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -13,6 +13,7 @@ import { Message } from '@/components/compte/elements';
 import { EnTetePage, EtatVide, Page, TitreSection } from '@/components/commun/page';
 import { Button } from '@/components/ui/button';
 import { InputGroup } from '@/components/ui/input';
+import { Info } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { messageErreur } from '@/lib/api';
 import { useCampagnes } from '@/lib/campagnes';
@@ -29,6 +30,7 @@ function ListeCampagnes() {
   const [filtre, setFiltre] = useState<Filtre>('toutes');
   const [recherche, setRecherche] = useState('');
   const rejoindre = params.get('rejoindre') === '1';
+  const ta = useTranslations('archives');
 
   const liste = useMemo(() => {
     const q = recherche.trim().toLowerCase();
@@ -58,6 +60,13 @@ function ListeCampagnes() {
         description={t('lead')}
         actions={
           <>
+            <Info texte={ta('page')}>
+              <Button variant="secondary" size="icon" aria-label={ta('page')} asChild>
+                <Link href="/backups">
+                  <Archive />
+                </Link>
+              </Button>
+            </Info>
             <Button variant="secondary" onClick={() => ouvrirRejoindre(true)}>
               <KeyRound />
               {t('joinWithCode')}

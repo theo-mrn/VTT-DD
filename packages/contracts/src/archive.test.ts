@@ -32,7 +32,13 @@ const manifest = (extra: Record<string, unknown> = {}) => ({
     character: { schemaVersion: '0021', tables: { characters: 4 } },
   },
   files: [
-    { key: `campaigns/${CAMPAIGN}/fond.webp`, sha256: SHA, size: 1200, contentType: 'image/webp' },
+    {
+      index: 0,
+      key: `campaigns/${CAMPAIGN}/fond.webp`,
+      sha256: SHA,
+      size: 1200,
+      contentType: 'image/webp',
+    },
   ],
   ...extra,
 });
@@ -81,10 +87,11 @@ describe('chemins du zip', () => {
       service: 'campaign',
       table: 'map_obstacles',
     });
-    expect(parseArchivePath(archiveFilePath(SHA))).toEqual({ kind: 'file', sha256: SHA });
+    expect(parseArchivePath(archiveFilePath(12))).toEqual({ kind: 'file', index: 12 });
+    expect(parseArchivePath('files/012')).toBeNull();
     expect(parseArchivePath('tables/dice/rolls.json')).toBeNull();
     expect(parseArchivePath('../manifest.json')).toBeNull();
-    expect(parseArchivePath(`files/${SHA}/../../x`)).toBeNull();
+    expect(parseArchivePath('files/1/../../x')).toBeNull();
   });
 });
 
@@ -113,6 +120,12 @@ describe('adresses de fichiers', () => {
         `characters/${CHARACTER}/portrait.webp`,
       ].sort(),
     );
+  });
+
+  it('laisse en adresse une clé refusée', () => {
+    const { value, keys } = toFileRefs(row, BASE, (k) => k.startsWith('campaigns/'));
+    expect(value.html).toContain(`${BASE}/characters/${CHARACTER}/portrait.webp`);
+    expect([...keys].every((k) => k.startsWith('campaigns/'))).toBe(true);
   });
 
   it('revient aux adresses publiques, éventuellement sur un autre stockage', () => {

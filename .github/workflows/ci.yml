@@ -127,7 +127,7 @@ jobs:
       # applique, annule puis réapplique : un rollback cassé fait échouer la CI.
       - name: Migrations Liquibase (applique, annule, réapplique)
         run: |
-          for svc in identity character campaign dice billing history audio marketplace library; do
+          for svc in identity character campaign dice billing history audio marketplace library archive; do
             infra/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
           done
       - name: Droits et contraintes du schéma identity
@@ -148,6 +148,8 @@ jobs:
         run: bash infra/postgres/tests/marketplace-droits.sh
       - name: Droits et contraintes du schéma library
         run: bash infra/postgres/tests/library-droits.sh
+      - name: Droits et contraintes du schéma archive
+        run: bash infra/postgres/tests/archive-droits.sh
       # Tests d'intégration des services sur la base migrée ci-dessus, avec le rôle
       # du service (jamais le propriétaire) : ils sont ignorés dans le job qualité.
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -224,6 +226,13 @@ jobs:
         run: |
           pnpm turbo run build --filter '@vtt/library^...'
           pnpm --filter @vtt/library exec vitest run --coverage.enabled --coverage.reporter=lcov
+      # Export et import des campagnes : file des tâches et centre sur un Postgres réel
+      - name: Tests d'intégration archive (Postgres réel)
+        env:
+          TEST_DATABASE_URL: postgres://archive_svc:archive-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/archive^...'
+          pnpm --filter @vtt/archive exec vitest run --coverage.enabled --coverage.reporter=lcov
       # Pas de base : canal durable sur JetStream, plusieurs réplicas reliés par Valkey
       - name: Tests d'intégration realtime (NATS et Valkey réels)
         env:

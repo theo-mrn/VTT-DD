@@ -19,7 +19,7 @@ import { messageErreur } from '@/lib/api';
 import { useCampagnes } from '@/lib/campagnes';
 import { useLibrary } from '@/lib/marketplace/api';
 import { countsLabel } from '@/lib/marketplace/format';
-import { Cover, MarketplaceTabs } from './elements';
+import { Cover } from './elements';
 import { InstallDialog } from './install-dialog';
 
 /** Une installation est en retard sur la dernière version publiée. */
@@ -43,7 +43,6 @@ export function LibraryPage() {
     <Page large>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{t('title')}</h1>
-        <MarketplaceTabs />
       </header>
 
       {library.isError && <Message>{messageErreur(library.error)}</Message>}

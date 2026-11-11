@@ -3,8 +3,6 @@ export default {
   /** Page « Studio » : profil de créateur, ses packs. */
   page: {
     title: 'Studio',
-    setupTitle: 'Publiez vos créations',
-    setupAction: 'Créer mon profil de créateur',
     myPacks: 'Mes packs',
     newPack: 'Nouveau pack',
     /** Titre donné à un pack à sa création (écrit dans les données, modifiable ensuite). */
@@ -12,13 +10,6 @@ export default {
     noPacks: 'Aucun pack',
     editProfile: 'Modifier',
     publicPage: 'Page publique',
-  },
-  creator: {
-    title: 'Profil de créateur',
-    description: 'Nom et présentation affichés sur vos packs.',
-    name: 'Nom public',
-    bio: 'Présentation',
-    saved: 'Profil enregistré',
   },
   row: {
     openVersion: 'v{number} · {status}',

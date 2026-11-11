@@ -4,21 +4,12 @@ import type { Translation } from '../../../types';
 export default {
   page: {
     title: 'Studio',
-    setupTitle: 'Publish your creations',
-    setupAction: 'Create my creator profile',
     myPacks: 'My packs',
     newPack: 'New pack',
     newPackTitle: 'New pack',
     noPacks: 'No packs',
     editProfile: 'Edit',
     publicPage: 'Public page',
-  },
-  creator: {
-    title: 'Creator profile',
-    description: 'Name and bio shown on your packs.',
-    name: 'Public name',
-    bio: 'Bio',
-    saved: 'Profile saved',
   },
   row: {
     openVersion: 'v{number} · {status}',

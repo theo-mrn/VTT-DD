@@ -1,0 +1,25 @@
+/** Publier sur la marketplace en un geste : choisir, vérifier, envoyer en revue. */
+export default {
+  action: 'Publier',
+  kinds: { scene: 'Scène', character: 'Personnage' },
+  noCharacter: 'Aucun personnage dans cette campagne',
+  chooseCampaign: 'Choisir une campagne',
+  back: 'Retour',
+  noCampaign: 'Aucune campagne',
+  noScene: 'Aucune scène dans cette campagne',
+  name: 'Titre',
+  summary: 'Résumé',
+  cover: 'Couverture',
+  changeCover: 'Changer',
+  noCover: 'Choisissez une image de couverture',
+  attest: 'Je détiens les droits sur tout ce contenu',
+  submit: 'Publier',
+  steps: {
+    listing: 'Création de la fiche',
+    cover: 'Couverture',
+    content: 'Envoi du contenu',
+    review: 'Mise en ligne',
+  },
+  done: 'Publié',
+  mine: 'Mes publications',
+} as const;

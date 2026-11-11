@@ -27,6 +27,7 @@ COPY backend/audio/package.json ./backend/audio/
 COPY backend/marketplace/package.json ./backend/marketplace/
 COPY backend/voice/package.json ./backend/voice/
 COPY backend/library/package.json ./backend/library/
+COPY backend/archive/package.json ./backend/archive/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY backend/platform/package.json ./backend/platform/
 COPY packages/rules/package.json ./packages/rules/

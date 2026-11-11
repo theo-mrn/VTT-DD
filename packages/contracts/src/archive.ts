@@ -7,7 +7,8 @@
  * - `tables/<service>/<table>.json` : les lignes de la table, telles que le service les lit
  *   (noms de colonnes en camelCase). Chaque service choisit ses tables et retire ce qui n'est pas
  *   au MJ ; il relit lui-même ses lignes à l'import.
- * - `files/<sha256>` : chaque contenu une seule fois. Dans les lignes, l'adresse publique d'un
+ * - `files/<n>` : un fichier par clé R2, numéroté ; le manifeste donne sa clé, sa taille, son
+ *   type et son empreinte (vérifiée à l'import). Dans les lignes, l'adresse publique d'un
  *   fichier de la campagne devient `yner-file:<clé R2 d'origine>` (`toFileRefs`).
  *
  * À l'import, tous les identifiants de l'archive sont renouvelés d'un coup, jusque dans les JSON,
@@ -72,6 +73,8 @@ export const ArchiveFileKey = z
   });
 
 export const ArchiveFile = z.strictObject({
+  /** Rang de l'entrée `files/<index>` du zip. */
+  index: z.number().int().nonnegative(),
   key: ArchiveFileKey,
   sha256: Sha256,
   size: z.number().int().nonnegative(),
@@ -102,10 +105,12 @@ export const ArchiveManifest = z
     services: z.partialRecord(ArchiveService, ArchiveServiceManifest),
     files: z.array(ArchiveFile).max(ARCHIVE_LIMITS.files),
   })
-  .refine((m) => new Set(m.files.map((f) => f.key)).size === m.files.length, {
-    message: 'Fichiers en double',
-    path: ['files'],
-  })
+  .refine(
+    (m) =>
+      new Set(m.files.map((f) => f.key)).size === m.files.length &&
+      new Set(m.files.map((f) => f.index)).size === m.files.length,
+    { message: 'Fichiers en double', path: ['files'] },
+  )
   .refine(
     (m) =>
       Object.values(m.services).reduce(
@@ -149,12 +154,12 @@ export type ArchiveServiceImport = z.infer<typeof ArchiveServiceImport>;
 export const ARCHIVE_MANIFEST_PATH = 'manifest.json';
 export const archiveTablePath = (service: ArchiveService, table: string) =>
   `tables/${service}/${table}.json`;
-export const archiveFilePath = (sha256: string) => `files/${sha256}`;
+export const archiveFilePath = (index: number) => `files/${index}`;
 
 export type ArchivePath =
   | { kind: 'manifest' }
   | { kind: 'table'; service: ArchiveService; table: string }
-  | { kind: 'file'; sha256: string };
+  | { kind: 'file'; index: number };
 
 /** Ce que désigne un chemin du zip ; null pour tout autre chemin (refusé à l'import). */
 export function parseArchivePath(path: string): ArchivePath | null {
@@ -164,8 +169,8 @@ export function parseArchivePath(path: string): ArchivePath | null {
     const service = ArchiveService.safeParse(table[1]);
     return service.success ? { kind: 'table', service: service.data, table: table[2]! } : null;
   }
-  const file = /^files\/([0-9a-f]{64})$/.exec(path);
-  return file ? { kind: 'file', sha256: file[1]! } : null;
+  const file = /^files\/(0|[1-9]\d{0,8})$/.exec(path);
+  return file ? { kind: 'file', index: Number(file[1]) } : null;
 }
 
 // ─── Adresses de fichiers ────────────────────────────────────────────────────
@@ -194,7 +199,12 @@ const KEY_CHARS = '[A-Za-z0-9_.\\-/]+';
  * milieu d'un texte ou d'un HTML) par `yner-file:<clé>` et rend les clés trouvées. Les autres
  * adresses (packs de la marketplace, bibliothèque, sites tiers) restent telles quelles.
  */
-export function toFileRefs<T>(value: T, publicBase: string): { value: T; keys: Set<string> } {
+export function toFileRefs<T>(
+  value: T,
+  publicBase: string,
+  /** Clés acceptées (fichiers de la campagne et de ses personnages) ; les autres restent des adresses. */
+  accept: (key: string) => boolean = () => true,
+): { value: T; keys: Set<string> } {
   const base = publicBase.replace(/\/+$/, '');
   const folders = ARCHIVE_FILE_FOLDERS.map(escapeRegExp).join('|');
   const pattern = new RegExp(`${escapeRegExp(base)}/((?:${folders})/${KEY_CHARS})`, 'g');
@@ -203,7 +213,7 @@ export function toFileRefs<T>(value: T, publicBase: string): { value: T; keys: S
     s.includes(base)
       ? s.replace(pattern, (match, key: string) => {
           const clean = key.replace(/[./]+$/, '');
-          if (!ArchiveFileKey.safeParse(clean).success) return match;
+          if (!ArchiveFileKey.safeParse(clean).success || !accept(clean)) return match;
           keys.add(clean);
           return `${FILE_REF_PREFIX}${clean}${key.slice(clean.length)}`;
         })
@@ -257,3 +267,77 @@ export function fileOwner(key: string): { folder: string; ownerId: string } | nu
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+// ─── Tâches et centre des exports (API publique, docs/export-campagne.md § 6) ─────
+
+export const ARCHIVE_JOB_KINDS = ['export', 'import', 'duplicate'] as const;
+export const ArchiveJobKind = z.enum(ARCHIVE_JOB_KINDS);
+export type ArchiveJobKind = z.infer<typeof ArchiveJobKind>;
+
+/** `uploading` : import en attente de son fichier ; `ready` : archive prête ou campagne créée. */
+export const ARCHIVE_JOB_STATUSES = ['uploading', 'pending', 'running', 'ready', 'failed'] as const;
+export const ArchiveJobStatus = z.enum(ARCHIVE_JOB_STATUSES);
+export type ArchiveJobStatus = z.infer<typeof ArchiveJobStatus>;
+
+export const ARCHIVE_JOB_STEPS = ['collect', 'files', 'write', 'read', 'create', 'done'] as const;
+export const ArchiveJobStep = z.enum(ARCHIVE_JOB_STEPS);
+export type ArchiveJobStep = z.infer<typeof ArchiveJobStep>;
+
+export const ArchiveJob = z.object({
+  id: z.uuid(),
+  kind: ArchiveJobKind,
+  status: ArchiveJobStatus,
+  step: ArchiveJobStep.nullable(),
+  /** Avancement de 0 à 1. */
+  progress: z.number().min(0).max(1),
+  /** Campagne exportée ou dupliquée (source). */
+  sourceCampaignId: z.uuid().nullable(),
+  /** Campagne créée (import, duplication), une fois prête. */
+  campaignId: z.uuid().nullable(),
+  /** Nom de la campagne (source, ou lue dans l'archive). */
+  campaignName: z.string().nullable(),
+  keepProgress: z.boolean(),
+  /** Taille de l'archive (export prêt, import envoyé). */
+  size: z.number().int().nonnegative().nullable(),
+  /** Code d'erreur (`ARCHIVE_ERRORS`, `storage_quota_exceeded`…). */
+  error: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  /** Fin de conservation de l'archive (export prêt). */
+  expiresAt: z.iso.datetime().nullable(),
+});
+export type ArchiveJob = z.infer<typeof ArchiveJob>;
+
+export const ArchiveJobList = z.object({ jobs: z.array(ArchiveJob) });
+export type ArchiveJobList = z.infer<typeof ArchiveJobList>;
+
+export const CreateArchiveExport = z.strictObject({
+  campaignId: z.uuid(),
+  keepProgress: z.boolean().default(true),
+});
+export type CreateArchiveExport = z.input<typeof CreateArchiveExport>;
+
+export const CreateArchiveDuplicate = z.strictObject({
+  campaignId: z.uuid(),
+  keepProgress: z.boolean().default(false),
+});
+export type CreateArchiveDuplicate = z.input<typeof CreateArchiveDuplicate>;
+
+export const ArchiveImportUploadRequest = z.strictObject({
+  size: z.number().int().positive().max(ARCHIVE_LIMITS.bytes),
+});
+export type ArchiveImportUploadRequest = z.infer<typeof ArchiveImportUploadRequest>;
+
+/** Envoi direct vers R2 (PUT, taille signée), puis `POST /v1/archives/jobs/:id/start`. */
+export const ArchiveImportUploadTicket = z.object({
+  job: ArchiveJob,
+  uploadUrl: z.url(),
+  expiresIn: z.number().int().positive(),
+});
+export type ArchiveImportUploadTicket = z.infer<typeof ArchiveImportUploadTicket>;
+
+export const ArchiveDownloadTicket = z.object({
+  url: z.url(),
+  expiresIn: z.number().int().positive(),
+});
+export type ArchiveDownloadTicket = z.infer<typeof ArchiveDownloadTicket>;

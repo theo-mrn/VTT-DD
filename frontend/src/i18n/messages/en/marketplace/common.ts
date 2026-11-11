@@ -6,7 +6,7 @@ export default {
     label: 'Marketplace',
     catalog: 'Catalog',
     library: 'Library',
-    studio: 'Studio',
+    studio: 'Publish',
     moderation: 'Moderation',
   },
   price: {

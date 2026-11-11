@@ -40,7 +40,7 @@ import {
   useMarketplaceMutation,
   useModerationQueue,
 } from '@/lib/marketplace/api';
-import { Cover, MarketplaceTabs, WarningBadges } from './elements';
+import { Cover, WarningBadges } from './elements';
 import { useStudioLabels } from './studio-labels';
 
 type Listing = Omit<StudioListing, 'versions'>;
@@ -55,7 +55,6 @@ export function ModerationPage() {
     <Page large>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{t('title')}</h1>
-        <MarketplaceTabs />
       </header>
       {me.data && !moderator && <EtatVide icone={ShieldAlert} titre={t('reserved')} />}
       {queue.isError && <Message>{messageErreur(queue.error)}</Message>}
