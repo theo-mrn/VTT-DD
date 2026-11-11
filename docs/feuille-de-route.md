@@ -73,7 +73,7 @@ Depuis le 2026-10-07, les changements sont poussés directement sur `main` (PR s
 - ✅ Portails, mesures, gabarits de sorts, zones sonores, météo
 - ✅ Pings, curseurs partagés, bulles, aimantation, barre personnalisable, plein écran
 - ✅ Trajet de déplacement affiché
-- ➕ Import de cartes avec murs automatiques (Universal VTT / `.dd2vtt`)
+- ✅ Import de cartes Universal VTT (`.dd2vtt`, `.uvtt`, `.df2vtt`) : fond, grille, murs, portes, lumières (docs/import-uvtt.md)
 - ➕ Élévation des tokens (vol), étages d'un même bâtiment
 - 🟡 Vitesse de déplacement D&D à déclarer (`carte.deplacement.attribut`) pour comparer au trajet
 
@@ -96,7 +96,7 @@ Depuis le 2026-10-07, les changements sont poussés directement sur `main` (PR s
 
 - ✅ Chat, messages privés, indicateur de frappe
 - 🟡 Activité Discord : le bot est en ligne, l'activité côté site reste à faire
-- ➕ Voix et vidéo intégrées (aujourd'hui, tout passe par Discord)
+- ✅ Voix intégrée (Cloudflare Realtime, docs/voix.md) ; ➕ vidéo
 
 ## 8. Outils du MJ et contenu
 

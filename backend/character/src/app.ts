@@ -12,6 +12,7 @@ import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
 import { journalDes, sansDes } from './des/dice.js';
 import { droitsCampaign, sansCampagnes } from './droits/campaign.js';
+import { register as archive } from './modules/archive/index.js';
 import { register as interne } from './modules/interne/index.js';
 import { register as personnages } from './modules/personnages/index.js';
 import { register as sheetImport } from './modules/sheet-import/index.js';
@@ -74,7 +75,7 @@ export async function buildCharacter(
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [systemes, personnages, sheetImport, templates, interne]) {
+  for (const module of [systemes, personnages, sheetImport, templates, archive, interne]) {
     await module(app, deps);
   }
 

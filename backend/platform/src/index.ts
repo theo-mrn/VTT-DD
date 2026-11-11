@@ -23,3 +23,4 @@ export * from './orphans.js';
 export * from './strings.js';
 export * from './campaign-rights.js';
 export * from './outbox-entry.js';
+export * from './archive-tables.js';

@@ -23,6 +23,7 @@ import {
   Eye,
   EyeOff,
   Film,
+  FileUp,
   Folder,
   FolderInput,
   FolderPlus,
@@ -84,6 +85,7 @@ import { cn } from '@/lib/utils';
 import { openScene } from '../use-table-map';
 import { SceneDialog } from './scene-dialog';
 import { TravelDialog } from './travel-dialog';
+import { UvttImportDialog } from './uvtt-import-dialog';
 import {
   isVideoBackground,
   sceneFolderFilter,
@@ -148,6 +150,7 @@ export function ScenesPanel() {
   const personnages = usePersonnagesCampagne(campaignId);
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Editing>(null);
+  const [importing, setImporting] = useState(false);
   const [travelTo, setTravelTo] = useState<MapScene | null>(null);
   const [folder, setFolder] = useState<FolderState>(null);
   const [deleting, setDeleting] = useState<MapScene | null>(null);
@@ -251,6 +254,16 @@ export function ScenesPanel() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <Info texte={translate('map.scenes.uvtt.import')}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label={translate('map.scenes.uvtt.import')}
+            onClick={() => setImporting(true)}
+          >
+            <FileUp />
+          </Button>
+        </Info>
         <Button onClick={() => setEditing({ scene: null, groupId: newSceneGroup })}>
           <Plus />
           {translate('map.scenes.scene')}
@@ -340,6 +353,12 @@ export function ScenesPanel() {
         ))
       )}
 
+      <UvttImportDialog
+        campaignId={campaignId}
+        open={importing}
+        groupId={newSceneGroup}
+        onOpenChange={setImporting}
+      />
       <SceneDialog
         campaignId={campaignId}
         open={editing !== null}

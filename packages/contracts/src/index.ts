@@ -24,3 +24,4 @@ export * from './locale.js';
 export * from './voice.js';
 export * from './sheet-import.js';
 export * from './library.js';
+export * from './archive.js';

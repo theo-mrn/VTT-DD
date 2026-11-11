@@ -19,6 +19,7 @@ import { register as campaigns } from './modules/campaigns/index.js';
 import { register as characters } from './modules/characters/index.js';
 import { register as combat } from './modules/combat/index.js';
 import { register as handouts } from './modules/handouts/index.js';
+import { register as archive } from './modules/archive/index.js';
 import { register as internal } from './modules/internal/index.js';
 import { register as invitations } from './modules/invitations/index.js';
 import { register as maps } from './modules/maps/index.js';
@@ -100,6 +101,7 @@ export async function buildCampaign(
     automations,
     storage,
     media,
+    archive,
     internal,
   ]) {
     await module(app, deps);

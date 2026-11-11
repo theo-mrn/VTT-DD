@@ -5,6 +5,7 @@ import { campaignRights, noCampaigns } from './clients/campaign.js';
 import type { AudioConfig } from './config.js';
 import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
+import { register as archive } from './modules/archive/index.js';
 import { register as assets } from './modules/assets/index.js';
 import { register as catalog } from './modules/catalog/index.js';
 import { register as channels } from './modules/channels/index.js';
@@ -76,7 +77,17 @@ export async function buildAudio(
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [clock, catalog, assets, playlists, soundboard, channels, cues, mixer]) {
+  for (const module of [
+    clock,
+    catalog,
+    assets,
+    playlists,
+    soundboard,
+    channels,
+    cues,
+    mixer,
+    archive,
+  ]) {
     await module(app, deps);
   }
 
